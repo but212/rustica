@@ -1,0 +1,33 @@
+/target
+Cargo.lock
+
+# 빌드 아티팩트
+*.rlib
+*.d
+*.exe
+*.exe.*
+*.out
+*.out.*
+*.so
+*.dylib
+*.dll
+
+# IDE 및 편집기 관련 파일들
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+
+# 로그 파일들
+*.log
+
+# 시스템 파일들
+.DS_Store
+Thumbs.db
+
+# 기타
+*.rs.bk
+
