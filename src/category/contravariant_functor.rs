@@ -1,32 +1,7 @@
 use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 
-/// A ContravariantFunctor is a type constructor that provides a way to map a function over its contents
-/// in a contravariant way. Unlike regular functors that map from A to B, contravariant functors map
-/// from B to A, effectively reversing the direction of the transformation.
-///
-/// # Type Parameters
-/// * `T` - The type of value contained in the contravariant functor
-///
-/// # Laws
-/// A contravariant functor must satisfy these laws:
-/// 1. Identity: `f.contramap(|x| x) = f`
-/// 2. Composition: `f.contramap(g).contramap(h) = f.contramap(|x| g(h(x)))`
-///
-/// # Example
-/// ```rust
-/// // Predicate is a contravariant functor that wraps a function from T -> bool
-/// struct Predicate<T>(Box<dyn Fn(T) -> bool>);
-///
-/// impl<T> ContravariantFunctor<T> for Predicate<T> {
-///     fn contramap<U, F>(self, f: F) -> Predicate<U>
-///     where
-///         F: SendSyncFnTrait<U, T>
-///     {
-///         Predicate(Box::new(move |x| (self.0)(f.call(x))))
-///     }
-/// }
-/// ```
+/// A contravariant functor is a type constructor that provides a way to map a function over its contents
 pub trait ContravariantFunctor<T>: HKT + ReturnTypeConstraints
 where
     T: ReturnTypeConstraints,
