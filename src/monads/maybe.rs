@@ -3,7 +3,25 @@ use std::fmt::Debug;
 use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstraints};
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 
-/// A type that represents an optional value
+/// A type that represents an optional value.
+///
+/// The `Maybe` type is used to represent an optional value that can either be `Just`
+/// containing a value of type `T`, or `Nothing` indicating the absence of a value.
+///
+/// # Examples
+///
+/// ```
+/// use rustica::category::hkt::ReturnTypeConstraints;
+/// use rustica::monads::maybe::Maybe;
+///
+/// let just_value: Maybe<i32> = Maybe::Just(42);
+/// let nothing_value: Maybe<i32> = Maybe::Nothing;
+///
+/// assert!(just_value.is_just());
+/// assert!(!nothing_value.is_just());
+///
+/// assert_eq!(just_value.unwrap(), 42);
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Maybe<T>
 where
