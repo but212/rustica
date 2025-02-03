@@ -44,6 +44,13 @@ where
             Maybe::Nothing => None,
         }
     }
+
+    pub fn unwrap(self) -> T {
+        match self {
+            Maybe::Just(x) => x,
+            Maybe::Nothing => panic!("Tried to unwrap a Nothing value!"),
+        }
+    }
 }
 
 impl<T> Default for Maybe<T>
