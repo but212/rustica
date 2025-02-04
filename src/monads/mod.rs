@@ -6,6 +6,7 @@ pub mod reader;
 pub mod maybe;
 pub mod cont;
 pub mod async_monad;
+pub mod io;
 
 pub use maybe::Maybe;
 pub use reader::Reader;
@@ -15,3 +16,4 @@ pub use validated::Validated;
 pub use either::Either;
 pub use cont::Cont;
 pub use async_monad::AsyncM;
+pub use io::IO;
