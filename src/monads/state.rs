@@ -4,17 +4,6 @@ use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstrai
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 
 /// A state monad that represents a computation with access to mutable state.
-/// # Example
-/// ```
-/// use rustica::monads::state::State;
-/// 
-/// type S = i32;
-/// type A = i32;
-/// 
-/// let m = State::new(|s| s + 1);
-/// let m = m.modify(|a| a + 1);
-/// let m = m.get();
-/// ```
 #[derive(Clone)]
 pub struct State<S, A>
 where
