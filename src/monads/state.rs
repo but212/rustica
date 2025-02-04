@@ -6,7 +6,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 /// A state monad that represents a computation with access to mutable state.
 /// # Example
 /// ```
-/// use ica::monads::state::State;
+/// use rustica::monads::state::State;
 /// 
 /// type S = i32;
 /// type A = i32;
