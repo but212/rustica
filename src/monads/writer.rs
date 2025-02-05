@@ -5,7 +5,7 @@ use crate::category::{Applicative, Functor, HKT, Monad, Monoid, Pure, ReturnType
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 
 /// The writer monad.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct Writer<W, A>
 where
     W: ReturnTypeConstraints + Monoid,
@@ -13,35 +13,6 @@ where
 {
     run_writer: SendSyncFn<(), (A, W)>,
 }
-
-impl<W, A> Debug for Writer<W, A>
-where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (a, w) = self.run();
-        write!(f, "Writer({:?}, {:?})", a, w)
-    }
-}
-
-impl<W, A> PartialEq for Writer<W, A>
-where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
-{
-    fn eq(&self, other: &Self) -> bool {
-        let (a1, w1) = self.run();
-        let (a2, w2) = other.run();
-        a1 == a2 && w1 == w2
-    }
-}
-
-impl<W, A> Eq for Writer<W, A>
-where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
-{}
 
 impl<W, A> Writer<W, A>
 where

@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 /// A Reader monad that represents a computation with access to an environment.
-#[derive(Clone)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Reader<E, A>
 where
     E: ReturnTypeConstraints,
@@ -9,46 +9,6 @@ where
 {
     /// The function that reads from the environment.
     run: SendSyncFn<E, A>,
-}
-
-impl<E, A> std::fmt::Debug for Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Reader")
-            .field("run", &"<function>")
-            .finish()
-    }
-}
-
-impl<E, A> PartialEq for Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.run == other.run
-    }
-}
-
-impl<E, A> Eq for Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{}
-
-impl<E, A> Default for Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn default() -> Self {
-        Reader {
-            run: SendSyncFn::default(),
-        }
-    }
 }
 
 impl<E, A> Reader<E, A>

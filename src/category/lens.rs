@@ -3,7 +3,7 @@ use crate::fntype::SendSyncFn;
 use crate::prelude::*;
 
 /// A lens that focuses on a field of a struct.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Lens<S, A>
 where
     S: ReturnTypeConstraints,
@@ -80,51 +80,5 @@ where
         B: ReturnTypeConstraints,
     {
         Lens::new(get, set)
-    }
-}
-
-impl<S, A> PartialEq for Lens<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn eq(&self, other: &Self) -> bool {
-        let test_value = S::default();
-        let test_value_ref = &test_value;
-        let test_value_a = A::default();
-        self.get.call(test_value_ref.clone()) == other.get.call(test_value_ref.clone()) &&
-        self.set.call((test_value.clone(), test_value_a.clone())) == other.set.call((test_value, test_value_a))
-    }
-}
-
-impl<S, A> Eq for Lens<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{}
-
-impl<S, A> Debug for Lens<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Lens")
-            .field("get", &"<function>")
-            .field("set", &"<function>")
-            .finish()
-    }
-}
-
-impl<S, A> Default for Lens<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn default() -> Self {
-        Lens {
-            get: SendSyncFn::new(|_s: S| A::default()),
-            set: SendSyncFn::new(|_args: (S, A)| S::default()),
-        }
     }
 }

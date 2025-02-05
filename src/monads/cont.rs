@@ -1,11 +1,11 @@
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstraints};
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn};
 
 /// The continuation monad.
-#[derive(Clone, Eq)]
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Cont<R, A>
 where
     R: ReturnTypeConstraints,
@@ -13,43 +13,6 @@ where
 {
     /// The continuation function
     pub run_cont: SendSyncFn<SendSyncFn<A, R>, R>,
-}
-
-impl<R, A> PartialEq for Cont<R, A>
-where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn eq(&self, other: &Self) -> bool {
-        let k = SendSyncFn::new(move |_x: A| R::default());
-        let r1 = self.run_cont.call(k.clone());
-        let r2 = other.run_cont.call(k);
-        r1 == r2
-    }
-}
-
-impl<R, A> Debug for Cont<R, A>
-where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Cont")
-            .field("run_cont", &"<function>")
-            .finish()
-    }
-}
-
-impl<R, A> Default for Cont<R, A>
-where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn default() -> Self {
-        Cont {
-            run_cont: SendSyncFn::default(),
-        }
-    }
 }
 
 impl<R, A> Cont<R, A>

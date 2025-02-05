@@ -121,7 +121,7 @@ where
 }
 
 /// A monoid for functions that return a monoid.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MonoidFn<T, M>
 where
     T: ReturnTypeConstraints,
@@ -153,7 +153,7 @@ where
 }
 
 /// A function that implements Debug
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct DebugFn<T: ReturnTypeConstraints>(SendSyncFn<T, T>);
 
 impl<T: ReturnTypeConstraints> DebugFn<T> {
@@ -163,20 +163,6 @@ impl<T: ReturnTypeConstraints> DebugFn<T> {
     {
 
         DebugFn(SendSyncFn::new(move |a| f.call(a)))
-    }
-}
-
-impl<T: ReturnTypeConstraints> std::fmt::Debug for DebugFn<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DebugFn")
-            .field("function", &"<function>")
-            .finish()
-    }
-}
-
-impl<T: ReturnTypeConstraints> Default for DebugFn<T> {
-    fn default() -> Self {
-        DebugFn(SendSyncFn::new(|_: T| T::default()))
     }
 }
 

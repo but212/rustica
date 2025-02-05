@@ -11,31 +11,6 @@ pub trait Monoid: Semigroup {
     fn empty() -> Self;
 }
 
-impl<T, M> PartialEq for MonoidFn<T, M>
-where
-    T: ReturnTypeConstraints,
-    M: Monoid,
-{
-    /// Checks if two `MonoidFn` instances are equal.
-    ///
-    /// # Parameters
-    /// - `self`: The first `MonoidFn` instance.
-    /// - `other`: The second `MonoidFn` instance.
-    ///
-    /// # Returns
-    /// `true` if the two instances are equal, `false` otherwise.
-    fn eq(&self, other: &Self) -> bool {
-        let x = T::default();
-        self.apply(x.clone()) == other.apply(x)
-    }
-}
-
-impl<T, M> Eq for MonoidFn<T, M>
-where
-    T: ReturnTypeConstraints,
-    M: Monoid,
-{}
-
 impl<T, M> Semigroup for MonoidFn<T, M>
 where
     T: ReturnTypeConstraints,

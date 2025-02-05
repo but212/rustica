@@ -6,7 +6,7 @@ use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstrai
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 
 /// An async monad that represents an asynchronous computation.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct AsyncM<A>
 where
     A: ReturnTypeConstraints,
@@ -14,32 +14,6 @@ where
     /// The function that produces the future.
     run: SendSyncFn<(), A>,
 }
-
-impl<A> Debug for AsyncM<A>
-where
-    A: ReturnTypeConstraints,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AsyncM")
-            .field("run", &"<future>")
-            .finish()
-    }
-}
-
-impl<A> PartialEq for AsyncM<A>
-where
-    A: ReturnTypeConstraints,
-{
-    fn eq(&self, _other: &Self) -> bool {
-        // Futures cannot be compared for equality
-        false
-    }
-}
-
-impl<A> Eq for AsyncM<A>
-where
-    A: ReturnTypeConstraints,
-{}
 
 impl<A> AsyncM<A>
 where
