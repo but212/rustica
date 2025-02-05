@@ -1,86 +1,44 @@
-use std::fmt::Debug;
-
-use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstraints};
+use crate::category::{Monad, HKT, ReturnTypeConstraints, Pure, Applicative, Functor};
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 
-/// A state monad that represents a computation with access to mutable state.
-#[derive(Clone)]
+/// State struct representing a stateful computation.
+/// S: Type of the state.
+/// A: Type of the output.
+#[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct State<S, A>
 where
     S: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    /// The function that transforms the state and produces a value.
-    run: SendSyncFn<S, (A, S)>,
+    /// Function that runs the stateful computation.
+    pub run: SendSyncFn<S, (A, S)>,
 }
-
-impl<S, A> Debug for State<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("State")
-            .field("run", &"<function>")
-            .finish()
-    }
-}
-
-impl<S, A> Default for State<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn default() -> Self {
-        State {
-            run: SendSyncFn::default(),
-        }
-    }
-}
-
-impl<S, A> PartialEq for State<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.run == other.run
-    }
-}
-
-impl<S, A> Eq for State<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{}
 
 impl<S, A> State<S, A>
 where
     S: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    /// Creates a new state computation.
+    /// Creates a new State instance.
     pub fn new<F>(f: F) -> Self
     where
         F: SendSyncFnTrait<S, (A, S)>,
     {
-        State {
-            run: SendSyncFn::new(move |s| f.call(s)),
-        }
+        State { run: SendSyncFn::new(move |s| f.call(s)) }
     }
 
-    /// Runs the state computation with the given initial state.
+    /// Runs the stateful computation and returns the result and the new state.
     pub fn run_state(&self, s: S) -> (A, S) {
         self.run.call(s)
     }
 
-    /// Gets the value from the state computation.
+    /// Evaluates the stateful computation and returns the result, discarding the new state.
     pub fn eval_state(&self, s: S) -> A {
         let (a, _) = self.run_state(s);
         a
     }
 
-    /// Gets the final state from the state computation.
+    /// Executes the stateful computation and returns the new state, discarding the result.
     pub fn exec_state(&self, s: S) -> S {
         let (_, s) = self.run_state(s);
         s
@@ -101,7 +59,6 @@ where
     A: ReturnTypeConstraints,
 {
     fn pure(value: A) -> Self::Output<A> {
-        let value = value.clone();
         State::new(SendSyncFn::new(move |s| (value.clone(), s)))
     }
 }
@@ -209,13 +166,13 @@ where
         G: MonadFn<A, B, Self::Output<B>>,
         H: MonadFn<B, C, Self::Output<C>>,
     {
-        SendSyncFn::new(move |x| -> Self::Output<C> {
+        SendSyncFn::new(move |x| {
             g.call(x).bind(h.clone())
         })
     }
 }
 
-/// Gets the current state.
+/// Creates a stateful computation that returns the current state.
 pub fn get<S>() -> State<S, S>
 where
     S: ReturnTypeConstraints,
@@ -223,7 +180,7 @@ where
     State::new(SendSyncFn::new(|s: S| (s.clone(), s)))
 }
 
-/// Sets the state.
+/// Creates a stateful computation that updates the state and returns ().
 pub fn put<S>(s: S) -> State<S, ()>
 where
     S: ReturnTypeConstraints,
@@ -231,7 +188,7 @@ where
     State::new(SendSyncFn::new(move |_| ((), s.clone())))
 }
 
-/// Modifies the state.
+/// Creates a stateful computation that modifies the state using a function and returns ().
 pub fn modify<S, F>(f: F) -> State<S, ()>
 where
     S: ReturnTypeConstraints,
