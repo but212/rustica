@@ -87,8 +87,8 @@ use crate::category::semigroup::Semigroup;
 ///         file.read_to_string(&mut contents).unwrap();
 ///         contents
 ///     }));
-/// 
-///     let write_file = IO::new(SendSyncFn::new(move |_: ()| {
+///
+///     let write_file = SendSyncFn::new(move |contents: String| {
 ///         let mut file = match File::create("output.txt") {
 ///             Ok(file) => file,
 ///             Err(err) => {
@@ -96,18 +96,18 @@ use crate::category::semigroup::Semigroup;
 ///                 return;
 ///             }
 ///         };
-///         let contents = String::new();
 ///         file.write_all(contents.as_bytes()).unwrap();
-///     }));
-/// 
+///     });
+///
 ///     let combined = read_file.bind(SendSyncFn::new(move |contents| {
 ///         let modified_contents = format!("Modified: {}", contents);
-///         let write_file_clone = write_file.clone();
-///         write_file_clone.map(SendSyncFn::new(move |_: ()| {
-///             modified_contents.clone()
+///         let write_file_exec = write_file.clone();
+///         IO::new(SendSyncFn::new(move |_| {
+///             write_file_exec.call(modified_contents.clone());
+///             ()
 ///         }))
 ///     }));
-/// 
+///
 ///     combined.run();
 ///     Ok(())
 /// }
