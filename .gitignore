@@ -28,6 +28,9 @@ Cargo.lock
 .DS_Store
 Thumbs.db
 
+# doctest files
+input.txt
+output.txt
+
 # 기타
 *.rs.bk
-

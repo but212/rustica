@@ -7,12 +7,117 @@ use crate::category::pure::Pure;
 use crate::category::semigroup::Semigroup;
 
 /// The IO monad.
-/// it still needs a lot of work, Unimplemented!
+/// 
+/// Represents a computation that performs I/O operations in a functional way.
+/// The `IO` monad allows you to sequence operations that interact with the outside world,
+/// while maintaining a pure functional interface.
+/// 
+/// # Generic Arguments
+/// * `A` - The type of the output value produced by the computation.
+/// 
+/// # Fields
+/// * `run` - A function that performs the I/O operation.
+/// 
+/// # Methods
+/// * `new` - Creates a new I/O computation from a given function.
+/// * `run` - Executes the I/O computation and returns the result.
+/// 
+/// # Typeclass Implementations
+/// The `IO` monad implements the following typeclasses:
+/// * `HKT` - Higher-Kinded Types.
+/// * `Pure` - For embedding pure values in the monad.
+/// * `Functor` - For mapping functions over the result.
+/// * `Applicative` - For applying functions within the context.
+/// * `Monad` - For chaining computations.
+/// * `Composable` - For composing functions.
+/// * `Evaluate` - For evaluating the computation.
+/// * `Identity` - For creating identity computations.
+/// * `Semigroup` - For combining computations.
+/// * `Monoid` - For creating empty computations.
+/// 
+/// # Examples
+/// Basic usage:
+/// ```
+/// use rustica::prelude::*;
+/// use rustica::monads::io::*;
+/// 
+/// fn main() {
+///     let io_computation = IO::new(SendSyncFn::new(|_| "Hello, World!"));
+///     let result = io_computation.run();
+///     println!("{}", result);
+/// }
+/// ```
+/// 
+/// Sequencing computations:
+/// ```
+/// use rustica::prelude::*;
+/// use rustica::monads::io::*;
+/// 
+/// fn main() {
+///     let computation1 = IO::new(SendSyncFn::new(|_| "Hello"));
+///     let computation2 = IO::new(SendSyncFn::new(|_| "World"));
+///     let combined = computation1.bind(SendSyncFn::new(move |hello| {
+///         let computation2_clone = computation2.clone();
+///         computation2_clone.map(SendSyncFn::new(move |world| {
+///             format!("{}, {}!", hello, world)
+///         }))
+///     }));
+///     let result = combined.run();
+///     println!("{}", result);
+/// }
+/// ```
+/// 
+/// File IO:
+/// ```
+/// use std::fs::File;
+/// use std::io::{self, Read, Write};
+/// use rustica::prelude::*;
+/// use rustica::monads::io::*;
+/// 
+/// fn main() -> io::Result<()> {
+///     let read_file = IO::new(SendSyncFn::new(|_| {
+///         let mut file = match File::open("input.txt") {
+///             Ok(file) => file,
+///             Err(err) => {
+///                 eprintln!("Error opening file: {}", err);
+///                 return String::new();
+///             }
+///         };
+///         let mut contents = String::new();
+///         file.read_to_string(&mut contents).unwrap();
+///         contents
+///     }));
+/// 
+///     let write_file = IO::new(SendSyncFn::new(move |_: ()| {
+///         let mut file = match File::create("output.txt") {
+///             Ok(file) => file,
+///             Err(err) => {
+///                 eprintln!("Error creating file: {}", err);
+///                 return;
+///             }
+///         };
+///         let contents = String::new();
+///         file.write_all(contents.as_bytes()).unwrap();
+///     }));
+/// 
+///     let combined = read_file.bind(SendSyncFn::new(move |contents| {
+///         let modified_contents = format!("Modified: {}", contents);
+///         let write_file_clone = write_file.clone();
+///         write_file_clone.map(SendSyncFn::new(move |_: ()| {
+///             modified_contents.clone()
+///         }))
+///     }));
+/// 
+///     combined.run();
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct IO<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Function representing the I/O computation.
     pub run: SendSyncFn<(), A>,
 }
 
@@ -43,6 +148,7 @@ impl<A> Pure<A> for IO<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Creates a new IO computation that produces a pure value.
     fn pure(value: A) -> Self::Output<A> {
         Self::new(SendSyncFn::new(move |_s| value.clone()))
     }
@@ -52,6 +158,7 @@ impl<A> Functor<A> for IO<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Applies a function to the result of the IO computation.
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -66,6 +173,7 @@ impl<A> Applicative<A> for IO<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Applies a function wrapped in an IO computation to the result of another IO computation.
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -78,6 +186,7 @@ where
         IO { run: f }
     }
 
+    /// Lifts a binary function into IO computations.
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
         B: ReturnTypeConstraints,
@@ -91,6 +200,7 @@ where
         IO { run: f }
     }
 
+    /// Lifts a ternary function into IO computations.
     fn lift3<B, C, D, F>(self, mb: Self::Output<B>, mc: Self::Output<C>, f: F) -> Self::Output<D>
     where
         B: ReturnTypeConstraints,
@@ -111,6 +221,7 @@ impl<A> Monad<A> for IO<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Chains two IO computations together.
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -120,6 +231,7 @@ where
         IO { run: f }
     }
 
+    /// Flattens nested IO computations.
     fn join<B>(self) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -128,6 +240,7 @@ where
         self.bind(SendSyncFn::new(move |x: A| x.into()))
     }
 
+    /// Composes two monadic functions.
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
@@ -145,6 +258,7 @@ impl<A> Composable for IO<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Composes two functions.
     fn compose<T, U, V, F, G>(f: F, g: G) -> SendSyncFn<T, V>
     where
         T: ReturnTypeConstraints,
@@ -160,11 +274,11 @@ where
     }
 }
 
-
 impl<A> Evaluate<A> for IO<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Evaluates the IO computation and returns the result.
     fn evaluate(self) -> A {
         self.run.call(())
     }
@@ -174,6 +288,7 @@ impl<A> Identity for IO<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Creates an identity computation.
     fn identity<T>() -> Self::Output<T>
     where
         T: ReturnTypeConstraints,
@@ -186,6 +301,7 @@ impl<A> Semigroup for IO<A>
 where
     A: Semigroup + ReturnTypeConstraints,
 {
+    /// Combines two IO computations.
     fn combine(self, other: Self) -> Self {
         let f = SendSyncFn::new(move |_s| self.run.call(()).combine(other.run.call(())));
         IO { run: f }
@@ -196,6 +312,7 @@ impl<A> Monoid for IO<A>
 where
     A: Monoid + ReturnTypeConstraints,
 {
+    /// Creates an empty IO computation.
     fn empty() -> Self {
         IO::new(SendSyncFn::new(|_| A::empty()))
     }
