@@ -128,11 +128,3 @@ where
         }
     }
 }
-
-impl<S, A> HKT for Lens<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    type Output<T> = Lens<S, T> where T: ReturnTypeConstraints;
-}
