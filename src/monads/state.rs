@@ -48,6 +48,12 @@ where
     }
 }
 
+impl<S, A> Eq for State<S, A>
+where
+    S: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{}
+
 impl<S, A> State<S, A>
 where
     S: ReturnTypeConstraints,

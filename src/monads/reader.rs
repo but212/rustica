@@ -33,6 +33,12 @@ where
     }
 }
 
+impl<E, A> Eq for Reader<E, A>
+where
+    E: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{}
+
 impl<E, A> Default for Reader<E, A>
 where
     E: ReturnTypeConstraints,

@@ -85,6 +85,12 @@ where
     }
 }
 
+impl<S, A> Eq for FieldLens<S, A>
+where
+    S: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{}
+
 impl<S, A> Debug for FieldLens<S, A>
 where
     S: ReturnTypeConstraints,
@@ -143,7 +149,7 @@ where
 }
 
 /// A composed lens that focuses on a field through another lens.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComposedLens<S, A, B>
 where
     S: ReturnTypeConstraints,

@@ -37,6 +37,12 @@ where
     }
 }
 
+impl<W, A> Eq for Writer<W, A>
+where
+    W: ReturnTypeConstraints + Monoid,
+    A: ReturnTypeConstraints,
+{}
+
 impl<W, A> Writer<W, A>
 where
     W: ReturnTypeConstraints + Monoid,

@@ -36,6 +36,11 @@ where
     }
 }
 
+impl<A> Eq for AsyncM<A>
+where
+    A: ReturnTypeConstraints,
+{}
+
 impl<A> AsyncM<A>
 where
     A: ReturnTypeConstraints,

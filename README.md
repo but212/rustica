@@ -1,6 +1,6 @@
 # Rustica
 
-Rustica is a library designed to make functional programming features easily accessible in Rust. It provides a comprehensive set of type classes and utilities commonly found in functional programming languages.
+Rustica is a library designed to make functional programming features easily accessible in Rust. It provides a comprehensive set of type classes and utilities commonly found in functional programming languages. but some features are still missing or unimplemented.
 
 ## Features
 

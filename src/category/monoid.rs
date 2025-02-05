@@ -30,6 +30,12 @@ where
     }
 }
 
+impl<T, M> Eq for MonoidFn<T, M>
+where
+    T: ReturnTypeConstraints,
+    M: Monoid,
+{}
+
 impl<T, M> Semigroup for MonoidFn<T, M>
 where
     T: ReturnTypeConstraints,

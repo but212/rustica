@@ -50,6 +50,12 @@ where
     }
 }
 
+impl<I, O> Eq for SendSyncFn<I, O>
+where
+    I: ReturnTypeConstraints,
+    O: ReturnTypeConstraints,
+{}
+
 impl<I, O> Default for SendSyncFn<I, O>
 where
     I: ReturnTypeConstraints,
@@ -206,7 +212,7 @@ where
 {}
 
 /// A trait for functions that can be used in monadic operations
-pub trait MonadFn<A, B, M>: SendSyncFnTrait<A, M> + PartialEq
+pub trait MonadFn<A, B, M>: SendSyncFnTrait<A, M> + Eq
 where
     A: ReturnTypeConstraints,
     B: ReturnTypeConstraints,

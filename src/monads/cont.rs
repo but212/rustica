@@ -5,7 +5,7 @@ use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstrai
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn};
 
 /// The continuation monad.
-#[derive(Clone)]
+#[derive(Clone, Eq)]
 pub struct Cont<R, A>
 where
     R: ReturnTypeConstraints,

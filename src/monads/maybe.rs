@@ -22,7 +22,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 ///
 /// assert_eq!(just_value.unwrap(), 42);
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Maybe<T>
 where
     T: ReturnTypeConstraints,

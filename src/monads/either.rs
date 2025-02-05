@@ -4,7 +4,7 @@ use crate::category::{Applicative, Bifunctor, Functor, HKT, Monad, Pure, ReturnT
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 
 /// A type that represents one of two possible values
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Either<L, R>
 where
     L: ReturnTypeConstraints,

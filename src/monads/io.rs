@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 /// The IO monad.
 /// it still needs a lot of work, Unimplemented!
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct IO<A>
 where
     A: ReturnTypeConstraints,
