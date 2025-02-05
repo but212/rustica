@@ -23,4 +23,4 @@ Rustica currently includes the following features:
 - Validated
 - Either
 - Maybe
-- IO(unimplemented!)
+- IO

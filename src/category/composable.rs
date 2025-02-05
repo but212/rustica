@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-pub trait Compose {
+pub trait Composable {
     fn compose<T, U, V, F, G>(f: F, g: G) -> SendSyncFn<T, V>
     where
         T: ReturnTypeConstraints,

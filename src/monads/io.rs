@@ -1,4 +1,10 @@
 use crate::prelude::*;
+use crate::category::composable::Composable;
+use crate::category::evaluate::Evaluate;
+use crate::category::identity::Identity;
+use crate::category::monoid::Monoid;
+use crate::category::pure::Pure;
+use crate::category::semigroup::Semigroup;
 
 /// The IO monad.
 /// it still needs a lot of work, Unimplemented!
@@ -15,16 +21,14 @@ where
     A: ReturnTypeConstraints,
 {
     /// Creates a new IO computation.
-    pub fn new<F>(f: F) -> Self
-    where
-        F: SendSyncFnTrait<(), A>,
+    pub fn new(f: SendSyncFn<(), A>) -> Self
     {
-        IO { run: SendSyncFn::new(move |s| f.call(s)) }
+        IO { run: f }
     }
 
     /// Runs the IO computation.
     pub fn run(&self) -> A {
-        self.run.call(())
+        self.clone().evaluate()
     }
 }
 
@@ -63,11 +67,15 @@ where
     A: ReturnTypeConstraints,
 {
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
-        where
-            B: ReturnTypeConstraints,
-            F: ApplyFn<A, B>,
+    where
+        B: ReturnTypeConstraints,
+        F: ApplyFn<A, B>,
     {
-        unimplemented!()
+        let f = SendSyncFn::new(move |_s| {
+            let func = f.run.call(());
+            func.call(self.run.call(()))
+        });
+        IO { run: f }
     }
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
@@ -76,7 +84,11 @@ where
         C: ReturnTypeConstraints,
         F: ApplyFn<A, SendSyncFn<B, C>>,
     {
-        unimplemented!()
+        let f = SendSyncFn::new(move |_s| {
+            let fa = f.call(self.run.call(()));
+            fa.call(mb.run.call(()))
+        });
+        IO { run: f }
     }
 
     fn lift3<B, C, D, F>(self, mb: Self::Output<B>, mc: Self::Output<C>, f: F) -> Self::Output<D>
@@ -86,7 +98,12 @@ where
         D: ReturnTypeConstraints,
         F: ApplyFn<A, SendSyncFn<B, SendSyncFn<C, D>>>,
     {
-        unimplemented!()
+        let f = SendSyncFn::new(move |_s| {
+            let fa = f.call(self.run.call(()));
+            let fb = fa.call(mb.run.call(()));
+            fb.call(mc.run.call(()))
+        });
+        IO { run: f }
     }
 }
 
@@ -99,14 +116,16 @@ where
         B: ReturnTypeConstraints,
         F: SendSyncFnTrait<A, Self::Output<B>>,
     {
-        unimplemented!()
+        let f = SendSyncFn::new(move |_s| f.call(self.run.call(())).run.call(()));
+        IO { run: f }
     }
 
     fn join<B>(self) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
+        A: Into<Self::Output<B>>,
     {
-        unimplemented!()
+        self.bind(SendSyncFn::new(move |x: A| x.into()))
     }
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
@@ -119,5 +138,65 @@ where
         SendSyncFn::new(move |x| -> Self::Output<C> {
             g.call(x).bind(h.clone())
         })
+    }
+}
+
+impl<A> Composable for IO<A>
+where
+    A: ReturnTypeConstraints,
+{
+    fn compose<T, U, V, F, G>(f: F, g: G) -> SendSyncFn<T, V>
+    where
+        T: ReturnTypeConstraints,
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        F: SendSyncFnTrait<T, U>,
+        G: SendSyncFnTrait<U, V>,
+    {
+        SendSyncFn::new(move |x: T| {
+            let u: U = f.call(x);
+            g.call(u)
+        })
+    }
+}
+
+
+impl<A> Evaluate<A> for IO<A>
+where
+    A: ReturnTypeConstraints,
+{
+    fn evaluate(self) -> A {
+        self.run.call(())
+    }
+}
+
+impl<A> Identity for IO<A>
+where
+    A: ReturnTypeConstraints,
+{
+    fn identity<T>() -> Self::Output<T>
+    where
+        T: ReturnTypeConstraints,
+    {
+        IO { run: SendSyncFn::new(|_| panic!("Not implemented")) }
+    }
+}
+
+impl<A> Semigroup for IO<A>
+where
+    A: Semigroup + ReturnTypeConstraints,
+{
+    fn combine(self, other: Self) -> Self {
+        let f = SendSyncFn::new(move |_s| self.run.call(()).combine(other.run.call(())));
+        IO { run: f }
+    }
+}
+
+impl<A> Monoid for IO<A>
+where
+    A: Monoid + ReturnTypeConstraints,
+{
+    fn empty() -> Self {
+        IO::new(SendSyncFn::new(|_| A::empty()))
     }
 }

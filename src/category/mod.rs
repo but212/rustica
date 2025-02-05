@@ -1,5 +1,5 @@
 pub mod identity;
-pub mod compose;
+pub mod composable;
 pub mod applicative;
 pub mod bifunctor;
 pub mod comonad;

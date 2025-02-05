@@ -11,7 +11,7 @@ where
     /// Unlike a regular functor's map which applies a function T -> U,
     /// contramap applies a function U -> T, effectively reversing the
     /// direction of the transformation.
-    fn contramap<U, F>(self, f: F) -> Self::Output<U>
+    fn contravariant_map<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
         F: SendSyncFnTrait<U, T>;
@@ -23,7 +23,7 @@ where
     ///
     /// This is a helper method that composes two functions f: U -> T and g: V -> U
     /// to produce a function V -> T in a contravariant way.
-    fn compose<U, V, F, G>(f: F, g: G) -> SendSyncFn<V, T>
+    fn contravariant_compose<U, V, F, G>(f: F, g: G) -> SendSyncFn<V, T>
     where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
