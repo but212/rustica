@@ -15,16 +15,6 @@ where
         M::Output<A>: ReturnTypeConstraints,
         M::Output<Vec<A>>: ReturnTypeConstraints,
         T: Into<M>;
-
-    /// Transform a list of values into a list of actions, evaluate these actions from left to right,
-    /// and collect the results.
-    fn traverse<A, F>(self, f: F) -> Self::Output<Vec<A>>
-    where
-        A: ReturnTypeConstraints,
-        M: Monad<A> + Monad<Vec<A>>,
-        M::Output<A>: ReturnTypeConstraints,
-        M::Output<Vec<A>>: ReturnTypeConstraints,
-        F: FnMut(T) -> M::Output<A>;
 }
 
 /// Sequence a vector of Results into a Result of vector

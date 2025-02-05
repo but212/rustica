@@ -15,6 +15,7 @@ pub mod foldable;
 pub mod contravariant_functor;
 pub mod lens;
 pub mod sequence;
+pub mod traversable;
 
 pub use applicative::*;
 pub use bifunctor::*;
@@ -31,3 +32,4 @@ pub use foldable::*;
 pub use contravariant_functor::*;
 pub use lens::*;
 pub use sequence::*;
+pub use traversable::*;
