@@ -11,7 +11,7 @@ use crate::fntype::SendSyncFnTrait;
 /// use rustica::category::functor::Functor;
 /// use rustica::fntype::{SendSyncFn, SendSyncFnTrait};
 ///
-/// #[derive(Default, PartialEq, Debug, Clone)]
+/// #[derive(Default, PartialEq, Eq, Debug, Clone)]
 /// struct MyType<A>
 /// where
 ///     A: ReturnTypeConstraints,

@@ -10,7 +10,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// ```
 /// use rustica::prelude::*;
 ///
-/// #[derive(Debug, Clone, PartialEq, Default)]
+/// #[derive(Debug, Clone, PartialEq, Eq, Default)]
 /// struct Maybe<T>(Option<T>);
 ///
 /// impl<T> Pure<T> for Maybe<T>

@@ -44,7 +44,7 @@ impl<T: Clone + Debug + Eq + Send + Sync + Default + 'static> ReturnTypeConstrai
 /// // Define a type that implements the HKT trait
 /// use rustica::category::hkt::{HKT, ReturnTypeConstraints};
 /// 
-/// #[derive(Default, PartialEq, Debug, Clone)]
+/// #[derive(Default, PartialEq, Eq, Debug, Clone)]
 /// struct MyType<A>
 /// where
 ///     A: ReturnTypeConstraints,
