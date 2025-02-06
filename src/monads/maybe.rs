@@ -1,6 +1,10 @@
 use std::fmt::Debug;
 
-use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::functor::Functor;
+use crate::category::applicative::Applicative;
+use crate::category::monad::Monad;
+use crate::category::pure::Pure;
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 
 /// A type that represents an optional value.
@@ -20,7 +24,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 /// # Examples
 ///
 /// ```
-/// use rustica::category::hkt::ReturnTypeConstraints;
+/// use rustica::prelude::*;
 /// use rustica::monads::maybe::Maybe;
 ///
 /// let just_value: Maybe<i32> = Maybe::Just(42);

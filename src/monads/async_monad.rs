@@ -2,7 +2,11 @@ use std::fmt::Debug;
 use std::future::Future;
 use futures::future::FutureExt;
 
-use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::applicative::Applicative;
+use crate::category::functor::Functor;
+use crate::category::pure::Pure;
+use crate::category::monad::Monad;
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 
 /// An async monad that represents an asynchronous computation.

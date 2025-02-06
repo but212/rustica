@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::category::hkt::ReturnTypeConstraints;
 use crate::category::semigroup::Semigroup;
 use crate::fntype::MonoidFn;
 

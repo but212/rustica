@@ -1,4 +1,5 @@
-use crate::category::{Functor, ReturnTypeConstraints};
+use crate::category::functor::Functor;
+use crate::category::hkt::ReturnTypeConstraints;
 use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 
 /// A comonad is the categorical dual of a monad. While a monad adds a layer of context

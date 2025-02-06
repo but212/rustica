@@ -1,4 +1,6 @@
-use crate::prelude::*;
+use crate::fntype::SendSyncFn;
+use crate::fntype::SendSyncFnTrait;
+use crate::category::hkt::ReturnTypeConstraints;
 
 pub trait Composable {
     fn compose<T, U, V, F, G>(f: F, g: G) -> SendSyncFn<T, V>

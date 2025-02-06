@@ -1,7 +1,12 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use crate::category::{Applicative, Functor, HKT, Monad, Monoid, Pure, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::functor::Functor;
+use crate::category::applicative::Applicative;
+use crate::category::monad::Monad;
+use crate::category::pure::Pure;
+use crate::category::monoid::Monoid;
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 
 /// The writer monad.

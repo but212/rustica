@@ -1,4 +1,9 @@
-use crate::prelude::*;
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::functor::Functor;
+use crate::category::applicative::Applicative;
+use crate::category::monad::Monad;
+use crate::category::pure::Pure;
+use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn, ApplyFn};
 
 /// A Reader monad that represents a computation with access to an environment.
 /// 

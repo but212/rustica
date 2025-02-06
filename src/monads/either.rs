@@ -1,7 +1,12 @@
 use std::fmt::Debug;
 
-use crate::category::{Applicative, Bifunctor, Functor, HKT, Monad, Pure, ReturnTypeConstraints};
-use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::functor::Functor;
+use crate::category::applicative::Applicative;
+use crate::category::monad::Monad;
+use crate::category::pure::Pure;
+use crate::category::bifunctor::Bifunctor;
+use crate::fntype::{SendSyncFnTrait, SendSyncFn, ApplyFn, MonadFn};
 
 /// A type that represents one of two possible values.
 /// 

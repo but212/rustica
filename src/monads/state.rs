@@ -1,5 +1,9 @@
-use crate::category::{Monad, HKT, ReturnTypeConstraints, Pure, Applicative, Functor};
-use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::functor::Functor;
+use crate::category::applicative::Applicative;
+use crate::category::monad::Monad;
+use crate::category::pure::Pure;
+use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn, ApplyFn};
 
 /// State struct representing a stateful computation.
 /// 

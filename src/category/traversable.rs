@@ -1,4 +1,5 @@
-use crate::prelude::*;
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::fntype::SendSyncFnTrait;
 
 pub trait Traversable: HKT {
     fn traverse<T, U, F>(self, f: F) -> Self::Output<U>

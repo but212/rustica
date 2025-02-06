@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use crate::fntype::SendSyncFn;
-use crate::prelude::*;
+use crate::category::hkt::ReturnTypeConstraints;
 
 /// A lens that focuses on a field of a struct.
 /// 

@@ -7,9 +7,7 @@ use crate::fntype::SendSyncFnTrait;
 /// A trait for functors, which are type constructors that can map a function over their contents.
 /// # Example
 /// ```
-/// use rustica::category::hkt::{HKT, ReturnTypeConstraints};
-/// use rustica::category::functor::Functor;
-/// use rustica::fntype::{SendSyncFn, SendSyncFnTrait};
+/// use rustica::prelude::*;
 ///
 /// #[derive(Default, PartialEq, Eq, Debug, Clone)]
 /// struct MyType<A>

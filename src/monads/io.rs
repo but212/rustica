@@ -1,10 +1,14 @@
-use crate::prelude::*;
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::functor::Functor;
+use crate::category::applicative::Applicative;
+use crate::category::monad::Monad;
 use crate::category::composable::Composable;
 use crate::category::evaluate::Evaluate;
 use crate::category::identity::Identity;
 use crate::category::monoid::Monoid;
 use crate::category::pure::Pure;
 use crate::category::semigroup::Semigroup;
+use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 
 /// The IO monad.
 /// 

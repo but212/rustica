@@ -1,7 +1,11 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use crate::category::{Applicative, Functor, HKT, Monad, Pure, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::functor::Functor;
+use crate::category::applicative::Applicative;
+use crate::category::monad::Monad;
+use crate::category::pure::Pure;
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn};
 
 /// The continuation monad.
@@ -41,13 +45,14 @@ where
     }
 }
 
+
+
 impl<R, A> Pure<A> for Cont<R, A>
 where
     R: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    fn pure(value: A) -> Self::Output<A>
-    {
+    fn pure(value: A) -> Self::Output<A> {
         let value = Arc::new(value);
         Cont {
             run_cont: SendSyncFn::new(move |k: SendSyncFn<A, R>| k.call((*value).clone())),
