@@ -5,6 +5,15 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::fntype::SendSyncFnTrait;
 
 /// A trait for functors, which are type constructors that can map a function over their contents.
+/// 
+/// # Type Parameters
+/// * `T` - The type of value contained in the functor
+/// 
+/// # Laws
+/// A functor must satisfy these laws:
+/// 1. Identity: `map(|x| x) = functor`
+/// 2. Composition: `map(f).map(g) = map(|x| g(f(x)))`
+///
 /// # Example
 /// ```
 /// use rustica::prelude::*;
@@ -47,7 +56,7 @@ where
 {
     /// Maps a function over the contents of the functor.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The functor instance.
     /// - `f`: A function that takes a value of type `A` and returns a value of type `B`.
     ///
@@ -72,7 +81,7 @@ where
 {
     /// Maps a function over the contents of the vector.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The vector instance.
     /// - `f`: A function that takes a value of type `T` and returns a value of type `B`.
     ///
@@ -97,7 +106,7 @@ where
 {
     /// Maps a function over the contents of the box.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The box instance.
     /// - `f`: A function that takes a value of type `T` and returns a value of type `B`.
     ///
@@ -123,7 +132,7 @@ where
 {
     /// Maps a function over the contents of the hashmap.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The hashmap instance.
     /// - `f`: A function that takes a value of type `V` and returns a value of type `B`.
     ///

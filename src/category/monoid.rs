@@ -3,6 +3,9 @@ use crate::category::semigroup::Semigroup;
 use crate::fntype::MonoidFn;
 
 /// A monoid is a semigroup with an identity element.
+/// 
+/// # Type Parameters
+/// * `T` - The type of the elements in the monoid.
 pub trait Monoid: Semigroup {
     /// The identity element of the monoid.
     ///
@@ -18,7 +21,7 @@ where
 {
     /// Combines two `MonoidFn` instances.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The first `MonoidFn` instance.
     /// - `other`: The second `MonoidFn` instance.
     ///

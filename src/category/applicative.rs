@@ -4,6 +4,15 @@ use crate::fntype::{ApplyFn, SendSyncFn};
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A trait for applicative functors, which allow function application within a context.
+/// 
+/// # Type Parameters
+///
+/// * `T` - The type of the value within the applicative functor.
+/// 
+/// # Laws
+///
+/// 1. Identity: `applicative.map(|x| x) = applicative`
+/// 2. Composition: `applicative.map(f).map(g) = applicative.map(|x| g(f(x)))`
 ///
 /// # Example
 ///
@@ -119,7 +128,7 @@ where
 {
     /// Apply a wrapped function to a wrapped value.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The applicative functor instance.
     /// - `f`: A wrapped function that takes a value of type `A` and returns a value of type `B`.
     ///
@@ -136,7 +145,7 @@ where
 
     /// Lift a binary function to actions.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The applicative functor instance.
     /// - `b`: A wrapped value of type `B`.
     /// - `f`: A binary function that takes values of type `A` and `B` and returns a value of type `C`.
@@ -160,7 +169,7 @@ where
 
     /// Lift a ternary function to actions.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The applicative functor instance.
     /// - `b`: A wrapped value of type `B`.
     /// - `c`: A wrapped value of type `C`.

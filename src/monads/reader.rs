@@ -32,6 +32,12 @@ where
     A: ReturnTypeConstraints,
 {
     /// Creates a new reader computation.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to be called.
+    ///
+    /// # Returns
+    /// * `Reader<E, A>` - The reader computation.
     pub fn new<F>(f: F) -> Self
     where
         F: SendSyncFnTrait<E, A>,
@@ -42,6 +48,12 @@ where
     }
 
     /// Runs the reader computation with the given environment.
+    /// 
+    /// # Arguments
+    /// * `e` - The environment to run the reader computation with.
+    /// 
+    /// # Returns
+    /// * `A` - The result of the reader computation.
     pub fn run_reader(&self, e: E) -> A {
         self.run.call(e)
     }

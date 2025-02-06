@@ -20,6 +20,13 @@ where
     /// Left-associative fold of a structure.
     ///
     /// Combines elements from left to right using the provided function.
+    /// 
+    /// # Arguments
+    /// * `init` - The initial value to combine the elements with.
+    /// * `f` - The function to combine the elements.
+    /// 
+    /// # Returns
+    /// The result of the fold operation.
     fn fold_left<U, F>(self, init: U, f: F) -> U
     where
         U: ReturnTypeConstraints,
@@ -28,6 +35,13 @@ where
     /// Right-associative fold of a structure.
     ///
     /// Combines elements from right to left using the provided function.
+    /// 
+    /// # Arguments
+    /// * `init` - The initial value to combine the elements with.
+    /// * `f` - The function to combine the elements.
+    /// 
+    /// # Returns
+    /// The result of the fold operation.
     fn fold_right<U, F>(self, init: U, f: F) -> U
     where
         U: ReturnTypeConstraints,
@@ -37,12 +51,21 @@ where
     ///
     /// This is equivalent to mapping each element to a monoid value and then
     /// combining all the results using the monoid's combine operation.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to map elements to a monoid value.
+    /// 
+    /// # Returns
+    /// The combined result.
     fn fold_map<M, F>(self, f: F) -> M
     where
         M: Monoid + ReturnTypeConstraints,
         F: SendSyncFnTrait<T, M>;
 
     /// Returns the number of elements in the structure.
+    /// 
+    /// # Returns
+    /// The number of elements in the structure.
     #[inline]
     fn length(self) -> usize
     where
@@ -52,6 +75,9 @@ where
     }
 
     /// Tests if the structure is empty.
+    /// 
+    /// # Returns
+    /// `true` if the structure is empty, `false` otherwise.
     #[inline]
     fn is_empty(self) -> bool
     where

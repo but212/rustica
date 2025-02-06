@@ -9,6 +9,10 @@ use crate::category::pure::Pure;
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn};
 
 /// The continuation monad.
+/// 
+/// # Type Parameters
+/// * `R` - The return type of the continuation.
+/// * `A` - The type to be computed asynchronously.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Cont<R, A>
 where
@@ -25,6 +29,15 @@ where
     A: ReturnTypeConstraints,
 {
     /// Creates a new continuation.
+    /// 
+    /// # Type Parameters
+    /// * `F` - The type of the function.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to be called.
+    /// 
+    /// # Returns
+    /// * `Self` - The new continuation.
     pub fn new<F>(f: F) -> Self
     where
         F: SendSyncFnTrait<SendSyncFn<A, R>, R>,
@@ -36,6 +49,15 @@ where
     }
 
     /// Runs the continuation with the given continuation function.
+    /// 
+    /// # Type Parameters
+    /// * `F` - The type of the function.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to be called.
+    /// 
+    /// # Returns
+    /// * `R` - The result of the computation.
     pub fn run<F>(self, f: F) -> R
     where
         F: SendSyncFnTrait<A, R>,
@@ -52,6 +74,16 @@ where
     R: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
+    /// Returns a pure value.
+    /// 
+    /// # Type Parameters
+    /// * `A` - The type of the value.
+    /// 
+    /// # Arguments
+    /// * `value` - The value to be returned.
+    /// 
+    /// # Returns
+    /// * `Cont<R, A>` - The new continuation.
     fn pure(value: A) -> Self::Output<A> {
         let value = Arc::new(value);
         Cont {
@@ -65,6 +97,17 @@ where
     R: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
+    /// Maps a function over the value.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the mapped value.
+    /// * `F` - The function to map with.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to map with.
+    /// 
+    /// # Returns
+    /// * `Cont<R, B>` - The mapped value.
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -85,6 +128,17 @@ where
     R: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
+    /// Applies a function to the value.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the mapped value.
+    /// * `F` - The function to apply.
+    /// 
+    /// # Arguments
+    /// * `mf` - The function to apply.
+    /// 
+    /// # Returns
+    /// * `Cont<R, B>` - The mapped value.
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -106,6 +160,19 @@ where
         }
     }
 
+    /// Lifts a binary function into a Cont computation.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `F` - The function to lift.
+    /// 
+    /// # Arguments
+    /// * `b` - The second argument.
+    /// * `f` - The function to lift.
+    /// 
+    /// # Returns
+    /// * `Cont<R, C>` - The lifted value.
     fn lift2<B, C, F>(
         self,
         b: Self::Output<B>,
@@ -136,6 +203,21 @@ where
         }
     }
 
+    /// Lifts a ternary function into a Cont computation.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `D` - The type of the third argument.
+    /// * `F` - The function to lift.
+    /// 
+    /// # Arguments
+    /// * `b` - The second argument.
+    /// * `c` - The third argument.
+    /// * `f` - The function to lift.
+    /// 
+    /// # Returns
+    /// * `Cont<R, D>` - The lifted value.
     fn lift3<B, C, D, F>(
         self,
         b: Self::Output<B>,
@@ -183,6 +265,17 @@ where
     R: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
+    /// Binds a function over the value.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the bound value.
+    /// * `F` - The function to bind with.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to bind with.
+    /// 
+    /// # Returns
+    /// * `Cont<R, B>` - The bound value.
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -201,6 +294,13 @@ where
         }
     }
 
+    /// Joins a nested Cont computation.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the joined value.
+    /// 
+    /// Returns
+    /// * `Cont<R, B>` - The joined value.
     fn join<B>(self) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -211,6 +311,16 @@ where
         self.bind(f)
     }
 
+    /// Composes two monadic functions.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `G` - The type of the first monadic function.
+    /// * `H` - The type of the second monadic function.
+    /// 
+    /// Returns
+    /// * `SendSyncFn<A, Self::Output<C>>` - The new computation.
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,

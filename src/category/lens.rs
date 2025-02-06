@@ -8,6 +8,11 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// It allows you to get, set, and modify the value of that field, as well as compose
 /// with other lenses to create more complex lenses.
 ///
+/// #Laws
+/// A `Lens` must satisfy these laws:
+/// 1. Identity: `lens.get(&s) = lens.get(&s)`
+/// 2. Composition: `lens2.get(&lens1.get(&s)) = lens2.get(&s)`
+/// 
 /// # Examples
 ///
 /// ```

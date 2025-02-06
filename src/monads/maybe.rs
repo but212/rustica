@@ -51,16 +51,28 @@ where
     T: ReturnTypeConstraints,
 {
     /// Returns true if the maybe is Just
+    /// 
+    /// # Returns
+    /// * `bool` - True if the maybe is Just, false otherwise.
     pub fn is_just(&self) -> bool {
         matches!(self, Maybe::Just(_))
     }
 
     /// Returns true if the maybe is Nothing
+    /// 
+    /// # Returns
+    /// * `bool` - True if the maybe is Nothing, false otherwise.
     pub fn is_nothing(&self) -> bool {
         matches!(self, Maybe::Nothing)
     }
 
     /// Converts from Option<T> to Maybe<T>
+    /// 
+    /// # Arguments
+    /// * `opt` - The option to be converted.
+    /// 
+    /// # Returns
+    /// * `Maybe<T>` - The maybe representation of the option.
     pub fn from_option(opt: Option<T>) -> Self {
         match opt {
             Some(x) => Maybe::Just(x),
@@ -69,6 +81,12 @@ where
     }
 
     /// Converts from Maybe<T> to Option<T>
+    /// 
+    /// # Arguments
+    /// * `self` - The maybe to be converted.
+    /// 
+    /// # Returns
+    /// * `Option<T>` - The option representation of the maybe.
     pub fn to_option(self) -> Option<T> {
         match self {
             Maybe::Just(x) => Some(x),
@@ -76,6 +94,13 @@ where
         }
     }
 
+    /// Unwraps the maybe, panicking if the maybe is Nothing
+    /// 
+    /// # Panics
+    /// Panics if the maybe is Nothing
+    /// 
+    /// # Returns
+    /// * `T` - The value of the maybe.
     pub fn unwrap(self) -> T {
         match self {
             Maybe::Just(x) => x,

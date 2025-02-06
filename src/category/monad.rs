@@ -14,7 +14,7 @@ where
 {
     /// Bind operation.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The monad instance.
     /// - `f`: A function that takes a value of type `T` and returns a monad containing a value of type `U`.
     ///
@@ -31,7 +31,7 @@ where
 
     /// Join operation.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The monad instance.
     ///
     /// # Returns
@@ -46,7 +46,7 @@ where
 
     /// Kleisli composition.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `g`: A function that takes a value of type `T` and returns a monad containing a value of type `B`.
     /// - `h`: A function that takes a value of type `B` and returns a monad containing a value of type `C`.
     ///

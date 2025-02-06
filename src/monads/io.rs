@@ -130,12 +130,21 @@ where
     A: ReturnTypeConstraints,
 {
     /// Creates a new IO computation.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to be called.
+    /// 
+    /// # Returns
+    /// * `Self` - The new IO computation.
     pub fn new(f: SendSyncFn<(), A>) -> Self
     {
         IO { run: f }
     }
 
     /// Runs the IO computation.
+    /// 
+    /// # Returns
+    /// * `A` - The result of the computation.
     pub fn run(&self) -> A {
         self.clone().evaluate()
     }
@@ -153,6 +162,12 @@ where
     A: ReturnTypeConstraints,
 {
     /// Creates a new IO computation that produces a pure value.
+    /// 
+    /// # Arguments
+    /// * `value` - The value to be produced.
+    /// 
+    /// # Returns
+    /// IO<A> - The new IO computation.
     fn pure(value: A) -> Self::Output<A> {
         Self::new(SendSyncFn::new(move |_s| value.clone()))
     }
@@ -163,6 +178,13 @@ where
     A: ReturnTypeConstraints,
 {
     /// Applies a function to the result of the IO computation.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the mapped value.
+    /// * `F` - The function to map with.
+    /// 
+    /// Returns
+    /// IO<B> - The mapped IO computation.
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -178,6 +200,13 @@ where
     A: ReturnTypeConstraints,
 {
     /// Applies a function wrapped in an IO computation to the result of another IO computation.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the result.
+    /// * `F` - The function to apply.
+    /// 
+    /// Returns
+    /// * `IO<B>` - The applied value.
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -191,6 +220,14 @@ where
     }
 
     /// Lifts a binary function into IO computations.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `F` - The function to lift.
+    ///
+    /// Returns
+    /// * `IO<C>` - The lifted value.
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
         B: ReturnTypeConstraints,
@@ -205,6 +242,15 @@ where
     }
 
     /// Lifts a ternary function into IO computations.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `D` - The type of the third argument.
+    /// * `F` - The function to lift.
+    ///
+    /// Returns
+    /// * `IO<D>` - The lifted value.
     fn lift3<B, C, D, F>(self, mb: Self::Output<B>, mc: Self::Output<C>, f: F) -> Self::Output<D>
     where
         B: ReturnTypeConstraints,
@@ -226,6 +272,13 @@ where
     A: ReturnTypeConstraints,
 {
     /// Chains two IO computations together.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the second argument.
+    /// * `F` - The function to bind.
+    ///
+    /// Returns
+    /// * `IO<B>` - The chained value.
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -236,6 +289,12 @@ where
     }
 
     /// Flattens nested IO computations.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the result.
+    ///
+    /// Returns
+    /// * `IO<B>` - The flattened value.
     fn join<B>(self) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -245,6 +304,15 @@ where
     }
 
     /// Composes two monadic functions.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `G` - The type of the first monadic function.
+    /// * `H` - The type of the second monadic function.
+    /// 
+    /// Returns
+    /// * `SendSyncFn<A, Self::Output<C>>` - The new computation.
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
@@ -263,6 +331,16 @@ where
     A: ReturnTypeConstraints,
 {
     /// Composes two functions.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the first argument.
+    /// * `U` - The type of the second argument.
+    /// * `V` - The type of the third argument.
+    /// * `F` - The first function.
+    /// * `G` - The second function.
+    /// 
+    /// Returns
+    /// * `SendSyncFn<T, V>` - The new computation.
     fn compose<T, U, V, F, G>(f: F, g: G) -> SendSyncFn<T, V>
     where
         T: ReturnTypeConstraints,
@@ -283,6 +361,12 @@ where
     A: ReturnTypeConstraints,
 {
     /// Evaluates the IO computation and returns the result.
+    /// 
+    /// # Type Parameters
+    /// * `A` - The type of the argument.
+    /// 
+    /// Returns
+    /// * `A` - The result of the computation.
     fn evaluate(self) -> A {
         self.run.call(())
     }
@@ -293,6 +377,12 @@ where
     A: ReturnTypeConstraints,
 {
     /// Creates an identity computation.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the argument.
+    /// 
+    /// Returns
+    /// * `IO<T>` - The identity computation.
     fn identity<T>() -> Self::Output<T>
     where
         T: ReturnTypeConstraints,
@@ -306,6 +396,12 @@ where
     A: Semigroup + ReturnTypeConstraints,
 {
     /// Combines two IO computations.
+    /// 
+    /// # Type Parameters
+    /// * `A` - The type of the argument.
+    /// 
+    /// Returns
+    /// * `IO<A>` - The combined computation.
     fn combine(self, other: Self) -> Self {
         let f = SendSyncFn::new(move |_s| self.run.call(()).combine(other.run.call(())));
         IO { run: f }
@@ -317,6 +413,9 @@ where
     A: Monoid + ReturnTypeConstraints,
 {
     /// Creates an empty IO computation.
+    /// 
+    /// Returns
+    /// * `IO<A>` - The empty computation.
     fn empty() -> Self {
         IO::new(SendSyncFn::new(|_| A::empty()))
     }

@@ -22,6 +22,50 @@ pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoI
 /// 2. Composition: `validated.map(f).map(g) = validated.map(|x| g(f(x)))`
 /// 3. Pure: `Validated::pure(x).map(f) = Validated::pure(f(x))`
 /// 4. Applicative: Errors are accumulated when combining multiple Validated values
+/// 
+/// # Examples
+///
+/// ```
+/// use rustica::prelude::*;
+/// use rustica::monads::validated::{Validated, ValidatedTypeConstraints};
+/// use rustica::fntype::{SendSyncFn, SendSyncFnTrait};
+///
+/// #[derive(Hash, Debug, Clone, PartialEq, Eq, Default)]
+/// struct MyError(String);
+///
+/// // Implementing the Extend trait for MyError
+/// impl Extend<MyError> for MyError {
+///     fn extend<T: IntoIterator<Item = MyError>>(&mut self, iter: T) {
+///         for item in iter {
+///             self.0.push_str(&item.0);
+///         }
+///     }
+/// }
+///
+/// // Implementing the IntoIterator trait for MyError
+/// impl IntoIterator for MyError {
+///     type Item = MyError;
+///     type IntoIter = std::vec::IntoIter<MyError>;
+///
+///     fn into_iter(self) -> Self::IntoIter {
+///         vec![self].into_iter()
+///     }
+/// }
+///
+/// impl ValidatedTypeConstraints for MyError {}
+///
+/// let valid_value: Validated<MyError, i32> = Validated::valid(42);
+/// let invalid_value: Validated<MyError, i32> = Validated::invalid(MyError("Error".to_string()));
+///
+/// assert_eq!(valid_value.clone().to_result(), Ok(42));
+/// assert_eq!(invalid_value.clone().to_result(), Err(vec![MyError("Error".to_string())]));
+///
+/// let result = valid_value.map_valid(SendSyncFn::new(|x| x + 1));
+/// assert_eq!(result.to_result(), Ok(43));
+///
+/// let combined_result: Validated<MyError, i32> = Validated::valid(1).combine(Validated::valid(2), SendSyncFn::new(|x| SendSyncFn::new(move |y| x + y)));
+/// assert_eq!(combined_result.to_result(), Ok(3));
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Validated<E, A>
 where

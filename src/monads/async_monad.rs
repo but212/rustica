@@ -10,6 +10,9 @@ use crate::category::monad::Monad;
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 
 /// An async monad that represents an asynchronous computation.
+/// 
+/// # Type Parameters
+/// * `A` - The type to be computed asynchronously.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct AsyncM<A>
 where
@@ -24,6 +27,15 @@ where
     A: ReturnTypeConstraints,
 {
     /// Creates a new async computation.
+    /// 
+    /// # Type Parameters
+    /// * `F` - The type of the future.
+    /// 
+    /// # Arguments
+    /// * `future` - The future to be converted into an async computation.
+    /// 
+    /// Returns
+    /// * `AsyncM<A>` - The new async computation.
     pub fn new<F>(future: F) -> Self
     where
         F: Future<Output = A> + Send + Sync + 'static,
@@ -38,6 +50,9 @@ where
     }
 
     /// Gets the value, if available without waiting.
+    /// 
+    /// Returns
+    /// * `A` - The value of the async computation.
     pub fn try_get(&self) -> A {
         self.run.call(())
     }
@@ -54,6 +69,10 @@ impl<A> Pure<A> for AsyncM<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Creates a new async computation that produces a pure value.
+    /// 
+    /// Returns
+    /// * `AsyncM<A>` - The new async computation.
     fn pure(value: A) -> Self::Output<A> {
         AsyncM {
             run: SendSyncFn::new(move |_| value.clone()),
@@ -65,6 +84,14 @@ impl<A> Functor<A> for AsyncM<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Maps a function over the async computation.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the result.
+    /// * `F` - The type of the function.
+    /// 
+    /// Returns
+    /// * `AsyncM<B>` - The new async computation.
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -84,6 +111,14 @@ impl<A> Applicative<A> for AsyncM<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Applies a function to the async computation.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the result.
+    /// * `F` - The type of the function.
+    /// 
+    /// Returns
+    /// * `AsyncM<B>` - The new async computation.
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -98,6 +133,15 @@ where
         }
     }
 
+    /// Lifts a binary function into async computations.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `F` - The type of the function.
+    /// 
+    /// Returns
+    /// * `AsyncM<C>` - The new async computation.
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
         B: ReturnTypeConstraints,
@@ -113,6 +157,16 @@ where
         }
     }
 
+    /// Lifts a ternary function into async computations.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `D` - The type of the third argument.
+    /// * `F` - The type of the function.
+    /// 
+    /// Returns
+    /// * `AsyncM<D>` - The new async computation.
     fn lift3<B, C, D, F>(self, mb: Self::Output<B>, mc: Self::Output<C>, f: F) -> Self::Output<D>
     where
         B: ReturnTypeConstraints,
@@ -135,6 +189,14 @@ impl<A> Monad<A> for AsyncM<A>
 where
     A: ReturnTypeConstraints,
 {
+    /// Binds a function over the async computation.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the result.
+    /// * `F` - The type of the function.
+    /// 
+    /// Returns
+    /// * `AsyncM<B>` - The new async computation.
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -148,6 +210,13 @@ where
         }
     }
 
+    /// Joins two async computations.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the result.
+    /// 
+    /// Returns
+    /// * `AsyncM<B>` - The new async computation.
     fn join<B>(self) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -161,6 +230,16 @@ where
         }
     }
 
+    /// Composes two monadic functions.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `G` - The type of the first monadic function.
+    /// * `H` - The type of the second monadic function.
+    /// 
+    /// Returns
+    /// * `SendSyncFn<A, Self::Output<C>>` - The new async computation.
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,

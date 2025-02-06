@@ -13,6 +13,70 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 /// 1. Left Identity: `extract(duplicate(w)) = w`
 /// 2. Right Identity: `duplicate(extract(w)) = w`
 /// 3. Associativity: `duplicate(duplicate(w)) = map(duplicate)(duplicate(w))`
+///
+/// # Examples
+///
+/// ```
+/// use rustica::category::comonad::Comonad;
+/// use rustica::prelude::*;
+///
+/// #[derive(Clone, Eq, PartialEq, Debug, Default)]
+/// struct MyComonad<T> {
+///     value: T,
+/// }
+/// 
+/// impl<T> HKT for MyComonad<T> where T: ReturnTypeConstraints {
+///     type Output<U> = MyComonad<U> where U: ReturnTypeConstraints;
+/// }
+/// 
+/// impl<T> Pure<T> for MyComonad<T>
+/// where
+///     T: ReturnTypeConstraints,
+/// {
+///     fn pure(value: T) -> Self {
+///         MyComonad { value }
+///     }
+/// }
+///
+/// impl<T> Functor<T> for MyComonad<T>
+/// where
+///     T: ReturnTypeConstraints,
+/// {
+///     fn map<U, F>(self, f: F) -> Self::Output<U>
+///     where
+///         U: ReturnTypeConstraints,
+///         F: SendSyncFnTrait<T, U>,
+///     {
+///         MyComonad {
+///             value: f.call(self.value),
+///         }
+///     }
+/// }
+/// 
+/// impl<T> Comonad<T> for MyComonad<T>
+/// where
+///     T: ReturnTypeConstraints,
+/// {
+///     fn extract(&self) -> T {
+///         self.value.clone()
+///     }
+///
+///     fn extend<U, F>(self, f: F) -> U
+///     where
+///         U: ReturnTypeConstraints,
+///         F: SendSyncFnTrait<Self, U>,
+///     {
+///         f.call(self)
+///     }
+/// }
+///
+/// let comonad = MyComonad { value: 42 };
+/// let extracted_value = comonad.extract();
+/// assert_eq!(extracted_value, 42);
+///
+/// let extended_comonad = comonad.extend(SendSyncFn::new(|w: MyComonad<i32>| w.extract() + 1));
+/// assert_eq!(extended_comonad, 43);
+/// ```
 pub trait Comonad<T>: Functor<T> + ReturnTypeConstraints
 where
     T: ReturnTypeConstraints,
@@ -25,7 +89,7 @@ where
 
     /// Extends a comonad by duplicating the context.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The comonad instance.
     /// - `f`: A function that takes a comonad and returns a value of type `U`.
     ///
@@ -42,7 +106,7 @@ where
 
     /// Maps a function over a comonad.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The comonad instance.
     /// - `f`: A function that takes a comonad and returns a value of type `U`.
     ///
@@ -82,7 +146,7 @@ where
 {
     /// Calls a comonadic function.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The comonadic function instance.
     /// - `w`: The comonad instance.
     ///
@@ -100,7 +164,7 @@ where
 {
     /// Calls a comonadic function.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The comonadic function instance.
     /// - `w`: The comonad instance.
     ///

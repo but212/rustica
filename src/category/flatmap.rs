@@ -3,13 +3,21 @@ use crate::fntype::BindFn;
 use crate::category::monad::Monad;
 
 /// A trait for monads that support flat mapping.
+/// 
+/// # Type Parameters
+/// * `T` - The type of the value in the monad.
+/// 
+/// # Laws
+/// A flat map instance must satisfy these laws:
+/// 1. Identity: `flat_map(|x| x) = flat_map`
+/// 2. Composition: `flat_map(f).flat_map(g) = flat_map(|x| g(f(x)))`
 pub trait FlatMap<T>: Monad<T> + Sized
 where
     T: ReturnTypeConstraints,
 {
     /// Maps a function over the value and flattens the result.
     ///
-    /// # Parameters
+    /// # Arguments
     /// - `self`: The monad instance.
     /// - `f`: A function that takes a value of type `T` and returns a monad containing a value of type `U`.
     ///

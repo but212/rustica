@@ -51,16 +51,29 @@ where
     R: ReturnTypeConstraints,
 {
     /// Returns true if this is a Left value.
+    /// 
+    /// Returns
+    /// * `bool` - True if this is a Left value, false otherwise.
     pub fn is_left(&self) -> bool {
         matches!(self, Either::Left(_))
     }
 
     /// Returns true if this is a Right value.
+    /// 
+    /// Returns
+    /// * `bool` - True if this is a Right value, false otherwise.
     pub fn is_right(&self) -> bool {
         matches!(self, Either::Right(_))
     }
 
     /// Maps a function over the left value.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the left value.
+    /// * `F` - The type of the function.
+    /// 
+    /// Returns
+    /// * `Either<T, R>` - The new `Either` value.
     ///
     /// # Examples
     /// ```
@@ -84,6 +97,13 @@ where
 
     /// Maps a function over the right value.
     ///
+    /// # Type Parameters
+    /// * `T` - The type of the right value.
+    /// * `F` - The type of the function.
+    ///
+    /// Returns
+    /// * `Either<L, T>` - The new `Either` value.
+    ///
     /// # Examples
     /// ```
     /// use rustica::monads::either::Either;
@@ -105,6 +125,15 @@ where
     }
 
     /// Unwraps the left value, panicking if this is a Right value.
+    /// 
+    /// # Type Parameters
+    /// * `L` - The type of the left value.
+    ///
+    /// Returns
+    /// * `L` - The left value.
+    ///
+    /// # Panics
+    /// * If this is a Right value, this function will panic.
     pub fn unwrap_left(self) -> L
     where
         L: ReturnTypeConstraints,
@@ -116,6 +145,15 @@ where
     }
 
     /// Unwraps the right value, panicking if this is a Left value.
+    /// 
+    /// # Type Parameters
+    /// * `R` - The type of the right value.
+    ///
+    /// Returns
+    /// * `R` - The right value.
+    ///
+    /// # Panics
+    /// * If this is a Left value, this function will panic.
     pub fn unwrap_right(self) -> R
     where
         R: ReturnTypeConstraints,
@@ -140,6 +178,18 @@ where
     L: ReturnTypeConstraints,
     R: ReturnTypeConstraints,
 {
+    /// Returns a Left value with the default value of the left type.
+    /// 
+    /// Returns
+    /// * `Either<L, R>` - A Left value with the default value of the left type.
+    ///
+    /// # Examples
+    /// ```
+    /// use rustica::monads::either::Either;
+    /// 
+    /// let left_value: Either<i32, i32> = Either::Left(42);
+    /// assert_eq!(left_value.unwrap_left(), 42);
+    /// ```
     fn default() -> Self {
         Either::Left(L::default())
     }
@@ -150,6 +200,18 @@ where
     L: ReturnTypeConstraints,
     R: ReturnTypeConstraints,
 {
+    /// Returns a Right value with the given value.
+    /// 
+    /// Returns
+    /// * `Either<L, R>` - A Right value with the given value.
+    ///
+    /// # Examples
+    /// ```
+    /// use rustica::monads::either::Either;
+    /// 
+    /// let right_value: Either<i32, i32> = Either::Right(42);
+    /// assert_eq!(right_value.unwrap_right(), 42);
+    /// ```
     fn pure(value: R) -> Self::Output<R>
     {
         Either::Right(value)
@@ -161,6 +223,14 @@ where
     L: ReturnTypeConstraints,
     R: ReturnTypeConstraints,
 {
+    /// Maps a function over the right value.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the mapped value.
+    /// * `F` - The function to map with.
+    /// 
+    /// Returns
+    /// * `Either<L, T>` - The mapped value.
     fn map<T, F>(self, f: F) -> Either<L, T>
     where
         T: ReturnTypeConstraints,
@@ -178,6 +248,14 @@ where
     L: ReturnTypeConstraints,
     R: ReturnTypeConstraints,
 {
+    /// Applies a function to the right value.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the mapped value.
+    /// * `F` - The function to map with.
+    /// 
+    /// Returns
+    /// * `Either<L, T>` - The mapped value.
     fn apply<T, F>(self, g: Either<L, F>) -> Either<L, T>
     where
         T: ReturnTypeConstraints,
@@ -190,6 +268,16 @@ where
         }
     }
 
+    /// Lifts a function from (R, R) to R.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the first argument.
+    /// * `U` - The type of the second argument.
+    /// * `F` - The function to lift.
+    /// 
+    /// 
+    /// Returns
+    /// * `Either<L, U>` - The lifted value.
     fn lift2<T, U, F>(self, b: Either<L, T>, f: F) -> Either<L, U>
     where
         T: ReturnTypeConstraints,
@@ -203,6 +291,16 @@ where
         }
     }
 
+    /// Lifts a function from (R, R, R) to R.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the first argument.
+    /// * `U` - The type of the second argument.
+    /// * `V` - The type of the third argument.
+    /// * `F` - The function to lift.
+    /// 
+    /// Returns
+    /// * `Either<L, V>` - The lifted value.
     fn lift3<T, U, V, F>(
         self,
         b: Either<L, T>,
@@ -231,6 +329,14 @@ where
     L: ReturnTypeConstraints,
     T: ReturnTypeConstraints,
 {
+    /// Binds a function over the right value.
+    /// 
+    /// # Type Parameters
+    /// * `U` - The type of the bound value.
+    /// * `F` - The function to bind with.
+    /// 
+    /// Returns
+    /// * `Either<L, U>` - The bound value.
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
@@ -242,6 +348,13 @@ where
         }
     }
 
+    /// Joins a chain of `Either`s into a single `Either`.
+    /// 
+    /// # Type Parameters
+    /// * `U` - The type of the joined value.
+    /// 
+    /// Returns
+    /// * `Either<L, U>` - The joined value.
     fn join<U>(self) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
@@ -253,6 +366,16 @@ where
         }
     }
 
+    /// Composes two monadic functions.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `G` - The type of the first monadic function.
+    /// * `H` - The type of the second monadic function.
+    /// 
+    /// Returns
+    /// * `SendSyncFn<T, Self::Output<C>>` - The new computation.
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<T, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
@@ -276,6 +399,13 @@ where
         U: ReturnTypeConstraints;
 
     /// Maps a function over the left value
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the mapped value.
+    /// * `F` - The function to map with.
+    /// 
+    /// Returns
+    /// * `Either<T, R>` - The mapped value.
     fn first<T, F>(self, f: F) -> Self::Output<T, R>
     where
         T: ReturnTypeConstraints,
@@ -287,6 +417,14 @@ where
         }
     }
 
+    /// Maps a function over the right value
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the mapped value.
+    /// * `F` - The function to map with.
+    /// 
+    /// Returns
+    /// * `Either<L, T>` - The mapped value.
     fn second<T, F>(self, f: F) -> Self::Output<L, T>
     where
         T: ReturnTypeConstraints,
@@ -298,6 +436,15 @@ where
         }
     }
 
+    /// Maps a function over both left and right values
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the mapped value.
+    /// * `U` - The type of the mapped value.
+    /// * `F` - The function to map with.
+    /// 
+    /// Returns
+    /// * `Either<T, U>` - The mapped value.
     fn bimap<T, U, F, G>(self, f: F, g: G) -> Self::Output<T, U>
     where
         T: ReturnTypeConstraints,

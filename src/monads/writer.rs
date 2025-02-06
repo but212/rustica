@@ -27,6 +27,7 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
+    /// The function that runs the writer computation.
     run_writer: SendSyncFn<(), (A, W)>,
 }
 
@@ -36,30 +37,52 @@ where
     A: ReturnTypeConstraints,
 {
     /// Creates a new Writer from a value and a log.
+    /// 
+    /// # Arguments
+    /// * `value` - The value to be written.
+    /// * `log` - The log to be written.
+    /// 
+    /// # Returns
+    /// * `Writer<W, A>` - The new Writer.
     pub fn new(value: A, log: W) -> Self {
         let value = Arc::new(value);
         let log = Arc::new(log);
         Writer {
             run_writer: SendSyncFn::new(move |_| ((*value).clone(), (*log).clone())),
-        }
+        }   
     }
 
     /// Creates a new Writer that writes a log.
+    /// 
+    /// # Arguments
+    /// * `log` - The log to be written.
+    /// 
+    /// # Returns
+    /// * `Writer<W, ()>` - The new Writer.
     pub fn tell(log: W) -> Writer<W, ()> {
         Writer::new((), log)
     }
 
     /// Runs the writer computation.
+    /// 
+    /// # Returns
+    /// * `(A, W)` - The value and log.
     pub fn run(&self) -> (A, W) {
         self.run_writer.call(())
     }
 
     /// Gets the value.
+    /// 
+    /// # Returns
+    /// * `A` - The value.
     pub fn value(&self) -> A {
         self.run().0
     }
 
     /// Gets the log.
+    /// 
+    /// # Returns
+    /// * `W` - The log.
     pub fn log(&self) -> W {
         self.run().1
     }
@@ -78,6 +101,13 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
+    /// Creates a new Writer that writes a value.
+    /// 
+    /// # Arguments
+    /// * `value` - The value to be written.
+    /// 
+    /// # Returns
+    /// * `Writer<W, A>` - The new Writer.
     fn pure(value: A) -> Self::Output<A> {
         Writer::new(value, W::empty())
     }
@@ -88,6 +118,13 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
+    /// Maps a function over the value.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to be mapped.
+    /// 
+    /// # Returns
+    /// * `Writer<W, B>` - The new Writer.
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -107,6 +144,13 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
+    /// Applies a function to a value.
+    /// 
+    /// # Arguments
+    /// * `mf` - The function to be applied.
+    /// 
+    /// # Returns
+    /// * `Writer<W, B>` - The new Writer.
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -121,6 +165,14 @@ where
         }
     }
 
+    /// Lifts a binary function into Writer computations.
+    /// 
+    /// # Arguments
+    /// * `mb` - The second argument to the function.
+    /// * `f` - The function to lift.
+    /// 
+    /// # Returns
+    /// * `Writer<W, C>` - The new Writer.
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
         B: ReturnTypeConstraints,
@@ -136,6 +188,15 @@ where
         }
     }
 
+    /// Lifts a ternary function into Writer computations.
+    /// 
+    /// # Arguments
+    /// * `mb` - The second argument to the function.
+    /// * `mc` - The third argument to the function.
+    /// * `f` - The function to lift.
+    /// 
+    /// # Returns
+    /// * `Writer<W, D>` - The new Writer.
     fn lift3<B, C, D, F>(
         self,
         mb: Self::Output<B>,
@@ -164,6 +225,13 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
+    /// Binds a function over the value.
+    /// 
+    /// # Arguments
+    /// * `f` - The function to be bound.
+    /// 
+    /// # Returns
+    /// * `Writer<W, B>` - The new Writer.
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -178,6 +246,10 @@ where
         }
     }
 
+    /// Joins a Writer computation by returning the inner value.
+    /// 
+    /// # Returns
+    /// * `Writer<W, A>` - The inner value.
     fn join<B>(self) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -192,6 +264,16 @@ where
         }
     }
 
+    /// Composes two monadic functions.
+    /// 
+    /// # Type Parameters
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `G` - The type of the first monadic function.
+    /// * `H` - The type of the second monadic function.
+    /// 
+    /// # Returns
+    /// * `SendSyncFn<A, Self::Output<C>>` - The new computation.
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
