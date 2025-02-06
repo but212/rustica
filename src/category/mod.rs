@@ -17,6 +17,8 @@ pub mod lens;
 pub mod sequence;
 pub mod traversable;
 
+pub use identity::*;
+pub use composable::*;
 pub use applicative::*;
 pub use bifunctor::*;
 pub use comonad::*;
