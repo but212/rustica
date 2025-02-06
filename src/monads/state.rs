@@ -2,8 +2,16 @@ use crate::category::{Monad, HKT, ReturnTypeConstraints, Pure, Applicative, Func
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 
 /// State struct representing a stateful computation.
-/// S: Type of the state.
-/// A: Type of the output.
+/// 
+/// # Type Parameters
+/// * `S` - The state type.
+/// * `A` - The output type.
+/// 
+/// # Laws
+/// A State instance must satisfy these laws:
+/// 1. Identity: `state.map(|x| x) = state`
+/// 2. Composition: `state.map(f).map(g) = state.map(|x| g(f(x)))`
+/// 3. Applicative: Errors are accumulated when combining multiple State values
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct State<S, A>
 where

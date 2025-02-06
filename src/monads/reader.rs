@@ -1,6 +1,16 @@
 use crate::prelude::*;
 
 /// A Reader monad that represents a computation with access to an environment.
+/// 
+/// # Type Parameters
+/// * `E` - The environment type.
+/// * `A` - The output type.
+/// 
+/// # Laws
+/// A Reader instance must satisfy these laws:
+/// 1. Identity: `reader.map(|x| x) = reader`
+/// 2. Composition: `reader.map(f).map(g) = reader.map(|x| g(f(x)))`
+/// 3. Applicative: Errors are accumulated when combining multiple Reader values
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Reader<E, A>
 where

@@ -7,6 +7,15 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 ///
 /// The `Maybe` type is used to represent an optional value that can either be `Just`
 /// containing a value of type `T`, or `Nothing` indicating the absence of a value.
+/// 
+/// # Type Parameters
+/// * `T` - The value type.
+///
+/// # Laws
+/// A Maybe instance must satisfy these laws:
+/// 1. Identity: `maybe.map(|x| x) = maybe`
+/// 2. Composition: `maybe.map(f).map(g) = maybe.map(|x| g(f(x)))`
+/// 3. Applicative: Errors are accumulated when combining multiple Maybe values
 ///
 /// # Examples
 ///

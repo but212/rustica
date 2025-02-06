@@ -5,6 +5,17 @@ use crate::category::{Applicative, Functor, HKT, Monad, Monoid, Pure, ReturnType
 use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 
 /// The writer monad.
+/// 
+/// # Type Parameters
+/// * `W` - The log type, must implement the `Monoid` trait.
+/// * `A` - The output type.
+/// 
+/// # Laws
+/// A Writer instance must satisfy these laws:
+/// 1. Identity: `writer.map(|x| x) = writer`
+/// 2. Composition: `writer.map(f).map(g) = writer.map(|x| g(f(x)))`
+/// 3. Pure: `Writer::pure(x).map(f) = Writer::pure(f(x))`
+/// 4. Applicative: Errors are accumulated when combining multiple Writer values
 #[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct Writer<W, A>
 where
