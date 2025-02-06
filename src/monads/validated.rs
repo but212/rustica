@@ -28,12 +28,6 @@ pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoI
 ///    `Validated::from_result(v.to_result()) = v`
 /// 5. Invalid Map Independence: For invalid value `v` and function `f`,
 ///    `v.map_valid(f)` must preserve all original errors
-/// 6. Valid Map Consistency: For valid value `v` and function `f`,
-///    `v.map_valid(f) = v.map(f)`
-/// 7. Error Type Conversion: For invalid value `v` and function `f`,
-///    `v.map_invalid(f)` must preserve error structure while converting type
-/// 8. Default Invalid: For any Validated type,
-///    `Validated::<E,A>::default()` must be invalid with empty errors
 ///
 /// # Examples
 ///

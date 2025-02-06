@@ -17,11 +17,6 @@ use crate::category::monad::Monad;
 ///    `sequence(sequence(xss)) = sequence(map(sequence)(xss))`
 /// 4. Monad Consistency: For any monadic value `m` and function `f`,
 ///    `sequence(pure(m)) = map(pure)(m)`
-/// 5. Order Preservation: For any sequence `xs`,
-///    The order of effects in `sequence(xs)` must match the order in `xs`
-/// 6. Failure Propagation (for fallible types):
-///    - For `Option`: If any element is `None`, the result is `None`
-///    - For `Result`: If any element is `Err(e)`, the result is `Err(e)`
 pub trait Sequence<T, M>: Monad<T>
 where
     T: ReturnTypeConstraints,

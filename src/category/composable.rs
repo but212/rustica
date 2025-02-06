@@ -2,19 +2,31 @@ use crate::fntype::SendSyncFn;
 use crate::fntype::SendSyncFnTrait;
 use crate::category::hkt::ReturnTypeConstraints;
 
-/// The `Composable` trait provides a method for function composition.
+/// A trait for composable functions that can be chained together.
 /// 
 /// # Type Parameters
 /// * `T` - The input type of the first function
-/// * `U` - The output type of the first function and input type of the second function
+/// * `U` - The output type of the first function / input type of the second function
 /// * `V` - The output type of the second function
-///
+/// 
 /// # Laws
-/// 1. Associativity: `compose(compose(f, g), h) = compose(f, compose(g, h))`
-/// 2. Left Identity: `compose(id, f) = f`
-/// 3. Right Identity: `compose(f, id) = f`
-/// 4. Distributivity: `compose(f, compose(g, h)) = compose(compose(f, g), h)`
-/// 5. Composition: For any `x`, `compose(f, g)(x) = g(f(x))`
+/// A Composable instance must satisfy these laws:
+/// 1. Identity: For any composable function `f`,
+///    `f.compose(identity) = f = identity.compose(f)`
+/// 2. Associativity: For any composable functions `f`, `g`, `h`,
+///    `f.compose(g).compose(h) = f.compose(g.compose(h))`
+/// 3. Type Safety: For any composable functions `f: T -> U`, `g: U -> V`,
+///    `f.compose(g)` must type check as `T -> V`
+/// 4. Function Preservation: For any composable functions `f`, `g`,
+///    `f.compose(g)` must preserve the function-like behavior
+/// 5. Order Preservation: For any composable functions `f`, `g`,
+///    `f.compose(g)(x) = g(f(x))`
+/// 6. Referential Transparency: For any composable functions `f`, `g`,
+///    `f.compose(g)` must be referentially transparent if `f` and `g` are
+/// 7. Error Propagation: For any composable functions `f`, `g`,
+///    `f.compose(g)` must properly propagate errors from both `f` and `g`
+/// 8. Pure Composition: For any pure composable functions `f`, `g`,
+///    `f.compose(g)` must also be pure
 /// 
 /// # Examples
 ///

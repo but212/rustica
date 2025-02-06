@@ -21,13 +21,9 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn, ApplyFn};
 ///    `r1.bind(r2).run_reader(e) = r2(r1.run_reader(e)).run_reader(e)`
 /// 4. Pure Environment Independence: For any value `x` and environment `e`,
 ///    `Reader::pure(x).run_reader(e) = x`
-/// 5. Environment Transparency: For function `f` and Reader `r`,
-///    `r.map(f).run_reader(e) = f(r.run_reader(e))`
-/// 6. Ask Naturality: For any function `f`,
-///    `asks(f).run_reader(e) = f(e)`
-/// 7. Local Identity: For any Reader `r`,
+/// 5. Local Identity: For any Reader `r`,
 ///    `local(|x| x, r) = r`
-/// 8. Local Composition: For functions `f`, `g` and Reader `r`,
+/// 6. Local Composition: For functions `f`, `g` and Reader `r`,
 ///    `local(f, local(g, r)) = local(|e| g(f(e)), r)`
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Reader<E, A>

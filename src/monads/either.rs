@@ -16,22 +16,14 @@ use crate::fntype::{SendSyncFnTrait, SendSyncFn, ApplyFn, MonadFn};
 /// 
 /// # Laws
 /// An `Either` instance must satisfy these laws in addition to the standard Monad laws:
-/// 1. Bifunctor Identity: For any `Either` value `e`,
-///    `e.bimap(|x| x, |y| y) = e`
-/// 2. Bifunctor Composition: For functions `f`, `g`, `h`, `i`,
-///    `e.bimap(f, g).bimap(h, i) = e.bimap(|x| h(f(x)), |y| i(g(y)))`
-/// 3. Left Identity: For any value `x`,
+/// 1. Left Identity: For any value `x`,
 ///    `Either::Left(x).map_right(f) = Either::Left(x)`
-/// 4. Right Identity: For any value `x`,
+/// 2. Right Identity: For any value `x`,
 ///    `Either::Right(x).map_left(f) = Either::Right(x)`
-/// 5. Left Absorption: For any value `x` and function `f`,
+/// 3. Left Absorption: For any value `x` and function `f`,
 ///    `Either::Left(x).bind(f) = Either::Left(x)`
-/// 6. Right Distribution: For any value `x` and function `f`,
+/// 4. Right Distribution: For any value `x` and function `f`,
 ///    `Either::Right(x).bind(f) = f(x)`
-/// 7. Error Handling: For any error value `e`,
-///    `Either::Left(e)` must propagate through computations
-/// 8. Symmetry: For any values `l` and `r`,
-///    `Either::Left(l).map_left(f) ~ Either::Right(r).map_right(f)`
 /// 
 /// # Examples
 /// ```

@@ -15,10 +15,6 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 ///    `pure(f).apply(pure(x)) = pure(x).map(f)`
 /// 4. Naturality: For any natural transformation `η: F ~> G`,
 ///    `η(pure(x)) = pure(x)`
-/// 5. Consistency with Applicative: For any value `x`,
-///    `pure(x)` in Applicative context behaves the same as `pure(x)` in Pure context
-/// 6. Consistency with Monad: For any value `x`,
-///    `pure(x)` in Monad context behaves the same as `pure(x)` in Pure context
 ///
 pub trait Pure<T>: HKT
 where

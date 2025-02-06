@@ -2,22 +2,29 @@ use crate::category::hkt::ReturnTypeConstraints;
 use crate::category::semigroup::Semigroup;
 use crate::fntype::MonoidFn;
 
-/// A monoid is a semigroup with an identity element.
+/// A trait for monoids, which are semigroups with an identity element.
 /// 
 /// # Type Parameters
-/// * `T` - The type of the elements in the monoid.
-///
+/// * `T` - The type of elements in the monoid
+/// 
 /// # Laws
-/// A monoid must satisfy these laws:
-/// 1. Left Identity: `empty().combine(x) = x`
-/// 2. Right Identity: `x.combine(empty()) = x`
-/// 3. Associativity (inherited from Semigroup): `(x.combine(y)).combine(z) = x.combine(y.combine(z))`
-/// 4. Uniqueness: If `e.combine(x) = x` and `x.combine(e) = x` for all `x`, then `e = empty()`
-/// 5. Homomorphism: For any monoid homomorphism `f`,
-///    - `f(empty()) = empty()`
-///    - `f(x.combine(y)) = f(x).combine(f(y))`
-/// 6. Naturality: For any natural transformation `η: F ~> G` between monoidal functors,
+/// A Monoid instance must satisfy these laws:
+/// 1. Identity: For any value `x`,
+///    `x.combine(empty()) = x = empty().combine(x)`
+/// 2. Associativity: For any values `x`, `y`, `z`,
+///    `x.combine(y.combine(z)) = (x.combine(y)).combine(z)`
+/// 3. Empty Uniqueness: For any monoid `M`,
+///    There exists a unique empty element `e` such that `e.combine(x) = x = x.combine(e)`
+/// 4. Naturality: For any natural transformation `η: F ~> G`,
+///    `η(x.combine(y)) = η(x).combine(η(y))`
+/// 5. Empty Preservation: For any natural transformation `η`,
 ///    `η(empty()) = empty()`
+/// 6. Distributivity: For any values `x`, `y`, `z`,
+///    `x.combine(y.combine(z)) = x.combine(y).combine(x.combine(z))`
+/// 7. Commutativity (if applicable): For any values `x`, `y`,
+///    `x.combine(y) = y.combine(x)`
+/// 8. Cancellation (if applicable): For any values `x`, `y`, `z`,
+///    If `x.combine(y) = x.combine(z)` then `y = z`
 pub trait Monoid: Semigroup {
     /// The identity element of the monoid.
     ///

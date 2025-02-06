@@ -17,18 +17,10 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn, ApplyFn};
 ///    `get().bind(|x| put(x)).run_state(s) = ((), s)`
 /// 2. Put-Get Identity: For any state `s`,
 ///    `put(s).bind(|_| get()).run_state(_) = (s, s)`
-/// 3. Get-Get Identity: For any state `s`,
-///    `get().bind(|x| get().bind(|y| pure((x,y)))).run_state(s) = ((s,s), s)`
-/// 4. Put-Put Identity: For states `s1`, `s2`,
-///    `put(s1).bind(|_| put(s2)).run_state(_) = ((), s2)`
-/// 5. State Independence: For any value `x` and state `s`,
+/// 3. State Independence: For any value `x` and state `s`,
 ///    `pure(x).run_state(s) = (x, s)`
-/// 6. State Threading: For state computations `m1`, `m2`,
-///    `m1.bind(m2).run_state(s)` must thread state from `m1` to `m2`
-/// 7. Modify Consistency: For function `f`,
+/// 4. Modify Consistency: For function `f`,
 ///    `modify(f).run_state(s) = ((), f(s))`
-/// 8. Evaluation Consistency: For state computation `m` and state `s`,
-///    `m.eval_state(s) = fst(m.run_state(s))`
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct State<S, A>
 where

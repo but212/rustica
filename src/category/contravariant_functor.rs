@@ -1,19 +1,30 @@
 use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 
-/// A contravariant functor is a type constructor that provides a way to map a function over its contents.
+/// A trait for contravariant functors, which are type constructors that can map a function over their contents
+/// in a way that reverses the direction of the arrows.
 /// 
 /// # Type Parameters
 /// * `T` - The type of value contained in the contravariant functor
 /// 
-///  # Laws
-/// A contravariant functor must satisfy these laws:
-/// 1. Identity: `contravariant_map(id) = id`
-/// 2. Composition: `contravariant_map(f) . contravariant_map(g) = contravariant_map(g . f)`
-/// 3. Naturality: For any morphisms f: A -> B and g: B -> C, 
-///    `contravariant_map(f) . contravariant_map(g) = contravariant_map(g . f)`
-/// 4. Preservation of Structure: For any morphism f: A -> B,
-///    `contravariant_map(f)(contravariant_map(g)(x)) = contravariant_map(g . f)(x)`
+/// # Laws
+/// A Contravariant Functor instance must satisfy these laws:
+/// 1. Identity: For any contravariant functor `f`,
+///    `f.contramap(|x| x) = f`
+/// 2. Composition: For any contravariant functor `f` and functions `g`, `h`,
+///    `f.contramap(|x| g(h(x))) = f.contramap(h).contramap(g)`
+/// 3. Structure Preservation: For any contravariant functor `f` and functions `g`, `h`,
+///    `f.contramap(|x| g(h(x))) = f.contramap(h).contramap(g)`
+/// 4. Naturality: For any natural transformation `η: F ~> G`,
+///    `η(f.contramap(g)) = η(f).contramap(g)`
+/// 5. Container Preservation: For any contravariant functor `f` and function `g`,
+///    `f.contramap(g)` must preserve the structure of `f`
+/// 6. Type Preservation: For any contravariant functor `f` and function `g`,
+///    `f.contramap(g)` must maintain the same type constructor as `f`
+/// 7. Parametricity: For any contravariant functor `f` and functions `g`, `h`,
+///    If `g(x) = h(x)` for all `x`, then `f.contramap(g) = f.contramap(h)`
+/// 8. Arrow Reversal: For any contravariant functor `f` and functions `g`, `h`,
+///    `f.contramap(g).contramap(h) = f.contramap(|x| g(h(x)))`
 pub trait ContravariantFunctor<T>: HKT + ReturnTypeConstraints
 where
     T: ReturnTypeConstraints,

@@ -1,20 +1,24 @@
 use crate::fntype::SendSyncFnTrait;
 use crate::category::hkt::ReturnTypeConstraints;
 
-/// A bifunctor is a type constructor that provides a way to map a function over its contents.
-///
+/// A trait for bifunctors, which are functors that can map over two type parameters.
+/// 
 /// # Type Parameters
-/// * `A` - The type of the first content
-/// * `B` - The type of the second content
-///
+/// * `A` - The first type parameter.
+/// * `B` - The second type parameter.
+/// 
 /// # Laws
-///
-/// 1. Identity: `bimap(id, id) = id`
-/// 2. Composition: `bimap(f . g, h . i) = bimap(f, h) . bimap(g, i)`
-/// 3. First Identity: `first(id) = id`
-/// 4. Second Identity: `second(id) = id`
-/// 5. First Composition: `first(f . g) = first(f) . first(g)`
-/// 6. Second Composition: `second(f . g) = second(f) . second(g)`
+/// A Bifunctor instance must satisfy these laws:
+/// 1. Identity: For any bifunctor `p`,
+///    `bimap(id, id)(p) = p`
+/// 2. Composition: For functions `f`, `g`, `h`, `i` and bifunctor `p`,
+///    `bimap(f . g, h . i)(p) = bimap(f, h) . bimap(g, i)(p)`
+/// 3. First Map Identity: For any bifunctor `p`,
+///    `first(id)(p) = p`
+/// 4. Second Map Identity: For any bifunctor `p`,
+///    `second(id)(p) = p`
+/// 5. First-Second Consistency: For any bifunctor `p` and functions `f`, `g`,
+///    `bimap(f, g)(p) = first(f)(second(g)(p))`
 ///
 /// # Examples
 ///

@@ -1,24 +1,29 @@
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::fntype::SendSyncFnTrait;
 
-/// A trait for types that can be traversed.
-///
+/// A trait for traversable structures that can be traversed with effects.
+/// 
+/// # Type Parameters
+/// * `T` - The type of elements in the traversable structure
+/// 
 /// # Laws
 /// A Traversable instance must satisfy these laws:
-/// 1. Naturality: For any natural transformation `η: F ~> G` and traversable `t`,
-///    `η(traverse(t, f)) = traverse(t, η ∘ f)`
+/// 1. Naturality: For any natural transformation `η: F ~> G`,
+///    `η(traverse(f)(t)) = traverse(η ∘ f)(t)`
 /// 2. Identity: For any traversable `t`,
-///    `traverse(t, pure) = pure(t)`
-/// 3. Composition: For any traversable `t` and applicative functors `F` and `G`,
-///    `traverse(t, f ∘ g) = compose(traverse(t, f), traverse(t, g))`
-/// 4. Functor: For any traversable `t` and function `f`,
-///    `traverse(t, f).map(g) = traverse(t, f.map(g))`
-/// 5. Sequence Consistency: For any traversable `t`,
-///    `traverse(t, id) = sequence(t)`
-/// 6. Effect Order: For any traversable `t`,
-///    The order of effects in `traverse(t, f)` must match the structure of `t`
-/// 7. Pure Traversal: For any traversable `t` and pure function `f`,
-///    `traverse(t, f)` should not have any side effects beyond those in `f`
+///    `traverse(Identity)(t) = Identity(t)`
+/// 3. Composition: For any traversable `t` and applicatives `F`, `G`,
+///    `traverse(Compose ∘ map(g) ∘ f)(t) = Compose ∘ map(traverse(g)) ∘ traverse(f)(t)`
+/// 4. Sequence Consistency: For any traversable `t`,
+///    `traverse(id)(t) = sequence(t)`
+/// 5. Functor Consistency: For any traversable `t` and function `f`,
+///    `traverse(pure ∘ f)(t) = pure(map(f)(t))`
+/// 6. Foldable Consistency: For any traversable `t`,
+///    `fold_map(f) = getConst ∘ traverse(Const ∘ f)`
+/// 7. Effect Order: For any traversable `t`,
+///    Effects must be performed in a consistent order
+/// 8. Structure Preservation: For any traversable `t`,
+///    The shape and structure must be preserved after traversal
 ///
 pub trait Traversable: HKT {
     /// A method for traversing a type.

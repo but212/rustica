@@ -23,16 +23,8 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 ///    `m.bind(Maybe::pure) = m`
 /// 3. Nothing Propagation: For any function `f`,
 ///    `Maybe::Nothing.bind(f) = Maybe::Nothing`
-/// 4. Functor Identity: For any Maybe value `m`,
-///    `m.map(|x| x) = m`
-/// 5. Option Consistency: For any Maybe value `m`,
+/// 4. Option Consistency: For any Maybe value `m`,
 ///    `Maybe::from_option(m.to_option()) = m`
-/// 6. Applicative Composition: For Maybe values `f`, `g`, and `x`,
-///    `f.apply(g.apply(x)) = Maybe::pure(compose).apply(f).apply(g).apply(x)`
-/// 7. Default Nothing: For any type `T`,
-///    `Maybe::<T>::default() = Maybe::Nothing`
-/// 8. FromIterator Empty: For empty iterator `iter`,
-///    `Maybe::from_iter(iter) = Maybe::Nothing`
 ///
 /// # Examples
 ///

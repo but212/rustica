@@ -4,21 +4,28 @@ use crate::category::hkt::ReturnTypeConstraints;
 
 /// A lens that focuses on a field of a struct.
 /// 
-/// A `Lens` provides a functional way to focus on a specific field of a struct.
-/// It allows you to get, set, and modify the value of that field, as well as compose
-/// with other lenses to create more complex lenses.
-///
-/// #Laws
-/// A `Lens` must satisfy these laws:
-/// 1. GetSet (Get-Set Law): `lens.get(&lens.set(s, a)) = a`
-/// 2. SetGet (Set-Get Law): `lens.set(s, lens.get(&s)) = s`
-/// 3. SetSet (Set-Set Law): `lens.set(lens.set(s, a1), a2) = lens.set(s, a2)`
-/// 4. Composition: For lenses l1 and l2:
-///    - `(l1.compose(l2)).get(s) = l2.get(&l1.get(&s))`
-///    - `(l1.compose(l2)).set(s, c) = l1.set(s, l2.set(l1.get(&s), c))`
-/// 5. Identity: For any lens l:
-///    - `l.compose(identity()) = l`
-///    - `identity().compose(l) = l`
+/// # Type Parameters
+/// * `S` - The type of the larger structure
+/// * `A` - The type of the focused part
+/// 
+/// # Laws
+/// A Lens instance must satisfy these laws:
+/// 1. Get-Put Identity: For any structure `s`,
+///    `s.put(s.get()) = s`
+/// 2. Put-Get Identity: For any structure `s` and value `a`,
+///    `(s.put(a)).get() = a`
+/// 3. Put-Put Identity: For any structure `s` and values `a`, `b`,
+///    `s.put(a).put(b) = s.put(b)`
+/// 4. Naturality: For any natural transformation `η: F ~> G`,
+///    `η(s.get()) = η(s).get()`
+/// 5. Composition: For any lenses `l1`, `l2`,
+///    `(l1.compose(l2)).get() = l2.get(l1.get())`
+/// 6. Focus Preservation: For any structure `s` and function `f`,
+///    `s.modify(f) = s.put(f(s.get()))`
+/// 7. Type Safety: For any structure `s` and value `a`,
+///    `s.put(a)` must maintain type safety of the structure
+/// 8. Immutability: For any structure `s`,
+///    Original structure must remain unchanged after lens operations
 ///
 /// # Examples
 ///

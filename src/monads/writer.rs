@@ -28,12 +28,6 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 ///    `w1.bind(w2).log() = w1.log().combine(w2(w1.value()).log())`
 /// 5. Value Independence: For any log `w` and value `x`,
 ///    `Writer::new(x, w).value() = x`
-/// 6. Log Preservation: For any Writer `w` and function `f`,
-///    `w.map(f).log() = w.log()`
-/// 7. Sequential Logging: For Writers `w1` and `w2` and function `f`,
-///    `w1.apply(w2, f).log() = w1.log().combine(w2.log())`
-/// 8. Run Consistency: For any Writer `w`,
-///    `w.run() = (w.value(), w.log())`
 #[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct Writer<W, A>
 where

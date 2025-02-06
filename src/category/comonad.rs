@@ -2,20 +2,23 @@ use crate::category::functor::Functor;
 use crate::category::hkt::ReturnTypeConstraints;
 use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 
-/// A comonad is the categorical dual of a monad. While a monad adds a layer of context
-/// to values, a comonad extracts values from a context.
-///
+/// A trait for comonads, which are dual to monads.
+/// 
 /// # Type Parameters
-/// * `T` - The type of value contained in the comonad
-///
+/// * `T` - The type of the value within the comonad.
+/// 
 /// # Laws
-/// A comonad must satisfy these laws:
-/// 1. Left Identity: `extract(duplicate(w)) = w`
-/// 2. Right Identity: `duplicate(extract(w)) = w`
-/// 3. Associativity: `map(duplicate)(duplicate(w)) = duplicate(duplicate(w))`
-/// 4. Extension Identity: `extend(extract)(w) = w`
-/// 5. Extension Composition: `extend(f)(extend(g)(w)) = extend(x -> f(extend(g)(x)))(w)`
-/// 6. Comonad Map-Extend: `map(f)(w) = extend(x -> f(extract(x)))(w)`
+/// A Comonad instance must satisfy these laws:
+/// 1. Left Identity: For any comonad `w`,
+///    `extend(extract)(w) = w`
+/// 2. Right Identity: For any comonad `w` and function `f`,
+///    `extract(extend(f)(w)) = f(w)`
+/// 3. Associativity: For any comonad `w` and functions `f`, `g`,
+///    `extend(f)(extend(g)(w)) = extend(|x| f(extend(g)(x)))(w)`
+/// 4. Extract-Duplicate Consistency: For any comonad `w`,
+///    `extract(duplicate(w)) = w`
+/// 5. Duplicate-Extract Consistency: For any comonad `w`,
+///    `extend(extract)(duplicate(w)) = duplicate(w)`
 ///
 /// # Examples
 ///

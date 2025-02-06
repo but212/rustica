@@ -2,22 +2,29 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use crate::category::hkt::ReturnTypeConstraints;
 
-/// A Semigroup is a type with an associative binary operation.
-///
+/// A trait for semigroups, which are types with an associative binary operation.
+/// 
+/// # Type Parameters
+/// * `T` - The type of elements in the semigroup
+/// 
 /// # Laws
 /// A Semigroup instance must satisfy these laws:
-/// 1. Associativity: For all `a`, `b`, and `c`,
-///    `(a.combine(b)).combine(c) = a.combine(b.combine(c))`
-/// 2. Closure: For all `a` and `b`,
-///    `a.combine(b)` must be a valid value of the same type
-/// 3. Well-Defined: For all `a` and `b`,
-///    `a.combine(b)` must be deterministic and total
-/// 4. Homomorphism: For any semigroup homomorphism `f`,
-///    `f(x.combine(y)) = f(x).combine(f(y))`
-/// 5. Naturality: For any natural transformation `η: F ~> G` between semigroup functors,
+/// 1. Associativity: For any values `x`, `y`, `z`,
+///    `x.combine(y.combine(z)) = (x.combine(y)).combine(z)`
+/// 2. Closure: For any values `x`, `y`,
+///    `x.combine(y)` must be of the same type as `x` and `y`
+/// 3. Naturality: For any natural transformation `η: F ~> G`,
 ///    `η(x.combine(y)) = η(x).combine(η(y))`
-/// 6. Consistency with Monoid (if applicable): For types that are also Monoids,
-///    the combine operation must be consistent with the monoid's combine operation
+/// 4. Totality: For any values `x`, `y`,
+///    `x.combine(y)` must be defined for all `x` and `y`
+/// 5. Well-Defined: For any values `x`, `y`,
+///    `x.combine(y)` must be deterministic
+/// 6. Non-Empty: For any semigroup `S`,
+///    There must exist at least one element
+/// 7. Commutativity (if applicable): For any values `x`, `y`,
+///    `x.combine(y) = y.combine(x)`
+/// 8. Idempotency (if applicable): For any value `x`,
+///    `x.combine(x) = x`
 pub trait Semigroup: ReturnTypeConstraints {
     /// Combines two values of the same type.
     ///

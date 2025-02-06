@@ -2,22 +2,27 @@ use crate::category::applicative::Applicative;
 use crate::category::hkt::ReturnTypeConstraints;
 use crate::fntype::{BindFn, MonadFn, SendSyncFn};
 
-/// A monad is a type constructor that supports sequential composition of computations.
-///
+/// A trait for monads, which are applicative functors that support sequencing of operations.
+/// 
+/// # Type Parameters
+/// * `T` - The type of the value within the monad.
+/// 
 /// # Laws
-/// A monad must satisfy these laws:
-/// 1. Left Identity: `pure(a).bind(f) = f(a)`
-/// 2. Right Identity: `m.bind(pure) = m`
-/// 3. Associativity: `m.bind(f).bind(g) = m.bind(|x| f(x).bind(g))`
-/// 4. Join Laws:
-///    - `join(pure(m)) = m`
-///    - `join(map(pure)(m)) = m`
-///    - `join(join(m)) = join(map(join)(m))`
-/// 5. Kleisli Composition Laws:
-///    - Identity: `kleisli_compose(pure, f) = f = kleisli_compose(f, pure)`
-///    - Associativity: `kleisli_compose(kleisli_compose(f, g), h) = kleisli_compose(f, kleisli_compose(g, h))`
-/// 6. Naturality: For any natural transformation η: M ~> N,
-///    `η(m.bind(f)) = η(m).bind(x -> η(f(x)))`
+/// A Monad instance must satisfy these laws:
+/// 1. Left Identity: For any value `x` and function `f`,
+///    `pure(x).bind(f) = f(x)`
+/// 2. Right Identity: For any monad `m`,
+///    `m.bind(pure) = m`
+/// 3. Associativity: For any monad `m` and functions `f`, `g`,
+///    `m.bind(f).bind(g) = m.bind(|x| f(x).bind(g))`
+/// 4. Applicative Consistency: For any monad `m` and function `f`,
+///    `m.bind(|x| pure(f(x))) = m.map(f)`
+/// 5. Join Consistency: For any monad `m`,
+///    `m.bind(f) = m.map(f).join()`
+/// 6. Pure Preservation: For any value `x`,
+///    `join(pure(pure(x))) = pure(x)`
+/// 7. Natural Transformation: For any natural transformation `η`,
+///    `η(m.bind(f)) = η(m).bind(η ∘ f)`
 ///
 pub trait Monad<T>: Applicative<T>
 where

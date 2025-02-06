@@ -6,16 +6,22 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// A trait for applicative functors, which allow function application within a context.
 /// 
 /// # Type Parameters
-///
 /// * `T` - The type of the value within the applicative functor.
 /// 
 /// # Laws
-///
-/// 1. Identity: `pure(id).apply(v) = v`
-/// 2. Composition: `pure(compose).apply(u).apply(v).apply(w) = u.apply(v.apply(w))`
-/// 3. Homomorphism: `pure(f).apply(pure(x)) = pure(f(x))`
-/// 4. Interchange: `u.apply(pure(y)) = pure(|f| f(y)).apply(u)`
-/// 5. Naturality: `map(f)(x.apply(y)) = x.apply(map(|g| f.compose(g))(y))`
+/// An Applicative instance must satisfy these laws:
+/// 1. Identity: For any value `v`,
+///    `pure(id).apply(v) = v`
+/// 2. Composition: For applicatives `u`, `v`, `w`,
+///    `pure(compose).apply(u).apply(v).apply(w) = u.apply(v.apply(w))`
+/// 3. Homomorphism: For any function `f` and value `x`,
+///    `pure(f).apply(pure(x)) = pure(f(x))`
+/// 4. Interchange: For any applicative `u` and value `y`,
+///    `u.apply(pure(y)) = pure(|f| f(y)).apply(u)`
+/// 5. Naturality: For any function `f` and applicatives `x`, `y`,
+///    `map(f)(x.apply(y)) = x.apply(map(|g| f.compose(g))(y))`
+/// 6. Functor Consistency: For any value `x` and function `f`,
+///    `pure(x).map(f) = pure(f(x))`
 ///
 /// # Example
 ///

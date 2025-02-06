@@ -9,16 +9,15 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// * `T` - The type of elements contained in the foldable structure
 ///
 /// # Laws
-/// A foldable instance should satisfy these laws:
-/// 1. Fold-Map Fusion: `fold_map(f) = fold_right(M::empty(), |x, acc| M::combine(f(x), acc))`
-/// 2. Fold Consistency: For any associative operation `op` with identity element `e`:
-///    `fold_left(e, op) = fold_right(e, |x, acc| op(acc, x))`
-/// 3. Length Consistency: `length(t) = fold_map(|_| 1)`
-/// 4. Empty Consistency: `is_empty(t) = (length(t) == 0)`
-/// 5. Monoid Homomorphism: For any monoid `M`:
-///    `fold_map(f . g) = M::combine(fold_map(f), fold_map(g))`
-/// 6. Naturality: For any natural transformation `η: F ~> G`:
-///    `fold_map(η . f) = η(fold_map(f))`
+/// A Foldable instance must satisfy these laws:
+/// 1. Identity: For any foldable structure `t`,
+///    `t.fold_left(|x| x) = t.fold_right(|x| x)`
+/// 2. Composition: For any foldable structure `t` and functions `f`, `g`,
+///    `t.fold_left(f).fold_left(g) = t.fold_left(|acc, x| g(f(acc, x)))`
+/// 3. Naturality: For any natural transformation `η: F ~> G`,
+///    `η(t.fold_left(f)) = η(t).fold_left(f)`
+/// 4. Monoid Consistency: For any foldable structure `t` and monoid `M`,
+///    `t.fold_left(M.combine)(M.empty) = t.fold_right(M.combine)(M.empty)`
 pub trait Foldable<T>
 where
     T: ReturnTypeConstraints,

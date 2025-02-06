@@ -6,14 +6,23 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// * `A` - The type of the value produced by the evaluation
 ///
 /// # Laws
-/// 1. Total Evaluation: For any valid value `v`, `evaluate(v)` must either return a value or panic
-/// 2. Consistency: If `evaluate(v)` returns a value `x`, subsequent evaluations must also return `x`
-/// 3. Identity Preservation: For any value `x`, `evaluate(pure(x)) = x`
-/// 4. Error Propagation: If `v` represents an error state, `evaluate(v)` must panic with a meaningful message
-/// 5. Determinism: `evaluate(v)` must be deterministic - same input always yields same output or panic
-/// 6. Left Identity: `evaluate(duplicate(w)) = w`
-/// 7. Right Identity: `duplicate(evaluate(w)) = w`
-/// 8. Associativity: `evaluate(evaluate(w)) = map(duplicate)(evaluate(w))`
+/// An Evaluate instance must satisfy these laws:
+/// 1. Identity: For any evaluable value `e`,
+///    `e.evaluate().pure() = e`
+/// 2. Composition: For any evaluable values `e`, `f` and function `g`,
+///    `e.evaluate().map(g) = (e.map(g)).evaluate()`
+/// 3. Naturality: For any natural transformation `η: F ~> G`,
+///    `η(e.evaluate()) = η(e).evaluate()`
+/// 4. Purity: For any pure value `x`,
+///    `pure(x).evaluate() = x`
+/// 5. Strictness: For any evaluable value `e`,
+///    `e.evaluate()` must force evaluation of the contained computation
+/// 6. Memoization: For any evaluable value `e`,
+///    Multiple calls to `e.evaluate()` should return equivalent results
+/// 7. Error Handling: For any evaluable value `e`,
+///    `e.evaluate()` must properly propagate any errors in the computation
+/// 8. Resource Safety: For any evaluable value `e`,
+///    `e.evaluate()` must properly manage and release any resources used
 ///
 /// # Examples
 ///

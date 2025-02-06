@@ -10,15 +10,19 @@ use crate::fntype::SendSyncFnTrait;
 /// * `T` - The type of value contained in the functor
 /// 
 /// # Laws
-/// A functor must satisfy these laws:
-/// 1. Identity: `map(id) = id`
-/// 2. Composition: `map(f . g) = map(f) . map(g)`
-/// 3. Structure Preservation: For any morphisms f: A -> B and g: B -> C,
-///    `map(g . f) = map(g) . map(f)`
-/// 4. Naturality: For any natural transformation η: F ~> G,
-///    `map(η) . F(f) = G(f) . map(η)`
-/// 5. Container Preservation: `map` must preserve the structure of the container
-///    while transforming its contents
+/// A Functor instance must satisfy these laws:
+/// 1. Identity: For any functor `f`,
+///    `f.map(|x| x) = f`
+/// 2. Composition: For any functor `f` and functions `g`, `h`,
+///    `f.map(|x| h(g(x))) = f.map(g).map(h)`
+/// 3. Naturality: For any natural transformation `η: F ~> G`,
+///    `η(f.map(g)) = η(f).map(g)`
+/// 4. Container Preservation: For any functor `f` and function `g`,
+///    `f.map(g)` must preserve the structure of `f`
+/// 5. Type Preservation: For any functor `f` and function `g`,
+///    `f.map(g)` must maintain the same type constructor as `f`
+/// 6. Parametricity: For any functor `f` and functions `g`, `h`,
+///    If `g(x) = h(x)` for all `x`, then `f.map(g) = f.map(h)`
 ///
 /// # Example
 /// ```

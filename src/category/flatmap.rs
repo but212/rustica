@@ -2,19 +2,21 @@ use crate::category::hkt::ReturnTypeConstraints;
 use crate::fntype::BindFn;
 use crate::category::monad::Monad;
 
-/// A trait for monads that support flat mapping.
+/// A trait for types that support flattening of nested structures.
 /// 
 /// # Type Parameters
-/// * `T` - The type of the value in the monad.
+/// * `T` - The type of the value within the structure.
 /// 
 /// # Laws
-/// A flat map instance must satisfy these laws:
-/// 1. Left Identity: `flat_map(pure(a), f) = f(a)`
-/// 2. Right Identity: `flat_map(m, pure) = m`
-/// 3. Associativity: `flat_map(flat_map(m, f), g) = flat_map(m, x -> flat_map(f(x), g))`
-/// 4. Naturality: For any functions f and g, `map(g)(flat_map(m, f)) = flat_map(map(g)(m), x -> map(g)(f(x)))`
-/// 5. Monad Law: `flat_map` must be consistent with the underlying monad's `bind` operation:
-///    `flat_map(m, f) = bind(m, f)`
+/// A FlatMap instance must satisfy these laws:
+/// 1. Associativity: For any value `m` and functions `f`, `g`,
+///    `m.flat_map(f).flat_map(g) = m.flat_map(|x| f(x).flat_map(g))`
+/// 2. Consistency with Map: For any value `m` and function `f`,
+///    `m.flat_map(|x| pure(f(x))) = m.map(f)`
+/// 3. Flattening Identity: For any value `m`,
+///    `flatten(pure(m)) = m`
+/// 4. Map-Flatten Consistency: For any value `m` and function `f`,
+///    `m.flat_map(f) = flatten(map(f)(m))`
 pub trait FlatMap<T>: Monad<T> + Sized
 where
     T: ReturnTypeConstraints,
