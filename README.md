@@ -26,5 +26,3 @@ Rustica currently includes the following features:
 - Either
 - Maybe
 - IO
-
-[![Crates.io](https://img.shields.io/crates/v/rustica.svg)](https://crates.io/crates/rustica)
