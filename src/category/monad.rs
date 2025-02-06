@@ -4,10 +4,21 @@ use crate::fntype::{BindFn, MonadFn, SendSyncFn};
 
 /// A monad is a type constructor that supports sequential composition of computations.
 ///
-/// A monad must satisfy the following laws:
+/// # Laws
+/// A monad must satisfy these laws:
 /// 1. Left Identity: `pure(a).bind(f) = f(a)`
 /// 2. Right Identity: `m.bind(pure) = m`
 /// 3. Associativity: `m.bind(f).bind(g) = m.bind(|x| f(x).bind(g))`
+/// 4. Join Laws:
+///    - `join(pure(m)) = m`
+///    - `join(map(pure)(m)) = m`
+///    - `join(join(m)) = join(map(join)(m))`
+/// 5. Kleisli Composition Laws:
+///    - Identity: `kleisli_compose(pure, f) = f = kleisli_compose(f, pure)`
+///    - Associativity: `kleisli_compose(kleisli_compose(f, g), h) = kleisli_compose(f, kleisli_compose(g, h))`
+/// 6. Naturality: For any natural transformation η: M ~> N,
+///    `η(m.bind(f)) = η(m).bind(x -> η(f(x)))`
+///
 pub trait Monad<T>: Applicative<T>
 where
     T: ReturnTypeConstraints,

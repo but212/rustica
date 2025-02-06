@@ -6,6 +6,18 @@ use crate::fntype::MonoidFn;
 /// 
 /// # Type Parameters
 /// * `T` - The type of the elements in the monoid.
+///
+/// # Laws
+/// A monoid must satisfy these laws:
+/// 1. Left Identity: `empty().combine(x) = x`
+/// 2. Right Identity: `x.combine(empty()) = x`
+/// 3. Associativity (inherited from Semigroup): `(x.combine(y)).combine(z) = x.combine(y.combine(z))`
+/// 4. Uniqueness: If `e.combine(x) = x` and `x.combine(e) = x` for all `x`, then `e = empty()`
+/// 5. Homomorphism: For any monoid homomorphism `f`,
+///    - `f(empty()) = empty()`
+///    - `f(x.combine(y)) = f(x).combine(f(y))`
+/// 6. Naturality: For any natural transformation `η: F ~> G` between monoidal functors,
+///    `η(empty()) = empty()`
 pub trait Monoid: Semigroup {
     /// The identity element of the monoid.
     ///

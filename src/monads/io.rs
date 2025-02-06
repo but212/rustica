@@ -19,6 +19,25 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 /// # Generic Arguments
 /// * `A` - The type of the output value produced by the computation.
 /// 
+/// # Laws
+/// An `IO` monad must satisfy these laws in addition to the standard Monad laws:
+/// 1. Referential Transparency: For any IO computation `io`,
+///    `io.run()` must produce the same effect sequence each time
+/// 2. Sequential Composition: For IO computations `f` and `g`,
+///    `f.bind(g)` must execute `f` before `g`
+/// 3. Effect Encapsulation: Side effects must only occur when `run()` is called,
+///    not during IO construction or transformation
+/// 4. Error Handling: IO operations that can fail must properly propagate errors
+///    through the monadic chain
+/// 5. Resource Safety: Resources acquired in an IO computation must be properly
+///    released, even in the presence of errors
+/// 6. Pure Transformation: For pure function `f` and IO computation `io`,
+///    `io.map(f)` must not introduce additional side effects
+/// 7. Lazy Evaluation: IO computations must be lazy, only executing when `run()`
+///    is called
+/// 8. Monoid Consistency: For Monoid type `A`,
+///    `IO::empty()` must be an identity for `combine`
+///
 /// # Fields
 /// * `run` - A function that performs the I/O operation.
 /// 

@@ -9,8 +9,12 @@ use crate::category::monad::Monad;
 /// 
 /// # Laws
 /// A flat map instance must satisfy these laws:
-/// 1. Identity: `flat_map(|x| x) = flat_map`
-/// 2. Composition: `flat_map(f).flat_map(g) = flat_map(|x| g(f(x)))`
+/// 1. Left Identity: `flat_map(pure(a), f) = f(a)`
+/// 2. Right Identity: `flat_map(m, pure) = m`
+/// 3. Associativity: `flat_map(flat_map(m, f), g) = flat_map(m, x -> flat_map(f(x), g))`
+/// 4. Naturality: For any functions f and g, `map(g)(flat_map(m, f)) = flat_map(map(g)(m), x -> map(g)(f(x)))`
+/// 5. Monad Law: `flat_map` must be consistent with the underlying monad's `bind` operation:
+///    `flat_map(m, f) = bind(m, f)`
 pub trait FlatMap<T>: Monad<T> + Sized
 where
     T: ReturnTypeConstraints,

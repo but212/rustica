@@ -17,12 +17,24 @@ pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoI
 /// * `A` - The valid value type
 ///
 /// # Laws
-/// A Validated instance must satisfy these laws:
-/// 1. Identity: `validated.map(|x| x) = validated`
-/// 2. Composition: `validated.map(f).map(g) = validated.map(|x| g(f(x)))`
-/// 3. Pure: `Validated::pure(x).map(f) = Validated::pure(f(x))`
-/// 4. Applicative: Errors are accumulated when combining multiple Validated values
-/// 
+/// A Validated instance must satisfy these laws in addition to the standard Monad laws:
+/// 1. Error Accumulation: For invalid values `v1` and `v2`,
+///    `v1.combine(v2, f)` must contain all errors from both `v1` and `v2`
+/// 2. Valid Combination: For valid values `v1` and `v2`,
+///    `v1.combine(v2, f) = Validated::Valid(f(v1.value)(v2.value))`
+/// 3. Invalid Priority: For valid value `v1` and invalid value `v2`,
+///    `v1.combine(v2, f)` must be invalid with `v2`'s errors
+/// 4. Result Consistency: For any Validated value `v`,
+///    `Validated::from_result(v.to_result()) = v`
+/// 5. Invalid Map Independence: For invalid value `v` and function `f`,
+///    `v.map_valid(f)` must preserve all original errors
+/// 6. Valid Map Consistency: For valid value `v` and function `f`,
+///    `v.map_valid(f) = v.map(f)`
+/// 7. Error Type Conversion: For invalid value `v` and function `f`,
+///    `v.map_invalid(f)` must preserve error structure while converting type
+/// 8. Default Invalid: For any Validated type,
+///    `Validated::<E,A>::default()` must be invalid with empty errors
+///
 /// # Examples
 ///
 /// ```

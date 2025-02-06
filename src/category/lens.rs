@@ -10,9 +10,16 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///
 /// #Laws
 /// A `Lens` must satisfy these laws:
-/// 1. Identity: `lens.get(&s) = lens.get(&s)`
-/// 2. Composition: `lens2.get(&lens1.get(&s)) = lens2.get(&s)`
-/// 
+/// 1. GetSet (Get-Set Law): `lens.get(&lens.set(s, a)) = a`
+/// 2. SetGet (Set-Get Law): `lens.set(s, lens.get(&s)) = s`
+/// 3. SetSet (Set-Set Law): `lens.set(lens.set(s, a1), a2) = lens.set(s, a2)`
+/// 4. Composition: For lenses l1 and l2:
+///    - `(l1.compose(l2)).get(s) = l2.get(&l1.get(&s))`
+///    - `(l1.compose(l2)).set(s, c) = l1.set(s, l2.set(l1.get(&s), c))`
+/// 5. Identity: For any lens l:
+///    - `l.compose(identity()) = l`
+///    - `identity().compose(l) = l`
+///
 /// # Examples
 ///
 /// ```

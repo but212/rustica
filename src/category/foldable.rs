@@ -10,9 +10,15 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///
 /// # Laws
 /// A foldable instance should satisfy these laws:
-/// 1. fold_left and fold_right should be consistent for associative operations
-/// 2. length should be consistent with fold operations
-/// 3. fold_map should be consistent with fold operations using monoid combination
+/// 1. Fold-Map Fusion: `fold_map(f) = fold_right(M::empty(), |x, acc| M::combine(f(x), acc))`
+/// 2. Fold Consistency: For any associative operation `op` with identity element `e`:
+///    `fold_left(e, op) = fold_right(e, |x, acc| op(acc, x))`
+/// 3. Length Consistency: `length(t) = fold_map(|_| 1)`
+/// 4. Empty Consistency: `is_empty(t) = (length(t) == 0)`
+/// 5. Monoid Homomorphism: For any monoid `M`:
+///    `fold_map(f . g) = M::combine(fold_map(f), fold_map(g))`
+/// 6. Naturality: For any natural transformation `η: F ~> G`:
+///    `fold_map(η . f) = η(fold_map(f))`
 pub trait Foldable<T>
 where
     T: ReturnTypeConstraints,

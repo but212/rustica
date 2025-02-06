@@ -6,9 +6,14 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// * `A` - The type of the value produced by the evaluation
 ///
 /// # Laws
-/// - Left Identity: `evaluate(duplicate(w)) = w`
-/// - Right Identity: `duplicate(evaluate(w)) = w`
-/// - Associativity: `evaluate(evaluate(w)) = map(duplicate)(evaluate(w))`
+/// 1. Total Evaluation: For any valid value `v`, `evaluate(v)` must either return a value or panic
+/// 2. Consistency: If `evaluate(v)` returns a value `x`, subsequent evaluations must also return `x`
+/// 3. Identity Preservation: For any value `x`, `evaluate(pure(x)) = x`
+/// 4. Error Propagation: If `v` represents an error state, `evaluate(v)` must panic with a meaningful message
+/// 5. Determinism: `evaluate(v)` must be deterministic - same input always yields same output or panic
+/// 6. Left Identity: `evaluate(duplicate(w)) = w`
+/// 7. Right Identity: `duplicate(evaluate(w)) = w`
+/// 8. Associativity: `evaluate(evaluate(w)) = map(duplicate)(evaluate(w))`
 ///
 /// # Examples
 ///

@@ -13,6 +13,25 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn};
 /// # Type Parameters
 /// * `R` - The return type of the continuation.
 /// * `A` - The type to be computed asynchronously.
+///
+/// # Laws
+/// A Continuation Monad must satisfy these laws in addition to the standard Monad laws:
+/// 1. Continuation Identity: For any continuation `k` and value `a`,
+///    `Cont::pure(a).run(k) = k(a)`
+/// 2. Composition: For continuations `k1` and `k2`,
+///    `Cont::new(k1).bind(f).run(k2) = k1(x => f(x).run(k2))`
+/// 3. Call/CC Identity: For any continuation `k` and value `a`,
+///    `callCC(k => k(a)).run(id) = a`
+/// 4. Stack Safety: For deeply nested continuations,
+///    the implementation must maintain stack safety
+/// 5. Tail Call Optimization: For recursive continuations,
+///    tail calls must be optimized
+/// 6. Delimited Continuations: When using delimited continuations,
+///    the scope of the continuation must be properly maintained
+/// 7. Resource Safety: Resources captured in continuations
+///    must be properly managed and released
+/// 8. Compositionality: For any continuations `f` and `g`,
+///    `f.compose(g)` must maintain the continuation semantics
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Cont<R, A>
 where

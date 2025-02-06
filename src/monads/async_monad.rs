@@ -13,6 +13,24 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
 /// 
 /// # Type Parameters
 /// * `A` - The type to be computed asynchronously.
+///
+/// # Laws
+/// An AsyncM instance must satisfy these laws in addition to the standard Monad laws:
+/// 1. Asynchronous Identity: For any value `x`,
+///    `AsyncM::new(async { x }).try_get() = x`
+/// 2. Composition: For async computations `f` and `g`,
+///    `AsyncM::new(async { f }).bind(g) = AsyncM::new(async { g(f) })`
+/// 3. Sequential Execution: For async computations `f` and `g`,
+///    `f.bind(g)` must execute `f` before `g`
+/// 4. Error Propagation: For any async computation that fails,
+///    the error must be propagated through the monad chain
+/// 5. Cancellation Safety: For any async computation,
+///    cancellation must not leave resources in an inconsistent state
+/// 6. Resource Safety: For any async computation,
+///    resources must be properly managed regardless of completion or failure
+/// 7. Non-Blocking: `try_get()` must not block the current thread
+/// 8. Future Compatibility: For any Future `f`,
+///    `AsyncM::new(f)` must preserve the Future's semantics
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct AsyncM<A>
 where

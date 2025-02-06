@@ -10,9 +10,11 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// * `V` - The output type of the second function
 ///
 /// # Laws
-/// - Associativity: `composable(composable(f, g), h) = composable(f, composable(g, h))`
-/// - Identity: `composable(f, |x| x) = f`
-/// - Composition: `composable(f, g) = |x| g(f(x))`
+/// 1. Associativity: `compose(compose(f, g), h) = compose(f, compose(g, h))`
+/// 2. Left Identity: `compose(id, f) = f`
+/// 3. Right Identity: `compose(f, id) = f`
+/// 4. Distributivity: `compose(f, compose(g, h)) = compose(compose(f, g), h)`
+/// 5. Composition: For any `x`, `compose(f, g)(x) = g(f(x))`
 /// 
 /// # Examples
 ///

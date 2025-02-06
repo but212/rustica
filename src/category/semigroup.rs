@@ -3,6 +3,21 @@ use std::hash::Hash;
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A Semigroup is a type with an associative binary operation.
+///
+/// # Laws
+/// A Semigroup instance must satisfy these laws:
+/// 1. Associativity: For all `a`, `b`, and `c`,
+///    `(a.combine(b)).combine(c) = a.combine(b.combine(c))`
+/// 2. Closure: For all `a` and `b`,
+///    `a.combine(b)` must be a valid value of the same type
+/// 3. Well-Defined: For all `a` and `b`,
+///    `a.combine(b)` must be deterministic and total
+/// 4. Homomorphism: For any semigroup homomorphism `f`,
+///    `f(x.combine(y)) = f(x).combine(f(y))`
+/// 5. Naturality: For any natural transformation `η: F ~> G` between semigroup functors,
+///    `η(x.combine(y)) = η(x).combine(η(y))`
+/// 6. Consistency with Monoid (if applicable): For types that are also Monoids,
+///    the combine operation must be consistent with the monoid's combine operation
 pub trait Semigroup: ReturnTypeConstraints {
     /// Combines two values of the same type.
     ///

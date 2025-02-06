@@ -16,11 +16,24 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
 /// * `A` - The output type.
 /// 
 /// # Laws
-/// A Writer instance must satisfy these laws:
-/// 1. Identity: `writer.map(|x| x) = writer`
-/// 2. Composition: `writer.map(f).map(g) = writer.map(|x| g(f(x)))`
-/// 3. Pure: `Writer::pure(x).map(f) = Writer::pure(f(x))`
-/// 4. Applicative: Errors are accumulated when combining multiple Writer values
+/// A Writer instance must satisfy these laws in addition to the standard Monad laws:
+/// 1. Log Monoid: The log type `W` must satisfy monoid laws:
+///    - Identity: `w.combine(W::empty()) = w = W::empty().combine(w)`
+///    - Associativity: `(w1.combine(w2)).combine(w3) = w1.combine(w2.combine(w3))`
+/// 2. Pure Log Empty: For any value `x`,
+///    `Writer::pure(x).log() = W::empty()`
+/// 3. Tell Consistency: For any log `w`,
+///    `Writer::tell(w).log() = w`
+/// 4. Log Combination: For Writers `w1` and `w2`,
+///    `w1.bind(w2).log() = w1.log().combine(w2(w1.value()).log())`
+/// 5. Value Independence: For any log `w` and value `x`,
+///    `Writer::new(x, w).value() = x`
+/// 6. Log Preservation: For any Writer `w` and function `f`,
+///    `w.map(f).log() = w.log()`
+/// 7. Sequential Logging: For Writers `w1` and `w2` and function `f`,
+///    `w1.apply(w2, f).log() = w1.log().combine(w2.log())`
+/// 8. Run Consistency: For any Writer `w`,
+///    `w.run() = (w.value(), w.log())`
 #[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct Writer<W, A>
 where

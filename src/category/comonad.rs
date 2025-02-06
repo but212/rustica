@@ -12,7 +12,10 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 /// A comonad must satisfy these laws:
 /// 1. Left Identity: `extract(duplicate(w)) = w`
 /// 2. Right Identity: `duplicate(extract(w)) = w`
-/// 3. Associativity: `duplicate(duplicate(w)) = map(duplicate)(duplicate(w))`
+/// 3. Associativity: `map(duplicate)(duplicate(w)) = duplicate(duplicate(w))`
+/// 4. Extension Identity: `extend(extract)(w) = w`
+/// 5. Extension Composition: `extend(f)(extend(g)(w)) = extend(x -> f(extend(g)(x)))(w)`
+/// 6. Comonad Map-Extend: `map(f)(w) = extend(x -> f(extract(x)))(w)`
 ///
 /// # Examples
 ///

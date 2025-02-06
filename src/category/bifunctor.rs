@@ -8,9 +8,13 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// * `B` - The type of the second content
 ///
 /// # Laws
-/// - Left Identity: `bimap(duplicate(w), f) = w`
-/// - Right Identity: `bimap(f, duplicate(w)) = w`
-/// - Associativity: `bimap(f, g)(w) = bimap(f, g)(bimap(f, g)(w))`
+///
+/// 1. Identity: `bimap(id, id) = id`
+/// 2. Composition: `bimap(f . g, h . i) = bimap(f, h) . bimap(g, i)`
+/// 3. First Identity: `first(id) = id`
+/// 4. Second Identity: `second(id) = id`
+/// 5. First Composition: `first(f . g) = first(f) . first(g)`
+/// 6. Second Composition: `second(f . g) = second(f) . second(g)`
 ///
 /// # Examples
 ///

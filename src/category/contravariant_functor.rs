@@ -8,8 +8,12 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 /// 
 ///  # Laws
 /// A contravariant functor must satisfy these laws:
-/// 1. Identity: `contravariant_map(|x| x) = contravariant_functor`
-/// 2. Composition: `contravariant_map(f).contravariant_map(g) = contravariant_map(|x| g(f(x)))`
+/// 1. Identity: `contravariant_map(id) = id`
+/// 2. Composition: `contravariant_map(f) . contravariant_map(g) = contravariant_map(g . f)`
+/// 3. Naturality: For any morphisms f: A -> B and g: B -> C, 
+///    `contravariant_map(f) . contravariant_map(g) = contravariant_map(g . f)`
+/// 4. Preservation of Structure: For any morphism f: A -> B,
+///    `contravariant_map(f)(contravariant_map(g)(x)) = contravariant_map(g . f)(x)`
 pub trait ContravariantFunctor<T>: HKT + ReturnTypeConstraints
 where
     T: ReturnTypeConstraints,

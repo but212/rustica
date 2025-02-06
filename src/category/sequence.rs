@@ -6,6 +6,22 @@ use crate::category::monad::Monad;
 /// # Type Parameters
 /// * `T` - The type to be sequenced.
 /// * `M` - The monad to be used for sequencing.
+///
+/// # Laws
+/// A Sequence instance must satisfy these laws:
+/// 1. Naturality: For any natural transformation `η: F ~> G` and sequence `xs`,
+///    `η(sequence(xs)) = sequence(map(η)(xs))`
+/// 2. Identity: For any sequence `xs`,
+///    `sequence(map(pure)(xs)) = pure(xs)`
+/// 3. Composition: For nested sequences `xss`,
+///    `sequence(sequence(xss)) = sequence(map(sequence)(xss))`
+/// 4. Monad Consistency: For any monadic value `m` and function `f`,
+///    `sequence(pure(m)) = map(pure)(m)`
+/// 5. Order Preservation: For any sequence `xs`,
+///    The order of effects in `sequence(xs)` must match the order in `xs`
+/// 6. Failure Propagation (for fallible types):
+///    - For `Option`: If any element is `None`, the result is `None`
+///    - For `Result`: If any element is `Err(e)`, the result is `Err(e)`
 pub trait Sequence<T, M>: Monad<T>
 where
     T: ReturnTypeConstraints,

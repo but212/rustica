@@ -11,8 +11,14 @@ use crate::fntype::SendSyncFnTrait;
 /// 
 /// # Laws
 /// A functor must satisfy these laws:
-/// 1. Identity: `map(|x| x) = functor`
-/// 2. Composition: `map(f).map(g) = map(|x| g(f(x)))`
+/// 1. Identity: `map(id) = id`
+/// 2. Composition: `map(f . g) = map(f) . map(g)`
+/// 3. Structure Preservation: For any morphisms f: A -> B and g: B -> C,
+///    `map(g . f) = map(g) . map(f)`
+/// 4. Naturality: For any natural transformation η: F ~> G,
+///    `map(η) . F(f) = G(f) . map(η)`
+/// 5. Container Preservation: `map` must preserve the structure of the container
+///    while transforming its contents
 ///
 /// # Example
 /// ```

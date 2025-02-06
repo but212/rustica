@@ -11,8 +11,11 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// 
 /// # Laws
 ///
-/// 1. Identity: `applicative.map(|x| x) = applicative`
-/// 2. Composition: `applicative.map(f).map(g) = applicative.map(|x| g(f(x)))`
+/// 1. Identity: `pure(id).apply(v) = v`
+/// 2. Composition: `pure(compose).apply(u).apply(v).apply(w) = u.apply(v.apply(w))`
+/// 3. Homomorphism: `pure(f).apply(pure(x)) = pure(f(x))`
+/// 4. Interchange: `u.apply(pure(y)) = pure(|f| f(y)).apply(u)`
+/// 5. Naturality: `map(f)(x.apply(y)) = x.apply(map(|g| f.compose(g))(y))`
 ///
 /// # Example
 ///
@@ -173,7 +176,7 @@ where
     /// - `self`: The applicative functor instance.
     /// - `b`: A wrapped value of type `B`.
     /// - `c`: A wrapped value of type `C`.
-    /// - `f`: A ternary function that takes values of type `A`, `B
+    /// - `f`: A ternary function that takes values of type `A`, `B`, and `C` and returns a value of type `D`.
     ///
     /// # Returns
     /// A new applicative functor containing the result of applying the function `f` to the wrapped values.
