@@ -70,7 +70,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
 ///     where
 ///         B: ReturnTypeConstraints,
-///         F: ApplyFn<T, B>,
+///         F: SendSyncFnTrait<T, B>,
 ///     {
 ///         match (self.0, f.0) {
 ///             (Some(x), Some(f)) => Maybe(Some(f.call(x))),
@@ -86,7 +86,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///     where
 ///         B: ReturnTypeConstraints,
 ///         C: ReturnTypeConstraints,
-///         F: ApplyFn<T, SendSyncFn<B, C>>,
+///         F: SendSyncFnTrait<T, SendSyncFn<B, C>>,
 ///     {
 ///         match (self.0, b.0) {
 ///             (Some(a), Some(b)) => Maybe(Some(f.call(a).call(b))),
@@ -104,7 +104,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///         B: ReturnTypeConstraints,
 ///         C: ReturnTypeConstraints,
 ///         D: ReturnTypeConstraints,
-///         F: ApplyFn<T, SendSyncFn<B, SendSyncFn<C, D>>>,
+///         F: SendSyncFnTrait<T, SendSyncFn<B, SendSyncFn<C, D>>>,
 ///     {
 ///         match (self.0, b.0, c.0) {
 ///             (Some(a), Some(b), Some(c)) => Maybe(Some(f.call(a).call(b).call(c))),
