@@ -7,7 +7,7 @@ use crate::category::applicative::Applicative;
 use crate::category::functor::Functor;
 use crate::category::pure::Pure;
 use crate::category::monad::Monad;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
+use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 
 /// An async monad that represents an asynchronous computation.
 /// 
@@ -138,7 +138,7 @@ where
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: ApplyFn<A, B> + Default,
+        F: SendSyncFnTrait<A, B>,
     {
         AsyncM {
             run: SendSyncFn::new(move |_| {
@@ -162,7 +162,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, C>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
     {
         AsyncM {
             run: SendSyncFn::new(move |_| {
@@ -188,7 +188,7 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
     {
         AsyncM {
             run: SendSyncFn::new(move |_| {
@@ -260,11 +260,9 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: MonadFn<A, B, Self::Output<B>>,
-        H: MonadFn<B, C, Self::Output<C>>,
+        G: SendSyncFnTrait<A, Self::Output<B>>,
+        H: SendSyncFnTrait<B, Self::Output<C>>,
     {
-        SendSyncFn::new(move |x| -> Self::Output<C> {
-            g.call(x).bind(h.clone())
-        })
+        SendSyncFn::new(move |x| g.call(x).bind(h.clone()))
     }
 }

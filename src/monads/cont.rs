@@ -6,7 +6,7 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn};
+use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 
 /// The continuation monad.
 /// 
@@ -14,24 +14,39 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn};
 /// * `R` - The return type of the continuation.
 /// * `A` - The type to be computed asynchronously.
 ///
-/// # Laws
-/// A Continuation Monad must satisfy these laws in addition to the standard Monad laws:
-/// 1. Continuation Identity: For any continuation `k` and value `a`,
-///    `Cont::pure(a).run(k) = k(a)`
-/// 2. Composition: For continuations `k1` and `k2`,
-///    `Cont::new(k1).bind(f).run(k2) = k1(x => f(x).run(k2))`
-/// 3. Call/CC Identity: For any continuation `k` and value `a`,
-///    `callCC(k => k(a)).run(id) = a`
-/// 4. Stack Safety: For deeply nested continuations,
-///    the implementation must maintain stack safety
-/// 5. Tail Call Optimization: For recursive continuations,
-///    tail calls must be optimized
-/// 6. Delimited Continuations: When using delimited continuations,
-///    the scope of the continuation must be properly maintained
-/// 7. Resource Safety: Resources captured in continuations
-///    must be properly managed and released
-/// 8. Compositionality: For any continuations `f` and `g`,
-///    `f.compose(g)` must maintain the continuation semantics
+/// A Continuation Monad must satisfy the following laws:
+/// 
+/// ## Core Continuation Laws
+/// 1. Identity Law: ∀k ∈ K, a ∈ A:
+///    pure(a).run(k) = k(a)
+///    
+/// 2. Composition Law: ∀x ∈ A, f: A → B, k: B → R:
+///    pure(x).map(f).run(k) = k(f(x))
+///    
+/// ## Functor Laws
+/// 1. Identity Law: ∀x ∈ Cont<R,A>:
+///    x.map(id) = x
+/// 
+/// 2. Composition Law: ∀x ∈ Cont<R,A>, f: A → B, g: B → C:
+///    x.map(f).map(g) = x.map(g ∘ f)
+/// 
+/// ## Monad Laws
+/// 1. Left Identity Law: ∀x ∈ A, f: A → Cont<R,B>:
+///    pure(x).bind(f) = f(x)
+/// 
+/// 2. Right Identity Law: ∀x ∈ Cont<R,A>:
+///    x.bind(pure) = x
+/// 
+/// 3. Associativity Law: ∀x ∈ Cont<R,A>, f: A → Cont<R,B>, g: B → Cont<R,C>:
+///    x.bind(f).bind(g) = x.bind(λy. f(y).bind(g))
+/// 
+/// ## Additional Properties
+/// 1. Stack Safety: For deeply nested continuations,
+///    the implementation maintains stack safety.
+/// 2. Resource Safety: Resources captured in continuations
+///    are properly managed and released.
+/// 3. Compositionality: For any continuations f and g,
+///    f.compose(g) maintains the continuation semantics.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Cont<R, A>
 where
@@ -298,7 +313,7 @@ where
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: MonadFn<A, B, Cont<R, B>>,
+        F: SendSyncFnTrait<A, Self::Output<B>>,
     {
         let f = Arc::new(f);
         Cont {
@@ -344,8 +359,8 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: MonadFn<A, B, Cont<R, B>>,
-        H: MonadFn<B, C, Cont<R, C>>,
+        G: SendSyncFnTrait<A, Self::Output<B>>,
+        H: SendSyncFnTrait<B, Self::Output<C>>,
     {
         SendSyncFn::new(move |x| -> Self::Output<C> {
             g.call(x).bind(h.clone())

@@ -1,5 +1,5 @@
 use crate::category::hkt::ReturnTypeConstraints;
-use crate::fntype::BindFn;
+use crate::fntype::SendSyncFnTrait;
 use crate::category::monad::Monad;
 
 /// A trait for types that support flattening of nested structures.
@@ -36,7 +36,7 @@ where
     fn flat_map<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: BindFn<T, U, Self::Output<U>>,
+        F: SendSyncFnTrait<T, Self::Output<U>>,
     {
         self.bind(f)
     }

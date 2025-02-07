@@ -8,7 +8,7 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 /// # Laws
 /// An Identity instance must satisfy these laws:
 /// 1. Identity: For any value `x`,
-///    `identity()` is the identity element.
+///    `identity()` is the identity element and `id(x) = x`.
 /// 2. Composition: For any identity `i` and functions `f`, `g`,
 ///    `f(g(identity())) = f(g(x))` for any `x`.
 /// 3. Naturality: For any natural transformation `η: F ~> G`,
@@ -32,4 +32,18 @@ pub trait Identity: HKT {
     fn identity<T>() -> Self::Output<T>
     where
         T: ReturnTypeConstraints;
+
+    /// The identity function for any type.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the value.
+    /// 
+    /// # Arguments
+    /// * `x` - The value to return.
+    /// 
+    /// # Returns
+    /// The same value that was passed in.
+    fn id<T>(x: T) -> T {
+        x
+    }
 }

@@ -1,6 +1,6 @@
 use crate::category::applicative::Applicative;
 use crate::category::hkt::ReturnTypeConstraints;
-use crate::fntype::{BindFn, MonadFn, SendSyncFn};
+use crate::fntype::{SendSyncFnTrait, SendSyncFn};
 
 /// A trait for monads, which are applicative functors that support sequencing of operations.
 /// 
@@ -29,55 +29,48 @@ where
     T: ReturnTypeConstraints,
 {
     /// Bind operation.
-    ///
-    /// # Arguments
-    /// - `self`: The monad instance.
-    /// - `f`: A function that takes a value of type `T` and returns a monad containing a value of type `U`.
-    ///
-    /// # Returns
-    /// A new monad containing the result of applying the function `f` to the value.
-    ///
+    /// 
     /// # Type Parameters
-    /// - `U`: The return type of the function `f`.
-    /// - `F`: A function type that takes a value of type `T` and returns a monad containing a value of type `U`.
+    /// * `U` - The type of the value in the resulting monad.
+    /// * `F` - The function to bind with.
+    /// 
+    /// # Returns
+    /// * `Self::Output<U>` - The resulting monad.
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: BindFn<T, U, Self::Output<U>>;
+        F: SendSyncFnTrait<T, Self::Output<U>>;
 
     /// Join operation.
     ///
-    /// # Arguments
-    /// - `self`: The monad instance.
-    ///
-    /// # Returns
-    /// A new monad containing the result of flattening the nested monad.
-    ///
     /// # Type Parameters
-    /// - `U`: The type of the inner monad.
+    /// * `U` - The type of the value in the resulting monad.
+    /// 
+    /// # Returns
+    /// * `Self::Output<U>` - The resulting monad.
     fn join<U>(self) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        T: Into<Self::Output<U>> + Send + Sync;
+        T: Into<Self::Output<U>>,
+        Self: Sized,
+    {
+        self.bind(SendSyncFn::new(|x: T| x.into()))
+    }
 
     /// Kleisli composition.
-    ///
-    /// # Arguments
-    /// - `g`: A function that takes a value of type `T` and returns a monad containing a value of type `B`.
-    /// - `h`: A function that takes a value of type `B` and returns a monad containing a value of type `C`.
-    ///
-    /// # Returns
-    /// A new function that takes a value of type `T` and returns a monad containing a value of type `C`.
-    ///
+    /// 
     /// # Type Parameters
-    /// - `B`: The return type of the function `g`.
-    /// - `C`: The return type of the function `h`.
-    /// - `G`: A function type that takes a value of type `T` and returns a monad containing a value of type `B`.
-    /// - `H`: A function type that takes a value of type `B` and returns a monad containing a value of type `C`.
+    /// * `B` - The type of the first argument.
+    /// * `C` - The type of the second argument.
+    /// * `G` - The type of the first monadic function.
+    /// * `H` - The type of the second monadic function.
+    /// 
+    /// # Returns
+    /// * `SendSyncFn<A, Self::Output<C>>` - The composed function.
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<T, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: MonadFn<T, B, Self::Output<B>>,
-        H: MonadFn<B, C, Self::Output<C>>;
+        G: SendSyncFnTrait<T, Self::Output<B>>,
+        H: SendSyncFnTrait<B, Self::Output<C>>;
 }

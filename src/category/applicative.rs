@@ -1,6 +1,6 @@
 use crate::category::functor::Functor;
 use crate::category::pure::Pure;
-use crate::fntype::{ApplyFn, SendSyncFn};
+use crate::fntype::{SendSyncFnTrait, SendSyncFn};
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A trait for applicative functors, which allow function application within a context.
@@ -150,7 +150,7 @@ where
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: ApplyFn<A, B>;
+        F: SendSyncFnTrait<A, B>;
 
     /// Lift a binary function to actions.
     ///
@@ -174,7 +174,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, C>>;
+        F: SendSyncFnTrait<A, SendSyncFn<B, C>>;
 
     /// Lift a ternary function to actions.
     ///
@@ -202,5 +202,5 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, SendSyncFn<C, D>>>;
+        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>;
 }

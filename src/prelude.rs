@@ -13,4 +13,4 @@ pub use crate::category::sequence::Sequence;
 pub use crate::category::foldable::Foldable;
 pub use crate::category::comonad::Comonad;
 pub use crate::category::bifunctor::Bifunctor;
-pub use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
+pub use crate::fntype::{SendSyncFn, SendSyncFnTrait};

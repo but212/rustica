@@ -3,7 +3,7 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait, MonadFn, ApplyFn};
+use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 
 /// A Reader monad that represents a computation with access to an environment.
 /// 
@@ -111,7 +111,7 @@ where
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: ApplyFn<A, B> + Default,
+        F: SendSyncFnTrait<A, B> + Default,
     {
         let f = SendSyncFn::new(move |e: E| {
             let f = mf.run_reader(e.clone());
@@ -124,7 +124,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, C>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
     {
         let f = SendSyncFn::new(move |e: E| {
             let a = self.run_reader(e.clone());
@@ -139,7 +139,7 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
     {
         let f = SendSyncFn::new(move |e: E| {
             let a = self.run_reader(e.clone());
@@ -184,8 +184,8 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: MonadFn<A, B, Self::Output<B>> + Clone,
-        H: MonadFn<B, C, Self::Output<C>> + Clone,
+        G: SendSyncFnTrait<A, Self::Output<B>> + Clone,
+        H: SendSyncFnTrait<B, Self::Output<C>> + Clone,
     {
         SendSyncFn::new(move |x| -> Self::Output<C> {
             g.call(x).bind(h.clone())

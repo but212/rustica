@@ -6,7 +6,7 @@ use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
 use crate::category::bifunctor::Bifunctor;
-use crate::fntype::{SendSyncFnTrait, SendSyncFn, ApplyFn, MonadFn};
+use crate::fntype::{SendSyncFnTrait, SendSyncFn};
 
 /// A type that represents one of two possible values.
 /// 
@@ -264,7 +264,7 @@ where
     fn apply<T, F>(self, g: Either<L, F>) -> Either<L, T>
     where
         T: ReturnTypeConstraints,
-        F: ApplyFn<R, T> + Default,
+        F: SendSyncFnTrait<R, T>,
     {
         match (self, g) {
             (Either::Right(x), Either::Right(f)) => Either::Right(f.call(x)),
@@ -287,7 +287,7 @@ where
     where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
-        F: ApplyFn<R, SendSyncFn<T, U>> + Default,
+        F: SendSyncFnTrait<R, SendSyncFn<T, U>>,
     {
         match (self, b) {
             (Either::Right(a), Either::Right(b)) => Either::Right(f.call(a).call(b)),
@@ -316,7 +316,7 @@ where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: ApplyFn<R, SendSyncFn<T, SendSyncFn<U, V>>>,
+        F: SendSyncFnTrait<R, SendSyncFn<T, SendSyncFn<U, V>>>,
     {
         match (self, b, c) {
             (Either::Right(a), Either::Right(b), Either::Right(c)) => {
@@ -385,8 +385,8 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: MonadFn<T, B, Self::Output<B>>,
-        H: MonadFn<B, C, Self::Output<C>>,
+        G: SendSyncFnTrait<T, Self::Output<B>>,
+        H: SendSyncFnTrait<B, Self::Output<C>>,
     {
         SendSyncFn::new(move |x| -> Self::Output<C> {
             g.call(x).bind(h.clone())

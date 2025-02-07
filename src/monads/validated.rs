@@ -6,7 +6,7 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
+use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 
 pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
 
@@ -219,7 +219,7 @@ where
     fn apply<B, F>(self, rf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: ReturnTypeConstraints + ApplyFn<A, B>,
+        F: SendSyncFnTrait<A, B>,
     {
         match (self, rf) {
             (Validated::Valid(x), Validated::Valid(f)) => Validated::Valid(f.call(x)),
@@ -235,7 +235,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, C>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
     {
         match (self, mb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f.call(a).call(b)),
@@ -258,7 +258,7 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
     {
         match (self, mb, mc) {
             (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
@@ -284,7 +284,7 @@ where
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: BindFn<A, B, Self::Output<B>>,
+        F: SendSyncFnTrait<A, Self::Output<B>>,
     {
         match self {
             Validated::Valid(x) => f.call(x),
@@ -307,8 +307,8 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: MonadFn<A, B, Self::Output<B>>,
-        H: MonadFn<B, C, Self::Output<C>>,
+        G: SendSyncFnTrait<A, Self::Output<B>>,
+        H: SendSyncFnTrait<B, Self::Output<C>>,
     {
         SendSyncFn::new(move |x: A| -> Self::Output<C> {
             g.call(x).bind(h.clone())

@@ -8,7 +8,7 @@ use crate::category::identity::Identity;
 use crate::category::monoid::Monoid;
 use crate::category::pure::Pure;
 use crate::category::semigroup::Semigroup;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, MonadFn};
+use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 
 /// The IO monad.
 /// 
@@ -221,7 +221,7 @@ where
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: ApplyFn<A, B>,
+        F: SendSyncFnTrait<A, B>,
     {
         let f = SendSyncFn::new(move |_s| {
             let func = f.run.call(());
@@ -243,7 +243,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, C>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
     {
         let f = SendSyncFn::new(move |_s| {
             let fa = f.call(self.run.call(()));
@@ -267,7 +267,7 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
     {
         let f = SendSyncFn::new(move |_s| {
             let fa = f.call(self.run.call(()));
@@ -328,8 +328,8 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: MonadFn<A, B, Self::Output<B>>,
-        H: MonadFn<B, C, Self::Output<C>>,
+        G: SendSyncFnTrait<A, Self::Output<B>>,
+        H: SendSyncFnTrait<B, Self::Output<C>>,
     {
         SendSyncFn::new(move |x| -> Self::Output<C> {
             g.call(x).bind(h.clone())

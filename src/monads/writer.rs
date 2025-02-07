@@ -7,7 +7,7 @@ use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
 use crate::category::monoid::Monoid;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait, ApplyFn, BindFn, MonadFn};
+use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 
 /// The writer monad.
 /// 
@@ -161,7 +161,7 @@ where
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: ApplyFn<A, B>,
+        F: SendSyncFnTrait<A, B>,
     {
         Writer {
             run_writer: SendSyncFn::new(move |_| {
@@ -184,7 +184,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, C>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
     {
         Writer {
             run_writer: SendSyncFn::new(move |_| {
@@ -214,7 +214,7 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: ApplyFn<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
     {
         Writer {
             run_writer: SendSyncFn::new(move |_| {
@@ -242,7 +242,7 @@ where
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: BindFn<A, B, Self::Output<B>>,
+        F: SendSyncFnTrait<A, Self::Output<B>>,
     {
         Writer {
             run_writer: SendSyncFn::new(move |_| {
@@ -285,8 +285,8 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: MonadFn<A, B, Self::Output<B>>,
-        H: MonadFn<B, C, Self::Output<C>>,
+        G: SendSyncFnTrait<A, Self::Output<B>>,
+        H: SendSyncFnTrait<B, Self::Output<C>>,
     {
         SendSyncFn::new(move |x: A| -> Self::Output<C> {
             g.call(x).bind(h.clone())
