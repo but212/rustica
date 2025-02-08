@@ -4,7 +4,7 @@
 
 ### Category Theory
 - [ ] Implement property-based tests for all category laws
-- [ ] Add QuickCheck or similar testing framework for property testing
+- [x] Add QuickCheck or similar testing framework for property testing
 - [ ] Document category theory concepts more thoroughly with examples
 - [ ] Add visual diagrams for category relationships
 
