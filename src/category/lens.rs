@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use crate::fntype::SendSyncFn;
+use crate::fntype::FnType;
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A lens that focuses on a field of a struct.
@@ -49,8 +49,8 @@ where
     A: ReturnTypeConstraints,
 {
     // Fields to store the `get` and `set` functions.
-    get: SendSyncFn<S, A>,
-    set: SendSyncFn<(S, A), S>,
+    get: FnType<S, A>,
+    set: FnType<(S, A), S>,
 }
 
 impl<S, A> Lens<S, A>
@@ -70,8 +70,8 @@ where
         H: Fn(S, A) -> S + Send + Sync + 'static,
     {
         Lens {
-            get: SendSyncFn::new(get),
-            set: SendSyncFn::new(move |args: (S, A)| set(args.0, args.1)),
+            get: FnType::new(get),
+            set: FnType::new(move |args: (S, A)| set(args.0, args.1)),
         }
     }
 
@@ -117,7 +117,7 @@ where
         F: Fn(A) -> A + Send + Sync + 'static,
     {
         let a = self.get(&s);
-        let f = SendSyncFn::new(f);
+        let f = FnType::new(f);
         self.set(s, f.call(a))
     }
 

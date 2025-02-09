@@ -1,5 +1,5 @@
 use crate::category::monoid::Monoid;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A `Foldable` type is a data structure that can be "folded" into a summary value.
@@ -35,7 +35,7 @@ where
     fn fold_left<U, F>(self, init: U, f: F) -> U
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<(U, T), U>;
+        F: FnTrait<(U, T), U>;
 
     /// Right-associative fold of a structure.
     ///
@@ -50,7 +50,7 @@ where
     fn fold_right<U, F>(self, init: U, f: F) -> U
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<(T, U), U>;
+        F: FnTrait<(T, U), U>;
 
     /// Maps elements to a monoid and combines them.
     ///
@@ -65,7 +65,7 @@ where
     fn fold_map<M, F>(self, f: F) -> M
     where
         M: Monoid + ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, M>;
+        F: FnTrait<T, M>;
 
     /// Returns the number of elements in the structure.
     /// 
@@ -76,7 +76,7 @@ where
     where
         Self: Sized,
     {
-        self.fold_left(0, SendSyncFn::new(|(acc, _)| acc + 1))
+        self.fold_left(0, FnType::new(|(acc, _)| acc + 1))
     }
 
     /// Tests if the structure is empty.
@@ -99,7 +99,7 @@ where
     fn fold_left<U, F>(self, init: U, f: F) -> U
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<(U, T), U>,
+        F: FnTrait<(U, T), U>,
     {
         self.into_iter().fold(init, |acc, x| f.call((acc, x)))
     }
@@ -107,7 +107,7 @@ where
     fn fold_right<U, F>(self, init: U, f: F) -> U
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<(T, U), U>,
+        F: FnTrait<(T, U), U>,
     {
         self.into_iter().rev().fold(init, |acc, x| f.call((x, acc)))
     }
@@ -115,7 +115,7 @@ where
     fn fold_map<M, F>(self, f: F) -> M
     where
         M: Monoid + ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, M>,
+        F: FnTrait<T, M>,
     {
         self.into_iter()
             .map(|x| f.call(x))
@@ -130,7 +130,7 @@ where
     fn fold_left<U, F>(self, init: U, f: F) -> U
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<(U, T), U>,
+        F: FnTrait<(U, T), U>,
     {
         match self {
             Some(x) => f.call((init, x)),
@@ -141,7 +141,7 @@ where
     fn fold_right<U, F>(self, init: U, f: F) -> U
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<(T, U), U>,
+        F: FnTrait<(T, U), U>,
     {
         match self {
             Some(x) => f.call((x, init)),
@@ -152,7 +152,7 @@ where
     fn fold_map<M, F>(self, f: F) -> M
     where
         M: Monoid + ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, M>,
+        F: FnTrait<T, M>,
     {
         match self {
             Some(x) => f.call(x),

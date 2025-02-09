@@ -8,7 +8,7 @@ use quickcheck_macros::quickcheck;
 use rustica::category::functor::Functor;
 use rustica::category::pure::Pure;
 use rustica::category::hkt::{HKT, ReturnTypeConstraints};
-use rustica::fntype::{SendSyncFn, SendSyncFnTrait};
+use rustica::fntype::{FnType, FnTrait};
 
 // Helper functions for property testing
 fn id<T>(x: T) -> T {
@@ -46,7 +46,7 @@ where
     fn map<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, U>,
+        F: FnTrait<T, U>,
     {
         TestFunctor(f.call(self.0))
     }
@@ -55,15 +55,15 @@ where
 // Functor Laws
 #[quickcheck]
 fn functor_identity(x: TestFunctor<i32>) -> bool {
-    x.clone().map(SendSyncFn::new(id)) == x
+    x.clone().map(FnType::new(id)) == x
 }
 
 #[quickcheck]
 fn functor_composition(x: TestFunctor<i32>) -> bool {
     // Use smaller numbers to avoid overflow
-    let f = SendSyncFn::new(|x: i32| x.saturating_add(1));
-    let g = SendSyncFn::new(|x: i32| x.saturating_mul(2));
-    x.clone().map(f.clone()).map(g.clone()) == x.map(SendSyncFn::new(move |x| g.call(f.call(x))))
+    let f = FnType::new(|x: i32| x.saturating_add(1));
+    let g = FnType::new(|x: i32| x.saturating_mul(2));
+    x.clone().map(f.clone()).map(g.clone()) == x.map(FnType::new(move |x| g.call(f.call(x))))
 }
 
 // Pure Laws
@@ -79,13 +79,13 @@ where
 #[quickcheck]
 fn pure_identity_preservation(x: i32) -> bool {
     let pure_x = TestFunctor::pure(x);
-    pure_x.clone().map(SendSyncFn::new(id)) == pure_x
+    pure_x.clone().map(FnType::new(id)) == pure_x
 }
 
 #[quickcheck]
 fn pure_homomorphism(x: i32) -> bool {
     // Use a simpler function that won't overflow
-    let f = SendSyncFn::new(|x: i32| x.saturating_add(1));
+    let f = FnType::new(|x: i32| x.saturating_add(1));
     let fx = f.call(x);
     TestFunctor::pure(fx) == TestFunctor::pure(x).map(f)
 }

@@ -20,7 +20,7 @@ use std::marker::PhantomData;
 
 /// A function that is both Send and Sync
 #[derive(Clone)]
-pub struct SendSyncFn<I, O>
+pub struct FnType<I, O>
 where
     I: ReturnTypeConstraints,
     O: ReturnTypeConstraints,
@@ -29,17 +29,17 @@ where
     _phantom: PhantomData<(I, O)>,
 }
 
-impl<I, O> Debug for SendSyncFn<I, O>
+impl<I, O> Debug for FnType<I, O>
 where
     I: ReturnTypeConstraints,
     O: ReturnTypeConstraints,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SendSyncFn(<function>)")
+        write!(f, "FnType(<function>)")
     }
 }
 
-impl<I, O> PartialEq for SendSyncFn<I, O>
+impl<I, O> PartialEq for FnType<I, O>
 where
     I: ReturnTypeConstraints,
     O: ReturnTypeConstraints,
@@ -50,26 +50,26 @@ where
     }
 }
 
-impl<I, O> Eq for SendSyncFn<I, O>
+impl<I, O> Eq for FnType<I, O>
 where
     I: ReturnTypeConstraints,
     O: ReturnTypeConstraints,
 {}
 
-impl<I, O> Default for SendSyncFn<I, O>
+impl<I, O> Default for FnType<I, O>
 where
     I: ReturnTypeConstraints,
     O: ReturnTypeConstraints,
 {
     fn default() -> Self {
-        SendSyncFn {
+        FnType {
             f: Arc::new(|_: I| O::default()),
             _phantom: PhantomData,
         }
     }
 }
 
-impl<I, O> SendSyncFn<I, O>
+impl<I, O> FnType<I, O>
 where
     I: ReturnTypeConstraints,
     O: ReturnTypeConstraints,
@@ -78,7 +78,7 @@ where
     where
         F: Fn(I) -> O + Send + Sync + 'static,
     {
-        SendSyncFn {
+        FnType {
             f: Arc::new(f),
             _phantom: PhantomData,
         }
@@ -90,7 +90,7 @@ where
 }
 
 /// A trait for functions that are Send + Sync
-pub trait SendSyncFnTrait<A, B>: ReturnTypeConstraints
+pub trait FnTrait<A, B>: ReturnTypeConstraints
 where
     A: ReturnTypeConstraints,
     B: ReturnTypeConstraints,
@@ -99,7 +99,7 @@ where
     fn call(&self, a: A) -> B;
 }
 
-impl<A, B> SendSyncFnTrait<A, B> for SendSyncFn<A, B>
+impl<A, B> FnTrait<A, B> for FnType<A, B>
 where
     A: ReturnTypeConstraints,
     B: ReturnTypeConstraints,
@@ -109,7 +109,7 @@ where
     }
 }
 
-impl<A, B, F> SendSyncFnTrait<A, B> for F
+impl<A, B, F> FnTrait<A, B> for F
 where
     A: ReturnTypeConstraints,
     B: ReturnTypeConstraints,
@@ -128,7 +128,7 @@ where
     M: Monoid,
 {
     /// The function.
-    f: SendSyncFn<T, M>,
+    f: FnType<T, M>,
 }
 
 impl<T, M> MonoidFn<T, M>
@@ -142,7 +142,7 @@ where
         F: Fn(T) -> M + Send + Sync + 'static,
     {
         MonoidFn {
-            f: SendSyncFn::new(f),
+            f: FnType::new(f),
         }
     }
 
@@ -154,17 +154,17 @@ where
 
 /// A function that implements Debug
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
-pub struct DebugFn<T: ReturnTypeConstraints>(SendSyncFn<T, T>);
+pub struct DebugFn<T: ReturnTypeConstraints>(FnType<T, T>);
 
 impl<T: ReturnTypeConstraints> DebugFn<T> {
     pub fn new<F>(f: F) -> Self
     where
-        F: SendSyncFnTrait<T, T>,
+        F: FnTrait<T, T>,
     {
-
-        DebugFn(SendSyncFn::new(move |a| f.call(a)))
+        DebugFn(FnType::new(move |x: T| f.call(x)))
     }
 }
+
 
 /// A trait for functions that return a BoxFuture
 pub trait AsyncFn<A, B>: ReturnTypeConstraints {

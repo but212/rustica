@@ -1,5 +1,5 @@
-use crate::fntype::SendSyncFn;
-use crate::fntype::SendSyncFnTrait;
+use crate::fntype::FnType;
+use crate::fntype::FnTrait;
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A trait for composable functions that can be chained together.
@@ -32,12 +32,12 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///
 /// ```
 /// use rustica::prelude::*;
-/// use rustica::fntype::{SendSyncFn, SendSyncFnTrait};
+/// use rustica::fntype::{FnType, FnTrait};
 ///
 /// #[derive(Default, Eq, Debug, Clone, PartialEq)]
 /// struct MyFn;
 ///
-/// impl SendSyncFnTrait<i32, i64> for MyFn {
+/// impl FnTrait<i32, i64> for MyFn {
 ///     fn call(&self, x: i32) -> i64 {
 ///         x as i64 * 2
 ///     }
@@ -46,7 +46,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// #[derive(Default, Eq, Debug, Clone, PartialEq)]
 /// struct MyOtherFn;
 ///
-/// impl SendSyncFnTrait<i64, String> for MyOtherFn {
+/// impl FnTrait<i64, String> for MyOtherFn {
 ///     fn call(&self, x: i64) -> String {
 ///         format!("Value: {}", x)
 ///     }
@@ -70,20 +70,20 @@ pub trait Composable {
     /// * `g` - The second function to be composed.
     /// 
     /// # Returns
-    /// * `SendSyncFn<T, V>` - The composed function.
+    /// * `FnType<T, V>` - The composed function.
     /// 
     /// # Type Parameters
     /// * `T` - The input type of the first function.
     /// * `U` - The output type of the first function and input type of the second function.
     /// * `V` - The output type of the second function.
-    fn compose<T, U, V, F, G>(f: F, g: G) -> SendSyncFn<T, V>
+    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
     where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, U>,
-        G: SendSyncFnTrait<U, V>,
+        F: FnTrait<T, U>,
+        G: FnTrait<U, V>,
     {
-        SendSyncFn::new(move |x: T| g.call(f.call(x)))
+        FnType::new(move |x: T| g.call(f.call(x)))
     }
 }

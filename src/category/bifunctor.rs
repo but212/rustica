@@ -1,4 +1,4 @@
-use crate::fntype::SendSyncFnTrait;
+use crate::fntype::FnTrait;
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A trait for bifunctors, which are functors that can map over two type parameters.
@@ -25,7 +25,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// ```
 /// use rustica::category::bifunctor::Bifunctor;
 /// use rustica::prelude::ReturnTypeConstraints;
-/// use rustica::fntype::{SendSyncFnTrait, SendSyncFn};
+/// use rustica::fntype::{FnTrait, FnType};
 ///
 /// #[derive(Debug, Clone, PartialEq, Eq)]
 /// struct MyBifunctor<A, B> {
@@ -46,7 +46,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///     fn first<C, F>(self, f: F) -> <Self as Bifunctor<A, B>>::Output<C, B>
 ///     where
 ///         C: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<A, C>,
+///         F: FnTrait<A, C>,
 ///     {
 ///         MyBifunctor {
 ///             left: f.call(self.left),
@@ -57,7 +57,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///     fn second<D, F>(self, f: F) -> <Self as Bifunctor<A, B>>::Output<A, D>
 ///     where
 ///         D: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<B, D>,
+///         F: FnTrait<B, D>,
 ///     {
 ///         MyBifunctor {
 ///             left: self.left,
@@ -69,8 +69,8 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///     where
 ///         C: ReturnTypeConstraints,
 ///         D: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<A, C>,
-///         G: SendSyncFnTrait<B, D>,
+///         F: FnTrait<A, C>,
+///         G: FnTrait<B, D>,
 ///     {
 ///         MyBifunctor {
 ///             left: f.call(self.left),
@@ -80,7 +80,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// }
 ///
 /// let bifunctor = MyBifunctor { left: 1, right: "hello" };
-/// let mapped = bifunctor.bimap(SendSyncFn::new(|x| x + 1), SendSyncFn::new(|y:&str| y.len()));
+/// let mapped = bifunctor.bimap(FnType::new(|x| x + 1), FnType::new(|y:&str| y.len()));
 /// assert_eq!(mapped.left, 2);
 /// assert_eq!(mapped.right, 5);
 /// ```
@@ -114,7 +114,7 @@ where
     fn first<C, F>(self, f: F) -> Self::Output<C, B>
     where
         C: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, C>;
+        F: FnTrait<A, C>;
 
     /// Maps a function over the second type parameter.
     ///
@@ -131,7 +131,7 @@ where
     fn second<D, F>(self, f: F) -> Self::Output<A, D>
     where
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<B, D>;
+        F: FnTrait<B, D>;
 
     /// Maps two functions over both type parameters simultaneously.
     ///
@@ -152,6 +152,6 @@ where
     where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, C>,
-        G: SendSyncFnTrait<B, D>;
+        F: FnTrait<A, C>,
+        G: FnTrait<B, D>;
 }

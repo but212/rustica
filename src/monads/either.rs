@@ -6,7 +6,7 @@ use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
 use crate::category::bifunctor::Bifunctor;
-use crate::fntype::{SendSyncFnTrait, SendSyncFn};
+use crate::fntype::{FnTrait, FnType};
 
 /// A type that represents one of two possible values.
 /// 
@@ -83,16 +83,16 @@ where
     /// # Examples
     /// ```
     /// use rustica::monads::either::Either;
-    /// use rustica::fntype::SendSyncFn;
+    /// use rustica::fntype::FnType;
     /// 
     /// let left_value: Either<i32, i32> = Either::Left(42);
-    /// let mapped_left = left_value.map_left(SendSyncFn::new(|x| x + 1));
+    /// let mapped_left = left_value.map_left(FnType::new(|x| x + 1));
     /// assert_eq!(mapped_left.unwrap_left(), 43);
     /// ```
     pub fn map_left<T, F>(self, f: F) -> Either<T, R>
     where
         T: ReturnTypeConstraints,
-        F: SendSyncFnTrait<L, T>,
+        F: FnTrait<L, T>,
     {
         match self {
             Either::Left(l) => Either::Left(f.call(l)),
@@ -112,16 +112,16 @@ where
     /// # Examples
     /// ```
     /// use rustica::monads::either::Either;
-    /// use rustica::fntype::SendSyncFn;
+    /// use rustica::fntype::FnType;
     /// 
     /// let right_value: Either<i32, i32> = Either::Right(42);
-    /// let mapped_right = right_value.map_right(SendSyncFn::new(|x| x + 1));
+    /// let mapped_right = right_value.map_right(FnType::new(|x| x + 1));
     /// assert_eq!(mapped_right.unwrap_right(), 43);
     /// ```
     pub fn map_right<T, F>(self, f: F) -> Either<L, T>
     where
         T: ReturnTypeConstraints,
-        F: SendSyncFnTrait<R, T>,
+        F: FnTrait<R, T>,
     {
         match self {
             Either::Left(l) => Either::Left(l),
@@ -239,7 +239,7 @@ where
     fn map<T, F>(self, f: F) -> Either<L, T>
     where
         T: ReturnTypeConstraints,
-        F: SendSyncFnTrait<R, T>,
+        F: FnTrait<R, T>,
     {
         match self {
             Either::Left(l) => Either::Left(l),
@@ -264,7 +264,7 @@ where
     fn apply<T, F>(self, g: Either<L, F>) -> Either<L, T>
     where
         T: ReturnTypeConstraints,
-        F: SendSyncFnTrait<R, T>,
+        F: FnTrait<R, T>,
     {
         match (self, g) {
             (Either::Right(x), Either::Right(f)) => Either::Right(f.call(x)),
@@ -280,14 +280,13 @@ where
     /// * `U` - The type of the second argument.
     /// * `F` - The function to lift.
     /// 
-    /// 
     /// Returns
     /// * `Either<L, U>` - The lifted value.
     fn lift2<T, U, F>(self, b: Either<L, T>, f: F) -> Either<L, U>
     where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<R, SendSyncFn<T, U>>,
+        F: FnTrait<R, FnType<T, U>>,
     {
         match (self, b) {
             (Either::Right(a), Either::Right(b)) => Either::Right(f.call(a).call(b)),
@@ -316,7 +315,7 @@ where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: SendSyncFnTrait<R, SendSyncFn<T, SendSyncFn<U, V>>>,
+        F: FnTrait<R, FnType<T, FnType<U, V>>>,
     {
         match (self, b, c) {
             (Either::Right(a), Either::Right(b), Either::Right(c)) => {
@@ -345,7 +344,7 @@ where
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, Self::Output<U>>,
+        F: FnTrait<T, Self::Output<U>>,
     {
         match self {
             Either::Left(l) => Either::Left(l),
@@ -380,15 +379,15 @@ where
     /// * `H` - The type of the second monadic function.
     /// 
     /// Returns
-    /// * `SendSyncFn<T, Self::Output<C>>` - The new computation.
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<T, Self::Output<C>>
+    /// * `FnType<T, Self::Output<C>>` - The new computation.
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<T, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: SendSyncFnTrait<T, Self::Output<B>>,
-        H: SendSyncFnTrait<B, Self::Output<C>>,
+        G: FnTrait<T, Self::Output<B>>,
+        H: FnTrait<B, Self::Output<C>>,
     {
-        SendSyncFn::new(move |x| -> Self::Output<C> {
+        FnType::new(move |x| -> Self::Output<C> {
             g.call(x).bind(h.clone())
         })
     }
@@ -414,7 +413,7 @@ where
     fn first<T, F>(self, f: F) -> Self::Output<T, R>
     where
         T: ReturnTypeConstraints,
-        F: SendSyncFnTrait<L, T>,
+        F: FnTrait<L, T>,
     {
         match self {
             Either::Left(l) => Either::Left(f.call(l)),
@@ -433,7 +432,7 @@ where
     fn second<T, F>(self, f: F) -> Self::Output<L, T>
     where
         T: ReturnTypeConstraints,
-        F: SendSyncFnTrait<R, T>,
+        F: FnTrait<R, T>,
     {
         match self {
             Either::Left(l) => Either::Left(l),
@@ -454,8 +453,8 @@ where
     where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<L, T>,
-        G: SendSyncFnTrait<R, U>,
+        F: FnTrait<L, T>,
+        G: FnTrait<R, U>,
     {
         match self {
             Either::Left(l) => Either::Left(f.call(l)),

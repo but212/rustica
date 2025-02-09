@@ -1,6 +1,6 @@
 use crate::category::functor::Functor;
 use crate::category::pure::Pure;
-use crate::fntype::{SendSyncFnTrait, SendSyncFn};
+use crate::fntype::{FnType, FnTrait};
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A trait for applicative functors, which allow function application within a context.
@@ -54,7 +54,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///     fn map<U, F>(self, f: F) -> Maybe<U>
 ///     where
 ///         U: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<T, U>,
+///         F: FnTrait<T, U>,
 ///     {
 ///         match self.0 {
 ///             Some(x) => Maybe(Some(f.call(x))),
@@ -70,7 +70,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
 ///     where
 ///         B: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<T, B>,
+///         F: FnTrait<T, B>,
 ///     {
 ///         match (self.0, f.0) {
 ///             (Some(x), Some(f)) => Maybe(Some(f.call(x))),
@@ -86,7 +86,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///     where
 ///         B: ReturnTypeConstraints,
 ///         C: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<T, SendSyncFn<B, C>>,
+///         F: FnTrait<T, FnType<B, C>>,
 ///     {
 ///         match (self.0, b.0) {
 ///             (Some(a), Some(b)) => Maybe(Some(f.call(a).call(b))),
@@ -104,7 +104,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///         B: ReturnTypeConstraints,
 ///         C: ReturnTypeConstraints,
 ///         D: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<T, SendSyncFn<B, SendSyncFn<C, D>>>,
+///         F: FnTrait<T, FnType<B, FnType<C, D>>>,
 ///     {
 ///         match (self.0, b.0, c.0) {
 ///             (Some(a), Some(b), Some(c)) => Maybe(Some(f.call(a).call(b).call(c))),
@@ -114,20 +114,20 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// }
 ///
 /// let maybe_value = Maybe::pure(2);
-/// let maybe_function = Maybe::pure(SendSyncFn::new(|x| x + 3));
+/// let maybe_function = Maybe::pure(FnType::new(|x| x + 3));
 /// let result = maybe_value.apply(maybe_function);
 /// assert_eq!(result, Maybe::pure(5));
 ///
 /// let maybe_value1 = Maybe::pure(2);
 /// let maybe_value2 = Maybe::pure(3);
-/// let maybe_function = SendSyncFn::new(|x| SendSyncFn::new(move |y| x + y));
+/// let maybe_function = FnType::new(|x| FnType::new(move |y| x + y));
 /// let result = maybe_value1.lift2(maybe_value2, maybe_function);
 /// assert_eq!(result, Maybe::pure(5));
 ///
 /// let maybe_value1 = Maybe::pure(2);
 /// let maybe_value2 = Maybe::pure(3);
 /// let maybe_value3 = Maybe::pure(4);
-/// let maybe_function = SendSyncFn::new(|x| SendSyncFn::new(move |y| SendSyncFn::new(move |z| x + y + z)));
+/// let maybe_function = FnType::new(|x| FnType::new(move |y| FnType::new(move |z| x + y + z)));
 /// let result = maybe_value1.lift3(maybe_value2, maybe_value3, maybe_function);
 /// assert_eq!(result, Maybe::pure(9));
 /// ```
@@ -150,7 +150,7 @@ where
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>;
+        F: FnTrait<A, B>;
 
     /// Lift a binary function to actions.
     ///
@@ -174,7 +174,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, C>>;
+        F: FnTrait<A, FnType<B, C>>;
 
     /// Lift a ternary function to actions.
     ///
@@ -202,5 +202,5 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>;
+        F: FnTrait<A, FnType<B, FnType<C, D>>>;
 }

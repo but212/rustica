@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
-use crate::fntype::SendSyncFnTrait;
+use crate::fntype::FnTrait;
 
 /// A trait for functors, which are type constructors that can map a function over their contents.
 /// 
@@ -50,14 +50,14 @@ use crate::fntype::SendSyncFnTrait;
 ///     fn map<B, F>(self, f: F) -> Self::Output<B>
 ///     where
 ///         B: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<A, B>,
+///         F: FnTrait<A, B>,
 ///     {
 ///         MyType { value: f.call(self.value) }
 ///     }
 /// }
 ///
 /// let instance: MyType<i32> = MyType { value: 42 };
-/// let new_instance: MyType<String> = instance.map(SendSyncFn::new(|x: i32| x.to_string()));
+/// let new_instance: MyType<String> = instance.map(FnType::new(|x: i32| x.to_string()));
 /// assert_eq!(new_instance.value, "42".to_string());
 /// ```
 pub trait Functor<A>: HKT
@@ -81,7 +81,7 @@ where
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>;
+        F: FnTrait<A, B>;
 }
 
 
@@ -104,7 +104,7 @@ where
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, B>,
+        F: FnTrait<T, B>,
     {
         self.into_iter().map(|x| f.call(x)).collect()
     }
@@ -129,7 +129,7 @@ where
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, B>,
+        F: FnTrait<T, B>,
     {
         Box::new(f.call(*self))
     }
@@ -155,7 +155,7 @@ where
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<V, B>,
+        F: FnTrait<V, B>,
     {
         self.into_iter()
             .map(|(k, v)| (k, f.call(v)))

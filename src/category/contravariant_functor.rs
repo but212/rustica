@@ -1,4 +1,4 @@
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 
 /// A trait for contravariant functors, which are type constructors that can map a function over their contents
@@ -48,7 +48,7 @@ where
     fn contravariant_map<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<U, T>;
+        F: FnTrait<U, T>;
 
     /// Retrieves the inner value from the contravariant functor.
     /// 
@@ -75,14 +75,14 @@ where
     /// * `g` - The second function to compose.
     /// 
     /// # Returns
-    /// * `SendSyncFn<V, T>` - The composed function.
-    fn contravariant_compose<U, V, F, G>(f: F, g: G) -> SendSyncFn<V, T>
+    /// * `FnType<V, T>` - The composed function.
+    fn contravariant_compose<U, V, F, G>(f: F, g: G) -> FnType<V, T>
     where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: SendSyncFnTrait<U, T>,
-        G: SendSyncFnTrait<V, U>,
+        F: FnTrait<U, T>,
+        G: FnTrait<V, U>,
     {
-        SendSyncFn::new(move |v| f.call(g.call(v)))
+        FnType::new(move |v| f.call(g.call(v)))
     }
 }

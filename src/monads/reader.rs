@@ -3,7 +3,7 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 
 /// A Reader monad that represents a computation with access to an environment.
 /// 
@@ -32,7 +32,7 @@ where
     A: ReturnTypeConstraints,
 {
     /// The function that reads from the environment.
-    run: SendSyncFn<E, A>,
+    run: FnType<E, A>,
 }
 
 impl<E, A> Reader<E, A>
@@ -49,10 +49,10 @@ where
     /// * `Reader<E, A>` - The reader computation.
     pub fn new<F>(f: F) -> Self
     where
-        F: SendSyncFnTrait<E, A>,
+        F: FnTrait<E, A>,
     {
         Reader {
-            run: SendSyncFn::new(move |e| f.call(e)),
+            run: FnType::new(move |e| f.call(e)),
         }
     }
 
@@ -84,7 +84,7 @@ where
     fn pure(value: A) -> Self::Output<A>
     {
         let value = value.clone();
-        Reader::new(SendSyncFn::new(move |_: E| value.clone()))
+        Reader::new(FnType::new(move |_: E| value.clone()))
     }
 }
 
@@ -96,9 +96,9 @@ where
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
-        let f = SendSyncFn::new(move |e: E| f.call(self.run_reader(e)));
+        let f = FnType::new(move |e: E| f.call(self.run_reader(e)));
         Reader { run: f }
     }
 }
@@ -111,9 +111,9 @@ where
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B> + Default,
+        F: FnTrait<A, B> + Default,
     {
-        let f = SendSyncFn::new(move |e: E| {
+        let f = FnType::new(move |e: E| {
             let f = mf.run_reader(e.clone());
             f.call(self.run_reader(e))
         });
@@ -124,9 +124,9 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
+        F: FnTrait<A, FnType<B, C>>,
     {
-        let f = SendSyncFn::new(move |e: E| {
+        let f = FnType::new(move |e: E| {
             let a = self.run_reader(e.clone());
             let b = mb.run_reader(e);
             f.call(a).call(b)
@@ -139,9 +139,9 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: FnTrait<A, FnType<B, FnType<C, D>>>,
     {
-        let f = SendSyncFn::new(move |e: E| {
+        let f = FnType::new(move |e: E| {
             let a = self.run_reader(e.clone());
             let b = mb.run_reader(e.clone());
             let c = mc.run_reader(e);
@@ -159,9 +159,9 @@ where
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, Self::Output<B>>,
+        F: FnTrait<A, Self::Output<B>>,
     {
-        let f = SendSyncFn::new(move |e: E| {
+        let f = FnType::new(move |e: E| {
             let a = self.run_reader(e.clone());
             f.call(a).run_reader(e)
         });
@@ -173,21 +173,17 @@ where
         B: ReturnTypeConstraints,
         A: Into<Self::Output<B>>,
     {
-        let f = SendSyncFn::new(move |e: E| {
-            let inner = self.run_reader(e.clone());
-            inner.into().run_reader(e)
-        });
-        Reader { run: f }
+        self.bind(FnType::new(|x: A| x.into()))
     }
 
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: SendSyncFnTrait<A, Self::Output<B>> + Clone,
-        H: SendSyncFnTrait<B, Self::Output<C>> + Clone,
+        G: FnTrait<A, Self::Output<B>> + Clone,
+        H: FnTrait<B, Self::Output<C>> + Clone,
     {
-        SendSyncFn::new(move |x| -> Self::Output<C> {
+        FnType::new(move |x| -> Self::Output<C> {
             g.call(x).bind(h.clone())
         })
     }
@@ -198,7 +194,7 @@ pub fn ask<E>() -> Reader<E, E>
 where
     E: ReturnTypeConstraints,
 {
-    Reader::new(SendSyncFn::new(|e: E| e))
+    Reader::new(FnType::new(|e: E| e))
 }
 
 /// Gets a function of the environment from a Reader.
@@ -206,7 +202,7 @@ pub fn asks<E, A, F>(f: F) -> Reader<E, A>
 where
     E: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
-    F: SendSyncFnTrait<E, A>,
+    F: FnTrait<E, A>,
 {
     Reader::new(f)
 }
@@ -216,8 +212,8 @@ pub fn local<E, A, F>(f: F, reader: Reader<E, A>) -> Reader<E, A>
 where
     E: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
-    F: SendSyncFnTrait<E, E>,
+    F: FnTrait<E, E>,
 {
-    let f = SendSyncFn::new(move |e: E| reader.run_reader(f.call(e)));
+    let f = FnType::new(move |e: E| reader.run_reader(f.call(e)));
     Reader { run: f }
 }

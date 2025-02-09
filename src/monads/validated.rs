@@ -6,7 +6,7 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 
 pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
 
@@ -34,7 +34,7 @@ pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoI
 /// ```
 /// use rustica::prelude::*;
 /// use rustica::monads::validated::{Validated, ValidatedTypeConstraints};
-/// use rustica::fntype::{SendSyncFn, SendSyncFnTrait};
+/// use rustica::fntype::{FnType, FnTrait};
 ///
 /// #[derive(Hash, Debug, Clone, PartialEq, Eq, Default)]
 /// struct MyError(String);
@@ -66,10 +66,10 @@ pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoI
 /// assert_eq!(valid_value.clone().to_result(), Ok(42));
 /// assert_eq!(invalid_value.clone().to_result(), Err(vec![MyError("Error".to_string())]));
 ///
-/// let result = valid_value.map_valid(SendSyncFn::new(|x| x + 1));
+/// let result = valid_value.map_valid(FnType::new(|x| x + 1));
 /// assert_eq!(result.to_result(), Ok(43));
 ///
-/// let combined_result: Validated<MyError, i32> = Validated::valid(1).combine(Validated::valid(2), SendSyncFn::new(|x| SendSyncFn::new(move |y| x + y)));
+/// let combined_result: Validated<MyError, i32> = Validated::valid(1).combine(Validated::valid(2), FnType::new(|x| FnType::new(move |y| x + y)));
 /// assert_eq!(combined_result.to_result(), Ok(3));
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -108,36 +108,27 @@ where
     pub fn map_valid<B, F>(self, f: F) -> Validated<E, B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
-        match self {
-            Validated::Valid(x) => Validated::Valid(f.call(x)),
-            Validated::Invalid(e) => Validated::Invalid(e),
-        }
+        self.map(f)
     }
 
     /// Maps a function over the invalid value
     pub fn map_invalid<G, F>(self, f: F) -> Validated<G, A>
     where
         G: ValidatedTypeConstraints,
-        F: SendSyncFnTrait<E, G>,
+        F: FnTrait<E, G>,
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => {
-                let mut errors = Vec::new();
-                for e in es {
-                    errors.extend(std::iter::once(f.call(e)));
-                }
-                Validated::Invalid(errors)
-            }
+            Validated::Invalid(es) => Validated::Invalid(es.into_iter().map(|e| f.call(e)).collect()),
         }
     }
 
     /// Combines two validated values using a function
     pub fn combine<B, C, F>(self, other: Validated<E, B>, f: F) -> Validated<E, C>
     where
-        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
+        F: FnTrait<A, FnType<B, C>>,
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         E: ValidatedTypeConstraints,
@@ -205,9 +196,12 @@ where
     fn map<B, F>(self, f: F) -> Validated<E, B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
-        self.map_valid(f)
+        match self {
+            Validated::Valid(x) => Validated::Valid(f.call(x)),
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
     }
 }
 
@@ -219,7 +213,7 @@ where
     fn apply<B, F>(self, rf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
         match (self, rf) {
             (Validated::Valid(x), Validated::Valid(f)) => Validated::Valid(f.call(x)),
@@ -235,7 +229,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
+        F: FnTrait<A, FnType<B, C>>,
     {
         match (self, mb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f.call(a).call(b)),
@@ -258,7 +252,7 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: FnTrait<A, FnType<B, FnType<C, D>>>,
     {
         match (self, mb, mc) {
             (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
@@ -284,7 +278,7 @@ where
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, Self::Output<B>>,
+        F: FnTrait<A, Self::Output<B>>,
     {
         match self {
             Validated::Valid(x) => f.call(x),
@@ -297,20 +291,17 @@ where
         U: ReturnTypeConstraints,
         A: Into<Self::Output<U>>,
     {
-        match self {
-            Validated::Valid(x) => x.into(),
-            Validated::Invalid(e) => Validated::Invalid(e),
-        }
+        self.bind(FnType::new(|x: A| x.into()))
     }
 
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: SendSyncFnTrait<A, Self::Output<B>>,
-        H: SendSyncFnTrait<B, Self::Output<C>>,
+        G: FnTrait<A, Self::Output<B>>,
+        H: FnTrait<B, Self::Output<C>>,
     {
-        SendSyncFn::new(move |x: A| -> Self::Output<C> {
+        FnType::new(move |x: A| -> Self::Output<C> {
             g.call(x).bind(h.clone())
         })
     }

@@ -5,7 +5,7 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 
 /// A type that represents an optional value.
 ///
@@ -146,7 +146,7 @@ where
     fn map<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, U>,
+        F: FnTrait<T, U>,
     {
         match self {
             Maybe::Just(x) => Maybe::Just(f.call(x)),
@@ -162,7 +162,7 @@ where
     fn apply<U, F>(self, g: Self::Output<F>) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, U> + Default,
+        F: FnTrait<T, U> + Default,
     {
         match (self, g) {
             (Maybe::Just(x), Maybe::Just(f)) => Maybe::Just(f.call(x)),
@@ -174,7 +174,7 @@ where
     where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, SendSyncFn<U, V>>,
+        F: FnTrait<T, FnType<U, V>>,
     {
         match (self, b) {
             (Maybe::Just(a), Maybe::Just(b)) => Maybe::Just(f.call(a).call(b)),
@@ -192,7 +192,7 @@ where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
         W: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, SendSyncFn<U, SendSyncFn<V, W>>>,
+        F: FnTrait<T, FnType<U, FnType<V, W>>>,
     {
         match (self, b, c) {
             (Maybe::Just(a), Maybe::Just(b), Maybe::Just(c)) => {
@@ -210,7 +210,7 @@ where
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, Self::Output<U>>,
+        F: FnTrait<T, Self::Output<U>>,
     {
         match self {
             Maybe::Just(x) => f.call(x),
@@ -229,14 +229,14 @@ where
         }
     }
 
-    fn kleisli_compose<U, V, G, H>(g: G, h: H) -> SendSyncFn<T, Self::Output<V>>
+    fn kleisli_compose<U, V, G, H>(g: G, h: H) -> FnType<T, Self::Output<V>>
     where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        G: SendSyncFnTrait<T, Self::Output<U>>,
-        H: SendSyncFnTrait<U, Self::Output<V>>,
+        G: FnTrait<T, Self::Output<U>>,
+        H: FnTrait<U, Self::Output<V>>,
     {
-        SendSyncFn::new(move |x| -> Self::Output<V> {
+        FnType::new(move |x| -> Self::Output<V> {
             g.call(x).bind(h.clone())
         })
     }

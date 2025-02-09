@@ -3,7 +3,7 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 
 /// State struct representing a stateful computation.
 /// 
@@ -28,7 +28,7 @@ where
     A: ReturnTypeConstraints,
 {
     /// Function that runs the stateful computation.
-    pub run: SendSyncFn<S, (A, S)>,
+    pub run: FnType<S, (A, S)>,
 }
 
 impl<S, A> State<S, A>
@@ -45,9 +45,9 @@ where
     /// * `Self` - The new State instance.
     pub fn new<F>(f: F) -> Self
     where
-        F: SendSyncFnTrait<S, (A, S)>,
+        F: FnTrait<S, (A, S)>,
     {
-        State { run: SendSyncFn::new(move |s| f.call(s)) }
+        State { run: FnType::new(move |s| f.call(s)) }
     }
 
     /// Runs the stateful computation and returns the result and the new state.
@@ -107,7 +107,7 @@ where
     /// # Returns
     /// * `State<S, A>` - The new stateful computation.
     fn pure(value: A) -> Self::Output<A> {
-        State::new(SendSyncFn::new(move |s| (value.clone(), s)))
+        State::new(FnType::new(move |s| (value.clone(), s)))
     }
 }
 
@@ -126,9 +126,9 @@ where
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
-        let f = SendSyncFn::new(move |s| {
+        let f = FnType::new(move |s| {
             let (a, s) = self.run_state(s);
             (f.call(a), s)
         });
@@ -151,9 +151,9 @@ where
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B> + Default,
+        F: FnTrait<A, B>,
     {
-        let f = SendSyncFn::new(move |s: S| {
+        let f = FnType::new(move |s: S| {
             let (f, s) = mf.run_state(s.clone());
             let (a, s) = self.run_state(s);
             (f.call(a), s)
@@ -173,9 +173,9 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
+        F: FnTrait<A, FnType<B, C>>,
     {
-        let f = SendSyncFn::new(move |s: S| {
+        let f = FnType::new(move |s: S| {
             let (a, s) = self.run_state(s.clone());
             let (b, s) = mb.run_state(s);
             (f.call(a).call(b), s)
@@ -197,9 +197,9 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: FnTrait<A, FnType<B, FnType<C, D>>>,
     {
-        let f = SendSyncFn::new(move |s: S| {
+        let f = FnType::new(move |s: S| {
             let (a, s) = self.run_state(s.clone());
             let (b, s) = mb.run_state(s.clone());
             let (c, s) = mc.run_state(s);
@@ -224,9 +224,9 @@ where
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, Self::Output<B>>,
+        F: FnTrait<A, Self::Output<B>>,
     {
-        let f = SendSyncFn::new(move |s: S| {
+        let f = FnType::new(move |s: S| {
             let (a, s) = self.run_state(s.clone());
             f.call(a).run_state(s)
         });
@@ -242,11 +242,7 @@ where
         B: ReturnTypeConstraints,
         A: Into<Self::Output<B>>,
     {
-        let f = SendSyncFn::new(move |s: S| {
-            let (inner, s) = self.run_state(s.clone());
-            inner.into().run_state(s)
-        });
-        State { run: f }
+        self.bind(FnType::new(move |inner: A| inner.into()))
     }
 
     /// Composes two stateful computations.
@@ -258,15 +254,15 @@ where
     /// * `H` - The type of the second function.
     /// 
     /// # Returns
-    /// * `SendSyncFn<A, Self::Output<C>>` - The composed function.
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
+    /// * `FnType<A, Self::Output<C>>` - The composed function.
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: SendSyncFnTrait<A, Self::Output<B>>,
-        H: SendSyncFnTrait<B, Self::Output<C>>,
+        G: FnTrait<A, Self::Output<B>>,
+        H: FnTrait<B, Self::Output<C>>,
     {
-        SendSyncFn::new(move |x| {
+        FnType::new(move |x| {
             g.call(x).bind(h.clone())
         })
     }
@@ -283,7 +279,7 @@ pub fn get<S>() -> State<S, S>
 where
     S: ReturnTypeConstraints,
 {
-    State::new(SendSyncFn::new(|s: S| (s.clone(), s)))
+    State::new(FnType::new(|s: S| (s.clone(), s)))
 }
 
 /// Creates a stateful computation that updates the state and returns ().
@@ -300,7 +296,7 @@ pub fn put<S>(s: S) -> State<S, ()>
 where
     S: ReturnTypeConstraints,
 {
-    State::new(SendSyncFn::new(move |_| ((), s.clone())))
+    State::new(FnType::new(move |_| ((), s.clone())))
 }
 
 /// Creates a stateful computation that modifies the state using a function and returns ().
@@ -317,7 +313,7 @@ where
 pub fn modify<S, F>(f: F) -> State<S, ()>
 where
     S: ReturnTypeConstraints,
-    F: SendSyncFnTrait<S, S>,
+    F: FnTrait<S, S>,
 {
-    State::new(SendSyncFn::new(move |s| ((), f.call(s))))
+    State::new(FnType::new(move |s| ((), f.call(s))))
 }

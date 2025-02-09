@@ -1,5 +1,5 @@
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
-use crate::fntype::SendSyncFnTrait;
+use crate::fntype::FnTrait;
 
 /// A trait for traversable structures that can be traversed with effects.
 /// 
@@ -39,6 +39,6 @@ pub trait Traversable: HKT {
     where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, U>,
+        F: FnTrait<T, U>,
     ;
 }

@@ -1,6 +1,6 @@
 use crate::category::applicative::Applicative;
 use crate::category::hkt::ReturnTypeConstraints;
-use crate::fntype::{SendSyncFnTrait, SendSyncFn};
+use crate::fntype::{FnTrait, FnType};
 
 /// A trait for monads, which are applicative functors that support sequencing of operations.
 /// 
@@ -39,7 +39,7 @@ where
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, Self::Output<U>>;
+        F: FnTrait<T, Self::Output<U>>;
 
     /// Join operation.
     ///
@@ -54,7 +54,7 @@ where
         T: Into<Self::Output<U>>,
         Self: Sized,
     {
-        self.bind(SendSyncFn::new(|x: T| x.into()))
+        self.bind(FnType::new(|x: T| x.into()))
     }
 
     /// Kleisli composition.
@@ -66,11 +66,11 @@ where
     /// * `H` - The type of the second monadic function.
     /// 
     /// # Returns
-    /// * `SendSyncFn<A, Self::Output<C>>` - The composed function.
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<T, Self::Output<C>>
+    /// * `FnType<A, Self::Output<C>>` - The composed function.
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<T, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: SendSyncFnTrait<T, Self::Output<B>>,
-        H: SendSyncFnTrait<B, Self::Output<C>>;
+        G: FnTrait<T, Self::Output<B>>,
+        H: FnTrait<B, Self::Output<C>>;
 }

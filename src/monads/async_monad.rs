@@ -7,7 +7,7 @@ use crate::category::applicative::Applicative;
 use crate::category::functor::Functor;
 use crate::category::pure::Pure;
 use crate::category::monad::Monad;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 
 /// An async monad that represents an asynchronous computation.
 /// 
@@ -35,7 +35,7 @@ where
     A: ReturnTypeConstraints,
 {
     /// The function that produces the future.
-    run: SendSyncFn<(), A>,
+    run: FnType<(), A>,
 }
 
 impl<A> AsyncM<A>
@@ -58,7 +58,7 @@ where
     {
         let shared = future.shared();
         AsyncM {
-            run: SendSyncFn::new(move |_| {
+            run: FnType::new(move |_| {
                 let shared = shared.clone();
                 shared.now_or_never().unwrap_or_default()
             }),
@@ -91,7 +91,7 @@ where
     /// * `AsyncM<A>` - The new async computation.
     fn pure(value: A) -> Self::Output<A> {
         AsyncM {
-            run: SendSyncFn::new(move |_| value.clone()),
+            run: FnType::new(move |_| value.clone()),
         }
     }
 }
@@ -111,14 +111,10 @@ where
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
-        let f = f.clone();
         AsyncM {
-            run: SendSyncFn::new(move |_| {
-                let a = self.try_get();
-                f.call(a)
-            }),
+            run: FnType::new(move |_| f.clone().call(self.try_get())),
         }
     }
 }
@@ -138,15 +134,9 @@ where
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
-        AsyncM {
-            run: SendSyncFn::new(move |_| {
-                let f = mf.try_get();
-                let a = self.try_get();
-                f.call(a)
-            }),
-        }
+        self.map(FnType::new(move |a| mf.try_get().call(a)))
     }
 
     /// Lifts a binary function into async computations.
@@ -162,15 +152,9 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
+        F: FnTrait<A, FnType<B, C>>,
     {
-        AsyncM {
-            run: SendSyncFn::new(move |_| {
-                let a = self.try_get();
-                let b = mb.try_get();
-                f.call(a).call(b)
-            }),
-        }
+        self.map(FnType::new(move |a| f.call(a).call(mb.try_get())))
     }
 
     /// Lifts a ternary function into async computations.
@@ -188,16 +172,9 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: FnTrait<A, FnType<B, FnType<C, D>>>,
     {
-        AsyncM {
-            run: SendSyncFn::new(move |_| {
-                let a = self.try_get();
-                let b = mb.try_get();
-                let c = mc.try_get();
-                f.call(a).call(b).call(c)
-            }),
-        }
+        self.map(FnType::new(move |a| f.call(a).call(mb.try_get()).call(mc.try_get())))
     }
 }
 
@@ -216,14 +193,9 @@ where
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, Self::Output<B>>,
+        F: FnTrait<A, Self::Output<B>>,
     {
-        AsyncM {
-            run: SendSyncFn::new(move |_| {
-                let a = self.try_get();
-                f.call(a).try_get()
-            }),
-        }
+        self.map(FnType::new(move |a| f.call(a).try_get()))
     }
 
     /// Joins two async computations.
@@ -238,12 +210,7 @@ where
         B: ReturnTypeConstraints,
         A: Into<Self::Output<B>>,
     {
-        AsyncM {
-            run: SendSyncFn::new(move |_| {
-                let inner = self.try_get();
-                inner.into().try_get()
-            }),
-        }
+        self.bind(FnType::new(move |x: A| x.into()))
     }
 
     /// Composes two monadic functions.
@@ -255,14 +222,14 @@ where
     /// * `H` - The type of the second monadic function.
     /// 
     /// Returns
-    /// * `SendSyncFn<A, Self::Output<C>>` - The new async computation.
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
+    /// * `FnType<A, Self::Output<C>>` - The new async computation.
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: SendSyncFnTrait<A, Self::Output<B>>,
-        H: SendSyncFnTrait<B, Self::Output<C>>,
+        G: FnTrait<A, Self::Output<B>>,
+        H: FnTrait<B, Self::Output<C>>,
     {
-        SendSyncFn::new(move |x| g.call(x).bind(h.clone()))
+        FnType::new(move |x| g.call(x).bind(h.clone()))
     }
 }

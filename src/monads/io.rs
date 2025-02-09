@@ -8,7 +8,7 @@ use crate::category::identity::Identity;
 use crate::category::monoid::Monoid;
 use crate::category::pure::Pure;
 use crate::category::semigroup::Semigroup;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 
 /// The IO monad.
 /// 
@@ -57,7 +57,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 /// use rustica::monads::io::*;
 /// 
 /// fn main() {
-///     let io_computation = IO::new(SendSyncFn::new(|_| "Hello, World!"));
+///     let io_computation = IO::new(FnType::new(|_| "Hello, World!"));
 ///     let result = io_computation.run();
 ///     println!("{}", result);
 /// }
@@ -69,11 +69,11 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 /// use rustica::monads::io::*;
 /// 
 /// fn main() {
-///     let computation1 = IO::new(SendSyncFn::new(|_| "Hello"));
-///     let computation2 = IO::new(SendSyncFn::new(|_| "World"));
-///     let combined = computation1.bind(SendSyncFn::new(move |hello| {
+///     let computation1 = IO::new(FnType::new(|_| "Hello"));
+///     let computation2 = IO::new(FnType::new(|_| "World"));
+///     let combined = computation1.bind(FnType::new(move |hello| {
 ///         let computation2_clone = computation2.clone();
-///         computation2_clone.map(SendSyncFn::new(move |world| {
+///         computation2_clone.map(FnType::new(move |world| {
 ///             format!("{}, {}!", hello, world)
 ///         }))
 ///     }));
@@ -90,7 +90,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 /// use rustica::monads::io::*;
 /// 
 /// fn main() -> io::Result<()> {
-///     let read_file = IO::new(SendSyncFn::new(|_| {
+///     let read_file = IO::new(FnType::new(|_| {
 ///         let mut file = match File::open("input.txt") {
 ///             Ok(file) => file,
 ///             Err(err) => {
@@ -103,7 +103,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 ///         contents
 ///     }));
 ///
-///     let write_file = SendSyncFn::new(move |contents: String| {
+///     let write_file = FnType::new(move |contents: String| {
 ///         let mut file = match File::create("output.txt") {
 ///             Ok(file) => file,
 ///             Err(err) => {
@@ -114,10 +114,10 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 ///         file.write_all(contents.as_bytes()).unwrap();
 ///     });
 ///
-///     let combined = read_file.bind(SendSyncFn::new(move |contents| {
+///     let combined = read_file.bind(FnType::new(move |contents| {
 ///         let modified_contents = format!("Modified: {}", contents);
 ///         let write_file_exec = write_file.clone();
-///         IO::new(SendSyncFn::new(move |_| {
+///         IO::new(FnType::new(move |_| {
 ///             write_file_exec.call(modified_contents.clone());
 ///             ()
 ///         }))
@@ -133,7 +133,7 @@ where
     A: ReturnTypeConstraints,
 {
     /// Function representing the I/O computation.
-    pub run: SendSyncFn<(), A>,
+    pub run: FnType<(), A>,
 }
 
 impl<A> IO<A>
@@ -147,7 +147,7 @@ where
     /// 
     /// # Returns
     /// * `Self` - The new IO computation.
-    pub fn new(f: SendSyncFn<(), A>) -> Self
+    pub fn new(f: FnType<(), A>) -> Self
     {
         IO { run: f }
     }
@@ -180,7 +180,7 @@ where
     /// # Returns
     /// IO<A> - The new IO computation.
     fn pure(value: A) -> Self::Output<A> {
-        Self::new(SendSyncFn::new(move |_s| value.clone()))
+        Self::new(FnType::new(move |_s| value.clone()))
     }
 }
 
@@ -199,9 +199,9 @@ where
     fn map<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
-        let f = SendSyncFn::new(move |_s| f.call(self.run()));
+        let f = FnType::new(move |_s| f.call(self.run()));
         IO { run: f }
     }
 }
@@ -221,13 +221,9 @@ where
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, B>,
+        F: FnTrait<A, B>,
     {
-        let f = SendSyncFn::new(move |_s| {
-            let func = f.run.call(());
-            func.call(self.run.call(()))
-        });
-        IO { run: f }
+        self.map(FnType::new(move |a| f.run.call(()).call(a)))
     }
 
     /// Lifts a binary function into IO computations.
@@ -243,9 +239,9 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, C>>,
+        F: FnTrait<A, FnType<B, C>>,
     {
-        let f = SendSyncFn::new(move |_s| {
+        let f = FnType::new(move |_s| {
             let fa = f.call(self.run.call(()));
             fa.call(mb.run.call(()))
         });
@@ -267,9 +263,9 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: FnTrait<A, FnType<B, FnType<C, D>>>,
     {
-        let f = SendSyncFn::new(move |_s| {
+        let f = FnType::new(move |_s| {
             let fa = f.call(self.run.call(()));
             let fb = fa.call(mb.run.call(()));
             fb.call(mc.run.call(()))
@@ -293,9 +289,9 @@ where
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: SendSyncFnTrait<A, Self::Output<B>>,
+        F: FnTrait<A, Self::Output<B>>,
     {
-        let f = SendSyncFn::new(move |_s| f.call(self.run.call(())).run.call(()));
+        let f = FnType::new(move |_s| f.call(self.run.call(())).run.call(()));
         IO { run: f }
     }
 
@@ -311,7 +307,7 @@ where
         B: ReturnTypeConstraints,
         A: Into<Self::Output<B>>,
     {
-        self.bind(SendSyncFn::new(move |x: A| x.into()))
+        self.bind(FnType::new(move |x: A| x.into()))
     }
 
     /// Composes two monadic functions.
@@ -323,15 +319,15 @@ where
     /// * `H` - The type of the second monadic function.
     /// 
     /// Returns
-    /// * `SendSyncFn<A, Self::Output<C>>` - The new computation.
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<A, Self::Output<C>>
+    /// * `FnType<A, Self::Output<C>>` - The new computation.
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: SendSyncFnTrait<A, Self::Output<B>>,
-        H: SendSyncFnTrait<B, Self::Output<C>>,
+        G: FnTrait<A, Self::Output<B>>,
+        H: FnTrait<B, Self::Output<C>>,
     {
-        SendSyncFn::new(move |x| -> Self::Output<C> {
+        FnType::new(move |x| -> Self::Output<C> {
             g.call(x).bind(h.clone())
         })
     }
@@ -351,16 +347,16 @@ where
     /// * `G` - The second function.
     /// 
     /// Returns
-    /// * `SendSyncFn<T, V>` - The new computation.
-    fn compose<T, U, V, F, G>(f: F, g: G) -> SendSyncFn<T, V>
+    /// * `FnType<T, V>` - The new computation.
+    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
     where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, U>,
-        G: SendSyncFnTrait<U, V>,
+        F: FnTrait<T, U>,
+        G: FnTrait<U, V>,
     {
-        SendSyncFn::new(move |x: T| {
+        FnType::new(move |x: T| {
             let u: U = f.call(x);
             g.call(u)
         })
@@ -398,7 +394,7 @@ where
     where
         T: ReturnTypeConstraints,
     {
-        IO { run: SendSyncFn::new(|_| panic!("Not implemented")) }
+        IO { run: FnType::new(|_| panic!("Not implemented")) }
     }
 }
 
@@ -414,7 +410,7 @@ where
     /// Returns
     /// * `IO<A>` - The combined computation.
     fn combine(self, other: Self) -> Self {
-        let f = SendSyncFn::new(move |_s| self.run.call(()).combine(other.run.call(())));
+        let f = FnType::new(move |_s| self.run.call(()).combine(other.run.call(())));
         IO { run: f }
     }
 }
@@ -428,6 +424,6 @@ where
     /// Returns
     /// * `IO<A>` - The empty computation.
     fn empty() -> Self {
-        IO::new(SendSyncFn::new(|_| A::empty()))
+        IO::new(FnType::new(|_| A::empty()))
     }
 }

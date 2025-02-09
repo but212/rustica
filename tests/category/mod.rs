@@ -8,7 +8,7 @@ use rustica::category::hkt::{HKT, ReturnTypeConstraints};
 use rustica::category::identity::Identity;
 use rustica::category::monad::Monad;
 use rustica::category::pure::Pure;
-use rustica::fntype::{SendSyncFn, SendSyncFnTrait};
+use rustica::fntype::{FnType, FnTrait};
 
 // Test data structures
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -63,7 +63,7 @@ where
     fn map<U, F>(self, f: F) -> TestFunctor<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, U>,
+        F: FnTrait<T, U>,
     {
         TestFunctor(f.call(self.0))
     }
@@ -76,7 +76,7 @@ where
     fn apply<U, F>(self, other: Self::Output<F>) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, U>,
+        F: FnTrait<T, U>,
     {
         let f = other.0;
         TestFunctor(f.call(self.0))
@@ -86,7 +86,7 @@ where
     where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, SendSyncFn<U, V>>,
+        F: FnTrait<T, FnType<U, V>>,
     {
         let g = f.call(self.0);
         TestFunctor(g.call(b.0))
@@ -102,7 +102,7 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, SendSyncFn<B, SendSyncFn<C, D>>>,
+        F: FnTrait<T, FnType<B, FnType<C, D>>>,
     {
         let g = f.call(self.0);
         let h = g.call(b.0);
@@ -117,7 +117,7 @@ where
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<T, Self::Output<U>>,
+        F: FnTrait<T, Self::Output<U>>,
     {
         f.call(self.0)
     }
@@ -130,13 +130,13 @@ where
         self.0.into()
     }
 
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> SendSyncFn<T, Self::Output<C>>
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<T, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: SendSyncFnTrait<T, Self::Output<B>>,
-        H: SendSyncFnTrait<B, Self::Output<C>>,
+        G: FnTrait<T, Self::Output<B>>,
+        H: FnTrait<B, Self::Output<C>>,
     {
-        SendSyncFn::new(move |x| g.call(x).bind(h.clone()))
+        FnType::new(move |x| g.call(x).bind(h.clone()))
     }
 }

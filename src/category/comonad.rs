@@ -1,6 +1,6 @@
 use crate::category::functor::Functor;
 use crate::category::hkt::ReturnTypeConstraints;
-use crate::fntype::{SendSyncFn, SendSyncFnTrait};
+use crate::fntype::{FnType, FnTrait};
 
 /// A trait for comonads, which are dual to monads.
 /// 
@@ -51,7 +51,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 ///     fn map<U, F>(self, f: F) -> Self::Output<U>
 ///     where
 ///         U: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<T, U>,
+///         F: FnTrait<T, U>,
 ///     {
 ///         MyComonad {
 ///             value: f.call(self.value),
@@ -70,7 +70,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 ///     fn extend<U, F>(self, f: F) -> U
 ///     where
 ///         U: ReturnTypeConstraints,
-///         F: SendSyncFnTrait<Self, U>,
+///         F: FnTrait<Self, U>,
 ///     {
 ///         f.call(self)
 ///     }
@@ -80,7 +80,7 @@ use crate::fntype::{SendSyncFn, SendSyncFnTrait};
 /// let extracted_value = comonad.extract();
 /// assert_eq!(extracted_value, 42);
 ///
-/// let extended_comonad = comonad.extend(SendSyncFn::new(|w: MyComonad<i32>| w.extract() + 1));
+/// let extended_comonad = comonad.extend(FnType::new(|w: MyComonad<i32>| w.extract() + 1));
 /// assert_eq!(extended_comonad, 43);
 /// ```
 pub trait Comonad<T>: Functor<T> + ReturnTypeConstraints
@@ -108,7 +108,7 @@ where
     fn extend<U, F>(self, f: F) -> U
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<Self, U>;
+        F: FnTrait<Self, U>;
 
     /// Maps a function over a comonad.
     ///
@@ -125,9 +125,9 @@ where
     fn comap<U, F>(self, f: F) -> U
     where
         U: ReturnTypeConstraints,
-        F: SendSyncFnTrait<Self, U>,
+        F: FnTrait<Self, U>,
     {
-        let g = SendSyncFn::new(move |w: Self| f.call(w));
+        let g = FnType::new(move |w: Self| f.call(w));
         self.extend(g)
     }
 
@@ -139,7 +139,7 @@ where
     where
         Self: Sized,
     {
-        self.extend(SendSyncFn::new(|w| w))
+        self.extend(FnType::new(|w| w))
     }
 }
 
