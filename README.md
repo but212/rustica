@@ -26,3 +26,4 @@ Rustica currently includes the following features:
 - Either
 - Maybe
 - IO
+- Free(unimplemented)

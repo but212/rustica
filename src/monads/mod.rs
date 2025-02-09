@@ -7,3 +7,4 @@ pub mod maybe;
 pub mod cont;
 pub mod async_monad;
 pub mod io;
+pub mod free;
