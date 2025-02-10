@@ -1,44 +1,38 @@
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::applicative::Applicative;
 use crate::fntype::FnTrait;
 
 /// A trait for traversable structures that can be traversed with effects.
 /// 
-/// # Type Parameters
-/// * `T` - The type of elements in the traversable structure
+/// Traversable provides a way to:
+/// 1. Transform elements inside the structure while preserving the structure
+/// 2. Accumulate effects in a specific order
+/// 3. Combine multiple effectful computations
 /// 
-/// # Laws
-/// A Traversable instance must satisfy these laws:
-/// 1. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(traverse(f)(t)) = traverse(η ∘ f)(t)`
-/// 2. Identity: For any traversable `t`,
-///    `traverse(Identity)(t) = Identity(t)`
-/// 3. Composition: For any traversable `t` and applicatives `F`, `G`,
-///    `traverse(Compose ∘ map(g) ∘ f)(t) = Compose ∘ map(traverse(g)) ∘ traverse(f)(t)`
-/// 4. Sequence Consistency: For any traversable `t`,
-///    `traverse(id)(t) = sequence(t)`
-/// 5. Functor Consistency: For any traversable `t` and function `f`,
-///    `traverse(pure ∘ f)(t) = pure(map(f)(t))`
-/// 6. Foldable Consistency: For any traversable `t`,
-///    `fold_map(f) = getConst ∘ traverse(Const ∘ f)`
-/// 7. Effect Order: For any traversable `t`,
-///    Effects must be performed in a consistent order
-/// 8. Structure Preservation: For any traversable `t`,
-///    The shape and structure must be preserved after traversal
-///
-pub trait Traversable: HKT {
-    /// A method for traversing a type.
+/// # Type Parameters
+/// * `A` - The type of elements in the traversable structure
+/// 
+pub trait Traversable<A>: HKT 
+where
+    A: ReturnTypeConstraints,
+{
+    /// Traverse this structure with effects.
+    /// 
+    /// This method allows you to:
+    /// 1. Apply a function that produces effects to each element
+    /// 2. Collect all effects in a specific order
+    /// 3. Preserve the original structure
     /// 
     /// # Type Parameters
-    /// * `T` - The type to be traversed.
-    /// * `U` - The type to be returned.
-    /// * `F` - The function to be applied to each element of the type.
-    ///
-    /// Returns
-    /// * `Self::Output<U>` - The result of the traversal.
-    fn traverse<T, U, F>(self, f: F) -> Self::Output<U>
+    /// * `F` - The applicative functor that will contain the effects
+    /// * `B` - The resulting type after applying the function
+    /// * `Fn` - The function type that produces effects
+    /// 
+    /// # Returns
+    /// A new structure wrapped in the effect type `F`
+    fn traverse<F, B, Fn>(self, f: Fn) -> F::Output<Self::Output<B>>
     where
-        T: ReturnTypeConstraints,
-        U: ReturnTypeConstraints,
-        F: FnTrait<T, U>,
-    ;
+        F: Applicative<A>,
+        B: ReturnTypeConstraints,
+        Fn: FnTrait<A, F::Output<B>>;
 }

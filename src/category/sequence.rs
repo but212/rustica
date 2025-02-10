@@ -1,12 +1,18 @@
-use crate::category::hkt::ReturnTypeConstraints;
-use crate::category::monad::Monad;
+use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::traversable::Traversable;
+use crate::category::applicative::Applicative;
+use crate::fntype::FnType;
 
 /// A trait for types that can be sequenced.
+/// This trait provides a way to sequence a structure of effects into an effect of structure.
+/// 
+/// For example:
+/// - `Vec<Option<T>>` -> `Option<Vec<T>>`
+/// - `Vec<Result<T, E>>` -> `Result<Vec<T>, E>`
 /// 
 /// # Type Parameters
-/// * `T` - The type to be sequenced.
-/// * `M` - The monad to be used for sequencing.
-///
+/// * `A` - The type of elements in the structure
+/// 
 /// # Laws
 /// A Sequence instance must satisfy these laws:
 /// 1. Naturality: For any natural transformation `η: F ~> G` and sequence `xs`,
@@ -15,27 +21,28 @@ use crate::category::monad::Monad;
 ///    `sequence(map(pure)(xs)) = pure(xs)`
 /// 3. Composition: For nested sequences `xss`,
 ///    `sequence(sequence(xss)) = sequence(map(sequence)(xss))`
-/// 4. Monad Consistency: For any monadic value `m` and function `f`,
-///    `sequence(pure(m)) = map(pure)(m)`
-pub trait Sequence<T, M>: Monad<T>
+pub trait Sequence<A>: Traversable<A>
 where
-    T: ReturnTypeConstraints,
-    M: Monad<T>,
+    A: ReturnTypeConstraints,
 {
     /// Evaluate each action in sequence from left to right, and collect the results.
-    /// 
-    /// # Type Parameters
-    /// * `A` - The type to be sequenced.
-    ///
-    /// Returns
-    /// * `Self::Output<Vec<A>>` - The result of the sequence.
-    fn sequence<A>(self) -> Self::Output<Vec<A>>
+    /// This is equivalent to `traverse(identity)`.
+    fn sequence<F>(self) -> F::Output<Self::Output<A>>
     where
-        A: ReturnTypeConstraints,
-        M: Monad<A> + Monad<Vec<A>>,
-        M::Output<A>: ReturnTypeConstraints,
-        M::Output<Vec<A>>: ReturnTypeConstraints,
-        T: Into<M>;
+        F: HKT + Applicative<A> + ReturnTypeConstraints,
+        F::Output<A>: ReturnTypeConstraints,
+        Self: Sized,
+    {
+        self.traverse::<F, A, _>(FnType::new(F::pure))
+    }
+}
+
+// Blanket implementation for any type that implements Traversable
+impl<T, A> Sequence<A> for T 
+where
+    T: Traversable<A>,
+    A: ReturnTypeConstraints,
+{
 }
 
 /// Sequence a vector of Results into a Result of vector
