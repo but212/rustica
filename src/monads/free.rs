@@ -7,8 +7,6 @@ use crate::category::identity::Identity;
 
 /// A free monad is a monad that allows for the construction of monadic computations
 /// without specifying the underlying monad.
-/// but it's currently unimplemented.
-/// TODO: Implement the free monad.
 /// 
 /// # Type Parameters
 /// * `S` - The functor that represents the effect
