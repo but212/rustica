@@ -15,5 +15,16 @@ pub use crate::category::sequence::Sequence;
 pub use crate::category::foldable::Foldable;
 pub use crate::category::flatmap::FlatMap;
 pub use crate::category::comonad::Comonad;
-pub use crate::category::bifunctor::Bifunctor; 
+pub use crate::category::bifunctor::Bifunctor;
+
+pub use crate::monads::free::Free;
+pub use crate::monads::cont::Cont;
+pub use crate::monads::state::State;
+pub use crate::monads::validated::Validated;
+pub use crate::monads::writer::Writer;
+pub use crate::monads::reader::Reader;
+pub use crate::monads::maybe::Maybe;
+pub use crate::monads::io::IO;
+pub use crate::monads::async_monad::AsyncM;
+
 pub use crate::fntype::{FnType, FnTrait};

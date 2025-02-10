@@ -42,6 +42,7 @@
 - [ ] Add more type-level programming capabilities
 - [ ] Consider adding dependent types support
 - [ ] Implement type classes for common patterns
+- [ ] Make compatible with dynamic dispatch (dyn)
 
 ### Performance
 - [ ] Optimize monad implementations
