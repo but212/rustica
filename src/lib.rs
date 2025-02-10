@@ -1,7 +1,7 @@
 // Directories
 pub mod category;
 pub mod monads;
-pub mod transformer;
+pub mod transformers;
 
 // Modules
 pub mod prelude;
