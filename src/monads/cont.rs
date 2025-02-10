@@ -4,8 +4,12 @@ use std::sync::Arc;
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
+use crate::category::category::Category;
+use crate::category::arrow::Arrow;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
+use crate::category::identity::Identity;
+use crate::category::composable::Composable;
 use crate::fntype::{FnType, FnTrait};
 
 /// The continuation monad.
@@ -54,7 +58,7 @@ where
     A: ReturnTypeConstraints,
 {
     /// The continuation function
-    pub run_cont: FnType<FnType<A, R>, R>,
+    pub run_cont: Arc<FnType<FnType<A, R>, R>>,
 }
 
 impl<R, A> Cont<R, A>
@@ -78,7 +82,7 @@ where
     {
         let f = Arc::new(f);
         Cont {
-            run_cont: FnType::new(move |k| f.call(k)),
+            run_cont: Arc::new(FnType::new(move |k| f.call(k))),
         }
     }
 
@@ -101,8 +105,6 @@ where
     }
 }
 
-
-
 impl<R, A> Pure<A> for Cont<R, A>
 where
     R: ReturnTypeConstraints,
@@ -121,7 +123,7 @@ where
     fn pure(value: A) -> Self::Output<A> {
         let value = Arc::new(value);
         Cont {
-            run_cont: FnType::new(move |k: FnType<A, R>| k.call((*value).clone())),
+            run_cont: Arc::new(FnType::new(move |k: FnType<A, R>| k.call((*value).clone()))),
         }
     }
 }
@@ -149,10 +151,10 @@ where
     {
         let f = Arc::new(f);
         Cont {
-            run_cont: FnType::new(move |k: FnType<B, R>| {
+            run_cont: Arc::new(FnType::new(move |k: FnType<B, R>| {
                 let f = Arc::clone(&f);
                 self.run_cont.call(FnType::new(move |x| k.call(f.call(x))))
-            }),
+            })),
         }
     }
 }
@@ -181,7 +183,7 @@ where
         let this = Arc::new(self);
         let mf = Arc::new(mf);
         Cont {
-            run_cont: FnType::new(move |k: FnType<B, R>| {
+            run_cont: Arc::new(FnType::new(move |k: FnType<B, R>| {
                 let k = Arc::new(k);
                 let this = Arc::clone(&this);
                 mf.run_cont.call(FnType::new(move |f: F| {
@@ -190,7 +192,7 @@ where
                     let this = Arc::clone(&this);
                     this.run_cont.call(FnType::new(move |x| k.call(f.call(x))))
                 }))
-            }),
+            })),
         }
     }
 
@@ -221,7 +223,7 @@ where
         let f = Arc::new(f);
         let b = Arc::new(b);
         Cont {
-            run_cont: FnType::new(move |k: FnType<C, R>| {
+            run_cont: Arc::new(FnType::new(move |k: FnType<C, R>| {
                 let k = Arc::new(k);
                 let f = Arc::clone(&f);
                 let b = Arc::clone(&b);
@@ -233,7 +235,7 @@ where
                     let fx = f.call(x);
                     b.run_cont.call(FnType::new(move |y: B| k.call(fx.call(y))))
                 }))
-            }),
+            })),
         }
     }
 
@@ -269,7 +271,7 @@ where
         let b = Arc::new(b);
         let c = Arc::new(c);
         Cont {
-            run_cont: FnType::new(move |k: FnType<D, R>| {
+            run_cont: Arc::new(FnType::new(move |k: FnType<D, R>| {
                 let k = Arc::new(k);
                 let f = Arc::clone(&f);
                 let b = Arc::clone(&b);
@@ -289,7 +291,7 @@ where
                         c.run_cont.call(FnType::new(move |z: C| k.call(fxy.call(z))))
                     }))
                 }))
-            }),
+            })),
         }
     }
 }
@@ -317,14 +319,14 @@ where
     {
         let f = Arc::new(f);
         Cont {
-            run_cont: FnType::new(move |k: FnType<B, R>| {
+            run_cont: Arc::new(FnType::new(move |k: FnType<B, R>| {
                 let k = Arc::new(k);
                 let f = Arc::clone(&f);
                 self.run_cont.call(FnType::new(move |a: A| {
                     let k = Arc::clone(&k);
                     f.call(a).run_cont.call((*k).clone())
                 }))
-            }),
+            })),
         }
     }
 
@@ -374,4 +376,102 @@ where
     A: ReturnTypeConstraints,
 {
     type Output<T> = Cont<R, T> where T: ReturnTypeConstraints;
+}
+
+impl<R, A> Identity for Cont<R, A>
+where
+    R: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn identity<T>(x: T) -> T
+    where
+        T: ReturnTypeConstraints,
+    {
+        x
+    }
+}
+
+impl<R, A> Composable for Cont<R, A>
+where
+    R: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
+    where
+        T: ReturnTypeConstraints,
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        F: FnTrait<T, U>,
+        G: FnTrait<U, V>,
+    {
+        FnType::new(move |x| g.call(f.call(x)))
+    }
+}
+
+impl<R, A> Category<A> for Cont<R, A>
+where
+    R: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = Cont<R, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        Cont::pure(B::default())
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        let g2 = g.clone();
+        Cont::new(FnType::new(move |k: FnType<D, R>| {
+            let g = g2.clone();
+            f.clone().run(FnType::new(move |_c: C| {
+                g.clone().run(k.clone())
+            }))
+        }))
+    }
+}
+
+impl<R, A> Arrow<A> for Cont<R, A>
+where
+    R: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C> + Clone,
+    {
+        let f2 = f.clone();
+        Cont::new(FnType::new(move |k: FnType<C, R>| {
+            k.call(f2.call(B::default()))
+        }))
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        let f2 = f.clone();
+        Cont::new(FnType::new(move |k: FnType<(C, D), R>| {
+            f2.clone().run(FnType::new(move |c: C| {
+                k.call((c, D::default()))
+            }))
+        }))
+    }
 }

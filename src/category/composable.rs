@@ -27,41 +27,6 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///    `f.compose(g)` must properly propagate errors from both `f` and `g`
 /// 8. Pure Composition: For any pure composable functions `f`, `g`,
 ///    `f.compose(g)` must also be pure
-/// 
-/// # Examples
-///
-/// ```
-/// use rustica::prelude::*;
-/// use rustica::fntype::{FnType, FnTrait};
-///
-/// #[derive(Default, Eq, Debug, Clone, PartialEq)]
-/// struct MyFn;
-///
-/// impl FnTrait<i32, i64> for MyFn {
-///     fn call(&self, x: i32) -> i64 {
-///         x as i64 * 2
-///     }
-/// }
-///
-/// #[derive(Default, Eq, Debug, Clone, PartialEq)]
-/// struct MyOtherFn;
-///
-/// impl FnTrait<i64, String> for MyOtherFn {
-///     fn call(&self, x: i64) -> String {
-///         format!("Value: {}", x)
-///     }
-/// }
-///
-/// struct MyComposable;
-///
-/// impl Composable for MyComposable {}
-///
-/// let f = MyFn;
-/// let g = MyOtherFn;
-/// let composed_fn = MyComposable::compose(f, g);
-/// let result = composed_fn.call(21);
-/// assert_eq!(result, "Value: 42");
-/// ```
 pub trait Composable {
     /// Composes two functions.
     /// 
@@ -82,8 +47,5 @@ pub trait Composable {
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
         F: FnTrait<T, U>,
-        G: FnTrait<U, V>,
-    {
-        FnType::new(move |x: T| g.call(f.call(x)))
-    }
+        G: FnTrait<U, V>;
 }

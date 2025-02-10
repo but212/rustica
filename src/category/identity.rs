@@ -1,4 +1,5 @@
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::category::Category;
 
 /// A trait for types that represent the identity element in a monoid.
 /// 
@@ -25,14 +26,6 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 ///    `identity()` is isomorphic to `x`.
 ///
 pub trait Identity: HKT {
-    /// The identity element of the type.
-    /// 
-    /// # Returns
-    /// A new `Self` instance that is the identity element.
-    fn identity<T>() -> Self::Output<T>
-    where
-        T: ReturnTypeConstraints;
-
     /// The identity function for any type.
     /// 
     /// # Type Parameters
@@ -43,7 +36,26 @@ pub trait Identity: HKT {
     /// 
     /// # Returns
     /// The same value that was passed in.
-    fn id<T>(x: T) -> T {
+    fn identity<T>(x: T) -> T
+    where
+        T: ReturnTypeConstraints,
+    {
         x
+    }
+
+    /// Converts the identity element to a category morphism.
+    /// 
+    /// # Type Parameters
+    /// * `T` - The type of the value.
+    /// * `C` - The category type.
+    /// 
+    /// # Returns
+    /// The identity morphism in the category.
+    fn to_morphism<T, C>() -> C::Morphism<T, T>
+    where
+        T: ReturnTypeConstraints,
+        C: Category<T>,
+    {
+        C::identity_morphism()
     }
 }

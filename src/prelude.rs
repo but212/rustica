@@ -1,6 +1,8 @@
 pub use crate::category::hkt::{HKT, ReturnTypeConstraints};
 pub use crate::category::functor::Functor;
 pub use crate::category::applicative::Applicative;
+pub use crate::category::category::Category;
+pub use crate::category::arrow::Arrow;
 pub use crate::category::monad::Monad;
 pub use crate::category::pure::Pure;
 pub use crate::category::composable::Composable;
@@ -11,6 +13,7 @@ pub use crate::category::semigroup::Semigroup;
 pub use crate::category::traversable::Traversable;
 pub use crate::category::sequence::Sequence;
 pub use crate::category::foldable::Foldable;
+pub use crate::category::flatmap::FlatMap;
 pub use crate::category::comonad::Comonad;
 pub use crate::category::bifunctor::Bifunctor;
 pub use crate::fntype::{FnType, FnTrait};

@@ -7,6 +7,10 @@ use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
 use crate::category::monoid::Monoid;
+use crate::category::category::Category;
+use crate::category::arrow::Arrow;
+use crate::category::composable::Composable;
+use crate::category::identity::Identity;
 use crate::fntype::{FnType, FnTrait};
 
 /// The writer monad.
@@ -285,5 +289,92 @@ where
         FnType::new(move |x: A| -> Self::Output<C> {
             g.call(x).bind(h.clone())
         })
+    }
+}
+
+impl<W, A> Identity for Writer<W, A>
+where
+    W: ReturnTypeConstraints + Monoid,
+    A: ReturnTypeConstraints,
+{
+    fn identity<T>(x: T) -> T
+    where
+        T: ReturnTypeConstraints,
+    {
+        x
+    }
+}
+
+impl<W, A> Composable for Writer<W, A>
+where
+    W: ReturnTypeConstraints + Monoid,
+    A: ReturnTypeConstraints,
+{
+    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
+    where
+        T: ReturnTypeConstraints,
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        F: FnTrait<T, U>,
+        G: FnTrait<U, V>,
+    {
+        FnType::new(move |x| g.call(f.call(x)))
+    }
+}
+
+impl<W, A> Category<A> for Writer<W, A>
+where
+    W: ReturnTypeConstraints + Monoid,
+    A: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = Writer<W, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        Writer::new(B::default(), W::empty())
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        let (_, w1) = f.run();
+        let (d, w2) = g.run();
+        Writer::new(d, w1.combine(w2))
+    }
+}
+
+impl<W, A> Arrow<A> for Writer<W, A>
+where
+    W: ReturnTypeConstraints + Monoid,
+    A: ReturnTypeConstraints,
+{
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C> + Clone,
+    {
+        Writer::new(f.call(B::default()), W::empty())
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        let (c, w) = f.run();
+        Writer::new((c, D::default()), w)
     }
 }

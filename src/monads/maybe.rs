@@ -5,6 +5,10 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
+use crate::category::category::Category;
+use crate::category::arrow::Arrow;
+use crate::category::composable::Composable;
+use crate::category::identity::Identity;
 use crate::fntype::{FnType, FnTrait};
 
 /// A type that represents an optional value.
@@ -260,6 +264,93 @@ where
         match opt {
             Some(value) => Maybe::Just(value),
             None => Maybe::Nothing,
+        }
+    }
+}
+
+impl<T> Identity for Maybe<T>
+where
+    T: ReturnTypeConstraints,
+{
+    fn identity<U>(x: U) -> U
+    where
+        U: ReturnTypeConstraints,
+    {
+        x
+    }
+}
+
+impl<T> Composable for Maybe<T>
+where
+    T: ReturnTypeConstraints,
+{
+    fn compose<U, V, W, F, G>(f: F, g: G) -> FnType<U, W>
+    where
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        W: ReturnTypeConstraints,
+        F: FnTrait<U, V>,
+        G: FnTrait<V, W>,
+    {
+        FnType::new(move |x| g.call(f.call(x)))
+    }
+}
+
+impl<T> Category<T> for Maybe<T>
+where
+    T: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = Maybe<C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        Maybe::Just(B::default())
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        match (f, g) {
+            (Maybe::Nothing, _) => Maybe::Nothing,
+            (_, Maybe::Nothing) => Maybe::Nothing,
+            (Maybe::Just(_), Maybe::Just(d)) => Maybe::Just(d),
+        }
+    }
+}
+
+impl<T> Arrow<T> for Maybe<T>
+where
+    T: ReturnTypeConstraints,
+{
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C> + Clone,
+    {
+        Maybe::Just(f.call(B::default()))
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        match f {
+            Maybe::Nothing => Maybe::Nothing,
+            Maybe::Just(c) => Maybe::Just((c, D::default())),
         }
     }
 }

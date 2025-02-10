@@ -10,6 +10,9 @@ Rustica currently includes the following features:
 - Higher-Kinded Types
 - Applicative
 - Monad
+- Composable
+- Category
+- Arrow
 - Semigroup
 - Monoid
 - Evaluate
@@ -26,4 +29,4 @@ Rustica currently includes the following features:
 - Either
 - Maybe
 - IO
-- Free(unimplemented)
+- Free

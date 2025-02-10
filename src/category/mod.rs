@@ -16,3 +16,5 @@ pub mod contravariant_functor;
 pub mod lens;
 pub mod sequence;
 pub mod traversable;
+pub mod arrow;
+pub mod category;

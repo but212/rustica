@@ -8,6 +8,9 @@ use rustica::category::hkt::{HKT, ReturnTypeConstraints};
 use rustica::category::identity::Identity;
 use rustica::category::monad::Monad;
 use rustica::category::pure::Pure;
+use rustica::category::category::Category;
+use rustica::category::arrow::Arrow;
+use rustica::category::composable::Composable;
 use rustica::fntype::{FnType, FnTrait};
 
 // Test data structures
@@ -38,14 +41,7 @@ where
 impl<T> Identity for TestFunctor<T>
 where
     T: ReturnTypeConstraints,
-{
-    fn identity<U>() -> Self::Output<U>
-    where
-        U: ReturnTypeConstraints,
-    {
-        TestFunctor(U::default())
-    }
-}
+{}
 
 impl<T> Pure<T> for TestFunctor<T>
 where
@@ -138,5 +134,75 @@ where
         H: FnTrait<B, Self::Output<C>>,
     {
         FnType::new(move |x| g.call(x).bind(h.clone()))
+    }
+}
+
+impl<T> Composable for TestFunctor<T>
+where
+    T: ReturnTypeConstraints,
+{
+    fn compose<U, V, W, F, G>(f: F, g: G) -> FnType<U, W>
+    where
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        W: ReturnTypeConstraints,
+        F: FnTrait<U, V>,
+        G: FnTrait<V, W>,
+    {
+        FnType::new(move |x| g.call(f.call(x)))
+    }
+}
+
+impl<T> Category<T> for TestFunctor<T>
+where
+    T: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = TestFunctor<C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        TestFunctor(B::default())
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        // Use f's value to get C, then map it using g's value
+        let _c = f.0;
+        TestFunctor(g.0)
+    }
+}
+
+impl<T> Arrow<T> for TestFunctor<T>
+where
+    T: ReturnTypeConstraints,
+{
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C> + Clone,
+    {
+        TestFunctor(f.call(B::default()))
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        TestFunctor((f.0, D::default()))
     }
 }

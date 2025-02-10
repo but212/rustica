@@ -8,6 +8,8 @@ use crate::category::identity::Identity;
 use crate::category::monoid::Monoid;
 use crate::category::pure::Pure;
 use crate::category::semigroup::Semigroup;
+use crate::category::category::Category;
+use crate::category::arrow::Arrow;
 use crate::fntype::{FnType, FnTrait};
 
 /// The IO monad.
@@ -49,6 +51,8 @@ use crate::fntype::{FnType, FnTrait};
 /// * `Identity` - For creating identity computations.
 /// * `Semigroup` - For combining computations.
 /// * `Monoid` - For creating empty computations.
+/// * `Category` - For creating morphisms.
+/// * `Arrow` - For creating arrows.
 /// 
 /// # Examples
 /// Basic usage:
@@ -382,21 +386,7 @@ where
 impl<A> Identity for IO<A>
 where
     A: ReturnTypeConstraints,
-{
-    /// Creates an identity computation.
-    /// 
-    /// # Type Parameters
-    /// * `T` - The type of the argument.
-    /// 
-    /// Returns
-    /// * `IO<T>` - The identity computation.
-    fn identity<T>() -> Self::Output<T>
-    where
-        T: ReturnTypeConstraints,
-    {
-        IO { run: FnType::new(|_| panic!("Not implemented")) }
-    }
-}
+{}
 
 impl<A> Semigroup for IO<A>
 where
@@ -425,5 +415,61 @@ where
     /// * `IO<A>` - The empty computation.
     fn empty() -> Self {
         IO::new(FnType::new(|_| A::empty()))
+    }
+}
+
+impl<A> Category<A> for IO<A>
+where
+    A: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = IO<C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        IO::pure(B::default())
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        f.bind(FnType::new(move |_c| g.clone()))
+    }
+}
+
+impl<A> Arrow<A> for IO<A>
+where
+    A: ReturnTypeConstraints,
+{
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C> + Clone,
+    {
+        let f = f.clone();
+        IO::new(FnType::new(move |_| f.call(B::default())))
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        IO::new(FnType::new(move |_| {
+            let c = f.clone().run();
+            (c, D::default())
+        }))
     }
 }

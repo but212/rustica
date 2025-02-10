@@ -3,6 +3,10 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
+use crate::category::category::Category;
+use crate::category::arrow::Arrow;
+use crate::category::identity::Identity;
+use crate::category::composable::Composable;
 use crate::fntype::{FnType, FnTrait};
 
 /// A Reader monad that represents a computation with access to an environment.
@@ -68,6 +72,104 @@ where
     }
 }
 
+impl<E, A> Identity for Reader<E, A>
+where
+    E: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn identity<T>(x: T) -> T
+    where
+        T: ReturnTypeConstraints,
+    {
+        x
+    }
+}
+
+impl<E, A> Composable for Reader<E, A>
+where
+    E: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
+    where
+        T: ReturnTypeConstraints,
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        F: FnTrait<T, U>,
+        G: FnTrait<U, V>,
+    {
+        FnType::new(move |t| g.call(f.call(t)))
+    }
+}
+
+impl<E, A> Category<A> for Reader<E, A>
+where
+    E: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = Reader<E, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        Reader {
+            run: FnType::new(|_| B::default())
+        }
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        Reader {
+            run: FnType::new(move |e: E| {
+                let _ = f.run_reader(e.clone());
+                g.run_reader(e)
+            })
+        }
+    }
+}
+
+impl<E, A> Arrow<A> for Reader<E, A>
+where
+    E: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C> + Clone,
+    {
+        Reader {
+            run: FnType::new(move |_| f.call(B::default()))
+        }
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        Reader {
+            run: FnType::new(move |e| {
+                let c = f.run_reader(e);
+                (c, D::default())
+            })
+        }
+    }
+}
+
 impl<E, A> HKT for Reader<E, A>
 where
     E: ReturnTypeConstraints,
@@ -81,8 +183,7 @@ where
     E: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    fn pure(value: A) -> Self::Output<A>
-    {
+    fn pure(value: A) -> Self::Output<A> {
         let value = value.clone();
         Reader::new(FnType::new(move |_: E| value.clone()))
     }
@@ -98,8 +199,7 @@ where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,
     {
-        let f = FnType::new(move |e: E| f.call(self.run_reader(e)));
-        Reader { run: f }
+        Reader::new(FnType::new(move |e| f.call(self.run_reader(e))))
     }
 }
 
@@ -111,13 +211,12 @@ where
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
-        F: FnTrait<A, B> + Default,
+        F: FnTrait<A, B>,
     {
-        let f = FnType::new(move |e: E| {
-            let f = mf.run_reader(e.clone());
-            f.call(self.run_reader(e))
-        });
-        Reader { run: f }
+        Reader::new(FnType::new(move |e: E| {
+            let e1 = e.clone();
+            mf.run_reader(e).call(self.run_reader(e1))
+        }))
     }
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
@@ -126,28 +225,31 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<A, FnType<B, C>>,
     {
-        let f = FnType::new(move |e: E| {
-            let a = self.run_reader(e.clone());
-            let b = mb.run_reader(e);
-            f.call(a).call(b)
-        });
-        Reader { run: f }
+        Reader::new(FnType::new(move |e: E| {
+            let e1 = e.clone();
+            f.call(self.run_reader(e)).call(mb.run_reader(e1))
+        }))
     }
 
-    fn lift3<B, C, D, F>(self, mb: Self::Output<B>, mc: Self::Output<C>, f: F) -> Self::Output<D>
+    fn lift3<B, C, D, F>(
+        self,
+        mb: Self::Output<B>,
+        mc: Self::Output<C>,
+        f: F,
+    ) -> Self::Output<D>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
         F: FnTrait<A, FnType<B, FnType<C, D>>>,
     {
-        let f = FnType::new(move |e: E| {
-            let a = self.run_reader(e.clone());
-            let b = mb.run_reader(e.clone());
-            let c = mc.run_reader(e);
-            f.call(a).call(b).call(c)
-        });
-        Reader { run: f }
+        Reader::new(FnType::new(move |e: E| {
+            let e1 = e.clone();
+            let e2 = e.clone();
+            f.call(self.run_reader(e))
+                .call(mb.run_reader(e1))
+                .call(mc.run_reader(e2))
+        }))
     }
 }
 
@@ -161,59 +263,61 @@ where
         B: ReturnTypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
-        let f = FnType::new(move |e: E| {
-            let a = self.run_reader(e.clone());
-            f.call(a).run_reader(e)
-        });
-        Reader { run: f }
+        Reader::new(FnType::new(move |e: E| {
+            let e1 = e.clone();
+            f.call(self.run_reader(e)).run_reader(e1)
+        }))
     }
 
     fn join<B>(self) -> Self::Output<B>
     where
+        A: ReturnTypeConstraints,
         B: ReturnTypeConstraints,
         A: Into<Self::Output<B>>,
     {
-        self.bind(FnType::new(|x: A| x.into()))
+        Reader::new(FnType::new(move |e: E| {
+            let e1 = e.clone();
+            self.run_reader(e).into().run_reader(e1)
+        }))
     }
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        G: FnTrait<A, Self::Output<B>> + Clone,
-        H: FnTrait<B, Self::Output<C>> + Clone,
+        G: FnTrait<A, Self::Output<B>>,
+        H: FnTrait<B, Self::Output<C>>,
     {
-        FnType::new(move |x| -> Self::Output<C> {
-            g.call(x).bind(h.clone())
+        FnType::new(move |a| {
+            g.call(a).bind(h.clone())
         })
     }
 }
 
-/// Gets the environment from a Reader.
-pub fn ask<E>() -> Reader<E, E>
-where
-    E: ReturnTypeConstraints,
-{
-    Reader::new(FnType::new(|e: E| e))
-}
-
-/// Gets a function of the environment from a Reader.
-pub fn asks<E, A, F>(f: F) -> Reader<E, A>
+/// Helper functions for Reader
+impl<E, A> Reader<E, A>
 where
     E: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
-    F: FnTrait<E, A>,
 {
-    Reader::new(f)
-}
+    /// Gets the environment from a Reader.
+    pub fn ask() -> Reader<E, E> {
+        Reader::new(FnType::new(|e| e))
+    }
 
-/// Modifies the environment before running a Reader.
-pub fn local<E, A, F>(f: F, reader: Reader<E, A>) -> Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-    F: FnTrait<E, E>,
-{
-    let f = FnType::new(move |e: E| reader.run_reader(f.call(e)));
-    Reader { run: f }
+    /// Gets a function of the environment from a Reader.
+    pub fn asks<F>(f: F) -> Reader<E, A>
+    where
+        F: FnTrait<E, A>,
+    {
+        Reader::new(f)
+    }
+
+    /// Modifies the environment before running a Reader.
+    pub fn local<F>(f: F, reader: Reader<E, A>) -> Reader<E, A>
+    where
+        F: FnTrait<E, E>,
+    {
+        Reader::new(FnType::new(move |e| reader.run_reader(f.call(e))))
+    }
 }

@@ -6,9 +6,11 @@ use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
+use crate::category::category::Category;
+use crate::category::arrow::Arrow;
+use crate::category::composable::Composable;
+use crate::category::identity::Identity;
 use crate::fntype::{FnType, FnTrait};
-
-pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
 
 /// A type that represents a value that can be either valid or invalid
 ///
@@ -72,6 +74,9 @@ pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoI
 /// let combined_result: Validated<MyError, i32> = Validated::valid(1).combine(Validated::valid(2), FnType::new(|x| FnType::new(move |y| x + y)));
 /// assert_eq!(combined_result.to_result(), Ok(3));
 /// ```
+
+pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Validated<E, A>
 where
@@ -304,5 +309,100 @@ where
         FnType::new(move |x: A| -> Self::Output<C> {
             g.call(x).bind(h.clone())
         })
+    }
+}
+
+impl<E, A> Identity for Validated<E, A>
+where
+    E: ValidatedTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn identity<T>(x: T) -> T
+    where
+        T: ReturnTypeConstraints,
+    {
+        x
+    }
+}
+
+impl<E, A> Composable for Validated<E, A>
+where
+    E: ValidatedTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
+    where
+        T: ReturnTypeConstraints,
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        F: FnTrait<T, U>,
+        G: FnTrait<U, V>,
+    {
+        FnType::new(move |x| g.call(f.call(x)))
+    }
+}
+
+impl<E, A> Category<A> for Validated<E, A>
+where
+    E: ValidatedTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = Validated<E, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        Validated::valid(B::default())
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        match (f, g) {
+            (Validated::Valid(_), Validated::Valid(d)) => Validated::valid(d),
+            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
+                e1.extend(e2.into_iter());
+                Validated::Invalid(e1)
+            },
+            (Validated::Invalid(e), _) => Validated::Invalid(e),
+            (_, Validated::Invalid(e)) => Validated::Invalid(e),
+        }
+    }
+}
+
+impl<E, A> Arrow<A> for Validated<E, A>
+where
+    E: ValidatedTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C> + Clone,
+    {
+        Validated::valid(f.call(B::default()))
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        match f {
+            Validated::Valid(c) => Validated::valid((c, D::default())),
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
     }
 }

@@ -7,6 +7,10 @@ use crate::category::applicative::Applicative;
 use crate::category::functor::Functor;
 use crate::category::pure::Pure;
 use crate::category::monad::Monad;
+use crate::category::category::Category;
+use crate::category::composable::Composable;
+use crate::category::identity::Identity;
+
 use crate::fntype::{FnType, FnTrait};
 
 /// An async monad that represents an asynchronous computation.
@@ -175,6 +179,66 @@ where
         F: FnTrait<A, FnType<B, FnType<C, D>>>,
     {
         self.map(FnType::new(move |a| f.call(a).call(mb.try_get()).call(mc.try_get())))
+    }
+}
+
+impl<A> Identity for AsyncM<A>
+where
+    A: ReturnTypeConstraints,
+{
+    fn identity<T>(x: T) -> T
+    where
+        T: ReturnTypeConstraints,
+    {
+        x
+    }
+}
+
+impl<A> Composable for AsyncM<A>
+where
+    A: ReturnTypeConstraints,
+{
+    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
+    where
+        T: ReturnTypeConstraints,
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        F: FnTrait<T, U>,
+        G: FnTrait<U, V>,
+    {
+        FnType::new(move |x| g.call(f.call(x)))
+    }
+}
+
+impl<A> Category<A> for AsyncM<A>
+where
+    A: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = AsyncM<C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        AsyncM::pure(B::default())
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        AsyncM::new(async move {
+            let _c = f.try_get();
+            g.try_get()
+        })
     }
 }
 

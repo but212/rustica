@@ -6,6 +6,10 @@ use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
 use crate::category::pure::Pure;
 use crate::category::bifunctor::Bifunctor;
+use crate::category::category::Category;
+use crate::category::arrow::Arrow;
+use crate::category::composable::Composable;
+use crate::category::identity::Identity;
 use crate::fntype::{FnTrait, FnType};
 
 /// A type that represents one of two possible values.
@@ -460,5 +464,95 @@ where
             Either::Left(l) => Either::Left(f.call(l)),
             Either::Right(r) => Either::Right(g.call(r)),
         }
+    }
+}
+
+impl<L, R> Category<R> for Either<L, R>
+where
+    L: ReturnTypeConstraints,
+    R: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = Either<L, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+
+    fn identity_morphism<B>() -> Self::Morphism<B, B>
+    where
+        B: ReturnTypeConstraints,
+    {
+        Either::Right(B::default())
+    }
+
+    fn compose_morphisms<B, C, D>(
+        f: Self::Morphism<B, C>,
+        g: Self::Morphism<C, D>
+    ) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        match f {
+            Either::Left(l) => Either::Left(l),
+            Either::Right(_) => g,
+        }
+    }
+}
+
+impl<L, R> Arrow<R> for Either<L, R>
+where
+    L: ReturnTypeConstraints,
+    R: ReturnTypeConstraints,
+{
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C> + Clone,
+    {
+        Either::Right(f.call(B::default()))
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        match f {
+            Either::Left(l) => Either::Left(l),
+            Either::Right(c) => Either::Right((c, D::default())),
+        }
+    }
+}
+
+impl<L, R> Identity for Either<L, R>
+where
+    L: ReturnTypeConstraints,
+    R: ReturnTypeConstraints,
+{
+    fn identity<T>(x: T) -> T
+    where
+        T: ReturnTypeConstraints,
+    {
+        x
+    }
+}
+
+impl<L, R> Composable for Either<L, R>
+where
+    L: ReturnTypeConstraints,
+    R: ReturnTypeConstraints,
+{
+    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
+    where
+        T: ReturnTypeConstraints,
+        U: ReturnTypeConstraints,
+        V: ReturnTypeConstraints,
+        F: FnTrait<T, U>,
+        G: FnTrait<U, V>,
+    {
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
