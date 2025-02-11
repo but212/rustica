@@ -30,7 +30,7 @@ use crate::fntype::{FnType, FnTrait};
 /// 3. Effect Encapsulation: Side effects must only occur when `run()` is called,
 ///    not during IO construction or transformation
 /// 4. Pure Transformation: For pure function `f` and IO computation `io`,
-///    `io.map(f)` must not introduce additional side effects
+///    `io.fmap(f)` must not introduce additional side effects
 /// 
 /// # Fields
 /// * `run` - A function that performs the I/O operation.
@@ -77,7 +77,7 @@ use crate::fntype::{FnType, FnTrait};
 ///     let computation2 = IO::new(FnType::new(|_| "World"));
 ///     let combined = computation1.bind(FnType::new(move |hello| {
 ///         let computation2_clone = computation2.clone();
-///         computation2_clone.map(FnType::new(move |world| {
+///         computation2_clone.fmap(FnType::new(move |world| {
 ///             format!("{}, {}!", hello, world)
 ///         }))
 ///     }));
@@ -200,7 +200,7 @@ where
     /// 
     /// Returns
     /// IO<B> - The mapped IO computation.
-    fn map<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,
@@ -227,7 +227,7 @@ where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,
     {
-        self.map(FnType::new(move |a| f.run.call(()).call(a)))
+        self.fmap(FnType::new(move |a| f.run.call(()).call(a)))
     }
 
     /// Lifts a binary function into IO computations.

@@ -11,12 +11,12 @@ use crate::category::monad::Monad;
 /// A FlatMap instance must satisfy these laws:
 /// 1. Associativity: For any value `m` and functions `f`, `g`,
 ///    `m.flat_map(f).flat_map(g) = m.flat_map(|x| f(x).flat_map(g))`
-/// 2. Consistency with Map: For any value `m` and function `f`,
-///    `m.flat_map(|x| pure(f(x))) = m.map(f)`
+/// 2. Consistency with FMap: For any value `m` and function `f`,
+///    `m.flat_map(|x| pure(f(x))) = m.fmap(f)`
 /// 3. Flattening Identity: For any value `m`,
 ///    `flatten(pure(m)) = m`
 /// 4. Map-Flatten Consistency: For any value `m` and function `f`,
-///    `m.flat_map(f) = flatten(map(f)(m))`
+///    `m.flat_map(f) = flatten(fmap(f)(m))`
 pub trait FlatMap<T>: Monad<T> + Sized
 where
     T: ReturnTypeConstraints,

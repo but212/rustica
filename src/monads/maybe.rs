@@ -147,7 +147,7 @@ impl<T> Functor<T> for Maybe<T>
 where
     T: ReturnTypeConstraints,
 {
-    fn map<U, F>(self, f: F) -> Self::Output<U>
+    fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
         F: FnTrait<T, U>,

@@ -16,11 +16,11 @@ use crate::fntype::FnType;
 /// # Laws
 /// A Sequence instance must satisfy these laws:
 /// 1. Naturality: For any natural transformation `η: F ~> G` and sequence `xs`,
-///    `η(sequence(xs)) = sequence(map(η)(xs))`
+///    `η(sequence(xs)) = sequence(fmap(η)(xs))`
 /// 2. Identity: For any sequence `xs`,
-///    `sequence(map(pure)(xs)) = pure(xs)`
+///    `sequence(fmap(pure)(xs)) = pure(xs)`
 /// 3. Composition: For nested sequences `xss`,
-///    `sequence(sequence(xss)) = sequence(map(sequence)(xss))`
+///    `sequence(sequence(xss)) = sequence(fmap(sequence)(xss))`
 pub trait Sequence<A>: Traversable<A>
 where
     A: ReturnTypeConstraints,

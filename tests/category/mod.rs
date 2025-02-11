@@ -56,7 +56,7 @@ impl<T> Functor<T> for TestFunctor<T>
 where
     T: ReturnTypeConstraints,
 {
-    fn map<U, F>(self, f: F) -> TestFunctor<U>
+    fn fmap<U, F>(self, f: F) -> TestFunctor<U>
     where
         U: ReturnTypeConstraints,
         F: FnTrait<T, U>,

@@ -19,9 +19,9 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// 4. Interchange: For any applicative `u` and value `y`,
 ///    `u.apply(pure(y)) = pure(|f| f(y)).apply(u)`
 /// 5. Naturality: For any function `f` and applicatives `x`, `y`,
-///    `map(f)(x.apply(y)) = x.apply(map(|g| f.compose(g))(y))`
+///    `fmap(f)(x.apply(y)) = x.apply(fmap(|g| f.compose(g))(y))`
 /// 6. Functor Consistency: For any value `x` and function `f`,
-///    `pure(x).map(f) = pure(f(x))`
+///    `pure(x).fmap(f) = pure(f(x))`
 ///
 /// # Example
 ///
@@ -51,7 +51,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// where
 ///     T: ReturnTypeConstraints,
 /// {
-///     fn map<U, F>(self, f: F) -> Maybe<U>
+///     fn fmap<U, F>(self, f: F) -> Maybe<U>
 ///     where
 ///         U: ReturnTypeConstraints,
 ///         F: FnTrait<T, U>,

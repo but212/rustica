@@ -25,14 +25,14 @@ use crate::fntype::{FnType, FnTrait};
 ///    pure(a).run(k) = k(a)
 ///    
 /// 2. Composition Law: ∀x ∈ A, f: A → B, k: B → R:
-///    pure(x).map(f).run(k) = k(f(x))
+///    pure(x).fmap(f).run(k) = k(f(x))
 ///    
 /// ## Functor Laws
 /// 1. Identity Law: ∀x ∈ Cont<R,A>:
-///    x.map(id) = x
+///    x.fmap(id) = x
 /// 
 /// 2. Composition Law: ∀x ∈ Cont<R,A>, f: A → B, g: B → C:
-///    x.map(f).map(g) = x.map(g ∘ f)
+///    x.fmap(f).fmap(g) = x.fmap(g ∘ f)
 /// 
 /// ## Monad Laws
 /// 1. Left Identity Law: ∀x ∈ A, f: A → Cont<R,B>:
@@ -144,7 +144,7 @@ where
     /// 
     /// # Returns
     /// * `Cont<R, B>` - The mapped value.
-    fn map<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,

@@ -17,9 +17,9 @@ use crate::category::category::Category;
 /// 3. Associativity: For any monad `m` and functions `f`, `g`,
 ///    `m.bind(f).bind(g) = m.bind(|x| f(x).bind(g))`
 /// 4. Applicative Consistency: For any monad `m` and function `f`,
-///    `m.bind(|x| pure(f(x))) = m.map(f)`
+///    `m.bind(|x| pure(f(x))) = m.fmap(f)`
 /// 5. Join Consistency: For any monad `m`,
-///    `m.bind(f) = m.map(f).join()`
+///    `m.bind(f) = m.fmap(f).join()`
 /// 6. Pure Preservation: For any value `x`,
 ///    `join(pure(pure(x))) = pure(x)`
 /// 7. Natural Transformation: For any natural transformation `η`,

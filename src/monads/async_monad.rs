@@ -112,7 +112,7 @@ where
     /// 
     /// Returns
     /// * `AsyncM<B>` - The new async computation.
-    fn map<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,
@@ -140,7 +140,7 @@ where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,
     {
-        self.map(FnType::new(move |a| mf.try_get().call(a)))
+        self.fmap(FnType::new(move |a| mf.try_get().call(a)))
     }
 
     /// Lifts a binary function into async computations.
@@ -158,7 +158,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<A, FnType<B, C>>,
     {
-        self.map(FnType::new(move |a| f.call(a).call(mb.try_get())))
+        self.fmap(FnType::new(move |a| f.call(a).call(mb.try_get())))
     }
 
     /// Lifts a ternary function into async computations.
@@ -178,7 +178,7 @@ where
         D: ReturnTypeConstraints,
         F: FnTrait<A, FnType<B, FnType<C, D>>>,
     {
-        self.map(FnType::new(move |a| f.call(a).call(mb.try_get()).call(mc.try_get())))
+        self.fmap(FnType::new(move |a| f.call(a).call(mb.try_get()).call(mc.try_get())))
     }
 }
 
@@ -259,7 +259,7 @@ where
         B: ReturnTypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
-        self.map(FnType::new(move |a| f.call(a).try_get()))
+        self.fmap(FnType::new(move |a| f.call(a).try_get()))
     }
 
     /// Joins two async computations.

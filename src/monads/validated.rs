@@ -115,7 +115,7 @@ where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,
     {
-        self.map(f)
+        self.fmap(f)
     }
 
     /// Maps a function over the invalid value
@@ -198,7 +198,7 @@ where
     E: ValidatedTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    fn map<B, F>(self, f: F) -> Validated<E, B>
+    fn fmap<B, F>(self, f: F) -> Validated<E, B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,

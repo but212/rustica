@@ -39,7 +39,7 @@ fn cont_composition(x: i32) -> bool {
     let cont = Cont::pure(x.saturating_add(2));
     let f = FnType::new(move |x: i32| x.saturating_add(1));
     
-    let left = cont.clone().map(f.clone()).run(k2.clone());
+    let left = cont.clone().fmap(f.clone()).run(k2.clone());
     let right = k2.call(f.call(x.saturating_add(2)));
     left == right
 }
@@ -50,7 +50,7 @@ fn functor_identity(x: TestCont<i32>) -> bool {
     let k = FnType::new(|x: i32| x.to_string());
     let cont = x.0;
     
-    let left = cont.clone().map(FnType::new(|x| x)).run(k.clone());
+    let left = cont.clone().fmap(FnType::new(|x| x)).run(k.clone());
     let right = cont.run(k);
     left == right
 }
@@ -62,8 +62,8 @@ fn functor_composition(x: TestCont<i32>) -> bool {
     let k = FnType::new(|x: i32| x.to_string());
     let cont = x.0;
     
-    let left = cont.clone().map(f.clone()).map(g.clone()).run(k.clone());
-    let right = cont.map(FnType::new(move |x| g.call(f.call(x)))).run(k);
+    let left = cont.clone().fmap(f.clone()).fmap(g.clone()).run(k.clone());
+    let right = cont.fmap(f).fmap(g).run(k);
     left == right
 }
 
@@ -73,7 +73,7 @@ fn monad_left_identity(x: i32) -> bool {
     let k = FnType::new(|x: i32| x.to_string());
     let f = FnType::new(|x: i32| x.saturating_add(1));
     
-    let left = Cont::pure(x).map(f.clone()).run(k.clone());
+    let left = Cont::pure(x).fmap(f.clone()).run(k.clone());
     let right = k.call(f.call(x));
     left == right
 }
@@ -83,7 +83,7 @@ fn monad_right_identity(x: TestCont<i32>) -> bool {
     let k = FnType::new(|x: i32| x.to_string());
     let cont = x.0;
     
-    let left = cont.clone().map(FnType::new(|x| x)).run(k.clone());
+    let left = cont.clone().fmap(FnType::new(|x| x)).run(k.clone());
     let right = cont.run(k);
     left == right
 }
@@ -96,9 +96,9 @@ fn monad_associativity(x: TestCont<i32>) -> bool {
     let cont = x.0;
     
     let left = cont.clone()
-        .map(f.clone())
-        .map(g.clone())
+        .fmap(f.clone())
+        .fmap(g.clone())
         .run(k.clone());
-    let right = cont.map(FnType::new(move |x| g.call(f.call(x)))).run(k);
+    let right = cont.fmap(f).fmap(g).run(k);
     left == right
 }

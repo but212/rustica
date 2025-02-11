@@ -10,7 +10,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// 1. Identity: For any evaluable value `e`,
 ///    `e.evaluate().pure() = e`
 /// 2. Composition: For any evaluable values `e`, `f` and function `g`,
-///    `e.evaluate().map(g) = (e.map(g)).evaluate()`
+///    `e.evaluate().fmap(g) = (e.fmap(g)).evaluate()`
 /// 3. Naturality: For any natural transformation `η: F ~> G`,
 ///    `η(e.evaluate()) = η(e).evaluate()`
 /// 4. Purity: For any pure value `x`,

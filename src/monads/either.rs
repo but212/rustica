@@ -240,7 +240,7 @@ where
     /// 
     /// Returns
     /// * `Either<L, T>` - The mapped value.
-    fn map<T, F>(self, f: F) -> Either<L, T>
+    fn fmap<T, F>(self, f: F) -> Either<L, T>
     where
         T: ReturnTypeConstraints,
         F: FnTrait<R, T>,

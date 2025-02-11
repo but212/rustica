@@ -9,7 +9,7 @@ use super::TestFunctor;
 fn functor_identity_law(x: i32) -> bool {
     let functor = TestFunctor::pure(x);
     let f = FnType::new(|x| x);
-    functor.clone().map(f) == functor
+    functor.clone().fmap(f) == functor
 }
 
 #[quickcheck]
@@ -18,7 +18,7 @@ fn functor_composition_law(x: i32) -> bool {
     let f = FnType::new(|x: i32| x.saturating_add(1));
     let g = FnType::new(|x: i32| x.saturating_mul(2));
     
-    let left = functor.clone().map(f.clone()).map(g.clone());
-    let right = functor.map(FnType::new(move |x| g.call(f.call(x))));
+    let left = functor.clone().fmap(f.clone()).fmap(g.clone());
+    let right = functor.fmap(FnType::new(move |x| g.call(f.call(x))));
     left == right
 }

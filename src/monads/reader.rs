@@ -194,7 +194,7 @@ where
     E: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    fn map<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>,

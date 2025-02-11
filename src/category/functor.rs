@@ -4,7 +4,7 @@ use std::hash::Hash;
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::fntype::FnTrait;
 
-/// A trait for functors, which are type constructors that can map a function over their contents.
+/// A trait for functors, which are type constructors that can fmap a function over their contents.
 /// 
 /// # Type Parameters
 /// * `T` - The type of value contained in the functor
@@ -12,17 +12,17 @@ use crate::fntype::FnTrait;
 /// # Laws
 /// A Functor instance must satisfy these laws:
 /// 1. Identity: For any functor `f`,
-///    `f.map(|x| x) = f`
+///    `f.fmap(|x| x) = f`
 /// 2. Composition: For any functor `f` and functions `g`, `h`,
-///    `f.map(|x| h(g(x))) = f.map(g).map(h)`
+///    `f.fmap(|x| h(g(x))) = f.fmap(g).fmap(h)`
 /// 3. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(f.map(g)) = η(f).map(g)`
+///    `η(f.fmap(g)) = η(f).fmap(g)`
 /// 4. Container Preservation: For any functor `f` and function `g`,
-///    `f.map(g)` must preserve the structure of `f`
+///    `f.fmap(g)` must preserve the structure of `f`
 /// 5. Type Preservation: For any functor `f` and function `g`,
-///    `f.map(g)` must maintain the same type constructor as `f`
+///    `f.fmap(g)` must maintain the same type constructor as `f`
 /// 6. Parametricity: For any functor `f` and functions `g`, `h`,
-///    If `g(x) = h(x)` for all `x`, then `f.map(g) = f.map(h)`
+///    If `g(x) = h(x)` for all `x`, then `f.fmap(g) = f.fmap(h)`
 ///
 /// # Example
 /// ```
@@ -47,7 +47,7 @@ use crate::fntype::FnTrait;
 /// where
 ///     A: ReturnTypeConstraints,
 /// {
-///     fn map<B, F>(self, f: F) -> Self::Output<B>
+///     fn fmap<B, F>(self, f: F) -> Self::Output<B>
 ///     where
 ///         B: ReturnTypeConstraints,
 ///         F: FnTrait<A, B>,
@@ -57,7 +57,7 @@ use crate::fntype::FnTrait;
 /// }
 ///
 /// let instance: MyType<i32> = MyType { value: 42 };
-/// let new_instance: MyType<String> = instance.map(FnType::new(|x: i32| x.to_string()));
+/// let new_instance: MyType<String> = instance.fmap(FnType::new(|x: i32| x.to_string()));
 /// assert_eq!(new_instance.value, "42".to_string());
 /// ```
 pub trait Functor<A>: HKT
@@ -78,7 +78,7 @@ where
     /// - `F`: A function type that takes a value of type `A` and returns a value of type `B`.
     ///
     /// 
-    fn map<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>;
@@ -101,7 +101,7 @@ where
     /// # Type Parameters
     /// - `B`: The return type of the function `f`.
     /// - `F`: A function type that takes a value of type `T` and returns a value of type `B`.
-    fn map<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<T, B>,
@@ -126,7 +126,7 @@ where
     /// # Type Parameters
     /// - `B`: The return type of the function `f`.
     /// - `F`: A function type that takes a value of type `T` and returns a value of type `B`.
-    fn map<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<T, B>,
@@ -152,7 +152,7 @@ where
     /// # Type Parameters
     /// - `B`: The return type of the function `f`.
     /// - `F`: A function type that takes a value of type `V` and returns a value of type `B`.
-    fn map<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<V, B>,
