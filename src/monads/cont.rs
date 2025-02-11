@@ -51,6 +51,18 @@ use crate::fntype::{FnType, FnTrait};
 ///    are properly managed and released.
 /// 3. Compositionality: For any continuations f and g,
 ///    f.compose(g) maintains the continuation semantics.
+/// 
+/// # Examples
+/// ```rust
+/// use rustica::monads::cont::Cont;
+/// use rustica::fntype::FnType;
+/// 
+/// fn main() {
+///     let cont = Cont::new(FnType::new(|k: FnType<i32, i32>| k.call(1)));
+///     let result = cont.run(FnType::new(|x: i32| x + 1));
+///     assert_eq!(result, 2);
+/// }
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Cont<R, A>
 where
