@@ -43,8 +43,7 @@ use crate::fntype::{FnType, FnTrait};
 /// assert_eq!(io2.run(), 84);
 /// ```
 ///
-/// File IO example:
-///
+/// File IO:
 /// ```
 /// use std::fs::File;
 /// use std::io::{self, Read, Write};
@@ -53,9 +52,18 @@ use crate::fntype::{FnType, FnTrait};
 ///
 /// fn read_file() -> IO<String> {
 ///     IO::new(FnType::new(|_| {
-///         let mut file = File::open("input.txt").expect("Failed to open file");
+///         let mut file = match File::open("input.txt") {
+///             Ok(file) => file,
+///             Err(err) => {
+///                 eprintln!("Error opening file: {}", err);
+///                 return String::new();
+///             }
+///         };
 ///         let mut contents = String::new();
-///         file.read_to_string(&mut contents).expect("Failed to read file");
+///         if let Err(err) = file.read_to_string(&mut contents) {
+///             eprintln!("Error reading file: {}", err);
+///             return String::new();
+///         }
 ///         contents
 ///     }))
 /// }
