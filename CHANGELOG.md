@@ -1,3 +1,13 @@
+## [0.3.1] - 2025-02-13
+
+### Changed
+- Modified `lift2` and `lift3` to accept tuples for function types.
+- Modified category Morphism definitions.
+
+### Removed
+- Removed unnecessary function types.
+- Removed `Default` and `Eq` from `ReturnTypeConstraints`.
+
 ## [0.3.0] - 2025-02-10
 
 ### Added
