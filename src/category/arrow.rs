@@ -4,11 +4,11 @@ use crate::fntype::FnTrait;
 use crate::fntype::FnType;
 
 /// Arrow type class.
-/// 
+///
 /// # Type Parameters
 /// * `A` - The base type for this arrow
 /// * `Morphism<B, C>` - The type of morphisms from B to C in this category.
-/// 
+///
 /// # Laws
 /// An arrow must satisfy these laws:
 /// 1. arrow id >>> f = f = f >>> arrow id
@@ -18,30 +18,149 @@ use crate::fntype::FnType;
 /// 5. first f >>> arrow (id × g) = arrow (id × g) >>> first f
 /// 6. first f >>> arrow fst = arrow fst >>> f
 /// 7. first (first f) >>> arrow assoc = arrow assoc >>> first f
-pub trait Arrow: Category
-{
-    /// Lifts a function to an arrow.
+///
+/// # Examples
+/// ```
+/// use rustica::prelude::*;
+///
+/// struct MyArrow;
+///
+/// impl HKT for MyArrow {
+///     type Output<A> = A where A: ReturnTypeConstraints;
+/// }
+///
+/// impl Identity for MyArrow {
+///     fn identity<A: ReturnTypeConstraints>(x: A) -> A {
+///         x
+///     }
+/// }
+/// 
+/// impl Composable for MyArrow {
+///     fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
+///     where
+///         T: ReturnTypeConstraints,
+///         U: ReturnTypeConstraints,
+///         V: ReturnTypeConstraints,
+///         F: FnTrait<T, U>,
+///         G: FnTrait<U, V>,
+///     {
+///         FnType::new(move |x| g.call(f.call(x)))
+///     }
+/// }
+/// 
+/// impl Category for MyArrow {
+///     type Morphism<A, B> = FnType<A, B> where A: ReturnTypeConstraints, B: ReturnTypeConstraints;
+///
+///     fn identity_morphism<A: ReturnTypeConstraints>() -> Self::Morphism<A, A> {
+///         FnType::new(|x| x)
+///     }
+///
+///     fn compose_morphisms<A, B, C>(f: Self::Morphism<A, B>, g: Self::Morphism<B, C>) -> Self::Morphism<A, C>
+///     where
+///         A: ReturnTypeConstraints,
+///         B: ReturnTypeConstraints,
+///         C: ReturnTypeConstraints,
+///     {
+///         FnType::new(move |x| g.call(f.call(x)))
+///     }
+/// }
+///
+/// impl Arrow for MyArrow {
+///     fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+///     where
+///         B: ReturnTypeConstraints,
+///         C: ReturnTypeConstraints,
+///         F: FnTrait<B, C>,
+///     {
+///         FnType::new(move |x| f.call(x))
+///     }
+///
+///     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+///     where
+///         B: ReturnTypeConstraints,
+///         C: ReturnTypeConstraints,
+///         D: ReturnTypeConstraints,
+///     {
+///         FnType::new(move |(b, d)| (f.call(b), d))
+///     }
+/// }
+///
+/// let add_one = MyArrow::arrow(FnType::new(|x: i32| x + 1));
+/// let multiply_by_two = MyArrow::arrow(FnType::new(|x: i32| x * 2));
+/// let combined = MyArrow::compose_morphisms(add_one, multiply_by_two);
+/// assert_eq!(combined.call(3), 8);
+/// ```
+pub trait Arrow: Category {
+    /// Creates an arrow from a function.
+    ///
+    /// This method lifts a regular function into the arrow category.
+    ///
+    /// # Type Parameters
+    /// * `B`: The input type of the function
+    /// * `C`: The output type of the function
+    /// * `F`: The function type
+    ///
+    /// # Arguments
+    /// * `f`: The function to be lifted into an arrow
+    ///
+    /// # Returns
+    /// A morphism in the arrow category representing the given function
     fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: FnTrait<B, C>;
+        F: FnTrait<B, C>
+    {
+        FnTrait::new(move |x| f.call(x))
+    }
 
-    /// Takes an arrow on B to an arrow on (B, C).
+    /// Applies a morphism to the first component of a pair.
+    ///
+    /// This method takes a morphism `f: B -> C` and returns a new morphism that
+    /// applies `f` to the first component of a pair `(B, D)`, leaving the second
+    /// component unchanged.
+    ///
+    /// # Type Parameters
+    /// * `B`: The input type of the original morphism
+    /// * `C`: The output type of the original morphism
+    /// * `D`: The type of the second component in the pair
+    ///
+    /// # Arguments
+    /// * `f`: The morphism to be applied to the first component
+    ///
+    /// # Returns
+    /// A new morphism that operates on pairs, applying `f` to the first component
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints;
+        D: ReturnTypeConstraints,
+    {
+        FnTrait::new(move |x: (B, D)| (f.call(x.0), x.1))
+    }
 
-    /// Takes an arrow on B to an arrow on (D, B).
+    /// Applies a morphism to the second component of a pair.
+    ///
+    /// This method takes a morphism `f: B -> C` and returns a new morphism that
+    /// applies `f` to the second component of a pair `(D, B)`, leaving the first
+    /// component unchanged.
+    ///
+    /// # Type Parameters
+    /// * `B`: The input type of the original morphism
+    /// * `C`: The output type of the original morphism
+    /// * `D`: The type of the first component in the pair
+    ///
+    /// # Arguments
+    /// * `f`: The morphism to be applied to the second component
+    ///
+    /// # Returns
+    /// A new morphism that operates on pairs, applying `f` to the second component
     fn second<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(D, B), (D, C)>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        // Default implementation in terms of first
         let swap_in = Self::arrow(FnType::new(|(d, b): (D, B)| (b, d)));
         let swap_out = Self::arrow(FnType::new(|(c, d): (C, D)| (d, c)));
         Self::compose_morphisms(
@@ -50,7 +169,24 @@ pub trait Arrow: Category
         )
     }
 
-    /// Split on input.
+    /// Splits a single input into two outputs using two different morphisms.
+    ///
+    /// This method takes two morphisms, `f: B -> C` and `g: B -> D`, and combines them
+    /// to create a new morphism that applies both `f` and `g` to the same input,
+    /// producing a pair of their results.
+    ///
+    /// # Type Parameters
+    /// * `B`: The input type for both morphisms
+    /// * `C`: The output type of the first morphism
+    /// * `D`: The output type of the second morphism
+    /// * `E`: Unused type parameter (consider removing if not needed)
+    ///
+    /// # Arguments
+    /// * `f`: The first morphism to apply
+    /// * `g`: The second morphism to apply
+    ///
+    /// # Returns
+    /// A new morphism that applies both `f` and `g` to the input and returns their results as a pair
     fn split<B, C, D, E>(
         f: Self::Morphism<B, C>,
         g: Self::Morphism<B, D>
@@ -68,7 +204,24 @@ pub trait Arrow: Category
         )
     }
 
-    /// Combine on output.
+    /// Combines two morphisms to operate on pairs.
+    ///
+    /// This method takes two morphisms, `f: B -> C` and `g: D -> E`, and combines them
+    /// to create a new morphism that applies `f` to the first component of a pair and
+    /// `g` to the second component.
+    ///
+    /// # Type Parameters
+    /// * `B`: The input type of the first morphism
+    /// * `C`: The output type of the first morphism
+    /// * `D`: The input type of the second morphism
+    /// * `E`: The output type of the second morphism
+    ///
+    /// # Arguments
+    /// * `f`: The morphism to apply to the first component
+    /// * `g`: The morphism to apply to the second component
+    ///
+    /// # Returns
+    /// A new morphism that applies `f` and `g` to the respective components of a pair
     fn combine_morphisms<B, C, D, E>(
         f: Self::Morphism<B, C>,
         g: Self::Morphism<D, E>

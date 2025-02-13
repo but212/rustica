@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
@@ -13,31 +11,47 @@ use crate::category::identity::Identity;
 use crate::fntype::{FnType, FnTrait};
 
 /// The writer monad.
-/// 
+///
 /// # Type Parameters
 /// * `W` - The log type, must implement the `Monoid` trait.
 /// * `A` - The output type.
-/// 
-/// # Laws
-/// A Writer instance must satisfy these laws in addition to the standard Monad laws:
-/// 1. Log Monoid: The log type `W` must satisfy monoid laws:
-///    - Identity: `w.combine(W::empty()) = w = W::empty().combine(w)`
-///    - Associativity: `(w1.combine(w2)).combine(w3) = w1.combine(w2.combine(w3))`
-/// 2. Pure Log Empty: For any value `x`,
-///    `Writer::pure(x).log() = W::empty()`
-/// 3. Tell Consistency: For any log `w`,
-///    `Writer::tell(w).log() = w`
-/// 4. Log Combination: For Writers `w1` and `w2`,
-///    `w1.bind(w2).log() = w1.log().combine(w2(w1.value()).log())`
-/// 5. Value Independence: For any log `w` and value `x`,
-///    `Writer::new(x, w).value() = x`
+///
+/// # Examples
+///
+/// ```
+/// use rustica::monads::writer::Writer;
+/// use rustica::category::monoid::Monoid;
+/// use rustica::category::semigroup::Semigroup;
+///
+/// #[derive(Clone, PartialEq, Eq, Debug, Default)]
+/// struct Log(Vec<String>);
+///
+/// impl Semigroup for Log {
+///     fn combine(mut self, other: Self) -> Self {
+///         self.0.extend(other.0);
+///         self
+///     }
+/// }
+///
+/// impl Monoid for Log {
+///     fn empty() -> Self {
+///         Log(Vec::new())
+///     }
+/// }
+///
+/// let writer = Writer::new(42, Log(vec!["Initial log".to_string()]));
+/// let (value, log) = writer.run();
+///
+/// assert_eq!(value, 42);
+/// assert_eq!(log, Log(vec!["Initial log".to_string()]));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Writer<W, A>
 where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
-    /// The function that runs the writer computation.
+    /// The function that performs the computation and returns the result along with the log.
     run_writer: FnType<(), (A, W)>
 }
 
@@ -46,53 +60,130 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
-    /// Creates a new Writer from a value and a log.
-    /// 
+    /// Creates a new `Writer` with the given value and log.
+    ///
     /// # Arguments
-    /// * `value` - The value to be written.
-    /// * `log` - The log to be written.
-    /// 
+    ///
+    /// * `value` - The value to be wrapped in the `Writer`.
+    /// * `log` - The initial log to be associated with the `Writer`.
+    ///
     /// # Returns
-    /// * `Writer<W, A>` - The new Writer.
+    ///
+    /// A new `Writer` instance containing the provided value and log.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::writer::Writer;
+    /// use rustica::category::monoid::Monoid;
+    ///
+    /// let writer = Writer::new(42, vec!["Initial log".to_string()]);
+    /// let (value, log) = writer.run();
+    ///
+    /// assert_eq!(value, 42);
+    /// assert_eq!(log, vec!["Initial log".to_string()]);
+    /// ```
     pub fn new(value: A, log: W) -> Self {
-        let value = Arc::new(value);
-        let log = Arc::new(log);
         Writer {
-            run_writer: FnType::new(move |_| ((*value).clone(), (*log).clone())),
-        }   
+            run_writer: FnType::new(move |_| (value.clone(), log.clone())),
+        }
     }
 
-    /// Creates a new Writer that writes a log.
-    /// 
+    /// Creates a `Writer` that only produces a log entry without a value.
+    ///
+    /// This function is used to add a log entry to the `Writer` monad without
+    /// changing the computed value.
+    ///
     /// # Arguments
-    /// * `log` - The log to be written.
-    /// 
+    ///
+    /// * `log` - The log entry to be added.
+    ///
     /// # Returns
-    /// * `Writer<W, ()>` - The new Writer.
+    ///
+    /// A new `Writer` instance with the given log and `()` as the value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::writer::Writer;
+    /// use rustica::category::monoid::Monoid;
+    ///
+    /// let writer = Writer::<Vec<String>, ()>::tell(vec!["Log entry".to_string()]);
+    /// let (value, log) = writer.run();
+    ///
+    /// assert_eq!(value, ());
+    /// assert_eq!(log, vec!["Log entry".to_string()]);
+    /// ```
     pub fn tell(log: W) -> Writer<W, ()> {
         Writer::new((), log)
     }
 
-    /// Runs the writer computation.
-    /// 
+    /// Executes the writer computation and returns the result value along with the accumulated log.
+    ///
     /// # Returns
-    /// * `(A, W)` - The value and log.
+    ///
+    /// A tuple containing the computed value of type `A` and the accumulated log of type `W`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::writer::Writer;
+    /// use rustica::category::monoid::Monoid;
+    ///
+    /// let writer = Writer::new(42, vec!["Log entry".to_string()]);
+    /// let (value, log) = writer.run();
+    ///
+    /// assert_eq!(value, 42);
+    /// assert_eq!(log, vec!["Log entry".to_string()]);
+    /// ```
     pub fn run(&self) -> (A, W) {
         self.run_writer.call(())
     }
 
-    /// Gets the value.
-    /// 
+    /// Returns the value stored in the `Writer` without the log.
+    ///
+    /// This method executes the writer computation and returns only the result value,
+    /// discarding the accumulated log.
+    ///
     /// # Returns
-    /// * `A` - The value.
+    ///
+    /// The computed value of type `A`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::writer::Writer;
+    /// use rustica::category::monoid::Monoid;
+    ///
+    /// let writer = Writer::new(42, vec!["Log entry".to_string()]);
+    /// let value = writer.value();
+    ///
+    /// assert_eq!(value, 42);
+    /// ```
     pub fn value(&self) -> A {
         self.run().0
     }
 
-    /// Gets the log.
-    /// 
+    /// Returns the log stored in the `Writer` without the value.
+    ///
+    /// This method executes the writer computation and returns only the accumulated log,
+    /// discarding the computed value.
+    ///
     /// # Returns
-    /// * `W` - The log.
+    ///
+    /// The accumulated log of type `W`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::writer::Writer;
+    /// use rustica::category::monoid::Monoid;
+    ///
+    /// let writer = Writer::new(42, vec!["Log entry".to_string()]);
+    /// let log = writer.log();
+    ///
+    /// assert_eq!(log, vec!["Log entry".to_string()]);
+    /// ```
     pub fn log(&self) -> W {
         self.run().1
     }
@@ -111,13 +202,6 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
-    /// Creates a new Writer that writes a value.
-    /// 
-    /// # Arguments
-    /// * `value` - The value to be written.
-    /// 
-    /// # Returns
-    /// * `Writer<W, A>` - The new Writer.
     fn pure(value: A) -> Self::Output<A> {
         Writer::new(value, W::empty())
     }
@@ -128,13 +212,6 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
-    /// Maps a function over the value.
-    /// 
-    /// # Arguments
-    /// * `f` - The function to be mapped.
-    /// 
-    /// # Returns
-    /// * `Writer<W, B>` - The new Writer.
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -154,13 +231,6 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
-    /// Applies a function to a value.
-    /// 
-    /// # Arguments
-    /// * `mf` - The function to be applied.
-    /// 
-    /// # Returns
-    /// * `Writer<W, B>` - The new Writer.
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -175,14 +245,6 @@ where
         }
     }
 
-    /// Lifts a binary function into Writer computations.
-    /// 
-    /// # Arguments
-    /// * `mb` - The second argument to the function.
-    /// * `f` - The function to lift.
-    /// 
-    /// # Returns
-    /// * `Writer<W, C>` - The new Writer.
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
         B: ReturnTypeConstraints,
@@ -198,15 +260,6 @@ where
         }
     }
 
-    /// Lifts a ternary function into Writer computations.
-    /// 
-    /// # Arguments
-    /// * `mb` - The second argument to the function.
-    /// * `mc` - The third argument to the function.
-    /// * `f` - The function to lift.
-    /// 
-    /// # Returns
-    /// * `Writer<W, D>` - The new Writer.
     fn lift3<B, C, D, F>(
         self,
         mb: Self::Output<B>,
@@ -235,13 +288,6 @@ where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
-    /// Binds a function over the value.
-    /// 
-    /// # Arguments
-    /// * `f` - The function to be bound.
-    /// 
-    /// # Returns
-    /// * `Writer<W, B>` - The new Writer.
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -256,10 +302,6 @@ where
         }
     }
 
-    /// Joins a Writer computation by returning the inner value.
-    /// 
-    /// # Returns
-    /// * `Writer<W, A>` - The inner value.
     fn join<B>(self) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -268,16 +310,6 @@ where
         self.bind(FnType::new(|x: A| x.into()))
     }
 
-    /// Composes two monadic functions.
-    /// 
-    /// # Type Parameters
-    /// * `B` - The type of the first argument.
-    /// * `C` - The type of the second argument.
-    /// * `G` - The type of the first monadic function.
-    /// * `H` - The type of the second monadic function.
-    /// 
-    /// # Returns
-    /// * `FnType<A, Self::Output<C>>` - The new computation.
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
@@ -291,86 +323,15 @@ where
     }
 }
 
-impl<W, A> Identity for Writer<W, A>
-where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
-{
-    fn identity<T>(x: T) -> T
-    where
-        T: ReturnTypeConstraints,
-    {
-        x
-    }
-}
+impl<W: ReturnTypeConstraints + Monoid, A: ReturnTypeConstraints> Identity for Writer<W, A> {}
 
-impl<W, A> Composable for Writer<W, A>
-where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
-{
-    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
-    where
-        T: ReturnTypeConstraints,
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
-        F: FnTrait<T, U>,
-        G: FnTrait<U, V>,
-    {
-        FnType::new(move |x| g.call(f.call(x)))
-    }
-}
+impl<W: ReturnTypeConstraints + Monoid, A: ReturnTypeConstraints> Composable for Writer<W, A> {}
 
-impl<W, A> Category for Writer<W, A>
-where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
-{
+impl<W: ReturnTypeConstraints + Monoid, A: ReturnTypeConstraints> Category for Writer<W, A> {
     type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
-
-    fn identity_morphism<B>() -> Self::Morphism<B, B>
-    where
-        B: ReturnTypeConstraints,
-    {
-        FnType::new(|x| x)
-    }
-
-    fn compose_morphisms<B, C, D>(
-        f: Self::Morphism<B, C>,
-        g: Self::Morphism<C, D>
-    ) -> Self::Morphism<B, D>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
-    {
-        FnType::new(move |x| g.call(f.call(x)))
-    }
 }
 
-impl<W, A> Arrow for Writer<W, A>
-where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
-{
-    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        F: FnTrait<B, C> + Clone,
-    {
-        FnType::new(move |x| f.call(x))
-    }
-
-    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
-    {
-        FnType::new(move |x: (B, D)| (f.call(x.0), x.1))
-    }
-}
+impl<W: Monoid + ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for Writer<W, A> {}

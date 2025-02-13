@@ -17,25 +17,32 @@ use crate::fntype::{FnType, FnTrait};
 /// 
 /// # Laws
 /// A Reader instance must satisfy these laws in addition to the standard Monad laws:
-/// 1. Environment Access: For any environment `e`,
-///    `ask().run_reader(e) = e`
-/// 2. Environment Modification: For function `f` and Reader `r`,
-///    `local(f, r).run_reader(e) = r.run_reader(f(e))`
-/// 3. Environment Consistency: For Readers `r1` and `r2`,
-///    `r1.bind(r2).run_reader(e) = r2(r1.run_reader(e)).run_reader(e)`
-/// 4. Pure Environment Independence: For any value `x` and environment `e`,
-///    `Reader::pure(x).run_reader(e) = x`
-/// 5. Local Identity: For any Reader `r`,
-///    `local(|x| x, r) = r`
-/// 6. Local Composition: For functions `f`, `g` and Reader `r`,
-///    `local(f, local(g, r)) = local(|e| g(f(e)), r)`
+/// 1. Environment Access: For any environment `e`, `ask().run_reader(e) = e`
+/// 2. Environment Modification: For function `f` and Reader `r`, `local(f, r).run_reader(e) = r.run_reader(f(e))`
+/// 3. Environment Consistency: For Readers `r1` and `r2`, `r1.bind(r2).run_reader(e) = r2(r1.run_reader(e)).run_reader(e)`
+/// 4. Pure Environment Independence: For any value `x` and environment `e`, `Reader::pure(x).run_reader(e) = x`
+/// 5. Local Identity: For any Reader `r`, `local(|x| x, r) = r`
+/// 6. Local Composition: For functions `f`, `g` and Reader `r`, `local(f, local(g, r)) = local(|e| g(f(e)), r)`
+/// 
+/// # Examples
+/// ```
+/// use rustica::monads::reader::Reader;
+/// use rustica::fntype::{FnType, FnTrait};
+/// 
+/// let reader: Reader<i32, String> = Reader::new(FnType::new(|e| format!("Environment: {}", e)));
+/// assert_eq!(reader.run_reader(42), "Environment: 42");
+/// 
+/// let modified = Reader::local(FnType::new(|e: i32| e * 2), reader);
+/// assert_eq!(modified.run_reader(21), "Environment: 42");
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Reader<E, A>
 where
     E: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    /// The function that reads from the environment.
+    /// The function that represents the Reader computation.
+    /// It takes an environment of type `E` and produces a result of type `A`.
     run: FnType<E, A>,
 }
 
@@ -44,13 +51,25 @@ where
     E: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    /// Creates a new reader computation.
-    /// 
+    /// Creates a new `Reader` instance.
+    ///
     /// # Arguments
-    /// * `f` - The function to be called.
+    ///
+    /// * `f` - A function that takes an environment of type `E` and returns a value of type `A`.
     ///
     /// # Returns
-    /// * `Reader<E, A>` - The reader computation.
+    ///
+    /// A new `Reader` instance wrapping the provided function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::reader::Reader;
+    /// use rustica::fntype::{FnType, FnTrait};
+    ///
+    /// let reader = Reader::new(FnType::new(|e: i32| e.to_string()));
+    /// assert_eq!(reader.run_reader(42), "42");
+    /// ```
     pub fn new<F>(f: F) -> Self
     where
         F: FnTrait<E, A>,
@@ -60,99 +79,27 @@ where
         }
     }
 
-    /// Runs the reader computation with the given environment.
-    /// 
+    /// Runs the Reader computation with the given environment.
+    ///
     /// # Arguments
-    /// * `e` - The environment to run the reader computation with.
-    /// 
+    ///
+    /// * `e` - The environment of type `E` to run the Reader with.
+    ///
     /// # Returns
-    /// * `A` - The result of the reader computation.
+    ///
+    /// The result of type `A` after applying the Reader's function to the environment.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::reader::Reader;
+    /// use rustica::fntype::{FnType, FnTrait};
+    ///
+    /// let reader = Reader::new(FnType::new(|e: i32| e * 2));
+    /// assert_eq!(reader.run_reader(21), 42);
+    /// ```
     pub fn run_reader(&self, e: E) -> A {
         self.run.call(e)
-    }
-}
-
-impl<E, A> Identity for Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn identity<T>(x: T) -> T
-    where
-        T: ReturnTypeConstraints,
-    {
-        x
-    }
-}
-
-impl<E, A> Composable for Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
-    where
-        T: ReturnTypeConstraints,
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
-        F: FnTrait<T, U>,
-        G: FnTrait<U, V>,
-    {
-        FnType::new(move |t| g.call(f.call(t)))
-    }
-}
-
-impl<E, A> Category for Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    type Morphism<B, C> = FnType<B, C>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
-
-    fn identity_morphism<B>() -> Self::Morphism<B, B>
-    where
-        B: ReturnTypeConstraints,
-    {
-        FnType::new(|b: B| b)
-    }
-
-    fn compose_morphisms<B, C, D>(
-        f: Self::Morphism<B, C>,
-        g: Self::Morphism<C, D>
-    ) -> Self::Morphism<B, D>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
-    {
-        FnType::new(move |b: B| g.call(f.call(b)))
-    }
-}
-
-impl<E, A> Arrow for Reader<E, A>
-where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        F: FnTrait<B, C> + Clone,
-    {
-        FnType::new(move |b: B| f.call(b))
-    }
-
-    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
-    {
-        FnType::new(move |(b, d): (B, D)| (f.call(b), d))
     }
 }
 
@@ -278,18 +225,35 @@ where
     }
 }
 
-/// Helper functions for Reader
 impl<E, A> Reader<E, A>
 where
     E: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
     /// Gets the environment from a Reader.
+    /// 
+    /// # Examples
+    /// ```
+    /// use rustica::monads::reader::Reader;
+    /// use rustica::fntype::{FnType, FnTrait};
+    /// 
+    /// let reader: Reader<i32, i32> = Reader::<i32, i32>::ask();
+    /// assert_eq!(reader.run_reader(42), 42);
+    /// ```
     pub fn ask() -> Reader<E, E> {
         Reader::new(FnType::new(|e| e))
     }
 
     /// Gets a function of the environment from a Reader.
+    /// 
+    /// # Examples
+    /// ```
+    /// use rustica::monads::reader::Reader;
+    /// use rustica::fntype::{FnType, FnTrait};
+    /// 
+    /// let reader = Reader::asks(FnType::new(|e: i32| e * 2));
+    /// assert_eq!(reader.run_reader(21), 42);
+    /// ```
     pub fn asks<F>(f: F) -> Reader<E, A>
     where
         F: FnTrait<E, A>,
@@ -298,6 +262,16 @@ where
     }
 
     /// Modifies the environment before running a Reader.
+    /// 
+    /// # Examples
+    /// ```
+    /// use rustica::monads::reader::Reader;
+    /// use rustica::fntype::{FnType, FnTrait};
+    /// 
+    /// let reader = Reader::new(FnType::new(|e: i32| e.to_string()));
+    /// let modified = Reader::local(FnType::new(|e: i32| e * 2), reader);
+    /// assert_eq!(modified.run_reader(21), "42");
+    /// ```
     pub fn local<F>(f: F, reader: Reader<E, A>) -> Reader<E, A>
     where
         F: FnTrait<E, E>,
@@ -305,3 +279,20 @@ where
         Reader::new(FnType::new(move |e| reader.run_reader(f.call(e))))
     }
 }
+
+impl<E: ReturnTypeConstraints, A: ReturnTypeConstraints> Identity for Reader<E, A> {}
+
+impl<E: ReturnTypeConstraints, A: ReturnTypeConstraints> Composable for Reader<E, A> {}
+
+impl<E: ReturnTypeConstraints, A: ReturnTypeConstraints> Category for Reader<E, A>
+where
+    E: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    type Morphism<B, C> = FnType<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints;
+}
+
+impl<E: ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for Reader<E, A> {}

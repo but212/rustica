@@ -2,55 +2,58 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::category::category::Category;
 
 /// A trait for types that represent the identity element in a monoid.
-/// 
-/// # Type Parameters
-/// * `T` - The type of the identity element.
-/// 
-/// # Laws
-/// An Identity instance must satisfy these laws:
-/// 1. Identity: For any value `x`,
-///    `identity()` is the identity element and `id(x) = x`.
-/// 2. Composition: For any identity `i` and functions `f`, `g`,
-///    `f(g(identity())) = f(g(x))` for any `x`.
-/// 3. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(identity()) = identity()`
-/// 4. Functor Consistency: For any value `x` and function `f`,
-///    `f(identity()) = f(x)` for any `x`.
-/// 5. Pure Consistency: For any value `x`,
-///    `identity()` is the pure value of `x`.
-/// 6. Applicative Consistency: For any values `x`, `y` and function `f`,
-///    `f(identity()) = f(x)` for any `x`.
-/// 7. Monad Consistency: For any value `x` and function `f`,
-///    `f(identity()) = f(x)` for any `x`.
-/// 8. Isomorphism: For any value `x`,
-///    `identity()` is isomorphic to `x`.
 ///
+/// # Laws
+/// 1. Identity: `identity(x) = x`
+/// 2. Composition: `f(g(identity())) = f(g(x))`
+/// 3. Naturality: `η(identity()) = identity()`
+/// 4. Functor, Applicative, Monad Consistency: `f(identity()) = f(x)`
+/// 5. Isomorphism: `identity()` is isomorphic to `x`
+///
+/// # Examples
+/// ```
+/// use rustica::prelude::*;
+///
+/// struct MyIdentity;
+///
+/// impl HKT for MyIdentity {
+///     type Output<T> = T where T: ReturnTypeConstraints;
+/// }
+///
+/// impl Identity for MyIdentity {}
+///
+/// assert_eq!(MyIdentity::identity(5), 5);
+/// ```
 pub trait Identity: HKT {
-    /// The identity function for any type.
-    /// 
-    /// # Type Parameters
-    /// * `T` - The type of the value.
-    /// 
+    /// Identity function for any type.
+    ///
+    /// This function returns the input value as-is. It works for all types `T`
+    /// where `T` implements the `ReturnTypeConstraints` trait.
+    ///
     /// # Arguments
-    /// * `x` - The value to return.
-    /// 
+    /// * `x` - The value to be returned
+    ///
     /// # Returns
-    /// The same value that was passed in.
-    fn identity<T>(x: T) -> T
-    where
-        T: ReturnTypeConstraints,
-    {
+    /// Returns the input value `x` unchanged.
+    fn identity<T: ReturnTypeConstraints>(x: T) -> T {
         x
     }
 
     /// Converts the identity element to a category morphism.
-    /// 
+    ///
+    /// This method creates an identity morphism in the context of a given category `C`
+    /// for a specific type `T`.
+    ///
     /// # Type Parameters
-    /// * `T` - The type of the value.
-    /// * `C` - The category type.
-    /// 
+    /// * `T`: The type for which the identity morphism is created.
+    /// * `C`: The category in which the morphism is defined.
+    ///
     /// # Returns
-    /// The identity morphism in the category.
+    /// Returns the identity morphism for type `T` in category `C`.
+    ///
+    /// # Constraints
+    /// * `T` must satisfy `ReturnTypeConstraints`.
+    /// * `C` must implement the `Category` trait.
     fn to_morphism<T, C>() -> C::Morphism<T, T>
     where
         T: ReturnTypeConstraints,

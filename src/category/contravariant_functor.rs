@@ -1,81 +1,56 @@
 use crate::fntype::{FnType, FnTrait};
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 
-/// A trait for contravariant functors, which are type constructors that can map a function over their contents
-/// in a way that reverses the direction of the arrows.
-/// 
-/// # Type Parameters
-/// * `T` - The type of value contained in the contravariant functor
-/// 
+/// A trait for contravariant functors.
+///
 /// # Laws
-/// A Contravariant Functor instance must satisfy these laws:
-/// 1. Identity: For any contravariant functor `f`,
-///    `f.contramap(|x| x) = f`
-/// 2. Composition: For any contravariant functor `f` and functions `g`, `h`,
-///    `f.contramap(|x| g(h(x))) = f.contramap(h).contramap(g)`
-/// 3. Structure Preservation: For any contravariant functor `f` and functions `g`, `h`,
-///    `f.contramap(|x| g(h(x))) = f.contramap(h).contramap(g)`
-/// 4. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(f.contramap(g)) = η(f).contramap(g)`
-/// 5. Container Preservation: For any contravariant functor `f` and function `g`,
-///    `f.contramap(g)` must preserve the structure of `f`
-/// 6. Type Preservation: For any contravariant functor `f` and function `g`,
-///    `f.contramap(g)` must maintain the same type constructor as `f`
-/// 7. Parametricity: For any contravariant functor `f` and functions `g`, `h`,
-///    If `g(x) = h(x)` for all `x`, then `f.contramap(g) = f.contramap(h)`
-/// 8. Arrow Reversal: For any contravariant functor `f` and functions `g`, `h`,
-///    `f.contramap(g).contramap(h) = f.contramap(|x| g(h(x)))`
+/// 1. Identity: `f.contramap(|x| x) = f`
+/// 2. Composition: `f.contramap(|x| g(h(x))) = f.contramap(h).contramap(g)`
+/// 3. Naturality: `η(f.contramap(g)) = η(f).contramap(g)`
+///
+/// # Examples
+///
+/// ```
+/// use rustica::prelude::*;
+///
+/// #[derive(Clone, Debug, PartialEq, Eq, Default)]
+/// struct Predicate<A: ReturnTypeConstraints>(FnType<A, bool>);
+///
+/// impl<A: ReturnTypeConstraints> HKT for Predicate<A> {
+///     type Output<T> = Predicate<T> where T: ReturnTypeConstraints;
+/// }
+///
+/// impl<A: ReturnTypeConstraints> ContravariantFunctor<A> for Predicate<A> {
+///     fn contravariant_map<B, F>(self, f: F) -> <Predicate<A> as rustica::prelude::HKT>::Output<B>
+///     where
+///         B: ReturnTypeConstraints,
+///         F: FnTrait<B, A>,
+///     {
+///         Predicate(FnType::new(move |b| self.0.call(f.call(b))))
+///     }
+///
+///     fn into_inner(self) -> A {
+///         unimplemented!("Predicate does not have a meaningful inner value")
+///     }
+/// }
+///
+/// let greater_than_5 = Predicate(FnType::new(|x: i32| x > 5));
+/// let length_greater_than_5 = greater_than_5.contravariant_map(FnType::new(|s: String| s.len() as i32));
+///
+/// assert!(length_greater_than_5.0.call("123456".to_string()));
+/// assert!(!length_greater_than_5.0.call("1234".to_string()));
+/// ```
 pub trait ContravariantFunctor<T>: HKT + ReturnTypeConstraints
 where
     T: ReturnTypeConstraints,
 {
-    /// Maps a function over the contents in a contravariant way.
-    ///
-    /// Unlike a regular functor's map which applies a function T -> U,
-    /// contramap applies a function U -> T, effectively reversing the
-    /// direction of the transformation.
-    /// 
-    /// # Type Parameters
-    /// * `U` - The type of the mapped value.
-    /// * `F` - The function to apply.
-    /// 
-    /// # Arguments
-    /// * `self` - The contravariant functor instance.
-    /// * `f` - The function to apply.
-    /// 
-    /// # Returns
-    /// * `Self::Output<U>` - The mapped value.
     fn contravariant_map<U, F>(self, f: F) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
         F: FnTrait<U, T>;
 
-    /// Retrieves the inner value from the contravariant functor.
-    /// 
-    /// # Arguments
-    /// * `self` - The contravariant functor instance.
-    /// 
-    /// # Returns
-    /// * `T` - The inner value.
     fn into_inner(self) -> T;
 
-    /// Composes two functions in a contravariant way.
-    ///
-    /// This is a helper method that composes two functions f: U -> T and g: V -> U
-    /// to produce a function V -> T in a contravariant way.
-    /// 
-    /// # Type Parameters
-    /// * `U` - The type of the first function's input.
-    /// * `V` - The type of the second function's input.
-    /// * `F` - The type of the first function.
-    /// * `G` - The type of the second function.
-    /// 
-    /// # Arguments
-    /// * `f` - The first function to compose.
-    /// * `g` - The second function to compose.
-    /// 
-    /// # Returns
-    /// * `FnType<V, T>` - The composed function.
     fn contravariant_compose<U, V, F, G>(f: F, g: G) -> FnType<V, T>
     where
         U: ReturnTypeConstraints,

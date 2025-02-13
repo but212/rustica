@@ -1,5 +1,4 @@
-use crate::fntype::FnType;
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::prelude::*;
 
 /// A lens that focuses on a field of a struct.
 /// 
@@ -41,7 +40,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// let modified_struct = lens.set(my_struct, 100);
 /// assert_eq!(lens.get(&modified_struct), 100);
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct Lens<S, A>
 where
     S: ReturnTypeConstraints,
@@ -165,5 +164,54 @@ where
         B: ReturnTypeConstraints,
     {
         Lens::new(get, set)
+    }
+}
+
+impl<S, A> HKT for Lens<S, A>
+where
+    S: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    type Output<T> = Lens<S, T> where T: ReturnTypeConstraints;
+}
+
+impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Composable for Lens<S, A> {}
+
+impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Identity for Lens<S, A> {}
+
+impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Category for Lens<S, A> {
+    type Morphism<B, C> = FnType<B, C> where B: ReturnTypeConstraints, C: ReturnTypeConstraints;
+
+    fn identity_morphism<B: ReturnTypeConstraints>() -> Self::Morphism<B, B> {
+        FnType::new(|x| x)
+    }
+
+    fn compose_morphisms<B, C, D>(f: Self::Morphism<B, C>, g: Self::Morphism<C, D>) -> Self::Morphism<B, D>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        FnType::new(move |x| g.call(f.call(x)))
+    }
+}
+
+impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for Lens<S, A> {
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        F: FnTrait<B, C>,
+    {
+        FnType::new(move |x: B| f.call(x))
+    }
+
+    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: ReturnTypeConstraints,
+        C: ReturnTypeConstraints,
+        D: ReturnTypeConstraints,
+    {
+        Self::arrow(FnType::new(move |(b, d): (B, D)| (f.call(b), d)))
     }
 }

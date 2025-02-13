@@ -12,20 +12,14 @@ use crate::fntype::FnTrait;
 /// 
 /// # Laws
 /// A Functor instance must satisfy these laws:
-/// 1. Identity: For any functor `f`,
-///    `f.fmap(|x| x) = f`
-/// 2. Composition: For any functor `f` and functions `g`, `h`,
-///    `f.fmap(|x| h(g(x))) = f.fmap(g).fmap(h)`
-/// 3. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(f.fmap(g)) = η(f).fmap(g)`
-/// 4. Container Preservation: For any functor `f` and function `g`,
-///    `f.fmap(g)` must preserve the structure of `f`
-/// 5. Type Preservation: For any functor `f` and function `g`,
-///    `f.fmap(g)` must maintain the same type constructor as `f`
-/// 6. Parametricity: For any functor `f` and functions `g`, `h`,
-///    If `g(x) = h(x)` for all `x`, then `f.fmap(g) = f.fmap(h)`
-///
-/// # Example
+/// 1. Identity: For any functor `f`, `f.fmap(|x| x) = f`
+/// 2. Composition: For any functor `f` and functions `g`, `h`, `f.fmap(|x| h(g(x))) = f.fmap(g).fmap(h)`
+/// 3. Naturality: For any natural transformation `η: F ~> G`, `η(f.fmap(g)) = η(f).fmap(g)`
+/// 4. Container Preservation: For any functor `f` and function `g`, `f.fmap(g)` must preserve the structure of `f`
+/// 5. Type Preservation: For any functor `f` and function `g`, `f.fmap(g)` must maintain the same type constructor as `f`
+/// 6. Parametricity: For any functor `f` and functions `g`, `h`, If `g(x) = h(x)` for all `x`, then `f.fmap(g) = f.fmap(h)`
+/// 
+/// # Examples
 /// ```
 /// use rustica::prelude::*;
 ///
@@ -67,41 +61,30 @@ where
 {
     /// Maps a function over the contents of the functor.
     ///
-    /// # Arguments
-    /// - `self`: The functor instance.
-    /// - `f`: A function that takes a value of type `A` and returns a value of type `B`.
+    /// # Type Parameters
+    /// * `B` - The type of the resulting functor's contents
+    /// * `F` - The type of the mapping function
+    ///
+    /// # Parameters
+    /// * `self` - The functor to map over
+    /// * `f` - The function to apply to the functor's contents
     ///
     /// # Returns
-    /// A new functor containing the result of applying the function `f` to the contents of the original functor.
+    /// A new functor with the function applied to its contents
     ///
-    /// # Type Parameters
-    /// - `B`: The return type of the function `f`.
-    /// - `F`: A function type that takes a value of type `A` and returns a value of type `B`.
-    ///
-    /// 
+    /// # Laws
+    /// 1. Identity: `x.fmap(|a| a) == x`
+    /// 2. Composition: `x.fmap(|a| f(g(a))) == x.fmap(g).fmap(f)`
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
         F: FnTrait<A, B>;
 }
 
-
 impl<T> Functor<T> for Vec<T>
 where
     T: ReturnTypeConstraints,
 {
-    /// Maps a function over the contents of the vector.
-    ///
-    /// # Arguments
-    /// - `self`: The vector instance.
-    /// - `f`: A function that takes a value of type `T` and returns a value of type `B`.
-    ///
-    /// # Returns
-    /// A new vector containing the result of applying the function `f` to the contents of the original vector.
-    ///
-    /// # Type Parameters
-    /// - `B`: The return type of the function `f`.
-    /// - `F`: A function type that takes a value of type `T` and returns a value of type `B`.
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -115,18 +98,6 @@ impl<T> Functor<T> for Box<T>
 where
     T: ReturnTypeConstraints,
 {
-    /// Maps a function over the contents of the box.
-    ///
-    /// # Arguments
-    /// - `self`: The box instance.
-    /// - `f`: A function that takes a value of type `T` and returns a value of type `B`.
-    ///
-    /// # Returns
-    /// A new box containing the result of applying the function `f` to the contents of the original box.
-    ///
-    /// # Type Parameters
-    /// - `B`: The return type of the function `f`.
-    /// - `F`: A function type that takes a value of type `T` and returns a value of type `B`.
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,
@@ -141,18 +112,6 @@ where
     K: Hash + Eq + Debug + ReturnTypeConstraints,
     V: ReturnTypeConstraints,
 {
-    /// Maps a function over the contents of the hashmap.
-    ///
-    /// # Arguments
-    /// - `self`: The hashmap instance.
-    /// - `f`: A function that takes a value of type `V` and returns a value of type `B`.
-    ///
-    /// # Returns
-    /// A new hashmap containing the result of applying the function `f` to the contents of the original hashmap.
-    ///
-    /// # Type Parameters
-    /// - `B`: The return type of the function `f`.
-    /// - `F`: A function type that takes a value of type `V` and returns a value of type `B`.
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: ReturnTypeConstraints,

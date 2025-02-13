@@ -16,6 +16,7 @@ pub use crate::category::foldable::Foldable;
 pub use crate::category::flatmap::FlatMap;
 pub use crate::category::comonad::Comonad;
 pub use crate::category::bifunctor::Bifunctor;
+pub use crate::category::contravariant_functor::ContravariantFunctor;
 
 pub use crate::monads::free::Free;
 pub use crate::monads::cont::Cont;

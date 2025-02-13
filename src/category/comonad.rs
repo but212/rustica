@@ -2,28 +2,21 @@ use crate::category::functor::Functor;
 use crate::category::hkt::ReturnTypeConstraints;
 use crate::fntype::{FnType, FnTrait};
 
-/// A trait for comonads, which are dual to monads.
-/// 
-/// # Type Parameters
-/// * `T` - The type of the value within the comonad.
-/// 
-/// # Laws
-/// A Comonad instance must satisfy these laws:
-/// 1. Left Identity: For any comonad `w`,
-///    `extend(extract)(w) = w`
-/// 2. Right Identity: For any comonad `w` and function `f`,
-///    `extract(extend(f)(w)) = f(w)`
-/// 3. Associativity: For any comonad `w` and functions `f`, `g`,
-///    `extend(f)(extend(g)(w)) = extend(|x| f(extend(g)(x)))(w)`
-/// 4. Extract-Duplicate Consistency: For any comonad `w`,
-///    `extract(duplicate(w)) = w`
-/// 5. Duplicate-Extract Consistency: For any comonad `w`,
-///    `extend(extract)(duplicate(w)) = duplicate(w)`
+/// A trait for comonads, dual to monads.
 ///
+/// # Type Parameters
+/// * `T`: The value type within the comonad.
+///
+/// # Laws
+/// 1. Left Identity: `extend(extract)(w) = w`
+/// 2. Right Identity: `extract(extend(f)(w)) = f(w)`
+/// 3. Associativity: `extend(f)(extend(g)(w)) = extend(|x| f(extend(g)(x)))(w)`
+/// 4. Extract-Duplicate Consistency: `extract(duplicate(w)) = w`
+/// 5. Duplicate-Extract Consistency: `extend(extract)(duplicate(w)) = duplicate(w)`
+/// 
 /// # Examples
 ///
 /// ```
-/// use rustica::category::comonad::Comonad;
 /// use rustica::prelude::*;
 ///
 /// #[derive(Clone, Eq, PartialEq, Debug, Default)]

@@ -26,14 +26,12 @@ where
     _phantom: PhantomData<(I, O)>,
 }
 
-impl<I, O> FnType<I, O>
+impl<I, O> FnTrait<I, O> for FnType<I, O>
 where
     I: ReturnTypeConstraints,
     O: ReturnTypeConstraints,
 {
-    pub fn new<F>(f: F) -> Self
-    where
-        F: Fn(I) -> O + Send + Sync + 'static,
+    fn new<F: Fn(I) -> O + Send + Sync + 'static>(f: F) -> Self
     {
         FnType {
             f: Arc::new(f),
@@ -41,7 +39,7 @@ where
         }
     }
 
-    pub fn call(&self, input: I) -> O {
+    fn call(&self, input: I) -> O {
         (self.f)(input)
     }
 }
@@ -89,27 +87,8 @@ where
     A: ReturnTypeConstraints,
     B: ReturnTypeConstraints,
 {
+    fn new<F: Fn(A) -> B + Send + Sync + 'static>(f: F) -> Self;
+
     /// Call the function with the given argument
     fn call(&self, a: A) -> B;
-}
-
-impl<A, B> FnTrait<A, B> for FnType<A, B>
-where
-    A: ReturnTypeConstraints,
-    B: ReturnTypeConstraints,
-{
-    fn call(&self, a: A) -> B {
-        (self.f)(a)
-    }
-}
-
-impl<A, B, F> FnTrait<A, B> for F
-where
-    A: ReturnTypeConstraints,
-    B: ReturnTypeConstraints,
-    F: Fn(A) -> B + ReturnTypeConstraints,
-{
-    fn call(&self, a: A) -> B {
-        self(a)
-    }
 }

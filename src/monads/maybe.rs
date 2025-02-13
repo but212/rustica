@@ -11,45 +11,23 @@ use crate::fntype::{FnType, FnTrait};
 
 /// A type that represents an optional value.
 ///
-/// The `Maybe` type is used to represent an optional value that can either be `Just`
-/// containing a value of type `T`, or `Nothing` indicating the absence of a value.
-/// 
-/// # Type Parameters
-/// * `T` - The value type.
-///
-/// # Laws
-/// A Maybe instance must satisfy these laws in addition to the standard Monad laws:
-/// 1. Left Identity: For any value `x` and function `f`,
-///    `Maybe::pure(x).bind(f) = f(x)`
-/// 2. Right Identity: For any Maybe value `m`,
-///    `m.bind(Maybe::pure) = m`
-/// 3. Nothing Propagation: For any function `f`,
-///    `Maybe::Nothing.bind(f) = Maybe::Nothing`
-/// 4. Option Consistency: For any Maybe value `m`,
-///    `Maybe::from_option(m.to_option()) = m`
-///
 /// # Examples
 ///
 /// ```
-/// use rustica::prelude::*;
 /// use rustica::monads::maybe::Maybe;
 ///
-/// let just_value: Maybe<i32> = Maybe::Just(42);
-/// let nothing_value: Maybe<i32> = Maybe::Nothing;
+/// let just = Maybe::Just(42);
+/// let nothing: Maybe<i32> = Maybe::Nothing;
 ///
-/// assert!(just_value.is_just());
-/// assert!(!nothing_value.is_just());
-///
-/// assert_eq!(just_value.unwrap(), 42);
+/// assert!(just.is_just());
+/// assert!(nothing.is_nothing());
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Maybe<T>
 where
     T: ReturnTypeConstraints,
 {
-    /// Some value
     Just(T),
-    /// No value
     Nothing,
 }
 
@@ -66,29 +44,65 @@ impl<T> Maybe<T>
 where
     T: ReturnTypeConstraints,
 {
-    /// Returns true if the maybe is Just
-    /// 
-    /// # Returns
-    /// * `bool` - True if the maybe is Just, false otherwise.
+    /// Returns `true` if the `Maybe` value is `Just`, otherwise returns `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert!(just.is_just());
+    /// assert!(!nothing.is_just());
+    /// ```
     pub fn is_just(&self) -> bool {
         matches!(self, Maybe::Just(_))
     }
 
-    /// Returns true if the maybe is Nothing
-    /// 
-    /// # Returns
-    /// * `bool` - True if the maybe is Nothing, false otherwise.
+    /// Returns `true` if the `Maybe` value is `Nothing`, otherwise returns `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert!(!just.is_nothing());
+    /// assert!(nothing.is_nothing());
+    /// ```
     pub fn is_nothing(&self) -> bool {
         matches!(self, Maybe::Nothing)
     }
 
-    /// Converts from Option<T> to Maybe<T>
-    /// 
+    /// Converts an `Option<T>` into a `Maybe<T>`.
+    ///
+    /// This function transforms `Some(x)` into `Maybe::Just(x)` and `None` into `Maybe::Nothing`.
+    ///
     /// # Arguments
-    /// * `opt` - The option to be converted.
-    /// 
+    ///
+    /// * `opt` - An `Option<T>` to be converted.
+    ///
     /// # Returns
-    /// * `Maybe<T>` - The maybe representation of the option.
+    ///
+    /// A `Maybe<T>` equivalent to the input `Option<T>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::maybe::Maybe;
+    ///
+    /// let some_value = Some(42);
+    /// let maybe_value = Maybe::from_option(some_value);
+    /// assert_eq!(maybe_value, Maybe::Just(42));
+    ///
+    /// let none_value: Option<i32> = None;
+    /// let maybe_none = Maybe::from_option(none_value);
+    /// assert_eq!(maybe_none, Maybe::Nothing);
+    /// ```
     pub fn from_option(opt: Option<T>) -> Self {
         match opt {
             Some(x) => Maybe::Just(x),
@@ -96,13 +110,25 @@ where
         }
     }
 
-    /// Converts from Maybe<T> to Option<T>
-    /// 
-    /// # Arguments
-    /// * `self` - The maybe to be converted.
-    /// 
+    /// Converts a `Maybe<T>` into an `Option<T>`.
+    ///
+    /// This function transforms `Maybe::Just(x)` into `Some(x)` and `Maybe::Nothing` into `None`.
+    ///
     /// # Returns
-    /// * `Option<T>` - The option representation of the maybe.
+    ///
+    /// An `Option<T>` equivalent to the input `Maybe<T>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// assert_eq!(just.to_option(), Some(42));
+    ///
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    /// assert_eq!(nothing.to_option(), None);
+    /// ```
     pub fn to_option(self) -> Option<T> {
         match self {
             Maybe::Just(x) => Some(x),
@@ -110,13 +136,24 @@ where
         }
     }
 
-    /// Unwraps the maybe, panicking if the maybe is Nothing
-    /// 
+    /// Unwraps the `Maybe` value, returning the contained value if it's `Just`.
+    ///
     /// # Panics
-    /// Panics if the maybe is Nothing
-    /// 
-    /// # Returns
-    /// * `T` - The value of the maybe.
+    ///
+    /// Panics if the value is `Nothing`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::maybe::Maybe;
+    ///
+    /// let x = Maybe::Just(5);
+    /// assert_eq!(x.unwrap(), 5);
+    ///
+    /// let x: Maybe<i32> = Maybe::Nothing;
+    /// // This will panic
+    /// // x.unwrap();
+    /// ```
     pub fn unwrap(self) -> T {
         match self {
             Maybe::Just(x) => x,
@@ -266,82 +303,15 @@ where
     }
 }
 
-impl<T> Identity for Maybe<T>
-where
-    T: ReturnTypeConstraints,
-{
-    fn identity<U>(x: U) -> U
-    where
-        U: ReturnTypeConstraints,
-    {
-        x
-    }
-}
+impl<T: ReturnTypeConstraints> Identity for Maybe<T> {}
 
-impl<T> Composable for Maybe<T>
-where
-    T: ReturnTypeConstraints,
-{
-    fn compose<U, V, W, F, G>(f: F, g: G) -> FnType<U, W>
-    where
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
-        W: ReturnTypeConstraints,
-        F: FnTrait<U, V>,
-        G: FnTrait<V, W>,
-    {
-        FnType::new(move |x| g.call(f.call(x)))
-    }
-}
+impl<T: ReturnTypeConstraints> Composable for Maybe<T> {}
 
-impl<T> Category for Maybe<T>
-where
-    T: ReturnTypeConstraints,
-{
+impl<T: ReturnTypeConstraints> Category for Maybe<T> {
     type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
-
-    fn identity_morphism<B>() -> Self::Morphism<B, B>
-    where
-        B: ReturnTypeConstraints,
-    {
-        FnType::new(|x| x)
-    }
-
-    fn compose_morphisms<B, C, D>(
-        f: Self::Morphism<B, C>,
-        g: Self::Morphism<C, D>
-    ) -> Self::Morphism<B, D>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
-    {
-        FnType::new(move |x| g.call(f.call(x)))
-    }
 }
 
-impl<T> Arrow for Maybe<T>
-where
-    T: ReturnTypeConstraints,
-{
-    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        F: FnTrait<B, C> + Clone,
-    {
-        FnType::new(move |x| f.call(x))
-    }
-
-    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
-    where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
-    {
-        FnType::new(move |(b, d): (B, D)| (f.call(b), d))
-    }
-}
+impl<T: ReturnTypeConstraints> Arrow for Maybe<T> {}

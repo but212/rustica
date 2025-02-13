@@ -6,21 +6,26 @@ use std::hash::Hash;
 ///
 /// This trait defines a set of common constraints that return types must satisfy
 /// in various functional programming constructs. It ensures that types implementing
-/// this trait are cloneable, comparable, sendable across threads, 
+/// this trait are cloneable, comparable, debuggable, defaultable, sendable across threads,
 /// synchronizable, and have a static lifetime.
 ///
 /// # Constraints
 ///
-/// * `Clone` - The type must implement the `Clone` trait.
-/// * `Send` - The type must implement the `Send` trait, allowing it to be transferred across thread boundaries.
-/// * `Sync` - The type must implement the `Sync` trait, allowing it to be referenced from multiple threads.
-/// * `'static` - The type must have a static lifetime, meaning it does not contain any non-static references.
-pub trait ReturnTypeConstraints: Clone + Send + Sync + Debug + PartialEq + Default + Eq + 'static {}
+/// * `Clone`: The type can be duplicated.
+/// * `Debug`: The type can be formatted for debugging purposes.
+/// * `PartialEq`: The type supports partial equality comparisons.
+/// * `Eq`: The type supports full equality comparisons.
+/// * `Default`: The type has a default value.
+/// * `Send`: The type can be safely transferred across thread boundaries.
+/// * `Sync`: The type can be safely shared between threads.
+/// * `'static`: The type has a static lifetime (no non-static references).
+pub trait ReturnTypeConstraints: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
 
-/// Implements the `ReturnTypeConstraints` trait for any type that satisfies the required constraints.
+/// Blanket implementation for types satisfying the `ReturnTypeConstraints` requirements.
 ///
-/// This implementation ensures that any type `T` that implements `Clone`, `Send`, `Sync`, and has a static lifetime, will automatically implement the `ReturnTypeConstraints` trait.
-impl<T: Clone + Send + Sync + Debug + PartialEq + Default + Eq + 'static> ReturnTypeConstraints for T {}
+/// This implementation automatically implements `ReturnTypeConstraints` for any type
+/// that satisfies all the required trait bounds.
+impl<T> ReturnTypeConstraints for T where T: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
 
 
 /// A trait for higher-kinded types (HKT).
@@ -32,32 +37,6 @@ impl<T: Clone + Send + Sync + Debug + PartialEq + Default + Eq + 'static> Return
 /// # Associated Types
 ///
 /// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
-///
-/// # Example
-///
-/// ```rust
-/// // Define a type that implements the HKT trait
-/// use rustica::prelude::*;
-/// 
-/// #[derive(Default, PartialEq, Eq, Debug, Clone)]
-/// struct MyType<A>
-/// where
-///     A: ReturnTypeConstraints,
-/// {
-///     value: A,
-/// }
-/// 
-/// impl<U> HKT for MyType<U> 
-/// where
-///     U: ReturnTypeConstraints,
-/// {
-///     type Output<T> = MyType<T> where T: ReturnTypeConstraints;
-/// }
-/// 
-/// // Usage example
-/// let instance: MyType<i32> = MyType { value: 42 };
-/// // Note: The map function is not part of the HKT trait.
-/// ```
 pub trait HKT {
     type Output<U>: ReturnTypeConstraints
     where

@@ -1,7 +1,7 @@
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::category::traversable::Traversable;
 use crate::category::applicative::Applicative;
-use crate::fntype::FnType;
+use crate::fntype::{FnType, FnTrait};
 
 /// A trait for types that can be sequenced.
 /// This trait provides a way to sequence a structure of effects into an effect of structure.

@@ -4,7 +4,7 @@ use quickcheck_macros::quickcheck;
 use rustica::category::functor::Functor;
 use rustica::category::hkt::ReturnTypeConstraints;
 use rustica::category::pure::Pure;
-use rustica::fntype::FnType;
+use rustica::fntype::{FnType, FnTrait};
 use rustica::monads::cont::Cont;
 
 /// Test wrapper type for Cont monad

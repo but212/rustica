@@ -10,35 +10,116 @@ use crate::fntype::FnTrait;
 /// * `Morphism<B, C>` - The type of morphisms from B to C in this category.
 /// 
 /// # Laws
-/// A category must satisfy these laws:
-/// 1. Identity: For any morphism f: B → C,
-///    id_C ∘ f = f = f ∘ id_B
-/// 2. Associativity: For morphisms f: B → C, g: C → D, h: D → E,
-///    h ∘ (g ∘ f) = (h ∘ g) ∘ f
-pub trait Category: Identity + Composable
-{
-    /// The type of morphisms in this category.
+/// 1. Identity: For any morphism f: B → C, id_C ∘ f = f = f ∘ id_B
+/// 2. Associativity: For morphisms f: B → C, g: C → D, h: D → E, h ∘ (g ∘ f) = (h ∘ g) ∘ f
+/// 
+/// # Example
+/// ```
+/// use rustica::prelude::*;
+/// 
+/// #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// struct MyCategory;
+/// 
+/// impl HKT for MyCategory {
+///     type Output<T> = MyCategory where T: ReturnTypeConstraints;
+/// }
+/// 
+/// impl Identity for MyCategory {
+///     fn identity<A: ReturnTypeConstraints>(x: A) -> A { x }
+/// }
+/// 
+/// impl Composable for MyCategory {
+///     fn compose<A, B, C, F, G>(f: F, g: G) -> FnType<A, C>
+///     where
+///         A: ReturnTypeConstraints,
+///         B: ReturnTypeConstraints,
+///         C: ReturnTypeConstraints,
+///         F: FnTrait<A, B>,
+///         G: FnTrait<B, C>,
+///     {
+///         FnType::new(move |x| g.call(f.call(x)))
+///     }
+/// }
+/// 
+/// impl Category for MyCategory {
+///     type Morphism<B, C> = FnType<B, C>
+///     where
+///         B: ReturnTypeConstraints,
+///         C: ReturnTypeConstraints;
+/// 
+///     fn identity_morphism<B: ReturnTypeConstraints>() -> Self::Morphism<B, B> {
+///         FnType::new(|x| x)
+///     }
+/// 
+///     fn compose_morphisms<B, C, D>(
+///         f: Self::Morphism<B, C>,
+///         g: Self::Morphism<C, D>
+///     ) -> Self::Morphism<B, D>
+///     where
+///         B: ReturnTypeConstraints,
+///         C: ReturnTypeConstraints,
+///         D: ReturnTypeConstraints,
+///     {
+///         FnType::new(move |x| g.call(f.call(x)))
+///     }
+/// }
+/// 
+/// let f = MyCategory::identity_morphism::<i32>();
+/// assert_eq!(f.call(5), 5);
+/// ```
+pub trait Category: Identity + Composable {
+    /// Represents a morphism (arrow) in the category from type `B` to type `C`.
+    ///
+    /// # Type Parameters
+    /// * `B`: The source type of the morphism, must satisfy `ReturnTypeConstraints`
+    /// * `C`: The target type of the morphism, must satisfy `ReturnTypeConstraints`
+    ///
+    /// This associated type should implement `FnTrait<B, C>`, allowing it to be called as a function.
     type Morphism<B, C>: FnTrait<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
 
-    /// Returns the identity morphism for the given type.
-    /// For any type B, returns a morphism id_B: B → B that satisfies:
-    /// - For any morphism f: B → C, id_C ∘ f = f
-    /// - For any morphism g: C → B, g ∘ id_B = g
-    fn identity_morphism<B>() -> Self::Morphism<B, B>
-    where
-        B: ReturnTypeConstraints;
+    /// Returns the identity morphism for a given type B.
+    ///
+    /// The identity morphism is a fundamental concept in category theory.
+    /// For any object B, the identity morphism is a morphism from B to itself
+    /// that leaves the object unchanged when composed with any other morphism.
+    ///
+    /// # Type Parameters
+    /// * `B`: The type for which to create the identity morphism
+    ///
+    /// # Returns
+    /// A morphism that represents the identity function for type B
+    ///
+    /// # Constraints
+    /// * `B`: Must satisfy `ReturnTypeConstraints`
+    fn identity_morphism<B: ReturnTypeConstraints>() -> Self::Morphism<B, B> {
+        FnTrait::new(|x| x)
+    }
 
-    /// Composes two morphisms.
-    /// For f: B → C and g: C → D, returns g ∘ f: B → D.
-    fn compose_morphisms<B, C, D>(
-        f: Self::Morphism<B, C>,
-        g: Self::Morphism<C, D>
-    ) -> Self::Morphism<B, D>
+    /// Composes two morphisms in the category.
+    ///
+    /// This function takes two morphisms, `f: B -> C` and `g: C -> D`,
+    /// and returns their composition `g ∘ f: B -> D`.
+    ///
+    /// # Type Parameters
+    /// * `B`: The source type of the first morphism
+    /// * `C`: The target type of the first morphism and source type of the second morphism
+    /// * `D`: The target type of the second morphism
+    ///
+    /// # Arguments
+    /// * `f`: The first morphism to compose
+    /// * `g`: The second morphism to compose
+    ///
+    /// # Returns
+    /// A new morphism representing the composition of `f` and `g`
+    fn compose_morphisms<B, C, D>(f: Self::Morphism<B, C>, g: Self::Morphism<C, D>) -> Self::Morphism<B, D>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints;
+        D: ReturnTypeConstraints,
+    {
+        FnTrait::new(move |x| g.call(f.call(x)))
+    }
 }

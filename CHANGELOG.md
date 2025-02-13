@@ -3,6 +3,8 @@
 ### Changed
 - Modified `lift2` and `lift3` to accept tuples for function types.
 - Modified category Morphism definitions.
+- Modified Free monad to be work in progress.
+- Refactored FnType methods into FnTrait and added documentation.
 
 ### Removed
 - Removed unnecessary function types.
