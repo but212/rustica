@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
@@ -137,7 +138,7 @@ where
 
 impl<K, V> Functor<V> for HashMap<K, V>
 where
-    K: Hash + Eq + ReturnTypeConstraints,
+    K: Hash + Eq + Debug + ReturnTypeConstraints,
     V: ReturnTypeConstraints,
 {
     /// Maps a function over the contents of the hashmap.

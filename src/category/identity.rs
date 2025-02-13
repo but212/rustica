@@ -54,7 +54,7 @@ pub trait Identity: HKT {
     fn to_morphism<T, C>() -> C::Morphism<T, T>
     where
         T: ReturnTypeConstraints,
-        C: Category<T>,
+        C: Category,
     {
         C::identity_morphism()
     }

@@ -6,26 +6,21 @@ use std::hash::Hash;
 ///
 /// This trait defines a set of common constraints that return types must satisfy
 /// in various functional programming constructs. It ensures that types implementing
-/// this trait are cloneable, debuggable, comparable, sendable across threads, 
-/// synchronizable, default-constructible, and have a static lifetime.
+/// this trait are cloneable, comparable, sendable across threads, 
+/// synchronizable, and have a static lifetime.
 ///
 /// # Constraints
 ///
 /// * `Clone` - The type must implement the `Clone` trait.
-/// * `Debug` - The type must implement the `Debug` trait.
-/// * `Eq` - The type must implement the `Eq` trait.
 /// * `Send` - The type must implement the `Send` trait, allowing it to be transferred across thread boundaries.
 /// * `Sync` - The type must implement the `Sync` trait, allowing it to be referenced from multiple threads.
-/// * `Default` - The type must implement the `Default` trait, providing a default value.
 /// * `'static` - The type must have a static lifetime, meaning it does not contain any non-static references.
-pub trait ReturnTypeConstraints: Clone + Debug + Eq + Send + Sync + Default + 'static {}
+pub trait ReturnTypeConstraints: Clone + Send + Sync + Debug + 'static {}
 
 /// Implements the `ReturnTypeConstraints` trait for any type that satisfies the required constraints.
 ///
-/// This implementation ensures that any type `T` that implements `Clone`, `Debug`, `Eq`,
-/// `Send`, `Sync`, `Default`, and has a static lifetime, will automatically implement the
-/// `ReturnTypeConstraints` trait.
-impl<T: Clone + Debug + Eq + Send + Sync + Default + 'static> ReturnTypeConstraints for T {}
+/// This implementation ensures that any type `T` that implements `Clone`, `Send`, `Sync`, and has a static lifetime, will automatically implement the `ReturnTypeConstraints` trait.
+impl<T: Clone + Send + Sync + Debug + 'static> ReturnTypeConstraints for T {}
 
 
 /// A trait for higher-kinded types (HKT).

@@ -18,9 +18,7 @@ use crate::fntype::FnType;
 /// 5. first f >>> arrow (id × g) = arrow (id × g) >>> first f
 /// 6. first f >>> arrow fst = arrow fst >>> f
 /// 7. first (first f) >>> arrow assoc = arrow assoc >>> first f
-pub trait Arrow<A>: Category<A>
-where
-    A: ReturnTypeConstraints,
+pub trait Arrow: Category
 {
     /// Lifts a function to an arrow.
     fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>

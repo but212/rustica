@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::sync::Arc;
 
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
@@ -32,14 +31,14 @@ use crate::fntype::{FnType, FnTrait};
 ///    `w1.bind(w2).log() = w1.log().combine(w2(w1.value()).log())`
 /// 5. Value Independence: For any log `w` and value `x`,
 ///    `Writer::new(x, w).value() = x`
-#[derive(Clone, Default, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub struct Writer<W, A>
 where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
     /// The function that runs the writer computation.
-    run_writer: FnType<(), (A, W)>,
+    run_writer: FnType<(), (A, W)>
 }
 
 impl<W, A> Writer<W, A>
@@ -188,13 +187,13 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, C>>,
+        F: FnTrait<(A, B), C>,
     {
         Writer {
             run_writer: FnType::new(move |_| {
                 let (a, w1) = self.run();
                 let (b, w2) = mb.run();
-                (f.call(a).call(b), w1.combine(w2))
+                (f.call((a, b)), w1.combine(w2))
             }),
         }
     }
@@ -218,14 +217,14 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, FnType<C, D>>>,
+        F: FnTrait<(A, B, C), D>,
     {
         Writer {
             run_writer: FnType::new(move |_| {
                 let (a, w1) = self.run();
                 let (b, w2) = mb.run();
                 let (c, w3) = mc.run();
-                (f.call(a).call(b).call(c), w1.combine(w2).combine(w3))
+                (f.call((a, b, c)), w1.combine(w2).combine(w3))
             }),
         }
     }
@@ -322,12 +321,12 @@ where
     }
 }
 
-impl<W, A> Category<A> for Writer<W, A>
+impl<W, A> Category for Writer<W, A>
 where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = Writer<W, C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -336,7 +335,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        Writer::new(B::default(), W::empty())
+        FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -348,13 +347,11 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        let (_, w1) = f.run();
-        let (d, w2) = g.run();
-        Writer::new(d, w1.combine(w2))
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<W, A> Arrow<A> for Writer<W, A>
+impl<W, A> Arrow for Writer<W, A>
 where
     W: ReturnTypeConstraints + Monoid,
     A: ReturnTypeConstraints,
@@ -365,7 +362,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
-        Writer::new(f.call(B::default()), W::empty())
+        FnType::new(move |x| f.call(x))
     }
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
@@ -374,7 +371,6 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        let (c, w) = f.run();
-        Writer::new((c, D::default()), w)
+        FnType::new(move |x: (B, D)| (f.call(x.0), x.1))
     }
 }

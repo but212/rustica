@@ -1,6 +1,5 @@
 use crate::category::hkt::ReturnTypeConstraints;
 use crate::category::semigroup::Semigroup;
-use crate::fntype::MonoidFn;
 
 /// A trait for monoids, which are semigroups with an identity element.
 /// 
@@ -31,42 +30,6 @@ pub trait Monoid: Semigroup {
     /// # Returns
     /// The identity element of the monoid.
     fn empty() -> Self;
-}
-
-impl<T, M> Semigroup for MonoidFn<T, M>
-where
-    T: ReturnTypeConstraints,
-    M: Monoid,
-{
-    /// Combines two `MonoidFn` instances.
-    ///
-    /// # Arguments
-    /// - `self`: The first `MonoidFn` instance.
-    /// - `other`: The second `MonoidFn` instance.
-    ///
-    /// # Returns
-    /// A new `MonoidFn` instance that is the combination of the two instances.
-    fn combine(self, other: Self) -> Self {
-        MonoidFn::new(move |x: T| {
-            let a = self.apply(x.clone());
-            let b = other.apply(x);
-            a.combine(b)
-        })
-    }
-}
-
-impl<T, M> Monoid for MonoidFn<T, M>
-where
-    T: ReturnTypeConstraints,
-    M: Monoid,
-{
-    /// The identity element of the `MonoidFn`.
-    ///
-    /// # Returns
-    /// A new `MonoidFn` instance that is the identity element.
-    fn empty() -> Self {
-        MonoidFn::new(|_| M::empty())
-    }
 }
 
 /// A monoid for vectors.

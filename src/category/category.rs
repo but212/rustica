@@ -1,6 +1,7 @@
 use crate::category::hkt::ReturnTypeConstraints;
 use crate::category::identity::Identity;
 use crate::category::composable::Composable;
+use crate::fntype::FnTrait;
 
 /// A category in category theory.
 /// 
@@ -14,12 +15,10 @@ use crate::category::composable::Composable;
 ///    id_C ∘ f = f = f ∘ id_B
 /// 2. Associativity: For morphisms f: B → C, g: C → D, h: D → E,
 ///    h ∘ (g ∘ f) = (h ∘ g) ∘ f
-pub trait Category<A>: Identity + Composable 
-where
-    A: ReturnTypeConstraints,
+pub trait Category: Identity + Composable
 {
     /// The type of morphisms in this category.
-    type Morphism<B, C>: ReturnTypeConstraints
+    type Morphism<B, C>: FnTrait<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;

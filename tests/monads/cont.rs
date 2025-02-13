@@ -8,7 +8,7 @@ use rustica::fntype::FnType;
 use rustica::monads::cont::Cont;
 
 /// Test wrapper type for Cont monad
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 struct TestCont<A>(Cont<String, A>) where A: ReturnTypeConstraints;
 
 impl<A> Arbitrary for TestCont<A>

@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use crate::category::flatmap::FlatMap;
 use crate::category::category::Category;
 use crate::category::arrow::Arrow;
 use crate::category::composable::Composable;
@@ -11,7 +10,7 @@ use crate::category::identity::Identity;
 /// # Type Parameters
 /// * `S` - The functor that represents the effect
 /// * `A` - The type of the value contained in the monad
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum Free<S, A>
 where
     S: ReturnTypeConstraints,
@@ -47,29 +46,6 @@ where
             Free::Pure(x) => M::pure(x),
             Free::Suspend(effect) => interpreter.call(effect),
         }
-    }
-}
-
-impl<S, A> Clone for Free<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn clone(&self) -> Self {
-        match self {
-            Free::Pure(x) => Free::Pure(x.clone()),
-            Free::Suspend(x) => Free::Suspend(x.clone()),
-        }
-    }
-}
-
-impl<S, A> Default for Free<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn default() -> Self {
-        Free::Pure(A::default())
     }
 }
 
@@ -131,10 +107,10 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, C>>,
+        F: FnTrait<(A, B), C>,
     {
         match (self, mb) {
-            (Free::Pure(a), Free::Pure(b)) => Free::Pure(f.call(a).call(b)),
+            (Free::Pure(a), Free::Pure(b)) => Free::Pure(f.call((a, b))),
             (Free::Suspend(effect), _) => Free::Suspend(effect),
             (_, Free::Suspend(effect)) => Free::Suspend(effect),
         }
@@ -150,11 +126,11 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, FnType<C, D>>>,
+        F: FnTrait<(A, B, C), D>,
     {
         match (self, mb1, mb2) {
             (Free::Pure(a), Free::Pure(b), Free::Pure(c)) => {
-                Free::Pure(f.call(a).call(b).call(c))
+                Free::Pure(f.call((a, b, c)))
             }
             (Free::Suspend(effect), _, _) => Free::Suspend(effect),
             (_, Free::Suspend(effect), _) => Free::Suspend(effect),
@@ -205,20 +181,6 @@ where
     }
 }
 
-impl<S, A> FlatMap<A> for Free<S, A>
-where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
-{
-    fn flat_map<B, F>(self, f: F) -> Self::Output<B>
-    where
-        B: ReturnTypeConstraints,
-        F: FnTrait<A, Self::Output<B>>,
-    {
-        self.bind(f)
-    }
-}
-
 impl<S, A> Identity for Free<S, A>
 where
     S: ReturnTypeConstraints,
@@ -249,12 +211,12 @@ where
     }
 }
 
-impl<S, A> Category<A> for Free<S, A>
+impl<S, A> Category for Free<S, A>
 where
     S: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = Free<S, C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -263,7 +225,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        Free::Pure(B::default())
+        FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -275,15 +237,11 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        match (f, g) {
-            (Free::Pure(_), Free::Pure(d)) => Free::Pure(d),
-            (Free::Pure(_), Free::Suspend(s)) => Free::Suspend(s),
-            (Free::Suspend(s), _) => Free::Suspend(s),
-        }
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<S, A> Arrow<A> for Free<S, A>
+impl<S, A> Arrow for Free<S, A>
 where
     S: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
@@ -294,7 +252,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
-        Free::Pure(f.call(B::default()))
+        FnType::new(move |x| f.call(x))
     }
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
@@ -303,9 +261,6 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        match f {
-            Free::Pure(c) => Free::Pure((c, D::default())),
-            Free::Suspend(s) => Free::Suspend(s),
-        }
+        FnType::new(move |(b, d)| (f.call(b), d))
     }
 }

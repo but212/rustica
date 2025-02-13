@@ -1,6 +1,6 @@
 use crate::category::functor::Functor;
 use crate::category::pure::Pure;
-use crate::fntype::{FnType, FnTrait};
+use crate::fntype::FnTrait;
 use crate::category::hkt::ReturnTypeConstraints;
 
 /// A trait for applicative functors, which allow function application within a context.
@@ -174,7 +174,7 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, C>>;
+        F: FnTrait<(A, B), C>;
 
     /// Lift a ternary function to actions.
     ///
@@ -202,5 +202,5 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, FnType<C, D>>>;
+        F: FnTrait<(A, B, C), D>;
 }

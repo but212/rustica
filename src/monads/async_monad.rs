@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::future::Future;
 use futures::future::FutureExt;
 
@@ -33,7 +32,7 @@ use crate::fntype::{FnType, FnTrait};
 /// 6. Non-Blocking: `try_get()` must not block the current thread
 /// 7. Resource Safety: For any async computation,
 ///    resources must be properly managed regardless of completion or failure
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct AsyncM<A>
 where
     A: ReturnTypeConstraints,
@@ -64,7 +63,7 @@ where
         AsyncM {
             run: FnType::new(move |_| {
                 let shared = shared.clone();
-                shared.now_or_never().unwrap_or_default()
+                shared.now_or_never().unwrap()
             }),
         }
     }
@@ -156,9 +155,15 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, C>>,
+        F: FnTrait<(A, B), C>,
     {
-        self.fmap(FnType::new(move |a| f.call(a).call(mb.try_get())))
+        AsyncM {
+            run: FnType::new(move |_| {
+                let a = self.try_get();
+                let b = mb.try_get();
+                f.call((a, b))
+            }),
+        }
     }
 
     /// Lifts a ternary function into async computations.
@@ -176,9 +181,16 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, FnType<C, D>>>,
+        F: FnTrait<(A, B, C), D>,
     {
-        self.fmap(FnType::new(move |a| f.call(a).call(mb.try_get()).call(mc.try_get())))
+        AsyncM {
+            run: FnType::new(move |_| {
+                let a = self.try_get();
+                let b = mb.try_get();
+                let c = mc.try_get();
+                f.call((a, b, c))
+            }),
+        }
     }
 }
 
@@ -210,11 +222,11 @@ where
     }
 }
 
-impl<A> Category<A> for AsyncM<A>
+impl<A> Category for AsyncM<A>
 where
     A: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = AsyncM<C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -223,7 +235,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        AsyncM::pure(B::default())
+        FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -235,10 +247,7 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        AsyncM::new(async move {
-            let _c = f.try_get();
-            g.try_get()
-        })
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 

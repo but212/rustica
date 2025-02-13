@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
@@ -44,7 +42,7 @@ use crate::fntype::{FnType, FnTrait};
 ///
 /// assert_eq!(just_value.unwrap(), 42);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum Maybe<T>
 where
     T: ReturnTypeConstraints,
@@ -166,7 +164,7 @@ where
     fn apply<U, F>(self, g: Self::Output<F>) -> Self::Output<U>
     where
         U: ReturnTypeConstraints,
-        F: FnTrait<T, U> + Default,
+        F: FnTrait<T, U>,
     {
         match (self, g) {
             (Maybe::Just(x), Maybe::Just(f)) => Maybe::Just(f.call(x)),
@@ -178,10 +176,10 @@ where
     where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: FnTrait<T, FnType<U, V>>,
+        F: FnTrait<(T, U), V>,
     {
         match (self, b) {
-            (Maybe::Just(a), Maybe::Just(b)) => Maybe::Just(f.call(a).call(b)),
+            (Maybe::Just(a), Maybe::Just(b)) => Maybe::Just(f.call((a, b))),
             _ => Maybe::Nothing,
         }
     }
@@ -196,11 +194,11 @@ where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
         W: ReturnTypeConstraints,
-        F: FnTrait<T, FnType<U, FnType<V, W>>>,
+        F: FnTrait<(T, U, V), W>,
     {
         match (self, b, c) {
             (Maybe::Just(a), Maybe::Just(b), Maybe::Just(c)) => {
-                Maybe::Just(f.call(a).call(b).call(c))
+                Maybe::Just(f.call((a, b, c)))
             }
             _ => Maybe::Nothing,
         }
@@ -296,11 +294,11 @@ where
     }
 }
 
-impl<T> Category<T> for Maybe<T>
+impl<T> Category for Maybe<T>
 where
     T: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = Maybe<C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -309,7 +307,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        Maybe::Just(B::default())
+        FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -321,15 +319,11 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        match (f, g) {
-            (Maybe::Nothing, _) => Maybe::Nothing,
-            (_, Maybe::Nothing) => Maybe::Nothing,
-            (Maybe::Just(_), Maybe::Just(d)) => Maybe::Just(d),
-        }
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<T> Arrow<T> for Maybe<T>
+impl<T> Arrow for Maybe<T>
 where
     T: ReturnTypeConstraints,
 {
@@ -339,7 +333,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
-        Maybe::Just(f.call(B::default()))
+        FnType::new(move |x| f.call(x))
     }
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
@@ -348,9 +342,6 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        match f {
-            Maybe::Nothing => Maybe::Nothing,
-            Maybe::Just(c) => Maybe::Just((c, D::default())),
-        }
+        FnType::new(move |(b, d): (B, D)| (f.call(b), d))
     }
 }

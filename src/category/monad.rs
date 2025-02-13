@@ -1,6 +1,6 @@
 use crate::category::applicative::Applicative;
 use crate::category::hkt::ReturnTypeConstraints;
-use crate::fntype::{FnTrait, FnType};
+use crate::fntype::FnTrait;
 use crate::category::category::Category;
 
 /// A trait for monads, which are applicative functors that support sequencing of operations.
@@ -27,7 +27,7 @@ use crate::category::category::Category;
 /// 8. Category Consistency: For any monad `m` and functions `f`, `g`,
 ///    `m.bind(f).bind(g) = m.bind(compose_morphisms(f, g))`
 ///
-pub trait Monad<T>: Applicative<T> + Category<T>
+pub trait Monad<T>: Applicative<T> + Category
 where
     T: ReturnTypeConstraints,
 {
@@ -72,8 +72,8 @@ where
     /// * `h` - The second function.
     /// 
     /// # Returns
-    /// * `FnType<A, Self::Output<C>>` - The composed function.
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<T, Self::Output<C>>
+    /// * `Self::Morphism<T, Self::Output<C>>` - The composed function.
+    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> Self::Morphism<T, Self::Output<C>>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,

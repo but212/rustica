@@ -82,10 +82,10 @@ where
     where
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: FnTrait<T, FnType<U, V>>,
+        F: FnTrait<(T, U), V>,
     {
-        let g = f.call(self.0);
-        TestFunctor(g.call(b.0))
+        let g = f.call((self.0, b.0));
+        TestFunctor(g)
     }
 
     fn lift3<B, C, D, F>(
@@ -98,11 +98,10 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: FnTrait<T, FnType<B, FnType<C, D>>>,
+        F: FnTrait<(T, B, C), D>,
     {
-        let g = f.call(self.0);
-        let h = g.call(b.0);
-        TestFunctor(h.call(c.0))
+        let g = f.call((self.0, b.0, c.0));
+        TestFunctor(g)
     }
 }
 
@@ -133,7 +132,9 @@ where
         G: FnTrait<T, Self::Output<B>>,
         H: FnTrait<B, Self::Output<C>>,
     {
-        FnType::new(move |x| g.call(x).bind(h.clone()))
+        FnType::new(move |x: T| -> Self::Output<C> {
+            g.call(x).bind(h.clone())
+        })
     }
 }
 
@@ -153,11 +154,11 @@ where
     }
 }
 
-impl<T> Category<T> for TestFunctor<T>
+impl<T> Category for TestFunctor<T>
 where
     T: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = TestFunctor<C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -166,7 +167,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        TestFunctor(B::default())
+        FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -178,13 +179,11 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        // Use f's value to get C, then map it using g's value
-        let _c = f.0;
-        TestFunctor(g.0)
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<T> Arrow<T> for TestFunctor<T>
+impl<T> Arrow for TestFunctor<T>
 where
     T: ReturnTypeConstraints,
 {
@@ -194,7 +193,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
-        TestFunctor(f.call(B::default()))
+        FnType::new(move |x| f.call(x))
     }
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
@@ -203,6 +202,6 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        TestFunctor((f.0, D::default()))
+        FnType::new(move |(x, y)| (f.call(x), y))
     }
 }

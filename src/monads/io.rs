@@ -131,7 +131,7 @@ use crate::fntype::{FnType, FnTrait};
 ///     Ok(())
 /// }
 /// ```
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct IO<A>
 where
     A: ReturnTypeConstraints,
@@ -243,11 +243,11 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, C>>,
+        F: FnTrait<(A, B), C>,
     {
-        let f = FnType::new(move |_s| {
-            let fa = f.call(self.run.call(()));
-            fa.call(mb.run.call(()))
+        let f = FnType::new(move |_| {
+            let (a, b) = (self.run.call(()), mb.run.call(()));
+            f.call((a, b))
         });
         IO { run: f }
     }
@@ -267,12 +267,11 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, FnType<C, D>>>,
+        F: FnTrait<(A, B, C), D>,
     {
-        let f = FnType::new(move |_s| {
-            let fa = f.call(self.run.call(()));
-            let fb = fa.call(mb.run.call(()));
-            fb.call(mc.run.call(()))
+        let f = FnType::new(move |_| {
+            let (a, b, c) = (self.run.call(()), mb.run.call(()), mc.run.call(()));
+            f.call((a, b, c))
         });
         IO { run: f }
     }
@@ -418,11 +417,11 @@ where
     }
 }
 
-impl<A> Category<A> for IO<A>
+impl<A> Category for IO<A>
 where
     A: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = IO<C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -431,7 +430,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        IO::pure(B::default())
+        FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -443,11 +442,11 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        f.bind(FnType::new(move |_c| g.clone()))
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<A> Arrow<A> for IO<A>
+impl<A> Arrow for IO<A>
 where
     A: ReturnTypeConstraints,
 {
@@ -457,8 +456,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
-        let f = f.clone();
-        IO::new(FnType::new(move |_| f.call(B::default())))
+        FnType::new(move |x| f.call(x))
     }
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
@@ -467,9 +465,6 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        IO::new(FnType::new(move |_| {
-            let c = f.clone().run();
-            (c, D::default())
-        }))
+        FnType::new(move |(b, d)| (f.call(b), d))
     }
 }

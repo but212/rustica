@@ -42,7 +42,7 @@ use crate::fntype::{FnTrait, FnType};
 /// assert_eq!(left_value.unwrap_left(), 42);
 /// assert_eq!(right_value.unwrap_right(), 42);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Either<L, R>
 where
     L: ReturnTypeConstraints,
@@ -182,28 +182,6 @@ where
     type Output<T> = Either<L, T> where T: ReturnTypeConstraints;
 }
 
-impl<L, R> Default for Either<L, R>
-where
-    L: ReturnTypeConstraints,
-    R: ReturnTypeConstraints,
-{
-    /// Returns a Left value with the default value of the left type.
-    /// 
-    /// Returns
-    /// * `Either<L, R>` - A Left value with the default value of the left type.
-    ///
-    /// # Examples
-    /// ```
-    /// use rustica::monads::either::Either;
-    /// 
-    /// let left_value: Either<i32, i32> = Either::Left(42);
-    /// assert_eq!(left_value.unwrap_left(), 42);
-    /// ```
-    fn default() -> Self {
-        Either::Left(L::default())
-    }
-}
-
 impl<L, R> Pure<R> for Either<L, R>
 where
     L: ReturnTypeConstraints,
@@ -290,10 +268,10 @@ where
     where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
-        F: FnTrait<R, FnType<T, U>>,
+        F: FnTrait<(R, T), U>,
     {
         match (self, b) {
-            (Either::Right(a), Either::Right(b)) => Either::Right(f.call(a).call(b)),
+            (Either::Right(x), Either::Right(y)) => Either::Right(f.call((x, y))),
             (Either::Left(l), _) => Either::Left(l),
             (_, Either::Left(l)) => Either::Left(l),
         }
@@ -319,12 +297,10 @@ where
         T: ReturnTypeConstraints,
         U: ReturnTypeConstraints,
         V: ReturnTypeConstraints,
-        F: FnTrait<R, FnType<T, FnType<U, V>>>,
+        F: FnTrait<(R, T, U), V>,
     {
         match (self, b, c) {
-            (Either::Right(a), Either::Right(b), Either::Right(c)) => {
-                Either::Right(f.call(a).call(b).call(c))
-            }
+            (Either::Right(x), Either::Right(y), Either::Right(z)) => Either::Right(f.call((x, y, z))),
             (Either::Left(l), _, _) => Either::Left(l),
             (_, Either::Left(l), _) => Either::Left(l),
             (_, _, Either::Left(l)) => Either::Left(l),
@@ -467,12 +443,12 @@ where
     }
 }
 
-impl<L, R> Category<R> for Either<L, R>
+impl<L, R> Category for Either<L, R>
 where
     L: ReturnTypeConstraints,
     R: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = Either<L, C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -481,7 +457,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        Either::Right(B::default())
+        FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -493,14 +469,11 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        match f {
-            Either::Left(l) => Either::Left(l),
-            Either::Right(_) => g,
-        }
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<L, R> Arrow<R> for Either<L, R>
+impl<L, R> Arrow for Either<L, R>
 where
     L: ReturnTypeConstraints,
     R: ReturnTypeConstraints,
@@ -511,7 +484,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
-        Either::Right(f.call(B::default()))
+        FnType::new(move |x| f.call(x))
     }
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
@@ -520,10 +493,7 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        match f {
-            Either::Left(l) => Either::Left(l),
-            Either::Right(c) => Either::Right((c, D::default())),
-        }
+        FnType::new(move |(x, y)| (f.call(x), y))
     }
 }
 

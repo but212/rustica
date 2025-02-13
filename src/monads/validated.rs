@@ -1,6 +1,3 @@
-use std::fmt::Debug;
-use std::hash::Hash;
-
 use crate::category::hkt::{HKT, ReturnTypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
@@ -77,7 +74,7 @@ use crate::fntype::{FnType, FnTrait};
 
 pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug)]
 pub enum Validated<E, A>
 where
     E: ValidatedTypeConstraints,
@@ -234,10 +231,10 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, C>>,
+        F: FnTrait<(A, B), C>,
     {
         match (self, mb) {
-            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f.call(a).call(b)),
+            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f.call((a, b))),
             (Validated::Invalid(e1), Validated::Valid(_)) => Validated::Invalid(e1),
             (Validated::Valid(_), Validated::Invalid(e2)) => Validated::Invalid(e2),
             (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
@@ -257,11 +254,11 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, FnType<C, D>>>,
+        F: FnTrait<(A, B, C), D>,
     {
         match (self, mb, mc) {
             (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
-                Validated::Valid(f.call(a).call(b).call(c))
+                Validated::Valid(f.call((a, b, c)))
             }
             (Validated::Invalid(mut e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
                 e1.extend(e2);
@@ -342,12 +339,12 @@ where
     }
 }
 
-impl<E, A> Category<A> for Validated<E, A>
+impl<E, A> Category for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = Validated<E, C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -356,7 +353,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        Validated::valid(B::default())
+        FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -368,19 +365,11 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        match (f, g) {
-            (Validated::Valid(_), Validated::Valid(d)) => Validated::valid(d),
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2.into_iter());
-                Validated::Invalid(e1)
-            },
-            (Validated::Invalid(e), _) => Validated::Invalid(e),
-            (_, Validated::Invalid(e)) => Validated::Invalid(e),
-        }
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<E, A> Arrow<A> for Validated<E, A>
+impl<E, A> Arrow for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
     A: ReturnTypeConstraints,
@@ -391,7 +380,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
-        Validated::valid(f.call(B::default()))
+        FnType::new(move |x| f.call(x))
     }
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
@@ -400,9 +389,6 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        match f {
-            Validated::Valid(c) => Validated::valid((c, D::default())),
-            Validated::Invalid(e) => Validated::Invalid(e),
-        }
+        FnType::new(move |(x, y)| (f.call(x), y))
     }
 }

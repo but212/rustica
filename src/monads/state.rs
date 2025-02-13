@@ -25,7 +25,7 @@ use crate::fntype::{FnType, FnTrait};
 ///    `pure(x).run_state(s) = (x, s)`
 /// 4. Modify Consistency: For function `f`,
 ///    `modify(f).run_state(s) = ((), f(s))`
-#[derive(Clone, Default, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub struct State<S, A>
 where
     S: ReturnTypeConstraints,
@@ -177,12 +177,12 @@ where
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, C>>,
+        F: FnTrait<(A, B), C>,
     {
         let f = FnType::new(move |s: S| {
             let (a, s) = self.run_state(s.clone());
             let (b, s) = mb.run_state(s);
-            (f.call(a).call(b), s)
+            (f.call((a, b)), s)
         });
         State { run: f }
     }
@@ -201,13 +201,13 @@ where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
-        F: FnTrait<A, FnType<B, FnType<C, D>>>,
+        F: FnTrait<(A, B, C), D>,
     {
         let f = FnType::new(move |s: S| {
             let (a, s) = self.run_state(s.clone());
             let (b, s) = mb.run_state(s.clone());
             let (c, s) = mc.run_state(s);
-            (f.call(a).call(b).call(c), s)
+            (f.call((a, b, c)), s)
         });
         State { run: f }
     }
@@ -302,12 +302,12 @@ where
     }
 }
 
-impl<S, A> Category<A> for State<S, A>
+impl<S, A> Category for State<S, A>
 where
     S: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
 {
-    type Morphism<B, C> = State<S, C>
+    type Morphism<B, C> = FnType<B, C>
     where
         B: ReturnTypeConstraints,
         C: ReturnTypeConstraints;
@@ -316,9 +316,7 @@ where
     where
         B: ReturnTypeConstraints,
     {
-        State {
-            run: FnType::new(|s| (B::default(), s))
-        }
+        FnType::new(|s| s)
     }
 
     fn compose_morphisms<B, C, D>(
@@ -330,16 +328,11 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        State {
-            run: FnType::new(move |s| {
-                let (_, s1) = f.run_state(s);
-                g.run_state(s1)
-            })
-        }
+        FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<S, A> Arrow<A> for State<S, A>
+impl<S, A> Arrow for State<S, A>
 where
     S: ReturnTypeConstraints,
     A: ReturnTypeConstraints,
@@ -350,9 +343,7 @@ where
         C: ReturnTypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
-        State {
-            run: FnType::new(move |s| (f.call(B::default()), s))
-        }
+        FnType::new(move |x| f.call(x))
     }
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
@@ -361,12 +352,7 @@ where
         C: ReturnTypeConstraints,
         D: ReturnTypeConstraints,
     {
-        State {
-            run: FnType::new(move |s| {
-                let (c, s1) = f.run_state(s);
-                ((c, D::default()), s1)
-            })
-        }
+        FnType::new(move |(b, d)| (f.call(b), d))
     }
 }
 

@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use crate::fntype::FnType;
 use crate::category::hkt::ReturnTypeConstraints;
 
@@ -42,7 +41,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// let modified_struct = lens.set(my_struct, 100);
 /// assert_eq!(lens.get(&modified_struct), 100);
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct Lens<S, A>
 where
     S: ReturnTypeConstraints,
