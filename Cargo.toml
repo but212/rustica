@@ -7,7 +7,6 @@ description = "Rustica is a functional programming library for the Rust language
 license = "Apache-2.0"
 repository = "https://github.com/but212/rustica"
 readme = "README.md"
-categories = ["category-theory", "functional-programming", "monads"]
 
 [dependencies]
 async-trait = "0.1"
