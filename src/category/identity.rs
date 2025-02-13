@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::category::Category;
 
 /// A trait for types that represent the identity element in a monoid.
@@ -17,7 +17,7 @@ use crate::category::category::Category;
 /// struct MyIdentity;
 ///
 /// impl HKT for MyIdentity {
-///     type Output<T> = T where T: ReturnTypeConstraints;
+///     type Output<T> = T where T: TypeConstraints;
 /// }
 ///
 /// impl Identity for MyIdentity {}
@@ -28,14 +28,14 @@ pub trait Identity: HKT {
     /// Identity function for any type.
     ///
     /// This function returns the input value as-is. It works for all types `T`
-    /// where `T` implements the `ReturnTypeConstraints` trait.
+    /// where `T` implements the `TypeConstraints` trait.
     ///
     /// # Arguments
     /// * `x` - The value to be returned
     ///
     /// # Returns
     /// Returns the input value `x` unchanged.
-    fn identity<T: ReturnTypeConstraints>(x: T) -> T {
+    fn identity<T: TypeConstraints>(x: T) -> T {
         x
     }
 
@@ -52,11 +52,11 @@ pub trait Identity: HKT {
     /// Returns the identity morphism for type `T` in category `C`.
     ///
     /// # Constraints
-    /// * `T` must satisfy `ReturnTypeConstraints`.
+    /// * `T` must satisfy `TypeConstraints`.
     /// * `C` must implement the `Category` trait.
     fn to_morphism<T, C>() -> C::Morphism<T, T>
     where
-        T: ReturnTypeConstraints,
+        T: TypeConstraints,
         C: Category,
     {
         C::identity_morphism()

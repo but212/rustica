@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
@@ -37,17 +37,38 @@ use crate::fntype::{FnType, FnTrait};
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct State<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
+    /// The stateful computation function that takes a state `S` and returns a tuple `(A, S)`.
+    /// `A` is the result of the computation, and `S` is the new state.
     pub run: FnType<S, (A, S)>,
 }
 
 impl<S, A> State<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
+    /// Creates a new `State` instance with the given state transition function.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes the current state and returns a tuple of (result, new state).
+    ///
+    /// # Returns
+    ///
+    /// A new `State` instance encapsulating the given state transition function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::state::State;
+    /// use rustica::fntype::{FnType, FnTrait};
+    ///
+    /// let state = State::new(FnType::new(|s: i32| (s + 1, s * 2)));
+    /// assert_eq!(state.run_state(5), (6, 10));
+    /// ```
     pub fn new<F>(f: F) -> Self
     where
         F: FnTrait<S, (A, S)>,
@@ -55,15 +76,68 @@ where
         State { run: FnType::new(move |s| f.call(s)) }
     }
 
+    /// Runs the state computation with the given initial state.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The initial state.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the result of the computation and the final state.
     pub fn run_state(&self, s: S) -> (A, S) {
         self.run.call(s)
     }
 
+    /// Evaluates the state computation with the given initial state and returns only the result.
+    ///
+    /// This function runs the state computation but discards the final state,
+    /// returning only the result of the computation.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The initial state.
+    ///
+    /// # Returns
+    ///
+    /// The result of the computation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::state::State;
+    /// use rustica::fntype::{FnType, FnTrait};
+    ///
+    /// let state = State::new(FnType::new(|s: i32| (s + 1, s * 2)));
+    /// assert_eq!(state.eval_state(5), 6);
+    /// ```
     pub fn eval_state(&self, s: S) -> A {
         let (a, _) = self.run_state(s);
         a
     }
 
+    /// Executes the state computation with the given initial state and returns only the final state.
+    ///
+    /// This function runs the state computation but discards the result,
+    /// returning only the final state.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The initial state.
+    ///
+    /// # Returns
+    ///
+    /// The final state after running the computation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::monads::state::State;
+    /// use rustica::fntype::{FnType, FnTrait};
+    ///
+    /// let state = State::new(FnType::new(|s: i32| (s + 1, s * 2)));
+    /// assert_eq!(state.exec_state(5), 10);
+    /// ```
     pub fn exec_state(&self, s: S) -> S {
         let (_, s) = self.run_state(s);
         s
@@ -72,16 +146,16 @@ where
 
 impl<S, A> HKT for State<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
-    type Output<T> = State<S, T> where T: ReturnTypeConstraints;
+    type Output<T> = State<S, T> where T: TypeConstraints;
 }
 
 impl<S, A> Pure<A> for State<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
     fn pure(value: A) -> Self::Output<A> {
         State::new(FnType::new(move |s| (value.clone(), s)))
@@ -90,12 +164,12 @@ where
 
 impl<S, A> Functor<A> for State<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         let f = FnType::new(move |s| {
@@ -108,12 +182,12 @@ where
 
 impl<S, A> Applicative<A> for State<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         let f = FnType::new(move |s: S| {
@@ -126,8 +200,8 @@ where
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<(A, B), C>,
     {
         let f = FnType::new(move |s: S| {
@@ -140,9 +214,9 @@ where
 
     fn lift3<B, C, D, F>(self, mb: Self::Output<B>, mc: Self::Output<C>, f: F) -> Self::Output<D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<(A, B, C), D>,
     {
         let f = FnType::new(move |s: S| {
@@ -157,12 +231,12 @@ where
 
 impl<S, A> Monad<A> for State<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
         let f = FnType::new(move |s: S| {
@@ -174,7 +248,7 @@ where
 
     fn join<B>(self) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         A: Into<Self::Output<B>>,
     {
         self.bind(FnType::new(move |inner: A| inner.into()))
@@ -182,8 +256,8 @@ where
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         G: FnTrait<A, Self::Output<B>>,
         H: FnTrait<B, Self::Output<C>>,
     {
@@ -193,22 +267,22 @@ where
     }
 }
 
-impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Identity for State<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Identity for State<S, A> {}
 
-impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Composable for State<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Composable for State<S, A> {}
 
-impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Category for State<S, A>
+impl<S: TypeConstraints, A: TypeConstraints> Category for State<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
     type Morphism<B, C> = FnType<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
+        B: TypeConstraints,
+        C: TypeConstraints;
 }
 
-impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for State<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Arrow for State<S, A> {}
 
 /// Creates a stateful computation that returns the current state.
 ///
@@ -221,7 +295,7 @@ impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for State<S, A> {
 /// ```
 pub fn get<S>() -> State<S, S>
 where
-    S: ReturnTypeConstraints,
+    S: TypeConstraints,
 {
     State::new(FnType::new(|s: S| (s.clone(), s)))
 }
@@ -237,7 +311,7 @@ where
 /// ```
 pub fn put<S>(s: S) -> State<S, ()>
 where
-    S: ReturnTypeConstraints,
+    S: TypeConstraints,
 {
     State::new(FnType::new(move |_| ((), s.clone())))
 }
@@ -254,7 +328,7 @@ where
 /// ```
 pub fn modify<S, F>(f: F) -> State<S, ()>
 where
-    S: ReturnTypeConstraints,
+    S: TypeConstraints,
     F: FnTrait<S, S>,
 {
     State::new(FnType::new(move |s| ((), f.call(s))))

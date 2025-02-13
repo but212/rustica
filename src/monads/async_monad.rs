@@ -1,7 +1,7 @@
 use std::future::Future;
 use futures::future::FutureExt;
 
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::applicative::Applicative;
 use crate::category::functor::Functor;
 use crate::category::pure::Pure;
@@ -29,14 +29,14 @@ use crate::fntype::{FnType, FnTrait};
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct AsyncM<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     run: FnType<(), A>,
 }
 
 impl<A> AsyncM<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     /// Creates a new `AsyncM` instance from a given future.
     ///
@@ -105,14 +105,14 @@ where
 
 impl<A> HKT for AsyncM<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
-    type Output<T> = AsyncM<T> where T: ReturnTypeConstraints;
+    type Output<T> = AsyncM<T> where T: TypeConstraints;
 }
 
 impl<A> Pure<A> for AsyncM<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn pure(value: A) -> Self::Output<A> {
         AsyncM {
@@ -123,11 +123,11 @@ where
 
 impl<A> Functor<A> for AsyncM<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         AsyncM {
@@ -141,11 +141,11 @@ where
 
 impl<A> Applicative<A> for AsyncM<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         self.fmap(FnType::new(move |a| mf.try_get().call(a)))
@@ -153,8 +153,8 @@ where
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<(A, B), C>,
     {
         AsyncM {
@@ -168,9 +168,9 @@ where
 
     fn lift3<B, C, D, F>(self, mb: Self::Output<B>, mc: Self::Output<C>, f: F) -> Self::Output<D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<(A, B, C), D>,
     {
         AsyncM {
@@ -184,24 +184,24 @@ where
     }
 }
 
-impl<A: ReturnTypeConstraints> Identity for AsyncM<A> {}
+impl<A: TypeConstraints> Identity for AsyncM<A> {}
 
-impl<A: ReturnTypeConstraints> Composable for AsyncM<A> {}
+impl<A: TypeConstraints> Composable for AsyncM<A> {}
 
-impl<A: ReturnTypeConstraints> Category for AsyncM<A> {
+impl<A: TypeConstraints> Category for AsyncM<A> {
     type Morphism<B, C> = FnType<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
+        B: TypeConstraints,
+        C: TypeConstraints;
 }
 
 impl<A> Monad<A> for AsyncM<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
         self.fmap(FnType::new(move |a: A| f.call(a).try_get()))
@@ -209,7 +209,7 @@ where
 
     fn join<B>(self) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         A: Into<Self::Output<B>>,
     {
         self.bind(FnType::new(move |x: A| x.into()))
@@ -217,8 +217,8 @@ where
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         G: FnTrait<A, Self::Output<B>>,
         H: FnTrait<B, Self::Output<C>>,
     {

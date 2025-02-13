@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
@@ -38,8 +38,8 @@ use crate::fntype::{FnType, FnTrait};
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
     /// The function that represents the Reader computation.
     /// It takes an environment of type `E` and produces a result of type `A`.
@@ -48,8 +48,8 @@ where
 
 impl<E, A> Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
     /// Creates a new `Reader` instance.
     ///
@@ -105,16 +105,16 @@ where
 
 impl<E, A> HKT for Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
-    type Output<T> = Reader<E, T> where T: ReturnTypeConstraints;
+    type Output<T> = Reader<E, T> where T: TypeConstraints;
 }
 
 impl<E, A> Pure<A> for Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
     fn pure(value: A) -> Self::Output<A> {
         let value = value.clone();
@@ -124,12 +124,12 @@ where
 
 impl<E, A> Functor<A> for Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         Reader::new(FnType::new(move |e| f.call(self.run_reader(e))))
@@ -138,12 +138,12 @@ where
 
 impl<E, A> Applicative<A> for Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         Reader::new(FnType::new(move |e: E| {
@@ -154,8 +154,8 @@ where
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<(A, B), C>,
     {
         Reader::new(FnType::new(move |e: E| {
@@ -171,9 +171,9 @@ where
         f: F,
     ) -> Self::Output<D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<(A, B, C), D>,
     {
         Reader::new(FnType::new(move |e: E| {
@@ -186,12 +186,12 @@ where
 
 impl<E, A> Monad<A> for Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
         Reader::new(FnType::new(move |e: E| {
@@ -202,8 +202,8 @@ where
 
     fn join<B>(self) -> Self::Output<B>
     where
-        A: ReturnTypeConstraints,
-        B: ReturnTypeConstraints,
+        A: TypeConstraints,
+        B: TypeConstraints,
         A: Into<Self::Output<B>>,
     {
         Reader::new(FnType::new(move |e: E| {
@@ -214,8 +214,8 @@ where
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         G: FnTrait<A, Self::Output<B>>,
         H: FnTrait<B, Self::Output<C>>,
     {
@@ -227,8 +227,8 @@ where
 
 impl<E, A> Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
     /// Gets the environment from a Reader.
     /// 
@@ -280,19 +280,19 @@ where
     }
 }
 
-impl<E: ReturnTypeConstraints, A: ReturnTypeConstraints> Identity for Reader<E, A> {}
+impl<E: TypeConstraints, A: TypeConstraints> Identity for Reader<E, A> {}
 
-impl<E: ReturnTypeConstraints, A: ReturnTypeConstraints> Composable for Reader<E, A> {}
+impl<E: TypeConstraints, A: TypeConstraints> Composable for Reader<E, A> {}
 
-impl<E: ReturnTypeConstraints, A: ReturnTypeConstraints> Category for Reader<E, A>
+impl<E: TypeConstraints, A: TypeConstraints> Category for Reader<E, A>
 where
-    E: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    E: TypeConstraints,
+    A: TypeConstraints,
 {
     type Morphism<B, C> = FnType<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
+        B: TypeConstraints,
+        C: TypeConstraints;
 }
 
-impl<E: ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for Reader<E, A> {}
+impl<E: TypeConstraints, A: TypeConstraints> Arrow for Reader<E, A> {}

@@ -43,8 +43,8 @@ use crate::prelude::*;
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct Lens<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
     // Fields to store the `get` and `set` functions.
     get: FnType<S, A>,
@@ -53,8 +53,8 @@ where
 
 impl<S, A> Lens<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
     /// Creates a new lens.
     ///
@@ -130,7 +130,7 @@ where
     /// A new lens that is the composition of this lens and the other lens.
     pub fn compose<B>(self, other: Lens<A, B>) -> Lens<S, B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
     {
         Lens::new(
             {
@@ -161,7 +161,7 @@ where
     /// A new lens for the field.
     pub fn field<B>(get: impl Fn(A) -> B + Send + Sync + 'static, set: impl Fn(A, B) -> A + Send + Sync + 'static) -> Lens<A, B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
     {
         Lens::new(get, set)
     }
@@ -169,38 +169,38 @@ where
 
 impl<S, A> HKT for Lens<S, A>
 where
-    S: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    S: TypeConstraints,
+    A: TypeConstraints,
 {
-    type Output<T> = Lens<S, T> where T: ReturnTypeConstraints;
+    type Output<T> = Lens<S, T> where T: TypeConstraints;
 }
 
-impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Composable for Lens<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Composable for Lens<S, A> {}
 
-impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Identity for Lens<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Identity for Lens<S, A> {}
 
-impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Category for Lens<S, A> {
-    type Morphism<B, C> = FnType<B, C> where B: ReturnTypeConstraints, C: ReturnTypeConstraints;
+impl<S: TypeConstraints, A: TypeConstraints> Category for Lens<S, A> {
+    type Morphism<B, C> = FnType<B, C> where B: TypeConstraints, C: TypeConstraints;
 
-    fn identity_morphism<B: ReturnTypeConstraints>() -> Self::Morphism<B, B> {
+    fn identity_morphism<B: TypeConstraints>() -> Self::Morphism<B, B> {
         FnType::new(|x| x)
     }
 
     fn compose_morphisms<B, C, D>(f: Self::Morphism<B, C>, g: Self::Morphism<C, D>) -> Self::Morphism<B, D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
     {
         FnType::new(move |x| g.call(f.call(x)))
     }
 }
 
-impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for Lens<S, A> {
+impl<S: TypeConstraints, A: TypeConstraints> Arrow for Lens<S, A> {
     fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<B, C>,
     {
         FnType::new(move |x: B| f.call(x))
@@ -208,9 +208,9 @@ impl<S: ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for Lens<S, A> {
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
     {
         Self::arrow(FnType::new(move |(b, d): (B, D)| (f.call(b), d)))
     }

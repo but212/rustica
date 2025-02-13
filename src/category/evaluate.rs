@@ -1,4 +1,4 @@
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 
 /// A trait for types that can be evaluated to produce a value.
 ///
@@ -27,14 +27,14 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// ```
 pub trait Evaluate<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn evaluate(self) -> A;
 }
 
 impl<A> Evaluate<A> for Option<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     #[inline]
     fn evaluate(self) -> A {
@@ -44,7 +44,7 @@ where
 
 impl<A, E> Evaluate<A> for Result<A, E>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
     E: std::fmt::Debug,
 {
     #[inline]

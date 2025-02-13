@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
@@ -25,7 +25,7 @@ use crate::fntype::{FnType, FnTrait};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     Just(T),
     Nothing,
@@ -33,7 +33,7 @@ where
 
 impl<T> Default for Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn default() -> Self {
         Maybe::Nothing
@@ -42,7 +42,7 @@ where
 
 impl<T> Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     /// Returns `true` if the `Maybe` value is `Just`, otherwise returns `false`.
     ///
@@ -164,14 +164,14 @@ where
 
 impl<T> HKT for Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
-    type Output<U> = Maybe<U> where U: ReturnTypeConstraints;
+    type Output<U> = Maybe<U> where U: TypeConstraints;
 }
 
 impl<T> Pure<T> for Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn pure(value: T) -> Self::Output<T> {
         Maybe::Just(value)
@@ -180,11 +180,11 @@ where
 
 impl<T> Functor<T> for Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<T, U>,
     {
         match self {
@@ -196,11 +196,11 @@ where
 
 impl<T> Applicative<T> for Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn apply<U, F>(self, g: Self::Output<F>) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<T, U>,
     {
         match (self, g) {
@@ -211,8 +211,8 @@ where
 
     fn lift2<U, V, F>(self, b: Self::Output<U>, f: F) -> Self::Output<V>
     where
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
+        U: TypeConstraints,
+        V: TypeConstraints,
         F: FnTrait<(T, U), V>,
     {
         match (self, b) {
@@ -228,9 +228,9 @@ where
         f: F,
     ) -> Self::Output<W>
     where
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
-        W: ReturnTypeConstraints,
+        U: TypeConstraints,
+        V: TypeConstraints,
+        W: TypeConstraints,
         F: FnTrait<(T, U, V), W>,
     {
         match (self, b, c) {
@@ -244,11 +244,11 @@ where
 
 impl<T> Monad<T> for Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<T, Self::Output<U>>,
     {
         match self {
@@ -259,7 +259,7 @@ where
 
     fn join<U>(self) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         T: Into<Self::Output<U>>,
     {
         match self {
@@ -270,8 +270,8 @@ where
 
     fn kleisli_compose<U, V, G, H>(g: G, h: H) -> FnType<T, Self::Output<V>>
     where
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
+        U: TypeConstraints,
+        V: TypeConstraints,
         G: FnTrait<T, Self::Output<U>>,
         H: FnTrait<U, Self::Output<V>>,
     {
@@ -283,7 +283,7 @@ where
 
 impl<T> FromIterator<T> for Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut iter = iter.into_iter();
@@ -293,7 +293,7 @@ where
 
 impl<T> From<Option<T>> for Maybe<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn from(opt: Option<T>) -> Self {
         match opt {
@@ -303,15 +303,15 @@ where
     }
 }
 
-impl<T: ReturnTypeConstraints> Identity for Maybe<T> {}
+impl<T: TypeConstraints> Identity for Maybe<T> {}
 
-impl<T: ReturnTypeConstraints> Composable for Maybe<T> {}
+impl<T: TypeConstraints> Composable for Maybe<T> {}
 
-impl<T: ReturnTypeConstraints> Category for Maybe<T> {
+impl<T: TypeConstraints> Category for Maybe<T> {
     type Morphism<B, C> = FnType<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
+        B: TypeConstraints,
+        C: TypeConstraints;
 }
 
-impl<T: ReturnTypeConstraints> Arrow for Maybe<T> {}
+impl<T: TypeConstraints> Arrow for Maybe<T> {}

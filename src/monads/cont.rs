@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::category::Category;
@@ -31,8 +31,8 @@ use crate::fntype::{FnType, FnTrait};
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Cont<R, A>
 where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    R: TypeConstraints,
+    A: TypeConstraints,
 {
     /// The continuation function.
     ///
@@ -44,8 +44,8 @@ where
 
 impl<R, A> Cont<R, A>
 where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    R: TypeConstraints,
+    A: TypeConstraints,
 {
     /// Creates a new `Cont` instance.
     ///
@@ -92,8 +92,8 @@ where
 
 impl<R, A> Pure<A> for Cont<R, A>
 where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    R: TypeConstraints,
+    A: TypeConstraints,
 {
     fn pure(value: A) -> Self::Output<A> {
         Cont {
@@ -104,12 +104,12 @@ where
 
 impl<R, A> Functor<A> for Cont<R, A>
 where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    R: TypeConstraints,
+    A: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B> + Clone,
     {
         Cont {
@@ -123,12 +123,12 @@ where
 
 impl<R, A> Applicative<A> for Cont<R, A>
 where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    R: TypeConstraints,
+    A: TypeConstraints,
 {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         let this = Arc::new(self);
@@ -149,8 +149,8 @@ where
 
     fn lift2<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<(A, B), C>,
     {
         let this = Arc::new(self);
@@ -176,9 +176,9 @@ where
 
     fn lift3<B, C, D, F>(self, b: Self::Output<B>, c: Self::Output<C>, f: F) -> Self::Output<D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<(A, B, C), D>,
     {
         let this = Arc::new(self);
@@ -216,12 +216,12 @@ where
 
 impl<R, A> Monad<A> for Cont<R, A>
 where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    R: TypeConstraints,
+    A: TypeConstraints,
 {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
         let f = Arc::new(f);
@@ -239,8 +239,8 @@ where
 
     fn join<B>(self) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
-        A: ReturnTypeConstraints,
+        B: TypeConstraints,
+        A: TypeConstraints,
         A: Into<Self::Output<B>>,
     {
         self.bind(FnType::new(|x: A| x.into()))
@@ -248,8 +248,8 @@ where
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         G: FnTrait<A, Self::Output<B>>,
         H: FnTrait<B, Self::Output<C>>,
     {
@@ -259,21 +259,21 @@ where
 
 impl<R, A> HKT for Cont<R, A>
 where
-    R: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    R: TypeConstraints,
+    A: TypeConstraints,
 {
-    type Output<T> = Cont<R, T> where T: ReturnTypeConstraints;
+    type Output<T> = Cont<R, T> where T: TypeConstraints;
 }
 
-impl<R: ReturnTypeConstraints, A: ReturnTypeConstraints> Identity for Cont<R, A> {}
+impl<R: TypeConstraints, A: TypeConstraints> Identity for Cont<R, A> {}
 
-impl<R: ReturnTypeConstraints, A: ReturnTypeConstraints> Composable for Cont<R, A> {}
+impl<R: TypeConstraints, A: TypeConstraints> Composable for Cont<R, A> {}
 
-impl<R: ReturnTypeConstraints, A: ReturnTypeConstraints> Category for Cont<R, A> {
+impl<R: TypeConstraints, A: TypeConstraints> Category for Cont<R, A> {
     type Morphism<B, C> = FnType<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
+        B: TypeConstraints,
+        C: TypeConstraints;
 }
 
-impl<R: ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for Cont<R, A> {}
+impl<R: TypeConstraints, A: TypeConstraints> Arrow for Cont<R, A> {}

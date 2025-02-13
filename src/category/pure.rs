@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 
 /// The Pure trait represents a type that can lift a value into a context.
 /// 
@@ -18,7 +18,7 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 ///
 pub trait Pure<T>: HKT
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     /// Lift a value into the context.
     ///

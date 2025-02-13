@@ -1,5 +1,5 @@
 use crate::fntype::{FnType, FnTrait};
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 
 /// A trait for contravariant functors.
 ///
@@ -14,16 +14,16 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 /// use rustica::prelude::*;
 ///
 /// #[derive(Clone, Debug, PartialEq, Eq, Default)]
-/// struct Predicate<A: ReturnTypeConstraints>(FnType<A, bool>);
+/// struct Predicate<A: TypeConstraints>(FnType<A, bool>);
 ///
-/// impl<A: ReturnTypeConstraints> HKT for Predicate<A> {
-///     type Output<T> = Predicate<T> where T: ReturnTypeConstraints;
+/// impl<A: TypeConstraints> HKT for Predicate<A> {
+///     type Output<T> = Predicate<T> where T: TypeConstraints;
 /// }
 ///
-/// impl<A: ReturnTypeConstraints> ContravariantFunctor<A> for Predicate<A> {
+/// impl<A: TypeConstraints> ContravariantFunctor<A> for Predicate<A> {
 ///     fn contravariant_map<B, F>(self, f: F) -> <Predicate<A> as rustica::prelude::HKT>::Output<B>
 ///     where
-///         B: ReturnTypeConstraints,
+///         B: TypeConstraints,
 ///         F: FnTrait<B, A>,
 ///     {
 ///         Predicate(FnType::new(move |b| self.0.call(f.call(b))))
@@ -40,21 +40,21 @@ use crate::category::hkt::{HKT, ReturnTypeConstraints};
 /// assert!(length_greater_than_5.0.call("123456".to_string()));
 /// assert!(!length_greater_than_5.0.call("1234".to_string()));
 /// ```
-pub trait ContravariantFunctor<T>: HKT + ReturnTypeConstraints
+pub trait ContravariantFunctor<T>: HKT + TypeConstraints
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn contravariant_map<U, F>(self, f: F) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<U, T>;
 
     fn into_inner(self) -> T;
 
     fn contravariant_compose<U, V, F, G>(f: F, g: G) -> FnType<V, T>
     where
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
+        U: TypeConstraints,
+        V: TypeConstraints,
         F: FnTrait<U, T>,
         G: FnTrait<V, U>,
     {

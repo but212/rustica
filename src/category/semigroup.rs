@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 
 /// A trait for semigroups, which are types with an associative binary operation.
 /// 
@@ -25,7 +25,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///    `x.combine(y) = y.combine(x)`
 /// 8. Idempotency (if applicable): For any value `x`,
 ///    `x.combine(x) = x`
-pub trait Semigroup: ReturnTypeConstraints {
+pub trait Semigroup: TypeConstraints {
     /// Combines two values of the same type.
     ///
     /// # Arguments
@@ -80,7 +80,7 @@ impl Semigroup for String {
 
 impl<T: Clone + Send + Sync + 'static> Semigroup for Vec<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
@@ -90,7 +90,7 @@ where
 
 impl<T: Eq + Hash + Clone + Send + Sync + 'static> Semigroup for HashSet<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
@@ -100,7 +100,7 @@ where
 
 impl<K, V> Semigroup for HashMap<K, V>
 where
-    K: Eq + Hash + ReturnTypeConstraints,
+    K: Eq + Hash + TypeConstraints,
     V: Semigroup,
 {
     fn combine(mut self, other: Self) -> Self {

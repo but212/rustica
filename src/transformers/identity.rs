@@ -7,9 +7,9 @@ use crate::prelude::*;
 #[derive(Clone)]
 pub struct IdentityT<M, A>
 where
-    M: HKT + ReturnTypeConstraints,
-    M::Output<A>: ReturnTypeConstraints,
-    A: ReturnTypeConstraints,
+    M: HKT + TypeConstraints,
+    M::Output<A>: TypeConstraints,
+    A: TypeConstraints,
 {
     run: M::Output<A>,
 }

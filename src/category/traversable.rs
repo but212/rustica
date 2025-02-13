@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::applicative::Applicative;
 use crate::fntype::FnTrait;
 
@@ -14,7 +14,7 @@ use crate::fntype::FnTrait;
 /// 
 pub trait Traversable<A>: HKT 
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     /// Traverse this structure with effects.
     /// 
@@ -33,6 +33,6 @@ where
     fn traverse<F, B, Fn>(self, f: Fn) -> F::Output<Self::Output<B>>
     where
         F: Applicative<A>,
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         Fn: FnTrait<A, F::Output<B>>;
 }

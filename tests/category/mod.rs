@@ -4,7 +4,7 @@ pub mod monad;
 use quickcheck::{Arbitrary, Gen};
 use rustica::category::applicative::Applicative;
 use rustica::category::functor::Functor;
-use rustica::category::hkt::{HKT, ReturnTypeConstraints};
+use rustica::category::hkt::{HKT, TypeConstraints};
 use rustica::category::identity::Identity;
 use rustica::category::monad::Monad;
 use rustica::category::pure::Pure;
@@ -15,11 +15,11 @@ use rustica::fntype::{FnType, FnTrait};
 
 // Test data structures
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TestFunctor<T>(pub T) where T: ReturnTypeConstraints;
+pub struct TestFunctor<T>(pub T) where T: TypeConstraints;
 
 impl<T> Arbitrary for TestFunctor<T>
 where
-    T: ReturnTypeConstraints + Arbitrary + 'static,
+    T: TypeConstraints + Arbitrary + 'static,
 {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = T::arbitrary(g);
@@ -33,19 +33,19 @@ where
 
 impl<T> HKT for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
-    type Output<U> = TestFunctor<U> where U: ReturnTypeConstraints;
+    type Output<U> = TestFunctor<U> where U: TypeConstraints;
 }
 
 impl<T> Identity for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {}
 
 impl<T> Pure<T> for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn pure(x: T) -> Self {
         TestFunctor(x)
@@ -54,11 +54,11 @@ where
 
 impl<T> Functor<T> for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn fmap<U, F>(self, f: F) -> TestFunctor<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<T, U>,
     {
         TestFunctor(f.call(self.0))
@@ -67,11 +67,11 @@ where
 
 impl<T> Applicative<T> for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn apply<U, F>(self, other: Self::Output<F>) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<T, U>,
     {
         let f = other.0;
@@ -80,8 +80,8 @@ where
 
     fn lift2<U, V, F>(self, b: Self::Output<U>, f: F) -> Self::Output<V>
     where
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
+        U: TypeConstraints,
+        V: TypeConstraints,
         F: FnTrait<(T, U), V>,
     {
         let g = f.call((self.0, b.0));
@@ -95,9 +95,9 @@ where
             f: F,
         ) -> Self::Output<D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<(T, B, C), D>,
     {
         let g = f.call((self.0, b.0, c.0));
@@ -107,11 +107,11 @@ where
 
 impl<T> Monad<T> for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<T, Self::Output<U>>,
     {
         f.call(self.0)
@@ -119,7 +119,7 @@ where
 
     fn join<U>(self) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         T: Into<Self::Output<U>> + Send + Sync,
     {
         self.0.into()
@@ -127,8 +127,8 @@ where
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<T, Self::Output<C>>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         G: FnTrait<T, Self::Output<B>>,
         H: FnTrait<B, Self::Output<C>>,
     {
@@ -140,13 +140,13 @@ where
 
 impl<T> Composable for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn compose<U, V, W, F, G>(f: F, g: G) -> FnType<U, W>
     where
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
-        W: ReturnTypeConstraints,
+        U: TypeConstraints,
+        V: TypeConstraints,
+        W: TypeConstraints,
         F: FnTrait<U, V>,
         G: FnTrait<V, W>,
     {
@@ -156,16 +156,16 @@ where
 
 impl<T> Category for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     type Morphism<B, C> = FnType<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
+        B: TypeConstraints,
+        C: TypeConstraints;
 
     fn identity_morphism<B>() -> Self::Morphism<B, B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
     {
         FnType::new(|x| x)
     }
@@ -175,9 +175,9 @@ where
         g: Self::Morphism<C, D>
     ) -> Self::Morphism<B, D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
     {
         FnType::new(move |x| g.call(f.call(x)))
     }
@@ -185,12 +185,12 @@ where
 
 impl<T> Arrow for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<B, C> + Clone,
     {
         FnType::new(move |x| f.call(x))
@@ -198,9 +198,9 @@ where
 
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
     {
         FnType::new(move |(x, y)| (f.call(x), y))
     }

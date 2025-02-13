@@ -7,7 +7,7 @@ use quickcheck_macros::quickcheck;
 
 use rustica::category::functor::Functor;
 use rustica::category::pure::Pure;
-use rustica::category::hkt::{HKT, ReturnTypeConstraints};
+use rustica::category::hkt::{HKT, TypeConstraints};
 use rustica::fntype::{FnType, FnTrait};
 
 // Helper functions for property testing
@@ -17,18 +17,18 @@ fn id<T>(x: T) -> T {
 
 // Test data structures
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-struct TestFunctor<T>(T) where T: ReturnTypeConstraints;
+struct TestFunctor<T>(T) where T: TypeConstraints;
 
 impl<T> HKT for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
-    type Output<B> = TestFunctor<B> where B: ReturnTypeConstraints;
+    type Output<B> = TestFunctor<B> where B: TypeConstraints;
 }
 
 impl<T> Arbitrary for TestFunctor<T>
 where
-    T: Arbitrary + ReturnTypeConstraints,
+    T: Arbitrary + TypeConstraints,
 {
     fn arbitrary(g: &mut Gen) -> Self {
         TestFunctor(T::arbitrary(g))
@@ -41,11 +41,11 @@ where
 
 impl<T> Functor<T> for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<T, U>,
     {
         TestFunctor(f.call(self.0))
@@ -69,7 +69,7 @@ fn functor_composition(x: TestFunctor<i32>) -> bool {
 // Pure Laws
 impl<T> Pure<T> for TestFunctor<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn pure(x: T) -> Self::Output<T> {
         TestFunctor(x)

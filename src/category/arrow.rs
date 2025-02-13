@@ -1,4 +1,4 @@
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 use crate::category::category::Category;
 use crate::fntype::FnTrait;
 use crate::fntype::FnType;
@@ -26,11 +26,11 @@ use crate::fntype::FnType;
 /// struct MyArrow;
 ///
 /// impl HKT for MyArrow {
-///     type Output<A> = A where A: ReturnTypeConstraints;
+///     type Output<A> = A where A: TypeConstraints;
 /// }
 ///
 /// impl Identity for MyArrow {
-///     fn identity<A: ReturnTypeConstraints>(x: A) -> A {
+///     fn identity<A: TypeConstraints>(x: A) -> A {
 ///         x
 ///     }
 /// }
@@ -38,9 +38,9 @@ use crate::fntype::FnType;
 /// impl Composable for MyArrow {
 ///     fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
 ///     where
-///         T: ReturnTypeConstraints,
-///         U: ReturnTypeConstraints,
-///         V: ReturnTypeConstraints,
+///         T: TypeConstraints,
+///         U: TypeConstraints,
+///         V: TypeConstraints,
 ///         F: FnTrait<T, U>,
 ///         G: FnTrait<U, V>,
 ///     {
@@ -49,17 +49,17 @@ use crate::fntype::FnType;
 /// }
 /// 
 /// impl Category for MyArrow {
-///     type Morphism<A, B> = FnType<A, B> where A: ReturnTypeConstraints, B: ReturnTypeConstraints;
+///     type Morphism<A, B> = FnType<A, B> where A: TypeConstraints, B: TypeConstraints;
 ///
-///     fn identity_morphism<A: ReturnTypeConstraints>() -> Self::Morphism<A, A> {
+///     fn identity_morphism<A: TypeConstraints>() -> Self::Morphism<A, A> {
 ///         FnType::new(|x| x)
 ///     }
 ///
 ///     fn compose_morphisms<A, B, C>(f: Self::Morphism<A, B>, g: Self::Morphism<B, C>) -> Self::Morphism<A, C>
 ///     where
-///         A: ReturnTypeConstraints,
-///         B: ReturnTypeConstraints,
-///         C: ReturnTypeConstraints,
+///         A: TypeConstraints,
+///         B: TypeConstraints,
+///         C: TypeConstraints,
 ///     {
 ///         FnType::new(move |x| g.call(f.call(x)))
 ///     }
@@ -68,8 +68,8 @@ use crate::fntype::FnType;
 /// impl Arrow for MyArrow {
 ///     fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
 ///     where
-///         B: ReturnTypeConstraints,
-///         C: ReturnTypeConstraints,
+///         B: TypeConstraints,
+///         C: TypeConstraints,
 ///         F: FnTrait<B, C>,
 ///     {
 ///         FnType::new(move |x| f.call(x))
@@ -77,9 +77,9 @@ use crate::fntype::FnType;
 ///
 ///     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
 ///     where
-///         B: ReturnTypeConstraints,
-///         C: ReturnTypeConstraints,
-///         D: ReturnTypeConstraints,
+///         B: TypeConstraints,
+///         C: TypeConstraints,
+///         D: TypeConstraints,
 ///     {
 ///         FnType::new(move |(b, d)| (f.call(b), d))
 ///     }
@@ -107,8 +107,8 @@ pub trait Arrow: Category {
     /// A morphism in the arrow category representing the given function
     fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<B, C>
     {
         FnTrait::new(move |x| f.call(x))
@@ -132,9 +132,9 @@ pub trait Arrow: Category {
     /// A new morphism that operates on pairs, applying `f` to the first component
     fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
     {
         FnTrait::new(move |x: (B, D)| (f.call(x.0), x.1))
     }
@@ -157,9 +157,9 @@ pub trait Arrow: Category {
     /// A new morphism that operates on pairs, applying `f` to the second component
     fn second<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(D, B), (D, C)>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
     {
         let swap_in = Self::arrow(FnType::new(|(d, b): (D, B)| (b, d)));
         let swap_out = Self::arrow(FnType::new(|(c, d): (C, D)| (d, c)));
@@ -192,10 +192,10 @@ pub trait Arrow: Category {
         g: Self::Morphism<B, D>
     ) -> Self::Morphism<B, (C, D)>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
-        E: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
+        E: TypeConstraints,
     {
         let dup = Self::arrow(FnType::new(|x: B| (x.clone(), x)));
         Self::compose_morphisms(
@@ -227,10 +227,10 @@ pub trait Arrow: Category {
         g: Self::Morphism<D, E>
     ) -> Self::Morphism<(B, D), (C, E)>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
-        E: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
+        E: TypeConstraints,
     {
         let first_f = Self::first(f);
         let second_g = Self::second(g);

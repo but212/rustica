@@ -12,15 +12,15 @@
 //! - Function types for comonadic operations
 
 use std::{fmt::Debug, sync::Arc};
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 use std::marker::PhantomData;
 
 /// A function that is both Send and Sync
 #[derive(Clone)]
 pub struct FnType<I, O>
 where
-    I: ReturnTypeConstraints,
-    O: ReturnTypeConstraints,
+    I: TypeConstraints,
+    O: TypeConstraints,
 {
     f: Arc<dyn Fn(I) -> O + Send + Sync>,
     _phantom: PhantomData<(I, O)>,
@@ -28,8 +28,8 @@ where
 
 impl<I, O> FnTrait<I, O> for FnType<I, O>
 where
-    I: ReturnTypeConstraints,
-    O: ReturnTypeConstraints,
+    I: TypeConstraints,
+    O: TypeConstraints,
 {
     fn new<F: Fn(I) -> O + Send + Sync + 'static>(f: F) -> Self
     {
@@ -46,8 +46,8 @@ where
 
 impl<I, O> PartialEq for FnType<I, O>
 where
-    I: ReturnTypeConstraints,
-    O: ReturnTypeConstraints,
+    I: TypeConstraints,
+    O: TypeConstraints,
 {
     fn eq(&self, other: &Self) -> bool {
         let test_value = I::default();
@@ -57,14 +57,14 @@ where
 
 impl<I, O> Eq for FnType<I, O>
 where
-    I: ReturnTypeConstraints,
-    O: ReturnTypeConstraints,
+    I: TypeConstraints,
+    O: TypeConstraints,
 {}
 
 impl<I, O> Default for FnType<I, O>
 where
-    I: ReturnTypeConstraints,
-    O: ReturnTypeConstraints,
+    I: TypeConstraints,
+    O: TypeConstraints,
 {
     fn default() -> Self {
         FnType::new(|_| O::default())
@@ -73,8 +73,8 @@ where
 
 impl<I, O> Debug for FnType<I, O>
 where
-    I: ReturnTypeConstraints,
-    O: ReturnTypeConstraints,
+    I: TypeConstraints,
+    O: TypeConstraints,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "FnType(<function>)")
@@ -82,10 +82,10 @@ where
 }
 
 /// A trait for functions that are Send + Sync
-pub trait FnTrait<A, B>: ReturnTypeConstraints
+pub trait FnTrait<A, B>: TypeConstraints
 where
-    A: ReturnTypeConstraints,
-    B: ReturnTypeConstraints,
+    A: TypeConstraints,
+    B: TypeConstraints,
 {
     fn new<F: Fn(A) -> B + Send + Sync + 'static>(f: F) -> Self;
 

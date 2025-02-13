@@ -1,5 +1,5 @@
 use crate::fntype::FnTrait;
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 
 /// A trait for bifunctors, which are functors that can map over two type parameters.
 /// 
@@ -24,7 +24,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///
 /// ```
 /// use rustica::category::bifunctor::Bifunctor;
-/// use rustica::prelude::ReturnTypeConstraints;
+/// use rustica::prelude::TypeConstraints;
 /// use rustica::fntype::{FnTrait, FnType};
 ///
 /// #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,17 +35,17 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///
 /// impl<A, B> Bifunctor<A, B> for MyBifunctor<A, B>
 /// where
-///     A: ReturnTypeConstraints,
-///     B: ReturnTypeConstraints,
+///     A: TypeConstraints,
+///     B: TypeConstraints,
 /// {
 ///     type Output<C, D> = MyBifunctor<C, D>
 ///     where
-///         C: ReturnTypeConstraints,
-///         D: ReturnTypeConstraints;
+///         C: TypeConstraints,
+///         D: TypeConstraints;
 ///
 ///     fn first<C, F>(self, f: F) -> <Self as Bifunctor<A, B>>::Output<C, B>
 ///     where
-///         C: ReturnTypeConstraints,
+///         C: TypeConstraints,
 ///         F: FnTrait<A, C>,
 ///     {
 ///         MyBifunctor {
@@ -56,7 +56,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///
 ///     fn second<D, F>(self, f: F) -> <Self as Bifunctor<A, B>>::Output<A, D>
 ///     where
-///         D: ReturnTypeConstraints,
+///         D: TypeConstraints,
 ///         F: FnTrait<B, D>,
 ///     {
 ///         MyBifunctor {
@@ -67,8 +67,8 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///
 ///     fn bimap<C, D, F, G>(self, f: F, g: G) -> <Self as Bifunctor<A, B>>::Output<C, D>
 ///     where
-///         C: ReturnTypeConstraints,
-///         D: ReturnTypeConstraints,
+///         C: TypeConstraints,
+///         D: TypeConstraints,
 ///         F: FnTrait<A, C>,
 ///         G: FnTrait<B, D>,
 ///     {
@@ -86,8 +86,8 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// ```
 pub trait Bifunctor<A, B>
 where
-    A: ReturnTypeConstraints,
-    B: ReturnTypeConstraints,
+    A: TypeConstraints,
+    B: TypeConstraints,
 {
     /// The type constructor for the output of the bifunctor operation.
     ///
@@ -96,8 +96,8 @@ where
     /// * `D` - The second type parameter of the output.
     type Output<C, D>: Bifunctor<C, D> 
     where
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints;
+        C: TypeConstraints,
+        D: TypeConstraints;
 
     /// Maps a function over the first type parameter.
     ///
@@ -113,7 +113,7 @@ where
     /// - `F`: A function type that takes a value of type `A` and returns a value of type `C`.
     fn first<C, F>(self, f: F) -> Self::Output<C, B>
     where
-        C: ReturnTypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<A, C>;
 
     /// Maps a function over the second type parameter.
@@ -130,7 +130,7 @@ where
     /// - `F`: A function type that takes a value of type `B` and returns a value of type `D`.
     fn second<D, F>(self, f: F) -> Self::Output<A, D>
     where
-        D: ReturnTypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<B, D>;
 
     /// Maps two functions over both type parameters simultaneously.
@@ -150,8 +150,8 @@ where
     /// - `G`: A function type that takes a value of type `B` and returns a value of type `D`.
     fn bimap<C, D, F, G>(self, f: F, g: G) -> Self::Output<C, D>
     where
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<A, C>,
         G: FnTrait<B, D>;
 }

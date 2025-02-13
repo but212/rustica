@@ -1,7 +1,7 @@
 use crate::category::functor::Functor;
 use crate::category::pure::Pure;
 use crate::fntype::FnTrait;
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 
 /// Applicative functors allow function application within a context.
 ///
@@ -21,30 +21,30 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// use rustica::prelude::*;
 ///
 /// #[derive(Clone, Eq, PartialEq, Debug, Default)]
-/// struct MyApplicative<T: ReturnTypeConstraints>(T);
+/// struct MyApplicative<T: TypeConstraints>(T);
 /// 
-/// impl<T: ReturnTypeConstraints> HKT for MyApplicative<T> {
-///     type Output<U> = MyApplicative<U> where U: ReturnTypeConstraints;
+/// impl<T: TypeConstraints> HKT for MyApplicative<T> {
+///     type Output<U> = MyApplicative<U> where U: TypeConstraints;
 /// }
 /// 
-/// impl<T: ReturnTypeConstraints> Functor<T> for MyApplicative<T> {
+/// impl<T: TypeConstraints> Functor<T> for MyApplicative<T> {
 ///     fn fmap<U, F>(self, f: F) -> Self::Output<U>
 ///     where
-///         U: ReturnTypeConstraints,
+///         U: TypeConstraints,
 ///         F: FnTrait<T, U>,
 ///     {
 ///         MyApplicative(f.call(self.0))
 ///     }
 /// }
 ///
-/// impl<T: ReturnTypeConstraints> Pure<T> for MyApplicative<T> {
+/// impl<T: TypeConstraints> Pure<T> for MyApplicative<T> {
 ///     fn pure(x: T) -> Self { MyApplicative(x) }
 /// }
 ///
-/// impl<T: ReturnTypeConstraints> Applicative<T> for MyApplicative<T> {
+/// impl<T: TypeConstraints> Applicative<T> for MyApplicative<T> {
 ///     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
 ///     where
-///         B: ReturnTypeConstraints,
+///         B: TypeConstraints,
 ///         F: FnTrait<T, B>,
 ///     {
 ///         MyApplicative(f.0.call(self.0))
@@ -56,8 +56,8 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///         f: F,
 ///     ) -> Self::Output<C>
 ///     where
-///         B: ReturnTypeConstraints,
-///         C: ReturnTypeConstraints,
+///         B: TypeConstraints,
+///         C: TypeConstraints,
 ///         F: FnTrait<(T, B), C>,
 ///     {
 ///         MyApplicative(f.call((self.0, b.0)))
@@ -70,9 +70,9 @@ use crate::category::hkt::ReturnTypeConstraints;
 ///         f: F,
 ///     ) -> Self::Output<D>
 ///     where
-///         B: ReturnTypeConstraints,
-///         C: ReturnTypeConstraints,
-///         D: ReturnTypeConstraints,
+///         B: TypeConstraints,
+///         C: TypeConstraints,
+///         D: TypeConstraints,
 ///         F: FnTrait<(T, B, C), D>,
 ///     {
 ///         MyApplicative(f.call((self.0, b.0, c.0)))
@@ -84,7 +84,7 @@ use crate::category::hkt::ReturnTypeConstraints;
 /// ```
 pub trait Applicative<A>: Functor<A> + Pure<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     /// Applies a function wrapped in the applicative context to a value in the same context.
     ///
@@ -100,7 +100,7 @@ where
     /// An applicative containing the result of applying the function to the value
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>;
         
 
@@ -128,8 +128,8 @@ where
         f: F,
     ) -> Self::Output<C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<(A, B), C>;
 
     /// Lifts a ternary function to actions.
@@ -159,8 +159,8 @@ where
         f: F,
     ) -> Self::Output<D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<(A, B, C), D>;
 }

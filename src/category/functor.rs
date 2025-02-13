@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::fntype::FnTrait;
 
 /// A trait for functors, which are type constructors that can fmap a function over their contents.
@@ -26,25 +26,25 @@ use crate::fntype::FnTrait;
 /// #[derive(Default, PartialEq, Eq, Debug, Clone)]
 /// struct MyType<A>
 /// where
-///     A: ReturnTypeConstraints,
+///     A: TypeConstraints,
 /// {
 ///     value: A,
 /// }
 ///
 /// impl<U> HKT for MyType<U>
 /// where
-///     U: ReturnTypeConstraints,
+///     U: TypeConstraints,
 /// {
-///     type Output<T> = MyType<T> where T: ReturnTypeConstraints;
+///     type Output<T> = MyType<T> where T: TypeConstraints;
 /// }
 ///
 /// impl<A> Functor<A> for MyType<A>
 /// where
-///     A: ReturnTypeConstraints,
+///     A: TypeConstraints,
 /// {
 ///     fn fmap<B, F>(self, f: F) -> Self::Output<B>
 ///     where
-///         B: ReturnTypeConstraints,
+///         B: TypeConstraints,
 ///         F: FnTrait<A, B>,
 ///     {
 ///         MyType { value: f.call(self.value) }
@@ -57,7 +57,7 @@ use crate::fntype::FnTrait;
 /// ```
 pub trait Functor<A>: HKT
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     /// Maps a function over the contents of the functor.
     ///
@@ -77,17 +77,17 @@ where
     /// 2. Composition: `x.fmap(|a| f(g(a))) == x.fmap(g).fmap(f)`
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>;
 }
 
 impl<T> Functor<T> for Vec<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<T, B>,
     {
         self.into_iter().map(|x| f.call(x)).collect()
@@ -96,11 +96,11 @@ where
 
 impl<T> Functor<T> for Box<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<T, B>,
     {
         Box::new(f.call(*self))
@@ -109,12 +109,12 @@ where
 
 impl<K, V> Functor<V> for HashMap<K, V>
 where
-    K: Hash + Eq + Debug + ReturnTypeConstraints,
-    V: ReturnTypeConstraints,
+    K: Hash + Eq + Debug + TypeConstraints,
+    V: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<V, B>,
     {
         self.into_iter()

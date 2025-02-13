@@ -1,4 +1,4 @@
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 use crate::fntype::FnTrait;
 use crate::category::monad::Monad;
 
@@ -15,11 +15,11 @@ use crate::category::monad::Monad;
 ///
 pub trait FlatMap<T>: Monad<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     fn flat_map<U, F>(self, f: F) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<T, Self::Output<U>>,
         Self: Sized,
     {

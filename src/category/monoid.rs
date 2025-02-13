@@ -1,4 +1,4 @@
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 use crate::category::semigroup::Semigroup;
 
 /// A trait for monoids, which are semigroups with an identity element.
@@ -35,7 +35,7 @@ pub trait Monoid: Semigroup {
 /// A monoid for vectors.
 impl<T> Monoid for Vec<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     /// The identity element of the vector monoid.
     ///

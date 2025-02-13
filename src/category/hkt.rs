@@ -2,9 +2,9 @@ use std::fmt::Debug;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-/// Common type constraints for return types in functional programming constructs.
+/// Common type constraints for types in functional programming constructs.
 ///
-/// This trait defines a set of common constraints that return types must satisfy
+/// This trait defines a set of common constraints that types must satisfy
 /// in various functional programming constructs. It ensures that types implementing
 /// this trait are cloneable, comparable, debuggable, defaultable, sendable across threads,
 /// synchronizable, and have a static lifetime.
@@ -19,13 +19,13 @@ use std::hash::Hash;
 /// * `Send`: The type can be safely transferred across thread boundaries.
 /// * `Sync`: The type can be safely shared between threads.
 /// * `'static`: The type has a static lifetime (no non-static references).
-pub trait ReturnTypeConstraints: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
+pub trait TypeConstraints: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
 
-/// Blanket implementation for types satisfying the `ReturnTypeConstraints` requirements.
+/// Blanket implementation for types satisfying the `TypeConstraints` requirements.
 ///
-/// This implementation automatically implements `ReturnTypeConstraints` for any type
+/// This implementation automatically implements `TypeConstraints` for any type
 /// that satisfies all the required trait bounds.
-impl<T> ReturnTypeConstraints for T where T: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
+impl<T> TypeConstraints for T where T: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
 
 
 /// A trait for higher-kinded types (HKT).
@@ -38,9 +38,9 @@ impl<T> ReturnTypeConstraints for T where T: Clone + Debug + PartialEq + Eq + De
 ///
 /// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
 pub trait HKT {
-    type Output<U>: ReturnTypeConstraints
+    type Output<U>: TypeConstraints
     where
-        U: ReturnTypeConstraints;
+        U: TypeConstraints;
 }
 
 
@@ -55,9 +55,9 @@ pub trait HKT {
 /// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
 impl<T> HKT for Vec<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
-    type Output<U> = Vec<U> where U: ReturnTypeConstraints;
+    type Output<U> = Vec<U> where U: TypeConstraints;
 }
 
 /// Implements the HKT trait for Box<T>.
@@ -70,9 +70,9 @@ where
 /// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
 impl<T> HKT for Box<T>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
-    type Output<U> = Box<U> where U: ReturnTypeConstraints;
+    type Output<U> = Box<U> where U: TypeConstraints;
 }
 
 /// Implements the HKT trait for HashMap<K, V>.
@@ -87,11 +87,11 @@ where
 /// # Constraints
 ///
 /// * `K` - Must implement `Hash`, `Eq`, `Send`, `Sync`, `Clone`, `Debug`, and `'static`.
-/// * `V` - Must implement `ReturnTypeConstraints`.
+/// * `V` - Must implement `TypeConstraints`.
 impl<K, V> HKT for HashMap<K, V>
 where
     K: Hash + Eq + Send + Sync + Clone + Debug + 'static,
-    V: ReturnTypeConstraints,
+    V: TypeConstraints,
 {
-    type Output<U> = HashMap<K, U> where U: ReturnTypeConstraints;
+    type Output<U> = HashMap<K, U> where U: TypeConstraints;
 }

@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
@@ -49,13 +49,13 @@ use crate::fntype::{FnType, FnTrait};
 /// let combined: Validated<MyError, i32> = Validated::valid(1).combine(Validated::valid(2), FnType::new(|x| FnType::new(move |y| x + y)));
 /// assert_eq!(combined.to_result(), Ok(3));
 /// ```
-pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
+pub trait ValidatedTypeConstraints: TypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     /// Represents a valid value of type `A`.
     Valid(A),
@@ -66,7 +66,7 @@ where
 impl<E, A> Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     /// Creates a new `Validated` instance with a valid value.
     ///
@@ -114,7 +114,7 @@ where
     ///
     /// # Type Parameters
     ///
-    /// * `B`: The return type of the mapping function, must implement `ReturnTypeConstraints`.
+    /// * `B`: The return type of the mapping function, must implement `TypeConstraints`.
     /// * `F`: The mapping function type, must implement `FnTrait<A, B>`.
     ///
     /// # Arguments
@@ -127,7 +127,7 @@ where
     /// A new `Validated` instance with the mapped value if valid, or the original errors if invalid.
     pub fn map_valid<B, F>(self, f: F) -> Validated<E, B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         self.fmap(f)
@@ -189,8 +189,8 @@ where
     pub fn combine<B, C, F>(self, other: Validated<E, B>, f: F) -> Validated<E, C>
     where
         F: FnTrait<A, FnType<B, C>>,
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         E: ValidatedTypeConstraints,
     {
         match (self, other) {
@@ -239,7 +239,7 @@ where
 impl<E, A> Default for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn default() -> Self {
         Validated::Invalid(Default::default())
@@ -249,15 +249,15 @@ where
 impl<E, A> HKT for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
-    type Output<T> = Validated<E, T> where T: ReturnTypeConstraints;
+    type Output<T> = Validated<E, T> where T: TypeConstraints;
 }
 
 impl<E, A> Pure<A> for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn pure(x: A) -> Self::Output<A> {
         Validated::Valid(x)
@@ -267,11 +267,11 @@ where
 impl<E, A> Functor<A> for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Validated<E, B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         match self {
@@ -284,11 +284,11 @@ where
 impl<E, A> Applicative<A> for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn apply<B, F>(self, rf: Self::Output<F>) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         match (self, rf) {
@@ -303,8 +303,8 @@ where
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<(A, B), C>,
     {
         match (self, mb) {
@@ -325,9 +325,9 @@ where
         f: F,
     ) -> Self::Output<D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<(A, B, C), D>,
     {
         match (self, mb, mc) {
@@ -349,11 +349,11 @@ where
 impl<E, A> Monad<A> for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
         match self {
@@ -364,7 +364,7 @@ where
 
     fn join<U>(self) -> Self::Output<U>
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         A: Into<Self::Output<U>>,
     {
         self.bind(FnType::new(|x: A| x.into()))
@@ -372,8 +372,8 @@ where
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         G: FnTrait<A, Self::Output<B>>,
         H: FnTrait<B, Self::Output<C>>,
     {
@@ -383,19 +383,19 @@ where
     }
 }
 
-impl<E: ValidatedTypeConstraints, A: ReturnTypeConstraints> Identity for Validated<E, A> {}
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Identity for Validated<E, A> {}
 
-impl<E: ValidatedTypeConstraints, A: ReturnTypeConstraints> Composable for Validated<E, A> {}
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Composable for Validated<E, A> {}
 
-impl<E: ValidatedTypeConstraints, A: ReturnTypeConstraints> Category for Validated<E, A>
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Category for Validated<E, A>
 where
     E: ValidatedTypeConstraints,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     type Morphism<B, C> = FnType<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
+        B: TypeConstraints,
+        C: TypeConstraints;
 }
 
-impl<E: ValidatedTypeConstraints, A: ReturnTypeConstraints> Arrow for Validated<E, A> {}
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Arrow for Validated<E, A> {}

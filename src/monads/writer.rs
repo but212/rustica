@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::functor::Functor;
 use crate::category::applicative::Applicative;
 use crate::category::monad::Monad;
@@ -48,8 +48,8 @@ use crate::fntype::{FnType, FnTrait};
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Writer<W, A>
 where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
+    W: TypeConstraints + Monoid,
+    A: TypeConstraints,
 {
     /// The function that performs the computation and returns the result along with the log.
     run_writer: FnType<(), (A, W)>
@@ -57,8 +57,8 @@ where
 
 impl<W, A> Writer<W, A>
 where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
+    W: TypeConstraints + Monoid,
+    A: TypeConstraints,
 {
     /// Creates a new `Writer` with the given value and log.
     ///
@@ -191,16 +191,16 @@ where
 
 impl<W, A> HKT for Writer<W, A>
 where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
+    W: TypeConstraints + Monoid,
+    A: TypeConstraints,
 {
-    type Output<T> = Writer<W, T> where T: ReturnTypeConstraints;
+    type Output<T> = Writer<W, T> where T: TypeConstraints;
 }
 
 impl<W, A> Pure<A> for Writer<W, A>
 where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
+    W: TypeConstraints + Monoid,
+    A: TypeConstraints,
 {
     fn pure(value: A) -> Self::Output<A> {
         Writer::new(value, W::empty())
@@ -209,12 +209,12 @@ where
 
 impl<W, A> Functor<A> for Writer<W, A>
 where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
+    W: TypeConstraints + Monoid,
+    A: TypeConstraints,
 {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         Writer {
@@ -228,12 +228,12 @@ where
 
 impl<W, A> Applicative<A> for Writer<W, A>
 where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
+    W: TypeConstraints + Monoid,
+    A: TypeConstraints,
 {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         Writer {
@@ -247,8 +247,8 @@ where
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         F: FnTrait<(A, B), C>,
     {
         Writer {
@@ -267,9 +267,9 @@ where
         f: F,
     ) -> Self::Output<D>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
-        D: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
         F: FnTrait<(A, B, C), D>,
     {
         Writer {
@@ -285,12 +285,12 @@ where
 
 impl<W, A> Monad<A> for Writer<W, A>
 where
-    W: ReturnTypeConstraints + Monoid,
-    A: ReturnTypeConstraints,
+    W: TypeConstraints + Monoid,
+    A: TypeConstraints,
 {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
         Writer {
@@ -304,7 +304,7 @@ where
 
     fn join<B>(self) -> Self::Output<B>
     where
-        B: ReturnTypeConstraints,
+        B: TypeConstraints,
         A: Into<Self::Output<B>>,
     {
         self.bind(FnType::new(|x: A| x.into()))
@@ -312,8 +312,8 @@ where
 
     fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<A, Self::Output<C>>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints,
+        B: TypeConstraints,
+        C: TypeConstraints,
         G: FnTrait<A, Self::Output<B>>,
         H: FnTrait<B, Self::Output<C>>,
     {
@@ -323,15 +323,15 @@ where
     }
 }
 
-impl<W: ReturnTypeConstraints + Monoid, A: ReturnTypeConstraints> Identity for Writer<W, A> {}
+impl<W: TypeConstraints + Monoid, A: TypeConstraints> Identity for Writer<W, A> {}
 
-impl<W: ReturnTypeConstraints + Monoid, A: ReturnTypeConstraints> Composable for Writer<W, A> {}
+impl<W: TypeConstraints + Monoid, A: TypeConstraints> Composable for Writer<W, A> {}
 
-impl<W: ReturnTypeConstraints + Monoid, A: ReturnTypeConstraints> Category for Writer<W, A> {
+impl<W: TypeConstraints + Monoid, A: TypeConstraints> Category for Writer<W, A> {
     type Morphism<B, C> = FnType<B, C>
     where
-        B: ReturnTypeConstraints,
-        C: ReturnTypeConstraints;
+        B: TypeConstraints,
+        C: TypeConstraints;
 }
 
-impl<W: Monoid + ReturnTypeConstraints, A: ReturnTypeConstraints> Arrow for Writer<W, A> {}
+impl<W: Monoid + TypeConstraints, A: TypeConstraints> Arrow for Writer<W, A> {}

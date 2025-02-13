@@ -1,5 +1,5 @@
 use crate::category::functor::Functor;
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 use crate::fntype::{FnType, FnTrait};
 
 /// A trait for comonads, dual to monads.
@@ -24,13 +24,13 @@ use crate::fntype::{FnType, FnTrait};
 ///     value: T,
 /// }
 /// 
-/// impl<T> HKT for MyComonad<T> where T: ReturnTypeConstraints {
-///     type Output<U> = MyComonad<U> where U: ReturnTypeConstraints;
+/// impl<T> HKT for MyComonad<T> where T: TypeConstraints {
+///     type Output<U> = MyComonad<U> where U: TypeConstraints;
 /// }
 /// 
 /// impl<T> Pure<T> for MyComonad<T>
 /// where
-///     T: ReturnTypeConstraints,
+///     T: TypeConstraints,
 /// {
 ///     fn pure(value: T) -> Self {
 ///         MyComonad { value }
@@ -39,11 +39,11 @@ use crate::fntype::{FnType, FnTrait};
 ///
 /// impl<T> Functor<T> for MyComonad<T>
 /// where
-///     T: ReturnTypeConstraints,
+///     T: TypeConstraints,
 /// {
 ///     fn fmap<U, F>(self, f: F) -> Self::Output<U>
 ///     where
-///         U: ReturnTypeConstraints,
+///         U: TypeConstraints,
 ///         F: FnTrait<T, U>,
 ///     {
 ///         MyComonad {
@@ -54,7 +54,7 @@ use crate::fntype::{FnType, FnTrait};
 /// 
 /// impl<T> Comonad<T> for MyComonad<T>
 /// where
-///     T: ReturnTypeConstraints,
+///     T: TypeConstraints,
 /// {
 ///     fn extract(&self) -> T {
 ///         self.value.clone()
@@ -62,7 +62,7 @@ use crate::fntype::{FnType, FnTrait};
 ///
 ///     fn extend<U, F>(self, f: F) -> U
 ///     where
-///         U: ReturnTypeConstraints,
+///         U: TypeConstraints,
 ///         F: FnTrait<Self, U>,
 ///     {
 ///         f.call(self)
@@ -76,9 +76,9 @@ use crate::fntype::{FnType, FnTrait};
 /// let extended_comonad = comonad.extend(FnType::new(|w: MyComonad<i32>| w.extract() + 1));
 /// assert_eq!(extended_comonad, 43);
 /// ```
-pub trait Comonad<T>: Functor<T> + ReturnTypeConstraints
+pub trait Comonad<T>: Functor<T> + TypeConstraints
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     /// Extracts a value from a comonad.
     ///
@@ -100,7 +100,7 @@ where
     /// - `F`: A function type that takes a comonad and returns a value of type `U`.
     fn extend<U, F>(self, f: F) -> U
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<Self, U>;
 
     /// Maps a function over a comonad.
@@ -117,7 +117,7 @@ where
     /// - `F`: A function type that takes a comonad and returns a value of type `U`.
     fn comap<U, F>(self, f: F) -> U
     where
-        U: ReturnTypeConstraints,
+        U: TypeConstraints,
         F: FnTrait<Self, U>,
     {
         let g = FnType::new(move |w: Self| f.call(w));
@@ -139,8 +139,8 @@ where
 /// A trait for functions that can be used with comonads.
 pub trait ComonadFn<T, U, W>
 where
-    T: ReturnTypeConstraints,
-    U: ReturnTypeConstraints,
+    T: TypeConstraints,
+    U: TypeConstraints,
     W: Comonad<T> + Clone + Send + Sync,
 {
     /// Calls a comonadic function.
@@ -156,8 +156,8 @@ where
 
 impl<T, U, W, F> ComonadFn<T, U, W> for F
 where
-    T: ReturnTypeConstraints,
-    U: ReturnTypeConstraints,
+    T: TypeConstraints,
+    U: TypeConstraints,
     W: Comonad<T> + Clone + Send + Sync,
     F: Fn(&W) -> U + Clone + Send + Sync,
 {

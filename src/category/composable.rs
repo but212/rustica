@@ -1,6 +1,6 @@
 use crate::fntype::FnType;
 use crate::fntype::FnTrait;
-use crate::category::hkt::ReturnTypeConstraints;
+use crate::category::hkt::TypeConstraints;
 
 /// A trait for composable functions that can be chained together.
 ///
@@ -31,9 +31,9 @@ use crate::category::hkt::ReturnTypeConstraints;
 pub trait Composable {
     fn compose<T, U, V, F, G>(f: F, g: G) -> FnType<T, V>
     where
-        T: ReturnTypeConstraints,
-        U: ReturnTypeConstraints,
-        V: ReturnTypeConstraints,
+        T: TypeConstraints,
+        U: TypeConstraints,
+        V: TypeConstraints,
         F: FnTrait<T, U>,
         G: FnTrait<U, V>
     {

@@ -2,18 +2,18 @@ use quickcheck::{Arbitrary, Gen};
 use quickcheck_macros::quickcheck;
 
 use rustica::category::functor::Functor;
-use rustica::category::hkt::ReturnTypeConstraints;
+use rustica::category::hkt::TypeConstraints;
 use rustica::category::pure::Pure;
 use rustica::fntype::{FnType, FnTrait};
 use rustica::monads::cont::Cont;
 
 /// Test wrapper type for Cont monad
 #[derive(Clone, Debug)]
-struct TestCont<A>(Cont<String, A>) where A: ReturnTypeConstraints;
+struct TestCont<A>(Cont<String, A>) where A: TypeConstraints;
 
 impl<A> Arbitrary for TestCont<A>
 where
-    A: ReturnTypeConstraints + Arbitrary + 'static,
+    A: TypeConstraints + Arbitrary + 'static,
 {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);

@@ -1,4 +1,4 @@
-pub use crate::category::hkt::{HKT, ReturnTypeConstraints};
+pub use crate::category::hkt::{HKT, TypeConstraints};
 pub use crate::category::functor::Functor;
 pub use crate::category::applicative::Applicative;
 pub use crate::category::category::Category;

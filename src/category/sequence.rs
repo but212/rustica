@@ -1,4 +1,4 @@
-use crate::category::hkt::{HKT, ReturnTypeConstraints};
+use crate::category::hkt::{HKT, TypeConstraints};
 use crate::category::traversable::Traversable;
 use crate::category::applicative::Applicative;
 use crate::fntype::{FnType, FnTrait};
@@ -23,14 +23,14 @@ use crate::fntype::{FnType, FnTrait};
 ///    `sequence(sequence(xss)) = sequence(fmap(sequence)(xss))`
 pub trait Sequence<A>: Traversable<A>
 where
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
     /// Evaluate each action in sequence from left to right, and collect the results.
     /// This is equivalent to `traverse(identity)`.
     fn sequence<F>(self) -> F::Output<Self::Output<A>>
     where
-        F: HKT + Applicative<A> + ReturnTypeConstraints,
-        F::Output<A>: ReturnTypeConstraints,
+        F: HKT + Applicative<A> + TypeConstraints,
+        F::Output<A>: TypeConstraints,
         Self: Sized,
     {
         self.traverse::<F, A, _>(FnType::new(F::pure))
@@ -41,7 +41,7 @@ where
 impl<T, A> Sequence<A> for T 
 where
     T: Traversable<A>,
-    A: ReturnTypeConstraints,
+    A: TypeConstraints,
 {
 }
 
@@ -55,8 +55,8 @@ where
 /// * `Result<Vec<T>, E>` - The result of the sequence.
 pub fn sequence_result<T, E>(items: Vec<Result<T, E>>) -> Result<Vec<T>, E>
 where
-    T: ReturnTypeConstraints,
-    E: ReturnTypeConstraints,
+    T: TypeConstraints,
+    E: TypeConstraints,
 {
     let mut result = Vec::new();
     for item in items {
@@ -77,7 +77,7 @@ where
 /// * `Option<Vec<T>>` - The result of the sequence.
 pub fn sequence_option<T>(items: Vec<Option<T>>) -> Option<Vec<T>>
 where
-    T: ReturnTypeConstraints,
+    T: TypeConstraints,
 {
     let mut result = Vec::new();
     for item in items {
