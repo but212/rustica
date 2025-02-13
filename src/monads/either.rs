@@ -42,7 +42,7 @@ use crate::fntype::{FnTrait, FnType};
 /// assert_eq!(left_value.unwrap_left(), 42);
 /// assert_eq!(right_value.unwrap_right(), 42);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Either<L, R>
 where
     L: ReturnTypeConstraints,
@@ -52,6 +52,16 @@ where
     Left(L),
     /// The right value
     Right(R),
+}
+
+impl<L, R> Default for Either<L, R>
+where
+    L: ReturnTypeConstraints,
+    R: ReturnTypeConstraints,
+{
+    fn default() -> Self {
+        Either::Right(R::default())
+    }
 }
 
 impl<L, R> Either<L, R>

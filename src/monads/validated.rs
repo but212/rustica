@@ -74,7 +74,7 @@ use crate::fntype::{FnType, FnTrait};
 
 pub trait ValidatedTypeConstraints: ReturnTypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Validated<E, A>
 where
     E: ValidatedTypeConstraints,

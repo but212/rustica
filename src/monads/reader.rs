@@ -29,7 +29,7 @@ use crate::fntype::{FnType, FnTrait};
 ///    `local(|x| x, r) = r`
 /// 6. Local Composition: For functions `f`, `g` and Reader `r`,
 ///    `local(f, local(g, r)) = local(|e| g(f(e)), r)`
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Reader<E, A>
 where
     E: ReturnTypeConstraints,

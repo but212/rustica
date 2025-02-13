@@ -25,7 +25,7 @@ use crate::fntype::{FnType, FnTrait};
 ///    `pure(x).run_state(s) = (x, s)`
 /// 4. Modify Consistency: For function `f`,
 ///    `modify(f).run_state(s) = ((), f(s))`
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct State<S, A>
 where
     S: ReturnTypeConstraints,

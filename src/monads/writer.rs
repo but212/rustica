@@ -31,7 +31,7 @@ use crate::fntype::{FnType, FnTrait};
 ///    `w1.bind(w2).log() = w1.log().combine(w2(w1.value()).log())`
 /// 5. Value Independence: For any log `w` and value `x`,
 ///    `Writer::new(x, w).value() = x`
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Writer<W, A>
 where
     W: ReturnTypeConstraints + Monoid,

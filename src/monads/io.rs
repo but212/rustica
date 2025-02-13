@@ -131,7 +131,7 @@ use crate::fntype::{FnType, FnTrait};
 ///     Ok(())
 /// }
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct IO<A>
 where
     A: ReturnTypeConstraints,

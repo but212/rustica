@@ -46,6 +46,33 @@ where
     }
 }
 
+impl<I, O> PartialEq for FnType<I, O>
+where
+    I: ReturnTypeConstraints,
+    O: ReturnTypeConstraints,
+{
+    fn eq(&self, other: &Self) -> bool {
+        let test_value = I::default();
+        self.call(test_value.clone()) == other.call(test_value)
+    }
+}
+
+impl<I, O> Eq for FnType<I, O>
+where
+    I: ReturnTypeConstraints,
+    O: ReturnTypeConstraints,
+{}
+
+impl<I, O> Default for FnType<I, O>
+where
+    I: ReturnTypeConstraints,
+    O: ReturnTypeConstraints,
+{
+    fn default() -> Self {
+        FnType::new(|_| O::default())
+    }
+}
+
 impl<I, O> Debug for FnType<I, O>
 where
     I: ReturnTypeConstraints,

@@ -32,7 +32,7 @@ use crate::fntype::{FnType, FnTrait};
 /// 6. Non-Blocking: `try_get()` must not block the current thread
 /// 7. Resource Safety: For any async computation,
 ///    resources must be properly managed regardless of completion or failure
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct AsyncM<A>
 where
     A: ReturnTypeConstraints,

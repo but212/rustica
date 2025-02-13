@@ -15,12 +15,12 @@ use std::hash::Hash;
 /// * `Send` - The type must implement the `Send` trait, allowing it to be transferred across thread boundaries.
 /// * `Sync` - The type must implement the `Sync` trait, allowing it to be referenced from multiple threads.
 /// * `'static` - The type must have a static lifetime, meaning it does not contain any non-static references.
-pub trait ReturnTypeConstraints: Clone + Send + Sync + Debug + 'static {}
+pub trait ReturnTypeConstraints: Clone + Send + Sync + Debug + PartialEq + Default + Eq + 'static {}
 
 /// Implements the `ReturnTypeConstraints` trait for any type that satisfies the required constraints.
 ///
 /// This implementation ensures that any type `T` that implements `Clone`, `Send`, `Sync`, and has a static lifetime, will automatically implement the `ReturnTypeConstraints` trait.
-impl<T: Clone + Send + Sync + Debug + 'static> ReturnTypeConstraints for T {}
+impl<T: Clone + Send + Sync + Debug + PartialEq + Default + Eq + 'static> ReturnTypeConstraints for T {}
 
 
 /// A trait for higher-kinded types (HKT).

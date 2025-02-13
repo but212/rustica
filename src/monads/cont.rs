@@ -62,7 +62,7 @@ use crate::fntype::{FnType, FnTrait};
 ///     assert_eq!(result, 2);
 /// }
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Cont<R, A>
 where
     R: ReturnTypeConstraints,

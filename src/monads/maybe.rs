@@ -42,7 +42,7 @@ use crate::fntype::{FnType, FnTrait};
 ///
 /// assert_eq!(just_value.unwrap(), 42);
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Maybe<T>
 where
     T: ReturnTypeConstraints,
@@ -51,6 +51,15 @@ where
     Just(T),
     /// No value
     Nothing,
+}
+
+impl<T> Default for Maybe<T>
+where
+    T: ReturnTypeConstraints,
+{
+    fn default() -> Self {
+        Maybe::Nothing
+    }
 }
 
 impl<T> Maybe<T>
@@ -113,15 +122,6 @@ where
             Maybe::Just(x) => x,
             Maybe::Nothing => panic!("Tried to unwrap a Nothing value!"),
         }
-    }
-}
-
-impl<T> Default for Maybe<T>
-where
-    T: ReturnTypeConstraints,
-{
-    fn default() -> Self {
-        Maybe::Nothing
     }
 }
 

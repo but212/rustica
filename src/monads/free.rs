@@ -10,7 +10,7 @@ use crate::category::identity::Identity;
 /// # Type Parameters
 /// * `S` - The functor that represents the effect
 /// * `A` - The type of the value contained in the monad
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Free<S, A>
 where
     S: ReturnTypeConstraints,
@@ -18,6 +18,16 @@ where
 {
     Suspend(S),
     Pure(A),
+}
+
+impl<S, A> Default for Free<S, A>
+where
+    S: ReturnTypeConstraints,
+    A: ReturnTypeConstraints,
+{
+    fn default() -> Self {
+        Free::Pure(A::default())
+    }
 }
 
 impl<S, A> Free<S, A>
