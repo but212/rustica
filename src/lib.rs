@@ -1,6 +1,6 @@
 // Directories
-pub mod category;
-pub mod monads;
+pub mod traits;
+pub mod datatypes;
 pub mod transformers;
 
 // Modules

@@ -5,9 +5,9 @@ use std::fmt::Debug;
 use quickcheck::{Arbitrary, Gen};
 use quickcheck_macros::quickcheck;
 
-use rustica::category::functor::Functor;
-use rustica::category::pure::Pure;
-use rustica::category::hkt::{HKT, TypeConstraints};
+use rustica::traits::functor::Functor;
+use rustica::traits::pure::Pure;
+use rustica::traits::hkt::{HKT, TypeConstraints};
 use rustica::fntype::{FnType, FnTrait};
 
 // Helper functions for property testing

@@ -1,11 +1,11 @@
 use quickcheck::{Arbitrary, Gen};
 use quickcheck_macros::quickcheck;
 
-use rustica::category::functor::Functor;
-use rustica::category::hkt::TypeConstraints;
-use rustica::category::pure::Pure;
+use rustica::traits::functor::Functor;
+use rustica::traits::hkt::TypeConstraints;
+use rustica::traits::pure::Pure;
 use rustica::fntype::{FnType, FnTrait};
-use rustica::monads::cont::Cont;
+use rustica::datatypes::cont::Cont;
 
 /// Test wrapper type for Cont monad
 #[derive(Clone, Debug)]

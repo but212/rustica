@@ -1,31 +1,32 @@
-pub use crate::category::hkt::{HKT, TypeConstraints};
-pub use crate::category::functor::Functor;
-pub use crate::category::applicative::Applicative;
-pub use crate::category::category::Category;
-pub use crate::category::arrow::Arrow;
-pub use crate::category::monad::Monad;
-pub use crate::category::pure::Pure;
-pub use crate::category::composable::Composable;
-pub use crate::category::evaluate::Evaluate;
-pub use crate::category::identity::Identity;
-pub use crate::category::monoid::Monoid;
-pub use crate::category::semigroup::Semigroup;
-pub use crate::category::traversable::Traversable;
-pub use crate::category::sequence::Sequence;
-pub use crate::category::foldable::Foldable;
-pub use crate::category::flatmap::FlatMap;
-pub use crate::category::comonad::Comonad;
-pub use crate::category::bifunctor::Bifunctor;
-pub use crate::category::contravariant_functor::ContravariantFunctor;
-
-pub use crate::monads::free::Free;
-pub use crate::monads::cont::Cont;
-pub use crate::monads::state::State;
-pub use crate::monads::validated::Validated;
-pub use crate::monads::writer::Writer;
-pub use crate::monads::reader::Reader;
-pub use crate::monads::maybe::Maybe;
-pub use crate::monads::io::IO;
-pub use crate::monads::async_monad::AsyncM;
+/// This module provides a prelude for the rustica library, re-exporting commonly used traits and types.
+///
+/// By importing this prelude, users can easily access core functional programming abstractions
+/// without having to import each trait or type individually.
+///
+/// # Example
+///
+/// ```
+/// use rustica::prelude::*;
+///
+/// // Now you can use HKT, Functor, Monad, etc. without additional imports
+/// ```
+pub use crate::traits::hkt::{HKT, TypeConstraints};
+pub use crate::traits::functor::Functor;
+pub use crate::traits::applicative::Applicative;
+pub use crate::traits::category::Category;
+pub use crate::traits::arrow::Arrow;
+pub use crate::traits::monad::Monad;
+pub use crate::traits::pure::Pure;
+pub use crate::traits::composable::Composable;
+pub use crate::traits::evaluate::Evaluate;
+pub use crate::traits::identity::Identity;
+pub use crate::traits::monoid::Monoid;
+pub use crate::traits::semigroup::Semigroup;
+pub use crate::traits::traversable::Traversable;
+pub use crate::traits::sequence::Sequence;
+pub use crate::traits::foldable::Foldable;
+pub use crate::traits::comonad::Comonad;
+pub use crate::traits::bifunctor::Bifunctor;
+pub use crate::traits::contravariant_functor::ContravariantFunctor;
 
 pub use crate::fntype::{FnType, FnTrait};

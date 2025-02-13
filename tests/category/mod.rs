@@ -2,15 +2,15 @@ pub mod functor;
 pub mod monad;
 
 use quickcheck::{Arbitrary, Gen};
-use rustica::category::applicative::Applicative;
-use rustica::category::functor::Functor;
-use rustica::category::hkt::{HKT, TypeConstraints};
-use rustica::category::identity::Identity;
-use rustica::category::monad::Monad;
-use rustica::category::pure::Pure;
-use rustica::category::category::Category;
-use rustica::category::arrow::Arrow;
-use rustica::category::composable::Composable;
+use rustica::traits::applicative::Applicative;
+use rustica::traits::functor::Functor;
+use rustica::traits::hkt::{HKT, TypeConstraints};
+use rustica::traits::identity::Identity;
+use rustica::traits::monad::Monad;
+use rustica::traits::pure::Pure;
+use rustica::traits::category::Category;
+use rustica::traits::arrow::Arrow;
+use rustica::traits::composable::Composable;
 use rustica::fntype::{FnType, FnTrait};
 
 // Test data structures
@@ -123,18 +123,6 @@ where
         T: Into<Self::Output<U>> + Send + Sync,
     {
         self.0.into()
-    }
-
-    fn kleisli_compose<B, C, G, H>(g: G, h: H) -> FnType<T, Self::Output<C>>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        G: FnTrait<T, Self::Output<B>>,
-        H: FnTrait<B, Self::Output<C>>,
-    {
-        FnType::new(move |x: T| -> Self::Output<C> {
-            g.call(x).bind(h.clone())
-        })
     }
 }
 

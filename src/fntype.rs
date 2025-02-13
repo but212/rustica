@@ -12,7 +12,7 @@
 //! - Function types for comonadic operations
 
 use std::{fmt::Debug, sync::Arc};
-use crate::category::hkt::TypeConstraints;
+use crate::traits::hkt::TypeConstraints;
 use std::marker::PhantomData;
 
 /// A function that is both Send and Sync

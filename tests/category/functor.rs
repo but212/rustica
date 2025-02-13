@@ -1,6 +1,6 @@
 use quickcheck_macros::quickcheck;
-use rustica::category::functor::Functor;
-use rustica::category::pure::Pure;
+use rustica::traits::functor::Functor;
+use rustica::traits::pure::Pure;
 use rustica::fntype::{FnType, FnTrait};
 
 use super::TestFunctor;
