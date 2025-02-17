@@ -224,3 +224,13 @@ impl<L: TypeConstraints, R: TypeConstraints> Category for Choice<L, R> {
 }
 
 impl<L: TypeConstraints, R: TypeConstraints> Arrow for Choice<L, R> {}
+
+impl<L: TypeConstraints, R: TypeConstraints> Functor<R> for Choice<L, R> {
+    fn fmap<T: TypeConstraints, F: FnTrait<R, T>>(self, f: F) -> Self::Output<T> {
+        match self {
+            Choice::Left(l) => Choice::Left(l),
+            Choice::Right(r) => Choice::Right(f.call(r)),
+            Choice::Both(l, r) => Choice::Both(l, f.call(r)),
+        }
+    }
+}

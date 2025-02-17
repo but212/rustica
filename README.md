@@ -9,7 +9,7 @@ Rustica is a library designed to make functional programming features easily acc
 
 Rustica currently includes the following features:
 
-- Categories
+- Traits
     - Higher-Kinded Types
     - Applicative
     - Monad
@@ -21,10 +21,9 @@ Rustica currently includes the following features:
     - Evaluate
     - Foldable
     - Contravariant Functor
-    - Lens
     - Sequence
 
-- Monads
+- Datatypes
     - Async Monad
     - Cont
     - Writer
@@ -33,7 +32,9 @@ Rustica currently includes the following features:
     - Validated
     - Either
     - Maybe
+    - Lens
     - IO
+    - Choice
     - Free(Work in Progress)
 
 - Transformers
