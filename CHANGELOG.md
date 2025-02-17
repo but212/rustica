@@ -1,3 +1,16 @@
+## [0.3.2] - 2025-02-18
+
+### Added
+- New `Choice` data type for alternative computations
+- Property-based tests for category laws
+  - Added tests for Applicative laws (identity, composition, homomorphism, interchange, naturality)
+  - Added tests for Bifunctor laws (identity, composition)
+
+### Changed
+- Reorganized project structure
+  - Renamed `monads` directory to `datatypes` for better organization
+  - Renamed `category` directory to `traits` for better organization
+
 ## [0.3.1] - 2025-02-13
 
 ### Changed
