@@ -1,5 +1,5 @@
-pub mod category;
-pub mod monads;
+pub mod traits;
+pub mod datatypes;
 
 use std::fmt::Debug;
 use quickcheck::{Arbitrary, Gen};

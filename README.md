@@ -1,43 +1,52 @@
 # Rustica
 
-Rustica is a library designed to make functional programming features easily accessible in Rust. It provides a comprehensive set of type classes and utilities commonly found in functional programming languages, but some features are still missing or unimplemented.
-
 [![Crates.io](https://img.shields.io/crates/v/rustica.svg)](https://crates.io/crates/rustica)
 [![Documentation](https://docs.rs/rustica/badge.svg)](https://docs.rs/rustica)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+Rustica is a comprehensive functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem. It provides a rich set of type classes, data types, and utilities commonly found in functional programming languages.
 
 ## Features
 
-Rustica currently includes the following features:
+### Type Classes
+- **Category Theory Foundations**
+  - `Functor` - For mapping over contained values
+  - `Applicative` - For applying functions in a context
+  - `Monad` - For sequential computations
+  - `Category` - For composition abstractions
+  - `Arrow` - For generalized computation
 
-- Traits
-    - Higher-Kinded Types
-    - Applicative
-    - Monad
-    - Composable
-    - Category
-    - Arrow
-    - Semigroup
-    - Monoid
-    - Evaluate
-    - Foldable
-    - Contravariant Functor
-    - Sequence
+- **Data Manipulation**
+  - `Foldable` - For reducing structures
+  - `Traversable` - For structure-preserving transformations
+  - `Semigroup` & `Monoid` - For combining values
 
-- Datatypes
-    - Async Monad
-    - Cont
-    - Writer
-    - Reader
-    - State
-    - Validated
-    - Either
-    - Maybe
-    - Lens
-    - IO
-    - Choice
-    - Free(Work in Progress)
+- **Advanced Concepts**
+  - Higher-Kinded Types (HKT)
+  - Contravariant Functors
+  - Natural Transformations
 
-- Transformers
-    - IdentityT(unimplemented)
+### Data Types
+- **Core Types**
+  - `Maybe` - For optional values
+  - `Either` - For error handling
+  - `Choice` - For alternative computations
+  - `Validated` - For accumulating errors
+
+- **Effect Types**
+  - `AsyncMonad` - For asynchronous operations
+  - `IO` - For pure I/O operations
+  - `State` - For stateful computations
+  - `Reader` - For environment-based computations
+  - `Writer` - For logging and accumulation
+  - `Cont` - For continuation-based programming
+
+- **Optics**
+  - `Lens` - For focusing on parts of data structures
+
+### Monad Transformers
+- `IdentityT` - Base transformer (Work in Progress)
+- More transformers planned for future releases
+
 
 For detailed documentation, please visit [docs.rs/rustica](https://docs.rs/rustica).

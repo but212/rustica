@@ -206,12 +206,6 @@ impl<L: TypeConstraints, R: TypeConstraints> HKT for Choice<L, R> {
     type Output<T> = Choice<L, T> where T: TypeConstraints;
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Pure<L> for Choice<L, R> {
-    fn pure(value: L) -> Self::Output<L> {
-        Choice::Left(value)
-    }
-}
-
 impl<L: TypeConstraints, R: TypeConstraints> Identity for Choice<L, R> {}
 
 impl<L: TypeConstraints, R: TypeConstraints> Composable for Choice<L, R> {}
@@ -231,6 +225,136 @@ impl<L: TypeConstraints, R: TypeConstraints> Functor<R> for Choice<L, R> {
             Choice::Left(l) => Choice::Left(l),
             Choice::Right(r) => Choice::Right(f.call(r)),
             Choice::Both(l, r) => Choice::Both(l, f.call(r)),
+        }
+    }
+}
+
+impl<L: TypeConstraints, R: TypeConstraints> Bifunctor<L, R> for Choice<L, R> {
+    type Output<T, U> = Choice<T, U>
+    where
+        T: TypeConstraints,
+        U: TypeConstraints;
+    fn bimap<T, U, F, G>(self, f: F, g: G) -> Self::Output<T, U>
+    where
+        T: TypeConstraints,
+        U: TypeConstraints,
+        F: FnTrait<L, T>,
+        G: FnTrait<R, U>,
+    {
+        match self {
+            Choice::Left(l) => Choice::Left(f.call(l)),
+            Choice::Right(r) => Choice::Right(g.call(r)),
+            Choice::Both(l, r) => Choice::Both(f.call(l), g.call(r)),
+        }
+    }
+
+    fn first<T, F>(self, f: F) -> Self::Output<T, R>
+    where
+        T: TypeConstraints,
+        F: FnTrait<L, T>,
+    {
+        match self {
+            Choice::Left(l) => Choice::Left(f.call(l)),
+            Choice::Right(r) => Choice::Right(r),
+            Choice::Both(l, r) => Choice::Both(f.call(l), r),
+        }
+    }
+
+    fn second<U, G>(self, g: G) -> Self::Output<L, U>
+    where
+        U: TypeConstraints,
+        G: FnTrait<R, U>,
+    {
+        match self {
+            Choice::Left(l) => Choice::Left(l),
+            Choice::Right(r) => Choice::Right(g.call(r)),
+            Choice::Both(l, r) => Choice::Both(l, g.call(r)),
+        }
+    }
+}
+
+impl<L: TypeConstraints, R: TypeConstraints> Pure<R> for Choice<L, R> {
+    fn pure(value: R) -> Self::Output<R> {
+        Choice::Right(value)
+    }
+}
+
+impl<L: TypeConstraints, R: TypeConstraints> Applicative<R> for Choice<L, R> {
+    fn apply<B, F>(self, g: Self::Output<F>) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<R, B>,
+    {
+        match (self, g) {
+            (Choice::Right(x), Choice::Right(f)) => Choice::Right(f.call(x)),
+            (Choice::Left(l), _) => Choice::Left(l),
+            (Choice::Both(l, _), _) => Choice::Left(l),
+            (_, Choice::Left(l)) => Choice::Left(l),
+            (_, Choice::Both(l, _)) => Choice::Left(l),
+        }
+    }
+
+    fn lift2<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        B: TypeConstraints,
+        C: TypeConstraints,
+        F: FnTrait<(R, B), C>,
+    {
+        match (self, b) {
+            (Choice::Right(x), Choice::Right(y)) => Choice::Right(f.call((x, y))),
+            (Choice::Left(l), _) => Choice::Left(l),
+            (Choice::Both(l, _), _) => Choice::Left(l),
+            (_, Choice::Left(l)) => Choice::Left(l),
+            (_, Choice::Both(l, _)) => Choice::Left(l),
+        }
+    }
+
+    fn lift3<B, C, D, F>(
+        self,
+        b: Self::Output<B>,
+        c: Self::Output<C>,
+        f: F,
+    ) -> Self::Output<D>
+    where
+        B: TypeConstraints,
+        C: TypeConstraints,
+        D: TypeConstraints,
+        F: FnTrait<(R, B, C), D>,
+    {
+        match (self, b, c) {
+            (Choice::Right(x), Choice::Right(y), Choice::Right(z)) => Choice::Right(f.call((x, y, z))),
+            (Choice::Left(l), _, _) => Choice::Left(l),
+            (Choice::Both(l, _), _, _) => Choice::Left(l),
+            (_, Choice::Left(l), _) => Choice::Left(l),
+            (_, Choice::Both(l, _), _) => Choice::Left(l),
+            (_, _, Choice::Left(l)) => Choice::Left(l),
+            (_, _, Choice::Both(l, _)) => Choice::Left(l),
+        }
+    }
+}
+
+impl<L: TypeConstraints, R: TypeConstraints> Monad<R> for Choice<L, R> {
+    fn bind<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<R, Self::Output<U>>,
+    {
+        match self {
+            Choice::Right(x) => f.call(x),
+            Choice::Left(l) => Choice::Left(l),
+            Choice::Both(l, _) => Choice::Left(l),
+        }
+    }
+    
+    fn join<U>(self) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        R: Into<Self::Output<U>>
+    {
+        match self {
+            Choice::Right(x) => x.into(),
+            Choice::Left(l) => Choice::Left(l),
+            Choice::Both(l, _) => Choice::Left(l),
         }
     }
 }

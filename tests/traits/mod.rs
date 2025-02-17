@@ -1,5 +1,8 @@
 pub mod functor;
 pub mod monad;
+pub mod applicative;
+pub mod bifunctor;
+
 
 use quickcheck::{Arbitrary, Gen};
 use rustica::traits::applicative::Applicative;
@@ -150,46 +153,6 @@ where
     where
         B: TypeConstraints,
         C: TypeConstraints;
-
-    fn identity_morphism<B>() -> Self::Morphism<B, B>
-    where
-        B: TypeConstraints,
-    {
-        FnType::new(|x| x)
-    }
-
-    fn compose_morphisms<B, C, D>(
-        f: Self::Morphism<B, C>,
-        g: Self::Morphism<C, D>
-    ) -> Self::Morphism<B, D>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-    {
-        FnType::new(move |x| g.call(f.call(x)))
-    }
 }
 
-impl<T> Arrow for TestFunctor<T>
-where
-    T: TypeConstraints,
-{
-    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        F: FnTrait<B, C> + Clone,
-    {
-        FnType::new(move |x| f.call(x))
-    }
-
-    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-    {
-        FnType::new(move |(x, y)| (f.call(x), y))
-    }
-}
+impl<T: TypeConstraints> Arrow for TestFunctor<T> {}

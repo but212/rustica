@@ -14,6 +14,7 @@
 - [ ] Implement MonadError for better error handling
 - [ ] Add MonadPlus for alternative computations
 - [ ] Add documentation for common monad patterns and use cases
+- [ ] Refactor to support asynchronous operations using Async Monad
 
 ### Testing
 - [ ] Add comprehensive test suite for all monads
