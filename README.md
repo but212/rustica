@@ -48,5 +48,11 @@ Rustica is a comprehensive functional programming library for Rust, bringing pow
 - `IdentityT` - Base transformer (Work in Progress)
 - More transformers planned for future releases
 
+## Inspiration
+- Inspired by Scala's Cats and Haskell's libraries.
 
+## License
+Rustica is licensed under the Apache License, version 2.0. See the [LICENSE](LICENSE) file for details.
+
+## Documentation
 For detailed documentation, please visit [docs.rs/rustica](https://docs.rs/rustica).

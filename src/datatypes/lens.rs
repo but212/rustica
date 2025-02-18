@@ -186,22 +186,4 @@ impl<S: TypeConstraints, A: TypeConstraints> Category for Lens<S, A> {
         C: TypeConstraints;
 }
 
-impl<S: TypeConstraints, A: TypeConstraints> Arrow for Lens<S, A> {
-    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        F: FnTrait<B, C>,
-    {
-        FnType::new(move |x: B| f.call(x))
-    }
-
-    fn first<B, C, D>(f: Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-    {
-        Self::arrow(FnType::new(move |(b, d): (B, D)| (f.call(b), d)))
-    }
-}
+impl<S: TypeConstraints, A: TypeConstraints> Arrow for Lens<S, A> {}

@@ -15,12 +15,26 @@ use crate::fntype::{FnType, FnTrait};
 ///
 /// ```
 /// use rustica::datatypes::maybe::Maybe;
+/// use rustica::traits::functor::Functor;
+/// use rustica::traits::monad::Monad;
+/// use rustica::traits::applicative::Applicative;
+/// use rustica::fntype::{FnType, FnTrait};
 ///
 /// let just = Maybe::Just(42);
 /// let nothing: Maybe<i32> = Maybe::Nothing;
 ///
-/// assert!(just.is_just());
-/// assert!(nothing.is_nothing());
+/// // Using fmap (Functor)
+/// assert_eq!(just.clone().fmap(FnType::new(|x| x * 2)), Maybe::Just(84));
+/// assert_eq!(nothing.clone().fmap(FnType::new(|x| x * 2)), Maybe::Nothing);
+///
+/// // Using bind (Monad)
+/// assert_eq!(just.clone().bind(FnType::new(|x: i32| Maybe::Just(x.to_string()))), Maybe::Just("42".to_string()));
+/// assert_eq!(nothing.clone().bind(FnType::new(|x: i32| Maybe::Just(x.to_string()))), Maybe::Nothing);
+///
+/// // Using apply (Applicative)
+/// let f = Maybe::Just(FnType::new(|x: i32| x + 1));
+/// assert_eq!(just.apply(f.clone()), Maybe::Just(43));
+/// assert_eq!(nothing.apply(f), Maybe::Nothing);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Maybe<T>
