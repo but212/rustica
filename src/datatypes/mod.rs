@@ -10,3 +10,5 @@ pub mod io;
 pub mod free;
 pub mod choice;
 pub mod lens;
+pub mod prism;
+pub use prism::Prism;

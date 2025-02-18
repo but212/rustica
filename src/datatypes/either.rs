@@ -80,7 +80,7 @@ where
     ///
     /// # Returns
     /// A new `Either` instance containing the given value as a `Left` variant
-    pub fn make_left(l: L) -> Self {
+    pub fn left(l: L) -> Self {
         Either::Left(l)
     }
 
@@ -91,7 +91,7 @@ where
     ///
     /// # Returns
     /// A new `Either` instance containing the given value as a `Right` variant
-    pub fn make_right(r: R) -> Self {
+    pub fn right(r: R) -> Self {
         Either::Right(r)
     }
 

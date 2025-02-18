@@ -50,10 +50,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
     /// ```
     /// use rustica::datatypes::choice::Choice;
     ///
-    /// let left = Choice::<i32, String>::make_left(42);
+    /// let left = Choice::<i32, String>::left(42);
     /// assert!(left.is_left());
     /// ```
-    pub fn make_left(value: L) -> Self {
+    pub fn left(value: L) -> Self {
         Choice::Left(value)
     }
 
@@ -64,10 +64,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
     /// ```
     /// use rustica::datatypes::choice::Choice;
     ///
-    /// let right = Choice::<i32, String>::make_right("Hello".to_string());
+    /// let right = Choice::<i32, String>::right("Hello".to_string());
     /// assert!(right.is_right());
     /// ```
-    pub fn make_right(value: R) -> Self {
+    pub fn right(value: R) -> Self {
         Choice::Right(value)
     }
 
@@ -78,10 +78,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
     /// ```
     /// use rustica::datatypes::choice::Choice;
     ///
-    /// let both = Choice::<i32, String>::make_both(42, "Hello".to_string());
+    /// let both = Choice::<i32, String>::both(42, "Hello".to_string());
     /// assert!(both.is_both());
     /// ```
-    pub fn make_both(left: L, right: R) -> Self {
+    pub fn both(left: L, right: R) -> Self {
         Choice::Both(left, right)
     }
 
