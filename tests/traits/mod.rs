@@ -3,7 +3,6 @@ pub mod monad;
 pub mod applicative;
 pub mod bifunctor;
 
-
 use quickcheck::{Arbitrary, Gen};
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
@@ -18,12 +17,9 @@ use rustica::fntype::{FnType, FnTrait};
 
 // Test data structures
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TestFunctor<T>(pub T) where T: TypeConstraints;
+pub struct TestFunctor<T: TypeConstraints>(pub T);
 
-impl<T> Arbitrary for TestFunctor<T>
-where
-    T: TypeConstraints + Arbitrary + 'static,
-{
+impl<T: TypeConstraints + Arbitrary + 'static> Arbitrary for TestFunctor<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = T::arbitrary(g);
         TestFunctor(value)
@@ -34,31 +30,19 @@ where
     }
 }
 
-impl<T> HKT for TestFunctor<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> HKT for TestFunctor<T> {
     type Output<U> = TestFunctor<U> where U: TypeConstraints;
 }
 
-impl<T> Identity for TestFunctor<T>
-where
-    T: TypeConstraints,
-{}
+impl<T: TypeConstraints> Identity for TestFunctor<T> {}
 
-impl<T> Pure<T> for TestFunctor<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Pure<T> for TestFunctor<T> {
     fn pure(x: T) -> Self {
         TestFunctor(x)
     }
 }
 
-impl<T> Functor<T> for TestFunctor<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Functor<T> for TestFunctor<T> {
     fn fmap<U, F>(self, f: F) -> TestFunctor<U>
     where
         U: TypeConstraints,
@@ -68,10 +52,7 @@ where
     }
 }
 
-impl<T> Applicative<T> for TestFunctor<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Applicative<T> for TestFunctor<T> {
     fn apply<U, F>(self, other: Self::Output<F>) -> Self::Output<U>
     where
         U: TypeConstraints,
@@ -108,10 +89,7 @@ where
     }
 }
 
-impl<T> Monad<T> for TestFunctor<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Monad<T> for TestFunctor<T> {
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where
         U: TypeConstraints,
@@ -129,26 +107,9 @@ where
     }
 }
 
-impl<T> Composable for TestFunctor<T>
-where
-    T: TypeConstraints,
-{
-    fn compose<U, V, W, F, G>(f: F, g: G) -> FnType<U, W>
-    where
-        U: TypeConstraints,
-        V: TypeConstraints,
-        W: TypeConstraints,
-        F: FnTrait<U, V>,
-        G: FnTrait<V, W>,
-    {
-        FnType::new(move |x| g.call(f.call(x)))
-    }
-}
+impl<T: TypeConstraints> Composable for TestFunctor<T> {}
 
-impl<T> Category for TestFunctor<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Category for TestFunctor<T> {
     type Morphism<B, C> = FnType<B, C>
     where
         B: TypeConstraints,

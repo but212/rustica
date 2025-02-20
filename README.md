@@ -43,6 +43,7 @@ Rustica is a comprehensive functional programming library for Rust, bringing pow
 
 - **Optics**
   - `Lens` - For focusing on parts of data structures
+  - `Prism` - For extracting values from data structures
 
 ### Monad Transformers
 - `IdentityT` - Base transformer (Work in Progress)
