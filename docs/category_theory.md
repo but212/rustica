@@ -14,11 +14,11 @@ A category consists of:
 
 ```mermaid
 graph LR
-    A((A)) -- "id_A" --> A
-    B((B)) -- "id_B" --> B
-    A -- "f" --> B
-    B -- "g" --> C((C))
-    A -- "g ∘ f" --> C
+    A["A"] --> |"id_A"| A
+    B["B"] --> |"id_B"| B
+    A --> |"f"| B
+    B --> |"g"| C["C"]
+    A --> |"g ∘ f"| C
 ```
 
 ### Functor
@@ -30,15 +30,15 @@ A functor F is a mapping between categories that preserves structure:
 
 ```mermaid
 graph TB
-    subgraph Category C
-        A((A)) -- "f" --> B((B))
-        A -- "id_A" --> A
-        B -- "id_B" --> B
+    subgraph "Category C"
+        A["A"] --> |"f"| B["B"]
+        A --> |"id_A"| A
+        B --> |"id_B"| B
     end
-    subgraph Category D
-        FA((F(A))) -- "F(f)" --> FB((F(B)))
-        FA -- "id_FA" --> FA
-        FB -- "id_FB" --> FB
+    subgraph "Category D"
+        FA["F(A)"] --> |"F(f)"| FB["F(B)"]
+        FA --> |"id_FA"| FA
+        FB --> |"id_FB"| FB
     end
 ```
 
@@ -50,9 +50,9 @@ A monad is a functor with additional structure:
 
 ```mermaid
 graph TB
-    A((A)) -- "return" --> MA((M(A)))
-    MA -- "bind f" --> MB((M(B)))
-    A -- "f" --> MB
+    A["A"] --> |"return"| MA["M(A)"]
+    MA --> |"bind f"| MB["M(B)"]
+    A --> |"f"| MB
 ```
 
 ## Implementation in Rustica
@@ -61,10 +61,10 @@ graph TB
 
 ```mermaid
 graph TB
-    Category -- "extends" --> Composable
-    Functor -- "extends" --> HKT
-    Applicative -- "extends" --> Functor
-    Monad -- "extends" --> Applicative
+    Category --> |"extends"| Composable
+    Functor --> |"extends"| HKT
+    Applicative --> |"extends"| Functor
+    Monad --> |"extends"| Applicative
 ```
 
 ### Category Laws
@@ -75,9 +75,9 @@ graph TB
 
 ```mermaid
 graph LR
-    A((A)) -- "id_A" --> A
-    A -- "f" --> B((B))
-    A -- "f" --> B
+    A["A"] --> |"id_A"| A
+    A --> |"f"| B["B"]
+    A --> |"f"| B
 ```
 
 ### Functor Laws
@@ -87,11 +87,11 @@ graph LR
 
 ```mermaid
 graph TB
-    A((A)) -- "id" --> A
-    FA((F(A))) -- "fmap id" --> FA
-    A -- "g" --> B((B))
-    B -- "f" --> C((C))
-    FA -- "fmap (f . g)" --> FC((F(C)))
+    A["A"] --> |"id"| A
+    FA["F(A)"] --> |"fmap id"| FA
+    A --> |"g"| B["B"]
+    B --> |"f"| C["C"]
+    FA --> |"fmap (f . g)"| FC["F(C)"]
 ```
 
 ### Monad Laws
@@ -102,10 +102,10 @@ graph TB
 
 ```mermaid
 graph TB
-    A((A)) -- "return" --> MA((M(A)))
-    MA -- ">>= f" --> MB((M(B)))
-    MB -- ">>= g" --> MC((M(C)))
-    MA -- ">>= (\\x -> f x >>= g)" --> MC
+    A["A"] --> |"return"| MA["M(A)"]
+    MA --> |">>= f"| MB["M(B)"]
+    MB --> |">>= g"| MC["M(C)"]
+    MA --> |">>= (λx -> f x >>= g)"| MC
 ```
 
 ## Examples
