@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crate::traits::hkt::{HKT, TypeConstraints};
 use crate::traits::functor::Functor;
 use crate::traits::applicative::Applicative;

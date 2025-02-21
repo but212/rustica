@@ -12,32 +12,38 @@ use std::hash::Hash;
 /// # Constraints
 ///
 /// * `Clone`: The type can be duplicated.
-/// * `Debug`: The type can be formatted for debugging purposes.
 /// * `PartialEq`: The type supports partial equality comparisons.
 /// * `Eq`: The type supports full equality comparisons.
 /// * `Default`: The type has a default value.
 /// * `Send`: The type can be safely transferred across thread boundaries.
 /// * `Sync`: The type can be safely shared between threads.
 /// * `'static`: The type has a static lifetime (no non-static references).
-pub trait TypeConstraints: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
+pub trait TypeConstraints: Clone + PartialEq + Eq + Default + Send + Sync + 'static {}
 
 /// Blanket implementation for types satisfying the `TypeConstraints` requirements.
 ///
 /// This implementation automatically implements `TypeConstraints` for any type
 /// that satisfies all the required trait bounds.
-impl<T> TypeConstraints for T where T: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
+impl<T> TypeConstraints for T where T: Clone + PartialEq + Eq + Default + Send + Sync + 'static {}
 
-/// A trait for higher-kinded types (HKT).
+/// Higher-Kinded Type (HKT) trait.
 ///
-/// This trait enables type-level programming by allowing types to be parameterized
-/// over other type constructors. It serves as a foundation for implementing
-/// functional programming patterns like Functor, Applicative, and Monad.
+/// This trait represents a type constructor that can be partially applied,
+/// allowing for more abstract and generic code in Rust.
 ///
 /// # Type Parameters
-/// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
+/// * `U` - The type parameter for the associated type `Output`.
+///
+/// # Associated Types
+/// * `Output<U>` - The resulting type after applying the type constructor to `U`.
+///
+/// # Constraints
+/// * `Self` must implement `TypeConstraints`.
+/// * The associated type `Output<U>` must also implement `HKT`.
+/// * `U` must implement `TypeConstraints`.
 ///
 /// # Examples
-/// ```rust
+/// ```
 /// use rustica::traits::hkt::{HKT, TypeConstraints};
 ///
 /// #[derive(Clone, Debug, PartialEq, Eq, Default)]

@@ -15,7 +15,7 @@ pub trait HKT {
 ```
 
 All types in Rustica's functional abstractions must satisfy `TypeConstraints`:
-- `Clone`, `Debug`, `PartialEq`, `Eq`, `Default`, `Send`, `Sync`, `'static`
+- `Clone`, `PartialEq`, `Eq`, `Default`, `Send`, `Sync`, `'static`
 
 ```mermaid
 flowchart TB

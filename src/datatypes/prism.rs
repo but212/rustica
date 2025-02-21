@@ -20,6 +20,13 @@ where
     A: TypeConstraints,
 {
     /// Creates a new Prism.
+    ///
+    /// # Arguments
+    /// * `preview` - A function that attempts to extract a value of type A from S
+    /// * `review` - A function that constructs a value of type S from A
+    ///
+    /// # Returns
+    /// A new `Prism<S, A>`
     pub fn new<P, R>(preview: P, review: R) -> Self
     where
         P: Fn(S) -> Option<A> + Clone + Send + Sync + 'static,
@@ -32,16 +39,35 @@ where
     }
 
     /// Attempts to extract a value of type A from S.
+    ///
+    /// # Arguments
+    /// * `s` - A value of type S
+    ///
+    /// # Returns
+    /// An `Option<A>` containing the extracted value if successful, or `None` if not
     pub fn preview(&self, s: S) -> Option<A> {
         self.preview.call(s)
     }
 
     /// Constructs a value of type S from A.
+    ///
+    /// # Arguments
+    /// * `a` - A value of type A
+    ///
+    /// # Returns
+    /// A value of type S
     pub fn review(&self, a: A) -> S {
         self.review.call(a)
     }
 
     /// Creates a Prism for a specific case of an enum.
+    ///
+    /// # Arguments
+    /// * `match_case` - A function that matches and extracts a specific case from the enum
+    /// * `make_case` - A function that constructs the enum for a specific case
+    ///
+    /// # Returns
+    /// A new `Prism<S, A>` for the specified case
     pub fn for_case<F, G>(match_case: F, make_case: G) -> Self
     where
         F: Fn(S) -> Option<A> + Clone + Send + Sync + 'static,

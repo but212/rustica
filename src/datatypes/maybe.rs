@@ -11,6 +11,9 @@ use crate::fntype::{FnType, FnTrait};
 
 /// A type that represents an optional value.
 ///
+/// `Maybe<T>` is an enum that can be either `Just(T)` containing a value of type `T`,
+/// or `Nothing` representing the absence of a value.
+///
 /// # Examples
 ///
 /// ```
@@ -38,14 +41,10 @@ use crate::fntype::{FnType, FnTrait};
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Maybe<T: TypeConstraints> {
+    /// Represents a value that is present.
     Just(T),
+    /// Represents the absence of a value.
     Nothing,
-}
-
-impl<T: TypeConstraints> Default for Maybe<T> {
-    fn default() -> Self {
-        Maybe::Nothing
-    }
 }
 
 impl<T: TypeConstraints> Maybe<T> {
@@ -164,6 +163,12 @@ impl<T: TypeConstraints> Maybe<T> {
             Maybe::Just(x) => x,
             Maybe::Nothing => panic!("Tried to unwrap a Nothing value!"),
         }
+    }
+}
+
+impl<T: TypeConstraints> Default for Maybe<T> {
+    fn default() -> Self {
+        Maybe::Nothing
     }
 }
 

@@ -29,4 +29,4 @@ pub use crate::traits::comonad::Comonad;
 pub use crate::traits::bifunctor::Bifunctor;
 pub use crate::traits::contravariant_functor::ContravariantFunctor;
 
-pub use crate::fntype::{FnType, FnTrait};
+pub use crate::fntype::{FnType, FnTrait, AsyncFnType};

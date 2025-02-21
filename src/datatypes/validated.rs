@@ -59,6 +59,7 @@ use crate::traits::semigroup::Semigroup;
 /// ```
 pub trait ValidatedTypeConstraints: TypeConstraints + Extend<Self> + IntoIterator<Item = Self> + Semigroup<Self> {}
 
+/// Represents a value that can be either valid or invalid.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Validated<E: ValidatedTypeConstraints, A: TypeConstraints> {
     /// Represents a valid value of type `A`.
@@ -96,9 +97,6 @@ impl<E: ValidatedTypeConstraints, A: TypeConstraints> Validated<E, A> {
 
     /// Applies a function to the valid value of a `Validated` instance.
     ///
-    /// If the `Validated` is `Valid`, it applies the function `f` to the contained value.
-    /// If the `Validated` is `Invalid`, it returns the `Invalid` value unchanged.
-    ///
     /// # Type Parameters
     ///
     /// * `B`: The return type of the mapping function, must implement `TypeConstraints`.
@@ -106,8 +104,8 @@ impl<E: ValidatedTypeConstraints, A: TypeConstraints> Validated<E, A> {
     ///
     /// # Arguments
     ///
-    /// * `self`: The `Validated` instance to map over.
-    /// * `f`: The function to apply to the valid value.
+    /// * `self` - The `Validated` instance to map over.
+    /// * `f` - The function to apply to the valid value.
     ///
     /// # Returns
     ///
@@ -122,9 +120,6 @@ impl<E: ValidatedTypeConstraints, A: TypeConstraints> Validated<E, A> {
 
     /// Applies a function to the invalid value(s) of a `Validated` instance.
     ///
-    /// If the `Validated` is `Invalid`, it applies the function `f` to each error in the contained value.
-    /// If the `Validated` is `Valid`, it returns the `Valid` value unchanged.
-    ///
     /// # Type Parameters
     ///
     /// * `G`: The new error type, must implement `ValidatedTypeConstraints`.
@@ -132,8 +127,8 @@ impl<E: ValidatedTypeConstraints, A: TypeConstraints> Validated<E, A> {
     ///
     /// # Arguments
     ///
-    /// * `self`: The `Validated` instance to map over.
-    /// * `f`: The function to apply to each invalid value.
+    /// * `self` - The `Validated` instance to map over.
+    /// * `f` - The function to apply to each invalid value.
     ///
     /// # Returns
     ///
@@ -151,10 +146,6 @@ impl<E: ValidatedTypeConstraints, A: TypeConstraints> Validated<E, A> {
 
     /// Combines two `Validated` instances using a provided function.
     ///
-    /// This method combines the current `Validated` instance with another one,
-    /// applying the provided function `f` if both are valid. If either is invalid,
-    /// it collects all errors.
-    ///
     /// # Type Parameters
     ///
     /// * `B`: The type of the value in the other `Validated` instance.
@@ -163,10 +154,10 @@ impl<E: ValidatedTypeConstraints, A: TypeConstraints> Validated<E, A> {
     ///
     /// # Arguments
     ///
-    /// * `self`: The current `Validated` instance.
-    /// * `other`: Another `Validated` instance to combine with.
-    /// * `f`: A function that takes the value from `self` and returns a function
-    ///        that takes the value from `other` and returns a new value.
+    /// * `self` - The current `Validated` instance.
+    /// * `other` - Another `Validated` instance to combine with.
+    /// * `f` - A function that takes the value from `self` and returns a function
+    ///         that takes the value from `other` and returns a new value.
     ///
     /// # Returns
     ///
@@ -190,8 +181,6 @@ impl<E: ValidatedTypeConstraints, A: TypeConstraints> Validated<E, A> {
     }
 
     /// Converts the `Validated` instance into a `Result`.
-    ///
-    /// This method transforms a `Validated<E, A>` into a `Result<A, E>`.
     ///
     /// # Returns
     ///

@@ -1,26 +1,57 @@
 use crate::traits::hkt::{HKT, TypeConstraints};
+use crate::traits::composable::Composable;
 use crate::fntype::FnTrait;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::fmt::Debug;
 
-/// A trait for types that have an identity element.
+/// A trait representing the identity operation in category theory.
 ///
-/// The identity element is a value that, when combined with any other value,
-/// returns that other value unchanged.
+/// This trait defines methods for creating an identity element and mapping over it.
+/// It is parameterized over a type `T` that satisfies the `TypeConstraints`.
 ///
 /// # Type Parameters
-/// * `T` - The type of the value contained in the identity element
+/// * `T`: The type contained within the identity, must satisfy `TypeConstraints`.
+///
+/// # Associated Types
+/// * `Output`: Defined by the `HKT` supertrait.
 ///
 /// # Laws
-/// 1. Right Identity: `x.combine(identity()) = x`
-/// 2. Left Identity: `identity().combine(x) = x`
-pub trait Identity<T: TypeConstraints>: HKT {
-    /// Returns the identity element for this type
+/// 
+/// An Identity instance must satisfy these laws:
+/// 
+/// 1. Left identity: For any function `f`,
+///    `map_identity(f).compose(identity()) = f`
+/// 2. Right identity: For any value `x`,
+///    `map_identity(identity()).apply(x) = x`
+/// 3. Composition: For any functions `f` and `g`,
+///    `map_identity(f.compose(g)) = map_identity(f).compose(map_identity(g))`
+/// 4. Naturality: For any natural transformation `η`,
+///    `η(map_identity(f)) = map_identity(η.compose(f))`
+/// 5. Functor Consistency: For any value `x` and function `f`,
+///    `pure(x).fmap(f) = pure(f(x))`
+pub trait Identity<T: TypeConstraints>: HKT + Composable<T> {
+    /// Returns the identity element for this type.
+    ///
+    /// By default, this method returns the default value of `Self::Output<T>`.
+    ///
+    /// # Returns
+    /// An instance of `Self::Output<T>` representing the identity element.
     fn identity() -> Self::Output<T> {
         Self::Output::default()
     }
 
-    /// Maps a function over the identity element
+    /// Maps a function over the identity element.
+    ///
+    /// # Type Parameters
+    /// * `U`: The target type of the mapping, must satisfy `TypeConstraints`.
+    /// * `F`: The function type, must implement `FnTrait<T, U>`.
+    ///
+    /// # Parameters
+    /// * `f`: The function to map over the identity element.
+    ///
+    /// # Returns
+    /// An instance of `Self::Output<U>` representing the mapped identity.
     fn map_identity<U, F>(f: F) -> Self::Output<U>
     where
         U: TypeConstraints,
@@ -55,11 +86,7 @@ impl<T: TypeConstraints> Identity<T> for Box<T> {
     }
 }
 
-impl<K: Hash + Eq + TypeConstraints, V: TypeConstraints> Identity<V> for HashMap<K, V> {
-    fn identity() -> Self::Output<V> {
-        HashMap::new()
-    }
-
+impl<K: Hash + Eq + Debug + TypeConstraints, V: TypeConstraints> Identity<V> for HashMap<K, V> {
     fn map_identity<U, F>(_f: F) -> Self::Output<U>
     where
         U: TypeConstraints,

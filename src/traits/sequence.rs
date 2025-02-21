@@ -7,23 +7,38 @@ use crate::traits::bifunctor::Bifunctor;
 /// A trait for types that can be sequenced.
 /// This trait provides a way to sequence a structure of effects into an effect of structure.
 /// 
-/// For example:
+/// # Examples
+/// 
 /// - `Vec<Option<T>>` -> `Option<Vec<T>>`
 /// - `Vec<Result<T, E>>` -> `Result<Vec<T>, E>`
 /// 
 /// # Type Parameters
+/// 
 /// * `A` - The type of elements in the structure
 /// 
 /// # Laws
-/// 1. Naturality: `η(sequence(xs)) = sequence(fmap(η)(xs))`
-/// 2. Identity: `sequence(fmap(pure)(xs)) = pure(xs)`
-/// 3. Composition: `sequence(sequence(xss)) = sequence(fmap(sequence)(xss))`
+/// 
+/// A Sequence instance must satisfy these laws:
+/// 
+/// 1. Naturality: For any natural transformation `η: F ~> G`,
+///    `η(sequence(t)) = sequence(fmap(η)(t))`
+/// 2. Identity: `sequence(fmap(Identity)(t)) = Identity(t)`
+/// 3. Composition: `sequence(fmap(Compose)(t)) = Compose(fmap(sequence)(sequence(t)))`
 pub trait Sequence<A>: Traversable<A>
 where
     A: TypeConstraints,
 {
-    /// Evaluate each action in sequence from left to right, and collect the results.
-    /// This is equivalent to `traverse(identity)`.
+    /// Evaluates each action in the structure from left to right, and collects the results.
+    /// 
+    /// This method is equivalent to `traverse(identity)`.
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `F` - The applicative functor type
+    /// 
+    /// # Returns
+    /// 
+    /// An applicative functor containing the sequenced structure
     fn sequence<F>(self) -> F::Output<<Self as Bifunctor<A, A>>::Output<A, A>>
     where
         F: Applicative<A>,

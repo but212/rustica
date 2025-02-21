@@ -2,10 +2,13 @@ use crate::prelude::*;
 
 /// Represents a choice between two types, or both.
 ///
+/// This enum provides a way to represent a value that can be one of two types, or both simultaneously.
+/// It is particularly useful in scenarios where you need to handle different cases or outcomes.
+///
 /// # Type Parameters
 ///
-/// * `L`: The left type.
-/// * `R`: The right type.
+/// * `L`: The left type, representing one possible choice.
+/// * `R`: The right type, representing another possible choice.
 ///
 /// # Examples
 ///
@@ -18,32 +21,26 @@ use crate::prelude::*;
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Choice<L: TypeConstraints, R: TypeConstraints> {
-    /// The left variant.
+    /// The left variant, containing a value of type `L`.
     Left(L),
-    /// The right variant.
+    /// The right variant, containing a value of type `R`.
     Right(R),
-    /// Both left and right variants.
+    /// Both left and right variants, containing values of types `L` and `R` respectively.
     Both(L, R),
-}
-
-impl<L: TypeConstraints, R: TypeConstraints> Default for Choice<L, R> {
-    /// Returns a default instance of `Choice`, which is `Left(Default::default())`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let default_choice: Choice<i32, String> = Choice::default();
-    /// assert!(default_choice.is_left());
-    /// ```
-    fn default() -> Self {
-        Choice::Left(Default::default())
-    }
 }
 
 impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
     /// Creates a new `Choice` with a left value.
+    ///
+    /// This method constructs a `Choice::Left` variant with the given value.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to be wrapped in the `Left` variant.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice` instance with the `Left` variant.
     ///
     /// # Examples
     ///
@@ -59,6 +56,16 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
 
     /// Creates a new `Choice` with a right value.
     ///
+    /// This method constructs a `Choice::Right` variant with the given value.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to be wrapped in the `Right` variant.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice` instance with the `Right` variant.
+    ///
     /// # Examples
     ///
     /// ```
@@ -72,6 +79,17 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
     }
 
     /// Creates a new `Choice` with both left and right values.
+    ///
+    /// This method constructs a `Choice::Both` variant with the given left and right values.
+    ///
+    /// # Arguments
+    ///
+    /// * `left` - The value to be wrapped in the left part of the `Both` variant.
+    /// * `right` - The value to be wrapped in the right part of the `Both` variant.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice` instance with the `Both` variant.
     ///
     /// # Examples
     ///
@@ -87,6 +105,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
 
     /// Checks if the `Choice` is a `Left` variant.
     ///
+    /// # Returns
+    ///
+    /// `true` if the `Choice` is a `Left` variant, `false` otherwise.
+    ///
     /// # Examples
     ///
     /// ```
@@ -100,6 +122,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
     }
 
     /// Checks if the `Choice` is a `Right` variant.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the `Choice` is a `Right` variant, `false` otherwise.
     ///
     /// # Examples
     ///
@@ -115,6 +141,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
 
     /// Checks if the `Choice` is a `Both` variant.
     ///
+    /// # Returns
+    ///
+    /// `true` if the `Choice` is a `Both` variant, `false` otherwise.
+    ///
     /// # Examples
     ///
     /// ```
@@ -128,6 +158,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
     }
 
     /// Unwraps the left value.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the left value.
     ///
     /// # Panics
     ///
@@ -154,6 +188,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
 
     /// Unwraps the right value.
     ///
+    /// # Returns
+    ///
+    /// A reference to the right value.
+    ///
     /// # Panics
     ///
     /// Panics if the `Choice` is a `Left` variant.
@@ -179,6 +217,10 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
 
     /// Unwraps both values.
     ///
+    /// # Returns
+    ///
+    /// A tuple containing references to both the left and right values.
+    ///
     /// # Panics
     ///
     /// Panics if the `Choice` is not a `Both` variant.
@@ -199,6 +241,22 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
             Choice::Right(_) => panic!("Called `unwrap_both` on a `Right` value"),
             Choice::Both(l, r) => (l, r),
         }
+    }
+}
+
+impl<L: TypeConstraints, R: TypeConstraints> Default for Choice<L, R> {
+    /// Returns a default instance of `Choice`, which is `Left(Default::default())`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let default_choice: Choice<i32, String> = Choice::default();
+    /// assert!(default_choice.is_left());
+    /// ```
+    fn default() -> Self {
+        Choice::Left(Default::default())
     }
 }
 

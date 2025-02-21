@@ -32,6 +32,7 @@ Rustica is a comprehensive functional programming library for Rust, bringing pow
   - `Either` - For error handling
   - `Choice` - For alternative computations
   - `Validated` - For accumulating errors
+  - `Free` - For building complex DSLs (Work in Progress)
 
 - **Effect Types**
   - `AsyncMonad` - For asynchronous operations

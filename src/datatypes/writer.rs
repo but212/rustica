@@ -10,11 +10,15 @@ use crate::traits::composable::Composable;
 use crate::traits::identity::Identity;
 use crate::fntype::{FnType, FnTrait};
 
-/// The writer monad.
+/// The Writer monad, representing computations with an accumulating log.
 ///
 /// # Type Parameters
-/// * `W` - The log type, must implement the `Monoid` trait.
+/// * `W` - The log type, which must implement the `Monoid` trait.
 /// * `A` - The output type.
+///
+/// The Writer monad allows for computations that produce a value along with a log.
+/// It's useful for adding logging to pure computations, accumulating errors, or
+/// building up computations from sequences of steps.
 ///
 /// # Examples
 ///
@@ -52,6 +56,13 @@ pub struct Writer<W: TypeConstraints + Monoid<W>, A: TypeConstraints> {
 
 impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Writer<W, A> {
     /// Creates a new Writer with a value and a log.
+    ///
+    /// # Arguments
+    /// * `value` - The value to be wrapped in the Writer.
+    /// * `log` - The initial log.
+    ///
+    /// # Returns
+    /// A new `Writer` instance.
     pub fn new(value: A, log: W) -> Self {
         Writer {
             run_writer: FnType::new(move |_| (value.clone(), log.clone())),
@@ -59,16 +70,25 @@ impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Writer<W, A> {
     }
 
     /// Runs the writer computation and returns the value and the log.
+    ///
+    /// # Returns
+    /// A tuple containing the value and the log.
     pub fn run_writer(&self) -> (A, W) {
         self.run_writer.call(())
     }
 
     /// Gets the value from the writer computation.
+    ///
+    /// # Returns
+    /// The value stored in the Writer.
     pub fn value(&self) -> A {
         self.run_writer().0
     }
 
     /// Gets the log from the writer computation.
+    ///
+    /// # Returns
+    /// The log stored in the Writer.
     pub fn log(&self) -> W {
         self.run_writer().1
     }

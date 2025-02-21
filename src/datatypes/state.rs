@@ -15,17 +15,6 @@ use crate::fntype::{FnType, FnTrait};
 /// * `S` - The state type.
 /// * `A` - The output type.
 ///
-/// # Laws
-/// A State instance must satisfy these laws in addition to the standard Monad laws:
-/// 1. Get-Put Identity: For any state `s`,
-///    `get().bind(|x| put(x)).run_state(s) = ((), s)`
-/// 2. Put-Get Identity: For any state `s`,
-///    `put(s).bind(|_| get()).run_state(_) = (s, s)`
-/// 3. State Independence: For any value `x` and state `s`,
-///    `pure(x).run_state(s) = (x, s)`
-/// 4. Modify Consistency: For function `f`,
-///    `modify(f).run_state(s) = ((), f(s))`
-///
 /// # Examples
 /// ```
 /// use rustica::datatypes::state::State;
@@ -80,9 +69,6 @@ impl<S: TypeConstraints, A: TypeConstraints> State<S, A> {
 
     /// Evaluates the state computation with the given initial state and returns only the result.
     ///
-    /// This function runs the state computation but discards the final state,
-    /// returning only the result of the computation.
-    ///
     /// # Arguments
     ///
     /// * `s` - The initial state.
@@ -106,9 +92,6 @@ impl<S: TypeConstraints, A: TypeConstraints> State<S, A> {
     }
 
     /// Executes the state computation with the given initial state and returns only the final state.
-    ///
-    /// This function runs the state computation but discards the result,
-    /// returning only the final state.
     ///
     /// # Arguments
     ///

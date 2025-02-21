@@ -118,31 +118,19 @@ where
 
 /// A newtype wrapper for async function types
 #[derive(Clone)]
-pub struct AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
+pub struct AsyncFnType<I: TypeConstraints, O: TypeConstraints> {
     f: Arc<dyn Fn(I) -> BoxFuture<'static, O> + Send + Sync>,
     _marker: PhantomData<(I, O)>,
 }
 
-impl<I, O> AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
+impl<I: TypeConstraints, O: TypeConstraints> AsyncFnType<I, O> {
     /// Call the async function and await its result
     pub async fn call_async(&self, input: I) -> O {
         (self.f)(input).await
     }
 }
 
-impl<I, O> FnTypeInternal<I, O> for AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
+impl<I: TypeConstraints, O: TypeConstraints> FnTypeInternal<I, O> for AsyncFnType<I, O> {
     type CallOutput = O;
 
     fn new_internal<F>(f: F) -> Self
@@ -164,11 +152,7 @@ where
     }
 }
 
-impl<I, O> FnTrait<I, O> for AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
+impl<I: TypeConstraints, O: TypeConstraints> FnTrait<I, O> for AsyncFnType<I, O> {
     fn new<F>(f: F) -> Self
     where
         F: Fn(I) -> O + Send + Sync + Clone + 'static,
@@ -181,11 +165,7 @@ where
     }
 }
 
-impl<I, O> Identity<O> for AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
+impl<I: TypeConstraints, O: TypeConstraints> Identity<O> for AsyncFnType<I, O> {
     fn identity() -> Self::Output<O> {
         AsyncFnType::new(|_i: I| O::default())
     }
@@ -199,17 +179,17 @@ where
     }
 }
 
-
-
-impl<I, O> Identity<O> for FnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
-    fn identity() -> Self::Output<O> {
-        FnType::new(|_i: I| O::default())
+impl<I: TypeConstraints, O: TypeConstraints> Composable<O> for FnType<I, O> {
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        self.compose(f)
     }
+}
 
+impl<I: TypeConstraints, O: TypeConstraints> Identity<O> for FnType<I, O> {
     fn map_identity<U, F>(f: F) -> Self::Output<U>
     where
         U: TypeConstraints,
@@ -274,20 +254,6 @@ where
     O: TypeConstraints,
 {
     type Output<U> = FnType<I, U> where U: TypeConstraints;
-}
-
-impl<I, O> Composable<O> for FnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints + Identity<O>,
-{
-    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<O, U>,
-    {
-        self.compose(f)
-    }
 }
 
 impl<I, O> Functor<O> for FnType<I, O>

@@ -15,15 +15,6 @@ use crate::fntype::{FnTrait, FnType};
 /// * `E` - The environment type.
 /// * `A` - The output type.
 /// 
-/// # Laws
-/// A Reader instance must satisfy these laws in addition to the standard Monad laws:
-/// 1. Environment Access: For any environment `e`, `ask().run_reader(e) = e`
-/// 2. Environment Modification: For function `f` and Reader `r`, `local(f, r).run_reader(e) = r.run_reader(f(e))`
-/// 3. Environment Consistency: For Readers `r1` and `r2`, `r1.bind(r2).run_reader(e) = r2(r1.run_reader(e)).run_reader(e)`
-/// 4. Pure Environment Independence: For any value `x` and environment `e`, `Reader::pure(x).run_reader(e) = x`
-/// 5. Local Identity: For any Reader `r`, `local(|x| x, r) = r`
-/// 6. Local Composition: For functions `f`, `g` and Reader `r`, `local(f, local(g, r)) = local(|e| g(f(e)), r)`
-/// 
 /// # Examples
 /// ```
 /// use rustica::datatypes::reader::Reader;

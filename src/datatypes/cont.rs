@@ -14,26 +14,22 @@ use crate::fntype::{FnType, FnTrait};
 /// The continuation monad.
 ///
 /// # Type Parameters
+///
 /// * `R` - The return type of the continuation.
 /// * `A` - The type to be computed asynchronously.
 ///
 /// # Examples
-/// ```rust
+///
+/// ```
 /// use rustica::datatypes::cont::Cont;
 /// use rustica::fntype::{FnType, FnTrait};
 /// 
-/// fn main() {
-///     let cont = Cont::new(FnType::new(|k: FnType<i32, i32>| k.call(1)));
-///     let result = cont.run(FnType::new(|x: i32| x + 1));
-///     assert_eq!(result, 2);
-/// }
+/// let cont = Cont::new(FnType::new(|k: FnType<i32, i32>| k.call(1)));
+/// let result = cont.run(FnType::new(|x: i32| x + 1));
+/// assert_eq!(result, 2);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct Cont<R: TypeConstraints, A: TypeConstraints>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
+pub struct Cont<R: TypeConstraints, A: TypeConstraints> {
     /// The continuation function.
     ///
     /// This field holds the core logic of the continuation monad.

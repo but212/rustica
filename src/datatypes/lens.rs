@@ -5,25 +5,6 @@ use crate::prelude::*;
 /// # Type Parameters
 /// * `S` - The type of the larger structure
 /// * `A` - The type of the focused part
-/// 
-/// # Laws
-/// A Lens instance must satisfy these laws:
-/// 1. Get-Put Identity: For any structure `s`,
-///    `s.put(s.get()) = s`
-/// 2. Put-Get Identity: For any structure `s` and value `a`,
-///    `(s.put(a)).get() = a`
-/// 3. Put-Put Identity: For any structure `s` and values `a`, `b`,
-///    `s.put(a).put(b) = s.put(b)`
-/// 4. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(s.get()) = η(s).get()`
-/// 5. Composition: For any lenses `l1`, `l2`,
-///    `(l1.compose(l2)).get() = l2.get(l1.get())`
-/// 6. Focus Preservation: For any structure `s` and function `f`,
-///    `s.modify(f) = s.put(f(s.get()))`
-/// 7. Type Safety: For any structure `s` and value `a`,
-///    `s.put(a)` must maintain type safety of the structure
-/// 8. Immutability: For any structure `s`,
-///    Original structure must remain unchanged after lens operations
 ///
 /// # Examples
 ///

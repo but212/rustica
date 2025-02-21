@@ -1,158 +1,185 @@
+use crate::prelude::*;
 use std::future::Future;
-use futures::future::FutureExt;
+use std::pin::Pin;
+use std::fmt;
 
-use crate::traits::hkt::{HKT, TypeConstraints};
-use crate::traits::applicative::Applicative;
-use crate::traits::functor::Functor;
-use crate::traits::pure::Pure;
-use crate::traits::monad::Monad;
-use crate::traits::category::Category;
-use crate::traits::composable::Composable;
-use crate::traits::identity::Identity;
-
-use crate::fntype::{FnType, FnTrait};
-
-/// An async monad that represents an asynchronous computation.
-///
+/// A monad for asynchronous computations
+/// 
+/// `AsyncM` represents a computation that will produce a value of type `A` asynchronously.
+/// It encapsulates a `Future` that can be run to obtain the final value.
+/// 
+/// # Type Parameters
+/// 
+/// * `A`: The type of value that will be produced asynchronously
+/// 
 /// # Examples
-///
+/// 
 /// ```
 /// use rustica::datatypes::async_monad::AsyncM;
-/// use rustica::traits::pure::Pure;
-/// use rustica::traits::monad::Monad;
-/// use rustica::fntype::{FnType, FnTrait};
-///
-/// let async_value = AsyncM::pure(42);
-/// let doubled = async_value.bind(FnType::new(|x| AsyncM::pure(x * 2)));
-/// assert_eq!(doubled.try_get(), 84);
+/// use std::time::Duration;
+/// use tokio::time::sleep;
+/// 
+/// # #[tokio::main]
+/// # async fn main() {
+/// let async_m = AsyncM::new(|| async {
+///     sleep(Duration::from_secs(1)).await;
+///     42
+/// });
+/// 
+/// let result = async_m.run().await;
+/// assert_eq!(result, 42);
+/// # }
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct AsyncM<A: TypeConstraints> {
-    run: FnType<(), A>,
+pub struct AsyncM<A> {
+    run: Pin<Box<dyn Future<Output = A> + Send + Sync + 'static>>,
 }
 
-impl<A: TypeConstraints> AsyncM<A> {
-    /// Creates a new `AsyncM` instance from a given future.
-    ///
-    /// This function takes a future and wraps it in an `AsyncM`, allowing it to be used
-    /// with the async monad interface.
-    ///
-    /// # Arguments
-    ///
-    /// * `future` - A future that will eventually resolve to a value of type `A`.
-    ///
-    /// # Returns
-    ///
-    /// Returns a new `AsyncM<A>` instance.
-    ///
+impl<A> AsyncM<A>
+where
+    A: Send + Sync + 'static,
+{
+    /// Creates a new `AsyncM` from a function that produces a `Future`
+    /// 
     /// # Type Parameters
-    ///
-    /// * `F` - The type of the future, which must implement `Future<Output = A>`,
-    ///         `Send`, `Sync`, `Clone`, and have a `'static` lifetime.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::async_monad::AsyncM;
-    /// use std::future::Future;
-    /// use futures::future::ready;
-    ///
-    /// let future = ready(42);
-    /// let async_m = AsyncM::new(future);
-    /// assert_eq!(async_m.try_get(), 42);
-    /// ```
-    pub fn new<F>(future: F) -> Self
+    /// 
+    /// * `Fut`: The type of the `Future` returned by `f`
+    /// * `F`: The type of the function that produces the `Future`
+    /// 
+    /// # Arguments
+    /// 
+    /// * `f`: A function that, when called, produces a `Future`
+    /// 
+    /// # Returns
+    /// 
+    /// A new `AsyncM` instance encapsulating the `Future` produced by `f`
+    pub fn new<Fut, F>(f: F) -> Self
     where
-        F: Future<Output = A> + Send + Sync + Clone + 'static,
+        Fut: Future<Output = A> + Send + Sync + 'static,
+        F: FnOnce() -> Fut + Send + Sync + 'static,
     {
-        let shared = future.shared();
         AsyncM {
-            run: FnType::new(move |_| {
-                let shared = shared.clone();
-                shared.now_or_never().unwrap_or_default()
-            }),
+            run: Box::pin(f()),
         }
     }
 
-    /// Attempts to retrieve the value from the `AsyncM` immediately.
-    ///
-    /// This method executes the internal computation synchronously and returns the result.
-    /// If the computation hasn't completed yet, it will return the default value for type `A`.
-    ///
+    /// Runs the async computation and returns the result
+    /// 
     /// # Returns
-    ///
-    /// The computed value of type `A`, or its default if not ready.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::async_monad::AsyncM;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let async_value = AsyncM::pure(42);
-    /// assert_eq!(async_value.try_get(), 42);
-    /// ```
-    pub fn try_get(&self) -> A {
-        self.run.call(())
+    /// 
+    /// The value of type `A` produced by the async computation
+    pub async fn run(self) -> A {
+        self.run.await
     }
 }
 
-impl<A: TypeConstraints> HKT for AsyncM<A> {
+impl<A> fmt::Debug for AsyncM<A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AsyncM")
+            .field("run", &"<future>")
+            .finish()
+    }
+}
+
+impl<A> Clone for AsyncM<A>
+where
+    A: Send + Sync + 'static,
+{
+    fn clone(&self) -> Self {
+        // We can't clone futures, so we create a new one that returns a future
+        AsyncM {
+            run: Box::pin(async move { panic!("AsyncM::clone is not supported") }),
+        }
+    }
+}
+
+impl<A> Default for AsyncM<A>
+where
+    A: Default + Send + Sync + 'static,
+{
+    fn default() -> Self {
+        AsyncM {
+            run: Box::pin(std::future::ready(Default::default())),
+        }
+    }
+}
+
+impl<A> PartialEq for AsyncM<A>
+where
+    A: PartialEq + Send + Sync + 'static,
+{
+    fn eq(&self, _other: &Self) -> bool {
+        // Futures cannot be compared for equality
+        false
+    }
+}
+
+impl<A> Eq for AsyncM<A> where A: Eq + Send + Sync + 'static {}
+
+impl<A> HKT for AsyncM<A>
+where
+    A: TypeConstraints,
+{
     type Output<T> = AsyncM<T> where T: TypeConstraints;
 }
 
-impl<A: TypeConstraints> Pure<A> for AsyncM<A> {
-    fn pure(value: A) -> Self::Output<A> {
-        AsyncM {
-            run: FnType::new(move |_| value.clone()),
-        }
-    }
-}
-
-impl<A: TypeConstraints> Identity<A> for AsyncM<A> {
-    fn map_identity<B, F>(f: F) -> Self::Output<B>
+impl<A> Identity<A> for AsyncM<A>
+where
+    A: TypeConstraints,
+{
+    fn map_identity<B, F>(_f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
         F: FnTrait<A, B>,
     {
-        AsyncM {
-            run: FnType::new(move |_| f.call(A::default())),
-        }
+        AsyncM::pure(B::default())
     }
 }
 
-impl<A: TypeConstraints> Composable<A> for AsyncM<A> {
-    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<A, U>,
-    {
-        self.fmap(f)
-    }
-}
-
-impl<A: TypeConstraints> Functor<A> for AsyncM<A> {
+impl<A> Functor<A> for AsyncM<A>
+where
+    A: TypeConstraints,
+{
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
         F: FnTrait<A, B>,
     {
         AsyncM {
-            run: FnType::new(move |_| {
-                let value = self.run.call(());
-                f.call(value)
+            run: Box::pin(async move {
+                let a = self.run.await;
+                f.call(a)
             }),
         }
     }
 }
 
-impl<A: TypeConstraints> Applicative<A> for AsyncM<A> {
-    fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
+impl<A> Pure<A> for AsyncM<A>
+where
+    A: TypeConstraints,
+{
+    fn pure(a: A) -> Self {
+        AsyncM {
+            run: Box::pin(std::future::ready(a)),
+        }
+    }
+}
+
+impl<A> Applicative<A> for AsyncM<A>
+where
+    A: TypeConstraints,
+{
+    fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: TypeConstraints,
         F: FnTrait<A, B>,
     {
-        self.fmap(FnType::new(move |a| mf.try_get().call(a)))
+        AsyncM {
+            run: Box::pin(async move {
+                let a = self.run.await;
+                let f = f.run.await;
+                f.call(a)
+            }),
+        }
     }
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
@@ -162,9 +189,9 @@ impl<A: TypeConstraints> Applicative<A> for AsyncM<A> {
         F: FnTrait<(A, B), C>,
     {
         AsyncM {
-            run: FnType::new(move |_| {
-                let a = self.try_get();
-                let b = mb.try_get();
+            run: Box::pin(async move {
+                let a = self.run.await;
+                let b = mb.run.await;
                 f.call((a, b))
             }),
         }
@@ -178,30 +205,49 @@ impl<A: TypeConstraints> Applicative<A> for AsyncM<A> {
         F: FnTrait<(A, B, C), D>,
     {
         AsyncM {
-            run: FnType::new(move |_| {
-                let a = self.try_get();
-                let b = mb.try_get();
-                let c = mc.try_get();
+            run: Box::pin(async move {
+                let a = self.run.await;
+                let b = mb.run.await;
+                let c = mc.run.await;
                 f.call((a, b, c))
             }),
         }
     }
 }
 
-impl<A: TypeConstraints> Category<A> for AsyncM<A> {
-    type Morphism<B, C> = FnType<B, C>
+impl<A> Composable<A> for AsyncM<A>
+where
+    A: TypeConstraints,
+{
+    fn compose_with<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
-        C: TypeConstraints;
+        F: FnTrait<A, B>,
+    {
+        AsyncM {
+            run: Box::pin(async move {
+                let a = self.run.await;
+                f.call(a)
+            }),
+        }
+    }
 }
 
-impl<A: TypeConstraints> Monad<A> for AsyncM<A> {
+impl<A> Monad<A> for AsyncM<A>
+where
+    A: TypeConstraints,
+{
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
-        F: FnTrait<A, Self::Output<B>>,
+        F: FnTrait<A, AsyncM<B>>,
     {
-        self.fmap(FnType::new(move |a: A| f.call(a).try_get()))
+        AsyncM {
+            run: Box::pin(async move {
+                let a = self.run.await;
+                f.call(a).run.await
+            }),
+        }
     }
 
     fn join<B>(self) -> Self::Output<B>
@@ -209,7 +255,12 @@ impl<A: TypeConstraints> Monad<A> for AsyncM<A> {
         B: TypeConstraints,
         A: Into<Self::Output<B>>,
     {
-        self.bind(FnType::new(move |x: A| x.into()))
+        AsyncM {
+            run: Box::pin(async move {
+                let ma = self.run.await;
+                ma.into().run.await
+            }),
+        }
     }
 
     fn returns<B, F>(self, f: F) -> Self::Output<B>
@@ -217,13 +268,28 @@ impl<A: TypeConstraints> Monad<A> for AsyncM<A> {
         B: TypeConstraints,
         F: FnTrait<A, B>,
     {
-        self.fmap(FnType::new(move |a| f.call(a)))
+        self.fmap(f)
     }
 
     fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
     where
         B: TypeConstraints,
     {
-        self.bind(FnType::new(move |_| mb.clone()))
+        AsyncM {
+            run: Box::pin(async move {
+                let _ = self.run.await;
+                mb.run.await
+            }),
+        }
     }
+}
+
+impl<A> Category<A> for AsyncM<A>
+where
+    A: TypeConstraints,
+{
+    type Morphism<B, C> = FnType<B, C>
+    where
+        B: TypeConstraints,
+        C: TypeConstraints;
 }

@@ -5,10 +5,13 @@ use crate::traits::hkt::TypeConstraints;
 /// A trait for semigroups, which are types with an associative binary operation.
 /// 
 /// # Type Parameters
+/// 
 /// * `T` - The type of elements in the semigroup
 /// 
 /// # Laws
+/// 
 /// A Semigroup instance must satisfy these laws:
+/// 
 /// 1. Associativity: For any values `x`, `y`, `z`,
 ///    `x.combine(y.combine(z)) = (x.combine(y)).combine(z)`
 /// 2. Closure: For any values `x`, `y`,
@@ -22,28 +25,33 @@ where
     /// Combines two values of the same type.
     ///
     /// # Arguments
+    ///
     /// * `other` - Another value of the same type
     ///
     /// # Returns
+    ///
     /// The combined result
     fn combine(self, other: Self) -> Self;
 
     /// Combines all elements in an iterator using the semigroup operation.
     ///
     /// # Type Parameters
+    ///
     /// * `I` - The type of the iterator
     ///
     /// # Arguments
+    ///
     /// * `iter` - An iterator over elements of the semigroup
     ///
     /// # Returns
+    ///
     /// The combined result, or None if the iterator is empty
     fn combine_all<I>(iter: I) -> Option<Self>
     where
-        I: Iterator<Item = Self>,
+        I: IntoIterator<Item = Self>,
         Self: Sized,
     {
-        iter.reduce(|a, b| a.combine(b))
+        iter.into_iter().reduce(|a, b| a.combine(b))
     }
 }
 
