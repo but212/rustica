@@ -236,10 +236,6 @@ impl<T: TypeConstraints> Applicative<T> for Maybe<T> {
 }
 
 impl<T: TypeConstraints> Identity<T> for Maybe<T> {
-    fn identity() -> Self::Output<T> {
-        Maybe::Just(T::default())
-    }
-
     fn map_identity<U, F>(f: F) -> Self::Output<U>
     where
         U: TypeConstraints,

@@ -110,12 +110,6 @@ impl<A: TypeConstraints> Pure<A> for AsyncM<A> {
 }
 
 impl<A: TypeConstraints> Identity<A> for AsyncM<A> {
-    fn identity() -> Self::Output<A> {
-        AsyncM {
-            run: FnType::new(move |_| A::default()),
-        }
-    }
-
     fn map_identity<B, F>(f: F) -> Self::Output<B>
     where
         B: TypeConstraints,

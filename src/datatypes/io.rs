@@ -86,18 +86,12 @@ use crate::fntype::{FnType, FnTrait};
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct IO<A>
-where
-    A: TypeConstraints,
-{
+pub struct IO<A: TypeConstraints> {
     /// The underlying function representing the IO operation.
     pub run: FnType<(), A>,
 }
 
-impl<A> IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> IO<A> {
     /// Creates a new `IO` instance.
     ///
     /// # Arguments
@@ -133,26 +127,17 @@ where
     }
 }
 
-impl<A> HKT for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> HKT for IO<A> {
     type Output<T> = IO<T> where T: TypeConstraints;
 }
 
-impl<A> Pure<A> for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Pure<A> for IO<A> {
     fn pure(value: A) -> Self::Output<A> {
         Self::new(FnType::new(move |_s| value.clone()))
     }
 }
 
-impl<A> Functor<A> for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Functor<A> for IO<A> {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -163,10 +148,7 @@ where
     }
 }
 
-impl<A> Applicative<A> for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Applicative<A> for IO<A> {
     fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -203,10 +185,7 @@ where
     }
 }
 
-impl<A> Monad<A> for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Monad<A> for IO<A> {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -251,10 +230,7 @@ where
     }
 }
 
-impl<A> Composable<A> for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Composable<A> for IO<A> {
     fn compose_with<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -267,10 +243,7 @@ where
     }
 }
 
-impl<A> Identity<A> for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Identity<A> for IO<A> {
     fn identity() -> Self::Output<A> {
         IO::new(FnType::new(|_| A::default()))
     }
@@ -284,10 +257,7 @@ where
     }
 }
 
-impl<A> Semigroup<A> for IO<A>
-where
-    A: Semigroup<A> + TypeConstraints,
-{
+impl<A: TypeConstraints + Semigroup<A>> Semigroup<A> for IO<A> {
     fn combine(self, other: Self) -> Self {
         IO::new(FnType::new(move |_| {
             self.run().combine(other.run())
@@ -295,34 +265,22 @@ where
     }
 }
 
-impl<A> Monoid<A> for IO<A>
-where
-    A: Monoid<A> + TypeConstraints,
-{
+impl<A: TypeConstraints + Monoid<A>> Monoid<A> for IO<A> {
     fn empty() -> Self {
         IO::new(FnType::new(|_| A::empty()))
     }
 }
 
-impl<A> Category<A> for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Category<A> for IO<A> {
     type Morphism<B, C> = FnType<B, C>
     where
         B: TypeConstraints,
         C: TypeConstraints;
 }
 
-impl<A> Arrow<A, A> for IO<A>
-where
-    A: TypeConstraints,
-{}
+impl<A: TypeConstraints> Arrow<A, A> for IO<A> {}
 
-impl<A> Evaluate<A> for IO<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Evaluate<A> for IO<A> {
     fn evaluate(self) -> A {
         self.run.call(())
     }

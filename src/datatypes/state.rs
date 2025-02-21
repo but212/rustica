@@ -35,21 +35,13 @@ use crate::fntype::{FnType, FnTrait};
 /// assert_eq!(state.run_state(5), (6, 10));
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct State<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+pub struct State<S: TypeConstraints, A: TypeConstraints> {
     /// The stateful computation function that takes a state `S` and returns a tuple `(A, S)`.
     /// `A` is the result of the computation, and `S` is the new state.
     pub run: FnType<S, (A, S)>,
 }
 
-impl<S, A> State<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<S: TypeConstraints, A: TypeConstraints> State<S, A> {
     /// Creates a new `State` instance with the given state transition function.
     ///
     /// # Arguments
@@ -69,10 +61,7 @@ where
     /// let state = State::new(FnType::new(|s: i32| (s + 1, s * 2)));
     /// assert_eq!(state.run_state(5), (6, 10));
     /// ```
-    pub fn new<F>(f: F) -> Self
-    where
-        F: FnTrait<S, (A, S)>,
-    {
+    pub fn new<F: FnTrait<S, (A, S)>>(f: F) -> Self {
         State { run: FnType::new(move |s| f.call(s)) }
     }
 
@@ -144,29 +133,17 @@ where
     }
 }
 
-impl<S, A> HKT for State<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<S: TypeConstraints, A: TypeConstraints> HKT for State<S, A> {
     type Output<T> = State<S, T> where T: TypeConstraints;
 }
 
-impl<S, A> Pure<A> for State<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<S: TypeConstraints, A: TypeConstraints> Pure<A> for State<S, A> {
     fn pure(value: A) -> Self::Output<A> {
         State::new(FnType::new(move |s| (value.clone(), s)))
     }
 }
 
-impl<S, A> Functor<A> for State<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<S: TypeConstraints, A: TypeConstraints> Functor<A> for State<S, A> {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -180,11 +157,7 @@ where
     }
 }
 
-impl<S, A> Applicative<A> for State<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<S: TypeConstraints, A: TypeConstraints> Applicative<A> for State<S, A> {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -229,11 +202,7 @@ where
     }
 }
 
-impl<S, A> Monad<A> for State<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<S: TypeConstraints, A: TypeConstraints> Monad<A> for State<S, A> {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -273,10 +242,6 @@ where
 }
 
 impl<S: TypeConstraints, A: TypeConstraints> Identity<A> for State<S, A> {
-    fn identity() -> Self::Output<A> {
-        State::new(FnType::new(|s| (A::default(), s)))
-    }
-
     fn map_identity<B, F>(f: F) -> Self::Output<B>
     where
         B: TypeConstraints,

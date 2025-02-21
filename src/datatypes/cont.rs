@@ -29,7 +29,7 @@ use crate::fntype::{FnType, FnTrait};
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct Cont<R, A>
+pub struct Cont<R: TypeConstraints, A: TypeConstraints>
 where
     R: TypeConstraints,
     A: TypeConstraints,
@@ -42,11 +42,7 @@ where
     pub run_cont: Arc<FnType<FnType<A, R>, R>>,
 }
 
-impl<R, A> Cont<R, A>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<R: TypeConstraints, A: TypeConstraints> Cont<R, A> {
     /// Creates a new `Cont` instance.
     ///
     /// # Arguments
@@ -121,11 +117,7 @@ where
     }
 }
 
-impl<R, A> Applicative<A> for Cont<R, A>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<R: TypeConstraints, A: TypeConstraints> Applicative<A> for Cont<R, A> {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -214,11 +206,7 @@ where
     }
 }
 
-impl<R, A> Monad<A> for Cont<R, A>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<R: TypeConstraints, A: TypeConstraints> Monad<A> for Cont<R, A> {
     fn join<B>(self) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -267,23 +255,11 @@ where
     }
 }
 
-impl<R, A> HKT for Cont<R, A>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<R: TypeConstraints, A: TypeConstraints> HKT for Cont<R, A> {
     type Output<T> = Cont<R, T> where T: TypeConstraints;
 }
 
-impl<R, A> Identity<A> for Cont<R, A>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
-    fn identity() -> Self::Output<A> {
-        Cont::new(FnType::new(|k: FnType<A, R>| k.call(A::default())))
-    }
-
+impl<R: TypeConstraints, A: TypeConstraints> Identity<A> for Cont<R, A> {
     fn map_identity<B, F>(f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -293,11 +269,7 @@ where
     }
 }
 
-impl<R, A> Composable<A> for Cont<R, A>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<R: TypeConstraints, A: TypeConstraints> Composable<A> for Cont<R, A> {
     fn compose_with<U, F>(self, f: F) -> Self::Output<U>
     where
         U: TypeConstraints,
@@ -307,20 +279,11 @@ where
     }
 }
 
-impl<R, A> Category<A> for Cont<R, A>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<R: TypeConstraints, A: TypeConstraints> Category<A> for Cont<R, A> {
     type Morphism<B, C> = FnType<B, C>
     where
         B: TypeConstraints,
         C: TypeConstraints;
 }
 
-impl<R, A> Arrow<A, A> for Cont<R, A>
-where
-    R: TypeConstraints,
-    A: TypeConstraints,
-{
-}
+impl<R: TypeConstraints, A: TypeConstraints> Arrow<A, A> for Cont<R, A> {}

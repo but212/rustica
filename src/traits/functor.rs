@@ -1,6 +1,7 @@
 use crate::traits::identity::Identity;
 use crate::traits::hkt::TypeConstraints;
 use crate::fntype::{FnTrait, FnType};
+use crate::traits::composable::Composable;
 
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -16,14 +17,17 @@ use std::fmt::Debug;
 /// 2. Composition: `fmap(f ∘ g) = fmap(f) ∘ fmap(g)`
 /// 3. Structure Preservation: `fmap` must preserve the structure of the functor
 /// 4. Type Safety: `fmap` must maintain the same type constructor
-pub trait Functor<T>: Identity<T>
+pub trait Functor<T>: Identity<T> + Composable<T>
 where
     T: TypeConstraints,
 {
     fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
         U: TypeConstraints,
-        F: FnTrait<T, U>;
+        F: FnTrait<T, U>,
+    {
+        self.compose_with(f)
+    }
 
     fn lift<U, F>(f: F) -> FnType<Self, Self::Output<U>>
     where

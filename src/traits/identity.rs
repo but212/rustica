@@ -16,7 +16,9 @@ use std::hash::Hash;
 /// 2. Left Identity: `identity().combine(x) = x`
 pub trait Identity<T: TypeConstraints>: HKT {
     /// Returns the identity element for this type
-    fn identity() -> Self::Output<T>;
+    fn identity() -> Self::Output<T> {
+        Self::Output::default()
+    }
 
     /// Maps a function over the identity element
     fn map_identity<U, F>(f: F) -> Self::Output<U>

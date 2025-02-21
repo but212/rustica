@@ -213,3 +213,5 @@ impl<S: TypeConstraints, A: TypeConstraints> Category<A> for Lens<S, A> {
 }
 
 impl<S: TypeConstraints, A: TypeConstraints> Arrow<A, A> for Lens<S, A> {}
+
+impl<S: TypeConstraints, A: TypeConstraints> Functor<A> for Lens<S, A> {}

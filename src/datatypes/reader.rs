@@ -208,10 +208,6 @@ impl<E: TypeConstraints, A: TypeConstraints> Composable<A> for Reader<E, A> {
 }
 
 impl<E: TypeConstraints, A: TypeConstraints> Identity<A> for Reader<E, A> {
-    fn identity() -> Self::Output<A> {
-        Reader::new(FnType::new(|_| A::default()))
-    }
-
     fn map_identity<U, F>(f: F) -> Self::Output<U>
     where
         U: TypeConstraints,

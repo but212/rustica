@@ -7,10 +7,10 @@
 //! ```text
 //! TypeConstraints
 //!      ↓
-//!     HKT
-//!      ↓
+//!     HKT  -------
+//!      ↓         ↓
 //! Identity ← Composable → Category
-//!      ↓          ↓
+//!      ↓         ↓
 //!   Functor    Arrow
 //!      ↓
 //! Applicative

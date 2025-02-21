@@ -207,10 +207,6 @@ impl<L: TypeConstraints, R: TypeConstraints> HKT for Choice<L, R> {
 }
 
 impl<L: TypeConstraints, R: TypeConstraints> Identity<R> for Choice<L, R> {
-    fn identity() -> Self {
-        Choice::Right(R::default())
-    }
-
     fn map_identity<B, F>(_f: F) -> Self::Output<B>
     where
         B: TypeConstraints,

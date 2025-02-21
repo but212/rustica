@@ -351,10 +351,6 @@ impl<L: TypeConstraints, R: TypeConstraints> Category<R> for Either<L, R> {
 impl<L: TypeConstraints, R: TypeConstraints> Arrow<R, R> for Either<L, R> {}
 
 impl<L: TypeConstraints, R: TypeConstraints> Identity<R> for Either<L, R> {
-    fn identity() -> Self::Output<R> {
-        Either::Right(R::default())
-    }
-
     fn map_identity<B, F>(f: F) -> Self::Output<B>
     where
         B: TypeConstraints,

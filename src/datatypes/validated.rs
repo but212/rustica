@@ -306,10 +306,6 @@ impl<E: ValidatedTypeConstraints, A: TypeConstraints> Applicative<A> for Validat
 }
 
 impl<E: ValidatedTypeConstraints, A: TypeConstraints> Identity<A> for Validated<E, A> {
-    fn identity() -> Self::Output<A> {
-        Validated::Valid(A::default())
-    }
-
     fn map_identity<U, F>(f: F) -> Self::Output<U>
     where
         U: TypeConstraints,

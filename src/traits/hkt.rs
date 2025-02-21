@@ -48,7 +48,7 @@ impl<T> TypeConstraints for T where T: Clone + Debug + PartialEq + Eq + Default 
 /// }
 /// ```
 pub trait HKT: TypeConstraints {
-    type Output<U>: TypeConstraints where U: TypeConstraints;
+    type Output<U>: HKT where U: TypeConstraints;
 }
 
 // Standard implementations

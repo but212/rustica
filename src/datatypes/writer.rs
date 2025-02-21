@@ -201,10 +201,6 @@ impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Category<A> for Writer<
 impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Arrow<A, A> for Writer<W, A> {}
 
 impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Identity<A> for Writer<W, A> {
-    fn identity() -> Self::Output<A> {
-        Writer::new(A::default(), W::empty())
-    }
-
     fn map_identity<B, F>(f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
