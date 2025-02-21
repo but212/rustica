@@ -37,27 +37,18 @@ use crate::fntype::{FnType, FnTrait};
 /// assert_eq!(nothing.apply(f), Maybe::Nothing);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Maybe<T>
-where
-    T: TypeConstraints,
-{
+pub enum Maybe<T: TypeConstraints> {
     Just(T),
     Nothing,
 }
 
-impl<T> Default for Maybe<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Default for Maybe<T> {
     fn default() -> Self {
         Maybe::Nothing
     }
 }
 
-impl<T> Maybe<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Maybe<T> {
     /// Returns `true` if the `Maybe` value is `Just`, otherwise returns `false`.
     ///
     /// # Examples
@@ -176,26 +167,17 @@ where
     }
 }
 
-impl<T> HKT for Maybe<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> HKT for Maybe<T> {
     type Output<U> = Maybe<U> where U: TypeConstraints;
 }
 
-impl<T> Pure<T> for Maybe<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Pure<T> for Maybe<T> {
     fn pure(value: T) -> Self::Output<T> {
         Maybe::Just(value)
     }
 }
 
-impl<T> Functor<T> for Maybe<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Functor<T> for Maybe<T> {
     fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
         U: TypeConstraints,
@@ -208,10 +190,7 @@ where
     }
 }
 
-impl<T> Applicative<T> for Maybe<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Applicative<T> for Maybe<T> {
     fn apply<U, F>(self, g: Self::Output<F>) -> Self::Output<U>
     where
         U: TypeConstraints,
@@ -256,14 +235,25 @@ where
     }
 }
 
-impl<T> Monad<T> for Maybe<T>
-where
-    T: TypeConstraints,
-{
-    fn bind<U, F>(self, f: F) -> Self::Output<U>
+impl<T: TypeConstraints> Identity<T> for Maybe<T> {
+    fn identity() -> Self::Output<T> {
+        Maybe::Just(T::default())
+    }
+
+    fn map_identity<U, F>(f: F) -> Self::Output<U>
     where
         U: TypeConstraints,
-        F: FnTrait<T, Self::Output<U>>,
+        F: FnTrait<T, U>,
+    {
+        Maybe::Just(f.call(T::default()))
+    }
+}
+
+impl<T: TypeConstraints> Monad<T> for Maybe<T> {
+    fn bind<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<T, Self::Output<B>>,
     {
         match self {
             Maybe::Just(x) => f.call(x),
@@ -271,29 +261,61 @@ where
         }
     }
 
-    fn join<U>(self) -> Self::Output<U>
+    fn join<B>(self) -> Self::Output<B>
     where
-        U: TypeConstraints,
-        T: Into<Self::Output<U>>,
+        B: TypeConstraints,
+        T: Into<Self::Output<B>>,
     {
         match self {
             Maybe::Just(x) => x.into(),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
+
+    fn then<B: TypeConstraints>(self, mb: Self::Output<B>) -> Self::Output<B> {
+        let f = FnType::new(move |_| mb.clone());
+        self.bind(f)
+    }
+
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<T, B>,
+    {
+        match self {
+            Maybe::Just(x) => Maybe::Just(f.call(x)),
+            Maybe::Nothing => Maybe::Nothing,
+        }
+    }
 }
 
-impl<T> FromIterator<T> for Maybe<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> Composable<T> for Maybe<T> {
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<T, U>,
+    {
+        match self {
+            Maybe::Just(x) => Maybe::Just(f.call(x)),
+            Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+}
+
+impl<T: TypeConstraints> Category<T> for Maybe<T> {
+    type Morphism<B, C> = FnType<B, C> where B: TypeConstraints, C: TypeConstraints;
+}
+
+impl<T: TypeConstraints, U: TypeConstraints> Arrow<T, U> for Maybe<T> {}
+
+impl<T: TypeConstraints> FromIterator<T> for Maybe<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut iter = iter.into_iter();
         iter.next().map_or(Maybe::Nothing, Maybe::Just)
     }
 }
 
-impl<T> From<Option<T>> for Maybe<T>
+impl<T: TypeConstraints> From<Option<T>> for Maybe<T>
 where
     T: TypeConstraints,
 {
@@ -304,16 +326,3 @@ where
         }
     }
 }
-
-impl<T: TypeConstraints> Identity for Maybe<T> {}
-
-impl<T: TypeConstraints> Composable for Maybe<T> {}
-
-impl<T: TypeConstraints> Category for Maybe<T> {
-    type Morphism<B, C> = FnType<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints;
-}
-
-impl<T: TypeConstraints> Arrow for Maybe<T> {}

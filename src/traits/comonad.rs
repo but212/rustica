@@ -1,139 +1,43 @@
-use crate::traits::functor::Functor;
+use crate::traits::monad::Monad;
 use crate::traits::hkt::TypeConstraints;
-use crate::fntype::{FnType, FnTrait};
+use crate::fntype::FnTrait;
 
-/// A trait for comonads, dual to monads.
+/// A trait for comonads, which are the categorical dual of monads.
 ///
 /// # Type Parameters
-/// * `T`: The value type within the comonad.
+/// * `A` - The type of value contained in the comonad
 ///
 /// # Laws
-/// 1. Left Identity: `extend(extract)(w) = w`
-/// 2. Right Identity: `extract(extend(f)(w)) = f(w)`
-/// 3. Associativity: `extend(f)(extend(g)(w)) = extend(|x| f(extend(g)(x)))(w)`
-/// 4. Extract-Duplicate Consistency: `extract(duplicate(w)) = w`
-/// 5. Duplicate-Extract Consistency: `extend(extract)(duplicate(w)) = duplicate(w)`
-/// 
-/// # Examples
-///
-/// ```
-/// use rustica::prelude::*;
-///
-/// #[derive(Clone, Eq, PartialEq, Debug, Default)]
-/// struct MyComonad<T> {
-///     value: T,
-/// }
-/// 
-/// impl<T> HKT for MyComonad<T> where T: TypeConstraints {
-///     type Output<U> = MyComonad<U> where U: TypeConstraints;
-/// }
-/// 
-/// impl<T> Pure<T> for MyComonad<T>
-/// where
-///     T: TypeConstraints,
-/// {
-///     fn pure(value: T) -> Self {
-///         MyComonad { value }
-///     }
-/// }
-///
-/// impl<T> Functor<T> for MyComonad<T>
-/// where
-///     T: TypeConstraints,
-/// {
-///     fn fmap<U, F>(self, f: F) -> Self::Output<U>
-///     where
-///         U: TypeConstraints,
-///         F: FnTrait<T, U>,
-///     {
-///         MyComonad {
-///             value: f.call(self.value),
-///         }
-///     }
-/// }
-/// 
-/// impl<T> Comonad<T> for MyComonad<T>
-/// where
-///     T: TypeConstraints,
-/// {
-///     fn extract(&self) -> T {
-///         self.value.clone()
-///     }
-///
-///     fn extend<U, F>(self, f: F) -> U
-///     where
-///         U: TypeConstraints,
-///         F: FnTrait<Self, U>,
-///     {
-///         f.call(self)
-///     }
-/// }
-///
-/// let comonad = MyComonad { value: 42 };
-/// let extracted_value = comonad.extract();
-/// assert_eq!(extracted_value, 42);
-///
-/// let extended_comonad = comonad.extend(FnType::new(|w: MyComonad<i32>| w.extract() + 1));
-/// assert_eq!(extended_comonad, 43);
-/// ```
-pub trait Comonad<T>: Functor<T> + TypeConstraints
+/// 1. Left Identity: `extract(duplicate(w)) = w`
+/// 2. Right Identity: `duplicate(extract(w)) = w`
+/// 3. Associativity: `duplicate(duplicate(w)) = fmap(duplicate)(duplicate(w))`
+/// 4. Extend/Cobind: `extend(f)(w) = fmap(f)(duplicate(w))`
+/// 5. Extract Naturality: `extract(fmap(f)(w)) = f(extract(w))`
+pub trait Comonad<A>: Monad<A>
 where
-    T: TypeConstraints,
+    A: TypeConstraints,
 {
-    /// Extracts a value from a comonad.
-    ///
-    /// # Returns
-    /// The extracted value of type `T`.
-    fn extract(&self) -> T;
+    /// Extracts the value from the comonad
+    fn extract(self) -> A;
 
-    /// Extends a comonad by duplicating the context.
-    ///
-    /// # Arguments
-    /// - `self`: The comonad instance.
-    /// - `f`: A function that takes a comonad and returns a value of type `U`.
-    ///
-    /// # Returns
-    /// A new comonad containing the result of applying the function `f` to the comonad.
-    ///
-    /// # Type Parameters
-    /// - `U`: The return type of the function `f`.
-    /// - `F`: A function type that takes a comonad and returns a value of type `U`.
-    fn extend<U, F>(self, f: F) -> U
+    /// Creates a nested comonad structure
+    fn duplicate(self) -> Self::Output<Self>
     where
-        U: TypeConstraints,
-        F: FnTrait<Self, U>;
+        Self: Sized;
 
-    /// Maps a function over a comonad.
-    ///
-    /// # Arguments
-    /// - `self`: The comonad instance.
-    /// - `f`: A function that takes a comonad and returns a value of type `U`.
-    ///
-    /// # Returns
-    /// A new comonad containing the result of applying the function `f` to the comonad.
-    ///
-    /// # Type Parameters
-    /// - `U`: The return type of the function `f`.
-    /// - `F`: A function type that takes a comonad and returns a value of type `U`.
-    fn comap<U, F>(self, f: F) -> U
+    /// Maps a function over the comonad context
+    fn extend<B, F>(self, f: F) -> Self::Output<B>
     where
-        U: TypeConstraints,
-        F: FnTrait<Self, U>,
-    {
-        let g = FnType::new(move |w: Self| f.call(w));
-        self.extend(g)
-    }
+        B: TypeConstraints,
+        F: FnTrait<Self, B>,
+        Self: Sized;
 
-    /// Duplicates the context of a comonad.
-    ///
-    /// # Returns
-    /// A new comonad containing the duplicated context.
-    fn duplicate(self) -> Self
+    /// Extracts a value using a function
+    fn extract_with<B, F>(self, f: F) -> B
     where
-        Self: Sized,
-    {
-        self.extend(FnType::new(|w| w))
-    }
+        B: TypeConstraints,
+        F: FnTrait<Self, B>,
+        Self: Sized;
 }
 
 /// A trait for functions that can be used with comonads.

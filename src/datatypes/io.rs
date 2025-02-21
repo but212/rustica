@@ -212,8 +212,10 @@ where
         B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
-        let f = FnType::new(move |_s| f.call(self.run.call(())).run.call(()));
-        IO { run: f }
+        IO::new(FnType::new(move |_| {
+            let a = self.run();
+            f.call(a).run()
+        }))
     }
 
     fn join<B>(self) -> Self::Output<B>
@@ -221,40 +223,88 @@ where
         B: TypeConstraints,
         A: Into<Self::Output<B>>,
     {
-        self.bind(FnType::new(move |x: A| x.into()))
+        IO::new(FnType::new(move |_| {
+            let inner: Self::Output<B> = self.run().into();
+            inner.run()
+        }))
+    }
+
+    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+    {
+        IO::new(FnType::new(move |_| {
+            self.run();
+            mb.run()
+        }))
+    }
+
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        IO::new(FnType::new(move |_| {
+            let a = self.run();
+            f.call(a)
+        }))
     }
 }
 
-impl<A: TypeConstraints> Composable for IO<A> {}
-
-impl<A: TypeConstraints> Evaluate<A> for IO<A> {
-    fn evaluate(self) -> A {
-        self.run.call(())
-    }
-}
-
-impl<A: TypeConstraints> Identity for IO<A> {}
-
-impl<A: TypeConstraints> Semigroup for IO<A>
+impl<A> Composable<A> for IO<A>
 where
-    A: Semigroup + TypeConstraints,
+    A: TypeConstraints,
+{
+    fn compose_with<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        IO::new(FnType::new(move |_| {
+            let a = self.run();
+            f.call(a)
+        }))
+    }
+}
+
+impl<A> Identity<A> for IO<A>
+where
+    A: TypeConstraints,
+{
+    fn identity() -> Self::Output<A> {
+        IO::new(FnType::new(|_| A::default()))
+    }
+
+    fn map_identity<B, F>(f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        IO::new(FnType::new(move |_| f.call(A::default())))
+    }
+}
+
+impl<A> Semigroup<A> for IO<A>
+where
+    A: Semigroup<A> + TypeConstraints,
 {
     fn combine(self, other: Self) -> Self {
-        let f = FnType::new(move |_s| self.run.call(()).combine(other.run.call(())));
-        IO { run: f }
+        IO::new(FnType::new(move |_| {
+            self.run().combine(other.run())
+        }))
     }
 }
 
-impl<A> Monoid for IO<A>
+impl<A> Monoid<A> for IO<A>
 where
-    A: Monoid + TypeConstraints,
+    A: Monoid<A> + TypeConstraints,
 {
     fn empty() -> Self {
         IO::new(FnType::new(|_| A::empty()))
     }
 }
 
-impl<A: TypeConstraints> Category for IO<A>
+impl<A> Category<A> for IO<A>
 where
     A: TypeConstraints,
 {
@@ -264,4 +314,16 @@ where
         C: TypeConstraints;
 }
 
-impl<A: TypeConstraints> Arrow for IO<A> {}
+impl<A> Arrow<A, A> for IO<A>
+where
+    A: TypeConstraints,
+{}
+
+impl<A> Evaluate<A> for IO<A>
+where
+    A: TypeConstraints,
+{
+    fn evaluate(self) -> A {
+        self.run.call(())
+    }
+}

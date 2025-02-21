@@ -1,60 +1,68 @@
 use crate::traits::hkt::{HKT, TypeConstraints};
-use crate::traits::category::Category;
+use crate::fntype::FnTrait;
+use std::collections::HashMap;
+use std::hash::Hash;
 
-/// A trait for types that represent the identity element in a monoid.
+/// A trait for types that have an identity element.
+///
+/// The identity element is a value that, when combined with any other value,
+/// returns that other value unchanged.
+///
+/// # Type Parameters
+/// * `T` - The type of the value contained in the identity element
 ///
 /// # Laws
-/// 1. Identity: `identity(x) = x`
-/// 2. Composition: `f(g(identity())) = f(g(x))`
-/// 3. Naturality: `η(identity()) = identity()`
-/// 4. Functor, Applicative, Monad Consistency: `f(identity()) = f(x)`
-/// 5. Isomorphism: `identity()` is isomorphic to `x`
-///
-/// # Examples
-/// ```
-/// use rustica::prelude::*;
-///
-/// struct MyIdentity;
-///
-/// impl HKT for MyIdentity {
-///     type Output<T> = T where T: TypeConstraints;
-/// }
-///
-/// impl Identity for MyIdentity {}
-///
-/// assert_eq!(MyIdentity::identity(5), 5);
-/// ```
-pub trait Identity: HKT {
-    /// Identity function for any type.
-    ///
-    /// This function returns the input value as-is. It works for all types `T`
-    /// where `T` implements the `TypeConstraints` trait.
-    ///
-    /// # Arguments
-    /// * `x` - The value to be returned
-    ///
-    /// # Returns
-    /// Returns the input value `x` unchanged.
-    fn identity<T: TypeConstraints>(x: T) -> T {
-        x
+/// 1. Right Identity: `x.combine(identity()) = x`
+/// 2. Left Identity: `identity().combine(x) = x`
+pub trait Identity<T: TypeConstraints>: HKT {
+    /// Returns the identity element for this type
+    fn identity() -> Self::Output<T>;
+
+    /// Maps a function over the identity element
+    fn map_identity<U, F>(f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<T, U>;
+}
+
+impl<T: TypeConstraints> Identity<T> for Vec<T> {
+    fn identity() -> Self::Output<T> {
+        Vec::new()
     }
 
-    /// Converts the identity element to a category morphism.
-    ///
-    /// This method creates an identity morphism in the context of a given category `C`
-    /// for a specific type `T`.
-    ///
-    /// # Type Parameters
-    /// * `T`: The type for which the identity morphism is created.
-    /// * `C`: The category in which the morphism is defined.
-    ///
-    /// # Returns
-    /// Returns the identity morphism for type `T` in category `C`.
-    ///
-    /// # Constraints
-    /// * `T` must satisfy `TypeConstraints`.
-    /// * `C` must implement the `Category` trait.
-    fn to_morphism<T: TypeConstraints, C: Category>() -> C::Morphism<T, T> {
-        C::identity_morphism()
+    fn map_identity<U, F>(_f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<T, U>,
+    {
+        Vec::new()
+    }
+}
+
+impl<T: TypeConstraints> Identity<T> for Box<T> {
+    fn identity() -> Self::Output<T> {
+        Box::new(T::default())
+    }
+
+    fn map_identity<U, F>(f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<T, U>,
+    {
+        Box::new(f.call(T::default()))
+    }
+}
+
+impl<K: Hash + Eq + TypeConstraints, V: TypeConstraints> Identity<V> for HashMap<K, V> {
+    fn identity() -> Self::Output<V> {
+        HashMap::new()
+    }
+
+    fn map_identity<U, F>(_f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<V, U>,
+    {
+        HashMap::new()
     }
 }

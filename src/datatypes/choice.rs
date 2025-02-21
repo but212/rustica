@@ -206,18 +206,38 @@ impl<L: TypeConstraints, R: TypeConstraints> HKT for Choice<L, R> {
     type Output<T> = Choice<L, T> where T: TypeConstraints;
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Identity for Choice<L, R> {}
+impl<L: TypeConstraints, R: TypeConstraints> Identity<R> for Choice<L, R> {
+    fn identity() -> Self {
+        Choice::Right(R::default())
+    }
 
-impl<L: TypeConstraints, R: TypeConstraints> Composable for Choice<L, R> {}
+    fn map_identity<B, F>(_f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<R, B>,
+    {
+        Choice::Right(B::default())
+    }
+}
 
-impl<L: TypeConstraints, R: TypeConstraints> Category for Choice<L, R> {
+impl<L: TypeConstraints, R: TypeConstraints> Composable<R> for Choice<L, R> {
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<R, U>
+    {
+        self.fmap(f)
+    }
+}
+
+impl<L: TypeConstraints, R: TypeConstraints> Category<R> for Choice<L, R> {
     type Morphism<B, C> = FnType<B, C>
     where
         B: TypeConstraints,
         C: TypeConstraints;
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Arrow for Choice<L, R> {}
+impl<L: TypeConstraints, R: TypeConstraints> Arrow<R, R> for Choice<L, R> {}
 
 impl<L: TypeConstraints, R: TypeConstraints> Functor<R> for Choice<L, R> {
     fn fmap<T: TypeConstraints, F: FnTrait<R, T>>(self, f: F) -> Self::Output<T> {
@@ -234,7 +254,7 @@ impl<L: TypeConstraints, R: TypeConstraints> Bifunctor<L, R> for Choice<L, R> {
     where
         T: TypeConstraints,
         U: TypeConstraints;
-    fn bimap<T, U, F, G>(self, f: F, g: G) -> Self::Output<T, U>
+    fn bimap<T, U, F, G>(self, f: F, g: G) -> Choice<T, U>
     where
         T: TypeConstraints,
         U: TypeConstraints,
@@ -248,7 +268,7 @@ impl<L: TypeConstraints, R: TypeConstraints> Bifunctor<L, R> for Choice<L, R> {
         }
     }
 
-    fn first<T, F>(self, f: F) -> Self::Output<T, R>
+    fn first<T, F>(self, f: F) -> Choice<T, R>
     where
         T: TypeConstraints,
         F: FnTrait<L, T>,
@@ -260,7 +280,7 @@ impl<L: TypeConstraints, R: TypeConstraints> Bifunctor<L, R> for Choice<L, R> {
         }
     }
 
-    fn second<U, G>(self, g: G) -> Self::Output<L, U>
+    fn second<U, G>(self, g: G) -> Choice<L, U>
     where
         U: TypeConstraints,
         G: FnTrait<R, U>,
@@ -353,6 +373,29 @@ impl<L: TypeConstraints, R: TypeConstraints> Monad<R> for Choice<L, R> {
     {
         match self {
             Choice::Right(x) => x.into(),
+            Choice::Left(l) => Choice::Left(l),
+            Choice::Both(l, _) => Choice::Left(l),
+        }
+    }
+
+    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
+    where
+        B: TypeConstraints
+    {
+        match self {
+            Choice::Right(_x) => mb,
+            Choice::Left(l) => Choice::Left(l),
+            Choice::Both(l, _) => Choice::Left(l),
+        }
+    }
+
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<R, B>,
+    {
+        match self {
+            Choice::Right(x) => Choice::Right(f.call(x)),
             Choice::Left(l) => Choice::Left(l),
             Choice::Both(l, _) => Choice::Left(l),
         }

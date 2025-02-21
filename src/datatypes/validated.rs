@@ -8,6 +8,7 @@ use crate::traits::arrow::Arrow;
 use crate::traits::composable::Composable;
 use crate::traits::identity::Identity;
 use crate::fntype::{FnType, FnTrait};
+use crate::traits::semigroup::Semigroup;
 
 /// A type that represents a value that can be either valid or invalid
 ///
@@ -35,13 +36,20 @@ use crate::fntype::{FnType, FnTrait};
 ///     fn into_iter(self) -> Self::IntoIter { vec![self].into_iter() }
 /// }
 ///
+/// impl Semigroup<MyError> for MyError {
+///     fn combine(mut self, other: Self) -> Self {
+///         self.0.push_str(&other.0);
+///         self
+///     }
+/// }
+///
 /// impl ValidatedTypeConstraints for MyError {}
 ///
 /// let valid: Validated<MyError, i32> = Validated::valid(42);
 /// let invalid: Validated<MyError, i32> = Validated::invalid(MyError("Error".to_string()));
 ///
 /// assert_eq!(valid.clone().to_result(), Ok(42));
-/// assert_eq!(invalid.clone().to_result(), Err(vec![MyError("Error".to_string())]));
+/// assert_eq!(invalid.clone().to_result(), Err(MyError("Error".to_string())));
 ///
 /// let result = valid.map_valid(FnType::new(|x| x + 1));
 /// assert_eq!(result.to_result(), Ok(43));
@@ -49,25 +57,17 @@ use crate::fntype::{FnType, FnTrait};
 /// let combined: Validated<MyError, i32> = Validated::valid(1).combine(Validated::valid(2), FnType::new(|x| FnType::new(move |y| x + y)));
 /// assert_eq!(combined.to_result(), Ok(3));
 /// ```
-pub trait ValidatedTypeConstraints: TypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
+pub trait ValidatedTypeConstraints: TypeConstraints + Extend<Self> + IntoIterator<Item = Self> + Semigroup<Self> {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+pub enum Validated<E: ValidatedTypeConstraints, A: TypeConstraints> {
     /// Represents a valid value of type `A`.
     Valid(A),
-    /// Represents an invalid state with a vector of errors of type `E`.
-    Invalid(Vec<E>),
+    /// Represents an invalid state with a value of type `E`.
+    Invalid(E),
 }
 
-impl<E, A> Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Validated<E, A> {
     /// Creates a new `Validated` instance with a valid value.
     ///
     /// # Arguments
@@ -89,22 +89,9 @@ where
     ///
     /// # Returns
     ///
-    /// A `Validated::Invalid` variant containing a vector with the provided error.
+    /// A `Validated::Invalid` variant containing the provided error.
     pub fn invalid(e: E) -> Self {
-        Validated::Invalid(vec![e])
-    }
-
-    /// Creates a new `Validated` instance with multiple invalid values.
-    ///
-    /// # Arguments
-    ///
-    /// * `errors` - A vector of error values to be wrapped.
-    ///
-    /// # Returns
-    ///
-    /// A `Validated::Invalid` variant containing the provided vector of errors.
-    pub fn invalid_vec(errors: Vec<E>) -> Self {
-        Validated::Invalid(errors)
+        Validated::Invalid(e)
     }
 
     /// Applies a function to the valid value of a `Validated` instance.
@@ -135,7 +122,7 @@ where
 
     /// Applies a function to the invalid value(s) of a `Validated` instance.
     ///
-    /// If the `Validated` is `Invalid`, it applies the function `f` to each error in the contained vector.
+    /// If the `Validated` is `Invalid`, it applies the function `f` to each error in the contained value.
     /// If the `Validated` is `Valid`, it returns the `Valid` value unchanged.
     ///
     /// # Type Parameters
@@ -158,7 +145,7 @@ where
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => Validated::Invalid(es.into_iter().map(|e| f.call(e)).collect()),
+            Validated::Invalid(e) => Validated::Invalid(f.call(e)),
         }
     }
 
@@ -195,9 +182,8 @@ where
     {
         match (self, other) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f.call(a).call(b)),
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Validated::Invalid(e1)
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                Validated::Invalid(e1.combine(e2))
             }
             (Validated::Invalid(e), _) | (_, Validated::Invalid(e)) => Validated::Invalid(e),
         }
@@ -205,13 +191,13 @@ where
 
     /// Converts the `Validated` instance into a `Result`.
     ///
-    /// This method transforms a `Validated<E, A>` into a `Result<A, Vec<E>>`.
+    /// This method transforms a `Validated<E, A>` into a `Result<A, E>`.
     ///
     /// # Returns
     ///
     /// - `Ok(A)` if the `Validated` instance is `Valid`.
-    /// - `Err(Vec<E>)` if the `Validated` instance is `Invalid`.
-    pub fn to_result(self) -> Result<A, Vec<E>> {
+    /// - `Err(E)` if the `Validated` instance is `Invalid`.
+    pub fn to_result(self) -> Result<A, E> {
         match self {
             Validated::Valid(x) => Ok(x),
             Validated::Invalid(e) => Err(e),
@@ -227,48 +213,32 @@ where
     /// # Returns
     ///
     /// * `Validated::Valid(A)` if the result is `Ok(A)`.
-    /// * `Validated::Invalid(vec![E])` if the result is `Err(E)`.
+    /// * `Validated::Invalid(E)` if the result is `Err(E)`.
     pub fn from_result(result: Result<A, E>) -> Self {
         match result {
             Ok(x) => Validated::Valid(x),
-            Err(e) => Validated::Invalid(vec![e]),
+            Err(e) => Validated::Invalid(e),
         }
     }
 }
 
-impl<E, A> Default for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Default for Validated<E, A> {
     fn default() -> Self {
         Validated::Invalid(Default::default())
     }
 }
 
-impl<E, A> HKT for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> HKT for Validated<E, A> {
     type Output<T> = Validated<E, T> where T: TypeConstraints;
 }
 
-impl<E, A> Pure<A> for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Pure<A> for Validated<E, A> {
     fn pure(x: A) -> Self::Output<A> {
         Validated::Valid(x)
     }
 }
 
-impl<E, A> Functor<A> for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Functor<A> for Validated<E, A> {
     fn fmap<B, F>(self, f: F) -> Validated<E, B>
     where
         B: TypeConstraints,
@@ -281,11 +251,7 @@ where
     }
 }
 
-impl<E, A> Applicative<A> for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Applicative<A> for Validated<E, A> {
     fn apply<B, F>(self, rf: Self::Output<F>) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -294,10 +260,7 @@ where
         match (self, rf) {
             (Validated::Valid(x), Validated::Valid(f)) => Validated::Valid(f.call(x)),
             (Validated::Invalid(e1), Validated::Valid(_)) | (Validated::Valid(_), Validated::Invalid(e1)) => Validated::Invalid(e1),
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Validated::Invalid(e1)
-            }
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.combine(e2)),
         }
     }
 
@@ -311,10 +274,7 @@ where
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f.call((a, b))),
             (Validated::Invalid(e1), Validated::Valid(_)) => Validated::Invalid(e1),
             (Validated::Valid(_), Validated::Invalid(e2)) => Validated::Invalid(e2),
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Validated::Invalid(e1)
-            }
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.combine(e2)),
         }
     }
 
@@ -334,10 +294,9 @@ where
             (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
                 Validated::Valid(f.call((a, b, c)))
             }
-            (Validated::Invalid(mut e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
-                e1.extend(e2);
-                e1.extend(e3);
-                Validated::Invalid(e1)
+            (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
+                let e = e1.combine(e2).combine(e3);
+                Validated::Invalid(e)
             }
             (Validated::Invalid(e), _, _) => Validated::Invalid(e),
             (_, Validated::Invalid(e), _) => Validated::Invalid(e),
@@ -346,44 +305,78 @@ where
     }
 }
 
-impl<E, A> Monad<A> for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Identity<A> for Validated<E, A> {
+    fn identity() -> Self::Output<A> {
+        Validated::Valid(A::default())
+    }
+
+    fn map_identity<U, F>(f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<A, U>,
+    {
+        Validated::Valid(f.call(A::default()))
+    }
+}
+
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Composable<A> for Validated<E, A> {
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<A, U>,
+    {
+        match self {
+            Validated::Valid(a) => Validated::Valid(f.call(a)),
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
+    }
+}
+
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Category<A> for Validated<E, A> {
+    type Morphism<B, C> = FnType<B, C> where B: TypeConstraints, C: TypeConstraints;
+}
+
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Monad<A> for Validated<E, A> {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
         match self {
-            Validated::Valid(x) => f.call(x),
+            Validated::Valid(a) => f.call(a),
             Validated::Invalid(e) => Validated::Invalid(e),
         }
     }
 
-    fn join<U>(self) -> Self::Output<U>
+    fn join<B>(self) -> Self::Output<B>
     where
-        U: TypeConstraints,
-        A: Into<Self::Output<U>>,
+        B: TypeConstraints,
+        A: Into<Self::Output<B>>,
     {
-        self.bind(FnType::new(|x: A| x.into()))
+        match self {
+            Validated::Valid(a) => a.into(),
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
+    }
+
+    fn then<B: TypeConstraints>(self, mb: Self::Output<B>) -> Self::Output<B> {
+        match (self, mb) {
+            (Validated::Valid(_), b) => b,
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.combine(e2)),
+            (Validated::Invalid(e), _) => Validated::Invalid(e),
+        }
+    }
+
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        match self {
+            Validated::Valid(a) => Validated::Valid(f.call(a)),
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
     }
 }
 
-impl<E: ValidatedTypeConstraints, A: TypeConstraints> Identity for Validated<E, A> {}
-
-impl<E: ValidatedTypeConstraints, A: TypeConstraints> Composable for Validated<E, A> {}
-
-impl<E: ValidatedTypeConstraints, A: TypeConstraints> Category for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    type Morphism<B, C> = FnType<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints;
-}
-
-impl<E: ValidatedTypeConstraints, A: TypeConstraints> Arrow for Validated<E, A> {}
+impl<E: ValidatedTypeConstraints, A: TypeConstraints> Arrow<A, A> for Validated<E, A> {}

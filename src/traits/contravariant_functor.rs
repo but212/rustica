@@ -51,7 +51,7 @@ where
 
     fn into_inner(self) -> T;
 
-    fn contravariant_compose<U, V, F, G>(f: F, g: G) -> FnType<V, T>
+    fn contravariant_compose<U, V, F, G>(f: F, g: G) -> impl FnTrait<V, T>
     where
         U: TypeConstraints,
         V: TypeConstraints,

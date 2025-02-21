@@ -27,6 +27,20 @@ use crate::traits::hkt::TypeConstraints;
 ///     type Output<U> = MyApplicative<U> where U: TypeConstraints;
 /// }
 /// 
+/// impl<T: TypeConstraints> Identity<T> for MyApplicative<T> {
+///     fn identity() -> Self {
+///         MyApplicative(T::default())
+///     }
+/// 
+///     fn map_identity<U, F>(f: F) -> Self::Output<U>
+///     where
+///         U: TypeConstraints,
+///         F: FnTrait<T, U>,
+///     {
+///         MyApplicative(f.call(T::default()))
+///     }
+/// }
+/// 
 /// impl<T: TypeConstraints> Functor<T> for MyApplicative<T> {
 ///     fn fmap<U, F>(self, f: F) -> Self::Output<U>
 ///     where

@@ -1,5 +1,7 @@
 use crate::traits::hkt::TypeConstraints;
 use crate::traits::semigroup::Semigroup;
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 /// A trait for monoids, which are semigroups with an identity element.
 /// 
@@ -18,41 +20,77 @@ use crate::traits::semigroup::Semigroup;
 ///    `η(x.combine(y)) = η(x).combine(η(y))`
 /// 5. Empty Preservation: For any natural transformation `η`,
 ///    `η(empty()) = empty()`
-/// 6. Distributivity: For any values `x`, `y`, `z`,
-///    `x.combine(y.combine(z)) = x.combine(y).combine(x.combine(z))`
-/// 7. Commutativity (if applicable): For any values `x`, `y`,
-///    `x.combine(y) = y.combine(x)`
-/// 8. Cancellation (if applicable): For any values `x`, `y`, `z`,
-///    If `x.combine(y) = x.combine(z)` then `y = z`
-pub trait Monoid: Semigroup {
-    /// The identity element of the monoid.
-    ///
-    /// # Returns
-    /// The identity element of the monoid.
-    fn empty() -> Self;
-}
-
-/// A monoid for vectors.
-impl<T> Monoid for Vec<T>
+pub trait Monoid<T>: Semigroup<T>
 where
     T: TypeConstraints,
 {
-    /// The identity element of the vector monoid.
+    /// Returns the identity element of the monoid.
+    fn empty() -> Self;
+
+    /// Combines all elements in an iterator.
     ///
-    /// # Returns
-    /// An empty vector.
+    /// Unlike Semigroup's combine_all, this always returns a value
+    /// by using the empty element when the iterator is empty.
+    fn combine_all<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = Self>,
+        Self: Sized,
+    {
+        iter.into_iter().fold(Self::empty(), |a, b| a.combine(b))
+    }
+}
+
+impl<T> Monoid<T> for Vec<T>
+where
+    T: TypeConstraints,
+{
     fn empty() -> Self {
         Vec::new()
     }
 }
 
-/// A monoid for strings.
-impl Monoid for String {
-    /// The identity element of the string monoid.
-    ///
-    /// # Returns
-    /// An empty string.
+impl Monoid<char> for String {
     fn empty() -> Self {
         String::new()
+    }
+}
+
+impl<T> Monoid<T> for HashSet<T>
+where
+    T: TypeConstraints + Eq + Hash,
+{
+    fn empty() -> Self {
+        HashSet::new()
+    }
+}
+
+impl<K, V> Monoid<V> for HashMap<K, V>
+where
+    K: TypeConstraints + Eq + Hash,
+    V: TypeConstraints,
+{
+    fn empty() -> Self {
+        HashMap::new()
+    }
+}
+
+impl<A, B> Monoid<(A, B)> for (A, B)
+where
+    A: Monoid<A> + TypeConstraints,
+    B: Monoid<B> + TypeConstraints,
+{
+    fn empty() -> Self {
+        (A::empty(), B::empty())
+    }
+}
+
+impl<A, B, C> Monoid<(A, B, C)> for (A, B, C)
+where
+    A: Monoid<A> + TypeConstraints,
+    B: Monoid<B> + TypeConstraints,
+    C: Monoid<C> + TypeConstraints,
+{
+    fn empty() -> Self {
+        (A::empty(), B::empty(), C::empty())
     }
 }

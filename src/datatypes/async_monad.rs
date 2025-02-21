@@ -27,17 +27,11 @@ use crate::fntype::{FnType, FnTrait};
 /// assert_eq!(doubled.try_get(), 84);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct AsyncM<A>
-where
-    A: TypeConstraints,
-{
+pub struct AsyncM<A: TypeConstraints> {
     run: FnType<(), A>,
 }
 
-impl<A> AsyncM<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> AsyncM<A> {
     /// Creates a new `AsyncM` instance from a given future.
     ///
     /// This function takes a future and wraps it in an `AsyncM`, allowing it to be used
@@ -103,17 +97,11 @@ where
     }
 }
 
-impl<A> HKT for AsyncM<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> HKT for AsyncM<A> {
     type Output<T> = AsyncM<T> where T: TypeConstraints;
 }
 
-impl<A> Pure<A> for AsyncM<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Pure<A> for AsyncM<A> {
     fn pure(value: A) -> Self::Output<A> {
         AsyncM {
             run: FnType::new(move |_| value.clone()),
@@ -121,10 +109,35 @@ where
     }
 }
 
-impl<A> Functor<A> for AsyncM<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Identity<A> for AsyncM<A> {
+    fn identity() -> Self::Output<A> {
+        AsyncM {
+            run: FnType::new(move |_| A::default()),
+        }
+    }
+
+    fn map_identity<B, F>(f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        AsyncM {
+            run: FnType::new(move |_| f.call(A::default())),
+        }
+    }
+}
+
+impl<A: TypeConstraints> Composable<A> for AsyncM<A> {
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<A, U>,
+    {
+        self.fmap(f)
+    }
+}
+
+impl<A: TypeConstraints> Functor<A> for AsyncM<A> {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -139,10 +152,7 @@ where
     }
 }
 
-impl<A> Applicative<A> for AsyncM<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Applicative<A> for AsyncM<A> {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -184,21 +194,14 @@ where
     }
 }
 
-impl<A: TypeConstraints> Identity for AsyncM<A> {}
-
-impl<A: TypeConstraints> Composable for AsyncM<A> {}
-
-impl<A: TypeConstraints> Category for AsyncM<A> {
+impl<A: TypeConstraints> Category<A> for AsyncM<A> {
     type Morphism<B, C> = FnType<B, C>
     where
         B: TypeConstraints,
         C: TypeConstraints;
 }
 
-impl<A> Monad<A> for AsyncM<A>
-where
-    A: TypeConstraints,
-{
+impl<A: TypeConstraints> Monad<A> for AsyncM<A> {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
@@ -213,5 +216,20 @@ where
         A: Into<Self::Output<B>>,
     {
         self.bind(FnType::new(move |x: A| x.into()))
+    }
+
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        self.fmap(FnType::new(move |a| f.call(a)))
+    }
+
+    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+    {
+        self.bind(FnType::new(move |_| mb.clone()))
     }
 }

@@ -41,21 +41,13 @@ use crate::prelude::*;
 /// assert_eq!(lens.get(&modified_struct), 100);
 /// ```
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
-pub struct Lens<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+pub struct Lens<S: TypeConstraints, A: TypeConstraints> {
     // Fields to store the `get` and `set` functions.
     get: FnType<S, A>,
     set: FnType<(S, A), S>,
 }
 
-impl<S, A> Lens<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<S: TypeConstraints, A: TypeConstraints> Lens<S, A> {
     /// Creates a new lens.
     ///
     /// # Arguments
@@ -64,12 +56,12 @@ where
     /// * `set` - A function to set the value of the field.
     pub fn new<G, H>(get: G, set: H) -> Self
     where
-        G: Fn(S) -> A + Send + Sync + 'static,
-        H: Fn(S, A) -> S + Send + Sync + 'static,
+        G: Fn(S) -> A + Clone + Send + Sync + 'static,
+        H: Fn(S, A) -> S + Clone + Send + Sync + 'static,
     {
         Lens {
-            get: FnType::new(get),
-            set: FnType::new(move |args: (S, A)| set(args.0, args.1)),
+            get: FnType::new(move |s| get(s)),
+            set: FnType::new(move |(s, a)| set(s, a)),
         }
     }
 
@@ -112,11 +104,11 @@ where
     /// The updated struct.
     pub fn modify<F>(&self, s: S, f: F) -> S
     where
-        F: Fn(A) -> A + Send + Sync + 'static,
+        F: Fn(A) -> A + Clone + Send + Sync + 'static,
     {
-        let a = self.get(&s);
+        let a = self.get.call(s.clone());
         let f = FnType::new(f);
-        self.set(s, f.call(a))
+        self.set.call((s, f.call(a)))
     }
 
     /// Composes this lens with another lens.
@@ -128,25 +120,24 @@ where
     /// # Returns
     ///
     /// A new lens that is the composition of this lens and the other lens.
-    pub fn compose<B>(self, other: Lens<A, B>) -> Lens<S, B>
+    pub fn compose_lens<B>(self, other: Lens<A, B>) -> Lens<S, B>
     where
         B: TypeConstraints,
     {
-        Lens::new(
-            {
-                let self_clone = self.clone();
-                let other_clone = other.clone();
-                move |s: S| other_clone.get(&self_clone.get(&s))
-            },
-            {
-                let self_clone = self.clone();
-                let other_clone = other.clone();
-                move |s: S, b: B| {
-                    let a = self_clone.get(&s);
-                    self_clone.set(s, other_clone.set(a, b))
-                }
-            },
-        )
+        let get1 = self.get.clone();
+        let get1_for_set = get1.clone();
+        let set1 = self.set.clone();
+        let get2 = other.get.clone();
+        let set2 = other.set.clone();
+
+        let get_fn = move |s| get2.call(get1.call(s));
+        let set_fn = move |s: S, b| {
+            let a = get1_for_set.call(s.clone());
+            let new_a = set2.call((a, b));
+            set1.call((s, new_a))
+        };
+
+        Lens::new(get_fn, set_fn)
     }
 
     /// Creates a lens for a field.
@@ -159,31 +150,66 @@ where
     /// # Returns
     ///
     /// A new lens for the field.
-    pub fn field<B>(get: impl Fn(A) -> B + Send + Sync + 'static, set: impl Fn(A, B) -> A + Send + Sync + 'static) -> Lens<A, B>
-    where
-        B: TypeConstraints,
-    {
-        Lens::new(get, set)
+    pub fn field<B: TypeConstraints>(
+        get: impl Fn(&A) -> &B + Clone + Send + Sync + 'static,
+        set: impl Fn(A, B) -> A + Clone + Send + Sync + 'static,
+    ) -> Lens<A, B> {
+        Lens::new(
+            move |a: A| get(&a).clone(),
+            move |a: A, b: B| set(a, b),
+        )
     }
 }
 
-impl<S, A> HKT for Lens<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
+impl<S: TypeConstraints, A: TypeConstraints> HKT for Lens<S, A> {
     type Output<T> = Lens<S, T> where T: TypeConstraints;
 }
 
-impl<S: TypeConstraints, A: TypeConstraints> Composable for Lens<S, A> {}
-
-impl<S: TypeConstraints, A: TypeConstraints> Identity for Lens<S, A> {}
-
-impl<S: TypeConstraints, A: TypeConstraints> Category for Lens<S, A> {
-    type Morphism<B, C> = FnType<B, C>
+impl<S: TypeConstraints, A: TypeConstraints> Composable<A> for Lens<S, A> {
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
     where
-        B: TypeConstraints,
-        C: TypeConstraints;
+        U: TypeConstraints,
+        F: FnTrait<A, U> + Clone,
+    {
+        let get1 = self.get.clone();
+        let set1 = self.set.clone();
+        let f = f.clone();
+        let get2 = get1.clone();
+
+        Lens {
+            get: FnType::new(move |s| {
+                f.call(get1.call(s))
+            }),
+            set: FnType::new(move |(s, _u): (S, U)| {
+                let a = get2.call(s.clone());
+                set1.call((s, a))
+            }),
+        }
+    }
 }
 
-impl<S: TypeConstraints, A: TypeConstraints> Arrow for Lens<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Identity<A> for Lens<S, A> {
+    fn identity() -> Self::Output<A> {
+        Lens::new(
+            |_s| A::default(),
+            |s, _| s,
+        )
+    }
+
+    fn map_identity<B, F>(f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        Lens::new(
+            move |_s| f.call(A::default()),
+            |s, _| s,
+        )
+    }
+}
+
+impl<S: TypeConstraints, A: TypeConstraints> Category<A> for Lens<S, A> {
+    type Morphism<B, C> = FnType<B, C> where B: TypeConstraints, C: TypeConstraints;
+}
+
+impl<S: TypeConstraints, A: TypeConstraints> Arrow<A, A> for Lens<S, A> {}

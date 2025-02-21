@@ -219,31 +219,51 @@ where
     R: TypeConstraints,
     A: TypeConstraints,
 {
+    fn join<B>(self) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        A: Into<Self::Output<B>>,
+    {
+        Cont::new(FnType::new(move |k: FnType<B, R>| {
+            self.run_cont.call(FnType::new(move |x: A| {
+                let inner: Self::Output<B> = x.into();
+                inner.run_cont.call(k.clone())
+            }))
+        }))
+    }
+
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
-        let f = Arc::new(f);
-        Cont {
-            run_cont: Arc::new(FnType::new(move |k: FnType<B, R>| {
-                let k = Arc::new(k);
-                let f = Arc::clone(&f);
-                self.run_cont.call(FnType::new(move |a: A| {
-                    let k = Arc::clone(&k);
-                    f.call(a).run_cont.call((*k).clone())
-                }))
-            })),
-        }
+        Cont::new(FnType::new(move |k: FnType<B, R>| {
+            let f = f.clone();
+            self.run_cont.call(FnType::new(move |x: A| {
+                let f = f.clone();
+                f.call(x).run_cont.call(k.clone())
+            }))
+        }))
     }
 
-    fn join<B>(self) -> Self::Output<B>
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
-        A: TypeConstraints,
-        A: Into<Self::Output<B>>,
+        F: FnTrait<A, B>,
     {
-        self.bind(FnType::new(|x: A| x.into()))
+        Cont::new(FnType::new(move |k: FnType<B, R>| {
+            let f = f.clone();
+            self.run_cont.call(FnType::new(move |x: A| {
+                k.call(f.call(x))
+            }))
+        }))
+    }
+
+    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+    {
+        self.bind(FnType::new(move |_: A| mb.clone()))
     }
 }
 
@@ -255,15 +275,52 @@ where
     type Output<T> = Cont<R, T> where T: TypeConstraints;
 }
 
-impl<R: TypeConstraints, A: TypeConstraints> Identity for Cont<R, A> {}
+impl<R, A> Identity<A> for Cont<R, A>
+where
+    R: TypeConstraints,
+    A: TypeConstraints,
+{
+    fn identity() -> Self::Output<A> {
+        Cont::new(FnType::new(|k: FnType<A, R>| k.call(A::default())))
+    }
 
-impl<R: TypeConstraints, A: TypeConstraints> Composable for Cont<R, A> {}
+    fn map_identity<B, F>(f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        Cont::new(FnType::new(move |k: FnType<B, R>| k.call(f.call(A::default()))))
+    }
+}
 
-impl<R: TypeConstraints, A: TypeConstraints> Category for Cont<R, A> {
+impl<R, A> Composable<A> for Cont<R, A>
+where
+    R: TypeConstraints,
+    A: TypeConstraints,
+{
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<A, U>,
+    {
+        self.fmap(f)
+    }
+}
+
+impl<R, A> Category<A> for Cont<R, A>
+where
+    R: TypeConstraints,
+    A: TypeConstraints,
+{
     type Morphism<B, C> = FnType<B, C>
     where
         B: TypeConstraints,
         C: TypeConstraints;
 }
 
-impl<R: TypeConstraints, A: TypeConstraints> Arrow for Cont<R, A> {}
+impl<R, A> Arrow<A, A> for Cont<R, A>
+where
+    R: TypeConstraints,
+    A: TypeConstraints,
+{
+}

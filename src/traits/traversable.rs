@@ -1,5 +1,7 @@
-use crate::traits::hkt::{HKT, TypeConstraints};
+use crate::traits::hkt::TypeConstraints;
 use crate::traits::applicative::Applicative;
+use crate::traits::bifunctor::Bifunctor;
+use crate::traits::foldable::Foldable;
 use crate::fntype::FnTrait;
 
 /// A trait for traversable structures that can be traversed with effects.
@@ -12,7 +14,11 @@ use crate::fntype::FnTrait;
 /// # Type Parameters
 /// * `A` - The type of elements in the traversable structure
 /// 
-pub trait Traversable<A>: HKT 
+/// # Laws
+/// 1. Naturality: `t(traverse(f)) = traverse(t ∘ f)`
+/// 2. Identity: `traverse(Identity) = Identity`
+/// 3. Composition: `traverse(Compose(f, g)) = Compose(traverse(f), traverse(g))`
+pub trait Traversable<A>: Bifunctor<A, A> + Foldable<A>
 where
     A: TypeConstraints,
 {
@@ -30,9 +36,16 @@ where
     /// 
     /// # Returns
     /// A new structure wrapped in the effect type `F`
-    fn traverse<F, B, Fn>(self, f: Fn) -> F::Output<Self::Output<B>>
+    fn traverse<F, B, Fn>(self, f: Fn) -> F::Output<<Self as Bifunctor<A, A>>::Output<B, B>>
     where
         F: Applicative<A>,
         B: TypeConstraints,
         Fn: FnTrait<A, F::Output<B>>;
+
+    /// Distribute a structure of effects into an effect of structure
+    fn distribute<F, B>(self) -> F::Output<<Self as Bifunctor<A, A>>::Output<B, B>>
+    where
+        F: Applicative<A>,
+        B: TypeConstraints,
+        Self: Sized;
 }

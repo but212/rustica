@@ -239,11 +239,10 @@ where
         B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
-        let f = FnType::new(move |s: S| {
-            let (a, s) = self.run_state(s.clone());
-            f.call(a).run_state(s)
-        });
-        State { run: f }
+        State::new(FnType::new(move |s: S| {
+            let (a, s1) = self.run_state(s);
+            f.call(a).run_state(s1)
+        }))
     }
 
     fn join<B>(self) -> Self::Output<B>
@@ -251,26 +250,60 @@ where
         B: TypeConstraints,
         A: Into<Self::Output<B>>,
     {
-        self.bind(FnType::new(move |inner: A| inner.into()))
+        State::new(FnType::new(move |s: S| {
+            let (ma, s1) = self.run_state(s);
+            ma.into().run_state(s1)
+        }))
+    }
+
+    fn then<B: TypeConstraints>(self, mb: Self::Output<B>) -> Self::Output<B> {
+        self.bind(FnType::new(move |_| mb.clone()))
+    }
+
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        State::new(FnType::new(move |s: S| {
+            let (a, s1) = self.run_state(s);
+            (f.call(a), s1)
+        }))
     }
 }
 
-impl<S: TypeConstraints, A: TypeConstraints> Identity for State<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Identity<A> for State<S, A> {
+    fn identity() -> Self::Output<A> {
+        State::new(FnType::new(|s| (A::default(), s)))
+    }
 
-impl<S: TypeConstraints, A: TypeConstraints> Composable for State<S, A> {}
-
-impl<S: TypeConstraints, A: TypeConstraints> Category for State<S, A>
-where
-    S: TypeConstraints,
-    A: TypeConstraints,
-{
-    type Morphism<B, C> = FnType<B, C>
+    fn map_identity<B, F>(f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
-        C: TypeConstraints;
+        F: FnTrait<A, B>,
+    {
+        State::new(FnType::new(move |s| (f.call(A::default()), s)))
+    }
 }
 
-impl<S: TypeConstraints, A: TypeConstraints> Arrow for State<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Composable<A> for State<S, A> {
+    fn compose_with<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        State::new(FnType::new(move |s| {
+            let (a, s1) = self.run_state(s);
+            (f.call(a), s1)
+        }))
+    }
+}
+
+impl<S: TypeConstraints, A: TypeConstraints> Category<A> for State<S, A> {
+    type Morphism<B, C> = FnType<B, C> where B: TypeConstraints, C: TypeConstraints;
+}
+
+impl<S: TypeConstraints, A: TypeConstraints> Arrow<A, A> for State<S, A> {}
 
 /// Creates a stateful computation that returns the current state.
 ///

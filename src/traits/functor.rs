@@ -1,107 +1,57 @@
+use crate::traits::identity::Identity;
+use crate::traits::hkt::TypeConstraints;
+use crate::fntype::{FnTrait, FnType};
+
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::hash::Hash;
+use std::fmt::Debug;
 
-use crate::traits::hkt::{HKT, TypeConstraints};
-use crate::fntype::FnTrait;
-
-/// A trait for functors, which are type constructors that can fmap a function over their contents.
-/// 
+/// A trait for functors, which are type constructors that can map functions over their contents.
+///
 /// # Type Parameters
 /// * `T` - The type of value contained in the functor
-/// 
+///
 /// # Laws
-/// A Functor instance must satisfy these laws:
-/// 1. Identity: For any functor `f`, `f.fmap(|x| x) = f`
-/// 2. Composition: For any functor `f` and functions `g`, `h`, `f.fmap(|x| h(g(x))) = f.fmap(g).fmap(h)`
-/// 3. Naturality: For any natural transformation `η: F ~> G`, `η(f.fmap(g)) = η(f).fmap(g)`
-/// 4. Container Preservation: For any functor `f` and function `g`, `f.fmap(g)` must preserve the structure of `f`
-/// 5. Type Preservation: For any functor `f` and function `g`, `f.fmap(g)` must maintain the same type constructor as `f`
-/// 6. Parametricity: For any functor `f` and functions `g`, `h`, If `g(x) = h(x)` for all `x`, then `f.fmap(g) = f.fmap(h)`
-/// 
-/// # Examples
-/// ```
-/// use rustica::prelude::*;
-///
-/// #[derive(Default, PartialEq, Eq, Debug, Clone)]
-/// struct MyType<A>
-/// where
-///     A: TypeConstraints,
-/// {
-///     value: A,
-/// }
-///
-/// impl<U> HKT for MyType<U>
-/// where
-///     U: TypeConstraints,
-/// {
-///     type Output<T> = MyType<T> where T: TypeConstraints;
-/// }
-///
-/// impl<A> Functor<A> for MyType<A>
-/// where
-///     A: TypeConstraints,
-/// {
-///     fn fmap<B, F>(self, f: F) -> Self::Output<B>
-///     where
-///         B: TypeConstraints,
-///         F: FnTrait<A, B>,
-///     {
-///         MyType { value: f.call(self.value) }
-///     }
-/// }
-///
-/// let instance: MyType<i32> = MyType { value: 42 };
-/// let new_instance: MyType<String> = instance.fmap(FnType::new(|x: i32| x.to_string()));
-/// assert_eq!(new_instance.value, "42".to_string());
-/// ```
-pub trait Functor<A>: HKT
+/// 1. Identity: `fmap(id) = id`
+/// 2. Composition: `fmap(f ∘ g) = fmap(f) ∘ fmap(g)`
+/// 3. Structure Preservation: `fmap` must preserve the structure of the functor
+/// 4. Type Safety: `fmap` must maintain the same type constructor
+pub trait Functor<T>: Identity<T>
 where
-    A: TypeConstraints,
+    T: TypeConstraints,
 {
-    /// Maps a function over the contents of the functor.
-    ///
-    /// # Type Parameters
-    /// * `B` - The type of the resulting functor's contents
-    /// * `F` - The type of the mapping function
-    ///
-    /// # Parameters
-    /// * `self` - The functor to map over
-    /// * `f` - The function to apply to the functor's contents
-    ///
-    /// # Returns
-    /// A new functor with the function applied to its contents
-    ///
-    /// # Laws
-    /// 1. Identity: `x.fmap(|a| a) == x`
-    /// 2. Composition: `x.fmap(|a| f(g(a))) == x.fmap(g).fmap(f)`
-    fn fmap<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
-        B: TypeConstraints,
-        F: FnTrait<A, B>;
+        U: TypeConstraints,
+        F: FnTrait<T, U>;
+
+    fn lift<U, F>(f: F) -> FnType<Self, Self::Output<U>>
+    where
+        U: TypeConstraints,
+        F: FnTrait<T, U>,
+    {
+        FnType::new(move |x: Self| x.fmap(f.clone()))
+    }
 }
 
 impl<T> Functor<T> for Vec<T>
 where
     T: TypeConstraints,
 {
-    fn fmap<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
-        B: TypeConstraints,
-        F: FnTrait<T, B>,
+        U: TypeConstraints,
+        F: FnTrait<T, U>,
     {
         self.into_iter().map(|x| f.call(x)).collect()
     }
 }
 
-impl<T> Functor<T> for Box<T>
-where
-    T: TypeConstraints,
-{
-    fn fmap<B, F>(self, f: F) -> Self::Output<B>
+impl<T: TypeConstraints> Functor<T> for Box<T> {
+    fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
-        B: TypeConstraints,
-        F: FnTrait<T, B>,
+        U: TypeConstraints,
+        F: FnTrait<T, U>,
     {
         Box::new(f.call(*self))
     }
@@ -109,13 +59,13 @@ where
 
 impl<K, V> Functor<V> for HashMap<K, V>
 where
-    K: Hash + Eq + Debug + TypeConstraints,
+    K: Hash + Eq + Debug + TypeConstraints + 'static,
     V: TypeConstraints,
 {
-    fn fmap<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<U, F>(self, f: F) -> Self::Output<U>
     where
-        B: TypeConstraints,
-        F: FnTrait<V, B>,
+        U: TypeConstraints,
+        F: FnTrait<V, U>,
     {
         self.into_iter()
             .map(|(k, v)| (k, f.call(v)))

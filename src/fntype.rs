@@ -12,30 +12,61 @@
 //! - Function types for comonadic operations
 
 use std::{fmt::Debug, sync::Arc};
-use crate::traits::hkt::TypeConstraints;
+use crate::prelude::*;
 use std::marker::PhantomData;
 use futures::future::BoxFuture;
 
-/// A function type that is both `Send` and `Sync`.
-///
-/// This struct wraps a function that can be safely shared between threads and
-/// implements `Clone`. It uses `Arc` for thread-safe reference counting and
-/// `PhantomData` to handle unused type parameters.
-///
-/// # Type Parameters
-///
-/// * `I`: The input type, which must satisfy `TypeConstraints`.
-/// * `O`: The output type, which must satisfy `TypeConstraints`.
-///
-/// # Examples
-///
-/// ```
-/// use rustica::fntype::{FnType, FnTrait};
-/// use rustica::traits::hkt::TypeConstraints;
-///
-/// let add_one = FnType::new(|x: i32| x + 1);
-/// assert_eq!(add_one.call(5), 6);
-/// ```
+/// A trait for function types that can be called with a single argument
+pub trait FnTrait<I, O>: HKT + TypeConstraints
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    /// Create a new function type instance
+    fn new<F>(f: F) -> Self
+    where
+        F: Fn(I) -> O + Send + Sync + Clone + 'static;
+
+    /// Call the function with the given input
+    fn call(&self, input: I) -> O;
+
+    /// Compose this function with another function
+    fn compose<U, F>(self, f: F) -> FnType<I, U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        FnType::new_internal(move |x| f.call(self.call(x)))
+    }
+
+    /// Map over the output of this function
+    fn map<U, F>(self, f: F) -> FnType<I, U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        self.compose(f)
+    }
+}
+
+/// A trait for internal function type operations
+pub trait FnTypeInternal<I, O>: HKT + TypeConstraints
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    type CallOutput;
+
+    /// Create a new function type instance internally
+    fn new_internal<F>(f: F) -> Self
+    where
+        F: Fn(I) -> Self::CallOutput + Send + Sync + 'static;
+
+    /// Call the function with the given input
+    fn call_internal(&self, input: I) -> Self::CallOutput;
+}
+
+/// A newtype wrapper for function types
 #[derive(Clone)]
 pub struct FnType<I, O>
 where
@@ -43,7 +74,29 @@ where
     O: TypeConstraints,
 {
     f: Arc<dyn Fn(I) -> O + Send + Sync>,
-    _phantom: PhantomData<(I, O)>,
+    _marker: PhantomData<(I, O)>,
+}
+
+impl<I, O> FnTypeInternal<I, O> for FnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    type CallOutput = O;
+
+    fn new_internal<F>(f: F) -> Self
+    where
+        F: Fn(I) -> O + Send + Sync + 'static,
+    {
+        FnType {
+            f: Arc::new(f),
+            _marker: PhantomData,
+        }
+    }
+
+    fn call_internal(&self, input: I) -> O {
+        (self.f)(input)
+    }
 }
 
 impl<I, O> FnTrait<I, O> for FnType<I, O>
@@ -51,64 +104,128 @@ where
     I: TypeConstraints,
     O: TypeConstraints,
 {
-    /// Creates a new `FnType` instance from a given function.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that takes an input of type `I` and returns an output of type `O`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F` - The type of the function, which must implement `Fn(I) -> O`, `Send`, `Sync`, and have a `'static` lifetime.
-    ///
-    /// # Returns
-    ///
-    /// Returns a new `FnType<I, O>` instance.
-    fn new<F: Fn(I) -> O + Send + Sync + 'static>(f: F) -> Self {
-        FnType {
-            f: Arc::new(f),
-            _phantom: PhantomData,
+    fn new<F>(f: F) -> Self
+    where
+        F: Fn(I) -> O + Send + Sync + Clone + 'static,
+    {
+        Self::new_internal(f)
+    }
+
+    fn call(&self, input: I) -> O {
+        self.call_internal(input)
+    }
+}
+
+/// A newtype wrapper for async function types
+#[derive(Clone)]
+pub struct AsyncFnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    f: Arc<dyn Fn(I) -> BoxFuture<'static, O> + Send + Sync>,
+    _marker: PhantomData<(I, O)>,
+}
+
+impl<I, O> AsyncFnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    /// Call the async function and await its result
+    pub async fn call_async(&self, input: I) -> O {
+        (self.f)(input).await
+    }
+}
+
+impl<I, O> FnTypeInternal<I, O> for AsyncFnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    type CallOutput = O;
+
+    fn new_internal<F>(f: F) -> Self
+    where
+        F: Fn(I) -> O + Send + Sync + 'static,
+    {
+        let f = Arc::new(f);
+        AsyncFnType {
+            f: Arc::new(move |x| {
+                let f = Arc::clone(&f);
+                Box::pin(async move { f(x) })
+            }),
+            _marker: PhantomData,
         }
     }
 
-    /// Calls the wrapped function with the given input.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - The input value of type `I`.
-    ///
-    /// # Returns
-    ///
-    /// Returns the output value of type `O`.
-    fn call(&self, input: I) -> O {
-        (self.f)(input)
+    fn call_internal(&self, input: I) -> O {
+        futures::executor::block_on(self.call_async(input))
     }
 }
 
-impl<I, O> PartialEq for FnType<I, O>
+impl<I, O> FnTrait<I, O> for AsyncFnType<I, O>
 where
     I: TypeConstraints,
     O: TypeConstraints,
 {
-    fn eq(&self, other: &Self) -> bool {
-        let test_value = I::default();
-        self.call(test_value.clone()) == other.call(test_value)
+    fn new<F>(f: F) -> Self
+    where
+        F: Fn(I) -> O + Send + Sync + Clone + 'static,
+    {
+        Self::new_internal(f)
+    }
+
+    fn call(&self, input: I) -> O {
+        self.call_internal(input)
     }
 }
 
-impl<I, O> Eq for FnType<I, O>
+impl<I, O> Identity<O> for AsyncFnType<I, O>
 where
     I: TypeConstraints,
     O: TypeConstraints,
-{}
+{
+    fn identity() -> Self::Output<O> {
+        AsyncFnType::new(|_i: I| O::default())
+    }
 
-impl<I, O> Default for FnType<I, O>
+    fn map_identity<U, F>(f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        AsyncFnType::new(move |_i: I| f.call(O::default()))
+    }
+}
+
+
+
+impl<I, O> Identity<O> for FnType<I, O>
 where
     I: TypeConstraints,
     O: TypeConstraints,
+{
+    fn identity() -> Self::Output<O> {
+        FnType::new(|_i: I| O::default())
+    }
+
+    fn map_identity<U, F>(f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        FnType::new(move |_i: I| f.call(O::default()))
+    }
+}
+
+impl<I, O> Default for AsyncFnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints + Default,
 {
     fn default() -> Self {
-        FnType::new(|_| O::default())
+        AsyncFnType::new(|_| O::default())
     }
 }
 
@@ -118,125 +235,80 @@ where
     O: TypeConstraints,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "FnType(<function>)")
+        f.debug_struct("FnType")
+            .field("type", &format!("Fn({}) -> {}", std::any::type_name::<I>(), std::any::type_name::<O>()))
+            .finish()
     }
 }
 
-/// A trait for functions that are Send + Sync
-///
-/// This trait defines a common interface for function types that are
-/// both `Send` and `Sync`, allowing them to be safely shared and used
-/// across threads.
-///
-/// # Type Parameters
-///
-/// * `A`: The input type of the function, must implement `TypeConstraints`
-/// * `B`: The output type of the function, must implement `TypeConstraints`
-///
-/// # Examples
-///
-/// ```
-/// use rustica::fntype::FnTrait;
-/// use rustica::traits::hkt::TypeConstraints;
-///
-/// #[derive(Clone, Debug, PartialEq, Eq, Default)]
-/// struct MyFn;
-///
-/// impl FnTrait<i32, String> for MyFn {
-///     fn new<F: Fn(i32) -> String + Send + Sync + 'static>(f: F) -> Self {
-///         // Implementation details...
-///         MyFn
-///     }
-///
-///     fn call(&self, a: i32) -> String {
-///         // Implementation details...
-///         format!("Input: {}", a)
-///     }
-/// }
-/// ```
-pub trait FnTrait<A, B>: TypeConstraints
-where
-    A: TypeConstraints,
-    B: TypeConstraints,
-{
-    /// Creates a new instance of the function type.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F`: A function type that is `Fn(A) -> B`, `Send`, `Sync`, and `'static`
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: The function to be wrapped
-    fn new<F: Fn(A) -> B + Send + Sync + 'static>(f: F) -> Self;
-
-    /// Calls the function with the given argument.
-    ///
-    /// # Arguments
-    ///
-    /// * `a`: The input value of type `A`
-    ///
-    /// # Returns
-    ///
-    /// The output value of type `B`
-    fn call(&self, a: A) -> B;
-}
-
-
-#[derive(Clone)]
-pub struct AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
-    f: Arc<dyn Fn(I) -> BoxFuture<'static, O> + Send + Sync>,
-    _phantom: PhantomData<(I, O)>,
-}
-
-impl<I, O> AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
-    pub fn new<F>(f: F) -> Self
-    where
-        F: Fn(I) -> BoxFuture<'static, O> + Send + Sync + 'static,
-    {
-        AsyncFnType {
-            f: Arc::new(f),
-            _phantom: PhantomData,
-        }
-    }
-
-    pub async fn call(&self, input: I) -> O {
-        (self.f)(input).await
-    }
-}
-
-impl<I, O> PartialEq for AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{
-    fn eq(&self, other: &Self) -> bool {
-        let test_value = I::default();
-        futures::executor::block_on(self.call(test_value.clone())) == futures::executor::block_on(other.call(test_value))
-    }
-}
-
-impl<I, O> Eq for AsyncFnType<I, O>
-where
-    I: TypeConstraints,
-    O: TypeConstraints,
-{}
-
-impl<I, O> Default for AsyncFnType<I, O>
+impl<I, O> Default for FnType<I, O>
 where
     I: TypeConstraints,
     O: TypeConstraints,
 {
     fn default() -> Self {
-        AsyncFnType::new(|_| Box::pin(async { O::default() }))
+        FnType::new_internal(|_| O::default())
+    }
+}
+
+impl<I, O> PartialEq for FnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
+impl<I, O> Eq for FnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+}
+
+impl<I, O> HKT for FnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    type Output<U> = FnType<I, U> where U: TypeConstraints;
+}
+
+impl<I, O> Composable<O> for FnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints + Identity<O>,
+{
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        self.compose(f)
+    }
+}
+
+impl<I, O> Functor<O> for FnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints + Identity<O>,
+{
+    fn fmap<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        self.map(f)
+    }
+
+    fn lift<U, F>(f: F) -> FnType<Self, Self::Output<U>>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        FnType::new_internal(move |g: Self| g.map(f.clone()))
     }
 }
 
@@ -247,5 +319,46 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "AsyncFnType(<function>)")
+    }
+}
+
+impl<I, O> HKT for AsyncFnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    type Output<U> = AsyncFnType<I, U> where U: TypeConstraints;
+}
+
+impl<I, O> PartialEq for AsyncFnType<I, O>
+where
+    I: TypeConstraints + Clone,
+    O: TypeConstraints + PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        let test_value = I::default();
+        futures::executor::block_on(self.call_async(test_value.clone())) == 
+        futures::executor::block_on(other.call_async(test_value))
+    }
+}
+
+impl<I, O> Eq for AsyncFnType<I, O>
+where
+    I: TypeConstraints + Clone,
+    O: TypeConstraints + Eq,
+{
+}
+
+impl<I, O> Composable<O> for AsyncFnType<I, O>
+where
+    I: TypeConstraints,
+    O: TypeConstraints,
+{
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<O, U>,
+    {
+        AsyncFnType::new(move |x| f.call(self.call_internal(x)))
     }
 }

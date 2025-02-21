@@ -47,32 +47,20 @@ use crate::fntype::{FnTrait, FnType};
 /// assert_eq!(mapped_right.unwrap_right(), 5);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Either<L, R>
-where
-    L: TypeConstraints,
-    R: TypeConstraints,
-{
+pub enum Either<L: TypeConstraints, R: TypeConstraints> {
     /// The left variant of the `Either` type.
     Left(L),
     /// The right variant of the `Either` type.
     Right(R),
 }
 
-impl<L, R> Default for Either<L, R>
-where
-    L: TypeConstraints,
-    R: TypeConstraints,
-{
+impl<L: TypeConstraints, R: TypeConstraints> Default for Either<L, R> {
     fn default() -> Self {
         Either::Right(R::default())
     }
 }
 
-impl<L, R> Either<L, R>
-where
-    L: TypeConstraints,
-    R: TypeConstraints,
-{
+impl<L: TypeConstraints, R: TypeConstraints> Either<L, R> {
     /// Constructs an `Either` instance from a `Left` value.
     ///
     /// # Parameters
@@ -280,54 +268,69 @@ impl<L: TypeConstraints, R: TypeConstraints> Applicative<R> for Either<L, R> {
     }
 }
 
-impl<L, T> Monad<T> for Either<L, T>
-where
-    L: TypeConstraints,
-    T: TypeConstraints,
-{
-    fn bind<U: TypeConstraints, F: FnTrait<T, Self::Output<U>>>(self, f: F) -> Self::Output<U> {
-        match self {
-            Either::Left(l) => Either::Left(l),
-            Either::Right(r) => f.call(r),
-        }
-    }
-
-    fn join<U>(self) -> Self::Output<U>
+impl<L: TypeConstraints, R: TypeConstraints> Monad<R> for Either<L, R> {
+    fn join<B>(self) -> Self::Output<B>
     where
-        U: TypeConstraints,
-        T: Into<Self::Output<U>>,
+        B: TypeConstraints,
+        R: Into<Self::Output<B>>,
     {
         match self {
             Either::Left(l) => Either::Left(l),
             Either::Right(r) => r.into(),
         }
     }
+
+    fn bind<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<R, Self::Output<B>>,
+    {
+        match self {
+            Either::Left(l) => Either::Left(l),
+            Either::Right(r) => f.call(r),
+        }
+    }
+
+    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+    {
+        match self {
+            Either::Left(l) => Either::Left(l),
+            Either::Right(_) => mb,
+        }
+    }
+
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<R, B>,
+    {
+        match self {
+            Either::Left(l) => Either::Left(l),
+            Either::Right(r) => Either::Right(f.call(r)),
+        }
+    }
 }
 
-impl<L, R> Bifunctor<L, R> for Either<L, R>
-where
-    L: TypeConstraints,
-    R: TypeConstraints,
-{
-    type Output<T, U> = Either<T, U> where 
-        T: TypeConstraints,
-        U: TypeConstraints;
+impl<L: TypeConstraints, R: TypeConstraints> Bifunctor<L, R> for Either<L, R> {
+    type Output<T, U> = Either<T, U> where T: TypeConstraints, U: TypeConstraints;
 
-    fn first<T: TypeConstraints, F: FnTrait<L, T>>(self, f: F) -> Self::Output<T, R> {
+    fn first<T: TypeConstraints, F: FnTrait<L, T>>(self, f: F) -> Either<T, R> {
         match self {
             Either::Left(l) => Either::Left(f.call(l)),
             Either::Right(r) => Either::Right(r),
         }
     }
 
-    fn second<T: TypeConstraints, F: FnTrait<R, T>>(self, f: F) -> Self::Output<L, T> {
+    fn second<T: TypeConstraints, F: FnTrait<R, T>>(self, f: F) -> Either<L, T> {
         match self {
             Either::Left(l) => Either::Left(l),
             Either::Right(r) => Either::Right(f.call(r)),
         }
     }
 
-    fn bimap<T, U, F, G>(self, f: F, g: G) -> Self::Output<T, U>
+    fn bimap<T, U, F, G>(self, f: F, g: G) -> Either<T, U>
     where
         T: TypeConstraints,
         U: TypeConstraints,
@@ -341,19 +344,35 @@ where
     }
 }
 
-impl<L, R> Category for Either<L, R>
-where
-    L: TypeConstraints,
-    R: TypeConstraints,
-{
-    type Morphism<B, C> = FnType<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints;
+impl<L: TypeConstraints, R: TypeConstraints> Category<R> for Either<L, R> {
+    type Morphism<B, C> = FnType<B, C> where B: TypeConstraints, C: TypeConstraints;
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Arrow for Either<L, R> {}
+impl<L: TypeConstraints, R: TypeConstraints> Arrow<R, R> for Either<L, R> {}
 
-impl<L: TypeConstraints, R: TypeConstraints> Identity for Either<L, R> {}
+impl<L: TypeConstraints, R: TypeConstraints> Identity<R> for Either<L, R> {
+    fn identity() -> Self::Output<R> {
+        Either::Right(R::default())
+    }
 
-impl<L: TypeConstraints, R: TypeConstraints> Composable for Either<L, R> {}
+    fn map_identity<B, F>(f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<R, B>,
+    {
+        Either::Right(f.call(R::default()))
+    }
+}
+
+impl<L: TypeConstraints, R: TypeConstraints> Composable<R> for Either<L, R> {
+    fn compose_with<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<R, B>,
+    {
+        match self {
+            Either::Left(l) => Either::Left(l),
+            Either::Right(r) => Either::Right(f.call(r)),
+        }
+    }
+}

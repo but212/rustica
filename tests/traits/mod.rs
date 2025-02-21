@@ -34,7 +34,19 @@ impl<T: TypeConstraints> HKT for TestFunctor<T> {
     type Output<U> = TestFunctor<U> where U: TypeConstraints;
 }
 
-impl<T: TypeConstraints> Identity for TestFunctor<T> {}
+impl<T: TypeConstraints> Identity<T> for TestFunctor<T> {
+    fn identity() -> Self::Output<T> {
+        TestFunctor(T::default())
+    }
+
+    fn map_identity<U, F>(f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<T, U>
+    {
+        TestFunctor(f.call(T::default()))
+    }
+}
 
 impl<T: TypeConstraints> Pure<T> for TestFunctor<T> {
     fn pure(x: T) -> Self {
@@ -90,30 +102,53 @@ impl<T: TypeConstraints> Applicative<T> for TestFunctor<T> {
 }
 
 impl<T: TypeConstraints> Monad<T> for TestFunctor<T> {
-    fn bind<U, F>(self, f: F) -> Self::Output<U>
+    fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
-        U: TypeConstraints,
-        F: FnTrait<T, Self::Output<U>>,
+        B: TypeConstraints,
+        F: FnTrait<T, Self::Output<B>>,
     {
-        f.call(self.0)
+        TestFunctor(f.call(self.0).0)
     }
 
-    fn join<U>(self) -> Self::Output<U>
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
     where
-        U: TypeConstraints,
-        T: Into<Self::Output<U>> + Send + Sync,
+        B: TypeConstraints,
+        F: FnTrait<T, B>,
+    {
+        TestFunctor(f.call(self.0))
+    }
+
+    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+    {
+        mb
+    }
+
+    fn join<B>(self) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        T: Into<Self::Output<B>>,
     {
         self.0.into()
     }
 }
 
-impl<T: TypeConstraints> Composable for TestFunctor<T> {}
+impl<T: TypeConstraints> Composable<T> for TestFunctor<T> {
+    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<T, U>,
+    {
+        TestFunctor(f.call(self.0))
+    }
+}
 
-impl<T: TypeConstraints> Category for TestFunctor<T> {
+impl<T: TypeConstraints> Category<T> for TestFunctor<T> {
     type Morphism<B, C> = FnType<B, C>
     where
         B: TypeConstraints,
         C: TypeConstraints;
 }
 
-impl<T: TypeConstraints> Arrow for TestFunctor<T> {}
+impl<T: TypeConstraints> Arrow<T, T> for TestFunctor<T> {}

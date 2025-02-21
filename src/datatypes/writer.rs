@@ -26,223 +26,93 @@ use crate::fntype::{FnType, FnTrait};
 /// #[derive(Clone, PartialEq, Eq, Debug, Default)]
 /// struct Log(Vec<String>);
 ///
-/// impl Semigroup for Log {
+/// impl Semigroup<Log> for Log {
 ///     fn combine(mut self, other: Self) -> Self {
 ///         self.0.extend(other.0);
 ///         self
 ///     }
 /// }
 ///
-/// impl Monoid for Log {
+/// impl Monoid<Log> for Log {
 ///     fn empty() -> Self {
 ///         Log(Vec::new())
 ///     }
 /// }
 ///
 /// let writer = Writer::new(42, Log(vec!["Initial log".to_string()]));
-/// let (value, log) = writer.run();
+/// let (value, log) = writer.run_writer();
 ///
 /// assert_eq!(value, 42);
 /// assert_eq!(log, Log(vec!["Initial log".to_string()]));
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct Writer<W, A>
-where
-    W: TypeConstraints + Monoid,
-    A: TypeConstraints,
-{
-    /// The function that performs the computation and returns the result along with the log.
-    run_writer: FnType<(), (A, W)>
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Writer<W: TypeConstraints + Monoid<W>, A: TypeConstraints> {
+    run_writer: FnType<(), (A, W)>,
 }
 
-impl<W, A> Writer<W, A>
-where
-    W: TypeConstraints + Monoid,
-    A: TypeConstraints,
-{
-    /// Creates a new `Writer` with the given value and log.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to be wrapped in the `Writer`.
-    /// * `log` - The initial log to be associated with the `Writer`.
-    ///
-    /// # Returns
-    ///
-    /// A new `Writer` instance containing the provided value and log.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// let writer = Writer::new(42, vec!["Initial log".to_string()]);
-    /// let (value, log) = writer.run();
-    ///
-    /// assert_eq!(value, 42);
-    /// assert_eq!(log, vec!["Initial log".to_string()]);
-    /// ```
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Writer<W, A> {
+    /// Creates a new Writer with a value and a log.
     pub fn new(value: A, log: W) -> Self {
         Writer {
             run_writer: FnType::new(move |_| (value.clone(), log.clone())),
         }
     }
 
-    /// Creates a `Writer` that only produces a log entry without a value.
-    ///
-    /// This function is used to add a log entry to the `Writer` monad without
-    /// changing the computed value.
-    ///
-    /// # Arguments
-    ///
-    /// * `log` - The log entry to be added.
-    ///
-    /// # Returns
-    ///
-    /// A new `Writer` instance with the given log and `()` as the value.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// let writer = Writer::<Vec<String>, ()>::tell(vec!["Log entry".to_string()]);
-    /// let (value, log) = writer.run();
-    ///
-    /// assert_eq!(value, ());
-    /// assert_eq!(log, vec!["Log entry".to_string()]);
-    /// ```
-    pub fn tell(log: W) -> Writer<W, ()> {
-        Writer::new((), log)
-    }
-
-    /// Executes the writer computation and returns the result value along with the accumulated log.
-    ///
-    /// # Returns
-    ///
-    /// A tuple containing the computed value of type `A` and the accumulated log of type `W`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// let writer = Writer::new(42, vec!["Log entry".to_string()]);
-    /// let (value, log) = writer.run();
-    ///
-    /// assert_eq!(value, 42);
-    /// assert_eq!(log, vec!["Log entry".to_string()]);
-    /// ```
-    pub fn run(&self) -> (A, W) {
+    /// Runs the writer computation and returns the value and the log.
+    pub fn run_writer(&self) -> (A, W) {
         self.run_writer.call(())
     }
 
-    /// Returns the value stored in the `Writer` without the log.
-    ///
-    /// This method executes the writer computation and returns only the result value,
-    /// discarding the accumulated log.
-    ///
-    /// # Returns
-    ///
-    /// The computed value of type `A`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// let writer = Writer::new(42, vec!["Log entry".to_string()]);
-    /// let value = writer.value();
-    ///
-    /// assert_eq!(value, 42);
-    /// ```
+    /// Gets the value from the writer computation.
     pub fn value(&self) -> A {
-        self.run().0
+        self.run_writer().0
     }
 
-    /// Returns the log stored in the `Writer` without the value.
-    ///
-    /// This method executes the writer computation and returns only the accumulated log,
-    /// discarding the computed value.
-    ///
-    /// # Returns
-    ///
-    /// The accumulated log of type `W`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// let writer = Writer::new(42, vec!["Log entry".to_string()]);
-    /// let log = writer.log();
-    ///
-    /// assert_eq!(log, vec!["Log entry".to_string()]);
-    /// ```
+    /// Gets the log from the writer computation.
     pub fn log(&self) -> W {
-        self.run().1
+        self.run_writer().1
     }
 }
 
-impl<W, A> HKT for Writer<W, A>
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Default for Writer<W, A>
 where
-    W: TypeConstraints + Monoid,
-    A: TypeConstraints,
+    A: Default,
 {
+    fn default() -> Self {
+        Writer::new(A::default(), W::empty())
+    }
+}
+
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> HKT for Writer<W, A> {
     type Output<T> = Writer<W, T> where T: TypeConstraints;
 }
 
-impl<W, A> Pure<A> for Writer<W, A>
-where
-    W: TypeConstraints + Monoid,
-    A: TypeConstraints,
-{
-    fn pure(value: A) -> Self::Output<A> {
-        Writer::new(value, W::empty())
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Pure<A> for Writer<W, A> {
+    fn pure(x: A) -> Self::Output<A> {
+        Writer::new(x, W::empty())
     }
 }
 
-impl<W, A> Functor<A> for Writer<W, A>
-where
-    W: TypeConstraints + Monoid,
-    A: TypeConstraints,
-{
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Functor<A> for Writer<W, A> {
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
         F: FnTrait<A, B>,
     {
-        Writer {
-            run_writer: FnType::new(move |_| {
-                let (a, w) = self.run();
-                (f.call(a), w)
-            }),
-        }
+        let (a, w) = self.run_writer();
+        Writer::new(f.call(a), w)
     }
 }
 
-impl<W, A> Applicative<A> for Writer<W, A>
-where
-    W: TypeConstraints + Monoid,
-    A: TypeConstraints,
-{
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Applicative<A> for Writer<W, A> {
     fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
     where
         B: TypeConstraints,
         F: FnTrait<A, B>,
     {
-        Writer {
-            run_writer: FnType::new(move |_| {
-                let (f, w1) = mf.run();
-                let (a, w2) = self.run();
-                (f.call(a), w1.combine(w2))
-            }),
-        }
+        let (a, w1) = self.run_writer();
+        let (f, w2) = mf.run_writer();
+        Writer::new(f.call(a), w1.combine(w2))
     }
 
     fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
@@ -251,13 +121,9 @@ where
         C: TypeConstraints,
         F: FnTrait<(A, B), C>,
     {
-        Writer {
-            run_writer: FnType::new(move |_| {
-                let (a, w1) = self.run();
-                let (b, w2) = mb.run();
-                (f.call((a, b)), w1.combine(w2))
-            }),
-        }
+        let (a, w1) = self.run_writer();
+        let (b, w2) = mb.run_writer();
+        Writer::new(f.call((a, b)), w1.combine(w2))
     }
 
     fn lift3<B, C, D, F>(
@@ -272,54 +138,78 @@ where
         D: TypeConstraints,
         F: FnTrait<(A, B, C), D>,
     {
-        Writer {
-            run_writer: FnType::new(move |_| {
-                let (a, w1) = self.run();
-                let (b, w2) = mb.run();
-                let (c, w3) = mc.run();
-                (f.call((a, b, c)), w1.combine(w2).combine(w3))
-            }),
-        }
+        let (a, w1) = self.run_writer();
+        let (b, w2) = mb.run_writer();
+        let (c, w3) = mc.run_writer();
+        Writer::new(f.call((a, b, c)), w1.combine(w2).combine(w3))
     }
 }
 
-impl<W, A> Monad<A> for Writer<W, A>
-where
-    W: TypeConstraints + Monoid,
-    A: TypeConstraints,
-{
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Monad<A> for Writer<W, A> {
     fn bind<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
         F: FnTrait<A, Self::Output<B>>,
     {
-        Writer {
-            run_writer: FnType::new(move |_| {
-                let (a, w1) = self.run();
-                let (b, w2) = f.call(a).run();
-                (b, w1.combine(w2))
-            }),
-        }
+        let (a, w1) = self.run_writer();
+        let (b, w2) = f.call(a).run_writer();
+        Writer::new(b, w1.combine(w2))
+    }
+
+    fn returns<B, F>(self, f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        let (a, w) = self.run_writer();
+        Writer::new(f.call(a), w)
     }
 
     fn join<B>(self) -> Self::Output<B>
     where
         B: TypeConstraints,
-        A: Into<Self::Output<B>>,
+        A: Into<Self::Output<B>>
     {
-        self.bind(FnType::new(|x: A| x.into()))
+        self.run_writer().0.into()
+    }
+
+    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+    {
+        let (_a, w1) = self.run_writer();
+        let (_b, w2) = mb.run_writer();
+        Writer::new(_b, w1.combine(w2))
     }
 }
 
-impl<W: TypeConstraints + Monoid, A: TypeConstraints> Identity for Writer<W, A> {}
-
-impl<W: TypeConstraints + Monoid, A: TypeConstraints> Composable for Writer<W, A> {}
-
-impl<W: TypeConstraints + Monoid, A: TypeConstraints> Category for Writer<W, A> {
-    type Morphism<B, C> = FnType<B, C>
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Composable<A> for Writer<W, A> {
+    fn compose_with<B, F>(self, f: F) -> Self::Output<B>
     where
         B: TypeConstraints,
-        C: TypeConstraints;
+        F: FnTrait<A, B>,
+    {
+        let (a, w) = self.run_writer();
+        Writer::new(f.call(a), w)
+    }
 }
 
-impl<W: Monoid + TypeConstraints, A: TypeConstraints> Arrow for Writer<W, A> {}
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Category<A> for Writer<W, A> {
+    type Morphism<B, C> = FnType<B, C> where B: TypeConstraints, C: TypeConstraints;
+}
+
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Arrow<A, A> for Writer<W, A> {}
+
+impl<W: TypeConstraints + Monoid<W>, A: TypeConstraints> Identity<A> for Writer<W, A> {
+    fn identity() -> Self::Output<A> {
+        Writer::new(A::default(), W::empty())
+    }
+
+    fn map_identity<B, F>(f: F) -> Self::Output<B>
+    where
+        B: TypeConstraints,
+        F: FnTrait<A, B>,
+    {
+        Writer::new(f.call(A::default()), W::empty())
+    }
+}

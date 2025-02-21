@@ -27,67 +27,43 @@ pub trait TypeConstraints: Clone + Debug + PartialEq + Eq + Default + Send + Syn
 /// that satisfies all the required trait bounds.
 impl<T> TypeConstraints for T where T: Clone + Debug + PartialEq + Eq + Default + Send + Sync + 'static {}
 
-
 /// A trait for higher-kinded types (HKT).
 ///
 /// This trait enables type-level programming by allowing types to be parameterized
 /// over other type constructors. It serves as a foundation for implementing
 /// functional programming patterns like Functor, Applicative, and Monad.
 ///
-/// # Associated Types
-///
+/// # Type Parameters
 /// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
-pub trait HKT {
-    type Output<U>: TypeConstraints
-    where
-        U: TypeConstraints;
+///
+/// # Examples
+/// ```rust
+/// use rustica::traits::hkt::{HKT, TypeConstraints};
+///
+/// #[derive(Clone, Debug, PartialEq, Eq, Default)]
+/// struct Container<T>(T);
+///
+/// impl<T: TypeConstraints> HKT for Container<T> {
+///     type Output<U> = Container<U> where U: TypeConstraints;
+/// }
+/// ```
+pub trait HKT: TypeConstraints {
+    type Output<U>: TypeConstraints where U: TypeConstraints;
 }
 
-
-
-/// Implements the HKT trait for Vec<T>.
-///
-/// This implementation allows Vec to be parameterized over other type constructors,
-/// enabling functional programming patterns like Functor, Applicative, and Monad.
-///
-/// # Associated Types
-///
-/// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
-impl<T> HKT for Vec<T>
-where
-    T: TypeConstraints,
-{
+// Standard implementations
+impl<T: TypeConstraints> HKT for Vec<T> {
     type Output<U> = Vec<U> where U: TypeConstraints;
 }
 
-/// Implements the HKT trait for Box<T>.
-///
-/// This implementation allows Box to be parameterized over other type constructors,
-/// enabling functional programming patterns like Functor, Applicative, and Monad.
-///
-/// # Associated Types
-///
-/// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
-impl<T> HKT for Box<T>
-where
-    T: TypeConstraints,
-{
+impl<T: TypeConstraints> HKT for Option<T> {
+    type Output<U> = Option<U> where U: TypeConstraints;
+}
+
+impl<T: TypeConstraints> HKT for Box<T> {
     type Output<U> = Box<U> where U: TypeConstraints;
 }
 
-/// Implements the HKT trait for HashMap<K, V>.
-///
-/// This implementation allows HashMap to be parameterized over other type constructors,
-/// enabling functional programming patterns like Functor, Applicative, and Monad.
-///
-/// # Associated Types
-///
-/// * `Output<U>` - The resulting type when applying the type constructor to a new type `U`.
-///
-/// # Constraints
-///
-/// * `K` - Must implement `Hash`, `Eq`, `Send`, `Sync`, `Clone`, `Debug`, and `'static`.
-/// * `V` - Must implement `TypeConstraints`.
 impl<K, V> HKT for HashMap<K, V>
 where
     K: Hash + Eq + Send + Sync + Clone + Debug + 'static,
