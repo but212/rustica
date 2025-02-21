@@ -22,7 +22,7 @@ flowchart TB
     subgraph "Trait Hierarchy"
         HKT["HKT"] --> Identity["Identity"]
         HKT --> Composable["Composable"]
-        HKT --> Functor["Functor"]
+        Identity --> Functor["Functor"]
         Identity --> Category["Category"]
         Composable --> Category
         Composable --> Arrow["Arrow"]
