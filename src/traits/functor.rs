@@ -1,7 +1,6 @@
 use crate::traits::identity::Identity;
 use crate::traits::hkt::TypeConstraints;
 use crate::fntype::{FnTrait, FnType};
-use crate::traits::composable::Composable;
 
 use std::collections::HashMap;
 use std::hash::Hash;
