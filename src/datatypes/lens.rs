@@ -214,4 +214,12 @@ impl<S: TypeConstraints, A: TypeConstraints> Category<A> for Lens<S, A> {
 
 impl<S: TypeConstraints, A: TypeConstraints> Arrow<A, A> for Lens<S, A> {}
 
-impl<S: TypeConstraints, A: TypeConstraints> Functor<A> for Lens<S, A> {}
+impl<S: TypeConstraints, A: TypeConstraints> Functor<A> for Lens<S, A> {
+    fn fmap<U, F>(self, f: F) -> Self::Output<U>
+    where
+        U: TypeConstraints,
+        F: FnTrait<A, U>
+    {
+        self.compose_with(f)
+    }
+}

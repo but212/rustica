@@ -1,5 +1,4 @@
-use crate::traits::hkt::TypeConstraints;
-use crate::fntype::{FnType, FnTrait};
+use crate::prelude::*;
 use crate::datatypes::choice::Choice;
 
 /// A Prism is an optic that focuses on a particular case of a sum type.
@@ -7,7 +6,7 @@ use crate::datatypes::choice::Choice;
 /// # Type Parameters
 /// * `S` - The source type (the sum type)
 /// * `A` - The focus type (the case we're interested in)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct Prism<S: TypeConstraints, A: TypeConstraints> {
     /// Attempts to extract a value of type A from S
     preview: FnType<S, Option<A>>,
@@ -86,4 +85,8 @@ impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
             |(l, r)| Choice::Both(l, r),
         )
     }
+}
+
+impl<S: TypeConstraints, A: TypeConstraints> HKT for Prism<S, A> {
+    type Output<T> = Prism<S, T> where T: TypeConstraints;
 }
