@@ -1,14 +1,11 @@
-use crate::traits::hkt::{HKT, TypeConstraints};
+use crate::traits::hkt::{TypeOps, AnyBox, HKT};
+use std::sync::Arc;
 
 /// The Pure trait represents a type that can lift a value into a context.
 /// 
 /// This trait is a fundamental part of the Applicative Functor abstraction,
 /// allowing for the creation of a minimal context around a value.
 /// 
-/// # Type Parameters
-/// 
-/// * `T` - The type of the value to be lifted.
-///
 /// # Laws
 /// 
 /// An implementation of Pure must satisfy the following laws:
@@ -25,14 +22,8 @@ use crate::traits::hkt::{HKT, TypeConstraints};
 ///    `fmap(f)(x.apply(y)) = x.apply(fmap(|g| f.compose(g))(y))`
 /// 6. Functor Consistency: For any value `x` and function `f`,
 ///    `pure(x).fmap(f) = pure(f(x))`
-pub trait Pure<T>: HKT
-where
-    T: TypeConstraints,
-{
+pub trait Pure: HKT + 'static {
     /// Lifts a value into the context.
-    ///
-    /// This method takes a value of type `T` and lifts it into the minimal context
-    /// represented by the implementing type.
     ///
     /// # Arguments
     ///
@@ -41,28 +32,36 @@ where
     /// # Returns
     ///
     /// A new instance of the context containing the lifted value.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rustica::traits::hkt::{HKT, TypeConstraints};
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// #[derive(Clone, PartialEq, Eq, Default)]
-    /// struct MyContext<T: TypeConstraints>(T);
-    /// 
-    /// impl<T: TypeConstraints> HKT for MyContext<T> {
-    ///     type Output<U> = MyContext<U> where U: TypeConstraints;
-    /// }
-    ///
-    /// impl<T: TypeConstraints> Pure<T> for MyContext<T> {
-    ///     fn pure(value: T) -> Self::Output<T> {
-    ///         MyContext(value)
-    ///     }
-    /// }
-    ///
-    /// let lifted = MyContext::pure(42);
-    /// assert_eq!(lifted.0, 42);
-    /// ```
-    fn pure(value: T) -> Self::Output<T>;
+    fn pure(value: AnyBox) -> AnyBox;
+}
+
+impl<T> Pure for Vec<T>
+where
+    T: TypeOps + 'static
+{
+    fn pure(value: AnyBox) -> AnyBox {
+        // Create a single-element vector containing the value
+        Arc::new(vec![value])
+    }
+}
+
+impl<T> Pure for Option<T>
+where
+    T: TypeOps + 'static
+{
+    fn pure(value: AnyBox) -> AnyBox {
+        // Wrap the value in Some
+        Arc::new(Some(value))
+    }
+}
+
+impl<K, V> Pure for Result<K, V>
+where
+    K: TypeOps + 'static,
+    V: TypeOps + 'static
+{
+    fn pure(value: AnyBox) -> AnyBox {
+        // Create a successful Result containing the value
+        Arc::new(Ok::<AnyBox, AnyBox>(value))
+    }
 }

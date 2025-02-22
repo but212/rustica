@@ -1,98 +1,153 @@
-use crate::traits::hkt::{HKT, TypeConstraints};
-use crate::fntype::{FnTrait, FnType};
-use std::hash::Hash;
+use crate::traits::hkt::{TypeOps, AnyBox, HKT};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::hash::Hash;
+use std::sync::Arc;
 
-/// A trait for types that can be composed with functions.
-///
-/// This trait defines operations for composing types with functions, allowing for
-/// functional composition and transformation of values within a context.
-///
-/// # Type Parameters
-/// * `T`: The type to be composed, must satisfy `TypeConstraints`.
+/// A trait for types that support function composition
 ///
 /// # Laws
-/// 
-/// A Composable instance must satisfy these laws:
-/// 
-/// 1. Associativity: For any composable `x` and functions `f`, `g`, `h`,
-///    `x.compose_with(f).compose_with(g).compose_with(h) = x.compose_with(|a| f.call(a).compose_with(g).compose_with(h))`
-/// 2. Identity: For any composable `x`,
-///    `x.compose_with(|a| a) = x`
-/// 3. Distributivity: For any composable `x` and functions `f`, `g`,
-///    `x.compose_with(|a| f.call(a)).compose_with(g) = x.compose_with(|a| g.call(f.call(a)))`
-/// 4. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(x.compose_with(f)) = η(x).compose_with(|a| η(f.call(a)))`
-/// 5. Functor Consistency: For any value `x` and function `f`,
-///    `pure(x).compose_with(f) = pure(f.call(x))`
-pub trait Composable<T: TypeConstraints>: HKT {
-    /// Composes two functions, applying the second function to the result of the first.
+///
+/// 1. Associativity: For any composable functions f, g, h:
+///    `compose_with(x, compose(f, g)) = compose_with(compose_with(x, f), g)`
+/// 2. Identity: For any composable function f and value x:
+///    `compose_with(x, id) = x`
+pub trait Composable: HKT {
+    /// Composes this value with a function
     ///
-    /// This method creates a new function that is the composition of `f` and `g`,
-    /// where the output of `f` is passed as input to `g`.
+    /// # Arguments
     ///
-    /// # Type Parameters
-    /// * `U`: Intermediate type, must satisfy `TypeConstraints`.
-    /// * `V`: Result type, must satisfy `TypeConstraints`.
-    /// * `F`: First function type, must implement `FnTrait<T, U>`.
-    /// * `G`: Second function type, must implement `FnTrait<U, V>`.
+    /// * `f` - The function to compose with
     ///
     /// # Returns
-    /// A new function of type `impl FnTrait<T, V>` that represents the composition of `f` and `g`.
-    fn compose<U, V, F, G>(f: F, g: G) -> impl FnTrait<T, V>
-    where
-        U: TypeConstraints,
-        V: TypeConstraints,
-        F: FnTrait<T, U>,
-        G: FnTrait<U, V>,
-    {
-        FnType::new(move |x| g.call(f.call(x)))
-    }
+    ///
+    /// A new composed value
+    fn compose_with(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
 
-    /// Composes a function with this type's operation.
+    /// Composes two functions
     ///
-    /// This method allows for the composition of the current type with a given function,
-    /// transforming the value within the context of the composable type.
+    /// This is a fundamental operation in category theory that composes
+    /// two morphisms (functions) to create a new morphism.
     ///
-    /// # Type Parameters
-    /// * `U`: Result type, must satisfy `TypeConstraints`.
-    /// * `F`: Function type, must implement `FnTrait<T, U>`.
+    /// # Arguments
+    ///
+    /// * `f` - First function (will be applied first)
+    /// * `g` - Second function (will be applied after f)
     ///
     /// # Returns
-    /// The result of composing `self` with the given function `f`, wrapped in the `Output` type.
-    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>;
+    ///
+    /// A new function that is the composition of f and g (g ∘ f)
+    fn compose(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>;
 }
 
-impl<T: TypeConstraints> Composable<T> for Vec<T> {
-    fn compose_with<U, F>(self, f: F) -> Vec<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>,
-    {
-        self.into_iter().map(|x| f.call(x)).collect()
+impl<T> Composable for Vec<T>
+where
+    T: TypeOps + 'static
+{
+    fn compose_with(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = Vec::new();
+        for x in self {
+            let input = x.clone_box();
+            let output = f(input);
+            result.push(output);
+        }
+        Arc::new(result)
+    }
+
+    fn compose(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync> {
+        Arc::new(move |x| {
+            let f = Arc::clone(&f);
+            let g = Arc::clone(&g);
+            g(f(x))
+        })
     }
 }
 
-impl<T: TypeConstraints> Composable<T> for Box<T> {
-    fn compose_with<U, F>(self, f: F) -> Box<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>,
-    {
-        Box::new(f.call(*self))
+impl<T> Composable for Option<T>
+where
+    T: TypeOps + 'static
+{
+    fn compose_with(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Some(x) => {
+                let input = x.clone_box();
+                Arc::new(Some(f(input)))
+            }
+            None => Arc::new(None::<AnyBox>),
+        }
+    }
+
+    fn compose(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync> {
+        Arc::new(move |x| {
+            let f = Arc::clone(&f);
+            let g = Arc::clone(&g);
+            g(f(x))
+        })
     }
 }
 
-impl<K: Hash + Eq + Debug + TypeConstraints, V: TypeConstraints> Composable<V> for HashMap<K, V> {
-    fn compose_with<U, F>(self, f: F) -> HashMap<K, U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<V, U>,
-    {
-        self.into_iter().map(|(k, v)| (k, f.call(v))).collect()
+impl<T, E> Composable for Result<T, E>
+where
+    T: TypeOps + 'static,
+    E: TypeOps + Clone + 'static,
+{
+    fn compose_with(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Ok(x) => {
+                let input = x.clone_box();
+                let result: Result<AnyBox, E> = Ok(f(input));
+                Arc::new(result)
+            }
+            Err(e) => {
+                let error = e.clone();
+                let result: Result<AnyBox, E> = Err(error);
+                Arc::new(result)
+            }
+        }
+    }
+
+    fn compose(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync> {
+        Arc::new(move |x| {
+            let f = Arc::clone(&f);
+            let g = Arc::clone(&g);
+            g(f(x))
+        })
+    }
+}
+
+impl<K, V> Composable for HashMap<K, V>
+where
+    K: Clone + Hash + Eq + Send + Sync + 'static,
+    V: TypeOps + 'static,
+{
+    fn compose_with(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = HashMap::new();
+        for (k, v) in self {
+            let input = v.clone_box();
+            let output = f(input);
+            result.insert(k.clone(), output);
+        }
+        Arc::new(result)
+    }
+
+    fn compose(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync> {
+        Arc::new(move |x| {
+            let f = Arc::clone(&f);
+            let g = Arc::clone(&g);
+            g(f(x))
+        })
+    }
+}
+
+/// Helper module containing common composition utilities
+pub mod compose {
+    use super::*;
+
+    /// Creates a composed function from two functions
+    pub fn compose_fn(f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync> {
+        Arc::new(move |x| {
+            let f = Arc::clone(&f);
+            let g = Arc::clone(&g);
+            g(f(x))
+        })
     }
 }

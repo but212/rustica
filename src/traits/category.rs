@@ -1,6 +1,5 @@
-use crate::traits::composable::Composable;
-use crate::traits::hkt::TypeConstraints;
-use crate::fntype::FnTrait;
+use crate::traits::hkt::{TypeOps, AnyBox, HKT};
+use std::sync::Arc;
 
 /// A trait representing categories in category theory.
 ///
@@ -10,59 +9,93 @@ use crate::fntype::FnTrait;
 /// * Identity morphisms for each object
 /// * A composition operation for morphisms
 ///
-/// # Type Parameters
-/// * `A`: The type of objects in this category
-///
 /// # Laws
 /// 
-/// An Category instance must satisfy these laws:
+/// A Category instance must satisfy these laws:
 /// 
-/// 1. Identity: For any morphism `f: A → B`,
-///    `id_A ∘ f = f = f ∘ id_B`
-/// 2. Associativity: For composable morphisms `f`, `g`, `h`,
-///    `(f ∘ g) ∘ h = f ∘ (g ∘ h)`
-/// 3. Type Safety: Composition preserves source and target types
-///
-/// # Implementor's Guide
-/// When implementing this trait, ensure that:
-/// * The `Morphism` associated type correctly represents morphisms between objects
-/// * `identity_morphism` returns a valid identity morphism for any object
-/// * `compose_morphisms` correctly composes two morphisms, preserving type safety
-pub trait Category<A>: Composable<A>
-where
-    A: TypeConstraints,
-{
-    /// The type of morphisms in this category
-    type Morphism<B, C>: FnTrait<B, C> where B: TypeConstraints, C: TypeConstraints;
-
-    /// Returns the identity morphism for a given type
-    ///
-    /// # Type Parameters
-    /// * `B`: The type for which to create an identity morphism
+/// 1. Left Identity: For any morphism `f`,
+///    `compose(identity_morphism, f) = f`
+/// 2. Right Identity: For any morphism `f`,
+///    `compose(f, identity_morphism) = f`
+/// 3. Associativity: For any morphisms `f`, `g`, and `h`,
+///    `compose(compose(f, g), h) = compose(f, compose(g, h))`
+pub trait Category: HKT {
+    /// Returns the identity morphism for this category.
     ///
     /// # Returns
-    /// An identity morphism of type `Morphism<B, B>`
-    fn identity_morphism<B: TypeConstraints>() -> Self::Morphism<B, B> {
-        FnTrait::new(|x| x)
+    /// A boxed value that represents this category's identity morphism.
+    fn identity_morphism() -> AnyBox;
+
+    /// Composes this category with another morphism.
+    ///
+    /// # Arguments
+    /// * `other`: The morphism to compose with
+    ///
+    /// # Returns
+    /// A new boxed value representing the composition of morphisms.
+    fn compose_morphism(&self, other: &AnyBox) -> AnyBox;
+}
+
+impl<T> Category for Vec<T> 
+where 
+    T: TypeOps + Clone + Send + Sync + 'static 
+{
+    fn identity_morphism() -> AnyBox {
+        Arc::new(Vec::<T>::new()) as AnyBox
     }
 
-    /// Composes two morphisms in this category
-    ///
-    /// # Type Parameters
-    /// * `B`: The intermediate type in the composition
-    /// * `C`: The target type of the composition
-    ///
-    /// # Parameters
-    /// * `f`: A morphism from `A` to `B`
-    /// * `g`: A morphism from `B` to `C`
-    ///
-    /// # Returns
-    /// A new morphism representing the composition of `f` and `g`
-    fn compose_morphisms<B, C>(f: Self::Morphism<A, B>, g: Self::Morphism<B, C>) -> Self::Morphism<A, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-    {
-        FnTrait::new(move |x| g.call(f.call(x)))
+    fn compose_morphism(&self, other: &AnyBox) -> AnyBox {
+        other.downcast_ref::<Vec<AnyBox>>()
+            .map(|vec| {
+                let mut result: Vec<T> = Vec::new();
+                for x in vec {
+                    if let Some(inner) = x.downcast_ref::<Vec<T>>() {
+                        result.extend(inner.iter().cloned());
+                    }
+                }
+                Arc::new(result) as AnyBox
+            })
+            .unwrap_or_else(|| Arc::new(Vec::<T>::new()) as AnyBox)
+    }
+}
+
+impl<T> Category for Option<T> 
+where 
+    T: TypeOps + Default + Clone + Send + Sync + 'static 
+{
+    fn identity_morphism() -> AnyBox {
+        Arc::new(Some(T::default())) as AnyBox
+    }
+
+    fn compose_morphism(&self, other: &AnyBox) -> AnyBox {
+        if let Some(opt) = other.downcast_ref::<Option<T>>() {
+            match (self, opt) {
+                (Some(_), Some(b)) => Arc::new(Some(b.clone())) as AnyBox,
+                _ => Arc::new(None::<T>) as AnyBox
+            }
+        } else {
+            Arc::new(None::<T>) as AnyBox
+        }
+    }
+}
+
+impl<T, E> Category for Result<T, E> 
+where 
+    T: TypeOps + Default + Clone + Send + Sync + 'static,
+    E: Send + Sync + Eq + Clone + Default + 'static
+{
+    fn identity_morphism() -> AnyBox {
+        Arc::new(Ok::<T, E>(T::default())) as AnyBox
+    }
+
+    fn compose_morphism(&self, other: &AnyBox) -> AnyBox {
+        if let Some(result) = other.downcast_ref::<Result<T, E>>() {
+            match (self, result) {
+                (Ok(_), Ok(b)) => Arc::new(Ok::<T, E>(b.clone())) as AnyBox,
+                (Err(e), _) | (_, Err(e)) => Arc::new(Err::<T, E>(e.clone())) as AnyBox,
+            }
+        } else {
+            Arc::new(Err::<T, E>(E::default())) as AnyBox
+        }
     }
 }

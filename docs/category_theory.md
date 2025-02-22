@@ -1,290 +1,335 @@
 # Category Theory in Rustica
 
-This document explains the core category theory concepts implemented in Rustica and their relationships.
+This document explains the core category theory concepts implemented in Rustica, organized by related trait groups.
+
+```mermaid
+classDiagram
+    class HKT {
+        <<trait>>
+    }
+    class TypeOps {
+        <<trait>>
+    }
+    class Identity {
+        <<trait>>
+    }
+    class Composable {
+        <<trait>>
+    }
+    class Functor {
+        <<trait>>
+    }
+    class Bifunctor {
+        <<trait>>
+    }
+    class Pure {
+        <<trait>>
+    }
+    class Applicative {
+        <<trait>>
+    }
+    class Monad {
+        <<trait>>
+    }
+    class Comonad {
+        <<trait>>
+    }
+    class Semigroup {
+        <<trait>>
+    }
+    class Monoid {
+        <<trait>>
+    }
+    class Foldable {
+        <<trait>>
+    }
+    class Traversable {
+        <<trait>>
+    }
+    class Sequence {
+        <<trait>>
+    }
+
+    HKT <|-- TypeOps
+    HKT <|-- Identity
+    HKT <|-- Composable
+    Identity <|-- Functor
+    HKT <|-- Bifunctor
+    HKT <|-- Pure
+    Functor <|-- Applicative
+    Pure <|-- Applicative
+    Applicative <|-- Monad
+    Functor <|-- Comonad
+    HKT <|-- Semigroup
+    Semigroup <|-- Monoid
+    HKT <|-- Foldable
+    Bifunctor <|-- Traversable
+    Foldable <|-- Traversable
+    Traversable <|-- Sequence
+```
 
 ## Type System Foundation
 
-### Higher-Kinded Types (HKT)
-
-The foundation of Rustica's type system is the `HKT` trait, which enables type-level programming:
-
-```rust
-pub trait HKT {
-    type Output<U>: TypeConstraints where U: TypeConstraints;
-}
-```
-
-All types in Rustica's functional abstractions must satisfy `TypeConstraints`:
-- `Clone`, `PartialEq`, `Eq`, `Default`, `Send`, `Sync`, `'static`
+### Base Types (HKT and TypeOps)
 
 ```mermaid
-flowchart TB
-    subgraph "Trait Hierarchy"
-        HKT["HKT"] --> Identity["Identity"]
-        HKT --> Composable["Composable"]
-        Identity --> Functor["Functor"]
-        Identity --> Category["Category"]
-        Composable --> Category
-        Composable --> Arrow["Arrow"]
-        Functor --> Applicative["Applicative"]
-        Pure["Pure"] --> Applicative
-        Applicative --> Monad["Monad"]
-    end
+classDiagram
+    class HKT {
+        <<trait>>
+        +apply_type() AnyBox
+        +downcast(boxed: &AnyBox) Option~AnyBox~
+    }
+    class TypeOps {
+        <<trait>>
+        +clone_box() AnyBox
+        +equals(other: &AnyBox) bool
+    }
+    HKT --> TypeOps
 ```
 
-## Core Abstractions
-
-### Identity
-
-The `Identity` trait represents the identity morphism in category theory:
-
 ```rust
-pub trait Identity<T: TypeConstraints>: HKT {
-    fn identity() -> Self::Output<T>;
-    fn map_identity<U, F>(f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>;
+pub trait HKT: Send + Sync {
+    fn apply_type(&self) -> AnyBox;
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox>;
+}
+
+pub trait TypeOps: Any + Send + Sync {
+    fn clone_box(&self) -> AnyBox;
+    fn equals(&self, other: &AnyBox) -> bool;
 }
 ```
 
-Laws:
-1. Identity: `identity().compose_with(f) = f = f.compose_with(identity())`
-2. Naturality: `map_identity(f) = identity().fmap(f)`
+These traits form the foundation of Rustica's type system, enabling higher-kinded types and type-level operations.
+
+## Core Category Theory
+
+### Identity and Composition (Identity, Composable)
 
 ```mermaid
 flowchart LR
-    subgraph Identity
-        A["A"] --> |"identity()"| FA["F(A)"]
-        A --> |"map_identity(f)"| FB["F(B)"]
+    subgraph "Identity and Composition"
+        A["A"] -->|"identity()"| FA["F(A)"]
+        FA -->|"compose"| FB["F(B)"]
+        FB -->|"compose"| FC["F(C)"]
     end
 ```
 
-### Composable Functions
-
-The `Composable` trait provides function composition capabilities:
-
 ```rust
-pub trait Composable<T: TypeConstraints>: HKT {
-    fn compose<U, V, F, G>(f: F, g: G) -> impl FnTrait<T, V>
-    where
-        U: TypeConstraints,
-        V: TypeConstraints,
-        F: FnTrait<T, U>,
-        G: FnTrait<U, V>,
+pub trait Identity: HKT {
+    fn identity(&self) -> AnyBox;
+    fn map_identity(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+}
 
-    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>;
+pub trait Composable: HKT {
+    fn compose(&self, other: AnyBox) -> AnyBox;
 }
 ```
 
-Laws:
-1. Identity: `f.compose_with(identity()) = f = identity().compose_with(f)`
-2. Associativity: `(f.compose_with(g)).compose_with(h) = f.compose_with(g.compose_with(h))`
-3. Type Safety: `f: T -> U`, `g: U -> V`, then `f.compose_with(g): T -> V`
+### Functor and Bifunctor
+
+```mermaid
+flowchart TB
+    subgraph "Functor Operations"
+        A["A"] -->|"f"| B["B"]
+        FA["F(A)"] -->|"fmap(f)"| FB["F(B)"]
+    end
+    subgraph "Bifunctor Operations"
+        direction LR
+        P1["(A,C)"] -->|"first(f)"| P2["(B,C)"]
+        P3["(A,C)"] -->|"second(g)"| P4["(A,D)"]
+    end
+```
+
+```rust
+pub trait Functor: Identity {
+    fn fmap(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+}
+
+pub trait Bifunctor: HKT {
+    fn first<F>(&self, f: Arc<F>) -> AnyBox where F: Fn(AnyBox) -> AnyBox + Send + Sync;
+    fn second<F>(&self, f: Arc<F>) -> AnyBox where F: Fn(AnyBox) -> AnyBox + Send + Sync;
+}
+```
+
+### Applicative and Pure
+
+```mermaid
+flowchart TB
+    subgraph "Applicative Chain"
+        A["A"] -->|"pure"| FA["F(A)"]
+        FAB["F(A→B)"] -->|"apply"| FB["F(B)"]
+        FA -->|"lift2"| FC["F(C)"]
+        FA -->|"lift3"| FD["F(D)"]
+    end
+```
+
+```rust
+pub trait Pure: HKT {
+    fn pure(&self, value: AnyBox) -> AnyBox;
+}
+
+pub trait Applicative: Functor + Pure {
+    fn apply(&self, f: AnyBox) -> AnyBox;
+    fn lift2(&self, b: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+    fn lift3(&self, b: AnyBox, c: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+}
+```
+
+### Monad and Comonad
+
+```mermaid
+flowchart TB
+    subgraph "Monad and Comonad"
+        direction LR
+        A["A"] -->|"pure"| MA["M(A)"]
+        MA -->|"bind"| MB["M(B)"]
+        MB -->|"join"| B["B"]
+        
+        WA["W(A)"] -->|"extend"| WB["W(B)"]
+        WA -->|"extract"| A2["A"]
+        WA -->|"duplicate"| WWA["W(W(A))"]
+    end
+```
+
+```rust
+pub trait Monad: Applicative {
+    fn bind(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+    fn join(&self) -> AnyBox;
+}
+
+pub trait Comonad: Functor {
+    fn extract(&self) -> AnyBox;
+    fn extend(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+    fn duplicate(&self) -> AnyBox;
+}
+```
+
+## Algebraic Structures
+
+### Semigroup and Monoid
 
 ```mermaid
 flowchart LR
-    subgraph Function Composition
-        T --> |"f"| U
-        U --> |"g"| V
-        T --> |"compose(f, g)"| V
-        T --> |"compose_with(f)"| U
+    subgraph "Algebraic Operations"
+        A["a"] -->|"combine"| AB["a ∘ b"]
+        B["b"] -->|"combine"| AB
+        AB -->|"combine"| ABC["(a ∘ b) ∘ c"]
+        C["c"] -->|"combine"| ABC
+        
+        E["empty()"] -->|"identity"| A
+        A -->|"combine"| AE["a ∘ empty()"]
     end
 ```
 
-### Category
-
-A category in Rustica consists of:
-1. Objects (Types satisfying `TypeConstraints`)
-2. Morphisms (Functions between types)
-3. Identity morphisms (via `Identity` trait)
-4. Composition of morphisms (via `Composable` trait)
-
 ```rust
-pub trait Category<T: TypeConstraints>: Identity<T> + Composable<T> {
-    type Morphism<B, C>: FnTrait<B, C> where B: TypeConstraints, C: TypeConstraints;
-    fn identity_morphism<B: TypeConstraints>() -> Self::Morphism<B, B>;
-    fn compose_morphisms<B, C>(f: Self::Morphism<A, B>, g: Self::Morphism<B, C>) -> Self::Morphism<A, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints;
+pub trait Semigroup: HKT {
+    fn combine(&self, other: AnyBox) -> AnyBox;
+    fn combine_all<I>(&self, iter: I) -> Option<AnyBox> where I: Iterator<Item = AnyBox>;
+}
+
+pub trait Monoid: Semigroup {
+    fn empty(&self) -> AnyBox;
 }
 ```
 
-```mermaid
-flowchart LR
-    subgraph Category
-        A["A"] --> |"identity_morphism()"| A
-        A --> |"f: Morphism<A,B>"| B["B"]
-        B --> |"g: Morphism<B,C>"| C["C"]
-        A --> |"compose_morphisms(f, g)"| C
-    end
-```
+## Traversal Structures
 
-### Functor
-
-A functor maps between categories while preserving structure:
-
-```rust
-pub trait Functor<T>: HKT where T: TypeConstraints {
-    fn fmap<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>;
-    
-    fn lift<U, F>(f: F) -> FnType<Self, Self::Output<U>>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>;
-}
-```
-
-Laws:
-1. Identity: `fmap(identity) = identity`
-2. Composition: `fmap(f.compose_with(g)) = fmap(f).compose_with(fmap(g))`
-3. Structure Preservation: `fmap` must preserve container structure
-4. Type Safety: `fmap` must maintain the same type constructor
+### Foldable and Traversable
 
 ```mermaid
 flowchart TB
-    subgraph "Source Category"
-        A["A"] --> |"f"| B["B"]
+    subgraph "Traversal Operations"
+        TA["T[A]"] -->|"fold_left"| B["B"]
+        TA -->|"fold_right"| B2["B"]
+        TA -->|"traverse f"| FTB["F[T[B]]"]
+        TFA["T[F[A]]"] -->|"sequence"| FTA["F[T[A]]"]
     end
-    subgraph "Target Category"
-        FA["F(A)"] --> |"fmap(f)"| FB["F(B)"]
-        FA --> |"lift(f)"| FB
-    end
-    A --> |"F"| FA
-    B --> |"F"| FB
 ```
 
-### Applicative
-
-Applicative functors add the ability to apply functions within a context:
-
 ```rust
-pub trait Applicative<T>: Functor<T> + Pure<T> where T: TypeConstraints {
-    fn apply<U, F>(self, f: Self::Output<F>) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>;
+pub trait Foldable: HKT {
+    fn fold_left(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+    fn fold_right(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+    fn fold_map(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+}
 
-    fn lift2<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        F: FnTrait<(T, B), C>;
+pub trait Traversable: Bifunctor + Foldable {
+    fn traverse<F>(&self, f: Arc<F>) -> AnyBox where F: Fn(AnyBox) -> AnyBox + Send + Sync + 'static;
+    fn distribute(&self) -> AnyBox;
+}
 
-    fn lift3<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-        F: FnTrait<(T, B, C), D>;
+pub trait Sequence: Traversable {
+    fn sequence(&self) -> AnyBox;
 }
 ```
 
-Laws:
-1. Identity: `pure(identity).apply(v) = v`
-2. Composition: `pure(compose).apply(u).apply(v).apply(w) = u.apply(v.apply(w))`
-3. Homomorphism: `pure(f).apply(pure(x)) = pure(f(x))`
-4. Interchange: `u.apply(pure(y)) = pure(|f| f(y)).apply(u)`
-5. Naturality: `fmap(f)(x.apply(y)) = x.apply(fmap(|g| f.compose_with(g))(y))`
+## Common Implementations
+
+### Option Example
 
 ```mermaid
 flowchart TB
-    subgraph "Applicative"
-        A["A"] --> |"pure"| FA["F(A)"]
-        FB["F(B)"] --> |"apply"| FC["F(C)"]
-        FF["F(A->B)"] --> |"apply"| FB
-        FA --> |"lift2"| FC
-        FA --> |"lift3"| FD["F(D)"]
+    subgraph "Option Implementation"
+        Some3["Some(3)"] -->|"map(*2)"| Some6["Some(6)"]
+        Some6 -->|"bind(>5?)"| SomeTrue["Some(true)"]
+        None -->|"map/bind"| None2["None"]
+        
+        Some["Some(2)"] -->|"combine"| SomeComb["Some(5)"]
+        Some3_2["Some(3)"] -->|"combine"| SomeComb
     end
 ```
 
-### Monad
+### Result Example
 
-Monads add sequencing capabilities to applicative functors:
+```mermaid
+flowchart TB
+    subgraph "Result Implementation"
+        Ok3["Ok(3)"] -->|"map(*2)"| Ok6["Ok(6)"]
+        Ok6 -->|"bind(>5?)"| OkTrue["Ok(true)"]
+        Err["Err(e)"] -->|"map/bind"| Err2["Err(e)"]
+        
+        Ok["Ok(2)"] -->|"combine"| OkComb["Ok(5)"]
+        Ok3_2["Ok(3)"] -->|"combine"| OkComb
+    end
+```
+
+## Laws and Properties
+
+### Core Laws
+
+```mermaid
+flowchart TB
+    subgraph "Category Laws"
+        Identity["Identity Laws"]
+        Composition["Composition Laws"]
+        Naturality["Naturality Laws"]
+        
+        Identity --> Functor["Functor Laws"]
+        Identity --> Applicative["Applicative Laws"]
+        Composition --> Functor
+        Composition --> Monad["Monad Laws"]
+        Naturality --> Traversable["Traversable Laws"]
+    end
+```
+
+### Property Testing
+
+Each trait's laws are enforced through property-based testing:
 
 ```rust
-pub trait Monad<T>: Applicative<T> where T: TypeConstraints {
-    fn bind<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, Self::Output<U>>;
+#[test]
+fn test_functor_laws() {
+    // Identity: fmap(id) == id
+    // Composition: fmap(f . g) == fmap(f) . fmap(g)
+}
 
-    fn join<U>(self) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        T: Into<Self::Output<U>>;
-
-    fn returns<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>;
-
-    fn then<U>(self, mb: Self::Output<U>) -> Self::Output<U>
-    where
-        U: TypeConstraints;
+#[test]
+fn test_monad_laws() {
+    // Left Identity: return a >>= f == f a
+    // Right Identity: m >>= return == m
+    // Associativity: (m >>= f) >>= g == m >>= (\x -> f x >>= g)
 }
 ```
-
-Laws:
-1. Left Identity: `pure(x).bind(f) = f(x)`
-2. Right Identity: `m.bind(pure) = m`
-3. Associativity: `m.bind(f).bind(g) = m.bind(|x| f(x).bind(g))`
-4. Join Consistency: `m.bind(f) = m.fmap(f).join()`
-5. Pure Preservation: `join(pure(pure(x))) = pure(x)`
-6. Returns: `m.returns(f) = m.bind(|x| pure(f(x)))`
-7. Then: `m.then(n) = m.bind(|_| n)`
-
-```mermaid
-flowchart TB
-    subgraph "Monad"
-        A["A"] --> |"pure"| MA["M(A)"]
-        MA --> |"bind f"| MB["M(B)"]
-        MB --> |"bind g"| MC["M(C)"]
-        MA --> |"bind (λx -> f x >>= g)"| MC
-        MA --> |"returns f"| MB
-        MA --> |"then"| MB
-        MB --> |"join"| B["B"]
-    end
-```
-
-## Example: Maybe Monad
-
-The `Maybe` type is a classic example of a monad that handles optional values:
-
-```rust
-use rustica::datatypes::maybe::Maybe;
-use rustica::traits::monad::Monad;
-use rustica::traits::pure::Pure;
-use rustica::fntype::FnType;
-
-let x = Maybe::Just(3);
-let f = FnType::new(|x| Maybe::Just(FnType::new(|x: i32| x + 1)));
-let g = FnType::new(|x| Maybe::Just(FnType::new(|x: i32| x * 2)));
-
-// Left identity
-assert_eq!(Maybe::pure(3).bind(f.clone()), f.call(3));
-
-// Right identity
-assert_eq!(x.clone().bind(FnType::new(Maybe::pure)), x);
-
-// Associativity
-assert_eq!(x.clone().bind(f.clone()).bind(g.clone()), 
-          x.bind(FnType::new(move |y| f.call(y).bind(g.clone()))));
-```
-
-This provides a safe and composable way to handle optional values and computations that may fail.
 
 ## Further Reading
 

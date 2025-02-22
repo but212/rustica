@@ -1,75 +1,52 @@
-use crate::fntype::{FnType, FnTrait};
-use crate::traits::hkt::{HKT, TypeConstraints};
+use std::sync::Arc;
+use crate::traits::hkt::{AnyBox, HKT};
 
-/// A trait for contravariant functors.
+/// A trait for contravariant functors, which are functors that map functions in the opposite direction.
 ///
-/// Contravariant functors allow mapping from a larger type to a smaller type,
-/// which is the opposite of covariant functors.
-///
-/// # Type Parameters
-/// * `T`: The type parameter of the contravariant functor.
+/// Contravariant functors reverse the direction of function composition. This is useful in scenarios
+/// where we want to adapt or preprocess inputs before they're used by some existing function.
 ///
 /// # Laws
-/// 
-/// A ContravariantFunctor instance must satisfy these laws:
-/// 
+///
+/// A `ContravariantFunctor` instance must satisfy the following laws:
+///
 /// 1. Identity: For any contravariant functor `f`,
-///    `f.contramap(|x| x) = f`
+///    `f.contramap(|x| x) == f`
+///
 /// 2. Composition: For any contravariant functor `f` and functions `g`, `h`,
-///    `f.contramap(|x| g(h(x))) = f.contramap(h).contramap(g)`
-/// 3. Naturality: For any natural transformation `η` and contravariant functor `f`,
-///    `η(f.contramap(g)) = η(f).contramap(g)`
-/// 4. Type Safety: For `f: F[A]`, `g: B -> A`, then `f.contramap(g): F[B]`
-/// 5. Consistency: For any contravariant functor `f` and functions `g`, `h`,
-///    `f.contramap(g.compose(h)) = f.contramap(h).contramap(g)`
-/// 6. Preservation of Structure: `contramap` must preserve the structure of the functor
-pub trait ContravariantFunctor<T>: HKT + TypeConstraints
-where
-    T: TypeConstraints,
-{
-    /// Applies a function `f` to the input of the contravariant functor.
+///    `f.contramap(g).contramap(h) == f.contramap(|x| g(h(x)))`
+///
+/// These laws ensure that contravariant functors behave consistently and predictably.
+pub trait ContravariantFunctor: HKT {
+    /// Maps a function over the functor in the opposite direction.
     ///
-    /// # Type Parameters
-    /// * `U`: The new input type for the contravariant functor.
-    /// * `F`: The type of the function to apply.
+    /// This method takes a function `f` and applies it to the input of the functor,
+    /// effectively preprocessing the input before it's used by the functor.
     ///
     /// # Arguments
-    /// * `f`: A function that maps from `U` to `T`.
+    ///
+    /// * `f` - An `Arc`-wrapped function that takes an `AnyBox` and returns an `AnyBox`.
+    ///         This function will be applied to the input of the functor.
     ///
     /// # Returns
-    /// A new contravariant functor with input type `U`.
-    fn contravariant_map<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<U, T>;
+    ///
+    /// Returns a new `AnyBox` containing the contravariant functor with the function applied.
+    fn contramap(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+}
 
-    /// Extracts the inner value from the contravariant functor.
-    ///
-    /// # Returns
-    /// The inner value of type `T`.
-    fn into_inner(self) -> T;
+/// Comparison functor that reverses the comparison based on a function
+#[derive(Clone)]
+pub struct Comparison<T>(Arc<dyn Fn(&T, &T) -> bool + Send + Sync>);
 
-    /// Composes two functions in a contravariant manner.
-    ///
-    /// # Type Parameters
-    /// * `U`: An intermediate type.
-    /// * `V`: The initial input type.
-    /// * `F`: The type of the first function.
-    /// * `G`: The type of the second function.
-    ///
-    /// # Arguments
-    /// * `f`: A function that maps from `U` to `T`.
-    /// * `g`: A function that maps from `V` to `U`.
-    ///
-    /// # Returns
-    /// A new function that maps from `V` to `T`.
-    fn contravariant_compose<U, V, F, G>(f: F, g: G) -> impl FnTrait<V, T>
+impl<T> Comparison<T> {
+    pub fn new<F>(f: F) -> Self
     where
-        U: TypeConstraints,
-        V: TypeConstraints,
-        F: FnTrait<U, T>,
-        G: FnTrait<V, U>,
+        F: Fn(&T, &T) -> bool + Send + Sync + 'static
     {
-        FnType::new(move |v| f.call(g.call(v)))
+        Comparison(Arc::new(f))
+    }
+
+    pub fn compare(&self, x: &T, y: &T) -> bool {
+        (self.0)(x, y)
     }
 }

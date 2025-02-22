@@ -1,104 +1,137 @@
-use quickcheck::{Arbitrary, Gen};
-use quickcheck_macros::quickcheck;
-
-use rustica::traits::functor::Functor;
-use rustica::traits::hkt::TypeConstraints;
-use rustica::traits::pure::Pure;
-use rustica::fntype::{FnType, FnTrait};
+use std::sync::Arc;
 use rustica::datatypes::cont::Cont;
+use rustica::traits::monad::Monad;
+use rustica::traits::pure::Pure;
+use rustica::traits::hkt::AnyBox;
 
-/// Test wrapper type for Cont monad
-#[derive(Clone, Debug)]
-struct TestCont<A>(Cont<String, A>) where A: TypeConstraints;
-
-impl<A> Arbitrary for TestCont<A>
-where
-    A: TypeConstraints + Arbitrary + 'static,
-{
-    fn arbitrary(g: &mut Gen) -> Self {
-        let value = A::arbitrary(g);
-        TestCont(Cont::pure(value))
-    }
-
-    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
-        Box::new(std::iter::empty())
-    }
-}
-
-/// Core Continuation Laws
-#[quickcheck]
-fn cont_identity(x: i32) -> bool {
-    let k = FnType::new(|x: i32| x.to_string());
-    let cont = Cont::pure(x);
-    cont.run(k.clone()) == k.call(x)
-}
-
-#[quickcheck]
-fn cont_composition(x: i32) -> bool {
-    let k2 = FnType::new(|x: i32| x.to_string());
-    let cont = Cont::pure(x.saturating_add(2));
-    let f = FnType::new(move |x: i32| x.saturating_add(1));
+#[test]
+fn test_cont_left_identity() {
+    let x = Arc::new(42) as AnyBox;
+    let f = Arc::new(|x: AnyBox| {
+        if let Some(val) = x.downcast_ref::<i32>() {
+            Arc::new(Cont::<i32, i32>::pure(Arc::new(*val + 1) as AnyBox)) as AnyBox
+        } else {
+            x
+        }
+    }) as Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>;
     
-    let left = cont.clone().fmap(f.clone()).run(k2.clone());
-    let right = k2.call(f.call(x.saturating_add(2)));
-    left == right
+    // Left identity: return a >>= f = f a
+    let cont = Cont::<i32, i32>::pure(x.clone());
+    let cont_result = cont.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast cont")
+        .bind(f.clone());
+    
+    let result = cont_result.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast result")
+        .run(Arc::new(|x| x));
+    
+    let f_result = f(x);
+    let f_cont = f_result.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast f result");
+    let f_value = f_cont.run(Arc::new(|x| x));
+    
+    assert_eq!(result, f_value);
 }
 
-/// Functor Laws
-#[quickcheck]
-fn functor_identity(x: TestCont<i32>) -> bool {
-    let k = FnType::new(|x: i32| x.to_string());
-    let cont = x.0;
+#[test]
+fn test_cont_right_identity() {
+    let x = Arc::new(42) as AnyBox;
+    let cont = Cont::<i32, i32>::pure(x);
     
-    let left = cont.clone().fmap(FnType::new(|x| x)).run(k.clone());
-    let right = cont.run(k);
-    left == right
+    // Right identity: m >>= return = m
+    let cont_result = cont.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast cont")
+        .bind(Arc::new(|x| Arc::new(Cont::<i32, i32>::pure(x)) as AnyBox));
+    
+    let result = cont_result.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast result")
+        .run(Arc::new(|x| x));
+    
+    let original_result = cont.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast original cont")
+        .run(Arc::new(|x| x));
+    
+    assert_eq!(result, original_result);
 }
 
-#[quickcheck]
-fn functor_composition(x: TestCont<i32>) -> bool {
-    let f = FnType::new(|x: i32| x.saturating_add(1));
-    let g = FnType::new(|x: i32| x.saturating_mul(2));
-    let k = FnType::new(|x: i32| x.to_string());
-    let cont = x.0;
+#[test]
+fn test_cont_associativity() {
+    let x = Arc::new(42) as AnyBox;
+    let f = Arc::new(|x: AnyBox| {
+        if let Some(val) = x.downcast_ref::<i32>() {
+            Arc::new(Cont::<i32, i32>::pure(Arc::new(*val + 1) as AnyBox)) as AnyBox
+        } else {
+            x
+        }
+    }) as Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>;
     
-    let left = cont.clone().fmap(f.clone()).fmap(g.clone()).run(k.clone());
-    let right = cont.fmap(f).fmap(g).run(k);
-    left == right
+    let g = Arc::new(|x: AnyBox| {
+        if let Some(val) = x.downcast_ref::<i32>() {
+            Arc::new(Cont::<i32, i32>::pure(Arc::new(*val * 2) as AnyBox)) as AnyBox
+        } else {
+            x
+        }
+    }) as Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>;
+    
+    // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
+    let cont = Cont::<i32, i32>::pure(x);
+    let cont_ref = cont.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast cont");
+    
+    let left = cont_ref.bind(f.clone())
+        .downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast first bind")
+        .bind(g.clone());
+    
+    let right = cont_ref.bind(Arc::new(move |x| {
+        let fx = f(x);
+        fx.downcast_ref::<Cont<i32, i32>>()
+            .expect("Failed to downcast f(x)")
+            .bind(g.clone())
+    }));
+    
+    let left_result = left.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast left result")
+        .run(Arc::new(|x| x));
+    
+    let right_result = right.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast right result")
+        .run(Arc::new(|x| x));
+    
+    assert_eq!(left_result, right_result);
 }
 
-/// Monad Laws
-#[quickcheck]
-fn monad_left_identity(x: i32) -> bool {
-    let k = FnType::new(|x: i32| x.to_string());
-    let f = FnType::new(|x: i32| x.saturating_add(1));
+#[test]
+fn test_cont_composition() {
+    let x = Arc::new(42) as AnyBox;
+    let f = Arc::new(|x: AnyBox| {
+        if let Some(val) = x.downcast_ref::<i32>() {
+            Arc::new(Cont::<i32, i32>::pure(Arc::new(*val + 1) as AnyBox)) as AnyBox
+        } else {
+            x
+        }
+    }) as Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>;
     
-    let left = Cont::pure(x).fmap(f.clone()).run(k.clone());
-    let right = k.call(f.call(x));
-    left == right
-}
-
-#[quickcheck]
-fn monad_right_identity(x: TestCont<i32>) -> bool {
-    let k = FnType::new(|x: i32| x.to_string());
-    let cont = x.0;
+    let g = Arc::new(|x: AnyBox| {
+        if let Some(val) = x.downcast_ref::<i32>() {
+            Arc::new(Cont::<i32, i32>::pure(Arc::new(*val * 2) as AnyBox)) as AnyBox
+        } else {
+            x
+        }
+    }) as Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>;
     
-    let left = cont.clone().fmap(FnType::new(|x| x)).run(k.clone());
-    let right = cont.run(k);
-    left == right
-}
-
-#[quickcheck]
-fn monad_associativity(x: TestCont<i32>) -> bool {
-    let k = FnType::new(|x: i32| x.to_string());
-    let f = FnType::new(|x: i32| x.saturating_add(1));
-    let g = FnType::new(|x: i32| x.saturating_mul(2));
-    let cont = x.0;
+    let cont = Cont::<i32, i32>::pure(x);
+    let cont_ref = cont.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast cont");
     
-    let left = cont.clone()
-        .fmap(f.clone())
-        .fmap(g.clone())
-        .run(k.clone());
-    let right = cont.fmap(f).fmap(g).run(k);
-    left == right
+    let composed = cont_ref.bind(f.clone())
+        .downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast first bind")
+        .bind(g.clone());
+    
+    let result = composed.downcast_ref::<Cont<i32, i32>>()
+        .expect("Failed to downcast result")
+        .run(Arc::new(|x| x));
+    
+    assert_eq!(result, 86); // (42 + 1) * 2
 }

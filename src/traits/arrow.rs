@@ -1,131 +1,174 @@
-use crate::traits::hkt::TypeConstraints;
-use crate::traits::category::Category;
-use crate::fntype::FnTrait;
+use crate::traits::composable::Composable;
+use crate::traits::hkt::{TypeOps, AnyBox};
+use std::sync::Arc;
 
 /// Arrow type class.
 ///
-/// Arrows generalize computation and provide a way to express computations
-/// that may be more general than simple functions.
-///
-/// # Type Parameters
-/// * `A` - The base type for this arrow
-/// * `B` - The target type for this arrow
-///
-/// # Associated Types
-/// * `Morphism<X, Y>` - The type of morphisms from X to Y in this category.
-/// 
 /// # Laws
-/// 
+///
 /// An Arrow instance must satisfy these laws:
-/// 
-/// 1. Identity: For any arrow `f`,
-///    `arrow id >>> f = f = f >>> arrow id`
-/// 2. Composition: For any arrows `f`, `g`, `h`,
-///    `(f >>> g) >>> h = f >>> (g >>> h)`
-/// 3. First Composition: For any arrows `f`, `g`,
-///    `first (f >>> g) = first f >>> first g`
-/// 4. First Arrow: For any function `f`,
-///    `first (arrow f) = arrow (f × id)`
-/// 5. First and Second Commutativity: For any arrow `f` and function `g`,
-///    `first f >>> arrow (id × g) = arrow (id × g) >>> first f`
-/// 6. First and Fst: For any arrow `f`,
-///    `first f >>> arrow fst = arrow fst >>> f`
-/// 7. First Associativity: For any arrow `f`,
-///    `first (first f) >>> arrow assoc = arrow assoc >>> first f`
-pub trait Arrow<A: TypeConstraints, B: TypeConstraints>: Category<A> {
+///
+/// 1. Identity: For any arrow `a`,
+///    `a.arrow(identity) = identity`
+/// 2. Composition: For any arrow `a` and functions `f`, `g`,
+///    `a.arrow(f >>> g) = a.arrow(f) >>> a.arrow(g)`
+/// 3. First: For any arrow `a` and function `f`,
+///    `a.first(a.arrow(f)) = a.arrow(first(f))`
+/// 4. First Composition: For any arrow `a` and functions `f`, `g`,
+///    `a.first(f >>> g) = a.first(f) >>> a.first(g)`
+/// 5. Split: For any arrow `a` and functions `f`, `g`,
+///    `a.split(f, g) = a.first(f) >>> a.second(g)`
+pub trait Arrow: Composable {
     /// Creates an arrow from a function.
     ///
-    /// # Type Parameters
-    /// * `F` - A function type that implements `FnTrait<A, B>`
-    ///
     /// # Arguments
-    /// * `f` - The function to be converted into an arrow
+    ///
+    /// * `f` - Function to lift into an arrow
     ///
     /// # Returns
-    /// A morphism representing the arrow created from the function
-    fn arrow<F: FnTrait<A, B>>(f: F) -> Self::Morphism<A, B> {
-        FnTrait::new(move |x| f.call(x))
+    ///
+    /// A new arrow containing the function
+    fn arrow(&self, f: AnyBox) -> AnyBox;
+
+    /// Applies the first component of a pair.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function to apply to first component
+    ///
+    /// # Returns
+    ///
+    /// A new arrow that applies f to the first component
+    fn first(&self, f: AnyBox) -> AnyBox;
+
+    /// Applies the second component of a pair.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function to apply to second component
+    ///
+    /// # Returns
+    ///
+    /// A new arrow that applies f to the second component
+    fn second(&self, f: AnyBox) -> AnyBox;
+
+    /// Splits an arrow into two parallel arrows.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - First arrow
+    /// * `g` - Second arrow
+    ///
+    /// # Returns
+    ///
+    /// A new arrow that applies both f and g in parallel
+    fn split(&self, f: AnyBox, g: AnyBox) -> AnyBox;
+}
+
+impl<T: TypeOps + 'static> Arrow for Vec<T> {
+    fn arrow(&self, f: AnyBox) -> AnyBox {
+        Arc::clone(&f)
     }
 
-    /// Applies a morphism to the first component of a pair.
-    ///
-    /// # Type Parameters
-    /// * `C` - The type of the second component of the pair
-    ///
-    /// # Arguments
-    /// * `f` - The morphism to be applied to the first component
-    ///
-    /// # Returns
-    /// A new morphism that applies `f` to the first component of a pair
-    fn first<C>(f: Self::Morphism<A, B>) -> Self::Morphism<(A, C), (B, C)>
-    where
-        C: TypeConstraints,
-    {
-        FnTrait::new(move |x: (A, C)| (f.call(x.0), x.1))
+    fn first(&self, f: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(pair) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((f.clone(), pair.1.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
     }
 
-    /// Applies a morphism to the second component of a pair.
-    ///
-    /// # Type Parameters
-    /// * `C` - The type of the first component of the pair
-    ///
-    /// # Arguments
-    /// * `f` - The morphism to be applied to the second component
-    ///
-    /// # Returns
-    /// A new morphism that applies `f` to the second component of a pair
-    fn second<C>(f: Self::Morphism<A, B>) -> Self::Morphism<(C, A), (C, B)>
-    where
-        C: TypeConstraints,
-    {
-        FnTrait::new(move |x: (C, A)| (x.0, f.call(x.1)))
+    fn second(&self, f: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(pair) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((pair.0.clone(), f.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
     }
 
-    /// Splits a single input into two outputs using two different morphisms.
-    ///
-    /// # Type Parameters
-    /// * `C` - The type of the second output
-    ///
-    /// # Arguments
-    /// * `f` - The first morphism to be applied
-    /// * `g` - The second morphism to be applied
-    ///
-    /// # Returns
-    /// A new morphism that applies both `f` and `g` to the input and returns a pair of results
-    fn split<C>(
-        f: Self::Morphism<A, B>,
-        g: Self::Morphism<A, C>
-    ) -> Self::Morphism<A, (B, C)>
-    where
-        C: TypeConstraints,
-    {
-        FnTrait::new(move |x: A| (f.call(x.clone()), g.call(x)))
+    fn split(&self, f: AnyBox, g: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(_) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((f.clone(), g.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
+    }
+}
+
+impl<T: TypeOps + 'static> Arrow for Option<T> {
+    fn arrow(&self, f: AnyBox) -> AnyBox {
+        Arc::clone(&f)
     }
 
-    /// Combines two morphisms to operate on pairs.
-    ///
-    /// This method takes two morphisms, `f: A -> B` and `g: C -> D`, and combines them
-    /// to create a new morphism that applies `f` to the first component of a pair and
-    /// `g` to the second component.
-    ///
-    /// # Type Parameters
-    /// * `C`: The input type of the second morphism
-    /// * `D`: The output type of the second morphism
-    ///
-    /// # Arguments
-    /// * `f`: The morphism to apply to the first component
-    /// * `g`: The morphism to apply to the second component
-    ///
-    /// # Returns
-    /// A new morphism that applies `f` and `g` to the respective components of a pair
-    fn combine_morphisms<C, D>(
-        f: Self::Morphism<A, B>,
-        g: Self::Morphism<C, D>
-    ) -> Self::Morphism<(A, C), (B, D)>
-    where
-        C: TypeConstraints,
-        D: TypeConstraints,
-    {
-        FnTrait::new(move |x: (A, C)| (f.call(x.0), g.call(x.1)))
+    fn first(&self, f: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(pair) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((f.clone(), pair.1.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
+    }
+
+    fn second(&self, f: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(pair) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((pair.0.clone(), f.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
+    }
+
+    fn split(&self, f: AnyBox, g: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(_) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((f.clone(), g.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
+    }
+}
+
+impl<K: TypeOps + Clone + 'static, V: TypeOps + Clone + 'static> Arrow for Result<K, V> {
+    fn arrow(&self, f: AnyBox) -> AnyBox {
+        Arc::clone(&f)
+    }
+
+    fn first(&self, f: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(pair) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((f.clone(), pair.1.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
+    }
+
+    fn second(&self, f: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(pair) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((pair.0.clone(), f.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
+    }
+
+    fn split(&self, f: AnyBox, g: AnyBox) -> AnyBox {
+        Arc::new(Box::new(move |pair: AnyBox| {
+            if let Some(_) = pair.downcast_ref::<(AnyBox, AnyBox)>() {
+                Arc::new((f.clone(), g.clone()))
+            } else {
+                pair
+            }
+        }) as Box<dyn Fn(AnyBox) -> AnyBox + Send + Sync>)
     }
 }

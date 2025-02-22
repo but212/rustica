@@ -1,8 +1,7 @@
-use crate::traits::hkt::TypeConstraints;
-use crate::traits::applicative::Applicative;
+use crate::traits::hkt::{TypeOps, AnyBox};
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
-use crate::fntype::FnTrait;
+use std::sync::Arc;
 
 /// A trait for traversable structures that can be traversed with effects.
 /// 
@@ -10,10 +9,6 @@ use crate::fntype::FnTrait;
 /// 1. Transform elements inside the structure while preserving the structure
 /// 2. Accumulate effects in a specific order
 /// 3. Combine multiple effectful computations
-/// 
-/// # Type Parameters
-/// 
-/// * `A` - The type of elements in the traversable structure
 /// 
 /// # Laws
 /// 
@@ -29,10 +24,7 @@ use crate::fntype::FnTrait;
 ///    `sequence(t) = traverse_Identity(id)(t)`
 /// 6. Fold Consistency: For any monoid `M` and function `f: A -> M`,
 ///    `fold_map(f)(t) = traverse_Const(f)(t)`
-pub trait Traversable<A>: Bifunctor<A, A> + Foldable<A>
-where
-    A: TypeConstraints,
-{
+pub trait Traversable: Bifunctor + Foldable {
     /// Traverse this structure with effects.
     /// 
     /// This method allows you to:
@@ -40,41 +32,129 @@ where
     /// 2. Collect all effects in a specific order
     /// 3. Preserve the original structure
     /// 
-    /// # Type Parameters
-    /// 
-    /// * `F` - The applicative functor that will contain the effects
-    /// * `B` - The resulting type after applying the function
-    /// * `Fn` - The function type that produces effects
-    /// 
     /// # Arguments
     /// 
-    /// * `self` - The traversable structure
-    /// * `f` - A function that maps elements of type `A` to `F<B>`
+    /// * `f` - A function that takes an element and returns an effect
     /// 
     /// # Returns
     /// 
-    /// An `F`-structure containing a new traversable structure with elements of type `B`
-    fn traverse<F, B, Fn>(self, f: Fn) -> F::Output<<Self as Bifunctor<A, A>>::Output<B, B>>
-    where
-        F: Applicative<A>,
-        B: TypeConstraints,
-        Fn: FnTrait<A, F::Output<B>>;
+    /// An `AnyBox` containing the traversed structure with effects
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `F` - The type of the function `f`
+    /// 
+    /// # Safety
+    /// 
+    /// The function `f` must be thread-safe and 'static
+    fn traverse<F>(&self, f: Arc<F>) -> AnyBox 
+    where 
+        F: Fn(AnyBox) -> AnyBox + Send + Sync + 'static;
 
     /// Distribute a structure of effects into an effect of structure.
     /// 
-    /// This method is equivalent to `traverse(identity)`.
-    /// 
-    /// # Type Parameters
-    /// 
-    /// * `F` - The applicative functor representing the effects
-    /// * `B` - The type of elements in the resulting structure
-    /// 
     /// # Returns
     /// 
-    /// An `F`-structure containing the original structure with effects distributed
-    fn distribute<F, B>(self) -> F::Output<<Self as Bifunctor<A, A>>::Output<B, B>>
-    where
-        F: Applicative<A>,
-        B: TypeConstraints,
-        Self: Sized;
+    /// An `AnyBox` containing the distributed structure of effects
+    fn distribute(&self) -> AnyBox;
+}
+
+impl<T> Traversable for Vec<T>
+where
+    T: TypeOps + Clone + Send + Sync + 'static
+{
+    fn traverse<F>(&self, f: Arc<F>) -> AnyBox 
+    where 
+        F: Fn(AnyBox) -> AnyBox + Send + Sync + 'static
+    {
+        let mut result = Vec::new();
+        for x in self {
+            match f(x.clone_box()).downcast_ref::<Vec<AnyBox>>() {
+                Some(fx) => result.extend(fx.iter().cloned()),
+                None => return Arc::new(None::<Vec<T>>),
+            }
+        }
+        Arc::new(Some(result))
+    }
+
+    fn distribute(&self) -> AnyBox {
+        let mut result = Vec::new();
+        for x in self {
+            if let Some(fx) = x.clone_box().downcast_ref::<Vec<AnyBox>>() {
+                result.extend(fx.iter().cloned());
+            } else {
+                return Arc::new(None::<Vec<T>>);
+            }
+        }
+        Arc::new(Some(result))
+    }
+}
+
+impl<T> Traversable for Option<T>
+where
+    T: TypeOps + Clone + Send + Sync + 'static
+{
+    fn traverse<F>(&self, f: Arc<F>) -> AnyBox 
+    where 
+        F: Fn(AnyBox) -> AnyBox + Send + Sync + 'static
+    {
+        match self {
+            Some(x) => {
+                let fx = f(x.clone_box());
+                match fx.downcast_ref::<Option<AnyBox>>() {
+                    Some(opt) => Arc::new(Some(opt.clone())),
+                    None => Arc::new(None::<Option<T>>),
+                }
+            }
+            None => Arc::new(Some(None::<AnyBox>)),
+        }
+    }
+
+    fn distribute(&self) -> AnyBox {
+        match self {
+            Some(x) => {
+                if let Some(opt) = x.clone_box().downcast_ref::<Option<AnyBox>>() {
+                    Arc::new(Some(opt.clone()))
+                } else {
+                    Arc::new(None::<Option<T>>)
+                }
+            }
+            None => Arc::new(Some(None::<AnyBox>)),
+        }
+    }
+}
+
+impl<T, E> Traversable for Result<T, E>
+where
+    T: TypeOps + Clone + Send + Sync + 'static,
+    E: TypeOps + Clone + Send + Sync + 'static
+{
+    fn traverse<F>(&self, f: Arc<F>) -> AnyBox 
+    where 
+        F: Fn(AnyBox) -> AnyBox + Send + Sync + 'static
+    {
+        match self {
+            Ok(x) => {
+                let fx = f(x.clone_box());
+                match fx.downcast_ref::<Result<AnyBox, AnyBox>>() {
+                    Some(res) => Arc::new(Some(res.clone())),
+                    None => Arc::new(None::<Result<T, E>>),
+                }
+            }
+            Err(e) => Arc::new(Some(Err::<AnyBox, AnyBox>(e.clone_box()))),
+        }
+    }
+
+    fn distribute(&self) -> AnyBox {
+        match self {
+            Ok(x) => {
+                if let Some(res) = x.clone_box().downcast_ref::<Result<AnyBox, AnyBox>>() {
+                    Arc::new(Some(res.clone()))
+                } else {
+                    Arc::new(None::<Result<T, E>>)
+                }
+            }
+            Err(e) => Arc::new(Some(Err::<AnyBox, AnyBox>(e.clone_box()))),
+        }
+    }
 }

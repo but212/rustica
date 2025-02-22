@@ -1,79 +1,197 @@
-use std::fmt::Debug;
+use std::any::Any;
+use std::sync::Arc;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-/// Common type constraints for types in functional programming constructs.
-///
-/// This trait defines a set of common constraints that types must satisfy
-/// in various functional programming constructs. It ensures that types implementing
-/// this trait are cloneable, comparable, debuggable, defaultable, sendable across threads,
-/// synchronizable, and have a static lifetime.
-///
-/// # Constraints
-///
-/// * `Clone`: The type can be duplicated.
-/// * `PartialEq`: The type supports partial equality comparisons.
-/// * `Eq`: The type supports full equality comparisons.
-/// * `Default`: The type has a default value.
-/// * `Send`: The type can be safely transferred across thread boundaries.
-/// * `Sync`: The type can be safely shared between threads.
-/// * `'static`: The type has a static lifetime (no non-static references).
-pub trait TypeConstraints: Clone + PartialEq + Eq + Default + Send + Sync + 'static {}
+pub type AnyBox = Arc<dyn Any + Send + Sync>;
 
-/// Blanket implementation for types satisfying the `TypeConstraints` requirements.
+/// Object-safe trait for type operations.
 ///
-/// This implementation automatically implements `TypeConstraints` for any type
-/// that satisfies all the required trait bounds.
-impl<T> TypeConstraints for T where T: Clone + PartialEq + Eq + Default + Send + Sync + 'static {}
-
-/// Higher-Kinded Type (HKT) trait.
-///
-/// This trait represents a type constructor that can be partially applied,
-/// allowing for more abstract and generic code in Rust.
-///
-/// # Type Parameters
-/// * `U` - The type parameter for the associated type `Output`.
-///
-/// # Associated Types
-/// * `Output<U>` - The resulting type after applying the type constructor to `U`.
-///
-/// # Constraints
-/// * `Self` must implement `TypeConstraints`.
-/// * The associated type `Output<U>` must also implement `HKT`.
-/// * `U` must implement `TypeConstraints`.
-///
-/// # Examples
-/// ```
-/// use rustica::traits::hkt::{HKT, TypeConstraints};
-///
-/// #[derive(Clone, Debug, PartialEq, Eq, Default)]
-/// struct Container<T>(T);
-///
-/// impl<T: TypeConstraints> HKT for Container<T> {
-///     type Output<U> = Container<U> where U: TypeConstraints;
-/// }
-/// ```
-pub trait HKT: TypeConstraints {
-    type Output<U>: HKT where U: TypeConstraints;
+/// This trait provides methods for cloning and equality checking
+/// that work with dynamically typed objects.
+pub trait TypeOps: Any + Send + Sync {
+    /// Creates a boxed clone of self.
+    ///
+    /// # Returns
+    /// An `AnyBox` containing a clone of the implementing type.
+    fn clone_box(&self) -> AnyBox;
+    
+    /// Checks if self equals another value.
+    ///
+    /// # Arguments
+    /// * `other` - An `AnyBox` to compare against.
+    ///
+    /// # Returns
+    /// `true` if the values are equal, `false` otherwise.
+    fn equals(&self, other: &AnyBox) -> bool;
 }
 
-// Standard implementations
-impl<T: TypeConstraints> HKT for Vec<T> {
-    type Output<U> = Vec<U> where U: TypeConstraints;
+/// Implements TypeOps for common types.
+impl<T> TypeOps for T 
+where 
+    T: Clone + PartialEq + Send + Sync + 'static 
+{
+    fn clone_box(&self) -> AnyBox {
+        Arc::new(self.clone())
+    }
+
+    fn equals(&self, other: &AnyBox) -> bool {
+        other.downcast_ref::<T>()
+            .map_or(false, |other| self == other)
+    }
 }
 
-impl<T: TypeConstraints> HKT for Option<T> {
-    type Output<U> = Option<U> where U: TypeConstraints;
+/// Object-safe higher-kinded type operations.
+///
+/// This trait provides methods for type-level operations
+/// that can be performed on boxed values.
+pub trait HKT: Send + Sync {
+    /// Transforms this value into a boxed type.
+    ///
+    /// # Returns
+    /// An `AnyBox` containing the transformed value.
+    fn apply_type(&self) -> AnyBox;
+
+    /// Attempts to downcast a boxed value.
+    ///
+    /// # Arguments
+    /// * `boxed` - An `AnyBox` to attempt to downcast.
+    ///
+    /// # Returns
+    /// `Some(AnyBox)` if the downcast was successful, `None` otherwise.
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox>;
 }
 
-impl<T: TypeConstraints> HKT for Box<T> {
-    type Output<U> = Box<U> where U: TypeConstraints;
+impl HKT for String {
+    fn apply_type(&self) -> AnyBox {
+        Arc::new(self.clone())
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<String>()
+            .map(|s| Arc::new(s.clone()) as AnyBox)
+    }
+}
+
+impl HKT for bool {
+    fn apply_type(&self) -> AnyBox {
+        Arc::new(*self)
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<bool>()
+            .map(|b| Arc::new(*b) as AnyBox)
+    }
+}
+
+impl HKT for i32 {
+    fn apply_type(&self) -> AnyBox {
+        Arc::new(*self)
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<i32>()
+            .map(|n| Arc::new(*n) as AnyBox)
+    }
+}
+
+impl HKT for i64 {
+    fn apply_type(&self) -> AnyBox {
+        Arc::new(*self)
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<i64>()
+            .map(|n| Arc::new(*n) as AnyBox)
+    }
+}
+
+impl HKT for f32 {
+    fn apply_type(&self) -> AnyBox {
+        Arc::new(*self)
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<f32>()
+            .map(|n| Arc::new(*n) as AnyBox)
+    }
+}
+
+impl HKT for f64 {
+    fn apply_type(&self) -> AnyBox {
+        Arc::new(*self)
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<f64>()
+            .map(|n| Arc::new(*n) as AnyBox)
+    }
+}
+
+impl<T> HKT for Option<T>
+where
+    T: TypeOps + 'static
+{
+    fn apply_type(&self) -> AnyBox {
+        match self {
+            Some(x) => Arc::new(Some(x.clone_box())),
+            None => Arc::new(None::<AnyBox>),
+        }
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<Option<AnyBox>>()
+            .map(|opt| Arc::new(opt.clone()) as AnyBox)
+    }
+}
+
+impl<T> HKT for Vec<T>
+where
+    T: TypeOps + 'static
+{
+    fn apply_type(&self) -> AnyBox {
+        Arc::new(self.iter().map(|x| x.clone_box()).collect::<Vec<_>>())
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<Vec<AnyBox>>()
+            .map(|v| Arc::new(v.clone()) as AnyBox)
+    }
+}
+
+impl<T, E> HKT for Result<T, E>
+where
+    T: TypeOps + 'static,
+    E: TypeOps + 'static
+{
+    fn apply_type(&self) -> AnyBox {
+        match self {
+            Ok(x) => Arc::new(Ok::<AnyBox, AnyBox>(x.clone_box())),
+            Err(e) => Arc::new(Err::<AnyBox, AnyBox>(e.clone_box())),
+        }
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<Result<AnyBox, AnyBox>>()
+            .map(|r| Arc::new(r.clone()) as AnyBox)
+    }
 }
 
 impl<K, V> HKT for HashMap<K, V>
 where
-    K: Hash + Eq + Send + Sync + Clone + Debug + 'static,
-    V: TypeConstraints,
+    K: TypeOps + Clone + Hash + Eq + 'static,
+    V: TypeOps + 'static
 {
-    type Output<U> = HashMap<K, U> where U: TypeConstraints;
+    fn apply_type(&self) -> AnyBox {
+        let mut result = HashMap::<std::any::TypeId, AnyBox>::new();
+        for (_, v) in self {
+            result.insert(std::any::TypeId::of::<V>(), v.clone_box());
+        }
+        Arc::new(result)
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<HashMap<std::any::TypeId, AnyBox>>()
+            .map(|h| Arc::new(h.clone()) as AnyBox)
+    }
 }

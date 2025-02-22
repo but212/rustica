@@ -15,6 +15,7 @@
 /// - `choice`: Represents a choice between multiple options.
 /// - `lens`: Implements functional lenses for focusing on parts of data structures.
 /// - `prism`: Provides prisms for working with sum types.
+/// - `datatypes`: Provides various data types.
 pub mod either;
 pub mod state;
 pub mod validated;
@@ -28,4 +29,3 @@ pub mod free;
 pub mod choice;
 pub mod lens;
 pub mod prism;
-pub use prism::Prism;

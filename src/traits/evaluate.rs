@@ -1,12 +1,10 @@
-use crate::traits::hkt::TypeConstraints;
+use crate::traits::hkt::{HKT, TypeOps, AnyBox};
+use std::fmt::Debug;
 
 /// A trait for types that can be evaluated to produce a value.
 ///
 /// This trait defines a single method `evaluate` which, when called,
-/// produces a value of type `A`.
-///
-/// # Type Parameters
-/// * `A` - The type of the value produced by the evaluation
+/// produces a value.
 ///
 /// # Laws
 /// 
@@ -20,14 +18,11 @@ use crate::traits::hkt::TypeConstraints;
 ///    `η(e.evaluate()) = η(e).evaluate()`
 /// 4. Purity: For any value `x`,
 ///    `pure(x).evaluate() = x`
-pub trait Evaluate<A>
-where
-    A: TypeConstraints,
-{
-    /// Evaluates the implementor to produce a value of type `A`.
+pub trait Evaluate: HKT {
+    /// Evaluates the implementor to produce a value.
     ///
     /// # Returns
-    /// A value of type `A` resulting from the evaluation.
+    /// A boxed value resulting from the evaluation.
     ///
     /// # Panics
     /// This method may panic if the evaluation cannot produce a valid result.
@@ -37,31 +32,35 @@ where
     /// use rustica::traits::evaluate::Evaluate;
     ///
     /// let opt: Option<i32> = Some(42);
-    /// assert_eq!(opt.evaluate(), 42);
+    /// assert_eq!(opt.evaluate().downcast_ref::<i32>().unwrap(), &42);
     ///
     /// let res: Result<&str, ()> = Ok("success");
-    /// assert_eq!(res.evaluate(), "success");
+    /// assert_eq!(res.evaluate().downcast_ref::<&str>().unwrap(), &"success");
     /// ```
-    fn evaluate(self) -> A;
+    fn evaluate(&self) -> AnyBox;
 }
 
-impl<A> Evaluate<A> for Option<A>
+impl<T> Evaluate for Option<T>
 where
-    A: TypeConstraints,
+    T: TypeOps + 'static
 {
-    #[inline]
-    fn evaluate(self) -> A {
-        self.unwrap_or_else(|| panic!("Option is None"))
+    fn evaluate(&self) -> AnyBox {
+        match self {
+            Some(x) => x.clone_box(),
+            None => panic!("Option is None")
+        }
     }
 }
 
-impl<A, E> Evaluate<A> for Result<A, E>
+impl<T, E> Evaluate for Result<T, E>
 where
-    A: TypeConstraints,
-    E: std::fmt::Debug,
+    T: TypeOps + 'static,
+    E: TypeOps + Debug + 'static
 {
-    #[inline]
-    fn evaluate(self) -> A {
-        self.unwrap_or_else(|err| panic!("Result is Err: {:?}", err))
+    fn evaluate(&self) -> AnyBox {
+        match self {
+            Ok(x) => x.clone_box(),
+            Err(err) => panic!("Result is Err: {:?}", err)
+        }
     }
 }

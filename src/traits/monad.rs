@@ -1,106 +1,171 @@
 use crate::traits::applicative::Applicative;
-use crate::traits::hkt::TypeConstraints;
-use crate::fntype::FnTrait;
+use crate::traits::hkt::{HKT, TypeOps, AnyBox};
+use std::sync::Arc;
 
-/// A trait for monads, which are applicative functors that support sequencing of operations.
+/// A trait for monads in category theory.
 ///
-/// # Type Parameters
-/// * `A` - The type of value contained in the monad
+/// Monads are a design pattern that allows for sequential composition of functions
+/// that produce values wrapped in a computational context.
 ///
 /// # Laws
-/// 
+///
 /// A Monad instance must satisfy these laws:
-/// 
+///
 /// 1. Left Identity: For any value `x` and function `f`,
-///    `pure(x).bind(f) = f(x)`
+///    `pure(x).bind(f) == f(x)`
 /// 2. Right Identity: For any monad `m`,
-///    `m.bind(pure) = m`
+///    `m.bind(pure) == m`
 /// 3. Associativity: For any monad `m` and functions `f`, `g`,
-///    `m.bind(f).bind(g) = m.bind(|x| f(x).bind(g))`
-/// 4. Applicative Consistency: For any monad `m` and function `f`,
-///    `m.bind(|x| pure(f(x))) = m.fmap(f)`
-/// 5. Join Consistency: For any monad `m` and function `f`,
-///    `m.bind(f) = m.fmap(f).join()`
-pub trait Monad<A>: Applicative<A>
-where
-    A: TypeConstraints,
-{
+///    `m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))`
+/// 4. Naturality: For any natural transformation `η` and monad `m`,
+///    `η(m.bind(f)) == η(m).bind(|x| η(f(x)))`
+/// 5. Monad-Applicative Consistency:
+///    `m.bind(f) == m.fmap(f).join()`
+pub trait Monad: Applicative {
+    /// Binds a monadic function to this monad.
+    ///
+    /// This method applies the function `f` to the value inside the monad,
+    /// and then flattens the resulting nested monad.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes a value and returns a new monad.
+    ///
+    /// # Returns
+    ///
+    /// A new monad resulting from applying `f` and then flattening.
+    fn bind(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+
     /// Flattens a nested monad structure.
     ///
-    /// # Type Parameters
-    /// * `B` - The type of the inner value in the nested monad
+    /// This method takes a monad of a monad and flattens it into a single-layer monad.
     ///
     /// # Returns
-    /// A flattened monad structure
-    fn join<B>(self) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        A: Into<Self::Output<B>>;
+    ///
+    /// A flattened monad.
+    fn join(&self) -> AnyBox;
+}
 
-    /// Binds a monadic function to the monad's value.
-    ///
-    /// # Type Parameters
-    /// * `B` - The type of the resulting monad's value
-    /// * `F` - The type of the binding function
-    ///
-    /// # Parameters
-    /// * `f` - A function that takes a value of type `A` and returns a monad of type `B`
-    ///
-    /// # Returns
-    /// A new monad resulting from applying the binding function
-    fn bind<B, F>(self, f: F) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<A, Self::Output<B>>;
+impl<T> Monad for Vec<T>
+where
+    T: TypeOps + 'static
+{
+    fn bind(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let result = self.iter()
+            .flat_map(|x| {
+                let x_box = x.clone_box();
+                if let Some(vec) = self.downcast(&f(x_box)) {
+                    if let Some(inner_vec) = vec.downcast_ref::<Vec<AnyBox>>() {
+                        inner_vec.clone()
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect::<Vec<_>>();
+        Arc::new(result)
+    }
 
-    /// Sequences two monadic actions, discarding the value of the first.
-    ///
-    /// # Type Parameters
-    /// * `B` - The type of the second monad's value
-    ///
-    /// # Parameters
-    /// * `mb` - The second monad to sequence
-    ///
-    /// # Returns
-    /// A monad containing the value of the second action
-    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
-    where
-        B: TypeConstraints;
+    fn join(&self) -> AnyBox {
+        let result = self.iter()
+            .flat_map(|x| {
+                let x_box = x.clone_box();
+                if let Some(inner) = self.downcast(&x_box) {
+                    if let Some(vec) = inner.downcast_ref::<Vec<AnyBox>>() {
+                        vec.clone()
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect::<Vec<_>>();
+        Arc::new(result)
+    }
+}
 
-    /// Returns a monad containing the result of applying a function to the monad's value.
-    ///
-    /// # Type Parameters
-    /// * `B` - The type of the resulting value
-    /// * `F` - The type of the function to apply
-    ///
-    /// # Parameters
-    /// * `f` - A function that takes a value of type `A` and returns a value of type `B`
-    ///
-    /// # Returns
-    /// A new monad containing the result of applying the function
-    fn returns<B, F>(self, f: F) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<A, B>;
+impl<T> Monad for Option<T>
+where
+    T: TypeOps + 'static
+{
+    fn bind(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Some(x) => {
+                let x_box = x.clone_box();
+                if let Some(result) = self.downcast(&f(x_box)) {
+                    if let Some(opt) = result.downcast_ref::<Option<AnyBox>>() {
+                        Arc::new(opt.clone())
+                    } else {
+                        Arc::new(None::<AnyBox>)
+                    }
+                } else {
+                    Arc::new(None::<AnyBox>)
+                }
+            }
+            None => Arc::new(None::<AnyBox>)
+        }
+    }
 
-    /// Maps a monadic function over the monad's value and flattens the result.
-    ///
-    /// This method is equivalent to `bind`, but is provided for convenience and clarity.
-    ///
-    /// # Type Parameters
-    /// * `B` - The type of the resulting monad's value
-    /// * `F` - The type of the mapping function
-    ///
-    /// # Parameters
-    /// * `f` - A function that takes a value of type `A` and returns a monad of type `B`
-    ///
-    /// # Returns
-    /// A new monad resulting from applying the mapping function and flattening
-    fn flat_map<B, F>(self, f: F) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<A, Self::Output<B>>,
-    {
-        self.bind(f)
+    fn join(&self) -> AnyBox {
+        match self {
+            Some(x) => {
+                let x_box = x.clone_box();
+                if let Some(inner) = self.downcast(&x_box) {
+                    if let Some(opt) = inner.downcast_ref::<Option<AnyBox>>() {
+                        Arc::new(opt.clone())
+                    } else {
+                        Arc::new(None::<AnyBox>)
+                    }
+                } else {
+                    Arc::new(None::<AnyBox>)
+                }
+            }
+            None => Arc::new(None::<AnyBox>)
+        }
+    }
+}
+
+impl<T, E> Monad for Result<T, E>
+where
+    T: TypeOps + Clone + 'static,
+    E: TypeOps + Clone + 'static
+{
+    fn bind(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Ok(x) => {
+                let x_box = x.clone_box();
+                if let Some(result) = self.downcast(&f(x_box)) {
+                    if let Some(res) = result.downcast_ref::<Result<AnyBox, AnyBox>>() {
+                        Arc::new(res.clone())
+                    } else {
+                        Arc::new(Err::<AnyBox, AnyBox>(Arc::new(())))
+                    }
+                } else {
+                    Arc::new(Err::<AnyBox, AnyBox>(Arc::new(())))
+                }
+            }
+            Err(e) => Arc::new(Err::<AnyBox, AnyBox>(e.clone_box()))
+        }
+    }
+
+    fn join(&self) -> AnyBox {
+        match self {
+            Ok(x) => {
+                let x_box = x.clone_box();
+                if let Some(inner) = self.downcast(&x_box) {
+                    if let Some(res) = inner.downcast_ref::<Result<AnyBox, AnyBox>>() {
+                        Arc::new(res.clone())
+                    } else {
+                        Arc::new(Err::<AnyBox, AnyBox>(Arc::new(())))
+                    }
+                } else {
+                    Arc::new(Err::<AnyBox, AnyBox>(Arc::new(())))
+                }
+            }
+            Err(e) => Arc::new(Err::<AnyBox, AnyBox>(e.clone_box()))
+        }
     }
 }

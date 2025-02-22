@@ -1,121 +1,139 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
-use crate::traits::hkt::TypeConstraints;
+use std::sync::Arc;
+use crate::traits::hkt::{AnyBox, HKT, TypeOps};
 
-/// A trait for semigroups, which are types with an associative binary operation.
-/// 
-/// # Type Parameters
-/// 
-/// * `T` - The type of elements in the semigroup
-/// 
+/// A trait for semigroups, which are sets with an associative binary operation.
+///
 /// # Laws
-/// 
+///
 /// A Semigroup instance must satisfy these laws:
-/// 
-/// 1. Associativity: For any values `x`, `y`, `z`,
-///    `x.combine(y.combine(z)) = (x.combine(y)).combine(z)`
-/// 2. Closure: For any values `x`, `y`,
-///    `x.combine(y)` must be of the same type as `x` and `y`
-/// 3. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(x.combine(y)) = η(x).combine(η(y))`
-pub trait Semigroup<T>
-where
-    T: TypeConstraints,
-{
+///
+/// 1. Associativity: For any values `a`, `b`, and `c`,
+///    `(a.combine(b)).combine(c) = a.combine(b.combine(c))`
+pub trait Semigroup: HKT {
     /// Combines two values of the same type.
     ///
     /// # Arguments
     ///
-    /// * `other` - Another value of the same type
+    /// * `other` - The value to combine with this one.
     ///
     /// # Returns
     ///
-    /// The combined result
-    fn combine(self, other: Self) -> Self;
+    /// An `AnyBox` containing the combined value.
+    fn combine(&self, other: AnyBox) -> AnyBox;
 
-    /// Combines all elements in an iterator using the semigroup operation.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `I` - The type of the iterator
+    /// Combines all values in an iterator.
     ///
     /// # Arguments
     ///
-    /// * `iter` - An iterator over elements of the semigroup
+    /// * `iter` - An iterator of values to combine.
     ///
     /// # Returns
     ///
-    /// The combined result, or None if the iterator is empty
-    fn combine_all<I>(iter: I) -> Option<Self>
+    /// An `Option<AnyBox>` containing the combined value, or `None` if the iterator is empty.
+    fn combine_all<I>(&self, iter: I) -> Option<AnyBox>
     where
-        I: IntoIterator<Item = Self>,
-        Self: Sized,
+        I: Iterator<Item = AnyBox>
     {
-        iter.into_iter().reduce(|a, b| a.combine(b))
+        iter.fold(None, |acc, x| {
+            Some(match acc {
+                None => x,
+                Some(a) => self.combine(a)
+            })
+        })
     }
 }
 
-// Basic type implementations
-impl<T> Semigroup<T> for Vec<T>
+impl Semigroup for String {
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_str = other.downcast_ref::<String>()
+            .expect("Expected String in combine");
+        Arc::new(self.clone() + other_str)
+    }
+}
+
+impl<T> Semigroup for Vec<T>
 where
-    T: TypeConstraints,
+    T: TypeOps + Clone + 'static
 {
-    fn combine(mut self, other: Self) -> Self {
-        self.extend(other);
-        self
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_vec = other.downcast_ref::<Vec<T>>()
+            .expect("Expected Vec in combine");
+        let mut result = self.clone();
+        result.extend(other_vec.iter().cloned());
+        Arc::new(result)
     }
 }
 
-impl Semigroup<char> for String {
-    fn combine(mut self, other: Self) -> Self {
-        self.push_str(&other);
-        self
-    }
-}
-
-impl<T> Semigroup<T> for HashSet<T>
+impl<T, E> Semigroup for Result<T, E>
 where
-    T: TypeConstraints + Eq + Hash,
+    T: TypeOps + Clone + 'static,
+    E: TypeOps + Clone + 'static
 {
-    fn combine(mut self, other: Self) -> Self {
-        self.extend(other);
-        self
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_result = other.downcast_ref::<Result<T, E>>()
+            .expect("Expected Result in combine");
+        let result = match (self, other_result) {
+            (Ok(_), Ok(other_val)) => Ok::<AnyBox, AnyBox>(other_val.clone_box()),
+            (Err(_), Err(other_val)) => Err::<AnyBox, AnyBox>(other_val.clone_box()),
+            _ => panic!("Incompatible types for combine")
+        };
+        Arc::new(result)
     }
 }
 
-impl<K, V> Semigroup<V> for HashMap<K, V>
-where
-    K: TypeConstraints + Eq + Hash,
-    V: TypeConstraints,
-{
-    fn combine(mut self, other: Self) -> Self {
-        self.extend(other);
-        self
+impl Semigroup for i32 {
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_int = other.downcast_ref::<i32>()
+            .expect("Expected i32 in combine");
+        Arc::new(self + other_int)
     }
 }
 
-// Tuple implementations
-impl<A, B> Semigroup<(A, B)> for (A, B)
-where
-    A: Semigroup<A> + TypeConstraints,
-    B: Semigroup<B> + TypeConstraints,
-{
-    fn combine(self, other: Self) -> Self {
-        (self.0.combine(other.0), self.1.combine(other.1))
+impl Semigroup for i64 {
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_int = other.downcast_ref::<i64>()
+            .expect("Expected i64 in combine");
+        Arc::new(self + other_int)
     }
 }
 
-impl<A, B, C> Semigroup<(A, B, C)> for (A, B, C)
+impl Semigroup for f32 {
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_float = other.downcast_ref::<f32>()
+            .expect("Expected f32 in combine");
+        Arc::new(self + other_float)
+    }
+}
+
+impl Semigroup for f64 {
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_float = other.downcast_ref::<f64>()
+            .expect("Expected f64 in combine");
+        Arc::new(self + other_float)
+    }
+}
+
+impl Semigroup for bool {
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_bool = other.downcast_ref::<bool>()
+            .expect("Expected bool in combine");
+        Arc::new(*self && *other_bool)
+    }
+}
+
+impl<T> Semigroup for Option<T>
 where
-    A: Semigroup<A> + TypeConstraints,
-    B: Semigroup<B> + TypeConstraints,
-    C: Semigroup<C> + TypeConstraints,
+    T: TypeOps + 'static
 {
-    fn combine(self, other: Self) -> Self {
-        (
-            self.0.combine(other.0),
-            self.1.combine(other.1),
-            self.2.combine(other.2),
-        )
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        let other_opt = other.downcast_ref::<Option<T>>()
+            .expect("Expected Option in combine");
+        let result = match (self, other_opt) {
+            (Some(_x), Some(y)) => Some(y.clone_box()),
+            (Some(x), None) => Some(x.clone_box()),
+            (None, Some(y)) => Some(y.clone_box()),
+            (None, None) => None,
+        };
+        Arc::new(result)
     }
 }

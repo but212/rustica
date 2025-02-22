@@ -1,14 +1,10 @@
-use crate::traits::monoid::Monoid;
-use crate::fntype::{FnType, FnTrait};
-use crate::traits::hkt::{HKT, TypeConstraints};
+use crate::traits::hkt::{HKT, TypeOps, AnyBox};
+use std::sync::Arc;
 
 /// A trait for types that can be "folded" into a summary value.
 /// 
 /// This trait defines methods for reducing a structure into a single value
 /// through various folding operations.
-/// 
-/// # Type Parameters
-/// * `T` - The type of elements in the foldable structure
 /// 
 /// # Laws
 /// 
@@ -26,150 +22,152 @@ use crate::traits::hkt::{HKT, TypeConstraints};
 ///    `η(t.fold_left(f, init)) == η(t).fold_left(f, init)`
 /// 6. Monoid Consistency: For any monoid `M` and foldable `t`,
 ///    `t.fold_left(M::combine, M::empty()) == t.fold_right(M::combine, M::empty())`
-pub trait Foldable<T>: HKT
-where
-    T: TypeConstraints,
-{
+pub trait Foldable: HKT {
     /// Performs a left-associative fold of the structure.
     ///
-    /// # Type Parameters
-    /// * `U` - The type of the accumulated value
-    /// * `F` - The type of the folding function
-    ///
     /// # Arguments
-    /// * `init` - The initial value for the fold
-    /// * `f` - The folding function
+    ///
+    /// * `init` - The initial value for the fold operation.
+    /// * `f` - A function that takes the accumulator and the current element, and returns a new accumulator.
     ///
     /// # Returns
-    /// The final accumulated value
-    fn fold_left<U, F>(self, init: U, f: F) -> U
-    where
-        U: TypeConstraints,
-        F: FnTrait<(U, T), U>;
+    ///
+    /// The final accumulated value.
+    fn fold_left(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
 
     /// Performs a right-associative fold of the structure.
     ///
-    /// # Type Parameters
-    /// * `U` - The type of the accumulated value
-    /// * `F` - The type of the folding function
-    ///
     /// # Arguments
-    /// * `init` - The initial value for the fold
-    /// * `f` - The folding function
+    ///
+    /// * `init` - The initial value for the fold operation.
+    /// * `f` - A function that takes the current element and the accumulator, and returns a new accumulator.
     ///
     /// # Returns
-    /// The final accumulated value
-    fn fold_right<U, F>(self, init: U, f: F) -> U
-    where
-        U: TypeConstraints,
-        F: FnTrait<(T, U), U>;
+    ///
+    /// The final accumulated value.
+    fn fold_right(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
 
     /// Maps elements to a monoid and combines them.
     ///
-    /// # Type Parameters
-    /// * `M` - The type of the monoid
-    /// * `F` - The type of the mapping function
-    ///
     /// # Arguments
-    /// * `f` - The mapping function
+    ///
+    /// * `f` - A function that maps each element to a monoid.
     ///
     /// # Returns
-    /// The combined monoid value
-    fn fold_map<M, F>(self, f: F) -> M
-    where
-        M: Monoid<T> + TypeConstraints,
-        F: FnTrait<T, M>;
+    ///
+    /// The combined result of mapping and then combining all elements.
+    fn fold_map(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
 
     /// Returns the number of elements in the structure.
     ///
     /// # Returns
-    /// The count of elements as a `usize`
-    #[inline]
-    fn length(self) -> usize
-    where
-        Self: Sized,
-    {
-        self.fold_left(0, FnType::new(|(acc, _)| acc + 1))
+    ///
+    /// The count of elements in the structure.
+    fn length(&self) -> usize {
+        if let Some(count) = self.fold_left(
+            Arc::new(0usize),
+            Arc::new(|acc, _| {
+                if let Some(n) = acc.downcast_ref::<usize>() {
+                    Arc::new(n + 1)
+                } else {
+                    acc
+                }
+            })
+        ).downcast_ref::<usize>() {
+            *count
+        } else {
+            0
+        }
     }
 
     /// Tests if the structure is empty.
     ///
     /// # Returns
-    /// `true` if the structure contains no elements, `false` otherwise
-    #[inline]
-    fn is_empty(self) -> bool
-    where
-        Self: Sized,
-    {
+    ///
+    /// `true` if the structure contains no elements, `false` otherwise.
+    fn is_empty(&self) -> bool {
         self.length() == 0
     }
 }
 
-impl<T> Foldable<T> for Vec<T>
+impl<T> Foldable for Vec<T>
 where
-    T: TypeConstraints,
+    T: TypeOps + 'static
 {
-    fn fold_left<U, F>(self, init: U, f: F) -> U
-    where
-        U: TypeConstraints,
-        F: FnTrait<(U, T), U>,
-    {
-        self.into_iter().fold(init, |acc, x| f.call((acc, x)))
+    fn fold_left(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut acc = init;
+        for x in self {
+            acc = f(acc, x.clone_box());
+        }
+        acc
     }
 
-    fn fold_right<U, F>(self, init: U, f: F) -> U
-    where
-        U: TypeConstraints,
-        F: FnTrait<(T, U), U>,
-    {
-        self.into_iter().rev().fold(init, |acc, x| f.call((x, acc)))
+    fn fold_right(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut acc = init;
+        for x in self.iter().rev() {
+            acc = f(x.clone_box(), acc);
+        }
+        acc
     }
 
-    fn fold_map<M, F>(self, f: F) -> M
-    where
-        M: Monoid<T> + TypeConstraints,
-        F: FnTrait<T, M>,
-    {
-        self.into_iter()
-            .map(|x| f.call(x))
-            .fold(M::empty(), |acc, x| acc.combine(x))
+    fn fold_map(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = Vec::new();
+        for x in self {
+            result.push(f(x.clone_box()));
+        }
+        Arc::new(result)
     }
 }
 
-impl<T> Foldable<T> for Option<T>
+impl<T> Foldable for Option<T>
 where
-    T: TypeConstraints,
+    T: TypeOps + 'static
 {
-    fn fold_left<U, F>(self, init: U, f: F) -> U
-    where
-        U: TypeConstraints,
-        F: FnTrait<(U, T), U>,
-    {
+    fn fold_left(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
         match self {
-            Some(x) => f.call((init, x)),
+            Some(x) => f(init, x.clone_box()),
             None => init,
         }
     }
 
-    fn fold_right<U, F>(self, init: U, f: F) -> U
-    where
-        U: TypeConstraints,
-        F: FnTrait<(T, U), U>,
-    {
+    fn fold_right(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
         match self {
-            Some(x) => f.call((x, init)),
+            Some(x) => f(x.clone_box(), init),
             None => init,
         }
     }
 
-    fn fold_map<M, F>(self, f: F) -> M
-    where
-        M: Monoid<T> + TypeConstraints,
-        F: FnTrait<T, M>,
-    {
+    fn fold_map(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
         match self {
-            Some(x) => f.call(x),
-            None => M::empty(),
+            Some(x) => f(x.clone_box()),
+            None => Arc::new(None::<AnyBox>),
+        }
+    }
+}
+
+impl<T, E> Foldable for Result<T, E>
+where
+    T: TypeOps + 'static,
+    E: TypeOps + 'static,
+{
+    fn fold_left(&self, init: AnyBox, _f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Ok(x) => x.clone_box(),
+            Err(_) => init,
+        }
+    }
+
+    fn fold_right(&self, init: AnyBox, _f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Ok(x) => x.clone_box(),
+            Err(_) => init,
+        }
+    }
+
+    fn fold_map(&self, _f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Ok(x) => x.clone_box(),
+            Err(_) => Arc::new(None::<AnyBox>),
         }
     }
 }

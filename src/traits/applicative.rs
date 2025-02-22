@@ -1,99 +1,168 @@
-use crate::traits::functor::Functor;
-use crate::traits::pure::Pure;
-use crate::fntype::FnTrait;
-use crate::traits::hkt::TypeConstraints;
+use std::sync::Arc;
+use crate::traits::hkt::{TypeOps, AnyBox};
 
-/// Applicative functors allow function application within a context.
+/// The Applicative trait represents functors that support function application.
 ///
-/// # Type Parameters
-/// * `A` - The type of the value within the applicative functor.
+/// Applicative functors are more powerful than regular functors but less powerful than monads.
+/// They allow function application through the functor context.
 ///
 /// # Laws
-/// 
-/// An Applicative instance must satisfy these laws:
-/// 
-/// 1. Identity: For any value `v`,
-///    `pure(id).apply(v) = v`
-/// 2. Composition: For any values `u`, `v`, `w`,
-///    `pure(compose).apply(u).apply(v).apply(w) = u.apply(v.apply(w))`
-/// 3. Homomorphism: For any function `f` and value `x`,
-///    `pure(f).apply(pure(x)) = pure(f(x))`
-/// 4. Interchange: For any applicative `u` and value `y`,
-///    `u.apply(pure(y)) = pure(|f| f(y)).apply(u)`
-/// 5. Naturality: For any function `f` and applicatives `x`, `y`,
-///    `fmap(f)(x.apply(y)) = x.apply(fmap(|g| f.compose(g))(y))`
-/// 6. Functor Consistency: For any value `x` and function `f`,
-///    `pure(x).fmap(f) = pure(f(x))`
-pub trait Applicative<A>: Functor<A> + Pure<A>
-where
-    A: TypeConstraints,
-{
-    /// Applies a function wrapped in the applicative context to a value in the same context.
+///
+/// 1. Identity:     `pure id <*> v = v`
+/// 2. Composition:  `pure (.) <*> u <*> v <*> w = u <*> (v <*> w)`
+/// 3. Homomorphism: `pure f <*> pure x = pure (f x)`
+/// 4. Interchange:  `u <*> pure y = pure ($ y) <*> u`
+///
+/// where `id` is the identity function and `(.)` is function composition.
+///
+/// # Example
+///
+/// ```rust
+/// use rustica::traits::applicative::Applicative;
+/// use rustica::traits::pure::Pure;
+/// use std::sync::Arc;
+///
+/// // Implementation for Option as an example
+/// let x = Some(2);
+/// let f = Some(|x| x + 1);
+/// assert_eq!(x.apply(f), Some(3));
+/// ```
+pub trait Applicative {
+    /// Applies a function wrapped in an applicative context to a value in an applicative context.
     ///
-    /// # Type Parameters
-    /// * `B` - The return type of the applied function.
-    /// * `F` - The function type to be applied.
+    /// # Arguments
     ///
-    /// # Parameters
-    /// * `self` - The applicative containing the value to apply the function to.
-    /// * `f` - The applicative containing the function to apply.
+    /// * `f` - A function wrapped in the applicative context
     ///
     /// # Returns
-    /// An applicative containing the result of applying the function to the value.
-    fn apply<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<A, B>;
+    ///
+    /// The result of applying the function to the value, wrapped in the applicative context.
+    fn apply(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
 
     /// Lifts a binary function to actions.
     ///
-    /// # Type Parameters
-    /// * `B` - The type of the second argument.
-    /// * `C` - The return type of the function.
-    /// * `F` - The type of the function to lift.
+    /// This is a convenience method that helps in applying a binary function to
+    /// two values in applicative contexts.
     ///
-    /// # Parameters
-    /// * `self` - The first applicative value.
-    /// * `b` - The second applicative value.
-    /// * `f` - The function to lift.
+    /// # Arguments
+    ///
+    /// * `b` - The second argument in an applicative context
+    /// * `f` - The binary function to lift
     ///
     /// # Returns
-    /// An applicative containing the result of applying the function to the values.
-    fn lift2<B, C, F>(
-        self,
-        b: Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        F: FnTrait<(A, B), C>;
+    ///
+    /// The result of applying the binary function to both values, wrapped in the applicative context.
+    fn lift2(&self, b: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
 
     /// Lifts a ternary function to actions.
     ///
-    /// # Type Parameters
-    /// * `B` - The type of the second argument.
-    /// * `C` - The type of the third argument.
-    /// * `D` - The return type of the function.
-    /// * `F` - The type of the function to lift.
+    /// Similar to `lift2`, but for functions taking three arguments.
     ///
-    /// # Parameters
-    /// * `self` - The first applicative value.
-    /// * `b` - The second applicative value.
-    /// * `c` - The third applicative value.
-    /// * `f` - The function to lift.
+    /// # Arguments
+    ///
+    /// * `b` - The second argument in an applicative context
+    /// * `c` - The third argument in an applicative context
+    /// * `f` - The ternary function to lift
     ///
     /// # Returns
-    /// An applicative containing the result of applying the function to the values.
-    fn lift3<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-        F: FnTrait<(A, B, C), D>;
+    ///
+    /// The result of applying the ternary function to all three values, wrapped in the applicative context.
+    fn lift3(&self, b: AnyBox, c: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
+}
+
+impl<T> Applicative for Vec<T>
+where
+    T: TypeOps + 'static
+{
+    fn apply(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = Vec::new();
+        for x in self.iter() {
+            result.push(f(x.clone_box()));
+        }
+        Arc::new(result) as AnyBox
+    }
+
+    fn lift2(&self, b: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = Vec::new();
+        if let Some(b_vec) = b.downcast_ref::<Vec<T>>() {
+            for x in self.iter() {
+                for y in b_vec.iter() {
+                    result.push(f(x.clone_box(), y.clone_box()));
+                }
+            }
+        }
+        Arc::new(result) as AnyBox
+    }
+
+    fn lift3(&self, b: AnyBox, c: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = Vec::new();
+        if let (Some(b_vec), Some(c_vec)) = (b.downcast_ref::<Vec<T>>(), c.downcast_ref::<Vec<T>>()) {
+            for x in self.iter() {
+                for y in b_vec.iter() {
+                    for z in c_vec.iter() {
+                        result.push(f(x.clone_box(), y.clone_box(), z.clone_box()));
+                    }
+                }
+            }
+        }
+        Arc::new(result) as AnyBox
+    }
+}
+
+impl<T> Applicative for Option<T>
+where
+    T: TypeOps + 'static
+{
+    fn apply(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Some(x) => f(x.clone_box()),
+            None => Arc::new(None::<T>) as AnyBox
+        }
+    }
+
+    fn lift2(&self, b: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match (self, b.downcast_ref::<Option<T>>()) {
+            (Some(x), Some(Some(y))) => f(x.clone_box(), y.clone_box()),
+            _ => Arc::new(None::<T>) as AnyBox
+        }
+    }
+
+    fn lift3(&self, b: AnyBox, c: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match (self, b.downcast_ref::<Option<T>>(), c.downcast_ref::<Option<T>>()) {
+            (Some(x), Some(Some(y)), Some(Some(z))) => f(x.clone_box(), y.clone_box(), z.clone_box()),
+            _ => Arc::new(None::<T>) as AnyBox
+        }
+    }
+}
+
+impl<K, V> Applicative for Result<K, V>
+where
+    K: TypeOps + 'static,
+    V: TypeOps + Clone + 'static
+{
+    fn apply(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Ok(x) => f(x.clone_box()),
+            Err(e) => Arc::new(Err::<K, V>(e.clone())) as AnyBox
+        }
+    }
+
+    fn lift2(&self, b: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match (self, b.downcast_ref::<Result<AnyBox, AnyBox>>()) {
+            (Ok(x), Some(Ok(y))) => f(x.clone_box(), y.clone()),
+            (Err(e), _) => Arc::new(Err::<AnyBox, AnyBox>(e.clone_box())),
+            (_, Some(Err(e))) => Arc::new(Err::<AnyBox, AnyBox>(e.clone())),
+            _ => Arc::new(Err::<AnyBox, AnyBox>(Arc::new(())))
+        }
+    }
+
+    fn lift3(&self, b: AnyBox, c: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match (self, b.downcast_ref::<Result<AnyBox, AnyBox>>(), c.downcast_ref::<Result<AnyBox, AnyBox>>()) {
+            (Ok(x), Some(Ok(y)), Some(Ok(z))) => f(x.clone_box(), y.clone(), z.clone()),
+            (Err(e), _, _) => Arc::new(Err::<AnyBox, AnyBox>(e.clone_box())),
+            (_, Some(Err(e)), _) => Arc::new(Err::<AnyBox, AnyBox>(e.clone())),
+            (_, _, Some(Err(e))) => Arc::new(Err::<AnyBox, AnyBox>(e.clone())),
+            _ => Arc::new(Err::<AnyBox, AnyBox>(Arc::new(())))
+        }
+    }
 }

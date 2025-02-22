@@ -1,90 +1,164 @@
-use crate::fntype::FnTrait;
-use crate::traits::hkt::{HKT, TypeConstraints};
+use std::sync::Arc;
+use std::hash::Hash;
+use crate::traits::hkt::{TypeOps, AnyBox};
 
 /// A trait for bifunctors, which are functors that can map over two type parameters.
 /// 
-/// Bifunctors generalize the concept of functors to structures with two type parameters.
-/// They provide operations to map over either or both of these parameters independently.
-/// 
-/// # Type Parameters
-/// * `A`: The first type parameter of the bifunctor
-/// * `B`: The second type parameter of the bifunctor
-/// 
 /// # Laws
 /// 
-/// A Bifunctor instance must satisfy these laws:
+/// A bifunctor must satisfy these laws:
 /// 
-/// 1. Identity: For any bifunctor `b`,
-///    `bimap(id, id)(b) = b`
-/// 2. Composition: For any functions `f`, `g`, `h`, `i` and bifunctor `b`,
-///    `bimap(f.compose(g), h.compose(i))(b) = bimap(f, h)(bimap(g, i)(b))`
-/// 3. First Map Identity: For any bifunctor `b`,
-///    `first(id)(b) = b`
-/// 4. Second Map Identity: For any bifunctor `b`,
-///    `second(id)(b) = b`
-/// 5. First-Second Consistency: For any functions `f`, `g` and bifunctor `b`,
+/// 1. Identity:
+///    `bimap(id, id) = id`
+/// 
+/// 2. Composition:
+///    `bimap(f . g, h . i) = bimap(f, h) . bimap(g, i)`
+/// 
+/// 3. First-Second Equivalence:
 ///    `bimap(f, g)(b) = first(f)(second(g)(b))`
-pub trait Bifunctor<A, B>: HKT
-where
-    A: TypeConstraints,
-    B: TypeConstraints,
-{
-    /// The type constructor for the bifunctor, representing the result of mapping.
-    type Output<C, D>: HKT where C: TypeConstraints, D: TypeConstraints;
-
+pub trait Bifunctor: Send + Sync {
     /// Maps a function over the first type parameter of the bifunctor.
-    /// 
-    /// # Type Parameters
-    /// * `C`: The new type for the first parameter after mapping
-    /// * `F`: The function type, must implement `FnTrait<A, C>`
-    /// 
-    /// # Parameters
-    /// * `self`: The bifunctor instance
-    /// * `f`: The function to apply to the first type parameter
-    /// 
-    /// # Returns
-    /// A new bifunctor with the first type parameter mapped
-    fn first<C, F>(self, f: F) -> <Self as Bifunctor<A, B>>::Output<C, B>
-    where
-        C: TypeConstraints,
-        F: FnTrait<A, C>;
+    fn map_first(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
 
     /// Maps a function over the second type parameter of the bifunctor.
-    /// 
-    /// # Type Parameters
-    /// * `D`: The new type for the second parameter after mapping
-    /// * `F`: The function type, must implement `FnTrait<B, D>`
-    /// 
-    /// # Parameters
-    /// * `self`: The bifunctor instance
-    /// * `f`: The function to apply to the second type parameter
-    /// 
-    /// # Returns
-    /// A new bifunctor with the second type parameter mapped
-    fn second<D, F>(self, f: F) -> <Self as Bifunctor<A, B>>::Output<A, D>
-    where
-        D: TypeConstraints,
-        F: FnTrait<B, D>;
+    fn map_second(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox;
 
     /// Maps functions over both type parameters of the bifunctor simultaneously.
-    /// 
-    /// # Type Parameters
-    /// * `C`: The new type for the first parameter after mapping
-    /// * `D`: The new type for the second parameter after mapping
-    /// * `F`: The function type for the first parameter, must implement `FnTrait<A, C>`
-    /// * `G`: The function type for the second parameter, must implement `FnTrait<B, D>`
-    /// 
-    /// # Parameters
-    /// * `self`: The bifunctor instance
-    /// * `f`: The function to apply to the first type parameter
-    /// * `g`: The function to apply to the second type parameter
-    /// 
-    /// # Returns
-    /// A new bifunctor with both type parameters mapped
-    fn bimap<C, D, F, G>(self, f: F, g: G) -> <Self as Bifunctor<A, B>>::Output<C, D>
-    where
-        C: TypeConstraints,
-        D: TypeConstraints,
-        F: FnTrait<A, C>,
-        G: FnTrait<B, D>;
+    fn bimap(
+        &self,
+        f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>,
+        g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>
+    ) -> AnyBox;
+}
+
+impl<A, B> Bifunctor for Result<A, B>
+where
+    A: TypeOps + 'static,
+    B: TypeOps + 'static
+{
+    fn map_first(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Ok(a) => Arc::new(Ok::<AnyBox, AnyBox>(f(a.clone_box()))),
+            Err(b) => Arc::new(Err::<AnyBox, AnyBox>(b.clone_box()))
+        }
+    }
+
+    fn map_second(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Ok(a) => Arc::new(Ok::<AnyBox, AnyBox>(a.clone_box())),
+            Err(b) => Arc::new(Err::<AnyBox, AnyBox>(f(b.clone_box())))
+        }
+    }
+
+    fn bimap(
+        &self,
+        f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>,
+        g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>
+    ) -> AnyBox {
+        match self {
+            Ok(a) => Arc::new(Ok::<AnyBox, AnyBox>(f(a.clone_box()))),
+            Err(b) => Arc::new(Err::<AnyBox, AnyBox>(g(b.clone_box())))
+        }
+    }
+}
+
+impl<T> Bifunctor for Vec<T>
+where
+    T: TypeOps + Clone + 'static
+{
+    fn map_first(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = Vec::new();
+        for item in self {
+            result.push(f(item.clone_box()));
+        }
+        Arc::new(result)
+    }
+
+    fn map_second(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = Vec::new();
+        for item in self {
+            result.push(f(item.clone_box()));
+        }
+        Arc::new(result)
+    }
+
+    fn bimap(
+        &self,
+        f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>,
+        _g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>
+    ) -> AnyBox {
+        let mut result = Vec::new();
+        for item in self {
+            result.push(f(item.clone_box()));
+        }
+        Arc::new(result)
+    }
+}
+
+impl<T> Bifunctor for Option<T>
+where
+    T: TypeOps + Clone + 'static
+{
+    fn map_first(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Some(x) => Arc::new(Some(f(x.clone_box()))),
+            None => Arc::new(None::<AnyBox>)
+        }
+    }
+
+    fn map_second(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        match self {
+            Some(x) => Arc::new(Some(f(x.clone_box()))),
+            None => Arc::new(None::<AnyBox>)
+        }
+    }
+
+    fn bimap(
+        &self,
+        f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>,
+        _g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>
+    ) -> AnyBox {
+        match self {
+            Some(x) => Arc::new(Some(f(x.clone_box()))),
+            None => Arc::new(None::<AnyBox>)
+        }
+    }
+}
+
+impl<K, V> Bifunctor for std::collections::HashMap<K, V>
+where
+    K: Clone + Hash + Eq + Send + Sync + 'static,
+    V: TypeOps + Clone + 'static
+{
+    fn map_first(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = std::collections::HashMap::new();
+        for (k, v) in self.iter() {
+            if let Some(new_k) = f(Arc::new(k.clone())).downcast_ref::<K>() {
+                result.insert(new_k.clone(), v.clone());
+            }
+        }
+        Arc::new(result)
+    }
+
+    fn map_second(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut result = std::collections::HashMap::new();
+        for (k, v) in self.iter() {
+            result.insert(k.clone(), f(v.clone_box()));
+        }
+        Arc::new(result)
+    }
+
+    fn bimap(
+        &self,
+        f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>,
+        g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>
+    ) -> AnyBox {
+        let mut result = std::collections::HashMap::new();
+        for (k, v) in self.iter() {
+            if let Some(new_k) = f(Arc::new(k.clone())).downcast_ref::<K>() {
+                result.insert(new_k.clone(), g(v.clone_box()));
+            }
+        }
+        Arc::new(result)
+    }
 }

@@ -1,52 +1,43 @@
-use crate::traits::hkt::TypeConstraints;
+use crate::traits::hkt::AnyBox;
 use crate::traits::traversable::Traversable;
-use crate::traits::applicative::Applicative;
-use crate::fntype::{FnType, FnTrait};
-use crate::traits::bifunctor::Bifunctor;
 
 /// A trait for types that can be sequenced.
 /// This trait provides a way to sequence a structure of effects into an effect of structure.
-/// 
+///
 /// # Examples
-/// 
-/// - `Vec<Option<T>>` -> `Option<Vec<T>>`
-/// - `Vec<Result<T, E>>` -> `Result<Vec<T>, E>`
-/// 
-/// # Type Parameters
-/// 
-/// * `A` - The type of elements in the structure
-/// 
+///
+/// ```rust
+/// // Vec<Option<T>> -> Option<Vec<T>>
+/// let v: Vec<Option<i32>> = vec![Some(1), Some(2), Some(3)];
+/// let sequenced: Option<Vec<i32>> = v.sequence();
+/// assert_eq!(sequenced, Some(vec![1, 2, 3]));
+///
+/// // Vec<Result<T, E>> -> Result<Vec<T>, E>
+/// let v: Vec<Result<i32, &str>> = vec![Ok(1), Ok(2), Ok(3)];
+/// let sequenced: Result<Vec<i32>, &str> = v.sequence();
+/// assert_eq!(sequenced, Ok(vec![1, 2, 3]));
+/// ```
+///
 /// # Laws
-/// 
+///
 /// A Sequence instance must satisfy these laws:
-/// 
-/// 1. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(sequence(t)) = sequence(fmap(η)(t))`
-/// 2. Identity: `sequence(fmap(Identity)(t)) = Identity(t)`
-/// 3. Composition: `sequence(fmap(Compose)(t)) = Compose(fmap(sequence)(sequence(t)))`
-pub trait Sequence<A>: Traversable<A>
-where
-    A: TypeConstraints,
-{
+///
+/// 1. Naturality:
+///    `t.map(f).sequence() = f(t.sequence())`
+///
+/// 2. Identity:
+///    `t.sequence().map(identity) = t`
+///
+/// 3. Composition:
+///    `t.map(Compose).sequence() = Compose(t.sequence().map(sequence))`
+pub trait Sequence: Traversable {
     /// Evaluates each action in the structure from left to right, and collects the results.
-    /// 
-    /// This method is equivalent to `traverse(identity)`.
-    /// 
-    /// # Type Parameters
-    /// 
-    /// * `F` - The applicative functor type
-    /// 
+    ///
+    /// This method transforms a structure where each element is an effect (like `Vec<Option<T>>`)
+    /// into an effect of the structure (like `Option<Vec<T>>`).
+    ///
     /// # Returns
-    /// 
-    /// An applicative functor containing the sequenced structure
-    fn sequence<F>(self) -> F::Output<<Self as Bifunctor<A, A>>::Output<A, A>>
-    where
-        F: Applicative<A>,
-        Self: Sized,
-    {
-        self.traverse::<F, A, _>(FnType::new(F::pure))
-    }
+    ///
+    /// Returns an `AnyBox` containing the sequenced structure.
+    fn sequence(&self) -> AnyBox;
 }
-
-// Blanket implementation for any type that implements Traversable
-impl<T: Traversable<A>, A: TypeConstraints> Sequence<A> for T {}

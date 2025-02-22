@@ -1,457 +1,483 @@
-use crate::prelude::*;
+use std::sync::Arc;
 
-/// Represents a choice between two types, or both.
+use crate::traits::{
+    hkt::{TypeOps, AnyBox, HKT},
+    pure::Pure,
+    functor::Functor,
+    applicative::Applicative, 
+    monad::Monad,
+    arrow::Arrow,
+    composable::Composable,
+    identity::Identity,
+    bifunctor::Bifunctor,
+    foldable::Foldable,
+    semigroup::Semigroup,
+    monoid::Monoid,
+    category::Category,
+};
+
+/// Represents a choice between multiple values of the same type.
 ///
-/// This enum provides a way to represent a value that can be one of two types, or both simultaneously.
-/// It is particularly useful in scenarios where you need to handle different cases or outcomes.
+/// `Choice<T>` encapsulates a primary value and a list of alternative values.
+/// It provides methods to manipulate and query these values.
 ///
 /// # Type Parameters
 ///
-/// * `L`: The left type, representing one possible choice.
-/// * `R`: The right type, representing another possible choice.
+/// * `T`: The type of the values, which must implement `TypeOps`, `Clone`, `Default`, `Send`, and `Sync`.
 ///
 /// # Examples
 ///
 /// ```
 /// use rustica::datatypes::choice::Choice;
+/// use std::sync::Arc;
 ///
-/// let left: Choice<i32, String> = Choice::Left(42);
-/// let right: Choice<i32, String> = Choice::Right("Hello".to_string());
-/// let both: Choice<i32, String> = Choice::Both(42, "Hello".to_string());
+/// // Basic usage
+/// let mut choice = Choice::new(1);
+/// choice.add_alternative(2);
+/// choice.add_alternative(3);
+///
+/// assert_eq!(*choice.value(), 1);
+/// assert!(choice.has_alternatives());
+///
+/// // Functor
+/// let mapped = choice.fmap(Arc::new(|x| *x.downcast_ref::<i32>().unwrap() * 2));
+/// assert_eq!(*mapped.downcast_ref::<Choice<i32>>().unwrap().value(), 2);
+///
+/// // Applicative
+/// let f = Choice::new(|x: i32| x + 1);
+/// let result = choice.apply(Arc::new(|f| f.downcast_ref::<Box<dyn Fn(i32) -> i32>>().unwrap()(1)));
+/// assert_eq!(*result.downcast_ref::<Choice<i32>>().unwrap().value(), 2);
+///
+/// // Monad
+/// let bound = choice.bind(Arc::new(|x| Arc::new(Choice::new(*x.downcast_ref::<i32>().unwrap() * 3)) as Arc<dyn Any + Send + Sync>));
+/// assert_eq!(*bound.downcast_ref::<Choice<i32>>().unwrap().value(), 3);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Choice<L: TypeConstraints, R: TypeConstraints> {
-    /// The left variant, containing a value of type `L`.
-    Left(L),
-    /// The right variant, containing a value of type `R`.
-    Right(R),
-    /// Both left and right variants, containing values of types `L` and `R` respectively.
-    Both(L, R),
+#[derive(Debug, Clone)]
+pub struct Choice<T: TypeOps + Clone + Default + Send + Sync + 'static> {
+    value: T,
+    alternatives: Vec<T>,
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Choice<L, R> {
-    /// Creates a new `Choice` with a left value.
-    ///
-    /// This method constructs a `Choice::Left` variant with the given value.
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Choice<T> {
+    /// Creates a new `Choice` with the given value and no alternatives.
     ///
     /// # Arguments
     ///
-    /// * `value` - The value to be wrapped in the `Left` variant.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice` instance with the `Left` variant.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let left = Choice::<i32, String>::left(42);
-    /// assert!(left.is_left());
-    /// ```
-    pub fn left(value: L) -> Self {
-        Choice::Left(value)
+    /// * `value` - The primary value for this `Choice`.
+    pub fn new(value: T) -> Self {
+        Self { value, alternatives: Vec::new() }
     }
 
-    /// Creates a new `Choice` with a right value.
-    ///
-    /// This method constructs a `Choice::Right` variant with the given value.
+    /// Creates a new `Choice` with the given value and alternatives.
     ///
     /// # Arguments
     ///
-    /// * `value` - The value to be wrapped in the `Right` variant.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice` instance with the `Right` variant.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let right = Choice::<i32, String>::right("Hello".to_string());
-    /// assert!(right.is_right());
-    /// ```
-    pub fn right(value: R) -> Self {
-        Choice::Right(value)
+    /// * `value` - The primary value for this `Choice`.
+    /// * `alternatives` - A vector of alternative values.
+    pub fn with_alternatives(value: T, alternatives: Vec<T>) -> Self {
+        Self { value, alternatives }
     }
 
-    /// Creates a new `Choice` with both left and right values.
-    ///
-    /// This method constructs a `Choice::Both` variant with the given left and right values.
+    /// Returns a reference to the current primary value.
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    /// Returns a slice of the alternative values.
+    pub fn alternatives(&self) -> &[T] {
+        &self.alternatives
+    }
+
+    /// Adds a new alternative value.
     ///
     /// # Arguments
     ///
-    /// * `left` - The value to be wrapped in the left part of the `Both` variant.
-    /// * `right` - The value to be wrapped in the right part of the `Both` variant.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice` instance with the `Both` variant.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let both = Choice::<i32, String>::both(42, "Hello".to_string());
-    /// assert!(both.is_both());
-    /// ```
-    pub fn both(left: L, right: R) -> Self {
-        Choice::Both(left, right)
+    /// * `alt` - The alternative value to add.
+    pub fn add_alternative(&mut self, alt: T) {
+        self.alternatives.push(alt);
     }
 
-    /// Checks if the `Choice` is a `Left` variant.
+    /// Moves to the next alternative, if any.
     ///
-    /// # Returns
-    ///
-    /// `true` if the `Choice` is a `Left` variant, `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let left: Choice<i32, String> = Choice::Left(42);
-    /// assert!(left.is_left());
-    /// ```
-    pub fn is_left(&self) -> bool {
-        matches!(self, Choice::Left(_))
-    }
-
-    /// Checks if the `Choice` is a `Right` variant.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the `Choice` is a `Right` variant, `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let right: Choice<i32, String> = Choice::Right("Hello".to_string());
-    /// assert!(right.is_right());
-    /// ```
-    pub fn is_right(&self) -> bool {
-        matches!(self, Choice::Right(_))
-    }
-
-    /// Checks if the `Choice` is a `Both` variant.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the `Choice` is a `Both` variant, `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let both: Choice<i32, String> = Choice::Both(42, "Hello".to_string());
-    /// assert!(both.is_both());
-    /// ```
-    pub fn is_both(&self) -> bool {
-        matches!(self, Choice::Both(_, _))
-    }
-
-    /// Unwraps the left value.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the left value.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `Choice` is a `Right` variant.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let left: Choice<i32, String> = Choice::Left(42);
-    /// assert_eq!(*left.unwrap_left(), 42);
-    ///
-    /// let both: Choice<i32, String> = Choice::Both(42, "Hello".to_string());
-    /// assert_eq!(*both.unwrap_left(), 42);
-    /// ```
-    pub fn unwrap_left(&self) -> &L {
-        match self {
-            Choice::Left(l) => l,
-            Choice::Right(_) => panic!("Called `unwrap_left` on a `Right` value"),
-            Choice::Both(l, _) => l,
+    /// Returns `true` if there was a next alternative, `false` otherwise.
+    pub fn next(&mut self) -> bool {
+        if let Some(next_value) = self.alternatives.pop() {
+            self.alternatives.push(std::mem::replace(&mut self.value, next_value));
+            true
+        } else {
+            false
         }
     }
 
-    /// Unwraps the right value.
+    /// Checks if there are any alternatives.
     ///
-    /// # Returns
-    ///
-    /// A reference to the right value.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `Choice` is a `Left` variant.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let right: Choice<i32, String> = Choice::Right("Hello".to_string());
-    /// assert_eq!(right.unwrap_right(), "Hello");
-    ///
-    /// let both: Choice<i32, String> = Choice::Both(42, "Hello".to_string());
-    /// assert_eq!(both.unwrap_right(), "Hello");
-    /// ```
-    pub fn unwrap_right(&self) -> &R {
-        match self {
-            Choice::Left(_) => panic!("Called `unwrap_right` on a `Left` value"),
-            Choice::Right(r) => r,
-            Choice::Both(_, r) => r,
-        }
+    /// Returns `true` if there are alternatives, `false` otherwise.
+    pub fn has_alternatives(&self) -> bool {
+        !self.alternatives.is_empty()
     }
+}
 
-    /// Unwraps both values.
-    ///
-    /// # Returns
-    ///
-    /// A tuple containing references to both the left and right values.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `Choice` is not a `Both` variant.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let both: Choice<i32, String> = Choice::Both(42, "Hello".to_string());
-    /// let (left, right) = both.unwrap_both();
-    /// assert_eq!(*left, 42);
-    /// assert_eq!(*right, "Hello");
-    /// ```
-    pub fn unwrap_both(&self) -> (&L, &R) {
-        match self {
-            Choice::Left(_) => panic!("Called `unwrap_both` on a `Left` value"),
-            Choice::Right(_) => panic!("Called `unwrap_both` on a `Right` value"),
-            Choice::Both(l, r) => (l, r),
+
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Semigroup for Choice<T> {
+    fn combine(&self, other: AnyBox) -> AnyBox {
+        if let Some(other_choice) = other.downcast_ref::<Self>() {
+            Arc::new(Choice {
+                value: self.value.clone(),
+                alternatives: self.alternatives.iter().chain(other_choice.alternatives.iter()).cloned().collect(),
+            }) as AnyBox
+        } else {
+            Arc::new(self.clone()) as AnyBox
         }
     }
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Default for Choice<L, R> {
-    /// Returns a default instance of `Choice`, which is `Left(Default::default())`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let default_choice: Choice<i32, String> = Choice::default();
-    /// assert!(default_choice.is_left());
-    /// ```
-    fn default() -> Self {
-        Choice::Left(Default::default())
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Monoid for Choice<T> {
+    fn empty(&self) -> AnyBox {
+        Arc::new(Choice::new(T::default())) as AnyBox
     }
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> HKT for Choice<L, R> {
-    type Output<T> = Choice<L, T> where T: TypeConstraints;
-}
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Category for Choice<T> {
+    fn compose_morphism(&self, other: &AnyBox) -> AnyBox {
+        if let Some(other_choice) = other.downcast_ref::<Self>() {
+            Arc::new(Choice {
+                value: other_choice.value.clone(),
+                alternatives: self.alternatives.iter().chain(&other_choice.alternatives).cloned().collect(),
+            }) as AnyBox
+        } else {
+            Arc::new(self.clone()) as AnyBox
+        }
+    }
 
-impl<L: TypeConstraints, R: TypeConstraints> Identity<R> for Choice<L, R> {
-    fn map_identity<B, F>(_f: F) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<R, B>,
-    {
-        Choice::Right(B::default())
+    fn identity_morphism() -> AnyBox {
+        Arc::new(Choice::new(T::default())) as AnyBox
     }
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Composable<R> for Choice<L, R> {
-    fn compose_with<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<R, U>
-    {
-        self.fmap(f)
+// Identity implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Identity for Choice<T> {
+    fn identity() -> AnyBox {
+        Arc::new(Choice::new(T::default())) as AnyBox
+    }
+
+    fn map_identity(f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        f(Arc::new(Choice::new(T::default())) as AnyBox)
     }
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Category<R> for Choice<L, R> {
-    type Morphism<B, C> = FnType<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints;
+// Higher-kinded type implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> HKT for Choice<T> {
+    fn apply_type(&self) -> AnyBox {
+        Arc::new(self.clone()) as AnyBox
+    }
+
+    fn downcast(&self, boxed: &AnyBox) -> Option<AnyBox> {
+        boxed.downcast_ref::<Self>().map(|x| Arc::new(x.clone()) as AnyBox)
+    }
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Arrow<R, R> for Choice<L, R> {}
-
-impl<L: TypeConstraints, R: TypeConstraints> Functor<R> for Choice<L, R> {
-    fn fmap<T: TypeConstraints, F: FnTrait<R, T>>(self, f: F) -> Self::Output<T> {
-        match self {
-            Choice::Left(l) => Choice::Left(l),
-            Choice::Right(r) => Choice::Right(f.call(r)),
-            Choice::Both(l, r) => Choice::Both(l, f.call(r)),
+// Pure implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Pure for Choice<T> {
+    fn pure(value: AnyBox) -> AnyBox {
+        if let Some(val) = value.downcast_ref::<T>() {
+            Arc::new(Choice::new(val.clone())) as AnyBox
+        } else {
+            Arc::new(Choice::new(T::default())) as AnyBox
         }
     }
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Bifunctor<L, R> for Choice<L, R> {
-    type Output<T, U> = Choice<T, U>
-    where
-        T: TypeConstraints,
-        U: TypeConstraints;
-    fn bimap<T, U, F, G>(self, f: F, g: G) -> Choice<T, U>
-    where
-        T: TypeConstraints,
-        U: TypeConstraints,
-        F: FnTrait<L, T>,
-        G: FnTrait<R, U>,
-    {
-        match self {
-            Choice::Left(l) => Choice::Left(f.call(l)),
-            Choice::Right(r) => Choice::Right(g.call(r)),
-            Choice::Both(l, r) => Choice::Both(f.call(l), g.call(r)),
+// Functor implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Functor for Choice<T> {
+    fn fmap(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mapped_value = f(Arc::new(self.value.clone()) as AnyBox);
+        let mapped_alts: Vec<T> = self.alternatives.iter()
+            .filter_map(|alt| {
+                let boxed = Arc::new(alt.clone()) as AnyBox;
+                let mapped = f(boxed);
+                mapped.downcast_ref::<T>().cloned()
+            })
+            .collect();
+
+        Arc::new(Choice::with_alternatives(
+            mapped_value.downcast_ref().cloned().unwrap_or_else(|| T::default()),
+            mapped_alts
+        )) as AnyBox
+    }
+}
+
+// Applicative implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Applicative for Choice<T> {
+    fn apply(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let value = self.value.clone_box();
+        let result = f(value);
+        let mut alternatives = Vec::new();
+        for alt in &self.alternatives {
+            alternatives.push(f(alt.clone_box()));
+        }
+        Arc::new(Choice::with_alternatives(
+            result.downcast_ref::<T>().unwrap().clone(),
+            alternatives.into_iter()
+                .map(|x| x.downcast_ref::<T>().unwrap().clone())
+                .collect()
+        )) as AnyBox
+    }
+
+    fn lift2(&self, other: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        if let Some(other_choice) = other.downcast_ref::<Self>() {
+            let lifted = f(
+                Arc::new(self.value.clone()) as AnyBox,
+                Arc::new(other_choice.value.clone()) as AnyBox
+            );
+            
+            let mut alts = Vec::new();
+            for alt1 in &self.alternatives {
+                for alt2 in &other_choice.alternatives {
+                    let result = f(
+                        Arc::new(alt1.clone()) as AnyBox,
+                        Arc::new(alt2.clone()) as AnyBox
+                    );
+                    if let Some(val) = result.downcast_ref::<T>() {
+                        alts.push(val.clone());
+                    }
+                }
+            }
+
+            Arc::new(Choice::with_alternatives(
+                lifted.downcast_ref().cloned().unwrap_or_default(),
+                alts
+            )) as AnyBox
+        } else {
+            Self::pure(other)
         }
     }
 
-    fn first<T, F>(self, f: F) -> Choice<T, R>
-    where
-        T: TypeConstraints,
-        F: FnTrait<L, T>,
-    {
-        match self {
-            Choice::Left(l) => Choice::Left(f.call(l)),
-            Choice::Right(r) => Choice::Right(r),
-            Choice::Both(l, r) => Choice::Both(f.call(l), r),
-        }
-    }
+    fn lift3(&self, b: AnyBox, c: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        if let (Some(choice_b), Some(choice_c)) = (b.downcast_ref::<Self>(), c.downcast_ref::<Self>()) {
+            let lifted = f(
+                Arc::new(self.value.clone()) as AnyBox,
+                Arc::new(choice_b.value.clone()) as AnyBox,
+                Arc::new(choice_c.value.clone()) as AnyBox
+            );
+            
+            let mut alts = Vec::new();
+            for alt1 in &self.alternatives {
+                for alt2 in &choice_b.alternatives {
+                    for alt3 in &choice_c.alternatives {
+                        let result = f(
+                            Arc::new(alt1.clone()) as AnyBox,
+                            Arc::new(alt2.clone()) as AnyBox,
+                            Arc::new(alt3.clone()) as AnyBox
+                        );
+                        if let Some(val) = result.downcast_ref::<T>() {
+                            alts.push(val.clone());
+                        }
+                    }
+                }
+            }
 
-    fn second<U, G>(self, g: G) -> Choice<L, U>
-    where
-        U: TypeConstraints,
-        G: FnTrait<R, U>,
-    {
-        match self {
-            Choice::Left(l) => Choice::Left(l),
-            Choice::Right(r) => Choice::Right(g.call(r)),
-            Choice::Both(l, r) => Choice::Both(l, g.call(r)),
+            Arc::new(Choice::with_alternatives(
+                lifted.downcast_ref().cloned().unwrap_or_default(),
+                alts
+            )) as AnyBox
+        } else {
+            Self::pure(b)
         }
     }
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Pure<R> for Choice<L, R> {
-    fn pure(value: R) -> Self::Output<R> {
-        Choice::Right(value)
-    }
-}
+// Monad implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Monad for Choice<T> {
+    fn bind(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let bound = f(Arc::new(self.value.clone()) as AnyBox);
+        let mut alts = Vec::new();
+        
+        for alt in &self.alternatives {
+            let result = f(Arc::new(alt.clone()) as AnyBox);
+            if let Some(choice) = result.downcast_ref::<Self>() {
+                alts.extend(choice.alternatives.clone());
+                alts.push(choice.value.clone());
+            }
+        }
 
-impl<L: TypeConstraints, R: TypeConstraints> Applicative<R> for Choice<L, R> {
-    fn apply<B, F>(self, g: Self::Output<F>) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<R, B>,
-    {
-        match (self, g) {
-            (Choice::Right(x), Choice::Right(f)) => Choice::Right(f.call(x)),
-            (Choice::Left(l), _) => Choice::Left(l),
-            (Choice::Both(l, _), _) => Choice::Left(l),
-            (_, Choice::Left(l)) => Choice::Left(l),
-            (_, Choice::Both(l, _)) => Choice::Left(l),
+        if let Some(choice) = bound.downcast_ref::<Self>() {
+            Arc::new(Choice::with_alternatives(
+                choice.value.clone(),
+                alts
+            )) as AnyBox
+        } else {
+            Arc::new(Choice::with_alternatives(
+                bound.downcast_ref().cloned().unwrap_or_default(),
+                alts
+            )) as AnyBox
         }
     }
 
-    fn lift2<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        F: FnTrait<(R, B), C>,
-    {
-        match (self, b) {
-            (Choice::Right(x), Choice::Right(y)) => Choice::Right(f.call((x, y))),
-            (Choice::Left(l), _) => Choice::Left(l),
-            (Choice::Both(l, _), _) => Choice::Left(l),
-            (_, Choice::Left(l)) => Choice::Left(l),
-            (_, Choice::Both(l, _)) => Choice::Left(l),
+    fn join(&self) -> AnyBox {
+        let mut alts = Vec::new();
+        
+        for alt in &self.alternatives {
+            if let Some(choice) = (Arc::new(alt.clone()) as AnyBox).downcast_ref::<Self>() {
+                alts.extend(choice.alternatives.clone());
+                alts.push(choice.value.clone());
+            } else {
+                alts.push(alt.clone());
+            }
         }
-    }
 
-    fn lift3<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-        F: FnTrait<(R, B, C), D>,
-    {
-        match (self, b, c) {
-            (Choice::Right(x), Choice::Right(y), Choice::Right(z)) => Choice::Right(f.call((x, y, z))),
-            (Choice::Left(l), _, _) => Choice::Left(l),
-            (Choice::Both(l, _), _, _) => Choice::Left(l),
-            (_, Choice::Left(l), _) => Choice::Left(l),
-            (_, Choice::Both(l, _), _) => Choice::Left(l),
-            (_, _, Choice::Left(l)) => Choice::Left(l),
-            (_, _, Choice::Both(l, _)) => Choice::Left(l),
+        if let Some(choice) = (Arc::new(self.value.clone()) as AnyBox).downcast_ref::<Self>() {
+            Arc::new(Choice::with_alternatives(
+                choice.value.clone(),
+                alts
+            )) as AnyBox
+        } else {
+            Arc::new(Choice::with_alternatives(
+                self.value.clone(),
+                alts
+            )) as AnyBox
         }
     }
 }
 
-impl<L: TypeConstraints, R: TypeConstraints> Monad<R> for Choice<L, R> {
-    fn bind<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<R, Self::Output<U>>,
-    {
-        match self {
-            Choice::Right(x) => f.call(x),
-            Choice::Left(l) => Choice::Left(l),
-            Choice::Both(l, _) => Choice::Left(l),
-        }
-    }
-    
-    fn join<U>(self) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        R: Into<Self::Output<U>>
-    {
-        match self {
-            Choice::Right(x) => x.into(),
-            Choice::Left(l) => Choice::Left(l),
-            Choice::Both(l, _) => Choice::Left(l),
+// Arrow implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Arrow for Choice<T> {
+    fn arrow(&self, f: AnyBox) -> AnyBox {
+        if let Some(func) = f.downcast_ref::<Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>>() {
+            let value_box: AnyBox = Arc::new(self.value.clone());
+            let result = func(value_box);
+            if let Some(value) = result.downcast_ref::<T>() {
+                Arc::new(Choice::new(value.clone())) as AnyBox
+            } else {
+                Arc::new(Choice::new(T::default())) as AnyBox
+            }
+        } else {
+            Arc::new(Choice::new(T::default())) as AnyBox
         }
     }
 
-    fn then<B>(self, mb: Self::Output<B>) -> Self::Output<B>
-    where
-        B: TypeConstraints
-    {
-        match self {
-            Choice::Right(_x) => mb,
-            Choice::Left(l) => Choice::Left(l),
-            Choice::Both(l, _) => Choice::Left(l),
-        }
+    fn first(&self, f: AnyBox) -> AnyBox {
+        self.arrow(f)
     }
 
-    fn returns<B, F>(self, f: F) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<R, B>,
-    {
-        match self {
-            Choice::Right(x) => Choice::Right(f.call(x)),
-            Choice::Left(l) => Choice::Left(l),
-            Choice::Both(l, _) => Choice::Left(l),
+    fn second(&self, f: AnyBox) -> AnyBox {
+        self.arrow(f)
+    }
+
+    fn split(&self, f: AnyBox, g: AnyBox) -> AnyBox {
+        let result1 = self.arrow(f);
+        let result2 = self.arrow(g);
+        
+        if let (Some(choice1), Some(choice2)) = (
+            result1.downcast_ref::<Self>(),
+            result2.downcast_ref::<Self>()
+        ) {
+            let mut alts = choice1.alternatives.clone();
+            alts.extend(choice2.alternatives.clone());
+            
+            Arc::new(Choice::with_alternatives(
+                choice1.value.clone(),
+                alts
+            )) as AnyBox
+        } else {
+            Arc::new(Choice::new(T::default())) as AnyBox
         }
+    }
+}
+
+// Composable implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Composable for Choice<T> {
+    fn compose_with(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let composed = f(Arc::new(self.value.clone()) as AnyBox);
+        let mut alts = Vec::new();
+        
+        for alt in &self.alternatives {
+            let result = f(Arc::new(alt.clone()) as AnyBox);
+            if let Some(val) = result.downcast_ref::<T>() {
+                alts.push(val.clone());
+            }
+        }
+
+        Arc::new(Choice::with_alternatives(
+            composed.downcast_ref().cloned().unwrap_or_default(),
+            alts
+        )) as AnyBox
+    }
+
+    fn compose(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync> {
+        Arc::new(move |x| {
+            let f = Arc::clone(&f);
+            let g = Arc::clone(&g);
+            g(f(x))
+        })
+    }
+}
+
+// Bifunctor implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Bifunctor for Choice<T> {
+    fn bimap(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let value = self.value.clone();
+        let alternatives = self.alternatives.clone();
+        
+        let mapped_value = if let Some(result) = f(Arc::new(value) as AnyBox).downcast_ref::<T>() {
+            result.clone()
+        } else {
+            T::default()
+        };
+
+        let mapped_alternatives = alternatives.into_iter().map(|alt| {
+            if let Some(result) = g(Arc::new(alt) as AnyBox).downcast_ref::<T>() {
+                result.clone()
+            } else {
+                T::default()
+            }
+        }).collect();
+
+        Arc::new(Choice {
+            value: mapped_value,
+            alternatives: mapped_alternatives,
+        }) as AnyBox
+    }
+
+    fn map_first(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        self.bimap(f, Arc::new(|x| x))
+    }
+
+    fn map_second(&self, g: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        self.bimap(Arc::new(|x| x), g)
+    }
+}
+
+// Foldable implementation
+impl<T: TypeOps + Clone + Default + Send + Sync + 'static> Foldable for Choice<T> {
+    fn fold_left(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut acc = init;
+        acc = f(acc.clone(), Arc::new(self.value.clone()) as AnyBox);
+        
+        for alt in &self.alternatives {
+            acc = f(acc.clone(), Arc::new(alt.clone()) as AnyBox);
+        }
+        
+        acc
+    }
+
+    fn fold_right(&self, init: AnyBox, f: Arc<dyn Fn(AnyBox, AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut acc = init;
+        
+        for alt in self.alternatives.iter().rev() {
+            acc = f(Arc::new(alt.clone()) as AnyBox, acc.clone());
+        }
+        
+        f(Arc::new(self.value.clone()) as AnyBox, acc)
+    }
+
+    fn fold_map(&self, f: Arc<dyn Fn(AnyBox) -> AnyBox + Send + Sync>) -> AnyBox {
+        let mut values = Vec::new();
+        values.push(f(Arc::new(self.value.clone()) as AnyBox));
+        
+        for alt in &self.alternatives {
+            values.push(f(Arc::new(alt.clone()) as AnyBox));
+        }
+        
+        Arc::new(values) as AnyBox
     }
 }
