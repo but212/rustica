@@ -1,57 +1,91 @@
-use crate::traits::hkt::TypeConstraints;
 use crate::traits::semigroup::Semigroup;
 
-/// A trait for monoids, which are semigroups with an identity element.
-/// 
-/// # Type Parameters
-/// * `T` - The type of elements in the monoid
-/// 
+/// A Monoid is a Semigroup with an identity element.
+///
+/// # Mathematical Definition
+///
+/// A monoid is an algebraic structure consisting of:
+/// - A set `M`
+/// - An associative binary operation `combine: M × M → M`
+/// - An identity element `empty() ∈ M`
+///
 /// # Laws
-/// A Monoid instance must satisfy these laws:
-/// 1. Identity: For any value `x`,
-///    `x.combine(empty()) = x = empty().combine(x)`
-/// 2. Associativity: For any values `x`, `y`, `z`,
-///    `x.combine(y.combine(z)) = (x.combine(y)).combine(z)`
-/// 3. Empty Uniqueness: For any monoid `M`,
-///    There exists a unique empty element `e` such that `e.combine(x) = x = x.combine(e)`
-/// 4. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(x.combine(y)) = η(x).combine(η(y))`
-/// 5. Empty Preservation: For any natural transformation `η`,
-///    `η(empty()) = empty()`
-/// 6. Distributivity: For any values `x`, `y`, `z`,
-///    `x.combine(y.combine(z)) = x.combine(y).combine(x.combine(z))`
-/// 7. Commutativity (if applicable): For any values `x`, `y`,
-///    `x.combine(y) = y.combine(x)`
-/// 8. Cancellation (if applicable): For any values `x`, `y`, `z`,
-///    If `x.combine(y) = x.combine(z)` then `y = z`
+///
+/// For any value `x` of type implementing `Monoid`:
+/// ```text
+/// x.combine(&Monoid::empty()) = x           // Right identity
+/// Monoid::empty().combine(&x) = x           // Left identity
+/// ```
+///
+/// Additionally, since `Monoid` extends `Semigroup`, the associativity law must hold:
+/// ```text
+/// (a.combine(&b)).combine(&c) = a.combine(&b.combine(&c))
+/// ```
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::monoid::Monoid;
+/// use rustica::traits::semigroup::Semigroup;
+///
+/// let hello = String::from("Hello");
+/// assert_eq!(hello.combine(&Monoid::empty()), hello.clone());  // Right identity
+/// assert_eq!(String::empty().combine(&hello), hello.clone());  // Left identity
+///
+/// let numbers = vec![1, 2, 3];
+/// assert_eq!(numbers.combine(&Monoid::empty()), numbers.clone());  // Right identity
+/// assert_eq!(Vec::empty().combine(&numbers), numbers.clone());  // Left identity
+/// ```
+///
+/// # Common Use Cases
+///
+/// Monoids are particularly useful in scenarios where:
+/// - You need to combine elements with a neutral element
+/// - You're implementing data structures that require an empty state
+/// - You're working with collection types
+/// - You need to perform parallel or distributed computations
+///
+/// Some common monoids include:
+/// - Strings under concatenation (empty string as identity)
+/// - Lists/Vectors under concatenation (empty list as identity)
+/// - Numbers under addition (0 as identity)
+/// - Numbers under multiplication (1 as identity)
+/// - Booleans under conjunction (true as identity)
+/// - Booleans under disjunction (false as identity)
 pub trait Monoid: Semigroup {
-    /// The identity element of the monoid.
+    /// Returns the identity element of the monoid.
+    ///
+    /// The identity element is a special value that, when combined with any other value `x`,
+    /// yields `x` itself. This must hold true whether the identity is combined from the left
+    /// or the right.
     ///
     /// # Returns
+    ///
     /// The identity element of the monoid.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// let empty_string = String::empty();
+    /// let hello = String::from("Hello");
+    ///
+    /// // Identity laws
+    /// assert_eq!(hello.combine(&empty_string), hello.clone());
+    /// assert_eq!(empty_string.combine(&hello), hello);
+    /// ```
     fn empty() -> Self;
 }
 
-/// A monoid for vectors.
-impl<T> Monoid for Vec<T>
-where
-    T: TypeConstraints,
-{
-    /// The identity element of the vector monoid.
-    ///
-    /// # Returns
-    /// An empty vector.
+impl<T: Clone> Monoid for Vec<T> {
     fn empty() -> Self {
         Vec::new()
     }
 }
 
-/// A monoid for strings.
 impl Monoid for String {
-    /// The identity element of the string monoid.
-    ///
-    /// # Returns
-    /// An empty string.
     fn empty() -> Self {
         String::new()
     }

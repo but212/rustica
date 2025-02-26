@@ -1,125 +1,78 @@
-use crate::traits::hkt::TypeConstraints;
-use crate::traits::identity::Identity;
-use crate::traits::composable::Composable;
-use crate::fntype::FnTrait;
+use crate::traits::hkt::HKT;
 
-/// A category in category theory.
-/// 
-/// # Type Parameters
-/// * `A` - The base type for this category
-/// * `Morphism<B, C>` - The type of morphisms from B to C in this category.
-/// 
+/// A trait representing a category in category theory.
+///
+/// # Mathematical Definition
+///
+/// A category consists of:
+/// 1. A collection of objects (types in our case)
+/// 2. A collection of morphisms (functions) between objects
+/// 3. A composition operation for morphisms
+/// 4. An identity morphism for each object
+///
 /// # Laws
-/// 1. Identity: For any morphism f: B → C, id_C ∘ f = f = f ∘ id_B
-/// 2. Associativity: For morphisms f: B → C, g: C → D, h: D → E, h ∘ (g ∘ f) = (h ∘ g) ∘ f
+///
+/// A category must satisfy these laws:
+///
+/// 1. Identity:
+///    ```text
+///    id ∘ f = f = f ∘ id
+///    ```
+///    Composing any morphism with identity leaves it unchanged.
+///
+/// 2. Associativity:
+///    ```text
+///    (f ∘ g) ∘ h = f ∘ (g ∘ h)
+///    ```
+///    The order of composition doesn't matter.
+///
+/// # Type Parameters
+///
+/// * `T`: The source type of the morphism
+/// * `U`: The target type of the morphism
 /// 
-/// # Example
-/// ```
-/// use rustica::prelude::*;
-/// 
-/// #[derive(Debug, Clone, PartialEq, Eq, Default)]
-/// struct MyCategory;
-/// 
-/// impl HKT for MyCategory {
-///     type Output<T> = MyCategory where T: TypeConstraints;
-/// }
-/// 
-/// impl Identity for MyCategory {
-///     fn identity<A: TypeConstraints>(x: A) -> A { x }
-/// }
-/// 
-/// impl Composable for MyCategory {
-///     fn compose<A, B, C, F, G>(f: F, g: G) -> FnType<A, C>
-///     where
-///         A: TypeConstraints,
-///         B: TypeConstraints,
-///         C: TypeConstraints,
-///         F: FnTrait<A, B>,
-///         G: FnTrait<B, C>,
-///     {
-///         FnType::new(move |x| g.call(f.call(x)))
-///     }
-/// }
-/// 
-/// impl Category for MyCategory {
-///     type Morphism<B, C> = FnType<B, C>
-///     where
-///         B: TypeConstraints,
-///         C: TypeConstraints;
-/// 
-///     fn identity_morphism<B: TypeConstraints>() -> Self::Morphism<B, B> {
-///         FnType::new(|x| x)
-///     }
-/// 
-///     fn compose_morphisms<B, C, D>(
-///         f: Self::Morphism<B, C>,
-///         g: Self::Morphism<C, D>
-///     ) -> Self::Morphism<B, D>
-///     where
-///         B: TypeConstraints,
-///         C: TypeConstraints,
-///         D: TypeConstraints,
-///     {
-///         FnType::new(move |x| g.call(f.call(x)))
-///     }
-/// }
-/// 
-/// let f = MyCategory::identity_morphism::<i32>();
-/// assert_eq!(f.call(5), 5);
-/// ```
-pub trait Category: Identity + Composable {
-    /// Represents a morphism (arrow) in the category from type `B` to type `C`.
-    ///
-    /// # Type Parameters
-    /// * `B`: The source type of the morphism, must satisfy `TypeConstraints`
-    /// * `C`: The target type of the morphism, must satisfy `TypeConstraints`
-    ///
-    /// This associated type should implement `FnTrait<B, C>`, allowing it to be called as a function.
-    type Morphism<B, C>: FnTrait<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints;
+/// # Common Use Cases
+///
+/// 1. **Function Composition**
+///    - Representing pure functions and their composition
+///    - Building complex transformations from simple ones
+///
+/// 2. **Type-safe Transformations**
+///    - Ensuring type safety in data transformations
+///    - Modeling data flow between different types
+///
+/// 3. **Abstract Algebra**
+///    - Implementing mathematical structures
+///    - Defining algebraic data types
+pub trait Category: HKT {
+    type Morphism<S, T>;
 
-    /// Returns the identity morphism for a given type B.
+    /// Creates an identity morphism for the current type.
     ///
-    /// The identity morphism is a fundamental concept in category theory.
-    /// For any object B, the identity morphism is a morphism from B to itself
-    /// that leaves the object unchanged when composed with any other morphism.
-    ///
-    /// # Type Parameters
-    /// * `B`: The type for which to create the identity morphism
+    /// The identity morphism is a function that returns its input unchanged.
+    /// It serves as the unit element for morphism composition.
     ///
     /// # Returns
-    /// A morphism that represents the identity function for type B
     ///
-    /// # Constraints
-    /// * `B`: Must satisfy `TypeConstraints`
-    fn identity_morphism<B: TypeConstraints>() -> Self::Morphism<B, B> {
-        FnTrait::new(|x| x)
-    }
+    /// A new instance of Self that represents the identity morphism
+    fn identity_morphism() -> Self::Morphism<Self::Source, Self::Output<Self::Source>>;
 
     /// Composes two morphisms in the category.
     ///
-    /// This function takes two morphisms, `f: B -> C` and `g: C -> D`,
-    /// and returns their composition `g ∘ f: B -> D`.
+    /// Given morphisms f: A → B and g: B → C, produces a new morphism f ∘ g: A → C.
     ///
     /// # Type Parameters
-    /// * `B`: The source type of the first morphism
-    /// * `C`: The target type of the first morphism and source type of the second morphism
-    /// * `D`: The target type of the second morphism
+    ///
+    /// * `B`: The intermediate type in the composition
+    /// * `C`: The result type of the composition
     ///
     /// # Arguments
-    /// * `f`: The first morphism to compose
-    /// * `g`: The second morphism to compose
+    ///
+    /// * `self`: The first morphism to compose (f)
+    /// * `g`: The second morphism to compose with (g)
     ///
     /// # Returns
-    /// A new morphism representing the composition of `f` and `g`
-    fn compose_morphisms<B, C, D>(f: Self::Morphism<B, C>, g: Self::Morphism<C, D>) -> Self::Morphism<B, D>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-    {
-        FnTrait::new(move |x| g.call(f.call(x)))
-    }
+    ///
+    /// A new morphism representing the composition of self and g
+    fn compose_morphisms<A, B, C>(f: &Self::Morphism<A, B>, g: &Self::Morphism<B, C>) -> Self::Morphism<A, C>;
 }

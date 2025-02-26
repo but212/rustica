@@ -1,119 +1,115 @@
-pub mod functor;
-pub mod monad;
-pub mod applicative;
-pub mod bifunctor;
+mod test_functor;
+mod test_applicative;
+mod test_monad;
+mod test_semigroup;
+mod test_monoid;
 
 use quickcheck::{Arbitrary, Gen};
-use rustica::traits::applicative::Applicative;
-use rustica::traits::functor::Functor;
-use rustica::traits::hkt::{HKT, TypeConstraints};
-use rustica::traits::identity::Identity;
-use rustica::traits::monad::Monad;
-use rustica::traits::pure::Pure;
-use rustica::traits::category::Category;
-use rustica::traits::arrow::Arrow;
-use rustica::traits::composable::Composable;
-use rustica::fntype::{FnType, FnTrait};
+use rustica::prelude::*;
+use std::marker::PhantomData;
 
-// Test data structures
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TestFunctor<T: TypeConstraints>(pub T);
+/// A test functor implementation that wraps a single value
+#[derive(Clone, PartialEq, Debug)]
+pub struct TestFunctor<T>(pub T, PhantomData<T>);
 
-impl<T: TypeConstraints + Arbitrary + 'static> Arbitrary for TestFunctor<T> {
+impl<T> TestFunctor<T> {
+    pub fn new(value: T) -> Self {
+        TestFunctor(value, PhantomData)
+    }
+}
+
+impl<T: Arbitrary + 'static> Arbitrary for TestFunctor<T> {
     fn arbitrary(g: &mut Gen) -> Self {
-        let value = T::arbitrary(g);
-        TestFunctor(value)
+        TestFunctor::new(T::arbitrary(g))
     }
 
     fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
-        Box::new(std::iter::empty())
+        Box::new(self.0.shrink().map(TestFunctor::new))
     }
 }
 
-impl<T: TypeConstraints> HKT for TestFunctor<T> {
-    type Output<U> = TestFunctor<U> where U: TypeConstraints;
+impl<T> HKT for TestFunctor<T> {
+    type Source = T;
+    type Output<U> = TestFunctor<U>;
 }
 
-impl<T: TypeConstraints> Identity for TestFunctor<T> {}
-
-impl<T: TypeConstraints> Pure<T> for TestFunctor<T> {
-    fn pure(x: T) -> Self {
-        TestFunctor(x)
+impl<T> Identity for TestFunctor<T> {
+    fn value(&self) -> &Self::Source {
+        &self.0
     }
 }
 
-impl<T: TypeConstraints> Functor<T> for TestFunctor<T> {
-    fn fmap<U, F>(self, f: F) -> TestFunctor<U>
+impl<T> Pure for TestFunctor<T> {
+    fn pure<U: Clone>(value: U) -> Self::Output<U> {
+        TestFunctor::new(value)
+    }
+}
+
+impl<T> Functor for TestFunctor<T> {
+    fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
+        TestFunctor::new(f(&self.0))
+    }
+}
+
+impl<T> Applicative for TestFunctor<T> {
+    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
     where
-        U: TypeConstraints,
-        F: FnTrait<T, U>,
+        F: Fn(&Self::Source) -> B,
     {
-        TestFunctor(f.call(self.0))
+        TestFunctor::new((f.0)(&self.0))
+    }
+
+    fn lift2<B, C>(
+        &self,
+        b: &Self::Output<B>,
+        f: &dyn Fn(&Self::Source, &B) -> C,
+    ) -> Self::Output<C> {
+        TestFunctor::new(f(&self.0, &b.0))
+    }
+
+    fn lift3<B, C, D>(
+        &self,
+        b: &Self::Output<B>,
+        c: &Self::Output<C>,
+        f: &dyn Fn(&Self::Source, &B, &C) -> D,
+    ) -> Self::Output<D> {
+        TestFunctor::new(f(&self.0, &b.0, &c.0))
     }
 }
 
-impl<T: TypeConstraints> Applicative<T> for TestFunctor<T> {
-    fn apply<U, F>(self, other: Self::Output<F>) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, U>,
-    {
-        let f = other.0;
-        TestFunctor(f.call(self.0))
+impl<T: Clone> Monad for TestFunctor<T> {
+    fn bind<U>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+        f(&self.0)
     }
 
-    fn lift2<U, V, F>(self, b: Self::Output<U>, f: F) -> Self::Output<V>
+    fn join<U>(&self) -> Self::Output<U>
     where
-        U: TypeConstraints,
-        V: TypeConstraints,
-        F: FnTrait<(T, U), V>,
+        T: Clone + Into<Self::Output<U>>,
     {
-        let g = f.call((self.0, b.0));
-        TestFunctor(g)
-    }
-
-    fn lift3<B, C, D, F>(
-            self,
-            b: Self::Output<B>,
-            c: Self::Output<C>,
-            f: F,
-        ) -> Self::Output<D>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-        F: FnTrait<(T, B, C), D>,
-    {
-        let g = f.call((self.0, b.0, c.0));
-        TestFunctor(g)
+        self.0.clone().into()
     }
 }
 
-impl<T: TypeConstraints> Monad<T> for TestFunctor<T> {
-    fn bind<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, Self::Output<U>>,
-    {
-        f.call(self.0)
-    }
-
-    fn join<U>(self) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        T: Into<Self::Output<U>> + Send + Sync,
-    {
-        self.0.into()
+impl<T: Clone> Semigroup for TestFunctor<T>
+where
+    T: Semigroup,
+{
+    fn combine(&self, other: &Self) -> Self {
+        TestFunctor::new(self.0.combine(&other.0))
     }
 }
 
-impl<T: TypeConstraints> Composable for TestFunctor<T> {}
-
-impl<T: TypeConstraints> Category for TestFunctor<T> {
-    type Morphism<B, C> = FnType<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints;
+impl<T: Clone + Default> Monoid for TestFunctor<T>
+where
+    T: Monoid,
+{
+    fn empty() -> Self {
+        TestFunctor::new(T::empty())
+    }
 }
 
-impl<T: TypeConstraints> Arrow for TestFunctor<T> {}
+impl<T> Composable for TestFunctor<T> {
+    fn compose<U, V>(f: &dyn Fn(Self::Source) -> U, g: &dyn Fn(U) -> V) -> impl Fn(Self::Source) -> V {
+        move |x| g(f(x))
+    }
+}

@@ -1,157 +1,139 @@
-use crate::fntype::FnTrait;
-use crate::traits::hkt::TypeConstraints;
+use crate::traits::hkt::HKT;
 
-/// A trait for bifunctors, which are functors that can map over two type parameters.
-/// 
-/// # Type Parameters
-/// * `A` - The first type parameter.
-/// * `B` - The second type parameter.
-/// 
+/// A bifunctor is a type constructor that takes two type arguments and is a functor in both arguments.
+/// This means it provides a way to map functions over both type parameters independently or simultaneously.
+///
 /// # Laws
-/// A Bifunctor instance must satisfy these laws:
-/// 1. Identity: For any bifunctor `p`,
-///    `bimap(id, id)(p) = p`
-/// 2. Composition: For functions `f`, `g`, `h`, `i` and bifunctor `p`,
-///    `bimap(f . g, h . i)(p) = bimap(f, h) . bimap(g, i)(p)`
-/// 3. First Map Identity: For any bifunctor `p`,
-///    `first(id)(p) = p`
-/// 4. Second Map Identity: For any bifunctor `p`,
-///    `second(id)(p) = p`
-/// 5. First-Second Consistency: For any bifunctor `p` and functions `f`, `g`,
-///    `bimap(f, g)(p) = first(f)(second(g)(p))`
+///
+/// A valid bifunctor instance must satisfy these laws:
+///
+/// 1. Identity:
+///    bimap(id, id) == id
+///
+/// 2. Composition:
+///    bimap(f . g, h . i) == bimap(f, h) . bimap(g, i)
 ///
 /// # Examples
 ///
-/// ```
+/// Here's an example implementation for Result:
+/// ```rust
+/// use std::fmt::Debug;
+/// use rustica::traits::hkt::HKT;
 /// use rustica::traits::bifunctor::Bifunctor;
-/// use rustica::prelude::TypeConstraints;
-/// use rustica::fntype::{FnTrait, FnType};
 ///
-/// #[derive(Debug, Clone, PartialEq, Eq)]
-/// struct MyBifunctor<A, B> {
-///     left: A,
-///     right: B,
+/// // A wrapper for Result to implement HKT and Bifunctor
+/// #[derive(Debug, Clone, PartialEq)]
+/// struct BiResult<T, E>(Result<T, E>);
+///
+/// // HKT implementation for the first type parameter
+/// impl<T, E> HKT for BiResult<T, E> {
+///     type Source = T;
+///     type Output<U> = BiResult<U, E>;
 /// }
 ///
-/// impl<A, B> Bifunctor<A, B> for MyBifunctor<A, B>
-/// where
-///     A: TypeConstraints,
-///     B: TypeConstraints,
-/// {
-///     type Output<C, D> = MyBifunctor<C, D>
-///     where
-///         C: TypeConstraints,
-///         D: TypeConstraints;
+/// impl<T: Clone + Default, E: Clone + Default> Bifunctor for BiResult<T, E> {
+///     type Source2 = E;
 ///
-///     fn first<C, F>(self, f: F) -> <Self as Bifunctor<A, B>>::Output<C, B>
-///     where
-///         C: TypeConstraints,
-///         F: FnTrait<A, C>,
-///     {
-///         MyBifunctor {
-///             left: f.call(self.left),
-///             right: self.right,
-///         }
+///     fn first<C>(&self, f: &dyn Fn(&T) -> C) -> Self::Output<C> {
+///         BiResult(match &self.0 {
+///             Ok(a) => Ok(f(a)),
+///             Err(e) => Err(e.clone()),
+///         })
 ///     }
 ///
-///     fn second<D, F>(self, f: F) -> <Self as Bifunctor<A, B>>::Output<A, D>
-///     where
-///         D: TypeConstraints,
-///         F: FnTrait<B, D>,
-///     {
-///         MyBifunctor {
-///             left: self.left,
-///             right: f.call(self.right),
-///         }
+///     fn second<D>(&self, f: &dyn Fn(&E) -> D) -> BiResult<D, E> {
+///         BiResult(match &self.0 {
+///             Ok(a) => Err(E::default()),
+///             Err(e) => Ok(f(e)),
+///         })
 ///     }
 ///
-///     fn bimap<C, D, F, G>(self, f: F, g: G) -> <Self as Bifunctor<A, B>>::Output<C, D>
-///     where
-///         C: TypeConstraints,
-///         D: TypeConstraints,
-///         F: FnTrait<A, C>,
-///         G: FnTrait<B, D>,
-///     {
-///         MyBifunctor {
-///             left: f.call(self.left),
-///             right: g.call(self.right),
-///         }
+///     fn bimap<C, D>(&self, f: &dyn Fn(&T) -> C, g: &dyn Fn(&E) -> D) -> BiResult<(C, D), E> {
+///         BiResult(match &self.0 {
+///             Ok(a) => Ok((f(a), g(&E::default()))),
+///             Err(e) => Ok((f(&T::default()), g(e))),
+///         })
 ///     }
 /// }
 ///
-/// let bifunctor = MyBifunctor { left: 1, right: "hello" };
-/// let mapped = bifunctor.bimap(FnType::new(|x| x + 1), FnType::new(|y:&str| y.len()));
-/// assert_eq!(mapped.left, 2);
-/// assert_eq!(mapped.right, 5);
+/// // Example usage:
+/// let success: BiResult<i32, &str> = BiResult(Ok(5));
+/// let error: BiResult<i32, &str> = BiResult(Err("error"));
+///
+/// // Transform the success value
+/// let doubled = success.first(&|x| x * 2);
+/// assert_eq!(doubled, BiResult(Ok(10)));
+///
+/// // Transform the error value
+/// let mapped_error = error.second(&|e| e.to_string());
+/// assert_eq!(mapped_error, BiResult(Ok("error".to_string())));
+///
+/// // Transform both simultaneously
+/// let both_mapped = success.bimap(&|x| x * 2, &|e| e.to_string());
+/// assert_eq!(both_mapped, BiResult(Ok((10, "".to_string()))));
+///
+/// // Chain operations
+/// let result = success
+///     .first(&|x| x + 3)      // 5 -> 8
+///     .first(&|x| x * 2)      // 8 -> 16
+///     .second(&|e| e.to_string());
+/// assert_eq!(result, BiResult(Err("")));
+///
 /// ```
-pub trait Bifunctor<A, B>
-where
-    A: TypeConstraints,
-    B: TypeConstraints,
-{
-    /// The type constructor for the output of the bifunctor operation.
-    ///
-    /// # Type Parameters
-    /// * `C` - The first type parameter of the output.
-    /// * `D` - The second type parameter of the output.
-    type Output<C, D>: Bifunctor<C, D> 
-    where
-        C: TypeConstraints,
-        D: TypeConstraints;
+///
+/// # Common Use Cases
+///
+/// Bifunctors are particularly useful in these scenarios:
+///
+/// 1. Error Handling:
+///    - Transform both success and error values in Result types
+///    - Map error types to a common error type while preserving success values
+///
+/// 2. Data Processing:
+///    - Process pairs of values independently
+///    - Transform both components of a tuple simultaneously
+///
+/// 3. Type Conversion:
+///    - Convert between different error types in error handling
+///    - Transform data structures that contain two type parameters
+pub trait Bifunctor: HKT {
+    /// The second type parameter of the bifunctor
+    type Source2;
 
     /// Maps a function over the first type parameter.
     ///
+    /// This is similar to `fmap` for regular functors, but it operates on the first
+    /// type parameter while leaving the second unchanged.
+    ///
     /// # Arguments
-    /// - `self`: The bifunctor instance.
-    /// - `f`: A function that takes a value of type `A` and returns a value of type `C`.
+    /// * `f`: Function to apply to the first type parameter
     ///
     /// # Returns
-    /// A new bifunctor containing the result of applying the function `f` to the first type parameter.
-    ///
-    /// # Type Parameters
-    /// - `C`: The return type of the function `f`.
-    /// - `F`: A function type that takes a value of type `A` and returns a value of type `C`.
-    fn first<C, F>(self, f: F) -> Self::Output<C, B>
-    where
-        C: TypeConstraints,
-        F: FnTrait<A, C>;
+    /// A new bifunctor with the first type parameter transformed
+    fn first<C>(&self, f: &dyn Fn(&Self::Source) -> C) -> Self::Output<C>;
 
     /// Maps a function over the second type parameter.
     ///
+    /// This is the counterpart to `first` that operates on the second type parameter
+    /// while leaving the first unchanged.
+    ///
     /// # Arguments
-    /// - `self`: The bifunctor instance.
-    /// - `f`: A function that takes a value of type `B` and returns a value of type `D`.
+    /// * `f`: Function to apply to the second type parameter
     ///
     /// # Returns
-    /// A new bifunctor containing the result of applying the function `f` to the second type parameter.
-    ///
-    /// # Type Parameters
-    /// - `D`: The return type of the function `f`.
-    /// - `F`: A function type that takes a value of type `B` and returns a value of type `D`.
-    fn second<D, F>(self, f: F) -> Self::Output<A, D>
-    where
-        D: TypeConstraints,
-        F: FnTrait<B, D>;
+    /// A new bifunctor with the second type parameter transformed
+    fn second<D>(&self, f: &dyn Fn(&Self::Source2) -> D) -> Self::Output<D>;
 
     /// Maps two functions over both type parameters simultaneously.
     ///
+    /// This combines the functionality of `first` and `second` into a single operation.
+    /// It's equivalent to applying `first` followed by `second`, but may be more efficient.
+    ///
     /// # Arguments
-    /// - `self`: The bifunctor instance.
-    /// - `f`: A function that takes a value of type `A` and returns a value of type `C`.
-    /// - `g`: A function that takes a value of type `B` and returns a value of type `D`.
+    /// * `f`: Function to apply to the first type parameter
+    /// * `g`: Function to apply to the second type parameter
     ///
     /// # Returns
-    /// A new bifunctor containing the result of applying the functions `f` and `g` to the type parameters.
-    ///
-    /// # Type Parameters
-    /// - `C`: The return type of the function `f`.
-    /// - `D`: The return type of the function `g`.
-    /// - `F`: A function type that takes a value of type `A` and returns a value of type `C`.
-    /// - `G`: A function type that takes a value of type `B` and returns a value of type `D`.
-    fn bimap<C, D, F, G>(self, f: F, g: G) -> Self::Output<C, D>
-    where
-        C: TypeConstraints,
-        D: TypeConstraints,
-        F: FnTrait<A, C>,
-        G: FnTrait<B, D>;
+    /// A new bifunctor with both type parameters transformed
+    fn bimap<C, D>(&self, f: &dyn Fn(&Self::Source) -> C, g: &dyn Fn(&Self::Source2) -> D) -> Self::Output<(C, D)>;
 }

@@ -1,389 +1,574 @@
-use crate::traits::hkt::{HKT, TypeConstraints};
+//! # Validated Datatype
+//!
+//! The `Validated` datatype represents a validation result that can either be valid with a value
+//! or invalid with a collection of errors. Unlike `Result`, which fails fast on the first error,
+//! `Validated` can accumulate multiple errors during validation.
+//!
+//! ## Functional Programming Context
+//!
+//! In functional programming, validation is often handled through types that can represent
+//! either success or failure. The `Validated` type is inspired by similar constructs in other
+//! functional programming languages, such as:
+//!
+//! - `Validated` in Cats (Scala)
+//! - `Validation` in Arrow (Kotlin)
+//! - `Validation` in fp-ts (TypeScript)
+//!
+//! The key difference between `Validated` and `Result` is that `Validated` is designed for
+//! scenarios where you want to collect all validation errors rather than stopping at the first one.
+//!
+//! ## Applicative Validation
+//!
+//! One of the most powerful aspects of `Validated` is its applicative instance, which allows
+//! combining multiple validations while accumulating errors. This is particularly useful for
+//! form validation, configuration validation, or any scenario where you want to report all
+//! errors at once rather than one at a time.
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::prelude::*;
+//!
+//! // Validate a username
+//! fn validate_username(username: &str) -> Validated<String, String> {
+//!     if username.len() >= 3 {
+//!         Validated::valid(username.to_string())
+//!     } else {
+//!         Validated::invalid("Username must be at least 3 characters".to_string())
+//!     }
+//! }
+//!
+//! // Validate a password
+//! fn validate_password(password: &str) -> Validated<String, String> {
+//!     if password.len() >= 8 {
+//!         Validated::valid(password.to_string())
+//!     } else {
+//!         Validated::invalid("Password must be at least 8 characters".to_string())
+//!     }
+//! }
+//!
+//! // Combine validations using lift2
+//! let username_validation = validate_username("ab");
+//! let password_validation = validate_password("1234");
+//!
+//! // This will collect both errors
+//! let combined = username_validation.lift2(
+//!     &password_validation,
+//!     &|username, password| format!("User: {}, Pass: {}", username, password)
+//! );
+//!
+//! // Result contains both error messages
+//! assert!(matches!(combined, Validated::Invalid(_)));
+//! ```
+//!
+//! ## Type Class Implementations
+//!
+//! `Validated` implements several type classes from functional programming:
+//!
+//! - **Functor**: Allows mapping over the valid value with `fmap`
+//! - **Applicative**: Enables combining multiple validations with `apply`, `lift2`, and `lift3`
+//! - **Monad**: Provides sequencing operations with `bind` and `join`
+//!
+//! ## Interoperability with Result
+//!
+//! `Validated` provides methods to convert to and from `Result`:
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//!
+//! // Convert from Result
+//! let result: Result<i32, &str> = Ok(42);
+//! let validated = Validated::from_result(&result);
+//!
+//! // Convert back to Result
+//! let result_again = validated.to_result();
+//! assert_eq!(result_again, Ok(42));
+//! ```
+//!
+//! ## When to Use Validated vs Result
+//!
+//! - Use `Validated` when you want to collect multiple errors
+//! - Use `Result` when you want to fail fast on the first error
+//! - Use `Validated` for parallel, independent validations
+//! - Use `Result` for sequential, dependent operations
+
+use crate::traits::hkt::HKT;
 use crate::traits::functor::Functor;
 use crate::traits::applicative::Applicative;
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
-use crate::traits::category::Category;
-use crate::traits::arrow::Arrow;
-use crate::traits::composable::Composable;
 use crate::traits::identity::Identity;
-use crate::fntype::{FnType, FnTrait};
+use crate::traits::composable::Composable;
 
-/// A type that represents a value that can be either valid or invalid
+/// A validation type that can accumulate multiple errors.
+///
+/// `Validated<E, A>` represents either a valid value of type `A` or a collection of
+/// errors of type `E`. Unlike `Result`, which fails fast on the first error,
+/// `Validated` can collect multiple errors during validation.
+///
+/// # Type Parameters
+///
+/// * `E` - The error type
+/// * `A` - The value type
 ///
 /// # Examples
 ///
+/// ```rust
+/// use rustica::datatypes::validated::Validated;
+///
+/// // Create a valid value
+/// let valid: Validated<&str, i32> = Validated::valid(42);
+///
+/// // Create an invalid value with one error
+/// let invalid: Validated<&str, i32> = Validated::invalid("error message");
+///
+/// // Map over valid values
+/// let mapped = valid.map_valid(&|x| x * 2);
 /// ```
-/// use rustica::prelude::*;
-/// use rustica::datatypes::validated::{Validated, ValidatedTypeConstraints};
-/// use rustica::fntype::{FnType, FnTrait};
 ///
-/// #[derive(Debug, Clone, PartialEq, Eq, Default)]
-/// struct MyError(String);
+/// # Functional Programming Context
 ///
-/// impl Extend<MyError> for MyError {
-///     fn extend<T: IntoIterator<Item = MyError>>(&mut self, iter: T) {
-///         for item in iter {
-///             self.0.push_str(&item.0);
-///         }
-///     }
-/// }
+/// `Validated` implements several type classes from functional programming:
 ///
-/// impl IntoIterator for MyError {
-///     type Item = MyError;
-///     type IntoIter = std::vec::IntoIter<Self>;
-///     fn into_iter(self) -> Self::IntoIter { vec![self].into_iter() }
-/// }
+/// - **Functor**: Transform the inner value with `fmap`
+/// - **Applicative**: Combine multiple validations with `apply`, `lift2`, and `lift3`
+/// - **Monad**: Chain computations with `bind`
 ///
-/// impl ValidatedTypeConstraints for MyError {}
-///
-/// let valid: Validated<MyError, i32> = Validated::valid(42);
-/// let invalid: Validated<MyError, i32> = Validated::invalid(MyError("Error".to_string()));
-///
-/// assert_eq!(valid.clone().to_result(), Ok(42));
-/// assert_eq!(invalid.clone().to_result(), Err(vec![MyError("Error".to_string())]));
-///
-/// let result = valid.map_valid(FnType::new(|x| x + 1));
-/// assert_eq!(result.to_result(), Ok(43));
-///
-/// let combined: Validated<MyError, i32> = Validated::valid(1).combine(Validated::valid(2), FnType::new(|x| FnType::new(move |y| x + y)));
-/// assert_eq!(combined.to_result(), Ok(3));
-/// ```
-pub trait ValidatedTypeConstraints: TypeConstraints + Extend<Self> + IntoIterator<Item = Self> {}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
+/// These implementations allow `Validated` to be used in a functional programming style,
+/// enabling composition and transformation of validations.
+#[derive(Clone)]
+pub enum Validated<E, A> {
     /// Represents a valid value of type `A`.
     Valid(A),
     /// Represents an invalid state with a vector of errors of type `E`.
     Invalid(Vec<E>),
 }
 
-impl<E, A> Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    /// Creates a new `Validated` instance with a valid value.
+impl<E: Clone, A: Clone> Validated<E, A> {
+    /// Creates a new valid instance.
     ///
     /// # Arguments
     ///
-    /// * `x` - The valid value to be wrapped.
+    /// * `x` - The valid value
     ///
-    /// # Returns
+    /// # Examples
     ///
-    /// A `Validated::Valid` variant containing the provided value.
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<(), i32> = Validated::valid(42);
+    /// ```
     pub fn valid(x: A) -> Self {
         Validated::Valid(x)
     }
 
-    /// Creates a new `Validated` instance with an invalid value.
+    /// Creates a new invalid instance with a single error.
     ///
     /// # Arguments
     ///
-    /// * `e` - The error value to be wrapped.
+    /// * `e` - The error value
     ///
-    /// # Returns
+    /// # Examples
     ///
-    /// A `Validated::Invalid` variant containing a vector with the provided error.
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let invalid: Validated<&str, ()> = Validated::invalid("validation error");
+    /// ```
     pub fn invalid(e: E) -> Self {
         Validated::Invalid(vec![e])
     }
 
-    /// Creates a new `Validated` instance with multiple invalid values.
+    /// Creates a new invalid instance with multiple errors.
     ///
     /// # Arguments
     ///
-    /// * `errors` - A vector of error values to be wrapped.
+    /// * `errors` - A vector of error values
     ///
-    /// # Returns
+    /// # Examples
     ///
-    /// A `Validated::Invalid` variant containing the provided vector of errors.
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let invalid: Validated<&str, ()> = Validated::invalid_vec(vec!["error1", "error2"]);
+    /// ```
     pub fn invalid_vec(errors: Vec<E>) -> Self {
         Validated::Invalid(errors)
     }
 
-    /// Applies a function to the valid value of a `Validated` instance.
+    /// Maps a function over the valid value.
     ///
-    /// If the `Validated` is `Valid`, it applies the function `f` to the contained value.
-    /// If the `Validated` is `Invalid`, it returns the `Invalid` value unchanged.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B`: The return type of the mapping function, must implement `TypeConstraints`.
-    /// * `F`: The mapping function type, must implement `FnTrait<A, B>`.
+    /// If this is a valid value, applies the function to transform the value.
+    /// If this is invalid, returns the errors unchanged.
     ///
     /// # Arguments
     ///
-    /// * `self`: The `Validated` instance to map over.
-    /// * `f`: The function to apply to the valid value.
+    /// * `f` - Function to apply to the valid value
     ///
-    /// # Returns
+    /// # Examples
     ///
-    /// A new `Validated` instance with the mapped value if valid, or the original errors if invalid.
-    pub fn map_valid<B, F>(self, f: F) -> Validated<E, B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<A, B>,
-    {
-        self.fmap(f)
-    }
-
-    /// Applies a function to the invalid value(s) of a `Validated` instance.
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
     ///
-    /// If the `Validated` is `Invalid`, it applies the function `f` to each error in the contained vector.
-    /// If the `Validated` is `Valid`, it returns the `Valid` value unchanged.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `G`: The new error type, must implement `ValidatedTypeConstraints`.
-    /// * `F`: The mapping function type, must implement `FnTrait<E, G>`.
-    ///
-    /// # Arguments
-    ///
-    /// * `self`: The `Validated` instance to map over.
-    /// * `f`: The function to apply to each invalid value.
-    ///
-    /// # Returns
-    ///
-    /// A new `Validated` instance with the mapped errors if invalid, or the original value if valid.
-    pub fn map_invalid<G, F>(self, f: F) -> Validated<G, A>
-    where
-        G: ValidatedTypeConstraints,
-        F: FnTrait<E, G>,
-    {
+    /// let valid: Validated<(), i32> = Validated::valid(42);
+    /// let doubled = valid.map_valid(&|x| x * 2);
+    /// assert!(matches!(doubled, Validated::Valid(84)));
+    /// ```
+    pub fn map_valid<B: Clone>(&self, f: &dyn Fn(&A) -> B) -> Validated<E, B> {
         match self {
-            Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => Validated::Invalid(es.into_iter().map(|e| f.call(e)).collect()),
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
     }
 
-    /// Combines two `Validated` instances using a provided function.
+    /// Maps a function over the error values.
     ///
-    /// This method combines the current `Validated` instance with another one,
-    /// applying the provided function `f` if both are valid. If either is invalid,
-    /// it collects all errors.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B`: The type of the value in the other `Validated` instance.
-    /// * `C`: The return type of the combining function.
-    /// * `F`: The type of the combining function.
+    /// If this is invalid, applies the function to transform each error.
+    /// If this is valid, returns the value unchanged.
     ///
     /// # Arguments
     ///
-    /// * `self`: The current `Validated` instance.
-    /// * `other`: Another `Validated` instance to combine with.
-    /// * `f`: A function that takes the value from `self` and returns a function
-    ///        that takes the value from `other` and returns a new value.
+    /// * `f` - Function to apply to each error
     ///
-    /// # Returns
+    /// # Examples
     ///
-    /// A new `Validated` instance containing either:
-    /// - A `Valid` value if both inputs were valid, with the result of applying `f`.
-    /// - An `Invalid` value containing all errors if either input was invalid.
-    pub fn combine<B, C, F>(self, other: Validated<E, B>, f: F) -> Validated<E, C>
-    where
-        F: FnTrait<A, FnType<B, C>>,
-        B: TypeConstraints,
-        C: TypeConstraints,
-        E: ValidatedTypeConstraints,
-    {
-        match (self, other) {
-            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f.call(a).call(b)),
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Validated::Invalid(e1)
-            }
-            (Validated::Invalid(e), _) | (_, Validated::Invalid(e)) => Validated::Invalid(e),
-        }
-    }
-
-    /// Converts the `Validated` instance into a `Result`.
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
     ///
-    /// This method transforms a `Validated<E, A>` into a `Result<A, Vec<E>>`.
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(A)` if the `Validated` instance is `Valid`.
-    /// - `Err(Vec<E>)` if the `Validated` instance is `Invalid`.
-    pub fn to_result(self) -> Result<A, Vec<E>> {
+    /// let invalid: Validated<&str, ()> = Validated::invalid("error");
+    /// let mapped = invalid.map_invalid(&|e| format!("Error: {}", e));
+    /// ```
+    pub fn map_invalid<G: Clone>(&self, f: &dyn Fn(&E) -> G) -> Validated<G, A> {
         match self {
-            Validated::Valid(x) => Ok(x),
-            Validated::Invalid(e) => Err(e),
+            Validated::Valid(x) => Validated::Valid(x.clone()),
+            Validated::Invalid(es) => Validated::Invalid(es.iter().map(f).collect()),
         }
     }
 
-    /// Converts a `Result` into a `Validated`.
+    /// Converts from `Result<A, E>` to `Validated<E, A>`.
     ///
     /// # Arguments
     ///
-    /// * `result` - A `Result<A, E>` to convert.
+    /// * `result` - The Result to convert
     ///
-    /// # Returns
+    /// # Examples
     ///
-    /// * `Validated::Valid(A)` if the result is `Ok(A)`.
-    /// * `Validated::Invalid(vec![E])` if the result is `Err(E)`.
-    pub fn from_result(result: Result<A, E>) -> Self {
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let result: Result<i32, &str> = Ok(42);
+    /// let validated = Validated::from_result(&result);
+    /// ```
+    pub fn from_result(result: &Result<A, E>) -> Validated<E, A>
+    where
+        A: Clone,
+        E: Clone,
+    {
         match result {
-            Ok(x) => Validated::Valid(x),
-            Err(e) => Validated::Invalid(vec![e]),
+            Ok(x) => Validated::Valid(x.clone()),
+            Err(e) => Validated::Invalid(vec![e.clone()]),
+        }
+    }
+
+    /// Converts this `Validated` into a `Result`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<(), i32> = Validated::valid(42);
+    /// let result = valid.to_result();
+    /// assert_eq!(result, Ok(42));
+    /// ```
+    pub fn to_result(&self) -> Result<A, Vec<E>> {
+        match self {
+            Validated::Valid(x) => Ok(x.clone()),
+            Validated::Invalid(e) => Err(e.clone()),
         }
     }
 }
 
-impl<E, A> Default for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    fn default() -> Self {
-        Validated::Invalid(Default::default())
-    }
+impl<E, A> HKT for Validated<E, A> {
+    type Source = A;
+    type Output<T> = Validated<E, T>;
 }
 
-impl<E, A> HKT for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    type Output<T> = Validated<E, T> where T: TypeConstraints;
-}
-
-impl<E, A> Pure<A> for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    fn pure(x: A) -> Self::Output<A> {
+impl<E, A> Pure for Validated<E, A> {
+    /// Lifts a value into the `Validated` context.
+    ///
+    /// This creates a new `Valid` variant containing the provided value.
+    /// This is equivalent to `Validated::valid`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::pure::Pure;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::<&str, i32>::pure(42);
+    /// assert!(matches!(valid, Validated::Valid(42)));
+    /// ```
+    fn pure<T>(x: T) -> Self::Output<T> {
         Validated::Valid(x)
     }
 }
 
-impl<E, A> Functor<A> for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    fn fmap<B, F>(self, f: F) -> Validated<E, B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<A, B>,
-    {
+impl<E: Clone, A> Functor for Validated<E, A> {
+    /// Maps a function over the valid value (Functor implementation).
+    ///
+    /// This is the implementation of the `fmap` function from the `Functor` trait.
+    /// It applies the function `f` to the value inside a `Valid` variant, or
+    /// passes through the errors unchanged for an `Invalid` variant.
+    ///
+    /// # Functor Laws
+    ///
+    /// This implementation satisfies the functor laws:
+    ///
+    /// 1. Identity: `fmap(id) == id`
+    /// 2. Composition: `fmap(f . g) == fmap(f) . fmap(g)`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::functor::Functor;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// let doubled = valid.fmap(&|x| x * 2);
+    /// assert!(matches!(doubled, Validated::Valid(84)));
+    /// ```
+    fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
         match self {
-            Validated::Valid(x) => Validated::Valid(f.call(x)),
-            Validated::Invalid(e) => Validated::Invalid(e),
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
     }
 }
 
-impl<E, A> Applicative<A> for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    fn apply<B, F>(self, rf: Self::Output<F>) -> Self::Output<B>
+impl<E: Clone, A> Applicative for Validated<E, A> {
+    /// Applies a function inside a `Validated` context to a value inside a `Validated` context.
+    ///
+    /// This is the implementation of the `apply` function from the `Applicative` trait.
+    /// It allows applying a function wrapped in a `Validated` to a value wrapped in a `Validated`.
+    ///
+    /// When both the function and value are valid, applies the function to the value.
+    /// When either is invalid, collects the errors.
+    ///
+    /// # Applicative Laws
+    ///
+    /// This implementation satisfies the applicative laws:
+    ///
+    /// 1. Identity: `pure(id) <*> v = v`
+    /// 2. Homomorphism: `pure(f) <*> pure(x) = pure(f(x))`
+    /// 3. Interchange: `u <*> pure(y) = pure($ y) <*> u`
+    /// 4. Composition: `pure(.) <*> u <*> v <*> w = u <*> (v <*> w)`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::applicative::Applicative;
+    ///
+    /// let value: Validated<&str, i32> = Validated::valid(5);
+    /// let function: Validated<&str, fn(&i32) -> i32> = Validated::valid(|x: &i32| x * 2);
+    /// let result = value.apply(&function);
+    /// assert!(matches!(result, Validated::Valid(10)));
+    /// ```
+    fn apply<B, F>(&self, rf: &Self::Output<F>) -> Self::Output<B>
     where
-        B: TypeConstraints,
-        F: FnTrait<A, B>,
+        F: Fn(&Self::Source) -> B,
     {
         match (self, rf) {
-            (Validated::Valid(x), Validated::Valid(f)) => Validated::Valid(f.call(x)),
-            (Validated::Invalid(e1), Validated::Valid(_)) | (Validated::Valid(_), Validated::Invalid(e1)) => Validated::Invalid(e1),
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Validated::Invalid(e1)
-            }
+            (Validated::Valid(x), Validated::Valid(f)) => Validated::Valid(f(x)),
+            (Validated::Invalid(e1), _) => Validated::Invalid(e1.clone()),
+            (_, Validated::Invalid(e2)) => Validated::Invalid(e2.clone()),
         }
     }
 
-    fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        F: FnTrait<(A, B), C>,
-    {
-        match (self, mb) {
-            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f.call((a, b))),
-            (Validated::Invalid(e1), Validated::Valid(_)) => Validated::Invalid(e1),
-            (Validated::Valid(_), Validated::Invalid(e2)) => Validated::Invalid(e2),
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Validated::Invalid(e1)
+    /// Combines two `Validated` values using a binary function.
+    ///
+    /// This method takes two `Validated` values and a function that combines their
+    /// inner values if both are valid. If either or both are invalid, it collects
+    /// all the errors.
+    ///
+    /// This is particularly useful for combining multiple validations and collecting
+    /// all errors that occur.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::applicative::Applicative;
+    ///
+    /// let v1: Validated<&str, i32> = Validated::valid(5);
+    /// let v2: Validated<&str, i32> = Validated::valid(10);
+    /// let result = v1.lift2(&v2, &|a, b| a + b);
+    /// assert!(matches!(result, Validated::Valid(15)));
+    ///
+    /// // Collecting errors
+    /// let v1: Validated<&str, i32> = Validated::valid(5);
+    /// let v2: Validated<&str, i32> = Validated::invalid("error");
+    /// let result = v1.lift2(&v2, &|a, b| a + b);
+    /// assert!(matches!(result, Validated::Invalid(_)));
+    /// ```
+    fn lift2<B, C>(&self, rb: &Self::Output<B>, f: &dyn Fn(&Self::Source, &B) -> C) -> Self::Output<C> {
+        match (self, rb) {
+            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                let mut errors = e1.clone();
+                errors.extend(e2.clone());
+                Validated::Invalid(errors)
             }
+            (Validated::Invalid(e), _) => Validated::Invalid(e.clone()),
+            (_, Validated::Invalid(e)) => Validated::Invalid(e.clone()),
         }
     }
 
-    fn lift3<B, C, D, F>(
-        self,
-        mb: Self::Output<B>,
-        mc: Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-        F: FnTrait<(A, B, C), D>,
-    {
-        match (self, mb, mc) {
-            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
-                Validated::Valid(f.call((a, b, c)))
+    /// Combines three `Validated` values using a ternary function.
+    ///
+    /// This method takes three `Validated` values and a function that combines their
+    /// inner values if all are valid. If any are invalid, it collects all the errors.
+    ///
+    /// This is an extension of `lift2` for three arguments, useful for validating
+    /// multiple fields and collecting all errors.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::applicative::Applicative;
+    ///
+    /// let v1: Validated<&str, i32> = Validated::valid(5);
+    /// let v2: Validated<&str, i32> = Validated::valid(10);
+    /// let v3: Validated<&str, i32> = Validated::valid(15);
+    /// let result = v1.lift3(&v2, &v3, &|a, b, c| a + b + c);
+    /// assert!(matches!(result, Validated::Valid(30)));
+    /// ```
+    fn lift3<B, C, D>(
+        &self,
+        rb: &Self::Output<B>,
+        rc: &Self::Output<C>,
+        f: &dyn Fn(&Self::Source, &B, &C) -> D,
+    ) -> Self::Output<D> {
+        match (self, rb, rc) {
+            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => Validated::Valid(f(a, b, c)),
+            (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
+                let mut errors = e1.clone();
+                errors.extend(e2.clone());
+                errors.extend(e3.clone());
+                Validated::Invalid(errors)
             }
-            (Validated::Invalid(mut e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
-                e1.extend(e2);
-                e1.extend(e3);
-                Validated::Invalid(e1)
-            }
-            (Validated::Invalid(e), _, _) => Validated::Invalid(e),
-            (_, Validated::Invalid(e), _) => Validated::Invalid(e),
-            (_, _, Validated::Invalid(e)) => Validated::Invalid(e),
+            (Validated::Invalid(e), _, _) => Validated::Invalid(e.clone()),
+            (_, Validated::Invalid(e), _) => Validated::Invalid(e.clone()),
+            (_, _, Validated::Invalid(e)) => Validated::Invalid(e.clone()),
         }
     }
 }
 
-impl<E, A> Monad<A> for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    fn bind<B, F>(self, f: F) -> Self::Output<B>
+impl<E: Clone, A> Monad for Validated<E, A> {
+    /// Chains a computation that returns a `Validated` (Monad implementation).
+    ///
+    /// This is the implementation of the `bind` function from the `Monad` trait.
+    /// It allows sequencing operations that might fail with validation errors.
+    ///
+    /// Note that using `bind` with `Validated` loses the ability to accumulate errors,
+    /// as it will short-circuit on the first error like `Result` does. If you need
+    /// to accumulate errors, prefer using the `Applicative` methods.
+    ///
+    /// # Monad Laws
+    ///
+    /// This implementation satisfies the monad laws:
+    ///
+    /// 1. Left identity: `pure(a) >>= f = f(a)`
+    /// 2. Right identity: `m >>= pure = m`
+    /// 3. Associativity: `(m >>= f) >>= g = m >>= (\x -> f(x) >>= g)`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(5);
+    /// let result = valid.bind(&|x| Validated::valid(x * 2));
+    /// assert!(matches!(result, Validated::Valid(10)));
+    /// ```
+    fn bind<U>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+        match self {
+            Validated::Valid(x) => f(x),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
+        }
+    }
+
+    /// Flattens a nested `Validated` (Monad implementation).
+    ///
+    /// This is the implementation of the `join` function from the `Monad` trait.
+    /// It flattens a `Validated` that contains another `Validated` into a single level.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// let nested: Validated<&str, Validated<&str, i32>> = 
+    ///     Validated::valid(Validated::valid(42));
+    /// let flattened = nested.join();
+    /// assert!(matches!(flattened, Validated::Valid(42)));
+    /// ```
+    fn join<U>(&self) -> Self::Output<U>
     where
-        B: TypeConstraints,
-        F: FnTrait<A, Self::Output<B>>,
+        Self::Source: Clone + Into<Self::Output<U>>,
     {
         match self {
-            Validated::Valid(x) => f.call(x),
-            Validated::Invalid(e) => Validated::Invalid(e),
+            Validated::Valid(x) => x.clone().into(),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
     }
+}
 
-    fn join<U>(self) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        A: Into<Self::Output<U>>,
-    {
-        self.bind(FnType::new(|x: A| x.into()))
+impl<E, A> Identity for Validated<E, A> {
+    /// Returns a reference to the inner value if valid.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called on an `Invalid` variant.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// assert_eq!(*valid.value(), 42);
+    /// ```
+    fn value(&self) -> &Self::Source {
+        match self {
+            Validated::Valid(x) => x,
+            Validated::Invalid(_) => unreachable!(),
+        }
     }
 }
 
-impl<E: ValidatedTypeConstraints, A: TypeConstraints> Identity for Validated<E, A> {}
-
-impl<E: ValidatedTypeConstraints, A: TypeConstraints> Composable for Validated<E, A> {}
-
-impl<E: ValidatedTypeConstraints, A: TypeConstraints> Category for Validated<E, A>
-where
-    E: ValidatedTypeConstraints,
-    A: TypeConstraints,
-{
-    type Morphism<B, C> = FnType<B, C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints;
+impl<E, A> Composable for Validated<E, A> {
+    /// Composes two functions.
+    ///
+    /// This is a utility function that composes two functions into a single function.
+    /// It applies `f` to the input and then applies `g` to the result of `f`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::traits::composable::Composable;
+    ///
+    /// let f = |x: i32| x + 1;
+    /// let g = |x: i32| x * 2;
+    /// let composed = Validated::<(), i32>::compose(&f, &g);
+    /// assert_eq!(composed(5), 12); // (5 + 1) * 2 = 12
+    /// ```
+    fn compose<T, U>(f: &dyn Fn(Self::Source) -> T, g: &dyn Fn(T) -> U) -> impl Fn(Self::Source) -> U {
+        move |x| g(f(x))
+    }
 }
-
-impl<E: ValidatedTypeConstraints, A: TypeConstraints> Arrow for Validated<E, A> {}

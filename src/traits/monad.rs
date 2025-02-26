@@ -1,187 +1,206 @@
 use crate::traits::applicative::Applicative;
-use crate::traits::hkt::TypeConstraints;
-use crate::fntype::FnTrait;
-use crate::traits::category::Category;
 
 /// A trait for monads, which are applicative functors that support sequencing of operations.
 /// 
+/// Monads provide a way to chain computations while maintaining context. They are particularly
+/// useful for handling effects like optional values, error handling, or state management.
+///
+/// # Type Parameters
+/// The trait inherits type parameters from `Applicative`:
+/// * `Source`: The type of values being transformed
+/// * `Output<T>`: The result type after transformation
+///
 /// # Laws
-/// 1. Left Identity: `pure(x).bind(f) = f(x)`
-/// 2. Right Identity: `m.bind(pure) = m`
-/// 3. Associativity: `m.bind(f).bind(g) = m.bind(|x| f(x).bind(g))`
-/// 4. Applicative Consistency: `m.bind(|x| pure(f(x))) = m.fmap(f)`
-/// 5. Join Consistency: `m.bind(f) = m.fmap(f).join()`
-/// 6. Pure Preservation: `join(pure(pure(x))) = pure(x)`
-/// 7. Natural Transformation: `η(m.bind(f)) = η(m).bind(η ∘ f)`
-/// 8. Category Consistency: `m.bind(f).bind(g) = m.bind(compose_morphisms(f, g))`
+/// For a valid Monad implementation, the following laws must hold:
+///
+/// 1. Left Identity: 
+///    pure(x).bind(f) == f(x)
+///    Applying a function to a pure value should be the same as applying the function directly.
+///
+/// 2. Right Identity:
+///    m.bind(pure) == m
+///    Lifting a monadic value into a pure context should not change the value.
+///
+/// 3. Associativity:
+///    m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
+///    The order of binding operations should not matter.
+///
+/// 4. Applicative Consistency:
+///    m.bind(|x| pure(f(x))) == m.fmap(f)
+///    Binding with a pure function should be equivalent to fmap.
+///
+/// 5. Join Consistency:
+///    m.bind(f) == m.fmap(f).join()
+///    Binding can be decomposed into fmap followed by join.
 ///
 /// # Examples
+///
+/// Basic implementation for Result:
+/// ```rust
+/// use rustica::traits::hkt::HKT;
+/// use rustica::traits::pure::Pure;
+/// use rustica::traits::functor::Functor;
+/// use rustica::traits::applicative::Applicative;
+/// use rustica::traits::monad::Monad;
+/// use rustica::traits::composable::Composable;
+/// use rustica::prelude::Identity;
+///
+/// // A wrapper around Result to implement our traits
+/// #[derive(Clone)]
+/// struct MyResult<T, E>(Result<T, E>);
+///
+/// impl<T, E> HKT for MyResult<T, E> {
+///     type Source = T;
+///     type Output<U> = MyResult<U, E>;
+/// }
+///
+/// impl<T, E> Pure for MyResult<T, E> {
+///     fn pure<U>(x: U) -> Self::Output<U> {
+///         MyResult(Ok(x))
+///     }
+/// }
+/// 
+/// impl<T, E: std::fmt::Debug> Identity for MyResult<T, E> {
+///     fn value(&self) -> &Self::Source {
+///         self.0.as_ref().expect("Expected Ok value, got Err")
+///     }
+/// }
+///
+/// impl<T, E: Clone> Functor for MyResult<T, E> {
+///     fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
+///         MyResult(self.0.as_ref().map(f).map_err(Clone::clone))
+///     }
+/// }
+/// 
+/// impl<T: Clone, E: Clone> Applicative for MyResult<T, E> {
+///     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+///     where
+///         F: Fn(&Self::Source) -> B,
+///     {
+///         match (&self.0, &f.0) {
+///             (Ok(x), Ok(f)) => MyResult(Ok(f(&x))),
+///             (Err(e), _) => MyResult(Err(e.clone())),
+///             (_, Err(e)) => MyResult(Err(e.clone())),
+///         }
+///     }
+///
+///     fn lift2<B, C>(
+///         &self,
+///         b: &Self::Output<B>,
+///         f: &dyn Fn(&Self::Source, &B) -> C,
+///     ) -> Self::Output<C> {
+///         match (&self.0, &b.0) {
+///             (Ok(x), Ok(y)) => MyResult(Ok(f(&x, &y))),
+///             (Err(e), _) => MyResult(Err(e.clone())),
+///             (_, Err(e)) => MyResult(Err(e.clone())),
+///         }
+///     }
+///
+///     fn lift3<B, C, D>(
+///         &self,
+///         b: &Self::Output<B>,
+///         c: &Self::Output<C>,
+///         f: &dyn Fn(&Self::Source, &B, &C) -> D,
+///     ) -> Self::Output<D> {
+///         match (&self.0, &b.0, &c.0) {
+///             (Ok(x), Ok(y), Ok(z)) => MyResult(Ok(f(&x, &y, &z))),
+///             (Err(e), _, _) => MyResult(Err(e.clone())),
+///             (_, Err(e), _) => MyResult(Err(e.clone())),
+///             (_, _, Err(e)) => MyResult(Err(e.clone())),
+///         }
+///     }
+/// }
+///
+/// impl<T: Clone, E: Clone> Monad for MyResult<T, E> {
+///     fn join<U>(&self) -> Self::Output<U>
+///     where
+///         Self::Source: Into<Self::Output<U>>
+///     {
+///         match &self.0 {
+///             Ok(x) => x.clone().into(),
+///             Err(e) => MyResult(Err(e.clone())),
+///         }
+///     }
+///
+///     fn bind<U>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+///         match &self.0 {
+///             Ok(x) => f(x),
+///             Err(e) => MyResult(Err(e.clone())),
+///         }
+///     }
+/// }
+/// 
+/// // Basic error handling
+/// let success: MyResult<i32, &str> = MyResult(Ok(5));
+/// let error: MyResult<i32, &str> = MyResult(Err("error"));
+///
+/// // Using bind for sequential operations
+/// let result1 = success.bind(&|x| MyResult(Ok(x + 1)));
+/// assert_eq!(result1.0, Ok(6));
+///
+/// // Error propagation
+/// let result2 = error.bind(&|x| MyResult(Ok(x + 1)));
+/// assert_eq!(result2.0, Err("error"));
+///
+/// // Chaining multiple operations
+/// let result3 = success
+///     .bind(&|x| MyResult(Ok(x + 1)))
+///     .bind(&|x| MyResult(Ok(x * 2)));
+/// assert_eq!(result3.0, Ok(12));
+///
+/// // Using join to flatten nested monads
+/// let nested: MyResult<MyResult<i32, &str>, &str> = MyResult(Ok(MyResult(Ok(5))));
+/// let flattened = nested.join();
+/// assert_eq!(flattened.0, Ok(5));
+///
+/// let nested_err: MyResult<MyResult<i32, &str>, &str> = MyResult(Ok(MyResult(Err("inner error"))));
+/// let flattened_err = nested_err.join();
+/// assert_eq!(flattened_err.0, Err("inner error"));
 /// ```
-/// use rustica::prelude::*;
-/// 
-/// #[derive(Clone, Debug, PartialEq, Eq, Default)]
-/// struct MyMonad<T>(T);
-/// 
-/// impl<T: TypeConstraints> HKT for MyMonad<T> {
-///     type Output<U> = MyMonad<U> where U: TypeConstraints;
-/// }
-/// 
-/// impl<T: TypeConstraints> Functor<T> for MyMonad<T> {
-///     fn fmap<U, F>(self, f: F) -> Self::Output<U>
-///     where
-///         U: TypeConstraints,
-///         F: FnTrait<T, U>,
-///     {
-///         MyMonad(f.call(self.0))
-///     }
-/// }
-/// 
-/// impl<T: TypeConstraints> Pure<T> for MyMonad<T> {
-///     fn pure(x: T) -> Self { MyMonad(x) }
-/// }
-/// 
-/// impl<T: TypeConstraints> Identity for MyMonad<T> {}
-/// 
-/// impl<T: TypeConstraints> Composable for MyMonad<T> {}
-/// 
-/// impl<T: TypeConstraints> Category for MyMonad<T> {
-///     type Morphism<A, B> = FnType<A, B> where A: TypeConstraints, B: TypeConstraints;
-/// 
-///     fn identity_morphism<A: TypeConstraints>() -> Self::Morphism<A, A> {
-///         FnType::new(|x| x)
-///     }
-/// 
-///     fn compose_morphisms<A, B, C>(f: Self::Morphism<A, B>, g: Self::Morphism<B, C>) -> Self::Morphism<A, C>
-///     where
-///         A: TypeConstraints,
-///         B: TypeConstraints,
-///         C: TypeConstraints,
-///     {
-///         FnType::new(move |x| g.call(f.call(x)))
-///     }
-/// }
-/// 
-/// impl<T: TypeConstraints> Applicative<T> for MyMonad<T> {
-///     fn apply<U, F>(self, f: Self::Output<F>) -> Self::Output<U>
-///     where
-///         U: TypeConstraints,
-///         F: FnTrait<T, U>,
-///     {
-///         MyMonad(f.0.call(self.0))
-///     }
-/// 
-///     fn lift2<U, C, F>(self, b: Self::Output<U>, f: F) -> Self::Output<C>
-///     where
-///         U: TypeConstraints,
-///         C: TypeConstraints,
-///         F: FnTrait<(T, U), C>,
-///     {
-///         MyMonad(f.call((self.0, b.0)))
-///     }
-/// 
-///     fn lift3<U, C, D, F>(self, b: Self::Output<U>, c: Self::Output<C>, f: F) -> Self::Output<D>
-///     where
-///         U: TypeConstraints,
-///         C: TypeConstraints,
-///         D: TypeConstraints,
-///         F: FnTrait<(T, U, C), D>,
-///     {
-///         MyMonad(f.call((self.0, b.0, c.0)))
-///     }
-/// }
-/// 
-/// impl<T: TypeConstraints> Monad<T> for MyMonad<T> {
-///     fn join<U>(self) -> Self::Output<U>
-///     where
-///         U: TypeConstraints,
-///         T: Into<Self::Output<U>>,
-///     {
-///         self.0.into()
-///     }
-/// 
-///     fn bind<U, F>(self, f: F) -> Self::Output<U>
-///     where
-///         U: TypeConstraints,
-///         F: FnTrait<T, Self::Output<U>>,
-///     {
-///         f.call(self.0)
-///     }
-/// }
-/// 
-/// // Test the Monad laws
-/// let m = MyMonad(5);
-/// let f = FnType::new(|x: i32| MyMonad(x * 2));
-/// let g = FnType::new(|x: i32| MyMonad(x + 1));
-/// 
-/// // Left Identity
-/// assert_eq!(MyMonad::pure(5).bind(f.clone()), f.call(5));
-/// 
-/// // Right Identity
-/// assert_eq!(m.clone().bind(FnType::new(MyMonad::pure)), m);
-/// 
-/// // Associativity
-/// assert_eq!(
-///     m.clone().bind(f.clone()).bind(g.clone()),
-///     m.bind(FnType::new(move |x: i32| f.call(x.clone()).bind(g.clone())))
-/// );
-/// ```
-pub trait Monad<T>: Applicative<T> + Category
-where
-    T: TypeConstraints,
-{
+pub trait Monad: Applicative {
     /// Flattens a nested monad structure.
     ///
     /// This operation is also known as "flatten" in some contexts.
     /// It takes a monad of a monad and collapses it into a single layer.
     ///
     /// # Type Parameters
-    /// - `U`: The type contained in the inner monad.
+    /// * `U`: The type contained in the inner monad
     ///
     /// # Returns
-    /// A monad containing the inner value directly.
-    fn join<U>(self) -> Self::Output<U>
+    /// A monad containing the inner value directly
+    fn join<U>(&self) -> Self::Output<U>
     where
-        U: TypeConstraints,
-        T: Into<Self::Output<U>>;
+        Self::Source: Clone + Into<Self::Output<U>>;
 
     /// Applies a function that returns a monadic value to the contents of this monad.
     ///
     /// This is the core operation of a monad, allowing for sequencing of monadic computations.
+    /// It is also known as "flatMap" or "chain" in some contexts.
     ///
     /// # Type Parameters
-    /// - `U`: The type of the resulting monadic value.
-    /// - `F`: The type of the function to apply.
+    /// * `U`: The type of the resulting monadic value
     ///
     /// # Parameters
-    /// - `f`: A function that takes a value of type `T` and returns a monadic value.
+    /// * `f`: A function that takes a value of type `T` and returns a monadic value
     ///
     /// # Returns
-    /// A new monadic value of type `Self::Output<U>`.
-    fn bind<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, Self::Output<U>>;
+    /// A new monadic value of type `Self::Output<U>`
+    fn bind<U: Clone>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U>;
 
-    /// Applies a function that returns a monadic value to the contents of this monad.
+    /// Alias for `bind` that matches common functional programming terminology.
     ///
-    /// This method is equivalent to `bind` and is provided for compatibility with
-    /// other functional programming paradigms.
+    /// This method provides compatibility with other functional programming libraries
+    /// and languages that use the term "flatMap".
     ///
-    /// # Type Parameters
-    /// - `U`: The type of the resulting monadic value.
-    /// - `F`: The type of the function to apply.
+    /// * `U`: The type of the resulting monadic value
+    /// * `F`: The type of the function to apply
     ///
     /// # Parameters
-    /// - `f`: A function that takes a value of type `T` and returns a monadic value.
+    /// * `f`: A function that takes a value of type `T` and returns a monadic value
     ///
     /// # Returns
-    /// A new monadic value of type `Self::Output<U>`.
-    fn flat_map<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<T, Self::Output<U>>,
-        Self: Sized,
-    {
+    /// A new monadic value of type `Self::Output<U>`
+    fn flat_map<U: Clone>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
         self.bind(f)
     }
 }

@@ -1,151 +1,145 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::Hash;
-use crate::traits::hkt::TypeConstraints;
 
-/// A trait for semigroups, which are types with an associative binary operation.
-/// 
-/// # Type Parameters
-/// * `T` - The type of elements in the semigroup
-/// 
+/// A trait for semigroups, which are algebraic structures with an associative binary operation.
+/// A semigroup consists of a set together with a binary operation that combines two elements
+/// of the set to produce another element of the set.
+///
+/// # Mathematical Definition
+///
+/// A semigroup is a pair (S, •) where:
+/// - S is a non-empty set
+/// - • is a binary operation S × S → S
+///
 /// # Laws
-/// A Semigroup instance must satisfy these laws:
-/// 1. Associativity: For any values `x`, `y`, `z`,
-///    `x.combine(y.combine(z)) = (x.combine(y)).combine(z)`
-/// 2. Closure: For any values `x`, `y`,
-///    `x.combine(y)` must be of the same type as `x` and `y`
-/// 3. Naturality: For any natural transformation `η: F ~> G`,
-///    `η(x.combine(y)) = η(x).combine(η(y))`
-/// 4. Totality: For any values `x`, `y`,
-///    `x.combine(y)` must be defined for all `x` and `y`
-/// 5. Well-Defined: For any values `x`, `y`,
-///    `x.combine(y)` must be deterministic
-/// 6. Non-Empty: For any semigroup `S`,
-///    There must exist at least one element
-/// 7. Commutativity (if applicable): For any values `x`, `y`,
-///    `x.combine(y) = y.combine(x)`
-/// 8. Idempotency (if applicable): For any value `x`,
-///    `x.combine(x) = x`
-pub trait Semigroup: TypeConstraints {
-    /// Combines two values of the same type.
+///
+/// 1. Associativity:
+///    ```text
+///    (a • b) • c = a • (b • c)
+///    ```
+///    For all a, b, c in S
+///
+/// 2. Closure:
+///    ```text
+///    a • b ∈ S
+///    ```
+///    For all a, b in S
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::semigroup::Semigroup;
+///
+/// // String concatenation forms a semigroup
+/// let hello = String::from("Hello, ");
+/// let world = String::from("World!");
+/// assert_eq!(hello.combine(&world), "Hello, World!");
+///
+/// // Vector concatenation forms a semigroup
+/// let v1 = vec![1, 2];
+/// let v2 = vec![3, 4];
+/// assert_eq!(v1.combine(&v2), vec![1, 2, 3, 4]);
+///
+/// // Numbers under addition form a semigroup
+/// #[derive(Debug, PartialEq)]
+/// struct Sum(i32);
+///
+/// impl Semigroup for Sum {
+///     fn combine(&self, other: &Self) -> Self {
+///         Sum(self.0 + other.0)
+///     }
+/// }
+///
+/// let a = Sum(5);
+/// let b = Sum(3);
+/// let c = Sum(2);
+///
+/// // Demonstrating associativity
+/// assert_eq!(a.combine(&b.combine(&c)), (a.combine(&b)).combine(&c));
+/// ```
+///
+/// # Common Use Cases
+///
+/// 1. **Collection Operations**
+///    - Concatenating strings or lists
+///    - Merging maps or sets
+///    - Combining sequences
+///
+/// 2. **Numeric Operations**
+///    - Addition of numbers
+///    - Multiplication of numbers
+///    - Finding minimum or maximum values
+///
+/// 3. **Data Aggregation**
+///    - Combining partial results
+///    - Merging statistics
+///    - Accumulating values
+///
+/// 4. **Parallel Processing**
+///    - Combining partial results from parallel computations
+///    - Reducing distributed data
+///
+/// # Type Parameters
+///
+/// The Semigroup trait is implemented for various types that support an associative
+/// binary operation. Common implementations include:
+///
+/// - `String`: Concatenation
+/// - `Vec<T>`: List concatenation
+/// - `HashMap<K, V>`: Map union with value combination
+/// - Numeric types wrapped in newtype patterns
+pub trait Semigroup {
+    /// Combines two values of the same type using an associative operation.
     ///
     /// # Arguments
-    /// * `other` - Another value of the same type
+    ///
+    /// * `other` - Another value of the same type to combine with `self`
     ///
     /// # Returns
-    /// The combined result
-    fn combine(self, other: Self) -> Self;
-
-    /// Combines all elements in an iterator using the semigroup operation.
     ///
-    /// # Type Parameters
-    /// * `I` - The type of the iterator
-    ///
-    /// # Arguments
-    /// * `iter` - An iterator over elements of the semigroup
-    ///
-    /// # Returns
-    /// The combined result, or None if the iterator is empty
-    fn combine_all<I>(mut iter: I) -> Option<Self>
-    where
-        I: Iterator<Item = Self>,
-    {
-        iter.next().map(|first| iter.fold(first, |acc, x| acc.combine(x)))
-    }
-
-    /// Combines all elements in an iterator with an initial value.
-    ///
-    /// # Type Parameters
-    /// * `I` - The type of the iterator
-    ///
-    /// # Arguments
-    /// * `init` - The initial value
-    /// * `iter` - An iterator over elements of the semigroup
-    ///
-    /// # Returns
-    /// The combined result starting with the initial value
-    fn combine_all_with<I>(&self, iter: I) -> Self
-    where
-        I: IntoIterator<Item = Self>,
-    {
-        iter.into_iter().fold(self.clone(), |acc, x| acc.combine(x))
-    }
+    /// The result of combining `self` with `other`
+    fn combine(&self, other: &Self) -> Self;
 }
 
-// Basic type implementations
 impl Semigroup for String {
-    fn combine(self, other: Self) -> Self {
-        self + &other
+    fn combine(&self, other: &Self) -> Self {
+        self.clone() + other
     }
 }
 
-impl<T: Clone + Send + Sync + 'static> Semigroup for Vec<T>
-where
-    T: TypeConstraints,
-{
-    fn combine(mut self, other: Self) -> Self {
-        self.extend(other);
-        self
+impl<T: Clone> Semigroup for Vec<T> {
+    fn combine(&self, other: &Self) -> Self {
+        let mut result = self.clone();
+        result.extend(other.iter().cloned());
+        result
     }
 }
 
-impl<T: Eq + Hash + Clone + Send + Sync + 'static> Semigroup for HashSet<T>
-where
-    T: TypeConstraints,
-{
-    fn combine(mut self, other: Self) -> Self {
-        self.extend(other);
-        self
-    }
-}
-
-impl<K, V> Semigroup for HashMap<K, V>
-where
-    K: Eq + Hash + TypeConstraints,
-    V: Semigroup,
-{
-    fn combine(mut self, other: Self) -> Self {
+impl<K: Eq + Hash + Clone, V: Semigroup + Clone> Semigroup for HashMap<K, V> {
+    fn combine(&self, other: &Self) -> Self {
+        let mut result = self.clone();
         for (k, v) in other {
-            match self.remove(&k) {
-                Some(existing) => {
-                    self.insert(k, existing.combine(v));
-                }
-                None => {
-                    self.insert(k, v);
-                }
-            }
+            result
+                .entry(k.clone())
+                .and_modify(|e| *e = e.combine(v))
+                .or_insert(v.clone());
         }
-        self
+        result
     }
 }
 
-// Tuple implementations
 impl<A: Semigroup, B: Semigroup> Semigroup for (A, B) {
-    fn combine(self, other: Self) -> Self {
-        (self.0.combine(other.0), self.1.combine(other.1))
+    fn combine(&self, other: &Self) -> Self {
+        (self.0.combine(&other.0), self.1.combine(&other.1))
     }
 }
 
 impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
-    fn combine(self, other: Self) -> Self {
+    fn combine(&self, other: &Self) -> Self {
         (
-            self.0.combine(other.0),
-            self.1.combine(other.1),
-            self.2.combine(other.2),
+            self.0.combine(&other.0),
+            self.1.combine(&other.1),
+            self.2.combine(&other.2),
         )
     }
-}
-
-/// Combines multiple Semigroup elements with an initial value.
-///
-/// # Type Parameters
-/// * `S` - The type of the semigroup
-///
-/// # Arguments
-/// * `init` - The initial value
-/// * `items` - A vector of semigroup elements
-///
-/// # Returns
-/// The combined result
-pub fn combine_all_with<S: Semigroup>(init: S, items: Vec<S>) -> S {
-    items.into_iter().fold(init, |acc, x| acc.combine(x))
 }

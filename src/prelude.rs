@@ -10,7 +10,7 @@
 ///
 /// // Now you can use HKT, Functor, Monad, etc. without additional imports
 /// ```
-pub use crate::traits::hkt::{HKT, TypeConstraints};
+pub use crate::traits::hkt::HKT;
 pub use crate::traits::functor::Functor;
 pub use crate::traits::applicative::Applicative;
 pub use crate::traits::category::Category;
@@ -23,10 +23,7 @@ pub use crate::traits::identity::Identity;
 pub use crate::traits::monoid::Monoid;
 pub use crate::traits::semigroup::Semigroup;
 pub use crate::traits::traversable::Traversable;
-pub use crate::traits::sequence::Sequence;
 pub use crate::traits::foldable::Foldable;
 pub use crate::traits::comonad::Comonad;
 pub use crate::traits::bifunctor::Bifunctor;
 pub use crate::traits::contravariant_functor::ContravariantFunctor;
-
-pub use crate::fntype::{FnType, FnTrait};

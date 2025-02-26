@@ -1,38 +1,94 @@
-use crate::traits::hkt::{HKT, TypeConstraints};
+use crate::traits::hkt::HKT;
 use crate::traits::applicative::Applicative;
-use crate::fntype::FnTrait;
 
-/// A trait for traversable structures that can be traversed with effects.
-/// 
-/// Traversable provides a way to:
-/// 1. Transform elements inside the structure while preserving the structure
-/// 2. Accumulate effects in a specific order
-/// 3. Combine multiple effectful computations
-/// 
+/// A trait for structures that can be traversed from left to right while preserving structure
+/// and accumulating effects in an applicative functor.
+///
+/// # Mathematical Definition
+///
+/// For a type constructor `T`, a traversable instance consists of two operations:
+/// - `traverse`: `(A -> F<B>) -> T<A> -> F<T<B>>`
+/// - `sequence`: `T<F<A>> -> F<T<A>>`
+///
+/// where `F` is an applicative functor.
+///
 /// # Type Parameters
-/// * `A` - The type of elements in the traversable structure
-/// 
-pub trait Traversable<A>: HKT 
-where
-    A: TypeConstraints,
-{
-    /// Traverse this structure with effects.
-    /// 
-    /// This method allows you to:
-    /// 1. Apply a function that produces effects to each element
-    /// 2. Collect all effects in a specific order
-    /// 3. Preserve the original structure
-    /// 
+///
+/// The trait is implemented on types that implement `Applicative`, where:
+/// * `Source` is the type of elements in the traversable structure
+/// * `Output<T>` represents the structure containing elements of type `T`
+///
+/// # Laws
+///
+/// For a valid `Traversable` implementation, the following laws must hold:
+///
+/// 1. Naturality:
+/// ```text
+/// t.traverse(f).map(g) = t.traverse(x -> f(x).map(g))
+/// ```
+/// Natural transformations commute with traversals.
+///
+/// 2. Identity:
+/// ```text
+/// t.traverse(Identity::pure) = Identity::pure(t)
+/// ```
+/// Traversing with the identity applicative functor is equivalent to pure.
+///
+/// 3. Composition:
+/// ```text
+/// t.traverse(Compose::pure) = Compose::pure(t.traverse(f).map(_.traverse(g)))
+/// ```
+/// Traversing with composed applicative functors is equivalent to composing traversals.
+///
+/// # Common Use Cases
+///
+/// The `Traversable` trait is commonly used in scenarios where:
+/// - You need to sequence effects while maintaining structure
+/// - You want to perform parallel or distributed computations
+/// - You need to validate multiple values while collecting errors
+/// - You want to transform a structure of effects into an effect of structure
+pub trait Traversable: Applicative {
+    /// Traverses this structure with effects.
+    ///
+    /// Maps each element of the structure to an effect, and then collects
+    /// the results in the minimal set of effects required to reconstruct
+    /// the structure.
+    ///
     /// # Type Parameters
-    /// * `F` - The applicative functor that will contain the effects
-    /// * `B` - The resulting type after applying the function
-    /// * `Fn` - The function type that produces effects
-    /// 
+    ///
+    /// * `F`: The applicative functor that will contain the effects
+    /// * `B`: The resulting type after applying the function
+    /// * `Fn`: The function type that produces effects
+    ///
+    /// # Arguments
+    ///
+    /// * `f`: Function that maps elements to effects
+    ///
     /// # Returns
+    ///
     /// A new structure wrapped in the effect type `F`
-    fn traverse<F, B, Fn>(self, f: Fn) -> F::Output<Self::Output<B>>
+    fn traverse<F, B>(&self, f: &dyn Fn(&Self::Source) -> F::Output<B>) -> F::Output<Self::Output<B>>
     where
-        F: Applicative<A>,
-        B: TypeConstraints,
-        Fn: FnTrait<A, F::Output<B>>;
+        F: HKT<Source = B>,
+        F: Applicative,
+        B: Clone;
+
+    /// Sequences a structure of effects into an effect of structure.
+    ///
+    /// This operation takes a structure where each element is an effect and
+    /// reorders it into a single effect containing a structure of values.
+    /// It is equivalent to `traverse(identity)` when the elements are already effects.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `F`: The applicative functor containing the effects
+    ///
+    /// # Returns
+    ///
+    /// The reordered structure wrapped in a single effect
+    fn sequence<F>(&self) -> F::Output<Self::Output<F::Source>>
+    where
+        F: Applicative,
+        F::Source: Clone,
+        Self::Source: Clone + Into<F::Source>;
 }

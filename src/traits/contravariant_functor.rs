@@ -1,63 +1,58 @@
-use crate::fntype::{FnType, FnTrait};
-use crate::traits::hkt::{HKT, TypeConstraints};
+use crate::traits::hkt::HKT;
 
-/// A trait for contravariant functors.
+/// A contravariant functor is a type constructor that allows mapping functions in a way that reverses
+/// their direction. While regular functors map functions forward (A -> B), contravariant functors map
+/// functions backward (B -> A).
+///
+/// # Mathematical Definition
+///
+/// In category theory, a contravariant functor F from category C to category D is a functor that:
+/// - Maps objects A in C to objects F(A) in D
+/// - Maps morphisms f: A -> B in C to morphisms F(f): F(B) -> F(A) in D, reversing the arrow
 ///
 /// # Laws
-/// 1. Identity: `f.contramap(|x| x) = f`
-/// 2. Composition: `f.contramap(|x| g(h(x))) = f.contramap(h).contramap(g)`
-/// 3. Naturality: `η(f.contramap(g)) = η(f).contramap(g)`
 ///
-/// # Examples
+/// A valid contravariant functor must satisfy these laws:
 ///
-/// ```
-/// use rustica::prelude::*;
+/// 1. Identity:
+///    ```text
+///    contravariant_map(id) = id
+///    ```
+///    Mapping the identity function should produce the identity function.
 ///
-/// #[derive(Clone, Debug, PartialEq, Eq, Default)]
-/// struct Predicate<A: TypeConstraints>(FnType<A, bool>);
+/// 2. Composition:
+///    ```text
+///    contravariant_map(f . g) = contravariant_map(g) . contravariant_map(f)
+///    ```
+///    The mapping of a composition should equal the composition of the mappings in reverse order.
 ///
-/// impl<A: TypeConstraints> HKT for Predicate<A> {
-///     type Output<T> = Predicate<T> where T: TypeConstraints;
-/// }
+/// # Common Use Cases
 ///
-/// impl<A: TypeConstraints> ContravariantFunctor<A> for Predicate<A> {
-///     fn contravariant_map<B, F>(self, f: F) -> <Predicate<A> as rustica::prelude::HKT>::Output<B>
-///     where
-///         B: TypeConstraints,
-///         F: FnTrait<B, A>,
-///     {
-///         Predicate(FnType::new(move |b| self.0.call(f.call(b))))
-///     }
+/// 1. **Comparison Functions**
+///    - Transform comparisons to work with complex types
+///    - Create derived orderings based on specific fields or properties
 ///
-///     fn into_inner(self) -> A {
-///         unimplemented!("Predicate does not have a meaningful inner value")
-///     }
-/// }
+/// 2. **Predicates and Validation**
+///    - Transform predicates to work with different input types
+///    - Build complex validation rules from simpler ones
 ///
-/// let greater_than_5 = Predicate(FnType::new(|x: i32| x > 5));
-/// let length_greater_than_5 = greater_than_5.contravariant_map(FnType::new(|s: String| s.len() as i32));
-///
-/// assert!(length_greater_than_5.0.call("123456".to_string()));
-/// assert!(!length_greater_than_5.0.call("1234".to_string()));
-/// ```
-pub trait ContravariantFunctor<T>: HKT + TypeConstraints
-where
-    T: TypeConstraints,
-{
-    fn contravariant_map<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: TypeConstraints,
-        F: FnTrait<U, T>;
-
-    fn into_inner(self) -> T;
-
-    fn contravariant_compose<U, V, F, G>(f: F, g: G) -> FnType<V, T>
-    where
-        U: TypeConstraints,
-        V: TypeConstraints,
-        F: FnTrait<U, T>,
-        G: FnTrait<V, U>,
-    {
-        FnType::new(move |v| f.call(g.call(v)))
-    }
+/// 3. **Callbacks and Event Handlers**
+///    - Adapt callback signatures for different contexts
+///    - Transform event handlers to work with different event types
+pub trait ContravariantFunctor: HKT {
+    /// Maps a function that transforms values of type U into values of type Self::Source,
+    /// producing a new contravariant functor that works with type U.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `U`: The new input type for the resulting functor
+    ///
+    /// # Arguments
+    ///
+    /// * `f`: Function that converts from references of the new type U to Self::Source
+    ///
+    /// # Returns
+    ///
+    /// A new contravariant functor that works with values of type U
+    fn contramap<U>(&self, f: &dyn Fn(&U) -> Self::Source) -> Self::Output<U>;
 }

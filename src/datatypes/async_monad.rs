@@ -1,217 +1,365 @@
-use std::future::Future;
-use futures::future::FutureExt;
+//! # Asynchronous Monad
+//! 
+//! The `AsyncM` datatype represents an asynchronous computation that will eventually produce a value of type `A`.
+//! It provides a monadic interface for working with asynchronous operations in a functional programming style.
+//! 
+//! ## Functional Programming Context
+//! 
+//! In functional programming, asynchronous monads are used to:
+//! 
+//! - Represent computations that will complete in the future
+//! - Compose and sequence asynchronous operations
+//! - Handle asynchronous control flow in a pure functional manner
+//! - Abstract away the complexity of async/await patterns
+//! 
+//! Similar constructs in other functional programming languages include:
+//! 
+//! - `IO` in Cats Effect (Scala)
+//! - `Task` in Arrow (Kotlin)
+//! - `Task` in fp-ts (TypeScript)
+//! - `IO` in Haskell libraries like `async`
+//! 
+//! ## Type Class Implementations
+//! 
+//! The `AsyncM` type implements several important functional programming abstractions:
+//! 
+//! - `Functor`: Allows mapping functions over the eventual result
+//! - `Applicative`: Enables applying functions wrapped in `AsyncM` to values wrapped in `AsyncM`
+//! - `Monad`: Provides sequencing of asynchronous operations
+//! 
+//! ## Basic Usage
+//! 
+//! ```rust
+//! use rustica::datatypes::async_monad::AsyncM;
+//! use tokio;
+//! use std::future::Future;
+//! 
+//! #[tokio::main]
+//! async fn main() {
+//!     // Create a pure value
+//!     let async_value = AsyncM::pure(42);
+//!     
+//!     // Map over the value
+//!     let doubled = async_value.clone().fmap(|x| async move { x * 2 });
+//!     assert_eq!(doubled.try_get().await, 84);
+//!     
+//!     // Chain async computations
+//!     let result = async_value
+//!         .bind(|x| async move { AsyncM::pure(x + 1) })
+//!         .fmap(|x| async move { x * 2 });
+//!     assert_eq!(result.try_get().await, 86);
+//! }
+//! ```
+use futures::future::{self, Future};
+use std::pin::Pin;
+use std::sync::Arc;
 
-use crate::traits::hkt::{HKT, TypeConstraints};
-use crate::traits::applicative::Applicative;
-use crate::traits::functor::Functor;
-use crate::traits::pure::Pure;
-use crate::traits::monad::Monad;
-use crate::traits::category::Category;
-use crate::traits::composable::Composable;
-use crate::traits::identity::Identity;
-
-use crate::fntype::{FnType, FnTrait};
-
-/// An async monad that represents an asynchronous computation.
-///
+/// The asynchronous monad, which represents a computation that will eventually produce a value.
+/// 
+/// `AsyncM` provides a way to work with asynchronous operations in a functional style,
+/// allowing composition and sequencing of async computations while maintaining
+/// referential transparency.
+/// 
+/// # Type Parameters
+/// 
+/// * `A` - The type of the value that will be produced by the async computation
+/// 
 /// # Examples
-///
-/// ```
+/// 
+/// ```rust
 /// use rustica::datatypes::async_monad::AsyncM;
-/// use rustica::traits::pure::Pure;
-/// use rustica::traits::monad::Monad;
-/// use rustica::fntype::{FnType, FnTrait};
-///
-/// let async_value = AsyncM::pure(42);
-/// let doubled = async_value.bind(FnType::new(|x| AsyncM::pure(x * 2)));
-/// assert_eq!(doubled.try_get(), 84);
+/// use tokio;
+/// 
+/// #[tokio::main]
+/// async fn main() {
+///     // Create an async computation
+///     let computation: AsyncM<i32> = AsyncM::pure(42);
+///     
+///     // Run the computation and get the result
+///     let result = computation.try_get().await;
+///     assert_eq!(result, 42);
+///     
+///     // Transform the result using fmap
+///     let transformed = computation.fmap(|x| async move { x * 2 });
+///     assert_eq!(transformed.try_get().await, 84);
+/// }
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct AsyncM<A>
-where
-    A: TypeConstraints,
-{
-    run: FnType<(), A>,
+#[derive(Clone)]
+pub struct AsyncM<A> {
+    run: Arc<dyn Fn() -> Pin<Box<dyn Future<Output = A> + Send + Sync>> + Send + Sync>,
 }
 
-impl<A> AsyncM<A>
-where
-    A: TypeConstraints,
-{
-    /// Creates a new `AsyncM` instance from a given future.
-    ///
-    /// This function takes a future and wraps it in an `AsyncM`, allowing it to be used
-    /// with the async monad interface.
-    ///
+impl<A: Clone + Send + Sync + 'static> AsyncM<A> {
+    /// Creates a new async computation from a future-producing function.
+    /// 
+    /// This constructor allows you to create an `AsyncM` from any function that
+    /// produces a `Future` when called.
+    /// 
     /// # Arguments
-    ///
-    /// * `future` - A future that will eventually resolve to a value of type `A`.
-    ///
-    /// # Returns
-    ///
-    /// Returns a new `AsyncM<A>` instance.
-    ///
+    /// 
+    /// * `f` - A function that creates a new future each time it's called
+    /// 
     /// # Type Parameters
-    ///
-    /// * `F` - The type of the future, which must implement `Future<Output = A>`,
-    ///         `Send`, `Sync`, `Clone`, and have a `'static` lifetime.
-    ///
+    /// 
+    /// * `G` - The type of the function that produces futures
+    /// * `F` - The type of the future produced by the function
+    /// 
     /// # Examples
-    ///
-    /// ```
+    /// 
+    /// ```rust
     /// use rustica::datatypes::async_monad::AsyncM;
-    /// use std::future::Future;
-    /// use futures::future::ready;
-    ///
-    /// let future = ready(42);
-    /// let async_m = AsyncM::new(future);
-    /// assert_eq!(async_m.try_get(), 42);
+    /// use tokio;
+    /// use std::time::Duration;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     // Create an async computation that produces a value after a delay
+    ///     let delayed = AsyncM::new(|| async {
+    ///         tokio::time::sleep(Duration::from_millis(10)).await;
+    ///         42
+    ///     });
+    ///     
+    ///     assert_eq!(delayed.try_get().await, 42);
+    /// }
     /// ```
-    pub fn new<F>(future: F) -> Self
+    pub fn new<G, F>(f: G) -> Self
     where
-        F: Future<Output = A> + Send + Sync + Clone + 'static,
+        G: Fn() -> F + Send + Sync + 'static,
+        F: Future<Output = A> + Send + Sync + 'static,
     {
-        let shared = future.shared();
         AsyncM {
-            run: FnType::new(move |_| {
-                let shared = shared.clone();
-                shared.now_or_never().unwrap_or_default()
+            run: Arc::new(move || Box::pin(f())),
+        }
+    }
+
+    /// Creates a pure async computation that just returns the given value.
+    /// 
+    /// This is the `pure` operation for the `Applicative` type class, lifting
+    /// a pure value into the `AsyncM` context.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - The value to wrap in an async computation
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use rustica::datatypes::async_monad::AsyncM;
+    /// use tokio;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     // Create a pure async value
+    ///     let async_int: AsyncM<i32> = AsyncM::pure(42);
+    ///     assert_eq!(async_int.try_get().await, 42);
+    ///     
+    ///     // Works with any type that implements Clone + Send + Sync
+    ///     let async_string: AsyncM<String> = AsyncM::pure("hello".to_string());
+    ///     assert_eq!(async_string.try_get().await, "hello");
+    /// }
+    /// ```
+    pub fn pure(value: A) -> Self {
+        let value = Arc::new(value);
+        AsyncM {
+            run: Arc::new(move || {
+                let value = value.clone();
+                Box::pin(future::ready((*value).clone()))
             }),
         }
     }
 
-    /// Attempts to retrieve the value from the `AsyncM` immediately.
-    ///
-    /// This method executes the internal computation synchronously and returns the result.
-    /// If the computation hasn't completed yet, it will return the default value for type `A`.
-    ///
+    /// Tries to get the value from this async computation.
+    /// 
+    /// This method runs the async computation and waits for it to complete,
+    /// returning the final result.
+    /// 
     /// # Returns
-    ///
-    /// The computed value of type `A`, or its default if not ready.
-    ///
+    /// 
+    /// The computed value of type `A`
+    /// 
     /// # Examples
-    ///
-    /// ```
+    /// 
+    /// ```rust
     /// use rustica::datatypes::async_monad::AsyncM;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let async_value = AsyncM::pure(42);
-    /// assert_eq!(async_value.try_get(), 42);
+    /// use tokio;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let computation = AsyncM::pure(42);
+    ///     
+    ///     // Run the computation and get the result
+    ///     let result = computation.try_get().await;
+    ///     assert_eq!(result, 42);
+    /// }
     /// ```
-    pub fn try_get(&self) -> A {
-        self.run.call(())
+    pub async fn try_get(&self) -> A {
+        let future = (self.run)();
+        future.await
     }
-}
 
-impl<A> HKT for AsyncM<A>
-where
-    A: TypeConstraints,
-{
-    type Output<T> = AsyncM<T> where T: TypeConstraints;
-}
-
-impl<A> Pure<A> for AsyncM<A>
-where
-    A: TypeConstraints,
-{
-    fn pure(value: A) -> Self::Output<A> {
-        AsyncM {
-            run: FnType::new(move |_| value.clone()),
-        }
-    }
-}
-
-impl<A> Functor<A> for AsyncM<A>
-where
-    A: TypeConstraints,
-{
-    fn fmap<B, F>(self, f: F) -> Self::Output<B>
+    /// Maps a function over the result of this async computation.
+    /// 
+    /// This is the `fmap` operation for the `Functor` type class, allowing
+    /// transformation of the value inside the `AsyncM` context.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `f` - An async function that transforms `A` into `B`
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `B` - The type of the result after applying the function
+    /// * `F` - The type of the function
+    /// * `Fut` - The type of the future returned by the function
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use rustica::datatypes::async_monad::AsyncM;
+    /// use tokio;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let computation = AsyncM::pure(42);
+    ///     
+    ///     // Map a function over the async value
+    ///     let doubled = computation.clone().fmap(|x| async move { x * 2 });
+    ///     assert_eq!(doubled.try_get().await, 84);
+    ///     
+    ///     // Chain multiple transformations
+    ///     let result = computation
+    ///         .fmap(|x| async move { x + 10 })
+    ///         .fmap(|x| async move { x.to_string() });
+    ///     assert_eq!(result.try_get().await, "52");
+    /// }
+    /// ```
+    pub fn fmap<B, F, Fut>(&self, f: F) -> AsyncM<B>
     where
-        B: TypeConstraints,
-        F: FnTrait<A, B>,
+        B: Clone + Send + Sync + 'static,
+        F: Fn(A) -> Fut + Send + Sync + Clone + 'static,
+        Fut: Future<Output = B> + Send + Sync + 'static,
     {
+        let f = Arc::new(f);
+        let run = Arc::clone(&self.run);
         AsyncM {
-            run: FnType::new(move |_| {
-                let value = self.run.call(());
-                f.call(value)
-            }),
-        }
-    }
-}
-
-impl<A> Applicative<A> for AsyncM<A>
-where
-    A: TypeConstraints,
-{
-    fn apply<B, F>(self, mf: Self::Output<F>) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<A, B>,
-    {
-        self.fmap(FnType::new(move |a| mf.try_get().call(a)))
-    }
-
-    fn lift2<B, C, F>(self, mb: Self::Output<B>, f: F) -> Self::Output<C>
-    where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        F: FnTrait<(A, B), C>,
-    {
-        AsyncM {
-            run: FnType::new(move |_| {
-                let a = self.try_get();
-                let b = mb.try_get();
-                f.call((a, b))
+            run: Arc::new(move || {
+                let f = f.clone();
+                let fut = run();
+                Box::pin(async move {
+                    let a = fut.await;
+                    f(a).await
+                })
             }),
         }
     }
 
-    fn lift3<B, C, D, F>(self, mb: Self::Output<B>, mc: Self::Output<C>, f: F) -> Self::Output<D>
+    /// Chains this computation with another async computation.
+    /// 
+    /// This is the `bind` operation for the `Monad` type class, allowing
+    /// sequencing of async operations where each operation can depend on
+    /// the result of the previous one.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `f` - An async function that takes the result of this computation and returns a new computation
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `B` - The type of the result after applying the function
+    /// * `F` - The type of the function
+    /// * `Fut` - The type of the future returned by the function
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use rustica::datatypes::async_monad::AsyncM;
+    /// use tokio;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let computation = AsyncM::pure(42);
+    ///     
+    ///     // Chain with another async computation
+    ///     let result = computation.clone().bind(|x| async move {
+    ///         // This function returns a new AsyncM
+    ///         AsyncM::pure(x + 10)
+    ///     });
+    ///     assert_eq!(result.try_get().await, 52);
+    ///     
+    ///     // Chain multiple bind operations
+    ///     let result = computation
+    ///         .bind(|x| async move { AsyncM::pure(x + 10) })
+    ///         .bind(|x| async move { AsyncM::pure(x * 2) });
+    ///     assert_eq!(result.try_get().await, 104);
+    /// }
+    /// ```
+    pub fn bind<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
-        B: TypeConstraints,
-        C: TypeConstraints,
-        D: TypeConstraints,
-        F: FnTrait<(A, B, C), D>,
+        B: Clone + Send + Sync + 'static,
+        F: Fn(A) -> Fut + Send + Sync + Clone + 'static,
+        Fut: Future<Output = AsyncM<B>> + Send + Sync + 'static,
     {
+        let f = Arc::new(f);
         AsyncM {
-            run: FnType::new(move |_| {
-                let a = self.try_get();
-                let b = mb.try_get();
-                let c = mc.try_get();
-                f.call((a, b, c))
+            run: Arc::new(move || {
+                let f = f.clone();
+                let fut = (self.run)();
+                Box::pin(async move {
+                    let a = fut.await;
+                    let next_monad = f(a).await;
+                    next_monad.try_get().await
+                })
             }),
         }
     }
-}
 
-impl<A: TypeConstraints> Identity for AsyncM<A> {}
-
-impl<A: TypeConstraints> Composable for AsyncM<A> {}
-
-impl<A: TypeConstraints> Category for AsyncM<A> {
-    type Morphism<B, C> = FnType<B, C>
+    /// Applies a wrapped function to this async computation.
+    /// 
+    /// This is the `apply` operation for the `Applicative` type class, allowing
+    /// application of a function wrapped in `AsyncM` to a value wrapped in `AsyncM`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `mf` - An async computation that produces a function
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `B` - The type of the result after applying the function
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use rustica::datatypes::async_monad::AsyncM;
+    /// use tokio;
+    /// use std::sync::Arc;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let computation = AsyncM::pure(42);
+    ///     
+    ///     // Create a function wrapped in AsyncM
+    ///     let func: AsyncM<Arc<dyn Fn(i32) -> i32 + Send + Sync>> = 
+    ///         AsyncM::pure(Arc::new(|x| x * 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+    ///     
+    ///     // Apply the wrapped function to the wrapped value
+    ///     let result = computation.apply(func);
+    ///     assert_eq!(result.try_get().await, 84);
+    /// }
+    /// ```
+    pub fn apply<B>(self, mf: AsyncM<Arc<dyn Fn(A) -> B + Send + Sync>>) -> AsyncM<B>
     where
-        B: TypeConstraints,
-        C: TypeConstraints;
-}
-
-impl<A> Monad<A> for AsyncM<A>
-where
-    A: TypeConstraints,
-{
-    fn bind<B, F>(self, f: F) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        F: FnTrait<A, Self::Output<B>>,
+        B: Clone + Send + Sync + 'static,
     {
-        self.fmap(FnType::new(move |a: A| f.call(a).try_get()))
-    }
-
-    fn join<B>(self) -> Self::Output<B>
-    where
-        B: TypeConstraints,
-        A: Into<Self::Output<B>>,
-    {
-        self.bind(FnType::new(move |x: A| x.into()))
+        AsyncM {
+            run: Arc::new(move || {
+                let f_fut = (mf.run)();
+                let x_fut = (self.run)();
+                Box::pin(async move {
+                    let f = f_fut.await;
+                    let x = x_fut.await;
+                    f(x)
+                })
+            }),
+        }
     }
 }

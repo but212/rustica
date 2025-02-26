@@ -1,60 +1,87 @@
-use crate::traits::hkt::{HKT, TypeConstraints};
-use crate::traits::category::Category;
+use crate::traits::hkt::HKT;
 
-/// A trait for types that represent the identity element in a monoid.
+/// A trait for types that represent identity functions in category theory.
+///
+/// In category theory, an identity morphism (or identity function) is a morphism that
+/// leaves an object unchanged. The Identity trait provides functionality for working
+/// with identity functions in a type-safe way.
+///
+/// # Type Parameters
+/// The trait is implemented on types that implement `HKT`, where:
+/// * `Source` is the type being transformed
+/// * `Output<T>` represents the result type after transformation
 ///
 /// # Laws
-/// 1. Identity: `identity(x) = x`
-/// 2. Composition: `f(g(identity())) = f(g(x))`
-/// 3. Naturality: `η(identity()) = identity()`
-/// 4. Functor, Applicative, Monad Consistency: `f(identity()) = f(x)`
-/// 5. Isomorphism: `identity()` is isomorphic to `x`
+/// For a valid Identity implementation:
+///
+/// 1. Left Identity:
+///    identity().compose(f) == f
+///
+/// 2. Right Identity:
+///    f.compose(identity()) == f
+///
+/// 3. Uniqueness:
+///    identity::<A>() == identity::<A>()
 ///
 /// # Examples
-/// ```
-/// use rustica::prelude::*;
 ///
-/// struct MyIdentity;
+/// Basic implementation:
+/// ```rust
+/// use rustica::traits::hkt::HKT;
+/// use rustica::traits::identity::Identity;
 ///
-/// impl HKT for MyIdentity {
-///     type Output<T> = T where T: TypeConstraints;
+/// struct Id<T>(T);
+///
+/// impl<T> HKT for Id<T> {
+///     type Source = T;
+///     type Output<U> = U;
 /// }
 ///
-/// impl Identity for MyIdentity {}
-///
-/// assert_eq!(MyIdentity::identity(5), 5);
+/// impl<T> Identity for Id<T> {
+///     fn value(&self) -> &Self::Source {
+///         &self.0
+///     }
+/// }
 /// ```
+///
+/// # Common Use Cases
+///
+/// Identity functions are commonly used in:
+/// - Function composition, where they act as neutral elements
+/// - Generic programming, to represent "no-op" transformations
+/// - Testing and debugging, to verify the correctness of other functions
+/// - Implementing certain algebraic structures in category theory
+/// - As default or placeholder implementations in trait methods
 pub trait Identity: HKT {
-    /// Identity function for any type.
+    /// Creates an identity function for the given type.
     ///
-    /// This function returns the input value as-is. It works for all types `T`
-    /// where `T` implements the `TypeConstraints` trait.
-    ///
-    /// # Arguments
-    /// * `x` - The value to be returned
-    ///
-    /// # Returns
-    /// Returns the input value `x` unchanged.
-    fn identity<T: TypeConstraints>(x: T) -> T {
-        x
-    }
-
-    /// Converts the identity element to a category morphism.
-    ///
-    /// This method creates an identity morphism in the context of a given category `C`
-    /// for a specific type `T`.
+    /// The identity function returns its input unchanged, serving as the identity
+    /// element in function composition.
     ///
     /// # Type Parameters
-    /// * `T`: The type for which the identity morphism is created.
-    /// * `C`: The category in which the morphism is defined.
+    /// * `T`: The type of value to create an identity function for
+    ///
+    /// # Arguments
+    /// * `x`: The value to return unchanged
     ///
     /// # Returns
-    /// Returns the identity morphism for type `T` in category `C`.
+    /// The input value `x` unchanged
+    fn value(&self) -> &Self::Source;
+
+    /// Returns the input value unchanged, serving as the identity function.
     ///
-    /// # Constraints
-    /// * `T` must satisfy `TypeConstraints`.
-    /// * `C` must implement the `Category` trait.
-    fn to_morphism<T: TypeConstraints, C: Category>() -> C::Morphism<T, T> {
-        C::identity_morphism()
+    /// # Type Parameters
+    ///
+    /// * `A`: The type of the input value.
+    ///
+    /// # Arguments
+    ///
+    /// * `a`: The value to be returned unchanged.
+    ///
+    /// # Returns
+    ///
+    /// The input value `a` of type `A`.
+    fn identity<A>(a: A) -> A {
+        a
     }
 }

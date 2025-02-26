@@ -1,54 +1,72 @@
-use crate::traits::hkt::TypeConstraints;
+use crate::traits::hkt::HKT;
 
 /// A trait for types that can be evaluated to produce a value.
 ///
+/// The Evaluate trait represents computations or expressions that can be
+/// reduced to a concrete value. This is particularly useful for working with
+/// lazy computations, thunks, or deferred evaluations.
+///
 /// # Type Parameters
-/// * `A` - The type of the value produced by the evaluation
+/// The trait is implemented on types that implement `HKT`, where:
+/// * `Source` is the type of the computation
+/// * `Output<T>` represents the result type after evaluation
 ///
 /// # Laws
-/// 1. Identity: `e.evaluate().pure() = e`
-/// 2. Composition: `e.evaluate().fmap(g) = (e.fmap(g)).evaluate()`
-/// 3. Naturality: `η(e.evaluate()) = η(e).evaluate()`
-/// 4. Purity: `pure(x).evaluate() = x`
-/// 5. Strictness: `e.evaluate()` must force evaluation
-/// 6. Memoization: Multiple `e.evaluate()` calls should return equivalent results
-/// 7. Error Handling: `e.evaluate()` must propagate errors
-/// 8. Resource Safety: `e.evaluate()` must manage resources properly
+/// For a valid Evaluate implementation:
+///
+/// 1. Idempotence:
+///    evaluate(evaluate(x)) == evaluate(x)
+///
+/// 2. Referential Transparency:
+///    let y = evaluate(x);
+///    evaluate(x) == y
+///
+/// 3. Consistency:
+///    evaluate(pure(x)) == x
 ///
 /// # Examples
-/// ```
-/// use rustica::prelude::*;
 ///
-/// let opt: Option<i32> = Some(42);
-/// assert_eq!(opt.evaluate(), 42);
+/// Basic implementation for a lazy computation:
+/// ```rust
+/// use rustica::traits::hkt::HKT;
+/// use rustica::traits::evaluate::Evaluate;
 ///
-/// let res: Result<&str, &str> = Ok("success");
-/// assert_eq!(res.evaluate(), "success");
+/// struct Lazy<T>(Box<dyn Fn() -> T>);
+///
+/// impl<T> HKT for Lazy<T> {
+///     type Source = T;
+///     type Output<U> = Lazy<U>;
+/// }
+///
+/// impl<T> Evaluate for Lazy<T> {
+///     fn evaluate(&self) -> Self::Source {
+///         (self.0)()
+///     }
+/// }
+///
+/// // Usage
+/// let computation = Lazy(Box::new(|| 42));
+/// assert_eq!(computation.evaluate(), 42);
 /// ```
-pub trait Evaluate<A>
-where
-    A: TypeConstraints,
-{
-    fn evaluate(self) -> A;
-}
-
-impl<A> Evaluate<A> for Option<A>
-where
-    A: TypeConstraints,
-{
-    #[inline]
-    fn evaluate(self) -> A {
-        self.unwrap_or_else(|| panic!("Option is None"))
-    }
-}
-
-impl<A, E> Evaluate<A> for Result<A, E>
-where
-    A: TypeConstraints,
-    E: std::fmt::Debug,
-{
-    #[inline]
-    fn evaluate(self) -> A {
-        self.unwrap_or_else(|err| panic!("Result is Err: {:?}", err))
-    }
+///
+/// # Design Notes
+///
+/// 1. Evaluation should be consistent and produce the same result for
+///    the same input (referential transparency).
+///
+/// 2. The evaluate operation may have side effects, but these should be
+///    documented and consistent.
+///
+/// 3. Consider caching evaluation results if the computation is expensive
+///    and the same value will be needed multiple times.
+pub trait Evaluate: HKT {
+    /// Evaluates the computation to produce a concrete value.
+    ///
+    /// This method reduces a computation or expression to its final value.
+    /// The evaluation process should be consistent and produce the same
+    /// result for the same input.
+    ///
+    /// # Returns
+    /// The concrete value resulting from the evaluation
+    fn evaluate(&self) -> Self::Source;
 }

@@ -28,6 +28,7 @@ Rustica is a comprehensive functional programming library for Rust, bringing pow
 
 ### Data Types
 - **Core Types**
+  - `Id` - For holding a single value
   - `Maybe` - For optional values
   - `Either` - For error handling
   - `Choice` - For alternative computations
