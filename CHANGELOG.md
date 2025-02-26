@@ -1,3 +1,18 @@
+## [0.4.0] - 2025-02-26
+
+### Added
+- Added tests for DataType: `test_async_monad`, `test_choice`, `test_cont`, `test_either`, `test_id`, `test_io`.
+
+### Changed
+- Removed `FnType` and `FnTrait`: Simplified function implementation and usage.
+- Removed `TypeConstraints`: Simplified type constraints.
+- Directly implemented types with functions as members without traits: Addressed limitations of Rust type system by handling them directly.
+- Changed development direction of `Choice` type: Now provides a primary value (`first`) and alternatives (`Vec<T>`) of a single type `T`.
+
+### Documentation
+- Enhanced documentation for individual sources: Richer content viewable through [docs.rs](https://docs.rs).
+
+
 ## [0.3.2] - 2025-02-18
 
 ### Added
