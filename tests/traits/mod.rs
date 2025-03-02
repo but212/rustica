@@ -6,6 +6,9 @@ mod test_monoid;
 
 use quickcheck::{Arbitrary, Gen};
 use rustica::prelude::*;
+use rustica::traits::semigroup::Semigroup;
+use rustica::traits::monoid::Monoid;
+use rustica::traits::composable::Composable;
 use std::marker::PhantomData;
 
 /// A test functor implementation that wraps a single value
@@ -31,22 +34,34 @@ impl<T: Arbitrary + 'static> Arbitrary for TestFunctor<T> {
 impl<T> HKT for TestFunctor<T> {
     type Source = T;
     type Output<U> = TestFunctor<U>;
+    type Source2 = ();
+    type BinaryOutput<U, V> = ();
 }
 
 impl<T> Identity for TestFunctor<T> {
     fn value(&self) -> &Self::Source {
         &self.0
     }
+    
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+        where
+            Self::Output<A>: Identity,
+            A: Clone {
+        TestFunctor::new(value)
+    }
 }
 
 impl<T> Pure for TestFunctor<T> {
-    fn pure<U: Clone>(value: U) -> Self::Output<U> {
+    fn pure<U>(value: U) -> Self::Output<U> {
         TestFunctor::new(value)
     }
 }
 
 impl<T> Functor for TestFunctor<T> {
-    fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    where
+        F: Fn(&Self::Source) -> B,
+    {
         TestFunctor::new(f(&self.0))
     }
 }
@@ -56,29 +71,38 @@ impl<T> Applicative for TestFunctor<T> {
     where
         F: Fn(&Self::Source) -> B,
     {
-        TestFunctor::new((f.0)(&self.0))
+        TestFunctor::new(f.0(&self.0))
     }
 
-    fn lift2<B, C>(
+    fn lift2<B, C, F>(
         &self,
         b: &Self::Output<B>,
-        f: &dyn Fn(&Self::Source, &B) -> C,
-    ) -> Self::Output<C> {
+        f: F,
+    ) -> Self::Output<C> 
+    where
+        F: Fn(&Self::Source, &B) -> C,
+    {
         TestFunctor::new(f(&self.0, &b.0))
     }
 
-    fn lift3<B, C, D>(
+    fn lift3<B, C, D, F>(
         &self,
         b: &Self::Output<B>,
         c: &Self::Output<C>,
-        f: &dyn Fn(&Self::Source, &B, &C) -> D,
-    ) -> Self::Output<D> {
+        f: F,
+    ) -> Self::Output<D> 
+    where
+        F: Fn(&Self::Source, &B, &C) -> D,
+    {
         TestFunctor::new(f(&self.0, &b.0, &c.0))
     }
 }
 
 impl<T: Clone> Monad for TestFunctor<T> {
-    fn bind<U>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>,
+    {
         f(&self.0)
     }
 
@@ -109,7 +133,11 @@ where
 }
 
 impl<T> Composable for TestFunctor<T> {
-    fn compose<U, V>(f: &dyn Fn(Self::Source) -> U, g: &dyn Fn(U) -> V) -> impl Fn(Self::Source) -> V {
+    fn compose<U, V, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> V
+    where
+        F: Fn(Self::Source) -> U,
+        G: Fn(U) -> V,
+    {
         move |x| g(f(x))
     }
 }

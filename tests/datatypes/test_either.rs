@@ -24,29 +24,29 @@ fn test_either_creation_and_access() {
 fn test_either_mapping() {
     // Test map_left
     let left: Either<i32, &str> = Either::left(42);
-    let doubled = left.clone().map_left(&|x| x * 2);
+    let doubled = left.clone().map_left(|x| x * 2);
     assert_eq!(doubled.unwrap_left(), 84);
 
     // Test map_right
     let right: Either<i32, String> = Either::right("hello".to_string());
-    let upper = right.clone().map_right(&|s| s.to_uppercase());
+    let upper = right.clone().map_right(|s| s.to_uppercase());
     assert_eq!(upper.unwrap_right(), "HELLO");
 
     // Test that mapping the wrong side doesn't change anything
-    let left_mapped = left.clone().map_right(&|s| s.to_uppercase());
+    let left_mapped = left.clone().map_right(|s| s.to_uppercase());
     assert_eq!(left_mapped.unwrap_left(), 42);
-    let right_mapped = right.clone().map_left(&|x| x * 2);
+    let right_mapped = right.clone().map_left(|x| x * 2);
     assert_eq!(right_mapped.unwrap_right(), "hello");
 }
 
 #[test]
 fn test_either_functor() {
     let right: Either<i32, i32> = Either::right(42);
-    let mapped = right.fmap(&|x| x + 1);
+    let mapped = right.fmap(|x| x + 1);
     assert_eq!(mapped.unwrap_right(), 43);
 
     let left: Either<i32, i32> = Either::left(42);
-    let mapped = left.fmap(&|x| x + 1);
+    let mapped = left.fmap(|x| x + 1);
     assert_eq!(mapped.unwrap_left(), 42);
 }
 
@@ -65,14 +65,14 @@ fn test_either_applicative() {
     // Test lift2
     let a: Either<&str, i32> = Either::right(2);
     let b: Either<&str, i32> = Either::right(3);
-    let result = a.lift2(&b, &|x, y| x * y);
+    let result = a.lift2(&b, |x, y| x * y);
     assert_eq!(result.unwrap_right(), 6);
 
     // Test lift3
     let a: Either<&str, i32> = Either::right(2);
     let b: Either<&str, i32> = Either::right(3);
     let c: Either<&str, i32> = Either::right(4);
-    let result = a.lift3(&b, &c, &|x, y, z| x * y + z);
+    let result = a.lift3(&b, &c, |x, y, z| x * y + z);
     assert_eq!(result.unwrap_right(), 10);
 }
 
@@ -80,11 +80,11 @@ fn test_either_applicative() {
 fn test_either_monad() {
     // Test bind
     let right: Either<&str, i32> = Either::right(42);
-    let result = right.bind(&|x| Either::right(x + 1));
+    let result = right.bind(|x| Either::right(x + 1));
     assert_eq!(result.unwrap_right(), 43);
 
     let left: Either<&str, i32> = Either::left("error");
-    let result = left.bind(&|x| Either::right(x + 1));
+    let result = left.bind(|x| Either::right(x + 1));
     assert_eq!(result.unwrap_left(), "error");
 
     // Test join
@@ -134,10 +134,10 @@ fn test_either_error_handling() {
 
     // Test chaining computations
     let result3 = safe_div(10, 2)
-        .bind(&|x| safe_div(*x, 1));
+        .bind(|x| safe_div(*x, 1));
     assert_eq!(result3.unwrap_right(), 5);
 
     let result4 = safe_div(10, 2)
-        .bind(&|x| safe_div(*x, 0));
+        .bind(|x| safe_div(*x, 0));
     assert_eq!(result4.unwrap_left(), "division by zero");
 }

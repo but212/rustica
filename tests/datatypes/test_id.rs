@@ -17,22 +17,22 @@ fn test_id_functor() {
     let x = Id::new(42);
     
     // Test fmap
-    let doubled = x.fmap(&|n| n * 2);
-    let identity = x.fmap(&|n| *n);
+    let doubled = x.fmap(|n| n * 2);
+    let identity = x.fmap(|n| *n);
     
     assert_eq!(*doubled.value(), 84);
     assert_eq!(*identity.value(), 42);
     
     // Test functor laws
     // 1. Identity: fmap(id) == id
-    let id_law = x.fmap(&|n| *n);
+    let id_law = x.fmap(|n| *n);
     assert_eq!(*id_law.value(), *x.value());
     
     // 2. Composition: fmap(f . g) == fmap(f) . fmap(g)
     let f = |n: &i32| n * 2;
     let g = |n: &i32| n + 3;
-    let composition1 = x.fmap(&|n| f(&g(n)));
-    let composition2 = x.fmap(&g).fmap(&f);
+    let composition1 = x.fmap(|n| f(&g(n)));
+    let composition2 = x.fmap(g).fmap(f);
     assert_eq!(*composition1.value(), *composition2.value());
 }
 
@@ -92,12 +92,12 @@ fn test_id_monad() {
     assert_eq!(*left_identity.value(), *f(&42).value());
     
     // 2. Right identity: m.bind(pure) == m
-    let right_identity = x.bind(&|n| Id::<i32>::pure(*n));
+    let right_identity = x.bind(|n| Id::<i32>::pure(*n));
     assert_eq!(*right_identity.value(), *x.value());
     
     // 3. Associativity: m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
-    let assoc_left = x.bind(&f).bind(&g);
-    let assoc_right = x.bind(&|n| f(n).bind(&g));
+    let assoc_left = x.bind(f).bind(g);
+    let assoc_right = x.bind(|n| f(n).bind(&g));
     assert_eq!(*assoc_left.value(), *assoc_right.value());
 }
 
@@ -106,9 +106,9 @@ fn test_id_chaining() {
     // Test chaining of Id
     let x = Id::new(42);
     let result = x
-        .fmap(&|n| n + 1)
-        .fmap(&|n| n * 2)
-        .fmap(&|n| n.to_string());
+        .fmap(|n| n + 1)
+        .fmap(|n| n * 2)
+        .fmap(|n| n.to_string());
     
     assert_eq!(*result.value(), "86");
 }

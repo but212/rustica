@@ -290,4 +290,29 @@ impl<A: 'static + Clone> IO<A> {
     pub fn apply<B: Clone + 'static>(&self, mf: impl Fn(A) -> IO<B> + 'static) -> IO<B> {
         self.bind(mf)
     }
+
+    pub fn delay<F>(duration: std::time::Duration, value: A) -> Self
+    where
+        F: FnOnce() -> A + 'static,
+    {
+        IO::new(move || {
+            std::thread::sleep(duration);
+            value.clone()
+        })
+    }
+}
+
+// Implement HKT for IO
+impl<A> crate::traits::hkt::HKT for IO<A> {
+    type Source = A;
+    type Output<U> = IO<U>;
+    type Source2 = ();
+    type BinaryOutput<U, V> = ();
+}
+
+// Implement Evaluate for IO
+impl<A: Clone + 'static> crate::traits::evaluate::Evaluate for IO<A> {
+    fn evaluate(&self) -> Self::Source {
+        self.run()
+    }
 }

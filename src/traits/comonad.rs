@@ -77,7 +77,9 @@ pub trait Comonad: Monad {
     /// # Returns
     ///
     /// The result of applying the function to the comonadic context
-    fn extend<U, F>(&self, f: &dyn Fn(&Self) -> U) -> U;
+    fn extend<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self) -> U;
 
     /// Maps a function over the context of the comonad.
     ///
@@ -95,7 +97,9 @@ pub trait Comonad: Monad {
     /// # Returns
     ///
     /// The result of mapping the function over the context
-    fn comap<U, F>(&self, f: &dyn Fn(&U) -> Self) -> U;
+    fn comap<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&U) -> Self;
 
     /// Duplicates the context of a comonad.
     ///

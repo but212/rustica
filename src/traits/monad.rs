@@ -52,6 +52,8 @@ use crate::traits::applicative::Applicative;
 /// impl<T, E> HKT for MyResult<T, E> {
 ///     type Source = T;
 ///     type Output<U> = MyResult<U, E>;
+///     type Source2 = E;
+///     type BinaryOutput<U, V> = MyResult<U, V>;
 /// }
 ///
 /// impl<T, E> Pure for MyResult<T, E> {
@@ -64,10 +66,21 @@ use crate::traits::applicative::Applicative;
 ///     fn value(&self) -> &Self::Source {
 ///         self.0.as_ref().expect("Expected Ok value, got Err")
 ///     }
+///
+///     fn pure_identity<A>(x: A) -> <Self as HKT>::Output<A>
+///     where
+///         A: Clone,
+///         <Self as HKT>::Output<A>: Identity,
+///     {
+///         MyResult(Ok(x))
+///     }
 /// }
 ///
 /// impl<T, E: Clone> Functor for MyResult<T, E> {
-///     fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
+///     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+///     where
+///         F: Fn(&Self::Source) -> B,
+///     {
 ///         MyResult(self.0.as_ref().map(f).map_err(Clone::clone))
 ///     }
 /// }
@@ -84,11 +97,14 @@ use crate::traits::applicative::Applicative;
 ///         }
 ///     }
 ///
-///     fn lift2<B, C>(
+///     fn lift2<B, C, F>(
 ///         &self,
 ///         b: &Self::Output<B>,
-///         f: &dyn Fn(&Self::Source, &B) -> C,
-///     ) -> Self::Output<C> {
+///         f: F,
+///     ) -> Self::Output<C>
+///     where
+///         F: Fn(&Self::Source, &B) -> C,
+///     {
 ///         match (&self.0, &b.0) {
 ///             (Ok(x), Ok(y)) => MyResult(Ok(f(&x, &y))),
 ///             (Err(e), _) => MyResult(Err(e.clone())),
@@ -96,12 +112,15 @@ use crate::traits::applicative::Applicative;
 ///         }
 ///     }
 ///
-///     fn lift3<B, C, D>(
+///     fn lift3<B, C, D, F>(
 ///         &self,
 ///         b: &Self::Output<B>,
 ///         c: &Self::Output<C>,
-///         f: &dyn Fn(&Self::Source, &B, &C) -> D,
-///     ) -> Self::Output<D> {
+///         f: F,
+///     ) -> Self::Output<D>
+///     where
+///         F: Fn(&Self::Source, &B, &C) -> D,
+///     {
 ///         match (&self.0, &b.0, &c.0) {
 ///             (Ok(x), Ok(y), Ok(z)) => MyResult(Ok(f(&x, &y, &z))),
 ///             (Err(e), _, _) => MyResult(Err(e.clone())),
@@ -122,7 +141,10 @@ use crate::traits::applicative::Applicative;
 ///         }
 ///     }
 ///
-///     fn bind<U>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+///     fn bind<U, F>(&self, f: F) -> Self::Output<U>
+///     where
+///         F: Fn(&Self::Source) -> Self::Output<U>,
+///     {
 ///         match &self.0 {
 ///             Ok(x) => f(x),
 ///             Err(e) => MyResult(Err(e.clone())),
@@ -135,17 +157,17 @@ use crate::traits::applicative::Applicative;
 /// let error: MyResult<i32, &str> = MyResult(Err("error"));
 ///
 /// // Using bind for sequential operations
-/// let result1 = success.bind(&|x| MyResult(Ok(x + 1)));
+/// let result1 = success.bind(|x| MyResult(Ok(x + 1)));
 /// assert_eq!(result1.0, Ok(6));
 ///
 /// // Error propagation
-/// let result2 = error.bind(&|x| MyResult(Ok(x + 1)));
+/// let result2 = error.bind(|x| MyResult(Ok(x + 1)));
 /// assert_eq!(result2.0, Err("error"));
 ///
 /// // Chaining multiple operations
 /// let result3 = success
-///     .bind(&|x| MyResult(Ok(x + 1)))
-///     .bind(&|x| MyResult(Ok(x * 2)));
+///     .bind(|x| MyResult(Ok(x + 1)))
+///     .bind(|x| MyResult(Ok(x * 2)));
 /// assert_eq!(result3.0, Ok(12));
 ///
 /// // Using join to flatten nested monads
@@ -185,7 +207,9 @@ pub trait Monad: Applicative {
     ///
     /// # Returns
     /// A new monadic value of type `Self::Output<U>`
-    fn bind<U: Clone>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U>;
+    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>;
 
     /// Alias for `bind` that matches common functional programming terminology.
     ///
@@ -200,7 +224,10 @@ pub trait Monad: Applicative {
     ///
     /// # Returns
     /// A new monadic value of type `Self::Output<U>`
-    fn flat_map<U: Clone>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+    fn flat_map<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>
+    {
         self.bind(f)
     }
 }

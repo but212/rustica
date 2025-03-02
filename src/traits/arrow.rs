@@ -71,9 +71,9 @@ pub trait Arrow: Category {
     /// # Returns
     ///
     /// A morphism in the arrow category representing the lifted function
-    fn arrow<B, C, F>(f: &F) -> Self::Morphism<B, C>
+    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
     where
-        F: Fn(B) -> C + Clone + 'static;
+        F: Fn(B) -> C;
 
     /// Processes the first component of a pair, leaving the second unchanged.
     ///
@@ -93,7 +93,15 @@ pub trait Arrow: Category {
     /// # Returns
     ///
     /// A new morphism that applies `f` to the first component of a pair
-    fn first<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>;
+    fn first<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)> {
+        let id = Self::arrow(&|d: D| d);
+        let pair = Self::arrow(&|(b, d): (B, D)| (b, d));
+        let unpair = Self::arrow(&|(c, d): (C, D)| (c, d));
+        Self::compose_morphisms(
+            &Self::compose_morphisms(&pair, &Self::combine_morphisms(f, &id)),
+            &unpair
+        )
+    }
 
     /// Processes the second component of a pair, leaving the first unchanged.
     ///
@@ -178,8 +186,6 @@ pub trait Arrow: Category {
         f: &Self::Morphism<B, C>,
         g: &Self::Morphism<D, E>
     ) -> Self::Morphism<(B, D), (C, E)> {
-        let f1 = Self::first(f);
-        let g2 = Self::second(g);
-        Self::compose_morphisms(&f1, &g2)
+        Self::compose_morphisms(&Self::first(f), &Self::second(g))
     }
 }

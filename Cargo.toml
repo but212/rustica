@@ -9,9 +9,16 @@ repository = "https://github.com/but212/rustica"
 readme = "README.md"
 
 [dependencies]
-futures = "0.3"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+futures = { version = "0.3", optional = true }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }
 
 [dev-dependencies]
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
+
+[features]
+default = []
+async = ["futures", "tokio"]
+advanced = []
+transformers = []
+full = ["async", "advanced", "transformers"]

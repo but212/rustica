@@ -53,7 +53,7 @@
 //! // This will collect both errors
 //! let combined = username_validation.lift2(
 //!     &password_validation,
-//!     &|username, password| format!("User: {}, Pass: {}", username, password)
+//!     |username: &String, password: &String| format!("User: {}, Pass: {}", username, password)
 //! );
 //!
 //! // Result contains both error messages
@@ -291,6 +291,8 @@ impl<E: Clone, A: Clone> Validated<E, A> {
 impl<E, A> HKT for Validated<E, A> {
     type Source = A;
     type Output<T> = Validated<E, T>;
+    type Source2 = E;
+    type BinaryOutput<U, V> = Validated<U, V>;
 }
 
 impl<E, A> Pure for Validated<E, A> {
@@ -334,10 +336,13 @@ impl<E: Clone, A> Functor for Validated<E, A> {
     /// use rustica::traits::functor::Functor;
     ///
     /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// let doubled = valid.fmap(&|x| x * 2);
+    /// let doubled = valid.fmap(|x| x * 2);
     /// assert!(matches!(doubled, Validated::Valid(84)));
     /// ```
-    fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    where
+        F: Fn(&Self::Source) -> B,
+    {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
             Validated::Invalid(e) => Validated::Invalid(e.clone()),
@@ -402,16 +407,19 @@ impl<E: Clone, A> Applicative for Validated<E, A> {
     ///
     /// let v1: Validated<&str, i32> = Validated::valid(5);
     /// let v2: Validated<&str, i32> = Validated::valid(10);
-    /// let result = v1.lift2(&v2, &|a, b| a + b);
+    /// let result = v1.lift2(&v2, |a: &i32, b: &i32| *a + *b);
     /// assert!(matches!(result, Validated::Valid(15)));
     ///
     /// // Collecting errors
     /// let v1: Validated<&str, i32> = Validated::valid(5);
     /// let v2: Validated<&str, i32> = Validated::invalid("error");
-    /// let result = v1.lift2(&v2, &|a, b| a + b);
+    /// let result = v1.lift2(&v2, |a: &i32, b: &i32| *a + *b);
     /// assert!(matches!(result, Validated::Invalid(_)));
     /// ```
-    fn lift2<B, C>(&self, rb: &Self::Output<B>, f: &dyn Fn(&Self::Source, &B) -> C) -> Self::Output<C> {
+    fn lift2<B, C, F>(&self, rb: &Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: Fn(&Self::Source, &B) -> C,
+    {
         match (self, rb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
@@ -441,15 +449,18 @@ impl<E: Clone, A> Applicative for Validated<E, A> {
     /// let v1: Validated<&str, i32> = Validated::valid(5);
     /// let v2: Validated<&str, i32> = Validated::valid(10);
     /// let v3: Validated<&str, i32> = Validated::valid(15);
-    /// let result = v1.lift3(&v2, &v3, &|a, b, c| a + b + c);
+    /// let result = v1.lift3(&v2, &v3, |a, b, c| *a + *b + *c);
     /// assert!(matches!(result, Validated::Valid(30)));
     /// ```
-    fn lift3<B, C, D>(
+    fn lift3<B, C, D, F>(
         &self,
         rb: &Self::Output<B>,
         rc: &Self::Output<C>,
-        f: &dyn Fn(&Self::Source, &B, &C) -> D,
-    ) -> Self::Output<D> {
+        f: F,
+    ) -> Self::Output<D>
+    where
+        F: Fn(&Self::Source, &B, &C) -> D,
+    {
         match (self, rb, rc) {
             (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => Validated::Valid(f(a, b, c)),
             (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
@@ -490,10 +501,13 @@ impl<E: Clone, A> Monad for Validated<E, A> {
     /// use rustica::traits::monad::Monad;
     ///
     /// let valid: Validated<&str, i32> = Validated::valid(5);
-    /// let result = valid.bind(&|x| Validated::valid(x * 2));
+    /// let result = valid.bind(|x| Validated::valid(x * 2));
     /// assert!(matches!(result, Validated::Valid(10)));
     /// ```
-    fn bind<U>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>,
+    {
         match self {
             Validated::Valid(x) => f(x),
             Validated::Invalid(e) => Validated::Invalid(e.clone()),
@@ -549,6 +563,13 @@ impl<E, A> Identity for Validated<E, A> {
             Validated::Invalid(_) => unreachable!(),
         }
     }
+
+    fn pure_identity<B>(value: B) -> Self::Output<B>
+        where
+            Self::Output<B>: Identity,
+            B: Clone {
+        Validated::Valid(value)
+    }
 }
 
 impl<E, A> Composable for Validated<E, A> {
@@ -568,7 +589,11 @@ impl<E, A> Composable for Validated<E, A> {
     /// let composed = Validated::<(), i32>::compose(&f, &g);
     /// assert_eq!(composed(5), 12); // (5 + 1) * 2 = 12
     /// ```
-    fn compose<T, U>(f: &dyn Fn(Self::Source) -> T, g: &dyn Fn(T) -> U) -> impl Fn(Self::Source) -> U {
+    fn compose<T, U, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> U
+    where
+        F: Fn(Self::Source) -> T,
+        G: Fn(T) -> U,
+    {
         move |x| g(f(x))
     }
 }

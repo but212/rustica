@@ -49,15 +49,14 @@
 //!     }
 //!     
 //!     // Transform values using map_left and map_right
-//!     let doubled = left_value.clone().map_left(&|x| x * 2);  // Either::Left(84)
-//!     let upper = right_value.map_right(&|s| s.to_uppercase());  // Either::Right("HELLO")
+//!     let doubled = left_value.clone().map_left(|x| x * 2);  // Either::Left(84)
+//!     let upper = right_value.map_right(|s| s.to_uppercase());  // Either::Right("HELLO")
 //!     
 //!     // Functor and Monad operations
 //!     let right_val: Either<&str, i32> = Either::right(42);
-//!     let mapped = right_val.clone().fmap(&|x| x * 2);  // Either::Right(84)
-//!     let chained = right_val.bind(&|x| Either::right(x.to_string()));  // Either::Right("42")
+//!     let mapped = right_val.clone().fmap(|x| x * 2);  // Either::Right(84)
+//!     let chained = right_val.bind(|x| Either::right(x.to_string()));  // Either::Right("42")
 //! }
-//! ```
 
 use crate::traits::hkt::HKT;
 use crate::traits::functor::Functor;
@@ -87,8 +86,8 @@ use crate::traits::pure::Pure;
 ///     let right: Either<i32, &str> = Either::right("hello");
 ///
 ///     // Transform values using map_left and map_right
-///     let doubled = left.clone().map_left(&|x| x * 2);  // Either::Left(84)
-///     let upper = right.map_right(&|s| s.to_uppercase());  // Either::Right("HELLO")
+///     let doubled = left.clone().map_left(|x| x * 2);  // Either::Left(84)
+///     let upper = right.map_right(|s| s.to_uppercase());  // Either::Right("HELLO")
 ///
 ///     // Pattern matching
 ///     match left {
@@ -180,12 +179,15 @@ impl<L, R> Either<L, R> {
     /// use rustica::datatypes::either::Either;
     ///
     /// let left: Either<i32, &str> = Either::left(42);
-    /// let doubled = left.map_left(&|x| x * 2);
+    /// let doubled = left.map_left(|x| x * 2);
     /// assert_eq!(match doubled { Either::Left(n) => n, _ => 0 }, 84);
     /// ```
-    pub fn map_left<T>(self, f: &dyn Fn(&L) -> T) -> Either<T, R> {
+    pub fn map_left<T, F>(self, f: F) -> Either<T, R>
+    where
+        F: Fn(L) -> T,
+    {
         match self {
-            Either::Left(l) => Either::Left(f(&l)),
+            Either::Left(l) => Either::Left(f(l)),
             Either::Right(r) => Either::Right(r),
         }
     }
@@ -198,10 +200,13 @@ impl<L, R> Either<L, R> {
     /// use rustica::datatypes::either::Either;
     ///
     /// let right: Either<i32, &str> = Either::right("hello");
-    /// let upper = right.map_right(&|s| s.to_uppercase());
+    /// let upper = right.map_right(|s| s.to_uppercase());
     /// assert_eq!(match upper { Either::Right(s) => s, _ => String::new() }, "HELLO");
     /// ```
-    pub fn map_right<T>(self, f: &dyn Fn(&R) -> T) -> Either<L, T> {
+    pub fn map_right<T, F>(self, f: F) -> Either<L, T>
+    where
+        F: Fn(&R) -> T,
+    {
         match self {
             Either::Left(l) => Either::Left(l),
             Either::Right(r) => Either::Right(f(&r)),
@@ -254,6 +259,8 @@ impl<L, R> Either<L, R> {
 impl<L, R> HKT for Either<L, R> {
     type Source = R;
     type Output<T> = Either<L, T>;
+    type Source2 = ();
+    type BinaryOutput<T, U> = Either<T, U>;
 }
 
 impl<L, R> Pure for Either<L, R> {
@@ -275,7 +282,7 @@ impl<L, R> Pure for Either<L, R> {
     /// let right: Either<&str, i32> = Either::<&str, i32>::pure(42);
     /// assert!(right.is_right());
     /// ```
-    fn pure<T: Clone>(value: T) -> Self::Output<T> {
+    fn pure<T>(value: T) -> Self::Output<T> {
         Either::Right(value)
     }
 }
@@ -299,15 +306,18 @@ impl<L: Clone, R: Clone> Functor for Either<L, R> {
     ///
     /// // Mapping over a Right value
     /// let right: Either<&str, i32> = Either::right(42);
-    /// let mapped = right.fmap(&|x| x * 2);
+    /// let mapped = right.fmap(|x| x * 2);
     /// assert_eq!(match mapped { Either::Right(n) => n, _ => 0 }, 84);
     ///
     /// // Mapping over a Left value (no change to the Left value)
     /// let left: Either<&str, i32> = Either::left("error");
-    /// let mapped = left.fmap(&|x| x * 2);
+    /// let mapped = left.fmap(|x| x * 2);
     /// assert!(mapped.is_left());
     /// ```
-    fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    where
+        F: Fn(&Self::Source) -> B,
+    {
         match self {
             Either::Left(l) => Either::Left(l.clone()),
             Either::Right(r) => Either::Right(f(r)),
@@ -383,20 +393,19 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
     /// // Applying a binary function to two Right values
     /// let a: Either<&str, i32> = Either::right(42);
     /// let b: Either<&str, i32> = Either::right(10);
-    /// let result = a.lift2(&b, &|x, y| x + y);
+    /// let result = a.lift2(&b, |x, y| x + y);
     /// assert_eq!(match result { Either::Right(n) => n, _ => 0 }, 52);
     ///
     /// // When one value is Left, the result is Left
     /// let a: Either<&str, i32> = Either::right(42);
     /// let b: Either<&str, i32> = Either::left("error");
-    /// let result = a.lift2(&b, &|x, y| x + y);
+    /// let result = a.lift2(&b, |x, y| x + y);
     /// assert!(result.is_left());
     /// ```
-    fn lift2<B, C>(
-        &self,
-        b: &Self::Output<B>,
-        f: &dyn Fn(&Self::Source, &B) -> C,
-    ) -> Self::Output<C> {
+    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: Fn(&Self::Source, &B) -> C,
+    {
         match (self, b) {
             (Either::Right(x), Either::Right(y)) => Either::Right(f(x, y)),
             (Either::Left(l), _) => Either::Left(l.clone()),
@@ -426,22 +435,20 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
     /// let a: Either<&str, i32> = Either::right(42);
     /// let b: Either<&str, i32> = Either::right(10);
     /// let c: Either<&str, i32> = Either::right(5);
-    /// let result = a.lift3(&b, &c, &|x, y, z| x + y + z);
+    /// let result = a.lift3(&b, &c, |x, y, z| x + y + z);
     /// assert_eq!(match result { Either::Right(n) => n, _ => 0 }, 57);
     ///
     /// // When one value is Left, the result is Left
     /// let a: Either<&str, i32> = Either::right(42);
     /// let b: Either<&str, i32> = Either::right(10);
     /// let c: Either<&str, i32> = Either::left("error");
-    /// let result = a.lift3(&b, &c, &|x, y, z| x + y + z);
+    /// let result = a.lift3(&b, &c, |x, y, z| x + y + z);
     /// assert!(result.is_left());
     /// ```
-    fn lift3<B, C, D>(
-        &self,
-        b: &Self::Output<B>,
-        c: &Self::Output<C>,
-        f: &dyn Fn(&Self::Source, &B, &C) -> D,
-    ) -> Self::Output<D> {
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    where
+        F: Fn(&Self::Source, &B, &C) -> D,
+    {
         match (self, b, c) {
             (Either::Right(x), Either::Right(y), Either::Right(z)) => Either::Right(f(x, y, z)),
             (Either::Left(l), _, _) => Either::Left(l.clone()),
@@ -470,22 +477,25 @@ impl<L: Clone, R: Clone> Monad for Either<L, R> {
     ///
     /// // Binding a Right value to a function
     /// let right: Either<&str, i32> = Either::right(42);
-    /// let result = right.bind(&|x| Either::right(x.to_string()));
+    /// let result = right.bind(|x| Either::right(x.to_string()));
     /// assert_eq!(match result { Either::Right(s) => s, _ => String::new() }, "42");
     ///
     /// // Binding a Left value (no change to the Left value)
     /// let left: Either<&str, i32> = Either::left("error");
-    /// let result = left.bind(&|x| Either::right(x.to_string()));
+    /// let result = left.bind(|x| Either::right(x.to_string()));
     /// assert!(result.is_left());
     ///
     /// // Chaining multiple bind operations
     /// let right: Either<&str, i32> = Either::right(42);
     /// let result = right
-    ///     .bind(&|x| Either::right(x * 2))
-    ///     .bind(&|x| Either::right(x.to_string()));
+    ///     .bind(|x| Either::right(x * 2))
+    ///     .bind(|x| Either::right(x.to_string()));
     /// assert_eq!(match result { Either::Right(s) => s, _ => String::new() }, "84");
     /// ```
-    fn bind<B>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<B>) -> Self::Output<B> {
+    fn bind<B, F>(&self, f: F) -> Self::Output<B>
+    where
+        F: Fn(&Self::Source) -> Self::Output<B>,
+    {
         match self {
             Either::Left(l) => Either::Left(l.clone()),
             Either::Right(r) => f(r),
@@ -562,6 +572,13 @@ impl<L: Clone, R: Clone> Identity for Either<L, R> {
             Either::Right(r) => r,
         }
     }
+
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+        where
+            Self::Output<A>: Identity,
+            A: Clone {
+            Either::Right(value.clone().into())
+    }
 }
 
 impl<L, R> Composable for Either<L, R> {
@@ -592,7 +609,11 @@ impl<L, R> Composable for Either<L, R> {
     /// let result = composed(21);
     /// assert_eq!(result, "42");
     /// ```
-    fn compose<T, U>(f: &dyn Fn(Self::Source) -> T, g: &dyn Fn(T) -> U) -> impl Fn(Self::Source) -> U {
+    fn compose<T, U, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> U
+    where
+        F: Fn(Self::Source) -> T,
+        G: Fn(T) -> U,
+    {
         move |x| g(f(x))
     }
 }

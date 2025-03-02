@@ -74,5 +74,5 @@ pub trait Pure: HKT {
     /// # Returns
     ///
     /// The value wrapped in the higher-kinded context
-    fn pure<T: Clone>(value: T) -> Self::Output<T>;
+    fn pure<T>(value: T) -> Self::Output<T>;
 }

@@ -32,6 +32,7 @@ use crate::traits::hkt::HKT;
 ///
 /// ```rust
 /// use rustica::prelude::*;
+/// use rustica::traits::composable::Composable;
 ///
 /// // A simple implementation of function composition
 /// struct SimpleCompose<T>(T);
@@ -39,10 +40,16 @@ use crate::traits::hkt::HKT;
 /// impl<T> HKT for SimpleCompose<T> {
 ///     type Source = T;
 ///     type Output<U> = SimpleCompose<U>;
+///     type Source2 = T;
+///     type BinaryOutput<U, V> = ();
 /// }
 ///
 /// impl<T> Composable for SimpleCompose<T> {
-///     fn compose<U, V>(f: &dyn Fn(Self::Source) -> U, g: &dyn Fn(U) -> V) -> impl Fn(Self::Source) -> V {
+///     fn compose<U, V, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> V
+///     where
+///         F: Fn(Self::Source) -> U,
+///         G: Fn(U) -> V,
+///     {
 ///         move |x| g(f(x))
 ///     }
 /// }
@@ -50,20 +57,20 @@ use crate::traits::hkt::HKT;
 /// // Basic numeric transformation
 /// let add_one = |x: i32| x + 1;
 /// let multiply_two = |x: i32| x * 2;
-/// let composed = SimpleCompose::compose(&add_one, &multiply_two);
+/// let composed = SimpleCompose::<i32>::compose(&add_one, &multiply_two);
 /// assert_eq!(composed(3), 8);  // (3 + 1) * 2 = 8
 ///
 /// // String processing
 /// let to_string = |x: i32| x.to_string();
 /// let add_exclamation = |s: String| s + "!";
-/// let excited = SimpleCompose::compose(&to_string, &add_exclamation);
+/// let excited = SimpleCompose::<i32>::compose(&to_string, &add_exclamation);
 /// assert_eq!(excited(42), "42!");
 ///
 /// // Option handling
 /// let safe_divide = |x: f64| if x == 0.0 { None } else { Some(1.0 / x) };
 /// let safe_sqrt = |x: f64| if x >= 0.0 { Some(x.sqrt()) } else { None };
 /// let option_and_then_safe_sqrt = |x: Option<f64>| x.and_then(safe_sqrt);
-/// let composed = SimpleCompose::compose(&safe_divide, &option_and_then_safe_sqrt);
+/// let composed = SimpleCompose::<f64>::compose(&safe_divide, &option_and_then_safe_sqrt);
 /// assert_eq!(composed(4.0), Some(0.5));  // sqrt(1/4) = 0.5
 /// assert_eq!(composed(0.0), None);       // Division by zero
 /// ```
@@ -108,5 +115,8 @@ pub trait Composable: HKT {
     /// # Returns
     ///
     /// A new function that represents the composition of `f` and `g`
-    fn compose<T, U>(f: &dyn Fn(Self::Source) -> T, g: &dyn Fn(T) -> U) -> impl Fn(Self::Source) -> U;
+    fn compose<T, U, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> U
+    where
+        F: Fn(Self::Source) -> T,
+        G: Fn(T) -> U;
 }

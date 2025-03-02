@@ -34,11 +34,11 @@
 //! let nothing_value: Maybe<i32> = Maybe::Nothing;
 //! 
 //! // Using fmap to transform the value
-//! let doubled = just_value.fmap(&|x| x * 2);  // Maybe::Just(84)
-//! let doubled_nothing = nothing_value.fmap(&|x| x * 2);  // Maybe::Nothing
+//! let doubled = just_value.fmap(|x| x * 2);  // Maybe::Just(84)
+//! let doubled_nothing = nothing_value.fmap(|x| x * 2);  // Maybe::Nothing
 //! 
 //! // Chaining operations with bind
-//! let result = just_value.bind(&|x| {
+//! let result = just_value.bind(|x| {
 //!     if *x > 0 {
 //!         Maybe::Just(x * 10)
 //!     } else {
@@ -204,6 +204,8 @@ impl<T> Maybe<T> {
 impl<T> HKT for Maybe<T> {
     type Source = T;
     type Output<U> = Maybe<U>;
+    type Source2 = ();
+    type BinaryOutput<U, V> = Maybe<(U, V)>;
 }
 
 /// Implementation of Pure trait for Maybe
@@ -243,8 +245,8 @@ impl<T> Functor for Maybe<T> {
     /// let just_five = Maybe::Just(5);
     /// let nothing: Maybe<i32> = Maybe::Nothing;
     ///
-    /// let just_six = just_five.fmap(&|x| x + 1);
-    /// let still_nothing = nothing.fmap(&|x| x + 1);
+    /// let just_six = just_five.fmap(|x| x + 1);
+    /// let still_nothing = nothing.fmap(|x| x + 1);
     ///
     /// match just_six {
     ///     Maybe::Just(x) => assert_eq!(x, 6),
@@ -253,7 +255,10 @@ impl<T> Functor for Maybe<T> {
     ///
     /// assert!(still_nothing.is_nothing());
     /// ```
-    fn fmap<U>(&self, f: &dyn Fn(&Self::Source) -> U) -> Self::Output<U> {
+    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> U,
+    {
         match self {
             Maybe::Just(x) => Maybe::Just(f(x)),
             Maybe::Nothing => Maybe::Nothing,
@@ -303,15 +308,18 @@ impl<T> Applicative for Maybe<T> {
     /// let just_five = Maybe::Just(5);
     /// let just_ten = Maybe::Just(10);
     ///
-    /// let result = just_five.lift2(&just_ten, &|x, y| x + y);
+    /// let result = just_five.lift2(&just_ten, |x, y| x + y);
     /// match result {
     ///     Maybe::Just(x) => assert_eq!(x, 15),
     ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
     /// }
     /// ```
-    fn lift2<B, C>(&self, b: &Self::Output<B>, f: &dyn Fn(&Self::Source, &B) -> C) -> Self::Output<C> {
+    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: Fn(&Self::Source, &B) -> C,
+    {
         match (self, b) {
-            (Maybe::Just(x), Maybe::Just(b)) => Maybe::Just(f(x, b)),
+            (Maybe::Just(x), Maybe::Just(y)) => Maybe::Just(f(x, y)),
             _ => Maybe::Nothing,
         }
     }
@@ -328,15 +336,18 @@ impl<T> Applicative for Maybe<T> {
     /// let just_ten = Maybe::Just(10);
     /// let just_two = Maybe::Just(2);
     ///
-    /// let result = just_five.lift3(&just_ten, &just_two, &|x, y, z| x * y + z);
+    /// let result = just_five.lift3(&just_ten, &just_two, |x, y, z| x * y + z);
     /// match result {
     ///     Maybe::Just(x) => assert_eq!(x, 52),  // 5 * 10 + 2 = 52
     ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
     /// }
     /// ```
-    fn lift3<B, C, D>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: &dyn Fn(&Self::Source, &B, &C) -> D) -> Self::Output<D> {
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    where
+        F: Fn(&Self::Source, &B, &C) -> D,
+    {
         match (self, b, c) {
-            (Maybe::Just(x), Maybe::Just(b), Maybe::Just(c)) => Maybe::Just(f(x, b, c)),
+            (Maybe::Just(x), Maybe::Just(y), Maybe::Just(z)) => Maybe::Just(f(x, y, z)),
             _ => Maybe::Nothing,
         }
     }
@@ -371,7 +382,10 @@ impl<T> Monad for Maybe<T> {
     ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
     /// }
     /// ```
-    fn bind<U>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>,
+    {
         match self {
             Maybe::Just(x) => f(x),
             Maybe::Nothing => Maybe::Nothing,
@@ -396,9 +410,10 @@ impl<T> Monad for Maybe<T> {
     /// ```
     fn join<U>(&self) -> Self::Output<U>
         where
-            T: Clone + Into<Self::Output<U>> {
+            Self::Source: Clone,
+            Self::Source: Into<Self::Output<U>> {
         match self {
-            Maybe::Just(x) => x.clone().into(),
+            Maybe::Just(x) => (*x).clone().into(),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
@@ -479,6 +494,13 @@ impl<T> Identity for Maybe<T> {
             Maybe::Nothing => panic!("Tried to get value from Nothing!"),
         }
     }
+
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+        where
+            Self::Output<A>: Identity,
+            A: Clone {
+        Maybe::Just(value)
+    }
 }
 
 /// Implementation of Composable trait for Maybe
@@ -490,16 +512,21 @@ impl<T> Composable for Maybe<T> {
     /// ```rust
     /// use rustica::datatypes::maybe::Maybe;
     /// use rustica::prelude::*;
+    /// use rustica::traits::composable::Composable;
     ///
     /// let add_one = |x: i32| x + 1;
     /// let double = |x: i32| x * 2;
-    /// let composed = Maybe::<i32>::compose(&add_one, &double);
+    /// let composed = <Maybe<i32> as Composable>::compose(&add_one, &double);
     ///
-    /// let result = Maybe::Just(5).fmap(&|x| composed(*x));
+    /// let result = Maybe::Just(5).bind(&|x: &i32| Maybe::Just(composed(*x)));
     /// assert!(result.is_just());
     /// assert_eq!(result.unwrap(), 12);  // (5 + 1) * 2 = 12
     /// ```
-    fn compose<U, V>(f: &dyn Fn(Self::Source) -> U, g: &dyn Fn(U) -> V) -> impl Fn(Self::Source) -> V {
+    fn compose<U, V, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> V
+    where
+        F: Fn(Self::Source) -> U,
+        G: Fn(U) -> V,
+    {
         move |x| g(f(x))
     }
 }

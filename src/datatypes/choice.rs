@@ -46,12 +46,12 @@
 //! assert_eq!(numbers.alternatives(), &vec![2, 3, 4]);
 //! 
 //! // Transform all values using fmap (Functor)
-//! let doubled = numbers.fmap(&|x| x * 2);
+//! let doubled = numbers.fmap(|x| x * 2);
 //! assert_eq!(*doubled.first(), 2);
 //! assert_eq!(doubled.alternatives(), &vec![4, 6, 8]);
 //! 
 //! // Chain operations that produce multiple results (Monad)
-//! let result = numbers.bind(&|&x| Choice::new(x * 10, vec![x * 100]));
+//! let result = numbers.bind(|&x| Choice::new(x * 10, vec![x * 100]));
 //! assert_eq!(*result.first(), 10);
 //! assert_eq!(result.alternatives(), &vec![100, 20, 200, 30, 300, 40, 400]);
 //! 
@@ -71,6 +71,7 @@ use crate::traits::{
     semigroup::Semigroup,
     monoid::Monoid,
 };
+use std::fmt::{Debug, Display, Formatter, Result};
 
 /// A type representing a value with multiple alternatives.
 ///
@@ -359,6 +360,38 @@ impl<T> Choice<T> {
         flattened_alternatives.extend(self.alternatives.iter().flat_map(|x| x.clone().into_iter()));
         Choice::new(first, flattened_alternatives)
     }
+
+    pub fn partition(vec: Vec<T>, predicate: impl Fn(&T) -> bool) -> Self {
+        let mut first = None;
+        let mut alternatives = Vec::new();
+        
+        for item in vec {
+            match (&mut first, predicate(&item)) {
+                (None, true) => first = Some(item),
+                (_, true) => alternatives.push(item),
+                (None, false) => {
+                    let old_first = std::mem::replace(&mut first, Some(item));
+                    if let Some(old) = old_first {
+                        alternatives.push(old);
+                    }
+                }
+                (_, false) => alternatives.push(item),
+            }
+        }
+        
+        Choice::new(first.expect("Empty vector"), alternatives)
+    }
+
+    pub fn of_many(first: T, alternatives: impl IntoIterator<Item = T>) -> Self {
+        Choice::new(first, alternatives.into_iter().collect())
+    }
+
+    pub fn from_iter(iter: impl IntoIterator<Item = T>) -> Option<Self> {
+        let mut iter = iter.into_iter();
+        iter.next().map(|first| {
+            Choice::new(first, iter.collect())
+        })
+    }
 }
 
 /// Implements the Higher-Kinded Type (HKT) trait for `Choice<T>`.
@@ -377,6 +410,8 @@ impl<T> Choice<T> {
 impl<T> HKT for Choice<T> {
     type Source = T;
     type Output<U> = Choice<U>;
+    type Source2 = ();
+    type BinaryOutput<U, V> = ();
 }
 
 impl<T> Identity for Choice<T> {
@@ -401,6 +436,13 @@ impl<T> Identity for Choice<T> {
     fn value(&self) -> &Self::Source {
         &self.first
     }
+
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+        where
+            Self::Output<A>: Identity,
+            A: Clone {
+        Choice::new(value, Vec::new())
+    }
 }
 
 impl<T> Functor for Choice<T> {
@@ -424,12 +466,14 @@ impl<T> Functor for Choice<T> {
     /// use rustica::traits::functor::Functor;
     ///
     /// let choice = Choice::new(2, vec![3, 4]);
-    /// let doubled = choice.fmap(&|x| x * 2);
+    /// let doubled = choice.fmap(|x| x * 2);
     ///
     /// assert_eq!(*doubled.first(), 4);
     /// assert_eq!(doubled.alternatives(), &vec![6, 8]);
     /// ```
-    fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+        where
+            F: Fn(&Self::Source) -> B {
         Choice::new(f(&self.first), self.alternatives.iter().map(f).collect())
     }
 }
@@ -459,7 +503,7 @@ impl<T> Pure for Choice<T> {
     /// assert_eq!(*choice.first(), 42);
     /// assert!(choice.alternatives().is_empty());
     /// ```
-    fn pure<U: Clone>(value: U) -> Self::Output<U> {
+    fn pure<U>(value: U) -> Self::Output<U> {
         Choice::new(value, vec![])
     }
 }
@@ -533,16 +577,19 @@ impl<T> Applicative for Choice<T> {
     ///
     /// let a = Choice::new(2, vec![3]);
     /// let b = Choice::new(10, vec![20]);
-    /// let result = a.lift2(&b, &|x, y| x + y);
+    /// let result = a.lift2(&b, |x, y| x + y);
     ///
     /// assert_eq!(*result.first(), 12);
     /// assert_eq!(result.alternatives(), &vec![22, 13, 23]);
     /// ```
-    fn lift2<B, C>(
+    fn lift2<B, C, F>(
         &self,
         b: &Self::Output<B>,
-        f: &dyn Fn(&Self::Source, &B) -> C,
-    ) -> Self::Output<C> {
+        f: F,
+    ) -> Self::Output<C> 
+    where
+        F: Fn(&Self::Source, &B) -> C,
+    {
         let first_result = f(&self.first, &b.first);
         let mut alt_result = Vec::new();
 
@@ -581,17 +628,20 @@ impl<T> Applicative for Choice<T> {
     /// let a = Choice::new(1, vec![2]);
     /// let b = Choice::new(10, vec![20]);
     /// let c = Choice::new(100, vec![200]);
-    /// let result = a.lift3(&b, &c, &|x, y, z| x + y + z);
+    /// let result = a.lift3(&b, &c, |x, y, z| x + y + z);
     ///
     /// assert_eq!(*result.first(), 111);
     /// assert_eq!(result.alternatives(), &vec![211, 121, 221, 112, 212, 122, 222]);
     /// ```
-    fn lift3<B, C, D>(
+    fn lift3<B, C, D, F>(
         &self,
         b: &Self::Output<B>,
         c: &Self::Output<C>,
-        f: &dyn Fn(&Self::Source, &B, &C) -> D
-    ) -> Self::Output<D> {
+        f: F,
+    ) -> Self::Output<D> 
+    where
+        F: Fn(&Self::Source, &B, &C) -> D,
+    {
         let first_result = f(&self.first, &b.first, &c.first);
         let mut alt_result = Vec::new();
 
@@ -634,17 +684,21 @@ impl<T: Clone> Monad for Choice<T> {
     /// use rustica::traits::monad::Monad;
     ///
     /// let choice = Choice::new(2, vec![3, 4]);
-    /// let result = choice.bind(&|&x| Choice::new(x * 10, vec![x * 100]));
+    /// let result = choice.bind(|&x| Choice::new(x * 10, vec![x * 100]));
     ///
     /// assert_eq!(*result.first(), 20);
     /// assert_eq!(result.alternatives(), &vec![200, 30, 300, 40, 400]);
     /// ```
-    fn bind<U: Clone>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>,
+    {
         let first_choice = f(&self.first);
         let mut alt_values = Vec::new();
         
-        alt_values.extend(first_choice.alternatives.iter().cloned());
-        
+        // Move alternatives instead of borrowing to avoid cloning
+        alt_values.extend(first_choice.alternatives);
+    
         for x in &self.alternatives {
             let choice = f(x);
             alt_values.push(choice.first);
@@ -653,7 +707,7 @@ impl<T: Clone> Monad for Choice<T> {
         
         Choice::new(first_choice.first, alt_values)
     }
-
+    
     /// Flattens a nested `Choice` structure.
     ///
     /// This method implements the `join` operation for the `Monad` trait. It takes a `Choice`
@@ -684,7 +738,7 @@ impl<T: Clone> Monad for Choice<T> {
     /// ```
     fn join<U>(&self) -> Self::Output<U>
     where
-        T: Into<Self::Output<U>>,
+        T: Clone + Into<Self::Output<U>>,
     {
         let first_choice: Self::Output<U> = self.first.clone().into();
         let mut alt: Vec<U> = first_choice.alternatives;
@@ -757,5 +811,30 @@ impl<T: Clone + Default> Monoid for Choice<T> {
     /// ```
     fn empty() -> Self {
         Choice::new(T::default(), vec![])
+    }
+}
+
+impl<T> IntoIterator for Choice<T> {
+    type Item = T;
+    type IntoIter = std::iter::Chain<std::iter::Once<T>, std::vec::IntoIter<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        std::iter::once(self.first).chain(self.alternatives.into_iter())
+    }
+}
+
+impl<T: Debug> Debug for Choice<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Choice({:?}, {:?})", self.first, self.alternatives)
+    }
+}
+
+impl<T: Display> Display for Choice<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.first)?;
+        if !self.alternatives.is_empty() {
+            write!(f, " | {}", self.alternatives.iter().map(|alt| alt.to_string()).collect::<Vec<_>>().join(", "))?;
+        }
+        Ok(())
     }
 }

@@ -4,84 +4,102 @@ use crate::traits::hkt::HKT;
 ///
 /// In category theory, an identity morphism (or identity function) is a morphism that
 /// leaves an object unchanged. The Identity trait provides functionality for working
-/// with identity functions in a type-safe way.
-///
-/// # Type Parameters
-/// The trait is implemented on types that implement `HKT`, where:
-/// * `Source` is the type being transformed
-/// * `Output<T>` represents the result type after transformation
-///
-/// # Laws
-/// For a valid Identity implementation:
-///
-/// 1. Left Identity:
-///    identity().compose(f) == f
-///
-/// 2. Right Identity:
-///    f.compose(identity()) == f
-///
-/// 3. Uniqueness:
-///    identity::<A>() == identity::<A>()
+/// with identity functions and accessing values in a type-safe way.
 ///
 /// # Examples
 ///
-/// Basic implementation:
-/// ```rust
+/// ```
 /// use rustica::traits::hkt::HKT;
 /// use rustica::traits::identity::Identity;
 ///
-/// struct Id<T>(T);
+/// // A simple wrapper type
+/// struct Wrapper<T>(T);
 ///
-/// impl<T> HKT for Id<T> {
+/// impl<T> HKT for Wrapper<T> {
 ///     type Source = T;
-///     type Output<U> = U;
+///     type Output<U> = Wrapper<U>;
+///     type Source2 = ();
+///     type BinaryOutput<U, V> = ();
 /// }
 ///
-/// impl<T> Identity for Id<T> {
+/// impl<T: Clone> Identity for Wrapper<T> {
 ///     fn value(&self) -> &Self::Source {
 ///         &self.0
 ///     }
+///     
+///     fn try_value(&self) -> Option<&Self::Source> {
+///         Some(&self.0)
+///     }
+///
+///     fn pure_identity<A>(value: A) -> Self::Output<A>
+///     where
+///         Self::Output<A>: Identity,
+///         A: Clone,
+///     {
+///         Wrapper(value)
+///     }
 /// }
+///
+/// // Using the Identity trait
+/// let wrapped = Wrapper(42);
+/// assert_eq!(*wrapped.value(), 42);
+///
+/// // Using the identity function
+/// let x = 5;
+/// assert_eq!(<Wrapper<i32> as Identity>::id(x), 5);
 /// ```
-///
-/// # Common Use Cases
-///
-/// Identity functions are commonly used in:
-/// - Function composition, where they act as neutral elements
-/// - Generic programming, to represent "no-op" transformations
-/// - Testing and debugging, to verify the correctness of other functions
-/// - Implementing certain algebraic structures in category theory
-/// - As default or placeholder implementations in trait methods
 pub trait Identity: HKT {
-    /// Creates an identity function for the given type.
+    /// Returns a reference to the contained value.
     ///
-    /// The identity function returns its input unchanged, serving as the identity
-    /// element in function composition.
+    /// # Panics
     ///
-    /// # Type Parameters
-    /// * `T`: The type of value to create an identity function for
-    ///
-    /// # Arguments
-    /// * `x`: The value to return unchanged
-    ///
-    /// # Returns
-    /// The input value `x` unchanged
+    /// This method may panic if the container doesn't contain a valid value.
+    /// For a non-panicking alternative, use `try_value()`.
     fn value(&self) -> &Self::Source;
 
-    /// Returns the input value unchanged, serving as the identity function.
+    /// Returns a reference to the contained value, if available.
+    ///
+    /// This method is safer than `value()` as it returns an `Option`
+    /// instead of potentially panicking.
+    ///
+    /// # Default Implementation
+    ///
+    /// By default, this calls `value()` and wraps the result in `Some`.
+    /// Types that might not contain a value should override this method.
+    fn try_value(&self) -> Option<&Self::Source> {
+        Some(self.value())
+    }
+
+    /// The identity function, which returns its input unchanged.
+    ///
+    /// This function serves as the identity morphism in category theory.
     ///
     /// # Type Parameters
     ///
-    /// * `A`: The type of the input value.
+    /// * `A`: The type of the input value
     ///
     /// # Arguments
     ///
-    /// * `a`: The value to be returned unchanged.
-    ///
-    /// # Returns
-    ///
-    /// The input value `a` of type `A`.
-    fn identity<A>(a: A) -> A {
+    /// * `a`: The value to return unchanged
+    #[inline]
+    fn id<A>(a: A) -> A {
         a
     }
+
+    /// Creates an identity instance containing the given value.
+    ///
+    /// This is a convenience method for creating a new instance of a type
+    /// that implements `Identity`.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `A`: The type of the value to wrap
+    ///
+    /// # Arguments
+    ///
+    /// * `value`: The value to wrap
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+    where
+        Self::Output<A>: Identity,
+        A: Clone;
 }

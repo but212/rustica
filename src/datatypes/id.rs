@@ -44,7 +44,7 @@
 //! assert_eq!(*x.value(), 42);
 //! 
 //! // Map a function over the value (Functor)
-//! let doubled = x.fmap(&|n| n * 2);
+//! let doubled = x.fmap(|n| n * 2);
 //! assert_eq!(*doubled.value(), 84);
 //! 
 //! // Lift a value into Id context (Pure)
@@ -90,7 +90,7 @@ use crate::traits::{
 /// assert_eq!(*x.value(), 5);
 ///
 /// // Using Functor to map over Id
-/// let doubled = x.fmap(&|n| n * 2);
+/// let doubled = x.fmap(|n| n * 2);
 /// assert_eq!(*doubled.value(), 10);
 ///
 /// // Using Pure to lift a value into Id context
@@ -122,9 +122,9 @@ use crate::traits::{
 ///
 /// // Chaining operations
 /// let result = x
-///     .fmap(&|n| n + 1)     // 5 -> 6
-///     .fmap(&|n| n * 2)     // 6 -> 12
-///     .fmap(&|n| n.to_string());
+///     .fmap(|n| n + 1)     // 5 -> 6
+///     .fmap(|n| n * 2)     // 6 -> 12
+///     .fmap(|n| n.to_string());
 /// assert_eq!(*result.value(), "12");
 /// ```
 #[derive(Clone)]
@@ -163,6 +163,8 @@ impl<T> Id<T> {
 impl<T> HKT for Id<T> {
     type Source = T;
     type Output<U> = Id<U>;
+    type Source2 = ();
+    type BinaryOutput<U, V> = ();
 }
 
 impl<T> Identity for Id<T> {
@@ -181,6 +183,13 @@ impl<T> Identity for Id<T> {
     /// ```
     fn value(&self) -> &Self::Source {
         &self.value
+    }
+
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+        where
+            Self::Output<A>: Identity,
+            A: Clone {
+        Id::new(value)
     }
 }
 
@@ -205,16 +214,19 @@ impl<T> Functor for Id<T> {
     /// let x: Id<i32> = Id::new(5);
     /// 
     /// // Map a simple function
-    /// let doubled = x.fmap(&|n| n * 2);
+    /// let doubled = x.fmap(|n| n * 2);
     /// assert_eq!(*doubled.value(), 10);
     /// 
     /// // Chain multiple transformations
     /// let result = x
-    ///     .fmap(&|n| n + 3)       // 5 -> 8
-    ///     .fmap(&|n| n.to_string()); // 8 -> "8"
+    ///     .fmap(|n| n + 3)       // 5 -> 8
+    ///     .fmap(|n| n.to_string()); // 8 -> "8"
     /// assert_eq!(*result.value(), "8");
     /// ```
-    fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    where
+        F: Fn(&Self::Source) -> B,
+    {
         Id::new(f(&self.value))
     }
 }
@@ -309,11 +321,10 @@ impl<T> Applicative for Id<T> {
     /// let message = greeting.lift2(&name, &combine);
     /// assert_eq!(*message.value(), "Hello World!");
     /// ```
-    fn lift2<B, C>(
-        &self,
-        b: &Self::Output<B>,
-        f: &dyn Fn(&Self::Source, &B) -> C,
-    ) -> Self::Output<C> {
+    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: Fn(&Self::Source, &B) -> C,
+    {
         Id::new(f(&self.value, b.value()))
     }
 
@@ -349,12 +360,10 @@ impl<T> Applicative for Id<T> {
     /// let greeting = first.lift3(&second, &third, &format_greeting);
     /// assert_eq!(*greeting.value(), "Hello functional world!");
     /// ```
-    fn lift3<B, C, D>(
-        &self,
-        b: &Self::Output<B>,
-        c: &Self::Output<C>,
-        f: &dyn Fn(&Self::Source, &B, &C) -> D,
-    ) -> Self::Output<D> {
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    where
+        F: Fn(&Self::Source, &B, &C) -> D,
+    {
         Id::new(f(&self.value, b.value(), c.value()))
     }
 }
@@ -386,11 +395,14 @@ impl<T> Monad for Id<T> {
     /// 
     /// // Chain multiple bind operations
     /// let result = x
-    ///     .bind(&|n| Id::new(n + 3))
-    ///     .bind(&|n| Id::new(n * 2));
+    ///     .bind(|n| Id::new(n + 3))
+    ///     .bind(|n| Id::new(n * 2));
     /// assert_eq!(*result.value(), 16);
     /// ```
-    fn bind<U: Clone>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>,
+    {
         f(&self.value)
     }
 

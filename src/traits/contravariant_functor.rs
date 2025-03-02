@@ -54,5 +54,7 @@ pub trait ContravariantFunctor: HKT {
     /// # Returns
     ///
     /// A new contravariant functor that works with values of type U
-    fn contramap<U>(&self, f: &dyn Fn(&U) -> Self::Source) -> Self::Output<U>;
+    fn contramap<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&U) -> Self::Source;
 }

@@ -153,10 +153,17 @@ use std::sync::Arc;
 /// // 3. Third computation returns ("Result: 9", 4 * 2) = ("Result: 9", 8)
 /// assert_eq!(computation.run_state(3), ("Result: 9".to_string(), 8));
 /// ```
-#[derive(Clone)]
 pub struct State<S, A> {
     /// The state transformation function
     pub run: Arc<dyn Fn(S) -> (A, S) + 'static>,
+}
+
+impl<S, A> Clone for State<S, A> {
+    fn clone(&self) -> Self {
+        State {
+            run: Arc::clone(&self.run),
+        }
+    }
 }
 
 impl<S, A> State<S, A> 

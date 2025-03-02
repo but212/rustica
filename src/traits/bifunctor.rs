@@ -29,29 +29,29 @@ use crate::traits::hkt::HKT;
 /// impl<T, E> HKT for BiResult<T, E> {
 ///     type Source = T;
 ///     type Output<U> = BiResult<U, E>;
+///     type Source2 = E;
+///     type BinaryOutput<U, V> = BiResult<U, V>;
 /// }
 ///
 /// impl<T: Clone + Default, E: Clone + Default> Bifunctor for BiResult<T, E> {
-///     type Source2 = E;
-///
-///     fn first<C>(&self, f: &dyn Fn(&T) -> C) -> Self::Output<C> {
+///     fn first<C>(&self, f: &dyn Fn(&T) -> C) -> Self::BinaryOutput<C, E> {
 ///         BiResult(match &self.0 {
 ///             Ok(a) => Ok(f(a)),
 ///             Err(e) => Err(e.clone()),
 ///         })
 ///     }
 ///
-///     fn second<D>(&self, f: &dyn Fn(&E) -> D) -> BiResult<D, E> {
+///     fn second<D>(&self, f: &dyn Fn(&E) -> D) -> Self::BinaryOutput<T, D> {
 ///         BiResult(match &self.0 {
-///             Ok(a) => Err(E::default()),
-///             Err(e) => Ok(f(e)),
+///             Ok(a) => Ok(a.clone()),
+///             Err(e) => Err(f(e)),
 ///         })
 ///     }
 ///
-///     fn bimap<C, D>(&self, f: &dyn Fn(&T) -> C, g: &dyn Fn(&E) -> D) -> BiResult<(C, D), E> {
+///     fn bimap<C, D>(&self, f: &dyn Fn(&T) -> C, g: &dyn Fn(&E) -> D) -> Self::BinaryOutput<C, D> {
 ///         BiResult(match &self.0 {
-///             Ok(a) => Ok((f(a), g(&E::default()))),
-///             Err(e) => Ok((f(&T::default()), g(e))),
+///             Ok(a) => Ok(f(a)),
+///             Err(e) => Err(g(e)),
 ///         })
 ///     }
 /// }
@@ -66,18 +66,18 @@ use crate::traits::hkt::HKT;
 ///
 /// // Transform the error value
 /// let mapped_error = error.second(&|e| e.to_string());
-/// assert_eq!(mapped_error, BiResult(Ok("error".to_string())));
+/// assert_eq!(mapped_error, BiResult(Err("error".to_string())));
 ///
 /// // Transform both simultaneously
 /// let both_mapped = success.bimap(&|x| x * 2, &|e| e.to_string());
-/// assert_eq!(both_mapped, BiResult(Ok((10, "".to_string()))));
+/// assert_eq!(both_mapped, BiResult(Ok(10)));
 ///
 /// // Chain operations
 /// let result = success
 ///     .first(&|x| x + 3)      // 5 -> 8
 ///     .first(&|x| x * 2)      // 8 -> 16
 ///     .second(&|e| e.to_string());
-/// assert_eq!(result, BiResult(Err("")));
+/// assert_eq!(result, BiResult(Ok(16)));
 ///
 /// ```
 ///
@@ -97,9 +97,6 @@ use crate::traits::hkt::HKT;
 ///    - Convert between different error types in error handling
 ///    - Transform data structures that contain two type parameters
 pub trait Bifunctor: HKT {
-    /// The second type parameter of the bifunctor
-    type Source2;
-
     /// Maps a function over the first type parameter.
     ///
     /// This is similar to `fmap` for regular functors, but it operates on the first
@@ -110,7 +107,7 @@ pub trait Bifunctor: HKT {
     ///
     /// # Returns
     /// A new bifunctor with the first type parameter transformed
-    fn first<C>(&self, f: &dyn Fn(&Self::Source) -> C) -> Self::Output<C>;
+    fn first<C>(&self, f: &dyn Fn(&Self::Source) -> C) -> Self::BinaryOutput<C, Self::Source2>;
 
     /// Maps a function over the second type parameter.
     ///
@@ -122,7 +119,7 @@ pub trait Bifunctor: HKT {
     ///
     /// # Returns
     /// A new bifunctor with the second type parameter transformed
-    fn second<D>(&self, f: &dyn Fn(&Self::Source2) -> D) -> Self::Output<D>;
+    fn second<D>(&self, f: &dyn Fn(&Self::Source2) -> D) -> Self::BinaryOutput<Self::Source, D>;
 
     /// Maps two functions over both type parameters simultaneously.
     ///
@@ -135,5 +132,24 @@ pub trait Bifunctor: HKT {
     ///
     /// # Returns
     /// A new bifunctor with both type parameters transformed
-    fn bimap<C, D>(&self, f: &dyn Fn(&Self::Source) -> C, g: &dyn Fn(&Self::Source2) -> D) -> Self::Output<(C, D)>;
+    fn bimap<C, D>(&self, f: &dyn Fn(&Self::Source) -> C, g: &dyn Fn(&Self::Source2) -> D) -> Self::BinaryOutput<C, D>;
+
+    /// Maps two functions over both type parameters simultaneously, using owned function types.
+    ///
+    /// This method is similar to `bimap`, but it takes owned function types `F` and `G` instead of
+    /// trait objects. This can lead to better performance in some cases due to monomorphization.
+    ///
+    /// # Arguments
+    /// * `f`: Function to apply to the first type parameter
+    /// * `g`: Function to apply to the second type parameter
+    ///
+    /// # Returns
+    /// A new bifunctor with both type parameters transformed
+    fn bimap_with<C, D, F, G>(&self, f: F, g: G) -> Self::BinaryOutput<C, D>
+    where
+        F: Fn(&Self::Source) -> C,
+        G: Fn(&Self::Source2) -> D,
+    {
+        self.bimap(&f, &g)
+    }
 }

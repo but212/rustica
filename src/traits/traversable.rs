@@ -1,4 +1,3 @@
-use crate::traits::hkt::HKT;
 use crate::traits::applicative::Applicative;
 
 /// A trait for structures that can be traversed from left to right while preserving structure
@@ -67,11 +66,10 @@ pub trait Traversable: Applicative {
     /// # Returns
     ///
     /// A new structure wrapped in the effect type `F`
-    fn traverse<F, B>(&self, f: &dyn Fn(&Self::Source) -> F::Output<B>) -> F::Output<Self::Output<B>>
+    fn traverse<F, B, Fn>(&self, f: Fn) -> F::Output<Self::Output<B>>
     where
-        F: HKT<Source = B>,
         F: Applicative,
-        B: Clone;
+        Fn: FnMut(&Self::Source) -> F::Output<B>;
 
     /// Sequences a structure of effects into an effect of structure.
     ///
@@ -89,6 +87,5 @@ pub trait Traversable: Applicative {
     fn sequence<F>(&self) -> F::Output<Self::Output<F::Source>>
     where
         F: Applicative,
-        F::Source: Clone,
-        Self::Source: Clone + Into<F::Source>;
+        Self::Source: Into<F::Output<F::Source>>;
 }

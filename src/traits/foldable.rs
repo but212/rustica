@@ -69,7 +69,9 @@ pub trait Foldable: HKT {
     /// # Returns
     ///
     /// The final accumulated value
-    fn fold_left<U>(&self, init: &U, f: &dyn Fn(&U, &Self::Source) -> U) -> U;
+    fn fold_left<U, F>(&self, init: U, f: F) -> U
+    where
+        F: Fn(U, &Self::Source) -> U;
 
     /// Right-associative fold of a structure.
     ///
@@ -88,7 +90,9 @@ pub trait Foldable: HKT {
     /// # Returns
     ///
     /// The final accumulated value
-    fn fold_right<U>(&self, init: &U, f: &dyn Fn(&Self::Source, U) -> U) -> U;
+    fn fold_right<U, F>(&self, init: U, f: F) -> U
+    where
+        F: Fn(&Self::Source, U) -> U;
 
     /// Maps elements to a monoid and combines them.
     ///
@@ -106,7 +110,12 @@ pub trait Foldable: HKT {
     /// # Returns
     ///
     /// The combined monoid value
-    fn fold_map<M: Monoid>(&self, f: &dyn Fn(&Self::Source) -> M) -> M;
+    fn fold_map<M: Monoid, F>(&self, f: F) -> M
+    where
+        F: Fn(&Self::Source) -> M,
+    {
+        self.fold_left(M::empty(), |acc, x| acc.combine(&f(x)))
+    }
 
     /// Returns the number of elements in the structure.
     ///
@@ -118,7 +127,7 @@ pub trait Foldable: HKT {
     /// The number of elements in the structure
     #[inline]
     fn length(&self) -> usize {
-        self.fold_left(&0, &|acc, _| acc + 1)
+        self.fold_left(0, |acc, _| acc + 1)
     }
 
     /// Tests if the structure is empty.

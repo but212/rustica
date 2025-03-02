@@ -1,29 +1,43 @@
 /// A trait for higher-kinded types (HKT).
 ///
-/// Higher-kinded types are type constructors that abstract over type constructors.
-/// This trait provides a way to work with type constructors in a generic way,
-/// enabling functional programming patterns like Functor, Applicative, and Monad.
+/// Higher-kinded types are type constructors that abstract over other type constructors.
+/// This trait provides a way to work with type constructors in a generic way in Rust.
 ///
-/// # Type Parameters
-/// The trait defines two associated types:
-/// * `Source`: The input type parameter
-/// * `Output<U>`: A type constructor that takes a type parameter `U`
+/// # Examples
 ///
-/// # Design Notes
+/// ```
+/// use rustica::traits::hkt::HKT;
 ///
-/// 1. The trait uses associated types instead of generics to work around
-///    Rust's lack of direct support for higher-kinded types.
+/// // A simple container that implements HKT
+/// struct Container<T>(T);
 ///
-/// 2. The `Source` type represents the "current" type parameter, while
-///    `Output<U>` represents the ability to swap that type for any other.
+/// impl<T> HKT for Container<T> {
+///     type Source = T;
+///     type Output<U> = Container<U>;
+///     type Source2 = ();
+///     type BinaryOutput<U, V> = ();
+/// }
 ///
-/// 3. This pattern enables writing generic code that can work with any
-///    type constructor, not just specific ones like Option or Vec.
+/// // Creating a Container with different types
+/// let int_container = Container(42);
+/// let str_container = Container("hello");
+/// ```
 pub trait HKT {
     /// The source type that this higher-kinded type is parameterized over.
+    ///
+    /// This represents the current type parameter of the type constructor.
     type Source;
 
-    /// The type constructor that can produce new types from the given type U.
-    /// This is used to represent the "shape" of the type constructor.
+    /// The type constructor that can produce new types from the given type `U`.
+    ///
+    /// This represents the ability to apply the type constructor to a new type parameter.
     type Output<U>;
+
+    /// Optional second source type for types with multiple parameters.
+    /// Default implementation returns `()` for single-parameter types.
+    type Source2;
+
+    /// Optional output type for binary type constructors.
+    /// Types with two parameters can override this.
+    type BinaryOutput<U, V>;
 }

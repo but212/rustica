@@ -344,18 +344,30 @@ impl<W, A> HKT for Writer<W, A> {
 
     /// The output type, representing the Writer with a potentially different value type.
     type Output<T> = Writer<W, T>;
+
+    /// The output type, representing the Writer with a potentially different log type.
+    type BinaryOutput<U, V> = Writer<U, V>;
+
+    /// The source type, which is the type of the log carried by the Writer.
+    type Source2 = W;
 }
 
-impl<W, A> Identity for Writer<W, A> {
+impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
     /// Returns a reference to the value stored in the `Writer`.
     ///
     /// This method allows access to the inner value without consuming the `Writer`.
     ///
     /// # Returns
-    ///
     /// A reference to the value of type `&Self::Source`.
     fn value(&self) -> &Self::Source {
         &self.value
+    }
+
+    fn pure_identity<B>(value: B) -> Self::Output<B>
+        where
+            Self::Output<B>: Identity,
+            B: Clone {
+        Writer::new(W::empty(), value)
     }
 }
 
@@ -444,16 +456,22 @@ impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
     /// use rustica::traits::functor::Functor;
     ///
     /// let writer = Writer::new(vec!["log"], 5);
-    /// let result = writer.fmap(&|x| x * 2);
+    /// let result = writer.fmap(|x| x * 2);
     /// assert_eq!(result.run(), (vec!["log"], 10));
     /// ```
-    fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
-        Writer::new(self.log.clone(), f(&self.value))
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    where
+        F: FnOnce(&Self::Source) -> B,
+    {
+        Writer {
+            log: self.log.clone(),
+            value: f(&self.value),
+        }
     }
 }
 
 impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
-    fn pure<T: Clone>(value: T) -> Self::Output<T> {
+    fn pure<T>(value: T) -> Self::Output<T> {
         Writer::new(W::empty(), value)
     }
 }
@@ -492,7 +510,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// # Returns
     ///
     /// A new Writer with the combined log and the result of the function application
-    fn lift2<B, C>(&self, b: &Self::Output<B>, f: &dyn Fn(&Self::Source, &B) -> C) -> Self::Output<C> {
+    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: Fn(&Self::Source, &B) -> C,
+    {
         Writer::new(
             self.log.clone().combine(&b.log.clone()),
             f(&self.value, &b.value)
@@ -512,7 +533,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// # Returns
     ///
     /// A new Writer with the combined log and the result of the function application
-    fn lift3<B, C, D>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: &dyn Fn(&Self::Source, &B, &C) -> D) -> Self::Output<D> {
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    where
+        F: Fn(&Self::Source, &B, &C) -> D,
+    {
         Writer::new(
             self.log.clone().combine(&b.log.clone()).combine(&c.log.clone()),
             f(&self.value, &b.value, &c.value)
@@ -542,14 +566,17 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     /// use rustica::traits::monad::Monad;
     ///
     /// let w1 = Writer::new(vec!["log1"], 5);
-    /// let result = w1.bind(&|x| Writer::new(vec!["log2"], x * 2));
+    /// let result = w1.bind(|x| Writer::new(vec!["log2"], x * 2));
     /// assert_eq!(result.run(), (vec!["log1", "log2"], 10));
     /// ```
-    fn bind<U: Clone>(&self, f: &dyn Fn(&Self::Source) -> Self::Output<U>) -> Self::Output<U> {
+    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>,
+    {
         let result = f(&self.value);
         Writer::new(
-            self.log.clone().combine(&result.log.clone()),
-            result.value.clone()
+            self.log.combine(&result.log),
+            result.value
         )
     }
 
@@ -606,7 +633,11 @@ impl<W: Monoid + Clone, A: Clone> Composable for Writer<W, A> {
     /// # Returns
     ///
     /// A new function that composes `f` and `g`
-    fn compose<T, U>(f: &dyn Fn(Self::Source) -> T, g: &dyn Fn(T) -> U) -> impl Fn(Self::Source) -> U {
+    fn compose<T, U, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> U
+    where
+        F: Fn(Self::Source) -> T,
+        G: Fn(T) -> U,
+    {
         move |x| g(f(x))
     }
 }

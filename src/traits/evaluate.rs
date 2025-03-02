@@ -36,6 +36,8 @@ use crate::traits::hkt::HKT;
 /// impl<T> HKT for Lazy<T> {
 ///     type Source = T;
 ///     type Output<U> = Lazy<U>;
+///     type Source2 = ();
+///     type BinaryOutput<U, V> = ();
 /// }
 ///
 /// impl<T> Evaluate for Lazy<T> {
