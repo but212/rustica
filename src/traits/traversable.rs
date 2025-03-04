@@ -47,29 +47,28 @@ use crate::traits::applicative::Applicative;
 /// - You need to validate multiple values while collecting errors
 /// - You want to transform a structure of effects into an effect of structure
 pub trait Traversable: Applicative {
-    /// Traverses this structure with effects.
+    /// Traverses the structure, applying the given function to each element and collecting the results.
     ///
-    /// Maps each element of the structure to an effect, and then collects
-    /// the results in the minimal set of effects required to reconstruct
-    /// the structure.
+    /// This method allows you to apply an effect-producing function to each element in the structure,
+    /// and then collect all of these effects into a single effect containing the new structure.
     ///
     /// # Type Parameters
     ///
-    /// * `F`: The applicative functor that will contain the effects
-    /// * `B`: The resulting type after applying the function
-    /// * `Fn`: The function type that produces effects
+    /// * `F`: The applicative functor representing the effect
+    /// * `B`: The type of elements in the resulting structure
+    /// * `Func`: The type of the function to apply to each element
     ///
     /// # Arguments
     ///
-    /// * `f`: Function that maps elements to effects
+    /// * `f`: A function that takes a reference to an element of type `Self::Source` and returns an effect `F::Output<B>`
     ///
     /// # Returns
     ///
-    /// A new structure wrapped in the effect type `F`
-    fn traverse<F, B, Fn>(&self, f: Fn) -> F::Output<Self::Output<B>>
+    /// An effect `F::Output` containing the new structure `Self::Output<B>`
+    fn traverse<F, B, Func>(&self, f: Func) -> F::Output<Self::Output<B>>
     where
         F: Applicative,
-        Fn: FnMut(&Self::Source) -> F::Output<B>;
+        Func: Fn(&Self::Source) -> F::Output<B>;
 
     /// Sequences a structure of effects into an effect of structure.
     ///

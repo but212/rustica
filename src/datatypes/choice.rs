@@ -265,7 +265,10 @@ impl<T> Choice<T> {
     /// assert_eq!(*new_choice.first(), 1);
     /// assert_eq!(new_choice.alternatives(), &vec![2, 4]);
     /// ```
-    pub fn remove_alternative(&self, index: usize) -> Self where T: Clone {
+    pub fn remove_alternative(&self, index: usize) -> Self
+    where
+        T: Clone,
+    {
         let mut new_alternatives = self.alternatives.clone();
         new_alternatives.remove(index);
         Choice::new(self.first.clone(), new_alternatives)
@@ -290,7 +293,10 @@ impl<T> Choice<T> {
     /// assert_eq!(choice.find_alternative(&3), Some(1));
     /// assert_eq!(choice.find_alternative(&5), None);
     /// ```
-    pub fn find_alternative(&self, value: &T) -> Option<usize> where T: Eq {
+    pub fn find_alternative(&self, value: &T) -> Option<usize>
+    where
+        T: Eq,
+    {
         self.alternatives.iter().position(|x| x == value)
     }
 
@@ -315,7 +321,11 @@ impl<T> Choice<T> {
     /// assert_eq!(*doubled.first(), 2);
     /// assert_eq!(doubled.alternatives(), &vec![4, 6, 8]);
     /// ```
-    pub fn map_alternatives<F>(&self, f: F) -> Self where T: Clone, F: Fn(&T) -> T {
+    pub fn map_alternatives<F>(&self, f: F) -> Self
+    where
+        T: Clone,
+        F: Fn(&T) -> T,
+    {
         Choice::new(f(&self.first), self.alternatives.iter().map(f).collect())
     }
 
@@ -391,6 +401,46 @@ impl<T> Choice<T> {
         iter.next().map(|first| {
             Choice::new(first, iter.collect())
         })
+    }
+
+    /// Organizes alternatives in order using a `BTreeSet`.
+    ///
+    /// This method creates a new `Choice` with the same primary value but with
+    /// alternatives ordered and deduplicated according to their natural order.
+    /// The alternatives are stored in a `BTreeSet` internally and then converted
+    /// back to a `Vec` for the resulting `Choice`.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T`: The type must implement `Ord` for ordering and `Clone` for creating a new `Choice`.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` with ordered and deduplicated alternatives.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(5, vec![3, 1, 4, 1, 2]);
+    /// let ordered = choice.ordered_alternatives();
+    ///
+    /// assert_eq!(*ordered.first(), 5);
+    /// assert_eq!(ordered.alternatives(), &vec![1, 2, 3, 4]);
+    /// ```
+    pub fn ordered_alternatives(&self) -> Self
+    where
+        T: Ord + Clone,
+    {
+        use std::collections::BTreeSet;
+        
+        let mut set = BTreeSet::new();
+        for alt in &self.alternatives {
+            set.insert(alt.clone());
+        }
+        
+        Choice::new(self.first.clone(), set.into_iter().collect())
     }
 }
 
