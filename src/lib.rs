@@ -17,6 +17,8 @@
 #[macro_use]
 pub mod traits;
 
+pub mod utils;
+
 /// Implementations of functional data types.
 pub mod datatypes {
     // Core data types are always included
