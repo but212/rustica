@@ -1,3 +1,79 @@
+//! # Arrow
+//!
+//! This module provides the [`Arrow`] trait which represents a generalized notion of computation 
+//! beyond ordinary functions. Arrows combine the expressiveness of monads with additional
+//! abstractions for structuring computations, especially those involving pairs and parallelism.
+//!
+//! ## Mathematical Definition
+//!
+//! An arrow is a category with additional structure that allows:
+//! - Lifting pure functions into the arrow type (`arrow`)
+//! - Processing pairs of values (`first`, `second`)
+//! - Splitting computations (`split`)
+//! - Running computations in parallel (`combine_morphisms`)
+//!
+//! ## Laws
+//!
+//! A valid arrow must satisfy these laws:
+//!
+//! 1. Category Laws:
+//! ```text
+//! arrow id >>> f = f = f >>> arrow id
+//! (f >>> g) >>> h = f >>> (g >>> h)
+//! ```
+//!
+//! 2. Arrow Laws:
+//! ```text
+//! first (f >>> g) = first f >>> first g
+//! first (arrow f) = arrow (f × id)
+//! first f >>> arr (id × g) = arr (id × g) >>> first f
+//! first f >>> arr fst = arr fst >>> f
+//! first (first f) >>> arr assoc = arr assoc >>> first f
+//! ```
+//! where `assoc ((a,b),c) = (a,(b,c))`
+//!
+//! ## Common Use Cases
+//!
+//! The Arrow trait is commonly used in scenarios where:
+//!
+//! 1. **Pure Function Composition**
+//!    - Composing functions in a type-safe way
+//!    - Building complex transformations from simple ones
+//!
+//! 2. **Stateful Computations**
+//!    - Handling computations with context or state
+//!    - Managing side effects in a pure way
+//!
+//! 3. **Parallel Processing**
+//!    - Splitting computations into parallel paths
+//!    - Combining results from multiple computations
+//!
+//! 4. **Stream Processing**
+//!    - Processing data streams with rich operations
+//!    - Composing stream transformations
+//!
+//! ## Relationship with Other Functional Traits
+//!
+//! - **Category**: Arrow extends Category with operations for structuring computations.
+//!
+//! - **Monad**: Arrows are more general than monads in some ways and more restricted in others.
+//!   Every monad gives rise to a Kleisli arrow, but not every arrow comes from a monad.
+//!
+//! - **Applicative**: Arrows can express applicative computations but with a different interface.
+//!
+//! ## TODO: Future Improvements
+//!
+//! - **Function Implementation**: Implement Arrow for Rust functions with appropriate signature
+//! - **Law Testing**: Add property-based tests to verify that implementations satisfy arrow laws
+//! - **Additional Combinators**: Add more combinators like `loop`, `fanout`, and `merge`
+//! - **Arrow Choice**: Implement ArrowChoice extension for handling conditionals
+//! - **ArrowApply**: Implement ArrowApply for handling higher-order arrows
+//! - **Doctest Examples**: Add comprehensive examples that demonstrate arrow usage
+//! - **Kleisli Arrows**: Implement Kleisli arrows for working with monadic computations
+//! - **Arrow Transformers**: Create arrow transformers to add capabilities to existing arrows
+//! - **Parallel Execution**: Optimize arrow operations for true parallel execution
+//! - **Parser Combinators**: Build parser combinators using the Arrow abstraction
+
 use crate::traits::category::Category;
 
 /// A trait representing arrows in category theory, which generalizes computation from regular functions

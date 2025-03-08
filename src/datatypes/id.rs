@@ -48,7 +48,7 @@
 //! assert_eq!(*doubled.value(), 84);
 //! 
 //! // Lift a value into Id context (Pure)
-//! let pure_value = Id::<i32>::pure(100);
+//! let pure_value = Id::<i32>::pure(&100);
 //! assert_eq!(*pure_value.value(), 100);
 //! ```
 
@@ -56,6 +56,7 @@ use crate::traits::{
     hkt::HKT,
     identity::Identity,
     functor::Functor,
+    transform::Transform,
     pure::Pure,
     applicative::Applicative,
     monad::Monad,
@@ -94,7 +95,7 @@ use crate::traits::{
 /// assert_eq!(*doubled.value(), 10);
 ///
 /// // Using Pure to lift a value into Id context
-/// let pure_value = Id::<i32>::pure(42);
+/// let pure_value = Id::<i32>::pure(&42);
 /// assert_eq!(*pure_value.value(), 42);
 ///
 /// // Using Applicative to apply functions
@@ -127,7 +128,7 @@ use crate::traits::{
 ///     .fmap(|n| n.to_string());
 /// assert_eq!(*result.value(), "12");
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Id<T> {
     value: T,
 }
@@ -163,128 +164,50 @@ impl<T> Id<T> {
 impl<T> HKT for Id<T> {
     type Source = T;
     type Output<U> = Id<U>;
-    type Source2 = ();
-    type BinaryOutput<U, V> = ();
 }
 
 impl<T> Identity for Id<T> {
-    /// Returns a reference to the wrapped value.
-    /// 
-    /// This method provides access to the inner value stored in the `Id` type.
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
-    /// 
-    /// let x = Id::new(42);
-    /// assert_eq!(*x.value(), 42);
-    /// ```
     fn value(&self) -> &Self::Source {
         &self.value
     }
 
     fn pure_identity<A>(value: A) -> Self::Output<A>
-        where
-            Self::Output<A>: Identity,
-            A: Clone {
+    where
+        Self::Output<A>: Identity,
+    {
         Id::new(value)
+    }
+
+    fn into_value(self) -> Self::Source {
+        self.value
     }
 }
 
-impl<T> Functor for Id<T> {
-    /// Maps a function over the wrapped value.
-    /// 
-    /// This implementation follows the functor laws:
-    /// 1. Identity: `fmap(id) = id`
-    /// 2. Composition: `fmap(f . g) = fmap(f) . fmap(g)`
-    /// 
-    /// # Arguments
-    /// 
-    /// * `f` - The function to apply to the wrapped value
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::functor::Functor;
-    /// use rustica::traits::identity::Identity;
-    /// 
-    /// let x: Id<i32> = Id::new(5);
-    /// 
-    /// // Map a simple function
-    /// let doubled = x.fmap(|n| n * 2);
-    /// assert_eq!(*doubled.value(), 10);
-    /// 
-    /// // Chain multiple transformations
-    /// let result = x
-    ///     .fmap(|n| n + 3)       // 5 -> 8
-    ///     .fmap(|n| n.to_string()); // 8 -> "8"
-    /// assert_eq!(*result.value(), "8");
-    /// ```
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+impl<T> Transform for Id<T> {
+    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
     where
-        F: Fn(&Self::Source) -> B,
+        F: Fn(&Self::Source) -> NewType,
     {
         Id::new(f(&self.value))
     }
+
+    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    where
+        F: Fn(Self::Source) -> NewType,
+    {
+        Id::new(f(self.value))
+    }
 }
 
+impl<T> Functor for Id<T> {}
+
 impl<T> Pure for Id<T> {
-    /// Lifts a value into the `Id` context.
-    /// 
-    /// This is equivalent to `Id::new` but follows the `Pure` trait interface.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `x` - The value to lift into `Id` context
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::pure::Pure;
-    /// use rustica::traits::identity::Identity;
-    /// 
-    /// // Lift a value into Id context
-    /// let pure_int = Id::<i32>::pure(42);
-    /// assert_eq!(*pure_int.value(), 42);
-    /// 
-    /// // Lift a string into Id context
-    /// let pure_str = Id::<&str>::pure("hello");
-    /// assert_eq!(*pure_str.value(), "hello");
-    /// ```
-    fn pure<U>(x: U) -> Self::Output<U> {
-        Id::new(x)
+    fn pure<U: Clone>(x: &U) -> Self::Output<U> {
+        Id::new(x.clone())
     }
 }
 
 impl<T> Applicative for Id<T> {
-    /// Applies a function wrapped in `Id` to this value.
-    /// 
-    /// This allows you to apply functions that are themselves wrapped in the `Id` context.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `f` - The wrapped function to apply
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::identity::Identity;
-    /// 
-    /// let x: Id<i32> = Id::new(5);
-    /// 
-    /// // Create a function wrapped in Id
-    /// let add_three: Id<fn(&i32) -> i32> = Id::new(|n| n + 3);
-    /// 
-    /// // Apply the wrapped function to the wrapped value
-    /// let result = x.apply(&add_three);
-    /// assert_eq!(*result.value(), 8);
-    /// ```
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B,
@@ -292,35 +215,6 @@ impl<T> Applicative for Id<T> {
         Id::new(f.value()(&self.value))
     }
 
-    /// Combines two `Id` values using a binary function.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `b` - The second `Id` value
-    /// * `f` - The function to combine the values
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::identity::Identity;
-    /// 
-    /// let x: Id<i32> = Id::new(5);
-    /// let y: Id<i32> = Id::new(3);
-    /// 
-    /// // Combine two Id values with a binary function
-    /// let add = |a: &i32, b: &i32| a + b;
-    /// let sum = x.lift2(&y, &add);
-    /// assert_eq!(*sum.value(), 8);
-    /// 
-    /// // Working with different types
-    /// let greeting: Id<&str> = Id::new("Hello");
-    /// let name: Id<&str> = Id::new("World");
-    /// let combine = |a: &&str, b: &&str| format!("{} {}!", *a, *b);
-    /// let message = greeting.lift2(&name, &combine);
-    /// assert_eq!(*message.value(), "Hello World!");
-    /// ```
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
@@ -328,77 +222,48 @@ impl<T> Applicative for Id<T> {
         Id::new(f(&self.value, b.value()))
     }
 
-    /// Combines three `Id` values using a ternary function.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `b` - The second `Id` value
-    /// * `c` - The third `Id` value
-    /// * `f` - The function to combine the values
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::identity::Identity;
-    /// 
-    /// let x: Id<i32> = Id::new(5);
-    /// let y: Id<i32> = Id::new(3);
-    /// let z: Id<i32> = Id::new(2);
-    /// 
-    /// // Combine three Id values with a ternary function
-    /// let multiply = |a: &i32, b: &i32, c: &i32| a * b * c;
-    /// let product = x.lift3(&y, &z, &multiply);
-    /// assert_eq!(*product.value(), 30);
-    /// 
-    /// // Format a string with three values
-    /// let first: Id<&str> = Id::new("Hello");
-    /// let second: Id<&str> = Id::new("functional");
-    /// let third: Id<&str> = Id::new("world");
-    /// let format_greeting = |a: &&str, b: &&str, c: &&str| format!("{} {} {}!", *a, *b, *c);
-    /// let greeting = first.lift3(&second, &third, &format_greeting);
-    /// assert_eq!(*greeting.value(), "Hello functional world!");
-    /// ```
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
     {
         Id::new(f(&self.value, b.value(), c.value()))
     }
+
+    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+        where
+            F: Fn(Self::Source) -> B,
+            Self: Sized {
+        Id::new(f.value()(self.value))
+    }
+
+    fn lift2_owned<B, C, F>(
+            self,
+            b: Self::Output<B>,
+            f: F,
+        ) -> Self::Output<C>
+        where
+            F: Fn(Self::Source, B) -> C,
+            Self: Sized,
+            B: Clone {
+        Id::new(f(self.value, b.value))
+    }
+
+    fn lift3_owned<B, C, D, F>(
+            self,
+            b: Self::Output<B>,
+            c: Self::Output<C>,
+            f: F,
+        ) -> Self::Output<D>
+        where
+            F: Fn(Self::Source, B, C) -> D,
+            Self: Sized,
+            B: Clone,
+            C: Clone {
+        Id::new(f(self.value, b.value, c.value))
+    }
 }
 
 impl<T> Monad for Id<T> {
-    /// Binds a monadic function to the wrapped value.
-    /// 
-    /// This allows for sequencing operations that depend on the result of previous operations.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `f` - The monadic function to apply
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::monad::Monad;
-    /// use rustica::traits::identity::Identity;
-    /// 
-    /// let x: Id<i32> = Id::new(5);
-    /// 
-    /// // Define a monadic function
-    /// let add_and_wrap = |n: &i32| Id::new(n + 3);
-    /// 
-    /// // Bind the monadic function to the Id value
-    /// let result = x.bind(&add_and_wrap);
-    /// assert_eq!(*result.value(), 8);
-    /// 
-    /// // Chain multiple bind operations
-    /// let result = x
-    ///     .bind(|n| Id::new(n + 3))
-    ///     .bind(|n| Id::new(n * 2));
-    /// assert_eq!(*result.value(), 16);
-    /// ```
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
         F: Fn(&Self::Source) -> Self::Output<U>,
@@ -406,27 +271,25 @@ impl<T> Monad for Id<T> {
         f(&self.value)
     }
 
-    /// Flattens a nested `Id` value.
-    /// 
-    /// This operation is used to flatten a nested monadic structure, turning `Id<Id<T>>` into `Id<T>`.
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::monad::Monad;
-    /// use rustica::traits::identity::Identity;
-    /// 
-    /// // Create a nested Id value
-    /// let nested: Id<Id<i32>> = Id::new(Id::new(42));
-    /// 
-    /// // Flatten the nested structure
-    /// let flattened = nested.join();
-    /// assert_eq!(*flattened.value(), 42);
-    /// ```
     fn join<U>(&self) -> Self::Output<U>
         where
             Self::Source: Clone + Into<Self::Output<U>> {
         self.value.clone().into()
+    }
+
+    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
+        where
+            F: Fn(Self::Source) -> Self::Output<U>,
+            U: Clone,
+            Self: Sized {
+        f(self.value)
+    }
+
+    fn join_owned<U>(self) -> Self::Output<U>
+        where
+            Self::Source: Into<Self::Output<U>>,
+            U: Clone,
+            Self: Sized {
+        self.value.into()
     }
 }

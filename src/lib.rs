@@ -26,6 +26,9 @@ pub mod datatypes {
     pub mod either;
     pub mod id;
     
+    // Wrapper types for semigroups and monoids
+    pub mod wrapper;
+    
     // Less commonly used data types are loaded only when needed
     #[cfg(feature = "advanced")]
     pub mod validated;
@@ -64,71 +67,42 @@ pub mod transformers;
 
 /// Convenient re-exports of commonly used items.
 pub mod prelude {
-    // Import only core traits by default
+    // Core traits
     pub use crate::traits::hkt::HKT;
+    pub use crate::traits::transform::Transform;
+    pub use crate::traits::monoid::Monoid;
     pub use crate::traits::functor::Functor;
+    pub use crate::traits::pure::Pure;
     pub use crate::traits::applicative::Applicative;
     pub use crate::traits::monad::Monad;
-    pub use crate::traits::pure::Pure;
-    pub use crate::traits::identity::Identity;
-    
-    // Import additional traits only when needed
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::composable::Composable;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::evaluate::Evaluate;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::category::Category;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::arrow::Arrow;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::monoid::Monoid;
-    #[cfg(feature = "advanced")]
     pub use crate::traits::semigroup::Semigroup;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::traversable::Traversable;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::foldable::Foldable;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::comonad::Comonad;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::bifunctor::Bifunctor;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::contravariant_functor::ContravariantFunctor;
-    
-    // Core data types re-exports
+    pub use crate::traits::identity::Identity;
+
+    // Convenience re-exports of commonly used datatypes
     pub use crate::datatypes::maybe::Maybe;
     pub use crate::datatypes::either::Either;
-    pub use crate::datatypes::id::Id;
-    
-    // Import additional data types conditionally
+    #[cfg(feature = "advanced")]
+    pub use crate::datatypes::choice::Choice;
     #[cfg(feature = "advanced")]
     pub use crate::datatypes::validated::Validated;
-    #[cfg(feature = "async")]
-    pub use crate::datatypes::async_monad::AsyncM;
+    pub use crate::datatypes::id::Id;
+    
     #[cfg(feature = "advanced")]
-    pub use crate::datatypes::io::IO;
-}
+    pub use crate::traits::hkt::BinaryHKT;
+    #[cfg(feature = "advanced")]
+    pub use crate::traits::transform::TransformExt;
 
-// Additional: Utility macros for improving compile time
-#[macro_export]
-macro_rules! impl_functor {
-    ($type:ident, $method:expr) => {
-        impl<T> Functor for $type<T> {
-            fn fmap<B>(&self, f: &dyn Fn(&Self::Source) -> B) -> Self::Output<B> {
-                $method(self, f)
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! impl_pure {
-    ($type:ident, $method:expr) => {
-        impl<T> Pure for $type<T> {
-            fn pure<U: Clone>(value: U) -> Self::Output<U> {
-                $method(value)
-            }
-        }
-    };
+    // Advanced datatypes (feature-gated)
+    #[cfg(feature = "advanced")]
+    pub use crate::datatypes::writer::Writer;
+    #[cfg(feature = "advanced")]
+    pub use crate::datatypes::state::State;
+    #[cfg(feature = "advanced")]
+    pub use crate::datatypes::reader::Reader;
+    
+    // Common wrappers (feature-gated)
+    #[cfg(feature = "advanced")]
+    pub use crate::datatypes::wrapper::first::First;
+    #[cfg(feature = "advanced")]
+    pub use crate::datatypes::wrapper::last::Last;
 }

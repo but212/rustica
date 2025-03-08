@@ -86,7 +86,7 @@ pub fn pipeline_option<A, B, Func>(
     operations: Vec<Func>
 ) -> Option<B>
 where
-    Func: FnOnce(B) -> Option<B>,
+    Func: Fn(B) -> Option<B>,
     A: Into<B>,
 {
     let mut iter = operations.into_iter();
@@ -112,7 +112,7 @@ pub fn pipeline_result<A, B, E, Func>(
     operations: Vec<Func>
 ) -> Result<B, E>
 where
-    Func: FnOnce(B) -> Result<B, E>,
+    Func: Fn(B) -> Result<B, E>,
     A: Into<B>,
 {
     let mut iter = operations.into_iter();
@@ -143,7 +143,7 @@ where
 // Utility functions for Result
 pub fn map_result<A, B, E, F>(result: Result<A, E>, f: F) -> Result<B, E>
 where
-    F: FnOnce(A) -> B,
+    F: Fn(A) -> B,
 {
     result.map(f)
 }
@@ -151,7 +151,7 @@ where
 // Try pipeline for Result
 pub fn try_pipeline<A, B, E, F>(initial: A, operations: Vec<F>) -> Result<B, E>
 where
-    F: FnOnce(B) -> Result<B, E>,
+    F: Fn(B) -> Result<B, E>,
     A: Into<B>,
 {
     pipeline_result(initial, operations)
@@ -160,7 +160,7 @@ where
 // Apply multiple operations to a single input
 pub fn fan_out<A: Clone, B, F>(input: A, operations: Vec<F>) -> Vec<B>
 where
-    F: FnOnce(A) -> B,
+    F: Fn(A) -> B,
 {
     operations
         .into_iter()

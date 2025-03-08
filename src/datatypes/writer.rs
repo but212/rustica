@@ -56,6 +56,12 @@
 //!         combined.extend(other.0.clone());
 //!         Log(combined)
 //!     }
+//! 
+//!     fn combine_owned(self, other: Self) -> Self {
+//!         let mut combined = self.0.clone();
+//!         combined.extend(other.0.clone());
+//!         Log(combined)
+//!     }
 //! }
 //!
 //! impl Monoid for Log {
@@ -86,6 +92,12 @@
 //!
 //! impl Semigroup for Log {
 //!     fn combine(&self, other: &Self) -> Self {
+//!         let mut combined = self.0.clone();
+//!         combined.extend(other.0.clone());
+//!         Log(combined)
+//!     }
+//! 
+//!     fn combine_owned(self, other: Self) -> Self {
 //!         let mut combined = self.0.clone();
 //!         combined.extend(other.0.clone());
 //!         Log(combined)
@@ -125,6 +137,7 @@
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use crate::traits::hkt::HKT;
+use crate::traits::transform::Transform;
 use crate::traits::functor::Functor;
 use crate::traits::applicative::Applicative;
 use crate::traits::monad::Monad;
@@ -169,6 +182,12 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
     ///     }
+    /// 
+    ///     fn combine_owned(self, other: Self) -> Self {
+    ///         let mut combined = self.0.clone();
+    ///         combined.extend(other.0.clone());
+    ///         Log(combined)
+    ///     }
     /// }
     ///
     /// impl Monoid for Log {
@@ -205,6 +224,12 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///
     /// impl Semigroup for Log {
     ///     fn combine(&self, other: &Self) -> Self {
+    ///         let mut combined = self.0.clone();
+    ///         combined.extend(other.0.clone());
+    ///         Log(combined)
+    ///     }
+    /// 
+    ///     fn combine_owned(self, other: Self) -> Self {
     ///         let mut combined = self.0.clone();
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
@@ -247,6 +272,12 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
     ///     }
+    /// 
+    ///     fn combine_owned(self, other: Self) -> Self {
+    ///         let mut combined = self.0.clone();
+    ///         combined.extend(other.0.clone());
+    ///         Log(combined)
+    ///     }
     /// }
     ///
     /// impl Monoid for Log {
@@ -279,6 +310,12 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///
     /// impl Semigroup for Log {
     ///     fn combine(&self, other: &Self) -> Self {
+    ///         let mut combined = self.0.clone();
+    ///         combined.extend(other.0.clone());
+    ///         Log(combined)
+    ///     }
+    /// 
+    ///     fn combine_owned(self, other: Self) -> Self {
     ///         let mut combined = self.0.clone();
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
@@ -319,6 +356,12 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
     ///     }
+    /// 
+    ///     fn combine_owned(self, other: Self) -> Self {
+    ///         let mut combined = self.0.clone();
+    ///         combined.extend(other.0.clone());
+    ///         Log(combined)
+    ///     }
     /// }
     ///
     /// impl Monoid for Log {
@@ -339,26 +382,12 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
 }
 
 impl<W, A> HKT for Writer<W, A> {
-    /// The source type, which is the type of the value carried by the Writer.
     type Source = A;
 
-    /// The output type, representing the Writer with a potentially different value type.
     type Output<T> = Writer<W, T>;
-
-    /// The output type, representing the Writer with a potentially different log type.
-    type BinaryOutput<U, V> = Writer<U, V>;
-
-    /// The source type, which is the type of the log carried by the Writer.
-    type Source2 = W;
 }
 
 impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
-    /// Returns a reference to the value stored in the `Writer`.
-    ///
-    /// This method allows access to the inner value without consuming the `Writer`.
-    ///
-    /// # Returns
-    /// A reference to the value of type `&Self::Source`.
     fn value(&self) -> &Self::Source {
         &self.value
     }
@@ -366,209 +395,138 @@ impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
     fn pure_identity<B>(value: B) -> Self::Output<B>
         where
             Self::Output<B>: Identity,
-            B: Clone {
+            {
         Writer::new(W::empty(), value)
+    }
+
+    fn into_value(self) -> Self::Source {
+        self.value
     }
 }
 
 impl<W: Monoid + Clone, A: Clone> Semigroup for Writer<W, A> {
-    /// Combines two `Writer` instances, merging their logs and keeping the value of the first `Writer`.
-    ///
-    /// This implementation follows the `Semigroup` trait's `combine` operation, where:
-    /// - The logs of both `Writer` instances are combined using their log type's `combine` method.
-    /// - The value of the first `Writer` is retained in the result.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - Another `Writer` instance to combine with `self`.
-    ///
-    /// # Returns
-    ///
-    /// A new `Writer` instance with the combined log and the value from `self`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// let w1 = Writer::new(Log(vec!["Log 1".to_string()]), 42);
-    /// let w2 = Writer::new(Log(vec!["Log 2".to_string()]), 24);
-    ///
-    /// let combined = w1.combine(&w2);
-    /// assert_eq!(combined.run(), (Log(vec!["Log 1".to_string(), "Log 2".to_string()]), 42));
-    /// ```
+    fn combine_owned(self, other: Self) -> Self {
+        Writer::new(self.clone().log().combine_owned(other.log()), self.value().clone())
+    }
+
     fn combine(&self, other: &Self) -> Self {
         Writer::new(self.clone().log().combine(&other.clone().log()), self.value().clone())
     }
 }
 
 impl<W: Monoid + Clone, A: Clone + Default> Monoid for Writer<W, A> {
-    /// Creates an empty `Writer` instance.
-    ///
-    /// This method implements the `empty` operation from the `Monoid` trait.
-    /// It creates a `Writer` with an empty log (using `W::empty()`) and a default value for `A`.
-    ///
-    /// # Returns
-    ///
-    /// A new `Writer` instance representing the identity element for the monoid.
     fn empty() -> Self {
         Writer::new(W::empty(), A::default())
     }
 }
 
-impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
-    /// Maps a function over the value inside the Writer, keeping the log unchanged.
-    ///
-    /// This method implements the `fmap` operation from the Functor typeclass,
-    /// allowing transformation of the inner value while preserving the Writer structure.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that transforms the inner value
-    ///
-    /// # Returns
-    ///
-    /// A new Writer with the transformed value and the original log
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let writer = Writer::new(vec!["log"], 5);
-    /// let result = writer.fmap(|x| x * 2);
-    /// assert_eq!(result.run(), (vec!["log"], 10));
-    /// ```
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-    where
-        F: FnOnce(&Self::Source) -> B,
-    {
+impl<W: Monoid + Clone, A: Clone> Transform for Writer<W, A> {
+    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
+        where
+            F: Fn(&Self::Source) -> NewType,
+        {
         Writer {
             log: self.log.clone(),
             value: f(&self.value),
         }
     }
+
+    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+        where
+            F: Fn(Self::Source) -> NewType,
+        {
+        Writer {
+            log: self.log,
+            value: f(self.value),
+        }
+    }
 }
 
+impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {}
+
 impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
-    fn pure<T>(value: T) -> Self::Output<T> {
-        Writer::new(W::empty(), value)
+    fn pure<T: Clone>(value: &T) -> Self::Output<T> {
+        Writer::new(W::empty(), value.clone())
     }
 }
 
 impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
-    /// Applies a function wrapped in a Writer to a value in another Writer.
-    ///
-    /// This operation combines the logs of both Writers and applies the function to the value.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A Writer containing a function to apply
-    ///
-    /// # Returns
-    ///
-    /// A new Writer with the combined log and the result of applying the function
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
         where
             F: Fn(&Self::Source) -> B {
-        let f_value = &f.value;
         Writer::new(
-            self.log.clone().combine(&f.log.clone()),
-            f_value(&self.value)
+            self.log.combine(&f.log),
+            (f.value)(&self.value)
         )
     }
 
-    /// Lifts a binary function to operate on two Writers.
-    ///
-    /// This method combines the logs of both Writers and applies the function to their values.
-    ///
-    /// # Arguments
-    ///
-    /// * `b` - Another Writer
-    /// * `f` - A function to apply to the values of both Writers
-    ///
-    /// # Returns
-    ///
-    /// A new Writer with the combined log and the result of the function application
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
+        B: Clone,
     {
         Writer::new(
-            self.log.clone().combine(&b.log.clone()),
+            self.log.combine(&b.log),
             f(&self.value, &b.value)
         )
     }
 
-    /// Lifts a ternary function to operate on three Writers.
-    ///
-    /// This method combines the logs of all three Writers and applies the function to their values.
-    ///
-    /// # Arguments
-    ///
-    /// * `b` - Second Writer
-    /// * `c` - Third Writer
-    /// * `f` - A function to apply to the values of all three Writers
-    ///
-    /// # Returns
-    ///
-    /// A new Writer with the combined log and the result of the function application
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
+        B: Clone,
+        C: Clone,
     {
         Writer::new(
-            self.log.clone().combine(&b.log.clone()).combine(&c.log.clone()),
+            self.log.combine(&b.log).combine(&c.log),
             f(&self.value, &b.value, &c.value)
+        )
+    }
+
+    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+        where
+            F: Fn(Self::Source) -> B,
+            Self: Sized {
+        Writer::new(
+            self.log.combine_owned(f.log),
+            (f.value)(self.value)
+        )
+    }
+
+    fn lift2_owned<B, C, F>(
+            self,
+            b: Self::Output<B>,
+            f: F,
+        ) -> Self::Output<C>
+        where
+            F: Fn(Self::Source, B) -> C,
+            Self: Sized,
+            B: Clone {
+        Writer::new(
+            self.log.combine_owned(b.log),
+            f(self.value, b.value)
+        )
+    }
+
+    fn lift3_owned<B, C, D, F>(
+            self,
+            b: Self::Output<B>,
+            c: Self::Output<C>,
+            f: F,
+        ) -> Self::Output<D>
+        where
+            F: Fn(Self::Source, B, C) -> D,
+            Self: Sized,
+            B: Clone,
+            C: Clone {
+        Writer::new(
+            self.log.combine_owned(b.log).combine_owned(c.log),
+            f(self.value, b.value, c.value)
         )
     }
 }
 
 impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
-    /// Chains two Writer computations together.
-    ///
-    /// This method implements the `bind` operation from the Monad typeclass.
-    /// It allows sequencing of Writer computations where the second computation
-    /// may depend on the value produced by the first.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that takes the value from this Writer and returns a new Writer
-    ///
-    /// # Returns
-    ///
-    /// A new Writer with combined logs and the result of applying `f`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let w1 = Writer::new(vec!["log1"], 5);
-    /// let result = w1.bind(|x| Writer::new(vec!["log2"], x * 2));
-    /// assert_eq!(result.run(), (vec!["log1", "log2"], 10));
-    /// ```
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
         F: Fn(&Self::Source) -> Self::Output<U>,
@@ -580,59 +538,42 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
         )
     }
 
-    /// Flattens a nested Writer structure.
-    ///
-    /// This method is used when you have a Writer that contains another Writer as its value.
-    /// It combines the logs of both Writers and extracts the inner value.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The type of the value in the inner Writer.
-    ///
-    /// # Returns
-    ///
-    /// A new Writer with combined logs and the value from the inner Writer.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let nested = Writer::new(vec!["outer"], Writer::new(vec!["inner"], 42));
-    /// let flattened = nested.join();
-    /// assert_eq!(flattened.run(), (vec!["outer", "inner"], 42));
-    /// ```
     fn join<U>(&self) -> Self::Output<U>
         where
             Self::Source: Clone + Into<Self::Output<U>> {
         let inner: Self::Output<U> = self.value.clone().into();
         Writer::new(
-            self.log.clone().combine(&inner.log),
+            self.log.combine(&inner.log),
+            inner.value
+        )
+    }
+
+    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
+        where
+            F: Fn(Self::Source) -> Self::Output<U>,
+            U: Clone,
+            Self: Sized {
+        let result = f(self.value);
+        Writer::new(
+            self.log.combine_owned(result.log),
+            result.value
+        )
+    }
+
+    fn join_owned<U>(self) -> Self::Output<U>
+        where
+            Self::Source: Into<Self::Output<U>>,
+            U: Clone,
+            Self: Sized {
+        let inner: Self::Output<U> = self.value.into();
+        Writer::new(
+            self.log.combine_owned(inner.log),
             inner.value
         )
     }
 }
 
 impl<W: Monoid + Clone, A: Clone> Composable for Writer<W, A> {
-    /// Composes two functions into a single function.
-    ///
-    /// This method takes two functions `f` and `g` and returns a new function that
-    /// applies `f` first and then `g` to the result.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `T`: The intermediate type between `f` and `g`
-    /// * `U`: The return type of the composed function
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: A function that takes `Self::Source` and returns `T`
-    /// * `g`: A function that takes `T` and returns `U`
-    ///
-    /// # Returns
-    ///
-    /// A new function that composes `f` and `g`
     fn compose<T, U, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> U
     where
         F: Fn(Self::Source) -> T,

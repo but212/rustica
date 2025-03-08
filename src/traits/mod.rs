@@ -6,6 +6,7 @@
 
 /// Basic functional programming concepts.
 pub mod hkt;
+pub mod transform;
 pub mod identity;
 pub mod pure;
 pub mod evaluate;
@@ -26,7 +27,7 @@ pub mod arrow;
 pub mod category;
 
 /// Traits for data structures and operations.
-pub mod monoid;
 pub mod semigroup;
+pub mod monoid;
 pub mod foldable;
 pub mod traversable;

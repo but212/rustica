@@ -26,7 +26,7 @@ mod test_choice {
 
     #[test]
     fn test_choice_pure() {
-        let choice: Choice<i32> = Choice::<i32>::pure(42);
+        let choice: Choice<i32> = Choice::<i32>::pure(&42);
         assert_eq!(*choice.first(), 42);
         assert!(choice.alternatives().is_empty());
     }
@@ -39,7 +39,7 @@ mod test_choice {
         let f = Choice::new(double, vec![triple]);
         let result = choice.apply(&f);
         assert_eq!(*result.first(), 4);
-        assert_eq!(result.alternatives(), &vec![6, 8, 6, 9, 12]);
+        assert_eq!(result.alternatives(), &vec![6, 6, 8, 9, 12]);
     }
 
     #[test]

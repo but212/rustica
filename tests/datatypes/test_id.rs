@@ -39,8 +39,8 @@ fn test_id_functor() {
 #[test]
 fn test_id_pure() {
     // Test pure function of Id
-    let pure_int = Id::<i32>::pure(42);
-    let pure_string = Id::<String>::pure("hello".to_string());
+    let pure_int = Id::<i32>::pure(&42);
+    let pure_string = Id::<String>::pure(&"hello".to_string());
     
     assert_eq!(*pure_int.value(), 42);
     assert_eq!(*pure_string.value(), "hello");
@@ -88,11 +88,11 @@ fn test_id_monad() {
     
     // Test monad laws
     // 1. Left identity: pure(a).bind(f) == f(a)
-    let left_identity = Id::<i32>::pure(42).bind(&f);
+    let left_identity = Id::<i32>::pure(&42).bind(&f);
     assert_eq!(*left_identity.value(), *f(&42).value());
     
     // 2. Right identity: m.bind(pure) == m
-    let right_identity = x.bind(|n| Id::<i32>::pure(*n));
+    let right_identity = x.bind(|n| Id::<i32>::pure(n));
     assert_eq!(*right_identity.value(), *x.value());
     
     // 3. Associativity: m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))

@@ -48,6 +48,7 @@
 //! ```
 
 use crate::traits::hkt::HKT;
+use crate::traits::transform::Transform;
 use crate::traits::functor::Functor;
 use crate::traits::applicative::Applicative;
 use crate::traits::monad::Monad;
@@ -200,64 +201,31 @@ impl<T> Maybe<T> {
     }
 }
 
-/// Implementation of Higher-Kinded Type trait for Maybe
 impl<T> HKT for Maybe<T> {
     type Source = T;
     type Output<U> = Maybe<U>;
-    type Source2 = ();
-    type BinaryOutput<U, V> = Maybe<(U, V)>;
 }
 
-/// Implementation of Pure trait for Maybe
-///
-/// The `pure` function lifts a value into the Maybe context.
 impl<T> Pure for Maybe<T> {
-    /// Wraps a value in a `Just` constructor.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let just_int = Maybe::<i32>::pure(42);
-    /// assert!(just_int.is_just());
-    /// ```
-    fn pure<U>(value: U) -> Self::Output<U> {
-        Maybe::Just(value)
+    fn pure<U: Clone>(value: &U) -> Self::Output<U> {
+        Maybe::Just(value.clone())
     }
 }
 
-/// Implementation of Functor trait for Maybe
-///
-/// The functor instance for Maybe allows mapping a function over a Maybe value.
-/// If the Maybe is `Just(x)`, it applies the function to `x` and returns `Just(f(x))`.
-/// If the Maybe is `Nothing`, it returns `Nothing`.
-impl<T> Functor for Maybe<T> {
-    /// Maps a function over the contained value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let just_five = Maybe::Just(5);
-    /// let nothing: Maybe<i32> = Maybe::Nothing;
-    ///
-    /// let just_six = just_five.fmap(|x| x + 1);
-    /// let still_nothing = nothing.fmap(|x| x + 1);
-    ///
-    /// match just_six {
-    ///     Maybe::Just(x) => assert_eq!(x, 6),
-    ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
-    /// }
-    ///
-    /// assert!(still_nothing.is_nothing());
-    /// ```
-    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+impl<T> Transform for Maybe<T> {
+    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
     where
-        F: Fn(&Self::Source) -> U,
+        F: Fn(&Self::Source) -> NewType,
+    {
+        match self {
+            Maybe::Just(x) => Maybe::Just(f(x)),
+            Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+
+    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    where
+        F: Fn(Self::Source) -> NewType,
     {
         match self {
             Maybe::Just(x) => Maybe::Just(f(x)),
@@ -266,28 +234,9 @@ impl<T> Functor for Maybe<T> {
     }
 }
 
-/// Implementation of Applicative trait for Maybe
-///
-/// The applicative instance for Maybe allows applying a function wrapped in a Maybe
-/// to a value wrapped in a Maybe.
+impl<T> Functor for Maybe<T> {}
+
 impl<T> Applicative for Maybe<T> {
-    /// Applies a function in a Maybe context to a value in a Maybe context.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let just_five = Maybe::Just(5);
-    /// let add_one = Maybe::Just(|x: &i32| x + 1);
-    ///
-    /// let result = just_five.apply(&add_one);
-    /// match result {
-    ///     Maybe::Just(x) => assert_eq!(x, 6),
-    ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
-    /// }
-    /// ```
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
         where
             F: Fn(&Self::Source) -> B {
@@ -297,23 +246,6 @@ impl<T> Applicative for Maybe<T> {
         }
     }
 
-    /// Applies a binary function to two Maybe values.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let just_five = Maybe::Just(5);
-    /// let just_ten = Maybe::Just(10);
-    ///
-    /// let result = just_five.lift2(&just_ten, |x, y| x + y);
-    /// match result {
-    ///     Maybe::Just(x) => assert_eq!(x, 15),
-    ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
-    /// }
-    /// ```
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
@@ -324,24 +256,6 @@ impl<T> Applicative for Maybe<T> {
         }
     }
 
-    /// Applies a ternary function to three Maybe values.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let just_five = Maybe::Just(5);
-    /// let just_ten = Maybe::Just(10);
-    /// let just_two = Maybe::Just(2);
-    ///
-    /// let result = just_five.lift3(&just_ten, &just_two, |x, y, z| x * y + z);
-    /// match result {
-    ///     Maybe::Just(x) => assert_eq!(x, 52),  // 5 * 10 + 2 = 52
-    ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
-    /// }
-    /// ```
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
@@ -351,69 +265,90 @@ impl<T> Applicative for Maybe<T> {
             _ => Maybe::Nothing,
         }
     }
+
+    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+        where
+            F: Fn(Self::Source) -> B,
+            Self: Sized {
+        match (self, f) {
+            (Maybe::Just(x), Maybe::Just(f)) => Maybe::Just(f(x)),
+            _ => Maybe::Nothing,
+        }
+    }
+
+    fn lift2_owned<B, C, F>(
+            self,
+            b: Self::Output<B>,
+            f: F,
+        ) -> Self::Output<C>
+        where
+            F: Fn(Self::Source, B) -> C,
+            Self: Sized,
+            B: Clone {
+        match (self, b) {
+            (Maybe::Just(x), Maybe::Just(y)) => Maybe::Just(f(x, y.clone())),
+            _ => Maybe::Nothing,
+        }
+    }
+
+    fn lift3_owned<B, C, D, F>(
+            self,
+            b: Self::Output<B>,
+            c: Self::Output<C>,
+            f: F,
+        ) -> Self::Output<D>
+        where
+            F: Fn(Self::Source, B, C) -> D,
+            Self: Sized,
+            B: Clone,
+            C: Clone {
+        match (self, b, c) {
+            (Maybe::Just(x), Maybe::Just(y), Maybe::Just(z)) => Maybe::Just(f(x, y.clone(), z.clone())),
+            _ => Maybe::Nothing,
+        }
+    }
 }
 
-/// Implementation of Monad trait for Maybe
-///
-/// The monad instance for Maybe allows sequencing operations that might fail.
 impl<T> Monad for Maybe<T> {
-    /// Applies a function that returns a Maybe to the contained value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let just_five = Maybe::Just(5);
-    ///
-    /// // A function that returns Maybe
-    /// let safe_div = |x: &i32| {
-    ///     if *x == 0 {
-    ///         Maybe::Nothing
-    ///     } else {
-    ///         Maybe::Just(10 / x)
-    ///     }
-    /// };
-    ///
-    /// let result = just_five.bind(&safe_div);
-    /// match result {
-    ///     Maybe::Just(x) => assert_eq!(x, 2),  // 10 / 5 = 2
-    ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
-    /// }
-    /// ```
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
-    where
-        F: Fn(&Self::Source) -> Self::Output<U>,
-    {
+        where
+            F: Fn(&Self::Source) -> Self::Output<U>,
+            Self::Source: Clone,
+            U: Clone {
+        match self {
+            Maybe::Just(x) => f(&x),
+            Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+
+    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
+        where
+            F: Fn(Self::Source) -> Self::Output<U>,
+            U: Clone,
+            Self: Sized {
         match self {
             Maybe::Just(x) => f(x),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
 
-    /// Flattens a nested Maybe.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let nested = Maybe::Just(Maybe::Just(5));
-    /// let flattened = nested.join();
-    ///
-    /// match flattened {
-    ///     Maybe::Just(x) => assert_eq!(x, 5),
-    ///     Maybe::Nothing => panic!("Expected Just, got Nothing"),
-    /// }
-    /// ```
     fn join<U>(&self) -> Self::Output<U>
         where
-            Self::Source: Clone,
-            Self::Source: Into<Self::Output<U>> {
+            Self::Source: Clone + Into<Self::Output<U>>,
+            U: Clone {
         match self {
-            Maybe::Just(x) => (*x).clone().into(),
+            Maybe::Just(x) => x.to_owned().into(),
+            Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+    
+    fn join_owned<U>(self) -> Self::Output<U>
+        where
+            Self::Source: Into<Self::Output<U>>,
+            U: Clone,
+            Self: Sized {
+        match self {
+            Maybe::Just(x) => x.into(),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
@@ -495,10 +430,16 @@ impl<T> Identity for Maybe<T> {
         }
     }
 
+    fn into_value(self) -> Self::Source {
+        match self {
+            Maybe::Just(x) => x,
+            Maybe::Nothing => panic!("Tried to get value from Nothing!"),
+        }
+    }
+
     fn pure_identity<A>(value: A) -> Self::Output<A>
         where
-            Self::Output<A>: Identity,
-            A: Clone {
+            Self::Output<A>: Identity {
         Maybe::Just(value)
     }
 }

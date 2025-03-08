@@ -3,6 +3,7 @@ mod test_applicative;
 mod test_monad;
 mod test_semigroup;
 mod test_monoid;
+mod test_identity;
 
 use quickcheck::{Arbitrary, Gen};
 use rustica::prelude::*;
@@ -34,8 +35,6 @@ impl<T: Arbitrary + 'static> Arbitrary for TestFunctor<T> {
 impl<T> HKT for TestFunctor<T> {
     type Source = T;
     type Output<U> = TestFunctor<U>;
-    type Source2 = ();
-    type BinaryOutput<U, V> = ();
 }
 
 impl<T> Identity for TestFunctor<T> {
@@ -43,28 +42,38 @@ impl<T> Identity for TestFunctor<T> {
         &self.0
     }
     
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-        where
-            Self::Output<A>: Identity,
-            A: Clone {
+    fn pure_identity<A>(value: A) -> Self::Output<A> {
         TestFunctor::new(value)
+    }
+    
+    fn into_value(self) -> Self::Source {
+        self.0
     }
 }
 
 impl<T> Pure for TestFunctor<T> {
-    fn pure<U>(value: U) -> Self::Output<U> {
-        TestFunctor::new(value)
+    fn pure<U: Clone>(value: &U) -> Self::Output<U> {
+        TestFunctor::new(value.clone())
     }
 }
 
-impl<T> Functor for TestFunctor<T> {
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+impl<T> Transform for TestFunctor<T> {
+    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
     where
-        F: Fn(&Self::Source) -> B,
+        F: Fn(&Self::Source) -> NewType,
     {
         TestFunctor::new(f(&self.0))
     }
+
+    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    where
+        F: Fn(Self::Source) -> NewType,
+    {
+        TestFunctor::new(f(self.0))
+    }
 }
+
+impl<T> Functor for TestFunctor<T> {}
 
 impl<T> Applicative for TestFunctor<T> {
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
@@ -96,6 +105,39 @@ impl<T> Applicative for TestFunctor<T> {
     {
         TestFunctor::new(f(&self.0, &b.0, &c.0))
     }
+
+    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+        where
+            F: Fn(Self::Source) -> B,
+            Self: Sized {
+        TestFunctor::new(f.0(self.0))
+    }
+
+    fn lift2_owned<B, C, F>(
+            self,
+            b: Self::Output<B>,
+            f: F,
+        ) -> Self::Output<C>
+        where
+            F: Fn(Self::Source, B) -> C,
+            Self: Sized,
+            B: Clone {
+        TestFunctor::new(f(self.0, b.0))
+    }
+
+    fn lift3_owned<B, C, D, F>(
+            self,
+            b: Self::Output<B>,
+            c: Self::Output<C>,
+            f: F,
+        ) -> Self::Output<D>
+        where
+            F: Fn(Self::Source, B, C) -> D,
+            Self: Sized,
+            B: Clone,
+            C: Clone {
+        TestFunctor::new(f(self.0, b.0, c.0))
+    }
 }
 
 impl<T: Clone> Monad for TestFunctor<T> {
@@ -112,13 +154,30 @@ impl<T: Clone> Monad for TestFunctor<T> {
     {
         self.0.clone().into()
     }
+
+    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
+        where
+            F: Fn(Self::Source) -> Self::Output<U>,
+            U: Clone,
+            Self: Sized {
+        f(self.0)
+    }
+
+    fn join_owned<U>(self) -> Self::Output<U>
+        where
+            Self::Source: Into<Self::Output<U>>,
+            U: Clone,
+            Self: Sized {
+        self.0.into()
+    }
 }
 
-impl<T: Clone> Semigroup for TestFunctor<T>
-where
-    T: Semigroup,
-{
+impl<T: Semigroup + Clone> Semigroup for TestFunctor<T> {
     fn combine(&self, other: &Self) -> Self {
+        TestFunctor::new(self.0.combine(&other.0))
+    }
+
+    fn combine_owned(self, other: Self) -> Self {
         TestFunctor::new(self.0.combine(&other.0))
     }
 }

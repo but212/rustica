@@ -293,7 +293,7 @@ impl<A: 'static + Clone> IO<A> {
 
     pub fn delay<F>(duration: std::time::Duration, value: A) -> Self
     where
-        F: FnOnce() -> A + 'static,
+        F: Fn() -> A + 'static,
     {
         IO::new(move || {
             std::thread::sleep(duration);
@@ -306,8 +306,6 @@ impl<A: 'static + Clone> IO<A> {
 impl<A> crate::traits::hkt::HKT for IO<A> {
     type Source = A;
     type Output<U> = IO<U>;
-    type Source2 = ();
-    type BinaryOutput<U, V> = ();
 }
 
 // Implement Evaluate for IO

@@ -1,66 +1,56 @@
-//! # Choice Datatype
+//! # Choice
 //!
-//! The `Choice` datatype represents a value with multiple alternatives, providing a way to work with 
-//! values that have multiple possible options. It is a powerful abstraction for modeling non-deterministic 
-//! computations and representing multiple possible outcomes.
+//! The `Choice` datatype represents a value with alternatives.
+//! It consists of a collection of values of type `T`.
 //!
-//! ## Functional Programming Context
+//! ## Mathematical Definition
 //!
-//! In functional programming, the `Choice` type is commonly used for:
+//! From a category theory perspective, `Choice<T>` can be seen as a structure
+//! that represents a selection among multiple values of type `T`.
 //!
-//! - Representing non-deterministic computations
-//! - Modeling multiple possible outcomes of a calculation
-//! - Implementing search algorithms with backtracking
-//! - Expressing computations that can produce multiple results
-//! - Building parsers and combinatorial algorithms
+//! ## Laws
 //!
-//! ## Type Class Implementations
+//! Choice implements various typeclasses with their associated laws:
 //!
-//! The `Choice` type implements several important functional programming abstractions:
+//! ### Functor Laws
+//! - Identity: `fmap(id) = id`
+//! - Composition: `fmap(f . g) = fmap(f) . fmap(g)`
 //!
-//! - `Functor`: Maps a function over all values in the `Choice`
-//! - `Applicative`: Applies functions contained in one `Choice` to values in another `Choice`
-//! - `Monad`: Chains computations that produce multiple results
-//! - `Semigroup`: Combines two `Choice` values, merging their alternatives
-//! - `Monoid`: Provides an identity element for the `Choice` type
-//! - `Identity`: Accesses the primary value
-//! - `Pure`: Creates a `Choice` with a single value
+//! ### Applicative Laws
+//! - Identity: `pure id <*> v = v`
+//! - Composition: `pure (.) <*> u <*> v <*> w = u <*> (v <*> w)`
+//! - Homomorphism: `pure f <*> pure x = pure (f x)`
+//! - Interchange: `u <*> pure y = pure ($ y) <*> u`
 //!
-//! ## Structure
+//! ### Monad Laws
+//! - Left identity: `return a >>= f = f a`
+//! - Right identity: `m >>= return = m`
+//! - Associativity: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
 //!
-//! The `Choice<T>` struct contains:
-//! - A primary value of type `T`
-//! - A vector of alternative values, also of type `T`
-//!
-//! ## Basic Usage
+//! ## Examples
 //!
 //! ```rust
 //! use rustica::datatypes::choice::Choice;
-//! use rustica::prelude::*;
-//! 
-//! // Create a Choice with a primary value and alternatives
-//! let numbers = Choice::new(1, vec![2, 3, 4]);
-//! 
-//! // Access the primary value and alternatives
-//! assert_eq!(*numbers.first(), 1);
-//! assert_eq!(numbers.alternatives(), &vec![2, 3, 4]);
-//! 
-//! // Transform all values using fmap (Functor)
-//! let doubled = numbers.fmap(|x| x * 2);
-//! assert_eq!(*doubled.first(), 2);
-//! assert_eq!(doubled.alternatives(), &vec![4, 6, 8]);
-//! 
-//! // Chain operations that produce multiple results (Monad)
-//! let result = numbers.bind(|&x| Choice::new(x * 10, vec![x * 100]));
-//! assert_eq!(*result.first(), 10);
-//! assert_eq!(result.alternatives(), &vec![100, 20, 200, 30, 300, 40, 400]);
-//! 
-//! // Combine two Choice values (Semigroup)
-//! let more_numbers = Choice::new(5, vec![6, 7]);
-//! let combined = numbers.combine(&more_numbers);
-//! assert_eq!(*combined.first(), 1);
-//! assert_eq!(combined.alternatives(), &vec![2, 3, 4, 5, 6, 7]);
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::applicative::Applicative;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a Choice with a primary value and some alternatives
+//! let c: Choice<i32> = Choice::new(5, vec![10, 15, 20]);
+//!
+//! // Map over all values using the Functor instance
+//! let doubled: Choice<i32> = c.fmap(|x: &i32| x * 2);
+//! assert_eq!(*doubled.first(), 10);
+//! assert_eq!(doubled.alternatives(), &[20, 30, 40]);
 //! ```
+//!
+//! ## TODO
+//!
+//! - Add more examples and test cases
+//! - Implement additional utility methods
+//! - Optimize performance for large collections of alternatives
+//! - Add property-based tests for typeclass laws
+
 use crate::traits::{
     hkt::HKT,
     identity::Identity,
@@ -70,14 +60,14 @@ use crate::traits::{
     monad::Monad,
     semigroup::Semigroup,
     monoid::Monoid,
+    transform::Transform,
 };
 use std::fmt::{Debug, Display, Formatter, Result};
 
 /// A type representing a value with multiple alternatives.
 ///
-/// `Choice<T>` encapsulates a primary value of type `T` along with a collection
-/// of alternative values of the same type. This structure is useful in scenarios
-/// where multiple options or choices need to be represented and manipulated.
+/// `Choice<T>` encapsulates a collection of values of type `T`. This structure is useful 
+/// in scenarios where multiple options or choices need to be represented and manipulated.
 ///
 /// # Type Parameters
 ///
@@ -85,8 +75,7 @@ use std::fmt::{Debug, Display, Formatter, Result};
 ///
 /// # Fields
 ///
-/// * `first`: The primary value of type `T`.
-/// * `alternatives`: A vector containing alternative values of type `T`.
+/// * `values`: A vector containing all the values of type `T`.
 ///
 /// # Examples
 ///
@@ -100,10 +89,8 @@ use std::fmt::{Debug, Display, Formatter, Result};
 /// ```
 #[derive(Clone)]
 pub struct Choice<T> {
-    /// The primary value.
-    first: T,
-    /// A vector of alternative values.
-    alternatives: Vec<T>,
+    /// A vector of values.
+    values: Vec<T>,
 }
 
 impl<T> Choice<T> {
@@ -128,7 +115,10 @@ impl<T> Choice<T> {
     /// assert_eq!(choice.alternatives(), &vec![2, 3, 4]);
     /// ```
     pub fn new(first: T, alternatives: Vec<T>) -> Self {
-        Self { first, alternatives }
+        let mut values = Vec::with_capacity(alternatives.len() + 1);
+        values.push(first);
+        values.extend(alternatives);
+        Self { values }
     }
 
     /// Returns a reference to the primary value.
@@ -146,25 +136,25 @@ impl<T> Choice<T> {
     /// assert_eq!(*choice.first(), 42);
     /// ```
     pub fn first(&self) -> &T {
-        &self.first
+        &self.values[0]
     }
 
     /// Returns a reference to the vector of alternative values.
     ///
     /// # Returns
     ///
-    /// A reference to the `Vec<T>` containing alternative values of type `T`
+    /// A slice containing alternative values of type `T`
     ///
     /// # Examples
     ///
     /// ```
     /// use rustica::datatypes::choice::Choice;
     ///
-    /// let choice = Choice::new(42, vec![1, 2, 3]);
-    /// assert_eq!(choice.alternatives(), &vec![1, 2, 3]);
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
     /// ```
-    pub fn alternatives(&self) -> &Vec<T> {
-        &self.alternatives
+    pub fn alternatives(&self) -> &[T] {
+        &self.values[1..]
     }
 
     /// Checks if there are any alternatives.
@@ -185,7 +175,7 @@ impl<T> Choice<T> {
     /// assert!(!choice_without_alternatives.has_alternatives());
     /// ```
     pub fn has_alternatives(&self) -> bool {
-        !self.alternatives.is_empty()
+        self.values.len() > 1
     }
 
     /// Returns the total number of choices, including the primary value and all alternatives.
@@ -203,7 +193,7 @@ impl<T> Choice<T> {
     /// assert_eq!(choice.len(), 4); // Primary value + 3 alternatives
     /// ```
     pub fn len(&self) -> usize {
-        self.alternatives.len() + 1
+        self.values.len()
     }
 
     /// Adds a new alternative to the `Choice`.
@@ -228,23 +218,22 @@ impl<T> Choice<T> {
     /// let new_choice = choice.add_alternative(&4);
     ///
     /// assert_eq!(*new_choice.first(), 1);
-    /// assert_eq!(new_choice.alternatives(), &vec![2, 3, 4]);
+    /// assert_eq!(new_choice.alternatives(), &[2, 3, 4]);
     /// ```
-    pub fn add_alternative(&self, item: &T) -> Self
-    where
+    pub fn add_alternative(&self, item: &T) -> Self 
+    where 
         T: Clone,
     {
-        let mut new_alternatives = Vec::with_capacity(self.alternatives.len() + 1);
-        new_alternatives.extend_from_slice(&self.alternatives);
-        new_alternatives.push(item.clone());
-        Choice::new(self.first.clone(), new_alternatives)
+        let mut new_values = self.values.clone();
+        new_values.push(item.clone());
+        Self { values: new_values }
     }
 
     /// Removes an alternative at the specified index and returns a new `Choice`.
     ///
     /// # Arguments
     ///
-    /// * `index` - The index of the alternative to remove.
+    /// * `index` - The index of the alternative to remove (0-based, relative to the alternatives list).
     ///
     /// # Returns
     ///
@@ -263,15 +252,17 @@ impl<T> Choice<T> {
     /// let new_choice = choice.remove_alternative(1);
     ///
     /// assert_eq!(*new_choice.first(), 1);
-    /// assert_eq!(new_choice.alternatives(), &vec![2, 4]);
+    /// assert_eq!(new_choice.alternatives(), &[2, 4]);
     /// ```
-    pub fn remove_alternative(&self, index: usize) -> Self
-    where
+    pub fn remove_alternative(&self, index: usize) -> Self 
+    where 
         T: Clone,
     {
-        let mut new_alternatives = self.alternatives.clone();
-        new_alternatives.remove(index);
-        Choice::new(self.first.clone(), new_alternatives)
+        assert!(index < self.values.len() - 1, "Alternative index out of bounds");
+        
+        let mut new_values = self.values.clone();
+        new_values.remove(index + 1); // +1 because alternatives start at index 1
+        Self { values: new_values }
     }
 
     /// Finds the index of a given value in the alternatives.
@@ -293,11 +284,11 @@ impl<T> Choice<T> {
     /// assert_eq!(choice.find_alternative(&3), Some(1));
     /// assert_eq!(choice.find_alternative(&5), None);
     /// ```
-    pub fn find_alternative(&self, value: &T) -> Option<usize>
-    where
-        T: Eq,
+    pub fn find_alternative(&self, value: &T) -> Option<usize> 
+    where 
+        T: PartialEq,
     {
-        self.alternatives.iter().position(|x| x == value)
+        self.values.iter().skip(1).position(|v| v == value)
     }
 
     /// Applies a function to all values in the `Choice`, including the primary value and alternatives.
@@ -319,14 +310,15 @@ impl<T> Choice<T> {
     /// let doubled = choice.map_alternatives(|&x| x * 2);
     ///
     /// assert_eq!(*doubled.first(), 2);
-    /// assert_eq!(doubled.alternatives(), &vec![4, 6, 8]);
+    /// assert_eq!(doubled.alternatives(), &[4, 6, 8]);
     /// ```
-    pub fn map_alternatives<F>(&self, f: F) -> Self
+    pub fn map_alternatives<F, U>(&self, f: F) -> Choice<U>
     where
-        T: Clone,
-        F: Fn(&T) -> T,
+        F: Fn(&T) -> U,
     {
-        Choice::new(f(&self.first), self.alternatives.iter().map(f).collect())
+        Choice { 
+            values: self.values.iter().map(f).collect() 
+        }
     }
 
     /// Flattens a `Choice` of iterable items into a `Choice` of individual items.
@@ -346,7 +338,7 @@ impl<T> Choice<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the primary value (`self.first`) is an empty iterator.
+    /// Panics if the primary value is an empty iterator.
     ///
     /// # Examples
     ///
@@ -357,50 +349,76 @@ impl<T> Choice<T> {
     /// let flattened = nested.flatten();
     ///
     /// assert_eq!(*flattened.first(), 1);
-    /// assert_eq!(flattened.alternatives(), &vec![2, 3, 4, 5]);
+    /// assert_eq!(flattened.alternatives(), &[2, 3, 4, 5]);
     /// ```
-    pub fn flatten(&self) -> Choice<T::Item>
+    pub fn flatten<I>(&self) -> Choice<I>
     where
-        T: Clone + IntoIterator,
-        T::Item: Clone,
+        T: IntoIterator<Item = I> + Clone,
+        I: Clone,
     {
-        let first = self.first.clone().into_iter().next().unwrap();
-        let mut flattened_alternatives = Vec::new();
-        flattened_alternatives.extend(self.first.clone().into_iter().skip(1));
-        flattened_alternatives.extend(self.alternatives.iter().flat_map(|x| x.clone().into_iter()));
-        Choice::new(first, flattened_alternatives)
-    }
-
-    pub fn partition(vec: Vec<T>, predicate: impl Fn(&T) -> bool) -> Self {
-        let mut first = None;
-        let mut alternatives = Vec::new();
+        let mut all_items: Vec<I> = Vec::new();
         
-        for item in vec {
-            match (&mut first, predicate(&item)) {
-                (None, true) => first = Some(item),
-                (_, true) => alternatives.push(item),
-                (None, false) => {
-                    let old_first = std::mem::replace(&mut first, Some(item));
-                    if let Some(old) = old_first {
-                        alternatives.push(old);
-                    }
-                }
-                (_, false) => alternatives.push(item),
+        for value in &self.values {
+            for item in value.clone().into_iter() {
+                all_items.push(item);
             }
         }
         
-        Choice::new(first.expect("Empty vector"), alternatives)
+        assert!(!all_items.is_empty(), "Cannot flatten empty iterators");
+        
+        let first = all_items.remove(0);
+        Choice { 
+            values: std::iter::once(first).chain(all_items).collect() 
+        }
     }
 
+    /// Creates a new `Choice` by partitioning elements according to a predicate.
+    ///
+    /// The first element for which the predicate returns true becomes the primary value.
+    /// All other elements (both those for which the predicate returns true or false)
+    /// become alternatives.
+    ///
+    /// # Arguments
+    ///
+    /// * `vec` - A vector of elements to partition.
+    /// * `predicate` - A function that returns true for elements that should be considered for the primary value.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` with the partitioned elements.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the predicate doesn't return true for any element in the vector.
+    pub fn partition(vec: Vec<T>, predicate: impl Fn(&T) -> bool) -> Self {
+        let position = vec.iter().position(|item| predicate(item))
+            .expect("No element satisfies the predicate");
+            
+        let mut values = vec;
+        let first = values.remove(position);
+        
+        Self { 
+            values: std::iter::once(first).chain(values).collect() 
+        }
+    }
+
+    /// Creates a new `Choice` from a primary value and any iterable of alternatives.
     pub fn of_many(first: T, alternatives: impl IntoIterator<Item = T>) -> Self {
-        Choice::new(first, alternatives.into_iter().collect())
+        Self { 
+            values: std::iter::once(first).chain(alternatives).collect() 
+        }
     }
 
+    /// Creates a new `Choice` from an iterator, taking the first element as the primary value.
+    ///
+    /// Returns `None` if the iterator is empty.
     pub fn from_iter(iter: impl IntoIterator<Item = T>) -> Option<Self> {
-        let mut iter = iter.into_iter();
-        iter.next().map(|first| {
-            Choice::new(first, iter.collect())
-        })
+        let values: Vec<T> = iter.into_iter().collect();
+        if values.is_empty() {
+            None
+        } else {
+            Some(Self { values })
+        }
     }
 
     /// Organizes alternatives in order using a `BTreeSet`.
@@ -427,7 +445,7 @@ impl<T> Choice<T> {
     /// let ordered = choice.ordered_alternatives();
     ///
     /// assert_eq!(*ordered.first(), 5);
-    /// assert_eq!(ordered.alternatives(), &vec![1, 2, 3, 4]);
+    /// assert_eq!(ordered.alternatives(), &[1, 2, 3, 4]);
     /// ```
     pub fn ordered_alternatives(&self) -> Self
     where
@@ -435,455 +453,533 @@ impl<T> Choice<T> {
     {
         use std::collections::BTreeSet;
         
+        let first = self.values[0].clone();
         let mut set = BTreeSet::new();
-        for alt in &self.alternatives {
-            set.insert(alt.clone());
+        
+        // Add alternatives to the set for deduplication and ordering
+        for value in self.values.iter().skip(1) {
+            set.insert(value.clone());
         }
         
-        Choice::new(self.first.clone(), set.into_iter().collect())
-    }
-}
-
-/// Implements the Higher-Kinded Type (HKT) trait for `Choice<T>`.
-///
-/// This implementation allows `Choice<T>` to be used in contexts that require
-/// higher-kinded types, enabling more generic and flexible code.
-///
-/// # Type Parameters
-///
-/// * `T`: The type parameter of the `Choice`.
-///
-/// # Associated Types
-///
-/// * `Source`: The type of values contained in the `Choice`.
-/// * `Output<U>`: The type resulting from applying `Choice` to another type `U`.
-impl<T> HKT for Choice<T> {
-    type Source = T;
-    type Output<U> = Choice<U>;
-    type Source2 = ();
-    type BinaryOutput<U, V> = ();
-}
-
-impl<T> Identity for Choice<T> {
-    /// Returns a reference to the primary value of the `Choice`.
-    ///
-    /// This implementation satisfies the `Identity` trait by providing
-    /// access to the main value stored in the `Choice` structure.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the primary value of type `T`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// let choice = Choice::new(42, vec![1, 2, 3]);
-    /// assert_eq!(*choice.value(), 42);
-    /// ```
-    fn value(&self) -> &Self::Source {
-        &self.first
-    }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-        where
-            Self::Output<A>: Identity,
-            A: Clone {
-        Choice::new(value, Vec::new())
-    }
-}
-
-impl<T> Functor for Choice<T> {
-    /// Maps a function over the `Choice`, transforming both the primary value and alternatives.
-    ///
-    /// This method applies the given function `f` to the primary value and all alternatives,
-    /// creating a new `Choice` with the transformed values.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that takes a reference to `Self::Source` and returns a value of type `B`
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<B>` containing the transformed values
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let choice = Choice::new(2, vec![3, 4]);
-    /// let doubled = choice.fmap(|x| x * 2);
-    ///
-    /// assert_eq!(*doubled.first(), 4);
-    /// assert_eq!(doubled.alternatives(), &vec![6, 8]);
-    /// ```
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B {
-        Choice::new(f(&self.first), self.alternatives.iter().map(f).collect())
-    }
-}
-
-impl<T> Pure for Choice<T> {
-    /// Creates a new `Choice` with a single value and no alternatives.
-    ///
-    /// This method implements the `pure` operation for the `Pure` trait,
-    /// lifting a value into the `Choice` context.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to be wrapped in a `Choice`.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<U>` containing the given value as its primary value
-    /// and an empty vector of alternatives.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let choice: Choice<i32> = Choice::<i32>::pure(42);
-    /// assert_eq!(*choice.first(), 42);
-    /// assert!(choice.alternatives().is_empty());
-    /// ```
-    fn pure<U>(value: U) -> Self::Output<U> {
-        Choice::new(value, vec![])
-    }
-}
-
-impl<T> Applicative for Choice<T> {
-    /// Applies a `Choice` of functions to this `Choice`, producing a new `Choice` of results.
-    ///
-    /// This method implements the `apply` operation for the `Applicative` trait. It applies each function
-    /// in the input `Choice` to each value in this `Choice`, combining the results into a new `Choice`.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A `Choice` containing functions that map from `Self::Source` to `B`
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<B>` containing the results of applying the functions to the values
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let values = Choice::new(2, vec![3, 4]);
-    /// let add_one = Box::new(|x: &i32| x + 1);
-    /// let double = Box::new(|x: &i32| x * 2);
-    /// let functions = Choice::new(add_one as Box<dyn Fn(&i32) -> i32>, vec![double]);
-    /// let result = values.apply(&functions);
-    ///
-    /// assert_eq!(*result.first(), 3);
-    /// assert_eq!(result.alternatives(), &vec![4, 5, 4, 6, 8]);
-    /// ```
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> B
-    {
-        let first_result = (f.first)(&self.first);
-        let mut alt_result = Vec::new();
-
-        alt_result.extend(self.alternatives.iter().map(|x| (f.first)(x)));
-        alt_result.extend(f.alternatives.iter().map(|g| g(&self.first)));
-        
-        for g in &f.alternatives {
-            alt_result.extend(self.alternatives.iter().map(|x| g(x)));
+        // Create a new Choice with the ordered alternatives
+        Self {
+            values: std::iter::once(first).chain(set).collect()
         }
-
-        Choice::new(first_result, alt_result)
-    }
-
-    /// Applies a binary function to the values of two `Choice`s.
-    ///
-    /// This method combines two `Choice`s by applying a function to their values,
-    /// producing a new `Choice` with the results.
-    ///
-    /// # Arguments
-    ///
-    /// * `b` - Another `Choice` containing values of type `B`
-    /// * `f` - A function that takes references to `Self::Source` and `B`, returning `C`
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<C>` containing the results of applying `f` to all combinations
-    /// of values from `self` and `b`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let a = Choice::new(2, vec![3]);
-    /// let b = Choice::new(10, vec![20]);
-    /// let result = a.lift2(&b, |x, y| x + y);
-    ///
-    /// assert_eq!(*result.first(), 12);
-    /// assert_eq!(result.alternatives(), &vec![22, 13, 23]);
-    /// ```
-    fn lift2<B, C, F>(
-        &self,
-        b: &Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C> 
-    where
-        F: Fn(&Self::Source, &B) -> C,
-    {
-        let first_result = f(&self.first, &b.first);
-        let mut alt_result = Vec::new();
-
-        alt_result.extend(b.alternatives.iter().map(|y| f(&self.first, y)));
-        alt_result.extend(self.alternatives.iter().map(|x| f(x, &b.first)));
-
-        for x in &self.alternatives {
-            alt_result.extend(b.alternatives.iter().map(|y| f(x, y)));
-        }
-
-        Choice::new(first_result, alt_result)
-    }
-
-    /// Applies a ternary function to the values of three `Choice`s.
-    ///
-    /// This method combines three `Choice`s by applying a function to their values,
-    /// producing a new `Choice` with the results.
-    ///
-    /// # Arguments
-    ///
-    /// * `b` - Second `Choice` containing values of type `B`
-    /// * `c` - Third `Choice` containing values of type `C`
-    /// * `f` - A function that takes references to `Self::Source`, `B`, and `C`, returning `D`
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<D>` containing the results of applying `f` to all combinations
-    /// of values from `self`, `b`, and `c`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let a = Choice::new(1, vec![2]);
-    /// let b = Choice::new(10, vec![20]);
-    /// let c = Choice::new(100, vec![200]);
-    /// let result = a.lift3(&b, &c, |x, y, z| x + y + z);
-    ///
-    /// assert_eq!(*result.first(), 111);
-    /// assert_eq!(result.alternatives(), &vec![211, 121, 221, 112, 212, 122, 222]);
-    /// ```
-    fn lift3<B, C, D, F>(
-        &self,
-        b: &Self::Output<B>,
-        c: &Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D> 
-    where
-        F: Fn(&Self::Source, &B, &C) -> D,
-    {
-        let first_result = f(&self.first, &b.first, &c.first);
-        let mut alt_result = Vec::new();
-
-        alt_result.extend(c.alternatives.iter().map(|z| f(&self.first, &b.first, z)));
-        alt_result.extend(b.alternatives.iter().map(|y| f(&self.first, y, &c.first)));
-        for y in &b.alternatives {
-            alt_result.extend(c.alternatives.iter().map(|z| f(&self.first, y, z)));
-        }
-        for x in &self.alternatives {
-            alt_result.push(f(x, &b.first, &c.first));
-            alt_result.extend(c.alternatives.iter().map(|z| f(x, &b.first, z)));
-            alt_result.extend(b.alternatives.iter().map(|y| f(x, y, &c.first)));
-            for y in &b.alternatives {
-                alt_result.extend(c.alternatives.iter().map(|z| f(x, y, z)));
-            }
-        }
-
-        Choice::new(first_result, alt_result)
     }
 }
 
-impl<T: Clone> Monad for Choice<T> {
-    /// Applies a function to each value in the `Choice`, flattening the results.
+impl<T: Clone + PartialEq> Choice<T> {
+    /// Combines `self` with another `Choice`, preserving both sets of values.
     ///
-    /// This method implements the `bind` operation for the `Monad` trait. It applies the given
-    /// function to the primary value and all alternatives, then combines the results into a new `Choice`.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that takes a reference to `Self::Source` and returns a `Choice<U>`
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<U>` containing the flattened results of applying `f` to all values
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let choice = Choice::new(2, vec![3, 4]);
-    /// let result = choice.bind(|&x| Choice::new(x * 10, vec![x * 100]));
-    ///
-    /// assert_eq!(*result.first(), 20);
-    /// assert_eq!(result.alternatives(), &vec![200, 30, 300, 40, 400]);
-    /// ```
-    fn bind<U, F>(&self, f: F) -> Self::Output<U>
-    where
-        F: Fn(&Self::Source) -> Self::Output<U>,
-    {
-        let first_choice = f(&self.first);
-        let mut alt_values = Vec::new();
-        
-        // Move alternatives instead of borrowing to avoid cloning
-        alt_values.extend(first_choice.alternatives);
-    
-        for x in &self.alternatives {
-            let choice = f(x);
-            alt_values.push(choice.first);
-            alt_values.extend(choice.alternatives);
-        }
-        
-        Choice::new(first_choice.first, alt_values)
-    }
-    
-    /// Flattens a nested `Choice` structure.
-    ///
-    /// This method implements the `join` operation for the `Monad` trait. It takes a `Choice`
-    /// of `Choice`s and flattens it into a single `Choice`, combining all alternatives.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The type of the inner `Choice`'s values.
-    ///
-    /// # Returns
-    ///
-    /// A flattened `Choice<U>`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let nested = Choice::new(
-    ///     Choice::new(1, vec![2, 3]),
-    ///     vec![Choice::new(4, vec![5]), Choice::new(6, vec![7, 8])]
-    /// );
-    /// let flattened = nested.join();
-    ///
-    /// assert_eq!(*flattened.first(), 1);
-    /// assert_eq!(flattened.alternatives(), &vec![2, 3, 4, 5, 6, 7, 8]);
-    /// ```
-    fn join<U>(&self) -> Self::Output<U>
-    where
-        T: Clone + Into<Self::Output<U>>,
-    {
-        let first_choice: Self::Output<U> = self.first.clone().into();
-        let mut alt: Vec<U> = first_choice.alternatives;
-        
-        for x in &self.alternatives {
-            let choice: Self::Output<U> = x.clone().into();
-            alt.push(choice.first);
-            alt.extend(choice.alternatives);
-        }
-        
-        Choice::new(first_choice.first, alt)
-    }
-}
-
-impl<T: Clone> Semigroup for Choice<T> {
-    /// Combines two `Choice` instances, merging their alternatives.
-    ///
-    /// This method implements the `combine` operation for the `Semigroup` trait.
-    /// It creates a new `Choice` with the first value of `self` and combines
-    /// the alternatives from both `self` and `other`.
+    /// This operation combines the values from `self` and `other` to create a new
+    /// `Choice` instance that includes all values from both choices.
     ///
     /// # Arguments
     ///
-    /// * `other` - Another `Choice` instance to combine with `self`
+    /// * `other` - Another `Choice<T>` to combine with `self`.
     ///
     /// # Returns
     ///
-    /// A new `Choice` instance with combined alternatives
+    /// A new `Choice<T>` containing all the values from both `self` and `other`.
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
     /// let a = Choice::new(1, vec![2, 3]);
     /// let b = Choice::new(4, vec![5, 6]);
     /// let combined = a.combine(&b);
     ///
-    /// assert_eq!(*combined.first(), 1);
-    /// assert_eq!(combined.alternatives(), &vec![2, 3, 4, 5, 6]);
+    /// assert_eq!(combined.first(), &1);
+    /// assert_eq!(combined.alternatives().len(), 5);
+    /// assert!(combined.alternatives().contains(&2));
+    /// assert!(combined.alternatives().contains(&3));
+    /// assert!(combined.alternatives().contains(&4));
+    /// assert!(combined.alternatives().contains(&5));
+    /// assert!(combined.alternatives().contains(&6));
     /// ```
+    pub fn combine(&self, other: &Self) -> Self {
+        // Clone everything to avoid moved value issues
+        let first = self.values[0].clone();
+        let alternatives = self.values[1..].iter().cloned().collect::<Vec<_>>();
+        let b_first = other.values[0].clone();
+        let b_alternatives = other.values[1..].iter().cloned().collect::<Vec<_>>();
+        
+        let mut result_alternatives = alternatives;
+        
+        // Add b.first to alternatives if it's not already in alternatives
+        if !result_alternatives.contains(&b_first) {
+            result_alternatives.push(b_first);
+        }
+        
+        // Add b.alternatives to alternatives if they're not already in alternatives
+        for alt in b_alternatives {
+            if !result_alternatives.contains(&alt) {
+                result_alternatives.push(alt);
+            }
+        }
+        
+        Self {
+            values: std::iter::once(first).chain(result_alternatives).collect()
+        }
+    }
+}
+
+impl<T> HKT for Choice<T> {
+    type Source = T;
+    type Output<U> = Choice<U>;
+}
+
+impl<T> Identity for Choice<T> {
+    fn value(&self) -> &Self::Source {
+        &self.values[0]
+    }
+
+    fn pure_identity<A>(value: A) -> Self::Output<A> {
+        Choice {
+            values: vec![value]
+        }
+    }
+
+    fn into_value(self) -> Self::Source {
+        self.values.into_iter().next().unwrap()
+    }
+}
+
+impl<T> Transform for Choice<T> {
+    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
+    where
+        F: Fn(&Self::Source) -> NewType,
+    {
+        Choice {
+            values: self.values.iter().map(f).collect()
+        }
+    }
+
+    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    where
+        F: Fn(Self::Source) -> NewType,
+    {
+        Choice {
+            values: self.values.into_iter().map(f).collect()
+        }
+    }
+}
+
+impl<T: Clone> Monad for Choice<T> {
+    fn bind<U: Clone, F>(&self, f: F) -> Self::Output<U>
+        where
+            F: Fn(&Self::Source) -> Self::Output<U>,
+    {
+        let first_choice = f(&self.values[0]);
+        
+        // We need to extract values from the first_choice as a Choice<U>
+        let first_choice_concrete = first_choice.as_choice();
+        let first_value = first_choice_concrete.values[0].clone();
+        let mut alternatives = first_choice_concrete.values[1..].to_vec();
+        
+        // Bind each alternative to f and collect all the results into a flat list
+        for alt in &self.values[1..] {
+            let alt_choice = f(alt);
+            let alt_choice_concrete = alt_choice.as_choice();
+            alternatives.extend(alt_choice_concrete.values.clone());
+        }
+        
+        Choice { values: std::iter::once(first_value).chain(alternatives).collect() }
+    }
+    
+    fn bind_owned<U: Clone, F>(self, f: F) -> Self::Output<U>
+    where
+        F: Fn(Self::Source) -> Self::Output<U>,
+        Self: Sized,
+    {
+        let first = self.values[0].clone();
+        let alternatives = self.values[1..].to_vec();
+        
+        let first_choice = f(first);
+        let first_choice_concrete = first_choice.as_choice();
+        let first_value = first_choice_concrete.values[0].clone();
+        let mut result_alternatives = first_choice_concrete.values[1..].to_vec();
+        
+        // Bind each alternative to f and collect all the results
+        for alt in alternatives {
+            let alt_choice = f(alt);
+            let alt_choice_concrete = alt_choice.as_choice();
+            result_alternatives.extend(alt_choice_concrete.values.clone());
+        }
+        
+        Choice { values: std::iter::once(first_value).chain(result_alternatives).collect() }
+    }
+    
+    fn join<U: Clone>(&self) -> Self::Output<U>
+        where
+            Self::Source: Clone,
+            Self::Source: Into<Self::Output<U>>,
+    {
+        let first_choice: Self::Output<U> = self.values[0].clone().into();
+        let first_choice_concrete = first_choice.as_choice();
+        let first_value = first_choice_concrete.values[0].clone();
+        let mut alternatives = first_choice_concrete.values[1..].to_vec();
+        
+        // Add alternatives from each nested Choice
+        for alt in &self.values[1..] {
+            let alt_choice: Self::Output<U> = alt.clone().into();
+            let alt_choice_concrete = alt_choice.as_choice();
+            alternatives.extend(alt_choice_concrete.values.clone());
+        }
+        
+        Choice { values: std::iter::once(first_value).chain(alternatives).collect() }
+    }
+    
+    fn join_owned<U: Clone>(self) -> Self::Output<U>
+        where
+            Self::Source: Into<Self::Output<U>>,
+            Self: Sized,
+    {
+        let first_choice: Self::Output<U> = self.values[0].clone().into();
+        let first_choice_concrete = first_choice.as_choice();
+        let first_value = first_choice_concrete.values[0].clone();
+        let mut alternatives = first_choice_concrete.values[1..].to_vec();
+        
+        // Add alternatives from each nested Choice
+        for alt in self.values.into_iter().skip(1) {
+            let alt_choice: Self::Output<U> = alt.into();
+            let alt_choice_concrete = alt_choice.as_choice();
+            alternatives.extend(alt_choice_concrete.values.clone());
+        }
+        
+        Choice { values: std::iter::once(first_value).chain(alternatives).collect() }
+    }
+}
+
+// Helper trait to access concrete Choice values from HKT types
+trait AsChoice<T> {
+    fn as_choice(&self) -> &Choice<T>;
+}
+
+impl<T> AsChoice<T> for Choice<T> {
+    fn as_choice(&self) -> &Choice<T> {
+        self
+    }
+}
+
+impl<T> Functor for Choice<T> {}
+
+impl<T> Pure for Choice<T> {
+    fn pure<A: Clone>(value: &A) -> Self::Output<A> {
+        Choice {
+            values: vec![value.clone()]
+        }
+    }
+}
+
+impl<T: Clone> Applicative for Choice<T> {
+    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    where
+        F: Fn(&Self::Source) -> B,
+    {
+        let first_result = f.first()(&self.values[0]);
+        
+        let mut alt_result = Vec::new();
+        
+        // Apply each function to the first value
+        for f_alt in f.alternatives() {
+            alt_result.push(f_alt(&self.values[0]));
+        }
+        
+        // Apply the first function to each alternative
+        for alt in &self.values[1..] {
+            alt_result.push(f.first()(alt));
+        }
+        
+        // Apply each alternative function to each alternative value
+        for f_alt in f.alternatives() {
+            for alt in &self.values[1..] {
+                alt_result.push(f_alt(alt));
+            }
+        }
+
+        Choice {
+            values: std::iter::once(first_result).chain(alt_result).collect()
+        }
+    }
+
+    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+    where
+        F: Fn(Self::Source) -> B,
+        Self: Sized,
+    {
+        let first = self.values[0].clone();
+        let alternatives = self.values[1..].to_vec();
+        
+        let first_result = f.first()(first.clone());
+        
+        let mut alt_result = Vec::new();
+        
+        // Apply each function to the first value
+        for f_alt in f.alternatives() {
+            alt_result.push(f_alt(first.clone()));
+        }
+        
+        // Apply the first function to each alternative
+        for alt in &alternatives {
+            alt_result.push(f.first()(alt.clone()));
+        }
+        
+        // Apply each alternative function to each alternative value
+        for f_alt in f.alternatives() {
+            for alt in &alternatives {
+                alt_result.push(f_alt(alt.clone()));
+            }
+        }
+
+        Choice {
+            values: std::iter::once(first_result).chain(alt_result).collect()
+        }
+    }
+
+    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: Fn(&Self::Source, &B) -> C,
+        B: Clone,
+    {
+        let first_result = f(&self.values[0], &b.values[0]);
+        
+        let mut alt_result = Vec::new();
+        
+        // Apply to first and each b alternative
+        for b_alt in &b.values[1..] {
+            alt_result.push(f(&self.values[0], &b_alt));
+        }
+        
+        // Apply to each self alternative and b first
+        for alt in &self.values[1..] {
+            alt_result.push(f(&alt, &b.values[0]));
+        }
+        
+        // Apply to each self alternative and each b alternative
+        for alt in &self.values[1..] {
+            for b_alt in &b.values[1..] {
+                alt_result.push(f(&alt, &b_alt));
+            }
+        }
+
+        Choice {
+            values: std::iter::once(first_result).chain(alt_result).collect()
+        }
+    }
+
+    fn lift2_owned<B, C, F>(
+            self,
+            b: Self::Output<B>,
+            f: F,
+        ) -> Self::Output<C>
+        where
+            F: Fn(Self::Source, B) -> C,
+            Self: Sized,
+            B: Clone,
+    {
+        // Clone everything to avoid moved value issues
+        let first = self.values[0].clone();
+        let alternatives = self.values[1..].to_vec();
+        let b_first = b.values[0].clone();
+        let b_alternatives = b.values[1..].to_vec();
+        
+        let first_result = f(first.clone(), b_first.clone());
+        
+        let mut alt_result = Vec::new();
+        
+        // Apply to first and each b alternative
+        for b_alt in &b_alternatives {
+            alt_result.push(f(first.clone(), b_alt.clone()));
+        }
+        
+        // Apply to each self alternative and b first
+        for alt in &alternatives {
+            alt_result.push(f(alt.clone(), b_first.clone()));
+        }
+        
+        // Apply to each self alternative and each b alternative
+        for alt in &alternatives {
+            for b_alt in &b_alternatives {
+                alt_result.push(f(alt.clone(), b_alt.clone()));
+            }
+        }
+
+        Choice {
+            values: std::iter::once(first_result).chain(alt_result).collect()
+        }
+    }
+
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    where
+        F: Fn(&Self::Source, &B, &C) -> D,
+        B: Clone,
+        C: Clone,
+        Self::Source: Clone,
+    {
+        let first_result = f(&self.values[0], &b.values[0], &c.values[0]);
+        
+        let mut alt_result = Vec::new();
+        
+        // Various combinations of values from a, b, c
+        for b_alt in &b.values[1..] {
+            alt_result.push(f(&self.values[0], &b_alt, &c.values[0]));
+        }
+        
+        for c_alt in &c.values[1..] {
+            alt_result.push(f(&self.values[0], &b.values[0], &c_alt));
+        }
+        
+        for a_alt in &self.values[1..] {
+            alt_result.push(f(&a_alt, &b.values[0], &c.values[0]));
+        }
+        
+        for b_alt in &b.values[1..] {
+            for c_alt in &c.values[1..] {
+                alt_result.push(f(&self.values[0], &b_alt, &c_alt));
+            }
+        }
+        
+        for a_alt in &self.values[1..] {
+            for b_alt in &b.values[1..] {
+                alt_result.push(f(&a_alt, &b_alt, &c.values[0]));
+            }
+        }
+        
+        for a_alt in &self.values[1..] {
+            for c_alt in &c.values[1..] {
+                alt_result.push(f(&a_alt, &b.values[0], &c_alt));
+            }
+        }
+        
+        for a_alt in &self.values[1..] {
+            for b_alt in &b.values[1..] {
+                for c_alt in &c.values[1..] {
+                    alt_result.push(f(&a_alt, &b_alt, &c_alt));
+                }
+            }
+        }
+
+        Choice {
+            values: std::iter::once(first_result).chain(alt_result).collect()
+        }
+    }
+
+    fn lift3_owned<B, C, D, F>(
+            self,
+            b: Self::Output<B>,
+            c: Self::Output<C>,
+            f: F,
+        ) -> Self::Output<D>
+        where
+            F: Fn(Self::Source, B, C) -> D,
+            Self: Sized,
+            B: Clone,
+            C: Clone,
+    {
+        // Clone everything to avoid moved value issues
+        let first = self.values[0].clone();
+        let alternatives = self.values[1..].to_vec();
+        let b_first = b.values[0].clone();
+        let b_alternatives = b.values[1..].to_vec();
+        let c_first = c.values[0].clone();
+        let c_alternatives = c.values[1..].to_vec();
+        
+        let first_result = f(first.clone(), b_first.clone(), c_first.clone());
+        
+        let mut alt_result = Vec::new();
+        
+        // Various combinations of values from a, b, c
+        for b_alt in &b_alternatives {
+            alt_result.push(f(first.clone(), b_alt.clone(), c_first.clone()));
+        }
+        
+        for c_alt in &c_alternatives {
+            alt_result.push(f(first.clone(), b_first.clone(), c_alt.clone()));
+        }
+        
+        for a_alt in &alternatives {
+            alt_result.push(f(a_alt.clone(), b_first.clone(), c_first.clone()));
+        }
+        
+        for b_alt in &b_alternatives {
+            for c_alt in &c_alternatives {
+                alt_result.push(f(first.clone(), b_alt.clone(), c_alt.clone()));
+            }
+        }
+        
+        for a_alt in &alternatives {
+            for b_alt in &b_alternatives {
+                alt_result.push(f(a_alt.clone(), b_alt.clone(), c_first.clone()));
+            }
+        }
+        
+        for a_alt in &alternatives {
+            for c_alt in &c_alternatives {
+                alt_result.push(f(a_alt.clone(), b_first.clone(), c_alt.clone()));
+            }
+        }
+        
+        for a_alt in &alternatives {
+            for b_alt in &b_alternatives {
+                for c_alt in &c_alternatives {
+                    alt_result.push(f(a_alt.clone(), b_alt.clone(), c_alt.clone()));
+                }
+            }
+        }
+
+        Choice {
+            values: std::iter::once(first_result).chain(alt_result).collect()
+        }
+    }
+}
+
+impl<T: Clone> Semigroup for Choice<T> {
     fn combine(&self, other: &Self) -> Self {
-        let mut combined_alternatives = self.alternatives.clone();
-        combined_alternatives.push(other.first.clone());
-        combined_alternatives.extend(other.alternatives.clone());
-        Choice::new(self.first.clone(), combined_alternatives)
+        let mut combined_values = self.values.clone();
+        combined_values.extend(other.values.clone());
+        Choice { values: combined_values }
+    }
+
+    fn combine_owned(self, other: Self) -> Self {
+        self.combine(&other)
     }
 }
 
 impl<T: Clone + Default> Monoid for Choice<T> {
-    /// Creates an empty `Choice` with the default value of type `T`.
-    ///
-    /// This method implements the `empty` operation for the `Monoid` trait,
-    /// providing an identity element for the `Choice` type.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<T>` with the default value as its primary value and no alternatives.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// let empty_choice: Choice<i32> = Choice::empty();
-    /// assert_eq!(*empty_choice.first(), 0);
-    /// assert!(empty_choice.alternatives().is_empty());
-    /// ```
     fn empty() -> Self {
-        Choice::new(T::default(), vec![])
+        Choice {
+            values: vec![T::default()]
+        }
     }
 }
 
 impl<T> IntoIterator for Choice<T> {
     type Item = T;
-    type IntoIter = std::iter::Chain<std::iter::Once<T>, std::vec::IntoIter<T>>;
+    type IntoIter = std::vec::IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        std::iter::once(self.first).chain(self.alternatives.into_iter())
+        self.values.into_iter()
     }
 }
 
 impl<T: Debug> Debug for Choice<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Choice({:?}, {:?})", self.first, self.alternatives)
+        write!(f, "Choice({:?})", self.values)
     }
 }
 
-impl<T: Display> Display for Choice<T> {
+impl<T: Clone + Display> Display for Choice<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.first)?;
-        if !self.alternatives.is_empty() {
-            write!(f, " | {}", self.alternatives.iter().map(|alt| alt.to_string()).collect::<Vec<_>>().join(", "))?;
+        write!(f, "{}", self.values[0])?;
+        if self.values.len() > 1 {
+            let alternatives = self.values[1..].iter()
+                .map(|alt| alt.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            write!(f, " | {}", alternatives)?;
         }
         Ok(())
     }

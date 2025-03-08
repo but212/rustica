@@ -53,7 +53,7 @@ fn test_either_functor() {
 #[test]
 fn test_either_applicative() {
     // Test pure
-    let pure: Either<i32, i32> = Either::<i32, i32>::pure(42);
+    let pure: Either<i32, i32> = Either::<i32, i32>::pure(&42);
     assert_eq!(pure.unwrap_right(), 42);
 
     // Test apply
