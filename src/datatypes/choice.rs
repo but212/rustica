@@ -60,7 +60,6 @@ use crate::traits::{
     monad::Monad,
     semigroup::Semigroup,
     monoid::Monoid,
-    transform::Transform,
 };
 use std::fmt::{Debug, Display, Formatter, Result};
 
@@ -547,19 +546,20 @@ impl<T> Identity for Choice<T> {
     }
 }
 
-impl<T> Transform for Choice<T> {
-    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
+impl<T> Functor for Choice<T> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> NewType,
+        F: Fn(&Self::Source) -> B,
     {
         Choice {
             values: self.values.iter().map(f).collect()
         }
     }
 
-    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> NewType,
+        F: Fn(Self::Source) -> B,
+        Self: Sized
     {
         Choice {
             values: self.values.into_iter().map(f).collect()
@@ -663,8 +663,6 @@ impl<T> AsChoice<T> for Choice<T> {
         self
     }
 }
-
-impl<T> Functor for Choice<T> {}
 
 impl<T> Pure for Choice<T> {
     fn pure<A: Clone>(value: &A) -> Self::Output<A> {

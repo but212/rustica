@@ -98,7 +98,6 @@ use crate::traits::pure::Pure;
 use crate::traits::functor::Functor;
 use crate::traits::identity::Identity;
 use crate::traits::composable::Composable;
-use crate::traits::transform::Transform;
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -303,8 +302,8 @@ impl<E, A> Pure for Validated<E, A> {
     }
 }
 
-impl<E: Clone, A> Transform for Validated<E, A> {
-    fn transform<F, B>(&self, f: F) -> Self::Output<B>
+impl<E: Clone, A> Functor for Validated<E, A> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B
     {
@@ -314,9 +313,9 @@ impl<E: Clone, A> Transform for Validated<E, A> {
         }
     }
 
-    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> NewType,
+        F: Fn(Self::Source) -> B,
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
@@ -324,8 +323,6 @@ impl<E: Clone, A> Transform for Validated<E, A> {
         }
     }
 }
-
-impl<E: Clone, A> Functor for Validated<E, A> {}
 
 impl<E: Clone, A> Applicative for Validated<E, A> {
     fn apply<B, F>(&self, rf: &Self::Output<F>) -> Self::Output<B>

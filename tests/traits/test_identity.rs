@@ -1,7 +1,7 @@
 use super::TestFunctor;
 use quickcheck_macros::quickcheck;
 use rustica::traits::identity::{Identity, IdentityExt};
-use rustica::traits::transform::Transform;
+use rustica::traits::functor::Functor;
 use std::marker::PhantomData;
 
 // Test basic Identity methods on TestFunctor
@@ -103,7 +103,7 @@ fn test_phantom_data_into_value_panics() {
 fn identity_law_left_identity(x: i32) -> bool {
     // Use a safe function that won't overflow for large values
     let f = |x: &i32| x.saturating_mul(2);
-    let left = TestFunctor::<i32>::pure_identity(x).transform(f);
+    let left = TestFunctor::<i32>::pure_identity(x).fmap(f);
     let right = f(&x);
     
     *left.value() == right
@@ -116,7 +116,7 @@ fn identity_law_right_identity() {
     
     // We need to use a fully-qualified path for Identity::id
     // Use the identity function with the specific type implementation
-    let left = x.clone().transform(|val| <TestFunctor<i32> as Identity>::id(*val));
+    let left = x.clone().fmap(|val| <TestFunctor<i32> as Identity>::id(*val));
     
     assert_eq!(left, x);
 }

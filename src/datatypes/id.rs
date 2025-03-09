@@ -56,7 +56,6 @@ use crate::traits::{
     hkt::HKT,
     identity::Identity,
     functor::Functor,
-    transform::Transform,
     pure::Pure,
     applicative::Applicative,
     monad::Monad,
@@ -183,23 +182,21 @@ impl<T> Identity for Id<T> {
     }
 }
 
-impl<T> Transform for Id<T> {
-    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
+impl<T> Functor for Id<T> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> NewType,
+        F: Fn(&Self::Source) -> B,
     {
         Id::new(f(&self.value))
     }
 
-    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> NewType,
+        F: Fn(Self::Source) -> B,
     {
         Id::new(f(self.value))
     }
 }
-
-impl<T> Functor for Id<T> {}
 
 impl<T> Pure for Id<T> {
     fn pure<U: Clone>(x: &U) -> Self::Output<U> {

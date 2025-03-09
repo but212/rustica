@@ -6,7 +6,6 @@
 
 /// Basic functional programming concepts.
 pub mod hkt;
-pub mod transform;
 pub mod identity;
 pub mod pure;
 pub mod evaluate;

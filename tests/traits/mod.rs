@@ -57,23 +57,21 @@ impl<T> Pure for TestFunctor<T> {
     }
 }
 
-impl<T> Transform for TestFunctor<T> {
-    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
+impl<T> Functor for TestFunctor<T> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> NewType,
+        F: Fn(&Self::Source) -> B,
     {
         TestFunctor::new(f(&self.0))
     }
 
-    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> NewType,
+        F: Fn(Self::Source) -> B,
     {
         TestFunctor::new(f(self.0))
     }
 }
-
-impl<T> Functor for TestFunctor<T> {}
 
 impl<T> Applicative for TestFunctor<T> {
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>

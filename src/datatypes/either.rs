@@ -67,7 +67,6 @@ use crate::traits::composable::Composable;
 use crate::traits::identity::Identity;
 use crate::traits::pure::Pure;
 use crate::traits::functor::Functor;
-use crate::traits::transform::Transform;
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
 /// This is similar to `Result<T, E>` but without the semantic meaning of success/failure.
@@ -274,7 +273,29 @@ impl<L, R> HKT for Either<L, R> {
     type Output<T> = Either<L, T>;
 }
 
-impl<L: Clone, R: Clone> Functor for Either<L, R> {}
+impl<L: Clone, R: Clone> Functor for Either<L, R> {
+    #[inline]
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    where
+        F: Fn(&Self::Source) -> B,
+    {
+        match self {
+            Either::Left(l) => Either::Left(l.clone()),
+            Either::Right(r) => Either::Right(f(r)),
+        }
+    }
+
+    #[inline]
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
+    where
+        F: Fn(Self::Source) -> B,
+    {
+        match self {
+            Either::Left(l) => Either::Left(l),
+            Either::Right(r) => Either::Right(f(r)),
+        }
+    }
+}
 
 impl<L, R> Pure for Either<L, R> {
     #[inline]
@@ -458,29 +479,5 @@ impl<L, R> Composable for Either<L, R> {
         G: Fn(T) -> U,
     {
         move |x| g(f(x))
-    }
-}
-
-impl<L: Clone, R> Transform for Either<L, R> {
-    #[inline]
-    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
-    where
-        F: Fn(&Self::Source) -> NewType,
-    {
-        match self {
-            Either::Left(l) => Either::Left(l.clone()),
-            Either::Right(r) => Either::Right(f(r)),
-        }
-    }
-
-    #[inline]
-    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
-    where
-        F: Fn(Self::Source) -> NewType,
-    {
-        match self {
-            Either::Left(l) => Either::Left(l),
-            Either::Right(r) => Either::Right(f(r)),
-        }
     }
 }

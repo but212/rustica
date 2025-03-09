@@ -48,7 +48,6 @@
 //! ```
 
 use crate::traits::hkt::HKT;
-use crate::traits::transform::Transform;
 use crate::traits::functor::Functor;
 use crate::traits::applicative::Applicative;
 use crate::traits::monad::Monad;
@@ -212,10 +211,10 @@ impl<T> Pure for Maybe<T> {
     }
 }
 
-impl<T> Transform for Maybe<T> {
-    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
+impl<T> Functor for Maybe<T> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> NewType,
+        F: Fn(&Self::Source) -> B,
     {
         match self {
             Maybe::Just(x) => Maybe::Just(f(x)),
@@ -223,9 +222,9 @@ impl<T> Transform for Maybe<T> {
         }
     }
 
-    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> NewType,
+        F: Fn(Self::Source) -> B,
     {
         match self {
             Maybe::Just(x) => Maybe::Just(f(x)),
@@ -233,8 +232,6 @@ impl<T> Transform for Maybe<T> {
         }
     }
 }
-
-impl<T> Functor for Maybe<T> {}
 
 impl<T> Applicative for Maybe<T> {
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>

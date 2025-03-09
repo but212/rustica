@@ -69,7 +69,6 @@ pub mod transformers;
 pub mod prelude {
     // Core traits
     pub use crate::traits::hkt::HKT;
-    pub use crate::traits::transform::Transform;
     pub use crate::traits::monoid::Monoid;
     pub use crate::traits::functor::Functor;
     pub use crate::traits::pure::Pure;
@@ -89,8 +88,6 @@ pub mod prelude {
     
     #[cfg(feature = "advanced")]
     pub use crate::traits::hkt::BinaryHKT;
-    #[cfg(feature = "advanced")]
-    pub use crate::traits::transform::TransformExt;
 
     // Advanced datatypes (feature-gated)
     #[cfg(feature = "advanced")]

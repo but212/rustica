@@ -137,7 +137,6 @@
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use crate::traits::hkt::HKT;
-use crate::traits::transform::Transform;
 use crate::traits::functor::Functor;
 use crate::traits::applicative::Applicative;
 use crate::traits::monad::Monad;
@@ -420,10 +419,10 @@ impl<W: Monoid + Clone, A: Clone + Default> Monoid for Writer<W, A> {
     }
 }
 
-impl<W: Monoid + Clone, A: Clone> Transform for Writer<W, A> {
-    fn transform<F, NewType>(&self, f: F) -> Self::Output<NewType>
+impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
         where
-            F: Fn(&Self::Source) -> NewType,
+            F: Fn(&Self::Source) -> B,
         {
         Writer {
             log: self.log.clone(),
@@ -431,9 +430,9 @@ impl<W: Monoid + Clone, A: Clone> Transform for Writer<W, A> {
         }
     }
 
-    fn transform_owned<F, NewType>(self, f: F) -> Self::Output<NewType>
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
         where
-            F: Fn(Self::Source) -> NewType,
+            F: Fn(Self::Source) -> B,
         {
         Writer {
             log: self.log,
@@ -441,8 +440,6 @@ impl<W: Monoid + Clone, A: Clone> Transform for Writer<W, A> {
         }
     }
 }
-
-impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {}
 
 impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
     fn pure<T: Clone>(value: &T) -> Self::Output<T> {

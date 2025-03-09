@@ -112,7 +112,7 @@ use crate::prelude::*;
 /// let mapped_none = maybe_none.fmap(|x: &i32| x.to_string());
 /// assert!(mapped_none.is_nothing());
 /// ```
-pub trait Functor: Identity + Transform {
+pub trait Functor: Identity {
     /// Maps a function over the values in a functor without consuming it.
     ///
     /// This is a reference-based version of `fmap` that doesn't consume the functor.
@@ -124,14 +124,10 @@ pub trait Functor: Identity + Transform {
     /// # Returns
     ///
     /// A new functor containing the transformed values
-    #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B,
-        B: Clone,
-    {
-        self.transform(f)
-    }
+        B: Clone;
 
     /// Maps a function over the values in a functor.
     ///
@@ -145,67 +141,11 @@ pub trait Functor: Identity + Transform {
     /// # Returns
     ///
     /// A new functor containing the transformed value.
-    #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
         B: Clone,
-        Self: Sized,
-    {
-        self.transform_owned(f)
-    }
-
-    /// Maps a function over the values in a functor with static dispatch, without consuming it.
-    ///
-    /// This is a reference-based version of `map` that doesn't consume the functor.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that transforms values of type `Self::Source` into type `B`
-    ///
-    /// # Returns
-    ///
-    /// A new functor containing the transformed values
-    ///
-    /// # Default Implementation
-    ///
-    /// By default, this calls `fmap`, but implementations can override it
-    /// for better performance.
-    #[inline]
-    fn map<B, F>(&self, f: F) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> B,
-        B: Clone,
-    {
-        self.fmap(f)
-    }
-    
-    /// Maps a function over the values in a functor with static dispatch.
-    ///
-    /// This is an optimized version of `fmap` that uses static dispatch instead
-    /// of dynamic dispatch, potentially improving performance.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that transforms values of type `Self::Source` into type `B`
-    ///
-    /// # Returns
-    ///
-    /// A new functor containing the transformed values
-    ///
-    /// # Default Implementation
-    ///
-    /// By default, this calls `fmap_owned`, but implementations can override it
-    /// for better performance.
-    #[inline]
-    fn map_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
-        B: Clone,
-        Self: Sized,
-    {
-        self.fmap_owned(f)
-    }
+        Self: Sized;
 
     /// Replaces all values in the functor with a constant value, without consuming it.
     ///
@@ -225,7 +165,7 @@ pub trait Functor: Identity + Transform {
     where
         B: Clone,
     {
-        self.map(|_| value.clone())
+        self.fmap(|_| value.clone())
     }
     
     /// Replaces all values in the functor with a constant value.
@@ -247,7 +187,7 @@ pub trait Functor: Identity + Transform {
         B: Clone,
         Self: Sized,
     {
-        self.map(|_| value.clone())
+        self.fmap(|_| value.clone())
     }
 
     /// Void functor - discards the values and replaces them with unit, without consuming the functor.
@@ -261,7 +201,7 @@ pub trait Functor: Identity + Transform {
     /// Uses `map` to replace all values with unit.
     #[inline]
     fn void(&self) -> Self::Output<()> {
-        self.map(|_| ())
+        self.fmap(|_| ())
     }
     
     /// Void functor - discards the values and replaces them with unit.
@@ -278,7 +218,7 @@ pub trait Functor: Identity + Transform {
     where
         Self: Sized,
     {
-        self.map_owned(|_| ())
+        self.fmap_owned(|_| ())
     }
 }
 
@@ -380,7 +320,7 @@ pub trait FunctorExt: Functor {
         F: Fn(&Self::Source) -> Result<B, E>,
         B: Clone,
     {
-        self.map(|a| match f(a) {
+        self.fmap(|a| match f(a) {
             Ok(b) => b,
             Err(_) => default.clone(),
         })
@@ -438,7 +378,7 @@ pub trait FunctorExt: Functor {
         B: Clone,
         D: Fn(&E) -> B,
     {
-        self.map(|a| match f(a) {
+        self.fmap(|a| match f(a) {
             Ok(b) => b,
             Err(e) => default_fn(&e),
         })
@@ -489,38 +429,24 @@ pub trait FunctorExt: Functor {
         F: Fn(&Self::Source) -> Option<B>;
 }
 
-impl<T> Functor for Vec<T> {}
+impl<T> Functor for Vec<T> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+        where
+            F: Fn(&Self::Source) -> B,
+            B: Clone {
+        self.iter().map(f).collect()
+    }
+
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
+        where
+            F: Fn(Self::Source) -> B,
+            B: Clone,
+            Self: Sized {
+        self.into_iter().map(f).collect()
+    }
+}
 
 impl<T> FunctorExt for Vec<T> {
-    /// Maps a function over each value and filters out None results.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that returns an Option
-    ///
-    /// # Returns
-    ///
-    /// A new Vec containing only the values for which the function returned Some
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::functor::{Functor, FunctorExt};
-    /// use rustica::traits::hkt::HKT;
-///
-    /// let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-///
-    /// // Keep only even numbers and multiply them by 10
-    /// let filtered: Vec<i32> = numbers.filter_map(|x| {
-    ///     if x % 2 == 0 {
-    ///         Some(x * 10)
-    ///     } else {
-    ///         None
-    ///     }
-    /// });
-///
-    /// assert_eq!(filtered, vec![20, 40]);
-    /// ```
     #[inline]
     fn filter_map<B, F>(&self, f: F) -> Self::Output<B>
     where
@@ -529,39 +455,6 @@ impl<T> FunctorExt for Vec<T> {
         self.iter().filter_map(f).collect()
     }
 
-    /// Transforms values with a fallible function, handling errors by providing a default value.
-    ///
-    /// # Arguments
-    ///
-    /// * `default` - A default value to use in case of failure
-    /// * `f` - A function that may fail
-    ///
-    /// # Returns
-    ///
-    /// A new Vec with transformed values or defaults in case of errors
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::functor::{Functor, FunctorExt};
-    /// use rustica::traits::hkt::HKT;
-///
-    /// let numbers: Vec<i32> = vec![1, 2, 0, 4, 5];
-///
-    /// // Try to divide 10 by each number, using 0 for errors
-    /// let results: Vec<i32> = numbers.try_map_or(
-    ///     0,
-    ///     |x| -> Result<i32, &str> {
-    ///         if *x == 0 {
-    ///             Err("division by zero")
-    ///         } else {
-    ///             Ok(10 / x)
-    ///         }
-    ///     }
-    /// );
-///
-    /// assert_eq!(results, vec![10, 5, 0, 2, 2]);
-    /// ```
     #[inline]
     fn try_map_or<B, E, F>(&self, default: B, f: F) -> Self::Output<B>
     where
@@ -576,43 +469,6 @@ impl<T> FunctorExt for Vec<T> {
             .collect()
     }
 
-    /// Transforms values with a fallible function, handling errors with a provided function.
-    ///
-    /// # Arguments
-    ///
-    /// * `default_fn` - A function that provides a default value from the error
-    /// * `f` - A function that may fail
-    ///
-    /// # Returns
-    ///
-    /// A new Vec with transformed values or computed defaults in case of errors
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::functor::{Functor, FunctorExt};
-    /// use rustica::traits::hkt::HKT;
-    ///
-    /// let numbers: Vec<i32> = vec![1, 2, 0, 4, 5];
-    ///
-    /// // Try to divide 10 by each number, using an error handler
-    /// let results: Vec<String> = numbers.try_map_or_else(
-    ///     |err: &String| format!("Error: {}", err),
-    ///     |x| -> Result<String, String> {
-    ///         if *x == 0 {
-    ///             Err("division by zero".to_string())
-    ///         } else {
-    ///             Ok(format!("10/{} = {}", x, 10 / x))
-    ///         }
-    ///     }
-    /// );
-    ///
-    /// assert_eq!(results[0], "10/1 = 10");
-    /// assert_eq!(results[1], "10/2 = 5");
-    /// assert_eq!(results[2], "Error: division by zero");
-    /// assert_eq!(results[3], "10/4 = 2");
-    /// assert_eq!(results[4], "10/5 = 2");
-    /// ```
     #[inline]
     fn try_map_or_else<B, E, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
     where
@@ -719,7 +575,22 @@ where
 
 use std::{fmt::Debug, marker::PhantomData};
 
-impl<T> Functor for PhantomData<T> {}
+impl<T> Functor for PhantomData<T> {
+    fn fmap<B, F>(&self, _f: F) -> Self::Output<B>
+        where
+            F: Fn(&Self::Source) -> B,
+            B: Clone {
+        PhantomData
+    }
+
+    fn fmap_owned<B, F>(self, _f: F) -> Self::Output<B>
+        where
+            F: Fn(Self::Source) -> B,
+            B: Clone,
+            Self: Sized {
+        PhantomData
+    }
+}
 
 impl<T> FunctorExt for PhantomData<T> {
     #[inline]
@@ -749,6 +620,48 @@ impl<T> FunctorExt for PhantomData<T> {
     }
 }
 
-impl<T> Functor for Option<T> {}
+impl<T> Functor for Option<T> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+        where
+            F: Fn(&Self::Source) -> B,
+            B: Clone {
+        match self {
+            Some(value) => Some(f(value)),
+            None => None,
+        }
+    }
 
-impl<A, E: Debug + Clone> Functor for Result<A, E> {}
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
+        where
+            F: Fn(Self::Source) -> B,
+            B: Clone,
+            Self: Sized {
+        match self {
+            Some(value) => Some(f(value)),
+            None => None,
+        }
+    }
+}
+
+impl<A, E: Debug + Clone> Functor for Result<A, E> {
+    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+        where
+            F: Fn(&Self::Source) -> B,
+            B: Clone {
+        match self {
+            Ok(value) => Ok(f(value)),
+            Err(e) => Err(e.clone()),
+        }
+    }
+
+    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
+        where
+            F: Fn(Self::Source) -> B,
+            B: Clone,
+            Self: Sized {
+        match self {
+            Ok(value) => Ok(f(value)),
+            Err(e) => Err(e.clone()),
+        }
+    }
+}
