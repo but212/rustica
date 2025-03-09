@@ -1,3 +1,9 @@
+## [0.5.2] - 2025-03-09
+
+### Changed
+- Updated docs.rs configuration to use `all-features = true` for more standard feature documentation
+
+
 ## [0.5.1] - 2025-03-09
 
 ### Added
