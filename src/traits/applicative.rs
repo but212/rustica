@@ -756,7 +756,9 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 }
 
+/// PhantomData implementation of Applicative, does nothing but satisfies trait bounds for Zero-cost abstractions
 impl<T> Applicative for PhantomData<T> {
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn apply<B, F>(&self, _: &Self::Output<F>) -> Self::Output<B>
         where
@@ -766,6 +768,7 @@ impl<T> Applicative for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn lift2<B, C, F>(
         &self,
@@ -781,6 +784,7 @@ impl<T> Applicative for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn lift3<B, C, D, F>(
         &self,
@@ -798,6 +802,7 @@ impl<T> Applicative for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn apply_owned<B, F>(self, _: Self::Output<F>) -> Self::Output<B>
     where
@@ -808,6 +813,7 @@ impl<T> Applicative for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn lift2_owned<B, C, F>(
         self,
@@ -823,6 +829,7 @@ impl<T> Applicative for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn lift3_owned<B, C, D, F>(
         self,

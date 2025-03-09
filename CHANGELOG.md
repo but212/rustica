@@ -1,3 +1,11 @@
+## [0.5.0] - 2025-03-09
+
+### Added
+- Added Wrapper Type: `boxed_fn`, `first`, `last`, `product`, `sum`, `value`, `thunk`, `min`, `max`
+- Added Utilities: `hkt_utils`, `transform_utils`
+- Added implementations of functional traits for standard library types (`Option`, `Result`, `Vec`)
+- Added ownership-based methods to traits (`fmap_owned`, `bind_owned`, `join_owned`, etc.)
+
 ## [0.4.0] - 2025-02-26
 
 ### Added

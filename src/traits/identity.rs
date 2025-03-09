@@ -346,15 +346,22 @@ impl<T> Identity for Vec<T> {
     }
 }
 
+/// PhantomData implementation of Identity, does nothing but satisfies trait bounds for Zero-cost abstractions
 impl<T> Identity for PhantomData<T> {
+    /// does nothing but satisfies trait bounds
+    #[inline]
     fn value(&self) -> &Self::Source {
         panic!("PhantomData does not contain a value");
     }
 
+    /// does nothing but satisfies trait bounds
+    #[inline]
     fn into_value(self) -> Self::Source {
         panic!("PhantomData does not contain a value");
     }
 
+    /// does nothing but satisfies trait bounds
+    #[inline]
     fn pure_identity<A>(_value: A) -> Self::Output<A>
         where
             Self::Output<A>: Identity {

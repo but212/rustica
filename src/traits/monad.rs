@@ -284,8 +284,9 @@ pub trait Monad: Applicative {
     }
 }
 
-// PhantomData implementation
+/// PhantomData implementation of Monad, does nothing but satisfies trait bounds for Zero-cost abstractions
 impl<T> Monad for PhantomData<T> {
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn join<U>(&self) -> Self::Output<U>
     where
@@ -294,6 +295,7 @@ impl<T> Monad for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn bind<U, F>(&self, _: F) -> Self::Output<U>
     where
@@ -303,6 +305,7 @@ impl<T> Monad for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn bind_owned<U, F>(self, _: F) -> Self::Output<U>
     where
@@ -312,6 +315,7 @@ impl<T> Monad for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn join_owned<U>(self) -> Self::Output<U>
     where

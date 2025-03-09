@@ -570,7 +570,10 @@ where
 
 use std::{fmt::Debug, marker::PhantomData};
 
+/// PhantomData implementation of Functor, does nothing but satisfies trait bounds for Zero-cost abstractions
 impl<T> Functor for PhantomData<T> {
+    /// does nothing but satisfies trait bounds
+    #[inline]
     fn fmap<B, F>(&self, _f: F) -> Self::Output<B>
         where
             F: Fn(&Self::Source) -> B,
@@ -578,6 +581,8 @@ impl<T> Functor for PhantomData<T> {
         PhantomData
     }
 
+    /// does nothing but satisfies trait bounds
+    #[inline]
     fn fmap_owned<B, F>(self, _f: F) -> Self::Output<B>
         where
             F: Fn(Self::Source) -> B,
@@ -587,7 +592,9 @@ impl<T> Functor for PhantomData<T> {
     }
 }
 
+/// PhantomData implementation of FunctorExt, does nothing but satisfies trait bounds for Zero-cost abstractions
 impl<T> FunctorExt for PhantomData<T> {
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn filter_map<B, F>(&self, _f: F) -> Self::Output<B>
     where
@@ -596,6 +603,7 @@ impl<T> FunctorExt for PhantomData<T> {
         PhantomData
     }
     
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn try_map_or<B, E, F>(&self, _default: B, _f: F) -> Self::Output<B>
     where
@@ -605,6 +613,7 @@ impl<T> FunctorExt for PhantomData<T> {
         PhantomData
     }
     
+    /// does nothing but satisfies trait bounds
     #[inline]
     fn try_map_or_else<B, E, D, F>(&self, _default_fn: D, _f: F) -> Self::Output<B>
     where
