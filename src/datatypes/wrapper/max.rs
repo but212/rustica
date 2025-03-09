@@ -41,9 +41,11 @@ use std::fmt;
 ///            x.clone().combine(&y.clone()).combine(&z.clone()));
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct Max<T>(pub T);
 
 impl<T: Clone + Ord> Semigroup for Max<T> {
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         match self.0.cmp(&other.0) {
             Ordering::Greater | Ordering::Equal => self,
@@ -51,6 +53,7 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
         }
     }
 
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         match self.0.cmp(&other.0) {
             Ordering::Greater | Ordering::Equal => Max(self.0.clone()),

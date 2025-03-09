@@ -1,7 +1,6 @@
 #[cfg(feature = "async")]
 mod test_async_monad {
     use rustica::datatypes::async_monad::AsyncM;
-    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_async_monad_pure() {
@@ -29,7 +28,7 @@ mod test_async_monad {
     #[tokio::test]
     async fn test_async_monad_apply() {
         let async_m = AsyncM::pure(42);
-        let f = AsyncM::pure(Arc::new(|x: i32| x * 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+        let f = AsyncM::pure(|x: i32| x * 2);
         let applied = async_m.apply(f);
         let result = applied.try_get().await;
         assert_eq!(result, 84);
@@ -83,5 +82,24 @@ mod test_async_monad {
                 AsyncM::pure(result)
             });
         assert_eq!(failure.try_get().await, -1);
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_from_result_or_default() {
+        // Test success case
+        async fn success_fn() -> Result<i32, &'static str> {
+            Ok(42)
+        }
+        
+        let success = AsyncM::from_result_or_default(|| success_fn(), 0);
+        assert_eq!(success.try_get().await, 42);
+        
+        // Test error case
+        async fn error_fn() -> Result<i32, &'static str> {
+            Err("error")
+        }
+        
+        let error = AsyncM::from_result_or_default(|| error_fn(), 100);
+        assert_eq!(error.try_get().await, 100);
     }
 }

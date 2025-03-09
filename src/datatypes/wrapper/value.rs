@@ -39,6 +39,7 @@ use crate::traits::hkt::HKT;
 /// });
 /// assert_eq!(result, "42");
 /// ```
+#[repr(transparent)]
 pub struct Value<T>(pub T);
 
 impl<T> Value<T> {

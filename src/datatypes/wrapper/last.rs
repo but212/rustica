@@ -53,9 +53,11 @@ use std::fmt;
 /// assert_eq!(id.combine(&Last(Some(42))), Last(Some(42)));
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[repr(transparent)]
 pub struct Last<T>(pub Option<T>);
 
 impl<T: Clone> Semigroup for Last<T> {
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         match other.0 {
             Some(_) => other,
@@ -63,6 +65,7 @@ impl<T: Clone> Semigroup for Last<T> {
         }
     }
 
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         match &other.0 {
             Some(_) => Last(other.0.clone()),
@@ -81,6 +84,7 @@ impl<T: fmt::Display> fmt::Display for Last<T> {
 }
 
 impl<T: Clone> Monoid for Last<T> {
+    #[inline]
     fn empty() -> Self {
         Last(None)
     }

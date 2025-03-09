@@ -133,6 +133,7 @@ where
 }
 
 // Utility functions for Option
+#[inline]
 pub fn lift_option<A, B, F>(f: F) -> impl Fn(Option<A>) -> Option<B>
 where
     F: Fn(A) -> B,
@@ -141,6 +142,7 @@ where
 }
 
 // Utility functions for Result
+#[inline]
 pub fn map_result<A, B, E, F>(result: Result<A, E>, f: F) -> Result<B, E>
 where
     F: Fn(A) -> B,
@@ -149,6 +151,7 @@ where
 }
 
 // Try pipeline for Result
+#[inline]
 pub fn try_pipeline<A, B, E, F>(initial: A, operations: Vec<F>) -> Result<B, E>
 where
     F: Fn(B) -> Result<B, E>,
@@ -158,6 +161,7 @@ where
 }
 
 // Apply multiple operations to a single input
+#[inline]
 pub fn fan_out<A: Clone, B, F>(input: A, operations: Vec<F>) -> Vec<B>
 where
     F: Fn(A) -> B,
@@ -169,6 +173,7 @@ where
 }
 
 // Combine elements from two collections
+#[inline]
 pub fn zip_with<A, B, C, F>(xs: Vec<A>, ys: Vec<B>, f: F) -> Vec<C>
 where
     F: Fn(A, B) -> C,
@@ -180,6 +185,7 @@ where
 }
 
 // Compose multiple transformations
+#[inline]
 pub fn compose_all<A, B>(transformations: Vec<Box<dyn Fn(A) -> A>>) -> Box<dyn Fn(A) -> B>
 where
     A: 'static,

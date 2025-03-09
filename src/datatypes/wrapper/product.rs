@@ -50,13 +50,16 @@ use std::fmt;
 /// assert_eq!(id.combine(&Product(42)), Product(42));
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct Product<T>(pub T);
 
 impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         Product(self.0 * other.0)
     }
 
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         Product(self.0.clone() * other.0.clone())
     }
@@ -75,6 +78,7 @@ impl<T: fmt::Display> fmt::Display for Product<T> {
 }
 
 impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
+    #[inline]
     fn empty() -> Self {
         Product(T::from(1))
     }

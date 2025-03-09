@@ -49,14 +49,17 @@ use std::fmt;
 /// assert_eq!(Sum(42).clone().combine(&id.clone()), Sum(42));
 /// assert_eq!(id.combine(&Sum(42)), Sum(42));
 /// ```
+#[repr(transparent)]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Sum<T>(pub T);
 
 impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         Sum(self.0 + other.0)
     }
 
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         Sum(self.0.clone() + other.0.clone())
     }
@@ -75,6 +78,7 @@ impl<T: fmt::Display> fmt::Display for Sum<T> {
 }
 
 impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
+    #[inline]
     fn empty() -> Self {
         Sum(T::default())
     }

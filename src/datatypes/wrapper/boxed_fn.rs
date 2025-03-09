@@ -52,8 +52,6 @@ impl<T> Evaluate for BoxedFn<T> {
         (self.0)()
     }
 
-    // For BoxedFn, we can optimize by not using the default implementation
-    // since calling the function directly is more efficient than cloning the result
     #[inline]
     fn evaluate_owned(self) -> T
     where

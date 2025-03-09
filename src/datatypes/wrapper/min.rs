@@ -41,9 +41,11 @@ use std::fmt;
 ///            x.clone().combine(&y.clone()).combine(&z.clone()));
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct Min<T>(pub T);
 
 impl<T: Clone + Ord> Semigroup for Min<T> {
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         match self.0.cmp(&other.0) {
             Ordering::Less | Ordering::Equal => self,
@@ -51,6 +53,7 @@ impl<T: Clone + Ord> Semigroup for Min<T> {
         }
     }
 
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         match self.0.cmp(&other.0) {
             Ordering::Less | Ordering::Equal => Min(self.0.clone()),

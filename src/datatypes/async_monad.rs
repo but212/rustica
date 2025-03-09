@@ -50,9 +50,12 @@
 //!     assert_eq!(result.try_get().await, 86);
 //! }
 //! ```
-use futures::future::{self, Future};
+use futures::future::{self, Future, FutureExt};
 use std::pin::Pin;
 use std::sync::Arc;
+
+/// A type alias for an asynchronous computation that can be sent between threads.
+pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// The asynchronous monad, which represents a computation that will eventually produce a value.
 /// 
@@ -83,13 +86,16 @@ use std::sync::Arc;
 ///     let transformed = computation.fmap(|x| async move { x * 2 });
 ///     assert_eq!(transformed.try_get().await, 84);
 /// }
+/// 
 /// ```
 #[derive(Clone)]
 pub struct AsyncM<A> {
-    run: Arc<dyn Fn() -> Pin<Box<dyn Future<Output = A> + Send + Sync>> + Send + Sync>,
+    // Using a boxed function that returns a boxed future
+    // This allows for type erasure and dynamic dispatch
+    run: Arc<dyn Fn() -> BoxFuture<'static, A> + Send + Sync + 'static>,
 }
 
-impl<A: Clone + Send + Sync + 'static> AsyncM<A> {
+impl<A: Send + 'static> AsyncM<A> {
     /// Creates a new async computation from a future-producing function.
     /// 
     /// This constructor allows you to create an `AsyncM` from any function that
@@ -122,13 +128,14 @@ impl<A: Clone + Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(delayed.try_get().await, 42);
     /// }
     /// ```
+    #[inline]
     pub fn new<G, F>(f: G) -> Self
     where
         G: Fn() -> F + Send + Sync + 'static,
-        F: Future<Output = A> + Send + Sync + 'static,
+        F: Future<Output = A> + Send + 'static,
     {
         AsyncM {
-            run: Arc::new(move || Box::pin(f())),
+            run: Arc::new(move || f().boxed()),
         }
     }
 
@@ -153,17 +160,20 @@ impl<A: Clone + Send + Sync + 'static> AsyncM<A> {
     ///     let async_int: AsyncM<i32> = AsyncM::pure(42);
     ///     assert_eq!(async_int.try_get().await, 42);
     ///     
-    ///     // Works with any type that implements Clone + Send + Sync
+    ///     // Works with any type that implements Send
     ///     let async_string: AsyncM<String> = AsyncM::pure("hello".to_string());
     ///     assert_eq!(async_string.try_get().await, "hello");
     /// }
     /// ```
-    pub fn pure(value: A) -> Self {
-        let value = Arc::new(value);
+    #[inline]
+    pub fn pure(value: A) -> Self 
+    where 
+        A: Clone + Send + Sync + 'static
+    {
         AsyncM {
             run: Arc::new(move || {
                 let value = value.clone();
-                Box::pin(future::ready((*value).clone()))
+                future::ready(value).boxed()
             }),
         }
     }
@@ -192,9 +202,9 @@ impl<A: Clone + Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result, 42);
     /// }
     /// ```
+    #[inline]
     pub async fn try_get(&self) -> A {
-        let future = (self.run)();
-        future.await
+        (self.run)().await
     }
 
     /// Maps a function over the result of this async computation.
@@ -233,22 +243,23 @@ impl<A: Clone + Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, "52");
     /// }
     /// ```
+    #[inline]
     pub fn fmap<B, F, Fut>(&self, f: F) -> AsyncM<B>
     where
-        B: Clone + Send + Sync + 'static,
+        B: Send + 'static,
         F: Fn(A) -> Fut + Send + Sync + Clone + 'static,
-        Fut: Future<Output = B> + Send + Sync + 'static,
+        Fut: Future<Output = B> + Send + 'static,
+        A: Clone,
     {
-        let f = Arc::new(f);
         let run = Arc::clone(&self.run);
         AsyncM {
             run: Arc::new(move || {
                 let f = f.clone();
                 let fut = run();
-                Box::pin(async move {
+                async move {
                     let a = fut.await;
                     f(a).await
-                })
+                }.boxed()
             }),
         }
     }
@@ -293,22 +304,23 @@ impl<A: Clone + Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 104);
     /// }
     /// ```
+    #[inline]
     pub fn bind<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
-        B: Clone + Send + Sync + 'static,
+        B: Send + 'static,
         F: Fn(A) -> Fut + Send + Sync + Clone + 'static,
-        Fut: Future<Output = AsyncM<B>> + Send + Sync + 'static,
+        Fut: Future<Output = AsyncM<B>> + Send + 'static,
     {
-        let f = Arc::new(f);
         AsyncM {
             run: Arc::new(move || {
                 let f = f.clone();
                 let fut = (self.run)();
-                Box::pin(async move {
+                
+                async move {
                     let a = fut.await;
                     let next_monad = f(a).await;
                     next_monad.try_get().await
-                })
+                }.boxed()
             }),
         }
     }
@@ -338,28 +350,86 @@ impl<A: Clone + Send + Sync + 'static> AsyncM<A> {
     ///     let computation = AsyncM::pure(42);
     ///     
     ///     // Create a function wrapped in AsyncM
-    ///     let func: AsyncM<Arc<dyn Fn(i32) -> i32 + Send + Sync>> = 
-    ///         AsyncM::pure(Arc::new(|x| x * 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+    ///     let func = AsyncM::pure(|x: i32| x * 2);
     ///     
     ///     // Apply the wrapped function to the wrapped value
     ///     let result = computation.apply(func);
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
-    pub fn apply<B>(self, mf: AsyncM<Arc<dyn Fn(A) -> B + Send + Sync>>) -> AsyncM<B>
+    #[inline]
+    pub fn apply<B, F>(self, mf: AsyncM<F>) -> AsyncM<B>
     where
-        B: Clone + Send + Sync + 'static,
+        B: Send + 'static,
+        F: Fn(A) -> B + Send + Sync + 'static,
     {
         AsyncM {
             run: Arc::new(move || {
                 let f_fut = (mf.run)();
                 let x_fut = (self.run)();
-                Box::pin(async move {
+                
+                async move {
                     let f = f_fut.await;
                     let x = x_fut.await;
                     f(x)
-                })
+                }.boxed()
             }),
         }
+    }
+
+    /// Converts an asynchronous Result into an AsyncM.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that produces a future that returns a Result
+    /// * `default_value` - The value to return if the Result is an Err
+    ///
+    /// # Returns
+    ///
+    /// An AsyncM that contains the Ok value of the Result, or defaults to the provided value on Error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::async_monad::AsyncM;
+    /// use tokio;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     // A function that returns a Result in a Future
+    ///     async fn divide(a: i32, b: i32) -> Result<i32, &'static str> {
+    ///         if b == 0 {
+    ///             Err("Cannot divide by zero")
+    ///         } else {
+    ///             Ok(a / b)
+    ///         }
+    ///     }
+    /// 
+    ///     // Handle a successful result
+    ///     let success = AsyncM::from_result_or_default(|| divide(10, 2), 0);
+    ///     assert_eq!(success.try_get().await, 5);
+    /// 
+    ///     // Handle an error with default value
+    ///     let failure = AsyncM::from_result_or_default(|| divide(10, 0), 0);
+    ///     assert_eq!(failure.try_get().await, 0);
+    /// }
+    /// ```
+    #[inline]
+    pub fn from_result_or_default<F, E, Fut>(f: F, default_value: A) -> AsyncM<A>
+    where
+        F: Fn() -> Fut + Send + Sync + Clone + 'static,
+        Fut: Future<Output = Result<A, E>> + Send + Sync + 'static,
+        A: Clone + Send + Sync + 'static,
+    {
+        AsyncM::new(move || {
+            let f = f.clone();
+            let default = default_value.clone();
+            async move {
+                match f().await {
+                    Ok(value) => value,
+                    Err(_) => default,
+                }
+            }
+        })
     }
 }

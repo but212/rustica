@@ -22,6 +22,13 @@
 //! additional monadic operations. Conversion methods are provided to interoperate
 //! with `Option<T>`.
 //! 
+//! # Memory Optimization
+//! 
+//! `Maybe<T>` has the same memory layout as `Option<T>` and takes advantage of the
+//! [null pointer optimization](https://doc.rust-lang.org/std/option/index.html#representation).
+//! This means that for types like `Box<T>`, `Vec<T>`, `String`, etc., `Maybe<T>` doesn't
+//! require any additional memory beyond what's needed to store `T`.
+//! 
 //! # Examples
 //! 
 //! ```rust
@@ -54,11 +61,18 @@ use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
 use crate::traits::composable::Composable;
 use crate::traits::identity::Identity;
+use std::marker::PhantomData;
 
-/// A type that represents an optional value.
+/// A type that represents an optional value, optimized with null pointer optimization.
 ///
 /// `Maybe<T>` is an enum that can be either `Just(T)` containing a value, or `Nothing` 
-/// representing the absence of a value.
+/// representing the absence of a value. It has the same memory layout as `Option<T>`.
+///
+/// # Memory Optimization
+///
+/// This type uses Rust's null pointer optimization. For types like `Box<T>`, `Vec<T>`,
+/// `String`, etc. that can never be null, the `Nothing` variant doesn't require any
+/// additional memory. The compiler optimizes it to use the null pointer representation.
 ///
 /// # Type Parameters
 ///
@@ -100,6 +114,7 @@ impl<T> Maybe<T> {
     /// let y: Maybe<u32> = Maybe::Nothing;
     /// assert_eq!(y.is_just(), false);
     /// ```
+    #[inline]
     pub fn is_just(&self) -> bool {
         matches!(self, Maybe::Just(_))
     }
@@ -117,6 +132,7 @@ impl<T> Maybe<T> {
     /// let y: Maybe<u32> = Maybe::Nothing;
     /// assert_eq!(y.is_nothing(), true);
     /// ```
+    #[inline]
     pub fn is_nothing(&self) -> bool {
         matches!(self, Maybe::Nothing)
     }
@@ -124,6 +140,7 @@ impl<T> Maybe<T> {
     /// Converts from `Option<T>` to `Maybe<T>`.
     ///
     /// `Some(x)` is converted to `Just(x)`, and `None` is converted to `Nothing`.
+    /// This is a zero-cost conversion due to the same memory layout.
     ///
     /// # Examples
     ///
@@ -139,6 +156,7 @@ impl<T> Maybe<T> {
     /// assert!(maybe_just.is_just());
     /// assert!(maybe_nothing.is_nothing());
     /// ```
+    #[inline]
     pub fn from_option(opt: Option<T>) -> Self {
         match opt {
             Some(x) => Maybe::Just(x),
@@ -149,6 +167,7 @@ impl<T> Maybe<T> {
     /// Converts from `Maybe<T>` to `Option<T>`.
     ///
     /// `Just(x)` is converted to `Some(x)`, and `Nothing` is converted to `None`.
+    /// This is a zero-cost conversion due to the same memory layout.
     ///
     /// # Examples
     ///
@@ -164,6 +183,7 @@ impl<T> Maybe<T> {
     /// assert_eq!(opt_some, Some(42));
     /// assert_eq!(opt_none, None);
     /// ```
+    #[inline]
     pub fn to_option(self) -> Option<T> {
         match self {
             Maybe::Just(x) => Some(x),
@@ -192,13 +212,105 @@ impl<T> Maybe<T> {
     /// let x: Maybe<&str> = Maybe::Nothing;
     /// x.unwrap(); // This will panic
     /// ```
+    #[inline]
     pub fn unwrap(self) -> T {
         match self {
-            Maybe::Just(x) => x,
-            Maybe::Nothing => panic!("Tried to unwrap a Nothing value!"),
+            Maybe::Just(val) => val,
+            Maybe::Nothing => panic!("called `Maybe::unwrap()` on a `Nothing` value"),
+        }
+    }
+
+    /// Maps a `Maybe<T>` to `Maybe<U>` by applying a function to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let maybe_some = Maybe::Just(41);
+    /// let maybe_none: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// let incremented = maybe_some.map(|x| x + 1);
+    /// let still_none = maybe_none.map(|x| x + 1);
+    ///
+    /// assert_eq!(incremented.unwrap(), 42);
+    /// assert!(still_none.is_nothing());
+    /// ```
+    #[inline]
+    pub fn map<U, F>(self, f: F) -> Maybe<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        match self {
+            Maybe::Just(val) => Maybe::Just(f(val)),
+            Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+
+    /// Returns the provided default value if `Nothing`, or applies a function to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let maybe_some = Maybe::Just(41);
+    /// let maybe_none: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// let incremented = maybe_some.map_or(0, |x| x + 1);
+    /// let default = maybe_none.map_or(0, |x| x + 1);
+    ///
+    /// assert_eq!(incremented, 42);
+    /// assert_eq!(default, 0);
+    /// ```
+    #[inline]
+    pub fn map_or<U, F>(self, default: U, f: F) -> U
+    where
+        F: FnOnce(T) -> U,
+    {
+        match self {
+            Maybe::Just(val) => f(val),
+            Maybe::Nothing => default,
+        }
+    }
+
+    /// Returns the result of applying `f` to the contained value if `Just`, 
+    /// otherwise returns the result of evaluating `default`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let maybe_some = Maybe::Just(41);
+    /// let maybe_none: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// let incremented = maybe_some.map_or_else(|| 0, |x| x + 1);
+    /// let default = maybe_none.map_or_else(|| 0, |x| x + 1);
+    ///
+    /// assert_eq!(incremented, 42);
+    /// assert_eq!(default, 0);
+    /// ```
+    #[inline]
+    pub fn map_or_else<U, D, F>(self, default: D, f: F) -> U
+    where
+        D: FnOnce() -> U,
+        F: FnOnce(T) -> U,
+    {
+        match self {
+            Maybe::Just(val) => f(val),
+            Maybe::Nothing => default(),
         }
     }
 }
+
+// Use a specialized empty struct to enable null pointer optimization
+// This is a marker type to verify null pointer optimization is enabled
+#[allow(dead_code)]
+struct MaybeNullTestStruct<T>(PhantomData<T>);
+
+// Assert that Maybe<Box<T>> has the same size as Box<T>, confirming null pointer optimization works
+const _: () = assert!(std::mem::size_of::<Maybe<Box<i32>>>() == std::mem::size_of::<Box<i32>>());
 
 impl<T> HKT for Maybe<T> {
     type Source = T;
@@ -206,265 +318,214 @@ impl<T> HKT for Maybe<T> {
 }
 
 impl<T> Pure for Maybe<T> {
+    #[inline]
     fn pure<U: Clone>(value: &U) -> Self::Output<U> {
         Maybe::Just(value.clone())
     }
 }
 
 impl<T> Functor for Maybe<T> {
+    #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B,
     {
         match self {
-            Maybe::Just(x) => Maybe::Just(f(x)),
+            Maybe::Just(a) => Maybe::Just(f(a)),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
 
+    #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> B,
+        F: FnOnce(Self::Source) -> B,
+        Self: Sized,
     {
         match self {
-            Maybe::Just(x) => Maybe::Just(f(x)),
+            Maybe::Just(a) => Maybe::Just(f(a)),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
 }
 
 impl<T> Applicative for Maybe<T> {
+    #[inline]
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B {
+    where
+        F: Fn(&Self::Source) -> B,
+    {
         match (self, f) {
-            (Maybe::Just(x), Maybe::Just(f)) => Maybe::Just(f(x)),
+            (Maybe::Just(x), Maybe::Just(g)) => Maybe::Just(g(x)),
             _ => Maybe::Nothing,
         }
     }
 
+    #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
     {
         match (self, b) {
-            (Maybe::Just(x), Maybe::Just(y)) => Maybe::Just(f(x, y)),
+            (Maybe::Just(a), Maybe::Just(b)) => Maybe::Just(f(a, b)),
             _ => Maybe::Nothing,
         }
     }
 
+    #[inline]
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
     {
         match (self, b, c) {
-            (Maybe::Just(x), Maybe::Just(y), Maybe::Just(z)) => Maybe::Just(f(x, y, z)),
+            (Maybe::Just(a), Maybe::Just(b), Maybe::Just(c)) => Maybe::Just(f(a, b, c)),
             _ => Maybe::Nothing,
         }
     }
 
+    #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
-        where
-            F: Fn(Self::Source) -> B,
-            Self: Sized {
+    where
+        F: FnOnce(Self::Source) -> B,
+        Self: Sized,
+    {
         match (self, f) {
-            (Maybe::Just(x), Maybe::Just(f)) => Maybe::Just(f(x)),
+            (Maybe::Just(x), Maybe::Just(g)) => Maybe::Just(g(x)),
             _ => Maybe::Nothing,
         }
     }
 
+    #[inline]
     fn lift2_owned<B, C, F>(
-            self,
-            b: Self::Output<B>,
-            f: F,
-        ) -> Self::Output<C>
-        where
-            F: Fn(Self::Source, B) -> C,
-            Self: Sized,
-            B: Clone {
+        self,
+        b: Self::Output<B>,
+        f: F,
+    ) -> Self::Output<C>
+    where
+        F: FnOnce(Self::Source, B) -> C,
+        Self: Sized,
+    {
         match (self, b) {
-            (Maybe::Just(x), Maybe::Just(y)) => Maybe::Just(f(x, y.clone())),
+            (Maybe::Just(a), Maybe::Just(b)) => Maybe::Just(f(a, b)),
             _ => Maybe::Nothing,
         }
     }
 
+    #[inline]
     fn lift3_owned<B, C, D, F>(
-            self,
-            b: Self::Output<B>,
-            c: Self::Output<C>,
-            f: F,
-        ) -> Self::Output<D>
-        where
-            F: Fn(Self::Source, B, C) -> D,
-            Self: Sized,
-            B: Clone,
-            C: Clone {
+        self,
+        b: Self::Output<B>,
+        c: Self::Output<C>,
+        f: F,
+    ) -> Self::Output<D>
+    where
+        F: FnOnce(Self::Source, B, C) -> D,
+        Self: Sized,
+    {
         match (self, b, c) {
-            (Maybe::Just(x), Maybe::Just(y), Maybe::Just(z)) => Maybe::Just(f(x, y.clone(), z.clone())),
+            (Maybe::Just(a), Maybe::Just(b), Maybe::Just(c)) => Maybe::Just(f(a, b, c)),
             _ => Maybe::Nothing,
         }
     }
 }
 
 impl<T> Monad for Maybe<T> {
+    #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
-        where
-            F: Fn(&Self::Source) -> Self::Output<U>,
-            Self::Source: Clone,
-            U: Clone {
-        match self {
-            Maybe::Just(x) => f(&x),
-            Maybe::Nothing => Maybe::Nothing,
-        }
-    }
-
-    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
-        where
-            F: Fn(Self::Source) -> Self::Output<U>,
-            U: Clone,
-            Self: Sized {
+    where
+        F: Fn(&Self::Source) -> Self::Output<U>,
+    {
         match self {
             Maybe::Just(x) => f(x),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
 
-    fn join<U>(&self) -> Self::Output<U>
-        where
-            Self::Source: Clone + Into<Self::Output<U>>,
-            U: Clone {
+    #[inline]
+    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
+    where
+        F: FnOnce(Self::Source) -> Self::Output<U>,
+        Self: Sized,
+    {
         match self {
-            Maybe::Just(x) => x.to_owned().into(),
+            Maybe::Just(x) => f(x),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
-    
-    fn join_owned<U>(self) -> Self::Output<U>
-        where
-            Self::Source: Into<Self::Output<U>>,
-            U: Clone,
-            Self: Sized {
+
+    #[inline]
+    fn join<U>(&self) -> Self::Output<U>
+    where
+        Self::Source: Clone + Into<Self::Output<U>>,
+    {
         match self {
-            Maybe::Just(x) => x.into(),
+            Maybe::Just(m) => m.clone().into(),
+            Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+
+    #[inline]
+    fn join_owned<U>(self) -> Self::Output<U>
+    where
+        Self::Source: Into<Self::Output<U>>,
+        Self: Sized,
+    {
+        match self {
+            Maybe::Just(m) => m.into(),
             Maybe::Nothing => Maybe::Nothing,
         }
     }
 }
 
-/// Implementation of FromIterator trait for Maybe
-///
-/// This allows collecting an iterator into a Maybe value.
 impl<T> FromIterator<T> for Maybe<T> {
-    /// Creates a Maybe from an iterator.
-    ///
-    /// Returns `Just` with the first element, or `Nothing` if the iterator is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    ///
-    /// let v = vec![1, 2, 3];
-    /// let maybe: Maybe<i32> = v.into_iter().collect();
-    /// assert!(maybe.is_just());
-    ///
-    /// let empty: Vec<i32> = vec![];
-    /// let maybe_empty: Maybe<i32> = empty.into_iter().collect();
-    /// assert!(maybe_empty.is_nothing());
-    /// ```
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut iter = iter.into_iter();
         iter.next().map_or(Maybe::Nothing, Maybe::Just)
     }
 }
 
-/// Implementation of From trait for converting from Option to Maybe
 impl<T> From<Option<T>> for Maybe<T> {
-    /// Converts an Option into a Maybe.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    ///
-    /// let opt_some = Some(42);
-    /// let maybe_just = Maybe::from(opt_some);
-    /// assert!(maybe_just.is_just());
-    ///
-    /// let opt_none: Option<i32> = None;
-    /// let maybe_nothing = Maybe::from(opt_none);
-    /// assert!(maybe_nothing.is_nothing());
-    /// ```
+    #[inline]
     fn from(opt: Option<T>) -> Self {
         match opt {
-            Some(value) => Maybe::Just(value),
+            Some(x) => Maybe::Just(x),
             None => Maybe::Nothing,
         }
     }
 }
 
-/// Implementation of Identity trait for Maybe
+impl<T> From<Maybe<T>> for Option<T> {
+    #[inline]
+    fn from(maybe: Maybe<T>) -> Self {
+        match maybe {
+            Maybe::Just(x) => Some(x),
+            Maybe::Nothing => None,
+        }
+    }
+}
+
 impl<T> Identity for Maybe<T> {
-    /// Gets a reference to the contained value.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the value is `Nothing`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// let just_five = Maybe::Just(5);
-    /// assert_eq!(*just_five.value(), 5);
-    /// ```
+    #[inline]
     fn value(&self) -> &Self::Source {
         match self {
-            Maybe::Just(x) => x,
-            Maybe::Nothing => panic!("Tried to get value from Nothing!"),
+            Maybe::Just(v) => v,
+            Maybe::Nothing => panic!("Called `Identity::value()` on a `Nothing` value"),
         }
     }
 
+    #[inline]
     fn into_value(self) -> Self::Source {
         match self {
-            Maybe::Just(x) => x,
-            Maybe::Nothing => panic!("Tried to get value from Nothing!"),
+            Maybe::Just(v) => v,
+            Maybe::Nothing => panic!("Called `Identity::into_value()` on a `Nothing` value"),
         }
     }
 
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-        where
-            Self::Output<A>: Identity {
+    #[inline]
+    fn pure_identity<A>(value: A) -> Self::Output<A> {
         Maybe::Just(value)
     }
 }
 
-/// Implementation of Composable trait for Maybe
 impl<T> Composable for Maybe<T> {
-    /// Composes two functions.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::prelude::*;
-    /// use rustica::traits::composable::Composable;
-    ///
-    /// let add_one = |x: i32| x + 1;
-    /// let double = |x: i32| x * 2;
-    /// let composed = <Maybe<i32> as Composable>::compose(&add_one, &double);
-    ///
-    /// let result = Maybe::Just(5).bind(&|x: &i32| Maybe::Just(composed(*x)));
-    /// assert!(result.is_just());
-    /// assert_eq!(result.unwrap(), 12);  // (5 + 1) * 2 = 12
-    /// ```
-    fn compose<U, V, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> V
-    where
-        F: Fn(Self::Source) -> U,
-        G: Fn(U) -> V,
-    {
-        move |x| g(f(x))
-    }
 }

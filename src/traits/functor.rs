@@ -280,9 +280,9 @@ pub trait FunctorExt: Functor {
     /// ```rust
     /// use rustica::traits::functor::{Functor, FunctorExt};
     /// use rustica::traits::hkt::HKT;
-///
+    ///
     /// let some_value: Option<i32> = Some(42);
-///
+    ///
     /// // Using try_map_or with a fallible function
     /// let result: Option<String> = some_value.try_map_or(
     ///     "default".to_string(),
@@ -295,7 +295,7 @@ pub trait FunctorExt: Functor {
     ///     }
     /// );
     /// assert_eq!(result, Some("42".to_string()));
-///
+    ///
     /// // With a value that causes an error
     /// let negative: Option<i32> = Some(-10);
     /// let result_with_default: Option<String> = negative.try_map_or(
@@ -310,6 +310,7 @@ pub trait FunctorExt: Functor {
     /// );
     /// assert_eq!(result_with_default, Some("default".to_string()));
     /// ```
+    #[inline]
     fn try_map_or<B, E, F>(&self, default: B, f: F) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> Result<B, E>,
@@ -337,9 +338,9 @@ pub trait FunctorExt: Functor {
     /// ```rust
     /// use rustica::traits::functor::{Functor, FunctorExt};
     /// use rustica::traits::hkt::HKT;
-///
+    ///
     /// let some_value: Option<i32> = Some(42);
-///
+    ///
     /// // Using try_map_or_else with a fallible function and error handler
     /// let result: Option<String> = some_value.try_map_or_else(
     ///     |err: &String| format!("Error: {}", err),
@@ -352,7 +353,7 @@ pub trait FunctorExt: Functor {
     ///     }
     /// );
     /// assert_eq!(result, Some("42".to_string()));
-///
+    ///
     /// // With a value that causes an error
     /// let negative: Option<i32> = Some(-10);
     /// let result_with_error_handler: Option<String> = negative.try_map_or_else(
@@ -367,6 +368,7 @@ pub trait FunctorExt: Functor {
     /// );
     /// assert_eq!(result_with_error_handler, Some("Error: negative number".to_string()));
     /// ```
+    #[inline]
     fn try_map_or_else<B, E, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> Result<B, E>,
@@ -396,9 +398,9 @@ pub trait FunctorExt: Functor {
     /// ```rust
     /// use rustica::traits::functor::{Functor, FunctorExt};
     /// use rustica::traits::hkt::HKT;
-///
+    ///
     /// let some_value: Option<i32> = Some(42);
-///
+    ///
     /// // Keep only values that pass a predicate and transform them
     /// let filter_mapped: Option<String> = some_value.filter_map(|x| {
     ///     if *x > 40 {
@@ -408,7 +410,7 @@ pub trait FunctorExt: Functor {
     ///     }
     /// });
     /// assert_eq!(filter_mapped, Some("42".to_string()));
-///
+    ///
     /// // Value filtered out
     /// let filtered_out: Option<String> = some_value.filter_map(|x| {
     ///     if *x > 100 {
@@ -425,6 +427,7 @@ pub trait FunctorExt: Functor {
 }
 
 impl<T> Functor for Vec<T> {
+    #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
         where
             F: Fn(&Self::Source) -> B,
@@ -432,6 +435,7 @@ impl<T> Functor for Vec<T> {
         self.iter().map(f).collect()
     }
 
+    #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
         where
             F: Fn(Self::Source) -> B,
@@ -625,6 +629,7 @@ impl<T> FunctorExt for PhantomData<T> {
 }
 
 impl<T> Functor for Option<T> {
+    #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
         where
             F: Fn(&Self::Source) -> B,
@@ -635,6 +640,7 @@ impl<T> Functor for Option<T> {
         }
     }
 
+    #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
         where
             F: Fn(Self::Source) -> B,
@@ -648,6 +654,7 @@ impl<T> Functor for Option<T> {
 }
 
 impl<A, E: Debug + Clone> Functor for Result<A, E> {
+    #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
         where
             F: Fn(&Self::Source) -> B,
@@ -658,6 +665,7 @@ impl<A, E: Debug + Clone> Functor for Result<A, E> {
         }
     }
 
+    #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
         where
             F: Fn(Self::Source) -> B,

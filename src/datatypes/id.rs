@@ -159,6 +159,7 @@ impl<T> Id<T> {
     /// let s: Id<String> = Id::new("hello".to_string());
     /// assert_eq!(*s.value(), "hello");
     /// ```
+    #[inline]
     pub fn new(x: T) -> Self {
         Id { value: x }
     }
@@ -170,10 +171,12 @@ impl<T> HKT for Id<T> {
 }
 
 impl<T> Identity for Id<T> {
+    #[inline]
     fn value(&self) -> &Self::Source {
         &self.value
     }
 
+    #[inline]
     fn pure_identity<A>(value: A) -> Self::Output<A>
     where
         Self::Output<A>: Identity,
@@ -181,12 +184,14 @@ impl<T> Identity for Id<T> {
         Id::new(value)
     }
 
+    #[inline]
     fn into_value(self) -> Self::Source {
         self.value
     }
 }
 
 impl<T> Functor for Id<T> {
+    #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B,
@@ -194,6 +199,7 @@ impl<T> Functor for Id<T> {
         Id::new(f(&self.value))
     }
 
+    #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
@@ -203,12 +209,14 @@ impl<T> Functor for Id<T> {
 }
 
 impl<T> Pure for Id<T> {
+    #[inline]
     fn pure<U: Clone>(x: &U) -> Self::Output<U> {
         Id::new(x.clone())
     }
 }
 
 impl<T> Applicative for Id<T> {
+    #[inline]
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B,
@@ -216,6 +224,7 @@ impl<T> Applicative for Id<T> {
         Id::new(f.value()(&self.value))
     }
 
+    #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
@@ -223,6 +232,7 @@ impl<T> Applicative for Id<T> {
         Id::new(f(&self.value, b.value()))
     }
 
+    #[inline]
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
@@ -230,6 +240,7 @@ impl<T> Applicative for Id<T> {
         Id::new(f(&self.value, b.value(), c.value()))
     }
 
+    #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
         where
             F: Fn(Self::Source) -> B,
@@ -237,6 +248,7 @@ impl<T> Applicative for Id<T> {
         Id::new(f.value()(self.value))
     }
 
+    #[inline]
     fn lift2_owned<B, C, F>(
             self,
             b: Self::Output<B>,
@@ -249,6 +261,7 @@ impl<T> Applicative for Id<T> {
         Id::new(f(self.value, b.value))
     }
 
+    #[inline]
     fn lift3_owned<B, C, D, F>(
             self,
             b: Self::Output<B>,
@@ -265,6 +278,7 @@ impl<T> Applicative for Id<T> {
 }
 
 impl<T> Monad for Id<T> {
+    #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
         F: Fn(&Self::Source) -> Self::Output<U>,
@@ -272,12 +286,14 @@ impl<T> Monad for Id<T> {
         f(&self.value)
     }
 
+    #[inline]
     fn join<U>(&self) -> Self::Output<U>
         where
             Self::Source: Clone + Into<Self::Output<U>> {
         self.value.clone().into()
     }
 
+    #[inline]
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
         where
             F: Fn(Self::Source) -> Self::Output<U>,
@@ -286,6 +302,7 @@ impl<T> Monad for Id<T> {
         f(self.value)
     }
 
+    #[inline]
     fn join_owned<U>(self) -> Self::Output<U>
         where
             Self::Source: Into<Self::Output<U>>,
@@ -296,22 +313,26 @@ impl<T> Monad for Id<T> {
 }
 
 impl<T: Semigroup> Semigroup for Id<T> {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         Id::new(self.value.combine(&other.value))
     }
     
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         Id::new(self.value.combine_owned(other.value))
     }
 }
 
 impl<T: Monoid> Monoid for Id<T> {
+    #[inline]
     fn empty() -> Self {
         Id::new(T::empty())
     }
 }
 
 impl<T: Clone> Foldable for Id<T> {
+    #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
         F: Fn(U, &Self::Source) -> U
@@ -319,6 +340,7 @@ impl<T: Clone> Foldable for Id<T> {
         f(init.clone(), &self.value)
     }
 
+    #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
         F: Fn(&Self::Source, U) -> U
@@ -331,6 +353,7 @@ impl<T> Composable for Id<T> {}
 
 // Implementing From/Into for convenient conversion
 impl<T> From<T> for Id<T> {
+    #[inline]
     fn from(value: T) -> Self {
         Id::new(value)
     }
