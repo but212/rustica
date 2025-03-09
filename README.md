@@ -23,7 +23,21 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.1.0"
+rustica = "0.5.0"
+```
+
+If you want to use async features, add the `async` feature:
+
+```toml
+[dependencies]
+rustica = { version = "0.5.0", features = ["async"] }
+```
+
+or full features:
+
+```toml
+[dependencies]
+rustica = { version = "0.5.0", features = ["full"] }
 ```
 
 Then import the prelude to get started:

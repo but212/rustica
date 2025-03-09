@@ -5,6 +5,7 @@
 - Added Utilities: `hkt_utils`, `transform_utils`
 - Added implementations of functional traits for standard library types (`Option`, `Result`, `Vec`)
 - Added ownership-based methods to traits (`fmap_owned`, `bind_owned`, `join_owned`, etc.)
+- Added feature flags for customizing imports: `async`, `advanced`, `transformers`, and `full`
 
 ## [0.4.0] - 2025-02-26
 
