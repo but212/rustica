@@ -1,4 +1,3 @@
-#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 #[cfg(feature = "async")]
 mod test_async_monad {
     use rustica::datatypes::async_monad::AsyncM;

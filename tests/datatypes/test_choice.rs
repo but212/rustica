@@ -1,4 +1,3 @@
-#[cfg_attr(docsrs, doc(cfg(feature = "advanced")))]
 #[cfg(feature = "advanced")]
 mod test_choice {
     use rustica::datatypes::choice::Choice;
