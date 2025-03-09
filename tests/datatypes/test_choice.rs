@@ -1,3 +1,4 @@
+#[cfg_attr(docsrs, doc(cfg(feature = "advanced")))]
 #[cfg(feature = "advanced")]
 mod test_choice {
     use rustica::datatypes::choice::Choice;
@@ -58,7 +59,7 @@ mod test_choice {
         let c = Choice::new(10, vec![11]);
         let result = a.lift3(&b, &c, |x, y, z| x + y + z);
         assert_eq!(*result.first(), 17);
-        assert_eq!(result.alternatives(), &vec![18, 18, 19, 18, 19, 19, 20]);
+        assert_eq!(result.alternatives(), &vec![18, 18, 18, 19, 19, 19, 20]);
     }
 
     #[test]

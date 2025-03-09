@@ -1,3 +1,10 @@
+## [0.5.1] - 2025-03-09
+
+### Added
+- Added `From`/`Into` implementation for `Id` type
+- Added implementations of `Semigroup`, `Monoid`, `Foldable`, and `Composable` traits for `Id` type
+- Added configuration for docs.rs to display documentation for all features (`full`)
+
 ## [0.5.0] - 2025-03-09
 
 ### Added

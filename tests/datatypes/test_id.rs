@@ -83,7 +83,7 @@ fn test_id_monad() {
     
     // Test join
     let nested = Id::new(x.clone());
-    let flattened = nested.join();
+    let flattened: Id<i32> = nested.join();
     assert_eq!(*flattened.value(), 42);
     
     // Test monad laws

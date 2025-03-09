@@ -59,6 +59,10 @@ use crate::traits::{
     pure::Pure,
     applicative::Applicative,
     monad::Monad,
+    semigroup::Semigroup,
+    monoid::Monoid,
+    foldable::Foldable,
+    composable::Composable,
 };
 
 /// The identity monad, which represents a computation that simply wraps a value.
@@ -127,7 +131,7 @@ use crate::traits::{
 ///     .fmap(|n| n.to_string());
 /// assert_eq!(*result.value(), "12");
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Id<T> {
     value: T,
 }
@@ -288,5 +292,46 @@ impl<T> Monad for Id<T> {
             U: Clone,
             Self: Sized {
         self.value.into()
+    }
+}
+
+impl<T: Semigroup> Semigroup for Id<T> {
+    fn combine(&self, other: &Self) -> Self {
+        Id::new(self.value.combine(&other.value))
+    }
+    
+    fn combine_owned(self, other: Self) -> Self {
+        Id::new(self.value.combine_owned(other.value))
+    }
+}
+
+impl<T: Monoid> Monoid for Id<T> {
+    fn empty() -> Self {
+        Id::new(T::empty())
+    }
+}
+
+impl<T: Clone> Foldable for Id<T> {
+    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    where
+        F: Fn(U, &Self::Source) -> U
+    {
+        f(init.clone(), &self.value)
+    }
+
+    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    where
+        F: Fn(&Self::Source, U) -> U
+    {
+        f(&self.value, init.clone())
+    }
+}
+
+impl<T> Composable for Id<T> {}
+
+// Implementing From/Into for convenient conversion
+impl<T> From<T> for Id<T> {
+    fn from(value: T) -> Self {
+        Id::new(value)
     }
 }

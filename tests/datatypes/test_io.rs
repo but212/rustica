@@ -1,3 +1,4 @@
+#[cfg_attr(docsrs, doc(cfg(feature = "advanced")))]
 #[cfg(feature = "advanced")]
 mod test_io {
     use rustica::datatypes::io::IO;

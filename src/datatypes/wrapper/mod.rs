@@ -15,9 +15,7 @@
 //! - `Last`: Forms a semigroup by taking the last non-None value
 //! - `BoxedFn`: A wrapper for boxed functions that can be evaluated
 //! - `Thunk`: A lightweight alternative to BoxedFn with static dispatch
-//! - `Memoize`: A wrapper that caches evaluation results
 //! - `Value`: A simple value wrapper implementing Evaluate
-//! - `Effect`: A wrapper for side-effectful computations
 
 pub mod sum;
 pub mod product;

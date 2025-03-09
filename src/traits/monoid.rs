@@ -24,13 +24,6 @@
 //! assert_eq!(empty.combine_owned(s2.clone()), s2);
 //! ```
 //!
-//! ## Utility Functions
-//!
-//! This module also provides utility functions for working with monoids:
-//!
-//! - [`combine_all`]: Combines a collection of monoid values, returning the identity element if the collection is empty
-//! - [`combine_all_ref`]: Combines a collection of references to monoid values, returning the identity element if empty
-//!
 //! ## Extension Trait
 //!
 //! The [`MonoidExt`] trait adds extension methods to all types implementing [`Monoid`].
