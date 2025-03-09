@@ -132,6 +132,7 @@ use crate::traits::{
 /// assert_eq!(*result.value(), "12");
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct Id<T> {
     value: T,
 }
