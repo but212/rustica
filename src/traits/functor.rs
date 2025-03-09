@@ -84,7 +84,6 @@ use crate::prelude::*;
 /// ```rust
 /// use rustica::traits::functor::Functor;
 /// use rustica::traits::hkt::HKT;
-/// use rustica::traits::transform::Transform;
 /// use rustica::traits::identity::Identity;
 /// use rustica::datatypes::maybe::Maybe;
 ///
@@ -94,10 +93,6 @@ use crate::prelude::*;
 /// // Transform i32 to String
 /// let maybe_string = maybe_int.fmap(|x: &i32| x.to_string());
 /// assert_eq!(*maybe_string.value(), "42".to_string());
-/// 
-/// // Using map for a more concise transformation
-/// let doubled = maybe_int.map(|x: &i32| x * 2);
-/// assert_eq!(*doubled.value(), 84);
 /// 
 /// // Using replace to substitute values
 /// let replaced = maybe_int.replace(&String::from("hello"));

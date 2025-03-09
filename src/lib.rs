@@ -29,10 +29,9 @@ pub mod datatypes {
     // Wrapper types for semigroups and monoids
     pub mod wrapper;
     
-    // Less commonly used data types are loaded only when needed
-    #[cfg(feature = "advanced")]
     pub mod validated;
     
+    // Less commonly used data types are loaded only when needed
     #[cfg(feature = "advanced")]
     pub mod writer;
     
