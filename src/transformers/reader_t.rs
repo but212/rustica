@@ -337,6 +337,33 @@ where
         let cloned_value = value.clone();
         ReaderT::new(move |_| pure_fn(cloned_value.clone()))
     }
+
+    /// Unwraps this ReaderT to get the base monad value by providing an environment.
+    /// 
+    /// This method allows for safely unwrapping a ReaderT by providing the
+    /// environment needed to run the computation.
+    /// 
+    /// # Parameters
+    /// 
+    /// * `env` - The environment to use for unwrapping
+    /// 
+    /// # Returns
+    /// 
+    /// The base monad value
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// 
+    /// let reader_t: ReaderT<i32, Vec<i32>, i32> = ReaderT::new(|env| vec![env, env * 2]);
+    /// let result = reader_t.unwrap_with(10);
+    /// assert_eq!(result, vec![10, 20]);
+    /// ```
+    #[inline]
+    pub fn unwrap_with(self, env: E) -> M {
+        self.run_reader(env)
+    }
 }
 
 // Implementation of MonadTransformer for ReaderT
@@ -354,12 +381,21 @@ where
         ReaderT::new(move |_| base_clone.clone())
     }
     
+    /// It does nothing. Returns panic.
+    /// 
+    /// This method is a placeholder and should not be used in production code.
+    /// It always panics when called, serving as a reminder to implement proper
+    /// functionality or to use `unwrap_with(env)` instead.
+    /// 
+    /// # Panics
+    /// 
+    /// This method always panics with a message indicating that an environment
+    /// is required to unwrap a ReaderT.
     #[inline]
     fn unwrap(self) -> Self::BaseMonad {
         // Since we need an environment to run the reader, we can't generally
         // unwrap a ReaderT without providing an environment. This is a limitation
-        // of the ReaderT transformer. In a real implementation, you might want to
-        // throw an error or require an environment parameter.
-        panic!("Cannot unwrap a ReaderT without an environment")
+        // of the ReaderT transformer.
+        panic!("ReaderT::unwrap() requires an environment. Use unwrap_with(env) instead.")
     }
 }
