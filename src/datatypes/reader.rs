@@ -133,7 +133,10 @@ impl<E: Clone + 'static, A: Clone + 'static> Reader<E, A> {
     /// let reader = Reader::new(|env: i32| env + 1);
     /// assert_eq!(reader.run_reader(41), 42);
     /// ```
-    pub fn new(f: impl Fn(E) -> A + 'static) -> Self {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: Fn(E) -> A + 'static,
+    {
         Reader {
             run: Arc::new(f),
         }

@@ -1,0 +1,72 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      
+      - name: Check crate version
+        id: check-version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          CARGO_VERSION=$(grep "^version" Cargo.toml | head -n 1 | cut -d'"' -f2)
+          echo "Tagged version: $VERSION, Cargo.toml version: $CARGO_VERSION"
+          if [ "$VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::Version mismatch: Tag version ($VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
+            exit 1
+          fi
+      
+      - name: Build with all features
+        run: cargo build --release --features=full
+      
+      - name: Run tests
+        run: cargo test --release --features=full
+      
+      - name: Package Artifacts
+        run: |
+          mkdir -p release-artifacts
+          cp target/release/librustica.rlib release-artifacts/
+          cp -r examples/ release-artifacts/ || true
+          cd release-artifacts && tar -czf rustica-${{ github.ref_name }}.tar.gz *
+      
+      - name: Generate checksums
+        id: hash
+        run: |
+          cd release-artifacts
+          echo "hashes=$(sha256sum *.tar.gz | base64 -w0)" >> $GITHUB_OUTPUT
+      
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-artifacts/*.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+  
+  # SLSA provenance generation (using existing workflow)
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      upload-assets: true
