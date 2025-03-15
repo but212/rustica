@@ -107,7 +107,7 @@ pub type ContFn<R, A> = Arc<dyn Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Sen
 /// assert_eq!(result2, -1);
 /// ```
 #[derive(Clone)]
-pub struct Cont<R, A> 
+pub struct Cont<R, A>
 where
     R: 'static,
     A: 'static,
@@ -119,7 +119,7 @@ where
     phantom: PhantomData<(R, A)>,
 }
 
-impl<R, A> Cont<R, A> 
+impl<R, A> Cont<R, A>
 where
     R: 'static,
     A: 'static + Send + Sync,
@@ -263,9 +263,7 @@ where
     {
         Cont::new(move |k| {
             let f_clone = f.clone();
-            (self.run_cont)(Arc::new(move |a| {
-                k(f_clone(a))
-            }))
+            (self.run_cont)(Arc::new(move |a| k(f_clone(a))))
         })
     }
 
@@ -389,18 +387,22 @@ where
     #[inline]
     pub fn call_cc<B, F>(self, f: F) -> Cont<R, B>
     where
-        F: FnOnce(Arc<dyn Fn(B) -> Cont<R, A> + Send + Sync>) -> Cont<R, B> + Send + Sync + Clone + 'static,
+        F: FnOnce(Arc<dyn Fn(B) -> Cont<R, A> + Send + Sync>) -> Cont<R, B>
+            + Send
+            + Sync
+            + Clone
+            + 'static,
         B: 'static + Send + Sync + Clone,
     {
         Cont::new(move |k| {
             let k_clone = k.clone();
-            
+
             let escape = Arc::new(move |b: B| -> Cont<R, A> {
                 let b = b.clone();
                 let k = k_clone.clone();
                 Cont::new(move |_| k(b.clone()))
             });
-            
+
             let f_clone = f.clone();
             let result = f_clone(escape);
             let k_final = k.clone();

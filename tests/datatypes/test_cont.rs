@@ -35,8 +35,9 @@ mod test_cont {
     #[test]
     fn test_cont_apply() {
         let cont_val = cont::Cont::return_cont(42);
-        let cont_fn =
-            cont::Cont::return_cont(Arc::new(|x: i32| x + 1) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+        let cont_fn = cont::Cont::return_cont(
+            Arc::new(|x: i32| x + 1) as Arc<dyn Fn(i32) -> i32 + Send + Sync>
+        );
         let applied = cont_val.apply(cont_fn);
         let result = applied.run(|x| x * 2);
         assert_eq!(result, 86);
@@ -60,7 +61,9 @@ mod test_cont {
         // Simulate error handling with continuations
         let safe_div = |n: i32, d: i32| -> cont::Cont<String, i32> {
             if d == 0 {
-                cont::Cont::new(|_: Arc<dyn Fn(i32) -> String + Send + Sync>| "Division by zero".to_string())
+                cont::Cont::new(|_: Arc<dyn Fn(i32) -> String + Send + Sync>| {
+                    "Division by zero".to_string()
+                })
             } else {
                 cont::Cont::return_cont(n / d)
             }
