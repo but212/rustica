@@ -44,17 +44,20 @@ Then import the prelude to get started:
 
 ```rust
 use rustica::prelude::*;
+use rustica::traits::composable::Composable;
 
-// Example using the Maybe monad
-let value = Maybe::Just(42);
-let doubled = value.fmap(|x| x * 2);
-assert_eq!(doubled, Maybe::Just(84));
+fn main() {
+    let value = Maybe::Just(42);
+    let doubled = value.fmap(|x| x * 2);
+    assert_eq!(doubled.unwrap(), 84);
 
-// Example using functional composition
-let add_one = |x: i32| x + 1;
-let multiply_two = |x: i32| x * 2;
-let composed = Either::<(), i32>::compose(&add_one, &multiply_two);
-let result = composed(3); // (3 + 1) * 2 = 8
+    // Example using functional composition
+    let add_one = |x: i32| x + 1;
+    let multiply_two = |x: i32| x * 2;
+    let composed = Either::<(), i32>::compose(&add_one, &multiply_two);
+    let result = composed(3); // (3 + 1) * 2 = 8
+    println!("Result: {}", result);
+}
 ```
 
 ## Features
