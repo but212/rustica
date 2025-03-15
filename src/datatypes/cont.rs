@@ -381,10 +381,10 @@ where
     ///
     /// let cont = Cont::return_cont(5);
     /// let result = cont.call_cc(|k| {
-    ///     k(10); // Skip the rest of the computation
-    ///     k(20); // This will not be executed
+    ///     k(10) // Skip the rest of the computation
+    ///     // k(20); // This will not be executed
     /// });
-    /// assert_eq!(result, 10);
+    /// assert_eq!(result.run(|x| x), 10);
     /// ```
     #[inline]
     pub fn call_cc<B, F>(self, f: F) -> Cont<R, B>
