@@ -1,5 +1,10 @@
 name: Create Release
 
+permissions:
+  contents: write  # 릴리스 생성 및 아티팩트 업로드에 필요
+  discussions: write  # 릴리스 노트가 discussions에 게시될 경우 필요
+  packages: write  # 패키지 업로드 시 필요
+
 on:
   push:
     tags:
