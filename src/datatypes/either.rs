@@ -112,7 +112,7 @@ use crate::traits::functor::Functor;
 /// * `Composable`: Compose functions that work with `Either`
 /// * `Transform`: Transforms the right value with `transform` and `transform_ref`
 /// * `TransformExt`: Provides additional transformation methods for `Either`
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Either<L, R> {
     /// Contains a value of type `L`
     Left(L),
@@ -471,13 +471,4 @@ impl<L: Clone, R: Clone> Identity for Either<L, R> {
     }
 }
 
-impl<L, R> Composable for Either<L, R> {
-    #[inline]
-    fn compose<T, U, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> U
-    where
-        F: Fn(Self::Source) -> T,
-        G: Fn(T) -> U,
-    {
-        move |x| g(f(x))
-    }
-}
+impl<L, R> Composable for Either<L, R> {}

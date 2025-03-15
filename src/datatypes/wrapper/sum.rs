@@ -49,8 +49,8 @@ use std::fmt;
 /// assert_eq!(Sum(42).clone().combine(&id.clone()), Sum(42));
 /// assert_eq!(id.combine(&Sum(42)), Sum(42));
 /// ```
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Sum<T>(pub T);
 
 impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {

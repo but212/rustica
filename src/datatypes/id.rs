@@ -131,7 +131,7 @@ use crate::traits::{
 ///     .fmap(|n| n.to_string());
 /// assert_eq!(*result.value(), "12");
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct Id<T> {
     value: T,

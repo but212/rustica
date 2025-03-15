@@ -61,7 +61,7 @@ use crate::traits::{
     semigroup::Semigroup,
     monoid::Monoid,
 };
-use std::fmt::{Debug, Display, Formatter, Result};
+use std::fmt::{Debug, Display, Formatter};
 
 /// A type representing a value with multiple alternatives.
 ///
@@ -86,7 +86,7 @@ use std::fmt::{Debug, Display, Formatter, Result};
 /// assert_eq!(*choice.value(), 1);
 /// assert_eq!(choice.alternatives().len(), 3);
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
     /// A vector of values.
     values: Vec<T>,
@@ -960,12 +960,6 @@ impl<T> IntoIterator for Choice<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.values.into_iter()
-    }
-}
-
-impl<T: Debug> Debug for Choice<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Choice({:?})", self.values)
     }
 }
 

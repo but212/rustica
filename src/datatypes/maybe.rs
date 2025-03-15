@@ -92,7 +92,7 @@ use std::marker::PhantomData;
 ///     Maybe::Nothing => println!("Got nothing"),
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Copy, Clone, Eq, Debug, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Maybe<T> {
     /// Contains a value of type `T`
     Just(T),
@@ -317,6 +317,8 @@ impl<T> HKT for Maybe<T> {
     type Output<U> = Maybe<U>;
 }
 
+
+
 impl<T> Pure for Maybe<T> {
     #[inline]
     fn pure<U: Clone>(value: &U) -> Self::Output<U> {
@@ -527,5 +529,11 @@ impl<T> Identity for Maybe<T> {
     }
 }
 
-impl<T> Composable for Maybe<T> {
+impl<T> Composable for Maybe<T> {}
+
+impl<T> Default for Maybe<T> {
+    #[inline]
+    fn default() -> Self {
+        Maybe::Nothing
+    }
 }

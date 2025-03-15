@@ -40,7 +40,7 @@ use std::fmt;
 /// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()), 
 ///            x.clone().combine(&y.clone()).combine(&z.clone()));
 /// ```
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct Max<T>(pub T);
 

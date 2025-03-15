@@ -24,30 +24,7 @@
 //! 
 //! This module provides the following monad transformers:
 //! 
-//! - `OptionT`: Transformer for the `Option` monad
 //! - `ReaderT`: Transformer for the `Reader` monad
-//! - `StateT`: Transformer for the `State` monad
-//! - `WriterT`: Transformer for the `Writer` monad
-//! 
-//! ## Examples
-//! 
-//! ```rust
-//! use rustica::transformers::{OptionT, lift};
-//! use rustica::prelude::*;
-//! 
-//! // Create an OptionT<Vec<_>> transformer
-//! let values: OptionT<Vec<i32>> = OptionT::new(vec![Some(1), Some(2), None, Some(3)]);
-//! 
-//! // Map over the inner values
-//! let doubled = values.fmap(|x| x * 2);
-//! 
-//! // The result combines both Option and Vec effects
-//! assert_eq!(doubled.unwrap(), vec![Some(2), Some(4), None, Some(6)]);
-//! 
-//! // Lift a value from the base monad
-//! let lifted = lift(vec![42, 43]);
-//! assert_eq!(lifted.unwrap(), vec![Some(42), Some(43)]);
-//! ```
 
 use crate::traits::monad::Monad;
 
@@ -105,18 +82,6 @@ pub trait MonadTransformer {
 /// # Returns
 /// 
 /// A value in the transformed monad
-/// 
-/// # Examples
-/// 
-/// ```rust
-/// use rustica::transformers::{OptionT, lift};
-/// use rustica::prelude::*;
-/// 
-/// let vec_monad = vec![1, 2, 3];
-/// let option_t = lift(vec_monad);
-/// 
-/// assert_eq!(option_t.unwrap(), vec![Some(1), Some(2), Some(3)]);
-/// ```
 pub fn lift<T, M>(m: M) -> T
 where
     T: MonadTransformer<BaseMonad = M>,

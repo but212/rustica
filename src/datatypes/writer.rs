@@ -154,7 +154,7 @@ use crate::traits::composable::Composable;
 /// Type parameters:
 /// - `W`: The log type, which must implement the `Monoid` trait
 /// - `A`: The value type
-#[derive(Clone)]
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 pub struct Writer<W, A> {
     /// The log produced by the computation
     log: W,

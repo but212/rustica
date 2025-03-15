@@ -49,7 +49,7 @@ use std::fmt;
 /// assert_eq!(Product(42).clone().combine(&id.clone()), Product(42));
 /// assert_eq!(id.combine(&Product(42)), Product(42));
 /// ```
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct Product<T>(pub T);
 

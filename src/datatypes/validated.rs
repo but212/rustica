@@ -142,7 +142,7 @@ use smallvec::{SmallVec, smallvec};
 ///
 /// These implementations allow `Validated` to be used in a functional programming style,
 /// enabling composition and transformation of validations.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 pub enum Validated<E, A> {
     /// Represents a valid value of type `A`.
     Valid(A),

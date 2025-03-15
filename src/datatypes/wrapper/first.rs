@@ -52,7 +52,7 @@ use std::fmt;
 /// assert_eq!(First(Some(42)).combine(&id.clone()), First(Some(42)));
 /// assert_eq!(id.combine(&First(Some(42))), First(Some(42)));
 /// ```
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(transparent)]
 pub struct First<T>(pub Option<T>);
 

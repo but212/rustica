@@ -350,19 +350,18 @@ where
     /// # Returns
     /// 
     /// The base monad value
-    /// 
-    /// # Examples
-    /// 
-    /// ```rust
-    /// use rustica::transformers::ReaderT;
-    /// 
-    /// let reader_t: ReaderT<i32, Vec<i32>, i32> = ReaderT::new(|env| vec![env, env * 2]);
-    /// let result = reader_t.unwrap_with(10);
-    /// assert_eq!(result, vec![10, 20]);
-    /// ```
     #[inline]
     pub fn unwrap_with(self, env: E) -> M {
         self.run_reader(env)
+    }
+
+    #[inline]
+    pub fn lift<B>(m: M) -> ReaderT<E, M, B>
+    where
+        M: Clone + Send + Sync + 'static,
+        B: 'static,
+    {
+        ReaderT::new(move |_: E| m.clone())
     }
 }
 
