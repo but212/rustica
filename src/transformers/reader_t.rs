@@ -468,7 +468,7 @@ where
     /// // Map over the value using fmap_with
     /// let doubled_reader = reader_t.fmap_with(
     ///     |n: usize| n * 2,
-    ///     |m: Option<usize>, f| m.map(f)
+    ///     |m: Option<usize>, f| m.fmap_owned(f)
     /// );
     /// 
     /// assert_eq!(doubled_reader.run_reader("hello".to_string()), Some(10));
