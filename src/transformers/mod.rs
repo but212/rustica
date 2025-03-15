@@ -106,18 +106,6 @@ where
 /// # Returns
 /// 
 /// The underlying value in the base monad
-/// 
-/// # Examples
-/// 
-/// ```rust
-/// use rustica::transformers::{OptionT, run};
-/// use rustica::prelude::*;
-/// 
-/// let option_t = OptionT::new(vec![Some(1), Some(2), None]);
-/// let vec_monad = run(option_t);
-/// 
-/// assert_eq!(vec_monad, vec![Some(1), Some(2), None]);
-/// ```
 pub fn run<T, M>(t: T) -> M
 where
     T: MonadTransformer<BaseMonad = M>,
