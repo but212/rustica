@@ -127,7 +127,7 @@ use std::marker::PhantomData;
 pub trait Applicative: Functor + Pure {
     /// Applies a function wrapped in the applicative context to a value.
     ///
-    /// This is the core operation of Applicative, allowing us to apply a wrapped 
+    /// This is the core operation of Applicative, allowing us to apply a wrapped
     /// function to a wrapped value, sequencing operations in a context.
     ///
     /// # Type Parameters
@@ -197,11 +197,7 @@ pub trait Applicative: Functor + Pure {
     /// let none_result: Option<i32> = None.lift2(&y, |a: &i32, b: &i32| a + b);
     /// assert_eq!(none_result, None);
     /// ```
-    fn lift2<B, C, F>(
-        &self,
-        b: &Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
         Self::Source: Clone,
@@ -243,12 +239,7 @@ pub trait Applicative: Functor + Pure {
     /// let result = x.lift3(&y, &z, |a: &i32, b: &i32, c: &i32| a + b + c);
     /// assert_eq!(result, Some(10));
     /// ```
-    fn lift3<B, C, D, F>(
-        &self,
-        b: &Self::Output<B>,
-        c: &Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D>
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
         Self::Source: Clone,
@@ -273,10 +264,7 @@ pub trait Applicative: Functor + Pure {
     ///
     /// An applicative containing the value from `other`
     #[inline]
-    fn sequence_right<B>(
-        &self,
-        other: &Self::Output<B>,
-    ) -> Self::Output<B>
+    fn sequence_right<B>(&self, other: &Self::Output<B>) -> Self::Output<B>
     where
         Self::Source: Clone,
         B: Clone,
@@ -301,10 +289,7 @@ pub trait Applicative: Functor + Pure {
     ///
     /// An applicative containing the value from `self`
     #[inline]
-    fn sequence_left<B>(
-        &self,
-        other: &Self::Output<B>,
-    ) -> Self::Output<Self::Source>
+    fn sequence_left<B>(&self, other: &Self::Output<B>) -> Self::Output<Self::Source>
     where
         Self::Source: Clone,
         B: Clone,
@@ -345,11 +330,7 @@ pub trait Applicative: Functor + Pure {
     /// assert!(matches!(result, Validated::Valid(15)));
     /// ```
     #[inline]
-    fn ap2<B, C, F>(
-        &self,
-        b: &Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn ap2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
         Self::Source: Clone,
@@ -403,11 +384,7 @@ pub trait Applicative: Functor + Pure {
     /// # Returns
     ///
     /// An applicative containing the result of applying the function to both values
-    fn lift2_owned<B, C, F>(
-        self,
-        b: Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(Self::Source, B) -> C,
         Self: Sized,
@@ -467,10 +444,7 @@ pub trait Applicative: Functor + Pure {
     ///
     /// An applicative containing the value from `other`
     #[inline]
-    fn sequence_right_owned<B>(
-        self,
-        other: Self::Output<B>,
-    ) -> Self::Output<B>
+    fn sequence_right_owned<B>(self, other: Self::Output<B>) -> Self::Output<B>
     where
         Self: Sized,
         B: Clone,
@@ -496,10 +470,7 @@ pub trait Applicative: Functor + Pure {
     ///
     /// An applicative containing the value from `self`
     #[inline]
-    fn sequence_left_owned<B>(
-        self,
-        other: Self::Output<B>,
-    ) -> Self::Output<Self::Source>
+    fn sequence_left_owned<B>(self, other: Self::Output<B>) -> Self::Output<Self::Source>
     where
         Self: Sized,
         B: Clone,
@@ -523,14 +494,11 @@ impl<A> Applicative for Option<A> {
     }
 
     #[inline]
-    fn lift2_owned<B, C, F>(
-            self,
-            b: Self::Output<B>,
-            f: F,
-        ) -> Self::Output<C>
-        where
-            F: FnOnce(Self::Source, B) -> C,
-            Self: Sized {
+    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: FnOnce(Self::Source, B) -> C,
+        Self: Sized,
+    {
         match (self, b) {
             (Some(a), Some(b)) => Some(f(a, b)),
             _ => None,
@@ -538,16 +506,13 @@ impl<A> Applicative for Option<A> {
     }
 
     #[inline]
-    fn lift2<B, C, F>(
-            &self,
-            b: &Self::Output<B>,
-            f: F,
-        ) -> Self::Output<C>
-        where
-            F: FnOnce(&Self::Source, &B) -> C,
-            Self::Source: Clone,
-            B: Clone,
-            C: Clone {
+    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: FnOnce(&Self::Source, &B) -> C,
+        Self::Source: Clone,
+        B: Clone,
+        C: Clone,
+    {
         match (self, b) {
             (Some(a), Some(b)) => Some(f(a, b)),
             _ => None,
@@ -556,14 +521,15 @@ impl<A> Applicative for Option<A> {
 
     #[inline]
     fn lift3_owned<B, C, D, F>(
-            self,
-            b: Self::Output<B>,
-            c: Self::Output<C>,
-            f: F,
-        ) -> Self::Output<D>
-        where
-            F: FnOnce(Self::Source, B, C) -> D,
-            Self: Sized {
+        self,
+        b: Self::Output<B>,
+        c: Self::Output<C>,
+        f: F,
+    ) -> Self::Output<D>
+    where
+        F: FnOnce(Self::Source, B, C) -> D,
+        Self: Sized,
+    {
         match (self, b, c) {
             (Some(a), Some(b), Some(c)) => Some(f(a, b, c)),
             _ => None,
@@ -571,18 +537,14 @@ impl<A> Applicative for Option<A> {
     }
 
     #[inline]
-    fn lift3<B, C, D, F>(
-            &self,
-            b: &Self::Output<B>,
-            c: &Self::Output<C>,
-            f: F,
-        ) -> Self::Output<D>
-        where
-            F: FnOnce(&Self::Source, &B, &C) -> D,
-            Self::Source: Clone,
-            B: Clone,
-            C: Clone,
-            D: Clone {
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    where
+        F: FnOnce(&Self::Source, &B, &C) -> D,
+        Self::Source: Clone,
+        B: Clone,
+        C: Clone,
+        D: Clone,
+    {
         match (self, b, c) {
             (Some(a), Some(b), Some(c)) => Some(f(a, b, c)),
             _ => None,
@@ -591,9 +553,9 @@ impl<A> Applicative for Option<A> {
 
     #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
-        where
-            F: FnOnce(Self::Source) -> B,
-            Self: Sized,
+    where
+        F: FnOnce(Self::Source) -> B,
+        Self: Sized,
     {
         match (self, f) {
             (Some(a), Some(func)) => Some(func(a)),
@@ -629,12 +591,7 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 
     #[inline]
-    fn lift3<B, C, D, F>(
-        &self,
-        b: &Self::Output<B>,
-        c: &Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D>
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: FnOnce(&Self::Source, &B, &C) -> D,
     {
@@ -647,10 +604,7 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 
     #[inline]
-    fn sequence_right<B>(
-        &self,
-        other: &Self::Output<B>,
-    ) -> Self::Output<B>
+    fn sequence_right<B>(&self, other: &Self::Output<B>) -> Self::Output<B>
     where
         B: Clone,
     {
@@ -662,10 +616,7 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 
     #[inline]
-    fn sequence_left<B>(
-        &self,
-        other: &Self::Output<B>,
-    ) -> Self::Output<Self::Source>
+    fn sequence_left<B>(&self, other: &Self::Output<B>) -> Self::Output<Self::Source>
     where
         Self::Source: Clone,
     {
@@ -690,11 +641,7 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 
     #[inline]
-    fn lift2_owned<B, C, F>(
-        self,
-        b: Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: FnOnce(Self::Source, B) -> C,
         Self: Sized,
@@ -726,10 +673,7 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 
     #[inline]
-    fn sequence_right_owned<B>(
-        self,
-        other: Self::Output<B>,
-    ) -> Self::Output<B>
+    fn sequence_right_owned<B>(self, other: Self::Output<B>) -> Self::Output<B>
     where
         Self: Sized,
     {
@@ -741,10 +685,7 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 
     #[inline]
-    fn sequence_left_owned<B>(
-        self,
-        other: Self::Output<B>,
-    ) -> Self::Output<Self::Source>
+    fn sequence_left_owned<B>(self, other: Self::Output<B>) -> Self::Output<Self::Source>
     where
         Self: Sized,
     {
@@ -761,20 +702,16 @@ impl<T> Applicative for PhantomData<T> {
     /// does nothing but satisfies trait bounds
     #[inline]
     fn apply<B, F>(&self, _: &Self::Output<F>) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B,
-            B: Clone,
+    where
+        F: Fn(&Self::Source) -> B,
+        B: Clone,
     {
         PhantomData
     }
 
     /// does nothing but satisfies trait bounds
     #[inline]
-    fn lift2<B, C, F>(
-        &self,
-        _: &Self::Output<B>,
-        _: F,
-    ) -> Self::Output<C>
+    fn lift2<B, C, F>(&self, _: &Self::Output<B>, _: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
         Self::Source: Clone,
@@ -786,12 +723,7 @@ impl<T> Applicative for PhantomData<T> {
 
     /// does nothing but satisfies trait bounds
     #[inline]
-    fn lift3<B, C, D, F>(
-        &self,
-        _: &Self::Output<B>,
-        _: &Self::Output<C>,
-        _: F,
-    ) -> Self::Output<D>
+    fn lift3<B, C, D, F>(&self, _: &Self::Output<B>, _: &Self::Output<C>, _: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
         Self::Source: Clone,
@@ -815,11 +747,7 @@ impl<T> Applicative for PhantomData<T> {
 
     /// does nothing but satisfies trait bounds
     #[inline]
-    fn lift2_owned<B, C, F>(
-        self,
-        _: Self::Output<B>,
-        _: F,
-    ) -> Self::Output<C>
+    fn lift2_owned<B, C, F>(self, _: Self::Output<B>, _: F) -> Self::Output<C>
     where
         F: Fn(Self::Source, B) -> C,
         Self: Sized,
@@ -859,18 +787,14 @@ impl<A: Clone> Applicative for Vec<A> {
         for func in f {
             for x in self {
                 // We need to clone a since we're using it multiple times
-                result.push(func(&x));
+                result.push(func(x));
             }
         }
         result
     }
 
     #[inline]
-    fn lift2<B, C, F>(
-        &self,
-        b: &Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
         Self::Source: Clone,
@@ -881,19 +805,14 @@ impl<A: Clone> Applicative for Vec<A> {
         for a in self {
             for b_val in b {
                 // Clone b_val for each use
-                result.push(f(&a, &b_val));
+                result.push(f(a, b_val));
             }
         }
         result
     }
 
     #[inline]
-    fn lift3<B, C, D, F>(
-        &self,
-        b: &Self::Output<B>,
-        c: &Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D>
+    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
         Self::Source: Clone,
@@ -905,7 +824,7 @@ impl<A: Clone> Applicative for Vec<A> {
         for a in self {
             for b_val in b {
                 for c_val in c {
-                    result.push(f(&a, &b_val, &c_val));
+                    result.push(f(a, b_val, c_val));
                 }
             }
         }
@@ -913,22 +832,16 @@ impl<A: Clone> Applicative for Vec<A> {
     }
 
     #[inline]
-    fn sequence_right<B>(
-        &self,
-        other: &Self::Output<B>,
-    ) -> Self::Output<B>
+    fn sequence_right<B>(&self, other: &Self::Output<B>) -> Self::Output<B>
     where
         Self::Source: Clone,
         B: Clone,
     {
         self.lift2(other, |_, b| b.clone())
     }
-    
+
     #[inline]
-    fn sequence_left<B>(
-        &self,
-        other: &Self::Output<B>,
-    ) -> Self::Output<Self::Source>
+    fn sequence_left<B>(&self, other: &Self::Output<B>) -> Self::Output<Self::Source>
     where
         Self::Source: Clone,
         B: Clone,
@@ -960,11 +873,7 @@ impl<A: Clone> Applicative for Vec<A> {
     }
 
     #[inline]
-    fn lift2_owned<B, C, F>(
-        self,
-        b: Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(Self::Source, B) -> C,
         Self: Sized,
@@ -1004,10 +913,7 @@ impl<A: Clone> Applicative for Vec<A> {
     }
 
     #[inline]
-    fn sequence_right_owned<B>(
-        self,
-        other: Self::Output<B>,
-    ) -> Self::Output<B>
+    fn sequence_right_owned<B>(self, other: Self::Output<B>) -> Self::Output<B>
     where
         Self: Sized,
         B: Clone,
@@ -1023,10 +929,7 @@ impl<A: Clone> Applicative for Vec<A> {
     }
 
     #[inline]
-    fn sequence_left_owned<B>(
-        self,
-        other: Self::Output<B>,
-    ) -> Self::Output<Self::Source>
+    fn sequence_left_owned<B>(self, other: Self::Output<B>) -> Self::Output<Self::Source>
     where
         Self: Sized,
         Self::Source: Clone,

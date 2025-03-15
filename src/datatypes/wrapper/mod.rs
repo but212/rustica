@@ -1,7 +1,7 @@
 //! # Wrapper Types
 //!
 //! This module provides various wrapper types that implement functional programming patterns.
-//! 
+//!
 //! These wrappers add specific behaviors to existing types, particularly implementing
 //! algebraic structures like monoids and semigroups.
 //!
@@ -17,12 +17,12 @@
 //! - `Thunk`: A lightweight alternative to BoxedFn with static dispatch
 //! - `Value`: A simple value wrapper implementing Evaluate
 
-pub mod sum;
-pub mod product;
-pub mod min;
-pub mod max;
+pub mod boxed_fn;
 pub mod first;
 pub mod last;
-pub mod boxed_fn;
+pub mod max;
+pub mod min;
+pub mod product;
+pub mod sum;
 pub mod thunk;
 pub mod value;

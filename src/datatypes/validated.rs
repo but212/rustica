@@ -91,14 +91,14 @@
 //! - Use `Validated` for parallel, independent validations
 //! - Use `Result` for sequential, dependent operations
 
-use crate::traits::hkt::HKT;
 use crate::traits::applicative::Applicative;
+use crate::traits::composable::Composable;
+use crate::traits::functor::Functor;
+use crate::traits::hkt::HKT;
+use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
-use crate::traits::functor::Functor;
-use crate::traits::identity::Identity;
-use crate::traits::composable::Composable;
-use smallvec::{SmallVec, smallvec};
+use smallvec::{smallvec, SmallVec};
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -370,7 +370,7 @@ impl<E: Clone, A> Applicative for Validated<E, A> {
                 let mut combined = e1.clone();
                 combined.extend(e2.iter().cloned());
                 Validated::Invalid(combined)
-            },
+            }
             (Validated::Invalid(e), _) => Validated::Invalid(e.clone()),
             (_, Validated::Invalid(e)) => Validated::Invalid(e.clone()),
         }
@@ -389,19 +389,14 @@ impl<E: Clone, A> Applicative for Validated<E, A> {
                 let mut combined = e1.clone();
                 combined.extend(e2.iter().cloned());
                 Validated::Invalid(combined)
-            },
+            }
             (Validated::Invalid(e), _) => Validated::Invalid(e.clone()),
             (_, Validated::Invalid(e)) => Validated::Invalid(e.clone()),
         }
     }
 
     #[inline]
-    fn lift3<B, C, D, F>(
-        &self,
-        rb: &Self::Output<B>,
-        rc: &Self::Output<C>,
-        f: F,
-    ) -> Self::Output<D>
+    fn lift3<B, C, D, F>(&self, rb: &Self::Output<B>, rc: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&A, &B, &C) -> D,
         B: Clone,
@@ -417,7 +412,7 @@ impl<E: Clone, A> Applicative for Validated<E, A> {
                 combined.extend(e2.iter().cloned());
                 combined.extend(e3.iter().cloned());
                 Validated::Invalid(combined)
-            },
+            }
             (Validated::Invalid(e), _, _) => Validated::Invalid(e.clone()),
             (_, Validated::Invalid(e), _) => Validated::Invalid(e.clone()),
             (_, _, Validated::Invalid(e)) => Validated::Invalid(e.clone()),
@@ -434,20 +429,16 @@ impl<E: Clone, A> Applicative for Validated<E, A> {
             (Validated::Valid(x), Validated::Valid(f)) => Validated::Valid(f(x)),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut combined = e1;
-                combined.extend(e2.into_iter());
+                combined.extend(e2);
                 Validated::Invalid(combined)
-            },
+            }
             (Validated::Invalid(e), _) => Validated::Invalid(e),
             (_, Validated::Invalid(e)) => Validated::Invalid(e),
         }
     }
 
     #[inline]
-    fn lift2_owned<B, C, F>(
-        self,
-        b: Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: FnOnce(A, B) -> C,
         B: Clone,
@@ -457,9 +448,9 @@ impl<E: Clone, A> Applicative for Validated<E, A> {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut combined = e1;
-                combined.extend(e2.into_iter());
+                combined.extend(e2);
                 Validated::Invalid(combined)
-            },
+            }
             (Validated::Invalid(e), _) => Validated::Invalid(e),
             (_, Validated::Invalid(e)) => Validated::Invalid(e),
         }
@@ -479,13 +470,15 @@ impl<E: Clone, A> Applicative for Validated<E, A> {
         D: Clone,
     {
         match (self, b, c) {
-            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => Validated::Valid(f(a, b, c)),
+            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
+                Validated::Valid(f(a, b, c))
+            }
             (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
                 let mut combined = e1;
-                combined.extend(e2.into_iter());
-                combined.extend(e3.into_iter());
+                combined.extend(e2);
+                combined.extend(e3);
                 Validated::Invalid(combined)
-            },
+            }
             (Validated::Invalid(e), _, _) => Validated::Invalid(e),
             (_, Validated::Invalid(e), _) => Validated::Invalid(e),
             (_, _, Validated::Invalid(e)) => Validated::Invalid(e),

@@ -1,45 +1,45 @@
 //! # IO Monad
-//! 
+//!
 //! The `IO` datatype represents computations that may perform side effects when executed.
 //! It provides a way to model effectful operations in a pure functional manner by
 //! encapsulating the effects within a monadic context.
-//! 
+//!
 //! ## Functional Programming Context
-//! 
+//!
 //! In functional programming, the IO monad is used to:
-//! 
+//!
 //! - Separate pure computation from effectful operations
 //! - Make side effects explicit in the type system
 //! - Compose and sequence effectful operations
 //! - Maintain referential transparency in the presence of side effects
-//! 
+//!
 //! Similar constructs in other functional programming languages include:
-//! 
+//!
 //! - `IO` in Haskell
 //! - `IO` in Cats Effect (Scala)
 //! - `IO` in fp-ts (TypeScript)
 //! - `IO` in Arrow (Kotlin)
-//! 
+//!
 //! ## Type Class Implementations
-//! 
+//!
 //! The `IO` type implements several important functional programming abstractions:
-//! 
+//!
 //! - `Functor`: Allows mapping functions over the result of an IO operation
 //! - `Applicative`: Enables applying functions wrapped in `IO` to values wrapped in `IO`
 //! - `Monad`: Provides sequencing of IO operations where each operation can depend on the result of previous ones
-//! 
+//!
 //! ## Basic Usage
-//! 
+//!
 //! ```rust
 //! use rustica::datatypes::io::IO;
-//! 
+//!
 //! // Create a pure IO value
 //! let io_value = IO::pure(42);
-//! 
+//!
 //! // Map over the value
 //! let doubled = io_value.clone().fmap(|x| x * 2);
 //! assert_eq!(doubled.run(), 84);
-//! 
+//!
 //! // Chain IO operations
 //! let result = io_value
 //!     .bind(|x| IO::new(move || x + 1))
@@ -49,8 +49,28 @@
 
 use std::sync::Arc;
 
+/// A custom error type for IO operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IOError {
+    /// The IO operation failed because the value hasn't been set yet
+    ValueNotSet,
+    /// The IO operation failed for some other reason
+    Other(String),
+}
+
+impl std::fmt::Display for IOError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IOError::ValueNotSet => write!(f, "Value not set"),
+            IOError::Other(msg) => write!(f, "IO Error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for IOError {}
+
 /// The IO monad, which represents computations that may perform side effects when executed.
-/// 
+///
 /// `IO` provides a way to model effectful operations in a pure functional manner by
 /// encapsulating the effects within a monadic context. This allows for composing and
 /// sequencing effectful operations while maintaining referential transparency.
@@ -114,9 +134,7 @@ impl<A: 'static + Clone> IO<A> {
     where
         F: Fn() -> A + 'static,
     {
-        IO {
-            run: Arc::new(f),
-        }
+        IO { run: Arc::new(f) }
     }
 
     /// Runs the IO operation and returns the result.
@@ -263,7 +281,7 @@ impl<A: 'static + Clone> IO<A> {
     /// let result = io_operation.try_get();
     /// assert_eq!(result, Ok(42));
     /// ```
-    pub fn try_get(&self) -> Result<A, ()> {
+    pub fn try_get(&self) -> Result<A, IOError> {
         Ok(self.run())
     }
 

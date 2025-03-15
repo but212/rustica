@@ -1,6 +1,6 @@
 //! # Arrow
 //!
-//! This module provides the [`Arrow`] trait which represents a generalized notion of computation 
+//! This module provides the [`Arrow`] trait which represents a generalized notion of computation
 //! beyond ordinary functions. Arrows combine the expressiveness of monads with additional
 //! abstractions for structuring computations, especially those involving pairs and parallelism.
 //!
@@ -170,12 +170,12 @@ pub trait Arrow: Category {
     ///
     /// A new morphism that applies `f` to the first component of a pair
     fn first<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)> {
-        let id = Self::arrow(&|d: D| d);
-        let pair = Self::arrow(&|(b, d): (B, D)| (b, d));
-        let unpair = Self::arrow(&|(c, d): (C, D)| (c, d));
+        let id = Self::arrow(|d: D| d);
+        let pair = Self::arrow(|(b, d): (B, D)| (b, d));
+        let unpair = Self::arrow(|(c, d): (C, D)| (c, d));
         Self::compose_morphisms(
             &Self::compose_morphisms(&pair, &Self::combine_morphisms(f, &id)),
-            &unpair
+            &unpair,
         )
     }
 
@@ -198,11 +198,11 @@ pub trait Arrow: Category {
     ///
     /// A new morphism that applies `f` to the second component of a pair
     fn second<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(D, B), (D, C)> {
-        let swap_in = Self::arrow(&|(d, b): (D, B)| (b, d));
-        let swap_out = Self::arrow(&|(c, d): (C, D)| (d, c));
+        let swap_in = Self::arrow(|(d, b): (D, B)| (b, d));
+        let swap_out = Self::arrow(|(c, d): (C, D)| (d, c));
         Self::compose_morphisms(
             &Self::compose_morphisms(&swap_in, &Self::first(f)),
-            &swap_out
+            &swap_out,
         )
     }
 
@@ -228,13 +228,10 @@ pub trait Arrow: Category {
     /// A morphism that applies both `f` and `g` to the input
     fn split<B: Clone, C, D, E>(
         f: &Self::Morphism<B, C>,
-        g: &Self::Morphism<B, D>
+        g: &Self::Morphism<B, D>,
     ) -> Self::Morphism<B, (C, D)> {
-        let duplicate = Self::arrow(&|b: B| (b.clone(), b));
-        Self::compose_morphisms(
-            &duplicate,
-            &Self::combine_morphisms(f, g)
-        )
+        let duplicate = Self::arrow(|b: B| (b.clone(), b));
+        Self::compose_morphisms(&duplicate, &Self::combine_morphisms(f, g))
     }
 
     /// Combines two arrows to process pairs in parallel.
@@ -260,7 +257,7 @@ pub trait Arrow: Category {
     /// A morphism that processes both components of a pair independently
     fn combine_morphisms<B, C, D, E>(
         f: &Self::Morphism<B, C>,
-        g: &Self::Morphism<D, E>
+        g: &Self::Morphism<D, E>,
     ) -> Self::Morphism<(B, D), (C, E)> {
         Self::compose_morphisms(&Self::first(f), &Self::second(g))
     }

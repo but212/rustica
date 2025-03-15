@@ -166,7 +166,7 @@ impl<S, A> Clone for State<S, A> {
     }
 }
 
-impl<S, A> State<S, A> 
+impl<S, A> State<S, A>
 where
     S: Clone + 'static,
     A: Clone + 'static,
@@ -293,7 +293,7 @@ where
     pub fn run_state(&self, s: S) -> (A, S) {
         (self.run)(s)
     }
-    
+
     /// Runs the state computation and returns only the final value.
     ///
     /// This method is similar to `run_state`, but it discards the final state and
@@ -593,7 +593,7 @@ where
     /// is a fundamental operation for the Applicative and Monad typeclasses. It
     /// represents the minimal context that can wrap a value. For the State monad,
     /// this means creating a computation that:
-    /// 
+    ///
     /// 1. Returns the provided value
     /// 2. Performs no state modifications
     ///
@@ -638,7 +638,7 @@ where
     /// impl IdentityFn {
     ///     fn call<T: Clone>(&self, x: T) -> T { x }
     /// }
-    /// 
+    ///
     /// let identity = State::pure(IdentityFn);
     /// let value = State::pure(42);
     /// let applied = identity.bind(move |f| value.clone().fmap(move |x| f.call(x)));
@@ -824,7 +824,7 @@ where
 ///
 /// // Combine put with other operations
 /// let original = 21;
-/// let computation = 
+/// let computation =
 ///     put(original * 2)
 ///         .bind(move |_| State::pure(format!("Original: {}", original)))
 ///         .bind(|msg| get::<i32>().bind(move |s| State::pure(format!("{}, New: {}", msg, s))));

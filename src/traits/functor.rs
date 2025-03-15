@@ -1,9 +1,9 @@
 //! # Functor
 //!
-//! The `Functor` module provides trait definitions for implementing functors 
+//! The `Functor` module provides trait definitions for implementing functors
 //! in Rust, a fundamental abstraction in functional programming.
 //!
-//! A functor is a type constructor that supports a mapping operation which preserves 
+//! A functor is a type constructor that supports a mapping operation which preserves
 //! the structure of the functor while transforming its contents.
 //!
 //! # TODO: Improvements
@@ -89,19 +89,19 @@ use crate::prelude::*;
 ///
 /// // Using the Functor implementation for Maybe
 /// let maybe_int = Maybe::Just(42);
-/// 
+///
 /// // Transform i32 to String
 /// let maybe_string = maybe_int.fmap(|x: &i32| x.to_string());
 /// assert_eq!(*maybe_string.value(), "42".to_string());
-/// 
+///
 /// // Using replace to substitute values
 /// let replaced = maybe_int.replace(&String::from("hello"));
 /// assert_eq!(*replaced.value(), "hello");
-/// 
+///
 /// // Using void to discard values
 /// let voided = maybe_int.void();
 /// assert!(matches!(voided, Maybe::Just(())));
-/// 
+///
 /// // With empty values
 /// let maybe_none = Maybe::<i32>::Nothing;
 /// let mapped_none = maybe_none.fmap(|x: &i32| x.to_string());
@@ -162,7 +162,7 @@ pub trait Functor: Identity {
     {
         self.fmap(|_| value.clone())
     }
-    
+
     /// Replaces all values in the functor with a constant value.
     ///
     /// # Arguments
@@ -198,7 +198,7 @@ pub trait Functor: Identity {
     fn void(&self) -> Self::Output<()> {
         self.fmap(|_| ())
     }
-    
+
     /// Void functor - discards the values and replaces them with unit.
     ///
     /// # Returns
@@ -230,7 +230,7 @@ pub trait Functor: Identity {
 ///
 /// // Using FunctorExt methods with Option
 /// let some_value: Option<i32> = Some(42);
-/// 
+///
 /// // Using inspect to perform side effects without changing the value
 /// let logged: Option<i32> = some_value.inspect(|x| {
 ///     println!("Value: {}", x);
@@ -429,18 +429,20 @@ pub trait FunctorExt: Functor {
 impl<T> Functor for Vec<T> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B,
-            B: Clone {
+    where
+        F: Fn(&Self::Source) -> B,
+        B: Clone,
+    {
         self.iter().map(f).collect()
     }
 
     #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-        where
-            F: Fn(Self::Source) -> B,
-            B: Clone,
-            Self: Sized {
+    where
+        F: Fn(Self::Source) -> B,
+        B: Clone,
+        Self: Sized,
+    {
         self.into_iter().map(f).collect()
     }
 }
@@ -491,7 +493,7 @@ impl<T> FunctorExt for Option<T> {
     {
         self.as_ref().and_then(f)
     }
-    
+
     #[inline]
     fn try_map_or<B, E, F>(&self, default: B, f: F) -> Self::Output<B>
     where
@@ -506,7 +508,7 @@ impl<T> FunctorExt for Option<T> {
             None => None,
         }
     }
-    
+
     #[inline]
     fn try_map_or_else<B, E, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
     where
@@ -540,7 +542,7 @@ where
             Err(e) => Err(e.clone()),
         }
     }
-    
+
     #[inline]
     fn try_map_or<B, E2, F>(&self, default: B, f: F) -> Self::Output<B>
     where
@@ -555,7 +557,7 @@ where
             Err(e) => Err(e.clone()),
         }
     }
-    
+
     #[inline]
     fn try_map_or_else<B, E2, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
     where
@@ -579,19 +581,21 @@ impl<T> Functor for PhantomData<T> {
     /// does nothing but satisfies trait bounds
     #[inline]
     fn fmap<B, F>(&self, _f: F) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B,
-            B: Clone {
+    where
+        F: Fn(&Self::Source) -> B,
+        B: Clone,
+    {
         PhantomData
     }
 
     /// does nothing but satisfies trait bounds
     #[inline]
     fn fmap_owned<B, F>(self, _f: F) -> Self::Output<B>
-        where
-            F: Fn(Self::Source) -> B,
-            B: Clone,
-            Self: Sized {
+    where
+        F: Fn(Self::Source) -> B,
+        B: Clone,
+        Self: Sized,
+    {
         PhantomData
     }
 }
@@ -606,7 +610,7 @@ impl<T> FunctorExt for PhantomData<T> {
     {
         PhantomData
     }
-    
+
     /// does nothing but satisfies trait bounds
     #[inline]
     fn try_map_or<B, E, F>(&self, _default: B, _f: F) -> Self::Output<B>
@@ -616,7 +620,7 @@ impl<T> FunctorExt for PhantomData<T> {
     {
         PhantomData
     }
-    
+
     /// does nothing but satisfies trait bounds
     #[inline]
     fn try_map_or_else<B, E, D, F>(&self, _default_fn: D, _f: F) -> Self::Output<B>
@@ -631,34 +635,31 @@ impl<T> FunctorExt for PhantomData<T> {
 impl<T> Functor for Option<T> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B,
-            B: Clone {
-        match self {
-            Some(value) => Some(f(value)),
-            None => None,
-        }
+    where
+        F: Fn(&Self::Source) -> B,
+        B: Clone,
+    {
+        self.as_ref().map(f)
     }
 
     #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-        where
-            F: Fn(Self::Source) -> B,
-            B: Clone,
-            Self: Sized {
-        match self {
-            Some(value) => Some(f(value)),
-            None => None,
-        }
+    where
+        F: Fn(Self::Source) -> B,
+        B: Clone,
+        Self: Sized,
+    {
+        self.map(f)
     }
 }
 
 impl<A, E: Debug + Clone> Functor for Result<A, E> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B,
-            B: Clone {
+    where
+        F: Fn(&Self::Source) -> B,
+        B: Clone,
+    {
         match self {
             Ok(value) => Ok(f(value)),
             Err(e) => Err(e.clone()),
@@ -667,10 +668,11 @@ impl<A, E: Debug + Clone> Functor for Result<A, E> {
 
     #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-        where
-            F: Fn(Self::Source) -> B,
-            B: Clone,
-            Self: Sized {
+    where
+        F: Fn(Self::Source) -> B,
+        B: Clone,
+        Self: Sized,
+    {
         match self {
             Ok(value) => Ok(f(value)),
             Err(e) => Err(e.clone()),

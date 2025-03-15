@@ -30,7 +30,7 @@
 //!
 //! For a valid Monad implementation, the following laws must hold:
 //!
-//! 1. Left Identity: 
+//! 1. Left Identity:
 //!    ```text
 //!    pure(x).bind(f) == f(x)
 //!    ```
@@ -82,7 +82,7 @@ use crate::traits::applicative::Applicative;
 use std::marker::PhantomData;
 
 /// A trait for monads, which are applicative functors that support sequencing of operations.
-/// 
+///
 /// Monads provide a way to chain computations while maintaining context. They are particularly
 /// useful for handling effects like optional values, error handling, or state management.
 ///
@@ -94,7 +94,7 @@ use std::marker::PhantomData;
 /// # Laws
 /// For a valid Monad implementation, the following laws must hold:
 ///
-/// 1. Left Identity: 
+/// 1. Left Identity:
 ///    pure(x).bind(f) == f(x)
 ///    Applying a function to a pure value should be the same as applying the function directly.
 ///
@@ -198,7 +198,7 @@ pub trait Monad: Applicative {
     where
         F: Fn(&Self::Source) -> Self::Output<U>,
         U: Clone,
-        Self::Source: Clone
+        Self::Source: Clone,
     {
         self.bind(f)
     }
@@ -222,7 +222,7 @@ pub trait Monad: Applicative {
     where
         F: Fn(Self::Source) -> Self::Output<U>,
         U: Clone,
-        Self: Sized
+        Self: Sized,
     {
         self.bind_owned(f)
     }
@@ -342,7 +342,7 @@ impl<T: Clone> Monad for Option<T> {
         F: Fn(&Self::Source) -> Self::Output<U>,
         Self::Source: Clone,
     {
-        self.as_ref().and_then(|x| f(x))
+        self.as_ref().and_then(f)
     }
 
     #[inline]

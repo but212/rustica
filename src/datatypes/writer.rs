@@ -56,7 +56,7 @@
 //!         combined.extend(other.0.clone());
 //!         Log(combined)
 //!     }
-//! 
+//!
 //!     fn combine_owned(self, other: Self) -> Self {
 //!         let mut combined = self.0.clone();
 //!         combined.extend(other.0.clone());
@@ -96,7 +96,7 @@
 //!         combined.extend(other.0.clone());
 //!         Log(combined)
 //!     }
-//! 
+//!
 //!     fn combine_owned(self, other: Self) -> Self {
 //!         let mut combined = self.0.clone();
 //!         combined.extend(other.0.clone());
@@ -134,15 +134,15 @@
 //! assert_eq!(log.0.len(), 3);
 //! ```
 
-use crate::traits::monoid::Monoid;
-use crate::traits::semigroup::Semigroup;
-use crate::traits::hkt::HKT;
-use crate::traits::functor::Functor;
 use crate::traits::applicative::Applicative;
-use crate::traits::monad::Monad;
-use crate::traits::pure::Pure;
-use crate::traits::identity::Identity;
 use crate::traits::composable::Composable;
+use crate::traits::functor::Functor;
+use crate::traits::hkt::HKT;
+use crate::traits::identity::Identity;
+use crate::traits::monad::Monad;
+use crate::traits::monoid::Monoid;
+use crate::traits::pure::Pure;
+use crate::traits::semigroup::Semigroup;
 
 /// The Writer monad represents computations that produce a value along with an accumulated log.
 ///
@@ -181,7 +181,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
     ///     }
-    /// 
+    ///
     ///     fn combine_owned(self, other: Self) -> Self {
     ///         let mut combined = self.0.clone();
     ///         combined.extend(other.0.clone());
@@ -227,7 +227,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
     ///     }
-    /// 
+    ///
     ///     fn combine_owned(self, other: Self) -> Self {
     ///         let mut combined = self.0.clone();
     ///         combined.extend(other.0.clone());
@@ -271,7 +271,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
     ///     }
-    /// 
+    ///
     ///     fn combine_owned(self, other: Self) -> Self {
     ///         let mut combined = self.0.clone();
     ///         combined.extend(other.0.clone());
@@ -313,7 +313,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
     ///     }
-    /// 
+    ///
     ///     fn combine_owned(self, other: Self) -> Self {
     ///         let mut combined = self.0.clone();
     ///         combined.extend(other.0.clone());
@@ -355,7 +355,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///         combined.extend(other.0.clone());
     ///         Log(combined)
     ///     }
-    /// 
+    ///
     ///     fn combine_owned(self, other: Self) -> Self {
     ///         let mut combined = self.0.clone();
     ///         combined.extend(other.0.clone());
@@ -392,9 +392,9 @@ impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
     }
 
     fn pure_identity<B>(value: B) -> Self::Output<B>
-        where
-            Self::Output<B>: Identity,
-            {
+    where
+        Self::Output<B>: Identity,
+    {
         Writer::new(W::empty(), value)
     }
 
@@ -405,11 +405,17 @@ impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
 
 impl<W: Monoid + Clone, A: Clone> Semigroup for Writer<W, A> {
     fn combine_owned(self, other: Self) -> Self {
-        Writer::new(self.clone().log().combine_owned(other.log()), self.value().clone())
+        Writer::new(
+            self.clone().log().combine_owned(other.log()),
+            self.value().clone(),
+        )
     }
 
     fn combine(&self, other: &Self) -> Self {
-        Writer::new(self.clone().log().combine(&other.clone().log()), self.value().clone())
+        Writer::new(
+            self.clone().log().combine(&other.clone().log()),
+            self.value().clone(),
+        )
     }
 }
 
@@ -421,9 +427,9 @@ impl<W: Monoid + Clone, A: Clone + Default> Monoid for Writer<W, A> {
 
 impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B,
-        {
+    where
+        F: Fn(&Self::Source) -> B,
+    {
         Writer {
             log: self.log.clone(),
             value: f(&self.value),
@@ -431,9 +437,9 @@ impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
     }
 
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-        where
-            F: Fn(Self::Source) -> B,
-        {
+    where
+        F: Fn(Self::Source) -> B,
+    {
         Writer {
             log: self.log,
             value: f(self.value),
@@ -449,12 +455,10 @@ impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
 
 impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
-        where
-            F: Fn(&Self::Source) -> B {
-        Writer::new(
-            self.log.combine(&f.log),
-            (f.value)(&self.value)
-        )
+    where
+        F: Fn(&Self::Source) -> B,
+    {
+        Writer::new(self.log.combine(&f.log), (f.value)(&self.value))
     }
 
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
@@ -462,10 +466,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         F: Fn(&Self::Source, &B) -> C,
         B: Clone,
     {
-        Writer::new(
-            self.log.combine(&b.log),
-            f(&self.value, &b.value)
-        )
+        Writer::new(self.log.combine(&b.log), f(&self.value, &b.value))
     }
 
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
@@ -476,49 +477,42 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     {
         Writer::new(
             self.log.combine(&b.log).combine(&c.log),
-            f(&self.value, &b.value, &c.value)
+            f(&self.value, &b.value, &c.value),
         )
     }
 
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
-        where
-            F: Fn(Self::Source) -> B,
-            Self: Sized {
-        Writer::new(
-            self.log.combine_owned(f.log),
-            (f.value)(self.value)
-        )
+    where
+        F: Fn(Self::Source) -> B,
+        Self: Sized,
+    {
+        Writer::new(self.log.combine_owned(f.log), (f.value)(self.value))
     }
 
-    fn lift2_owned<B, C, F>(
-            self,
-            b: Self::Output<B>,
-            f: F,
-        ) -> Self::Output<C>
-        where
-            F: Fn(Self::Source, B) -> C,
-            Self: Sized,
-            B: Clone {
-        Writer::new(
-            self.log.combine_owned(b.log),
-            f(self.value, b.value)
-        )
+    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
+    where
+        F: Fn(Self::Source, B) -> C,
+        Self: Sized,
+        B: Clone,
+    {
+        Writer::new(self.log.combine_owned(b.log), f(self.value, b.value))
     }
 
     fn lift3_owned<B, C, D, F>(
-            self,
-            b: Self::Output<B>,
-            c: Self::Output<C>,
-            f: F,
-        ) -> Self::Output<D>
-        where
-            F: Fn(Self::Source, B, C) -> D,
-            Self: Sized,
-            B: Clone,
-            C: Clone {
+        self,
+        b: Self::Output<B>,
+        c: Self::Output<C>,
+        f: F,
+    ) -> Self::Output<D>
+    where
+        F: Fn(Self::Source, B, C) -> D,
+        Self: Sized,
+        B: Clone,
+        C: Clone,
+    {
         Writer::new(
             self.log.combine_owned(b.log).combine_owned(c.log),
-            f(self.value, b.value, c.value)
+            f(self.value, b.value, c.value),
         )
     }
 }
@@ -529,44 +523,35 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
         F: Fn(&Self::Source) -> Self::Output<U>,
     {
         let result = f(&self.value);
-        Writer::new(
-            self.log.combine(&result.log),
-            result.value
-        )
+        Writer::new(self.log.combine(&result.log), result.value)
     }
 
     fn join<U>(&self) -> Self::Output<U>
-        where
-            Self::Source: Clone + Into<Self::Output<U>> {
+    where
+        Self::Source: Clone + Into<Self::Output<U>>,
+    {
         let inner: Self::Output<U> = self.value.clone().into();
-        Writer::new(
-            self.log.combine(&inner.log),
-            inner.value
-        )
+        Writer::new(self.log.combine(&inner.log), inner.value)
     }
 
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
-        where
-            F: Fn(Self::Source) -> Self::Output<U>,
-            U: Clone,
-            Self: Sized {
+    where
+        F: Fn(Self::Source) -> Self::Output<U>,
+        U: Clone,
+        Self: Sized,
+    {
         let result = f(self.value);
-        Writer::new(
-            self.log.combine_owned(result.log),
-            result.value
-        )
+        Writer::new(self.log.combine_owned(result.log), result.value)
     }
 
     fn join_owned<U>(self) -> Self::Output<U>
-        where
-            Self::Source: Into<Self::Output<U>>,
-            U: Clone,
-            Self: Sized {
+    where
+        Self::Source: Into<Self::Output<U>>,
+        U: Clone,
+        Self: Sized,
+    {
         let inner: Self::Output<U> = self.value.into();
-        Writer::new(
-            self.log.combine_owned(inner.log),
-            inner.value
-        )
+        Writer::new(self.log.combine_owned(inner.log), inner.value)
     }
 }
 

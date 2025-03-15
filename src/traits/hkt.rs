@@ -251,15 +251,19 @@ impl<T> HKT for std::marker::PhantomData<T> {
 ///
 /// * `H`: The higher-kinded type to wrap
 /// * `T`: The source type that the higher-kinded type will be applied to
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HKTType<H, T>(PhantomData<H>, PhantomData<T>);
 
+impl<H, T> Default for HKTType<H, T> {
+    /// Creates a new `HKTType` with default values
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<H, T> HKTType<H, T> {
-    /// Creates a new phantom type representing an application of type H to type T.
-    ///
-    /// # Returns
-    ///
-    /// A new phantom type
+    /// Creates a new `HKTType`
     #[inline]
     pub fn new() -> Self {
         Self(PhantomData, PhantomData)

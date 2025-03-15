@@ -13,12 +13,12 @@
 //! assert_eq!(c, Product(50));
 //! ```
 
-use crate::traits::semigroup::Semigroup;
-use crate::traits::monoid::Monoid;
 use crate::traits::foldable::Foldable;
 use crate::traits::hkt::HKT;
-use std::ops::Mul;
+use crate::traits::monoid::Monoid;
+use crate::traits::semigroup::Semigroup;
 use std::fmt;
+use std::ops::Mul;
 
 /// A wrapper type that forms a semigroup under multiplication.
 ///
@@ -40,7 +40,7 @@ use std::fmt;
 /// let x = Product(2);
 /// let y = Product(3);
 /// let z = Product(4);
-/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()), 
+/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()),
 ///            x.combine(&y.clone()).combine(&z.clone()));
 ///
 /// // Identity element
@@ -92,15 +92,17 @@ impl<T> HKT for Product<T> {
 impl<T: Clone + Mul<Output = T>> Foldable for Product<T> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
-        where
-            F: Fn(U, &Self::Source) -> U {
+    where
+        F: Fn(U, &Self::Source) -> U,
+    {
         f(init.clone(), &self.0)
     }
 
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
-        where
-            F: Fn(&Self::Source, U) -> U {
+    where
+        F: Fn(&Self::Source, U) -> U,
+    {
         f(&self.0, init.clone())
     }
 }

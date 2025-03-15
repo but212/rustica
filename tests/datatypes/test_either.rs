@@ -1,8 +1,8 @@
 use rustica::datatypes::either::Either;
-use rustica::traits::functor::Functor;
 use rustica::traits::applicative::Applicative;
-use rustica::traits::monad::Monad;
+use rustica::traits::functor::Functor;
 use rustica::traits::identity::Identity;
+use rustica::traits::monad::Monad;
 use rustica::traits::pure::Pure;
 
 #[test]
@@ -133,11 +133,9 @@ fn test_either_error_handling() {
     assert_eq!(result2.unwrap_left(), "division by zero");
 
     // Test chaining computations
-    let result3 = safe_div(10, 2)
-        .bind(|x| safe_div(*x, 1));
+    let result3 = safe_div(10, 2).bind(|x| safe_div(*x, 1));
     assert_eq!(result3.unwrap_right(), 5);
 
-    let result4 = safe_div(10, 2)
-        .bind(|x| safe_div(*x, 0));
+    let result4 = safe_div(10, 2).bind(|x| safe_div(*x, 0));
     assert_eq!(result4.unwrap_left(), "division by zero");
 }

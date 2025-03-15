@@ -1,29 +1,29 @@
 //! # Either Datatype
-//! 
+//!
 //! The `Either` datatype represents values with two possibilities: a value of type `L` (Left) or a value of type `R` (Right).
-//! It is a fundamental functional programming construct that is similar to Rust's built-in `Result<T, E>` but without the 
+//! It is a fundamental functional programming construct that is similar to Rust's built-in `Result<T, E>` but without the
 //! semantic meaning of success/failure.
-//! 
+//!
 //! ## Functional Programming Context
-//! 
+//!
 //! In functional programming, the `Either` type is commonly used for:
-//! 
+//!
 //! - Representing computations that can produce one of two different types of values
 //! - Handling branching logic in a composable way
 //! - Implementing error handling without the success/failure semantics of `Result`
 //! - Building more complex data structures and control flow mechanisms
-//! 
+//!
 //! Similar constructs in other functional programming languages include:
-//! 
+//!
 //! - `Either` in Haskell
 //! - `Either` in Scala
 //! - `Either` in fp-ts (TypeScript)
 //! - `Either` in Arrow (Kotlin)
-//! 
+//!
 //! ## Type Class Implementations
-//! 
+//!
 //! The `Either` type implements several important functional programming abstractions:
-//! 
+//!
 //! - `Functor`: Maps over the right value with `fmap`
 //! - `Applicative`: Applies functions wrapped in `Either` to values wrapped in `Either`
 //! - `Monad`: Chains computations that may produce either left or right values
@@ -32,13 +32,13 @@
 //! - `Composable`: Composes functions that work with `Either`
 //! - `Transform`: Transforms the right value with `transform` and `transform_ref`
 //! - `TransformExt`: Provides additional transformation methods for `Either`
-//! 
+//!
 //! ## Basic Usage
-//! 
+//!
 //! ```rust
 //! use rustica::datatypes::either::Either;
 //! use rustica::prelude::*;
-//! 
+//!
 //! fn example() {
 //!     // Create Either values
 //!     let left_value: Either<i32, &str> = Either::left(42);
@@ -60,13 +60,13 @@
 //!     let chained = right_val.bind(|x| Either::right(x.to_string()));  // Either::Right("42")
 //! }
 
-use crate::traits::hkt::HKT;
 use crate::traits::applicative::Applicative;
-use crate::traits::monad::Monad;
 use crate::traits::composable::Composable;
-use crate::traits::identity::Identity;
-use crate::traits::pure::Pure;
 use crate::traits::functor::Functor;
+use crate::traits::hkt::HKT;
+use crate::traits::identity::Identity;
+use crate::traits::monad::Monad;
+use crate::traits::pure::Pure;
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
 /// This is similar to `Result<T, E>` but without the semantic meaning of success/failure.
@@ -346,7 +346,7 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
-        Self: Sized
+        Self: Sized,
     {
         match (self, f) {
             (Either::Right(x), Either::Right(f)) => Either::Right(f(x)),
@@ -356,15 +356,11 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
     }
 
     #[inline]
-    fn lift2_owned<B, C, F>(
-            self,
-            b: Self::Output<B>,
-            f: F,
-        ) -> Self::Output<C>
+    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(Self::Source, B) -> C,
         Self: Sized,
-        B: Clone
+        B: Clone,
     {
         match (self, b) {
             (Either::Right(x), Either::Right(y)) => Either::Right(f(x, y)),
@@ -375,16 +371,16 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
 
     #[inline]
     fn lift3_owned<B, C, D, F>(
-            self,
-            b: Self::Output<B>,
-            c: Self::Output<C>,
-            f: F,
-        ) -> Self::Output<D>
-        where
-            F: Fn(Self::Source, B, C) -> D,
-            Self: Sized,
-            B: Clone,
-            C: Clone 
+        self,
+        b: Self::Output<B>,
+        c: Self::Output<C>,
+        f: F,
+    ) -> Self::Output<D>
+    where
+        F: Fn(Self::Source, B, C) -> D,
+        Self: Sized,
+        B: Clone,
+        C: Clone,
     {
         match (self, b, c) {
             (Either::Right(x), Either::Right(y), Either::Right(z)) => Either::Right(f(x, y, z)),
@@ -423,7 +419,7 @@ impl<L: Clone, R: Clone> Monad for Either<L, R> {
     where
         F: Fn(Self::Source) -> Self::Output<U>,
         U: Clone,
-        Self: Sized
+        Self: Sized,
     {
         match self {
             Either::Left(l) => Either::Left(l.clone()),
@@ -436,7 +432,7 @@ impl<L: Clone, R: Clone> Monad for Either<L, R> {
     where
         Self::Source: Into<Self::Output<U>>,
         U: Clone,
-        Self: Sized
+        Self: Sized,
     {
         match self {
             Either::Left(l) => Either::Left(l.clone()),
@@ -456,10 +452,10 @@ impl<L: Clone, R: Clone> Identity for Either<L, R> {
 
     #[inline]
     fn pure_identity<A>(value: A) -> Self::Output<A>
-        where
-            Self::Output<A>: Identity
-        {
-            Either::Right(value.into())
+    where
+        Self::Output<A>: Identity,
+    {
+        Either::Right(value)
     }
 
     #[inline]

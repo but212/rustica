@@ -1,7 +1,7 @@
 //! Evaluation traits for functional data types in Rust.
 //!
 //! This module provides traits for types that can be evaluated to produce concrete values.
-//! These traits are particularly useful for working with lazy computations, thunks, or 
+//! These traits are particularly useful for working with lazy computations, thunks, or
 //! deferred evaluations in functional programming.
 //!
 //! # TODO: Future Improvements
@@ -21,7 +21,7 @@
 //! paradigms in Rust, with a focus on referential transparency and consistent results.
 //!
 //! # Design Philosophy
-//! 
+//!
 //! The traits in this module are designed to be:
 //!
 //! - **Minimal**: Focusing on core evaluation operations
@@ -35,7 +35,7 @@
 //! - `EvaluateExt`: Extension trait with utility methods for evaluated values
 //!
 //! # Laws
-//! 
+//!
 //! For a valid `Evaluate` implementation:
 //!
 //! 1. **Idempotence**: Evaluating an already evaluated value should yield the same result
@@ -93,7 +93,10 @@ use crate::traits::hkt::HKT;
 /// - `evaluate` is preferred when you need to keep the original computation
 /// - `evaluate_owned` may be more efficient for types where taking ownership avoids cloning
 /// - All methods are marked with `#[inline]` to encourage compiler optimization
-pub trait Evaluate: HKT where Self: Sized {
+pub trait Evaluate: HKT
+where
+    Self: Sized,
+{
     /// Evaluates the computation to produce a concrete value without consuming the computation.
     ///
     /// This method reduces a computation or expression to its final value by reference.
@@ -120,8 +123,7 @@ pub trait Evaluate: HKT where Self: Sized {
     where
         Self::Source: Clone,
     {
-        let result = self.evaluate();
-        result
+        self.evaluate()
     }
 }
 
@@ -148,7 +150,7 @@ pub trait EvaluateExt: Evaluate {
     {
         f(self.evaluate())
     }
-    
+
     /// Maps a function over the result of evaluating this computation by consuming it.
     ///
     /// # Type Parameters
@@ -168,7 +170,7 @@ pub trait EvaluateExt: Evaluate {
     {
         f(self.evaluate())
     }
-    
+
     /// Evaluates this computation and then another computation based on the result.
     ///
     /// This method is useful for chaining dependent computations.
@@ -189,10 +191,9 @@ pub trait EvaluateExt: Evaluate {
         C: Evaluate,
         Self::Source: Clone,
     {
-        let result = self.evaluate();
-        f(result).evaluate()
+        f(self.evaluate()).evaluate()
     }
-    
+
     /// Evaluates this computation, consumes it, and then another computation based on the result.
     ///
     /// This ownership-based variant of `and_then_evaluate` is useful when the original
@@ -214,10 +215,9 @@ pub trait EvaluateExt: Evaluate {
         C: Evaluate,
         Self::Source: Clone,
     {
-        let result = self.evaluate();
-        f(result).evaluate()
+        f(self.evaluate()).evaluate()
     }
-    
+
     /// Combines the evaluation of this computation with another.
     ///
     /// # Type Parameters
@@ -239,11 +239,9 @@ pub trait EvaluateExt: Evaluate {
         Self::Source: Clone,
         C::Source: Clone,
     {
-        let self_result = self.evaluate();
-        let other_result = other.evaluate();
-        f(self_result, other_result)
+        f(self.evaluate(), other.evaluate())
     }
-    
+
     /// Combines the evaluation of this computation with another, consuming both.
     ///
     /// This ownership-based variant of `combine_evaluate` takes ownership of both
@@ -268,11 +266,9 @@ pub trait EvaluateExt: Evaluate {
         Self::Source: Clone,
         C::Source: Clone,
     {
-        let self_result = self.evaluate();
-        let other_result = other.evaluate();
-        f(self_result, other_result)
+        f(self.evaluate(), other.evaluate())
     }
-    
+
     /// Evaluates this computation and returns the result if a predicate is satisfied,
     /// otherwise returns None.
     ///
@@ -312,7 +308,7 @@ pub trait EvaluateExt: Evaluate {
             None
         }
     }
-    
+
     /// Evaluates this computation by consuming it and returns the result if a predicate is satisfied,
     /// otherwise returns None.
     ///

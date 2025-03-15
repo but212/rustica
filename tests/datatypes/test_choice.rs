@@ -71,10 +71,7 @@ mod test_choice {
 
     #[test]
     fn test_choice_join() {
-        let nested = Choice::new(
-            Choice::new(1, vec![2, 3]),
-            vec![Choice::new(4, vec![5, 6])],
-        );
+        let nested = Choice::new(Choice::new(1, vec![2, 3]), vec![Choice::new(4, vec![5, 6])]);
         let flattened = nested.join();
         assert_eq!(*flattened.first(), 1);
         assert_eq!(flattened.alternatives(), &vec![2, 3, 4, 5, 6]);

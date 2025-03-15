@@ -1,49 +1,49 @@
 //! The Maybe monad represents computations which may fail or return a value.
-//! 
-//! `Maybe<T>` is an enum that can be either `Just(T)` containing a value, or `Nothing` 
+//!
+//! `Maybe<T>` is an enum that can be either `Just(T)` containing a value, or `Nothing`
 //! representing the absence of a value. This is similar to Rust's built-in `Option<T>` type,
 //! but with additional monadic operations.
-//! 
+//!
 //! # Key Features
-//! 
+//!
 //! - **Failure Handling**: Represents computations that might not return a value
 //! - **Short-circuiting**: Operations on `Nothing` propagate the `Nothing` value
 //! - **Composition**: Chain operations together without explicit null checks
-//! 
+//!
 //! # Common Use Cases
-//! 
+//!
 //! - Representing optional values without using `null`
 //! - Chaining operations that might fail
 //! - Transforming optional values without unwrapping
-//! 
+//!
 //! # Relationship to Rust's Option
-//! 
+//!
 //! `Maybe<T>` is functionally equivalent to Rust's `Option<T>`, but provides
 //! additional monadic operations. Conversion methods are provided to interoperate
 //! with `Option<T>`.
-//! 
+//!
 //! # Memory Optimization
-//! 
+//!
 //! `Maybe<T>` has the same memory layout as `Option<T>` and takes advantage of the
 //! [null pointer optimization](https://doc.rust-lang.org/std/option/index.html#representation).
 //! This means that for types like `Box<T>`, `Vec<T>`, `String`, etc., `Maybe<T>` doesn't
 //! require any additional memory beyond what's needed to store `T`.
-//! 
+//!
 //! # Examples
-//! 
+//!
 //! ```rust
 //! use rustica::datatypes::maybe::Maybe;
 //! use rustica::traits::functor::Functor;
 //! use rustica::traits::monad::Monad;
-//! 
+//!
 //! // Creating Maybe values
 //! let just_value = Maybe::Just(42);
 //! let nothing_value: Maybe<i32> = Maybe::Nothing;
-//! 
+//!
 //! // Using fmap to transform the value
 //! let doubled = just_value.fmap(|x| x * 2);  // Maybe::Just(84)
 //! let doubled_nothing = nothing_value.fmap(|x| x * 2);  // Maybe::Nothing
-//! 
+//!
 //! // Chaining operations with bind
 //! let result = just_value.bind(|x| {
 //!     if *x > 0 {
@@ -54,18 +54,18 @@
 //! });  // Maybe::Just(420)
 //! ```
 
-use crate::traits::hkt::HKT;
-use crate::traits::functor::Functor;
 use crate::traits::applicative::Applicative;
+use crate::traits::composable::Composable;
+use crate::traits::functor::Functor;
+use crate::traits::hkt::HKT;
+use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
-use crate::traits::composable::Composable;
-use crate::traits::identity::Identity;
 use std::marker::PhantomData;
 
 /// A type that represents an optional value, optimized with null pointer optimization.
 ///
-/// `Maybe<T>` is an enum that can be either `Just(T)` containing a value, or `Nothing` 
+/// `Maybe<T>` is an enum that can be either `Just(T)` containing a value, or `Nothing`
 /// representing the absence of a value. It has the same memory layout as `Option<T>`.
 ///
 /// # Memory Optimization
@@ -274,7 +274,7 @@ impl<T> Maybe<T> {
         }
     }
 
-    /// Returns the result of applying `f` to the contained value if `Just`, 
+    /// Returns the result of applying `f` to the contained value if `Just`,
     /// otherwise returns the result of evaluating `default`.
     ///
     /// # Examples
@@ -316,8 +316,6 @@ impl<T> HKT for Maybe<T> {
     type Source = T;
     type Output<U> = Maybe<U>;
 }
-
-
 
 impl<T> Pure for Maybe<T> {
     #[inline]
@@ -398,11 +396,7 @@ impl<T> Applicative for Maybe<T> {
     }
 
     #[inline]
-    fn lift2_owned<B, C, F>(
-        self,
-        b: Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: FnOnce(Self::Source, B) -> C,
         Self: Sized,

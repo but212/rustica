@@ -10,17 +10,17 @@
 //! let b = Last(Some(10));
 //! let c = a.combine(&b);
 //! assert_eq!(c, Last(Some(10))); // Takes the last value
-//! 
+//!
 //! let x = Last(None);
 //! let y = Last(Some(7));
 //! let z = x.combine(&y);
 //! assert_eq!(z, Last(Some(7))); // First value was None, so takes the second
 //! ```
 
-use crate::traits::semigroup::Semigroup;
-use crate::traits::monoid::Monoid;
 use crate::traits::foldable::Foldable;
 use crate::traits::hkt::HKT;
+use crate::traits::monoid::Monoid;
+use crate::traits::semigroup::Semigroup;
 use std::fmt;
 
 /// A wrapper type that forms a semigroup by taking the last non-None value.
@@ -43,7 +43,7 @@ use std::fmt;
 /// let x = Last(Some(1));
 /// let y = Last(None);
 /// let z = Last(Some(3));
-/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()), 
+/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()),
 ///            x.clone().combine(&y.clone()).combine(&z.clone()));
 ///
 /// // Identity element
@@ -98,15 +98,17 @@ impl<T> HKT for Last<T> {
 impl<T: Clone> Foldable for Last<T> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
-        where
-            F: Fn(U, &Self::Source) -> U {
-        f(init.clone(), &self.0.as_ref().unwrap())
+    where
+        F: Fn(U, &Self::Source) -> U,
+    {
+        f(init.clone(), self.0.as_ref().unwrap())
     }
 
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
-        where
-            F: Fn(&Self::Source, U) -> U {
-        f(&self.0.as_ref().unwrap(), init.clone())
+    where
+        F: Fn(&Self::Source, U) -> U,
+    {
+        f(self.0.as_ref().unwrap(), init.clone())
     }
 }

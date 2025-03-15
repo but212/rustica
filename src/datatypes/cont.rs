@@ -38,14 +38,14 @@
 //! use rustica::datatypes::cont::Cont;
 //!
 //! // Create a simple continuation
-//! let cont = Cont::pure(42);
+//! let cont = Cont::return_cont(42);
 //!
 //! // Run the continuation with a handler
 //! let result = cont.clone().run(|x| x * 2);
 //! assert_eq!(result, 84);
 //!
 //! // Chain continuations
-//! let cont2 = cont.bind(Arc::new(|x| Cont::pure(x + 1)));
+//! let cont2 = cont.bind(Arc::new(|x| Cont::return_cont(x + 1)));
 //! let result2 = cont2.run(|x| x * 2);
 //! assert_eq!(result2, 86);
 //! ```
@@ -63,7 +63,7 @@
 //!         Cont::new(|_| -1)
 //!     } else {
 //!         // Continue with the division
-//!         Cont::pure(a / b)
+//!         Cont::return_cont(a / b)
 //!     }
 //! }
 //!
@@ -74,270 +74,337 @@
 //! assert_eq!(result1, 5);
 //! assert_eq!(result2, -1);
 //! ```
+use std::marker::PhantomData;
 use std::sync::Arc;
 
-/// The Continuation monad, which represents computations with explicit control flow.
-/// 
-/// The `Cont` type allows you to work with computations that can be suspended and resumed,
-/// making it useful for implementing complex control flow patterns, asynchronous operations,
-/// or custom error handling mechanisms.
-/// 
+/// Type alias for a continuation function
+pub type ContFn<R, A> = Arc<dyn Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Send + Sync + 'static>;
+
+/// The `Cont` monad represents computations in continuation-passing style.
+///
+/// It captures a computation that takes a continuation (a function) and
+/// returns a value of type `R`.
+///
 /// # Type Parameters
-/// 
-/// * `R` - The final result type of the computation
-/// * `A` - The intermediate value type
-/// 
+///
+/// * `R` - The type of the final result
+/// * `A` - The type of the intermediate value
+///
 /// # Examples
-/// 
+///
 /// ```
-/// use std::sync::Arc;
 /// use rustica::datatypes::cont::Cont;
-/// 
-/// // Create a simple continuation
-/// let cont = Cont::pure(42);
-/// 
-/// // Run the continuation with a handler
-/// let result = cont.clone().run(|x| x * 2);
-/// assert_eq!(result, 84);
-/// 
-/// // Chain continuations
-/// let cont2 = cont.bind(Arc::new(|x| Cont::pure(x + 1)));
-/// let result2 = cont2.run(|x| x * 2);
-/// assert_eq!(result2, 86);
+///
+/// // Create two continuations
+/// let cont1 = Cont::return_cont(5);
+/// let cont2 = Cont::return_cont(-1);
+///
+/// // Run the continuations with an identity continuation
+/// let result1 = cont1.run(|x| x);
+/// let result2 = cont2.run(|x| x);
+///
+/// assert_eq!(result1, 5);
+/// assert_eq!(result2, -1);
 /// ```
 #[derive(Clone)]
-pub struct Cont<R: 'static, A: 'static> {
+pub struct Cont<R, A> 
+where
+    R: 'static,
+    A: 'static,
+{
     /// The function that represents the continuation.
-    /// 
+    ///
     /// This function takes a continuation (a function from `A` to `R`) and returns an `R`.
-    run_cont: Arc<dyn Fn(Arc<dyn Fn(A) -> R>) -> R + 'static>,
+    run_cont: ContFn<R, A>,
+    phantom: PhantomData<(R, A)>,
 }
 
-impl<R: 'static, A: 'static> Cont<R, A> {
+impl<R, A> Cont<R, A> 
+where
+    R: 'static,
+    A: 'static + Send + Sync,
+{
     /// Creates a new continuation from a function.
-    /// 
+    ///
     /// This method allows you to create a continuation directly from a function that
     /// takes a continuation and returns the final result.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `f` - A function that takes a continuation and returns the final result
-    /// 
-    /// # Type Parameters
-    /// 
-    /// * `F` - The type of the function
-    /// 
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - A function that takes a continuation and returns a result
+    ///
+    /// # Returns
+    ///
+    /// A new continuation
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
-    /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
-    /// 
-    /// // Create a continuation that adds 1 to the input and passes it to the continuation
-    /// let cont = Cont::<i32, i32>::new(|k| (*k)(42 + 1));
-    /// let result = cont.run(|x| x * 2);
-    /// assert_eq!(result, 86);
+    /// use std::sync::Arc;
+    ///
+    /// let cont = Cont::new(|k| {
+    ///     let result = 42;
+    ///     k(result)
+    /// });
+    ///
+    /// let result = cont.run(|x| x);
+    /// assert_eq!(result, 42);
     /// ```
+    #[inline]
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(Arc<dyn Fn(A) -> R>) -> R + 'static,
+        F: Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Send + Sync + 'static,
     {
         Cont {
             run_cont: Arc::new(f),
+            phantom: PhantomData,
         }
     }
 
-    /// Runs this continuation with the given function.
-    /// 
+    /// Runs this continuation with the given continuation function.
+    ///
     /// This method executes the continuation by providing a function that processes
     /// the final value produced by the continuation.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `f` - A function that processes the final value
-    /// 
+    ///
+    /// # Parameters
+    ///
+    /// * `k` - The continuation function to use
+    ///
     /// # Returns
-    /// 
+    ///
     /// The result of running the continuation
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
-    /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
-    /// 
-    /// let cont = Cont::pure(42);
-    /// 
-    /// // Run the continuation, doubling the result
-    /// let result = cont.clone().run(|x| x * 2);
-    /// assert_eq!(result, 84);
-    /// 
+    ///
+    /// let cont = Cont::return_cont(42);
+    /// let result = cont.run(|x| x);
+    /// assert_eq!(result, 42);
+    ///
     /// // Run the continuation, keeping the original value
     /// let result_int = cont.run(|x| x);
     /// assert_eq!(result_int, 42);
     /// ```
-    pub fn run<F>(self, f: F) -> R
+    #[inline]
+    pub fn run<F>(&self, f: F) -> R
     where
-        F: Fn(A) -> R + 'static,
+        F: Fn(A) -> R + Send + Sync + 'static,
     {
         (self.run_cont)(Arc::new(f))
     }
 
-    /// Creates a continuation that returns a pure value.
-    /// 
+    /// Creates a continuation that returns the given value.
+    ///
     /// This method lifts a value into the continuation monad context,
     /// creating a continuation that simply passes the value to its continuation.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `value` - The value to wrap in a continuation
-    /// 
+    ///
+    /// # Parameters
+    ///
+    /// * `a` - The value to return
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new continuation that will pass the value to its continuation
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
-    /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
-    /// 
-    /// let cont = Cont::pure(42);
+    ///
+    /// let cont = Cont::return_cont(42);
     /// let result = cont.run(|x| x);
     /// assert_eq!(result, 42);
     /// ```
-    pub fn pure(value: A) -> Self
+    #[inline]
+    pub fn return_cont(a: A) -> Self
     where
-        A: Clone + 'static,
-        R: 'static,
+        A: Clone,
     {
-        Cont::new(move |k| k(value.clone()))
+        Cont::new(move |k| k(a.clone()))
     }
 
-    /// Maps a function over the result of this continuation.
-    /// 
-    /// This method transforms the value produced by this continuation using the provided function.
-    /// It's similar to the `map` operation on other container types.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `f` - A function that transforms `A` into `B`
-    /// 
+    /// Maps a function over the continuation's result value.
+    ///
+    /// This is the implementation of `fmap` for `Cont`, which allows you to transform
+    /// the result of a continuation with a function.
+    ///
     /// # Type Parameters
-    /// 
-    /// * `B` - The type of the transformed value
-    /// 
+    ///
+    /// * `B` - The new result type
+    /// * `F` - The function type
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - A function from `A` to `B`
+    ///
     /// # Returns
-    /// 
-    /// A new continuation that produces the transformed value
-    /// 
+    ///
+    /// A new `Cont` with the transformation applied
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
-    /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
-    /// 
-    /// let cont = Cont::pure(42);
-    /// let mapped = cont.fmap(|x| x.to_string());
-    /// let result = mapped.run(|x| x);
-    /// assert_eq!(result, "42");
+    ///
+    /// let c = Cont::return_cont(5);
+    /// let c2 = c.fmap(|x| x * 2);
+    ///
+    /// let result = c2.run(|x| x);
+    /// assert_eq!(result, 10);
     /// ```
+    #[inline]
     pub fn fmap<B, F>(self, f: F) -> Cont<R, B>
     where
-        F: Fn(A) -> B + Clone + 'static,
-        B: 'static,
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
+        B: 'static + Send + Sync,
     {
         Cont::new(move |k| {
-            let f = f.clone();
-            (self.run_cont)(Arc::new(move |x| k(f(x))))
+            let f_clone = f.clone();
+            (self.run_cont)(Arc::new(move |a| {
+                k(f_clone(a))
+            }))
         })
     }
 
-    /// Chains this continuation with another continuation.
-    /// 
-    /// This method allows you to sequence continuations, where the result of this
-    /// continuation is used to produce a new continuation.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `f` - A function that takes the result of this continuation and returns a new continuation
-    /// 
+    /// Binds this continuation to a function that returns another continuation.
+    ///
+    /// This is the monadic bind for `Cont`, which allows you to sequence continuations.
+    ///
     /// # Type Parameters
-    /// 
-    /// * `B` - The type of value produced by the new continuation
-    /// 
+    ///
+    /// * `B` - The type of the result in the new continuation
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - A function from `A` to `Cont<R, B>`
+    ///
     /// # Returns
-    /// 
-    /// A new continuation representing the sequenced computation
-    /// 
+    ///
+    /// A new continuation that sequences the operations
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
-    /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
-    /// 
-    /// let cont = Cont::pure(42);
-    /// let cont2 = cont.bind(Arc::new(|x| Cont::pure(x + 1)));
-    /// let result = cont2.run(|x| x);
-    /// assert_eq!(result, 43);
+    /// use std::sync::Arc;
+    ///
+    /// let c = Cont::return_cont(5);
+    /// let c2 = c.bind(Arc::new(|x| Cont::return_cont(x * 2)));
+    ///
+    /// let result = c2.run(|x| x);
+    /// assert_eq!(result, 10);
     /// ```
+    #[inline]
     pub fn bind<B>(self, f: Arc<dyn Fn(A) -> Cont<R, B> + Send + Sync>) -> Cont<R, B>
     where
-        B: 'static,
+        B: 'static + Send + Sync,
     {
         Cont::new(move |k| {
-            let k = k.clone();
-            let f = f.clone();
-            let run_cont = self.run_cont.clone();
-            (run_cont)(Arc::new(move |x| {
-                let k = k.clone();
-                f(x).run(move |y| (*k)(y))
+            let f = f.clone(); // Clone here to avoid moving f in the inner closure
+            let k_clone = k.clone(); // Clone k to avoid moving it
+            (self.run_cont)(Arc::new(move |a| {
+                let f = f.clone(); // Clone again for the inner closure
+                let k = k_clone.clone(); // Clone k again for the inner closure
+                let cont = f(a);
+                cont.run(move |b| k(b))
             }))
         })
     }
 
-    /// Applies a function wrapped in a continuation to a value.
-    /// 
-    /// This method implements the applicative functor pattern, allowing you to apply
-    /// a function that is itself wrapped in a continuation to a value in this continuation.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `cf` - A continuation containing a function to apply
-    /// 
+    /// Applies a function inside a continuation to a value inside this continuation.
+    ///
+    /// This implements the `apply` operation from `Applicative`, allowing you
+    /// to combine two continuations where one contains a function and the other
+    /// contains a value.
+    ///
     /// # Type Parameters
-    /// 
-    /// * `B` - The type of the result after applying the function
-    /// 
+    ///
+    /// * `B` - The result type after applying the function
+    ///
+    /// # Parameters
+    ///
+    /// * `cf` - A continuation containing a function from `A` to `B`
+    ///
     /// # Returns
-    /// 
-    /// A new continuation with the result of applying the function
-    /// 
+    ///
+    /// A new continuation with the function applied to the value
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
-    /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
-    /// 
-    /// let value_cont = Cont::pure(42);
-    /// let function_cont = Cont::pure(Arc::new(|x: i32| x * 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
-    /// let result_cont = value_cont.apply(function_cont);
-    /// let result = result_cont.run(|x| x);
-    /// assert_eq!(result, 84);
+    /// use std::sync::Arc;
+    ///
+    /// let func_cont = Cont::return_cont(Arc::new(|x: i32| x * 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+    /// let value_cont = Cont::return_cont(5);
+    ///
+    /// let applied = value_cont.apply(func_cont);
+    /// let result = applied.run(|x| x);
+    ///
+    /// assert_eq!(result, 10);
     /// ```
+    #[inline]
     pub fn apply<B>(self, cf: Cont<R, Arc<dyn Fn(A) -> B + Send + Sync>>) -> Cont<R, B>
     where
-        B: 'static,
+        B: 'static + Send + Sync,
     {
         Cont::new(move |k| {
-            let k = k.clone();
-            let run_cont = cf.run_cont.clone();
             let self_run_cont = self.run_cont.clone();
-            (run_cont)(Arc::new(move |f| {
-                let k = k.clone();
+            (cf.run_cont)(Arc::new(move |f| {
                 let f = f.clone();
-                (self_run_cont)(Arc::new(move |x| (*k)((*f)(x))))
+                let k = k.clone();
+                (self_run_cont)(Arc::new(move |a| {
+                    let f = f.clone();
+                    k((*f)(a))
+                }))
             }))
+        })
+    }
+
+    /// Calls a function on the result of this continuation.
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - A function that transforms `A` into `B`
+    ///
+    /// # Returns
+    ///
+    /// The result of applying the function to the result of this continuation
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::cont::Cont;
+    ///
+    /// let cont = Cont::return_cont(5);
+    /// let result = cont.call_cc(|k| {
+    ///     k(10); // Skip the rest of the computation
+    ///     k(20); // This will not be executed
+    /// });
+    /// assert_eq!(result, 10);
+    /// ```
+    #[inline]
+    pub fn call_cc<B, F>(self, f: F) -> Cont<R, B>
+    where
+        F: FnOnce(Arc<dyn Fn(B) -> Cont<R, A> + Send + Sync>) -> Cont<R, B> + Send + Sync + Clone + 'static,
+        B: 'static + Send + Sync + Clone,
+    {
+        Cont::new(move |k| {
+            let k_clone = k.clone();
+            
+            let escape = Arc::new(move |b: B| -> Cont<R, A> {
+                let b = b.clone();
+                let k = k_clone.clone();
+                Cont::new(move |_| k(b.clone()))
+            });
+            
+            let f_clone = f.clone();
+            let result = f_clone(escape);
+            let k_final = k.clone();
+            result.run(move |b| k_final(b))
         })
     }
 }

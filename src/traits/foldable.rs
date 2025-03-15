@@ -46,34 +46,34 @@
 //! - You want to perform operations like sum, product, or concatenation
 //!
 //! ## Examples
-//! 
+//!
 //! ```rust
 //! use rustica::traits::foldable::{Foldable, FoldableExt};
 //! use rustica::traits::monoid::Monoid;
-//! 
+//!
 //! // Example with Vec
 //! let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
 //! let sum: i32 = numbers.clone().fold_left(&0, |acc, x| acc + x);
 //! assert_eq!(sum, 15);
-//! 
+//!
 //! // Example with Option
 //! let some_value: Option<i32> = Some(42);
 //! let doubled: i32 = some_value.clone().fold_left(&0, |_, x| x * 2);
 //! assert_eq!(doubled, 84);
-//! 
+//!
 //! let none_value: Option<i32> = None;
 //! let result: i32 = none_value.fold_left(&100, |acc, _| acc);
 //! assert_eq!(result, 100); // Initial value is returned for None
-//! 
+//!
 //! // Example with Result
 //! let ok_result: Result<i32, &str> = Ok(42);
 //! let incremented: i32 = ok_result.clone().fold_left(&0, |_, x| x + 10);
 //! assert_eq!(incremented, 52);
-//! 
+//!
 //! let err_result: Result<i32, &str> = Err("error");
 //! let fallback: i32 = err_result.fold_left(&100, |acc, _| acc);
 //! assert_eq!(fallback, 100); // Initial value is returned for Err
-//! 
+//!
 //! // Using extension methods
 //! assert_eq!(numbers.sum_values(), 15);
 //! assert_eq!(numbers.any(|&x| x > 10), false);
@@ -105,8 +105,8 @@
 //! - **Parallel Folding**: Support for parallel fold operations on large data structures
 //! - **Documentation Examples**: Add more comprehensive examples demonstrating practical use cases
 
-use crate::traits::monoid::Monoid;
 use crate::traits::hkt::HKT;
+use crate::traits::monoid::Monoid;
 use std::ops::{Add, Mul};
 
 /// A `Foldable` type is a data structure that can be "folded" into a summary value.
@@ -144,7 +144,7 @@ pub trait Foldable: HKT {
     /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
     /// let sum: i32 = numbers.fold_left(&0, |acc, n| acc + n);
     /// assert_eq!(sum, 10);
-    /// 
+    ///
     /// // Processing a Vec from left to right
     /// let strings: Vec<&str> = vec!["a", "b", "c"];
     /// let concat: String = strings.fold_left(&String::new(), |acc, s| acc + s);
@@ -181,7 +181,7 @@ pub trait Foldable: HKT {
     /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
     /// let sum: i32 = numbers.fold_right(&0, |n, acc| n + acc);
     /// assert_eq!(sum, 10);
-    /// 
+    ///
     /// // Processing a Vec from right to left
     /// let strings: Vec<&str> = vec!["a", "b", "c"];
     /// let concat: String = strings.fold_right(&String::new(), |s, acc| s.to_string() + &acc);
@@ -208,7 +208,7 @@ pub trait Foldable: HKT {
     /// # Returns
     ///
     /// The combined monoid value
-    /// 
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -218,7 +218,7 @@ pub trait Foldable: HKT {
     ///
     /// #[derive(Debug, PartialEq, Clone)]
     /// struct Sum(i32);
-    /// 
+    ///
     /// impl Semigroup for Sum {
     ///     fn combine(&self, other: &Self) -> Self {
     ///         Sum(self.0 + other.0)
@@ -249,7 +249,7 @@ pub trait Foldable: HKT {
 
     /// Fold a structure into a monoid.
     ///
-    /// Reduces the structure to a single value by combining all elements using the 
+    /// Reduces the structure to a single value by combining all elements using the
     /// monoid's combine operation and identity element.
     ///
     /// # Type Parameters
@@ -299,7 +299,7 @@ pub trait Foldable: HKT {
         self.fold_left(&M::empty(), |acc, x| acc.combine(&x.clone().into()))
     }
 
-    /// Returns the number of elements in the structure.
+    /// Returns the number of elements in the foldable structure.
     ///
     /// This is a convenience method that counts the number of elements by
     /// folding over the structure with a counter.
@@ -308,13 +308,13 @@ pub trait Foldable: HKT {
     ///
     /// The number of elements in the structure
     #[inline]
-    fn length(self) -> usize where Self: Sized {
+    fn length(&self) -> usize {
         self.fold_left(&0, |acc, _| acc + 1)
     }
 
     /// Tests if the structure is empty.
     #[inline]
-    fn is_empty(self) -> bool where Self: Sized {
+    fn is_empty(&self) -> bool {
         self.length() == 0
     }
 }
@@ -355,7 +355,7 @@ pub trait FoldableExt: Foldable {
         self.fold_left(&None, |acc, x| {
             if acc.is_some() {
                 acc
-            } else if pred(&x) {
+            } else if pred(x) {
                 Some(x.clone())
             } else {
                 None
@@ -392,7 +392,7 @@ pub trait FoldableExt: Foldable {
     where
         F: Fn(&Self::Source) -> bool,
     {
-        self.fold_left(&true, |acc, x| acc && pred(&x))
+        self.fold_left(&true, |acc, x| acc && pred(x))
     }
 
     /// Tests whether any element in the foldable satisfies the predicate.
@@ -424,7 +424,7 @@ pub trait FoldableExt: Foldable {
     where
         F: Fn(&Self::Source) -> bool,
     {
-        self.fold_left(&false, |acc, x| acc || pred(&x))
+        self.fold_left(&false, |acc, x| acc || pred(x))
     }
 
     /// Tests whether the foldable contains a specific value.
@@ -476,11 +476,9 @@ pub trait FoldableExt: Foldable {
         F: Fn(&Self::Source) -> Option<B>,
         B: Monoid + Clone,
     {
-        self.fold_left(&Some(B::empty()), |acc, x| {
-            match (acc, f(x)) {
-                (Some(a), Some(b)) => Some(a.combine(&b)),
-                _ => None,
-            }
+        self.fold_left(&Some(B::empty()), |acc, x| match (acc, f(x)) {
+            (Some(a), Some(b)) => Some(a.combine(&b)),
+            _ => None,
         })
     }
 
@@ -506,19 +504,17 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Clone + Ord,
     {
-        self.fold_left(
-            &(true, None),
-            |(is_sorted, prev), curr| {
-                if !is_sorted {
-                    (false, Some(curr.clone()))
-                } else {
-                    match prev {
-                        None => (true, Some(curr.clone())),
-                        Some(ref p) => (p <= &curr, Some(curr.clone())),
-                    }
+        self.fold_left(&(true, None), |(is_sorted, prev), curr| {
+            if !is_sorted {
+                (false, Some(curr.clone()))
+            } else {
+                match prev {
+                    None => (true, Some(curr.clone())),
+                    Some(ref p) => (p <= curr, Some(curr.clone())),
                 }
-            },
-        ).0
+            }
+        })
+        .0
     }
 
     /// Converts a foldable structure to a Vec.
@@ -583,7 +579,7 @@ pub trait FoldableExt: Foldable {
     ///     fn combine(&self, other: &Self) -> Self {
     ///         Product(self.0 * other.0)
     ///     }
-    /// 
+    ///
     ///     fn combine_owned(self, other: Self) -> Self {
     ///         Product(self.0 * other.0)
     ///     }
@@ -676,7 +672,11 @@ pub trait FoldableExt: Foldable {
     {
         self.fold_left(&None, |max: Option<Self::Source>, x| match max {
             None => Some(x.clone()),
-            Some(current_max) => Some(if x > &current_max { x.clone() } else { current_max }),
+            Some(current_max) => Some(if x > &current_max {
+                x.clone()
+            } else {
+                current_max
+            }),
         })
     }
 
@@ -704,7 +704,11 @@ pub trait FoldableExt: Foldable {
     {
         self.fold_left(&None, |min: Option<Self::Source>, x| match min {
             None => Some(x.clone()),
-            Some(current_min) => Some(if x < &current_min { x.clone() } else { current_min }),
+            Some(current_min) => Some(if x < &current_min {
+                x.clone()
+            } else {
+                current_min
+            }),
         })
     }
 
@@ -741,11 +745,9 @@ pub trait FoldableExt: Foldable {
         F: Fn(&Self::Source, &Self::Source) -> Self::Source,
         Self::Source: Clone,
     {
-        self.fold_left(&None, |acc: Option<Self::Source>, x| {
-            match acc {
-                None => Some(x.clone()),
-                Some(a) => Some(f(&a, x)),
-            }
+        self.fold_left(&None, |acc: Option<Self::Source>, x| match acc {
+            None => Some(x.clone()),
+            Some(a) => Some(f(&a, x)),
         })
     }
 }

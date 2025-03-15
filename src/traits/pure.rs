@@ -51,7 +51,7 @@
 //! ```rust
 //! use rustica::traits::hkt::HKT;
 //! use rustica::traits::pure::{Pure, PureExt};
-//! 
+//!
 //! // Using the to_pure extension method
 //! let value: i32 = 42;
 //! let option: Option<i32> = value.to_pure::<Option<i32>>();
@@ -62,7 +62,7 @@
 //! let b: &str = "hello";
 //! let pair: Option<(i32, &str)> = a.pair_with::<Option<(i32, &str)>, &str>(&b);
 //! assert_eq!(pair, Some((42, "hello")));
-//! 
+//!
 //! // Using lift_other to lift a value into the same context
 //! let a: i32 = 42;
 //! let b: &str = "hello";
@@ -87,7 +87,7 @@ use std::marker::PhantomData;
 /// # Laws
 /// For a valid Pure implementation, the following laws must hold:
 ///
-/// 1. Identity Preservation: 
+/// 1. Identity Preservation:
 ///    ```text
 ///    pure(x).fmap(id) == pure(x)
 ///    ```
@@ -202,7 +202,7 @@ impl<T, E: Clone> Pure for Result<T, E> {
     fn pure<U: Clone>(value: &U) -> Self::Output<U> {
         Ok(value.clone())
     }
-    
+
     #[inline]
     fn pure_owned<U>(value: U) -> Self::Output<U> {
         Ok(value)
@@ -214,7 +214,7 @@ impl<T> Pure for Vec<T> {
     fn pure_owned<U>(value: U) -> Self::Output<U> {
         vec![value]
     }
-    
+
     #[inline]
     fn pure<U: Clone>(value: &U) -> Self::Output<U> {
         vec![value.clone()]
@@ -226,7 +226,7 @@ impl<T> Pure for Box<T> {
     fn pure_owned<U>(value: U) -> Self::Output<U> {
         Box::new(value)
     }
-    
+
     #[inline]
     fn pure<U: Clone>(value: &U) -> Self::Output<U> {
         Box::new(value.clone())
@@ -280,11 +280,11 @@ impl<T> Pure for PhantomData<T> {
 /// use rustica::datatypes::validated::Validated;
 ///
 /// let value: i32 = 42;
-/// 
+///
 /// // Lift into Validated context and transform
 /// let validated: Validated<&str, i32> = value.to_pure::<Validated<&str, i32>>();
 /// let doubled: Validated<&str, i32> = validated.fmap(|x: &i32| x * 2);
-/// 
+///
 /// assert!(matches!(doubled, Validated::Valid(84)));
 /// ```
 pub trait PureExt: Sized {
@@ -309,11 +309,11 @@ pub trait PureExt: Sized {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let x: i32 = 42;
-    /// 
+    ///
     /// // Lift into Option
     /// let option: Option<i32> = x.to_pure::<Option<i32>>();
     /// assert_eq!(option, Some(42));
-    /// 
+    ///
     /// // Lift into Validated
     /// let validated: Validated<&str, i32> = x.to_pure::<Validated<&str, i32>>();
     /// assert!(matches!(validated, Validated::Valid(42)));
@@ -326,7 +326,7 @@ pub trait PureExt: Sized {
     {
         P::pure(self)
     }
-    
+
     /// Lift a value into a context, consuming the value.
     ///
     /// This method provides a more efficient version of `to_pure` that consumes
@@ -358,7 +358,6 @@ pub trait PureExt: Sized {
     {
         P::pure_owned(self)
     }
-    
 
     /// Lift a pair of values into a context.
     ///
@@ -387,7 +386,7 @@ pub trait PureExt: Sized {
     ///
     /// let a: i32 = 42;
     /// let b: &str = "hello";
-    /// 
+    ///
     /// // Create a pair in Option context
     /// let option_pair: Option<(i32, &str)> = a.pair_with::<Option<(i32, &str)>, &str>(&b);
     /// assert_eq!(option_pair, Some((42, "hello")));
@@ -406,7 +405,7 @@ pub trait PureExt: Sized {
         let pair = (self.clone(), other.clone());
         P::pure(&pair)
     }
-    
+
     /// Lift another value into a context.
     ///
     /// This method lifts a different value into the same context type.
@@ -446,7 +445,7 @@ pub trait PureExt: Sized {
     {
         P::pure(other)
     }
-    
+
     /// Combine two values into a new value and lift it into a context.
     ///
     /// This method applies a function to two values and lifts the result
@@ -536,7 +535,7 @@ impl<T: Clone> PureExt for T {}
 ///
 /// // Lift a value into the Validated context
 /// let valid: Validated<&str, i32> = PureType::<Validated<&str, i32>, i32>::lift(&42);
-/// 
+///
 /// // We can then use Functor operations on the result
 /// let doubled: Validated<&str, i32> = valid.fmap(|x: &i32| x * 2);
 /// assert!(matches!(doubled, Validated::Valid(84)));
@@ -599,7 +598,6 @@ where
     pub fn lift<U: Clone>(value: &U) -> P::Output<U> {
         P::pure(value)
     }
-
 
     /// Lift a value into a context, consuming the value.
     ///

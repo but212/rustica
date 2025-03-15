@@ -160,11 +160,11 @@ use crate::traits::hkt::BinaryHKT;
 ///     type Source = T;
 ///     type Output<U> = BiResult<U, E>;
 /// }
-/// 
+///
 /// impl<T, E> BinaryHKT for BiResult<T, E> {
 ///     type Source2 = E;
 ///     type BinaryOutput<U, V> = BiResult<U, V>;
-/// 
+///
 ///     fn map_second<F, NewType2>(&self, f: F) -> Self::BinaryOutput<T, NewType2>
 ///     where
 ///         F: Fn(&Self::Source2) -> NewType2,
@@ -175,7 +175,7 @@ use crate::traits::hkt::BinaryHKT;
 ///             Err(e) => Err(f(e)),
 ///         })
 ///     }
-/// 
+///
 ///     fn map_second_owned<F, NewType2>(self, f: F) -> Self::BinaryOutput<T, NewType2>
 ///     where
 ///         F: Fn(Self::Source2) -> NewType2,
@@ -197,7 +197,7 @@ use crate::traits::hkt::BinaryHKT;
 ///             Err(e) => Err(e.clone()),
 ///         })
 ///     }
-/// 
+///
 ///     fn second<D, G>(&self, g: G) -> Self::BinaryOutput<T, D>
 ///     where
 ///         G: Fn(&E) -> D,
@@ -207,7 +207,7 @@ use crate::traits::hkt::BinaryHKT;
 ///             Err(e) => Err(g(e)),
 ///         })
 ///     }
-/// 
+///
 ///     fn bimap<C, D, F, G>(&self, f: F, g: G) -> Self::BinaryOutput<C, D>
 ///     where
 ///         F: Fn(&T) -> C,
@@ -271,11 +271,11 @@ pub trait Bifunctor: BinaryHKT {
     /// * `F`: The function type to apply to the first parameter
     ///
     /// # Arguments
-    /// 
+    ///
     /// * `f`: Function to apply to the first type parameter
     ///
     /// # Returns
-    /// 
+    ///
     /// A new bifunctor with the first type parameter transformed
     ///
     /// # Examples
@@ -360,11 +360,11 @@ pub trait Bifunctor: BinaryHKT {
     /// * `G`: The function type to apply to the second parameter
     ///
     /// # Arguments
-    /// 
+    ///
     /// * `f`: Function to apply to the second type parameter
     ///
     /// # Returns
-    /// 
+    ///
     /// A new bifunctor with the second type parameter transformed
     ///
     /// # Examples
@@ -388,7 +388,7 @@ pub trait Bifunctor: BinaryHKT {
     /// impl<L, R> BinaryHKT for Either<L, R> {
     ///     type Source2 = R;
     ///     type BinaryOutput<U, V> = Either<U, V>;
-    /// 
+    ///
     ///     fn map_second<F, NewType2>(&self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
     ///     where
     ///         F: Fn(&Self::Source2) -> NewType2,
@@ -464,17 +464,17 @@ pub trait Bifunctor: BinaryHKT {
     /// # Type Parameters
     ///
     /// * `C`: The new type for the first parameter after transformation
-    /// * `D`: The new type for the second parameter after transformation 
+    /// * `D`: The new type for the second parameter after transformation
     /// * `F`: The function type to apply to the first parameter
     /// * `G`: The function type to apply to the second parameter
     ///
     /// # Arguments
-    /// 
+    ///
     /// * `f`: Function to apply to the first type parameter
     /// * `g`: Function to apply to the second type parameter
     ///
     /// # Returns
-    /// 
+    ///
     /// A new bifunctor with both type parameters transformed
     ///
     /// # Examples

@@ -12,9 +12,9 @@
 //! assert_eq!(c, Min(5));
 //! ```
 
-use crate::traits::semigroup::Semigroup;
 use crate::traits::foldable::Foldable;
 use crate::traits::hkt::HKT;
+use crate::traits::semigroup::Semigroup;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -37,7 +37,7 @@ use std::fmt;
 /// let x = Min(10);
 /// let y = Min(2);
 /// let z = Min(6);
-/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()), 
+/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()),
 ///            x.clone().combine(&y.clone()).combine(&z.clone()));
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -82,15 +82,17 @@ impl<T> HKT for Min<T> {
 impl<T: Clone + Ord> Foldable for Min<T> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
-        where
-            F: Fn(U, &Self::Source) -> U {
+    where
+        F: Fn(U, &Self::Source) -> U,
+    {
         f(init.clone(), &self.0)
     }
 
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
-        where
-            F: Fn(&Self::Source, U) -> U {
+    where
+        F: Fn(&Self::Source, U) -> U,
+    {
         f(&self.0, init.clone())
     }
 }

@@ -51,7 +51,7 @@ mod test_async_monad {
         }
 
         let async_m = AsyncM::pure(42);
-        let bound = async_m.bind(|x| async move { 
+        let bound = async_m.bind(|x| async move {
             let result = async_double(x).await;
             AsyncM::pure(result)
         });
@@ -69,18 +69,16 @@ mod test_async_monad {
             }
         }
 
-        let success = AsyncM::pure(42)
-            .bind(|x| async move {
-                let result = may_fail(x).await.unwrap();
-                AsyncM::pure(result)
-            });
+        let success = AsyncM::pure(42).bind(|x| async move {
+            let result = may_fail(x).await.unwrap();
+            AsyncM::pure(result)
+        });
         assert_eq!(success.try_get().await, 84);
 
-        let failure = AsyncM::pure(-1)
-            .bind(|x| async move {
-                let result = may_fail(x).await.unwrap_or(-1);
-                AsyncM::pure(result)
-            });
+        let failure = AsyncM::pure(-1).bind(|x| async move {
+            let result = may_fail(x).await.unwrap_or(-1);
+            AsyncM::pure(result)
+        });
         assert_eq!(failure.try_get().await, -1);
     }
 
@@ -90,15 +88,15 @@ mod test_async_monad {
         async fn success_fn() -> Result<i32, &'static str> {
             Ok(42)
         }
-        
+
         let success = AsyncM::from_result_or_default(|| success_fn(), 0);
         assert_eq!(success.try_get().await, 42);
-        
+
         // Test error case
         async fn error_fn() -> Result<i32, &'static str> {
             Err("error")
         }
-        
+
         let error = AsyncM::from_result_or_default(|| error_fn(), 100);
         assert_eq!(error.try_get().await, 100);
     }

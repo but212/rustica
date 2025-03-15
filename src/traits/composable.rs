@@ -1,15 +1,15 @@
 //! # Composable Function Operations
-//! 
+//!
 //! This module provides traits and utilities for function composition, enabling the creation of complex
 //! transformations from simpler ones through a type-safe API.
 //!
 //! # TODO: Improvement Opportunities
-//! 
+//!
 //! - **API Consistency**: Add ownership-based and reference-based versions of all composition methods
 //!   similar to the improvements in the Functor trait.
 //!   - Added `compose_owned` and `compose_when_owned` methods
 //!
-//! - **Performance Optimization**: 
+//! - **Performance Optimization**:
 //!   - Added `#[inline]` attributes to all methods
 //!   - Add specialized implementations for common use cases
 //!   - Consider using associated type patterns to avoid boxing futures where possible
@@ -93,7 +93,7 @@
 //!
 //! // A simple implementation of function composition
 //! struct SimpleCompose<T>(T);
-//! 
+//!
 //! impl<T> HKT for SimpleCompose<T> {
 //!     type Source = T;
 //!     type Output<U> = SimpleCompose<U>;
@@ -272,14 +272,14 @@ where
 ///
 /// ```rust
 /// use rustica::traits::composable::compose_all;
-/// 
+///
 /// // Create functions with explicit type annotations
 /// let add_one = |x: i32| x + 1;
 /// let double = |x: i32| x * 2;
-/// 
+///
 /// // Compose all functions into a single function
 /// let composed = compose_all(vec![add_one, double, add_one]);
-/// 
+///
 /// // Test the composed function
 /// assert_eq!(composed(3), 9);  // ((3 + 1) * 2) + 1 = 9
 /// ```
@@ -288,11 +288,8 @@ pub fn compose_all<T, F>(functions: Vec<F>) -> impl Fn(T) -> T
 where
     F: Fn(T) -> T,
 {
-    move |initial| {
-        functions.iter().fold(initial, |acc, f| f(acc))
-    }
+    move |initial| functions.iter().fold(initial, |acc, f| f(acc))
 }
-
 
 /// Composes two asynchronous functions to create a new asynchronous function.
 ///
@@ -381,7 +378,7 @@ where
 /// # async fn example() {
 /// // Compose the async functions
 /// let composed = compose_async_fn(add_one, double);
-/// 
+///
 /// // Use the composed function
 /// let result = composed(3).await;
 /// assert_eq!(result, 8);  // (3 + 1) * 2 = 8
@@ -448,7 +445,7 @@ where
 ///
 /// // Create conditional composition
 /// let conditional = compose_when(add_one, double, is_even);
-/// 
+///
 /// // Test with different inputs
 /// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even, so double is applied)
 /// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd, so double is not applied)
@@ -529,11 +526,9 @@ where
     F: Fn(A) -> Result<B, E>,
     G: Fn(B) -> Result<C, E>,
 {
-    move |a| {
-        match f(a) {
-            Ok(b) => g(b),
-            Err(e) => Err(e),
-        }
+    move |a| match f(a) {
+        Ok(b) => g(b),
+        Err(e) => Err(e),
     }
 }
 
@@ -655,7 +650,7 @@ where
 {
     move |a| {
         let g = g.clone();
-        f(a).and_then(move |b| g(b))
+        f(a).and_then(g)
     }
 }
 
@@ -707,7 +702,7 @@ where
     move |a| {
         let collection = f(a);
         let g = g.clone();
-        collection.into_iter().map(move |b| g(b)).collect()
+        collection.into_iter().map(g).collect()
     }
 }
 
@@ -758,7 +753,10 @@ where
     move |a| {
         let collection = f(a);
         let predicate = predicate.clone();
-        collection.into_iter().filter(move |item| predicate(item)).collect()
+        collection
+            .into_iter()
+            .filter(move |item| predicate(item))
+            .collect()
     }
 }
 
@@ -793,7 +791,7 @@ where
 ///
 /// // Use the combined function
 /// let all_numbers: Vec<_> = combined(());
-/// 
+///
 /// // Contains all numbers from all three iterators, in order of the iterators
 /// // First all numbers from range1 (1..100), then all numbers from range2 (100..200), then all numbers from range3 (200..300)
 /// assert_eq!(all_numbers.len(), 9);
@@ -805,7 +803,8 @@ where
     A: Clone,
 {
     move |a| {
-        functions.iter()
+        functions
+            .iter()
             .flat_map(|f| {
                 let f = f.clone();
                 let a = a.clone();
@@ -868,7 +867,7 @@ where
     move |a| {
         let collection = f(a);
         let g = g.clone();
-        collection.into_par_iter().map(move |b| g(b)).collect()
+        collection.into_par_iter().map(g).collect()
     }
 }
 
@@ -937,7 +936,10 @@ where
     move |a| {
         let collection = f(a);
         let predicate = predicate.clone();
-        collection.into_par_iter().filter(move |item| predicate(item)).collect()
+        collection
+            .into_par_iter()
+            .filter(move |item| predicate(item))
+            .collect()
     }
 }
 
@@ -974,7 +976,7 @@ where
 ///
 /// // Use the composed function (elements will be processed in parallel)
 /// let all_numbers: Vec<_> = combined(());
-/// 
+///
 /// // Contains all numbers from all three iterators, in order of the iterators
 /// // First all numbers from range1 (1..100), then all numbers from range2 (100..200), then all numbers from range3 (200..300)
 /// assert_eq!(all_numbers.len(), 299);
@@ -987,7 +989,8 @@ where
     B: Send,
 {
     move |a| {
-        functions.par_iter()
+        functions
+            .par_iter()
             .flat_map(|f| {
                 let f = f.clone();
                 let a = a.clone();
@@ -1040,7 +1043,8 @@ where
     A: Clone + Send + Sync,
     B: Send,
 {
-    transformations.par_iter()
+    transformations
+        .par_iter()
         .map(|f| {
             let f = f.clone();
             let input = input.clone();

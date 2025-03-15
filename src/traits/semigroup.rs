@@ -119,7 +119,7 @@ pub trait Semigroup: Sized {
     /// assert_eq!(message, "Hello, world!");
     /// ```
     fn combine(&self, other: &Self) -> Self;
-    
+
     /// Combines two values by consuming them to produce a new value.
     ///
     /// This method is an ownership-based variant of `combine` that consumes both values
@@ -245,7 +245,7 @@ pub trait SemigroupExt: Semigroup {
     fn combine_n(&self, n: &usize) -> Self
     where
         Self: Clone;
-        
+
     /// Combines the semigroup value with itself a specified number of times, by reference.
     ///
     /// # Parameters
@@ -289,7 +289,7 @@ impl<T: Semigroup> SemigroupExt for T {
         }
         result
     }
-    
+
     fn combine_n(&self, n: &usize) -> Self
     where
         Self: Clone,
@@ -323,7 +323,7 @@ impl<T: Semigroup> SemigroupExtAdapter<T> {
     {
         self.0.combine_n_owned(n)
     }
-    
+
     /// Combines the semigroup value with itself a specified number of times by reference.
     pub fn combine_n(&self, n: &usize) -> T
     where
@@ -339,7 +339,7 @@ impl Semigroup for String {
     fn combine(&self, other: &Self) -> Self {
         self.clone() + other
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         self + &other
     }
@@ -351,7 +351,7 @@ impl<T: Clone> Semigroup for Vec<T> {
         result.extend(other.iter().cloned());
         result
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         result.extend(other);
@@ -370,7 +370,7 @@ impl<K: Eq + Hash + Clone, V: Semigroup + Clone> Semigroup for HashMap<K, V> {
         }
         result
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         for (k, v) in other {
@@ -394,7 +394,7 @@ impl<T: Eq + Hash + Clone> Semigroup for HashSet<T> {
         result.extend(other.iter().cloned());
         result
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         result.extend(other);
@@ -413,7 +413,7 @@ impl<K: Ord + Clone, V: Semigroup + Clone> Semigroup for BTreeMap<K, V> {
         }
         result
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         for (k, v) in other {
@@ -437,7 +437,7 @@ impl<T: Ord + Clone> Semigroup for BTreeSet<T> {
         result.extend(other.iter().cloned());
         result
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         result.extend(other);
@@ -451,7 +451,7 @@ impl<A: Semigroup, B: Semigroup> Semigroup for (A, B) {
     fn combine(&self, other: &Self) -> Self {
         (self.0.combine(&other.0), self.1.combine(&other.1))
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         (self.0.combine_owned(other.0), self.1.combine_owned(other.1))
     }
@@ -465,7 +465,7 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
             self.2.combine(&other.2),
         )
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         (
             self.0.combine_owned(other.0),
@@ -484,7 +484,7 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B
             self.3.combine(&other.3),
         )
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         (
             self.0.combine_owned(other.0),
@@ -506,7 +506,7 @@ impl<T: Semigroup + Clone> Semigroup for Option<T> {
             (None, None) => None,
         }
     }
-    
+
     fn combine_owned(self, other: Self) -> Self {
         match (self, other) {
             (Some(a), Some(b)) => Some(a.combine_owned(b)),
@@ -591,5 +591,7 @@ where
     T: Semigroup,
     I: IntoIterator<Item = T>,
 {
-    values.into_iter().fold(initial, |acc, x| acc.combine_owned(x))
+    values
+        .into_iter()
+        .fold(initial, |acc, x| acc.combine_owned(x))
 }

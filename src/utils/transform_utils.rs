@@ -11,7 +11,7 @@ use crate::prelude::Functor;
 ///
 /// A new vector containing the transformed values
 #[inline]
-pub fn transform_all<T, F, U>(values: &Vec<T>, f: F) -> Vec<T::Output<U>>
+pub fn transform_all<T, F, U>(values: &[T], f: F) -> Vec<T::Output<U>>
 where
     T: Functor,
     F: Fn(&T::Source) -> U + Copy,

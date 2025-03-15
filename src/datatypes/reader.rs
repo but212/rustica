@@ -137,9 +137,7 @@ impl<E: Clone + 'static, A: Clone + 'static> Reader<E, A> {
     where
         F: Fn(E) -> A + 'static,
     {
-        Reader {
-            run: Arc::new(f),
-        }
+        Reader { run: Arc::new(f) }
     }
 
     /// Runs the reader with a given environment.
@@ -300,7 +298,10 @@ impl<E: Clone + 'static, A: Clone + 'static> Reader<E, A> {
     /// });
     /// assert_eq!(complex.run_reader(41), "42 derived from 41");
     /// ```
-    pub fn bind<B: Clone + 'static>(&self, f: impl Fn(A) -> Reader<E, B> + 'static) -> Reader<E, B> {
+    pub fn bind<B: Clone + 'static>(
+        &self,
+        f: impl Fn(A) -> Reader<E, B> + 'static,
+    ) -> Reader<E, B> {
         let run = self.run.clone();
         Reader::new(move |e: E| {
             let a = (run)(e.clone());
@@ -395,7 +396,11 @@ impl<E: Clone + 'static, A: Clone + 'static> Reader<E, A> {
     /// let sum = reader1.combine(&reader2, |x, y| x + y);
     /// assert_eq!(sum.run_reader(20), 61); // (20 + 1) + (20 * 2)
     /// ```
-    pub fn combine<B, C>(&self, other: &Reader<E, B>, f: impl Fn(A, B) -> C + 'static) -> Reader<E, C>
+    pub fn combine<B, C>(
+        &self,
+        other: &Reader<E, B>,
+        f: impl Fn(A, B) -> C + 'static,
+    ) -> Reader<E, C>
     where
         B: Clone + 'static,
         C: Clone + 'static,
@@ -538,7 +543,7 @@ impl<E: Clone + 'static, A: Clone + 'static> Reader<E, A> {
     /// use rustica::datatypes::reader::Reader;
     ///
     /// #[derive(Clone)]
-    /// struct Config { 
+    /// struct Config {
     ///     count: i32,
     ///     name: String,
     /// }

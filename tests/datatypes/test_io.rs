@@ -14,7 +14,7 @@ mod test_io {
         // Test creation with a custom computation
         let computation = IO::new(|| 42);
         assert_eq!(computation.run(), 42);
-        
+
         // Test with mutable state
         let counter = Arc::new(Mutex::new(0));
         let counter_clone = Arc::clone(&counter);
@@ -23,7 +23,7 @@ mod test_io {
             *count += 1;
             *count
         });
-        
+
         assert_eq!(mutable_computation.run(), 1);
         assert_eq!(mutable_computation.run(), 2);
     }
@@ -32,9 +32,9 @@ mod test_io {
     fn test_io_complex_composition() {
         // Create a chain of computations
         let initial = IO::pure(10);
-        let step1 = initial.fmap(&|x| x * 2);  // 20
+        let step1 = initial.fmap(&|x| x * 2); // 20
         let step2 = step1.bind(&|x| IO::pure(x + 5)); // 25
-        let step3 = step2.fmap(&|x| x - 3);  // 22
+        let step3 = step2.fmap(&|x| x - 3); // 22
 
         // Run the final computation
         let result = step3.run();
@@ -62,7 +62,7 @@ mod test_io {
     #[test]
     fn test_io_shared_state() {
         let counter = Arc::new(Mutex::new(0));
-        
+
         // Create multiple IO instances that share state
         let increment = {
             let counter = Arc::clone(&counter);
@@ -72,7 +72,7 @@ mod test_io {
                 *count
             })
         };
-        
+
         let get_count = {
             let counter = Arc::clone(&counter);
             IO::new(move || {
@@ -80,7 +80,7 @@ mod test_io {
                 *count
             })
         };
-        
+
         // Test that they correctly share and modify state
         assert_eq!(increment.run(), 1);
         assert_eq!(increment.run(), 2);
@@ -92,7 +92,7 @@ mod test_io {
     #[test]
     fn test_io_monad() {
         let computation = IO::new(|| 42);
-    
+
         // Test bind
         let doubled = computation.bind(|x| IO::new(move || x * 2));
         assert_eq!(doubled.run(), 84);
@@ -111,9 +111,8 @@ mod test_io {
         let assoc_left = computation
             .bind(|x| IO::new(move || x * 2))
             .bind(|x| IO::new(move || x + 1));
-        let assoc_right = computation.bind(|x| {
-            IO::new(move || x * 2).bind(|y| IO::new(move || y + 1))
-        });
+        let assoc_right =
+            computation.bind(|x| IO::new(move || x * 2).bind(|y| IO::new(move || y + 1)));
         assert_eq!(assoc_left.run(), assoc_right.run());
     }
 
@@ -121,8 +120,8 @@ mod test_io {
     fn test_io_composition() {
         let read_number = IO::new(|| 42);
         let result = read_number
-        .bind(|x| IO::new(move || x * 2))
-        .bind(|x| IO::new(move || format!("Result: {}", x)));
+            .bind(|x| IO::new(move || x * 2))
+            .bind(|x| IO::new(move || format!("Result: {}", x)));
 
         assert_eq!(result.run(), "Result: 84");
     }

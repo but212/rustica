@@ -213,8 +213,8 @@ pub trait Identity: HKT {
     /// ```
     #[inline]
     fn try_into_value(self) -> Option<Self::Source>
-    where 
-        Self: Sized
+    where
+        Self: Sized,
     {
         Some(self.into_value())
     }
@@ -270,22 +270,22 @@ impl<T> Identity for Option<T> {
     fn value(&self) -> &Self::Source {
         self.as_ref().expect("Option is None")
     }
-    
+
     #[inline]
     fn try_value(&self) -> Option<&Self::Source> {
         self.as_ref()
     }
-    
+
     #[inline]
     fn into_value(self) -> Self::Source {
         self.expect("Option is None")
     }
-    
+
     #[inline]
     fn try_into_value(self) -> Option<Self::Source> {
         self
     }
-    
+
     #[inline]
     fn pure_identity<A>(value: A) -> Self::Output<A> {
         Some(value)
@@ -297,22 +297,22 @@ impl<T, E: Clone + std::fmt::Debug> Identity for Result<T, E> {
     fn value(&self) -> &Self::Source {
         self.as_ref().expect("Result is Err")
     }
-    
+
     #[inline]
     fn try_value(&self) -> Option<&Self::Source> {
         self.as_ref().ok()
     }
-    
+
     #[inline]
     fn into_value(self) -> Self::Source {
         self.expect("Result is Err")
     }
-    
+
     #[inline]
     fn try_into_value(self) -> Option<Self::Source> {
         self.ok()
     }
-    
+
     #[inline]
     fn pure_identity<A>(value: A) -> Self::Output<A> {
         Ok(value)
@@ -324,22 +324,22 @@ impl<T> Identity for Vec<T> {
     fn value(&self) -> &Self::Source {
         self.first().expect("Vec is empty")
     }
-    
+
     #[inline]
     fn try_value(&self) -> Option<&Self::Source> {
         self.first()
     }
-    
+
     #[inline]
     fn into_value(self) -> Self::Source {
         self.into_iter().next().expect("Vec is empty")
     }
-    
+
     #[inline]
     fn try_into_value(self) -> Option<Self::Source> {
         self.into_iter().next()
     }
-    
+
     #[inline]
     fn pure_identity<A>(value: A) -> Self::Output<A> {
         vec![value]
@@ -363,8 +363,9 @@ impl<T> Identity for PhantomData<T> {
     /// does nothing but satisfies trait bounds
     #[inline]
     fn pure_identity<A>(_value: A) -> Self::Output<A>
-        where
-            Self::Output<A>: Identity {
+    where
+        Self::Output<A>: Identity,
+    {
         PhantomData
     }
 }
@@ -380,10 +381,10 @@ impl<T> Identity for PhantomData<T> {
 /// use rustica::traits::identity::{Identity, IdentityExt};
 ///
 /// let opt: Option<i32> = Some(42);
-/// 
+///
 /// // Access value or fallback to default
 /// assert_eq!(opt.value_or(&0), &42);
-/// 
+///
 /// let none: Option<i32> = None;
 /// assert_eq!(none.value_or(&0), &0);
 /// ```
@@ -406,7 +407,7 @@ pub trait IdentityExt: Identity {
     fn value_or<'a>(&'a self, default: &'a Self::Source) -> &'a Self::Source {
         self.try_value().unwrap_or(default)
     }
-    
+
     /// Maps a function over the value if it exists, or returns a default.
     ///
     /// # Examples

@@ -99,7 +99,7 @@ pub trait Traversable: Applicative {
 
     /// Sequences a structure of effects with ownership, into an effect of structure.
     ///
-    /// Similar to `sequence_ref`, but takes ownership of the traversable structure, which can avoid 
+    /// Similar to `sequence_ref`, but takes ownership of the traversable structure, which can avoid
     /// unnecessary clones in certain situations.
     ///
     /// # Type Parameters

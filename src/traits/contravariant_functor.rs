@@ -1,5 +1,5 @@
 //! # Contravariant Functor
-//! 
+//!
 //! A contravariant functor is a type constructor that allows mapping functions in a way that reverses
 //! their direction. While regular functors map functions forward (A -> B), contravariant functors map
 //! functions backward (B -> A).
@@ -93,7 +93,7 @@ pub trait ContravariantFunctor: HKT {
 /// Extension methods for contravariant functors, providing additional utility functions.
 pub trait ContravariantFunctorExt: ContravariantFunctor {
     /// Chains contramap operations for convenient method chaining.
-    /// 
+    ///
     /// This method makes it easier to chain multiple contramap operations together.
     ///
     /// # Type Parameters
