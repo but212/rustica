@@ -1,9 +1,9 @@
 name: Create Release
 
 permissions:
-  contents: write  # 릴리스 생성 및 아티팩트 업로드에 필요
-  discussions: write  # 릴리스 노트가 discussions에 게시될 경우 필요
-  packages: write  # 패키지 업로드 시 필요
+  contents: write  # Required for creating releases and uploading artifacts
+  discussions: write  # Required if release notes are posted in discussions
+  packages: write  # Required for uploading packages
 
 on:
   push:
@@ -13,6 +13,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - uses: actions/checkout@v4
         with:
