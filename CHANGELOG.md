@@ -1,3 +1,17 @@
+## [0.5.3] - 2025-03-16
+
+### Changed
+- Enhanced `Choice` data structure:
+  - Modified `first()` method to return `Option<&T>` instead of `&T` for better safety
+  - Added support for handling empty `Choice` instances
+  - Added `add_alternatives_owned` method to add multiple alternatives at once
+  - Added `filter` method to filter alternatives based on a predicate
+  - Added `change_first` method to replace the primary value
+  - Added `swap_with_alternative` and `swap_with_alternative_owned` methods to replace primary with alternative
+  - Added `replace_alternatives_with_first` and `replace_alternatives_with_first_owned` methods
+  - Updated tests and documentation for new methods
+  - Improved consistency with Rust's ownership patterns
+
 ## [0.5.2] - 2025-03-09
 
 ### Changed

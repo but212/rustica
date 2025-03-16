@@ -1,6 +1,6 @@
 [package]
 name = "rustica"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["jeong-il suk <wjddlf211@naver.com>"]
 edition = "2021"
 description = "Rustica is a functional programming library for the Rust language."
@@ -32,4 +32,3 @@ all-features = true
 [[bench]]
 name = "datatypes_benchmarks"
 harness = false
-
