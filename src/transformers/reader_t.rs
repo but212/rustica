@@ -666,9 +666,4 @@ where
         let base_clone = base.clone();
         ReaderT::new(move |_| base_clone.clone())
     }
-
-    #[inline]
-    fn unwrap(self) -> Self::BaseMonad {
-        panic!("Cannot unwrap a ReaderT without providing an environment! Use unwrap_with(env) instead.")
-    }
 }

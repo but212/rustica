@@ -30,3 +30,11 @@ pub mod monoid;
 /// Traits for data structures and operations.
 pub mod semigroup;
 pub mod traversable;
+
+pub mod alternative;
+pub mod distributive;
+pub mod divisible;
+pub mod iso;
+pub mod natural_transformation;
+pub mod profunctor;
+pub mod representable;

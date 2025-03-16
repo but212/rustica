@@ -15,7 +15,7 @@ To get started with Rustica, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.4.0"
+rustica = "0.5.3"
 ```
 
 Then import the prelude to get access to the most commonly used types and traits:
@@ -37,7 +37,7 @@ use rustica::datatypes::maybe::Maybe;
 use rustica::traits::functor::Functor;
 
 let just_five = Maybe::Just(5);
-let doubled = just_five.fmap(&|x| x * 2);  // Maybe::Just(10)
+let doubled = just_five.fmap(|x| x * 2);  // Maybe::Just(10)
 ```
 
 ### Applicative
@@ -50,7 +50,7 @@ use rustica::traits::applicative::Applicative;
 
 let valid1: Validated<&str, i32> = Validated::valid(5);
 let valid2: Validated<&str, i32> = Validated::valid(10);
-let combined = valid1.lift2(&valid2, &|a, b| a + b);  // Validated::Valid(15)
+let combined = valid1.lift2(&valid2, |a, b| a + b);  // Validated::Valid(15)
 ```
 
 ### Monad
@@ -63,8 +63,8 @@ use rustica::traits::monad::Monad;
 
 let right: Either<&str, i32> = Either::right(5);
 let result = right
-    .bind(&|x| Either::right(x + 1))
-    .bind(&|x| Either::right(x * 2));  // Either::Right(12)
+    .bind(|x| Either::right(x + 1))
+    .bind(|x| Either::right(x * 2));  // Either::Right(12)
 ```
 
 ## Core Data Types
@@ -103,6 +103,35 @@ use rustica::datatypes::validated::Validated;
 let valid: Validated<&str, i32> = Validated::valid(42);
 let invalid: Validated<&str, i32> = Validated::invalid("validation error");
 ```
+
+### Choice
+
+`Choice<T>` represents a value with multiple alternatives. It contains a primary value (the first value) and a collection of alternatives. This is useful for scenarios where you need to maintain multiple options while focusing on a primary one.
+
+```rust
+use rustica::datatypes::choice::Choice;
+
+// Create a choice with a primary value and alternatives
+let choice = Choice::new(1, vec![2, 3, 4]);
+
+// Access the primary value
+assert_eq!(choice.first(), Some(&1));
+
+// Transform all values using the Functor trait
+let doubled = choice.fmap(|x| x * 2);
+assert_eq!(doubled.first(), Some(&2));
+
+// Filter alternatives based on a predicate
+let even_only = choice.filter(|x| x % 2 == 0);
+
+// Change the primary value
+let with_new_first = choice.change_first(10);
+
+// Swap the primary value with an alternative
+let swapped = choice.swap_with_alternative(1);
+```
+
+The `Choice` type provides an elegant way to work with collections where one element has special significance, while maintaining the functional programming principles of immutability and explicit transformations.
 
 ## License
 

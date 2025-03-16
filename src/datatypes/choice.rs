@@ -86,7 +86,7 @@ use std::marker::PhantomData;
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
-    values: SmallVec<[T; 4]>,
+    values: SmallVec<[T; 8]>,
     phantom: PhantomData<T>,
 }
 
@@ -1472,7 +1472,7 @@ impl<T: Clone + Default> Monoid for Choice<T> {
 
 impl<T> IntoIterator for Choice<T> {
     type Item = T;
-    type IntoIter = smallvec::IntoIter<[T; 4]>;
+    type IntoIter = smallvec::IntoIter<[T; 8]>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.values.into_iter()

@@ -56,13 +56,6 @@ pub trait MonadTransformer {
     ///
     /// A transformed monad containing the lifted value
     fn lift(base: Self::BaseMonad) -> Self;
-
-    /// Unwraps the transformer to get the underlying base monad.
-    ///
-    /// # Returns
-    ///
-    /// The base monad value
-    fn unwrap(self) -> Self::BaseMonad;
 }
 
 /// Lifts a value from a base monad into a monad transformer.
@@ -87,28 +80,4 @@ where
     T: MonadTransformer<BaseMonad = M>,
 {
     T::lift(m)
-}
-
-/// Runs a transformer monad to extract the base monad.
-///
-/// This function provides a convenient way to unwrap a transformer monad
-/// and get the base monad.
-///
-/// # Type Parameters
-///
-/// * `T` - The monad transformer type
-/// * `M` - The base monad type
-///
-/// # Parameters
-///
-/// * `t` - A value in the transformer monad
-///
-/// # Returns
-///
-/// The underlying value in the base monad
-pub fn run<T, M>(t: T) -> M
-where
-    T: MonadTransformer<BaseMonad = M>,
-{
-    t.unwrap()
 }
