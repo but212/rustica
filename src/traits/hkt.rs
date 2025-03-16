@@ -237,11 +237,6 @@ impl<T> HKT for Box<T> {
     type Output<U> = Box<U>;
 }
 
-impl<T> HKT for std::marker::PhantomData<T> {
-    type Source = T;
-    type Output<U> = std::marker::PhantomData<U>;
-}
-
 /// A phantom type used to represent a higher-kinded type at the type level.
 ///
 /// This struct is useful for type-level programming with higher-kinded types.

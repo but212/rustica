@@ -525,7 +525,7 @@ impl<T> FunctorExt for Option<T> {
     }
 }
 
-impl<T, E: Debug> FunctorExt for Result<T, E>
+impl<T, E: std::fmt::Debug> FunctorExt for Result<T, E>
 where
     E: Clone + Default,
 {
@@ -574,64 +574,6 @@ where
     }
 }
 
-use std::{fmt::Debug, marker::PhantomData};
-
-/// PhantomData implementation of Functor, does nothing but satisfies trait bounds for Zero-cost abstractions
-impl<T> Functor for PhantomData<T> {
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn fmap<B, F>(&self, _f: F) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> B,
-        B: Clone,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn fmap_owned<B, F>(self, _f: F) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
-        B: Clone,
-        Self: Sized,
-    {
-        PhantomData
-    }
-}
-
-/// PhantomData implementation of FunctorExt, does nothing but satisfies trait bounds for Zero-cost abstractions
-impl<T> FunctorExt for PhantomData<T> {
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn filter_map<B, F>(&self, _f: F) -> Self::Output<B>
-    where
-        F: FnOnce(&Self::Source) -> Option<B>,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn try_map_or<B, E, F>(&self, _default: B, _f: F) -> Self::Output<B>
-    where
-        F: FnOnce(&Self::Source) -> Result<B, E>,
-        B: Clone,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn try_map_or_else<B, E, D, F>(&self, _default_fn: D, _f: F) -> Self::Output<B>
-    where
-        F: FnOnce(&Self::Source) -> Result<B, E>,
-        D: Fn(&E) -> B,
-    {
-        PhantomData
-    }
-}
-
 impl<T> Functor for Option<T> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
@@ -653,7 +595,7 @@ impl<T> Functor for Option<T> {
     }
 }
 
-impl<A, E: Debug + Clone> Functor for Result<A, E> {
+impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where

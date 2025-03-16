@@ -19,7 +19,7 @@
 ### Testing
 - [ ] Add comprehensive test suite for all monads
 - [ ] Create test utilities for common testing patterns
-- [ ] Add benchmarks for performance critical operations
+- [x] Add benchmarks for performance critical operations
 - [ ] Implement regression tests for known edge cases
 
 ## Documentation Improvements

@@ -233,21 +233,6 @@ impl<T> Pure for Box<T> {
     }
 }
 
-/// PhantomData implementation of Pure, does nothing but satisfies trait bounds for Zero-cost abstractions
-impl<T> Pure for PhantomData<T> {
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn pure<U: Clone>(_value: &U) -> Self::Output<U> {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn pure_owned<U>(_value: U) -> Self::Output<U> {
-        PhantomData
-    }
-}
-
 /// Extension trait providing a more ergonomic way to use Pure.
 ///
 /// This trait allows calling methods like `to_pure` directly on values, making it more

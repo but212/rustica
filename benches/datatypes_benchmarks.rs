@@ -4,20 +4,20 @@ use rustica::datatypes::maybe::Maybe;
 use rustica::datatypes::validated::Validated;
 use rustica::traits::functor::Functor;
 use rustica::traits::monad::Monad;
-use rustica::traits::monoid::Monoid;
 use rustica::traits::semigroup::Semigroup;
 use smallvec::smallvec;
-
-#[cfg(feature = "advanced")]
-use rustica::datatypes::writer::Writer;
-
-#[cfg(feature = "advanced")]
-use rustica::datatypes::reader::Reader;
+use std::sync::Arc;
 
 #[cfg(feature = "async")]
 use rustica::datatypes::async_monad::AsyncM;
-#[cfg(feature = "async")]
-use std::sync::Arc;
+#[cfg(feature = "advanced")]
+use rustica::datatypes::choice::Choice;
+#[cfg(feature = "advanced")]
+use rustica::datatypes::cont::Cont;
+#[cfg(feature = "advanced")]
+use rustica::datatypes::state::State;
+#[cfg(feature = "advanced")]
+use rustica::datatypes::state::{get, put};
 #[cfg(feature = "async")]
 use tokio::runtime::Runtime;
 
@@ -223,166 +223,67 @@ fn async_monad_benchmarks(c: &mut Criterion) {
     size_group.finish();
 }
 
-#[cfg(not(feature = "async"))]
-fn async_monad_benchmarks(_: &mut Criterion) {
-    // Empty implementation when async feature is not enabled
-}
-
 #[cfg(feature = "advanced")]
-fn reader_benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Reader Operations");
+fn cont_benchmarks(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Cont Operations");
 
-    // Simple environment for testing
-    #[derive(Clone)]
-    struct TestEnv {
-        value: i32,
-        multiplier: i32,
-    }
-
-    // Benchmark Reader creation
-    group.bench_function("reader_new", |b| {
-        b.iter(|| black_box(Reader::new(|env: TestEnv| env.value * env.multiplier)));
+    // Benchmark cont creation
+    group.bench_function("cont_return_cont", |b| {
+        b.iter(|| black_box(Cont::<i32, i32>::return_cont(10)));
     });
 
-    // Benchmark Reader::ask (getting the environment)
-    group.bench_function("reader_ask", |b| {
-        b.iter(|| black_box(Reader::<TestEnv, TestEnv>::ask()));
+    // Benchmark cont running with identity
+    group.bench_function("cont_run_identity", |b| {
+        let cont = Cont::<i32, i32>::return_cont(10);
+        b.iter(|| black_box(cont.clone().run(|x| x)));
     });
 
-    // Benchmark Reader::asks (transforming the environment)
-    group.bench_function("reader_asks", |b| {
-        b.iter(|| black_box(Reader::<TestEnv, i32>::asks(|env| env.value)));
+    // Benchmark cont running with transformation
+    group.bench_function("cont_run_transform", |b| {
+        let cont = Cont::<i32, i32>::return_cont(10);
+        b.iter(|| black_box(cont.clone().run(|x| x * 2)));
     });
 
-    // Benchmark Reader::fmap (mapping over results)
-    group.bench_function("reader_fmap", |b| {
-        let reader = Reader::new(|env: TestEnv| env.value);
-        b.iter(|| black_box(reader.fmap(|x| x.to_string())));
+    // Benchmark cont mapping
+    group.bench_function("cont_fmap", |b| {
+        let cont = Cont::<i32, i32>::return_cont(10);
+        b.iter(|| black_box(cont.clone().fmap(|x| x * 2)));
     });
 
-    // Benchmark Reader::bind (chaining readers)
-    group.bench_function("reader_bind", |b| {
-        let reader = Reader::new(|env: TestEnv| env.value);
+    // Benchmark cont binding (monadic composition)
+    group.bench_function("cont_bind", |b| {
+        let cont = Cont::<i32, i32>::return_cont(10);
         b.iter(|| {
-            black_box(reader.bind(|value| Reader::new(move |env: TestEnv| value * env.multiplier)))
+            black_box(cont.clone().bind(std::sync::Arc::new(|x| {
+                Cont::<i32, i32>::return_cont(x * 2)
+            })))
         });
     });
 
-    // Benchmark Reader::local (modifying the environment)
-    group.bench_function("reader_local", |b| {
-        let reader = Reader::new(|env: TestEnv| env.value * env.multiplier);
-        b.iter(|| {
-            black_box(reader.local(|mut env| {
-                env.multiplier *= 2;
-                env
-            }))
-        });
+    // Benchmark cont_call_cc (capturing continuations)
+    group.bench_function("cont_call_cc", |b| {
+        let cont = Cont::<i32, i32>::return_cont(10);
+        b.iter(|| black_box(cont.clone().call_cc(|k| k(20))));
     });
 
-    // Benchmark Reader::combine (combining two readers)
-    group.bench_function("reader_combine", |b| {
-        let reader1 = Reader::new(|env: TestEnv| env.value);
-        let reader2 = Reader::new(|env: TestEnv| env.multiplier);
-        b.iter(|| black_box(reader1.combine(&reader2, |v, m| v * m)));
-    });
-
-    // Benchmark execution performance of a complex reader chain
-    group.bench_function("reader_complex_chain", |b| {
-        let env = TestEnv {
-            value: 10,
-            multiplier: 5,
-        };
-        let reader = Reader::new(|e: TestEnv| e.value)
-            .bind(|val| Reader::new(move |e: TestEnv| val + e.multiplier))
-            .fmap(|val| val * 2)
-            .local(|mut e| {
-                e.multiplier += 3;
-                e
-            });
-
-        b.iter(|| black_box(reader.run_reader(env.clone())));
-    });
-
-    group.finish();
-}
-
-#[cfg(feature = "advanced")]
-fn writer_benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Writer Operations");
-
-    // Define a simple log type for testing
-    #[derive(Clone, Debug, PartialEq)]
-    struct Log(Vec<String>);
-
-    impl Semigroup for Log {
-        fn combine(&self, other: &Self) -> Self {
-            let mut combined = self.0.clone();
-            combined.extend(other.0.clone());
-            Log(combined)
-        }
-
-        fn combine_owned(self, other: Self) -> Self {
-            let mut combined = self.0;
-            combined.extend(other.0);
-            Log(combined)
-        }
-    }
-
-    impl Monoid for Log {
-        fn empty() -> Self {
-            Log(Vec::new())
-        }
-    }
-
-    // Benchmark Writer creation
-    group.bench_function("writer_new", |b| {
-        b.iter(|| black_box(Writer::new(Log(vec!["Created value".to_string()]), 42)));
-    });
-
-    // Benchmark Writer::tell (creating a Writer with just a log)
-    group.bench_function("writer_tell", |b| {
-        b.iter(|| {
-            black_box(Writer::<Log, ()>::tell(Log(
-                vec!["Log message".to_string()],
-            )))
-        });
-    });
-
-    // Benchmark Writer::run (extracting value and log)
-    group.bench_function("writer_run", |b| {
-        let writer = Writer::new(Log(vec!["Log message".to_string()]), 42);
-        b.iter(|| black_box(writer.clone().run()));
-    });
-
-    // Benchmark Writer::fmap (mapping over the value)
-    group.bench_function("writer_fmap", |b| {
-        let writer = Writer::new(Log(vec!["Computed value".to_string()]), 42);
-        b.iter(|| black_box(writer.fmap(|x| x * 2)));
-    });
-
-    // Benchmark Writer::bind (chaining Writers)
-    group.bench_function("writer_bind", |b| {
-        let writer = Writer::new(Log(vec!["First log".to_string()]), 42);
-        b.iter(|| {
-            black_box(writer.bind(|value| {
-                Writer::new(Log(vec![format!("Processed value: {}", value)]), value * 2)
-            }))
-        });
-    });
-
-    // Benchmark complex chaining of Writer operations
-    group.bench_function("writer_complex_chain", |b| {
-        let writer = Writer::new(Log(vec!["Initial log".to_string()]), 10);
+    // Benchmark complex continuation chains
+    group.bench_function("cont_complex_chain", |b| {
+        let cont = Cont::<i32, i32>::return_cont(10);
         b.iter(|| {
             black_box(
-                writer
-                    .clone()
-                    .fmap(|x| x * 2)
-                    .bind(|value| Writer::new(Log(vec![format!("Doubled: {}", value)]), value + 5))
-                    .bind(|value| {
-                        Writer::new(Log(vec![format!("Added 5: {}", value)]), value.to_string())
-                    })
-                    .run(),
+                cont.clone()
+                    .bind(std::sync::Arc::new(|x| {
+                        Cont::<i32, i32>::return_cont(x + 5)
+                    }))
+                    .bind(std::sync::Arc::new(|x| {
+                        if x > 10 {
+                            Cont::<i32, i32>::return_cont(x * 2)
+                        } else {
+                            Cont::<i32, i32>::return_cont(x)
+                        }
+                    }))
+                    .fmap(|x| x.to_string())
+                    .run(|s| s.len() as i32),
             )
         });
     });
@@ -390,24 +291,105 @@ fn writer_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "advanced")]
+fn state_benchmarks(c: &mut Criterion) {
+    let mut group = c.benchmark_group("State Operations");
+
+    // Benchmark state creation and running with simple state
+    group.bench_function("state_creation_run", |b| {
+        b.iter(|| {
+            let state = State::pure(5);
+            black_box(state.run_state(10))
+        });
+    });
+
+    // Benchmark get and put operations
+    group.bench_function("state_get_put", |b| {
+        b.iter(|| {
+            let state = get::<i32>().bind(|s| put(s + 1));
+            black_box(state.run_state(5))
+        });
+    });
+
+    // Benchmark state mapping
+    group.bench_function("state_fmap", |b| {
+        let state = State::pure(5);
+        b.iter(|| black_box(state.clone().fmap(|x| x * 2).run_state(10)));
+    });
+
+    // Benchmark state binding
+    group.bench_function("state_bind", |b| {
+        let state = State::pure(5);
+        b.iter(|| black_box(state.clone().bind(|x| State::pure(x * 2)).run_state(10)));
+    });
+
+    // Benchmark complex state chain
+    group.bench_function("state_complex_chain", |b| {
+        b.iter(|| {
+            let state = get::<i32>()
+                .bind(|s| {
+                    State::pure(s * 2)
+                        .bind(|x| put(x + 5))
+                        .bind(|_| get::<i32>())
+                })
+                .fmap(|x| x + 1);
+
+            black_box(state.run_state(10))
+        });
+    });
+
+    group.finish();
+}
+
+#[cfg(feature = "advanced")]
+fn choice_benchmarks(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Choice Operations");
+
+    // Benchmark choice creation
+    group.bench_function("choice_creation", |b| {
+        b.iter(|| black_box(Choice::new(5, vec![])));
+    });
+
+    // Benchmark choice mapping
+    group.bench_function("choice_fmap", |b| {
+        let choice = Choice::new(5, vec![]);
+        b.iter(|| black_box(choice.fmap(|x| x * 2)));
+    });
+
+    // Benchmark choice binding
+    group.bench_function("choice_bind", |b| {
+        let choice = Choice::new(5, vec![]);
+        b.iter(|| black_box(choice.bind(|x| Choice::new(x * 2, vec![]))));
+    });
+
+    // Benchmark alternation between choices
+    group.bench_function("choice_alternation", |b| {
+        let first = Choice::new(5, vec![]);
+        let second = Choice::new(10, vec![]);
+        b.iter(|| black_box(first.combine(&second)));
+    });
+
+    // Benchmark combine operations on different choice variants
+    group.bench_function("choice_combine_operations", |b| {
+        b.iter(|| {
+            let first = Choice::new(5, vec![]);
+            let second = Choice::new(10, vec![]);
+            let result1 = first.clone().fmap(|x| x * 2); // Choice with first value 10
+            let result2 = second.clone().fmap(|x| x * 2); // Choice with first value 20
+            black_box((result1, result2))
+        });
+    });
+
+    group.finish();
+}
+
 #[cfg(not(feature = "async"))]
 #[cfg(not(feature = "advanced"))]
 criterion_group!(
     datatype_benches,
     maybe_benchmarks,
     id_benchmarks,
-    validated_benchmarks
-);
-
-#[cfg(not(feature = "async"))]
-#[cfg(feature = "advanced")]
-criterion_group!(
-    datatype_benches,
-    maybe_benchmarks,
-    id_benchmarks,
     validated_benchmarks,
-    reader_benchmarks,
-    writer_benchmarks
 );
 
 #[cfg(feature = "async")]
@@ -417,7 +399,19 @@ criterion_group!(
     maybe_benchmarks,
     id_benchmarks,
     validated_benchmarks,
-    async_monad_benchmarks
+    async_monad_benchmarks,
+);
+
+#[cfg(not(feature = "async"))]
+#[cfg(feature = "advanced")]
+criterion_group!(
+    datatype_benches,
+    maybe_benchmarks,
+    id_benchmarks,
+    validated_benchmarks,
+    cont_benchmarks,
+    state_benchmarks,
+    choice_benchmarks,
 );
 
 #[cfg(feature = "async")]
@@ -427,9 +421,10 @@ criterion_group!(
     maybe_benchmarks,
     id_benchmarks,
     validated_benchmarks,
-    reader_benchmarks,
-    writer_benchmarks,
-    async_monad_benchmarks
+    cont_benchmarks,
+    state_benchmarks,
+    choice_benchmarks,
+    async_monad_benchmarks,
 );
 
 criterion_main!(datatype_benches);

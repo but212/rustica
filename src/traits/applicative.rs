@@ -95,7 +95,6 @@
 //!
 use crate::traits::functor::Functor;
 use crate::traits::pure::Pure;
-use std::marker::PhantomData;
 
 /// A trait for applicative functors, which allow function application within a context.
 ///
@@ -694,85 +693,6 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
             (Err(e), _) => Err(e),
             (_, Err(e)) => Err(e),
         }
-    }
-}
-
-/// PhantomData implementation of Applicative, does nothing but satisfies trait bounds for Zero-cost abstractions
-impl<T> Applicative for PhantomData<T> {
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn apply<B, F>(&self, _: &Self::Output<F>) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> B,
-        B: Clone,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn lift2<B, C, F>(&self, _: &Self::Output<B>, _: F) -> Self::Output<C>
-    where
-        F: Fn(&Self::Source, &B) -> C,
-        Self::Source: Clone,
-        B: Clone,
-        C: Clone,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn lift3<B, C, D, F>(&self, _: &Self::Output<B>, _: &Self::Output<C>, _: F) -> Self::Output<D>
-    where
-        F: Fn(&Self::Source, &B, &C) -> D,
-        Self::Source: Clone,
-        B: Clone,
-        C: Clone,
-        D: Clone,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn apply_owned<B, F>(self, _: Self::Output<F>) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
-        Self: Sized,
-        B: Clone,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn lift2_owned<B, C, F>(self, _: Self::Output<B>, _: F) -> Self::Output<C>
-    where
-        F: Fn(Self::Source, B) -> C,
-        Self: Sized,
-        B: Clone,
-        C: Clone,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn lift3_owned<B, C, D, F>(
-        self,
-        _: Self::Output<B>,
-        _: Self::Output<C>,
-        _: F,
-    ) -> Self::Output<D>
-    where
-        F: Fn(Self::Source, B, C) -> D,
-        Self: Sized,
-        B: Clone,
-        C: Clone,
-        D: Clone,
-    {
-        PhantomData
     }
 }
 

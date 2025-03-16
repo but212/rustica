@@ -79,7 +79,6 @@
 //!
 
 use crate::traits::applicative::Applicative;
-use std::marker::PhantomData;
 
 /// A trait for monads, which are applicative functors that support sequencing of operations.
 ///
@@ -281,48 +280,6 @@ pub trait Monad: Applicative {
             Ok(m) => m,
             Err(_) => Self::pure(default),
         })
-    }
-}
-
-/// PhantomData implementation of Monad, does nothing but satisfies trait bounds for Zero-cost abstractions
-impl<T> Monad for PhantomData<T> {
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn join<U>(&self) -> Self::Output<U>
-    where
-        Self::Source: Clone + Into<Self::Output<U>>,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn bind<U, F>(&self, _: F) -> Self::Output<U>
-    where
-        F: Fn(&Self::Source) -> Self::Output<U>,
-        Self::Source: Clone,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn bind_owned<U, F>(self, _: F) -> Self::Output<U>
-    where
-        F: Fn(Self::Source) -> Self::Output<U>,
-        Self: Sized,
-    {
-        PhantomData
-    }
-
-    /// does nothing but satisfies trait bounds
-    #[inline]
-    fn join_owned<U>(self) -> Self::Output<U>
-    where
-        Self::Source: Into<Self::Output<U>>,
-        Self: Sized,
-    {
-        PhantomData
     }
 }
 

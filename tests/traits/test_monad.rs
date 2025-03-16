@@ -4,7 +4,6 @@ use rustica::traits::functor::Functor;
 use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 use rustica::traits::pure::Pure;
-use std::marker::PhantomData;
 
 // Test basic Monad methods on Option
 #[test]
@@ -97,26 +96,6 @@ fn test_result_monad_methods() {
     // Test map_and_pure method
     assert_eq!(ok_value.map_and_pure(|x| x * 2), Ok(84));
     assert_eq!(err_value.map_and_pure(|x| x * 2), Err("error"));
-}
-
-// Test PhantomData Monad implementation
-#[test]
-fn test_phantom_data_monad() {
-    let phantom: PhantomData<i32> = PhantomData;
-
-    // PhantomData's methods all return PhantomData regardless of input
-    let result = phantom.bind(|_| PhantomData::<u32>);
-    let _: PhantomData<u32> = result;
-
-    let result = phantom.bind_owned(|_| PhantomData::<u32>);
-    let _: PhantomData<u32> = result;
-
-    let nested: PhantomData<PhantomData<i32>> = PhantomData;
-    let result = nested.join::<i32>();
-    let _: PhantomData<i32> = result;
-
-    let result = nested.join_owned::<i32>();
-    let _: PhantomData<i32> = result;
 }
 
 // Test Monad Laws

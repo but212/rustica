@@ -405,8 +405,7 @@ where
 
             let f_clone = f.clone();
             let result = f_clone(escape);
-            let k_final = k.clone();
-            result.run(move |b| k_final(b))
+            result.run(move |b| k(b))
         })
     }
 }

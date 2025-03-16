@@ -44,7 +44,7 @@ where
     F: Fn() -> T,
 {
     function: F,
-    _marker: PhantomData<T>,
+    phantom: PhantomData<T>,
 }
 
 impl<F, T> Thunk<F, T>
@@ -64,7 +64,7 @@ where
     pub fn new(f: F) -> Self {
         Thunk {
             function: f,
-            _marker: PhantomData,
+            phantom: PhantomData,
         }
     }
 }

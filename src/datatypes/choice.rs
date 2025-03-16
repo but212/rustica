@@ -40,7 +40,7 @@
 //!
 //! // Map over all values using the Functor instance
 //! let doubled: Choice<i32> = c.fmap(|x: &i32| x * 2);
-//! assert_eq!(*doubled.first(), 10);
+//! assert_eq!(*doubled.first().unwrap(), 10);
 //! assert_eq!(doubled.alternatives(), &[20, 30, 40]);
 //! ```
 //!
@@ -55,7 +55,11 @@ use crate::traits::{
     applicative::Applicative, functor::Functor, hkt::HKT, identity::Identity, monad::Monad,
     monoid::Monoid, pure::Pure, semigroup::Semigroup,
 };
+use smallvec::{smallvec, SmallVec};
+use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
+use std::hash::Hash;
+use std::marker::PhantomData;
 
 /// A type representing a value with multiple alternatives.
 ///
@@ -77,13 +81,13 @@ use std::fmt::{Debug, Display, Formatter};
 /// use rustica::datatypes::choice::Choice;
 ///
 /// let choice = Choice::new(1, vec![2, 3, 4]);
-/// assert_eq!(*choice.value(), 1);
+/// assert_eq!(*choice.first().unwrap(), 1);
 /// assert_eq!(choice.alternatives().len(), 3);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
-    /// A vector of values.
-    values: Vec<T>,
+    values: SmallVec<[T; 4]>,
+    phantom: PhantomData<T>,
 }
 
 impl<T> Choice<T> {
@@ -104,14 +108,39 @@ impl<T> Choice<T> {
     /// use rustica::datatypes::choice::Choice;
     ///
     /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// assert_eq!(*choice.first(), 1);
-    /// assert_eq!(choice.alternatives(), &vec![2, 3, 4]);
+    /// assert_eq!(*choice.first().unwrap(), 1);
+    /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
     /// ```
+    #[inline]
     pub fn new(first: T, alternatives: Vec<T>) -> Self {
-        let mut values = Vec::with_capacity(alternatives.len() + 1);
+        let mut values = SmallVec::with_capacity(alternatives.len() + 1);
         values.push(first);
         values.extend(alternatives);
-        Self { values }
+        Self {
+            values,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Creates a new empty `Choice`.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` instance with no values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let empty_choice: Choice<i32> = Choice::new_empty();
+    /// assert!(empty_choice.is_empty());
+    /// ```
+    pub fn new_empty() -> Self {
+        Self {
+            values: SmallVec::new(),
+            phantom: PhantomData,
+        }
     }
 
     /// Returns a reference to the primary value.
@@ -126,10 +155,11 @@ impl<T> Choice<T> {
     /// use rustica::datatypes::choice::Choice;
     ///
     /// let choice = Choice::new(42, vec![1, 2, 3]);
-    /// assert_eq!(*choice.first(), 42);
+    /// assert_eq!(*choice.first().unwrap(), 42);
     /// ```
-    pub fn first(&self) -> &T {
-        &self.values[0]
+    #[inline]
+    pub fn first(&self) -> Option<&T> {
+        self.values.first()
     }
 
     /// Returns a reference to the vector of alternative values.
@@ -146,6 +176,7 @@ impl<T> Choice<T> {
     /// let choice = Choice::new(1, vec![2, 3, 4]);
     /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
     /// ```
+    #[inline]
     pub fn alternatives(&self) -> &[T] {
         &self.values[1..]
     }
@@ -167,6 +198,7 @@ impl<T> Choice<T> {
     /// let choice_without_alternatives = Choice::new(1, vec![]);
     /// assert!(!choice_without_alternatives.has_alternatives());
     /// ```
+    #[inline]
     pub fn has_alternatives(&self) -> bool {
         self.values.len() > 1
     }
@@ -185,12 +217,68 @@ impl<T> Choice<T> {
     /// let choice = Choice::new(42, vec![1, 2, 3]);
     /// assert_eq!(choice.len(), 4); // Primary value + 3 alternatives
     /// ```
+    #[inline]
     pub fn len(&self) -> usize {
         self.values.len()
     }
 
+    /// Checks if the `Choice` is empty (contains no values).
+    ///
+    /// # Returns
+    ///
+    /// `true` if the `Choice` contains no values, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let empty_choice: Choice<i32> = Choice::new_empty();
+    ///
+    /// assert!(empty_choice.is_empty());
+    ///
+    /// let non_empty_choice = Choice::new(1, vec![2, 3]);
+    /// assert!(!non_empty_choice.is_empty());
+    /// ```
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    /// Changes the primary value of the `Choice`.
+    ///
+    /// This method creates a new `Choice` instance with the new primary value
+    /// and all existing alternatives.
+    ///
+    /// # Arguments
+    ///
+    /// * `first` - A reference to the new primary value of type `T`.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` instance with the updated primary value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3]);
+    /// let changed = choice.change_first(&42);
+    ///
+    /// assert_eq!(*changed.first().unwrap(), 42);
+    /// assert_eq!(changed.alternatives(), &[2, 3]);
+    /// ```
+    pub fn change_first(&self, first: &T) -> Self
+    where
+        T: Clone,
+    {
+        let mut new_values = self.values.clone();
+        new_values[0] = first.clone();
+        Self {
+            values: new_values,
+            phantom: PhantomData,
+        }
     }
 
     /// Adds a new alternative to the `Choice`.
@@ -214,7 +302,7 @@ impl<T> Choice<T> {
     /// let choice = Choice::new(1, vec![2, 3]);
     /// let new_choice = choice.add_alternative(&4);
     ///
-    /// assert_eq!(*new_choice.first(), 1);
+    /// assert_eq!(*new_choice.first().unwrap(), 1);
     /// assert_eq!(new_choice.alternatives(), &[2, 3, 4]);
     /// ```
     pub fn add_alternative(&self, item: &T) -> Self
@@ -223,7 +311,42 @@ impl<T> Choice<T> {
     {
         let mut new_values = self.values.clone();
         new_values.push(item.clone());
-        Self { values: new_values }
+        Self {
+            values: new_values,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Adds multiple new alternatives to the `Choice`, consuming the original.
+    ///
+    /// This method creates a new `Choice` instance with the same primary value
+    /// and all existing alternatives, plus the new items as additional alternatives.
+    ///
+    /// # Arguments
+    ///
+    /// * `items` - An iterator of values of type `T` to be added as new alternatives.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` instance with the added alternatives.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3]);
+    /// let new_choice = choice.add_alternatives_owned(vec![4, 5]);
+    ///
+    /// assert_eq!(*new_choice.first().unwrap(), 1);
+    /// assert_eq!(new_choice.alternatives(), &[2, 3, 4, 5]);
+    /// ```
+    pub fn add_alternatives_owned<I>(mut self, items: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        self.values.extend(items);
+        self
     }
 
     /// Removes an alternative at the specified index and returns a new `Choice`.
@@ -248,7 +371,7 @@ impl<T> Choice<T> {
     /// let choice = Choice::new(1, vec![2, 3, 4]);
     /// let new_choice = choice.remove_alternative(1);
     ///
-    /// assert_eq!(*new_choice.first(), 1);
+    /// assert_eq!(*new_choice.first().unwrap(), 1);
     /// assert_eq!(new_choice.alternatives(), &[2, 4]);
     /// ```
     pub fn remove_alternative(&self, index: usize) -> Self
@@ -262,7 +385,50 @@ impl<T> Choice<T> {
 
         let mut new_values = self.values.clone();
         new_values.remove(index + 1); // +1 because alternatives start at index 1
-        Self { values: new_values }
+        Self {
+            values: new_values,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Filters the alternatives based on a predicate.
+    ///
+    /// # Arguments
+    ///
+    /// * `predicate` - A function that takes a reference to an alternative and returns a boolean.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice` with only the alternatives that satisfy the predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4, 5]);
+    /// let filtered = choice.filter(|x| x % 2 == 0);
+    ///
+    /// assert_eq!(*filtered.first().unwrap(), 1);
+    /// assert_eq!(filtered.alternatives(), &[2, 4]);
+    /// ```
+    pub fn filter<P>(&self, predicate: P) -> Self
+    where
+        T: Clone,
+        P: Fn(&T) -> bool,
+    {
+        if let Some(first) = self.first() {
+            let first = first.clone();
+            let alternatives = self
+                .alternatives()
+                .iter()
+                .filter(|item| predicate(item))
+                .cloned()
+                .collect::<Vec<_>>();
+            Self::new(first, alternatives)
+        } else {
+            Self::new_empty()
+        }
     }
 
     /// Finds the index of a given value in the alternatives.
@@ -309,7 +475,7 @@ impl<T> Choice<T> {
     /// let choice = Choice::new(1, vec![2, 3, 4]);
     /// let doubled = choice.map_alternatives(|&x| x * 2);
     ///
-    /// assert_eq!(*doubled.first(), 2);
+    /// assert_eq!(*doubled.first().unwrap(), 2);
     /// assert_eq!(doubled.alternatives(), &[4, 6, 8]);
     /// ```
     pub fn map_alternatives<F, U>(&self, f: F) -> Choice<U>
@@ -318,6 +484,7 @@ impl<T> Choice<T> {
     {
         Choice {
             values: self.values.iter().map(f).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -348,7 +515,7 @@ impl<T> Choice<T> {
     /// let nested = Choice::new(vec![1, 2], vec![vec![3, 4], vec![5]]);
     /// let flattened = nested.flatten();
     ///
-    /// assert_eq!(*flattened.first(), 1);
+    /// assert_eq!(*flattened.first().unwrap(), 1);
     /// assert_eq!(flattened.alternatives(), &[2, 3, 4, 5]);
     /// ```
     pub fn flatten<I>(&self) -> Choice<I>
@@ -369,6 +536,7 @@ impl<T> Choice<T> {
         let first = all_items.remove(0);
         Choice {
             values: std::iter::once(first).chain(all_items).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -401,26 +569,66 @@ impl<T> Choice<T> {
 
         Self {
             values: std::iter::once(first).chain(values).collect(),
+            phantom: PhantomData,
         }
     }
 
-    /// Creates a new `Choice` from a primary value and any iterable of alternatives.
+    /// Creates a new `Choice` from a primary value and an iterable of alternatives.
+    ///
+    /// # Arguments
+    ///
+    /// * `first` - A value of type `T` to be used as the primary value
+    /// * `alternatives` - An iterable containing items of type `T` to be used as alternatives
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` instance containing the primary value and alternatives
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::of_many(1, vec![2, 3, 4]);
+    /// assert_eq!(*choice.first().unwrap(), 1);
+    /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
+    /// ```
     pub fn of_many(first: T, alternatives: impl IntoIterator<Item = T>) -> Self {
         Self {
             values: std::iter::once(first).chain(alternatives).collect(),
+            phantom: PhantomData,
         }
     }
 
-    /// Creates a new `Choice` from an iterator, taking the first element as the primary value.
+    /// Creates a new `Choice` from an iterator, if the iterator is non-empty.
     ///
-    /// Returns `None` if the iterator is empty.
+    /// # Arguments
+    ///
+    /// * `iter` - An iterator yielding items of type `T`
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Choice<T>)` if the iterator is non-empty, with the first item as the primary value
+    /// * `None` if the iterator is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::from_iterator(vec![1, 2, 3]);
+    /// assert!(choice.is_some());
+    /// assert_eq!(*choice.unwrap().first().unwrap(), 1);
+    ///
+    /// let empty: Option<Choice<i32>> = Choice::from_iterator(Vec::<i32>::new());
+    /// assert!(empty.is_none());
+    /// ```
     pub fn from_iterator(iter: impl IntoIterator<Item = T>) -> Option<Self> {
-        let values: Vec<T> = iter.into_iter().collect();
-        if values.is_empty() {
-            None
-        } else {
-            Some(Self { values })
-        }
+        let mut iter = iter.into_iter();
+        iter.next().map(|first| Self {
+            values: std::iter::once(first).chain(iter).collect(),
+            phantom: PhantomData,
+        })
     }
 
     /// Organizes alternatives in order using a `BTreeSet`.
@@ -444,12 +652,12 @@ impl<T> Choice<T> {
     /// use rustica::datatypes::choice::Choice;
     ///
     /// let choice = Choice::new(5, vec![3, 1, 4, 1, 2]);
-    /// let ordered = choice.ordered_alternatives();
+    /// let ordered = choice.with_ordered_alternatives();
     ///
-    /// assert_eq!(*ordered.first(), 5);
+    /// assert_eq!(*ordered.first().unwrap(), 5);
     /// assert_eq!(ordered.alternatives(), &[1, 2, 3, 4]);
     /// ```
-    pub fn ordered_alternatives(&self) -> Self
+    pub fn with_ordered_alternatives(&self) -> Self
     where
         T: Ord + Clone,
     {
@@ -466,64 +674,317 @@ impl<T> Choice<T> {
         // Create a new Choice with the ordered alternatives
         Self {
             values: std::iter::once(first).chain(set).collect(),
+            phantom: PhantomData,
         }
     }
-}
 
-impl<T: Clone + PartialEq> Choice<T> {
-    /// Combines `self` with another `Choice`, preserving both sets of values.
+    /// Consumes the `Choice` and returns a new one with ordered and unique alternatives.
     ///
-    /// This operation combines the values from `self` and `other` to create a new
-    /// `Choice` instance that includes all values from both choices.
+    /// This method creates a new `Choice` with the same primary value but with
+    /// alternatives ordered and deduplicated according to their natural order.
+    /// The alternatives are stored in a `BTreeSet` internally and then converted
+    /// back to a `Vec` for the resulting `Choice`.
     ///
-    /// # Arguments
+    /// # Type Parameters
     ///
-    /// * `other` - Another `Choice<T>` to combine with `self`.
+    /// * `T`: The type must implement `Ord` for ordering and `Clone` for creating a new `Choice`.
     ///
     /// # Returns
     ///
-    /// A new `Choice<T>` containing all the values from both `self` and `other`.
+    /// A new `Choice<T>` with ordered and deduplicated alternatives.
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```
     /// use rustica::datatypes::choice::Choice;
     ///
-    /// let a = Choice::new(1, vec![2, 3]);
-    /// let b = Choice::new(4, vec![5, 6]);
-    /// let combined = a.combine(&b);
+    /// let choice = Choice::new(5, vec![3, 1, 4, 1, 2]);
+    /// let ordered = choice.with_ordered_alternatives_owned();
     ///
-    /// assert_eq!(combined.first(), &1);
-    /// assert_eq!(combined.alternatives().len(), 5);
-    /// assert!(combined.alternatives().contains(&2));
-    /// assert!(combined.alternatives().contains(&3));
-    /// assert!(combined.alternatives().contains(&4));
-    /// assert!(combined.alternatives().contains(&5));
-    /// assert!(combined.alternatives().contains(&6));
+    /// assert_eq!(*ordered.first().unwrap(), 5);
+    /// assert_eq!(ordered.alternatives(), &[1, 2, 3, 4]);
     /// ```
-    pub fn combine(&self, other: &Self) -> Self {
-        // Clone everything to avoid moved value issues
-        let first = self.values[0].clone();
-        let alternatives = self.values[1..].to_vec();
-        let b_first = other.values[0].clone();
-        let b_alternatives = other.values[1..].to_vec();
+    pub fn with_ordered_alternatives_owned(self) -> Self
+    where
+        T: Ord + Clone,
+    {
+        use std::collections::BTreeSet;
 
-        let mut result_alternatives = alternatives;
+        let first = self.clone().values.into_iter().next().unwrap();
+        let mut set = BTreeSet::new();
 
-        // Add b.first to alternatives if it's not already in alternatives
-        if !result_alternatives.contains(&b_first) {
-            result_alternatives.push(b_first);
-        }
-
-        // Add b.alternatives to alternatives if they're not already in alternatives
-        for alt in b_alternatives {
-            if !result_alternatives.contains(&alt) {
-                result_alternatives.push(alt);
-            }
+        for value in self.values.into_iter().skip(1) {
+            set.insert(value);
         }
 
         Self {
-            values: std::iter::once(first).chain(result_alternatives).collect(),
+            values: std::iter::once(first).chain(set).collect(),
+            phantom: PhantomData,
+        }
+    }
+
+    /// Returns a new `Choice` with unique alternatives, preserving the primary value.
+    ///
+    /// This method creates a new `Choice` with the same primary value but with
+    /// deduplicated alternatives. The alternatives are stored in a `HashSet` internally
+    /// and then converted back to a `Vec` for the resulting `Choice`.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T`: The type must implement `Hash`, `Eq`, and `Clone`.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` with deduplicated alternatives.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 2, 4, 3]);
+    /// let unique = choice.with_unique_alternatives();
+    ///
+    /// assert_eq!(*unique.first().unwrap(), 1);
+    /// assert_eq!(unique.alternatives().len(), 3);
+    /// ```
+    pub fn with_unique_alternatives(&self) -> Self
+    where
+        T: Hash + Eq + Clone,
+    {
+        let first = self.values[0].clone();
+        let set: HashSet<_> = self.values.iter().skip(1).cloned().collect();
+
+        Self {
+            values: std::iter::once(first).chain(set).collect(),
+            phantom: PhantomData,
+        }
+    }
+
+    /// Consumes the `Choice` and returns a new one with unique alternatives.
+    ///
+    /// This method creates a new `Choice` with the same primary value but with
+    /// deduplicated alternatives. The alternatives are stored in a `HashSet` internally
+    /// and then converted back to a `Vec` for the resulting `Choice`.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T`: The type must implement `Hash`, `Eq`, and `Clone`.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` with deduplicated alternatives.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 2, 4, 3]);
+    /// let unique = choice.with_unique_alternatives_owned();
+    ///
+    /// assert_eq!(*unique.first().unwrap(), 1);
+    /// assert_eq!(unique.alternatives().len(), 3);
+    /// ```
+    pub fn with_unique_alternatives_owned(self) -> Self
+    where
+        T: Hash + Eq + Clone,
+    {
+        let first = self.clone().values.into_iter().next().unwrap();
+        let set: HashSet<_> = self.values.into_iter().skip(1).collect();
+
+        Self {
+            values: std::iter::once(first).chain(set).collect(),
+            phantom: PhantomData,
+        }
+    }
+
+    /// Replaces the primary value with an alternative at the specified index,
+    /// and moves the current primary value to alternatives.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The index of the alternative to promote (0-based, relative to the alternatives list).
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` with the primary value and specified alternative swapped.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the index is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// let swapped = choice.swap_with_alternative(1);
+    ///
+    /// assert_eq!(*swapped.first().unwrap(), 3);
+    /// assert_eq!(swapped.alternatives().contains(&1), true);
+    /// ```
+    pub fn swap_with_alternative(&self, index: usize) -> Self
+    where
+        T: Clone,
+    {
+        assert!(
+            index < self.values.len() - 1,
+            "Alternative index out of bounds"
+        );
+
+        let real_index = index + 1; // +1 because alternatives start at index 1
+        let old_first = self.values[0].clone();
+        let new_first = self.values[real_index].clone();
+
+        let mut new_values = self.values.clone();
+        new_values[0] = new_first;
+        new_values[real_index] = old_first;
+
+        Self {
+            values: new_values,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Consumes the `Choice` and swaps the primary value with an alternative at the specified index.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The index of the alternative to promote (0-based, relative to the alternatives list).
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` with the primary value and specified alternative swapped.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the index is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// let swapped = choice.swap_with_alternative_owned(1);
+    ///
+    /// assert_eq!(*swapped.first().unwrap(), 3);
+    /// assert_eq!(swapped.alternatives().contains(&1), true);
+    /// ```
+    pub fn swap_with_alternative_owned(self, index: usize) -> Self
+    where
+        T: Clone,
+    {
+        assert!(
+            index < self.values.len() - 1,
+            "Alternative index out of bounds"
+        );
+
+        let real_index = index + 1; // +1 because alternatives start at index 1
+        let old_first = self.values[0].clone();
+        let new_first = self.values[real_index].clone();
+
+        let mut new_values = self.values;
+        new_values[0] = new_first;
+        new_values[real_index] = old_first;
+
+        Self {
+            values: new_values,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Replaces all alternatives with the current primary value.
+    ///
+    /// This method creates a new `Choice` with the same primary value,
+    /// but with all alternatives replaced by copies of the primary value.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` where all alternatives are identical to the primary value.
+    /// If the choice is empty, returns an empty choice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(42, vec![1, 2, 3]);
+    /// let replaced = choice.replace_alternatives_with_first();
+    ///
+    /// assert_eq!(*replaced.first().unwrap(), 42);
+    /// assert_eq!(replaced.alternatives(), &[42, 42, 42]);
+    /// ```
+    #[inline]
+    pub fn replace_alternatives_with_first(&self) -> Self
+    where
+        T: Clone,
+    {
+        if let Some(first) = self.first() {
+            let first = first.clone();
+            let alt_count = self.alternatives().len();
+
+            let mut new_values = SmallVec::with_capacity(alt_count + 1);
+            new_values.push(first.clone());
+
+            for _ in 0..alt_count {
+                new_values.push(first.clone());
+            }
+
+            Self {
+                values: new_values,
+                phantom: PhantomData,
+            }
+        } else {
+            Self::new_empty()
+        }
+    }
+
+    /// Replaces all alternatives with the first value, consuming the original `Choice`.
+    ///
+    /// This method is similar to `replace_alternatives_with_first`, but it consumes
+    /// the original `Choice` instance.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<T>` where all alternatives are identical to the primary value.
+    /// If the choice is empty, returns an empty choice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(42, vec![1, 2, 3]);
+    /// let replaced = choice.replace_alternatives_with_first_owned();
+    ///
+    /// assert_eq!(*replaced.first().unwrap(), 42);
+    /// assert_eq!(replaced.alternatives(), &[42, 42, 42]);
+    /// ```
+    #[inline]
+    pub fn replace_alternatives_with_first_owned(self) -> Self
+    where
+        T: Clone,
+    {
+        if self.values.is_empty() {
+            return Self::new_empty();
+        }
+
+        let first = self.values[0].clone();
+        let alt_count = self.values.len() - 1;
+
+        let mut new_values = SmallVec::with_capacity(alt_count + 1);
+        new_values.push(first.clone());
+
+        for _ in 0..alt_count {
+            new_values.push(first.clone());
+        }
+
+        Self {
+            values: new_values,
+            phantom: PhantomData,
         }
     }
 }
@@ -535,17 +996,21 @@ impl<T> HKT for Choice<T> {
 
 impl<T> Identity for Choice<T> {
     fn value(&self) -> &Self::Source {
-        &self.values[0]
+        self.first().expect("Cannot get value from an empty Choice")
     }
 
     fn pure_identity<A>(value: A) -> Self::Output<A> {
         Choice {
-            values: vec![value],
+            values: smallvec![value],
+            phantom: PhantomData,
         }
     }
 
     fn into_value(self) -> Self::Source {
-        self.values.into_iter().next().unwrap()
+        self.values
+            .into_iter()
+            .next()
+            .expect("Cannot get value from an empty Choice")
     }
 }
 
@@ -556,6 +1021,7 @@ impl<T> Functor for Choice<T> {
     {
         Choice {
             values: self.values.iter().map(f).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -566,6 +1032,7 @@ impl<T> Functor for Choice<T> {
     {
         Choice {
             values: self.values.into_iter().map(f).collect(),
+            phantom: PhantomData,
         }
     }
 }
@@ -591,6 +1058,7 @@ impl<T: Clone> Monad for Choice<T> {
 
         Choice {
             values: std::iter::once(first_value).chain(alternatives).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -618,6 +1086,7 @@ impl<T: Clone> Monad for Choice<T> {
             values: std::iter::once(first_value)
                 .chain(result_alternatives)
                 .collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -640,6 +1109,7 @@ impl<T: Clone> Monad for Choice<T> {
 
         Choice {
             values: std::iter::once(first_value).chain(alternatives).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -662,6 +1132,7 @@ impl<T: Clone> Monad for Choice<T> {
 
         Choice {
             values: std::iter::once(first_value).chain(alternatives).collect(),
+            phantom: PhantomData,
         }
     }
 }
@@ -680,7 +1151,8 @@ impl<T> AsChoice<T> for Choice<T> {
 impl<T> Pure for Choice<T> {
     fn pure<A: Clone>(value: &A) -> Self::Output<A> {
         Choice {
-            values: vec![value.clone()],
+            values: smallvec![value.clone()],
+            phantom: PhantomData,
         }
     }
 }
@@ -690,29 +1162,37 @@ impl<T: Clone> Applicative for Choice<T> {
     where
         F: Fn(&Self::Source) -> B,
     {
-        let first_result = f.first()(&self.values[0]);
+        if self.is_empty() || f.is_empty() {
+            return Choice::new_empty();
+        }
+
+        let f_first = f.first().expect("f_first should not be None");
+        let self_first = self.first().expect("self_first should not be None");
+
+        let first_result = f_first(self_first);
 
         let mut alt_result = Vec::new();
 
         // Apply each function to the first value
         for f_alt in f.alternatives() {
-            alt_result.push(f_alt(&self.values[0]));
+            alt_result.push(f_alt(self_first));
         }
 
         // Apply the first function to each alternative
-        for alt in &self.values[1..] {
-            alt_result.push(f.first()(alt));
+        for self_alt in self.alternatives() {
+            alt_result.push(f_first(self_alt));
         }
 
-        // Apply each alternative function to each alternative value
-        for f_alt in f.alternatives() {
-            for alt in &self.values[1..] {
-                alt_result.push(f_alt(alt));
+        // Various combinations of values from a, b
+        for self_alt in self.alternatives() {
+            for f_alt in f.alternatives() {
+                alt_result.push(f_alt(self_alt));
             }
         }
 
         Choice {
             values: std::iter::once(first_result).chain(alt_result).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -724,7 +1204,9 @@ impl<T: Clone> Applicative for Choice<T> {
         let first = self.values[0].clone();
         let alternatives = self.values[1..].to_vec();
 
-        let first_result = f.first()(first.clone());
+        let f_first = f.first().expect("f_first should not be None");
+
+        let first_result = f_first(first.clone());
 
         let mut alt_result = Vec::new();
 
@@ -735,18 +1217,19 @@ impl<T: Clone> Applicative for Choice<T> {
 
         // Apply the first function to each alternative
         for alt in &alternatives {
-            alt_result.push(f.first()(alt.clone()));
+            alt_result.push(f_first(alt.clone()));
         }
 
-        // Apply each alternative function to each alternative value
-        for f_alt in f.alternatives() {
-            for alt in &alternatives {
+        // Various combinations of values from a, b
+        for alt in &alternatives {
+            for f_alt in f.alternatives() {
                 alt_result.push(f_alt(alt.clone()));
             }
         }
 
         Choice {
             values: std::iter::once(first_result).chain(alt_result).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -755,29 +1238,35 @@ impl<T: Clone> Applicative for Choice<T> {
         F: Fn(&Self::Source, &B) -> C,
         B: Clone,
     {
-        let first_result = f(&self.values[0], &b.values[0]);
+        if self.is_empty() || b.is_empty() {
+            return Choice::new_empty();
+        }
+
+        let self_first = self.first().expect("self_first should not be None");
+        let b_first = b.first().expect("b_first should not be None");
+
+        let first_result = f(self_first, b_first);
 
         let mut alt_result = Vec::new();
 
-        // Apply to first and each b alternative
-        for b_alt in &b.values[1..] {
-            alt_result.push(f(&self.values[0], b_alt));
+        // Various combinations of values from a, b
+        for b_alt in b.alternatives() {
+            alt_result.push(f(self_first, b_alt));
         }
 
-        // Apply to each self alternative and b first
-        for alt in &self.values[1..] {
-            alt_result.push(f(alt, &b.values[0]));
+        for self_alt in self.alternatives() {
+            alt_result.push(f(self_alt, b_first));
         }
 
-        // Apply to each self alternative and each b alternative
-        for alt in &self.values[1..] {
-            for b_alt in &b.values[1..] {
-                alt_result.push(f(alt, b_alt));
+        for self_alt in self.alternatives() {
+            for b_alt in b.alternatives() {
+                alt_result.push(f(self_alt, b_alt));
             }
         }
 
         Choice {
             values: std::iter::once(first_result).chain(alt_result).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -797,17 +1286,15 @@ impl<T: Clone> Applicative for Choice<T> {
 
         let mut alt_result = Vec::new();
 
-        // Apply to first and each b alternative
+        // Various combinations of values from a, b
         for b_alt in &b_alternatives {
             alt_result.push(f(first.clone(), b_alt.clone()));
         }
 
-        // Apply to each self alternative and b first
         for alt in &alternatives {
             alt_result.push(f(alt.clone(), b_first.clone()));
         }
 
-        // Apply to each self alternative and each b alternative
         for alt in &alternatives {
             for b_alt in &b_alternatives {
                 alt_result.push(f(alt.clone(), b_alt.clone()));
@@ -816,6 +1303,7 @@ impl<T: Clone> Applicative for Choice<T> {
 
         Choice {
             values: std::iter::once(first_result).chain(alt_result).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -826,44 +1314,52 @@ impl<T: Clone> Applicative for Choice<T> {
         C: Clone,
         Self::Source: Clone,
     {
-        let first_result = f(&self.values[0], &b.values[0], &c.values[0]);
+        if self.is_empty() || b.is_empty() || c.is_empty() {
+            return Choice::new_empty();
+        }
+
+        let self_first = self.first().expect("self_first should not be None");
+        let b_first = b.first().expect("b_first should not be None");
+        let c_first = c.first().expect("c_first should not be None");
+
+        let first_result = f(self_first, b_first, c_first);
 
         let mut alt_result = Vec::new();
 
         // Various combinations of values from a, b, c
-        for b_alt in &b.values[1..] {
-            alt_result.push(f(&self.values[0], b_alt, &c.values[0]));
+        for b_alt in b.alternatives() {
+            alt_result.push(f(self_first, b_alt, c_first));
         }
 
-        for c_alt in &c.values[1..] {
-            alt_result.push(f(&self.values[0], &b.values[0], c_alt));
+        for c_alt in c.alternatives() {
+            alt_result.push(f(self_first, b_first, c_alt));
         }
 
-        for a_alt in &self.values[1..] {
-            alt_result.push(f(a_alt, &b.values[0], &c.values[0]));
+        for a_alt in self.alternatives() {
+            alt_result.push(f(a_alt, b_first, c_first));
         }
 
-        for b_alt in &b.values[1..] {
-            for c_alt in &c.values[1..] {
-                alt_result.push(f(&self.values[0], b_alt, c_alt));
+        for b_alt in b.alternatives() {
+            for c_alt in c.alternatives() {
+                alt_result.push(f(self_first, b_alt, c_alt));
             }
         }
 
-        for a_alt in &self.values[1..] {
-            for b_alt in &b.values[1..] {
-                alt_result.push(f(a_alt, b_alt, &c.values[0]));
+        for a_alt in self.alternatives() {
+            for b_alt in b.alternatives() {
+                alt_result.push(f(a_alt, b_alt, c_first));
             }
         }
 
-        for a_alt in &self.values[1..] {
-            for c_alt in &c.values[1..] {
-                alt_result.push(f(a_alt, &b.values[0], c_alt));
+        for a_alt in self.alternatives() {
+            for c_alt in c.alternatives() {
+                alt_result.push(f(a_alt, b_first, c_alt));
             }
         }
 
-        for a_alt in &self.values[1..] {
-            for b_alt in &b.values[1..] {
-                for c_alt in &c.values[1..] {
+        for a_alt in self.alternatives() {
+            for b_alt in b.alternatives() {
+                for c_alt in c.alternatives() {
                     alt_result.push(f(a_alt, b_alt, c_alt));
                 }
             }
@@ -871,6 +1367,7 @@ impl<T: Clone> Applicative for Choice<T> {
 
         Choice {
             values: std::iter::once(first_result).chain(alt_result).collect(),
+            phantom: PhantomData,
         }
     }
 
@@ -939,6 +1436,7 @@ impl<T: Clone> Applicative for Choice<T> {
 
         Choice {
             values: std::iter::once(first_result).chain(alt_result).collect(),
+            phantom: PhantomData,
         }
     }
 }
@@ -949,25 +1447,32 @@ impl<T: Clone> Semigroup for Choice<T> {
         combined_values.extend(other.values.clone());
         Choice {
             values: combined_values,
+            phantom: PhantomData,
         }
     }
 
     fn combine_owned(self, other: Self) -> Self {
-        self.combine(&other)
+        let mut combined_values = self.values;
+        combined_values.extend(other.values);
+        Choice {
+            values: combined_values,
+            phantom: PhantomData,
+        }
     }
 }
 
 impl<T: Clone + Default> Monoid for Choice<T> {
     fn empty() -> Self {
         Choice {
-            values: vec![T::default()],
+            values: smallvec![T::default()],
+            phantom: PhantomData,
         }
     }
 }
 
 impl<T> IntoIterator for Choice<T> {
     type Item = T;
-    type IntoIter = std::vec::IntoIter<T>;
+    type IntoIter = smallvec::IntoIter<[T; 4]>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.values.into_iter()

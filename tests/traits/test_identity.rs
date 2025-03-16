@@ -2,7 +2,6 @@ use super::TestFunctor;
 use quickcheck_macros::quickcheck;
 use rustica::traits::functor::Functor;
 use rustica::traits::identity::{Identity, IdentityExt};
-use std::marker::PhantomData;
 
 // Test basic Identity methods on TestFunctor
 #[test]
@@ -63,37 +62,6 @@ fn test_result_identity_methods() {
     // Test pure_identity
     let created = Result::<i32, &str>::pure_identity(42);
     assert_eq!(created, Ok(42));
-}
-
-// Test PhantomData Identity implementation
-#[test]
-fn test_phantom_data_identity() {
-    // PhantomData's value() and into_value() methods actually panic
-    // We can't test them directly, but we can test pure_identity
-    // and verify that PhantomData is zero-sized
-
-    // Test pure_identity method
-    let created: PhantomData<i32> = PhantomData::<i32>::pure_identity(42);
-    // PhantomData is zero-sized regardless of what you put in
-    assert_eq!(std::mem::size_of::<PhantomData<i32>>(), 0);
-
-    // Verify that created is a PhantomData
-    let _: PhantomData<i32> = created;
-}
-
-// Test that PhantomData methods panic as expected
-#[test]
-#[should_panic(expected = "PhantomData does not contain a value")]
-fn test_phantom_data_value_panics() {
-    let phantom: PhantomData<i32> = PhantomData;
-    let _ = phantom.value(); // This should panic
-}
-
-#[test]
-#[should_panic(expected = "PhantomData does not contain a value")]
-fn test_phantom_data_into_value_panics() {
-    let phantom: PhantomData<i32> = PhantomData;
-    let _ = phantom.into_value(); // This should panic
 }
 
 // Test Identity Laws
