@@ -134,8 +134,10 @@ impl<T> Choice<T> {
     /// use rustica::datatypes::choice::Choice;
     ///
     /// let empty_choice: Choice<i32> = Choice::new_empty();
+    ///
     /// assert!(empty_choice.is_empty());
     /// ```
+    #[inline]
     pub fn new_empty() -> Self {
         Self {
             values: SmallVec::new(),
@@ -269,6 +271,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*changed.first().unwrap(), 42);
     /// assert_eq!(changed.alternatives(), &[2, 3]);
     /// ```
+    #[inline]
     pub fn change_first(&self, first: &T) -> Self
     where
         T: Clone,
@@ -305,6 +308,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*new_choice.first().unwrap(), 1);
     /// assert_eq!(new_choice.alternatives(), &[2, 3, 4]);
     /// ```
+    #[inline]
     pub fn add_alternative(&self, item: &T) -> Self
     where
         T: Clone,
@@ -341,6 +345,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*new_choice.first().unwrap(), 1);
     /// assert_eq!(new_choice.alternatives(), &[2, 3, 4, 5]);
     /// ```
+    #[inline]
     pub fn add_alternatives_owned<I>(mut self, items: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -374,6 +379,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*new_choice.first().unwrap(), 1);
     /// assert_eq!(new_choice.alternatives(), &[2, 4]);
     /// ```
+    #[inline]
     pub fn remove_alternative(&self, index: usize) -> Self
     where
         T: Clone,
@@ -412,6 +418,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*filtered.first().unwrap(), 1);
     /// assert_eq!(filtered.alternatives(), &[2, 4]);
     /// ```
+    #[inline]
     pub fn filter<P>(&self, predicate: P) -> Self
     where
         T: Clone,
@@ -450,6 +457,7 @@ impl<T> Choice<T> {
     /// assert_eq!(choice.find_alternative(&3), Some(1));
     /// assert_eq!(choice.find_alternative(&5), None);
     /// ```
+    #[inline]
     pub fn find_alternative(&self, value: &T) -> Option<usize>
     where
         T: PartialEq,
@@ -478,6 +486,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*doubled.first().unwrap(), 2);
     /// assert_eq!(doubled.alternatives(), &[4, 6, 8]);
     /// ```
+    #[inline]
     pub fn map_alternatives<F, U>(&self, f: F) -> Choice<U>
     where
         F: Fn(&T) -> U,
@@ -518,6 +527,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*flattened.first().unwrap(), 1);
     /// assert_eq!(flattened.alternatives(), &[2, 3, 4, 5]);
     /// ```
+    #[inline]
     pub fn flatten<I>(&self) -> Choice<I>
     where
         T: IntoIterator<Item = I> + Clone,
@@ -558,6 +568,7 @@ impl<T> Choice<T> {
     /// # Panics
     ///
     /// Panics if the predicate doesn't return true for any element in the vector.
+    #[inline]
     pub fn partition(vec: Vec<T>, predicate: impl Fn(&T) -> bool) -> Self {
         let position = vec
             .iter()
@@ -593,6 +604,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*choice.first().unwrap(), 1);
     /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
     /// ```
+    #[inline]
     pub fn of_many(first: T, alternatives: impl IntoIterator<Item = T>) -> Self {
         Self {
             values: std::iter::once(first).chain(alternatives).collect(),
@@ -623,6 +635,7 @@ impl<T> Choice<T> {
     /// let empty: Option<Choice<i32>> = Choice::from_iterator(Vec::<i32>::new());
     /// assert!(empty.is_none());
     /// ```
+    #[inline]
     pub fn from_iterator(iter: impl IntoIterator<Item = T>) -> Option<Self> {
         let mut iter = iter.into_iter();
         iter.next().map(|first| Self {
@@ -657,6 +670,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*ordered.first().unwrap(), 5);
     /// assert_eq!(ordered.alternatives(), &[1, 2, 3, 4]);
     /// ```
+    #[inline]
     pub fn with_ordered_alternatives(&self) -> Self
     where
         T: Ord + Clone,
@@ -704,6 +718,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*ordered.first().unwrap(), 5);
     /// assert_eq!(ordered.alternatives(), &[1, 2, 3, 4]);
     /// ```
+    #[inline]
     pub fn with_ordered_alternatives_owned(self) -> Self
     where
         T: Ord + Clone,
@@ -748,6 +763,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*unique.first().unwrap(), 1);
     /// assert_eq!(unique.alternatives().len(), 3);
     /// ```
+    #[inline]
     pub fn with_unique_alternatives(&self) -> Self
     where
         T: Hash + Eq + Clone,
@@ -786,6 +802,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*unique.first().unwrap(), 1);
     /// assert_eq!(unique.alternatives().len(), 3);
     /// ```
+    #[inline]
     pub fn with_unique_alternatives_owned(self) -> Self
     where
         T: Hash + Eq + Clone,
@@ -825,6 +842,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*swapped.first().unwrap(), 3);
     /// assert_eq!(swapped.alternatives().contains(&1), true);
     /// ```
+    #[inline]
     pub fn swap_with_alternative(&self, index: usize) -> Self
     where
         T: Clone,
@@ -873,6 +891,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*swapped.first().unwrap(), 3);
     /// assert_eq!(swapped.alternatives().contains(&1), true);
     /// ```
+    #[inline]
     pub fn swap_with_alternative_owned(self, index: usize) -> Self
     where
         T: Clone,
@@ -985,6 +1004,123 @@ impl<T> Choice<T> {
         Self {
             values: new_values,
             phantom: PhantomData,
+        }
+    }
+
+    /// Returns an iterator over all values in the `Choice`, including the primary value and alternatives.
+    ///
+    /// # Returns
+    ///
+    /// An iterator yielding references to all values of type `&T`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// let values: Vec<&i32> = choice.iter().collect();
+    /// assert_eq!(values, vec![&1, &2, &3, &4]);
+    /// ```
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.values.iter()
+    }
+
+    /// Returns an iterator over the alternative values in the `Choice`, excluding the primary value.
+    ///
+    /// # Returns
+    ///
+    /// An iterator yielding references to the alternative values of type `&T`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// let alternatives: Vec<&i32> = choice.iter_alternatives().collect();
+    /// assert_eq!(alternatives, vec![&2, &3, &4]);
+    /// ```
+    #[inline]
+    pub fn iter_alternatives(&self) -> impl Iterator<Item = &T> {
+        self.values.iter().skip(1)
+    }
+
+    /// Pattern matching for Choice, allowing different handling for empty and non-empty choices.
+    ///
+    /// # Arguments
+    ///
+    /// * `empty_case` - Function to call if the Choice is empty
+    /// * `non_empty_case` - Function to call if the Choice has values, receiving the first value and alternatives
+    ///
+    /// # Returns
+    ///
+    /// The result of calling either the empty_case or non_empty_case function
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// let result = choice.match_choice(
+    ///     || "Empty".to_string(),
+    ///     |first, alternatives| format!("First: {}, Alternatives: {:?}", first, alternatives)
+    /// );
+    /// assert_eq!(result, "First: 1, Alternatives: [2, 3, 4]");
+    /// ```
+    #[inline]
+    pub fn match_choice<U, F, G>(&self, empty_case: F, non_empty_case: G) -> U
+    where
+        F: FnOnce() -> U,
+        G: FnOnce(&T, Vec<&T>) -> U,
+    {
+        if self.is_empty() {
+            empty_case()
+        } else {
+            let first = &self.values[0];
+            let alternatives = self.values.iter().skip(1).collect();
+            non_empty_case(first, alternatives)
+        }
+    }
+
+    /// Pattern matching for Choice, consuming the choice and passing ownership to the handler functions.
+    ///
+    /// # Arguments
+    ///
+    /// * `empty_case` - Function to call if the Choice is empty
+    /// * `non_empty_case` - Function to call if the Choice has values, receiving ownership of the first value and alternatives
+    ///
+    /// # Returns
+    ///
+    /// The result of calling either the empty_case or non_empty_case function
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// let result = choice.match_choice_owned(
+    ///     || "Empty".to_string(),
+    ///     |first, alternatives| format!("First: {}, Alternatives: {:?}", first, alternatives)
+    /// );
+    /// assert_eq!(result, "First: 1, Alternatives: [2, 3, 4]");
+    /// ```
+    #[inline]
+    pub fn match_choice_owned<U, F, G>(self, empty_case: F, non_empty_case: G) -> U
+    where
+        F: FnOnce() -> U,
+        G: FnOnce(T, Vec<T>) -> U,
+    {
+        if self.is_empty() {
+            empty_case()
+        } else {
+            let mut values = self.values.into_iter();
+            let first = values.next().unwrap();
+            let alternatives = values.collect();
+            non_empty_case(first, alternatives)
         }
     }
 }
@@ -1258,8 +1394,8 @@ impl<T: Clone> Applicative for Choice<T> {
             alt_result.push(f(self_alt, b_first));
         }
 
-        for self_alt in self.alternatives() {
-            for b_alt in b.alternatives() {
+        for b_alt in b.alternatives() {
+            for self_alt in self.alternatives() {
                 alt_result.push(f(self_alt, b_alt));
             }
         }
@@ -1335,8 +1471,8 @@ impl<T: Clone> Applicative for Choice<T> {
             alt_result.push(f(self_first, b_first, c_alt));
         }
 
-        for a_alt in self.alternatives() {
-            alt_result.push(f(a_alt, b_first, c_first));
+        for self_alt in self.alternatives() {
+            alt_result.push(f(self_alt, b_first, c_first));
         }
 
         for b_alt in b.alternatives() {
@@ -1345,22 +1481,22 @@ impl<T: Clone> Applicative for Choice<T> {
             }
         }
 
-        for a_alt in self.alternatives() {
+        for self_alt in self.alternatives() {
             for b_alt in b.alternatives() {
-                alt_result.push(f(a_alt, b_alt, c_first));
+                alt_result.push(f(self_alt, b_alt, c_first));
             }
         }
 
-        for a_alt in self.alternatives() {
+        for self_alt in self.alternatives() {
             for c_alt in c.alternatives() {
-                alt_result.push(f(a_alt, b_first, c_alt));
+                alt_result.push(f(self_alt, b_first, c_alt));
             }
         }
 
-        for a_alt in self.alternatives() {
+        for self_alt in self.alternatives() {
             for b_alt in b.alternatives() {
                 for c_alt in c.alternatives() {
-                    alt_result.push(f(a_alt, b_alt, c_alt));
+                    alt_result.push(f(self_alt, b_alt, c_alt));
                 }
             }
         }
@@ -1404,8 +1540,8 @@ impl<T: Clone> Applicative for Choice<T> {
             alt_result.push(f(first.clone(), b_first.clone(), c_alt.clone()));
         }
 
-        for a_alt in &alternatives {
-            alt_result.push(f(a_alt.clone(), b_first.clone(), c_first.clone()));
+        for alt in &alternatives {
+            alt_result.push(f(alt.clone(), b_first.clone(), c_first.clone()));
         }
 
         for b_alt in &b_alternatives {
@@ -1414,22 +1550,22 @@ impl<T: Clone> Applicative for Choice<T> {
             }
         }
 
-        for a_alt in &alternatives {
+        for alt in &alternatives {
             for b_alt in &b_alternatives {
-                alt_result.push(f(a_alt.clone(), b_alt.clone(), c_first.clone()));
+                alt_result.push(f(alt.clone(), b_alt.clone(), c_first.clone()));
             }
         }
 
-        for a_alt in &alternatives {
+        for alt in &alternatives {
             for c_alt in &c_alternatives {
-                alt_result.push(f(a_alt.clone(), b_first.clone(), c_alt.clone()));
+                alt_result.push(f(alt.clone(), b_first.clone(), c_alt.clone()));
             }
         }
 
-        for a_alt in &alternatives {
+        for alt in &alternatives {
             for b_alt in &b_alternatives {
                 for c_alt in &c_alternatives {
-                    alt_result.push(f(a_alt.clone(), b_alt.clone(), c_alt.clone()));
+                    alt_result.push(f(alt.clone(), b_alt.clone(), c_alt.clone()));
                 }
             }
         }

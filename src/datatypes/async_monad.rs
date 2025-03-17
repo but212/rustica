@@ -50,7 +50,11 @@
 //!     assert_eq!(result.try_get().await, 86);
 //! }
 //! ```
-use futures::future::{self, Future, FutureExt};
+use futures::{
+    future::{Future, FutureExt},
+    join,
+};
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -93,6 +97,7 @@ pub struct AsyncM<A> {
     // Using a boxed function that returns a boxed future
     // This allows for type erasure and dynamic dispatch
     run: Arc<dyn Fn() -> BoxFuture<'static, A> + Send + Sync + 'static>,
+    phantom: PhantomData<A>,
 }
 
 impl<A: Send + 'static> AsyncM<A> {
@@ -136,6 +141,7 @@ impl<A: Send + 'static> AsyncM<A> {
     {
         AsyncM {
             run: Arc::new(move || f().boxed()),
+            phantom: PhantomData,
         }
     }
 
@@ -170,11 +176,14 @@ impl<A: Send + 'static> AsyncM<A> {
     where
         A: Clone + Send + Sync + 'static,
     {
+        // Create a static reference to avoid cloning the value for each call
+        let value = Arc::new(value);
         AsyncM {
             run: Arc::new(move || {
-                let value = value.clone();
-                future::ready(value).boxed()
+                let value = Arc::clone(&value);
+                async move { (*value).clone() }.boxed()
             }),
+            phantom: PhantomData,
         }
     }
 
@@ -251,17 +260,20 @@ impl<A: Send + 'static> AsyncM<A> {
         Fut: Future<Output = B> + Send + 'static,
         A: Clone,
     {
-        let run = Arc::clone(&self.run);
+        let run_clone = Arc::clone(&self.run);
+
         AsyncM {
             run: Arc::new(move || {
                 let f = f.clone();
-                let fut = run();
+                let run = run_clone.clone();
+
                 async move {
-                    let a = fut.await;
+                    let a = run().await;
                     f(a).await
                 }
                 .boxed()
             }),
+            phantom: PhantomData,
         }
     }
 
@@ -306,24 +318,28 @@ impl<A: Send + 'static> AsyncM<A> {
     /// }
     /// ```
     #[inline]
-    pub fn bind<B, F, Fut>(self, f: F) -> AsyncM<B>
+    pub fn bind<B, F, Fut>(&self, f: F) -> AsyncM<B>
     where
-        B: Send + 'static,
+        B: Send + Sync + 'static,
         F: Fn(A) -> Fut + Send + Sync + Clone + 'static,
         Fut: Future<Output = AsyncM<B>> + Send + 'static,
+        A: Clone,
     {
+        let run_clone = Arc::clone(&self.run);
+
         AsyncM {
             run: Arc::new(move || {
                 let f = f.clone();
-                let fut = (self.run)();
+                let run = run_clone.clone();
 
                 async move {
-                    let a = fut.await;
+                    let a = run().await;
                     let next_monad = f(a).await;
                     next_monad.try_get().await
                 }
                 .boxed()
             }),
+            phantom: PhantomData,
         }
     }
 
@@ -360,23 +376,28 @@ impl<A: Send + 'static> AsyncM<A> {
     /// }
     /// ```
     #[inline]
-    pub fn apply<B, F>(self, mf: AsyncM<F>) -> AsyncM<B>
+    pub fn apply<B, F>(&self, mf: AsyncM<F>) -> AsyncM<B>
     where
         B: Send + 'static,
-        F: Fn(A) -> B + Send + Sync + 'static,
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
+        A: Clone,
     {
+        let self_run = Arc::clone(&self.run);
+        let mf_run = Arc::clone(&mf.run);
+
         AsyncM {
             run: Arc::new(move || {
-                let f_fut = (mf.run)();
-                let x_fut = (self.run)();
+                let self_run = self_run.clone();
+                let mf_run = mf_run.clone();
 
                 async move {
-                    let f = f_fut.await;
-                    let x = x_fut.await;
-                    f(x)
+                    // Run both futures concurrently for better performance
+                    let (value, func) = join!(self_run(), mf_run());
+                    func(value)
                 }
                 .boxed()
             }),
+            phantom: PhantomData,
         }
     }
 
@@ -418,21 +439,30 @@ impl<A: Send + 'static> AsyncM<A> {
     /// }
     /// ```
     #[inline]
-    pub fn from_result_or_default<F, E, Fut>(f: F, default_value: A) -> AsyncM<A>
+    pub fn from_result_or_default<F, Fut, E>(f: F, default_value: A) -> AsyncM<A>
     where
         F: Fn() -> Fut + Send + Sync + Clone + 'static,
-        Fut: Future<Output = Result<A, E>> + Send + Sync + 'static,
+        Fut: Future<Output = Result<A, E>> + Send + 'static,
+        E: Send + Sync + 'static,
         A: Clone + Send + Sync + 'static,
     {
-        AsyncM::new(move || {
-            let f = f.clone();
-            let default = default_value.clone();
-            async move {
-                match f().await {
-                    Ok(value) => value,
-                    Err(_) => default,
+        // Store the default value as an Arc to avoid cloning it when constructing the future
+        let default_value = Arc::new(default_value);
+
+        AsyncM {
+            run: Arc::new(move || {
+                let f = f.clone();
+                let default_value = Arc::clone(&default_value);
+
+                async move {
+                    match f().await {
+                        Ok(value) => value,
+                        Err(_) => (*default_value).clone(),
+                    }
                 }
-            }
-        })
+                .boxed()
+            }),
+            phantom: PhantomData,
+        }
     }
 }

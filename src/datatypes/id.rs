@@ -51,7 +51,6 @@
 //! let pure_value = Id::<i32>::pure(&100);
 //! assert_eq!(*pure_value.value(), 100);
 //! ```
-
 use crate::traits::{
     applicative::Applicative, composable::Composable, foldable::Foldable, functor::Functor,
     hkt::HKT, identity::Identity, monad::Monad, monoid::Monoid, pure::Pure, semigroup::Semigroup,
@@ -125,6 +124,7 @@ use crate::traits::{
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
+#[must_use = "This is a pure value wrapper which does nothing unless used"]
 pub struct Id<T> {
     value: T,
 }
@@ -153,8 +153,100 @@ impl<T> Id<T> {
     /// assert_eq!(*s.value(), "hello");
     /// ```
     #[inline]
-    pub fn new(x: T) -> Self {
+    pub const fn new(x: T) -> Self {
         Id { value: x }
+    }
+
+    /// Extracts the inner value from Id
+    ///
+    /// This consumes the Id and returns the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    ///
+    /// let x = Id::new(42);
+    /// let value = x.into_inner();
+    /// assert_eq!(value, 42);
+    /// ```
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.value
+    }
+
+    /// Maps a function over the contained value, consuming self.
+    ///
+    /// This is an ownership-aware version of mapping that consumes the original `Id`
+    /// and returns a new one containing the mapped value.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function to apply to the contained value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::prelude::*;
+    ///
+    /// let x = Id::new(42);
+    /// let mapped = x.map(|n| n.to_string());
+    /// assert_eq!(*mapped.value(), "42");
+    /// ```
+    #[inline]
+    pub fn map<U, F>(self, f: F) -> Id<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        Id::new(f(self.value))
+    }
+
+    /// Sequences two Id operations, discarding the first result.
+    ///
+    /// # Arguments
+    ///
+    /// * `next` - The next Id operation to execute
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::prelude::*;
+    ///
+    /// let x = Id::new(42);
+    /// let y = Id::new("hello");
+    /// let result = x.then(y);
+    /// assert_eq!(*result.value(), "hello");
+    /// ```
+    #[inline]
+    pub fn then<U>(self, next: Id<U>) -> Id<U> {
+        Id::new(next.value)
+    }
+}
+
+impl<T: Clone> Id<T> {
+    /// Creates a new `Id` value from a reference.
+    ///
+    /// This constructor clones the referenced value and wraps it in the `Id` context.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The referenced value to clone and wrap in `Id`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let value = 42;
+    /// let x = Id::from_ref(&value);
+    /// assert_eq!(*x.value(), 42);
+    /// ```
+    #[inline]
+    pub fn from_ref(x: &T) -> Self {
+        Id { value: x.clone() }
     }
 }
 
@@ -201,14 +293,16 @@ impl<T> Functor for Id<T> {
     }
 }
 
-impl<T> Pure for Id<T> {
+impl<T> Composable for Id<T> {}
+
+impl<T: Clone> Pure for Id<T> {
     #[inline]
     fn pure<U: Clone>(x: &U) -> Self::Output<U> {
         Id::new(x.clone())
     }
 }
 
-impl<T> Applicative for Id<T> {
+impl<T: Clone> Applicative for Id<T> {
     #[inline]
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
     where
@@ -269,7 +363,7 @@ impl<T> Applicative for Id<T> {
     }
 }
 
-impl<T> Monad for Id<T> {
+impl<T: Clone> Monad for Id<T> {
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
@@ -328,28 +422,49 @@ impl<T: Monoid> Monoid for Id<T> {
 
 impl<T: Clone> Foldable for Id<T> {
     #[inline]
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(U, &Self::Source) -> U,
+        U: Clone,
+        F: Fn(&U, &Self::Source) -> U,
     {
-        f(init.clone(), &self.value)
+        f(init, &self.value)
     }
 
     #[inline]
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(&Self::Source, U) -> U,
+        U: Clone,
+        F: Fn(&Self::Source, &U) -> U,
     {
-        f(&self.value, init.clone())
+        f(&self.value, init)
     }
 }
 
-impl<T> Composable for Id<T> {}
-
-// Implementing From/Into for convenient conversion
 impl<T> From<T> for Id<T> {
     #[inline]
     fn from(value: T) -> Self {
         Id::new(value)
+    }
+}
+
+impl<T: Default> Default for Id<T> {
+    /// Creates a new `Id` with the default value for type `T`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    /// use std::default::Default;
+    ///
+    /// let default_id: Id<i32> = Default::default();
+    /// assert_eq!(*default_id.value(), 0); // i32's default is 0
+    ///
+    /// let default_string: Id<String> = Default::default();
+    /// assert_eq!(*default_string.value(), ""); // String's default is empty string
+    /// ```
+    #[inline]
+    fn default() -> Self {
+        Id::new(T::default())
     }
 }

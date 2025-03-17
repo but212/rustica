@@ -152,7 +152,7 @@ pub trait Foldable: HKT {
     /// ```
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(U, &Self::Source) -> U;
+        F: Fn(&U, &Self::Source) -> U;
 
     /// Right-associative fold of a structure.
     ///
@@ -189,7 +189,7 @@ pub trait Foldable: HKT {
     /// ```
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(&Self::Source, U) -> U;
+        F: Fn(&Self::Source, &U) -> U;
 
     /// Maps elements to a monoid and combines them.
     ///
@@ -354,7 +354,7 @@ pub trait FoldableExt: Foldable {
     {
         self.fold_left(&None, |acc, x| {
             if acc.is_some() {
-                acc
+                acc.clone()
             } else if pred(x) {
                 Some(x.clone())
             } else {
@@ -392,7 +392,7 @@ pub trait FoldableExt: Foldable {
     where
         F: Fn(&Self::Source) -> bool,
     {
-        self.fold_left(&true, |acc, x| acc && pred(x))
+        self.fold_left(&true, |acc, x| *acc && pred(x))
     }
 
     /// Tests whether any element in the foldable satisfies the predicate.
@@ -424,7 +424,7 @@ pub trait FoldableExt: Foldable {
     where
         F: Fn(&Self::Source) -> bool,
     {
-        self.fold_left(&false, |acc, x| acc || pred(x))
+        self.fold_left(&false, |acc, x| *acc || pred(x))
     }
 
     /// Tests whether the foldable contains a specific value.
@@ -541,9 +541,10 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Clone,
     {
-        self.fold_left(&Vec::new(), |mut acc, x| {
-            acc.push(x.clone());
-            acc
+        self.fold_left(&Vec::new(), |acc, x| {
+            let mut new_acc = acc.clone();
+            new_acc.push(x.clone());
+            new_acc
         })
     }
 
@@ -623,7 +624,7 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Add<Output = Self::Source> + Default + Clone,
     {
-        self.fold_left(&Self::Source::default(), |acc, x| acc + x.clone())
+        self.fold_left(&Self::Source::default(), |acc, x| acc.clone() + x.clone())
     }
 
     /// Multiplies all elements in the foldable.
@@ -645,7 +646,7 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Mul<Output = Self::Source> + From<u8> + Clone,
     {
-        self.fold_left(&Self::Source::from(1), |acc, x| acc * x.clone())
+        self.fold_left(&Self::Source::from(1), |acc, x| acc.clone() * x.clone())
     }
 
     /// Finds the maximum element in the foldable.
@@ -670,12 +671,12 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Ord + Clone,
     {
-        self.fold_left(&None, |max: Option<Self::Source>, x| match max {
+        self.fold_left(&None, |max: &Option<Self::Source>, x| match max {
             None => Some(x.clone()),
-            Some(current_max) => Some(if x > &current_max {
+            Some(current_max) => Some(if x > current_max {
                 x.clone()
             } else {
-                current_max
+                current_max.clone()
             }),
         })
     }
@@ -702,12 +703,12 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Ord + Clone,
     {
-        self.fold_left(&None, |min: Option<Self::Source>, x| match min {
+        self.fold_left(&None, |min: &Option<Self::Source>, x| match min {
             None => Some(x.clone()),
-            Some(current_min) => Some(if x < &current_min {
+            Some(current_min) => Some(if x < current_min {
                 x.clone()
             } else {
-                current_min
+                current_min.clone()
             }),
         })
     }
@@ -745,9 +746,9 @@ pub trait FoldableExt: Foldable {
         F: Fn(&Self::Source, &Self::Source) -> Self::Source,
         Self::Source: Clone,
     {
-        self.fold_left(&None, |acc: Option<Self::Source>, x| match acc {
+        self.fold_left(&None, |acc: &Option<Self::Source>, x| match acc {
             None => Some(x.clone()),
-            Some(a) => Some(f(&a, x)),
+            Some(a) => Some(f(a, x)),
         })
     }
 }
@@ -760,19 +761,23 @@ impl<A: Clone> Foldable for Vec<A> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: FnMut(U, &A) -> U,
+        F: Fn(&U, &A) -> U,
     {
-        self.iter().fold(init.clone(), f)
+        let mut acc = init.clone();
+        for item in self {
+            acc = f(&acc, item);
+        }
+        acc
     }
 
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(&A, U) -> U,
+        F: Fn(&A, &U) -> U,
     {
         let mut acc = init.clone();
         for item in self.iter().rev() {
-            acc = f(item, acc);
+            acc = f(item, &acc);
         }
         acc
     }
@@ -783,10 +788,10 @@ impl<A: Clone> Foldable for Option<A> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: FnOnce(U, &A) -> U,
+        F: Fn(&U, &A) -> U,
     {
         match self {
-            Some(a) => f(init.clone(), a),
+            Some(a) => f(init, a),
             None => init.clone(),
         }
     }
@@ -794,10 +799,10 @@ impl<A: Clone> Foldable for Option<A> {
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: FnOnce(&A, U) -> U,
+        F: Fn(&A, &U) -> U,
     {
         match self {
-            Some(a) => f(a, init.clone()),
+            Some(a) => f(a, init),
             None => init.clone(),
         }
     }
@@ -808,10 +813,10 @@ impl<A: Clone, E: Clone> Foldable for Result<A, E> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: FnOnce(U, &A) -> U,
+        F: Fn(&U, &A) -> U,
     {
         match self {
-            Ok(a) => f(init.clone(), a),
+            Ok(a) => f(init, a),
             Err(_) => init.clone(),
         }
     }
@@ -819,10 +824,10 @@ impl<A: Clone, E: Clone> Foldable for Result<A, E> {
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: FnOnce(&A, U) -> U,
+        F: Fn(&A, &U) -> U,
     {
         match self {
-            Ok(a) => f(a, init.clone()),
+            Ok(a) => f(a, init),
             Err(_) => init.clone(),
         }
     }

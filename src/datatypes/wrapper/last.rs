@@ -99,16 +99,16 @@ impl<T: Clone> Foldable for Last<T> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(U, &Self::Source) -> U,
+        F: Fn(&U, &Self::Source) -> U,
     {
-        f(init.clone(), self.0.as_ref().unwrap())
+        f(init, self.0.as_ref().unwrap())
     }
 
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(&Self::Source, U) -> U,
+        F: Fn(&Self::Source, &U) -> U,
     {
-        f(self.0.as_ref().unwrap(), init.clone())
+        f(self.0.as_ref().unwrap(), init)
     }
 }

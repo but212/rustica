@@ -159,6 +159,7 @@ pub struct State<S, A> {
 }
 
 impl<S, A> Clone for State<S, A> {
+    #[inline]
     fn clone(&self) -> Self {
         State {
             run: Arc::clone(&self.run),
@@ -239,6 +240,7 @@ where
     ///     ("No value".to_string(), None)
     /// );
     /// ```
+    #[inline]
     pub fn new<F>(f: F) -> Self
     where
         F: Fn(S) -> (A, S) + 'static,
@@ -290,6 +292,7 @@ where
     /// // 3. Third computation returns ("Result: 9", 4 * 2) = ("Result: 9", 8)
     /// assert_eq!(complex.run_state(3), ("Result: 9".to_string(), 8));
     /// ```
+    #[inline]
     pub fn run_state(&self, s: S) -> (A, S) {
         (self.run)(s)
     }
@@ -344,6 +347,7 @@ where
     ///
     /// assert_eq!(results, vec![0, 1, 1, 2, 3, 5, 8, 13, 21, 34]);
     /// ```
+    #[inline]
     pub fn eval_state(&self, s: S) -> A {
         let (a, _) = self.run_state(s);
         a
@@ -401,6 +405,7 @@ where
     /// // Starting with 0: 0 -> 5 -> 10 -> 7
     /// assert_eq!(apply_operations.exec_state(0), 7);
     /// ```
+    #[inline]
     pub fn exec_state(&self, s: S) -> S {
         let (_, s) = self.run_state(s);
         s
@@ -476,6 +481,7 @@ where
     ///
     /// assert_eq!(original.run_state(5), mapped.run_state(5));
     /// ```
+    #[inline]
     pub fn fmap<B, F>(self, f: F) -> State<S, B>
     where
         B: Clone + 'static,
@@ -570,6 +576,7 @@ where
     ///
     /// assert_eq!(left_side.run_state(10), right_side.run_state(10));
     /// ```
+    #[inline]
     pub fn bind<B, F>(self, f: F) -> State<S, B>
     where
         B: Clone + 'static,
@@ -645,6 +652,7 @@ where
     ///
     /// assert_eq!(applied.run_state(0), (42, 0));
     /// ```
+    #[inline]
     pub fn pure(a: A) -> Self {
         State::new(move |s| (a.clone(), s))
     }
@@ -711,6 +719,7 @@ where
     /// let result = add_state.apply(value);
     /// assert_eq!(result.run_state(5), (17, 8));
     /// ```
+    #[inline]
     pub fn apply<B, C>(self, other: State<S, B>) -> State<S, C>
     where
         B: Clone + 'static,
@@ -724,6 +733,7 @@ where
         })
     }
 }
+
 /// Returns the current state.
 ///
 /// This function creates a State computation that returns the current state as its value
@@ -772,6 +782,7 @@ where
 /// assert_eq!(complex.run_state(4), ("New state: 8".to_string(), 8));
 /// assert_eq!(complex.run_state(5), ("New state: 15".to_string(), 15));
 /// ```
+#[inline]
 pub fn get<S>() -> State<S, S>
 where
     S: Clone + 'static,
@@ -834,6 +845,7 @@ where
 ///     ("Original: 21, New: 42".to_string(), 42)
 /// );
 /// ```
+#[inline]
 pub fn put<S>(s: S) -> State<S, ()>
 where
     S: Clone + 'static,
@@ -906,6 +918,7 @@ where
 ///
 /// assert_eq!(equivalent.run_state(0), (15, 15));
 /// ```
+#[inline]
 pub fn modify<S, F>(f: F) -> State<S, ()>
 where
     S: Clone + 'static,

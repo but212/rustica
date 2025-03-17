@@ -309,10 +309,29 @@ impl<A: 'static + Clone> IO<A> {
         self.bind(mf)
     }
 
-    pub fn delay<F>(duration: std::time::Duration, value: A) -> Self
-    where
-        F: Fn() -> A + 'static,
-    {
+    /// Creates a new IO operation that delays execution for a specified duration.
+    ///
+    /// This is a utility function that allows you to create an `IO` that will
+    /// delay its execution for a specified duration before returning a value.
+    ///
+    /// # Arguments
+    ///
+    /// * `duration` - The duration to delay the execution
+    /// * `value` - The value to return after the delay
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// // Create an IO operation that delays for 1 second and returns 42
+    /// let io_operation = IO::delay(std::time::Duration::from_secs(1), 42);
+    ///
+    /// // Run the IO operation
+    /// let result = io_operation.run();
+    /// assert_eq!(result, 42);
+    /// ```
+    pub fn delay(duration: std::time::Duration, value: A) -> Self {
         IO::new(move || {
             std::thread::sleep(duration);
             value.clone()
