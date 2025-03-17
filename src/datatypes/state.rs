@@ -99,8 +99,12 @@
 //! // The final stack contains just [1]
 //! assert_eq!(stack_ops.run_state(Vec::new()), ((Some(3), Some(2)), vec![1]));
 //! ```
-//!
-use std::sync::Arc;
+use std::marker::PhantomData;
+use crate::traits::hkt::HKT;
+use crate::traits::monad::Monad;
+use crate::traits::pure::Pure;
+use crate::traits::applicative::Applicative;
+use crate::traits::functor::Functor;
 
 /// A monad that represents stateful computations.
 ///
@@ -153,24 +157,21 @@ use std::sync::Arc;
 /// // 3. Third computation returns ("Result: 9", 4 * 2) = ("Result: 9", 8)
 /// assert_eq!(computation.run_state(3), ("Result: 9".to_string(), 8));
 /// ```
-pub struct State<S, A> {
-    /// The state transformation function
-    pub run: Arc<dyn Fn(S) -> (A, S) + 'static>,
-}
-
-impl<S, A> Clone for State<S, A> {
-    #[inline]
-    fn clone(&self) -> Self {
-        State {
-            run: Arc::clone(&self.run),
-        }
-    }
-}
-
-impl<S, A> State<S, A>
+#[derive(Clone)]
+pub struct State<S, A, F>
 where
-    S: Clone + 'static,
-    A: Clone + 'static,
+    F: Fn(S) -> (A, S),
+{
+    /// The state transformation function
+    pub run: F,
+    phantom: PhantomData<(S, A)>,
+}
+
+impl<S, A, F> State<S, A, F>
+where
+    S: Clone,
+    A: Clone,
+    F: Fn(S) -> (A, S) + Clone,
 {
     /// Creates a new State monad.
     ///
@@ -241,11 +242,8 @@ where
     /// );
     /// ```
     #[inline]
-    pub fn new<F>(f: F) -> Self
-    where
-        F: Fn(S) -> (A, S) + 'static,
-    {
-        State { run: Arc::new(f) }
+    pub fn new(f: F) -> Self {
+        State { run: f, phantom: PhantomData }
     }
 
     /// Runs the state computation with an initial state.
@@ -348,8 +346,8 @@ where
     /// assert_eq!(results, vec![0, 1, 1, 2, 3, 5, 8, 13, 21, 34]);
     /// ```
     #[inline]
-    pub fn eval_state(&self, s: S) -> A {
-        let (a, _) = self.run_state(s);
+    pub fn eval_state(&self, s: &S) -> A {
+        let (a, _) = self.run_state(s.clone());
         a
     }
 
@@ -406,8 +404,8 @@ where
     /// assert_eq!(apply_operations.exec_state(0), 7);
     /// ```
     #[inline]
-    pub fn exec_state(&self, s: S) -> S {
-        let (_, s) = self.run_state(s);
+    pub fn exec_state(&self, s: &S) -> S {
+        let (_, s) = self.run_state(s.clone());
         s
     }
 
@@ -482,13 +480,13 @@ where
     /// assert_eq!(original.run_state(5), mapped.run_state(5));
     /// ```
     #[inline]
-    pub fn fmap<B, F>(self, f: F) -> State<S, B>
+    pub fn fmap<B, G>(&self, f: G) -> State<S, B, impl Fn(S) -> (B, S) + Clone>
     where
-        B: Clone + 'static,
-        F: Fn(A) -> B + 'static,
+        B: Clone,
+        G: Fn(A) -> B + Clone,
     {
         State::new(move |s| {
-            let (a, s) = self.run_state(s);
+            let (a, s) = (self.run)(s);
             (f(a), s)
         })
     }
@@ -577,14 +575,15 @@ where
     /// assert_eq!(left_side.run_state(10), right_side.run_state(10));
     /// ```
     #[inline]
-    pub fn bind<B, F>(self, f: F) -> State<S, B>
+    pub fn bind<B, G, H>(&self, f: G) -> State<S, B, impl Fn(S) -> (B, S) + Clone>
     where
-        B: Clone + 'static,
-        F: Fn(A) -> State<S, B> + 'static,
+        B: Clone,
+        G: Fn(A) -> State<S, B, H> + Clone,
+        H: Fn(S) -> (B, S) + Clone,
     {
         State::new(move |s| {
-            let (a, s) = self.run_state(s);
-            f(a).run_state(s)
+            let (a, s) = (self.run)(s);
+            (f(a).run)(s)
         })
     }
 
@@ -653,8 +652,9 @@ where
     /// assert_eq!(applied.run_state(0), (42, 0));
     /// ```
     #[inline]
-    pub fn pure(a: A) -> Self {
-        State::new(move |s| (a.clone(), s))
+    pub fn pure(a: &A) -> State<S, A, impl Fn(S) -> (A, S) + Clone> {
+        let value = a.clone();
+        State::new(move |s| (value.clone(), s))
     }
 
     /// Applies a state computation containing a function to another state computation.
@@ -720,15 +720,16 @@ where
     /// assert_eq!(result.run_state(5), (17, 8));
     /// ```
     #[inline]
-    pub fn apply<B, C>(self, other: State<S, B>) -> State<S, C>
+    pub fn apply<B, C, G>(&self, other: &State<S, B, G>) -> State<S, C, impl Fn(S) -> (C, S) + Clone>
     where
-        B: Clone + 'static,
-        C: Clone + 'static,
-        A: Fn(B) -> C + Clone + 'static,
+        B: Clone,
+        C: Clone,
+        G: Fn(S) -> (B, S) + Clone,
+        A: Fn(B) -> C + Clone,
     {
         State::new(move |s| {
-            let (f, s1) = self.run_state(s);
-            let (a, s2) = other.run_state(s1);
+            let (f, s1) = (self.run)(s);
+            let (a, s2) = (other.run)(s1);
             (f(a), s2)
         })
     }
@@ -783,9 +784,9 @@ where
 /// assert_eq!(complex.run_state(5), ("New state: 15".to_string(), 15));
 /// ```
 #[inline]
-pub fn get<S>() -> State<S, S>
+pub fn get<S>() -> State<S, S, impl Fn(S) -> (S, S) + Clone>
 where
-    S: Clone + 'static,
+    S: Clone,
 {
     State::new(|s: S| (s.clone(), s))
 }
@@ -846,11 +847,12 @@ where
 /// );
 /// ```
 #[inline]
-pub fn put<S>(s: S) -> State<S, ()>
+pub fn put<S>(s: S) -> State<S, (), impl Fn(S) -> ((), S) + Clone>
 where
-    S: Clone + 'static,
+    S: Clone,
 {
-    State::new(move |_| ((), s.clone()))
+    let new_state = s.clone();
+    State::new(move |_| ((), new_state.clone()))
 }
 
 /// Modifies the state using a function.
@@ -919,10 +921,10 @@ where
 /// assert_eq!(equivalent.run_state(0), (15, 15));
 /// ```
 #[inline]
-pub fn modify<S, F>(f: F) -> State<S, ()>
+pub fn modify<S, F>(f: F) -> State<S, (), impl Fn(S) -> ((), S) + Clone>
 where
-    S: Clone + 'static,
-    F: Fn(S) -> S + 'static,
+    S: Clone,
+    F: Fn(S) -> S + Clone,
 {
     State::new(move |s| ((), f(s)))
 }
