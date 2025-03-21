@@ -132,7 +132,10 @@ pub fn id_benchmarks(c: &mut Criterion) {
         let id_b = Id::new(20);
         let id_c = Id::new(30);
         b.iter(|| {
-            black_box(id_a.lift3(&id_b, &id_c, |a: &i32, b: &i32, c: &i32| a + b + c).into_inner());
+            black_box(
+                id_a.lift3(&id_b, &id_c, |a: &i32, b: &i32, c: &i32| a + b + c)
+                    .into_inner(),
+            );
         });
     });
 
@@ -149,7 +152,10 @@ pub fn id_benchmarks(c: &mut Criterion) {
             let id_a = Id::new(10);
             let id_b = Id::new(20);
             let id_c = Id::new(30);
-            black_box(id_a.lift3_owned(id_b, id_c, |a: i32, b: i32, c: i32| a + b + c).into_inner());
+            black_box(
+                id_a.lift3_owned(id_b, id_c, |a: i32, b: i32, c: i32| a + b + c)
+                    .into_inner(),
+            );
         });
     });
 

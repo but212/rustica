@@ -3,7 +3,7 @@ use criterion::{black_box, Criterion};
 #[cfg(feature = "advanced")]
 use rustica::datatypes::state::State;
 #[cfg(feature = "advanced")]
-use rustica::datatypes::state::{get, put, modify};
+use rustica::datatypes::state::{get, modify, put};
 #[cfg(feature = "advanced")]
 use std::time::SystemTime;
 
@@ -140,16 +140,15 @@ pub fn state_benchmarks(c: &mut Criterion) {
             #[derive(Clone)]
             struct AddOne;
             impl AddOne {
-                fn call(&self, x: i32) -> i32 { x + 1 }
+                fn call(&self, x: i32) -> i32 {
+                    x + 1
+                }
             }
-            
+
             // Create a computation that maps the AddOne function over a value
-            let computation = State::pure(42).bind(|x| {
-                State::pure(AddOne).bind(move |f| {
-                    State::pure(f.call(x))
-                })
-            });
-            
+            let computation =
+                State::pure(42).bind(|x| State::pure(AddOne).bind(move |f| State::pure(f.call(x))));
+
             black_box(computation.run_state(0))
         });
     });
@@ -163,19 +162,21 @@ pub fn state_benchmarks(c: &mut Criterion) {
                 #[derive(Clone)]
                 struct Adder(i32);
                 impl Adder {
-                    fn call(&self, x: i32) -> i32 { x + self.0 }
+                    fn call(&self, x: i32) -> i32 {
+                        x + self.0
+                    }
                 }
-                
+
                 // Perform the entire computation within this closure
                 let adder = Adder(s);
-                let s1 = s + 1;  // State transition from add_state
+                let s1 = s + 1; // State transition from add_state
                 let val = s1 * 2; // Value from value_computation
-                let s2 = s1 + 2;  // State transition from value_computation
-                
+                let s2 = s1 + 2; // State transition from value_computation
+
                 // Apply the adder to the value
                 (adder.call(val), s2)
             });
-            
+
             black_box(result.run_state(5))
         });
     });
@@ -192,15 +193,13 @@ pub fn state_benchmarks(c: &mut Criterion) {
         });
     });
 
-    
-
     group.bench_function("bind_chain", |b| {
         b.iter(|| {
             let state: State<i32, i32> = State::pure(42);
             black_box(
                 state
                     .bind(|x: i32| State::pure(x * 2))
-                    .bind(|x: i32| State::pure(x + 10))
+                    .bind(|x: i32| State::pure(x + 10)),
             )
         });
     });
@@ -215,35 +214,31 @@ pub fn state_benchmarks(c: &mut Criterion) {
             black_box(
                 get::<i32>()
                     .bind(|s: i32| put(s * 2))
-                    .bind(|_: ()| get::<i32>())
+                    .bind(|_: ()| get::<i32>()),
             )
         });
     });
 
     group.bench_function("complex_chain_with_conditionals", |b| {
         b.iter(|| {
-            black_box(
-                get::<i32>().bind(|s: i32| {
-                    if s > 10 {
-                        put(s * 2).bind(|_: ()| State::pure("large value"))
-                    } else {
-                        put(s + 5).bind(|_: ()| State::pure("small value"))
-                    }
-                })
-            )
+            black_box(get::<i32>().bind(|s: i32| {
+                if s > 10 {
+                    put(s * 2).bind(|_: ()| State::pure("large value"))
+                } else {
+                    put(s + 5).bind(|_: ()| State::pure("small value"))
+                }
+            }))
         });
     });
 
     group.bench_function("chain_with_statechange", |b| {
         b.iter(|| {
             // Create a chained State operation with state change
-            let result = get::<i32>()
-                .bind(|s: i32| {
-                    let value = s;
-                    // Create a state that modifies the state and returns the value
-                    modify(move |state: i32| state + value)
-                        .bind(move |_: ()| State::pure(value * 2))
-                });
+            let result = get::<i32>().bind(|s: i32| {
+                let value = s;
+                // Create a state that modifies the state and returns the value
+                modify(move |state: i32| state + value).bind(move |_: ()| State::pure(value * 2))
+            });
 
             black_box(result.run_state(5))
         });
@@ -252,16 +247,14 @@ pub fn state_benchmarks(c: &mut Criterion) {
     group.bench_function("chain_with_intermediate_results", |b| {
         b.iter(|| {
             // Create a chained State operation that passes along intermediate results
-            let result = get::<i32>()
-                .bind(|s: i32| {
-                    let original = s;
-                    modify(move |state: i32| state * 2)
-                        .bind(move |_: ()| get::<i32>()
-                            .bind(move |new_s: i32| 
-                                State::pure(format!("State changed from {} to {}", original, new_s))
-                            )
-                        )
-                });
+            let result = get::<i32>().bind(|s: i32| {
+                let original = s;
+                modify(move |state: i32| state * 2).bind(move |_: ()| {
+                    get::<i32>().bind(move |new_s: i32| {
+                        State::pure(format!("State changed from {} to {}", original, new_s))
+                    })
+                })
+            });
 
             black_box(result.run_state(5))
         });
@@ -275,24 +268,24 @@ pub fn state_benchmarks(c: &mut Criterion) {
                 // Push operations (fully implemented inline)
                 let mut s1 = stack.clone();
                 s1.push(1);
-                
+
                 let mut s2 = s1.clone();
                 s2.push(2);
-                
+
                 let mut s3 = s2.clone();
                 s3.push(3);
-                
+
                 // Pop operations
                 let mut s4 = s3.clone();
                 let x = s4.pop();
-                
+
                 let mut s5 = s4.clone();
                 let y = s5.pop();
-                
+
                 // Return the final result
                 ((x, y), s5)
             });
-            
+
             black_box(stack_operation.run_state(Vec::new()))
         });
     });
@@ -312,20 +305,17 @@ pub fn state_benchmarks(c: &mut Criterion) {
     group.bench_function("accumulate_values", |b| {
         b.iter(|| {
             let values = vec![1, 2, 3, 4, 5];
-            let result = values.iter().fold(
-                State::pure(0),
-                |state, val| {
-                    let val = *val;
-                    state.bind(move |current_val: i32| {
-                        // Create a new state that accumulates the value
-                        State::new(move |state: i32| {
-                            let new_val = current_val + val;
-                            let new_state = state + val;
-                            (new_val, new_state)
-                        })
+            let result = values.iter().fold(State::pure(0), |state, val| {
+                let val = *val;
+                state.bind(move |current_val: i32| {
+                    // Create a new state that accumulates the value
+                    State::new(move |state: i32| {
+                        let new_val = current_val + val;
+                        let new_state = state + val;
+                        (new_val, new_state)
                     })
-                },
-            );
+                })
+            });
             black_box(result.run_state(0))
         });
     });
@@ -342,36 +332,36 @@ pub fn state_benchmarks(c: &mut Criterion) {
                 // Push 3 and 4
                 let mut s1 = stack.clone();
                 s1.push(3);
-                
+
                 let mut s2 = s1.clone();
                 s2.push(4);
-                
+
                 // Pop twice to get operands
                 let mut s3 = s2.clone();
                 let x = s3.pop();
-                
+
                 let mut s4 = s3.clone();
                 let y = s4.pop();
-                
+
                 // Compute result (addition)
                 let result = match (x, y) {
                     (Some(a), Some(b)) => Some(a + b),
-                    _ => None
+                    _ => None,
                 };
-                
+
                 // Push result back if it exists
                 let s5 = match result {
                     Some(val) => {
                         let mut new_s = s4.clone();
                         new_s.push(val);
                         new_s
-                    },
-                    None => s4
+                    }
+                    None => s4,
                 };
-                
+
                 (result, s5)
             });
-            
+
             black_box(calculator.run_state(Vec::new()))
         });
     });
@@ -390,21 +380,14 @@ pub fn state_benchmarks(c: &mut Criterion) {
         }
 
         fn transition(input: char) -> State<MachineState, String> {
-            State::new(move |state: MachineState| {
-                match (state, input) {
-                    (MachineState::Start, 'A') => (
-                        "Moved to Processing".to_string(),
-                        MachineState::Processing,
-                    ),
-                    (MachineState::Processing, 'B') => (
-                        "Moved to Complete".to_string(),
-                        MachineState::Complete,
-                    ),
-                    (state, _) => (
-                        format!("Invalid transition from {:?}", state),
-                        state,
-                    ),
+            State::new(move |state: MachineState| match (state, input) {
+                (MachineState::Start, 'A') => {
+                    ("Moved to Processing".to_string(), MachineState::Processing)
                 }
+                (MachineState::Processing, 'B') => {
+                    ("Moved to Complete".to_string(), MachineState::Complete)
+                }
+                (state, _) => (format!("Invalid transition from {:?}", state), state),
             })
         }
 
@@ -455,18 +438,15 @@ pub fn state_benchmarks(c: &mut Criterion) {
                 approved: false,
             };
 
-            let pipeline = process_content()
-                .bind(|_: ()| approve_document())
-                .bind(|approved: bool| {
-                    State::new(move |doc: Document| {
-                        let status = if approved {
-                            "APPROVED"
-                        } else {
-                            "REJECTED"
-                        };
-                        (format!("Document status: {}", status), doc)
-                    })
-                });
+            let pipeline =
+                process_content()
+                    .bind(|_: ()| approve_document())
+                    .bind(|approved: bool| {
+                        State::new(move |doc: Document| {
+                            let status = if approved { "APPROVED" } else { "REJECTED" };
+                            (format!("Document status: {}", status), doc)
+                        })
+                    });
 
             black_box(pipeline.run_state(doc))
         });
@@ -501,9 +481,9 @@ pub fn state_benchmarks(c: &mut Criterion) {
                 steps: 0,
             };
 
-            let movements = move_player(1, 0)  // Right
-                .bind(|_: (i32, i32)| move_player(0, 1))   // Down
-                .bind(|_: (i32, i32)| move_player(1, 1))   // Diagonal
+            let movements = move_player(1, 0) // Right
+                .bind(|_: (i32, i32)| move_player(0, 1)) // Down
+                .bind(|_: (i32, i32)| move_player(1, 1)) // Diagonal
                 .bind(|pos: (i32, i32)| {
                     State::new(move |game: GameState| {
                         (format!("Position: {:?}, Steps: {}", pos, game.steps), game)
@@ -587,22 +567,20 @@ pub fn state_benchmarks(c: &mut Criterion) {
 
         // Define configuration operations
         fn toggle_feature(feature: &'static str) -> State<Config, bool> {
-            State::new(move |mut config: Config| {
-                match feature {
-                    "dark_mode" => {
-                        config.dark_mode = !config.dark_mode;
-                        (config.dark_mode, config)
-                    }
-                    "notifications" => {
-                        config.notifications_enabled = !config.notifications_enabled;
-                        (config.notifications_enabled, config)
-                    }
-                    "auto_save" => {
-                        config.auto_save = !config.auto_save;
-                        (config.auto_save, config)
-                    }
-                    _ => (false, config),
+            State::new(move |mut config: Config| match feature {
+                "dark_mode" => {
+                    config.dark_mode = !config.dark_mode;
+                    (config.dark_mode, config)
                 }
+                "notifications" => {
+                    config.notifications_enabled = !config.notifications_enabled;
+                    (config.notifications_enabled, config)
+                }
+                "auto_save" => {
+                    config.auto_save = !config.auto_save;
+                    (config.auto_save, config)
+                }
+                _ => (false, config),
             })
         }
 
@@ -613,18 +591,17 @@ pub fn state_benchmarks(c: &mut Criterion) {
                 auto_save: false,
             };
 
-            let operations = toggle_feature("dark_mode")
-                .bind(|dark_mode: bool| {
-                    toggle_feature("auto_save").bind(move |auto_save: bool| {
-                        State::new(move |config: Config| {
-                            let summary = format!(
-                                "Config updated: dark_mode={}, notifications={}, auto_save={}",
-                                dark_mode, config.notifications_enabled, auto_save
-                            );
-                            (summary, config)
-                        })
+            let operations = toggle_feature("dark_mode").bind(|dark_mode: bool| {
+                toggle_feature("auto_save").bind(move |auto_save: bool| {
+                    State::new(move |config: Config| {
+                        let summary = format!(
+                            "Config updated: dark_mode={}, notifications={}, auto_save={}",
+                            dark_mode, config.notifications_enabled, auto_save
+                        );
+                        (summary, config)
                     })
-                });
+                })
+            });
 
             black_box(operations.run_state(config))
         });
@@ -734,7 +711,8 @@ pub fn state_benchmarks(c: &mut Criterion) {
                 .bind(|_| log("Warning: resource usage high", "WARN"))
                 .bind(|count: usize| {
                     State::new(move |log_state: LogState| {
-                        let summary = format!("Logged {} entries. Last level: {}", count, log_state.level);
+                        let summary =
+                            format!("Logged {} entries. Last level: {}", count, log_state.level);
                         (summary, log_state)
                     })
                 });
@@ -817,45 +795,57 @@ pub fn state_benchmarks(c: &mut Criterion) {
                     message: message.to_string(),
                 }
             }
-            
+
             // Define a log append function
-            fn append_log(level: &'static str, message: &'static str) -> State<FileReaderState, ()> {
+            fn append_log(
+                level: &'static str,
+                message: &'static str,
+            ) -> State<FileReaderState, ()> {
                 let entry = create_log_entry(level, message);
                 State::new(move |mut state: FileReaderState| {
                     state.logs.push(entry.clone());
                     ((), state)
                 })
             }
-            
+
             // Create the log operations
             let log_operations = append_log("INFO", "Application started")
                 .bind(|_| append_log("DEBUG", "Loading configuration"))
                 .bind(|_| append_log("INFO", "Processing data"))
                 .bind(|_| append_log("WARN", "Low memory detected"))
                 .bind(|_| append_log("ERROR", "Failed to connect to database"))
-                .bind(|_| State::new(|state: FileReaderState| {
-                    let info_count = state.logs.iter().filter(|log| log.level == "INFO").count();
-                    let error_count = state.logs.iter().filter(|log| log.level == "ERROR").count();
-                    
-                    // Also count messages containing specific text and average timestamp
-                    let important_messages = state.logs.iter()
-                        .filter(|log| log.message.contains("config"))
-                        .count();
-                    
-                    let total_time: u64 = state.logs.iter()
-                        .map(|log| log.timestamp)
-                        .sum();
-                    
-                    let avg_time = if !state.logs.is_empty() {
-                        total_time / state.logs.len() as u64
-                    } else {
-                        0
-                    };
-                    
-                    (format!("Info: {}, Errors: {}, Important: {}, Avg time: {}", 
-                             info_count, error_count, important_messages, avg_time), state)
-                }));
-                
+                .bind(|_| {
+                    State::new(|state: FileReaderState| {
+                        let info_count =
+                            state.logs.iter().filter(|log| log.level == "INFO").count();
+                        let error_count =
+                            state.logs.iter().filter(|log| log.level == "ERROR").count();
+
+                        // Also count messages containing specific text and average timestamp
+                        let important_messages = state
+                            .logs
+                            .iter()
+                            .filter(|log| log.message.contains("config"))
+                            .count();
+
+                        let total_time: u64 = state.logs.iter().map(|log| log.timestamp).sum();
+
+                        let avg_time = if !state.logs.is_empty() {
+                            total_time / state.logs.len() as u64
+                        } else {
+                            0
+                        };
+
+                        (
+                            format!(
+                                "Info: {}, Errors: {}, Important: {}, Avg time: {}",
+                                info_count, error_count, important_messages, avg_time
+                            ),
+                            state,
+                        )
+                    })
+                });
+
             // Run the computation with an initial empty state
             black_box(log_operations.run_state(FileReaderState::default()))
         });
@@ -868,13 +858,12 @@ pub fn state_benchmarks(c: &mut Criterion) {
     real_world_group.bench_function("state_computation", |b| {
         b.iter(|| {
             // Create a State computation that uses pattern matching
-            let ops: State<i32, i32> = State::new(|s: i32| (s + 2, s * 3))
-                .bind(|val: i32| {
-                    State::new(move |s: i32| {
-                        let result = if s > 10 { val * 2 } else { val + 10 };
-                        (result, s / 2)
-                    })
-                });
+            let ops: State<i32, i32> = State::new(|s: i32| (s + 2, s * 3)).bind(|val: i32| {
+                State::new(move |s: i32| {
+                    let result = if s > 10 { val * 2 } else { val + 10 };
+                    (result, s / 2)
+                })
+            });
 
             black_box(ops.run_state(5))
         });
@@ -886,22 +875,22 @@ pub fn state_benchmarks(c: &mut Criterion) {
             let validate_params = |x: i32, y: i32, z: i32| -> State<Vec<String>, bool> {
                 State::new(move |mut errors: Vec<String>| {
                     let mut valid = true;
-                    
+
                     if x < 0 {
                         errors.push("x must be non-negative".to_string());
                         valid = false;
                     }
-                    
+
                     if y == 0 {
                         errors.push("y cannot be zero".to_string());
                         valid = false;
                     }
-                    
+
                     if z > 100 {
                         errors.push("z must be <= 100".to_string());
                         valid = false;
                     }
-                    
+
                     (valid, errors)
                 })
             };
@@ -913,7 +902,9 @@ pub fn state_benchmarks(c: &mut Criterion) {
     real_world_group.bench_function("generic_operation_chain", |b| {
         b.iter(|| {
             // Define a generic operation chain
-            fn start_state<S: Clone + 'static, T: Clone + 'static>(initial_value: T) -> State<S, T> {
+            fn start_state<S: Clone + 'static, T: Clone + 'static>(
+                initial_value: T,
+            ) -> State<S, T> {
                 State::pure(initial_value)
             }
 
@@ -927,24 +918,27 @@ pub fn state_benchmarks(c: &mut Criterion) {
     real_world_group.bench_function("logger", |b| {
         b.iter(|| {
             // Define a logger state with fixed timestamp to avoid borrowing issues
-            fn add_log_entry(level: &'static str, message: &'static str) -> State<Vec<LogEntry>, ()> {
+            fn add_log_entry(
+                level: &'static str,
+                message: &'static str,
+            ) -> State<Vec<LogEntry>, ()> {
                 // Use a fixed timestamp to avoid borrowing issues
                 let entry = LogEntry {
                     timestamp: 1647271234, // Fixed timestamp for benchmarking
                     level: level.to_string(),
                     message: message.to_string(),
                 };
-                
+
                 modify(move |logs: Vec<LogEntry>| {
                     let mut new_logs = logs;
                     new_logs.push(entry.clone());
                     new_logs
                 })
             }
-            
+
             let logger = add_log_entry("INFO", "Application started")
                 .bind(|_| add_log_entry("DEBUG", "Loading configuration"));
-                
+
             black_box(logger.run_state(Vec::new()))
         });
     });
@@ -952,12 +946,13 @@ pub fn state_benchmarks(c: &mut Criterion) {
     real_world_group.bench_function("reader", |b| {
         b.iter(|| {
             // Define a reader state
-            let reader: State<FileReaderState, String> = State::new(|mut reader: FileReaderState| {
-                let content = reader.buffer.clone();
-                reader.position += content.len();
-                reader.last_read_time = SystemTime::now();
-                (content, reader)
-            });
+            let reader: State<FileReaderState, String> =
+                State::new(|mut reader: FileReaderState| {
+                    let content = reader.buffer.clone();
+                    reader.position += content.len();
+                    reader.last_read_time = SystemTime::now();
+                    (content, reader)
+                });
 
             let initial_state = FileReaderState {
                 buffer: "Hello, world!".to_string(),

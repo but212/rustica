@@ -715,25 +715,21 @@ pub fn writer_benchmarks(c: &mut Criterion) {
                 debug_mode: bool,
                 log_level: String,
             }
-            
             let initial_config = SystemConfig {
                 max_connections: 100,
                 debug_mode: false,
                 log_level: "INFO".to_string(),
             };
-            
             let initial_writer = Writer::<Log, SystemConfig>::new(
                 Log { _entries: vec!["Initial system configuration loaded".to_string()] }, 
                 initial_config
             );
-            
             black_box(
                 initial_writer
                     .bind(|config: &SystemConfig| {
                         // Update max connections
                         let mut new_config = config.clone();
                         new_config.max_connections = 150;
-                        
                         let log = Log { _entries: vec![format!("Max connections changed: {} -> {}", 
                             config.max_connections, new_config.max_connections)] };
                         Writer::<Log, SystemConfig>::new(log, new_config)
@@ -742,7 +738,6 @@ pub fn writer_benchmarks(c: &mut Criterion) {
                         // Enable debug mode
                         let mut new_config = config.clone();
                         new_config.debug_mode = true;
-                        
                         let log = Log { _entries: vec![format!("Debug mode changed: {} -> {}", 
                             config.debug_mode, new_config.debug_mode)] };
                         Writer::<Log, SystemConfig>::new(log, new_config)
@@ -752,7 +747,6 @@ pub fn writer_benchmarks(c: &mut Criterion) {
                         let mut new_config = config.clone();
                         if new_config.debug_mode {
                             new_config.log_level = "DEBUG".to_string();
-                            
                             let log = Log { _entries: vec![format!("Log level changed: {} -> {}", 
                                 config.log_level, new_config.log_level)] };
                             Writer::<Log, SystemConfig>::new(log, new_config)

@@ -11,7 +11,7 @@ fn use_all_fields(
 ) -> String {
     // Get a reference to cache_settings to mark it as used
     let _cache_ref = &app_config.cache_settings;
-    
+
     format!(
         "Config: api_key={}, base_url={}, timeout_ms={}, max_retries={}, debug_mode={}, \
          cache: enabled={}, ttl={}, max_size={}, \
