@@ -101,6 +101,7 @@ use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
 use smallvec::SmallVec;
+use std::borrow::Borrow;
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -327,7 +328,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
     /// let mapped = invalid.map_invalid(&|e| format!("Error: {}", e));
-    /// assert_eq!(mapped, Validated::invalid("Error: error"));
+    /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// ```
     #[inline]
     pub fn map_invalid<G, F>(&self, f: &F) -> Validated<G, A>
@@ -371,7 +372,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
     /// let mapped = invalid.map_invalid_owned(|e| format!("Error: {}", e));
-    /// assert_eq!(mapped, Validated::invalid("Error: error"));
+    /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// ```
     #[inline]
     pub fn map_invalid_owned<G, F>(self, f: F) -> Validated<G, A>
@@ -817,7 +818,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///     Validated::<&str, i32>::valid(3),
     /// ];
     ///
-    /// let collected: Validated<&str, Vec<i32>> = Validated::collect::<_, Vec<_>>(values.iter());
+    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(values.iter());
     /// assert_eq!(collected, Validated::valid(vec![1, 2, 3]));
     ///
     /// let mixed = vec![
@@ -826,14 +827,14 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///     Validated::<&str, i32>::valid(3),
     /// ];
     ///
-    /// let collected: Validated<&str, Vec<i32>> = Validated::collect::<_, Vec<_>>(mixed.iter());
+    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.iter());
     /// assert!(collected.is_invalid());
     /// ```
     #[inline]
     pub fn collect<I, C>(iter: I) -> Validated<E, C>
     where
         I: Iterator,
-        I::Item: AsRef<Validated<E, A>>,
+        I::Item: Borrow<Validated<E, A>>,
         C: FromIterator<A>,
     {
         let mut all_valid = true;
@@ -841,7 +842,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         let mut valid_values = Vec::new();
 
         for item in iter {
-            let validated = item.as_ref();
+            let validated = item.borrow();
             match validated {
                 Validated::Valid(x) => {
                     valid_values.push(x.clone());
@@ -863,6 +864,14 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             Validated::SingleInvalid(errors.pop().unwrap())
         } else {
             Validated::MultiInvalid(errors)
+        }
+    }
+
+    #[inline]
+    pub fn to_option(&self) -> Option<A> {
+        match self {
+            Validated::Valid(x) => Some(x.clone()),
+            _ => None,
         }
     }
 
@@ -936,7 +945,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
     /// let mapped = invalid.map_invalid_async(|e| async move { format!("Error: {}", e) }).await;
-    /// assert_eq!(mapped, Validated::invalid("Error: error"));
+    /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// # }
     /// ```
     #[inline]
@@ -1063,15 +1072,15 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
     /// use rustica::datatypes::validated::Validated;
     /// use rustica::traits::applicative::Applicative;
     ///
-    /// let valid_fn: Validated<&str, fn(i32) -> String> = Validated::valid(|x| x.to_string());
+    /// let valid_fn: Validated<&str, fn(&i32) -> String> = Validated::valid(|x| x.to_string());
     /// let valid_val: Validated<&str, i32> = Validated::valid(42);
-    /// let result = valid_fn.apply(&valid_val);
+    /// let result = valid_val.apply(&valid_fn);
     /// assert_eq!(result, Validated::valid("42".to_string()));
     /// ```
     #[inline]
     fn apply<B, F>(&self, rf: &Self::Output<F>) -> Self::Output<B>
     where
-        F: Fn(&A) -> B,
+        F: Fn(&Self::Source) -> B,
     {
         match (self, rf) {
             (Validated::Valid(a), Validated::Valid(f)) => Validated::Valid(f(a)),
@@ -1127,18 +1136,24 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
                 errors.push(e2);
                 Validated::MultiInvalid(errors)
             }
-            (Validated::SingleInvalid(e1), Validated::MultiInvalid(mut e2)) => {
-                e2.insert(0, e1);
-                Validated::MultiInvalid(e2)
+            (Validated::SingleInvalid(e1), Validated::MultiInvalid(e2)) => {
+                let mut errors = SmallVec::new();
+                errors.push(e1);
+                errors.extend(e2);
+                Validated::MultiInvalid(errors)
             }
             (Validated::MultiInvalid(e), Validated::Valid(_)) => Validated::MultiInvalid(e),
-            (Validated::MultiInvalid(mut e1), Validated::SingleInvalid(e2)) => {
-                e1.push(e2);
-                Validated::MultiInvalid(e1)
+            (Validated::MultiInvalid(e1), Validated::SingleInvalid(e2)) => {
+                let mut errors = SmallVec::new();
+                errors.extend(e1);
+                errors.push(e2);
+                Validated::MultiInvalid(errors)
             }
-            (Validated::MultiInvalid(mut e1), Validated::MultiInvalid(e2)) => {
-                e1.extend(e2);
-                Validated::MultiInvalid(e1)
+            (Validated::MultiInvalid(e1), Validated::MultiInvalid(e2)) => {
+                let mut errors = SmallVec::new();
+                errors.extend(e1);
+                errors.extend(e2);
+                Validated::MultiInvalid(errors)
             }
         }
     }
@@ -1205,18 +1220,24 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
                 errors.push(e2);
                 Validated::MultiInvalid(errors)
             }
-            (Validated::SingleInvalid(e1), Validated::MultiInvalid(mut e2)) => {
-                e2.insert(0, e1);
-                Validated::MultiInvalid(e2)
+            (Validated::SingleInvalid(e1), Validated::MultiInvalid(e2)) => {
+                let mut errors = SmallVec::new();
+                errors.push(e1);
+                errors.extend(e2);
+                Validated::MultiInvalid(errors)
             }
             (Validated::MultiInvalid(e), Validated::Valid(_)) => Validated::MultiInvalid(e),
-            (Validated::MultiInvalid(mut e1), Validated::SingleInvalid(e2)) => {
-                e1.push(e2);
-                Validated::MultiInvalid(e1)
+            (Validated::MultiInvalid(e1), Validated::SingleInvalid(e2)) => {
+                let mut errors = SmallVec::new();
+                errors.extend(e1);
+                errors.push(e2);
+                Validated::MultiInvalid(errors)
             }
-            (Validated::MultiInvalid(mut e1), Validated::MultiInvalid(e2)) => {
-                e1.extend(e2);
-                Validated::MultiInvalid(e1)
+            (Validated::MultiInvalid(e1), Validated::MultiInvalid(e2)) => {
+                let mut errors = SmallVec::new();
+                errors.extend(e1);
+                errors.extend(e2);
+                Validated::MultiInvalid(errors)
             }
             (Validated::Valid(_), Validated::MultiInvalid(e)) => Validated::MultiInvalid(e),
         }
@@ -1385,7 +1406,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     /// use rustica::traits::monad::Monad;
     ///
     /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// let result = valid.bind(&|x| Validated::<&str, String>::valid(x.to_string()));
+    /// let result = valid.bind(|x| Validated::<&str, String>::valid(x.to_string()));
     /// assert_eq!(result, Validated::valid("42".to_string()));
     /// ```
     #[inline]
@@ -1544,7 +1565,7 @@ impl<E, A> Identity for Validated<E, A> {
     /// use rustica::datatypes::validated::Validated;
     /// use rustica::traits::identity::Identity;
     ///
-    /// let valid: Validated<&str, i32> = Validated::pure_identity(42);
+    /// let valid: Validated<&str, i32> = Validated::<&str, i32>::pure_identity(42);
     /// assert_eq!(valid, Validated::valid(42));
     /// ```
     #[inline]

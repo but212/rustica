@@ -41,6 +41,13 @@ use crate::traits::hkt::HKT;
 /// ```
 pub struct BoxedFn<T>(pub Box<dyn Fn() -> T>);
 
+impl<T> BoxedFn<T> {
+    #[inline]
+    pub fn new(f: impl Fn() -> T + 'static) -> Self {
+        BoxedFn(Box::new(f))
+    }
+}
+
 impl<T> HKT for BoxedFn<T> {
     type Source = T;
     type Output<U> = BoxedFn<U>;

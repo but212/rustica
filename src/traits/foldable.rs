@@ -62,7 +62,7 @@
 //! assert_eq!(doubled, 84);
 //!
 //! let none_value: Option<i32> = None;
-//! let result: i32 = none_value.fold_left(&100, |acc, _| acc);
+//! let result: i32 = none_value.fold_left(&100, |acc, _| acc.to_owned());
 //! assert_eq!(result, 100); // Initial value is returned for None
 //!
 //! // Example with Result
@@ -71,7 +71,7 @@
 //! assert_eq!(incremented, 52);
 //!
 //! let err_result: Result<i32, &str> = Err("error");
-//! let fallback: i32 = err_result.fold_left(&100, |acc, _| acc);
+//! let fallback: i32 = err_result.fold_left(&100, |acc, _| acc.to_owned());
 //! assert_eq!(fallback, 100); // Initial value is returned for Err
 //!
 //! // Using extension methods
@@ -147,7 +147,7 @@ pub trait Foldable: HKT {
     ///
     /// // Processing a Vec from left to right
     /// let strings: Vec<&str> = vec!["a", "b", "c"];
-    /// let concat: String = strings.fold_left(&String::new(), |acc, s| acc + s);
+    /// let concat: String = strings.fold_left(&String::new(), |acc, s| acc.to_owned() + s);
     /// assert_eq!(concat, "abc");
     /// ```
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U

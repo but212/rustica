@@ -408,4 +408,11 @@ where
             result.run(move |b| k(b))
         })
     }
+
+    pub fn pure(a: A) -> Self
+    where
+        A: Clone,
+    {
+        Cont::return_cont(a)
+    }
 }
