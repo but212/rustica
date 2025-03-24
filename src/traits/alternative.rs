@@ -27,3 +27,63 @@ pub trait Alternative: Applicative {
     where
         Self::Source: Clone;
 }
+
+impl<T> Alternative for Option<T>
+where
+    T: Clone,
+{
+    fn empty_alt<U>() -> Self::Output<U> {
+        None
+    }
+
+    fn alt(&self, other: &Self) -> Self {
+        self.clone().or_else(|| other.clone())
+    }
+
+    fn guard(condition: bool) -> Self::Output<()> {
+        condition.then_some(())
+    }
+
+    fn many(&self) -> Self::Output<Vec<Self::Source>>
+    where
+        Self::Source: Clone,
+    {
+        self.as_ref().map(|value| vec![value.clone()])
+    }
+}
+
+impl<T> Alternative for Vec<T>
+where
+    T: Clone,
+{
+    fn empty_alt<U>() -> Self::Output<U> {
+        Vec::new()
+    }
+
+    fn alt(&self, other: &Self) -> Self {
+        if self.is_empty() {
+            other.clone()
+        } else {
+            self.clone()
+        }
+    }
+
+    fn guard(condition: bool) -> Self::Output<()> {
+        if condition {
+            vec![()]
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn many(&self) -> Self::Output<Vec<Self::Source>>
+    where
+        Self::Source: Clone,
+    {
+        if self.is_empty() {
+            Vec::new()
+        } else {
+            vec![self.clone()]
+        }
+    }
+}

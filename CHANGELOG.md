@@ -1,3 +1,20 @@
+## [0.5.4] - 2025-03-24
+
+### Added
+- Implemented `StateT` monad transformer
+  - Added core implementation with state manipulation functions (`get`, `put`, `modify`)
+  - Added composition with other monads via `bind_with` and `fmap_with`
+  - Added utility type aliases (`StateValueMapper`, `StateCombiner`) for better code organization
+  - Added comprehensive tests covering state operations, error handling, and composition scenarios
+  - Added detailed documentation with usage examples
+- Added new functional programming traits
+  - `Alternative`: For types with choice and empty implementations
+  - `Distributive`: The dual of Traversable, distributing a functor over another
+  - `Divisible`: Contravariant analogue of Applicative
+  - `Iso`: For isomorphic type relationships
+  - `NaturalTransform`: For converting between functors preserving structure
+  - `Representable`: For functors that can be represented by a mapping from a key type
+
 ## [0.5.3] - 2025-03-16
 
 ### Changed

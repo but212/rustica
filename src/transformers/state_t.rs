@@ -11,7 +11,7 @@
 //! use rustica::prelude::*;
 //!
 //! // Create a StateT over Option that increments the state and returns it
-//! let state_t: StateT<i32, Option<(i32, i32)>, i32> = 
+//! let state_t: StateT<i32, Option<(i32, i32)>, i32> =
 //!     StateT::new(|s: i32| Some((s + 1, s)));
 //!
 //! // Run with an initial state
@@ -67,6 +67,12 @@ use std::sync::Arc;
 
 use crate::traits::monad::Monad;
 use crate::transformers::MonadTransformer;
+
+/// Type alias for a function that transforms a state-value pair to another state-value pair
+pub type StateValueMapper<S, A, B> = Box<dyn Fn((S, A)) -> (S, B) + Send + Sync>;
+
+/// Type alias for a function that combines two state-value pairs into a new state-value pair
+pub type StateCombiner<S, A, B, C> = Box<dyn Fn((S, A), (S, B)) -> (S, C) + Send + Sync>;
 
 /// A monad transformer that adds state capabilities to a base monad.
 ///
@@ -182,11 +188,11 @@ where
     /// // Run with an empty HashMap
     /// let mut map = HashMap::new();
     /// let result1 = count_word.run_state(map);
-    /// 
+    ///
     /// // Extract the state and result
     /// let (new_state, count) = result1.unwrap();
     /// assert_eq!(count, 1);
-    /// 
+    ///
     /// // Run again with the updated state
     /// let result2 = count_word.run_state(new_state);
     /// assert_eq!(result2.map(|(_, c)| c), Some(2));
@@ -325,17 +331,16 @@ where
     pub fn fmap_with<F, B, MapFn>(&self, f: F, map_fn: MapFn) -> StateT<S, M, B>
     where
         F: Fn(A) -> B + Send + Sync + Clone + 'static,
-        MapFn: Fn(M, Box<dyn Fn((S, A)) -> (S, B) + Send + Sync>) -> M + Send + Sync + 'static,
+        MapFn: Fn(M, StateValueMapper<S, A, B>) -> M + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
         B: 'static,
     {
         let run_fn = Arc::clone(&self.run_fn);
-        
+
         StateT::new(move |s: S| {
             let f_clone = f.clone();
-            let mapper: Box<dyn Fn((S, A)) -> (S, B) + Send + Sync> = 
-                Box::new(move |(state, a)| (state, f_clone(a)));
-            
+            let mapper: StateValueMapper<S, A, B> = Box::new(move |(state, a)| (state, f_clone(a)));
+
             map_fn((run_fn)(s), mapper)
         })
     }
@@ -393,15 +398,14 @@ where
         B: 'static,
     {
         let run_fn = Arc::clone(&self.run_fn);
-        
+
         StateT::new(move |s: S| {
             let f_clone = f.clone();
-            let binder: Box<dyn Fn((S, A)) -> N + Send + Sync> = 
-                Box::new(move |(state, a)| {
-                    let next_state_t = f_clone(a);
-                    next_state_t.run_state(state)
-                });
-            
+            let binder: Box<dyn Fn((S, A)) -> N + Send + Sync> = Box::new(move |(state, a)| {
+                let next_state_t = f_clone(a);
+                next_state_t.run_state(state)
+            });
+
             bind_fn((run_fn)(s), binder)
         })
     }
@@ -427,22 +431,21 @@ where
     ) -> StateT<S, M, C>
     where
         F: Fn(A, B) -> C + Send + Sync + Clone + 'static,
-        CombineFn: Fn(M, M, Box<dyn Fn((S, A), (S, B)) -> (S, C) + Send + Sync>) -> M + Send + Sync + 'static,
+        CombineFn: Fn(M, M, StateCombiner<S, A, B, C>) -> M + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
         B: 'static,
         C: 'static,
     {
         let self_run_fn = Arc::clone(&self.run_fn);
         let other_run_fn = Arc::clone(&other.run_fn);
-        
+
         StateT::new(move |s: S| {
             let f_clone = f.clone();
-            let combiner: Box<dyn Fn((S, A), (S, B)) -> (S, C) + Send + Sync> = 
-                Box::new(move |(_, a), (state, b)| {
-                    let f_clone = f_clone.clone();
-                    (state, f_clone(a, b))
-                });
-            
+            let combiner: StateCombiner<S, A, B, C> = Box::new(move |(_, a), (state, b)| {
+                let f_clone = f_clone.clone();
+                (state, f_clone(a, b))
+            });
+
             combine_fn((self_run_fn)(s.clone()), (other_run_fn)(s), combiner)
         })
     }
@@ -455,7 +458,7 @@ where
     A: Clone + 'static,
 {
     type BaseMonad = M;
-    
+
     #[inline]
     fn lift(base: M) -> Self {
         StateT::new(move |_: S| base.clone())

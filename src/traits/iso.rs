@@ -1,4 +1,6 @@
 pub trait Iso<A, B> {
-    fn to(&self, a: &A) -> B;
-    fn from(&self, b: &B) -> A;
+    type To;
+    type From;
+    fn forward(from: &Self::From) -> Self::To;
+    fn backward(to: &Self::To) -> Self::From;
 }

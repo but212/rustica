@@ -42,7 +42,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
 
     group.bench_function("of_many", |b| {
         b.iter(|| {
-            black_box(Choice::of_many(42, vec![1, 2, 3, 4, 5]));
+            black_box(Choice::of_many(vec![42, 1, 2, 3, 4, 5]));
         });
     });
 

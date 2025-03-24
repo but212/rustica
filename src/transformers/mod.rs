@@ -30,13 +30,13 @@
 use crate::traits::monad::Monad;
 
 // mod maybe_t;
-mod state_t;
 mod reader_t;
+mod state_t;
 // mod writer_t;
 
 // pub use maybe_t::MaybeT;
-pub use state_t::StateT;
 pub use reader_t::ReaderT;
+pub use state_t::StateT;
 // pub use writer_t::WriterT;
 
 /// Trait for monad transformers.
