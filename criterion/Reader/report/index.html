@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Reader Summary - Criterion.rs</title>
+    <style type="text/css">
+        body {
+            font: 14px Helvetica Neue;
+            text-rendering: optimizelegibility;
+        }
+
+        .body {
+            width: 960px;
+            margin: auto;
+        }
+
+        a:link {
+            color: #1F78B4;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 300;
+        }
+
+        h3 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        #footer {
+            height: 40px;
+            background: #888;
+            color: white;
+            font-size: larger;
+            font-weight: 300;
+        }
+
+        #footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        #footer p {
+            text-align: center
+        }
+    </style>
+</head>
+
+<body>
+    <div class="body">
+        <h2>Reader</h2>
+        <h3>Violin Plot</h3>
+        <a href="violin.svg">
+            <img src="violin.svg" alt="Violin Plot" />
+        </a>
+        <p>This chart shows the relationship between function/parameter and iteration time. The thickness of the shaded
+            region indicates the probability that a measurement of the given function/parameter would take a particular
+            length of time.</p>
+        <section class="plots">
+            <a href="../../Reader/ask/report/index.html">
+                <h4>Reader/ask</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/ask/report/pdf.svg">
+                                <img src="../../Reader/ask/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/ask/report/regression.svg">
+                                <img src="../../Reader/ask/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/ask_with/report/index.html">
+                <h4>Reader/ask_with</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/ask_with/report/pdf.svg">
+                                <img src="../../Reader/ask_with/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/ask_with/report/regression.svg">
+                                <img src="../../Reader/ask_with/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/asks/report/index.html">
+                <h4>Reader/asks</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/asks/report/pdf.svg">
+                                <img src="../../Reader/asks/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/asks/report/regression.svg">
+                                <img src="../../Reader/asks/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/asks_with/report/index.html">
+                <h4>Reader/asks_with</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/asks_with/report/pdf.svg">
+                                <img src="../../Reader/asks_with/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/asks_with/report/regression.svg">
+                                <img src="../../Reader/asks_with/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/bind/report/index.html">
+                <h4>Reader/bind</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/bind/report/pdf.svg">
+                                <img src="../../Reader/bind/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/bind/report/regression.svg">
+                                <img src="../../Reader/bind/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/bind_chain/report/index.html">
+                <h4>Reader/bind_chain</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/bind_chain/report/pdf.svg">
+                                <img src="../../Reader/bind_chain/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/bind_chain/report/regression.svg">
+                                <img src="../../Reader/bind_chain/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/combine/report/index.html">
+                <h4>Reader/combine</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/combine/report/pdf.svg">
+                                <img src="../../Reader/combine/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/combine/report/regression.svg">
+                                <img src="../../Reader/combine/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/create_and_run/report/index.html">
+                <h4>Reader/create_and_run</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/create_and_run/report/pdf.svg">
+                                <img src="../../Reader/create_and_run/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/create_and_run/report/regression.svg">
+                                <img src="../../Reader/create_and_run/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/fmap/report/index.html">
+                <h4>Reader/fmap</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/fmap/report/pdf.svg">
+                                <img src="../../Reader/fmap/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/fmap/report/regression.svg">
+                                <img src="../../Reader/fmap/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/fmap_chain/report/index.html">
+                <h4>Reader/fmap_chain</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/fmap_chain/report/pdf.svg">
+                                <img src="../../Reader/fmap_chain/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/fmap_chain/report/regression.svg">
+                                <img src="../../Reader/fmap_chain/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/lift2/report/index.html">
+                <h4>Reader/lift2</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/lift2/report/pdf.svg">
+                                <img src="../../Reader/lift2/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/lift2/report/regression.svg">
+                                <img src="../../Reader/lift2/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/local/report/index.html">
+                <h4>Reader/local</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/local/report/pdf.svg">
+                                <img src="../../Reader/local/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/local/report/regression.svg">
+                                <img src="../../Reader/local/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/nested_local/report/index.html">
+                <h4>Reader/nested_local</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/nested_local/report/pdf.svg">
+                                <img src="../../Reader/nested_local/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/nested_local/report/regression.svg">
+                                <img src="../../Reader/nested_local/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/use_case_api_request/report/index.html">
+                <h4>Reader/use_case_api_request</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/use_case_api_request/report/pdf.svg">
+                                <img src="../../Reader/use_case_api_request/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/use_case_api_request/report/regression.svg">
+                                <img src="../../Reader/use_case_api_request/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/use_case_auth_flow/report/index.html">
+                <h4>Reader/use_case_auth_flow</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/use_case_auth_flow/report/pdf.svg">
+                                <img src="../../Reader/use_case_auth_flow/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/use_case_auth_flow/report/regression.svg">
+                                <img src="../../Reader/use_case_auth_flow/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/use_case_config_transformation/report/index.html">
+                <h4>Reader/use_case_config_transformation</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/use_case_config_transformation/report/pdf.svg">
+                                <img src="../../Reader/use_case_config_transformation/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/use_case_config_transformation/report/regression.svg">
+                                <img src="../../Reader/use_case_config_transformation/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/use_case_db_operations/report/index.html">
+                <h4>Reader/use_case_db_operations</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/use_case_db_operations/report/pdf.svg">
+                                <img src="../../Reader/use_case_db_operations/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/use_case_db_operations/report/regression.svg">
+                                <img src="../../Reader/use_case_db_operations/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Reader/use_case_feature_flag_check/report/index.html">
+                <h4>Reader/use_case_feature_flag_check</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Reader/use_case_feature_flag_check/report/pdf.svg">
+                                <img src="../../Reader/use_case_feature_flag_check/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Reader/use_case_feature_flag_check/report/regression.svg">
+                                <img src="../../Reader/use_case_feature_flag_check/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <div id="footer">
+        <p>This report was generated by
+            <a href="https://github.com/bheisler/criterion.rs">Criterion.rs</a>, a statistics-driven benchmarking
+            library in Rust.</p>
+    </div>
+</body>
+
+</html>

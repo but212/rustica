@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Either Summary - Criterion.rs</title>
+    <style type="text/css">
+        body {
+            font: 14px Helvetica Neue;
+            text-rendering: optimizelegibility;
+        }
+
+        .body {
+            width: 960px;
+            margin: auto;
+        }
+
+        a:link {
+            color: #1F78B4;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 300;
+        }
+
+        h3 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        #footer {
+            height: 40px;
+            background: #888;
+            color: white;
+            font-size: larger;
+            font-weight: 300;
+        }
+
+        #footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        #footer p {
+            text-align: center
+        }
+    </style>
+</head>
+
+<body>
+    <div class="body">
+        <h2>Either</h2>
+        <h3>Violin Plot</h3>
+        <a href="violin.svg">
+            <img src="violin.svg" alt="Violin Plot" />
+        </a>
+        <p>This chart shows the relationship between function/parameter and iteration time. The thickness of the shaded
+            region indicates the probability that a measurement of the given function/parameter would take a particular
+            length of time.</p>
+        <section class="plots">
+            <a href="../../Either/apply_left_right/report/index.html">
+                <h4>Either/apply_left_right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/apply_left_right/report/pdf.svg">
+                                <img src="../../Either/apply_left_right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/apply_left_right/report/regression.svg">
+                                <img src="../../Either/apply_left_right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/apply_owned/report/index.html">
+                <h4>Either/apply_owned</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/apply_owned/report/pdf.svg">
+                                <img src="../../Either/apply_owned/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/apply_owned/report/regression.svg">
+                                <img src="../../Either/apply_owned/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/apply_right_left/report/index.html">
+                <h4>Either/apply_right_left</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/apply_right_left/report/pdf.svg">
+                                <img src="../../Either/apply_right_left/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/apply_right_left/report/regression.svg">
+                                <img src="../../Either/apply_right_left/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/apply_right_right/report/index.html">
+                <h4>Either/apply_right_right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/apply_right_right/report/pdf.svg">
+                                <img src="../../Either/apply_right_right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/apply_right_right/report/regression.svg">
+                                <img src="../../Either/apply_right_right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/bidirectional_mapping/report/index.html">
+                <h4>Either/bidirectional_mapping</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/bidirectional_mapping/report/pdf.svg">
+                                <img src="../../Either/bidirectional_mapping/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/bidirectional_mapping/report/regression.svg">
+                                <img src="../../Either/bidirectional_mapping/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/bind_left/report/index.html">
+                <h4>Either/bind_left</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/bind_left/report/pdf.svg">
+                                <img src="../../Either/bind_left/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/bind_left/report/regression.svg">
+                                <img src="../../Either/bind_left/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/bind_owned_left/report/index.html">
+                <h4>Either/bind_owned_left</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/bind_owned_left/report/pdf.svg">
+                                <img src="../../Either/bind_owned_left/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/bind_owned_left/report/regression.svg">
+                                <img src="../../Either/bind_owned_left/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/bind_owned_right/report/index.html">
+                <h4>Either/bind_owned_right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/bind_owned_right/report/pdf.svg">
+                                <img src="../../Either/bind_owned_right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/bind_owned_right/report/regression.svg">
+                                <img src="../../Either/bind_owned_right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/bind_right/report/index.html">
+                <h4>Either/bind_right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/bind_right/report/pdf.svg">
+                                <img src="../../Either/bind_right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/bind_right/report/regression.svg">
+                                <img src="../../Either/bind_right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/complex_transformation/report/index.html">
+                <h4>Either/complex_transformation</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/complex_transformation/report/pdf.svg">
+                                <img src="../../Either/complex_transformation/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/complex_transformation/report/regression.svg">
+                                <img src="../../Either/complex_transformation/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/data_validation/report/index.html">
+                <h4>Either/data_validation</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/data_validation/report/pdf.svg">
+                                <img src="../../Either/data_validation/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/data_validation/report/regression.svg">
+                                <img src="../../Either/data_validation/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/error_handling/report/index.html">
+                <h4>Either/error_handling</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/error_handling/report/pdf.svg">
+                                <img src="../../Either/error_handling/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/error_handling/report/regression.svg">
+                                <img src="../../Either/error_handling/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/fmap_left/report/index.html">
+                <h4>Either/fmap_left</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/fmap_left/report/pdf.svg">
+                                <img src="../../Either/fmap_left/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/fmap_left/report/regression.svg">
+                                <img src="../../Either/fmap_left/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/fmap_owned_left/report/index.html">
+                <h4>Either/fmap_owned_left</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/fmap_owned_left/report/pdf.svg">
+                                <img src="../../Either/fmap_owned_left/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/fmap_owned_left/report/regression.svg">
+                                <img src="../../Either/fmap_owned_left/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/fmap_owned_right/report/index.html">
+                <h4>Either/fmap_owned_right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/fmap_owned_right/report/pdf.svg">
+                                <img src="../../Either/fmap_owned_right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/fmap_owned_right/report/regression.svg">
+                                <img src="../../Either/fmap_owned_right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/fmap_right/report/index.html">
+                <h4>Either/fmap_right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/fmap_right/report/pdf.svg">
+                                <img src="../../Either/fmap_right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/fmap_right/report/regression.svg">
+                                <img src="../../Either/fmap_right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/identity_value/report/index.html">
+                <h4>Either/identity_value</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/identity_value/report/pdf.svg">
+                                <img src="../../Either/identity_value/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/identity_value/report/regression.svg">
+                                <img src="../../Either/identity_value/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/into_value/report/index.html">
+                <h4>Either/into_value</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/into_value/report/pdf.svg">
+                                <img src="../../Either/into_value/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/into_value/report/regression.svg">
+                                <img src="../../Either/into_value/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/is_left/report/index.html">
+                <h4>Either/is_left</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/is_left/report/pdf.svg">
+                                <img src="../../Either/is_left/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/is_left/report/regression.svg">
+                                <img src="../../Either/is_left/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/is_right/report/index.html">
+                <h4>Either/is_right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/is_right/report/pdf.svg">
+                                <img src="../../Either/is_right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/is_right/report/regression.svg">
+                                <img src="../../Either/is_right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/join/report/index.html">
+                <h4>Either/join</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/join/report/pdf.svg">
+                                <img src="../../Either/join/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/join/report/regression.svg">
+                                <img src="../../Either/join/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/join_owned/report/index.html">
+                <h4>Either/join_owned</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/join_owned/report/pdf.svg">
+                                <img src="../../Either/join_owned/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/join_owned/report/regression.svg">
+                                <img src="../../Either/join_owned/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/left/report/index.html">
+                <h4>Either/left</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/left/report/pdf.svg">
+                                <img src="../../Either/left/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/left/report/regression.svg">
+                                <img src="../../Either/left/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/lift2/report/index.html">
+                <h4>Either/lift2</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/lift2/report/pdf.svg">
+                                <img src="../../Either/lift2/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/lift2/report/regression.svg">
+                                <img src="../../Either/lift2/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/lift2_owned/report/index.html">
+                <h4>Either/lift2_owned</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/lift2_owned/report/pdf.svg">
+                                <img src="../../Either/lift2_owned/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/lift2_owned/report/regression.svg">
+                                <img src="../../Either/lift2_owned/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/lift3/report/index.html">
+                <h4>Either/lift3</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/lift3/report/pdf.svg">
+                                <img src="../../Either/lift3/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/lift3/report/regression.svg">
+                                <img src="../../Either/lift3/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/lift3_owned/report/index.html">
+                <h4>Either/lift3_owned</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/lift3_owned/report/pdf.svg">
+                                <img src="../../Either/lift3_owned/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/lift3_owned/report/regression.svg">
+                                <img src="../../Either/lift3_owned/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/map_left/report/index.html">
+                <h4>Either/map_left</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/map_left/report/pdf.svg">
+                                <img src="../../Either/map_left/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/map_left/report/regression.svg">
+                                <img src="../../Either/map_left/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/map_right/report/index.html">
+                <h4>Either/map_right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/map_right/report/pdf.svg">
+                                <img src="../../Either/map_right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/map_right/report/regression.svg">
+                                <img src="../../Either/map_right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/pure/report/index.html">
+                <h4>Either/pure</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/pure/report/pdf.svg">
+                                <img src="../../Either/pure/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/pure/report/regression.svg">
+                                <img src="../../Either/pure/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/pure_identity/report/index.html">
+                <h4>Either/pure_identity</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/pure_identity/report/pdf.svg">
+                                <img src="../../Either/pure_identity/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/pure_identity/report/regression.svg">
+                                <img src="../../Either/pure_identity/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/right/report/index.html">
+                <h4>Either/right</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/right/report/pdf.svg">
+                                <img src="../../Either/right/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/right/report/regression.svg">
+                                <img src="../../Either/right/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/unwrap_left_safe/report/index.html">
+                <h4>Either/unwrap_left_safe</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/unwrap_left_safe/report/pdf.svg">
+                                <img src="../../Either/unwrap_left_safe/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/unwrap_left_safe/report/regression.svg">
+                                <img src="../../Either/unwrap_left_safe/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Either/unwrap_right_safe/report/index.html">
+                <h4>Either/unwrap_right_safe</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Either/unwrap_right_safe/report/pdf.svg">
+                                <img src="../../Either/unwrap_right_safe/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Either/unwrap_right_safe/report/regression.svg">
+                                <img src="../../Either/unwrap_right_safe/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <div id="footer">
+        <p>This report was generated by
+            <a href="https://github.com/bheisler/criterion.rs">Criterion.rs</a>, a statistics-driven benchmarking
+            library in Rust.</p>
+    </div>
+</body>
+
+</html>

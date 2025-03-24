@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Choice - Creation and Access Summary - Criterion.rs</title>
+    <style type="text/css">
+        body {
+            font: 14px Helvetica Neue;
+            text-rendering: optimizelegibility;
+        }
+
+        .body {
+            width: 960px;
+            margin: auto;
+        }
+
+        a:link {
+            color: #1F78B4;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 300;
+        }
+
+        h3 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        #footer {
+            height: 40px;
+            background: #888;
+            color: white;
+            font-size: larger;
+            font-weight: 300;
+        }
+
+        #footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        #footer p {
+            text-align: center
+        }
+    </style>
+</head>
+
+<body>
+    <div class="body">
+        <h2>Choice - Creation and Access</h2>
+        <h3>Violin Plot</h3>
+        <a href="violin.svg">
+            <img src="violin.svg" alt="Violin Plot" />
+        </a>
+        <p>This chart shows the relationship between function/parameter and iteration time. The thickness of the shaded
+            region indicates the probability that a measurement of the given function/parameter would take a particular
+            length of time.</p>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/alternatives access/report/index.html">
+                <h4>Choice - Creation and Access/alternatives access</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/alternatives access/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/alternatives access/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/alternatives access/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/alternatives access/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/first access/report/index.html">
+                <h4>Choice - Creation and Access/first access</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/first access/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/first access/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/first access/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/first access/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/from_iterator - empty/report/index.html">
+                <h4>Choice - Creation and Access/from_iterator - empty</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/from_iterator - empty/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/from_iterator - empty/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/from_iterator - empty/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/from_iterator - empty/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/from_iterator - non-empty/report/index.html">
+                <h4>Choice - Creation and Access/from_iterator - non-empty</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/from_iterator - non-empty/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/from_iterator - non-empty/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/from_iterator - non-empty/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/from_iterator - non-empty/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/has_alternatives/report/index.html">
+                <h4>Choice - Creation and Access/has_alternatives</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/has_alternatives/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/has_alternatives/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/has_alternatives/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/has_alternatives/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/is_empty on empty/report/index.html">
+                <h4>Choice - Creation and Access/is_empty on empty</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/is_empty on empty/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/is_empty on empty/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/is_empty on empty/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/is_empty on empty/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/is_empty on non-empty/report/index.html">
+                <h4>Choice - Creation and Access/is_empty on non-empty</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/is_empty on non-empty/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/is_empty on non-empty/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/is_empty on non-empty/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/is_empty on non-empty/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/len/report/index.html">
+                <h4>Choice - Creation and Access/len</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/len/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/len/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/len/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/len/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/new with few alternatives/report/index.html">
+                <h4>Choice - Creation and Access/new with few alternatives</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/new with few alternatives/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/new with few alternatives/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/new with few alternatives/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/new with few alternatives/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/new with many alternatives/report/index.html">
+                <h4>Choice - Creation and Access/new with many alternatives</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/new with many alternatives/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/new with many alternatives/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/new with many alternatives/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/new with many alternatives/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/new_empty/report/index.html">
+                <h4>Choice - Creation and Access/new_empty</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/new_empty/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/new_empty/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/new_empty/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/new_empty/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/of_many/report/index.html">
+                <h4>Choice - Creation and Access/of_many</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/of_many/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/of_many/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/of_many/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/of_many/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/partition/report/index.html">
+                <h4>Choice - Creation and Access/partition</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/partition/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/partition/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/partition/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/partition/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Choice - Creation and Access/pure/report/index.html">
+                <h4>Choice - Creation and Access/pure</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Choice - Creation and Access/pure/report/pdf.svg">
+                                <img src="../../Choice - Creation and Access/pure/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Choice - Creation and Access/pure/report/regression.svg">
+                                <img src="../../Choice - Creation and Access/pure/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <div id="footer">
+        <p>This report was generated by
+            <a href="https://github.com/bheisler/criterion.rs">Criterion.rs</a>, a statistics-driven benchmarking
+            library in Rust.</p>
+    </div>
+</body>
+
+</html>

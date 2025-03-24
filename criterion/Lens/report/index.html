@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Lens Summary - Criterion.rs</title>
+    <style type="text/css">
+        body {
+            font: 14px Helvetica Neue;
+            text-rendering: optimizelegibility;
+        }
+
+        .body {
+            width: 960px;
+            margin: auto;
+        }
+
+        a:link {
+            color: #1F78B4;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 300;
+        }
+
+        h3 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        #footer {
+            height: 40px;
+            background: #888;
+            color: white;
+            font-size: larger;
+            font-weight: 300;
+        }
+
+        #footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        #footer p {
+            text-align: center
+        }
+    </style>
+</head>
+
+<body>
+    <div class="body">
+        <h2>Lens</h2>
+        <h3>Violin Plot</h3>
+        <a href="violin.svg">
+            <img src="violin.svg" alt="Violin Plot" />
+        </a>
+        <p>This chart shows the relationship between function/parameter and iteration time. The thickness of the shaded
+            region indicates the probability that a measurement of the given function/parameter would take a particular
+            length of time.</p>
+        <section class="plots">
+            <a href="../../Lens/fmap_get/report/index.html">
+                <h4>Lens/fmap_get</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/fmap_get/report/pdf.svg">
+                                <img src="../../Lens/fmap_get/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/fmap_get/report/regression.svg">
+                                <img src="../../Lens/fmap_get/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/fmap_set/report/index.html">
+                <h4>Lens/fmap_set</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/fmap_set/report/pdf.svg">
+                                <img src="../../Lens/fmap_set/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/fmap_set/report/regression.svg">
+                                <img src="../../Lens/fmap_set/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/get_collection/report/index.html">
+                <h4>Lens/get_collection</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/get_collection/report/pdf.svg">
+                                <img src="../../Lens/get_collection/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/get_collection/report/regression.svg">
+                                <img src="../../Lens/get_collection/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/get_hashmap/report/index.html">
+                <h4>Lens/get_hashmap</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/get_hashmap/report/pdf.svg">
+                                <img src="../../Lens/get_hashmap/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/get_hashmap/report/regression.svg">
+                                <img src="../../Lens/get_hashmap/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/get_nested/report/index.html">
+                <h4>Lens/get_nested</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/get_nested/report/pdf.svg">
+                                <img src="../../Lens/get_nested/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/get_nested/report/regression.svg">
+                                <img src="../../Lens/get_nested/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/get_simple/report/index.html">
+                <h4>Lens/get_simple</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/get_simple/report/pdf.svg">
+                                <img src="../../Lens/get_simple/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/get_simple/report/regression.svg">
+                                <img src="../../Lens/get_simple/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/manual_composition/report/index.html">
+                <h4>Lens/manual_composition</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/manual_composition/report/pdf.svg">
+                                <img src="../../Lens/manual_composition/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/manual_composition/report/regression.svg">
+                                <img src="../../Lens/manual_composition/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/modify_collection/report/index.html">
+                <h4>Lens/modify_collection</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/modify_collection/report/pdf.svg">
+                                <img src="../../Lens/modify_collection/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/modify_collection/report/regression.svg">
+                                <img src="../../Lens/modify_collection/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/modify_hashmap/report/index.html">
+                <h4>Lens/modify_hashmap</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/modify_hashmap/report/pdf.svg">
+                                <img src="../../Lens/modify_hashmap/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/modify_hashmap/report/regression.svg">
+                                <img src="../../Lens/modify_hashmap/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/modify_simple/report/index.html">
+                <h4>Lens/modify_simple</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/modify_simple/report/pdf.svg">
+                                <img src="../../Lens/modify_simple/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/modify_simple/report/regression.svg">
+                                <img src="../../Lens/modify_simple/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/set_nested/report/index.html">
+                <h4>Lens/set_nested</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/set_nested/report/pdf.svg">
+                                <img src="../../Lens/set_nested/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/set_nested/report/regression.svg">
+                                <img src="../../Lens/set_nested/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/set_simple/report/index.html">
+                <h4>Lens/set_simple</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/set_simple/report/pdf.svg">
+                                <img src="../../Lens/set_simple/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/set_simple/report/regression.svg">
+                                <img src="../../Lens/set_simple/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/use_case_bulk_processing/report/index.html">
+                <h4>Lens/use_case_bulk_processing</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/use_case_bulk_processing/report/pdf.svg">
+                                <img src="../../Lens/use_case_bulk_processing/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/use_case_bulk_processing/report/regression.svg">
+                                <img src="../../Lens/use_case_bulk_processing/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/use_case_deep_update/report/index.html">
+                <h4>Lens/use_case_deep_update</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/use_case_deep_update/report/pdf.svg">
+                                <img src="../../Lens/use_case_deep_update/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/use_case_deep_update/report/regression.svg">
+                                <img src="../../Lens/use_case_deep_update/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/use_case_optional_data/report/index.html">
+                <h4>Lens/use_case_optional_data</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/use_case_optional_data/report/pdf.svg">
+                                <img src="../../Lens/use_case_optional_data/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/use_case_optional_data/report/regression.svg">
+                                <img src="../../Lens/use_case_optional_data/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Lens/use_case_validation/report/index.html">
+                <h4>Lens/use_case_validation</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Lens/use_case_validation/report/pdf.svg">
+                                <img src="../../Lens/use_case_validation/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Lens/use_case_validation/report/regression.svg">
+                                <img src="../../Lens/use_case_validation/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <div id="footer">
+        <p>This report was generated by
+            <a href="https://github.com/bheisler/criterion.rs">Criterion.rs</a>, a statistics-driven benchmarking
+            library in Rust.</p>
+    </div>
+</body>
+
+</html>

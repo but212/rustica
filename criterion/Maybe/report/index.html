@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Maybe Summary - Criterion.rs</title>
+    <style type="text/css">
+        body {
+            font: 14px Helvetica Neue;
+            text-rendering: optimizelegibility;
+        }
+
+        .body {
+            width: 960px;
+            margin: auto;
+        }
+
+        a:link {
+            color: #1F78B4;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 300;
+        }
+
+        h3 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        #footer {
+            height: 40px;
+            background: #888;
+            color: white;
+            font-size: larger;
+            font-weight: 300;
+        }
+
+        #footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        #footer p {
+            text-align: center
+        }
+    </style>
+</head>
+
+<body>
+    <div class="body">
+        <h2>Maybe</h2>
+        <h3>Violin Plot</h3>
+        <a href="violin.svg">
+            <img src="violin.svg" alt="Violin Plot" />
+        </a>
+        <p>This chart shows the relationship between function/parameter and iteration time. The thickness of the shaded
+            region indicates the probability that a measurement of the given function/parameter would take a particular
+            length of time.</p>
+        <section class="plots">
+            <a href="../../Maybe/apply/report/index.html">
+                <h4>Maybe/apply</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/apply/report/pdf.svg">
+                                <img src="../../Maybe/apply/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/apply/report/regression.svg">
+                                <img src="../../Maybe/apply/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/apply_owned/report/index.html">
+                <h4>Maybe/apply_owned</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/apply_owned/report/pdf.svg">
+                                <img src="../../Maybe/apply_owned/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/apply_owned/report/regression.svg">
+                                <img src="../../Maybe/apply_owned/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/bind/report/index.html">
+                <h4>Maybe/bind</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/bind/report/pdf.svg">
+                                <img src="../../Maybe/bind/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/bind/report/regression.svg">
+                                <img src="../../Maybe/bind/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/bind_chain/report/index.html">
+                <h4>Maybe/bind_chain</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/bind_chain/report/pdf.svg">
+                                <img src="../../Maybe/bind_chain/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/bind_chain/report/regression.svg">
+                                <img src="../../Maybe/bind_chain/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/bind_owned/report/index.html">
+                <h4>Maybe/bind_owned</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/bind_owned/report/pdf.svg">
+                                <img src="../../Maybe/bind_owned/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/bind_owned/report/regression.svg">
+                                <img src="../../Maybe/bind_owned/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/chain_operations/report/index.html">
+                <h4>Maybe/chain_operations</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/chain_operations/report/pdf.svg">
+                                <img src="../../Maybe/chain_operations/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/chain_operations/report/regression.svg">
+                                <img src="../../Maybe/chain_operations/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/fmap/report/index.html">
+                <h4>Maybe/fmap</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/fmap/report/pdf.svg">
+                                <img src="../../Maybe/fmap/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/fmap/report/regression.svg">
+                                <img src="../../Maybe/fmap/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/fmap_chain/report/index.html">
+                <h4>Maybe/fmap_chain</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/fmap_chain/report/pdf.svg">
+                                <img src="../../Maybe/fmap_chain/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/fmap_chain/report/regression.svg">
+                                <img src="../../Maybe/fmap_chain/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/fmap_nothing/report/index.html">
+                <h4>Maybe/fmap_nothing</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/fmap_nothing/report/pdf.svg">
+                                <img src="../../Maybe/fmap_nothing/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/fmap_nothing/report/regression.svg">
+                                <img src="../../Maybe/fmap_nothing/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/fmap_owned/report/index.html">
+                <h4>Maybe/fmap_owned</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/fmap_owned/report/pdf.svg">
+                                <img src="../../Maybe/fmap_owned/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/fmap_owned/report/regression.svg">
+                                <img src="../../Maybe/fmap_owned/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/from_option_none/report/index.html">
+                <h4>Maybe/from_option_none</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/from_option_none/report/pdf.svg">
+                                <img src="../../Maybe/from_option_none/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/from_option_none/report/regression.svg">
+                                <img src="../../Maybe/from_option_none/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/from_option_some/report/index.html">
+                <h4>Maybe/from_option_some</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/from_option_some/report/pdf.svg">
+                                <img src="../../Maybe/from_option_some/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/from_option_some/report/regression.svg">
+                                <img src="../../Maybe/from_option_some/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/is_just/report/index.html">
+                <h4>Maybe/is_just</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/is_just/report/pdf.svg">
+                                <img src="../../Maybe/is_just/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/is_just/report/regression.svg">
+                                <img src="../../Maybe/is_just/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/is_nothing/report/index.html">
+                <h4>Maybe/is_nothing</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/is_nothing/report/pdf.svg">
+                                <img src="../../Maybe/is_nothing/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/is_nothing/report/regression.svg">
+                                <img src="../../Maybe/is_nothing/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/join/report/index.html">
+                <h4>Maybe/join</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/join/report/pdf.svg">
+                                <img src="../../Maybe/join/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/join/report/regression.svg">
+                                <img src="../../Maybe/join/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/join_owned/report/index.html">
+                <h4>Maybe/join_owned</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/join_owned/report/pdf.svg">
+                                <img src="../../Maybe/join_owned/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/join_owned/report/regression.svg">
+                                <img src="../../Maybe/join_owned/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/just_creation/report/index.html">
+                <h4>Maybe/just_creation</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/just_creation/report/pdf.svg">
+                                <img src="../../Maybe/just_creation/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/just_creation/report/regression.svg">
+                                <img src="../../Maybe/just_creation/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/lift2/report/index.html">
+                <h4>Maybe/lift2</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/lift2/report/pdf.svg">
+                                <img src="../../Maybe/lift2/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/lift2/report/regression.svg">
+                                <img src="../../Maybe/lift2/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/lift3/report/index.html">
+                <h4>Maybe/lift3</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/lift3/report/pdf.svg">
+                                <img src="../../Maybe/lift3/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/lift3/report/regression.svg">
+                                <img src="../../Maybe/lift3/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/map/report/index.html">
+                <h4>Maybe/map</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/map/report/pdf.svg">
+                                <img src="../../Maybe/map/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/map/report/regression.svg">
+                                <img src="../../Maybe/map/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/map_or/report/index.html">
+                <h4>Maybe/map_or</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/map_or/report/pdf.svg">
+                                <img src="../../Maybe/map_or/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/map_or/report/regression.svg">
+                                <img src="../../Maybe/map_or/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/map_or_else/report/index.html">
+                <h4>Maybe/map_or_else</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/map_or_else/report/pdf.svg">
+                                <img src="../../Maybe/map_or_else/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/map_or_else/report/regression.svg">
+                                <img src="../../Maybe/map_or_else/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/map_or_else_nothing/report/index.html">
+                <h4>Maybe/map_or_else_nothing</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/map_or_else_nothing/report/pdf.svg">
+                                <img src="../../Maybe/map_or_else_nothing/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/map_or_else_nothing/report/regression.svg">
+                                <img src="../../Maybe/map_or_else_nothing/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/map_or_nothing/report/index.html">
+                <h4>Maybe/map_or_nothing</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/map_or_nothing/report/pdf.svg">
+                                <img src="../../Maybe/map_or_nothing/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/map_or_nothing/report/regression.svg">
+                                <img src="../../Maybe/map_or_nothing/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/nested_operations/report/index.html">
+                <h4>Maybe/nested_operations</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/nested_operations/report/pdf.svg">
+                                <img src="../../Maybe/nested_operations/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/nested_operations/report/regression.svg">
+                                <img src="../../Maybe/nested_operations/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/nothing_creation/report/index.html">
+                <h4>Maybe/nothing_creation</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/nothing_creation/report/pdf.svg">
+                                <img src="../../Maybe/nothing_creation/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/nothing_creation/report/regression.svg">
+                                <img src="../../Maybe/nothing_creation/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/pure/report/index.html">
+                <h4>Maybe/pure</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/pure/report/pdf.svg">
+                                <img src="../../Maybe/pure/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/pure/report/regression.svg">
+                                <img src="../../Maybe/pure/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/size_optimization/report/index.html">
+                <h4>Maybe/size_optimization</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/size_optimization/report/pdf.svg">
+                                <img src="../../Maybe/size_optimization/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/size_optimization/report/regression.svg">
+                                <img src="../../Maybe/size_optimization/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/string_operations/report/index.html">
+                <h4>Maybe/string_operations</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/string_operations/report/pdf.svg">
+                                <img src="../../Maybe/string_operations/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/string_operations/report/regression.svg">
+                                <img src="../../Maybe/string_operations/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/to_option/report/index.html">
+                <h4>Maybe/to_option</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/to_option/report/pdf.svg">
+                                <img src="../../Maybe/to_option/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/to_option/report/regression.svg">
+                                <img src="../../Maybe/to_option/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/unwrap/report/index.html">
+                <h4>Maybe/unwrap</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/unwrap/report/pdf.svg">
+                                <img src="../../Maybe/unwrap/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/unwrap/report/regression.svg">
+                                <img src="../../Maybe/unwrap/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/use_case_error_handling/report/index.html">
+                <h4>Maybe/use_case_error_handling</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/use_case_error_handling/report/pdf.svg">
+                                <img src="../../Maybe/use_case_error_handling/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/use_case_error_handling/report/regression.svg">
+                                <img src="../../Maybe/use_case_error_handling/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/use_case_form_validation/report/index.html">
+                <h4>Maybe/use_case_form_validation</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/use_case_form_validation/report/pdf.svg">
+                                <img src="../../Maybe/use_case_form_validation/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/use_case_form_validation/report/regression.svg">
+                                <img src="../../Maybe/use_case_form_validation/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/use_case_sequence_processing/report/index.html">
+                <h4>Maybe/use_case_sequence_processing</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/use_case_sequence_processing/report/pdf.svg">
+                                <img src="../../Maybe/use_case_sequence_processing/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/use_case_sequence_processing/report/regression.svg">
+                                <img src="../../Maybe/use_case_sequence_processing/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="plots">
+            <a href="../../Maybe/use_case_user_lookup/report/index.html">
+                <h4>Maybe/use_case_user_lookup</h4>
+            </a>
+            <table width="100%">
+                <tbody>
+                    <tr>
+                        <td>
+                            <a href="../../Maybe/use_case_user_lookup/report/pdf.svg">
+                                <img src="../../Maybe/use_case_user_lookup/report/pdf_small.svg" alt="PDF of Slope" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                        <td>
+                            <a href="../../Maybe/use_case_user_lookup/report/regression.svg">
+                                <img src="../../Maybe/use_case_user_lookup/report/regression_small.svg" alt="Regression" width="450"
+                                    height="300" />
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <div id="footer">
+        <p>This report was generated by
+            <a href="https://github.com/bheisler/criterion.rs">Criterion.rs</a>, a statistics-driven benchmarking
+            library in Rust.</p>
+    </div>
+</body>
+
+</html>
