@@ -15,6 +15,13 @@
   - `NaturalTransform`: For converting between functors preserving structure
   - `Representable`: For functors that can be represented by a mapping from a key type
 
+### Changed
+- Optimized `Choice` data structure:
+  - Implemented shared structure optimization using `Arc` for improved memory efficiency
+  - Reduced unnecessary cloning operations in internal data representation
+  - Updated relevant methods to leverage the new shared structure
+  - Adjusted documentation and examples to reflect the optimization changes
+
 ## [0.5.3] - 2025-03-16
 
 ### Changed
