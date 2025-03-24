@@ -1,3 +1,5 @@
+mod monad_error;
+mod monad_plus;
 mod test_applicative;
 mod test_functor;
 mod test_identity;
@@ -8,8 +10,11 @@ mod test_semigroup;
 use quickcheck::{Arbitrary, Gen};
 use rustica::prelude::*;
 use rustica::traits::composable::Composable;
+use rustica::traits::error_mapper::ErrorMapper;
+use rustica::traits::monad_error::MonadError;
 use rustica::traits::monoid::Monoid;
 use rustica::traits::semigroup::Semigroup;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// A test functor implementation that wraps a single value
@@ -159,6 +164,63 @@ impl<T: Clone> Monad for TestFunctor<T> {
         Self: Sized,
     {
         self.0.into()
+    }
+}
+
+impl<T: Clone> MonadError<String> for TestFunctor<T> {
+    /// Creates a new instance in an error state - for TestFunctor we'll
+    /// store the error message as a special marker value
+    fn throw<U: Clone>(_error: String) -> Self::Output<U> {
+        // In a real implementation, we'd store the error somehow
+        // For the test functor, we'll create a special "error" marker value
+        // Since we can't create a proper U type, we'll use a dummy value approach
+        TestFunctor(unsafe { std::mem::zeroed() }, PhantomData)
+    }
+
+    /// For the test implementation, we'll assume TestFunctor can't be in an error state,
+    /// so we just return self
+    fn catch<F>(&self, _f: F) -> Self::Output<Self::Source>
+    where
+        F: Fn(&String) -> Self::Output<Self::Source>,
+        Self::Source: Clone,
+    {
+        TestFunctor::new(self.0.clone())
+    }
+
+    /// Ownership-based version of catch
+    fn catch_owned<F>(self, _f: F) -> Self::Output<Self::Source>
+    where
+        F: Fn(String) -> Self::Output<Self::Source>,
+        Self::Source: Clone,
+        Self: Sized,
+    {
+        self
+    }
+}
+
+impl<T: Clone> ErrorMapper<String> for TestFunctor<T> {
+    type Source = T;
+
+    /// For the test implementation, we'll assume TestFunctor can't be in an error state,
+    /// so mapping errors converts to Result::Ok
+    fn map_error_to<NewE, F>(&self, _f: F) -> Result<Self::Source, NewE>
+    where
+        F: Fn(&String) -> NewE,
+        NewE: Clone + std::fmt::Debug,
+        Self::Source: Clone,
+    {
+        Ok(self.0.clone())
+    }
+
+    /// Ownership-based version of map_error_to
+    fn map_error_to_owned<NewE, F>(self, _f: F) -> Result<Self::Source, NewE>
+    where
+        F: Fn(String) -> NewE,
+        NewE: Clone + std::fmt::Debug,
+        Self::Source: Clone,
+        Self: Sized,
+    {
+        Ok(self.0)
     }
 }
 

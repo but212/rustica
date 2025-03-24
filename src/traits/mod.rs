@@ -11,11 +11,13 @@ pub mod identity;
 pub mod pure;
 
 pub mod applicative;
+pub mod error_mapper;
 /// Fundamental functional programming abstractions.
 pub mod functor;
 pub mod monad;
+pub mod monad_error;
+pub mod monad_plus;
 
-/// Advanced functional programming concepts.
 pub mod bifunctor;
 pub mod comonad;
 pub mod contravariant_functor;
