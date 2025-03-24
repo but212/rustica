@@ -24,17 +24,18 @@
 //!
 //! This module provides the following monad transformers:
 //!
-//! - `ReaderT`: Transformer for the `Reader` monad
+//! - `ReaderT`: Transformer for the `Reader` monad, adding environment capabilities
+//! - `StateT`: Transformer for the `State` monad, adding stateful computation capabilities
 
 use crate::traits::monad::Monad;
 
 // mod maybe_t;
-// mod state_t;
+mod state_t;
 mod reader_t;
 // mod writer_t;
 
 // pub use maybe_t::MaybeT;
-// pub use state_t::StateT;
+pub use state_t::StateT;
 pub use reader_t::ReaderT;
 // pub use writer_t::WriterT;
 
