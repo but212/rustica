@@ -1,55 +1,42 @@
 # Rustica TODO List
 
-## Core Implementation Tasks
+## Project Status
 
-### Category Theory
-- [ ] Implement property-based tests for all category laws
-- [x] Add QuickCheck or similar testing framework for property testing
-- [ ] Document category theory concepts more thoroughly with examples
-- [ ] Add visual diagrams for category relationships
+- **Current Focus**: Implementing and documenting functional programming patterns in Rust
+- **Last Updated**: 2025-03-24
 
-### Monads
-- [ ] Complete transformer module implementation
+## High Priority Tasks
+
+### Type Class Implementation
+- [x] Implement Functor trait with ownership-aware API design
+- [x] Provide comprehensive benchmark suite for monads (State monad)
+- [x] Implement Validated type (accumulating errors unlike Result)
+- [x] Complete MonadError for better error handling
 - [ ] Add more monad transformers (ReaderT, StateT, etc.)
-- [ ] Implement MonadError for better error handling
-- [ ] Add MonadPlus for alternative computations
-- [ ] Add documentation for common monad patterns and use cases
-- [ ] Refactor to support asynchronous operations using Async Monad
+- [x] Implement MonadPlus for alternative computations
+
+### Documentation
+- [x] Document Functor laws and implementations
+- [x] Document Validated type with comprehensive examples
+- [ ] Add more code examples for each trait implementation
+- [ ] Document doctest best practices (explicit type annotations, trait imports)
+- [ ] Create tutorial-style documentation for beginners
+- [ ] Document performance characteristics for each implementation
 
 ### Testing
-- [ ] Add comprehensive test suite for all monads
+- [x] Add benchmarks for State monad operations
+- [ ] Implement property-based tests for all category laws
+- [ ] Complete comprehensive test suite for all monads
 - [ ] Create test utilities for common testing patterns
-- [x] Add benchmarks for performance critical operations
 - [ ] Implement regression tests for known edge cases
 
-## Documentation Improvements
+## Medium Priority Tasks
 
-### API Documentation
-- [ ] Add more code examples for each trait implementation
-- [ ] Create tutorial-style documentation for beginners
-- [ ] Document performance characteristics
-- [ ] Add migration guides from other FP libraries
-
-### Examples
-- [ ] Add real-world example applications
-- [ ] Create cookbook with common patterns
-- [ ] Add examples for concurrent programming
-- [ ] Document best practices and anti-patterns
-
-## Feature Enhancements
-
-### Type System
-- [ ] Improve type inference for complex expressions
+### Category Theory
+- [ ] Document category theory concepts more thoroughly with examples
+- [ ] Add visual diagrams for category relationships
 - [ ] Add more type-level programming capabilities
-- [ ] Consider adding dependent types support
 - [ ] Implement type classes for common patterns
-- [ ] Make compatible with dynamic dispatch (dyn)
-
-### Performance
-- [ ] Optimize monad implementations
-- [ ] Add zero-cost abstractions where possible
-- [ ] Profile and improve memory usage
-- [ ] Consider adding compile-time optimizations
 
 ### Ergonomics
 - [ ] Add more convenience methods
@@ -57,7 +44,14 @@
 - [ ] Consider adding proc macros for boilerplate
 - [ ] Add more utility functions for common operations
 
-## Infrastructure
+### Performance
+- [x] Add inline attributes to optimize trait methods
+- [x] Separate ownership-based and reference-based methods
+- [ ] Add zero-cost abstractions where possible
+- [ ] Profile and improve memory usage
+- [ ] Consider adding compile-time optimizations
+
+## Infrastructure & Community
 
 ### Build System
 - [x] Add continuous integration
@@ -71,33 +65,34 @@
 - [ ] Implement security scanning
 - [ ] Add performance regression testing
 
-## Community
-
-### Documentation
+### Community Building
 - [ ] Create contribution guidelines
 - [ ] Add code of conduct
 - [ ] Improve README with getting started guide
 - [ ] Create FAQ document
-
-### Examples and Tutorials
-- [ ] Create video tutorials
 - [ ] Write blog posts about implementation details
-- [ ] Add more documentation comments
-- [ ] Create interactive examples
 
 ## Future Considerations
 
 ### Language Features
 - [ ] Consider support for newer Rust features
-- [ ] Evaluate async/await integration
+- [ ] Evaluate async/await integration (Async Monad)
 - [ ] Consider adding more derive macros
 - [ ] Investigate GAT usage when stable
+- [ ] Make compatible with dynamic dispatch (dyn)
 
 ### Ecosystem Integration
 - [ ] Add integrations with popular Rust libraries
 - [ ] Consider creating companion crates
 - [ ] Add serialization support
-- [ ] Consider adding async support
+
+## Examples and Tutorials
+- [ ] Create real-world example applications
+- [ ] Create cookbook with common patterns
+- [ ] Add examples for concurrent programming
+- [ ] Document best practices and anti-patterns
+- [ ] Create video tutorials
+- [ ] Create interactive examples
 
 ## Maintenance
 
@@ -107,7 +102,7 @@
 - [ ] Improve error handling
 - [ ] Reduce code duplication
 
-### Documentation
+### Documentation Maintenance
 - [ ] Keep API documentation up to date
 - [ ] Update examples for new versions
 - [ ] Maintain changelog

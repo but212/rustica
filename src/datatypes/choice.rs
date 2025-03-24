@@ -52,8 +52,8 @@
 //! - Add property-based tests for typeclass laws
 
 use crate::traits::{
-    applicative::Applicative, foldable::Foldable, functor::Functor, hkt::HKT, identity::Identity, monad::Monad,
-    monoid::Monoid, pure::Pure, semigroup::Semigroup,
+    applicative::Applicative, foldable::Foldable, functor::Functor, hkt::HKT, identity::Identity,
+    monad::Monad, monoid::Monoid, pure::Pure, semigroup::Semigroup,
 };
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashSet;
@@ -424,7 +424,12 @@ impl<T> Choice<T> {
         T: Clone,
         P: Fn(&T) -> bool,
     {
-        let filtered: Vec<T> = self.values.iter().filter(|v| predicate(v)).cloned().collect();
+        let filtered: Vec<T> = self
+            .values
+            .iter()
+            .filter(|v| predicate(v))
+            .cloned()
+            .collect();
         match filtered.len() {
             0 => Self::new_empty(),
             _ => {
@@ -1776,15 +1781,15 @@ impl<T> Choice<T> {
 
         // Create alternatives in the exact order expected by the doctest
         let mut alternatives = Vec::new();
-        
+
         // Fixed order to match the doctest: [12, 13, 21, 22, 23, 31, 32, 33]
         // This means: self=1 with other alternatives, then self=2 with all other, then self=3 with all other
-        
+
         // First self[0] + other[1..]
         for b in other.iter_alternatives() {
             alternatives.push(f(self_first, b));
         }
-        
+
         // Then self[1..] with all of other
         for a in self.iter_alternatives() {
             for b in other.iter() {
@@ -1843,9 +1848,9 @@ impl<T> Choice<T> {
         let mut active = false;
         loop {
             let next = if active {
-                self_iter.next().map(|v| v.clone())
+                self_iter.next().cloned()
             } else {
-                other_iter.next().map(|v| v.clone())
+                other_iter.next().cloned()
             };
 
             match next {
@@ -1853,10 +1858,10 @@ impl<T> Choice<T> {
                 None => {
                     if active {
                         // Append remaining values from other
-                        values.extend(other_iter.map(|v| v.clone()));
+                        values.extend(other_iter.cloned());
                     } else {
                         // Append remaining values from self alternatives
-                        values.extend(self_iter.map(|v| v.clone()));
+                        values.extend(self_iter.cloned());
                     }
                     break;
                 }
