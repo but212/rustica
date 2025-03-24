@@ -11,7 +11,7 @@ Rustica is a comprehensive functional programming library for Rust, bringing pow
 Rustica enables idiomatic functional programming in Rust by providing:
 
 - **Type Classes**: Core abstractions like `Functor`, `Applicative`, and `Monad`
-- **Data Types**: Common functional data structures like `Maybe`, `Either`, and `IO`
+- **Data Types**: Common functional data structures like `Maybe`, `Either`, `Choice`, and `IO`
 - **Composable APIs**: Tools for function composition and transformation
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
 
@@ -23,21 +23,21 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.5.3"
+rustica = "0.5.4"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.5.3", features = ["async"] }
+rustica = { version = "0.5.4", features = ["async"] }
 ```
 
 or full features:
 
 ```toml
 [dependencies]
-rustica = { version = "0.5.3", features = ["full"] }
+rustica = { version = "0.5.4", features = ["full"] }
 ```
 
 Then import the prelude to get started:
@@ -47,7 +47,8 @@ use rustica::prelude::*;
 use rustica::traits::composable::Composable;
 
 fn main() {
-    let value = Maybe::Just(42);
+    // Be explicit with type annotations for generic types
+    let value: Maybe<i32> = Maybe::Just(42);
     let doubled = value.fmap(|x| x * 2);
     assert_eq!(doubled.unwrap(), 84);
 
@@ -72,6 +73,7 @@ Rustica implements a wide range of type classes from category theory:
   - `Monad` - For sequential computations
   - `Pure` - For lifting values into a context
   - `Identity` - For accessing values inside contexts
+  - `Alternative` - For choice between computations
 
 - **Algebraic Structures**
   - `Semigroup` - Types with an associative binary operation
@@ -85,6 +87,7 @@ Rustica implements a wide range of type classes from category theory:
   - `Category` - For abstract composition
   - `Arrow` - For generalized computation
   - `Comonad` - For context-aware computations
+  - `MonadError` - For error handling in monadic contexts
 
 ### Data Types
 
@@ -95,6 +98,7 @@ Rustica provides a rich collection of functional data types:
   - `Either<L, R>` - For values with two possibilities
   - `Id<T>` - The identity monad
   - `Validated<E, T>` - For accumulating validation errors
+  - `Choice<T>` - For representing non-deterministic computations with alternatives
 
 - **Effect Types**
   - `IO<A>` - For pure I/O operations
@@ -105,7 +109,6 @@ Rustica provides a rich collection of functional data types:
   - `AsyncMonad<A>` - For asynchronous operations
 
 - **Special Purpose**
-  - `Choice<T>` - For representing alternative computations
   - Various wrapper types (`First`, `Last`, `Min`, `Max`, etc.)
 
 - **Optics**
@@ -127,16 +130,43 @@ Rustica implements a pattern for working with higher-kinded types in Rust, provi
 ```rust
 use rustica::prelude::*;
 use rustica::datatypes::maybe::Maybe;
+use rustica::traits::functor::Functor;
 
-// Using Maybe for optional values
+// Using Maybe for optional values with explicit type annotations
 let input = "42";
-let maybe_int = input.parse::<i32>().ok().into();  // Convert to Maybe
+let maybe_int: Maybe<i32> = input.parse::<i32>().ok().into();  // Convert to Maybe
 
 let result = maybe_int
-    .bind(|x| if x > 0 { Maybe::Just(x) } else { Maybe::Nothing })
-    .fmap(|x| x * 2);
+    .bind(|x: i32| if x > 0 { Maybe::Just(x) } else { Maybe::Nothing })
+    .fmap(|x: i32| x * 2);
 
 assert_eq!(result, Maybe::Just(84));
+```
+
+### Working with Choice for non-deterministic computations
+
+```rust
+use rustica::prelude::*;
+use rustica::datatypes::choice::Choice;
+use rustica::traits::functor::Functor;
+use rustica::traits::applicative::Applicative;
+
+// Create a Choice with a primary value and alternatives
+let numbers: Choice<i32> = Choice::new(2, vec![3, 4, 5]);
+
+// Map over all possible values
+let doubled: Choice<i32> = numbers.fmap(|x| x * 2);
+assert_eq!(*doubled.first().unwrap(), 4);  // Primary value is 2*2=4
+assert_eq!(doubled.alternatives(), &[6, 8, 10]);  // Alternatives are [3*2, 4*2, 5*2]
+
+// Apply functions with applicative
+let add_one = |x: &i32| x + 1;
+let multiply_by_three = |x: &i32| x * 3;
+let functions = Choice::new(add_one, vec![multiply_by_three]);
+
+let results = numbers.apply(&functions);
+// Primary result is add_one(2) = 3
+// Alternatives include all combinations of functions and values
 ```
 
 ## Inspiration

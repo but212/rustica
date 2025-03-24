@@ -34,17 +34,17 @@ mod test_choice {
     #[test]
     fn test_choice_applicative() {
         let choice = Choice::new(2, vec![3, 4]);
-        
+
         // Define the function type explicitly
         type FnType = fn(&i32) -> i32;
-        
+
         // Use the same function type for both functions
         let double: FnType = |x| x * 2;
         let triple: FnType = |x| x * 3;
-        
+
         let f = Choice::new(double, vec![triple]);
         let result = choice.apply(&f);
-        
+
         assert_eq!(*result.first().unwrap(), 4);
         assert_eq!(result.alternatives(), &[6, 6, 8, 9, 12]);
     }
