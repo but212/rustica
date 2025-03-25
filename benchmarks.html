@@ -59,34 +59,40 @@
             padding: 15px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .chart-container {
-            width: 100%;
-            height: 300px;
-            margin: 20px 0;
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .benchmark-link {
+            margin-bottom: 8px;
+        }
+        .subcategory-heading {
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        details {
+            margin-bottom: 15px;
             border: 1px solid #eee;
-            background-color: white;
             border-radius: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-style: italic;
-            color: #666;
+            padding: 10px;
+            background-color: white;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
+        summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: #2c3e50;
         }
-        th, td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
+        summary:hover {
+            color: #3498db;
         }
-        th {
-            background-color: #f2f2f2;
-        }
-        tr:hover {
-            background-color: #f5f5f5;
+        .benchmark-list {
+            margin-left: 20px;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -99,202 +105,147 @@
     
     <div class="container">
         <h2>Overview</h2>
-        <p>This page displays benchmark results for various functional programming abstractions implemented in Rustica. All benchmarks were run using <a href="https://github.com/bheisler/criterion.rs" target="_blank">Criterion.rs</a>, a statistics-driven benchmarking library for Rust.</p>
+        <p>This page provides an overview of benchmark results for the Rustica functional programming library. All benchmarks were run using <a href="https://github.com/bheisler/criterion.rs" target="_blank">Criterion.rs</a>, a statistics-driven benchmarking library for Rust.</p>
+        <p>You can view detailed benchmark reports by clicking on the links below, or access the <a href="./criterion/report/index.html">full Criterion report</a>.</p>
         
         <h2>Benchmark Categories</h2>
-        <div class="benchmark-section">
-            <div class="benchmark-card">
-                <h3>Validated</h3>
-                <p>Performance metrics for the Validated data type, which accumulates errors during validation.</p>
-                <ul>
-                    <li><a href="#validated-basic">Basic Creation and Access</a></li>
-                    <li><a href="#validated-core">Core Operations</a></li>
-                    <li><a href="#validated-conversion">Conversion Operations</a></li>
-                    <li><a href="#validated-error">Error Handling and Accumulation</a></li>
-                    <li><a href="#validated-real-world">Real-world Use Cases</a></li>
-                </ul>
+        
+        <details open>
+            <summary>Validated</summary>
+            <div class="benchmark-list">
+                <div class="subcategory-heading">Basic Creation and Access</div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Basic Creation and Access/valid_creation/report/index.html">Valid Creation</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Basic Creation and Access/invalid_creation/report/index.html">Invalid Creation</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Basic Creation and Access/valid_access/report/index.html">Valid Access</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Basic Creation and Access/invalid_access/report/index.html">Invalid Access</a></div>
+                
+                <div class="subcategory-heading">Core Operations</div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Core Operations/fmap/report/index.html">Functor Map (fmap)</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Core Operations/bimap/report/index.html">Bifunctor Map (bimap)</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Core Operations/fold/report/index.html">Fold</a></div>
+                
+                <div class="subcategory-heading">Error Handling and Accumulation</div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Error Handling and Accumulation/validation_with_applicative/report/index.html">Validation with Applicative</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Error Handling and Accumulation/validation_with_accumulation/report/index.html">Validation with Accumulation</a></div>
+                
+                <div class="subcategory-heading">Real-world Use Cases</div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Real-world Use Cases/form_validation/report/index.html">Form Validation</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Real-world Use Cases/data_validation/report/index.html">Data Validation</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Real-world Use Cases/api_response_validation/report/index.html">API Response Validation</a></div>
+                <div class="benchmark-link"><a href="./criterion/Validated - Real-world Use Cases/business_rule_validation/report/index.html">Business Rule Validation</a></div>
             </div>
-            
-            <div class="benchmark-card">
-                <h3>State Monad</h3>
-                <p>Performance metrics for the State monad, which handles stateful computations.</p>
-                <ul>
-                    <li><a href="#state-basic">Basic Operations</a></li>
-                    <li><a href="#state-core">Core Operations</a></li>
-                    <li><a href="#state-functor">Functor Operations</a></li>
-                    <li><a href="#state-applicative">Applicative Operations</a></li>
-                    <li><a href="#state-monad">Monad Operations</a></li>
-                    <li><a href="#state-chain">Chain Operations</a></li>
-                    <li><a href="#state-real-world">Real-world Use Cases</a></li>
-                </ul>
+        </details>
+        
+        <details>
+            <summary>State Monad</summary>
+            <div class="benchmark-list">
+                <div class="subcategory-heading">Basic Operations</div>
+                <div class="benchmark-link"><a href="./criterion/State - Basic Operations/create_state/report/index.html">Create State</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Basic Operations/pure/report/index.html">Pure</a></div>
+                
+                <div class="subcategory-heading">Core Operations</div>
+                <div class="benchmark-link"><a href="./criterion/State - Core Operations/run_state/report/index.html">Run State</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Core Operations/eval_state/report/index.html">Eval State</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Core Operations/exec_state/report/index.html">Exec State</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Core Operations/get/report/index.html">Get</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Core Operations/put/report/index.html">Put</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Core Operations/modify/report/index.html">Modify</a></div>
+                
+                <div class="subcategory-heading">Functor & Monad Operations</div>
+                <div class="benchmark-link"><a href="./criterion/State - Functor Operations/fmap_simple_value/report/index.html">Fmap Simple Value</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Applicative Operations/apply with pure function/report/index.html">Apply with Pure Function</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Monad Operations/bind with simple value/report/index.html">Bind with Simple Value</a></div>
+                
+                <div class="subcategory-heading">Real-world Use Cases</div>
+                <div class="benchmark-link"><a href="./criterion/State - Counter_Accumulator/increment_counter/report/index.html">Counter/Accumulator</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Stack Operations/stack_push_pop/report/index.html">Stack Operations</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Game State/player_movement/report/index.html">Game State</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - State Machine/simple_state_transitions/report/index.html">State Machine</a></div>
+                <div class="benchmark-link"><a href="./criterion/State - Logging System/log_entry_append/report/index.html">Logging System</a></div>
             </div>
-            
-            <div class="benchmark-card">
-                <h3>Other Monads</h3>
-                <p>Performance metrics for other monadic types in Rustica.</p>
-                <ul>
-                    <li><a href="#maybe">Maybe (Option)</a></li>
-                    <li><a href="#either">Either (Result)</a></li>
-                    <li><a href="#reader">Reader</a></li>
-                    <li><a href="#writer">Writer</a></li>
-                    <li><a href="#io">IO</a></li>
-                    <li><a href="#cont">Continuation</a></li>
-                </ul>
+        </details>
+        
+        <details>
+            <summary>Maybe (Option)</summary>
+            <div class="benchmark-list">
+                <div class="benchmark-link"><a href="./criterion/Maybe/map/report/index.html">Map</a></div>
+                <div class="benchmark-link"><a href="./criterion/Maybe/bind/report/index.html">Bind</a></div>
+                <div class="benchmark-link"><a href="./criterion/Maybe/apply/report/index.html">Apply</a></div>
+                <div class="benchmark-link"><a href="./criterion/Maybe/filter/report/index.html">Filter</a></div>
+                <div class="benchmark-link"><a href="./criterion/Maybe/fold/report/index.html">Fold</a></div>
+                <div class="benchmark-link"><a href="./criterion/Maybe/fromNullable/report/index.html">From Nullable</a></div>
             </div>
-        </div>
+        </details>
         
-        <h2 id="validated-basic">Validated - Basic Creation and Access</h2>
-        <div class="chart-container">
-            [Benchmark visualization would appear here]
-        </div>
-        <table>
-            <tr>
-                <th>Operation</th>
-                <th>Mean Time (ns)</th>
-                <th>Min Time (ns)</th>
-                <th>Max Time (ns)</th>
-                <th>Relative to baseline</th>
-            </tr>
-            <tr>
-                <td>Create Valid</td>
-                <td>0.5</td>
-                <td>0.4</td>
-                <td>0.6</td>
-                <td>1.0x (baseline)</td>
-            </tr>
-            <tr>
-                <td>Create Invalid</td>
-                <td>0.5</td>
-                <td>0.4</td>
-                <td>0.6</td>
-                <td>1.0x</td>
-            </tr>
-            <tr>
-                <td>Access Valid Value</td>
-                <td>0.6</td>
-                <td>0.5</td>
-                <td>0.7</td>
-                <td>1.2x</td>
-            </tr>
-            <tr>
-                <td>Access Invalid Value</td>
-                <td>0.6</td>
-                <td>0.5</td>
-                <td>0.7</td>
-                <td>1.2x</td>
-            </tr>
-        </table>
+        <details>
+            <summary>Either (Result)</summary>
+            <div class="benchmark-list">
+                <div class="benchmark-link"><a href="./criterion/Either/map_left/report/index.html">Map Left</a></div>
+                <div class="benchmark-link"><a href="./criterion/Either/map_right/report/index.html">Map Right</a></div>
+                <div class="benchmark-link"><a href="./criterion/Either/bimap/report/index.html">Bimap</a></div>
+                <div class="benchmark-link"><a href="./criterion/Either/fold/report/index.html">Fold</a></div>
+                <div class="benchmark-link"><a href="./criterion/Either/chain/report/index.html">Chain</a></div>
+                <div class="benchmark-link"><a href="./criterion/Either/from_option/report/index.html">From Option</a></div>
+            </div>
+        </details>
         
-        <h2 id="state-basic">State Monad - Basic Operations</h2>
-        <div class="chart-container">
-            [Benchmark visualization would appear here]
-        </div>
-        <table>
-            <tr>
-                <th>Operation</th>
-                <th>Mean Time (ns)</th>
-                <th>Min Time (ns)</th>
-                <th>Max Time (ns)</th>
-                <th>Relative to baseline</th>
-            </tr>
-            <tr>
-                <td>Create State</td>
-                <td>1.2</td>
-                <td>1.0</td>
-                <td>1.4</td>
-                <td>1.0x (baseline)</td>
-            </tr>
-            <tr>
-                <td>Pure Operation</td>
-                <td>1.3</td>
-                <td>1.1</td>
-                <td>1.5</td>
-                <td>1.08x</td>
-            </tr>
-            <tr>
-                <td>Run State</td>
-                <td>1.8</td>
-                <td>1.6</td>
-                <td>2.0</td>
-                <td>1.5x</td>
-            </tr>
-            <tr>
-                <td>Eval State</td>
-                <td>1.7</td>
-                <td>1.5</td>
-                <td>1.9</td>
-                <td>1.42x</td>
-            </tr>
-            <tr>
-                <td>Exec State</td>
-                <td>1.7</td>
-                <td>1.5</td>
-                <td>1.9</td>
-                <td>1.42x</td>
-            </tr>
-        </table>
+        <details>
+            <summary>Reader</summary>
+            <div class="benchmark-list">
+                <div class="benchmark-link"><a href="./criterion/Reader/ask/report/index.html">Ask</a></div>
+                <div class="benchmark-link"><a href="./criterion/Reader/map/report/index.html">Map</a></div>
+                <div class="benchmark-link"><a href="./criterion/Reader/apply/report/index.html">Apply</a></div>
+                <div class="benchmark-link"><a href="./criterion/Reader/chain/report/index.html">Chain</a></div>
+                <div class="benchmark-link"><a href="./criterion/Reader/local/report/index.html">Local</a></div>
+            </div>
+        </details>
         
-        <h2 id="maybe">Maybe (Option) Monad</h2>
-        <div class="chart-container">
-            [Benchmark visualization would appear here]
-        </div>
-        <table>
-            <tr>
-                <th>Operation</th>
-                <th>Mean Time (ns)</th>
-                <th>Min Time (ns)</th>
-                <th>Max Time (ns)</th>
-                <th>Relative to baseline</th>
-            </tr>
-            <tr>
-                <td>Create Some</td>
-                <td>0.3</td>
-                <td>0.2</td>
-                <td>0.4</td>
-                <td>1.0x (baseline)</td>
-            </tr>
-            <tr>
-                <td>Create None</td>
-                <td>0.1</td>
-                <td>0.1</td>
-                <td>0.1</td>
-                <td>0.33x</td>
-            </tr>
-            <tr>
-                <td>Map Some</td>
-                <td>0.8</td>
-                <td>0.7</td>
-                <td>0.9</td>
-                <td>2.67x</td>
-            </tr>
-            <tr>
-                <td>Map None</td>
-                <td>0.4</td>
-                <td>0.3</td>
-                <td>0.5</td>
-                <td>1.33x</td>
-            </tr>
-            <tr>
-                <td>Bind Some</td>
-                <td>1.0</td>
-                <td>0.9</td>
-                <td>1.1</td>
-                <td>3.33x</td>
-            </tr>
-            <tr>
-                <td>Bind None</td>
-                <td>0.4</td>
-                <td>0.3</td>
-                <td>0.5</td>
-                <td>1.33x</td>
-            </tr>
-        </table>
+        <details>
+            <summary>Writer</summary>
+            <div class="benchmark-list">
+                <div class="benchmark-link"><a href="./criterion/Writer - Creation and Access/new with empty log/report/index.html">New with Empty Log</a></div>
+                <div class="benchmark-link"><a href="./criterion/Writer - Functor Operations/fmap with simple function/report/index.html">Fmap with Simple Function</a></div>
+                <div class="benchmark-link"><a href="./criterion/Writer - Applicative Operations/apply with simple function/report/index.html">Apply with Simple Function</a></div>
+                <div class="benchmark-link"><a href="./criterion/Writer - Monad Operations/bind with simple function/report/index.html">Bind with Simple Function</a></div>
+                <div class="benchmark-link"><a href="./criterion/Writer - Real-world Use Cases/logging_during_computation/report/index.html">Logging During Computation</a></div>
+            </div>
+        </details>
         
-        <p class="note" style="margin-top: 50px; font-style: italic;">Note: The benchmark data shown is representative and does not reflect actual measurements. For detailed benchmark results, clone the repository and run the benchmarks locally using Criterion.rs.</p>
+        <details>
+            <summary>Choice</summary>
+            <div class="benchmark-list">
+                <div class="benchmark-link"><a href="./criterion/Choice - Creation and Access/new with few alternatives/report/index.html">New with Few Alternatives</a></div>
+                <div class="benchmark-link"><a href="./criterion/Choice - Creation and Access/new with many alternatives/report/index.html">New with Many Alternatives</a></div>
+                <div class="benchmark-link"><a href="./criterion/Choice - Filtering and Transformation/filter complex predicate/report/index.html">Filter Complex Predicate</a></div>
+                <div class="benchmark-link"><a href="./criterion/Choice - Type Class Operations/fmap with simple function/report/index.html">Fmap with Simple Function</a></div>
+            </div>
+        </details>
+        
+        <details>
+            <summary>Other Types</summary>
+            <div class="benchmark-list">
+                <div class="benchmark-link"><a href="./criterion/IO/report/index.html">IO</a></div>
+                <div class="benchmark-link"><a href="./criterion/Id/report/index.html">Id</a></div>
+                <div class="benchmark-link"><a href="./criterion/Cont/report/index.html">Continuation</a></div>
+                <div class="benchmark-link"><a href="./criterion/Lens/report/index.html">Lens</a></div>
+                <div class="benchmark-link"><a href="./criterion/Prism/report/index.html">Prism</a></div>
+            </div>
+        </details>
+        
+        <h2>Full Benchmark Details</h2>
+        <p>For detailed benchmark visualizations and statistics, please access the complete <a href="./criterion/report/index.html">Criterion benchmark report</a>.</p>
+        
+        <h2>Running Benchmarks Locally</h2>
+        <p>To run these benchmarks on your own machine:</p>
+        <pre><code>git clone https://github.com/but212/rustica.git
+cd rustica
+cargo bench
+</code></pre>
+        <p>This will generate the benchmark reports in the <code>target/criterion</code> directory.</p>
     </div>
     
     <footer style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; font-size: 0.9em;">
-        <p>Rustica - Copyright © 2025</p>
+        <p>Rustica - Copyright 2025</p>
     </footer>
 </body>
 </html>
