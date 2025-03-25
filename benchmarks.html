@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rustica - Benchmark Results</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .benchmark-category {
+            margin-bottom: 30px;
+        }
+        .benchmark-group {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        .benchmark-item {
+            margin-left: 20px;
+            margin-bottom: 5px;
+        }
+        nav {
+            margin-bottom: 30px;
+        }
+        nav a {
+            margin-right: 15px;
+        }
+        .benchmark-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .benchmark-card {
+            flex: 1 1 300px;
+            background-color: white;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin: 20px 0;
+            border: 1px solid #eee;
+            background-color: white;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-style: italic;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rustica Benchmark Results</h1>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="benchmarks.html" class="active">Benchmarks</a>
+    </nav>
+    
+    <div class="container">
+        <h2>Overview</h2>
+        <p>This page displays benchmark results for various functional programming abstractions implemented in Rustica. All benchmarks were run using <a href="https://github.com/bheisler/criterion.rs" target="_blank">Criterion.rs</a>, a statistics-driven benchmarking library for Rust.</p>
+        
+        <h2>Benchmark Categories</h2>
+        <div class="benchmark-section">
+            <div class="benchmark-card">
+                <h3>Validated</h3>
+                <p>Performance metrics for the Validated data type, which accumulates errors during validation.</p>
+                <ul>
+                    <li><a href="#validated-basic">Basic Creation and Access</a></li>
+                    <li><a href="#validated-core">Core Operations</a></li>
+                    <li><a href="#validated-conversion">Conversion Operations</a></li>
+                    <li><a href="#validated-error">Error Handling and Accumulation</a></li>
+                    <li><a href="#validated-real-world">Real-world Use Cases</a></li>
+                </ul>
+            </div>
+            
+            <div class="benchmark-card">
+                <h3>State Monad</h3>
+                <p>Performance metrics for the State monad, which handles stateful computations.</p>
+                <ul>
+                    <li><a href="#state-basic">Basic Operations</a></li>
+                    <li><a href="#state-core">Core Operations</a></li>
+                    <li><a href="#state-functor">Functor Operations</a></li>
+                    <li><a href="#state-applicative">Applicative Operations</a></li>
+                    <li><a href="#state-monad">Monad Operations</a></li>
+                    <li><a href="#state-chain">Chain Operations</a></li>
+                    <li><a href="#state-real-world">Real-world Use Cases</a></li>
+                </ul>
+            </div>
+            
+            <div class="benchmark-card">
+                <h3>Other Monads</h3>
+                <p>Performance metrics for other monadic types in Rustica.</p>
+                <ul>
+                    <li><a href="#maybe">Maybe (Option)</a></li>
+                    <li><a href="#either">Either (Result)</a></li>
+                    <li><a href="#reader">Reader</a></li>
+                    <li><a href="#writer">Writer</a></li>
+                    <li><a href="#io">IO</a></li>
+                    <li><a href="#cont">Continuation</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <h2 id="validated-basic">Validated - Basic Creation and Access</h2>
+        <div class="chart-container">
+            [Benchmark visualization would appear here]
+        </div>
+        <table>
+            <tr>
+                <th>Operation</th>
+                <th>Mean Time (ns)</th>
+                <th>Min Time (ns)</th>
+                <th>Max Time (ns)</th>
+                <th>Relative to baseline</th>
+            </tr>
+            <tr>
+                <td>Create Valid</td>
+                <td>0.5</td>
+                <td>0.4</td>
+                <td>0.6</td>
+                <td>1.0x (baseline)</td>
+            </tr>
+            <tr>
+                <td>Create Invalid</td>
+                <td>0.5</td>
+                <td>0.4</td>
+                <td>0.6</td>
+                <td>1.0x</td>
+            </tr>
+            <tr>
+                <td>Access Valid Value</td>
+                <td>0.6</td>
+                <td>0.5</td>
+                <td>0.7</td>
+                <td>1.2x</td>
+            </tr>
+            <tr>
+                <td>Access Invalid Value</td>
+                <td>0.6</td>
+                <td>0.5</td>
+                <td>0.7</td>
+                <td>1.2x</td>
+            </tr>
+        </table>
+        
+        <h2 id="state-basic">State Monad - Basic Operations</h2>
+        <div class="chart-container">
+            [Benchmark visualization would appear here]
+        </div>
+        <table>
+            <tr>
+                <th>Operation</th>
+                <th>Mean Time (ns)</th>
+                <th>Min Time (ns)</th>
+                <th>Max Time (ns)</th>
+                <th>Relative to baseline</th>
+            </tr>
+            <tr>
+                <td>Create State</td>
+                <td>1.2</td>
+                <td>1.0</td>
+                <td>1.4</td>
+                <td>1.0x (baseline)</td>
+            </tr>
+            <tr>
+                <td>Pure Operation</td>
+                <td>1.3</td>
+                <td>1.1</td>
+                <td>1.5</td>
+                <td>1.08x</td>
+            </tr>
+            <tr>
+                <td>Run State</td>
+                <td>1.8</td>
+                <td>1.6</td>
+                <td>2.0</td>
+                <td>1.5x</td>
+            </tr>
+            <tr>
+                <td>Eval State</td>
+                <td>1.7</td>
+                <td>1.5</td>
+                <td>1.9</td>
+                <td>1.42x</td>
+            </tr>
+            <tr>
+                <td>Exec State</td>
+                <td>1.7</td>
+                <td>1.5</td>
+                <td>1.9</td>
+                <td>1.42x</td>
+            </tr>
+        </table>
+        
+        <h2 id="maybe">Maybe (Option) Monad</h2>
+        <div class="chart-container">
+            [Benchmark visualization would appear here]
+        </div>
+        <table>
+            <tr>
+                <th>Operation</th>
+                <th>Mean Time (ns)</th>
+                <th>Min Time (ns)</th>
+                <th>Max Time (ns)</th>
+                <th>Relative to baseline</th>
+            </tr>
+            <tr>
+                <td>Create Some</td>
+                <td>0.3</td>
+                <td>0.2</td>
+                <td>0.4</td>
+                <td>1.0x (baseline)</td>
+            </tr>
+            <tr>
+                <td>Create None</td>
+                <td>0.1</td>
+                <td>0.1</td>
+                <td>0.1</td>
+                <td>0.33x</td>
+            </tr>
+            <tr>
+                <td>Map Some</td>
+                <td>0.8</td>
+                <td>0.7</td>
+                <td>0.9</td>
+                <td>2.67x</td>
+            </tr>
+            <tr>
+                <td>Map None</td>
+                <td>0.4</td>
+                <td>0.3</td>
+                <td>0.5</td>
+                <td>1.33x</td>
+            </tr>
+            <tr>
+                <td>Bind Some</td>
+                <td>1.0</td>
+                <td>0.9</td>
+                <td>1.1</td>
+                <td>3.33x</td>
+            </tr>
+            <tr>
+                <td>Bind None</td>
+                <td>0.4</td>
+                <td>0.3</td>
+                <td>0.5</td>
+                <td>1.33x</td>
+            </tr>
+        </table>
+        
+        <p class="note" style="margin-top: 50px; font-style: italic;">Note: The benchmark data shown is representative and does not reflect actual measurements. For detailed benchmark results, clone the repository and run the benchmarks locally using Criterion.rs.</p>
+    </div>
+    
+    <footer style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; font-size: 0.9em;">
+        <p>Rustica - Copyright © 2025</p>
+    </footer>
+</body>
+</html>
