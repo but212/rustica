@@ -21,24 +21,28 @@
 //!
 //! ```rust
 //! use rustica::datatypes::lens::Lens;
+//! use std::rc::Rc;
 //!
 //! // A nested data structure
-//! #[derive(Clone)]
+//! #[derive(Clone, Debug, PartialEq)]
 //! struct Address {
 //!     street: String,
 //!     city: String,
 //! }
 //!
-//! #[derive(Clone)]
+//! #[derive(Clone, Debug, PartialEq)]
 //! struct Person {
 //!     name: String,
-//!     address: Address,
+//!     address: Rc<Address>, // Using Rc for structural sharing
 //! }
 //!
 //! // Create lenses for accessing nested fields
 //! let address_lens = Lens::new(
-//!     |p: &Person| p.address.clone(),
-//!     |p: Person, addr: Address| Person { address: addr, ..p },
+//!     |p: &Person| p.address.as_ref().clone(),
+//!     |p: Person, addr: Address| Person {
+//!         address: Rc::new(addr),
+//!         ..p
+//!     },
 //! );
 //!
 //! let street_lens = Lens::new(
@@ -49,19 +53,27 @@
 //! // Create initial data
 //! let person = Person {
 //!     name: "Alice".to_string(),
-//!     address: Address {
+//!     address: Rc::new(Address {
 //!         street: "123 Main St".to_string(),
 //!         city: "Springfield".to_string(),
-//!     },
+//!     }),
 //! };
 //!
-//! // Update nested field
+//! // Update nested field - this will create new structures
 //! let updated = address_lens.modify(person.clone(), |addr| {
 //!     street_lens.set(addr, "456 Oak Ave".to_string())
 //! });
 //!
 //! assert_eq!(updated.address.street, "456 Oak Ave");
 //! assert_eq!(updated.address.city, "Springfield");
+//!
+//! // Demonstrate structural sharing when no actual change is made
+//! let unchanged = address_lens.modify(person.clone(), |addr| {
+//!     street_lens.set(addr, "123 Main St".to_string()) // Same value as before
+//! });
+//!
+//! // Verify it's the same object (structural sharing)
+//! assert!(Rc::ptr_eq(&person.address, &unchanged.address));
 //! ```
 
 use std::sync::Arc;
@@ -178,6 +190,38 @@ impl<S: Clone + 'static, A: Clone + 'static> Lens<S, A> {
     /// Sets the focused part to a new value, returning a new whole structure.
     ///
     /// This operation creates a new structure rather than modifying the existing one.
+    /// If the new value is equal to the current value, the original structure is
+    /// returned to enable structural sharing.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The whole structure to update
+    /// * `value` - The new value for the focused part
+    ///
+    /// # Returns
+    ///
+    /// A new structure with the focused part updated, or the original structure
+    /// if the new value is equal to the current value
+    pub fn set(&self, source: S, value: A) -> S
+    where
+        A: PartialEq,
+    {
+        let current = (self.get)(&source);
+
+        // If the new value is equal to the current value, return the original structure
+        // This enables structural sharing when no actual change occurs
+        if current == value {
+            source
+        } else {
+            (self.set)(source, value)
+        }
+    }
+
+    /// Sets the focused part to a new value without checking equality.
+    ///
+    /// This variant of set always creates a new structure, even if the value
+    /// doesn't change. Use this when A doesn't implement PartialEq or when
+    /// you know the value will always be different.
     ///
     /// # Arguments
     ///
@@ -187,13 +231,48 @@ impl<S: Clone + 'static, A: Clone + 'static> Lens<S, A> {
     /// # Returns
     ///
     /// A new structure with the focused part updated
-    pub fn set(&self, source: S, value: A) -> S {
+    pub fn set_always(&self, source: S, value: A) -> S {
         (self.set)(source, value)
     }
 
     /// Modifies the focused part using a function, returning a new whole structure.
     ///
     /// This is a convenience method that combines `get` and `set` operations.
+    /// If the modification doesn't change the focused part (as determined by
+    /// equality comparison), the original structure is returned to enable
+    /// structural sharing.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The whole structure to modify
+    /// * `f` - A function that transforms the focused part
+    ///
+    /// # Returns
+    ///
+    /// A new structure with the focused part modified by the function, or the
+    /// original structure if no change was made
+    pub fn modify<F>(&self, source: S, f: F) -> S
+    where
+        F: Fn(A) -> A,
+        A: PartialEq,
+    {
+        let original = (self.get)(&source);
+        let modified = f(original.clone());
+
+        // If the value didn't actually change, return the original structure
+        // This enables structural sharing for nested updates
+        if original == modified {
+            source
+        } else {
+            (self.set)(source, modified)
+        }
+    }
+
+    /// Modifies the focused part using a function without checking equality.
+    ///
+    /// This variant of modify always creates a new structure, even if the
+    /// value doesn't change. Use this when A doesn't implement PartialEq
+    /// or when you know the value will always change.
     ///
     /// # Arguments
     ///
@@ -203,7 +282,7 @@ impl<S: Clone + 'static, A: Clone + 'static> Lens<S, A> {
     /// # Returns
     ///
     /// A new structure with the focused part modified by the function
-    pub fn modify<F>(&self, source: S, f: F) -> S
+    pub fn modify_always<F>(&self, source: S, f: F) -> S
     where
         F: Fn(A) -> A,
     {

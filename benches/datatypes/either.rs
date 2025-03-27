@@ -49,6 +49,80 @@ pub fn either_benchmarks(c: &mut Criterion) {
         });
     });
 
+    // ======== VALUE ACCESS OPERATIONS ========
+
+    group.bench_function("left_ref", |b| {
+        let either = Either::<&str, i32>::left("error");
+        b.iter(|| {
+            if either.is_left() {
+                black_box(either.left_ref());
+            }
+        });
+    });
+
+    group.bench_function("right_ref", |b| {
+        let either = Either::<&str, i32>::right(42);
+        b.iter(|| {
+            if either.is_right() {
+                black_box(either.right_ref());
+            }
+        });
+    });
+
+    group.bench_function("unwrap_left", |b| {
+        let either = Either::<&str, i32>::left("error");
+        b.iter(|| {
+            if either.is_left() {
+                black_box(either.clone().unwrap_left());
+            }
+        });
+    });
+
+    group.bench_function("unwrap_right", |b| {
+        let either = Either::<&str, i32>::right(42);
+        b.iter(|| {
+            if either.is_right() {
+                black_box(either.clone().unwrap_right());
+            }
+        });
+    });
+
+    group.bench_function("left_value", |b| {
+        b.iter(|| {
+            let either = Either::<&str, i32>::left("error");
+            if either.is_left() {
+                black_box(either.left_value());
+            }
+        });
+    });
+
+    group.bench_function("right_value", |b| {
+        b.iter(|| {
+            let either = Either::<&str, i32>::right(42);
+            if either.is_right() {
+                black_box(either.right_value());
+            }
+        });
+    });
+
+    group.bench_function("left_or", |b| {
+        b.iter(|| {
+            let either_left = Either::<&str, i32>::left("error");
+            let either_right = Either::<&str, i32>::right(42);
+            black_box(either_left.clone().left_or("default"));
+            black_box(either_right.clone().left_or("default"));
+        });
+    });
+
+    group.bench_function("right_or", |b| {
+        b.iter(|| {
+            let either_left = Either::<&str, i32>::left("error");
+            let either_right = Either::<&str, i32>::right(42);
+            black_box(either_left.clone().right_or(0));
+            black_box(either_right.clone().right_or(0));
+        });
+    });
+
     // ======== TRANSFORMATION OPERATIONS ========
 
     group.bench_function("map_left", |b| {
@@ -141,7 +215,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
 
     group.bench_function("apply_owned", |b| {
         b.iter(|| {
-            let either_fn = Either::<&str, fn(i32) -> i32>::right(|x: i32| x + 1);
+            let either_fn = Either::<&str, fn(i32) -> i32>::right(|x| x + 1);
             let either_val = Either::<&str, i32>::right(42);
             black_box(either_val.apply_owned(either_fn));
         });
@@ -168,7 +242,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let either_a = Either::<&str, i32>::right(10);
             let either_b = Either::<&str, i32>::right(20);
-            black_box(either_a.lift2_owned(either_b, |a: i32, b: i32| a + b));
+            black_box(either_a.lift2_owned(either_b, |a, b| a + b));
         });
     });
 
@@ -177,7 +251,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
             let either_a = Either::<&str, i32>::right(10);
             let either_b = Either::<&str, i32>::right(20);
             let either_c = Either::<&str, i32>::right(30);
-            black_box(either_a.lift3_owned(either_b, either_c, |a: i32, b: i32, c: i32| a + b + c));
+            black_box(either_a.lift3_owned(either_b, either_c, |a, b, c| a + b + c));
         });
     });
 
@@ -277,6 +351,34 @@ pub fn either_benchmarks(c: &mut Criterion) {
         });
     });
 
+    // Error handling use case with optimized methods
+    group.bench_function("error_handling_optimized", |b| {
+        b.iter(|| {
+            // Simulate a series of operations that might fail
+            let initial: Either<&str, i32> = Either::right(10);
+
+            // Chain operations using bind_owned
+            let result = initial
+                .bind_owned(|x| {
+                    if x > 0 {
+                        Either::right(x * 2)
+                    } else {
+                        Either::left("Cannot multiply negative number")
+                    }
+                })
+                .bind_owned(|x| {
+                    if x < 100 {
+                        Either::right(x + 5)
+                    } else {
+                        Either::left("Result too large")
+                    }
+                })
+                .fmap_owned(|x| x.to_string());
+
+            black_box(result)
+        });
+    });
+
     // Data validation use case
     group.bench_function("data_validation", |b| {
         b.iter(|| {
@@ -323,6 +425,20 @@ pub fn either_benchmarks(c: &mut Criterion) {
                 .map_right(|sum: &i32| if *sum > 20 { "large" } else { "small" });
 
             black_box(result)
+        });
+    });
+
+    // Value extraction with the new methods
+    group.bench_function("value_extraction_optimized", |b| {
+        b.iter(|| {
+            let left_val = Either::<&str, i32>::left("error");
+            let right_val = Either::<&str, i32>::right(42);
+
+            // Using right_or and left_or
+            let left_result = left_val.clone().left_or("default");
+            let right_result = right_val.clone().right_or(0);
+
+            black_box((left_result, right_result))
         });
     });
 

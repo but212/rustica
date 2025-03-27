@@ -266,6 +266,148 @@ impl<L, R> Either<L, R> {
             Either::Right(r) => r,
         }
     }
+
+    /// Returns the contained `Left` value, consuming the `self` value.
+    ///
+    /// Because this function consumes the original Either, there is no need to clone
+    /// the content, making this method more efficient than `unwrap_left`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is a `Right`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let x: Either<u32, &str> = Either::left(7);
+    /// assert_eq!(x.left_value(), 7);
+    /// ```
+    #[inline]
+    pub fn left_value(self) -> L
+    where
+        Self: Sized,
+    {
+        match self {
+            Either::Left(l) => l,
+            Either::Right(_) => panic!("Called left_value on an Either::Right"),
+        }
+    }
+
+    /// Returns the contained `Right` value, consuming the `self` value.
+    ///
+    /// Because this function consumes the original Either, there is no need to clone
+    /// the content, making this method more efficient than `unwrap_right`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is a `Left`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let x: Either<u32, &str> = Either::right("hello");
+    /// assert_eq!(x.right_value(), "hello");
+    /// ```
+    #[inline]
+    pub fn right_value(self) -> R
+    where
+        Self: Sized,
+    {
+        match self {
+            Either::Left(_) => panic!("Called right_value on an Either::Left"),
+            Either::Right(r) => r,
+        }
+    }
+
+    /// Returns a reference to the `Left` value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is a `Right`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let x: Either<u32, &str> = Either::left(7);
+    /// assert_eq!(*x.left_ref(), 7);
+    /// ```
+    #[inline]
+    pub fn left_ref(&self) -> &L {
+        match self {
+            Either::Left(l) => l,
+            Either::Right(_) => panic!("Called left_ref on an Either::Right"),
+        }
+    }
+
+    /// Returns a reference to the `Right` value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is a `Left`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let x: Either<u32, &str> = Either::right("hello");
+    /// assert_eq!(*x.right_ref(), "hello");
+    /// ```
+    #[inline]
+    pub fn right_ref(&self) -> &R {
+        match self {
+            Either::Left(_) => panic!("Called right_ref on an Either::Right"),
+            Either::Right(r) => r,
+        }
+    }
+
+    /// Returns the contained `Right` value or a default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let right: Either<&str, u32> = Either::right(7);
+    /// assert_eq!(right.right_or(42), 7);
+    ///
+    /// let left: Either<&str, u32> = Either::left("foo");
+    /// assert_eq!(left.right_or(42), 42);
+    /// ```
+    #[inline]
+    pub fn right_or(self, default: R) -> R {
+        match self {
+            Either::Right(r) => r,
+            Either::Left(_) => default,
+        }
+    }
+
+    /// Returns the contained `Left` value or a default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let right: Either<&str, u32> = Either::right(7);
+    /// assert_eq!(right.left_or("default"), "default");
+    ///
+    /// let left: Either<&str, u32> = Either::left("foo");
+    /// assert_eq!(left.left_or("default"), "foo");
+    /// ```
+    #[inline]
+    pub fn left_or(self, default: L) -> L {
+        match self {
+            Either::Left(l) => l,
+            Either::Right(_) => default,
+        }
+    }
 }
 
 impl<L, R> HKT for Either<L, R> {
@@ -311,7 +453,7 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         F: Fn(&Self::Source) -> B,
     {
         match (self, f) {
-            (Either::Right(x), Either::Right(f)) => Either::Right(f(x)),
+            (Either::Right(r), Either::Right(func)) => Either::Right(func(r)),
             (Either::Left(l), _) => Either::Left(l.clone()),
             (_, Either::Left(l)) => Either::Left(l.clone()),
         }
@@ -323,7 +465,7 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         F: Fn(&Self::Source, &B) -> C,
     {
         match (self, b) {
-            (Either::Right(x), Either::Right(y)) => Either::Right(f(x, y)),
+            (Either::Right(r), Either::Right(b_val)) => Either::Right(f(r, b_val)),
             (Either::Left(l), _) => Either::Left(l.clone()),
             (_, Either::Left(l)) => Either::Left(l.clone()),
         }
@@ -335,7 +477,9 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         F: Fn(&Self::Source, &B, &C) -> D,
     {
         match (self, b, c) {
-            (Either::Right(x), Either::Right(y), Either::Right(z)) => Either::Right(f(x, y, z)),
+            (Either::Right(r), Either::Right(b_val), Either::Right(c_val)) => {
+                Either::Right(f(r, b_val, c_val))
+            }
             (Either::Left(l), _, _) => Either::Left(l.clone()),
             (_, Either::Left(l), _) => Either::Left(l.clone()),
             (_, _, Either::Left(l)) => Either::Left(l.clone()),
@@ -345,27 +489,26 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
     #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> B,
+        F: FnOnce(Self::Source) -> B,
         Self: Sized,
     {
         match (self, f) {
             (Either::Right(x), Either::Right(f)) => Either::Right(f(x)),
-            (Either::Left(l), _) => Either::Left(l.clone()),
-            (_, Either::Left(l)) => Either::Left(l.clone()),
+            (Either::Left(l), _) => Either::Left(l),
+            (_, Either::Left(l)) => Either::Left(l),
         }
     }
 
     #[inline]
     fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        F: Fn(Self::Source, B) -> C,
+        F: FnOnce(Self::Source, B) -> C,
         Self: Sized,
-        B: Clone,
     {
         match (self, b) {
             (Either::Right(x), Either::Right(y)) => Either::Right(f(x, y)),
-            (Either::Left(l), _) => Either::Left(l.clone()),
-            (_, Either::Left(l)) => Either::Left(l.clone()),
+            (Either::Left(l), _) => Either::Left(l),
+            (_, Either::Left(l)) => Either::Left(l),
         }
     }
 
@@ -377,16 +520,14 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         f: F,
     ) -> Self::Output<D>
     where
-        F: Fn(Self::Source, B, C) -> D,
+        F: FnOnce(Self::Source, B, C) -> D,
         Self: Sized,
-        B: Clone,
-        C: Clone,
     {
         match (self, b, c) {
             (Either::Right(x), Either::Right(y), Either::Right(z)) => Either::Right(f(x, y, z)),
-            (Either::Left(l), _, _) => Either::Left(l.clone()),
-            (_, Either::Left(l), _) => Either::Left(l.clone()),
-            (_, _, Either::Left(l)) => Either::Left(l.clone()),
+            (Either::Left(l), _, _) => Either::Left(l),
+            (_, Either::Left(l), _) => Either::Left(l),
+            (_, _, Either::Left(l)) => Either::Left(l),
         }
     }
 }
@@ -417,12 +558,11 @@ impl<L: Clone, R: Clone> Monad for Either<L, R> {
     #[inline]
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
     where
-        F: Fn(Self::Source) -> Self::Output<U>,
-        U: Clone,
+        F: FnOnce(Self::Source) -> Self::Output<U>,
         Self: Sized,
     {
         match self {
-            Either::Left(l) => Either::Left(l.clone()),
+            Either::Left(l) => Either::Left(l),
             Either::Right(r) => f(r),
         }
     }
@@ -431,12 +571,11 @@ impl<L: Clone, R: Clone> Monad for Either<L, R> {
     fn join_owned<U>(self) -> Self::Output<U>
     where
         Self::Source: Into<Self::Output<U>>,
-        U: Clone,
         Self: Sized,
     {
         match self {
-            Either::Left(l) => Either::Left(l.clone()),
-            Either::Right(r) => r.clone().into(),
+            Either::Left(l) => Either::Left(l),
+            Either::Right(r) => r.into(),
         }
     }
 }

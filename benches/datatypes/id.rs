@@ -60,6 +60,15 @@ pub fn id_benchmarks(c: &mut Criterion) {
         });
     });
 
+    // ======== NEW OPTIMIZED OPERATIONS ========
+
+    group.bench_function("as_ref", |b| {
+        let id = Id::new(42);
+        b.iter(|| {
+            black_box(id.as_ref());
+        });
+    });
+
     // ======== IDENTITY OPERATIONS ========
 
     group.bench_function("identity_value", |b| {
@@ -366,6 +375,55 @@ pub fn id_benchmarks(c: &mut Criterion) {
                 result = result.combine(part);
             }
 
+            black_box(result.into_inner())
+        });
+    });
+
+    // Chained transformations scenario
+    group.bench_function("chained_transforms_old", |b| {
+        b.iter(|| {
+            let id = Id::new(42);
+            black_box(
+                id.fmap(|x: &i32| x + 10)
+                    .fmap(|x: &i32| x * 2)
+                    .fmap(|x: &i32| x.to_string())
+                    .into_inner(),
+            );
+        });
+    });
+
+    // Fully owned transformation chain
+    group.bench_function("owned_transform_chain", |b| {
+        b.iter(|| {
+            black_box(
+                Id::new(42)
+                    .map(|x| x + 10)
+                    .map(|x| x * 2)
+                    .map(|x| x.to_string())
+                    .into_inner(),
+            );
+        });
+    });
+
+    // Complex scenario comparing old vs. new patterns
+    group.bench_function("complex_scenario_old", |b| {
+        b.iter(|| {
+            let id = Id::new(10);
+            let result = id
+                .fmap(|x: &i32| x + 5)
+                .bind(|x: &i32| Id::new(x * 2))
+                .fmap(|x: &i32| x.to_string());
+            black_box(result.into_inner())
+        });
+    });
+
+    group.bench_function("complex_scenario_optimized", |b| {
+        b.iter(|| {
+            let id = Id::new(10);
+            let result = id
+                .fmap_owned(|x| x + 5)
+                .bind_owned(|x| Id::new(x * 2))
+                .map(|x| x.to_string());
             black_box(result.into_inner())
         });
     });

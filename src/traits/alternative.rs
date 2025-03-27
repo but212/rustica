@@ -1,3 +1,29 @@
+//! # Alternative Functors
+//!
+//! The `Alternative` trait represents applicative functors that also have a monoid structure.
+//! It extends the `Applicative` trait with operations for choice and failure.
+//!
+//! ## Core Operations
+//!
+//! - `empty_alt`: Provides an identity element (representing failure)
+//! - `alt`: Combines two alternatives (representing choice)
+//!
+//! ## Laws
+//!
+//! For a valid Alternative implementation, the following laws must hold:
+//!
+//! 1. Left identity: `empty_alt().alt(x) == x`
+//! 2. Right identity: `x.alt(empty_alt()) == x`
+//! 3. Associativity: `a.alt(b).alt(c) == a.alt(b.alt(c))`
+//! 4. Distributivity: `f.ap(a.alt(b)) == f.ap(a).alt(f.ap(b))`
+//! 5. Annihilation: `empty_alt().ap(a) == empty_alt()`
+//!
+//! ## Common Use Cases
+//!
+//! - Representing failure and recovery in computations
+//! - Parsing with multiple possible alternatives
+//! - Collecting multiple possible results
+
 use crate::traits::applicative::Applicative;
 
 /// A trait for types that provide an alternative computation strategy.

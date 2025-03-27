@@ -195,11 +195,11 @@ impl<T> Id<T> {
     /// assert_eq!(*mapped.value(), "42");
     /// ```
     #[inline]
-    pub fn map<U, F>(self, f: F) -> Id<U>
+    pub fn map<U, F>(&self, f: F) -> Id<U>
     where
-        F: FnOnce(T) -> U,
+        F: FnOnce(&T) -> U,
     {
-        Id::new(f(self.value))
+        Id::new(f(&self.value))
     }
 
     /// Sequences two Id operations, discarding the first result.
@@ -222,6 +222,12 @@ impl<T> Id<T> {
     #[inline]
     pub fn then<U>(self, next: Id<U>) -> Id<U> {
         Id::new(next.value)
+    }
+}
+
+impl<T> std::convert::AsRef<T> for Id<T> {
+    fn as_ref(&self) -> &T {
+        &self.value
     }
 }
 

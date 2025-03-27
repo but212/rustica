@@ -9,6 +9,18 @@ fn test_id_creation_and_access() {
 
     assert_eq!(*id_int.value(), 42);
     assert_eq!(*id_string.value(), "hello");
+
+    // Test the new as_ref method
+    assert_eq!(id_int.as_ref(), &42);
+    assert_eq!(id_string.as_ref(), &"hello".to_string());
+
+    // Test consuming the value
+    let id_consume = Id::new(100);
+    assert_eq!(id_consume.into_inner(), 100);
+
+    // Test value_or method
+    let id_default = Id::new(42);
+    assert_eq!(*id_default.value(), 42);
 }
 
 #[test]
@@ -22,6 +34,14 @@ fn test_id_functor() {
 
     assert_eq!(*doubled.value(), 84);
     assert_eq!(*identity.value(), 42);
+
+    // Test owned mapping
+    let owned_map = Id::new(42).map(|n| n * 2);
+    assert_eq!(*owned_map.value(), 84);
+
+    // Test fmap_owned
+    let owned_fmap = Id::new(42).fmap_owned(|n| n * 2);
+    assert_eq!(*owned_fmap.value(), 84);
 
     // Test functor laws
     // 1. Identity: fmap(id) == id
@@ -70,6 +90,29 @@ fn test_id_applicative() {
 }
 
 #[test]
+fn test_id_owned_applicative() {
+    // Test optimized applicative operations
+    let x: Id<i32> = Id::new(2);
+    let y: Id<i32> = Id::new(3);
+    let z: Id<i32> = Id::new(4);
+
+    // Test apply_owned
+    let add_one: Id<fn(i32) -> i32> = Id::new(|x| x + 1);
+    let result = x.clone().apply_owned(add_one);
+    assert_eq!(*result.value(), 3);
+
+    // Test lift2_owned
+    let add = |a: i32, b: i32| a + b;
+    let sum = x.clone().lift2_owned(y.clone(), add);
+    assert_eq!(*sum.value(), 5);
+
+    // Test lift3_owned
+    let multiply = |a: i32, b: i32, c: i32| a * b * c;
+    let product = x.lift3_owned(y, z, multiply);
+    assert_eq!(*product.value(), 24);
+}
+
+#[test]
 fn test_id_monad() {
     // Test monad properties of Id
     let x = Id::new(42);
@@ -102,12 +145,45 @@ fn test_id_monad() {
 }
 
 #[test]
+fn test_id_owned_monad() {
+    // Test optimized monad operations
+    let x: Id<i32> = Id::new(42);
+
+    // Test bind_owned
+    let f = |n: i32| Id::new(n * 2);
+    let result = x.clone().bind_owned(f);
+    assert_eq!(*result.value(), 84);
+
+    // Test join_owned
+    let nested: Id<Id<i32>> = Id::new(x.clone());
+    let flattened: Id<i32> = nested.join_owned();
+    assert_eq!(*flattened.value(), 42);
+}
+
+#[test]
 fn test_id_chaining() {
     // Test chaining of Id
     let x = Id::new(42);
     let result = x.fmap(|n| n + 1).fmap(|n| n * 2).fmap(|n| n.to_string());
 
     assert_eq!(*result.value(), "86");
+}
+
+#[test]
+fn test_id_optimized_chains() {
+    // Fully owned transformation chain
+    let result = Id::new(10)
+        .map(|n| n + 5)
+        .map(|n| n * 2)
+        .map(|n| n.to_string());
+    assert_eq!(*result.value(), "30");
+
+    // Complex chain with bind_owned and fmap_owned
+    let result = Id::new(10)
+        .fmap_owned(|n| n + 5)
+        .bind_owned(|n| Id::new(n * 2))
+        .fmap_owned(|n| n.to_string());
+    assert_eq!(*result.value(), "30");
 }
 
 #[test]

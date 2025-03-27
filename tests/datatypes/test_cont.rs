@@ -18,6 +18,7 @@ mod test_cont {
 
     #[test]
     fn test_cont_functor() {
+        // Test with reference version
         let cont = cont::Cont::return_cont(42);
         let mapped = cont.fmap(|x| x + 1);
         let result = mapped.run(|x| x * 2);

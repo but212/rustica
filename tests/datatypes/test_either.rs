@@ -12,12 +12,20 @@ fn test_either_creation_and_access() {
     assert!(left.is_left());
     assert!(!left.is_right());
     assert_eq!(left.unwrap_left(), 42);
+    assert_eq!(*left.left_ref(), 42);
+
+    let left_consumed = Either::<i32, &str>::left(43);
+    assert_eq!(left_consumed.left_value(), 43);
 
     // Test Right creation
     let right: Either<i32, &str> = Either::right("hello");
     assert!(!right.is_left());
     assert!(right.is_right());
     assert_eq!(right.unwrap_right(), "hello");
+    assert_eq!(*right.right_ref(), "hello");
+
+    let right_consumed = Either::<i32, &str>::right("world");
+    assert_eq!(right_consumed.right_value(), "world");
 }
 
 #[test]
@@ -41,6 +49,7 @@ fn test_either_mapping() {
 
 #[test]
 fn test_either_functor() {
+    // Test with borrowed values
     let right: Either<i32, i32> = Either::right(42);
     let mapped = right.fmap(|x| x + 1);
     assert_eq!(mapped.unwrap_right(), 43);
@@ -48,6 +57,15 @@ fn test_either_functor() {
     let left: Either<i32, i32> = Either::left(42);
     let mapped = left.fmap(|x| x + 1);
     assert_eq!(mapped.unwrap_left(), 42);
+
+    // Test with owned values
+    let right: Either<String, i32> = Either::right(42);
+    let mapped = right.fmap(|x| x * 2);
+    assert_eq!(mapped.unwrap_right(), 84);
+
+    let left: Either<String, i32> = Either::left("error".to_string());
+    let mapped = left.fmap(|x| x * 2);
+    assert_eq!(mapped.unwrap_left(), "error");
 }
 
 #[test]
@@ -62,10 +80,22 @@ fn test_either_applicative() {
     let result = value.apply(&f);
     assert_eq!(result.unwrap_right(), 43);
 
+    // Test apply_owned
+    let value: Either<&str, i32> = Either::right(42);
+    let f: Either<&str, fn(i32) -> i32> = Either::right(|x| x + 1);
+    let result = value.apply_owned(f);
+    assert_eq!(result.unwrap_right(), 43);
+
     // Test lift2
     let a: Either<&str, i32> = Either::right(2);
     let b: Either<&str, i32> = Either::right(3);
     let result = a.lift2(&b, |x, y| x * y);
+    assert_eq!(result.unwrap_right(), 6);
+
+    // Test lift2_owned
+    let a: Either<&str, i32> = Either::right(2);
+    let b: Either<&str, i32> = Either::right(3);
+    let result = a.lift2_owned(b, |x, y| x * y);
     assert_eq!(result.unwrap_right(), 6);
 
     // Test lift3
@@ -73,6 +103,13 @@ fn test_either_applicative() {
     let b: Either<&str, i32> = Either::right(3);
     let c: Either<&str, i32> = Either::right(4);
     let result = a.lift3(&b, &c, |x, y, z| x * y + z);
+    assert_eq!(result.unwrap_right(), 10);
+
+    // Test lift3_owned
+    let a: Either<&str, i32> = Either::right(2);
+    let b: Either<&str, i32> = Either::right(3);
+    let c: Either<&str, i32> = Either::right(4);
+    let result = a.lift3_owned(b, c, |x, y, z| x * y + z);
     assert_eq!(result.unwrap_right(), 10);
 }
 
@@ -91,6 +128,62 @@ fn test_either_monad() {
     let nested: Either<&str, Either<&str, i32>> = Either::right(Either::right(42));
     let flattened = nested.join();
     assert_eq!(flattened.unwrap_right(), 42);
+
+    // Test bind_owned and join_owned (optimized versions)
+    let right: Either<&str, i32> = Either::right(42);
+    let result = right.bind_owned(|x| Either::right(x + 1));
+    assert_eq!(result.unwrap_right(), 43);
+
+    let nested = Either::<&str, Either<&str, i32>>::right(Either::right(42));
+    let flattened = nested.join_owned();
+    assert_eq!(flattened.unwrap_right(), 42);
+}
+
+#[test]
+fn test_either_or_methods() {
+    // Test left_or
+    let left: Either<&str, i32> = Either::left("error");
+    let right: Either<&str, i32> = Either::right(42);
+
+    assert_eq!(left.clone().left_or("default"), "error");
+    assert_eq!(right.clone().left_or("default"), "default");
+
+    // Test right_or
+    assert_eq!(left.clone().right_or(0), 0);
+    assert_eq!(right.clone().right_or(0), 42);
+}
+
+#[test]
+fn test_either_performance_pattern() {
+    // Test a common pattern that benefits from the optimized methods
+    let process_data = |input: i32| -> Either<&'static str, String> {
+        let either: Either<&'static str, i32> = if input > 0 {
+            Either::right(input)
+        } else {
+            Either::left("Invalid input")
+        };
+
+        // Using the optimized methods
+        either.fmap_owned(|x| x * 2).bind_owned(|x| {
+            if x < 100 {
+                Either::right(x.to_string())
+            } else {
+                Either::left("Result too large")
+            }
+        })
+    };
+
+    // Test valid case
+    let result = process_data(42);
+    assert_eq!(result.right_value(), "84");
+
+    // Test invalid input
+    let result = process_data(-1);
+    assert_eq!(result.left_value(), "Invalid input");
+
+    // Test too large result
+    let result = process_data(60);
+    assert_eq!(result.left_value(), "Result too large");
 }
 
 #[test]

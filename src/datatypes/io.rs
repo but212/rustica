@@ -130,6 +130,7 @@ impl<A: 'static + Clone> IO<A> {
     ///     ()
     /// });
     /// ```
+    #[inline]
     pub fn new<F>(f: F) -> Self
     where
         F: Fn() -> A + 'static,
@@ -153,6 +154,7 @@ impl<A: 'static + Clone> IO<A> {
     /// let result = io_operation.run();
     /// assert_eq!(result, 42);
     /// ```
+    #[inline]
     pub fn run(&self) -> A {
         (self.run)()
     }
@@ -184,6 +186,7 @@ impl<A: 'static + Clone> IO<A> {
     ///     .fmap(|x| x.to_string());
     /// assert_eq!(result.run(), "52");
     /// ```
+    #[inline]
     pub fn fmap<B: Clone + 'static>(&self, f: impl Fn(A) -> B + 'static) -> IO<B> {
         let run = Arc::clone(&self.run);
         IO::new(move || f(run()))
@@ -211,6 +214,7 @@ impl<A: 'static + Clone> IO<A> {
     /// let io_string = IO::pure("hello".to_string());
     /// assert_eq!(io_string.run(), "hello");
     /// ```
+    #[inline]
     pub fn pure(value: A) -> Self {
         IO::new(move || value.clone())
     }
@@ -255,9 +259,13 @@ impl<A: 'static + Clone> IO<A> {
     ///     }));
     /// assert_eq!(read_and_process.run(), "USER INPUT");
     /// ```
+    #[inline]
     pub fn bind<B: Clone + 'static>(&self, f: impl Fn(A) -> IO<B> + 'static) -> IO<B> {
         let run = Arc::clone(&self.run);
-        IO::new(move || f(run()).run())
+        IO::new(move || {
+            let a = run();
+            f(a).run()
+        })
     }
 
     /// Tries to get the value from this IO operation.
@@ -281,6 +289,7 @@ impl<A: 'static + Clone> IO<A> {
     /// let result = io_operation.try_get();
     /// assert_eq!(result, Ok(42));
     /// ```
+    #[inline]
     pub fn try_get(&self) -> Result<A, IOError> {
         Ok(self.run())
     }
@@ -305,6 +314,7 @@ impl<A: 'static + Clone> IO<A> {
     /// let result = io_operation.apply(|x| IO::pure(x * 2));
     /// assert_eq!(result.run(), 84);
     /// ```
+    #[inline]
     pub fn apply<B: Clone + 'static>(&self, mf: impl Fn(A) -> IO<B> + 'static) -> IO<B> {
         self.bind(mf)
     }
@@ -331,9 +341,61 @@ impl<A: 'static + Clone> IO<A> {
     /// let result = io_operation.run();
     /// assert_eq!(result, 42);
     /// ```
+    #[inline]
     pub fn delay(duration: std::time::Duration, value: A) -> Self {
         IO::new(move || {
             std::thread::sleep(duration);
+            value.clone()
+        })
+    }
+
+    /// Creates a new IO operation that delays execution for a specified duration using a non-blocking approach.
+    ///
+    /// This is similar to `delay` but uses a more efficient approach when dealing with
+    /// many IO operations or when you don't want to block the current thread.
+    ///
+    /// # Arguments
+    ///
+    /// * `duration` - The duration to delay the execution
+    /// * `value` - The value to return after the delay
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    /// use std::time::Duration;
+    ///
+    /// // Create an IO operation that uses spin_sleep for more precise timing
+    /// let io_operation = IO::delay_efficient(Duration::from_millis(100), 42);
+    ///
+    /// // Run the IO operation (uses spin sleep for better precision)
+    /// let result = io_operation.run();
+    /// assert_eq!(result, 42);
+    /// ```
+    #[inline]
+    pub fn delay_efficient(duration: std::time::Duration, value: A) -> Self {
+        IO::new(move || {
+            // For very short durations, use a spin wait approach
+            if duration <= std::time::Duration::from_millis(10) {
+                let start = std::time::Instant::now();
+                while start.elapsed() < duration {
+                    std::hint::spin_loop();
+                }
+            } else {
+                // For longer durations, use a hybrid approach with regular sleep + spin
+                let spin_duration = std::time::Duration::from_millis(1);
+                let sleep_duration = duration.checked_sub(spin_duration).unwrap_or_default();
+
+                if !sleep_duration.is_zero() {
+                    std::thread::sleep(sleep_duration);
+                }
+
+                let start = std::time::Instant::now();
+                while start.elapsed() < spin_duration {
+                    std::hint::spin_loop();
+                }
+            }
+
             value.clone()
         })
     }

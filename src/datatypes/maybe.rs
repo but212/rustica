@@ -115,7 +115,7 @@ impl<T> Maybe<T> {
     /// assert_eq!(y.is_just(), false);
     /// ```
     #[inline]
-    pub fn is_just(&self) -> bool {
+    pub const fn is_just(&self) -> bool {
         matches!(self, Maybe::Just(_))
     }
 
@@ -133,7 +133,7 @@ impl<T> Maybe<T> {
     /// assert_eq!(y.is_nothing(), true);
     /// ```
     #[inline]
-    pub fn is_nothing(&self) -> bool {
+    pub const fn is_nothing(&self) -> bool {
         matches!(self, Maybe::Nothing)
     }
 

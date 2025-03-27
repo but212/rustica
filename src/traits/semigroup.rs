@@ -145,42 +145,6 @@ pub trait Semigroup: Sized {
     /// assert_eq!(combined, vec![1, 2, 3, 4, 5, 6]);
     /// ```
     fn combine_owned(self, other: Self) -> Self;
-
-    /// Extension methods for semigroups.
-    ///
-    /// # Examples
-    ///
-    /// Combining multiple values at once:
-    /// ```rust
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let a = vec![1, 2];
-    /// let b = vec![3, 4];
-    /// let c = vec![5, 6];
-    ///
-    /// let result = a.clone().combine_all_owned(vec![b.clone(), c.clone()]);
-    /// assert_eq!(result, vec![1, 2, 3, 4, 5, 6]);
-    /// ```
-    ///
-    /// Combining a value with itself multiple times:
-    /// ```rust
-    /// use rustica::traits::semigroup::{Semigroup, SemigroupExt};
-    ///
-    /// let a = vec![1, 2];
-    /// let repeated = a.combine_n(&3);
-    /// assert_eq!(repeated, vec![1, 2, 1, 2, 1, 2]);
-    /// ```
-    #[inline]
-    fn combine_all_owned<I>(self, others: I) -> Self
-    where
-        I: IntoIterator<Item = Self>,
-    {
-        let mut result = self;
-        for other in others {
-            result = result.combine_owned(other);
-        }
-        result
-    }
 }
 
 /// Adapter struct to provide extension methods for semigroups.
@@ -202,6 +166,25 @@ pub trait SemigroupExt: Semigroup {
     ///
     /// The result of combining `self` with all the elements in `others`
     fn combine_all<I>(self, others: I) -> Self
+    where
+        I: IntoIterator<Item = Self>;
+
+    /// Extension methods for semigroups.
+    ///
+    /// # Examples
+    ///
+    /// Combining multiple values at once:
+    /// ```rust
+    /// use rustica::traits::semigroup::{Semigroup, SemigroupExt};
+    ///
+    /// let a = vec![1, 2];
+    /// let b = vec![3, 4];
+    /// let c = vec![5, 6];
+    ///
+    /// let result = a.clone().combine_all_owned(vec![b.clone(), c.clone()]);
+    /// assert_eq!(result, vec![1, 2, 3, 4, 5, 6]);
+    /// ```
+    fn combine_all_owned<I>(self, others: I) -> Self
     where
         I: IntoIterator<Item = Self>;
 
@@ -264,6 +247,7 @@ pub trait SemigroupExt: Semigroup {
 
 // Default implementation for all types implementing Semigroup
 impl<T: Semigroup> SemigroupExt for T {
+    #[inline]
     fn combine_all<I>(self, others: I) -> Self
     where
         I: IntoIterator<Item = Self>,
@@ -275,6 +259,19 @@ impl<T: Semigroup> SemigroupExt for T {
         result
     }
 
+    #[inline]
+    fn combine_all_owned<I>(self, others: I) -> Self
+    where
+        I: IntoIterator<Item = Self>,
+    {
+        let mut result = self;
+        for other in others {
+            result = result.combine_owned(other);
+        }
+        result
+    }
+
+    #[inline]
     fn combine_n_owned(self, n: usize) -> Self
     where
         Self: Clone,
@@ -290,6 +287,7 @@ impl<T: Semigroup> SemigroupExt for T {
         result
     }
 
+    #[inline]
     fn combine_n(&self, n: &usize) -> Self
     where
         Self: Clone,
@@ -336,22 +334,26 @@ impl<T: Semigroup> SemigroupExtAdapter<T> {
 // Standard library implementations
 
 impl Semigroup for String {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         self.clone() + other
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         self + &other
     }
 }
 
 impl<T: Clone> Semigroup for Vec<T> {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         let mut result = self.clone();
         result.extend(other.iter().cloned());
         result
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         result.extend(other);
@@ -360,6 +362,7 @@ impl<T: Clone> Semigroup for Vec<T> {
 }
 
 impl<K: Eq + Hash + Clone, V: Semigroup + Clone> Semigroup for HashMap<K, V> {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         let mut result = self.clone();
         for (k, v) in other {
@@ -371,6 +374,7 @@ impl<K: Eq + Hash + Clone, V: Semigroup + Clone> Semigroup for HashMap<K, V> {
         result
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         for (k, v) in other {
@@ -389,6 +393,7 @@ impl<K: Eq + Hash + Clone, V: Semigroup + Clone> Semigroup for HashMap<K, V> {
 }
 
 impl<T: Eq + Hash + Clone> Semigroup for HashSet<T> {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         let mut result = self.clone();
         result.extend(other.iter().cloned());
@@ -403,6 +408,7 @@ impl<T: Eq + Hash + Clone> Semigroup for HashSet<T> {
 }
 
 impl<K: Ord + Clone, V: Semigroup + Clone> Semigroup for BTreeMap<K, V> {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         let mut result = self.clone();
         for (k, v) in other {
@@ -414,6 +420,7 @@ impl<K: Ord + Clone, V: Semigroup + Clone> Semigroup for BTreeMap<K, V> {
         result
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         for (k, v) in other {
@@ -432,12 +439,14 @@ impl<K: Ord + Clone, V: Semigroup + Clone> Semigroup for BTreeMap<K, V> {
 }
 
 impl<T: Ord + Clone> Semigroup for BTreeSet<T> {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         let mut result = self.clone();
         result.extend(other.iter().cloned());
         result
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         let mut result = self;
         result.extend(other);
@@ -448,16 +457,19 @@ impl<T: Ord + Clone> Semigroup for BTreeSet<T> {
 // Tuple implementations
 
 impl<A: Semigroup, B: Semigroup> Semigroup for (A, B) {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         (self.0.combine(&other.0), self.1.combine(&other.1))
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         (self.0.combine_owned(other.0), self.1.combine_owned(other.1))
     }
 }
 
 impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         (
             self.0.combine(&other.0),
@@ -466,6 +478,7 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
         )
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         (
             self.0.combine_owned(other.0),
@@ -476,6 +489,7 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
 }
 
 impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B, C, D) {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         (
             self.0.combine(&other.0),
@@ -485,6 +499,7 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B
         )
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         (
             self.0.combine_owned(other.0),
@@ -498,6 +513,7 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B
 // Option implementations
 
 impl<T: Semigroup + Clone> Semigroup for Option<T> {
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         match (self, other) {
             (Some(a), Some(b)) => Some(a.combine(b)),
@@ -507,6 +523,7 @@ impl<T: Semigroup + Clone> Semigroup for Option<T> {
         }
     }
 
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         match (self, other) {
             (Some(a), Some(b)) => Some(a.combine_owned(b)),

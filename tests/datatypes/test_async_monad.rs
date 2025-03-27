@@ -15,6 +15,12 @@ mod test_async_monad {
         let mapped = async_m.fmap(|x| async move { x * 2 });
         let result = mapped.try_get().await;
         assert_eq!(result, 84);
+
+        // Test with owned values
+        let async_m_owned = AsyncM::pure(42);
+        let mapped_owned = async_m_owned.fmap_owned(|x| async move { x.to_string() });
+        let result_owned = mapped_owned.try_get().await;
+        assert_eq!(result_owned, "42");
     }
 
     #[tokio::test]
@@ -23,6 +29,12 @@ mod test_async_monad {
         let bound = async_m.bind(|x| async move { AsyncM::pure(x * 2) });
         let result = bound.try_get().await;
         assert_eq!(result, 84);
+
+        // Test with owned values
+        let async_m_owned = AsyncM::pure(42);
+        let bound_owned = async_m_owned.bind_owned(|x| async move { AsyncM::pure(x.to_string()) });
+        let result_owned = bound_owned.try_get().await;
+        assert_eq!(result_owned, "42");
     }
 
     #[tokio::test]
@@ -32,6 +44,13 @@ mod test_async_monad {
         let applied = async_m.apply(f);
         let result = applied.try_get().await;
         assert_eq!(result, 84);
+
+        // Test with owned values
+        let async_m_owned = AsyncM::pure(42);
+        let f_owned = AsyncM::pure(|x: i32| x.to_string());
+        let applied_owned = async_m_owned.apply(f_owned);
+        let result_owned = applied_owned.try_get().await;
+        assert_eq!(result_owned, "42");
     }
 
     #[tokio::test]
@@ -42,6 +61,14 @@ mod test_async_monad {
             .bind(|x| async move { AsyncM::pure(x.to_string()) });
         let result = async_m.try_get().await;
         assert_eq!(result, "86");
+
+        // Test with owned values
+        let async_m_owned = AsyncM::pure(42)
+            .bind_owned(|x| async move { AsyncM::pure(x + 1) })
+            .bind_owned(|x| async move { AsyncM::pure(x * 2) })
+            .bind_owned(|x| async move { AsyncM::pure(x.to_string()) });
+        let result_owned = async_m_owned.try_get().await;
+        assert_eq!(result_owned, "86");
     }
 
     #[tokio::test]
@@ -57,6 +84,15 @@ mod test_async_monad {
         });
         let result = bound.try_get().await;
         assert_eq!(result, 84);
+
+        // Test with owned values
+        let async_m_owned = AsyncM::pure(42);
+        let bound_owned = async_m_owned.bind_owned(|x| async move {
+            let result = async_double(x).await;
+            AsyncM::pure(result)
+        });
+        let result_owned = bound_owned.try_get().await;
+        assert_eq!(result_owned, 84);
     }
 
     #[tokio::test]
@@ -74,6 +110,13 @@ mod test_async_monad {
             AsyncM::pure(result)
         });
         assert_eq!(success.try_get().await, 84);
+
+        // Test with owned values
+        let success_owned = AsyncM::pure(42).bind_owned(|x| async move {
+            let result = may_fail(x).await.unwrap();
+            AsyncM::pure(result)
+        });
+        assert_eq!(success_owned.try_get().await, 84);
 
         let failure = AsyncM::pure(-1).bind(|x| async move {
             let result = may_fail(x).await.unwrap_or(-1);
