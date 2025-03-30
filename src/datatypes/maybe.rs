@@ -220,33 +220,6 @@ impl<T> Maybe<T> {
         }
     }
 
-    /// Maps a `Maybe<T>` to `Maybe<U>` by applying a function to the contained value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    ///
-    /// let maybe_some = Maybe::Just(41);
-    /// let maybe_none: Maybe<i32> = Maybe::Nothing;
-    ///
-    /// let incremented = maybe_some.map(|x| x + 1);
-    /// let still_none = maybe_none.map(|x| x + 1);
-    ///
-    /// assert_eq!(incremented.unwrap(), 42);
-    /// assert!(still_none.is_nothing());
-    /// ```
-    #[inline]
-    pub fn map<U, F>(self, f: F) -> Maybe<U>
-    where
-        F: FnOnce(T) -> U,
-    {
-        match self {
-            Maybe::Just(val) => Maybe::Just(f(val)),
-            Maybe::Nothing => Maybe::Nothing,
-        }
-    }
-
     /// Returns the provided default value if `Nothing`, or applies a function to the contained value.
     ///
     /// # Examples
@@ -257,49 +230,20 @@ impl<T> Maybe<T> {
     /// let maybe_some = Maybe::Just(41);
     /// let maybe_none: Maybe<i32> = Maybe::Nothing;
     ///
-    /// let incremented = maybe_some.map_or(0, |x| x + 1);
-    /// let default = maybe_none.map_or(0, |x| x + 1);
+    /// let incremented = maybe_some.fmap_or(0, |x| x + 1);
+    /// let default = maybe_none.fmap_or(0, |x| x + 1);
     ///
     /// assert_eq!(incremented, 42);
     /// assert_eq!(default, 0);
     /// ```
     #[inline]
-    pub fn map_or<U, F>(self, default: U, f: F) -> U
+    pub fn fmap_or<U, F>(self, default: U, f: F) -> U
     where
         F: FnOnce(T) -> U,
     {
         match self {
             Maybe::Just(val) => f(val),
             Maybe::Nothing => default,
-        }
-    }
-
-    /// Returns the result of applying `f` to the contained value if `Just`,
-    /// otherwise returns the result of evaluating `default`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    ///
-    /// let maybe_some = Maybe::Just(41);
-    /// let maybe_none: Maybe<i32> = Maybe::Nothing;
-    ///
-    /// let incremented = maybe_some.map_or_else(|| 0, |x| x + 1);
-    /// let default = maybe_none.map_or_else(|| 0, |x| x + 1);
-    ///
-    /// assert_eq!(incremented, 42);
-    /// assert_eq!(default, 0);
-    /// ```
-    #[inline]
-    pub fn map_or_else<U, D, F>(self, default: D, f: F) -> U
-    where
-        D: FnOnce() -> U,
-        F: FnOnce(T) -> U,
-    {
-        match self {
-            Maybe::Just(val) => f(val),
-            Maybe::Nothing => default(),
         }
     }
 }
