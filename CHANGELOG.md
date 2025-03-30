@@ -3,6 +3,11 @@
 ### Added
 - New `memoize` module in `wrapper` namespace for caching function results
 - Added memory optimization for wrapper types
+- Monoid trait implementation for Min and Max wrapper types
+- New documentation guides:
+  - DOCTEST_GUIDELINE.md - Best practices for writing effective doctests
+  - PERFORMANCE.md - Performance characteristics and optimization guidelines
+  - TUTORIAL.md - Comprehensive tutorial for functional programming beginners
 
 ### Changed
 - Removed redundant `map` method from `Id` type to encourage consistent use of `fmap` across library
