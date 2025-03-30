@@ -341,8 +341,8 @@ where
     pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
     where
         B: Clone,
-        F: Fn(A) -> B + 'static,
-        G: Fn(B) -> A + 'static,
+        F: Fn(A) -> B,
+        G: Fn(B) -> A,
     {
         // Use self's get and set directly without attempting to clone
         Lens::new(move |s| f((self.get)(s)), move |s, b| (self.set)(s, g(b)))

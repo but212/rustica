@@ -14,6 +14,7 @@
 
 use crate::traits::foldable::Foldable;
 use crate::traits::hkt::HKT;
+use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::cmp::Ordering;
 use std::fmt;
@@ -59,6 +60,13 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
             Ordering::Greater | Ordering::Equal => Max(self.0.clone()),
             Ordering::Less => Max(other.0.clone()),
         }
+    }
+}
+
+impl<T: Clone + Ord + Default> Monoid for Max<T> {
+    #[inline]
+    fn empty() -> Self {
+        Max(T::default())
     }
 }
 

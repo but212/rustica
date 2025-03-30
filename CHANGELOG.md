@@ -1,3 +1,30 @@
+## [0.6.0]
+
+### Added
+- New `memoize` module in `wrapper` namespace for caching function results
+- Added memory optimization for wrapper types
+
+### Changed
+- Removed redundant `map` method from `Id` type to encourage consistent use of `fmap` across library
+- Simplified `Lens` and `Prism` implementations by removing `Arc` dependency, making type inference easier
+- Simplified the `Maybe` monad implementation:
+  - Removed `map` method (use `fmap` from the Functor trait instead)
+  - Removed `map_or_else` method (can be composed from other methods)
+  - Renamed `map_or` to `fmap_or` for better naming consistency
+- Renamed mapping methods in the `Either` type for better API consistency:
+  - `map_left` -> `fmap_left`
+  - `map_right` -> `fmap_right`
+
+### Removed
+- Removed several specialized methods from `Choice` to streamline the API:
+  - `replace_alternatives_with_first`: can be achieved with core methods
+  - `with_ordered_alternatives` and `with_ordered_alternatives_owned`: specialized sorting operations
+  - `with_unique_alternatives` and `with_unique_alternatives_owned`: specialized deduplication operations
+  - `partition`: static method with potential panic behavior
+  - `group_by`: complex categorization operation 
+  - `match_choice` and `match_choice_owned`: redundant with Rust's native pattern matching
+  - `zip`: specialized operation for combining multiple `Choice` instances
+
 ## [0.5.4] - 2025-03-24
 
 ### Added

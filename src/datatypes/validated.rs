@@ -704,11 +704,11 @@ impl<E: Clone, A: Clone> Validated<E, A> {
                     if all_valid {
                         valid_values.push(x.clone());
                     }
-                },
+                }
                 Validated::SingleInvalid(e) => {
                     all_valid = false;
                     errors.push(e.clone());
-                },
+                }
                 Validated::MultiInvalid(es) => {
                     all_valid = false;
                     errors.extend(es.iter().cloned());
@@ -1009,9 +1009,13 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
     {
         match (self, rf) {
             (Validated::Valid(a), Validated::Valid(f)) => Validated::Valid(f(a)),
-            (Validated::Valid(_), Validated::SingleInvalid(e)) => Validated::SingleInvalid(e.clone()),
+            (Validated::Valid(_), Validated::SingleInvalid(e)) => {
+                Validated::SingleInvalid(e.clone())
+            }
             (Validated::Valid(_), Validated::MultiInvalid(e)) => Validated::MultiInvalid(e.clone()),
-            (Validated::SingleInvalid(e), Validated::Valid(_)) => Validated::SingleInvalid(e.clone()),
+            (Validated::SingleInvalid(e), Validated::Valid(_)) => {
+                Validated::SingleInvalid(e.clone())
+            }
             (Validated::MultiInvalid(e), Validated::Valid(_)) => Validated::MultiInvalid(e.clone()),
             // When both sides have errors, combine them efficiently
             (Validated::SingleInvalid(e1), Validated::SingleInvalid(e2)) => {
@@ -1124,11 +1128,7 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
     }
 
     #[inline]
-    fn lift2_owned<B, C, F>(
-        self,
-        rb: Self::Output<B>,
-        f: F,
-    ) -> Self::Output<C>
+    fn lift2_owned<B, C, F>(self, rb: Self::Output<B>, f: F) -> Self::Output<C>
     where
         Self: Sized,
         F: FnOnce(Self::Source, B) -> C,
@@ -1189,60 +1189,62 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
                     // Single invalid cases
                     (Validated::SingleInvalid(e), _, _) => {
                         match (rb, rc) {
-                            (Validated::Valid(_), Validated::Valid(_)) => Validated::SingleInvalid(e.clone()),
+                            (Validated::Valid(_), Validated::Valid(_)) => {
+                                Validated::SingleInvalid(e.clone())
+                            }
                             (Validated::SingleInvalid(e2), Validated::Valid(_)) => {
                                 let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
                                 errors.push(e.clone());
                                 errors.push(e2.clone());
                                 Validated::MultiInvalid(errors)
-                            },
+                            }
                             (Validated::Valid(_), Validated::SingleInvalid(e2)) => {
                                 let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
                                 errors.push(e.clone());
                                 errors.push(e2.clone());
                                 Validated::MultiInvalid(errors)
-                            },
+                            }
                             _ => {
                                 // More complex cases with multiple errors
                                 let mut errors = SmallVec::<[E; 4]>::new();
                                 errors.push(e.clone());
-                                
+
                                 if let Validated::SingleInvalid(e2) = rb {
                                     errors.push(e2.clone());
                                 } else if let Validated::MultiInvalid(es) = rb {
                                     errors.extend(es.iter().cloned());
                                 }
-                                
+
                                 if let Validated::SingleInvalid(e2) = rc {
                                     errors.push(e2.clone());
                                 } else if let Validated::MultiInvalid(es) = rc {
                                     errors.extend(es.iter().cloned());
                                 }
-                                
+
                                 Validated::MultiInvalid(errors)
                             }
                         }
-                    },
+                    }
                     // Handle other invalid combinations
                     _ => {
                         let mut errors = SmallVec::<[E; 4]>::new();
-                        
+
                         if let Validated::MultiInvalid(es) = self {
                             errors.extend(es.iter().cloned());
                         }
-                        
+
                         if let Validated::SingleInvalid(e) = rb {
                             errors.push(e.clone());
                         } else if let Validated::MultiInvalid(es) = rb {
                             errors.extend(es.iter().cloned());
                         }
-                        
+
                         if let Validated::SingleInvalid(e) = rc {
                             errors.push(e.clone());
                         } else if let Validated::MultiInvalid(es) = rc {
                             errors.extend(es.iter().cloned());
                         }
-                        
+
                         if errors.len() == 1 {
                             Validated::SingleInvalid(errors.pop().unwrap())
                         } else {
@@ -1349,7 +1351,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
             Validated::MultiInvalid(e) => Validated::MultiInvalid(e),
         }
     }
-    
+
     #[inline]
     fn join_owned<U>(self) -> Self::Output<U>
     where
