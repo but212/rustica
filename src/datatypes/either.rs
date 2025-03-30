@@ -131,7 +131,7 @@ impl<L, R> Either<L, R> {
     /// let left: Either<i32, &str> = Either::left(42);
     /// ```
     #[inline]
-    pub fn left(l: L) -> Self {
+    pub const fn left(l: L) -> Self {
         Either::Left(l)
     }
 
@@ -145,7 +145,7 @@ impl<L, R> Either<L, R> {
     /// let right: Either<i32, &str> = Either::right("hello");
     /// ```
     #[inline]
-    pub fn right(r: R) -> Self {
+    pub const fn right(r: R) -> Self {
         Either::Right(r)
     }
 
@@ -160,7 +160,7 @@ impl<L, R> Either<L, R> {
     /// assert!(left.is_left());
     /// ```
     #[inline]
-    pub fn is_left(&self) -> bool {
+    pub const fn is_left(&self) -> bool {
         matches!(self, Either::Left(_))
     }
 
@@ -175,7 +175,7 @@ impl<L, R> Either<L, R> {
     /// assert!(right.is_right());
     /// ```
     #[inline]
-    pub fn is_right(&self) -> bool {
+    pub const fn is_right(&self) -> bool {
         matches!(self, Either::Right(_))
     }
 
@@ -187,11 +187,11 @@ impl<L, R> Either<L, R> {
     /// use rustica::datatypes::either::Either;
     ///
     /// let left: Either<i32, &str> = Either::left(42);
-    /// let doubled = left.map_left(|x| x * 2);
+    /// let doubled = left.fmap_left(|x| x * 2);
     /// assert_eq!(match doubled { Either::Left(n) => n, _ => 0 }, 84);
     /// ```
     #[inline]
-    pub fn map_left<T, F>(self, f: F) -> Either<T, R>
+    pub fn fmap_left<T, F>(self, f: F) -> Either<T, R>
     where
         F: Fn(L) -> T,
     {
@@ -209,17 +209,17 @@ impl<L, R> Either<L, R> {
     /// use rustica::datatypes::either::Either;
     ///
     /// let right: Either<i32, &str> = Either::right("hello");
-    /// let upper = right.map_right(|s| s.to_uppercase());
+    /// let upper = right.fmap_right(|s| s.to_uppercase());
     /// assert_eq!(match upper { Either::Right(s) => s, _ => String::new() }, "HELLO");
     /// ```
     #[inline]
-    pub fn map_right<T, F>(self, f: F) -> Either<L, T>
+    pub fn fmap_right<T, F>(self, f: F) -> Either<L, T>
     where
-        F: Fn(&R) -> T,
+        F: Fn(R) -> T,
     {
         match self {
             Either::Left(l) => Either::Left(l),
-            Either::Right(r) => Either::Right(f(&r)),
+            Either::Right(r) => Either::Right(f(r)),
         }
     }
 

@@ -128,14 +128,14 @@ pub fn either_benchmarks(c: &mut Criterion) {
     group.bench_function("map_left", |b| {
         let either = Either::<&str, i32>::left("error");
         b.iter(|| {
-            black_box(either.clone().map_left(|s| s.len()));
+            black_box(either.clone().fmap_left(|s| s.len()));
         });
     });
 
     group.bench_function("map_right", |b| {
         let either = Either::<&str, i32>::right(42);
         b.iter(|| {
-            black_box(either.clone().map_right(|n| n * 2));
+            black_box(either.clone().fmap_right(|n| n * 2));
         });
     });
 
@@ -422,7 +422,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
                         .collect::<Vec<i32>>()
                 })
                 .fmap(&|v: &Vec<i32>| v.iter().sum::<i32>())
-                .map_right(|sum: &i32| if *sum > 20 { "large" } else { "small" });
+                .fmap_right(|sum: i32| if sum > 20 { "large" } else { "small" });
 
             black_box(result)
         });
@@ -451,10 +451,10 @@ pub fn either_benchmarks(c: &mut Criterion) {
             // Map both sides
             let mapped_left = left_value
                 .clone()
-                .map_left(|n| n * 2)
-                .map_right(|s| s.len());
+                .fmap_left(|n| n * 2)
+                .fmap_right(|s| s.len());
 
-            let mapped_right = right_value.map_left(|n| n * 2).map_right(|s| s.len());
+            let mapped_right = right_value.fmap_left(|n| n * 2).fmap_right(|s| s.len());
 
             black_box((mapped_left, mapped_right))
         });
