@@ -60,13 +60,6 @@ pub fn choice_benchmarks(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("partition", |b| {
-        let items = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        b.iter(|| {
-            black_box(Choice::partition(items.clone(), |&x| x % 3 == 0));
-        });
-    });
-
     group.bench_function("first access", |b| {
         let choice = Choice::new(42, vec![1, 2, 3, 4, 5]);
         b.iter(|| {
@@ -310,20 +303,6 @@ pub fn choice_benchmarks(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("replace_alternatives_with_first few alternatives", |b| {
-        let choice = Choice::new(42, vec![1, 2, 3]);
-        b.iter(|| {
-            black_box(choice.replace_alternatives_with_first());
-        });
-    });
-
-    group.bench_function("replace_alternatives_with_first many alternatives", |b| {
-        let choice = Choice::new(42, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-        b.iter(|| {
-            black_box(choice.replace_alternatives_with_first());
-        });
-    });
-
     group.finish();
 
     // Section 4: Filtering and Transformation
@@ -432,54 +411,6 @@ pub fn choice_benchmarks(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("with_ordered_alternatives small collection", |b| {
-        let choice = Choice::new(1, vec![5, 3, 2, 4, 3, 2]);
-        b.iter(|| {
-            black_box(choice.with_ordered_alternatives());
-        });
-    });
-
-    group.bench_function("with_ordered_alternatives large collection", |b| {
-        let choice = Choice::new(
-            1,
-            vec![15, 13, 12, 14, 13, 12, 7, 9, 8, 10, 6, 4, 2, 5, 3, 11],
-        );
-        b.iter(|| {
-            black_box(choice.with_ordered_alternatives());
-        });
-    });
-
-    group.bench_function("with_ordered_alternatives_owned", |b| {
-        b.iter(|| {
-            let choice = Choice::new(1, vec![5, 3, 2, 4, 3, 2]);
-            black_box(choice.with_ordered_alternatives_owned());
-        });
-    });
-
-    group.bench_function("with_unique_alternatives small collection", |b| {
-        let choice = Choice::new(1, vec![2, 3, 2, 4, 3, 5, 2]);
-        b.iter(|| {
-            black_box(choice.with_unique_alternatives());
-        });
-    });
-
-    group.bench_function("with_unique_alternatives large collection", |b| {
-        let choice = Choice::new(
-            1,
-            vec![2, 3, 2, 4, 3, 5, 2, 6, 7, 6, 8, 9, 8, 10, 7, 11, 12, 11],
-        );
-        b.iter(|| {
-            black_box(choice.with_unique_alternatives());
-        });
-    });
-
-    group.bench_function("with_unique_alternatives_owned", |b| {
-        b.iter(|| {
-            let choice = Choice::new(1, vec![2, 3, 2, 4, 3, 5, 2]);
-            black_box(choice.with_unique_alternatives_owned());
-        });
-    });
-
     group.finish();
 
     // Section 6: Real-world Use Cases
@@ -493,8 +424,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
                 choice
                     .filter(|&x| x % 2 == 0) // Keep only even alternatives
                     .map_alternatives(|&x| x * 3) // Triple each value
-                    .add_alternative(&99) // Add another alternative
-                    .with_unique_alternatives(), // Ensure uniqueness
+                    .add_alternative(&99), // Add another alternative
             );
         });
     });
@@ -518,8 +448,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
                         } else {
                             Choice::new(node + 10, vec![node * 3, node - 1])
                         }
-                    })
-                    .with_unique_alternatives(), // Remove duplicate paths
+                    }),
             );
         });
     });
@@ -544,8 +473,8 @@ pub fn choice_benchmarks(c: &mut Criterion) {
                     })
                     // Filter results
                     .filter(|&x| x > 15 && x < 50)
-                    // Order results
-                    .with_ordered_alternatives(),
+                    .iter_alternatives()
+                    .collect::<Vec<_>>(),
             );
         });
     });
@@ -581,7 +510,8 @@ pub fn choice_benchmarks(c: &mut Criterion) {
                             Choice::new(base_utility, vec![base_utility / 2, base_utility + 2])
                         }
                     })
-                    .with_ordered_alternatives(), // Order by utility
+                    .iter_alternatives()
+                    .collect::<Vec<_>>(),
             );
         });
     });
