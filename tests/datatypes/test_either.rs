@@ -32,18 +32,18 @@ fn test_either_creation_and_access() {
 fn test_either_mapping() {
     // Test map_left
     let left: Either<i32, &str> = Either::left(42);
-    let doubled = left.clone().map_left(|x| x * 2);
+    let doubled = left.clone().fmap_left(|x| x * 2);
     assert_eq!(doubled.unwrap_left(), 84);
 
     // Test map_right
     let right: Either<i32, String> = Either::right("hello".to_string());
-    let upper = right.clone().map_right(|s| s.to_uppercase());
+    let upper = right.clone().fmap_right(|s| s.to_uppercase());
     assert_eq!(upper.unwrap_right(), "HELLO");
 
     // Test that mapping the wrong side doesn't change anything
-    let left_mapped = left.clone().map_right(|s| s.to_uppercase());
+    let left_mapped = left.clone().fmap_right(|s| s.to_uppercase());
     assert_eq!(left_mapped.unwrap_left(), 42);
-    let right_mapped = right.clone().map_left(|x| x * 2);
+    let right_mapped = right.clone().fmap_left(|x| x * 2);
     assert_eq!(right_mapped.unwrap_right(), "hello");
 }
 
