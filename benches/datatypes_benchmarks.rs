@@ -19,7 +19,6 @@ mod datatypes {
     #[cfg(feature = "advanced")]
     pub mod state;
     pub mod validated;
-    pub mod wrapper;
     pub mod writer;
 }
 
@@ -31,7 +30,6 @@ use datatypes::maybe::maybe_benchmarks;
 use datatypes::prism::prism_benchmarks;
 use datatypes::reader::reader_benchmarks;
 use datatypes::validated::validated_benchmarks;
-use datatypes::wrapper::wrapper_benchmarks;
 use datatypes::writer::writer_benchmarks;
 
 #[cfg(feature = "async")]
@@ -55,7 +53,6 @@ criterion_group!(
     validated_benchmarks,
     writer_benchmarks,
     either_benchmarks,
-    wrapper_benchmarks,
     lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
@@ -71,7 +68,6 @@ criterion_group!(
     writer_benchmarks,
     async_monad_benchmarks,
     either_benchmarks,
-    wrapper_benchmarks,
     lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
@@ -90,7 +86,6 @@ criterion_group!(
     choice_benchmarks,
     io_benchmarks,
     either_benchmarks,
-    wrapper_benchmarks,
     lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
@@ -110,7 +105,6 @@ criterion_group!(
     choice_benchmarks,
     io_benchmarks,
     either_benchmarks,
-    wrapper_benchmarks,
     lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
