@@ -36,7 +36,7 @@ fn test_id_functor() {
     assert_eq!(*identity.value(), 42);
 
     // Test owned mapping
-    let owned_map = Id::new(42).map(|n| n * 2);
+    let owned_map = Id::new(42).fmap(|n| n * 2);
     assert_eq!(*owned_map.value(), 84);
 
     // Test fmap_owned
@@ -173,9 +173,9 @@ fn test_id_chaining() {
 fn test_id_optimized_chains() {
     // Fully owned transformation chain
     let result = Id::new(10)
-        .map(|n| n + 5)
-        .map(|n| n * 2)
-        .map(|n| n.to_string());
+        .fmap(|n| n + 5)
+        .fmap(|n| n * 2)
+        .fmap(|n| n.to_string());
     assert_eq!(*result.value(), "30");
 
     // Complex chain with bind_owned and fmap_owned

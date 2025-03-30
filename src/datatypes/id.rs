@@ -175,33 +175,6 @@ impl<T> Id<T> {
         self.value
     }
 
-    /// Maps a function over the contained value, consuming self.
-    ///
-    /// This is an ownership-aware version of mapping that consumes the original `Id`
-    /// and returns a new one containing the mapped value.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to apply to the contained value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::prelude::*;
-    ///
-    /// let x = Id::new(42);
-    /// let mapped = x.map(|n| n.to_string());
-    /// assert_eq!(*mapped.value(), "42");
-    /// ```
-    #[inline]
-    pub fn map<U, F>(&self, f: F) -> Id<U>
-    where
-        F: FnOnce(&T) -> U,
-    {
-        Id::new(f(&self.value))
-    }
-
     /// Sequences two Id operations, discarding the first result.
     ///
     /// # Arguments
@@ -285,7 +258,7 @@ impl<T> Functor for Id<T> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        F: FnOnce(&Self::Source) -> B,
     {
         Id::new(f(&self.value))
     }
@@ -293,7 +266,7 @@ impl<T> Functor for Id<T> {
     #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> B,
+        F: FnOnce(Self::Source) -> B,
     {
         Id::new(f(self.value))
     }
@@ -320,7 +293,7 @@ impl<T: Clone> Applicative for Id<T> {
     #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
-        F: Fn(&Self::Source, &B) -> C,
+        F: FnOnce(&Self::Source, &B) -> C,
     {
         Id::new(f(&self.value, b.value()))
     }
@@ -328,7 +301,7 @@ impl<T: Clone> Applicative for Id<T> {
     #[inline]
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
-        F: Fn(&Self::Source, &B, &C) -> D,
+        F: FnOnce(&Self::Source, &B, &C) -> D,
     {
         Id::new(f(&self.value, b.value(), c.value()))
     }
@@ -345,9 +318,8 @@ impl<T: Clone> Applicative for Id<T> {
     #[inline]
     fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        F: Fn(Self::Source, B) -> C,
+        F: FnOnce(Self::Source, B) -> C,
         Self: Sized,
-        B: Clone,
     {
         Id::new(f(self.value, b.value))
     }
@@ -360,10 +332,8 @@ impl<T: Clone> Applicative for Id<T> {
         f: F,
     ) -> Self::Output<D>
     where
-        F: Fn(Self::Source, B, C) -> D,
+        F: FnOnce(Self::Source, B, C) -> D,
         Self: Sized,
-        B: Clone,
-        C: Clone,
     {
         Id::new(f(self.value, b.value, c.value))
     }
@@ -431,7 +401,7 @@ impl<T: Clone> Foldable for Id<T> {
     fn fold_left<U, F>(&self, init: &U, f: F) -> U
     where
         U: Clone,
-        F: Fn(&U, &Self::Source) -> U,
+        F: FnOnce(&U, &Self::Source) -> U,
     {
         f(init, &self.value)
     }
@@ -440,7 +410,7 @@ impl<T: Clone> Foldable for Id<T> {
     fn fold_right<U, F>(&self, init: &U, f: F) -> U
     where
         U: Clone,
-        F: Fn(&Self::Source, &U) -> U,
+        F: FnOnce(&Self::Source, &U) -> U,
     {
         f(&self.value, init)
     }

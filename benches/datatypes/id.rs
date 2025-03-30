@@ -45,13 +45,6 @@ pub fn id_benchmarks(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("map", |b| {
-        let id = Id::new(42);
-        b.iter(|| {
-            black_box(id.clone().map(|x| x * 2).into_inner());
-        });
-    });
-
     group.bench_function("then", |b| {
         let id1 = Id::new(42);
         let id2 = Id::new("hello");
@@ -397,9 +390,9 @@ pub fn id_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             black_box(
                 Id::new(42)
-                    .map(|x| x + 10)
-                    .map(|x| x * 2)
-                    .map(|x| x.to_string())
+                    .fmap(|x| x + 10)
+                    .fmap(|x| x * 2)
+                    .fmap(|x| x.to_string())
                     .into_inner(),
             );
         });
@@ -423,7 +416,7 @@ pub fn id_benchmarks(c: &mut Criterion) {
             let result = id
                 .fmap_owned(|x| x + 5)
                 .bind_owned(|x| Id::new(x * 2))
-                .map(|x| x.to_string());
+                .fmap(|x| x.to_string());
             black_box(result.into_inner())
         });
     });
