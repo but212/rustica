@@ -157,6 +157,77 @@ pub enum Validated<E, A> {
     MultiInvalid(SmallVec<[E; 4]>),
 }
 
+impl<E, A> Validated<E, A> {
+    /// Returns whether this `Validated` is valid.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// assert!(valid.is_valid());
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert!(!invalid.is_valid());
+    /// ```
+    #[inline]
+    pub fn is_valid(&self) -> bool {
+        matches!(self, Validated::Valid(_))
+    }
+
+    /// Returns whether this `Validated` is invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// assert!(!valid.is_invalid());
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert!(invalid.is_invalid());
+    /// ```
+    #[inline]
+    pub fn is_invalid(&self) -> bool {
+        !self.is_valid()
+    }
+
+    /// Returns all errors if this is invalid, or an empty collection if valid.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use smallvec::SmallVec;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// let errors = valid.errors();
+    /// assert!(errors.is_empty());
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// let errors = invalid.errors();
+    /// assert_eq!(errors.len(), 1);
+    /// assert_eq!(errors[0], "error");
+    /// ```
+    #[inline]
+    pub fn errors(&self) -> SmallVec<[E; 4]>
+    where
+        E: Clone,
+    {
+        match self {
+            Validated::Valid(_) => SmallVec::new(),
+            Validated::SingleInvalid(e) => {
+                let mut errors = SmallVec::new();
+                errors.push(e.clone());
+                errors
+            }
+            Validated::MultiInvalid(e) => e.clone(),
+        }
+    }
+}
+
 impl<E: Clone, A: Clone> Validated<E, A> {
     /// Creates a new valid instance.
     ///
@@ -220,88 +291,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         }
     }
 
-    /// Maps a function over the valid value.
-    ///
-    /// If this is valid, applies the function to transform the value.
-    /// If this is invalid, returns the errors unchanged.
-    ///
-    /// # Performance
-    ///
-    /// This method clones the errors when returning an invalid result. For better performance
-    /// when you have ownership of the Validated value, use `map_valid_owned`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B`: The result type of the mapping function
-    /// * `F`: The type of the mapping function
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to apply to the valid value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// let mapped = valid.map_valid(&|x| x * 2);
-    /// assert_eq!(mapped, Validated::valid(84));
-    /// ```
-    #[inline]
-    pub fn map_valid<B, F>(&self, f: &F) -> Validated<E, B>
-    where
-        F: Fn(&A) -> B,
-        B: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e.clone()),
-        }
-    }
-
-    /// Maps a function over the valid value, taking ownership of the Validated.
-    ///
-    /// If this is valid, applies the function to transform the value.
-    /// If this is invalid, returns the errors unchanged.
-    ///
-    /// # Performance
-    ///
-    /// This method avoids cloning errors when returning an invalid result, making it more
-    /// efficient than `map_valid` when you have ownership of the Validated value.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B`: The result type of the mapping function
-    /// * `F`: The type of the mapping function
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to apply to the valid value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// let mapped = valid.map_valid_owned(|x| x * 2);
-    /// assert_eq!(mapped, Validated::valid(84));
-    /// ```
-    #[inline]
-    pub fn map_valid_owned<B, F>(self, f: F) -> Validated<E, B>
-    where
-        F: FnOnce(A) -> B,
-        B: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e),
-        }
-    }
-
     /// Maps a function over the error values.
     ///
     /// If this is invalid, applies the function to transform each error.
@@ -327,11 +316,11 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// let mapped = invalid.map_invalid(&|e| format!("Error: {}", e));
+    /// let mapped = invalid.fmap_invalid(&|e| format!("Error: {}", e));
     /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// ```
     #[inline]
-    pub fn map_invalid<G, F>(&self, f: &F) -> Validated<G, A>
+    pub fn fmap_invalid<G, F>(&self, f: &F) -> Validated<G, A>
     where
         F: Fn(&E) -> G,
         G: Clone,
@@ -371,11 +360,11 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// let mapped = invalid.map_invalid_owned(|e| format!("Error: {}", e));
+    /// let mapped = invalid.fmap_invalid_owned(|e| format!("Error: {}", e));
     /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// ```
     #[inline]
-    pub fn map_invalid_owned<G, F>(self, f: F) -> Validated<G, A>
+    pub fn fmap_invalid_owned<G, F>(self, f: F) -> Validated<G, A>
     where
         F: Fn(E) -> G,
         G: Clone,
@@ -666,49 +655,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         }
     }
 
-    /// Unwraps a valid value or computes a default.
-    ///
-    /// If this is valid, returns the valid value.
-    /// If this is invalid, calls the provided function with the errors to get a default.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to compute a default value from the errors
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use smallvec::SmallVec;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// let result = valid.unwrap_or_else(&|_: &SmallVec<[&str; 4]>| 0);
-    /// assert_eq!(result, 42);
-    ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// let result = invalid.unwrap_or_else(&|errors: &SmallVec<[&str; 4]>| {
-    ///     assert_eq!(errors.len(), 1);
-    ///     assert_eq!(errors[0], "error");
-    ///     0
-    /// });
-    /// assert_eq!(result, 0);
-    /// ```
-    #[inline]
-    pub fn unwrap_or_else<F>(&self, f: &F) -> A
-    where
-        F: Fn(&SmallVec<[E; 4]>) -> A,
-    {
-        match self {
-            Validated::Valid(x) => x.clone(),
-            Validated::SingleInvalid(e) => {
-                let mut errors = SmallVec::new();
-                errors.push(e.clone());
-                f(&errors)
-            }
-            Validated::MultiInvalid(e) => f(e),
-        }
-    }
-
     /// Combines multiple Validated values using a function.
     ///
     /// This is similar to `lift2` but works with a slice of Validated values.
@@ -899,12 +845,12 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// let mapped = valid.map_valid_async(|x| async move { x * 2 }).await;
+    /// let mapped = valid.fmap_valid_async(|x| async move { x * 2 }).await;
     /// assert_eq!(mapped, Validated::valid(84));
     /// # }
     /// ```
     #[inline]
-    pub async fn map_valid_async<B, F, Fut>(&self, f: F) -> Validated<E, B>
+    pub async fn fmap_valid_async<B, F, Fut>(&self, f: F) -> Validated<E, B>
     where
         F: Fn(A) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = B> + Send,
@@ -944,12 +890,12 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// let mapped = invalid.map_invalid_async(|e| async move { format!("Error: {}", e) }).await;
+    /// let mapped = invalid.fmap_invalid_async(|e| async move { format!("Error: {}", e) }).await;
     /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// # }
     /// ```
     #[inline]
-    pub async fn map_invalid_async<G, F, Fut>(&self, f: F) -> Validated<G, A>
+    pub async fn fmap_invalid_async<G, F, Fut>(&self, f: F) -> Validated<G, A>
     where
         F: Fn(E) -> Fut + Send + 'static + Clone,
         Fut: std::future::Future<Output = G> + Send,
@@ -1047,7 +993,11 @@ impl<E: Clone, A: Clone> Functor for Validated<E, A> {
         F: Fn(&Self::Source) -> B,
         B: Clone,
     {
-        self.map_valid(&f)
+        match self {
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
+            Validated::MultiInvalid(e) => Validated::MultiInvalid(e.clone()),
+        }
     }
 
     #[inline]
@@ -1055,9 +1005,12 @@ impl<E: Clone, A: Clone> Functor for Validated<E, A> {
     where
         Self: Sized,
         F: FnOnce(Self::Source) -> B,
-        B: Clone,
     {
-        self.map_valid_owned(f)
+        match self {
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::SingleInvalid(e) => Validated::SingleInvalid(e),
+            Validated::MultiInvalid(e) => Validated::MultiInvalid(e),
+        }
     }
 }
 
@@ -1385,30 +1338,6 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
 }
 
 impl<E: Clone, A: Clone> Monad for Validated<E, A> {
-    /// Bind operation for Validated, also known as flatMap.
-    ///
-    /// This is the Monad's bind operation, which applies a function to a value inside a Validated
-    /// and flattens the result.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The result type of the binding function
-    /// * `F`: The type of the binding function
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to apply to the value inside the Validated
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// let result = valid.bind(|x| Validated::<&str, String>::valid(x.to_string()));
-    /// assert_eq!(result, Validated::valid("42".to_string()));
-    /// ```
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
@@ -1422,24 +1351,6 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
         }
     }
 
-    /// Join operation for nested Validated values.
-    ///
-    /// This flattens a nested Validated structure.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The inner value type
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let nested: Validated<&str, Validated<&str, i32>> = Validated::valid(Validated::valid(42));
-    /// let flattened = nested.join();
-    /// assert_eq!(flattened, Validated::valid(42));
-    /// ```
     #[inline]
     fn join<U>(&self) -> Self::Output<U>
     where
@@ -1454,35 +1365,6 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
         }
     }
 
-    /// Bind operation for Validated taking ownership, also known as flatMap.
-    ///
-    /// This is the owned version of the bind operation, which applies a function to a value inside
-    /// a Validated and flattens the result, taking ownership of the original Validated.
-    ///
-    /// # Performance
-    ///
-    /// This method avoids cloning error values, making it more efficient than `bind` when you
-    /// have ownership of the Validated value.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The result type of the binding function
-    /// * `F`: The type of the binding function
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to apply to the value inside the Validated
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let valid: Validated<String, i32> = Validated::valid(42);
-    /// let result = valid.bind_owned(|x| Validated::<String, String>::valid(x.to_string()));
-    /// assert_eq!(result, Validated::valid("42".to_string()));
-    /// ```
     #[inline]
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
     where
@@ -1495,31 +1377,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
             Validated::MultiInvalid(e) => Validated::MultiInvalid(e),
         }
     }
-
-    /// Join operation for nested Validated values, taking ownership.
-    ///
-    /// This flattens a nested Validated structure, taking ownership of the original Validated.
-    ///
-    /// # Performance
-    ///
-    /// This method avoids cloning error values, making it more efficient than `join` when you
-    /// have ownership of the Validated value.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The inner value type
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// let nested: Validated<String, Validated<String, i32>> =
-    ///     Validated::valid(Validated::valid(42));
-    /// let flattened = nested.join_owned();
-    /// assert_eq!(flattened, Validated::valid(42));
-    /// ```
+    
     #[inline]
     fn join_owned<U>(self) -> Self::Output<U>
     where
@@ -1534,21 +1392,6 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
 }
 
 impl<E, A> Identity for Validated<E, A> {
-    /// Returns a reference to the inner value.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the Validated is invalid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// assert_eq!(*valid.value(), 42);
-    /// ```
     #[inline]
     fn value(&self) -> &Self::Source {
         match self {
@@ -1557,113 +1400,16 @@ impl<E, A> Identity for Validated<E, A> {
         }
     }
 
-    /// Creates a pure value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::<&str, i32>::pure_identity(42);
-    /// assert_eq!(valid, Validated::valid(42));
-    /// ```
     #[inline]
     fn pure_identity<B>(value: B) -> Self::Output<B> {
         Validated::Valid(value)
     }
 
-    /// Unwraps the Validated, returning the contained value.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the Validated is invalid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// assert_eq!(valid.into_value(), 42);
-    /// ```
     #[inline]
     fn into_value(self) -> Self::Source {
         match self {
             Validated::Valid(x) => x,
             _ => panic!("Cannot extract value from invalid Validated"),
-        }
-    }
-}
-
-impl<E, A> Validated<E, A> {
-    /// Returns whether this `Validated` is valid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// assert!(valid.is_valid());
-    ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// assert!(!invalid.is_valid());
-    /// ```
-    #[inline]
-    pub fn is_valid(&self) -> bool {
-        matches!(self, Validated::Valid(_))
-    }
-
-    /// Returns whether this `Validated` is invalid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// assert!(!valid.is_invalid());
-    ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// assert!(invalid.is_invalid());
-    /// ```
-    #[inline]
-    pub fn is_invalid(&self) -> bool {
-        !self.is_valid()
-    }
-
-    /// Returns all errors if this is invalid, or an empty collection if valid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use smallvec::SmallVec;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// let errors = valid.errors();
-    /// assert!(errors.is_empty());
-    ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// let errors = invalid.errors();
-    /// assert_eq!(errors.len(), 1);
-    /// assert_eq!(errors[0], "error");
-    /// ```
-    #[inline]
-    pub fn errors(&self) -> SmallVec<[E; 4]>
-    where
-        E: Clone,
-    {
-        match self {
-            Validated::Valid(_) => SmallVec::new(),
-            Validated::SingleInvalid(e) => {
-                let mut errors = SmallVec::new();
-                errors.push(e.clone());
-                errors
-            }
-            Validated::MultiInvalid(e) => e.clone(),
         }
     }
 }

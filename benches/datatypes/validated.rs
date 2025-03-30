@@ -94,18 +94,6 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Unwrap valid values with function
-    group.bench_function("unwrap_or_else", |b| {
-        let valid: Validated<String, i32> = Validated::valid(42);
-        let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
-
-        b.iter(|| {
-            let result1 = black_box(valid.unwrap_or_else(&|_| 0));
-            let result2 = black_box(invalid.unwrap_or_else(&|_| 0));
-            (result1, result2)
-        });
-    });
-
     group.finish();
 
     // Section 2: Core Operations (Functor, Applicative, Monad, etc.)
@@ -139,8 +127,8 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
 
         b.iter(|| {
-            let result1 = valid.map_valid(&|x| x * 2);
-            let result2 = invalid.map_valid(&|x| x * 2);
+            let result1 = valid.fmap(&|x: &i32| x * 2);
+            let result2 = invalid.fmap(&|x: &i32| x * 2);
             black_box((result1, result2))
         });
     });
@@ -151,8 +139,8 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
 
         b.iter(|| {
-            let result1 = valid.map_invalid(&|e: &String| format!("Wrapped: {}", e));
-            let result2 = invalid.map_invalid(&|e: &String| format!("Wrapped: {}", e));
+            let result1 = valid.fmap_invalid(&|e: &String| format!("Wrapped: {}", e));
+            let result2 = invalid.fmap_invalid(&|e: &String| format!("Wrapped: {}", e));
             black_box((result1, result2))
         });
     });
@@ -595,7 +583,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
 
         b.iter(|| {
             // Convert String errors to i32 errors
-            let invalid_num = invalid_str.map_invalid(&|s: &String| s.len() as i32);
+            let invalid_num = invalid_str.fmap_invalid(&|s: &String| s.len() as i32);
             black_box(invalid_num)
         });
     });
@@ -606,7 +594,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
 
         b.iter(|| {
             // Convert i32 valid to String valid
-            let valid_str = valid_int.map_valid(&|i: &i32| i.to_string());
+            let valid_str = valid_int.fmap(&|i: &i32| i.to_string());
             black_box(valid_str)
         });
     });
@@ -621,7 +609,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
             let validated = Validated::<String, i32>::from_result(&result);
 
             // Map the valid value
-            let mapped = validated.map_valid(&|i: &i32| i * 2);
+            let mapped = validated.fmap(&|i: &i32| i * 2);
 
             // Convert back to Result
             let final_result = mapped.to_result();
