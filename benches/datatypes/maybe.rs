@@ -63,31 +63,6 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("map", |b| {
-        let maybe = Maybe::Just(42);
-        b.iter(|| black_box(maybe.map(|x| x * 2)));
-    });
-
-    group.bench_function("map_or", |b| {
-        let maybe = Maybe::Just(42);
-        b.iter(|| black_box(maybe.map_or(0, |x| x * 2)));
-    });
-
-    group.bench_function("map_or_nothing", |b| {
-        let maybe: Maybe<i32> = Maybe::Nothing;
-        b.iter(|| black_box(maybe.map_or(0, |x| x * 2)));
-    });
-
-    group.bench_function("map_or_else", |b| {
-        let maybe = Maybe::Just(42);
-        b.iter(|| black_box(maybe.map_or_else(|| 0, |x| x * 2)));
-    });
-
-    group.bench_function("map_or_else_nothing", |b| {
-        let maybe: Maybe<i32> = Maybe::Nothing;
-        b.iter(|| black_box(maybe.map_or_else(|| 0, |x| x * 2)));
-    });
-
     // ======== FUNCTOR OPERATIONS ========
 
     group.bench_function("fmap", |b| {
@@ -332,7 +307,7 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
                 // Find first number > 3, then process it
                 find_first_over_threshold(&numbers, 3)
                     .fmap(|n: &i32| n * 10)
-                    .map_or(0, |n| n) // Extract value or default
+                    .fmap_or(0, |n| n) // Extract value or default
             })
         });
     });
