@@ -10,30 +10,23 @@ pub fn either_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Either");
 
     // ======== CONSTRUCTION OPERATIONS ========
-
     group.bench_function("left", |b| {
-        b.iter(|| {
-            black_box(Either::<&str, i32>::left(black_box("error")));
-        });
+        b.iter(|| black_box(Either::<&str, i32>::left(black_box("error"))));
     });
 
     group.bench_function("right", |b| {
-        b.iter(|| {
-            black_box(Either::<&str, i32>::right(black_box(42)));
-        });
+        b.iter(|| black_box(Either::<&str, i32>::right(black_box(42))));
     });
 
     group.bench_function("pure", |b| {
-        b.iter(|| {
-            black_box(Either::<&str, i32>::pure(&black_box(42)));
-        });
+        b.iter(|| black_box(Either::<&str, i32>::pure(&black_box(42))));
     });
 
     // ======== BASIC OPERATIONS ========
+    let either_left = Either::<&str, i32>::left("error");
+    let either_right = Either::<&str, i32>::right(42);
 
     group.bench_function("is_left", |b| {
-        let either_left = Either::<&str, i32>::left("error");
-        let either_right = Either::<&str, i32>::right(42);
         b.iter(|| {
             black_box(either_left.is_left());
             black_box(either_right.is_left());
@@ -41,8 +34,6 @@ pub fn either_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("is_right", |b| {
-        let either_left = Either::<&str, i32>::left("error");
-        let either_right = Either::<&str, i32>::right(42);
         b.iter(|| {
             black_box(either_left.is_right());
             black_box(either_right.is_right());
@@ -50,246 +41,133 @@ pub fn either_benchmarks(c: &mut Criterion) {
     });
 
     // ======== VALUE ACCESS OPERATIONS ========
-
-    group.bench_function("left_ref", |b| {
-        let either = Either::<&str, i32>::left("error");
+    group.bench_function("left_right_ref", |b| {
         b.iter(|| {
-            if either.is_left() {
-                black_box(either.left_ref());
+            if either_left.is_left() {
+                black_box(either_left.left_ref());
+            }
+            if either_right.is_right() {
+                black_box(either_right.right_ref());
             }
         });
     });
 
-    group.bench_function("right_ref", |b| {
-        let either = Either::<&str, i32>::right(42);
+    group.bench_function("unwrap_left_right", |b| {
         b.iter(|| {
-            if either.is_right() {
-                black_box(either.right_ref());
+            if either_left.is_left() {
+                black_box(either_left.clone().unwrap_left());
+            }
+            if either_right.is_right() {
+                black_box(either_right.clone().unwrap_right());
             }
         });
     });
 
-    group.bench_function("unwrap_left", |b| {
-        let either = Either::<&str, i32>::left("error");
+    group.bench_function("left_right_value", |b| {
         b.iter(|| {
-            if either.is_left() {
-                black_box(either.clone().unwrap_left());
+            if either_left.is_left() {
+                black_box(either_left.left_value());
+            }
+            if either_right.is_right() {
+                black_box(either_right.right_value());
             }
         });
     });
 
-    group.bench_function("unwrap_right", |b| {
-        let either = Either::<&str, i32>::right(42);
+    group.bench_function("left_right_or", |b| {
         b.iter(|| {
-            if either.is_right() {
-                black_box(either.clone().unwrap_right());
-            }
-        });
-    });
-
-    group.bench_function("left_value", |b| {
-        b.iter(|| {
-            let either = Either::<&str, i32>::left("error");
-            if either.is_left() {
-                black_box(either.left_value());
-            }
-        });
-    });
-
-    group.bench_function("right_value", |b| {
-        b.iter(|| {
-            let either = Either::<&str, i32>::right(42);
-            if either.is_right() {
-                black_box(either.right_value());
-            }
-        });
-    });
-
-    group.bench_function("left_or", |b| {
-        b.iter(|| {
-            let either_left = Either::<&str, i32>::left("error");
-            let either_right = Either::<&str, i32>::right(42);
             black_box(either_left.clone().left_or("default"));
-            black_box(either_right.clone().left_or("default"));
-        });
-    });
-
-    group.bench_function("right_or", |b| {
-        b.iter(|| {
-            let either_left = Either::<&str, i32>::left("error");
-            let either_right = Either::<&str, i32>::right(42);
-            black_box(either_left.clone().right_or(0));
             black_box(either_right.clone().right_or(0));
         });
     });
 
     // ======== TRANSFORMATION OPERATIONS ========
-
-    group.bench_function("map_left", |b| {
-        let either = Either::<&str, i32>::left("error");
+    group.bench_function("map_left_right", |b| {
         b.iter(|| {
-            black_box(either.clone().fmap_left(|s| s.len()));
-        });
-    });
-
-    group.bench_function("map_right", |b| {
-        let either = Either::<&str, i32>::right(42);
-        b.iter(|| {
-            black_box(either.clone().fmap_right(|n| n * 2));
-        });
-    });
-
-    group.bench_function("unwrap_left_safe", |b| {
-        let either = Either::<&str, i32>::left("error");
-        b.iter(|| {
-            if either.is_left() {
-                black_box(either.clone().unwrap_left());
-            }
-        });
-    });
-
-    group.bench_function("unwrap_right_safe", |b| {
-        let either = Either::<&str, i32>::right(42);
-        b.iter(|| {
-            if either.is_right() {
-                black_box(either.clone().unwrap_right());
-            }
+            black_box(either_left.clone().fmap_left(|s| s.len()));
+            black_box(either_right.clone().fmap_right(|n| n * 2));
         });
     });
 
     // ======== FUNCTOR OPERATIONS ========
-
-    group.bench_function("fmap_right", |b| {
-        let either = Either::<&str, i32>::right(42);
+    group.bench_function("fmap", |b| {
         b.iter(|| {
-            black_box(either.fmap(&|x: &i32| x + 1));
+            black_box(either_left.fmap(&|x: &i32| x + 1));
+            black_box(either_right.fmap(&|x: &i32| x + 1));
         });
     });
 
-    group.bench_function("fmap_left", |b| {
-        let either = Either::<&str, i32>::left("error");
+    group.bench_function("fmap_owned", |b| {
         b.iter(|| {
-            black_box(either.fmap(&|x: &i32| x + 1));
-        });
-    });
-
-    group.bench_function("fmap_owned_right", |b| {
-        b.iter(|| {
-            let either = Either::<&str, i32>::right(42);
-            black_box(either.fmap_owned(|x| x + 1));
-        });
-    });
-
-    group.bench_function("fmap_owned_left", |b| {
-        b.iter(|| {
-            let either = Either::<&str, i32>::left("error");
-            black_box(either.fmap_owned(|x| x + 1));
+            black_box(Either::<&str, i32>::left("error").fmap_owned(|x| x + 1));
+            black_box(Either::<&str, i32>::right(42).fmap_owned(|x| x + 1));
         });
     });
 
     // ======== APPLICATIVE OPERATIONS ========
+    group.bench_function("apply", |b| {
+        let fn_right = Either::<&str, fn(&i32) -> i32>::right(|x: &i32| x + 1);
+        let fn_left = Either::<&str, fn(&i32) -> i32>::left("error");
 
-    group.bench_function("apply_right_right", |b| {
-        let either_fn = Either::<&str, fn(&i32) -> i32>::right(|x: &i32| x + 1);
-        let either_val = Either::<&str, i32>::right(42);
         b.iter(|| {
-            black_box(either_val.apply(&either_fn));
-        });
-    });
-
-    group.bench_function("apply_left_right", |b| {
-        let either_fn = Either::<&str, fn(&i32) -> i32>::left("error");
-        let either_val = Either::<&str, i32>::right(42);
-        b.iter(|| {
-            black_box(either_val.apply(&either_fn));
-        });
-    });
-
-    group.bench_function("apply_right_left", |b| {
-        let either_fn = Either::<&str, fn(&i32) -> i32>::right(|x: &i32| x + 1);
-        let either_val = Either::<&str, i32>::left("error");
-        b.iter(|| {
-            black_box(either_val.apply(&either_fn));
+            black_box(either_right.apply(&fn_right));
+            black_box(either_right.apply(&fn_left));
+            black_box(either_left.apply(&fn_right));
         });
     });
 
     group.bench_function("apply_owned", |b| {
         b.iter(|| {
-            let either_fn = Either::<&str, fn(i32) -> i32>::right(|x| x + 1);
-            let either_val = Either::<&str, i32>::right(42);
-            black_box(either_val.apply_owned(either_fn));
+            let fn_right = Either::<&str, fn(i32) -> i32>::right(|x| x + 1);
+            let val_right = Either::<&str, i32>::right(42);
+            black_box(val_right.apply_owned(fn_right));
         });
     });
 
-    group.bench_function("lift2", |b| {
-        let either_a = Either::<&str, i32>::right(10);
-        let either_b = Either::<&str, i32>::right(20);
+    group.bench_function("lift", |b| {
+        let a = Either::<&str, i32>::right(10);
+        let c = Either::<&str, i32>::right(20);
+        let d = Either::<&str, i32>::right(30);
+
         b.iter(|| {
-            black_box(either_a.lift2(&either_b, |a: &i32, b: &i32| a + b));
+            black_box(a.lift2(&c, &|x: &i32, y: &i32| x + y));
+            black_box(a.lift3(&c, &d, &|x: &i32, y: &i32, z: &i32| x + y + z));
         });
     });
 
-    group.bench_function("lift3", |b| {
-        let either_a = Either::<&str, i32>::right(10);
-        let either_b = Either::<&str, i32>::right(20);
-        let either_c = Either::<&str, i32>::right(30);
+    group.bench_function("lift_owned", |b| {
         b.iter(|| {
-            black_box(either_a.lift3(&either_b, &either_c, |a: &i32, b: &i32, c: &i32| a + b + c));
-        });
-    });
-
-    group.bench_function("lift2_owned", |b| {
-        b.iter(|| {
-            let either_a = Either::<&str, i32>::right(10);
-            let either_b = Either::<&str, i32>::right(20);
-            black_box(either_a.lift2_owned(either_b, |a, b| a + b));
-        });
-    });
-
-    group.bench_function("lift3_owned", |b| {
-        b.iter(|| {
-            let either_a = Either::<&str, i32>::right(10);
-            let either_b = Either::<&str, i32>::right(20);
-            let either_c = Either::<&str, i32>::right(30);
-            black_box(either_a.lift3_owned(either_b, either_c, |a, b, c| a + b + c));
+            let a = Either::<&str, i32>::right(10);
+            let c = Either::<&str, i32>::right(20);
+            let d = Either::<&str, i32>::right(30);
+            black_box(a.clone().lift2_owned(c.clone(), |x, y| x + y));
+            black_box(a.lift3_owned(c, d, |x, y, z| x + y + z));
         });
     });
 
     // ======== MONAD OPERATIONS ========
-
-    group.bench_function("bind_right", |b| {
-        let either = Either::<&str, i32>::right(42);
+    group.bench_function("bind", |b| {
         b.iter(|| {
-            black_box(either.bind(|x: &i32| Either::<&str, i32>::right(x + 1)));
+            black_box(either_right.bind(|x: &i32| Either::<&str, i32>::right(x + 1)));
+            black_box(either_left.bind(|x: &i32| Either::<&str, i32>::right(x + 1)));
         });
     });
 
-    group.bench_function("bind_left", |b| {
-        let either = Either::<&str, i32>::left("error");
+    group.bench_function("bind_owned", |b| {
         b.iter(|| {
-            black_box(either.bind(|x: &i32| Either::<&str, i32>::right(x + 1)));
-        });
-    });
-
-    group.bench_function("bind_owned_right", |b| {
-        b.iter(|| {
-            let either = Either::<&str, i32>::right(42);
-            black_box(either.bind_owned(|x| Either::<&str, i32>::right(x + 1)));
-        });
-    });
-
-    group.bench_function("bind_owned_left", |b| {
-        b.iter(|| {
-            let either = Either::<&str, i32>::left("error");
-            black_box(either.bind_owned(|x| Either::<&str, i32>::right(x + 1)));
+            black_box(
+                Either::<&str, i32>::right(42).bind_owned(|x| Either::<&str, i32>::right(x + 1)),
+            );
+            black_box(
+                Either::<&str, i32>::left("error")
+                    .bind_owned(|x| Either::<&str, i32>::right(x + 1)),
+            );
         });
     });
 
     group.bench_function("join", |b| {
         let nested = Either::<&str, Either<&str, i32>>::right(Either::<&str, i32>::right(42));
-        b.iter(|| {
-            black_box(nested.join());
-        });
+        b.iter(|| black_box(nested.join()));
     });
 
     group.bench_function("join_owned", |b| {
@@ -300,64 +178,18 @@ pub fn either_benchmarks(c: &mut Criterion) {
     });
 
     // ======== IDENTITY OPERATIONS ========
-
-    group.bench_function("identity_value", |b| {
-        let either = Either::<&str, i32>::right(42);
+    group.bench_function("identity", |b| {
         b.iter(|| {
-            black_box(either.value());
-        });
-    });
-
-    group.bench_function("pure_identity", |b| {
-        b.iter(|| {
+            black_box(either_right.value());
             black_box(Either::<&str, i32>::pure_identity(42));
-        });
-    });
-
-    group.bench_function("into_value", |b| {
-        b.iter(|| {
-            let either = Either::<&str, i32>::right(42);
-            black_box(either.into_value());
+            black_box(Either::<&str, i32>::right(42).into_value());
         });
     });
 
     // ======== REAL-WORLD USE CASES ========
-
-    // Error handling use case
-    group.bench_function("error_handling", |b| {
+    group.bench_function("error_handling_chain", |b| {
         b.iter(|| {
-            // Simulate a series of operations that might fail
             let initial: Either<&str, i32> = Either::right(10);
-
-            // Chain operations using bind
-            let result = initial
-                .bind(|x: &i32| {
-                    if *x > 0 {
-                        Either::right(x * 2)
-                    } else {
-                        Either::left("Cannot multiply negative number")
-                    }
-                })
-                .bind(|x: &i32| {
-                    if *x < 100 {
-                        Either::right(x + 5)
-                    } else {
-                        Either::left("Result too large")
-                    }
-                })
-                .fmap(&|x: &i32| x.to_string());
-
-            black_box(result)
-        });
-    });
-
-    // Error handling use case with optimized methods
-    group.bench_function("error_handling_optimized", |b| {
-        b.iter(|| {
-            // Simulate a series of operations that might fail
-            let initial: Either<&str, i32> = Either::right(10);
-
-            // Chain operations using bind_owned
             let result = initial
                 .bind_owned(|x| {
                     if x > 0 {
@@ -374,45 +206,28 @@ pub fn either_benchmarks(c: &mut Criterion) {
                     }
                 })
                 .fmap_owned(|x| x.to_string());
-
             black_box(result)
         });
     });
 
-    // Data validation use case
     group.bench_function("data_validation", |b| {
         b.iter(|| {
-            // Validators that return Either
-            let validate_positive = |x: &i32| -> Either<&str, i32> {
-                if *x > 0 {
-                    Either::right(*x)
-                } else {
-                    Either::left("Value must be positive")
+            let validate = |x: &i32| -> Either<&str, i32> {
+                if *x <= 0 {
+                    return Either::left("Value must be positive");
                 }
-            };
-
-            let validate_less_than_100 = |x: &i32| -> Either<&str, i32> {
-                if *x < 100 {
-                    Either::right(*x)
-                } else {
-                    Either::left("Value must be less than 100")
+                if *x >= 100 {
+                    return Either::left("Value must be less than 100");
                 }
+                Either::right(*x)
             };
-
-            // Apply validators in sequence
-            let input = 42;
-            let result = validate_positive(&input).bind(|x: &i32| validate_less_than_100(x));
-
-            black_box(result)
+            black_box(validate(&42))
         });
     });
 
-    // Complex transformation chain
     group.bench_function("complex_transformation", |b| {
         b.iter(|| {
             let input: Either<&str, Vec<i32>> = Either::right(vec![1, 2, 3, 4, 5]);
-
-            // Apply multiple transformations
             let result = input
                 .fmap(&|v: &Vec<i32>| v.iter().map(|x| x * 2).collect::<Vec<i32>>())
                 .fmap(&|v: &Vec<i32>| {
@@ -423,40 +238,18 @@ pub fn either_benchmarks(c: &mut Criterion) {
                 })
                 .fmap(&|v: &Vec<i32>| v.iter().sum::<i32>())
                 .fmap_right(|sum: i32| if sum > 20 { "large" } else { "small" });
-
             black_box(result)
         });
     });
 
-    // Value extraction with the new methods
-    group.bench_function("value_extraction_optimized", |b| {
-        b.iter(|| {
-            let left_val = Either::<&str, i32>::left("error");
-            let right_val = Either::<&str, i32>::right(42);
-
-            // Using right_or and left_or
-            let left_result = left_val.clone().left_or("default");
-            let right_result = right_val.clone().right_or(0);
-
-            black_box((left_result, right_result))
-        });
-    });
-
-    // Bidirectional mapping use case
     group.bench_function("bidirectional_mapping", |b| {
         b.iter(|| {
-            let left_value: Either<i32, &str> = Either::left(42);
-            let right_value: Either<i32, &str> = Either::right("hello");
-
-            // Map both sides
-            let mapped_left = left_value
-                .clone()
-                .fmap_left(|n| n * 2)
-                .fmap_right(|s| s.len());
-
-            let mapped_right = right_value.fmap_left(|n| n * 2).fmap_right(|s| s.len());
-
-            black_box((mapped_left, mapped_right))
+            let left = Either::<i32, &str>::left(42);
+            let right = Either::<i32, &str>::right("hello");
+            black_box((
+                left.clone().fmap_left(|n| n * 2).fmap_right(|s| s.len()),
+                right.fmap_left(|n| n * 2).fmap_right(|s| s.len()),
+            ))
         });
     });
 

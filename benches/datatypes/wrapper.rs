@@ -20,119 +20,87 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
 
     // Value wrapper benchmarks
     group.bench_function("Value creation", |b| {
-        b.iter(|| {
-            black_box(Value(black_box(42)));
-        });
+        b.iter(|| black_box(Value(black_box(42))));
     });
 
     group.bench_function("Value inner access", |b| {
         let value = Value(42);
-        b.iter(|| {
-            black_box(value.0);
-        });
+        b.iter(|| black_box(value.0));
     });
 
     // Sum wrapper benchmarks
     group.bench_function("Sum creation", |b| {
-        b.iter(|| {
-            black_box(Sum(black_box(42)));
-        });
+        b.iter(|| black_box(Sum(black_box(42))));
     });
 
     group.bench_function("Sum inner access", |b| {
         let sum = Sum(42);
-        b.iter(|| {
-            black_box(sum.0);
-        });
+        b.iter(|| black_box(sum.0));
     });
 
     // Product wrapper benchmarks
     group.bench_function("Product creation", |b| {
-        b.iter(|| {
-            black_box(Product(black_box(42)));
-        });
+        b.iter(|| black_box(Product(black_box(42))));
     });
 
     group.bench_function("Product inner access", |b| {
         let product = Product(42);
-        b.iter(|| {
-            black_box(product.0);
-        });
+        b.iter(|| black_box(product.0));
     });
 
+    // Min/Max wrapper benchmarks
     // Min wrapper benchmarks
     group.bench_function("Min creation", |b| {
-        b.iter(|| {
-            black_box(Min(black_box(42)));
-        });
+        b.iter(|| black_box(Min(black_box(42))));
     });
 
     group.bench_function("Min inner access", |b| {
-        let min = Min(42);
-        b.iter(|| {
-            black_box(min.0);
-        });
+        let wrapper = Min(42);
+        b.iter(|| black_box(wrapper.0));
     });
 
     // Max wrapper benchmarks
     group.bench_function("Max creation", |b| {
-        b.iter(|| {
-            black_box(Max(black_box(42)));
-        });
+        b.iter(|| black_box(Max(black_box(42))));
     });
 
     group.bench_function("Max inner access", |b| {
-        let max = Max(42);
-        b.iter(|| {
-            black_box(max.0);
-        });
+        let wrapper = Max(42);
+        b.iter(|| black_box(wrapper.0));
     });
 
+    // First/Last wrapper benchmarks
     // First wrapper benchmarks
     group.bench_function("First creation with Some", |b| {
-        b.iter(|| {
-            black_box(First(Some(black_box(42))));
-        });
+        b.iter(|| black_box(First(Some(black_box(42)))));
     });
 
     group.bench_function("First creation with None", |b| {
-        b.iter(|| {
-            black_box(First::<i32>(None));
-        });
+        b.iter(|| black_box(First::<i32>(None)));
     });
 
     group.bench_function("First inner access", |b| {
-        let first = First(Some(42));
-        b.iter(|| {
-            black_box(&first.0);
-        });
+        let wrapper = First(Some(42));
+        b.iter(|| black_box(&wrapper.0));
     });
 
     // Last wrapper benchmarks
     group.bench_function("Last creation with Some", |b| {
-        b.iter(|| {
-            black_box(Last(Some(black_box(42))));
-        });
+        b.iter(|| black_box(Last(Some(black_box(42)))));
     });
 
     group.bench_function("Last creation with None", |b| {
-        b.iter(|| {
-            black_box(Last::<i32>(None));
-        });
+        b.iter(|| black_box(Last::<i32>(None)));
     });
 
     group.bench_function("Last inner access", |b| {
-        let last = Last(Some(42));
-        b.iter(|| {
-            black_box(&last.0);
-        });
+        let wrapper = Last(Some(42));
+        b.iter(|| black_box(&wrapper.0));
     });
 
     // Thunk wrapper benchmarks
     group.bench_function("Thunk::new simple", |b| {
-        b.iter(|| {
-            black_box(Thunk::new(|| 42));
-        });
+        b.iter(|| black_box(Thunk::new(|| 42)));
     });
 
     group.bench_function("Thunk::new complex", |b| {
@@ -143,15 +111,13 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
                     sum += i;
                 }
                 sum
-            }));
+            }))
         });
     });
 
     // BoxedFn wrapper benchmarks
     group.bench_function("BoxedFn creation with simple fn", |b| {
-        b.iter(|| {
-            black_box(BoxedFn(Box::new(|| 42)));
-        });
+        b.iter(|| black_box(BoxedFn(Box::new(|| 42))));
     });
 
     group.bench_function("BoxedFn creation with complex fn", |b| {
@@ -162,7 +128,7 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
                     sum += i;
                 }
                 sum
-            })));
+            })))
         });
     });
 
@@ -175,164 +141,111 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
     group.bench_function("Sum::combine integers", |b| {
         let sum1 = Sum(42);
         let sum2 = Sum(24);
-        b.iter(|| {
-            black_box(sum1.combine(&sum2));
-        });
+        b.iter(|| black_box(sum1.combine(&sum2)));
     });
 
     group.bench_function("Sum::combine_owned integers", |b| {
-        b.iter(|| {
-            black_box(Sum(42).combine_owned(Sum(24)));
-        });
-    });
-
-    group.bench_function("Sum::combine strings", |b| {
-        // Using ToString trait to convert to String, as String doesn't implement Add with Output=String
-        let sum1 = Sum(42i32.to_string());
-        let sum2 = Sum(24i32.to_string());
-        b.iter(|| {
-            // Use format! instead of combine since String doesn't implement Add correctly
-            black_box(Sum(format!("{}{}", sum1.0, sum2.0)));
-        });
+        b.iter(|| black_box(Sum(42).combine_owned(Sum(24))));
     });
 
     // Product
     group.bench_function("Product::combine integers", |b| {
         let product1 = Product(42);
         let product2 = Product(24);
-        b.iter(|| {
-            black_box(product1.combine(&product2));
-        });
+        b.iter(|| black_box(product1.combine(&product2)));
     });
 
     group.bench_function("Product::combine_owned integers", |b| {
-        b.iter(|| {
-            black_box(Product(42).combine_owned(Product(24)));
-        });
+        b.iter(|| black_box(Product(42).combine_owned(Product(24))));
     });
 
-    group.bench_function("Product::combine large numbers", |b| {
-        let product1 = Product(9999);
-        let product2 = Product(9999);
-        b.iter(|| {
-            black_box(product1.combine(&product2));
-        });
-    });
-
-    // Min
+    // Min/Max
+    // Min/Max
     group.bench_function("Min::combine with first smaller", |b| {
-        let min1 = Min(24);
-        let min2 = Min(42);
-        b.iter(|| {
-            black_box(min1.combine(&min2));
-        });
+        let w1 = Min(24);
+        let w2 = Min(42);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("Min::combine with second smaller", |b| {
-        let min1 = Min(42);
-        let min2 = Min(24);
-        b.iter(|| {
-            black_box(min1.combine(&min2));
-        });
+        let w1 = Min(42);
+        let w2 = Min(24);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("Min::combine with equal values", |b| {
-        let min1 = Min(42);
-        let min2 = Min(42);
-        b.iter(|| {
-            black_box(min1.combine(&min2));
-        });
+        let w1 = Min(42);
+        let w2 = Min(42);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
-    // Max
     group.bench_function("Max::combine with first larger", |b| {
-        let max1 = Max(42);
-        let max2 = Max(24);
-        b.iter(|| {
-            black_box(max1.combine(&max2));
-        });
+        let w1 = Max(42);
+        let w2 = Max(24);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("Max::combine with second larger", |b| {
-        let max1 = Max(24);
-        let max2 = Max(42);
-        b.iter(|| {
-            black_box(max1.combine(&max2));
-        });
+        let w1 = Max(24);
+        let w2 = Max(42);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("Max::combine with equal values", |b| {
-        let max1 = Max(42);
-        let max2 = Max(42);
-        b.iter(|| {
-            black_box(max1.combine(&max2));
-        });
+        let w1 = Max(42);
+        let w2 = Max(42);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
+    // First/Last
     // First
     group.bench_function("First::combine with both Some", |b| {
-        let first1 = First(Some(42));
-        let first2 = First(Some(24));
-        b.iter(|| {
-            black_box(first1.combine(&first2));
-        });
+        let w1 = First(Some(42));
+        let w2 = First(Some(24));
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("First::combine with first Some", |b| {
-        let first1 = First(Some(42));
-        let first2 = First::<i32>(None);
-        b.iter(|| {
-            black_box(first1.combine(&first2));
-        });
+        let w1 = First(Some(42));
+        let w2 = First(None);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("First::combine with second Some", |b| {
-        let first1 = First::<i32>(None);
-        let first2 = First(Some(24));
-        b.iter(|| {
-            black_box(first1.combine(&first2));
-        });
+        let w1 = First(None);
+        let w2 = First(Some(24));
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("First::combine with both None", |b| {
-        let first1 = First::<i32>(None);
-        let first2 = First::<i32>(None);
-        b.iter(|| {
-            black_box(first1.combine(&first2));
-        });
+        let w1 = First::<i32>(None);
+        let w2 = First(None);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     // Last
     group.bench_function("Last::combine with both Some", |b| {
-        let last1 = Last(Some(42));
-        let last2 = Last(Some(24));
-        b.iter(|| {
-            black_box(last1.combine(&last2));
-        });
+        let w1 = Last(Some(42));
+        let w2 = Last(Some(24));
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("Last::combine with first Some", |b| {
-        let last1 = Last(Some(42));
-        let last2 = Last::<i32>(None);
-        b.iter(|| {
-            black_box(last1.combine(&last2));
-        });
+        let w1 = Last(Some(42));
+        let w2 = Last(None);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("Last::combine with second Some", |b| {
-        let last1 = Last::<i32>(None);
-        let last2 = Last(Some(24));
-        b.iter(|| {
-            black_box(last1.combine(&last2));
-        });
+        let w1 = Last(None);
+        let w2 = Last(Some(24));
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.bench_function("Last::combine with both None", |b| {
-        let last1 = Last::<i32>(None);
-        let last2 = Last::<i32>(None);
-        b.iter(|| {
-            black_box(last1.combine(&last2));
-        });
+        let w1 = Last::<i32>(None);
+        let w2 = Last(None);
+        b.iter(|| black_box(w1.combine(&w2)));
     });
 
     group.finish();
@@ -340,64 +253,66 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
     // Section 3: Monoid Operations
     let mut group = c.benchmark_group("Wrapper - Monoid Operations");
 
-    // Sum
-    group.bench_function("Sum::empty integers", |b| {
-        b.iter(|| {
-            black_box(Sum::<i32>::empty());
-        });
+    // Benchmark empty() creation for common wrapper types
+    group.bench_function("Sum::empty", |b| {
+        b.iter(|| black_box(Sum::<i32>::empty()));
     });
 
-    group.bench_function("Sum::empty combine", |b| {
-        let sum = Sum(42);
-        let empty = Sum::<i32>::empty();
-        b.iter(|| {
-            black_box(sum.combine(&empty));
-        });
+    group.bench_function("Product::empty", |b| {
+        b.iter(|| black_box(Product::<i32>::empty()));
     });
 
-    // Product
-    group.bench_function("Product::empty integers", |b| {
-        b.iter(|| {
-            black_box(Product::<i32>::empty());
-        });
+    group.bench_function("Min::empty", |b| {
+        b.iter(|| black_box(Min::<i32>::empty()));
     });
 
-    group.bench_function("Product::empty combine", |b| {
-        let product = Product(42);
-        let empty = Product::<i32>::empty();
-        b.iter(|| {
-            black_box(product.combine(&empty));
-        });
+    group.bench_function("Max::empty", |b| {
+        b.iter(|| black_box(Max::<i32>::empty()));
     });
 
-    // First
     group.bench_function("First::empty", |b| {
-        b.iter(|| {
-            black_box(First::<i32>::empty());
-        });
+        b.iter(|| black_box(First::<i32>::empty()));
     });
 
-    group.bench_function("First::empty combine", |b| {
-        let first = First(Some(42));
-        let empty = First::<i32>::empty();
-        b.iter(|| {
-            black_box(first.combine(&empty));
-        });
-    });
-
-    // Last
     group.bench_function("Last::empty", |b| {
-        b.iter(|| {
-            black_box(Last::<i32>::empty());
-        });
+        b.iter(|| black_box(Last::<i32>::empty()));
     });
 
-    group.bench_function("Last::empty combine", |b| {
-        let last = Last(Some(42));
+    // Benchmark combining with empty() (identity element)
+    group.bench_function("Sum combine with empty", |b| {
+        let val = Sum(42);
+        let empty = Sum::<i32>::empty();
+        b.iter(|| black_box(val.combine(&empty)));
+    });
+
+    group.bench_function("Product combine with empty", |b| {
+        let val = Product(42);
+        let empty = Product::<i32>::empty();
+        b.iter(|| black_box(val.combine(&empty)));
+    });
+
+    group.bench_function("Min combine with empty", |b| {
+        let val = Min(42);
+        let empty = Min::<i32>::empty();
+        b.iter(|| black_box(val.combine(&empty)));
+    });
+
+    group.bench_function("Max combine with empty", |b| {
+        let val = Max(42);
+        let empty = Max::<i32>::empty();
+        b.iter(|| black_box(val.combine(&empty)));
+    });
+
+    group.bench_function("First combine with empty", |b| {
+        let val = First(Some(42));
+        let empty = First::<i32>::empty();
+        b.iter(|| black_box(val.combine(&empty)));
+    });
+
+    group.bench_function("Last combine with empty", |b| {
+        let val = Last(Some(42));
         let empty = Last::<i32>::empty();
-        b.iter(|| {
-            black_box(last.combine(&empty));
-        });
+        b.iter(|| black_box(val.combine(&empty)));
     });
 
     group.finish();
@@ -408,9 +323,7 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
     // Thunk evaluation
     group.bench_function("Thunk::evaluate simple", |b| {
         let thunk = Thunk::new(|| 42);
-        b.iter(|| {
-            black_box(thunk.evaluate());
-        });
+        b.iter(|| black_box(thunk.evaluate()));
     });
 
     group.bench_function("Thunk::evaluate complex", |b| {
@@ -421,17 +334,13 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
             }
             sum
         });
-        b.iter(|| {
-            black_box(thunk.evaluate());
-        });
+        b.iter(|| black_box(thunk.evaluate()));
     });
 
     // BoxedFn evaluation
     group.bench_function("BoxedFn::evaluate simple", |b| {
         let boxed_fn = BoxedFn(Box::new(|| 42));
-        b.iter(|| {
-            black_box(boxed_fn.evaluate());
-        });
+        b.iter(|| black_box(boxed_fn.evaluate()));
     });
 
     group.bench_function("BoxedFn::evaluate complex", |b| {
@@ -442,50 +351,33 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
             }
             sum
         }));
-        b.iter(|| {
-            black_box(boxed_fn.evaluate());
-        });
+        b.iter(|| black_box(boxed_fn.evaluate()));
     });
 
     // Value evaluation
     group.bench_function("Value::evaluate", |b| {
         let value = Value(42);
-        b.iter(|| {
-            black_box(value.evaluate());
-        });
+        b.iter(|| black_box(value.evaluate()));
     });
 
     // Compare static vs dynamic dispatch
     group.bench_function("Thunk vs BoxedFn simple", |b| {
         let thunk = Thunk::new(|| 42);
         let boxed_fn = BoxedFn(Box::new(|| 42));
-        b.iter(|| {
-            let thunk_result = thunk.evaluate();
-            let boxed_result = boxed_fn.evaluate();
-            black_box((thunk_result, boxed_result))
-        });
+        b.iter(|| black_box((thunk.evaluate(), boxed_fn.evaluate())));
     });
 
     group.bench_function("Thunk vs BoxedFn complex", |b| {
-        let thunk = Thunk::new(|| {
+        let complex_fn = || {
             let mut sum = 0;
             for i in 0..100 {
                 sum += i;
             }
             sum
-        });
-        let boxed_fn = BoxedFn(Box::new(|| {
-            let mut sum = 0;
-            for i in 0..100 {
-                sum += i;
-            }
-            sum
-        }));
-        b.iter(|| {
-            let thunk_result = thunk.evaluate();
-            let boxed_result = boxed_fn.evaluate();
-            black_box((thunk_result, boxed_result))
-        });
+        };
+        let thunk = Thunk::new(complex_fn);
+        let boxed_fn = BoxedFn(Box::new(complex_fn));
+        b.iter(|| black_box((thunk.evaluate(), boxed_fn.evaluate())));
     });
 
     group.finish();
@@ -493,50 +385,25 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
     // Section 5: Foldable Operations
     let mut group = c.benchmark_group("Wrapper - Foldable Operations");
 
-    // Sum fold
+    // Fold operations for different wrappers
     group.bench_function("Sum::fold_left", |b| {
         let sum = Sum(42);
-        b.iter(|| {
-            black_box(sum.fold_left(&0, |acc, x| acc + x));
-        });
+        b.iter(|| black_box(sum.fold_left(&0, |acc, x| acc + x)));
     });
 
-    group.bench_function("Sum::fold_right", |b| {
-        let sum = Sum(42);
-        b.iter(|| {
-            black_box(sum.fold_right(&0, |x, acc| x + acc));
-        });
-    });
-
-    // Product fold
     group.bench_function("Product::fold_left", |b| {
         let product = Product(42);
-        b.iter(|| {
-            black_box(product.fold_left(&1, |acc, x| acc * x));
-        });
+        b.iter(|| black_box(product.fold_left(&1, |acc, x| acc * x)));
     });
 
-    group.bench_function("Product::fold_right", |b| {
-        let product = Product(42);
-        b.iter(|| {
-            black_box(product.fold_right(&1, |x, acc| x * acc));
-        });
-    });
-
-    // Min fold
     group.bench_function("Min::fold_left", |b| {
         let min = Min(42);
-        b.iter(|| {
-            black_box(min.fold_left(&100, |acc, x| cmp::min(*acc, *x)));
-        });
+        b.iter(|| black_box(min.fold_left(&100, |acc, x| cmp::min(*acc, *x))));
     });
 
-    // Max fold
     group.bench_function("Max::fold_left", |b| {
         let max = Max(42);
-        b.iter(|| {
-            black_box(max.fold_left(&0, |acc, x| cmp::max(*acc, *x)));
-        });
+        b.iter(|| black_box(max.fold_left(&0, |acc, x| cmp::max(*acc, *x))));
     });
 
     group.finish();
@@ -544,10 +411,9 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
     // Section 6: Real-world Use Cases
     let mut group = c.benchmark_group("Wrapper - Real-world Use Cases");
 
-    // Numeric aggregation with Sum
+    // Aggregation operations
     group.bench_function("aggregate_values_with_sum", |b| {
         let values = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
         b.iter(|| {
             let mut result = Sum(0);
             for &val in &values {
@@ -557,10 +423,8 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Numeric multiplication with Product
     group.bench_function("multiply_values_with_product", |b| {
         let values = vec![1, 2, 3, 4, 5];
-
         b.iter(|| {
             let mut result = Product(1);
             for &val in &values {
@@ -570,10 +434,9 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Finding minimum with Min
+    // Min/Max finding
     group.bench_function("find_minimum_with_min", |b| {
         let values = vec![5, 3, 9, 1, 7, 2, 8, 4, 6];
-
         b.iter(|| {
             let mut result = Min(std::i32::MAX);
             for &val in &values {
@@ -583,10 +446,8 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Finding maximum with Max
     group.bench_function("find_maximum_with_max", |b| {
         let values = vec![5, 3, 9, 1, 7, 2, 8, 4, 6];
-
         b.iter(|| {
             let mut result = Max(std::i32::MIN);
             for &val in &values {
@@ -596,10 +457,9 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Finding first non-None value
+    // First/Last non-None
     group.bench_function("find_first_some_value", |b| {
         let values: Vec<Option<i32>> = vec![None, None, Some(3), None, Some(5), None];
-
         b.iter(|| {
             let mut result = First::<i32>(None);
             for val in &values {
@@ -609,10 +469,8 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Finding last non-None value
     group.bench_function("find_last_some_value", |b| {
         let values: Vec<Option<i32>> = vec![None, Some(2), None, Some(4), None, None];
-
         b.iter(|| {
             let mut result = Last::<i32>(None);
             for val in &values {
@@ -625,7 +483,6 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
     // Lazy evaluation with Thunk
     group.bench_function("lazy_evaluation_with_thunk", |b| {
         b.iter(|| {
-            // Create several thunks
             let thunk1 = Thunk::new(|| {
                 let mut sum = 0;
                 for i in 0..100 {
@@ -642,31 +499,26 @@ pub fn wrapper_benchmarks(c: &mut Criterion) {
                 product
             });
 
-            // Only evaluate one of them based on a condition
             let condition = true;
-            let result = if condition {
+            black_box(if condition {
                 thunk1.evaluate()
             } else {
                 thunk2.evaluate()
-            };
-
-            black_box(result)
+            })
         });
     });
 
     // Callback pattern with BoxedFn
     group.bench_function("callback_pattern_with_boxed_fn", |b| {
-        // Function that takes a callback
         fn process_with_callback<F>(value: i32, callback: F) -> i32
         where
-            F: Fn() -> i32,
+            F: Fn(i32) -> i32,
         {
-            callback() + value * 2
+            callback(value)
         }
 
         b.iter(|| {
-            let boxed_callback = BoxedFn::new(|| 10);
-            let result = process_with_callback(5, || boxed_callback.evaluate());
+            let result = process_with_callback(42, |x| x * 2);
             black_box(result)
         });
     });
