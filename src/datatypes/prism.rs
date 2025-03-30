@@ -75,13 +75,6 @@
 //! ```
 
 use std::marker::PhantomData;
-use std::sync::Arc;
-
-/// Type alias for a function that previews a value
-pub type PreviewFn<S, A> = Arc<dyn Fn(&S) -> Option<A> + 'static>;
-
-/// Type alias for a function that reviews a value
-pub type ReviewFn<S, A> = Arc<dyn Fn(&A) -> S + 'static>;
 
 /// A `Prism` is an optic that allows focusing on a specific case of a sum type.
 ///
@@ -136,15 +129,23 @@ pub type ReviewFn<S, A> = Arc<dyn Fn(&A) -> S + 'static>;
 /// assert!(matches!(new_active, Status::Active(name) if name == "Bob"));
 /// ```
 #[derive(Clone)]
-pub struct Prism<S, A> {
+pub struct Prism<S, A, PreviewFn, ReviewFn>
+where
+    PreviewFn: Fn(&S) -> Option<A>,
+    ReviewFn: Fn(&A) -> S,
+{
     /// Function that attempts to extract a value of type A from S
-    preview: PreviewFn<S, A>,
+    preview: PreviewFn,
     /// Function that constructs a value of type S from A
-    review: ReviewFn<S, A>,
+    review: ReviewFn,
     phantom: PhantomData<(S, A)>,
 }
 
-impl<S, A> Prism<S, A> {
+impl<S, A, PreviewFn, ReviewFn> Prism<S, A, PreviewFn, ReviewFn>
+where
+    PreviewFn: Fn(&S) -> Option<A>,
+    ReviewFn: Fn(&A) -> S,
+{
     /// Creates a new Prism with the given preview and review functions.
     ///
     /// The `preview` function attempts to extract a value of type `A` from `S`,
@@ -183,14 +184,10 @@ impl<S, A> Prism<S, A> {
     ///     |v: &i32| Result::Ok(*v),
     /// );
     /// ```
-    pub fn new<P, R>(preview: P, review: R) -> Self
-    where
-        P: Fn(&S) -> Option<A> + 'static,
-        R: Fn(&A) -> S + 'static,
-    {
+    pub fn new(preview: PreviewFn, review: ReviewFn) -> Self {
         Prism {
-            preview: Arc::new(preview),
-            review: Arc::new(review),
+            preview,
+            review,
             phantom: PhantomData,
         }
     }
@@ -305,7 +302,7 @@ impl<S, A> Prism<S, A> {
     /// }
     ///
     /// // Create a prism for the Circle variant
-    /// let circle_prism = Prism::for_case(
+    /// let circle_prism = Prism::for_case::<Shape, f64>(
     ///     |s: &Shape| match s {
     ///         Shape::Circle(r) => Some(*r),
     ///         _ => None,
@@ -319,11 +316,7 @@ impl<S, A> Prism<S, A> {
     /// assert_eq!(circle_prism.preview(&circle), Some(5.0));
     /// assert_eq!(circle_prism.preview(&rect), None);
     /// ```
-    pub fn for_case<F, G>(match_case: F, make_case: G) -> Self
-    where
-        F: Fn(&S) -> Option<A> + 'static,
-        G: Fn(&A) -> S + 'static,
-    {
+    pub fn for_case<P, R>(match_case: PreviewFn, make_case: ReviewFn) -> Self {
         Prism::new(match_case, make_case)
     }
 }

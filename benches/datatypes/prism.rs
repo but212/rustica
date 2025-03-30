@@ -66,7 +66,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
     // ======== BASIC OPERATIONS ========
 
     // Create basic prisms
-    let circle_prism: Prism<Shape, u32> = Prism::new(
+    let circle_prism = Prism::new(
         |s: &Shape| match s {
             Shape::Circle(r) => Some(*r),
             _ => None,
@@ -74,7 +74,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
         |r: &u32| Shape::Circle(*r),
     );
 
-    let rectangle_prism: Prism<Shape, (u32, u32)> = Prism::new(
+    let rectangle_prism = Prism::new(
         |s: &Shape| match s {
             Shape::Rectangle(w, h) => Some((*w, *h)),
             _ => None,
@@ -82,7 +82,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
         |&(w, h): &(u32, u32)| Shape::Rectangle(w, h),
     );
 
-    let triangle_prism: Prism<Shape, (u32, u32, u32)> = Prism::new(
+    let triangle_prism = Prism::new(
         |s: &Shape| match s {
             Shape::Triangle(a, b, c) => Some((*a, *b, *c)),
             _ => None,
@@ -164,7 +164,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
     // ======== COMPLEX DATA OPERATIONS ========
 
     // Set up user status prisms
-    let logged_in_prism: Prism<UserStatus, (String, String)> = Prism::new(
+    let logged_in_prism = Prism::new(
         |status: &UserStatus| match status {
             UserStatus::LoggedIn {
                 username,
@@ -211,7 +211,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
     // ======== API RESPONSE OPERATIONS ========
 
     // Set up API response prisms
-    let success_prism: Prism<ApiResponse, (String, HashMap<String, String>)> = Prism::new(
+    let success_prism = Prism::new(
         |resp: &ApiResponse| match resp {
             ApiResponse::Success { data, metadata } => Some((data.clone(), metadata.clone())),
             _ => None,
@@ -222,7 +222,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
         },
     );
 
-    let error_prism: Prism<ApiResponse, (u32, String)> = Prism::new(
+    let error_prism = Prism::new(
         |resp: &ApiResponse| match resp {
             ApiResponse::Error { code, message } => Some((*code, message.clone())),
             _ => None,
@@ -288,7 +288,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
     });
 
     // Create network packet prisms
-    let data_packet_prism: Prism<NetworkPacket, (Vec<u8>, u32)> = Prism::new(
+    let data_packet_prism = Prism::new(
         |packet: &NetworkPacket| match packet {
             NetworkPacket::Data {
                 payload,
@@ -302,7 +302,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
         },
     );
 
-    let ack_packet_prism: Prism<NetworkPacket, u32> = Prism::new(
+    let ack_packet_prism = Prism::new(
         |packet: &NetworkPacket| match packet {
             NetworkPacket::Ack { sequence_number } => Some(*sequence_number),
             _ => None,
@@ -373,7 +373,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
                         // Try to get logged in data
                         Maybe::from_option(logged_in_prism.preview(status))
                     })
-                    .map_or(
+                    .fmap_or(
                         "User not found or not logged in".to_string(),
                         |(username, session_id)| {
                             format!("User {} is logged in with session {}", username, session_id)

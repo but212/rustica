@@ -259,7 +259,8 @@ pub trait Identity: HKT {
     /// ```
     fn pure_identity<A>(value: A) -> Self::Output<A>
     where
-        Self::Output<A>: Identity;
+        Self::Output<A>: Identity,
+        A: Clone;
 }
 
 // Standard Library Implementations

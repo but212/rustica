@@ -76,7 +76,7 @@
 //! assert!(Rc::ptr_eq(&person.address, &unchanged.address));
 //! ```
 
-use std::sync::Arc;
+use std::marker::PhantomData;
 
 /// A lens is a first-class reference to a subpart of some data type.
 /// It provides a way to view, modify and transform a part of a larger structure.
@@ -127,12 +127,23 @@ use std::sync::Arc;
 /// assert_eq!(modified.name, "Ms. Alice");
 /// ```
 #[derive(Clone)]
-pub struct Lens<S: Clone + 'static, A: Clone + 'static> {
-    get: Arc<dyn Fn(&S) -> A + 'static>,
-    set: Arc<dyn Fn(S, A) -> S + 'static>,
+pub struct Lens<S, A, GetFn, SetFn>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
+    get: GetFn,
+    set: SetFn,
+    phantom: PhantomData<(S, A)>,
 }
 
-impl<S: Clone + 'static, A: Clone + 'static> Lens<S, A> {
+impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn>
+where
+    S: Clone,
+    A: Clone,
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
     /// Creates a new lens from getter and setter functions.
     ///
     /// # Arguments
@@ -161,14 +172,11 @@ impl<S: Clone + 'static, A: Clone + 'static> Lens<S, A> {
     ///     |p: Point, x: f64| Point { x, ..p },
     /// );
     /// ```
-    pub fn new<G, F>(get: G, set: F) -> Self
-    where
-        G: Fn(&S) -> A + 'static,
-        F: Fn(S, A) -> S + 'static,
-    {
+    pub fn new(get: GetFn, set: SetFn) -> Self {
         Lens {
-            get: Arc::new(get),
-            set: Arc::new(set),
+            get,
+            set,
+            phantom: PhantomData,
         }
     }
 
@@ -330,13 +338,13 @@ impl<S: Clone + 'static, A: Clone + 'static> Lens<S, A> {
     ///     |s| s.parse().unwrap_or(0),
     /// );
     /// ```
-    pub fn fmap<B: Clone + 'static>(
-        &self,
-        f: impl Fn(A) -> B + 'static,
-        g: impl Fn(B) -> A + 'static,
-    ) -> Lens<S, B> {
-        let get = Arc::clone(&self.get);
-        let set = Arc::clone(&self.set);
-        Lens::new(move |s| f((get)(s)), move |s, b| (set)(s, g(b)))
+    pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    where
+        B: Clone,
+        F: Fn(A) -> B + 'static,
+        G: Fn(B) -> A + 'static,
+    {
+        // Use self's get and set directly without attempting to clone
+        Lens::new(move |s| f((self.get)(s)), move |s, b| (self.set)(s, g(b)))
     }
 }

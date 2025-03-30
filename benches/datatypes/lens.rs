@@ -205,7 +205,9 @@ pub fn lens_benchmarks(c: &mut Criterion) {
     // ======== LENS TRANSFORMATION (fmap) ========
 
     // Create a lens that views age as a string
-    let age_string_lens = age_lens.fmap(|n: u32| n.to_string(), |s: String| s.parse().unwrap_or(0));
+    let age_string_lens = age_lens
+        .clone()
+        .fmap(|n: u32| n.to_string(), |s: String| s.parse().unwrap_or(0));
 
     group.bench_function("fmap_get", |b| {
         b.iter(|| {

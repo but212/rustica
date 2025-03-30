@@ -2,6 +2,27 @@
 //!
 //! This module provides the `Thunk` type, which is a statically-typed
 //! function wrapper that implements the `Evaluate` trait.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+//! use rustica::datatypes::wrapper::thunk::Thunk;
+//!
+//! // Create a thunk that produces a value
+//! let computation = Thunk::new(|| 42);
+//!
+//! // Evaluate by reference
+//! assert_eq!(computation.evaluate(), 42);
+//!
+//! // Using extension methods
+//! let string_result: String = computation.map_evaluate(|x| x.to_string());
+//! assert_eq!(string_result, "42");
+//!
+//! // Evaluate by consuming the thunk
+//! let result: i32 = computation.evaluate_owned();
+//! assert_eq!(result, 42);
+//! ```
 
 use crate::traits::evaluate::Evaluate;
 use crate::traits::hkt::HKT;
@@ -18,27 +39,6 @@ use std::marker::PhantomData;
 ///
 /// * `F` - The function type that produces the value
 /// * `T` - The type of value produced by the function
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-/// use rustica::datatypes::wrapper::thunk::Thunk;
-///
-/// // Create a thunk that produces a value
-/// let computation = Thunk::new(|| 42);
-///
-/// // Evaluate by reference
-/// assert_eq!(computation.evaluate(), 42);
-///
-/// // Using extension methods
-/// let string_result: String = computation.map_evaluate(|x| x.to_string());
-/// assert_eq!(string_result, "42");
-///
-/// // Evaluate by consuming the thunk
-/// let result: i32 = computation.evaluate_owned();
-/// assert_eq!(result, 42);
-/// ```
 pub struct Thunk<F, T>
 where
     F: Fn() -> T,

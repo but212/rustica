@@ -21,6 +21,7 @@ pub mod boxed_fn;
 pub mod first;
 pub mod last;
 pub mod max;
+pub mod memoize;
 pub mod min;
 pub mod product;
 pub mod sum;

@@ -139,7 +139,6 @@ pub trait Functor: Identity {
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
-        B: Clone,
         Self: Sized;
 
     /// Replaces all values in the functor with a constant value, without consuming it.
@@ -431,7 +430,6 @@ impl<T> Functor for Vec<T> {
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B,
-        B: Clone,
     {
         self.iter().map(f).collect()
     }
@@ -440,7 +438,6 @@ impl<T> Functor for Vec<T> {
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
-        B: Clone,
         Self: Sized,
     {
         self.into_iter().map(f).collect()
@@ -588,7 +585,6 @@ impl<T> Functor for Option<T> {
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
-        B: Clone,
         Self: Sized,
     {
         self.map(f)
@@ -612,7 +608,6 @@ impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
-        B: Clone,
         Self: Sized,
     {
         match self {

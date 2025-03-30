@@ -240,7 +240,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// assert_eq!(log, Log(vec!["Created value 42".to_string()]));
     /// ```
     #[inline]
-    pub fn new(log: W, value: A) -> Self {
+    pub const fn new(log: W, value: A) -> Self {
         Writer {
             log_thunk: LogThunk::Value(log),
             value,
@@ -290,7 +290,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// assert_eq!(log, Log(vec!["Important log message".to_string()]));
     /// ```
     #[inline]
-    pub fn tell(log: W) -> Writer<W, ()> {
+    pub const fn tell(log: W) -> Writer<W, ()> {
         Writer::new(log, ())
     }
 

@@ -2,6 +2,29 @@
 //!
 //! This module provides the `Value` type, which wraps a value
 //! in a structure that implements the `Evaluate` trait.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+//! use rustica::datatypes::wrapper::value::Value;
+//!
+//! // Create a wrapped value
+//! let value = Value::new(42);
+//!
+//! // Evaluate the value
+//! assert_eq!(value.evaluate(), 42);
+//!
+//! // Using extension methods
+//! let doubled: i32 = value.map_evaluate(|x| x * 2);
+//! assert_eq!(doubled, 84);
+//!
+//! // Chain evaluations
+//! let result: String = value.and_then_evaluate(|x| {
+//!     Value::new(x.to_string())
+//! });
+//! assert_eq!(result, "42");
+//! ```
 
 use crate::traits::evaluate::Evaluate;
 use crate::traits::hkt::HKT;
@@ -16,29 +39,6 @@ use crate::traits::hkt::HKT;
 /// # Type Parameters
 ///
 /// * `T` - The type of the contained value
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-/// use rustica::datatypes::wrapper::value::Value;
-///
-/// // Create a wrapped value
-/// let value = Value::new(42);
-///
-/// // Evaluate the value
-/// assert_eq!(value.evaluate(), 42);
-///
-/// // Using extension methods
-/// let doubled: i32 = value.map_evaluate(|x| x * 2);
-/// assert_eq!(doubled, 84);
-///
-/// // Chain evaluations
-/// let result: String = value.and_then_evaluate(|x| {
-///     Value::new(x.to_string())
-/// });
-/// assert_eq!(result, "42");
-/// ```
 #[repr(transparent)]
 pub struct Value<T>(pub T);
 

@@ -66,6 +66,7 @@ pub mod transformers;
 /// Convenient re-exports of commonly used items.
 pub mod prelude {
     // Core traits
+    pub use crate::traits::alternative::Alternative;
     pub use crate::traits::applicative::Applicative;
     pub use crate::traits::functor::Functor;
     pub use crate::traits::hkt::HKT;
