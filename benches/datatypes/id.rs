@@ -1,12 +1,6 @@
 use criterion::{black_box, Criterion};
 use rustica::datatypes::id::Id;
-use rustica::traits::applicative::Applicative;
-use rustica::traits::foldable::Foldable;
-use rustica::traits::functor::Functor;
-use rustica::traits::identity::Identity;
-use rustica::traits::monad::Monad;
-use rustica::traits::monoid::Monoid;
-use rustica::traits::semigroup::Semigroup;
+use rustica::prelude::*;
 
 pub fn id_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Id");

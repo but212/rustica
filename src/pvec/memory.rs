@@ -25,7 +25,7 @@ use std::collections::VecDeque;
 use std::convert::AsRef;
 use std::fmt::Debug;
 use std::sync::Arc;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 use crate::pvec::chunk::Chunk;
 use crate::pvec::node::Node;
@@ -109,7 +109,7 @@ impl<T: Clone> MemoryManager<T> {
         match self.allocation_strategy {
             AllocationStrategy::Direct => ManagedRef::new(Arc::new(Node::new()), None),
             _ => {
-                let mut pool = self.node_pool.lock().unwrap();
+                let mut pool = self.node_pool.lock();
                 if let Some(node) = pool.acquire() {
                     ManagedRef::new(node, Some(self.node_pool.clone()))
                 } else {
@@ -139,7 +139,7 @@ impl<T: Clone> MemoryManager<T> {
         match self.allocation_strategy {
             AllocationStrategy::Direct => ManagedRef::new(Arc::new(Chunk::new()), None),
             _ => {
-                let mut pool = self.chunk_pool.lock().unwrap();
+                let mut pool = self.chunk_pool.lock();
                 if let Some(chunk) = pool.acquire() {
                     ManagedRef::new(chunk, Some(self.chunk_pool.clone()))
                 } else {
@@ -194,8 +194,8 @@ impl<T: Clone> MemoryManager<T> {
     /// let stats = manager.stats();
     /// ```
     pub fn stats(&self) -> MemoryStats {
-        let node_pool = self.node_pool.lock().unwrap();
-        let chunk_pool = self.chunk_pool.lock().unwrap();
+        let node_pool = self.node_pool.lock();
+        let chunk_pool = self.chunk_pool.lock();
 
         MemoryStats {
             node_pool_size: node_pool.size(),
@@ -222,8 +222,8 @@ impl<T: Clone> MemoryManager<T> {
             return;
         }
 
-        let mut node_pool = self.node_pool.lock().unwrap();
-        let mut chunk_pool = self.chunk_pool.lock().unwrap();
+        let mut node_pool = self.node_pool.lock();
+        let mut chunk_pool = self.chunk_pool.lock();
 
         node_pool.prefill(|_| Arc::new(Node::new()));
         chunk_pool.prefill(|_| Arc::new(Chunk::new()));
@@ -391,7 +391,7 @@ impl<T: Clone> ManagedRef<T> {
             // We need to clone the inner object
             let cloned = match &self.pool {
                 Some(pool) => {
-                    let mut pool_guard = pool.lock().unwrap();
+                    let mut pool_guard = pool.lock();
                     if let Some(obj) = pool_guard.acquire() {
                         // If the pool had an unused object, use that
                         obj
@@ -433,7 +433,7 @@ impl<T: Clone> Drop for ManagedRef<T> {
         // If this is the last reference and we have a pool, return the object to the pool
         if Arc::strong_count(&self.inner) == 1 {
             if let Some(pool) = &self.pool {
-                let mut pool_guard = pool.lock().unwrap();
+                let mut pool_guard = pool.lock();
                 // Create a clone of the inner value for the pool
                 let inner = self.inner.clone();
                 pool_guard.release(inner);

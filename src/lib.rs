@@ -70,6 +70,8 @@ pub mod prelude {
     // Core traits
     pub use crate::traits::alternative::Alternative;
     pub use crate::traits::applicative::Applicative;
+    pub use crate::traits::composable::Composable;
+    pub use crate::traits::foldable::Foldable;
     pub use crate::traits::functor::Functor;
     pub use crate::traits::hkt::HKT;
     pub use crate::traits::identity::Identity;
