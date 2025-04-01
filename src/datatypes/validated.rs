@@ -164,8 +164,12 @@ where
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Valid(a), Self::Valid(b)) => a == b,
-            (Self::Invalid(a), Self::Invalid(b)) => a.len() == b.len() && 
-                a.iter().zip(b.iter()).all(|(a_elem, b_elem)| a_elem == b_elem),
+            (Self::Invalid(a), Self::Invalid(b)) => {
+                a.len() == b.len()
+                    && a.iter()
+                        .zip(b.iter())
+                        .all(|(a_elem, b_elem)| a_elem == b_elem)
+            }
             _ => false,
         }
     }
@@ -1079,13 +1083,27 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         E: Clone,
     {
         match (self, rb, rc) {
-            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => Validated::Valid(f(a, b, c)),
-            (Validated::Valid(_), Validated::Valid(_), Validated::Invalid(e)) => Validated::Invalid(e.clone()),
-            (Validated::Valid(_), Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e.clone()),
-            (Validated::Valid(_), Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.concat(e2)),
-            (Validated::Invalid(e), Validated::Valid(_), Validated::Valid(_)) => Validated::Invalid(e.clone()),
-            (Validated::Invalid(e1), Validated::Valid(_), Validated::Invalid(e2)) => Validated::Invalid(e1.concat(e2)),
-            (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Valid(_)) => Validated::Invalid(e1.concat(e2)),
+            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
+                Validated::Valid(f(a, b, c))
+            }
+            (Validated::Valid(_), Validated::Valid(_), Validated::Invalid(e)) => {
+                Validated::Invalid(e.clone())
+            }
+            (Validated::Valid(_), Validated::Invalid(e), Validated::Valid(_)) => {
+                Validated::Invalid(e.clone())
+            }
+            (Validated::Valid(_), Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                Validated::Invalid(e1.concat(e2))
+            }
+            (Validated::Invalid(e), Validated::Valid(_), Validated::Valid(_)) => {
+                Validated::Invalid(e.clone())
+            }
+            (Validated::Invalid(e1), Validated::Valid(_), Validated::Invalid(e2)) => {
+                Validated::Invalid(e1.concat(e2))
+            }
+            (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Valid(_)) => {
+                Validated::Invalid(e1.concat(e2))
+            }
             (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
                 let combined = e1.concat(e2);
                 Validated::Invalid(combined.concat(e3))
@@ -1109,10 +1127,18 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         E: Clone,
     {
         match (self, rb, rc) {
-            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => Validated::Valid(f(a, b, c)),
-            (Validated::Valid(_), Validated::Valid(_), Validated::Invalid(e)) => Validated::Invalid(e),
-            (Validated::Valid(_), Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e),
-            (Validated::Valid(_), Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.concat(&e2)),
+            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
+                Validated::Valid(f(a, b, c))
+            }
+            (Validated::Valid(_), Validated::Valid(_), Validated::Invalid(e)) => {
+                Validated::Invalid(e)
+            }
+            (Validated::Valid(_), Validated::Invalid(e), Validated::Valid(_)) => {
+                Validated::Invalid(e)
+            }
+            (Validated::Valid(_), Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                Validated::Invalid(e1.concat(&e2))
+            }
             (Validated::Invalid(e), _, _) => Validated::Invalid(e),
         }
     }
