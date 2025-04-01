@@ -27,10 +27,10 @@
 //! assert_eq!(chunk_from_slice.len(), 4);
 //! ```
 
-use std::fmt::{self, Debug};
-use std::ops::{Index, IndexMut};
-use std::iter::FromIterator;
 use std::cmp::min;
+use std::fmt::{self, Debug};
+use std::iter::FromIterator;
+use std::ops::{Index, IndexMut};
 
 /// The default size of a chunk, measured in number of elements.
 ///
@@ -61,6 +61,15 @@ impl<T: Clone> Chunk<T> {
     /// This initializes a chunk with zero elements but pre-allocates memory
     /// for the maximum capacity (CHUNK_SIZE) to avoid reallocations when
     /// adding elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::chunk::Chunk;
+    ///
+    /// let chunk: Chunk<i32> = Chunk::new();
+    /// assert_eq!(chunk.len(), 0);
+    /// ```
     pub fn new() -> Self {
         Self {
             elements: Vec::with_capacity(CHUNK_SIZE),
@@ -315,11 +324,11 @@ impl<T: Clone> Chunk<T> {
         if self.is_full() {
             return false;
         }
-        
+
         if index > self.elements.len() {
             return false;
         }
-        
+
         self.elements.insert(index, value);
         true
     }
@@ -413,7 +422,7 @@ impl<T: Clone> Chunk<T> {
                 self.push_back(elem);
             }
         }
-        
+
         elements_to_take
     }
 

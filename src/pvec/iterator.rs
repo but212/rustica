@@ -1,9 +1,20 @@
 //! Iterators for the Persistent Vector
 //!
 //! This module defines various iterators to traverse the persistent vector efficiently.
+//!
+//! # Iterator Types
+//!
+//! - `Iter`: References elements of a vector without consuming it
+//! - `IntoIter`: Consumes a vector and yields owned elements
+//! - `ChunksIter`: Yields chunks of elements for efficient parallel processing
+//! - `SortedIter`: Provides elements in sorted order without modifying the vector
+//!
+//! All iterators implement the standard Rust iterator traits including
+//! `Iterator`, `DoubleEndedIterator` (where applicable), `ExactSizeIterator`,
+//! and `FusedIterator`.
 
-use std::iter::FusedIterator;
 use std::cmp::Ordering;
+use std::iter::FusedIterator;
 
 use crate::pvec::vector::PersistentVector;
 
@@ -11,10 +22,10 @@ use crate::pvec::vector::PersistentVector;
 pub struct Iter<'a, T: Clone> {
     /// Reference to the vector being iterated
     vector: &'a PersistentVector<T>,
-    
+
     /// Current position from the front
     front_pos: usize,
-    
+
     /// Current position from the back
     back_pos: usize,
 }
@@ -33,17 +44,17 @@ impl<'a, T: Clone> Iter<'a, T> {
 
 impl<'a, T: Clone> Iterator for Iter<'a, T> {
     type Item = &'a T;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.front_pos >= self.back_pos {
             return None;
         }
-        
+
         let result = self.vector.get(self.front_pos);
         self.front_pos += 1;
         result
     }
-    
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.back_pos - self.front_pos;
         (remaining, Some(remaining))
@@ -55,7 +66,7 @@ impl<'a, T: Clone> DoubleEndedIterator for Iter<'a, T> {
         if self.front_pos >= self.back_pos {
             return None;
         }
-        
+
         self.back_pos -= 1;
         self.vector.get(self.back_pos)
     }
@@ -69,10 +80,10 @@ impl<'a, T: Clone> FusedIterator for Iter<'a, T> {}
 pub struct IntoIter<T: Clone> {
     /// The vector being consumed
     vector: PersistentVector<T>,
-    
+
     /// Current position from the front
     front_pos: usize,
-    
+
     /// Current position from the back
     back_pos: usize,
 }
@@ -91,17 +102,17 @@ impl<T: Clone> IntoIter<T> {
 
 impl<T: Clone> Iterator for IntoIter<T> {
     type Item = T;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.front_pos >= self.back_pos {
             return None;
         }
-        
+
         let result = self.vector.get(self.front_pos).cloned();
         self.front_pos += 1;
         result
     }
-    
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.back_pos - self.front_pos;
         (remaining, Some(remaining))
@@ -113,7 +124,7 @@ impl<T: Clone> DoubleEndedIterator for IntoIter<T> {
         if self.front_pos >= self.back_pos {
             return None;
         }
-        
+
         self.back_pos -= 1;
         self.vector.get(self.back_pos).cloned()
     }
@@ -129,16 +140,16 @@ impl<T: Clone> FusedIterator for IntoIter<T> {}
 pub struct ChunksIter<'a, T: Clone> {
     /// Reference to the vector being iterated
     vector: &'a PersistentVector<T>,
-    
+
     /// Starting index for the current chunk
     current_index: usize,
-    
+
     /// End index of iteration
     end_index: usize,
-    
+
     /// Minimum chunk size to yield
     min_chunk_size: usize,
-    
+
     /// Maximum chunk size to yield
     max_chunk_size: usize,
 }
@@ -148,7 +159,7 @@ impl<'a, T: Clone> ChunksIter<'a, T> {
     pub(crate) fn new(
         vector: &'a PersistentVector<T>,
         min_chunk_size: usize,
-        max_chunk_size: usize
+        max_chunk_size: usize,
     ) -> Self {
         let len = vector.len();
         Self {
@@ -159,7 +170,7 @@ impl<'a, T: Clone> ChunksIter<'a, T> {
             max_chunk_size,
         }
     }
-    
+
     /// Create a new chunk iterator with default parameters.
     pub(crate) fn with_default_sizes(vector: &'a PersistentVector<T>) -> Self {
         // Default to chunks between 16 and 256 elements
@@ -169,40 +180,47 @@ impl<'a, T: Clone> ChunksIter<'a, T> {
 
 impl<'a, T: Clone> Iterator for ChunksIter<'a, T> {
     type Item = Vec<T>;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_index >= self.end_index {
             return None;
         }
+
+        // Get the chunk from the vector
+        let chunk = 
+            self.vector
+                .get_chunk(self.current_index, self.min_chunk_size, self.max_chunk_size);
         
-        let chunk_size = self.vector.get_chunk(self.current_index, self.min_chunk_size, self.max_chunk_size);
+        // Use the size of the returned chunk to calculate the end index
+        let chunk_size = chunk.len();
         let end_idx = std::cmp::min(self.current_index + chunk_size, self.end_index);
-        
-        let mut items = Vec::with_capacity(end_idx - self.current_index);
-        
-        for i in self.current_index..end_idx {
-            if let Some(item) = self.vector.get(i) {
-                items.push(item.clone());
-            }
-        }
-        
+
         self.current_index = end_idx;
-        
-        Some(items)
+
+        // Return the chunk
+        Some(chunk)
     }
-    
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         if self.current_index >= self.end_index {
             return (0, Some(0));
         }
-        
+
         let remaining_elements = self.end_index - self.current_index;
-        let min_chunks = remaining_elements / self.max_chunk_size + 
-                         if remaining_elements % self.max_chunk_size > 0 { 1 } else { 0 };
-        
-        let max_chunks = remaining_elements / self.min_chunk_size +
-                         if remaining_elements % self.min_chunk_size > 0 { 1 } else { 0 };
-        
+        let min_chunks = remaining_elements / self.max_chunk_size
+            + if remaining_elements % self.max_chunk_size > 0 {
+                1
+            } else {
+                0
+            };
+
+        let max_chunks = remaining_elements / self.min_chunk_size
+            + if remaining_elements % self.min_chunk_size > 0 {
+                1
+            } else {
+                0
+            };
+
         (min_chunks, Some(max_chunks))
     }
 }
@@ -213,10 +231,10 @@ impl<'a, T: Clone> Iterator for ChunksIter<'a, T> {
 pub struct SortedIter<'a, T: Clone + Ord> {
     /// Reference to the vector being iterated
     vector: &'a PersistentVector<T>,
-    
+
     /// Indices sorted by element values
     sorted_indices: Vec<usize>,
-    
+
     /// Current position
     position: usize,
 }
@@ -226,17 +244,15 @@ impl<'a, T: Clone + Ord> SortedIter<'a, T> {
     pub(crate) fn new(vector: &'a PersistentVector<T>) -> Self {
         let len = vector.len();
         let mut indices: Vec<usize> = (0..len).collect();
-        
+
         // Sort indices based on element values
-        indices.sort_by(|&a, &b| {
-            match (vector.get(a), vector.get(b)) {
-                (Some(val_a), Some(val_b)) => val_a.cmp(val_b),
-                (None, Some(_)) => Ordering::Less,
-                (Some(_), None) => Ordering::Greater,
-                (None, None) => Ordering::Equal,
-            }
+        indices.sort_by(|&a, &b| match (vector.get(a), vector.get(b)) {
+            (Some(val_a), Some(val_b)) => val_a.cmp(val_b),
+            (None, Some(_)) => Ordering::Less,
+            (Some(_), None) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
         });
-        
+
         Self {
             vector,
             sorted_indices: indices,
@@ -247,17 +263,17 @@ impl<'a, T: Clone + Ord> SortedIter<'a, T> {
 
 impl<'a, T: Clone + Ord> Iterator for SortedIter<'a, T> {
     type Item = &'a T;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.position >= self.sorted_indices.len() {
             return None;
         }
-        
+
         let index = self.sorted_indices[self.position];
         self.position += 1;
         self.vector.get(index)
     }
-    
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.sorted_indices.len() - self.position;
         (remaining, Some(remaining))

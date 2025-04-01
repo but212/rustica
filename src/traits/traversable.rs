@@ -50,7 +50,7 @@ pub trait Traversable: Applicative {
     /// # Returns
     ///
     /// An effect `F::Output` containing the new structure `Self::Output<B>`
-    fn traverse_ref<F, B, Func>(&self, f: Func) -> F::Output<Self::Output<B>>
+    fn traverse<F, B, Func>(&self, f: Func) -> F::Output<Self::Output<B>>
     where
         F: Applicative,
         Func: Fn(&Self::Source) -> F::Output<B>;
@@ -68,7 +68,7 @@ pub trait Traversable: Applicative {
     /// # Returns
     ///
     /// The reordered structure wrapped in a single effect
-    fn sequence_ref<F>(&self) -> F::Output<Self::Output<F::Source>>
+    fn sequence<F>(&self) -> F::Output<Self::Output<F::Source>>
     where
         F: Applicative,
         Self::Source: Into<F::Output<F::Source>> + Clone;
@@ -91,7 +91,7 @@ pub trait Traversable: Applicative {
     /// # Returns
     ///
     /// An effect `F::Output` containing the new structure `Self::Output<B>`
-    fn traverse<F, B, Func>(self, f: Func) -> F::Output<Self::Output<B>>
+    fn traverse_owned<F, B, Func>(self, f: Func) -> F::Output<Self::Output<B>>
     where
         F: Applicative,
         Func: FnOnce(Self::Source) -> F::Output<B>,
@@ -109,7 +109,7 @@ pub trait Traversable: Applicative {
     /// # Returns
     ///
     /// The reordered structure wrapped in a single effect
-    fn sequence<F>(self) -> F::Output<Self::Output<F::Source>>
+    fn sequence_owned<F>(self) -> F::Output<Self::Output<F::Source>>
     where
         F: Applicative,
         Self::Source: Into<F::Output<F::Source>>,

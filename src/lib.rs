@@ -19,6 +19,8 @@ pub mod traits;
 
 pub mod utils;
 
+pub mod pvec;
+
 /// Implementations of functional data types.
 pub mod datatypes {
     // Core data types are always included

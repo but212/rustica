@@ -5,3 +5,4 @@ mod test_cont;
 mod test_either;
 mod test_id;
 mod test_io;
+mod test_pvec;

@@ -1246,15 +1246,19 @@ impl<T: Clone> Applicative for Choice<T> {
         let capacity = (f_values.len() - 1) + (self_values.len() - 1) * f_values.len();
         let mut alternatives = Vec::with_capacity(capacity);
 
-        // First self[0] with other[1..]
+        // First, apply additional functions to the primary value (f[1..] with self[0])
         for f_alt in &f_values[1..] {
             alternatives.push(f_alt(&self_values[0]));
         }
 
-        // Then self[1..] with all of other
+        // Then self[1..] with all of f
         for self_alt in &self_values[1..] {
-            for f_val in f_values.iter() {
-                alternatives.push(f_val(self_alt));
+            // First apply the primary function to self alternatives
+            alternatives.push(f_first(self_alt));
+
+            // Then apply alternative functions to self alternatives
+            for f_alt in &f_values[1..] {
+                alternatives.push(f_alt(self_alt));
             }
         }
 
@@ -1283,15 +1287,21 @@ impl<T: Clone> Applicative for Choice<T> {
                 let capacity = (f_values.len() - 1) + self_values.len() * f_values.len();
                 let mut alternatives = Vec::with_capacity(capacity);
 
-                // First self[0] with other[1..]
+                // First, apply additional functions to the primary value (f[1..] with self[0])
                 for f_alt in &f_values[1..] {
-                    alternatives.push(f_alt(self_values[0].clone()));
+                    if !self_values.is_empty() {
+                        alternatives.push(f_alt(self_values[0].clone()));
+                    }
                 }
 
-                // Then self[1..] with all of other
+                // Then self[1..] with all of f
                 for self_alt in self_values {
-                    for f_val in f_values.iter() {
-                        alternatives.push(f_val(self_alt.clone()));
+                    // First apply the primary function to self alternatives
+                    alternatives.push(f_first(self_alt.clone()));
+
+                    // Then apply alternative functions to self alternatives
+                    for f_alt in &f_values[1..] {
+                        alternatives.push(f_alt(self_alt.clone()));
                     }
                 }
 
@@ -1308,15 +1318,19 @@ impl<T: Clone> Applicative for Choice<T> {
                 let capacity = (f_values.len() - 1) + (self_values.len() - 1) * f_values.len();
                 let mut alternatives = Vec::with_capacity(capacity);
 
-                // First self[0] with other[1..]
+                // First, apply additional functions to the primary value (f[1..] with self[0])
                 for f_alt in &f_values[1..] {
                     alternatives.push(f_alt(self_values[0].clone()));
                 }
 
-                // Then self[1..] with all of other
+                // Then self[1..] with all of f
                 for self_alt in &self_values[1..] {
-                    for f_val in f_values.iter() {
-                        alternatives.push(f_val(self_alt.clone()));
+                    // First apply the primary function to self alternatives
+                    alternatives.push(f_first(self_alt.clone()));
+
+                    // Then apply alternative functions to self alternatives
+                    for f_alt in &f_values[1..] {
+                        alternatives.push(f_alt(self_alt.clone()));
                     }
                 }
 

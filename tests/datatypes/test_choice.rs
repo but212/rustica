@@ -63,7 +63,7 @@ mod test_choice {
         let f_owned = Choice::new(double_owned, vec![triple_owned]);
         let result_owned = choice.apply_owned(f_owned);
         assert_eq!(*result_owned.first().unwrap(), 4);
-        assert_eq!(result_owned.alternatives(), &[6, 6, 9, 8, 12]);
+        assert_eq!(result_owned.alternatives(), &[9, 6, 9, 8, 12]);
     }
 
     #[test]

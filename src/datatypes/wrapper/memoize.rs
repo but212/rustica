@@ -122,7 +122,7 @@ impl<T> ThreadSafeMemoize<T> {
             guard: std::sync::MutexGuard<'a, Option<T>>,
         }
 
-        impl<'a, T> std::ops::Deref for RefWrapper<'a, T> {
+        impl<T> std::ops::Deref for RefWrapper<'_, T> {
             type Target = T;
             fn deref(&self) -> &Self::Target {
                 self.guard.as_ref().unwrap()

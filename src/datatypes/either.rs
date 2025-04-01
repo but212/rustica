@@ -51,8 +51,8 @@
 //!     }
 //!     
 //!     // Transform values using map_left and map_right
-//!     let doubled = left_value.clone().map_left(|x| x * 2);  // Either::Left(84)
-//!     let upper = right_value.map_right(|s| s.to_uppercase());  // Either::Right("HELLO")
+//!     let doubled = left_value.clone().fmap_left(|x| x * 2);  // Either::Left(84)
+//!     let upper = right_value.fmap_right(|s| s.to_uppercase());  // Either::Right("HELLO")
 //!     
 //!     // Functor and Monad operations
 //!     let right_val: Either<&str, i32> = Either::right(42);
@@ -88,8 +88,8 @@ use crate::traits::pure::Pure;
 ///     let right: Either<i32, &str> = Either::right("hello");
 ///
 ///     // Transform values using map_left and map_right
-///     let doubled = left.clone().map_left(|x| x * 2);  // Either::Left(84)
-///     let upper = right.map_right(|s| s.to_uppercase());  // Either::Right("HELLO")
+///     let doubled = left.clone().fmap_left(|x| x * 2);  // Either::Left(84)
+///     let upper = right.fmap_right(|s| s.to_uppercase());  // Either::Right("HELLO")
 ///
 ///     // Pattern matching
 ///     match left {
