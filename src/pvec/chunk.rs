@@ -110,8 +110,8 @@ impl<T: Clone> Chunk<T> {
     /// ```
     pub fn from_slice(slice: &[T]) -> Self {
         let mut chunk = Self::new();
-        for i in 0..min(slice.len(), CHUNK_SIZE) {
-            chunk.push_back(slice[i].clone());
+        for item in slice.iter().take(min(slice.len(), CHUNK_SIZE)) {
+            chunk.push_back(item.clone());
         }
         chunk
     }

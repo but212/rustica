@@ -34,16 +34,13 @@
 //! ```
 
 use std::fmt::{self, Debug};
-use std::sync::Arc;
 use std::iter::FromIterator;
+use std::sync::Arc;
 
-use super::cache::{IndexCache, MAX_CACHE_LEVELS};
+use super::cache::IndexCache;
 use super::chunk::Chunk;
-use super::memory::{MemoryManager, ManagedRef, AllocationStrategy};
+use super::memory::{AllocationStrategy, ManagedRef, MemoryManager};
 use super::node::{Node, NODE_BITS, NODE_SIZE};
-
-/// Maximum number of bits used for node index
-const NODE_MASK: usize = NODE_SIZE - 1;
 
 /// A persistent vector implemented as a Relaxed Radix Balanced (RRB) tree.
 ///
@@ -100,19 +97,19 @@ impl<T: Clone> Tree<T> {
     /// ```
     pub fn new() -> Self {
         let manager = MemoryManager::new(AllocationStrategy::Direct);
-        
+
         // Create an empty chunk
         let mut chunk = manager.acquire_chunk();
         if let Some(chunk_ref) = chunk.get_mut() {
             *chunk_ref = Chunk::new();
         }
-        
+
         // Create a leaf node with the empty chunk
         let mut root = manager.acquire_node();
         if let Some(node_ref) = root.get_mut() {
             *node_ref = Node::Leaf { elements: chunk };
         }
-        
+
         Self {
             root,
             size: 0,
@@ -137,7 +134,7 @@ impl<T: Clone> Tree<T> {
         let mut tree = Self::new();
         let mut chunk = tree.manager.acquire_chunk();
         chunk.get_mut().unwrap().push_back(value);
-        
+
         let root = Node::leaf(chunk);
         let mut root_ref = tree.manager.acquire_node();
         *root_ref.get_mut().unwrap() = root;
@@ -199,7 +196,7 @@ impl<T: Clone> Tree<T> {
     pub fn is_empty(&self) -> bool {
         self.size == 0
     }
-    
+
     /// Get the shift value for accessing elements at the current tree height.
     ///
     /// The shift value is used for bit operations in the tree traversal algorithm.
@@ -237,8 +234,8 @@ impl<T: Clone> Tree<T> {
             match *self.root {
                 Node::Leaf { ref elements } => {
                     return elements.get(index);
-                },
-                _ => unreachable!("Leaf-only tree with height 0 contains a branch node")
+                }
+                _ => unreachable!("Leaf-only tree with height 0 contains a branch node"),
             }
         }
 
@@ -273,7 +270,7 @@ impl<T: Clone> Tree<T> {
 
         let shift = self.shift();
         let updated_root = self.root.update(&self.manager, index, value, shift);
-        
+
         if let Some(new_root) = updated_root {
             let mut result = self.clone();
             result.root = new_root;
@@ -300,41 +297,41 @@ impl<T: Clone> Tree<T> {
     pub fn push_back(&self, value: T) -> Self {
         let shift = self.shift();
         let (new_root, split, overflow) = self.root.push_back(&self.manager, value, shift);
-        
+
         let mut result = self.clone();
         result.size += 1;
         result.cache.invalidate();
-        
+
         if split {
             // Need to create a new root to handle the overflow
             let mut root = self.manager.acquire_node();
             let mut children = Vec::with_capacity(NODE_SIZE);
             children.push(Some(new_root.clone()));
-            
+
             if let Some(overflow_node) = overflow.clone() {
                 children.push(Some(overflow_node));
             }
-            
+
             // Create a size table for the new root
             let mut size_table = Vec::with_capacity(NODE_SIZE);
             let first_size = new_root.size();
             size_table.push(first_size);
-            
+
             if let Some(ref overflow_node) = overflow {
                 size_table.push(first_size + overflow_node.size());
             }
-            
-            *root.get_mut().unwrap() = Node::Branch { 
-                children, 
-                sizes: Some(size_table)
+
+            *root.get_mut().unwrap() = Node::Branch {
+                children,
+                sizes: Some(size_table),
             };
-            
+
             result.root = root;
             result.height += 1;
         } else {
             result.root = new_root;
         }
-        
+
         result
     }
 
@@ -357,7 +354,7 @@ impl<T: Clone> Tree<T> {
         if self.is_empty() {
             return None;
         }
-        
+
         // Helper function to recursively pop an element
         fn pop_recursive<T: Clone>(
             node: &ManagedRef<Node<T>>,
@@ -368,27 +365,33 @@ impl<T: Clone> Tree<T> {
                 Node::Leaf { ref elements } => {
                     let mut new_elements = manager.acquire_chunk();
                     let element_count = elements.len();
-                    
+
                     if element_count == 0 {
                         return None;
                     }
-                    
+
                     // Copy all elements except the last one
                     for i in 0..(element_count - 1) {
-                        new_elements.get_mut().unwrap().push_back(elements.as_ref()[i].clone());
+                        new_elements
+                            .get_mut()
+                            .unwrap()
+                            .push_back(elements.as_ref()[i].clone());
                     }
-                    
+
                     // Get the last element
                     let last_element = elements.as_ref()[element_count - 1].clone();
-                    
+
                     // Create a new leaf node
                     let new_node = Node::leaf(new_elements);
                     let mut new_node_ref = manager.acquire_node();
                     *new_node_ref.get_mut().unwrap() = new_node;
-                    
+
                     Some((new_node_ref, last_element))
-                },
-                Node::Branch { ref children, ref sizes } => {
+                }
+                Node::Branch {
+                    ref children,
+                    ref sizes,
+                } => {
                     let last_child_idx = if let Some(ref sizes) = sizes {
                         // Find the last non-empty child using the size table
                         if sizes.is_empty() {
@@ -407,22 +410,22 @@ impl<T: Clone> Tree<T> {
                         }
                         idx
                     };
-                    
+
                     if last_child_idx >= children.len() || children[last_child_idx].is_none() {
                         return None;
                     }
-                    
+
                     let last_child = &children[last_child_idx];
                     let new_shift = shift.saturating_sub(NODE_BITS);
-                    
+
                     if let Some(ref child) = last_child {
                         let pop_result = pop_recursive(child, manager, new_shift);
-                        
+
                         if let Some((new_child, value)) = pop_result {
                             // Create a new branch node with the updated child
                             let mut new_children = Vec::with_capacity(children.len());
                             let mut new_sizes = None;
-                            
+
                             // Copy the size table if present
                             if let Some(ref sizes) = sizes {
                                 let mut new_size_table = Vec::with_capacity(sizes.len());
@@ -441,7 +444,7 @@ impl<T: Clone> Tree<T> {
                                 }
                                 new_sizes = Some(new_size_table);
                             }
-                            
+
                             // Copy the children
                             for (i, child) in children.iter().enumerate() {
                                 if i == last_child_idx {
@@ -454,16 +457,16 @@ impl<T: Clone> Tree<T> {
                                     new_children.push(child.clone());
                                 }
                             }
-                            
+
                             // Create the new branch node
                             let new_node = Node::Branch {
                                 children: new_children,
                                 sizes: new_sizes,
                             };
-                            
+
                             let mut new_node_ref = manager.acquire_node();
                             *new_node_ref.get_mut().unwrap() = new_node;
-                            
+
                             Some((new_node_ref, value))
                         } else {
                             None
@@ -474,34 +477,31 @@ impl<T: Clone> Tree<T> {
                 }
             }
         }
-        
+
         // Attempt to pop the last element
         let result = pop_recursive(&self.root, &self.manager, self.shift());
-        
+
         if let Some((new_root, value)) = result {
             let mut new_tree = self.clone();
             new_tree.root = new_root;
             new_tree.size -= 1;
             new_tree.cache.invalidate();
-            
+
             // Check if we need to decrease the height of the tree
             if new_tree.height > 0 {
                 if let Node::Branch { ref children, .. } = *new_tree.root {
                     let non_empty_children = children.iter().filter(|c| c.is_some()).count();
-                    
+
                     if non_empty_children == 1 {
                         // Only one child, we can decrease the height
-                        for child in children.iter() {
-                            if let Some(ref child_node) = child {
-                                new_tree.root = child_node.clone();
-                                new_tree.height -= 1;
-                                break;
-                            }
+                        if let Some(child) = children.iter().flatten().next() {
+                            new_tree.root = child.clone();
+                            new_tree.height -= 1;
                         }
                     }
                 }
             }
-            
+
             Some((new_tree, value))
         } else {
             None
@@ -526,7 +526,7 @@ impl<T: Clone> Tree<T> {
     pub fn set_memory_manager(&mut self, manager: MemoryManager<T>) {
         self.manager = manager;
     }
-    
+
     /// Converts this tree to an `Arc<Tree<T>>`.
     ///
     /// This is useful when you want to share the tree across multiple

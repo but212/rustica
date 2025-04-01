@@ -20,7 +20,7 @@ fn test_unit() {
 fn test_from_slice() {
     let data = [1, 2, 3, 4];
     let vec = PersistentVector::from_slice(&data);
-    
+
     assert_eq!(vec.len(), 4);
     assert_eq!(vec.get(0), Some(&1));
     assert_eq!(vec.get(1), Some(&2));
@@ -107,7 +107,7 @@ fn test_filter() {
 
     let even = vec.filter(|&x| x % 2 == 0);
     assert_eq!(even.len(), 2);
-    
+
     // Convert to standard Vec for easier comparison
     let even_vec = even.to_vec();
     assert_eq!(even_vec, vec![2, 4]);
@@ -119,9 +119,9 @@ fn test_concatenation() {
     let vec2 = pvec![4, 5, 6];
 
     let concatenated = vec1.concat(&vec2);
-    
+
     assert_eq!(concatenated.len(), 6);
-    
+
     // Convert to standard Vec for easier comparison
     let concat_vec = concatenated.to_vec();
     assert_eq!(concat_vec, vec![1, 2, 3, 4, 5, 6]);
@@ -155,12 +155,12 @@ fn test_macro() {
     // Test empty vector
     let empty_vec: PersistentVector<i32> = pvec![];
     assert_eq!(empty_vec.len(), 0);
-    
+
     // Test vector with elements
     let vec = pvec![1, 2, 3];
     assert_eq!(vec.len(), 3);
     assert_eq!(vec.get(0), Some(&1));
-    
+
     // Test vector with trailing comma
     let trailing = pvec![4, 5, 6,];
     assert_eq!(trailing.len(), 3);
@@ -171,12 +171,12 @@ fn test_macro() {
 fn test_from_iter() {
     // Test FromIterator implementation
     let std_vec = vec![1, 2, 3];
-    
+
     // Using collect
     let pvec: PersistentVector<_> = std_vec.iter().cloned().collect();
     assert_eq!(pvec.len(), 3);
     assert_eq!(pvec.get(0), Some(&1));
-    
+
     // Using from_iter
     let pvec2 = PersistentVector::from_iter(vec![4, 5, 6]);
     assert_eq!(pvec2.to_vec(), vec![4, 5, 6]);
@@ -230,7 +230,7 @@ fn test_large_vector() {
     // Add 100 elements and verify the vector as we go
     for i in 0..100 {
         vec = vec.push_back(i);
-        
+
         // Print every 10th element to debug the issue
         if i % 10 == 0 {
             println!("Added element {}, length is {}", i, vec.len());
@@ -251,22 +251,30 @@ fn test_large_vector() {
     println!("Element at index 33: {:?}", vec.get(33));
     println!("Element at index 63: {:?}", vec.get(63));
     println!("Element at index 64: {:?}", vec.get(64));
-    
+
     // Test updating elements at critical boundaries
     let updated_vec = vec.update(31, 310);
     let updated_vec2 = updated_vec.update(32, 320);
-    
+
     println!("Updated element at index 31: {:?}", updated_vec.get(31));
     println!("Updated element at index 32: {:?}", updated_vec2.get(32));
-    
+
     // Original should remain unchanged
     println!("Original element at index 31: {:?}", vec.get(31));
     println!("Original element at index 32: {:?}", vec.get(32));
-    
+
     assert_eq!(vec.get(31), Some(&31), "Failed to get element at index 31");
     assert_eq!(vec.get(32), Some(&32), "Failed to get element at index 32");
-    assert_eq!(updated_vec.get(31), Some(&310), "Failed to update element at index 31");
-    assert_eq!(updated_vec2.get(32), Some(&320), "Failed to update element at index 32");
+    assert_eq!(
+        updated_vec.get(31),
+        Some(&310),
+        "Failed to update element at index 31"
+    );
+    assert_eq!(
+        updated_vec2.get(32),
+        Some(&320),
+        "Failed to update element at index 32"
+    );
 }
 
 #[test]
@@ -293,13 +301,13 @@ fn test_persistence() {
 #[test]
 fn test_chunks() {
     let vec = pvec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    
+
     // Test getting chunks with default size
     let chunks: Vec<Vec<i32>> = vec.chunks().collect();
-    
+
     // Verify we get chunks (exact size depends on implementation defaults)
     assert!(!chunks.is_empty());
-    
+
     // Check that all elements are present when rejoined
     let rejoined: Vec<i32> = chunks.into_iter().flatten().collect();
     assert_eq!(rejoined, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
@@ -308,10 +316,10 @@ fn test_chunks() {
 #[test]
 fn test_first_last() {
     let vec = pvec![1, 2, 3, 4, 5];
-    
+
     assert_eq!(vec.first(), Some(&1));
     assert_eq!(vec.last(), Some(&5));
-    
+
     let empty: PersistentVector<i32> = PersistentVector::new();
     assert_eq!(empty.first(), None);
     assert_eq!(empty.last(), None);
@@ -320,7 +328,7 @@ fn test_first_last() {
 #[test]
 fn test_into_iter() {
     let vec = pvec![1, 2, 3];
-    
+
     // Test consuming iterator
     let sum: i32 = vec.into_iter().sum();
     assert_eq!(sum, 6);
@@ -329,7 +337,7 @@ fn test_into_iter() {
 #[test]
 fn test_to_vec() {
     let vec = pvec![1, 2, 3, 4, 5];
-    
+
     let std_vec = vec.to_vec();
     assert_eq!(std_vec, vec![1, 2, 3, 4, 5]);
 }
@@ -338,7 +346,7 @@ fn test_to_vec() {
 fn test_to_arc() {
     let vec = pvec![1, 2, 3];
     let arc_vec = vec.to_arc();
-    
+
     assert_eq!(arc_vec.len(), 3);
     assert_eq!(arc_vec.get(0), Some(&1));
 }
@@ -346,55 +354,55 @@ fn test_to_arc() {
 #[test]
 fn test_tree_structure_debugging() {
     use rustica::pvec::tree::Tree;
-    
-    // 트리 구조 디버깅용 테스트
+
+    // Test for debugging tree structure
     println!("Creating empty tree");
     let mut tree = Tree::<i32>::new();
-    
-    // 첫 32개 요소를 추가하고 구조 확인
+
+    // Add first 32 elements and check structure
     for i in 0..32 {
         tree = tree.push_back(i);
         if i % 8 == 0 {
-            println!("Added {} elements, tree size: {}", i+1, tree.len());
+            println!("Added {} elements, tree size: {}", i + 1, tree.len());
         }
     }
-    
-    // 첫 청크가 가득 찼을 때의 구조 확인
+
+    // Check structure when first chunk is filled
     println!("First chunk filled. Tree size: {}", tree.len());
-    
-    // 인덱스 접근 확인
+
+    // Verify index access
     for i in 28..32 {
         println!("Element at index {}: {:?}", i, tree.get(i));
     }
-    
-    // 33번째 요소 추가 시 확인
+
+    // Check when adding 33rd element
     tree = tree.push_back(32);
     println!("Added 33rd element, tree size: {}", tree.len());
-    
-    // 인덱스 31과 32의 요소 확인
+
+    // Check elements at indices 31 and 32
     println!("Element at index 31: {:?}", tree.get(31));
     println!("Element at index 32: {:?}", tree.get(32));
-    
-    // 추가 요소 확인
+
+    // Add more elements
     for i in 33..40 {
         tree = tree.push_back(i);
     }
-    
+
     println!("Added 40 elements, tree size: {}", tree.len());
-    
-    // 다양한 위치의 요소 확인
+
+    // Check elements at various positions
     println!("Element at index 0: {:?}", tree.get(0));
     println!("Element at index 31: {:?}", tree.get(31));
     println!("Element at index 32: {:?}", tree.get(32));
     println!("Element at index 39: {:?}", tree.get(39));
-    
-    // 범위별 요소 확인 (임계값 주변)
+
+    // Check elements around chunk boundaries
     println!("Elements around chunk boundaries:");
     for i in 30..40 {
         println!("Index {}: {:?}", i, tree.get(i));
     }
-    
-    // 검증
+
+    // Verification
     assert_eq!(tree.get(31), Some(&31), "Element at index 31 should be 31");
     assert_eq!(tree.get(32), Some(&32), "Element at index 32 should be 32");
     assert_eq!(tree.get(39), Some(&39), "Element at index 39 should be 39");

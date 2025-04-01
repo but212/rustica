@@ -61,7 +61,7 @@ impl<'a, T: Clone> Iterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T: Clone> DoubleEndedIterator for Iter<'a, T> {
+impl<T: Clone> DoubleEndedIterator for Iter<'_, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.front_pos >= self.back_pos {
             return None;
@@ -72,9 +72,9 @@ impl<'a, T: Clone> DoubleEndedIterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T: Clone> ExactSizeIterator for Iter<'a, T> {}
+impl<T: Clone> ExactSizeIterator for Iter<'_, T> {}
 
-impl<'a, T: Clone> FusedIterator for Iter<'a, T> {}
+impl<T: Clone> FusedIterator for Iter<'_, T> {}
 
 /// An iterator that consumes a persistent vector and yields its elements.
 pub struct IntoIter<T: Clone> {
@@ -178,7 +178,7 @@ impl<'a, T: Clone> ChunksIter<'a, T> {
     }
 }
 
-impl<'a, T: Clone> Iterator for ChunksIter<'a, T> {
+impl<T: Clone> Iterator for ChunksIter<'_, T> {
     type Item = Vec<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -187,10 +187,10 @@ impl<'a, T: Clone> Iterator for ChunksIter<'a, T> {
         }
 
         // Get the chunk from the vector
-        let chunk = 
+        let chunk =
             self.vector
                 .get_chunk(self.current_index, self.min_chunk_size, self.max_chunk_size);
-        
+
         // Use the size of the returned chunk to calculate the end index
         let chunk_size = chunk.len();
         let end_idx = std::cmp::min(self.current_index + chunk_size, self.end_index);
@@ -280,6 +280,6 @@ impl<'a, T: Clone + Ord> Iterator for SortedIter<'a, T> {
     }
 }
 
-impl<'a, T: Clone + Ord> ExactSizeIterator for SortedIter<'a, T> {}
+impl<T: Clone + Ord> ExactSizeIterator for SortedIter<'_, T> {}
 
-impl<'a, T: Clone + Ord> FusedIterator for SortedIter<'a, T> {}
+impl<T: Clone + Ord> FusedIterator for SortedIter<'_, T> {}

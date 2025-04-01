@@ -22,6 +22,7 @@
 //! ```
 
 use std::collections::VecDeque;
+use std::convert::AsRef;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -86,22 +87,6 @@ impl<T: Clone> MemoryManager<T> {
             node_pool: Arc::new(Mutex::new(ObjectPool::new(DEFAULT_POOL_CAPACITY))),
             chunk_pool: Arc::new(Mutex::new(ObjectPool::new(DEFAULT_POOL_CAPACITY))),
         }
-    }
-
-    /// Create a new memory manager with default settings.
-    ///
-    /// This uses the `Pooled` allocation strategy which provides a good balance
-    /// between performance and memory usage for most workloads.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::MemoryManager;
-    ///
-    /// let manager: MemoryManager<i32> = MemoryManager::default();
-    /// ```
-    pub fn default() -> Self {
-        Self::new(AllocationStrategy::Pooled)
     }
 
     /// Acquire a new node from the pool or allocate one
@@ -255,6 +240,12 @@ impl<T: Clone> Clone for MemoryManager<T> {
     }
 }
 
+impl<T: Clone> Default for MemoryManager<T> {
+    fn default() -> Self {
+        Self::new(AllocationStrategy::Pooled)
+    }
+}
+
 impl<T: Clone + Debug> Debug for MemoryManager<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MemoryManager")
@@ -311,26 +302,6 @@ impl<T: Clone> ManagedRef<T> {
     /// ```
     pub fn new(obj: Arc<T>, pool: Option<Arc<Mutex<ObjectPool<T>>>>) -> Self {
         Self { inner: obj, pool }
-    }
-
-    /// Get a reference to the inner object
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ManagedRef;
-    /// use std::sync::Arc;
-    ///
-    /// let obj = Arc::new(42);
-    ///
-    /// // Create a managed reference
-    /// let ref1: ManagedRef<i32> = ManagedRef::new(obj.clone(), None);
-    ///
-    /// // Get a reference to the inner object
-    /// let value = ref1.as_ref();
-    /// ```
-    pub fn as_ref(&self) -> &T {
-        &self.inner
     }
 
     /// Converts this managed reference to an Arc<T> by cloning the inner reference
@@ -448,6 +419,12 @@ impl<T: Clone> Clone for ManagedRef<T> {
             inner: self.inner.clone(),
             pool: self.pool.clone(),
         }
+    }
+}
+
+impl<T: Clone> AsRef<T> for ManagedRef<T> {
+    fn as_ref(&self) -> &T {
+        &self.inner
     }
 }
 

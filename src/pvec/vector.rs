@@ -72,9 +72,7 @@ impl<T: Clone> PersistentVector<T> {
     /// assert!(vec.is_empty());
     /// ```
     pub fn new() -> Self {
-        Self {
-            tree: Tree::new(),
-        }
+        Self { tree: Tree::new() }
     }
 
     /// Creates a new persistent vector with a single element.
@@ -213,7 +211,9 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(new_vec.len(), 4);
     /// ```
     pub fn pop_back(&self) -> Option<(Self, T)> {
-        self.tree.pop_back().map(|(tree, value)| (Self { tree }, value))
+        self.tree
+            .pop_back()
+            .map(|(tree, value)| (Self { tree }, value))
     }
 
     /// Sets the memory manager for this vector.
@@ -339,15 +339,20 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// A vector containing the elements in the specified range,
     /// with size between min_size and max_size (inclusive).
-    pub(crate) fn get_chunk(&self, start_index: usize, min_size: usize, max_size: usize) -> StdVec<T> {
+    pub(crate) fn get_chunk(
+        &self,
+        start_index: usize,
+        min_size: usize,
+        max_size: usize,
+    ) -> StdVec<T> {
         if start_index >= self.len() {
             return StdVec::new();
         }
-        
+
         // Calculate the actual chunk size based on min_size, max_size, and remaining elements
         let remaining = self.len() - start_index;
         let chunk_size = remaining.min(max_size).max(min_size).min(remaining);
-        
+
         // Collect the elements into a vector
         let mut result = StdVec::with_capacity(chunk_size);
         for i in 0..chunk_size {
@@ -357,7 +362,7 @@ impl<T: Clone> PersistentVector<T> {
                 break;
             }
         }
-        
+
         result
     }
 }
