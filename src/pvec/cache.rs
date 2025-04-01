@@ -257,6 +257,7 @@ impl IndexCache {
 }
 
 impl Default for IndexCache {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }

@@ -70,6 +70,7 @@ impl<T: Clone> Chunk<T> {
     /// let chunk: Chunk<i32> = Chunk::new();
     /// assert_eq!(chunk.len(), 0);
     /// ```
+    #[inline]
     pub fn new() -> Self {
         Self {
             elements: Vec::with_capacity(CHUNK_SIZE),
@@ -87,6 +88,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.len(), 1);
     /// assert_eq!(chunk.get(0), Some(&42));
     /// ```
+    #[inline]
     pub fn unit(value: T) -> Self {
         let mut chunk = Self::new();
         chunk.push_back(value);
@@ -108,6 +110,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.len(), 5);
     /// assert_eq!(chunk.get(2), Some(&3));
     /// ```
+    #[inline]
     pub fn from_slice(slice: &[T]) -> Self {
         let mut chunk = Self::new();
         for item in slice.iter().take(min(slice.len(), CHUNK_SIZE)) {
@@ -131,6 +134,7 @@ impl<T: Clone> Chunk<T> {
     /// chunk.push_back(42);
     /// assert_eq!(chunk.len(), 1);
     /// ```
+    #[inline]
     pub fn len(&self) -> usize {
         self.elements.len()
     }
@@ -149,6 +153,7 @@ impl<T: Clone> Chunk<T> {
     /// chunk.push_back(42);
     /// assert!(!chunk.is_empty());
     /// ```
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.elements.is_empty()
     }
@@ -169,6 +174,7 @@ impl<T: Clone> Chunk<T> {
     /// }
     /// assert!(chunk.is_full());
     /// ```
+    #[inline]
     pub fn is_full(&self) -> bool {
         self.elements.len() >= CHUNK_SIZE
     }
@@ -187,6 +193,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.get(0), Some(&42));
     /// assert_eq!(chunk.get(1), None); // Out of bounds
     /// ```
+    #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.elements.get(index)
     }
@@ -208,6 +215,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.get(0), Some(&100));
     /// assert_eq!(chunk.get_mut(1), None); // Out of bounds
     /// ```
+    #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         self.elements.get_mut(index)
     }
@@ -230,6 +238,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.len(), 1);
     /// assert_eq!(chunk.get(0), Some(&42));
     /// ```
+    #[inline]
     pub fn push_back(&mut self, value: T) -> bool {
         if self.is_full() {
             return false;
@@ -256,6 +265,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.len(), 1);
     /// assert_eq!(chunk.get(0), Some(&42));
     /// ```
+    #[inline]
     pub fn push_front(&mut self, value: T) -> bool {
         if self.is_full() {
             return false;
@@ -278,6 +288,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.pop_back(), Some(42));
     /// assert_eq!(chunk.pop_back(), None);
     /// ```
+    #[inline]
     pub fn pop_back(&mut self) -> Option<T> {
         self.elements.pop()
     }
@@ -296,6 +307,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.pop_front(), Some(42));
     /// assert_eq!(chunk.pop_front(), None);
     /// ```
+    #[inline]
     pub fn pop_front(&mut self) -> Option<T> {
         if self.is_empty() {
             None
@@ -320,6 +332,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.len(), 1);
     /// assert_eq!(chunk.get(0), Some(&42));
     /// ```
+    #[inline]
     pub fn insert(&mut self, index: usize, value: T) -> bool {
         if self.is_full() {
             return false;
@@ -347,6 +360,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.remove(0), Some(42));
     /// assert_eq!(chunk.remove(0), None); // Out of bounds
     /// ```
+    #[inline]
     pub fn remove(&mut self, index: usize) -> Option<T> {
         if index >= self.elements.len() {
             None
@@ -376,6 +390,7 @@ impl<T: Clone> Chunk<T> {
     /// assert_eq!(chunk.get(0), Some(&1));
     /// assert_eq!(right.get(0), Some(&2));
     /// ```
+    #[inline]
     pub fn split_off(&mut self, index: usize) -> Self {
         if index >= self.elements.len() {
             return Self::new();
@@ -440,6 +455,7 @@ impl<T: Clone> Chunk<T> {
     /// let slice = chunk.as_slice();
     /// assert_eq!(slice, &[1, 2]);
     /// ```
+    #[inline]
     pub fn as_slice(&self) -> &[T] {
         &self.elements
     }
@@ -459,24 +475,28 @@ impl<T: Clone> Chunk<T> {
     /// slice[0] = 3;
     /// assert_eq!(slice, &[3, 2]);
     /// ```
+    #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         &mut self.elements
     }
 }
 
 impl<T: Clone> Default for Chunk<T> {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T: Clone + Debug> Debug for Chunk<T> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.elements.iter()).finish()
     }
 }
 
 impl<T: Clone> FromIterator<T> for Chunk<T> {
+    #[inline]
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut chunk = Self::new();
         for item in iter {
@@ -491,12 +511,14 @@ impl<T: Clone> FromIterator<T> for Chunk<T> {
 impl<T: Clone> Index<usize> for Chunk<T> {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         &self.elements[index]
     }
 }
 
 impl<T: Clone> IndexMut<usize> for Chunk<T> {
+    #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.elements[index]
     }

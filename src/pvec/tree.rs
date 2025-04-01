@@ -180,6 +180,27 @@ impl<T: Clone> Tree<T> {
         self.size
     }
 
+    /// Append an element to the end of the tree.
+    ///
+    /// This is a convenience method that clones the tree and calls `push_back`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::new();
+    /// let tree = tree.append(10);
+    /// let tree = tree.append(20);
+    /// assert_eq!(tree.len(), 2);
+    /// assert_eq!(tree.get(1), Some(&20));
+    /// ```
+    pub fn append(&self, value: T) -> Self {
+        let mut tree = self.clone();
+        tree = tree.push_back(value);
+        tree
+    }
+
     /// Check if the tree is empty (contains no elements).
     ///
     /// # Examples

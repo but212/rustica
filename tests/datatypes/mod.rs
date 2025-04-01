@@ -6,3 +6,5 @@ mod test_either;
 mod test_id;
 mod test_io;
 mod test_pvec;
+mod test_validated;
+mod test_writer;

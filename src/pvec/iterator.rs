@@ -55,6 +55,7 @@ impl<'a, T: Clone> Iterator for Iter<'a, T> {
         result
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.back_pos - self.front_pos;
         (remaining, Some(remaining))
@@ -113,6 +114,7 @@ impl<T: Clone> Iterator for IntoIter<T> {
         result
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.back_pos - self.front_pos;
         (remaining, Some(remaining))
@@ -156,6 +158,7 @@ pub struct ChunksIter<'a, T: Clone> {
 
 impl<'a, T: Clone> ChunksIter<'a, T> {
     /// Create a new chunk iterator with custom chunk size parameters.
+    #[inline]
     pub(crate) fn new(
         vector: &'a PersistentVector<T>,
         min_chunk_size: usize,
@@ -172,6 +175,7 @@ impl<'a, T: Clone> ChunksIter<'a, T> {
     }
 
     /// Create a new chunk iterator with default parameters.
+    #[inline]
     pub(crate) fn with_default_sizes(vector: &'a PersistentVector<T>) -> Self {
         // Default to chunks between 16 and 256 elements
         Self::new(vector, 16, 256)
@@ -274,6 +278,7 @@ impl<'a, T: Clone + Ord> Iterator for SortedIter<'a, T> {
         self.vector.get(index)
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.sorted_indices.len() - self.position;
         (remaining, Some(remaining))

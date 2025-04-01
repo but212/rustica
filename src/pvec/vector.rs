@@ -158,6 +158,27 @@ impl<T: Clone> PersistentVector<T> {
         self.tree.get(index)
     }
 
+    /// Returns a new vector with the given element appended to the end.
+    ///
+    /// This is an alias for `push_back`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::<i32>::new();
+    /// let vec = vec.append(10);
+    /// let vec = vec.append(20);
+    /// assert_eq!(vec.len(), 2);
+    /// assert_eq!(vec.get(1), Some(&20));
+    /// ```
+    pub fn append(&self, value: T) -> Self {
+        Self {
+            tree: self.tree.append(value),
+        }
+    }
+
     /// Returns a new vector with the element at the specified index updated to the given value.
     ///
     /// Returns a clone of the original vector if the index is out of bounds.
@@ -578,5 +599,11 @@ impl<T: Clone> PersistentVector<T> {
             result = result.push_back(item.clone());
         }
         result
+    }
+}
+
+impl<T: Clone> From<PersistentVector<T>> for Vec<T> {
+    fn from(val: PersistentVector<T>) -> Self {
+        val.to_vec()
     }
 }
