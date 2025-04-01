@@ -2,20 +2,8 @@ name: Rust Benchmarks
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  # Allow manual trigger
-  workflow_dispatch:
-    inputs:
-      benchmark_type:
-        description: 'Type of benchmark to run'
-        required: true
-        default: 'core'
-        type: choice
-        options:
-          - core
-          - all
+    tags:
+      - '*'
 
 jobs:
   benchmark:
@@ -40,12 +28,7 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       
-      - name: Run core benchmarks (default)
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.benchmark_type == 'core' }}
-        run: cargo bench --features advanced -- "either|id|choice|maybe"
-        
       - name: Run all benchmarks
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.benchmark_type == 'all' }}
         run: cargo bench --features advanced
         
       - name: Save benchmark results
@@ -55,7 +38,6 @@ jobs:
       
       - name: Deploy benchmark results to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           publish_dir: ./benchmark-results
