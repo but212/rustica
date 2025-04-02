@@ -453,12 +453,12 @@ impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
     }
 }
 
-impl<W: Monoid + Clone, A: Clone> Semigroup for Writer<W, A> {
+impl<W: Monoid + Clone, A: Clone + Monoid> Semigroup for Writer<W, A> {
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
         Writer {
             log_thunk: self.log_thunk.combine_with(&other.log_thunk),
-            value: self.value,
+            value: self.value.combine_owned(other.value),
         }
     }
 
@@ -466,17 +466,17 @@ impl<W: Monoid + Clone, A: Clone> Semigroup for Writer<W, A> {
     fn combine(&self, other: &Self) -> Self {
         Writer {
             log_thunk: self.log_thunk.combine_with(&other.log_thunk),
-            value: self.value.clone(),
+            value: self.value.combine(&other.value),
         }
     }
 }
 
-impl<W: Monoid + Clone, A: Clone + Default> Monoid for Writer<W, A> {
+impl<W: Monoid + Clone, A: Clone + Monoid> Monoid for Writer<W, A> {
     #[inline]
     fn empty() -> Self {
         Writer {
             log_thunk: LogThunk::Value(W::empty()),
-            value: A::default(),
+            value: A::empty(),
         }
     }
 }

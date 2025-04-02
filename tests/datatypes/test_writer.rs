@@ -197,26 +197,24 @@ fn test_writer_complex_chaining() {
 // Test for Semigroup instance with String
 #[test]
 fn test_writer_semigroup() {
-    // Need to define a type that implements both Clone and Semigroup
-    #[derive(Clone, Debug, PartialEq, Default)]
-    struct Counter(i32);
-
-    impl Semigroup for Counter {
-        fn combine(&self, other: &Self) -> Self {
-            Counter(self.0 + other.0)
-        }
-
-        fn combine_owned(self, other: Self) -> Self {
-            Counter(self.0 + other.0)
-        }
-    }
-
-    let writer1 = Writer::new(Log(vec!["log1".to_string()]), Counter(10));
-    let writer2 = Writer::new(Log(vec!["log2".to_string()]), Counter(32));
-
+    use rustica::datatypes::wrapper::sum::Sum;
+    // Test combining two writers
+    let writer1 = Writer::new(Log(vec!["log1".to_string()]), Sum(15));
+    let writer2 = Writer::new(Log(vec!["log2".to_string()]), Sum(27));
+    
     let combined = writer1.combine(&writer2);
     let (log, value) = combined.run();
-
-    assert_eq!(value, Counter(42));
+    
+    assert_eq!(value.0, 42); // 15 + 27
     assert_eq!(log, Log(vec!["log1".to_string(), "log2".to_string()]));
+    
+    // Test combine_owned
+    let writer3 = Writer::new(Log(vec!["log3".to_string()]), Sum(10));
+    let writer4 = Writer::new(Log(vec!["log4".to_string()]), Sum(32));
+    
+    let combined_owned = writer3.combine_owned(writer4);
+    let (log_owned, value_owned) = combined_owned.run();
+    
+    assert_eq!(value_owned.0, 42); // 10 + 32
+    assert_eq!(log_owned, Log(vec!["log3".to_string(), "log4".to_string()]));
 }
