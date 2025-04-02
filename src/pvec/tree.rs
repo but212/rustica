@@ -408,7 +408,7 @@ impl<T: Clone> Tree<T> {
     ///
     /// let tree1 = Tree::from_slice(&[1, 2, 3]);
     /// let tree2 = Tree::from_slice(&[4, 5, 6]);
-    /// let tree3 = tree1.concat(tree2);
+    /// let tree3 = tree1.concat(&tree2);
     /// assert_eq!(tree3.len(), 6);
     /// assert_eq!(tree3.get(0), Some(&1));
     /// assert_eq!(tree3.get(5), Some(&6));
