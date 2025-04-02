@@ -743,7 +743,7 @@ impl<T: Clone> PersistentVector<T> {
     where
         P: Fn(&T) -> bool,
     {
-        self.iter().position(|x| predicate(x))
+        self.iter().position(predicate)
     }
 
     /// Returns the last index at which a given element can be found in the vector, or None if it is not present.
@@ -762,7 +762,7 @@ impl<T: Clone> PersistentVector<T> {
     where
         P: Fn(&T) -> bool,
     {
-        self.iter().rposition(|x| predicate(x))
+        self.iter().rposition(predicate)
     }
 
     /// Performs a binary search on the vector to find the index of a given element.
@@ -885,7 +885,7 @@ impl<T: Clone> PersistentVector<T> {
         U: Clone,
     {
         let mut result = PersistentVector::new();
-        let iter = self.iter().zip(other.into_iter());
+        let iter = self.iter().zip(other);
 
         for (a, b) in iter {
             result = result.push_back((a.clone(), b));
@@ -1054,7 +1054,7 @@ impl<T: Clone> PersistentVector<T> {
 
         for item in self.iter() {
             let key = f(item);
-            let entry = groups.entry(key).or_insert_with(PersistentVector::new);
+            let entry = groups.entry(key).or_default();
             *entry = entry.push_back(item.clone());
         }
 
