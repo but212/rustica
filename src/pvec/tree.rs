@@ -345,12 +345,16 @@ impl<T: Clone> Tree<T> {
     pub fn resize(&self, new_len: usize, value: T) -> Self {
         let mut result = self.clone();
 
-        if new_len > self.size {
-            for _ in 0..(new_len - self.size) {
-                result = result.push_back(value.clone());
+        match new_len.cmp(&self.size) {
+            std::cmp::Ordering::Greater => {
+                for _ in 0..(new_len - self.size) {
+                    result = result.push_back(value.clone());
+                }
             }
-        } else if new_len < self.size {
-            result = result.slice(0, new_len);
+            std::cmp::Ordering::Less => {
+                result = result.slice(0, new_len);
+            }
+            _ => {}
         }
 
         result
@@ -767,9 +771,7 @@ impl<T: Clone> Tree<T> {
 
             if split && overflow.is_some() {
                 // Handle overflow by creating a new root node
-                let mut children = Vec::with_capacity(2);
-                children.push(Some(new_root));
-                children.push(overflow);
+                let children = vec![Some(new_root), overflow];
 
                 let new_root_node = Node::Branch {
                     children,

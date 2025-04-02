@@ -853,7 +853,7 @@ impl<T: Clone> PersistentVector<T> {
         let mut prev: Option<&T> = None;
 
         for item in self.iter() {
-            if prev.map_or(true, |p| p != item) {
+            if prev != Some(item) {
                 result = result.push_back(item.clone());
                 prev = Some(item);
             }
