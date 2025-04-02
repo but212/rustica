@@ -657,19 +657,18 @@ impl<A: Send + 'static> AsyncM<A> {
     #[inline]
     pub fn zip_with<B, C, F>(self, other: AsyncM<B>, f: F) -> AsyncM<C>
     where
-        F: FnOnce(A, B) -> C + Clone + Send + Sync + 'static,
+        F: FnOnce(A, B) -> C + Send + Sync + Clone + 'static,
         B: Send + 'static,
         C: Send + 'static,
     {
         AsyncM {
             run: Arc::new(move || {
+                let run_a = self.run.clone();
+                let run_b = other.run.clone();
                 let f = f.clone();
-                let run_a = Arc::clone(&self.run);
-                let run_b = Arc::clone(&other.run);
 
                 async move {
-                    // Use join to run both futures concurrently
-                    let (a, b) = join!(run_a(), run_b());
+                    let (a, b) = tokio::join!(run_a(), run_b());
                     f(a, b)
                 }
                 .boxed()

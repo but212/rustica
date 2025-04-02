@@ -432,11 +432,10 @@ impl<T: Clone> Chunk<T> {
         }
 
         let elements_to_take = min(space_available, other.len());
-        for _ in 0..elements_to_take {
-            if let Some(elem) = other.pop_front() {
-                self.push_back(elem);
-            }
-        }
+        let drain_range = 0..elements_to_take;
+
+        // Use drain to efficiently move elements from other to self
+        self.elements.extend(other.elements.drain(drain_range));
 
         elements_to_take
     }

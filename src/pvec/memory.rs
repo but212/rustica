@@ -21,11 +21,11 @@
 //! println!("Node pool size: {}", stats.node_pool_size);
 //! ```
 
+use parking_lot::Mutex;
 use std::collections::VecDeque;
 use std::convert::AsRef;
 use std::fmt::Debug;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::pvec::chunk::Chunk;
 use crate::pvec::node::Node;
@@ -81,6 +81,7 @@ impl<T: Clone> MemoryManager<T> {
     /// // Create a memory manager with direct allocation (no pooling)
     /// let direct_manager: MemoryManager<String> = MemoryManager::new(AllocationStrategy::Direct);
     /// ```
+    #[inline]
     pub fn new(strategy: AllocationStrategy) -> Self {
         Self {
             allocation_strategy: strategy,
@@ -105,16 +106,18 @@ impl<T: Clone> MemoryManager<T> {
     /// // Acquire a new node
     /// let node = manager.acquire_node();
     /// ```
+    #[inline]
     pub fn acquire_node(&self) -> ManagedRef<Node<T>> {
         match self.allocation_strategy {
             AllocationStrategy::Direct => ManagedRef::new(Arc::new(Node::new()), None),
             _ => {
-                let mut pool = self.node_pool.lock();
-                if let Some(node) = pool.acquire() {
-                    ManagedRef::new(node, Some(self.node_pool.clone()))
-                } else {
-                    ManagedRef::new(Arc::new(Node::new()), Some(self.node_pool.clone()))
-                }
+                let pool_clone = self.node_pool.clone();
+                let node = self
+                    .node_pool
+                    .lock()
+                    .acquire()
+                    .unwrap_or_else(|| Arc::new(Node::new()));
+                ManagedRef::new(node, Some(pool_clone))
             }
         }
     }
@@ -135,16 +138,17 @@ impl<T: Clone> MemoryManager<T> {
     /// // Acquire a new chunk
     /// let chunk = manager.acquire_chunk();
     /// ```
+    #[inline]
     pub fn acquire_chunk(&self) -> ManagedRef<Chunk<T>> {
         match self.allocation_strategy {
             AllocationStrategy::Direct => ManagedRef::new(Arc::new(Chunk::new()), None),
             _ => {
-                let mut pool = self.chunk_pool.lock();
-                if let Some(chunk) = pool.acquire() {
-                    ManagedRef::new(chunk, Some(self.chunk_pool.clone()))
-                } else {
-                    ManagedRef::new(Arc::new(Chunk::new()), Some(self.chunk_pool.clone()))
-                }
+                let pool_clone = self.chunk_pool.clone();
+                let chunk = self
+                    .chunk_pool
+                    .lock()
+                    .acquire_or_create(|| Arc::new(Chunk::new()));
+                ManagedRef::new(chunk, Some(pool_clone))
             }
         }
     }
@@ -161,6 +165,7 @@ impl<T: Clone> MemoryManager<T> {
     /// // Get the current allocation strategy
     /// let strategy = manager.strategy();
     /// ```
+    #[inline]
     pub fn strategy(&self) -> AllocationStrategy {
         self.allocation_strategy
     }
@@ -177,6 +182,7 @@ impl<T: Clone> MemoryManager<T> {
     /// // Change the allocation strategy
     /// manager.set_strategy(AllocationStrategy::Direct);
     /// ```
+    #[inline]
     pub fn set_strategy(&mut self, strategy: AllocationStrategy) {
         self.allocation_strategy = strategy;
     }
@@ -193,6 +199,7 @@ impl<T: Clone> MemoryManager<T> {
     /// // Get memory statistics
     /// let stats = manager.stats();
     /// ```
+    #[inline]
     pub fn stats(&self) -> MemoryStats {
         let node_pool = self.node_pool.lock();
         let chunk_pool = self.chunk_pool.lock();
@@ -217,6 +224,7 @@ impl<T: Clone> MemoryManager<T> {
     /// // Pre-allocate objects in the pools
     /// manager.prefill();
     /// ```
+    #[inline]
     pub fn prefill(&self) {
         if self.allocation_strategy == AllocationStrategy::Direct {
             return;
@@ -231,6 +239,7 @@ impl<T: Clone> MemoryManager<T> {
 }
 
 impl<T: Clone> Clone for MemoryManager<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             allocation_strategy: self.allocation_strategy,
@@ -241,6 +250,7 @@ impl<T: Clone> Clone for MemoryManager<T> {
 }
 
 impl<T: Clone> Default for MemoryManager<T> {
+    #[inline]
     fn default() -> Self {
         Self::new(AllocationStrategy::Pooled)
     }
@@ -300,6 +310,7 @@ impl<T: Clone> ManagedRef<T> {
     /// // Create a managed reference
     /// let ref1 = ManagedRef::new(obj.clone(), None);
     /// ```
+    #[inline]
     pub fn new(obj: Arc<T>, pool: Option<Arc<Mutex<ObjectPool<T>>>>) -> Self {
         Self { inner: obj, pool }
     }
@@ -325,6 +336,7 @@ impl<T: Clone> ManagedRef<T> {
     ///
     /// assert_eq!(*arc, 42);
     /// ```
+    #[inline]
     pub fn to_arc(&self) -> Arc<T> {
         self.inner.clone()
     }
@@ -346,6 +358,7 @@ impl<T: Clone> ManagedRef<T> {
     ///
     /// assert!(managed.is_unique());
     /// ```
+    #[inline]
     pub fn is_unique(&self) -> bool {
         Arc::strong_count(&self.inner) == 1
     }
@@ -365,6 +378,7 @@ impl<T: Clone> ManagedRef<T> {
     ///
     /// assert!(managed.get_mut().is_some());
     /// ```
+    #[inline]
     pub fn get_mut(&mut self) -> Option<&mut T> {
         Arc::get_mut(&mut self.inner)
     }
@@ -414,6 +428,7 @@ impl<T: Clone> ManagedRef<T> {
 }
 
 impl<T: Clone> Clone for ManagedRef<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -423,12 +438,14 @@ impl<T: Clone> Clone for ManagedRef<T> {
 }
 
 impl<T: Clone> AsRef<T> for ManagedRef<T> {
+    #[inline]
     fn as_ref(&self) -> &T {
         &self.inner
     }
 }
 
 impl<T: Clone> Drop for ManagedRef<T> {
+    #[inline]
     fn drop(&mut self) {
         // If this is the last reference and we have a pool, return the object to the pool
         if Arc::strong_count(&self.inner) == 1 {
@@ -443,6 +460,7 @@ impl<T: Clone> Drop for ManagedRef<T> {
 }
 
 impl<T: Clone + Debug> Debug for ManagedRef<T> {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ManagedRef")
             .field("inner", &self.inner)
@@ -454,6 +472,7 @@ impl<T: Clone + Debug> Debug for ManagedRef<T> {
 impl<T: Clone> std::ops::Deref for ManagedRef<T> {
     type Target = T;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -511,6 +530,7 @@ impl<T: Clone> ObjectPool<T> {
     /// assert_eq!(pool.size(), 0);
     /// assert_eq!(pool.capacity(), 32);
     /// ```
+    #[inline]
     pub fn new(capacity: usize) -> Self {
         Self {
             objects: VecDeque::with_capacity(capacity),
@@ -546,6 +566,7 @@ impl<T: Clone> ObjectPool<T> {
     /// assert_eq!(obj2.is_some(), true);
     /// assert_eq!(obj3.is_some(), false);
     /// ```
+    #[inline]
     pub fn acquire(&mut self) -> Option<Arc<T>> {
         self.objects.pop_front()
     }
@@ -583,6 +604,7 @@ impl<T: Clone> ObjectPool<T> {
     /// assert_eq!(*obj2, 1.into());
     /// assert_eq!(*obj3, 44.into());
     /// ```
+    #[inline]
     pub fn acquire_or_create<F>(&mut self, create_fn: F) -> Arc<T>
     where
         F: FnOnce() -> Arc<T>,
@@ -621,6 +643,7 @@ impl<T: Clone> ObjectPool<T> {
     /// assert_eq!(pool.size(), 2);
     /// assert_eq!(pool.capacity(), 2);
     /// ```
+    #[inline]
     pub fn release(&mut self, obj: Arc<T>) {
         if self.objects.len() < self.capacity {
             self.objects.push_back(obj);
@@ -649,6 +672,7 @@ impl<T: Clone> ObjectPool<T> {
     /// // Check the size of the pool
     /// assert_eq!(pool.size(), 2);
     /// ```
+    #[inline]
     pub fn size(&self) -> usize {
         self.objects.len()
     }
@@ -673,6 +697,7 @@ impl<T: Clone> ObjectPool<T> {
     /// // Check the capacity of the pool
     /// assert_eq!(pool.capacity(), 2);
     /// ```
+    #[inline]
     pub fn capacity(&self) -> usize {
         self.capacity
     }
@@ -701,6 +726,7 @@ impl<T: Clone> ObjectPool<T> {
     /// // Check the size of the pool
     /// assert_eq!(pool.size(), 2);
     /// ```
+    #[inline]
     pub fn prefill<F>(&mut self, create_fn: F)
     where
         F: Fn(usize) -> Arc<T>,

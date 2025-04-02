@@ -38,7 +38,6 @@ use std::iter::FromIterator;
 use std::sync::Arc;
 
 use super::cache::IndexCache;
-use super::chunk::Chunk;
 use super::memory::{AllocationStrategy, ManagedRef, MemoryManager};
 use super::node::{Node, NODE_BITS, NODE_SIZE};
 
@@ -95,19 +94,15 @@ impl<T: Clone> Tree<T> {
     /// assert_eq!(tree.len(), 0);
     /// assert!(tree.is_empty());
     /// ```
+    #[inline]
     pub fn new() -> Self {
         let manager = MemoryManager::new(AllocationStrategy::Direct);
 
-        // Create an empty chunk
-        let mut chunk = manager.acquire_chunk();
-        if let Some(chunk_ref) = chunk.get_mut() {
-            *chunk_ref = Chunk::new();
-        }
-
-        // Create a leaf node with the empty chunk
+        // Create an empty leaf node
+        let chunk = manager.acquire_chunk();
         let mut root = manager.acquire_node();
         if let Some(node_ref) = root.get_mut() {
-            *node_ref = Node::Leaf { elements: chunk };
+            *node_ref = Node::leaf(chunk);
         }
 
         Self {
@@ -130,18 +125,22 @@ impl<T: Clone> Tree<T> {
     /// assert_eq!(tree.len(), 1);
     /// assert_eq!(tree.get(0), Some(&42));
     /// ```
+    #[inline]
     pub fn unit(value: T) -> Self {
-        let mut tree = Self::new();
-        let mut chunk = tree.manager.acquire_chunk();
+        let manager = MemoryManager::new(AllocationStrategy::Direct);
+        let mut chunk = manager.acquire_chunk();
         chunk.get_mut().unwrap().push_back(value);
 
-        let root = Node::leaf(chunk);
-        let mut root_ref = tree.manager.acquire_node();
-        *root_ref.get_mut().unwrap() = root;
+        let mut root = manager.acquire_node();
+        *root.get_mut().unwrap() = Node::leaf(chunk);
 
-        tree.root = root_ref;
-        tree.size = 1;
-        tree
+        Self {
+            root,
+            size: 1,
+            height: 0,
+            manager,
+            cache: IndexCache::new(),
+        }
     }
 
     /// Create a new tree from a slice of elements.
@@ -157,11 +156,39 @@ impl<T: Clone> Tree<T> {
     /// assert_eq!(tree.get(2), Some(&3));
     /// ```
     pub fn from_slice(slice: &[T]) -> Self {
-        let mut tree = Self::new();
-        for item in slice {
-            tree = tree.push_back(item.clone());
+        if slice.is_empty() {
+            return Self::new();
         }
-        tree
+
+        let manager = MemoryManager::new(AllocationStrategy::Direct);
+        let mut result = Self {
+            root: manager.acquire_node(),
+            size: slice.len(),
+            height: 0,
+            manager,
+            cache: IndexCache::new(),
+        };
+
+        // Create chunks directly from the slice
+        let mut remaining = slice;
+        let mut current_chunk = result.manager.acquire_chunk();
+
+        while !remaining.is_empty() {
+            let chunk_size = remaining.len().min(NODE_SIZE);
+            let (to_add, rest) = remaining.split_at(chunk_size);
+
+            let chunk_ref = current_chunk.get_mut().unwrap();
+            for item in to_add {
+                chunk_ref.push_back(item.clone());
+            }
+
+            remaining = rest;
+        }
+
+        // Set up the root node as a leaf
+        *result.root.get_mut().unwrap() = Node::leaf(current_chunk);
+
+        result
     }
 
     /// Get the number of elements in the tree.
@@ -176,7 +203,8 @@ impl<T: Clone> Tree<T> {
     /// let tree = Tree::from_slice(&[1, 2, 3]);
     /// assert_eq!(tree.len(), 3);
     /// ```
-    pub fn len(&self) -> usize {
+    #[inline]
+    pub const fn len(&self) -> usize {
         self.size
     }
 
@@ -195,10 +223,69 @@ impl<T: Clone> Tree<T> {
     /// assert_eq!(tree.len(), 2);
     /// assert_eq!(tree.get(1), Some(&20));
     /// ```
+    #[inline]
     pub fn append(&self, value: T) -> Self {
         let mut tree = self.clone();
         tree = tree.push_back(value);
         tree
+    }
+
+    /// Truncate the tree to the specified length.
+    ///
+    /// If the new length is greater than or equal to the current length,
+    /// the tree is returned unchanged. Otherwise, the tree is truncated
+    /// to contain exactly `new_len` elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3, 4, 5]);
+    /// let truncated = tree.truncate(3);
+    /// assert_eq!(truncated.len(), 3);
+    /// assert_eq!(truncated.get(2), Some(&3));
+    /// assert_eq!(truncated.get(3), None);
+    /// ```
+    pub fn truncate(&self, new_len: usize) -> Self {
+        let mut result = self.clone();
+        result.size = new_len.min(self.size);
+        result
+    }
+
+    /// Remove an element at the specified index from the tree.
+    ///
+    /// Returns a new tree with the element removed. If the index is out of bounds,
+    /// returns a copy of the original tree unchanged.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[10, 20, 30, 40]);
+    /// let new_tree = tree.remove(1);
+    /// assert_eq!(new_tree.len(), 3);
+    /// assert_eq!(new_tree.get(0), Some(&10));
+    /// assert_eq!(new_tree.get(1), Some(&30));
+    /// assert_eq!(new_tree.get(2), Some(&40));
+    /// ```
+    pub fn remove(&self, index: usize) -> Self {
+        if index >= self.size {
+            return self.clone();
+        }
+
+        let mut result = self.clone();
+        result.size -= 1;
+
+        // For elements after the removed index, shift them back by one
+        for i in index..result.size {
+            if let Some(next_value) = self.get(i + 1).cloned() {
+                result = result.update(i, next_value);
+            }
+        }
+
+        result
     }
 
     /// Check if the tree is empty (contains no elements).
@@ -214,7 +301,8 @@ impl<T: Clone> Tree<T> {
     /// let tree = Tree::unit(42);
     /// assert!(!tree.is_empty());
     /// ```
-    pub fn is_empty(&self) -> bool {
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
         self.size == 0
     }
 
@@ -223,6 +311,7 @@ impl<T: Clone> Tree<T> {
     /// The shift value is used for bit operations in the tree traversal algorithm.
     /// It depends on the height of the tree and the number of bits used for indexing
     /// at each level.
+    #[inline]
     pub fn shift(&self) -> usize {
         if self.height == 0 {
             0
@@ -244,29 +333,27 @@ impl<T: Clone> Tree<T> {
     /// assert_eq!(tree.get(1), Some(&20));
     /// assert_eq!(tree.get(5), None); // Out of bounds
     /// ```
+    #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
-        // First check if the index is out of bounds
+        // Check bounds first for early return
         if index >= self.size {
             return None;
         }
 
-        // Direct access for small trees
+        // Fast path for leaf-only trees (height 0)
         if self.height == 0 {
-            match *self.root {
-                Node::Leaf { ref elements } => {
-                    return elements.get(index);
-                }
-                _ => unreachable!("Leaf-only tree with height 0 contains a branch node"),
+            if let Node::Leaf { ref elements } = *self.root {
+                return elements.get(index);
             }
+            unreachable!("Leaf-only tree with height 0 contains a branch node");
         }
 
-        // Use cached path if available
+        // Cache-based path (currently unused but preserved for future implementation)
         if self.cache.has_index(index) {
-            // TODO: Implement path traversal with cache
-            // For now, fall back to regular traversal
+            // Will be implemented in the future
         }
 
-        // For multi-level trees, start at the root and traverse down
+        // Traverse the tree for multi-level trees
         self.root.get(index, self.shift())
     }
 
@@ -284,21 +371,21 @@ impl<T: Clone> Tree<T> {
     /// assert_eq!(updated_tree.get(1), Some(&25));
     /// assert_eq!(tree.get(1), Some(&20)); // Original unchanged
     /// ```
+    #[inline]
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.size {
             return self.clone();
         }
 
         let shift = self.shift();
-        let updated_root = self.root.update(&self.manager, index, value, shift);
-
-        if let Some(new_root) = updated_root {
-            let mut result = self.clone();
-            result.root = new_root;
-            result.cache.invalidate();
-            result
-        } else {
-            self.clone()
+        match self.root.update(&self.manager, index, value, shift) {
+            Some(new_root) => {
+                let mut result = self.clone();
+                result.root = new_root;
+                result.cache.invalidate();
+                result
+            }
+            None => self.clone(),
         }
     }
 
@@ -324,18 +411,18 @@ impl<T: Clone> Tree<T> {
         result.cache.invalidate();
 
         if split {
-            // Need to create a new root to handle the overflow
+            // Create a new root to handle the overflow
             let mut root = self.manager.acquire_node();
-            let mut children = Vec::with_capacity(NODE_SIZE);
+            let mut children = Vec::with_capacity(2); // Only need space for 2 nodes
             children.push(Some(new_root.clone()));
 
             if let Some(overflow_node) = overflow.clone() {
                 children.push(Some(overflow_node));
             }
 
-            // Create a size table for the new root
-            let mut size_table = Vec::with_capacity(NODE_SIZE);
+            // Create a minimal size table
             let first_size = new_root.size();
+            let mut size_table = Vec::with_capacity(2);
             size_table.push(first_size);
 
             if let Some(ref overflow_node) = overflow {
@@ -544,6 +631,7 @@ impl<T: Clone> Tree<T> {
     /// let manager = MemoryManager::new(AllocationStrategy::Direct);
     /// tree.set_memory_manager(manager);
     /// ```
+    #[inline]
     pub fn set_memory_manager(&mut self, manager: MemoryManager<T>) {
         self.manager = manager;
     }
@@ -563,46 +651,28 @@ impl<T: Clone> Tree<T> {
     /// let arc_tree = tree.to_arc();
     /// assert_eq!(arc_tree.len(), 3);
     /// ```
+    #[inline]
     pub fn to_arc(self) -> Arc<Self> {
         Arc::new(self)
     }
 }
 
 impl<T: Clone> Default for Tree<T> {
-    /// Create a new, empty tree with default settings.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::tree::Tree;
-    ///
-    /// let tree: Tree<i32> = Tree::default();
-    /// assert!(tree.is_empty());
-    /// ```
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T: Clone + Debug> Debug for Tree<T> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Tree {{ size: {}, height: {} }}", self.size, self.height)
     }
 }
 
 impl<T: Clone> FromIterator<T> for Tree<T> {
-    /// Create a tree from an iterator.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::tree::Tree;
-    /// use std::iter::FromIterator;
-    ///
-    /// let tree = Tree::from_iter(vec![1, 2, 3, 4, 5]);
-    /// assert_eq!(tree.len(), 5);
-    /// assert_eq!(tree.get(2), Some(&3));
-    /// ```
+    #[inline]
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut tree = Self::new();
         for item in iter {

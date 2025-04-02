@@ -118,6 +118,7 @@ trait NodeOps<T: Clone> {
 }
 
 impl<T: Clone> NodeOps<T> for Node<T> {
+    #[inline]
     fn modify_node<F>(&self, manager: &MemoryManager<T>, modifier: F) -> ManagedRef<Node<T>>
     where
         F: FnOnce(&mut Node<T>),
@@ -130,6 +131,7 @@ impl<T: Clone> NodeOps<T> for Node<T> {
 }
 
 impl<T: Clone> Default for Node<T> {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -155,6 +157,7 @@ impl<T: Clone> Node<T> {
     /// assert_eq!(node.size(), 0);
     /// assert!(!node.is_relaxed());
     /// ```
+    #[inline]
     pub fn new() -> Self {
         Node::Branch {
             children: Vec::with_capacity(NODE_SIZE),
@@ -223,6 +226,7 @@ impl<T: Clone> Node<T> {
     /// assert_eq!(*node.get(0, 0).unwrap(), 10);
     /// assert_eq!(*node.get(1, 0).unwrap(), 20);
     /// ```
+    #[inline]
     pub fn leaf(chunk: ManagedRef<Chunk<T>>) -> Self {
         Node::Leaf { elements: chunk }
     }
@@ -266,19 +270,13 @@ impl<T: Clone> Node<T> {
         match self {
             Node::Leaf { elements } => elements.len(),
             Node::Branch { children, sizes } => {
+                // If we have a size table, use the last entry
                 if let Some(sizes) = sizes {
-                    if !sizes.is_empty() {
-                        return *sizes.last().unwrap();
-                    }
-                    return 0;
+                    return sizes.last().copied().unwrap_or(0);
                 }
 
                 // For regular nodes, calculate the size based on children
-                children
-                    .iter()
-                    .filter_map(|child| child.as_ref())
-                    .map(|child| child.size())
-                    .sum()
+                children.iter().flatten().map(|child| child.size()).sum()
             }
         }
     }
@@ -433,9 +431,10 @@ impl<T: Clone> Node<T> {
                     // Use the size table for relaxed nodes
                     self.find_index_in_size_table(sizes, index)
                 } else {
-                    // Use bit operations for regular nodes
+                    // Use bit operations for regular nodes - more efficient
+                    let mask = (1 << shift) - 1;
                     let child_index = (index >> shift) & NODE_MASK;
-                    let sub_index = index & ((1 << shift) - 1);
+                    let sub_index = index & mask;
                     (child_index, sub_index)
                 }
             }
@@ -526,20 +525,20 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A vector containing the cumulative sizes of the children
+    #[inline]
     fn build_size_table(children: &[Option<ManagedRef<Node<T>>>]) -> Vec<usize> {
         let mut size_table = Vec::with_capacity(children.len());
         let mut cumulative_size = 0;
 
-        // Process all existing children and calculate cumulative sizes
         for child_option in children.iter() {
             if let Some(child) = child_option {
                 cumulative_size += child.size();
+            }
+
+            // Only add to size_table if we have at least one child already
+            // or if the current child exists
+            if !size_table.is_empty() || child_option.is_some() {
                 size_table.push(cumulative_size);
-            } else {
-                // For empty slots, keep the same cumulative size
-                if !size_table.is_empty() {
-                    size_table.push(cumulative_size);
-                }
             }
         }
 
@@ -559,6 +558,7 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A managed reference to the modified chunk
+    #[inline]
     fn modify_chunk<F>(chunk: &ManagedRef<Chunk<T>>, modifier: F) -> ManagedRef<Chunk<T>>
     where
         F: FnOnce(&mut Chunk<T>),
@@ -596,15 +596,20 @@ impl<T: Clone> Node<T> {
         match self {
             Node::Branch { children, sizes } => {
                 let mut new_node = manager.acquire_node();
+                let node_mut = new_node.get_mut().unwrap();
+                *node_mut = Node::Branch {
+                    children: children.clone(),
+                    sizes: sizes.clone(),
+                };
+
                 if let Node::Branch {
                     children: new_children,
                     sizes: new_sizes,
-                } = new_node.get_mut().unwrap()
+                } = node_mut
                 {
-                    *new_children = children.clone();
-                    *new_sizes = sizes.clone();
                     modifier(new_children, new_sizes);
                 }
+
                 new_node
             }
             _ => panic!("Expected branch node"),
@@ -633,10 +638,9 @@ impl<T: Clone> Node<T> {
     ) -> ManagedRef<Node<T>> {
         self.modify_branch(manager, |children, sizes| {
             if child_index < children.len() {
-                let old_size = match &children[child_index] {
-                    Some(child) => child.size(),
-                    None => 0,
-                };
+                let old_size = children[child_index]
+                    .as_ref()
+                    .map_or(0, |child| child.size());
                 let size_diff = new_child.size() as isize - old_size as isize;
 
                 // Replace the child node
@@ -644,9 +648,8 @@ impl<T: Clone> Node<T> {
 
                 // Update size table if it exists
                 if let Some(size_table) = sizes {
-                    // Update all cumulative sizes from this child index forward
-                    for size in size_table.iter_mut().skip(child_index) {
-                        *size = (*size as isize + size_diff) as usize;
+                    for i in child_index..size_table.len() {
+                        size_table[i] = (size_table[i] as isize + size_diff) as usize;
                     }
                 }
             }
@@ -682,10 +685,11 @@ impl<T: Clone> Node<T> {
     /// };
     /// assert_eq!(branch.child_count(), 1);
     /// ```
+    #[inline]
     pub fn child_count(&self) -> usize {
         match self {
             Node::Leaf { .. } => 0,
-            Node::Branch { children, .. } => children.iter().filter(|c| c.is_some()).count(),
+            Node::Branch { children, .. } => children.iter().flatten().count(),
         }
     }
 
@@ -711,10 +715,12 @@ impl<T: Clone> Node<T> {
     /// };
     /// assert!(branch.is_relaxed());
     /// ```
+    #[inline]
     pub fn is_relaxed(&self) -> bool {
-        match self {
-            Node::Branch { sizes, .. } => sizes.is_some(),
-            Node::Leaf { .. } => false,
+        if let Node::Branch { sizes, .. } = self {
+            sizes.is_some()
+        } else {
+            false
         }
     }
 
@@ -739,12 +745,13 @@ impl<T: Clone> Node<T> {
     /// node.ensure_relaxed();
     /// assert!(node.is_relaxed());
     /// ```
+    #[inline]
     pub fn ensure_relaxed(&mut self) {
-        if let Node::Branch { children, sizes } = self {
-            if sizes.is_none() {
-                // Utilize the build_size_table helper function
+        match self {
+            Node::Branch { children, sizes } if sizes.is_none() => {
                 *sizes = Some(Self::build_size_table(children));
             }
+            _ => {}
         }
     }
 
@@ -776,49 +783,11 @@ impl<T: Clone> Node<T> {
     pub fn get(&self, index: usize, shift: usize) -> Option<&T> {
         match self {
             Node::Leaf { elements } => elements.get(index),
-            Node::Branch { children, sizes } => {
-                // Determine which child node contains the target index
-                let (child_index, sub_index) = match sizes {
-                    Some(size_table) => {
-                        // Search the size table directly to find which child contains the index
-                        let mut child_idx = 0;
-                        let mut prev_size = 0;
+            Node::Branch { children, sizes: _ } => {
+                let (child_index, sub_index) = self.find_child_index(index, shift);
 
-                        // Check the cumulative size of each child to determine which child contains the index
-                        for (i, &size) in size_table.iter().enumerate() {
-                            if index < size {
-                                child_idx = i;
-                                break;
-                            }
-                            prev_size = size;
-                        }
-
-                        // Handle the case where the index is in the last child
-                        if index >= *size_table.last().unwrap_or(&0) {
-                            child_idx = size_table.len() - 1;
-                            prev_size = if child_idx > 0 {
-                                size_table[child_idx - 1]
-                            } else {
-                                0
-                            };
-                        }
-
-                        let sub_index = index - prev_size;
-                        (child_idx, sub_index)
-                    }
-                    None => {
-                        // For regular nodes, use bit operations
-                        let mask = (1 << shift) - 1;
-                        let child_idx = (index >> shift) & NODE_MASK;
-                        let sub_idx = index & mask;
-                        (child_idx, sub_idx)
-                    }
-                };
-
-                // Check if the child exists and return the element
                 if child_index < children.len() {
                     if let Some(child) = &children[child_index] {
-                        // Recursively get from the child node with adjusted shift
                         return child.get(sub_index, shift.saturating_sub(NODE_BITS));
                     }
                 }
@@ -872,14 +841,13 @@ impl<T: Clone> Node<T> {
                     return None;
                 }
 
-                // Use helper function to modify the chunk
+                // Create a new chunk only if needed
                 let new_elements = Self::modify_chunk(elements, |chunk| {
                     if let Some(elem) = chunk.get_mut(index) {
                         *elem = value;
                     }
                 });
 
-                // Use helper function to create a leaf node
                 Some(Self::create_leaf_node(manager, new_elements))
             }
             Node::Branch { children, sizes: _ } => {
@@ -891,10 +859,18 @@ impl<T: Clone> Node<T> {
 
                 let child = &children[child_index].as_ref().unwrap();
 
-                let new_child = child.update(manager, sub_index, value, shift - NODE_BITS)?;
-
-                // Use helper function to replace the child node
-                Some(self.replace_child(manager, child_index, new_child))
+                // Recursive update with reduced shift
+                match child.update(manager, sub_index, value, shift - NODE_BITS) {
+                    Some(new_child) => {
+                        // Only create a new branch if the child actually changed
+                        if std::sync::Arc::ptr_eq(&child.to_arc(), &new_child.to_arc()) {
+                            Some(ManagedRef::new(std::sync::Arc::new(self.clone()), None))
+                        } else {
+                            Some(self.replace_child(manager, child_index, new_child))
+                        }
+                    }
+                    None => None,
+                }
             }
         }
     }
@@ -942,6 +918,7 @@ impl<T: Clone> Node<T> {
         match self {
             Node::Leaf { elements } => {
                 if elements.len() < CHUNK_SIZE {
+                    // There's space in the leaf node, add the element
                     let modified_elements = Self::modify_chunk(elements, |chunk| {
                         chunk.push_back(value);
                     });
@@ -949,11 +926,13 @@ impl<T: Clone> Node<T> {
                     let new_node = Self::create_leaf_node(manager, modified_elements);
                     (new_node, false, None)
                 } else {
-                    let new_node = Self::create_leaf_node(manager, elements.clone());
-
+                    // Leaf node is full, create overflow node with the new element
                     let mut new_chunk = manager.acquire_chunk();
                     new_chunk.get_mut().unwrap().push_back(value);
                     let overflow = Self::create_leaf_node(manager, new_chunk);
+
+                    // Clone the existing leaf node
+                    let new_node = Self::create_leaf_node(manager, elements.clone());
 
                     (new_node, true, Some(overflow))
                 }
@@ -978,29 +957,26 @@ impl<T: Clone> Node<T> {
                         // Replace the last child with the new one
                         let new_node = self.replace_child(manager, last_idx, new_child);
 
-                        if split {
-                            // Handle overflow by adding it as a new child if there's space
-                            if children.len() < NODE_SIZE {
-                                let new_node =
-                                    new_node.modify_branch(manager, |children, sizes| {
-                                        children.push(overflow.clone());
+                        if !split {
+                            return (new_node, false, None);
+                        }
 
-                                        // Update size table if this is a relaxed node
-                                        if let Some(size_table) = sizes {
-                                            let overflow_size = overflow.as_ref().unwrap().size();
-                                            size_table.push(
-                                                size_table.last().unwrap_or(&0) + overflow_size,
-                                            );
-                                        }
-                                    });
-                                (new_node, false, None)
-                            } else {
-                                // Branch node is full, split needed at this level too
-                                (new_node, true, overflow)
-                            }
-                        } else {
-                            // No split occurred, just return the updated node
+                        // Handle overflow by adding it as a new child if there's space
+                        if children.len() < NODE_SIZE {
+                            let new_node = new_node.modify_branch(manager, |children, sizes| {
+                                children.push(overflow.clone());
+
+                                // Update size table if this is a relaxed node
+                                if let Some(size_table) = sizes {
+                                    let overflow_size = overflow.as_ref().unwrap().size();
+                                    size_table
+                                        .push(size_table.last().unwrap_or(&0) + overflow_size);
+                                }
+                            });
                             (new_node, false, None)
+                        } else {
+                            // Branch node is full, split needed at this level too
+                            (new_node, true, overflow)
                         }
                     } else {
                         // Last child is None, replace with a new leaf node
@@ -1063,12 +1039,10 @@ impl<T: Clone> Node<T> {
                         chunk.push_front(value);
                     });
 
-                    // Create new leaf node
                     let new_node = Self::create_leaf_node(manager, modified_elements);
                     (new_node, false, None)
                 } else {
-                    // Leaf node is full, create two leaf nodes
-                    // Create overflow leaf node with the new element
+                    // Leaf node is full, create overflow node with the new element
                     let mut new_chunk = manager.acquire_chunk();
                     new_chunk.get_mut().unwrap().push_back(value);
                     let overflow = Self::create_leaf_node(manager, new_chunk);
@@ -1082,11 +1056,12 @@ impl<T: Clone> Node<T> {
             Node::Branch { children, sizes } => {
                 if children.is_empty() {
                     // Empty branch node, create a new leaf node
-                    let mut new_chunk = manager.acquire_chunk();
-                    new_chunk.get_mut().unwrap().push_back(value);
+                    let new_chunk = Self::modify_chunk(&manager.acquire_chunk(), |chunk| {
+                        chunk.push_back(value);
+                    });
                     let new_leaf = Self::create_leaf_node(manager, new_chunk);
 
-                    // Create new branch node and add the leaf node
+                    // Create branch node with the leaf node
                     let new_node =
                         self.create_branch_node(manager, vec![Some(new_leaf)], Some(vec![1]));
 
@@ -1100,18 +1075,16 @@ impl<T: Clone> Node<T> {
                     let mut new_children = children.clone();
                     new_children[0] = Some(new_child.clone());
 
-                    // Handle split if it occurred
                     if was_split {
                         if children.len() < NODE_SIZE {
-                            // Space available for overflow
-                            // Insert overflow at the beginning
+                            // Space available for overflow at beginning
                             let overflow_clone = overflow.clone();
                             new_children.insert(0, overflow_clone);
 
                             // Update size table
                             let new_sizes = if let Some(old_sizes) = sizes {
-                                let mut new_size_table = Vec::with_capacity(new_children.len());
                                 let overflow_size = overflow.unwrap().size();
+                                let mut new_size_table = Vec::with_capacity(new_children.len());
                                 new_size_table.push(overflow_size);
 
                                 for &size in old_sizes.iter() {
@@ -1120,18 +1093,14 @@ impl<T: Clone> Node<T> {
 
                                 Some(new_size_table)
                             } else {
-                                // Convert to relaxed node
                                 Some(Self::build_size_table(&new_children))
                             };
 
-                            // Create new branch node
                             let new_node =
                                 self.create_branch_node(manager, new_children, new_sizes);
-
                             (new_node, false, None)
                         } else {
                             // Node is full, need to split
-                            // Update existing node
                             let new_node =
                                 self.create_branch_node(manager, new_children, sizes.clone());
 
@@ -1146,14 +1115,15 @@ impl<T: Clone> Node<T> {
                             (new_node, true, Some(overflow_node))
                         }
                     } else {
-                        // No split, just update size table
+                        // No split, just update size table if needed
                         let new_sizes = if let Some(old_sizes) = sizes {
                             let mut new_size_table = old_sizes.clone();
-                            let new_child_clone = new_child.clone();
-                            let size_inc = new_child_clone.size() - first_child.size();
+                            let size_inc = new_child.size() - first_child.size();
 
-                            for size in new_size_table.iter_mut() {
-                                *size += size_inc;
+                            if size_inc != 0 {
+                                for size in new_size_table.iter_mut() {
+                                    *size += size_inc;
+                                }
                             }
 
                             Some(new_size_table)
@@ -1161,15 +1131,14 @@ impl<T: Clone> Node<T> {
                             None
                         };
 
-                        // Create new branch node
                         let new_node = self.create_branch_node(manager, new_children, new_sizes);
-
                         (new_node, false, None)
                     }
                 } else {
                     // First slot is empty, create new leaf node
-                    let mut new_chunk = manager.acquire_chunk();
-                    new_chunk.get_mut().unwrap().push_back(value);
+                    let new_chunk = Self::modify_chunk(&manager.acquire_chunk(), |chunk| {
+                        chunk.push_back(value);
+                    });
                     let new_leaf = Self::create_leaf_node(manager, new_chunk);
 
                     // Clone child node array and update
@@ -1187,24 +1156,10 @@ impl<T: Clone> Node<T> {
 
                         Some(new_size_table)
                     } else {
-                        // Convert to relaxed node
-                        let mut size_table = Vec::with_capacity(children.len());
-                        let mut sum = new_leaf.size();
-                        size_table.push(sum);
-
-                        for child in children.iter().skip(1) {
-                            if let Some(child) = child {
-                                sum += child.size();
-                            }
-                            size_table.push(sum);
-                        }
-
-                        Some(size_table)
+                        Some(Self::build_size_table(&new_children))
                     };
 
-                    // Create new branch node
                     let new_node = self.create_branch_node(manager, new_children, new_sizes);
-
                     (new_node, false, None)
                 }
             }
@@ -1310,25 +1265,30 @@ impl<T: Clone> Node<T> {
                 if total_children <= NODE_SIZE {
                     // Combine children into a single node
                     let mut new_children = Vec::with_capacity(total_children);
-                    new_children.extend(left_children.iter().cloned());
-                    new_children.extend(right_children.iter().cloned());
+                    new_children.extend_from_slice(left_children);
+                    new_children.extend_from_slice(right_children);
 
                     // Create size table based on relaxed/regular nodes
                     let new_sizes = match (left_sizes, right_sizes) {
                         (Some(left_sizes), Some(right_sizes)) => {
                             // Both nodes are relaxed
                             let mut size_table = Vec::with_capacity(total_children);
-                            size_table.extend(left_sizes.iter().copied());
-                            size_table.extend(right_sizes.iter().map(|&size| left_size + size));
+                            size_table.extend_from_slice(left_sizes);
+
+                            // Add offset to right sizes
+                            let right_sizes_offset: Vec<_> =
+                                right_sizes.iter().map(|&size| left_size + size).collect();
+                            size_table.extend_from_slice(&right_sizes_offset);
+
                             Some(size_table)
                         }
                         (Some(left_sizes), None) => {
                             // Only left node is relaxed
                             let mut size_table = Vec::with_capacity(total_children);
-                            size_table.extend(left_sizes.iter().copied());
+                            size_table.extend_from_slice(left_sizes);
 
                             let mut sum = left_size;
-                            for child in right_children.iter().filter_map(|c| c.as_ref()) {
+                            for child in right_children.iter().filter_map(Option::as_ref) {
                                 sum += child.size();
                                 size_table.push(sum);
                             }
@@ -1338,19 +1298,21 @@ impl<T: Clone> Node<T> {
                             // Only right node is relaxed
                             let mut size_table = Vec::with_capacity(total_children);
 
+                            // Build size table for left children
                             let mut sum = 0;
-                            for child in left_children.iter().filter_map(|c| c.as_ref()) {
+                            for child in left_children.iter().filter_map(Option::as_ref) {
                                 sum += child.size();
                                 size_table.push(sum);
                             }
 
-                            size_table.extend(right_sizes.iter().map(|&size| left_size + size));
+                            // Add offset to right sizes
+                            let right_sizes_offset: Vec<_> =
+                                right_sizes.iter().map(|&size| left_size + size).collect();
+                            size_table.extend_from_slice(&right_sizes_offset);
+
                             Some(size_table)
                         }
-                        (None, None) => {
-                            // Both regular nodes
-                            Some(Self::build_size_table(&new_children))
-                        }
+                        (None, None) => Some(Self::build_size_table(&new_children)),
                     };
 
                     self.create_branch_node(manager, new_children, new_sizes)
@@ -1603,21 +1565,17 @@ impl<T: Clone> Node<T> {
         match self {
             Node::Leaf { elements } => {
                 if elements.is_empty() {
-                    // Empty leaf node is cloned as is
                     let mut new_node = manager.acquire_node();
                     *new_node.get_mut().unwrap() = self.clone();
                     return (new_node, None);
                 }
 
-                // Use modify_chunk helper to remove the first element
                 let mut result = None;
                 let new_elements = Self::modify_chunk(elements, |chunk| {
                     result = chunk.pop_front();
                 });
 
-                // Use create_leaf_node helper to create a new leaf node
                 let new_node = Self::create_leaf_node(manager, new_elements);
-
                 (new_node, result)
             }
             Node::Branch {
@@ -1625,85 +1583,58 @@ impl<T: Clone> Node<T> {
                 ref sizes,
             } => {
                 if children.is_empty() {
-                    // Empty branch node is cloned as is
                     let mut new_node = manager.acquire_node();
                     *new_node.get_mut().unwrap() = self.clone();
                     return (new_node, None);
                 }
 
-                // If there is a first child
                 if let Some(first_child) = &children[0] {
                     let (new_first_child, result) =
                         first_child.pop_front(manager, _shift - NODE_BITS);
 
-                    // If an element was successfully removed from the first child
                     if result.is_some() {
-                        // Use modify_branch helper to modify the branch node
                         let new_node = self.modify_branch(manager, |node_children, node_sizes| {
-                            // Update first child
                             node_children.clear();
                             node_children.push(Some(new_first_child.clone()));
 
-                            // Copy remaining children
-                            for child in children.iter().skip(1) {
-                                node_children.push(child.clone());
-                            }
+                            node_children.extend(children.iter().skip(1).cloned());
 
-                            // Update size table
                             if let Some(old_sizes) = sizes {
-                                // Calculate size difference
                                 let size_diff = first_child.size() - new_first_child.size();
-
-                                // Create new size table
-                                let mut new_sizes_vec = Vec::with_capacity(old_sizes.len());
-                                for &size in old_sizes.iter() {
-                                    new_sizes_vec.push(size - size_diff);
-                                }
-
-                                *node_sizes = Some(new_sizes_vec);
+                                *node_sizes =
+                                    Some(old_sizes.iter().map(|&size| size - size_diff).collect());
                             }
                         });
 
                         return (new_node, result);
                     }
 
-                    // If first child is empty and there are other children
                     if children.len() > 1 {
-                        // Create a new branch node excluding the first child
-                        let mut new_children = Vec::with_capacity(children.len() - 1);
-                        for child in children.iter().skip(1) {
-                            new_children.push(child.clone());
-                        }
+                        let new_children: Vec<_> = children.iter().skip(1).cloned().collect();
 
-                        // Create new size table
                         let new_sizes = if let Some(old_sizes) = sizes {
                             if old_sizes.is_empty() {
                                 Some(Vec::new())
                             } else {
                                 let first_size = old_sizes[0];
-                                let mut new_size_table = Vec::with_capacity(old_sizes.len() - 1);
-
-                                for &size in old_sizes.iter().skip(1) {
-                                    new_size_table.push(size - first_size);
-                                }
-
-                                Some(new_size_table)
+                                Some(
+                                    old_sizes
+                                        .iter()
+                                        .skip(1)
+                                        .map(|&size| size - first_size)
+                                        .collect(),
+                                )
                             }
                         } else {
                             None
                         };
 
-                        // Use create_branch_node helper to create a new branch node
                         let new_node = self.create_branch_node(manager, new_children, new_sizes);
-
-                        // Try pop_front recursively
                         return new_node.pop_front(manager, _shift);
                     }
                 }
 
-                // Create empty branch node
                 let empty_branch = self.create_branch_node(manager, Vec::new(), Some(Vec::new()));
-
                 (empty_branch, None)
             }
         }
@@ -1744,30 +1675,24 @@ impl<T: Clone> Node<T> {
     /// assert_eq!(new_node.size(), 1);
     /// assert_eq!(*new_node.get(0, 0).unwrap(), 10);
     /// ```
-    pub fn pop_back(&self, manager: &MemoryManager<T>, _shift: usize) -> PopResult<T> {
+    pub fn pop_back(&self, manager: &MemoryManager<T>, shift: usize) -> PopResult<T> {
         match self {
             Node::Leaf { elements } => {
                 if elements.is_empty() {
-                    // Empty leaf node is cloned as is
                     let mut new_node = manager.acquire_node();
                     *new_node.get_mut().unwrap() = self.clone();
                     return (new_node, None);
                 }
 
-                // Use modify_chunk helper to remove the last element
                 let mut result = None;
                 let new_elements = Self::modify_chunk(elements, |chunk| {
                     result = chunk.pop_back();
                 });
 
-                // Use create_leaf_node helper to create a new leaf node
-                let new_node = Self::create_leaf_node(manager, new_elements);
-
-                (new_node, result)
+                (Self::create_leaf_node(manager, new_elements), result)
             }
             Node::Branch { children, sizes } => {
                 if children.is_empty() {
-                    // Empty branch node is cloned as is
                     let mut new_node = manager.acquire_node();
                     *new_node.get_mut().unwrap() = self.clone();
                     return (new_node, None);
@@ -1775,40 +1700,22 @@ impl<T: Clone> Node<T> {
 
                 let last_idx = children.len() - 1;
 
-                // If there is a last child
                 if let Some(last_child) = &children[last_idx] {
-                    let (new_child, result) = last_child.pop_back(manager, _shift - NODE_BITS);
+                    let (new_child, result) = last_child.pop_back(manager, shift - NODE_BITS);
 
                     if result.is_none() {
-                        // If last child is empty and there are other children
                         if children.len() > 1 {
-                            // Create a new branch node excluding the last child
                             let mut new_children = Vec::with_capacity(last_idx);
-                            for child in children.iter().take(last_idx) {
-                                new_children.push(child.clone());
-                            }
+                            new_children.extend(children.iter().take(last_idx).cloned());
 
-                            // Create new size table
-                            let new_sizes = if let Some(old_sizes) = sizes {
-                                let mut new_size_table = Vec::with_capacity(last_idx);
+                            let new_sizes = sizes.as_ref().map(|old_sizes| {
+                                old_sizes.iter().take(last_idx).cloned().collect()
+                            });
 
-                                for &size in old_sizes.iter().take(last_idx) {
-                                    new_size_table.push(size);
-                                }
-
-                                Some(new_size_table)
-                            } else {
-                                None
-                            };
-
-                            // Use create_branch_node helper to create a new branch node
                             let new_node =
                                 self.create_branch_node(manager, new_children, new_sizes);
-
-                            // Try pop_back recursively
-                            return new_node.pop_back(manager, _shift);
+                            return new_node.pop_back(manager, shift);
                         } else {
-                            // If there are no other children, return an empty branch node
                             return (
                                 self.create_branch_node(manager, Vec::new(), Some(Vec::new())),
                                 None,
@@ -1816,64 +1723,33 @@ impl<T: Clone> Node<T> {
                         }
                     }
 
-                    // If an element was successfully removed from the last child
-                    // Use modify_branch helper to modify the branch node
                     let new_node = self.modify_branch(manager, |node_children, node_sizes| {
-                        // Copy children before the last child
-                        for child in children.iter().take(last_idx) {
-                            node_children.push(child.clone());
-                        }
-
-                        // Add the updated last child
+                        node_children.extend(children.iter().take(last_idx).cloned());
                         node_children.push(Some(new_child.clone()));
 
-                        // Update size table
                         if let Some(old_sizes) = sizes {
                             let size_diff = last_child.size() - new_child.size();
                             let mut new_size_table = Vec::with_capacity(children.len());
-
-                            // Copy sizes before the last child
-                            for &size in old_sizes.iter().take(last_idx) {
-                                new_size_table.push(size);
-                            }
-
-                            // Update the last size
+                            new_size_table.extend(old_sizes.iter().take(last_idx).cloned());
                             new_size_table.push(old_sizes[last_idx] - size_diff);
-
                             *node_sizes = Some(new_size_table);
                         }
                     });
 
                     (new_node, result)
                 } else {
-                    // If the last child is None
-                    // Create a new branch node excluding the last child
                     let mut new_children = Vec::with_capacity(last_idx);
-                    for child in children.iter().take(last_idx) {
-                        new_children.push(child.clone());
-                    }
+                    new_children.extend(children.iter().take(last_idx).cloned());
 
-                    // Create new size table
-                    let new_sizes = if let Some(old_sizes) = sizes {
-                        let mut new_size_table = Vec::with_capacity(last_idx);
+                    let new_sizes = sizes
+                        .as_ref()
+                        .map(|old_sizes| old_sizes.iter().take(last_idx).cloned().collect());
 
-                        for &size in old_sizes.iter().take(last_idx) {
-                            new_size_table.push(size);
-                        }
-
-                        Some(new_size_table)
-                    } else {
-                        None
-                    };
-
-                    // Use create_branch_node helper to create a new branch node
                     let new_node = self.create_branch_node(manager, new_children, new_sizes);
 
-                    // If the new node has children, try pop_back recursively
                     if new_node.child_count() > 0 {
-                        new_node.pop_back(manager, _shift)
+                        new_node.pop_back(manager, shift)
                     } else {
-                        // If there are no children, return the empty node
                         (new_node, None)
                     }
                 }

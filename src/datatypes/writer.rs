@@ -207,6 +207,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// assert_eq!(value, 42);
     /// assert_eq!(output_log, Log(vec!["Initial value computed".to_string()]));
     /// ```
+    #[inline]
     pub fn new(log: W, value: A) -> Self {
         Self {
             logs: PersistentVector::from_slice(&[log]),
@@ -256,6 +257,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// assert_eq!(value, 42);
     /// assert_eq!(log, Log::empty());
     /// ```
+    #[inline]
     pub fn pure_value(value: A) -> Self {
         Self {
             logs: PersistentVector::new(),
@@ -305,6 +307,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// assert_eq!(value, ()); // Unit value
     /// assert_eq!(log, Log(vec!["Important log message".to_string()]));
     /// ```
+    #[inline]
     pub fn tell(log: W) -> Writer<W, ()> {
         Writer::new(log, ())
     }
@@ -349,6 +352,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// assert_eq!(value, 42);
     /// assert_eq!(log, Log(vec!["Log entry".to_string()]));
     /// ```
+    #[inline]
     pub fn run(self) -> (W, A) {
         // Evaluate all logs by combining them
         let mut combined_log = W::empty();
@@ -399,6 +403,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// let value = writer.value();
     /// assert_eq!(value, 42);
     /// ```
+    #[inline]
     pub fn value(self) -> A {
         self.value
     }
@@ -442,6 +447,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// let log = writer.log();
     /// assert_eq!(log, Log(vec!["Log entry".to_string()]));
     /// ```
+    #[inline]
     pub fn log(self) -> W {
         let (log, _) = self.run();
         log
@@ -454,20 +460,24 @@ impl<W: Monoid + Clone, A> HKT for Writer<W, A> {
 }
 
 impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
+    #[inline]
     fn value(&self) -> &Self::Source {
         &self.value
     }
 
+    #[inline]
     fn into_value(self) -> Self::Source {
         self.value
     }
 
+    #[inline]
     fn pure_identity<B: Clone>(value: B) -> Self::Output<B> {
         Writer::pure_value(value)
     }
 }
 
 impl<W: Monoid + Clone, A: Clone + Semigroup> Semigroup for Writer<W, A> {
+    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         // Use more efficient combination for owned values
         Self {
@@ -476,6 +486,7 @@ impl<W: Monoid + Clone, A: Clone + Semigroup> Semigroup for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn combine(&self, other: &Self) -> Self {
         // Use more efficient combination for references
         Self {
@@ -486,6 +497,7 @@ impl<W: Monoid + Clone, A: Clone + Semigroup> Semigroup for Writer<W, A> {
 }
 
 impl<W: Monoid + Clone, A: Clone + Default + Semigroup> Monoid for Writer<W, A> {
+    #[inline]
     fn empty() -> Self {
         Self {
             logs: PersistentVector::new(),
@@ -495,6 +507,7 @@ impl<W: Monoid + Clone, A: Clone + Default + Semigroup> Monoid for Writer<W, A> 
 }
 
 impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
+    #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
         B: Clone,
@@ -506,6 +519,7 @@ impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: FnOnce(A) -> B,
@@ -518,12 +532,14 @@ impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
 }
 
 impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
+    #[inline]
     fn pure<T: Clone>(value: &T) -> Self::Output<T> {
         Writer::pure_value(value.clone())
     }
 }
 
 impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
+    #[inline]
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
     where
         B: Clone,
@@ -535,6 +551,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         B: Clone,
@@ -547,6 +564,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         B: Clone,
@@ -560,6 +578,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         B: Clone,
@@ -571,6 +590,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
         B: Clone,
@@ -583,6 +603,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn lift3_owned<B, C, D, F>(
         self,
         b: Self::Output<B>,
@@ -603,6 +624,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
 }
 
 impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
+    #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
         U: Clone,
@@ -615,6 +637,7 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn join<U>(&self) -> Self::Output<U>
     where
         Self::Source: Clone,
@@ -628,6 +651,7 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
     where
         U: Clone,
@@ -640,6 +664,7 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
         }
     }
 
+    #[inline]
     fn join_owned<U>(self) -> Self::Output<U>
     where
         Self::Source: Clone,

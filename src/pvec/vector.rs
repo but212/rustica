@@ -53,6 +53,7 @@ use super::tree::Tree;
 ///
 /// This provides a high-level interface for working with the persistent vector,
 /// with operations that are more familiar to users of standard vector types.
+#[repr(transparent)]
 #[derive(Clone)]
 pub struct PersistentVector<T: Clone> {
     /// The underlying tree data structure
@@ -71,7 +72,27 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(vec.len(), 0);
     /// assert!(vec.is_empty());
     /// ```
+    #[inline]
     pub fn new() -> Self {
+        Self { tree: Tree::new() }
+    }
+
+    /// Clears the vector, removing all elements and returning an empty vector.
+    ///
+    /// This operation creates a new empty vector without modifying the original one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
+    /// let empty = vec.clear();
+    /// assert!(empty.is_empty());
+    /// assert_eq!(vec.len(), 3); // Original is unchanged
+    /// ```
+    #[inline]
+    pub fn clear(&self) -> Self {
         Self { tree: Tree::new() }
     }
 
@@ -86,6 +107,7 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(vec.len(), 1);
     /// assert_eq!(vec.get(0), Some(&42));
     /// ```
+    #[inline]
     pub fn unit(value: T) -> Self {
         Self {
             tree: Tree::unit(value),
@@ -104,6 +126,7 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(vec.len(), 5);
     /// assert_eq!(vec.get(2), Some(&3));
     /// ```
+    #[inline]
     pub fn from_slice(slice: &[T]) -> Self {
         Self {
             tree: Tree::from_slice(slice),
@@ -122,7 +145,8 @@ impl<T: Clone> PersistentVector<T> {
     /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
     /// assert_eq!(vec.len(), 3);
     /// ```
-    pub fn len(&self) -> usize {
+    #[inline]
+    pub const fn len(&self) -> usize {
         self.tree.len()
     }
 
@@ -139,7 +163,8 @@ impl<T: Clone> PersistentVector<T> {
     /// let vec = PersistentVector::unit(42);
     /// assert!(!vec.is_empty());
     /// ```
-    pub fn is_empty(&self) -> bool {
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
         self.tree.is_empty()
     }
 
@@ -154,8 +179,46 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(vec.get(1), Some(&20));
     /// assert_eq!(vec.get(5), None); // Out of bounds
     /// ```
+    #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.tree.get(index)
+    }
+
+    /// Creates a new vector containing elements from a range of the original vector.
+    ///
+    /// Returns a new vector containing elements from index `start` (inclusive) to
+    /// index `end` (exclusive). If `start` is greater than or equal to `end`, or
+    /// if `start` is greater than or equal to the vector's length, an empty vector
+    /// is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
+    /// let sliced = vec.slice(1, 4);
+    /// assert_eq!(sliced.len(), 3);
+    /// assert_eq!(sliced.get(0), Some(&2));
+    /// assert_eq!(sliced.get(2), Some(&4));
+    /// assert_eq!(vec.len(), 5); // Original unchanged
+    /// ```
+    #[inline]
+    pub fn slice(&self, start: usize, end: usize) -> Self {
+        if start >= end || start >= self.len() {
+            return Self::new();
+        }
+        
+        let actual_end = end.min(self.len());
+        let mut result = Self::new();
+        
+        for i in start..actual_end {
+            if let Some(value) = self.get(i) {
+                result = result.append(value.clone());
+            }
+        }
+        
+        result
     }
 
     /// Returns a new vector with the given element appended to the end.
@@ -173,10 +236,138 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(vec.len(), 2);
     /// assert_eq!(vec.get(1), Some(&20));
     /// ```
+    #[inline]
     pub fn append(&self, value: T) -> Self {
         Self {
             tree: self.tree.append(value),
         }
+    }
+
+    /// Returns a new vector with the specified length.
+    ///
+    /// If the new length is greater than the current length, the vector is
+    /// extended with copies of the provided value. If the new length is less
+    /// than the current length, the vector is truncated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
+    ///
+    /// // Extend the vector
+    /// let extended = vec.resize(5, 0);
+    /// assert_eq!(extended.len(), 5);
+    /// assert_eq!(extended.get(3), Some(&0));
+    ///
+    /// // Truncate the vector
+    /// let truncated = vec.resize(2, 0);
+    /// assert_eq!(truncated.len(), 2);
+    /// assert_eq!(truncated.get(2), None);
+    /// ```
+    #[inline]
+    pub fn resize(&self, new_len: usize, value: T) -> Self {
+        let mut result = self.clone();
+        let current_len = self.len();
+        
+        if new_len > current_len {
+            // Extend with copies of the value
+            for _ in 0..(new_len - current_len) {
+                result = result.append(value.clone());
+            }
+        } else if new_len < current_len {
+            // Truncate to the new length
+            result = Self { tree: result.tree.truncate(new_len) };
+        }
+        
+        result
+    }
+
+    /// Returns a new vector truncated to the specified length.
+    ///
+    /// If the new length is less than the current length, the vector is truncated.
+    /// If the new length is greater than or equal to the current length, the vector is unchanged.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
+    /// let truncated = vec.truncate(3);
+    /// assert_eq!(truncated.len(), 3);
+    /// assert_eq!(truncated.get(2), Some(&3));
+    /// assert_eq!(truncated.get(3), None);
+    /// assert_eq!(vec.len(), 5); // Original unchanged
+    /// ```
+    #[inline]
+    pub fn truncate(&self, new_len: usize) -> Self {
+        if new_len >= self.len() {
+            return self.clone();
+        }
+
+        Self {
+            tree: self.tree.truncate(new_len),
+        }
+    }
+
+    /// Returns a new vector with elements in the specified range removed.
+    ///
+    /// This creates a new vector with all elements from the original vector except those in the range
+    /// from `start` (inclusive) to `end` (exclusive). If the range is invalid (e.g., `start` > `end` or
+    /// the range is out of bounds), the original vector is returned unchanged.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
+    /// let new_vec = vec.drain(1, 3);
+    /// assert_eq!(new_vec.len(), 3);
+    /// assert_eq!(new_vec.get(0), Some(&1));
+    /// assert_eq!(new_vec.get(1), Some(&4));
+    /// assert_eq!(new_vec.get(2), Some(&5));
+    /// assert_eq!(vec.len(), 5); // Original unchanged
+    /// ```
+    #[inline]
+    pub fn drain(&self, start: usize, end: usize) -> Self {
+        if start >= end || start >= self.len() {
+            return self.clone();
+        }
+        
+        let mut result = self.slice(0, start);
+        
+        for i in end..self.len() {
+            if let Some(value) = self.get(i) {
+                result = result.append(value.clone());
+            }
+        }
+        
+        result
+    }
+
+    /// Returns a new vector with all elements from the provided iterator appended to the end.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
+    /// let extended = vec.extend(vec![4, 5, 6]);
+    /// assert_eq!(extended.len(), 6);
+    /// assert_eq!(extended.get(5), Some(&6));
+    /// assert_eq!(vec.len(), 3); // Original unchanged
+    /// ```
+    #[inline]
+    pub fn extend(&self, values: impl IntoIterator<Item = T>) -> Self {
+        let mut result = self.clone();
+        for value in values {
+            result = result.push_back(value);
+        }
+        result
     }
 
     /// Returns a new vector with the element at the specified index updated to the given value.
@@ -193,6 +384,7 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(updated_vec.get(1), Some(&25));
     /// assert_eq!(vec.get(1), Some(&20)); // Original unchanged
     /// ```
+    #[inline]
     pub fn update(&self, index: usize, value: T) -> Self {
         Self {
             tree: self.tree.update(index, value),
@@ -212,6 +404,7 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(vec.len(), 2);
     /// assert_eq!(vec.get(1), Some(&20));
     /// ```
+    #[inline]
     pub fn push_back(&self, value: T) -> Self {
         Self {
             tree: self.tree.push_back(value),
@@ -231,6 +424,7 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(element, 50);
     /// assert_eq!(new_vec.len(), 4);
     /// ```
+    #[inline]
     pub fn pop_back(&self) -> Option<(Self, T)> {
         self.tree
             .pop_back()
@@ -253,6 +447,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let manager = MemoryManager::new(AllocationStrategy::Direct);
     /// vec.set_memory_manager(manager);
     /// ```
+    #[inline]
     pub fn set_memory_manager(&mut self, manager: MemoryManager<T>) {
         self.tree.set_memory_manager(manager);
     }
@@ -272,6 +467,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let arc_vec = vec.to_arc();
     /// assert_eq!(arc_vec.len(), 3);
     /// ```
+    #[inline]
     pub fn to_arc(self) -> Arc<Self> {
         Arc::new(self)
     }
@@ -290,6 +486,7 @@ impl<T: Clone> PersistentVector<T> {
     /// }
     /// assert_eq!(sum, 6);
     /// ```
+    #[inline]
     pub fn iter(&self) -> Iter<'_, T> {
         Iter::new(self)
     }
@@ -309,6 +506,7 @@ impl<T: Clone> PersistentVector<T> {
     /// // but we should have at least one chunk
     /// assert!(!chunks.is_empty());
     /// ```
+    #[inline]
     pub fn chunks(&self) -> ChunksIter<'_, T> {
         ChunksIter::with_default_sizes(self)
     }
@@ -324,6 +522,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let sorted: Vec<&i32> = vec.sorted().collect();
     /// assert_eq!(sorted, vec![&1, &2, &3, &4, &5]);
     /// ```
+    #[inline]
     pub fn sorted(&self) -> SortedIter<'_, T>
     where
         T: Ord,
@@ -342,6 +541,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let std_vec = pvec.to_vec();
     /// assert_eq!(std_vec, vec![1, 2, 3]);
     /// ```
+    #[inline]
     pub fn to_vec(&self) -> StdVec<T> {
         self.iter().cloned().collect()
     }
@@ -386,6 +586,55 @@ impl<T: Clone> PersistentVector<T> {
 
         result
     }
+
+    /// Splits the vector into two parts at the given index.
+    ///
+    /// Returns a tuple containing two vectors: the first with elements from `0..index`,
+    /// and the second with elements from `index..len`.
+    ///
+    /// If `index` is greater than or equal to the length, the first vector will contain
+    /// all elements and the second will be empty. If `index` is 0, the first vector
+    /// will be empty and the second will contain all elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
+    /// let (left, right) = vec.split_at(2);
+    ///
+    /// assert_eq!(left.len(), 2);
+    /// assert_eq!(right.len(), 3);
+    /// assert_eq!(left.get(0), Some(&1));
+    /// assert_eq!(right.get(0), Some(&3));
+    /// ```
+    #[inline]
+    pub fn split_at(&self, index: usize) -> (Self, Self) {
+        (self.slice(0, index), self.slice(index, self.len()))
+    }
+
+    /// Returns a new vector containing the elements from `start` to `end` (exclusive).
+    ///
+    /// This method is an alias for `slice` that provides a more familiar name for users
+    /// coming from other vector implementations.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
+    /// let sub = vec.subvec(1, 4);
+    ///
+    /// assert_eq!(sub.len(), 3);
+    /// assert_eq!(sub.get(0), Some(&2));
+    /// assert_eq!(sub.get(2), Some(&4));
+    /// ```
+    #[inline]
+    pub fn subvec(&self, start: usize, end: usize) -> Self {
+        self.slice(start, end)
+    }
 }
 
 impl<T: Clone> Default for PersistentVector<T> {
@@ -400,12 +649,14 @@ impl<T: Clone> Default for PersistentVector<T> {
     /// let vec: PersistentVector<i32> = Default::default();
     /// assert!(vec.is_empty());
     /// ```
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T: Clone + Debug> Debug for PersistentVector<T> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
@@ -424,6 +675,7 @@ impl<T: Clone> FromIterator<T> for PersistentVector<T> {
     /// assert_eq!(vec.len(), 5);
     /// assert_eq!(vec.get(2), Some(&3));
     /// ```
+    #[inline]
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         Self {
             tree: Tree::from_iter(iter),
@@ -446,6 +698,7 @@ impl<T: Clone> IntoIterator for PersistentVector<T> {
     /// let sum: i32 = vec.into_iter().sum();
     /// assert_eq!(sum, 6);
     /// ```
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IntoIter::new(self)
     }
@@ -466,6 +719,7 @@ impl<'a, T: Clone> IntoIterator for &'a PersistentVector<T> {
     /// let sum: i32 = (&vec).into_iter().fold(0, |acc, &x| acc + x);
     /// assert_eq!(sum, 6);
     /// ```
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -488,6 +742,7 @@ impl<T: Clone> Index<usize> for PersistentVector<T> {
     /// let vec = PersistentVector::from_slice(&[10, 20, 30]);
     /// assert_eq!(vec[1], 20);
     /// ```
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         self.get(index).expect("index out of bounds")
     }
@@ -605,5 +860,11 @@ impl<T: Clone> PersistentVector<T> {
 impl<T: Clone> From<PersistentVector<T>> for Vec<T> {
     fn from(val: PersistentVector<T>) -> Self {
         val.to_vec()
+    }
+}
+
+impl<T: Clone> From<Vec<T>> for PersistentVector<T> {
+    fn from(val: Vec<T>) -> Self {
+        val.into_iter().collect()
     }
 }
