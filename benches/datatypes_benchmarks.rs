@@ -20,6 +20,7 @@ mod datatypes {
     pub mod state;
     pub mod validated;
     pub mod writer;
+    pub mod pvec;
 }
 
 // Re-export benchmark functions
@@ -31,6 +32,7 @@ use datatypes::prism::prism_benchmarks;
 use datatypes::reader::reader_benchmarks;
 use datatypes::validated::validated_benchmarks;
 use datatypes::writer::writer_benchmarks;
+use datatypes::pvec::pvec_benchmarks;
 
 #[cfg(feature = "async")]
 use datatypes::async_monad::async_monad_benchmarks;
@@ -56,6 +58,7 @@ criterion_group!(
     lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
+    pvec_benchmarks,
 );
 
 #[cfg(feature = "async")]
@@ -71,6 +74,7 @@ criterion_group!(
     lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
+    pvec_benchmarks,
 );
 
 #[cfg(not(feature = "async"))]
@@ -89,6 +93,7 @@ criterion_group!(
     lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
+    pvec_benchmarks,
 );
 
 #[cfg(feature = "async")]
@@ -108,6 +113,7 @@ criterion_group!(
     lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
+    pvec_benchmarks,
 );
 
 criterion_main!(datatype_benches);

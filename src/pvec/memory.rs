@@ -182,6 +182,24 @@ impl<T: Clone> MemoryManager<T> {
         }
     }
 
+    /// Reserve capacity for at least `count` additional chunks
+    ///
+    /// This ensures that the chunk pool can hold at least `count` more chunks without
+    /// reallocating its internal storage.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::memory::MemoryManager;
+    ///
+    /// let manager: MemoryManager<i32> = MemoryManager::default();
+    /// manager.reserve_chunks(20);
+    /// ```
+    #[inline]
+    pub fn reserve_chunks(&self, count: usize) {
+        self.chunk_pool.lock().reserve(count);
+    }
+
     /// Get the current allocation strategy
     ///
     /// # Examples
@@ -598,6 +616,29 @@ impl<T: Clone> ObjectPool<T> {
     #[inline]
     pub fn acquire(&mut self) -> Option<Arc<T>> {
         self.objects.pop_front()
+    }
+
+    /// Reserves capacity for at least `count` additional objects
+    ///
+    /// This ensures that the pool can hold at least `count` more objects without
+    /// reallocating its internal storage.
+    ///
+    /// # Parameters
+    ///
+    /// * `count`: The number of additional objects to reserve space for
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::memory::ObjectPool;
+    /// use std::sync::Arc;
+    ///
+    /// let mut pool: ObjectPool<Arc<i32>> = ObjectPool::new(10);
+    /// pool.reserve(20);
+    /// ```
+    #[inline]
+    pub fn reserve(&mut self, count: usize) {
+        self.objects.reserve(count);
     }
 
     /// Acquire an object from the pool, or create a new one if the pool is empty
