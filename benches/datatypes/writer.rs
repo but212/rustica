@@ -80,7 +80,10 @@ pub fn writer_benchmarks(c: &mut Criterion) {
         let log = Log {
             _entries: vec!["Entry 1".to_string(), "Entry 2".to_string()],
         };
-        b.iter(|| black_box(Writer::<Log, i32>::new(log.clone(), 42)));
+        b.iter(|| {
+            let writer = Writer::<Log, i32>::new(log.clone(), 42);
+            black_box(writer)
+        });
     });
 
     group.bench_function("pure", |b| {
@@ -91,22 +94,31 @@ pub fn writer_benchmarks(c: &mut Criterion) {
         let log = Log {
             _entries: vec!["log entry".to_string()],
         };
-        b.iter(|| black_box(Writer::<Log, ()>::tell(log.clone())));
+        b.iter(|| {
+            let log = log.clone();
+            black_box(Writer::<Log, ()>::tell(log))
+        });
     });
 
     // Access benchmarks
     group.bench_function("value extraction", |b| {
         let writer = Writer::<Log, i32>::new(Log::empty(), 42);
-        b.iter(|| black_box(writer.clone().value()));
+        b.iter(|| {
+            // No need to clone since value() consumes the writer but doesn't use the log
+            let writer_clone = writer.clone();
+            black_box(writer_clone.value())
+        });
     });
 
     group.bench_function("log extraction", |b| {
         let writer = Writer::<Log, i32>::new(Log::empty(), 42);
-        b.iter(|| black_box(writer.clone().log()));
+        let writer_clone = writer.clone();
+        b.iter(|| black_box(writer_clone.clone().log()));
     });
 
     group.bench_function("run", |b| {
-        let writer = Writer::<Log, i32>::new(Log::empty(), 42);
+        let log = Log::empty();
+        let writer = Writer::<Log, i32>::new(log, 42);
         b.iter(|| black_box(writer.clone().run()));
     });
 
@@ -125,9 +137,9 @@ pub fn writer_benchmarks(c: &mut Criterion) {
     // Functor operations
     let mut group = c.benchmark_group("Writer - Functor Operations");
 
-    group.bench_function("fmap simple", |b| {
+    group.bench_function("fmap", |b| {
         let writer = Writer::<Log, i32>::new(Log::empty(), 42);
-        b.iter(|| black_box(writer.clone().fmap(|x: &i32| x + 1)));
+        b.iter(|| black_box(writer.clone().fmap(|x| x + 1)));
     });
 
     group.bench_function("fmap complex", |b| {
@@ -164,26 +176,40 @@ pub fn writer_benchmarks(c: &mut Criterion) {
     group.bench_function("apply", |b| {
         let writer_fn = Writer::<Log, fn(&i32) -> i32>::new(Log::empty(), |x: &i32| x + 1);
         let writer_val = Writer::<Log, i32>::new(Log::empty(), 42);
-        b.iter(|| black_box(writer_val.clone().apply(&writer_fn)));
+        b.iter_batched_ref(
+            || (writer_val.clone(), writer_fn.clone()),
+            |(val, func)| black_box(val.apply(func)),
+            criterion::BatchSize::SmallInput,
+        );
     });
 
     group.bench_function("lift2", |b| {
-        let writer1 = Writer::<Log, i32>::new(Log::empty(), 42);
-        let writer2 = Writer::<Log, i32>::new(Log::empty(), 10);
-        b.iter(|| black_box(writer1.clone().lift2(&writer2, |x: &i32, y: &i32| x + y)));
+        b.iter_batched_ref(
+            || {
+                (
+                    Writer::<Log, i32>::new(Log::empty(), 42), 
+                    Writer::<Log, i32>::new(Log::empty(), 10)
+                )
+            },
+            |(w1, w2)| black_box(w1.lift2(w2, |x: &i32, y: &i32| x + y)),
+            criterion::BatchSize::SmallInput,
+        );
     });
 
     group.bench_function("lift3", |b| {
-        let writer1 = Writer::<Log, i32>::new(Log::empty(), 42);
-        let writer2 = Writer::<Log, i32>::new(Log::empty(), 10);
-        let writer3 = Writer::<Log, i32>::new(Log::empty(), 5);
-        b.iter(|| {
-            black_box(
-                writer1
-                    .clone()
-                    .lift3(&writer2, &writer3, |x: &i32, y: &i32, z: &i32| x + y + z),
-            )
-        });
+        b.iter_batched_ref(
+            || {
+                (
+                    Writer::<Log, i32>::new(Log::empty(), 42),
+                    Writer::<Log, i32>::new(Log::empty(), 10),
+                    Writer::<Log, i32>::new(Log::empty(), 5),
+                )
+            },
+            |(w1, w2, w3)| {
+                black_box(w1.lift3(w2, w3, |x: &i32, y: &i32, z: &i32| x + y + z))
+            },
+            criterion::BatchSize::SmallInput,
+        );
     });
 
     group.finish();
@@ -193,45 +219,33 @@ pub fn writer_benchmarks(c: &mut Criterion) {
 
     group.bench_function("bind simple", |b| {
         let writer = Writer::<Log, i32>::new(Log::empty(), 42);
-        b.iter(|| {
-            black_box(
-                writer
-                    .clone()
-                    .bind(|x: &i32| Writer::<Log, i32>::new(Log::empty(), x + 1)),
-            )
-        });
+        let target_fn = |x: &i32| Writer::<Log, i32>::new(Log::empty(), x + 1);
+        b.iter(|| black_box(writer.clone().bind(target_fn)));
     });
 
     group.bench_function("bind with logging", |b| {
         let writer = Writer::<Log, i32>::new(Log::empty(), 42);
-        b.iter(|| {
-            black_box(writer.clone().bind(|x: &i32| {
-                let log = Log {
-                    _entries: vec![format!("Processed value: {}", x)],
-                };
-                Writer::<Log, i32>::new(log, x + 1)
-            }))
-        });
+        let bind_fn = |x: &i32| {
+            let log = Log {
+                _entries: vec![format!("Processed value: {}", x)],
+            };
+            Writer::<Log, i32>::new(log, x + 1)
+        };
+        
+        b.iter(|| black_box(writer.clone().bind(bind_fn)));
     });
 
     group.bench_function("bind chained", |b| {
         let writer = Writer::<Log, i32>::new(Log::empty(), 42);
+        let log1 = Log { _entries: vec!["First operation".to_string()] };
+        let log2 = Log { _entries: vec!["Second operation".to_string()] };
+        
         b.iter(|| {
             black_box(
                 writer
                     .clone()
-                    .bind(|x: &i32| {
-                        let log = Log {
-                            _entries: vec!["First operation".to_string()],
-                        };
-                        Writer::<Log, i32>::new(log, x + 10)
-                    })
-                    .bind(|x: &i32| {
-                        let log = Log {
-                            _entries: vec!["Second operation".to_string()],
-                        };
-                        Writer::<Log, i32>::new(log, x * 2)
-                    }),
+                    .bind(|x: &i32| Writer::<Log, i32>::new(log1.clone(), x + 10))
+                    .bind(|x: &i32| Writer::<Log, i32>::new(log2.clone(), x * 2))
             )
         });
     });
@@ -252,18 +266,13 @@ pub fn writer_benchmarks(c: &mut Criterion) {
 
             black_box(
                 initial
-                    .bind(|x: &i32| {
+                    .fmap(|x| x * 2)
+                    .bind(|x| {
                         let log = Log {
-                            _entries: vec![format!("Step 1: Input {}", x)],
-                        };
-                        Writer::<Log, i32>::new(log, x * 2)
-                    })
-                    .bind(|x: &i32| {
-                        let log = Log {
-                            _entries: vec![format!("Step 2: Input {}", x)],
+                            _entries: vec![format!("Processing value: {}", x)],
                         };
                         Writer::<Log, i32>::new(log, x + 5)
-                    }),
+                    })
             )
         });
     });
@@ -290,7 +299,7 @@ pub fn writer_benchmarks(c: &mut Criterion) {
 
             black_box(
                 initial_writer
-                    .bind(|config: &SystemConfig| {
+                    .bind(|config| {
                         let mut new_config = config.clone();
                         new_config.max_connections = 150;
                         let log = Log {
@@ -301,7 +310,7 @@ pub fn writer_benchmarks(c: &mut Criterion) {
                         };
                         Writer::<Log, SystemConfig>::new(log, new_config)
                     })
-                    .bind(|config: &SystemConfig| {
+                    .bind(|config| {
                         let mut new_config = config.clone();
                         new_config.debug_mode = true;
                         let log = Log {

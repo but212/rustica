@@ -20,7 +20,7 @@ fn test_validated_creation() {
 
     // Test invalid creation with multiple errors
     let multi_invalid: Validated<&str, i32> =
-        Validated::invalid_many(&["error1", "error2", "error3"]);
+        Validated::invalid_many(["error1", "error2", "error3"]);
     assert!(multi_invalid.is_invalid());
     assert_eq!(multi_invalid.errors().len(), 3);
     assert_eq!(multi_invalid.errors()[0], "error1");
@@ -40,7 +40,7 @@ fn test_validated_errors() {
     assert_eq!(invalid.errors()[0], "error");
 
     // Invalid with multiple errors
-    let multi_invalid: Validated<String, i32> = Validated::invalid_many(&[
+    let multi_invalid: Validated<String, i32> = Validated::invalid_many([
         "error1".to_string(),
         "error2".to_string(),
         "error3".to_string(),
@@ -202,7 +202,7 @@ fn test_validated_conversions() {
     assert_eq!(result.unwrap_err()[0], "error");
 
     // Test to_result with Invalid (multiple errors)
-    let multi_invalid: Validated<&str, i32> = Validated::invalid_many(&["error1", "error2"]);
+    let multi_invalid: Validated<&str, i32> = Validated::invalid_many(["error1", "error2"]);
     let result = multi_invalid.to_result();
     assert!(result.is_err());
     assert_eq!(result.unwrap_err()[0], "error1");

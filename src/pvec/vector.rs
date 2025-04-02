@@ -1011,13 +1011,13 @@ impl<T: Clone> PersistentVector<T> {
     {
         let mut result = PersistentVector::new();
         result = result.push_back(initial.clone());
-
+    
         let mut acc = initial;
         for item in self.iter().rev() {
             acc = f(&acc, item.clone());
             result = result.push_back(acc.clone());
         }
-
+    
         result
     }
 
@@ -1288,6 +1288,7 @@ impl<T: Clone> PersistentVector<T> {
     pub fn filter<F>(&self, predicate: F) -> PersistentVector<T>
     where
         F: Fn(&T) -> bool,
+        T: Clone,
     {
         let mut result = PersistentVector::new();
         for item in self.iter() {
@@ -1348,12 +1349,9 @@ impl<T: Clone> PersistentVector<T> {
     /// let combined = vec1.concat(&vec2);
     /// assert_eq!(combined.to_vec(), vec![1, 2, 3, 4, 5, 6]);
     /// ```
+    #[inline]
     pub fn concat(&self, other: &Self) -> Self {
-        let mut result = self.clone();
-        for item in other.iter() {
-            result = result.push_back(item.clone());
-        }
-        result
+        self.extend(other.iter().cloned())
     }
 }
 

@@ -40,7 +40,6 @@ use std::sync::Arc;
 use super::cache::IndexCache;
 use super::memory::{AllocationStrategy, ManagedRef, MemoryManager};
 use super::node::{Node, NODE_BITS, NODE_SIZE};
-use crate::pvec::chunk::CHUNK_SIZE;
 
 /// A persistent vector implemented as a Relaxed Radix Balanced (RRB) tree.
 ///
@@ -183,6 +182,7 @@ impl<T: Clone> Tree<T> {
     /// assert_eq!(sliced.get(2), Some(&4));
     /// assert_eq!(tree.len(), 5); // Original unchanged
     /// ```
+    #[inline]
     pub fn slice(&self, start: usize, end: usize) -> Self {
         if start >= self.size || end > self.size || start > end {
             return Self::new();
@@ -193,42 +193,10 @@ impl<T: Clone> Tree<T> {
             return Self::new();
         }
 
-        let manager = MemoryManager::new(AllocationStrategy::Direct);
-
-        // If the slice fits in a single chunk, create a simple leaf node
-        if size <= CHUNK_SIZE {
-            let mut chunk = manager.acquire_chunk();
-            let chunk_mut = chunk.get_mut().unwrap();
-
-            for i in start..end {
-                if let Some(value) = self.get(i) {
-                    chunk_mut.push_back(value.clone());
-                }
-            }
-
-            let mut root = manager.acquire_node();
-            *root.get_mut().unwrap() = Node::leaf(chunk);
-
-            return Self {
-                root,
-                size,
-                height: 0,
-                manager,
-                cache: IndexCache::new(),
-            };
-        }
-
-        // For larger slices, create a more efficient tree structure
-        let mut tree = Self::new();
-        tree.manager = manager;
-
-        for i in start..end {
-            if let Some(value) = self.get(i) {
-                tree = tree.push_back(value.clone());
-            }
-        }
-
-        tree
+        // Use split_at for more efficient slicing
+        let (_, right) = self.split_at(start);
+        let (result, _) = right.split_at(size);
+        result
     }
 
     /// Create a new tree from a slice of elements.
@@ -307,11 +275,14 @@ impl<T: Clone> Tree<T> {
             return self.slice(0, start);
         }
 
-        let mut result = self.slice(0, start);
-        let tail = self.slice(end, self.size);
+        // Use split_at for more efficient range operations
+        let (prefix, suffix_with_middle) = self.split_at(start);
+        let (_, suffix) = suffix_with_middle.split_at(end - start);
 
-        for i in 0..tail.size {
-            if let Some(value) = tail.get(i) {
+        // Combine the prefix and suffix parts
+        let mut result = prefix;
+        for i in 0..suffix.size {
+            if let Some(value) = suffix.get(i) {
                 result = result.push_back(value.clone());
             }
         }
@@ -461,9 +432,18 @@ impl<T: Clone> Tree<T> {
     /// assert_eq!(truncated.get(2), Some(&3));
     /// assert_eq!(truncated.get(3), None);
     /// ```
+    #[inline]
     pub fn truncate(&self, new_len: usize) -> Self {
-        let mut result = self.clone();
-        result.size = new_len.min(self.size);
+        if new_len >= self.size {
+            return self.clone();
+        }
+
+        if new_len == 0 {
+            return Self::new();
+        }
+
+        // Use split_at for more efficient implementation
+        let (result, _) = self.split_at(new_len);
         result
     }
 

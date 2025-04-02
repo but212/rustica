@@ -199,6 +199,7 @@ impl<T> Id<T> {
 }
 
 impl<T> std::convert::AsRef<T> for Id<T> {
+    #[inline]
     fn as_ref(&self) -> &T {
         &self.value
     }
