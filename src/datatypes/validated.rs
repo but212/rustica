@@ -218,11 +218,7 @@ impl<E, A> Validated<E, A> {
     {
         match self {
             Validated::Valid(_) => Vec::new(),
-            Validated::SingleInvalid(e) => {
-                let mut errors = Vec::with_capacity(1);
-                errors.push(e.clone());
-                errors
-            }
+            Validated::SingleInvalid(e) => vec![e.clone()],
             Validated::MultiInvalid(e) => e.clone().to_vec(),
         }
     }
