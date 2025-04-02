@@ -208,16 +208,16 @@ impl<T: Clone> PersistentVector<T> {
         if start >= end || start >= self.len() {
             return Self::new();
         }
-        
+
         let actual_end = end.min(self.len());
         let mut result = Self::new();
-        
+
         for i in start..actual_end {
             if let Some(value) = self.get(i) {
                 result = result.append(value.clone());
             }
         }
-        
+
         result
     }
 
@@ -270,7 +270,7 @@ impl<T: Clone> PersistentVector<T> {
     pub fn resize(&self, new_len: usize, value: T) -> Self {
         let mut result = self.clone();
         let current_len = self.len();
-        
+
         match new_len.cmp(&current_len) {
             std::cmp::Ordering::Greater => {
                 // Extend with copies of the value
@@ -280,13 +280,15 @@ impl<T: Clone> PersistentVector<T> {
             }
             std::cmp::Ordering::Less => {
                 // Truncate to the new length
-                result = Self { tree: result.tree.truncate(new_len) };
+                result = Self {
+                    tree: result.tree.truncate(new_len),
+                };
             }
             std::cmp::Ordering::Equal => {
                 // Length is the same, do nothing
             }
         }
-        
+
         result
     }
 
@@ -342,15 +344,15 @@ impl<T: Clone> PersistentVector<T> {
         if start >= end || start >= self.len() {
             return self.clone();
         }
-        
+
         let mut result = self.slice(0, start);
-        
+
         for i in end..self.len() {
             if let Some(value) = self.get(i) {
                 result = result.append(value.clone());
             }
         }
-        
+
         result
     }
 

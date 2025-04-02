@@ -66,14 +66,8 @@ fn test_result_monad_methods() {
     assert_eq!(err_value.bind(double), Err("error"));
 
     // Test bind_owned method
-    assert_eq!(
-        ok_value.bind_owned(|x| Ok::<_, &str>(x * 2)),
-        Ok(84)
-    );
-    assert_eq!(
-        err_value.bind_owned(|x| Ok::<_, &str>(x * 2)),
-        Err("error")
-    );
+    assert_eq!(ok_value.bind_owned(|x| Ok::<_, &str>(x * 2)), Ok(84));
+    assert_eq!(err_value.bind_owned(|x| Ok::<_, &str>(x * 2)), Err("error"));
 
     // Test join method
     let nested_ok: Result<Result<i32, &str>, &str> = Ok(Ok(42));
