@@ -702,7 +702,7 @@ impl<T: Clone> PersistentVector<T> {
     /// ```
     #[inline]
     pub fn contains(&self, value: T) -> bool
-    where 
+    where
         T: PartialEq,
     {
         self.iter().any(|x| x == &value)
@@ -777,14 +777,14 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(vec.binary_search(&6), Err(5));
     /// ```
     #[inline]
-    pub fn binary_search(&self, x: &T) -> Result<usize, usize> 
+    pub fn binary_search(&self, x: &T) -> Result<usize, usize>
     where
         T: Ord,
     {
         if self.is_empty() {
             return Err(0);
         }
-        
+
         let mut low = 0;
         let mut high = self.len() - 1;
 
@@ -797,11 +797,11 @@ impl<T: Clone> PersistentVector<T> {
                         return Err(0);
                     }
                     high = mid - 1;
-                },
+                }
                 std::cmp::Ordering::Less => low = mid + 1,
             }
         }
-        
+
         Err(low)
     }
 
@@ -841,24 +841,24 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(deduped.get(2), Some(&3));
     /// assert_eq!(deduped.get(3), Some(&4));
     /// ```
-    pub fn dedup(&self) -> PersistentVector<T> 
-    where 
+    pub fn dedup(&self) -> PersistentVector<T>
+    where
         T: PartialEq,
     {
         if self.len() <= 1 {
             return self.clone();
         }
-        
+
         let mut result = PersistentVector::new();
         let mut prev: Option<&T> = None;
-        
+
         for item in self.iter() {
             if prev.map_or(true, |p| p != item) {
                 result = result.push_back(item.clone());
                 prev = Some(item);
             }
         }
-        
+
         result
     }
 
@@ -879,18 +879,18 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(zipped.get(1), Some(&(2, 'b')));
     /// assert_eq!(zipped.get(2), Some(&(3, 'c')));
     /// ```
-    pub fn zip<U, I: IntoIterator<Item = U>>(&self, other: I) -> PersistentVector<(T, U)> 
-    where 
+    pub fn zip<U, I: IntoIterator<Item = U>>(&self, other: I) -> PersistentVector<(T, U)>
+    where
         T: Clone,
         U: Clone,
     {
         let mut result = PersistentVector::new();
         let iter = self.iter().zip(other.into_iter());
-        
+
         for (a, b) in iter {
             result = result.push_back((a.clone(), b));
         }
-        
+
         result
     }
 
@@ -909,13 +909,16 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(evens.to_vec(), vec![2, 4]);
     /// assert_eq!(odds.to_vec(), vec![1, 3, 5]);
     /// ```
-    pub fn partition<F: Fn(&T) -> bool>(&self, predicate: F) -> (PersistentVector<T>, PersistentVector<T>)
+    pub fn partition<F: Fn(&T) -> bool>(
+        &self,
+        predicate: F,
+    ) -> (PersistentVector<T>, PersistentVector<T>)
     where
         T: Clone,
     {
         let mut true_vec = PersistentVector::new();
         let mut false_vec = PersistentVector::new();
-        
+
         for item in self.iter() {
             if predicate(item) {
                 true_vec = true_vec.push_back(item.clone());
@@ -923,7 +926,7 @@ impl<T: Clone> PersistentVector<T> {
                 false_vec = false_vec.push_back(item.clone());
             }
         }
-        
+
         (true_vec, false_vec)
     }
 
@@ -941,19 +944,19 @@ impl<T: Clone> PersistentVector<T> {
     /// let scan_result = vec.scan(0, |acc, &x| acc + x);
     /// assert_eq!(scan_result.to_vec(), vec![0, 1, 3, 6, 10, 15]);
     /// ```
-    pub fn scan<F: Fn(T, &T) -> T>(&self, initial: T, f: F) -> PersistentVector<T> 
-    where 
+    pub fn scan<F: Fn(T, &T) -> T>(&self, initial: T, f: F) -> PersistentVector<T>
+    where
         T: Clone,
     {
         let mut result = PersistentVector::new();
         result = result.push_back(initial.clone());
-        
+
         let mut acc = initial;
         for item in self.iter() {
             acc = f(acc, item);
             result = result.push_back(acc.clone());
         }
-        
+
         result
     }
 
@@ -972,19 +975,19 @@ impl<T: Clone> PersistentVector<T> {
     /// let scan_result = vec.scan_left(0, |acc, x| *acc + x);
     /// assert_eq!(scan_result.to_vec(), vec![0, 1, 3, 6, 10, 15]);
     /// ```
-    pub fn scan_left<F: Fn(&T, T) -> T>(&self, initial: T, f: F) -> PersistentVector<T> 
-    where 
+    pub fn scan_left<F: Fn(&T, T) -> T>(&self, initial: T, f: F) -> PersistentVector<T>
+    where
         T: Clone,
     {
         let mut result = PersistentVector::new();
         result = result.push_back(initial.clone());
-        
+
         let mut acc = initial;
         for item in self.iter() {
             acc = f(&acc, item.clone());
             result = result.push_back(acc.clone());
         }
-        
+
         result
     }
 
@@ -1002,19 +1005,19 @@ impl<T: Clone> PersistentVector<T> {
     /// let scan_result = vec.scan_right(0, |acc, x| *acc + x);
     /// assert_eq!(scan_result.to_vec(), vec![0, 5, 9, 12, 14, 15]);
     /// ```
-    pub fn scan_right<F: Fn(&T, T) -> T>(&self, initial: T, f: F) -> PersistentVector<T> 
-    where 
+    pub fn scan_right<F: Fn(&T, T) -> T>(&self, initial: T, f: F) -> PersistentVector<T>
+    where
         T: Clone,
     {
         let mut result = PersistentVector::new();
         result = result.push_back(initial.clone());
-        
+
         let mut acc = initial;
         for item in self.iter().rev() {
             acc = f(&acc, item.clone());
             result = result.push_back(acc.clone());
         }
-        
+
         result
     }
 
@@ -1040,23 +1043,26 @@ impl<T: Clone> PersistentVector<T> {
     /// // Elements should be grouped by their remainder mod 3
     /// assert_eq!(groups_vec.len(), 3);
     /// ```
-    pub fn group_by<F: Fn(&T) -> K, K: Clone + Eq + std::hash::Hash>(&self, f: F) -> PersistentVector<PersistentVector<T>> 
+    pub fn group_by<F: Fn(&T) -> K, K: Clone + Eq + std::hash::Hash>(
+        &self,
+        f: F,
+    ) -> PersistentVector<PersistentVector<T>>
     where
         T: Clone,
     {
         let mut groups = std::collections::HashMap::<K, PersistentVector<T>>::new();
-        
+
         for item in self.iter() {
             let key = f(item);
             let entry = groups.entry(key).or_insert_with(PersistentVector::new);
             *entry = entry.push_back(item.clone());
         }
-        
+
         let mut result = PersistentVector::new();
         for (_, group) in groups {
             result = result.push_back(group);
         }
-        
+
         result
     }
 
@@ -1072,8 +1078,8 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(sum, 15);
     /// ```
     #[inline]
-    pub fn fold_left<F: Fn(T, &T) -> T>(&self, initial: T, f: F) -> T 
-    where 
+    pub fn fold_left<F: Fn(T, &T) -> T>(&self, initial: T, f: F) -> T
+    where
         T: Clone,
     {
         self.iter().fold(initial, f)
@@ -1091,8 +1097,8 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(sum, 15);
     /// ```
     #[inline]
-    pub fn fold_right<F: Fn(&T, T) -> T>(&self, initial: T, f: F) -> T 
-    where 
+    pub fn fold_right<F: Fn(&T, T) -> T>(&self, initial: T, f: F) -> T
+    where
         T: Clone,
     {
         let mut acc = initial;
@@ -1116,14 +1122,17 @@ impl<T: Clone> PersistentVector<T> {
     /// let result = vec.flat_map(|&x| vec![x, x * 10]);
     /// assert_eq!(result.to_vec(), vec![1, 10, 2, 20, 3, 30]);
     /// ```
-    pub fn flat_map<I: IntoIterator<Item = T> + Clone, F: Fn(&T) -> I>(&self, f: F) -> PersistentVector<T> {
+    pub fn flat_map<I: IntoIterator<Item = T> + Clone, F: Fn(&T) -> I>(
+        &self,
+        f: F,
+    ) -> PersistentVector<T> {
         let mapped = self.map(|item| f(item));
         let mut result = PersistentVector::new();
-        
+
         for inner_iter in mapped.iter() {
             result = result.extend(inner_iter.clone());
         }
-        
+
         result
     }
 }
