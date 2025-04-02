@@ -153,6 +153,35 @@ impl<T: Clone> MemoryManager<T> {
         }
     }
 
+    /// Acquire a managed reference from an existing node
+    ///
+    /// This method takes an existing node and wraps it in a ManagedRef.
+    /// The node is wrapped in an Arc and associated with the appropriate pool.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::memory::MemoryManager;
+    /// use rustica::pvec::node::Node;
+    ///
+    /// let manager: MemoryManager<i32> = MemoryManager::default();
+    /// let node = Node::new();
+    ///
+    /// // Acquire a managed reference from an existing node
+    /// let managed_node = manager.acquire_existing_node(node);
+    /// ```
+    #[inline]
+    pub fn acquire_existing_node(&self, node: Node<T>) -> ManagedRef<Node<T>> {
+        match self.allocation_strategy {
+            AllocationStrategy::Direct => ManagedRef::new(Arc::new(node), None),
+            _ => {
+                let pool_clone = self.node_pool.clone();
+                let arc_node = Arc::new(node);
+                ManagedRef::new(arc_node, Some(pool_clone))
+            }
+        }
+    }
+
     /// Get the current allocation strategy
     ///
     /// # Examples

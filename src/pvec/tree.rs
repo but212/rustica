@@ -40,6 +40,7 @@ use std::sync::Arc;
 use super::cache::IndexCache;
 use super::memory::{AllocationStrategy, ManagedRef, MemoryManager};
 use super::node::{Node, NODE_BITS, NODE_SIZE};
+use crate::pvec::chunk::CHUNK_SIZE;
 
 /// A persistent vector implemented as a Relaxed Radix Balanced (RRB) tree.
 ///
@@ -114,6 +115,26 @@ impl<T: Clone> Tree<T> {
         }
     }
 
+    /// Create a new empty tree, discarding all elements from the current tree.
+    ///
+    /// This operation returns a completely new empty tree, preserving none of
+    /// the elements from the original tree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3]);
+    /// let empty_tree = tree.clear();
+    /// assert_eq!(empty_tree.len(), 0);
+    /// assert!(empty_tree.is_empty());
+    /// ```
+    #[inline]
+    pub fn clear(&self) -> Self {
+        Self::new()
+    }
+
     /// Create a new tree with a single element.
     ///
     /// # Examples
@@ -141,6 +162,73 @@ impl<T: Clone> Tree<T> {
             manager,
             cache: IndexCache::new(),
         }
+    }
+
+    /// Creates a new tree containing elements from a range of the original tree.
+    ///
+    /// Returns a new tree containing elements from index `start` (inclusive) to
+    /// index `end` (exclusive). If `start` is greater than or equal to `end`, or
+    /// if `start` is greater than or equal to the tree's size, an empty tree
+    /// is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3, 4, 5]);
+    /// let sliced = tree.slice(1, 4);
+    /// assert_eq!(sliced.len(), 3);
+    /// assert_eq!(sliced.get(0), Some(&2));
+    /// assert_eq!(sliced.get(2), Some(&4));
+    /// assert_eq!(tree.len(), 5); // Original unchanged
+    /// ```
+    pub fn slice(&self, start: usize, end: usize) -> Self {
+        if start >= self.size || end > self.size || start > end {
+            return Self::new();
+        }
+
+        let size = end - start;
+        if size == 0 {
+            return Self::new();
+        }
+
+        let manager = MemoryManager::new(AllocationStrategy::Direct);
+
+        // If the slice fits in a single chunk, create a simple leaf node
+        if size <= CHUNK_SIZE {
+            let mut chunk = manager.acquire_chunk();
+            let chunk_mut = chunk.get_mut().unwrap();
+
+            for i in start..end {
+                if let Some(value) = self.get(i) {
+                    chunk_mut.push_back(value.clone());
+                }
+            }
+
+            let mut root = manager.acquire_node();
+            *root.get_mut().unwrap() = Node::leaf(chunk);
+
+            return Self {
+                root,
+                size,
+                height: 0,
+                manager,
+                cache: IndexCache::new(),
+            };
+        }
+
+        // For larger slices, create a more efficient tree structure
+        let mut tree = Self::new();
+        tree.manager = manager;
+
+        for i in start..end {
+            if let Some(value) = self.get(i) {
+                tree = tree.push_back(value.clone());
+            }
+        }
+
+        tree
     }
 
     /// Create a new tree from a slice of elements.
@@ -191,6 +279,83 @@ impl<T: Clone> Tree<T> {
         result
     }
 
+    /// Returns a new tree with elements in the specified range removed.
+    ///
+    /// This creates a new tree with all elements from the original tree except those in the range
+    /// from `start` (inclusive) to `end` (exclusive). If the range is invalid (e.g., `start` > `end` or
+    /// the range is out of bounds), the original tree is returned unchanged.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3, 4, 5]);
+    /// let new_tree = tree.drain(1, 3);
+    /// assert_eq!(new_tree.len(), 3);
+    /// assert_eq!(new_tree.get(0), Some(&1));
+    /// assert_eq!(new_tree.get(1), Some(&4));
+    /// assert_eq!(new_tree.get(2), Some(&5));
+    /// assert_eq!(tree.len(), 5); // Original unchanged
+    /// ```
+    pub fn drain(&self, start: usize, end: usize) -> Self {
+        if start >= end || start >= self.size {
+            return self.clone();
+        }
+
+        if end >= self.size {
+            return self.slice(0, start);
+        }
+
+        let mut result = self.slice(0, start);
+        let tail = self.slice(end, self.size);
+
+        for i in 0..tail.size {
+            if let Some(value) = tail.get(i) {
+                result = result.push_back(value.clone());
+            }
+        }
+
+        result
+    }
+
+    /// Resize the tree to contain exactly `new_len` elements.
+    ///
+    /// If the new length is greater than the current length, the tree is
+    /// extended with copies of the provided value. If the new length is less
+    /// than the current length, the tree is truncated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3]);
+    ///
+    /// // Extend the tree
+    /// let extended = tree.resize(5, 0);
+    /// assert_eq!(extended.len(), 5);
+    /// assert_eq!(extended.get(3), Some(&0));
+    ///
+    /// // Truncate the tree
+    /// let truncated = tree.resize(2, 0);
+    /// assert_eq!(truncated.len(), 2);
+    /// assert_eq!(truncated.get(2), None);
+    /// ```
+    pub fn resize(&self, new_len: usize, value: T) -> Self {
+        let mut result = self.clone();
+
+        if new_len > self.size {
+            for _ in 0..(new_len - self.size) {
+                result = result.push_back(value.clone());
+            }
+        } else if new_len < self.size {
+            result = result.slice(0, new_len);
+        }
+
+        result
+    }
+
     /// Get the number of elements in the tree.
     ///
     /// This operation is O(1) as the size is cached at the tree level.
@@ -227,6 +392,51 @@ impl<T: Clone> Tree<T> {
     pub fn append(&self, value: T) -> Self {
         let mut tree = self.clone();
         tree = tree.push_back(value);
+        tree
+    }
+
+    /// Returns a new tree with all elements from `self` and `other` appended to the end.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree1 = Tree::from_slice(&[1, 2, 3]);
+    /// let tree2 = Tree::from_slice(&[4, 5, 6]);
+    /// let tree3 = tree1.concat(tree2);
+    /// assert_eq!(tree3.len(), 6);
+    /// assert_eq!(tree3.get(0), Some(&1));
+    /// assert_eq!(tree3.get(5), Some(&6));
+    /// ```
+    pub fn concat(&self, other: &Self) -> Self {
+        let mut result = self.clone();
+        for i in 0..other.size {
+            if let Some(value) = other.get(i) {
+                result = result.push_back(value.clone());
+            }
+        }
+        result
+    }
+
+    /// Returns a new tree with all elements from the provided iterator appended to the end.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3]);
+    /// let extended = tree.extend(vec![4, 5, 6]);
+    /// assert_eq!(extended.len(), 6);
+    /// assert_eq!(extended.get(5), Some(&6));
+    /// assert_eq!(tree.len(), 3); // Original unchanged
+    /// ```
+    pub fn extend(&self, values: impl IntoIterator<Item = T>) -> Self {
+        let mut tree = self.clone();
+        for value in values {
+            tree = tree.push_back(value);
+        }
         tree
     }
 
@@ -320,6 +530,91 @@ impl<T: Clone> Tree<T> {
         }
     }
 
+    /// Returns a new tree with all elements in reverse order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3, 4]);
+    /// let reversed = tree.reverse();
+    /// assert_eq!(reversed.len(), 4);
+    /// assert_eq!(reversed.get(0), Some(&4));
+    /// assert_eq!(reversed.get(1), Some(&3));
+    /// assert_eq!(reversed.get(2), Some(&2));
+    /// assert_eq!(reversed.get(3), Some(&1));
+    /// ```
+    pub fn reverse(&self) -> Self {
+        let mut result = Self::new();
+
+        // Process elements in reverse order
+        for i in (0..self.size).rev() {
+            if let Some(value) = self.get(i) {
+                result = result.push_back(value.clone());
+            }
+        }
+
+        result
+    }
+
+    /// Rotate the tree to the left by one position.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3, 4]);
+    /// let rotated = tree.rotate_left();
+    /// assert_eq!(rotated.len(), 4);
+    /// assert_eq!(rotated.get(0), Some(&2));
+    /// assert_eq!(rotated.get(1), Some(&3));
+    /// assert_eq!(rotated.get(2), Some(&4));
+    /// assert_eq!(rotated.get(3), Some(&1));
+    /// ```
+    pub fn rotate_left(&self) -> Self {
+        if self.size <= 1 {
+            return self.clone();
+        }
+
+        let mut result = Self::new();
+
+        // First add elements from index 1 to end
+        for i in 1..self.size {
+            if let Some(value) = self.get(i) {
+                result = result.push_back(value.clone());
+            }
+        }
+
+        // Then add the first element at the end
+        if let Some(first) = self.get(0) {
+            result = result.push_back(first.clone());
+        }
+
+        result
+    }
+
+    /// Rotate the tree to the right by one position.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3, 4]);
+    /// let rotated = tree.rotate_right();
+    /// assert_eq!(rotated.len(), 4);
+    /// assert_eq!(rotated.get(0), Some(&4));
+    /// assert_eq!(rotated.get(1), Some(&1));
+    /// assert_eq!(rotated.get(2), Some(&2));
+    /// assert_eq!(rotated.get(3), Some(&3));
+    /// ```
+    #[inline]
+    pub fn rotate_right(&self) -> Self {
+        self.reverse().rotate_left().reverse()
+    }
+
     /// Get a reference to the element at the specified index.
     ///
     /// Returns `None` if the index is out of bounds.
@@ -387,6 +682,110 @@ impl<T: Clone> Tree<T> {
             }
             None => self.clone(),
         }
+    }
+
+    /// Splits the tree into two parts at the given index.
+    ///
+    /// Returns a tuple containing two trees: the first with elements from `0..index`,
+    /// and the second with elements from `index..len`.
+    ///
+    /// If `index` is greater than the length, the first tree will contain
+    /// all elements and the second will be empty. If `index` is equal to the length,
+    /// the first tree will contain all elements and the second will be empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 3, 4, 5]);
+    /// let (left, right) = tree.split_at(2);
+    ///
+    /// assert_eq!(left.len(), 2);
+    /// assert_eq!(right.len(), 3);
+    /// assert_eq!(left.get(0), Some(&1));
+    /// assert_eq!(right.get(0), Some(&3));
+    /// ```
+    pub fn split_at(&self, index: usize) -> (Self, Self) {
+        if index > self.size {
+            return (self.clone(), Self::new());
+        }
+
+        if index == self.size {
+            return (self.clone(), Self::new());
+        }
+
+        let (left, right) = self.root.split(&self.manager, index, self.shift());
+
+        (
+            Self {
+                root: left,
+                size: index,
+                height: self.height,
+                manager: self.manager.clone(),
+                cache: IndexCache::new(),
+            },
+            Self {
+                root: right,
+                size: self.size - index,
+                height: self.height,
+                manager: self.manager.clone(),
+                cache: IndexCache::new(),
+            },
+        )
+    }
+
+    /// Insert a value at the specified index in the tree.
+    ///
+    /// Returns a new tree with the value inserted. If the index is greater than
+    /// the size of the tree, returns a clone of the original tree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::tree::Tree;
+    ///
+    /// let tree = Tree::from_slice(&[1, 2, 4]);
+    /// let tree = tree.insert(2, 3);
+    /// assert_eq!(tree.len(), 4);
+    /// assert_eq!(tree.get(2), Some(&3));
+    /// ```
+    pub fn insert(&self, index: usize, value: T) -> Self {
+        if index > self.size {
+            return self.clone();
+        }
+
+        if index == self.size {
+            return self.push_back(value);
+        } else if index == 0 {
+            let mut result = self.clone();
+            let (new_root, split, overflow) =
+                self.root.push_front(&self.manager, value, self.shift());
+            result.root = new_root.clone();
+            result.size += 1;
+            result.cache.invalidate();
+
+            if split && overflow.is_some() {
+                // Handle overflow by creating a new root node
+                let mut children = Vec::with_capacity(2);
+                children.push(Some(new_root));
+                children.push(overflow);
+
+                let new_root_node = Node::Branch {
+                    children,
+                    sizes: None, // Regular (non-relaxed) node
+                };
+
+                result.root = self.manager.acquire_existing_node(new_root_node);
+                result.height += 1;
+            }
+
+            return result;
+        }
+
+        // For insertions in the middle, split and rejoin
+        let (left, right) = self.split_at(index);
+        left.push_back(value).concat(&right)
     }
 
     /// Add an element to the end of the tree.
