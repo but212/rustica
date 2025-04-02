@@ -45,8 +45,6 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
 
     // Macro creation
     c.bench_function("pvec_macro", |b| {
-        b.iter(|| {
-            black_box(pvec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-        })
+        b.iter(|| black_box(pvec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
     });
 }

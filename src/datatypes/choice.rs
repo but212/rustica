@@ -242,80 +242,6 @@ impl<T> Choice<T> {
         self.values.is_empty()
     }
 
-    /// Changes the primary value of the `Choice`.
-    ///
-    /// This method creates a new `Choice` instance with the new primary value
-    /// and all existing alternatives.
-    ///
-    /// # Arguments
-    ///
-    /// * `first` - A reference to the new primary value of type `T`.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<T>` instance with the updated primary value.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3]);
-    /// let changed = choice.change_first(&42);
-    ///
-    /// assert_eq!(*changed.first().unwrap(), 42);
-    /// assert_eq!(changed.alternatives(), &[2, 3]);
-    /// ```
-    #[inline]
-    pub fn change_first(&self, first: &T) -> Self
-    where
-        T: Clone,
-    {
-        if self.values.is_empty() {
-            return Self::new_empty();
-        }
-
-        let mut new_values = Arc::clone(&self.values);
-        Arc::make_mut(&mut new_values)[0] = first.clone();
-
-        Self {
-            values: new_values,
-            phantom: PhantomData,
-        }
-    }
-
-    /// Adds a new alternative to the `Choice`.
-    ///
-    /// This method creates a new `Choice` instance with the same primary value
-    /// and all existing alternatives, plus the new item as an additional alternative.
-    ///
-    /// # Arguments
-    ///
-    /// * `item` - A value of type `T` to be added as a new alternative.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<T>` instance with the added alternative.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3]);
-    /// let new_choice = choice.add_alternative(&4);
-    ///
-    /// assert_eq!(*new_choice.first().unwrap(), 1);
-    /// assert_eq!(new_choice.alternatives(), &[2, 3, 4]);
-    /// ```
-    #[inline]
-    pub fn add_alternative(&self, item: &T) -> Self
-    where
-        T: Clone,
-    {
-        self.add_alternative_impl(item.clone())
-    }
-
     /// Adds multiple new alternatives to the `Choice`, consuming the original.
     ///
     /// This method creates a new `Choice` instance with the same primary value
@@ -335,37 +261,19 @@ impl<T> Choice<T> {
     /// use rustica::datatypes::choice::Choice;
     ///
     /// let choice = Choice::new(1, vec![2, 3]);
-    /// let new_choice = choice.add_alternatives_owned(vec![4, 5]);
+    /// let new_choice = choice.add_alternatives(vec![4, 5]);
     ///
     /// assert_eq!(*new_choice.first().unwrap(), 1);
     /// assert_eq!(new_choice.alternatives(), &[2, 3, 4, 5]);
     /// ```
     #[inline]
-    pub fn add_alternatives_owned<I>(self, items: I) -> Self
+    pub fn add_alternatives<I>(self, items: I) -> Self
     where
         T: Clone,
         I: IntoIterator<Item = T>,
     {
         let mut new_values = Arc::clone(&self.values);
         Arc::make_mut(&mut new_values).extend(items);
-        Self {
-            values: new_values,
-            phantom: PhantomData,
-        }
-    }
-
-    /// Private implementation method for adding a single alternative
-    #[inline]
-    fn add_alternative_impl(&self, item: T) -> Self
-    where
-        T: Clone,
-    {
-        if self.values.is_empty() {
-            return Self::new(item, vec![]);
-        }
-
-        let mut new_values = Arc::clone(&self.values);
-        Arc::make_mut(&mut new_values).push(item);
         Self {
             values: new_values,
             phantom: PhantomData,
@@ -451,34 +359,6 @@ impl<T> Choice<T> {
                 phantom: PhantomData,
             },
         }
-    }
-
-    /// Finds the index of a given value in the alternatives.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to search for in the alternatives.
-    ///
-    /// # Returns
-    ///
-    /// An `Option<usize>` containing the index if found, or `None` if not present.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// assert_eq!(choice.find_alternative(&3), Some(1));
-    /// assert_eq!(choice.find_alternative(&5), None);
-    /// ```
-    #[inline]
-    pub fn find_alternative(&self, value: &T) -> Option<usize>
-    where
-        T: PartialEq,
-    {
-        // Skip the first item (primary value) and find position of matching value
-        self.alternatives().iter().position(|v| v == value)
     }
 
     /// Applies a function to all values in the `Choice`, including the primary value and alternatives.
@@ -638,53 +518,6 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Creates a new `Choice` from an iterator, if the iterator is non-empty.
-    ///
-    /// # Arguments
-    ///
-    /// * `iter` - An iterator yielding items of type `T`
-    ///
-    /// # Returns
-    ///
-    /// * `Some(Choice<T>)` if the iterator is non-empty, with the first item as the primary value
-    /// * `None` if the iterator is empty
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::from_iterator(vec![1, 2, 3]);
-    /// assert!(!choice.is_empty());
-    /// assert_eq!(*choice.first().unwrap(), 1);
-    ///
-    /// let empty: Choice<i32> = Choice::from_iterator(Vec::<i32>::new());
-    /// assert!(empty.is_empty());
-    /// ```
-    #[inline]
-    pub fn from_iterator<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = T>,
-    {
-        let mut iter = iter.into_iter();
-
-        if let Some(first) = iter.next() {
-            // Get size hint for better capacity planning
-            let (lower, _) = iter.size_hint();
-            let mut values = SmallVec::<[T; 8]>::with_capacity(lower + 1);
-
-            values.push(first);
-            values.extend(iter);
-
-            Self {
-                values: Arc::new(values),
-                phantom: PhantomData,
-            }
-        } else {
-            Self::new_empty()
-        }
-    }
-
     /// Returns a `Choice` containing only the values that satisfy the predicate.
     ///
     /// If the primary value doesn't satisfy the predicate, the first alternative that does
@@ -766,22 +599,7 @@ impl<T> Choice<T> {
         self.values.iter().skip(1)
     }
 
-    /// Returns a slice containing all values in the choice.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// assert_eq!(choice.all_values(), &[1, 2, 3, 4]);
-    /// ```
-    #[inline]
-    pub fn all_values(&self) -> &[T] {
-        self.values.as_ref()
-    }
-
-    /// Swaps the first value with the alternative at the specified index.
+    /// Swaps the first value with the alternative at the specified index, consuming the original.
     ///
     /// # Arguments
     ///
@@ -801,46 +619,7 @@ impl<T> Choice<T> {
     /// assert_eq!(*swapped.first().unwrap(), 3);
     /// assert_eq!(swapped.alternatives(), &[2, 1, 4]);
     /// ```
-    pub fn swap_with_alternative(&self, alt_index: usize) -> Self
-    where
-        T: Clone,
-    {
-        if self.values.is_empty() || alt_index >= self.alternatives().len() {
-            return self.clone();
-        }
-
-        let actual_alt_index = alt_index + 1; // +1 because alternatives start at index 1
-
-        let mut new_values = self.values.as_ref().clone();
-        new_values.swap(0, actual_alt_index);
-
-        Self {
-            values: Arc::new(new_values),
-            phantom: PhantomData,
-        }
-    }
-
-    /// Swaps the first value with the alternative at the specified index, consuming the original.
-    ///
-    /// # Arguments
-    ///
-    /// * `alt_index` - The index of the alternative to swap with the first value
-    ///
-    /// # Returns
-    ///
-    /// A new Choice with the first value swapped with the specified alternative
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// let swapped = choice.swap_with_alternative_owned(1);
-    /// assert_eq!(*swapped.first().unwrap(), 3);
-    /// assert_eq!(swapped.alternatives(), &[2, 1, 4]);
-    /// ```
-    pub fn swap_with_alternative_owned(self, alt_index: usize) -> Self
+    pub fn swap_with_alternative(self, alt_index: usize) -> Self
     where
         T: Clone,
     {

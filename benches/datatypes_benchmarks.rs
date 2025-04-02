@@ -15,12 +15,12 @@ mod datatypes {
     pub mod lens;
     pub mod maybe;
     pub mod prism;
+    pub mod pvec;
     pub mod reader;
     #[cfg(feature = "advanced")]
     pub mod state;
     pub mod validated;
     pub mod writer;
-    pub mod pvec;
 }
 
 // Re-export benchmark functions
@@ -29,10 +29,10 @@ use datatypes::id::id_benchmarks;
 use datatypes::lens::lens_benchmarks;
 use datatypes::maybe::maybe_benchmarks;
 use datatypes::prism::prism_benchmarks;
+use datatypes::pvec::pvec_benchmarks;
 use datatypes::reader::reader_benchmarks;
 use datatypes::validated::validated_benchmarks;
 use datatypes::writer::writer_benchmarks;
-use datatypes::pvec::pvec_benchmarks;
 
 #[cfg(feature = "async")]
 use datatypes::async_monad::async_monad_benchmarks;

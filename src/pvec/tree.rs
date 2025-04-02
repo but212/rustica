@@ -613,7 +613,7 @@ impl<T: Clone> Tree<T> {
         if index >= self.size {
             return None;
         }
-    
+
         // Fast path for leaf-only trees (height 0)
         if self.height == 0 {
             if let Node::Leaf { ref elements } = *self.root {
@@ -621,23 +621,23 @@ impl<T: Clone> Tree<T> {
             }
             unreachable!("Leaf-only tree with height 0 contains a branch node");
         }
-    
+
         // Check if the index is in cache and the cache is valid
         if self.cache.valid && self.cache.has_index(index) {
             // Use cached path for fast access
             let mut current = &self.root;
             let mut current_index = index;
             let mut shift = self.shift();
-    
+
             for level in 0..self.height {
                 if let Some(path_idx) = self.cache.get_path_index(level) {
                     if level < self.cache.ranges.len() {
                         // Get the range at the current level
                         let range = &self.cache.ranges[level];
-                        
+
                         // Calculate relative index
                         current_index = index - range.start;
-                        
+
                         if let Node::Branch { children, .. } = &**current {
                             if path_idx < children.len() {
                                 if let Some(child) = &children[path_idx] {
@@ -652,11 +652,11 @@ impl<T: Clone> Tree<T> {
                 // Fall back to normal traversal if we can't follow the cache path
                 return self.root.get(index, self.shift());
             }
-    
+
             // Find the element in the last subtree (using adjusted index)
             return current.get(current_index, shift);
         }
-    
+
         // Normal tree traversal without cache
         self.root.get(index, self.shift())
     }
@@ -1060,18 +1060,18 @@ impl<T: Clone> FromIterator<T> for Tree<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut tree = Self::new();
         let iter = iter.into_iter();
-        
+
         // Optimize by pre-allocating chunks when possible
         if let Some(size_hint) = iter.size_hint().1 {
             tree.manager.reserve_chunks(size_hint / NODE_SIZE + 1);
         }
-        
+
         for item in iter {
             tree = tree.push_back(item);
             // Avoid cache invalidation on each push for better performance
             tree.cache.valid = true;
         }
-        
+
         // Final cache invalidation to ensure consistent state
         tree.cache.invalidate();
         tree

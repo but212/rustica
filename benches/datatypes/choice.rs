@@ -96,10 +96,10 @@ pub fn choice_benchmarks(c: &mut Criterion) {
     // Modification operations
     let mut group = c.benchmark_group("Choice - Modification Operations");
 
-    group.bench_function("add_alternative", |b| {
+    group.bench_function("add_alternatives", |b| {
         let choice = Choice::new(1, vec![2, 3, 4]);
         b.iter(|| {
-            black_box(choice.add_alternative(&5));
+            black_box(choice.clone().add_alternatives(vec![5]));
         });
     });
 
@@ -113,7 +113,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
     group.bench_function("swap_with_alternative", |b| {
         let choice = Choice::new(1, vec![2, 3, 4, 5]);
         b.iter(|| {
-            black_box(choice.swap_with_alternative(2));
+            black_box(choice.clone().swap_with_alternative(2));
         });
     });
 
@@ -139,7 +139,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
     group.bench_function("find_alternative", |b| {
         let choice = Choice::new(1, vec![2, 3, 4, 5, 6, 7, 8, 9, 10]);
         b.iter(|| {
-            black_box(choice.find_alternative(&7));
+            black_box(choice.iter().find(|&&x| x == 7));
         });
     });
 
@@ -156,7 +156,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
                 choice
                     .filter(|&x| x % 2 == 0)
                     .fmap_alternatives(|&x| x * 3)
-                    .add_alternative(&99),
+                    .add_alternatives(vec![99]),
             );
         });
     });
