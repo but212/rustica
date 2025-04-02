@@ -271,14 +271,20 @@ impl<T: Clone> PersistentVector<T> {
         let mut result = self.clone();
         let current_len = self.len();
         
-        if new_len > current_len {
-            // Extend with copies of the value
-            for _ in 0..(new_len - current_len) {
-                result = result.append(value.clone());
+        match new_len.cmp(&current_len) {
+            std::cmp::Ordering::Greater => {
+                // Extend with copies of the value
+                for _ in 0..(new_len - current_len) {
+                    result = result.append(value.clone());
+                }
             }
-        } else if new_len < current_len {
-            // Truncate to the new length
-            result = Self { tree: result.tree.truncate(new_len) };
+            std::cmp::Ordering::Less => {
+                // Truncate to the new length
+                result = Self { tree: result.tree.truncate(new_len) };
+            }
+            std::cmp::Ordering::Equal => {
+                // Length is the same, do nothing
+            }
         }
         
         result

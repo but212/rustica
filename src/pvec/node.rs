@@ -648,8 +648,8 @@ impl<T: Clone> Node<T> {
 
                 // Update size table if it exists
                 if let Some(size_table) = sizes {
-                    for i in child_index..size_table.len() {
-                        size_table[i] = (size_table[i] as isize + size_diff) as usize;
+                    for size in size_table.iter_mut().skip(child_index) {
+                        *size = (*size as isize + size_diff) as usize;
                     }
                 }
             }
@@ -1675,7 +1675,7 @@ impl<T: Clone> Node<T> {
     /// assert_eq!(new_node.size(), 1);
     /// assert_eq!(*new_node.get(0, 0).unwrap(), 10);
     /// ```
-    pub fn pop_back(&self, manager: &MemoryManager<T>, shift: usize) -> PopResult<T> {
+    pub fn pop_back(&self, manager: &MemoryManager<T>, _shift: usize) -> PopResult<T> {
         match self {
             Node::Leaf { elements } => {
                 if elements.is_empty() {
@@ -1701,7 +1701,7 @@ impl<T: Clone> Node<T> {
                 let last_idx = children.len() - 1;
 
                 if let Some(last_child) = &children[last_idx] {
-                    let (new_child, result) = last_child.pop_back(manager, shift - NODE_BITS);
+                    let (new_child, result) = last_child.pop_back(manager, _shift - NODE_BITS);
 
                     if result.is_none() {
                         if children.len() > 1 {
@@ -1714,7 +1714,7 @@ impl<T: Clone> Node<T> {
 
                             let new_node =
                                 self.create_branch_node(manager, new_children, new_sizes);
-                            return new_node.pop_back(manager, shift);
+                            return new_node.pop_back(manager, _shift);
                         } else {
                             return (
                                 self.create_branch_node(manager, Vec::new(), Some(Vec::new())),
@@ -1748,7 +1748,7 @@ impl<T: Clone> Node<T> {
                     let new_node = self.create_branch_node(manager, new_children, new_sizes);
 
                     if new_node.child_count() > 0 {
-                        new_node.pop_back(manager, shift)
+                        new_node.pop_back(manager, _shift)
                     } else {
                         (new_node, None)
                     }
