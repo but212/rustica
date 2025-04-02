@@ -1011,13 +1011,13 @@ impl<T: Clone> PersistentVector<T> {
     {
         let mut result = PersistentVector::new();
         result = result.push_back(initial.clone());
-    
+
         let mut acc = initial;
         for item in self.iter().rev() {
             acc = f(&acc, item.clone());
             result = result.push_back(acc.clone());
         }
-    
+
         result
     }
 

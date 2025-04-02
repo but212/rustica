@@ -187,8 +187,8 @@ pub fn writer_benchmarks(c: &mut Criterion) {
         b.iter_batched_ref(
             || {
                 (
-                    Writer::<Log, i32>::new(Log::empty(), 42), 
-                    Writer::<Log, i32>::new(Log::empty(), 10)
+                    Writer::<Log, i32>::new(Log::empty(), 42),
+                    Writer::<Log, i32>::new(Log::empty(), 10),
                 )
             },
             |(w1, w2)| black_box(w1.lift2(w2, |x: &i32, y: &i32| x + y)),
@@ -205,9 +205,7 @@ pub fn writer_benchmarks(c: &mut Criterion) {
                     Writer::<Log, i32>::new(Log::empty(), 5),
                 )
             },
-            |(w1, w2, w3)| {
-                black_box(w1.lift3(w2, w3, |x: &i32, y: &i32, z: &i32| x + y + z))
-            },
+            |(w1, w2, w3)| black_box(w1.lift3(w2, w3, |x: &i32, y: &i32, z: &i32| x + y + z)),
             criterion::BatchSize::SmallInput,
         );
     });
@@ -231,21 +229,25 @@ pub fn writer_benchmarks(c: &mut Criterion) {
             };
             Writer::<Log, i32>::new(log, x + 1)
         };
-        
+
         b.iter(|| black_box(writer.clone().bind(bind_fn)));
     });
 
     group.bench_function("bind chained", |b| {
         let writer = Writer::<Log, i32>::new(Log::empty(), 42);
-        let log1 = Log { _entries: vec!["First operation".to_string()] };
-        let log2 = Log { _entries: vec!["Second operation".to_string()] };
-        
+        let log1 = Log {
+            _entries: vec!["First operation".to_string()],
+        };
+        let log2 = Log {
+            _entries: vec!["Second operation".to_string()],
+        };
+
         b.iter(|| {
             black_box(
                 writer
                     .clone()
                     .bind(|x: &i32| Writer::<Log, i32>::new(log1.clone(), x + 10))
-                    .bind(|x: &i32| Writer::<Log, i32>::new(log2.clone(), x * 2))
+                    .bind(|x: &i32| Writer::<Log, i32>::new(log2.clone(), x * 2)),
             )
         });
     });
@@ -264,16 +266,12 @@ pub fn writer_benchmarks(c: &mut Criterion) {
                 10,
             );
 
-            black_box(
-                initial
-                    .fmap(|x| x * 2)
-                    .bind(|x| {
-                        let log = Log {
-                            _entries: vec![format!("Processing value: {}", x)],
-                        };
-                        Writer::<Log, i32>::new(log, x + 5)
-                    })
-            )
+            black_box(initial.fmap(|x| x * 2).bind(|x| {
+                let log = Log {
+                    _entries: vec![format!("Processing value: {}", x)],
+                };
+                Writer::<Log, i32>::new(log, x + 5)
+            }))
         });
     });
 

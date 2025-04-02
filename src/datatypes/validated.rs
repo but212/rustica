@@ -425,7 +425,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// let v1: Validated<&str, i32> = Validated::invalid("error 1");
     /// let v2: Validated<&str, i32> = Validated::invalid("error 2");
     /// let combined = v1.combine_errors(&v2);
-    /// 
+    ///
     /// // The result contains both errors
     /// let errors = combined.errors();
     /// assert_eq!(errors.len(), 2);

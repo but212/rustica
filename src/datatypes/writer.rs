@@ -183,7 +183,7 @@ impl<W: Clone> LogThunk<W> {
     {
         match self {
             LogThunk::Value(w) => w.clone(),
-            LogThunk::Combine(left, right) => left.evaluate().combine(&right.evaluate())
+            LogThunk::Combine(left, right) => left.evaluate().combine(&right.evaluate()),
         }
     }
 
@@ -545,7 +545,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         F: Fn(&Self::Source, &B, &C) -> D,
     {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&b.log_thunk).combine_with(&c.log_thunk),
+            log_thunk: self
+                .log_thunk
+                .combine_with(&b.log_thunk)
+                .combine_with(&c.log_thunk),
             value: f(&self.value, &b.value, &c.value),
         }
     }
@@ -586,7 +589,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         Self: Sized,
     {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&b.log_thunk).combine_with(&c.log_thunk),
+            log_thunk: self
+                .log_thunk
+                .combine_with(&b.log_thunk)
+                .combine_with(&c.log_thunk),
             value: f(self.value, b.value, c.value),
         }
     }
@@ -598,7 +604,10 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     where
         F: Fn(&Self::Source) -> Self::Output<U>,
     {
-        let Writer { log_thunk: inner_log, value: inner_value } = f(&self.value);
+        let Writer {
+            log_thunk: inner_log,
+            value: inner_value,
+        } = f(&self.value);
         Writer {
             log_thunk: self.log_thunk.combine_with(&inner_log),
             value: inner_value,
@@ -624,7 +633,10 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
         U: Clone,
         Self: Sized,
     {
-        let Writer { log_thunk: inner_log, value: inner_value } = f(self.value);
+        let Writer {
+            log_thunk: inner_log,
+            value: inner_value,
+        } = f(self.value);
         Writer {
             log_thunk: self.log_thunk.combine_with(&inner_log),
             value: inner_value,

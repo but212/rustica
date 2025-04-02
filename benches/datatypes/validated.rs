@@ -17,10 +17,12 @@ pub fn validated_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("create_multi_invalid", |b| {
-        b.iter(|| black_box(Validated::<String, i32>::invalid_vec(vec![
-            "error1".to_string(),
-            "error2".to_string(),
-        ])));
+        b.iter(|| {
+            black_box(Validated::<String, i32>::invalid_vec(vec![
+                "error1".to_string(),
+                "error2".to_string(),
+            ]))
+        });
     });
 
     // Access benchmarks
@@ -30,10 +32,8 @@ pub fn validated_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("errors", |b| {
-        let invalid = Validated::<String, i32>::invalid_vec(vec![
-            "error1".to_string(), 
-            "error2".to_string()
-        ]);
+        let invalid =
+            Validated::<String, i32>::invalid_vec(vec!["error1".to_string(), "error2".to_string()]);
         b.iter(|| black_box(invalid.errors()));
     });
 
@@ -65,7 +65,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
     group.bench_function("pure_apply", |b| {
         use rustica::traits::applicative::Applicative;
         use rustica::traits::pure::Pure;
-        
+
         let valid_fn = Validated::<String, fn(&i32) -> i32>::valid(|x: &i32| x + 10);
         let valid_value = Validated::<String, i32>::valid(42);
         let invalid_value = Validated::<String, i32>::invalid("value error".to_string());
@@ -81,7 +81,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
     group.bench_function("bind_fold", |b| {
         use rustica::traits::foldable::Foldable;
         use rustica::traits::monad::Monad;
-        
+
         let valid = Validated::<String, i32>::valid(42);
         let invalid = Validated::<String, i32>::invalid("error".to_string());
 
@@ -89,7 +89,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
             black_box((
                 valid.bind(|x| Validated::<String, i32>::valid(x * 2)),
                 valid.fold_left(&0, |acc, x| acc + x),
-                invalid.fold_left(&0, |acc, _| *acc)
+                invalid.fold_left(&0, |acc, _| *acc),
             ))
         });
     });
@@ -116,9 +116,15 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let validated1 = Validated::<String, i32>::invalid("error 1".to_string());
             let validated2 = Validated::<String, i32>::invalid("error 2".to_string());
-            
-            let multi1 = Validated::<String, i32>::invalid_many(["error 1".to_string(), "error 2".to_string()]);
-            let multi2 = Validated::<String, i32>::invalid_many(["error 3".to_string(), "error 4".to_string()]);
+
+            let multi1 = Validated::<String, i32>::invalid_many([
+                "error 1".to_string(),
+                "error 2".to_string(),
+            ]);
+            let multi2 = Validated::<String, i32>::invalid_many([
+                "error 3".to_string(),
+                "error 4".to_string(),
+            ]);
 
             // Test different error combination scenarios
             let combined1 = validated1.combine_errors(&validated2);
@@ -133,33 +139,39 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         // Static error messages to avoid repeated allocations
         static POS_ERROR: &str = "Value must be positive";
         static EVEN_ERROR: &str = "Value must be even";
-        
+
         // Pre-computed validation functions
         let validate_positive = |x: &i32| -> Validated<String, i32> {
-            if *x > 0 { Validated::valid(*x) } 
-            else { Validated::invalid(POS_ERROR.to_string()) }
+            if *x > 0 {
+                Validated::valid(*x)
+            } else {
+                Validated::invalid(POS_ERROR.to_string())
+            }
         };
 
         let validate_even = |x: &i32| -> Validated<String, i32> {
-            if x % 2 == 0 { Validated::valid(*x) } 
-            else { Validated::invalid(EVEN_ERROR.to_string()) }
+            if x % 2 == 0 {
+                Validated::valid(*x)
+            } else {
+                Validated::invalid(EVEN_ERROR.to_string())
+            }
         };
 
         // Pre-compute validation results outside benchmark loop
         let valid_input = 42;
         let invalid_input = -99;
-        
+
         let valid_res1 = validate_positive(&valid_input);
         let valid_res2 = validate_even(&valid_input);
         let invalid_res1 = validate_positive(&invalid_input);
         let invalid_res2 = validate_even(&invalid_input);
-        
+
         b.iter(|| {
             // Reuse pre-computed validations
             let valid_result = valid_res1.bind(|x| validate_even(&x));
             let invalid_result = invalid_res1.clone().bind(|x| validate_even(&x));
             let combined_valid = valid_res1.lift2(&valid_res2, |a, b| a + b);
-            
+
             black_box((
                 valid_result,
                 invalid_result,
@@ -182,17 +194,19 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         let err_result: Result<i32, String> = Err("error".to_string());
         let some_value: Option<i32> = Some(42);
         let none_value: Option<i32> = None;
-        
+
         // Static error message to avoid allocations
         static ERROR_MSG: &str = "No value provided";
 
         // Pre-create validated values
         let valid: Validated<String, i32> = Validated::valid(42);
         let invalid: Validated<String, i32> = Validated::invalid(ERROR_MSG.to_string());
-        
+
         // Pre-compute conversions to avoid allocations in the benchmark loop
-        let valid_from_option = Validated::from_option_with_owned(some_value, || ERROR_MSG.to_string());
-        let invalid_from_option = Validated::from_option_with_owned(none_value, || ERROR_MSG.to_string());
+        let valid_from_option =
+            Validated::from_option_with_owned(some_value, || ERROR_MSG.to_string());
+        let invalid_from_option =
+            Validated::from_option_with_owned(none_value, || ERROR_MSG.to_string());
         let valid_from_result = Validated::from_result_owned(ok_result.clone());
         let invalid_from_result = Validated::from_result_owned(err_result.clone());
         let result_from_valid = valid.to_result();
@@ -227,7 +241,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         static USERNAME_ERROR: &str = "Username must be at least 3 characters";
         static EMAIL_ERROR: &str = "Email must contain @ symbol";
         static AGE_ERROR: &str = "Age must be at least 18";
-        
+
         // Pre-create validation functions
         let validate_username = |username: &String| -> Validated<String, String> {
             if username.len() >= 3 {
@@ -279,9 +293,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         let valid_result = validate_form(&valid_form);
         let invalid_result = validate_form(&invalid_form);
 
-        b.iter(|| {
-            black_box((valid_result.clone(), invalid_result.clone()))
-        });
+        b.iter(|| black_box((valid_result.clone(), invalid_result.clone())));
     });
 
     group.finish();
