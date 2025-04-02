@@ -177,7 +177,7 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
                     Maybe::Nothing
                 };
                 let valid_age = match age.parse::<u32>() {
-                    Ok(n) if n >= 18 && n <= 100 => Maybe::Just(n),
+                    Ok(n) if (18..=100).contains(&n) => Maybe::Just(n),
                     _ => Maybe::Nothing,
                 };
                 valid_email.lift2(&valid_age, |e: &String, a: &u32| {

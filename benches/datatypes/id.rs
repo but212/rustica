@@ -22,7 +22,7 @@ pub fn id_benchmarks(c: &mut Criterion) {
     // Basic operations
     group.bench_function("into_inner", |b| {
         let id = Id::new(42);
-        b.iter(|| black_box(id.clone().into_inner()));
+        b.iter(|| black_box(id.into_inner()));
     });
 
     group.bench_function("as_ref", |b| {

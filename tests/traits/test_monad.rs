@@ -17,8 +17,8 @@ fn test_option_monad_methods() {
     assert_eq!(none_value.bind(double), None);
 
     // Test bind_owned method
-    assert_eq!(some_value.clone().bind_owned(|x| Some(x * 2)), Some(84));
-    assert_eq!(none_value.clone().bind_owned(|x| Some(x * 2)), None);
+    assert_eq!(some_value.bind_owned(|x| Some(x * 2)), Some(84));
+    assert_eq!(none_value.bind_owned(|x| Some(x * 2)), None);
 
     // Test join method
     let nested_some: Option<Option<i32>> = Some(Some(42));
@@ -37,8 +37,8 @@ fn test_option_monad_methods() {
     assert_eq!(none_value.flat_map(double), None);
 
     // Test flat_map_owned (alias for bind_owned)
-    assert_eq!(some_value.clone().flat_map_owned(|x| Some(x * 2)), Some(84));
-    assert_eq!(none_value.clone().flat_map_owned(|x| Some(x * 2)), None);
+    assert_eq!(some_value.flat_map_owned(|x| Some(x * 2)), Some(84));
+    assert_eq!(none_value.flat_map_owned(|x| Some(x * 2)), None);
 
     // Test map_and_pure method
     assert_eq!(some_value.map_and_pure(|x| x * 2), Some(84));
@@ -67,11 +67,11 @@ fn test_result_monad_methods() {
 
     // Test bind_owned method
     assert_eq!(
-        ok_value.clone().bind_owned(|x| Ok::<_, &str>(x * 2)),
+        ok_value.bind_owned(|x| Ok::<_, &str>(x * 2)),
         Ok(84)
     );
     assert_eq!(
-        err_value.clone().bind_owned(|x| Ok::<_, &str>(x * 2)),
+        err_value.bind_owned(|x| Ok::<_, &str>(x * 2)),
         Err("error")
     );
 
@@ -128,14 +128,14 @@ fn monad_law_right_identity() {
     // Test with Option
     let m: Option<i32> = Some(42);
 
-    let left = m.clone().bind(|x| Option::<i32>::pure(x));
+    let left = m.clone().bind(Option::<i32>::pure);
 
     assert_eq!(left, m);
 
     // Test with Result
     let m: Result<i32, &str> = Ok(42);
 
-    let left = m.clone().bind(|x| Result::<i32, &str>::pure(x));
+    let left = m.clone().bind(Result::<i32, &str>::pure);
 
     assert_eq!(left, m);
 }
@@ -204,7 +204,7 @@ fn quickcheck_monad_left_identity(x: i32) -> bool {
 fn quickcheck_monad_right_identity(x: i32) -> bool {
     let m: Option<i32> = Some(x);
 
-    let left = m.clone().bind(|x| Option::<i32>::pure(x));
+    let left = m.clone().bind(Option::<i32>::pure);
 
     left == m
 }

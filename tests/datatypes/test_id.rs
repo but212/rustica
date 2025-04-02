@@ -80,12 +80,12 @@ fn test_id_applicative() {
 
     // Test lift2
     let add = |a: &i32, b: &i32| a + b;
-    let sum = x.lift2(&y, &add);
+    let sum = x.lift2(&y, add);
     assert_eq!(*sum.value(), 5);
 
     // Test lift3
     let multiply = |a: &i32, b: &i32, c: &i32| a * b * c;
-    let product = x.lift3(&y, &z, &multiply);
+    let product = x.lift3(&y, &z, multiply);
     assert_eq!(*product.value(), 24);
 }
 
@@ -98,12 +98,12 @@ fn test_id_owned_applicative() {
 
     // Test apply_owned
     let add_one: Id<fn(i32) -> i32> = Id::new(|x| x + 1);
-    let result = x.clone().apply_owned(add_one);
+    let result = x.apply_owned(add_one);
     assert_eq!(*result.value(), 3);
 
     // Test lift2_owned
     let add = |a: i32, b: i32| a + b;
-    let sum = x.clone().lift2_owned(y.clone(), add);
+    let sum = x.lift2_owned(y, add);
     assert_eq!(*sum.value(), 5);
 
     // Test lift3_owned
@@ -125,7 +125,7 @@ fn test_id_monad() {
     assert_eq!(*bind_result.value(), 84);
 
     // Test join
-    let nested = Id::new(x.clone());
+    let nested = Id::new(x);
     let flattened: Id<i32> = nested.join();
     assert_eq!(*flattened.value(), 42);
 
@@ -135,7 +135,7 @@ fn test_id_monad() {
     assert_eq!(*left_identity.value(), *f(&42).value());
 
     // 2. Right identity: m.bind(pure) == m
-    let right_identity = x.bind(|n| Id::<i32>::pure(n));
+    let right_identity = x.bind(Id::<i32>::pure);
     assert_eq!(*right_identity.value(), *x.value());
 
     // 3. Associativity: m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
@@ -151,11 +151,11 @@ fn test_id_owned_monad() {
 
     // Test bind_owned
     let f = |n: i32| Id::new(n * 2);
-    let result = x.clone().bind_owned(f);
+    let result = x.bind_owned(f);
     assert_eq!(*result.value(), 84);
 
     // Test join_owned
-    let nested: Id<Id<i32>> = Id::new(x.clone());
+    let nested: Id<Id<i32>> = Id::new(x);
     let flattened: Id<i32> = nested.join_owned();
     assert_eq!(*flattened.value(), 42);
 }
@@ -190,6 +190,6 @@ fn test_id_optimized_chains() {
 fn test_id_clone() {
     // Test cloning of Id
     let x = Id::new(42);
-    let y = x.clone();
+    let y = x;
     assert_eq!(*x.value(), *y.value());
 }

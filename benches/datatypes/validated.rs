@@ -262,8 +262,8 @@ pub fn validated_benchmarks(c: &mut Criterion) {
                 result_from_invalid_pre.clone(),
                 valid_from_option,
                 invalid_from_option,
-                option_from_valid_pre.clone(),
-                option_from_invalid_pre.clone(),
+                option_from_valid_pre,
+                option_from_invalid_pre,
             ))
         });
     });

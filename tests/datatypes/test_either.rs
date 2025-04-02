@@ -32,7 +32,7 @@ fn test_either_creation_and_access() {
 fn test_either_mapping() {
     // Test map_left
     let left: Either<i32, &str> = Either::left(42);
-    let doubled = left.clone().fmap_left(|x| x * 2);
+    let doubled = left.fmap_left(|x| x * 2);
     assert_eq!(doubled.unwrap_left(), 84);
 
     // Test map_right
@@ -41,7 +41,7 @@ fn test_either_mapping() {
     assert_eq!(upper.unwrap_right(), "HELLO");
 
     // Test that mapping the wrong side doesn't change anything
-    let left_mapped = left.clone().fmap_right(|s| s.to_uppercase());
+    let left_mapped = left.fmap_right(|s| s.to_uppercase());
     assert_eq!(left_mapped.unwrap_left(), 42);
     let right_mapped = right.clone().fmap_left(|x| x * 2);
     assert_eq!(right_mapped.unwrap_right(), "hello");
@@ -145,12 +145,12 @@ fn test_either_or_methods() {
     let left: Either<&str, i32> = Either::left("error");
     let right: Either<&str, i32> = Either::right(42);
 
-    assert_eq!(left.clone().left_or("default"), "error");
-    assert_eq!(right.clone().left_or("default"), "default");
+    assert_eq!(left.left_or("default"), "error");
+    assert_eq!(right.left_or("default"), "default");
 
     // Test right_or
-    assert_eq!(left.clone().right_or(0), 0);
-    assert_eq!(right.clone().right_or(0), 42);
+    assert_eq!(left.right_or(0), 0);
+    assert_eq!(right.right_or(0), 42);
 }
 
 #[test]

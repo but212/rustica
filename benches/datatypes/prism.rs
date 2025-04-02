@@ -110,7 +110,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
                 session_id,
             } => Some((username.clone(), session_id.clone())),
         },
-        |&(ref username, ref session_id): &(String, String)| UserStatus::LoggedIn {
+        |(username, session_id): &(String, String)| UserStatus::LoggedIn {
             username: username.clone(),
             session_id: session_id.clone(),
         },
@@ -122,7 +122,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
             ApiResponse::Success { data, metadata } => Some((data.clone(), metadata.clone())),
             _ => None,
         },
-        |&(ref data, ref metadata): &(String, HashMap<String, String>)| ApiResponse::Success {
+        |(data, metadata): &(String, HashMap<String, String>)| ApiResponse::Success {
             data: data.clone(),
             metadata: metadata.clone(),
         },
@@ -246,7 +246,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
     group.bench_function("prism_composition", |b| {
         b.iter(|| {
             black_box({
-                let shapes = vec![circle.clone(), rectangle.clone(), triangle.clone()];
+                let shapes = [circle.clone(), rectangle.clone(), triangle.clone()];
                 shapes
                     .iter()
                     .filter_map(|shape| {

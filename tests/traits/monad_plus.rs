@@ -28,9 +28,9 @@ fn test_option_monad_plus_operations() {
     let c: Option<i32> = Some(3);
 
     // Test combinations
-    assert_eq!(a.clone().mplus_owned(b.clone()), Some(1));
-    assert_eq!(b.clone().mplus_owned(c.clone()), Some(3));
-    assert_eq!(b.clone().mplus_owned(b.clone()), None);
+    assert_eq!(a.mplus_owned(b), Some(1));
+    assert_eq!(b.mplus_owned(c), Some(3));
+    assert_eq!(b.mplus_owned(b), None);
 }
 
 #[test]

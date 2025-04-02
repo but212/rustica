@@ -32,9 +32,9 @@ mod test_io {
     fn test_io_complex_composition() {
         // Create a chain of computations
         let initial = IO::pure(10);
-        let step1 = initial.fmap(&|x| x * 2); // 20
-        let step2 = step1.bind(&|x| IO::pure(x + 5)); // 25
-        let step3 = step2.fmap(&|x| x - 3); // 22
+        let step1 = initial.fmap(|x| x * 2); // 20
+        let step2 = step1.bind(|x| IO::pure(x + 5)); // 25
+        let step3 = step2.fmap(|x| x - 3); // 22
 
         // Run the final computation
         let result = step3.run();

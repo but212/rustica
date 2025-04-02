@@ -71,7 +71,7 @@ pub fn cont_benchmarks(c: &mut Criterion) {
 
     group.bench_function("state_machine", |b| {
         b.iter(|| {
-            let inputs = vec![1, 2, 3, 4, 5];
+            let inputs = [1, 2, 3, 4, 5];
             let transition = |state: i32, input: i32| -> Cont<i32, i32> {
                 if input % 2 == 0 {
                     Cont::return_cont(state * 2)

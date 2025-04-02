@@ -170,7 +170,7 @@ fn test_macro() {
 #[test]
 fn test_from_iter() {
     // Test FromIterator implementation
-    let std_vec = vec![1, 2, 3];
+    let std_vec = [1, 2, 3];
 
     // Using collect
     let pvec: PersistentVector<_> = std_vec.iter().cloned().collect();

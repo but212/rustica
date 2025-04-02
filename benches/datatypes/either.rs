@@ -55,10 +55,10 @@ pub fn either_benchmarks(c: &mut Criterion) {
     group.bench_function("unwrap_left_right", |b| {
         b.iter(|| {
             if either_left.is_left() {
-                black_box(either_left.clone().unwrap_left());
+                black_box(either_left.unwrap_left());
             }
             if either_right.is_right() {
-                black_box(either_right.clone().unwrap_right());
+                black_box(either_right.unwrap_right());
             }
         });
     });
@@ -76,24 +76,24 @@ pub fn either_benchmarks(c: &mut Criterion) {
 
     group.bench_function("left_right_or", |b| {
         b.iter(|| {
-            black_box(either_left.clone().left_or("default"));
-            black_box(either_right.clone().right_or(0));
+            black_box(either_left.left_or("default"));
+            black_box(either_right.right_or(0));
         });
     });
 
     // ======== TRANSFORMATION OPERATIONS ========
     group.bench_function("map_left_right", |b| {
         b.iter(|| {
-            black_box(either_left.clone().fmap_left(|s| s.len()));
-            black_box(either_right.clone().fmap_right(|n| n * 2));
+            black_box(either_left.fmap_left(|s| s.len()));
+            black_box(either_right.fmap_right(|n| n * 2));
         });
     });
 
     // ======== FUNCTOR OPERATIONS ========
     group.bench_function("fmap", |b| {
         b.iter(|| {
-            black_box(either_left.fmap(&|x: &i32| x + 1));
-            black_box(either_right.fmap(&|x: &i32| x + 1));
+            black_box(either_left.fmap(|x: &i32| x + 1));
+            black_box(either_right.fmap(|x: &i32| x + 1));
         });
     });
 
@@ -140,7 +140,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
             let a = Either::<&str, i32>::right(10);
             let c = Either::<&str, i32>::right(20);
             let d = Either::<&str, i32>::right(30);
-            black_box(a.clone().lift2_owned(c.clone(), |x, y| x + y));
+            black_box(a.lift2_owned(c, |x, y| x + y));
             black_box(a.lift3_owned(c, d, |x, y, z| x + y + z));
         });
     });
@@ -229,14 +229,14 @@ pub fn either_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let input: Either<&str, Vec<i32>> = Either::right(vec![1, 2, 3, 4, 5]);
             let result = input
-                .fmap(&|v: &Vec<i32>| v.iter().map(|x| x * 2).collect::<Vec<i32>>())
-                .fmap(&|v: &Vec<i32>| {
+                .fmap(|v: &Vec<i32>| v.iter().map(|x| x * 2).collect::<Vec<i32>>())
+                .fmap(|v: &Vec<i32>| {
                     v.iter()
                         .filter(|x| *x % 2 == 0)
                         .cloned()
                         .collect::<Vec<i32>>()
                 })
-                .fmap(&|v: &Vec<i32>| v.iter().sum::<i32>())
+                .fmap(|v: &Vec<i32>| v.iter().sum::<i32>())
                 .fmap_right(|sum: i32| if sum > 20 { "large" } else { "small" });
             black_box(result)
         });
@@ -247,7 +247,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
             let left = Either::<i32, &str>::left(42);
             let right = Either::<i32, &str>::right("hello");
             black_box((
-                left.clone().fmap_left(|n| n * 2).fmap_right(|s| s.len()),
+                left.fmap_left(|n| n * 2).fmap_right(|s| s.len()),
                 right.fmap_left(|n| n * 2).fmap_right(|s| s.len()),
             ))
         });

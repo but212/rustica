@@ -132,7 +132,7 @@ mod test_async_monad {
             Ok(42)
         }
 
-        let success = AsyncM::from_result_or_default(|| success_fn(), 0);
+        let success = AsyncM::from_result_or_default(success_fn, 0);
         assert_eq!(success.try_get().await, 42);
 
         // Test error case
@@ -140,7 +140,7 @@ mod test_async_monad {
             Err("error")
         }
 
-        let error = AsyncM::from_result_or_default(|| error_fn(), 100);
+        let error = AsyncM::from_result_or_default(error_fn, 100);
         assert_eq!(error.try_get().await, 100);
     }
 }

@@ -300,7 +300,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
             let result1 = choice.fmap_alternatives(|&x| x * 2);
 
             // Using vectors directly
-            let vec = vec![1, 2, 3, 4, 5];
+            let vec = [1, 2, 3, 4, 5];
             let result2: Vec<_> = vec.iter().map(|&x| x * 2).collect();
 
             black_box((result1, result2));
