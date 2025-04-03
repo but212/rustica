@@ -1,5 +1,6 @@
 use criterion::{black_box, Criterion};
 use rustica::datatypes::validated::Validated;
+use rustica::datatypes::wrapper::memoize::MemoizeFn;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::monad::Monad;
 
@@ -242,30 +243,30 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         static EMAIL_ERROR: &str = "Email must contain @ symbol";
         static AGE_ERROR: &str = "Age must be at least 18";
 
-        // Pre-create validation functions
-        let validate_username = |username: &String| -> Validated<String, String> {
+        // Create memoized validation functions
+        let validate_username = MemoizeFn::new(|username: String| -> Validated<String, String> {
             if username.len() >= 3 {
-                Validated::valid(username.clone())
+                Validated::valid(username)
             } else {
                 Validated::invalid(USERNAME_ERROR.to_string())
             }
-        };
+        });
 
-        let validate_email = |email: &String| -> Validated<String, String> {
+        let validate_email = MemoizeFn::new(|email: String| -> Validated<String, String> {
             if email.contains('@') {
-                Validated::valid(email.clone())
+                Validated::valid(email)
             } else {
                 Validated::invalid(EMAIL_ERROR.to_string())
             }
-        };
+        });
 
-        let validate_age = |age: &i32| -> Validated<String, i32> {
-            if *age >= 18 {
-                Validated::valid(*age)
+        let validate_age = MemoizeFn::new(|age: i32| -> Validated<String, i32> {
+            if age >= 18 {
+                Validated::valid(age)
             } else {
                 Validated::invalid(AGE_ERROR.to_string())
             }
-        };
+        });
 
         // Create form data outside benchmark loop
         let valid_form = UserForm {
@@ -280,18 +281,18 @@ pub fn validated_benchmarks(c: &mut Criterion) {
             age: 16,
         };
 
-        // Pre-compute validation function
-        let validate_form = |form: &UserForm| {
-            let username_v = validate_username(&form.username);
-            let email_v = validate_email(&form.email);
-            let age_v = validate_age(&form.age);
+        // Memoized form validation function
+        let validate_form = MemoizeFn::new(move |form: UserForm| {
+            let username_v = validate_username.clone().call(form.username);
+            let email_v = validate_email.clone().call(form.email);
+            let age_v = validate_age.clone().call(form.age);
 
             username_v.lift3(&email_v, &age_v, |u, e, a| (u.clone(), e.clone(), *a))
-        };
+        });
 
         // Pre-compute results to avoid repeated work
-        let valid_result = validate_form(&valid_form);
-        let invalid_result = validate_form(&invalid_form);
+        let valid_result = validate_form.clone().call(valid_form.clone());
+        let invalid_result = validate_form.call(invalid_form.clone());
 
         b.iter(|| black_box((valid_result.clone(), invalid_result.clone())));
     });

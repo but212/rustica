@@ -1,5 +1,6 @@
 use criterion::{black_box, Criterion};
 use rustica::datatypes::choice::Choice;
+use rustica::datatypes::wrapper::memoize::MemoizeFn;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
 use rustica::traits::monad::Monad;
@@ -188,36 +189,42 @@ pub fn choice_benchmarks(c: &mut Criterion) {
             ],
         );
 
-        b.iter(|| {
-            black_box(
-                options
-                    .clone()
-                    .filter(|option| option.cost <= 150)
-                    .fmap_alternatives(|option| Option {
+        // Create memoized functions for expensive operations
+        let quality_adjustment = MemoizeFn::new(|option: Option| Option {
+            id: option.id,
+            cost: option.cost,
+            quality: option.quality,
+            speed: option.speed + (10 - option.quality),
+        });
+
+        let alternative_generator = MemoizeFn::new(|option: Option| {
+            Choice::new(
+                option.clone(),
+                vec![
+                    Option {
+                        id: option.id,
+                        cost: 250 - option.cost,
+                        quality: option.quality,
+                        speed: option.speed,
+                    },
+                    Option {
                         id: option.id,
                         cost: option.cost,
                         quality: option.quality,
-                        speed: option.speed + (10 - option.quality),
-                    })
-                    .bind_owned(|option| {
-                        Choice::new(
-                            option.clone(),
-                            vec![
-                                Option {
-                                    id: option.id,
-                                    cost: 250 - option.cost,
-                                    quality: option.quality,
-                                    speed: option.speed,
-                                },
-                                Option {
-                                    id: option.id,
-                                    cost: option.cost,
-                                    quality: option.quality,
-                                    speed: option.speed * 2,
-                                },
-                            ],
-                        )
-                    }),
+                        speed: option.speed * 2,
+                    },
+                ],
+            )
+        });
+
+        b.iter(|| {
+            let filtered = options.clone().filter(|option| option.cost <= 150);
+
+            let adjusted = filtered
+                .fmap_alternatives(|option| quality_adjustment.clone().call(option.clone()));
+
+            black_box(
+                adjusted.bind_owned(|option| alternative_generator.clone().call(option.clone())),
             );
         });
     });

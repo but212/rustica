@@ -39,6 +39,7 @@ use std::marker::PhantomData;
 ///
 /// * `F` - The function type that produces the value
 /// * `T` - The type of value produced by the function
+#[derive(Clone)]
 pub struct Thunk<F, T>
 where
     F: Fn() -> T,

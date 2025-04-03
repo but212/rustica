@@ -13,11 +13,9 @@
 //! - `Max`: Forms a semigroup under the maximum operation
 //! - `First`: Forms a semigroup by taking the first non-None value
 //! - `Last`: Forms a semigroup by taking the last non-None value
-//! - `BoxedFn`: A wrapper for boxed functions that can be evaluated
 //! - `Thunk`: A lightweight alternative to BoxedFn with static dispatch
 //! - `Value`: A simple value wrapper implementing Evaluate
 
-pub mod boxed_fn;
 pub mod first;
 pub mod last;
 pub mod max;

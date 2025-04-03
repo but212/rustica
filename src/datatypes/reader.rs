@@ -575,3 +575,338 @@ impl<E: Clone + 'static, A: Clone + 'static> Reader<E, A> {
         Reader::new(move |e| f(select(&e)))
     }
 }
+
+use crate::datatypes::wrapper::memoize::MemoizeFn;
+
+/// A reader monad implementation with memoization capabilities.
+///
+/// `MemoizedReader` caches the results of computations based on their environment inputs,
+/// avoiding redundant calculations when the same environment is provided multiple times.
+///
+/// # Type Parameters
+///
+/// * `E` - The environment type that provides context for the computation
+/// * `A` - The result type produced by the computation
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::datatypes::reader::MemoizedReader;
+///
+/// // Create a memoized reader that performs an "expensive" calculation
+/// let reader = MemoizedReader::new(|n: i32| {
+///     println!("Computing for {}", n);  // Side effect to show when computation happens
+///     n * n
+/// });
+///
+/// // First call computes the result
+/// assert_eq!(reader.run_reader(5), 25);
+///
+/// // Second call with same input returns cached result without recomputing
+/// assert_eq!(reader.run_reader(5), 25);
+/// ```
+#[derive(Clone)]
+pub struct MemoizedReader<E, A> {
+    run: MemoizeFn<E, A>,
+}
+
+impl<E: Clone + 'static, A: Clone + 'static> MemoizedReader<E, A> {
+    /// Creates a new MemoizedReader from a function.
+    ///
+    /// This constructor takes a function that computes a value from an environment
+    /// and wraps it in a memoization layer that caches results based on inputs.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function that takes an environment and returns a value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::MemoizedReader;
+    ///
+    /// let reader = MemoizedReader::new(|env: i32| {
+    ///     // This computation will only happen once per unique input value
+    ///     env * env + env
+    /// });
+    ///
+    /// // First call performs the calculation
+    /// assert_eq!(reader.run_reader(5), 30);
+    /// // Second call uses the cached result
+    /// assert_eq!(reader.run_reader(5), 30);
+    /// ```
+    pub fn new<F>(f: F) -> Self
+    where
+        F: Fn(E) -> A + 'static,
+    {
+        MemoizedReader {
+            run: MemoizeFn::new(f),
+        }
+    }
+
+    /// Converts an existing Reader to a MemoizedReader.
+    ///
+    /// This constructor takes a Reader and wraps it in a memoization layer
+    /// that caches results based on inputs.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - Reader to convert
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::{Reader, MemoizedReader};
+    ///
+    /// let reader = Reader::new(|env: i32| env * 2);
+    /// let memoized = MemoizedReader::from_reader(reader);
+    /// assert_eq!(memoized.run_reader(5), 10);
+    /// assert_eq!(memoized.run_reader(5), 10); // Cached result
+    /// ```
+    pub fn from_reader(reader: Reader<E, A>) -> Self {
+        MemoizedReader {
+            run: MemoizeFn::new(move |e| reader.run_reader(e)),
+        }
+    }
+
+    /// Runs the reader with the given environment.
+    ///
+    /// This method executes the reader with the provided environment and
+    /// returns the result, caching it for future calls with the same input.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Environment to run the reader with
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::MemoizedReader;
+    ///
+    /// let reader = MemoizedReader::new(|env: i32| env * 2);
+    /// assert_eq!(reader.run_reader(5), 10);
+    /// assert_eq!(reader.run_reader(5), 10); // Cached result
+    /// ```
+    pub fn run_reader(&self, env: E) -> A {
+        (self.run).call(env)
+    }
+
+    /// Maps a function over the memoized reader's result.
+    ///
+    /// This implements the Functor pattern for MemoizedReader, allowing transformation of the
+    /// result value while preserving the MemoizedReader structure, environment access, and caching behavior.
+    ///
+    /// # Arguments
+    ///
+    /// * `g` - Function to apply to the result
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::MemoizedReader;
+    ///
+    /// let reader = MemoizedReader::new(|env: i32| env + 1);
+    /// let string_reader = reader.fmap(|x| x.to_string());
+    /// assert_eq!(string_reader.run_reader(41), "42");
+    ///
+    /// // The result is cached for repeated calls
+    /// assert_eq!(string_reader.run_reader(41), "42"); // Uses cached result
+    /// ```
+    pub fn fmap<B, G>(&self, g: G) -> MemoizedReader<E, B>
+    where
+        B: Clone + 'static,
+        G: Fn(A) -> B + 'static,
+    {
+        let run_clone = self.run.clone();
+
+        MemoizedReader::new(move |e: E| {
+            let a = run_clone.call(e);
+            g(a)
+        })
+    }
+
+    /// Chains two memoized readers together.
+    ///
+    /// This is the monadic bind operation for the MemoizedReader monad. It allows sequencing
+    /// operations where the next operation depends on the result of the previous one,
+    /// while maintaining access to the shared environment and preserving caching behavior.
+    ///
+    /// # Arguments
+    ///
+    /// * `g` - Function that takes the result of this reader and returns a new memoized reader
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::MemoizedReader;
+    ///
+    /// // A reader that adds 1 to the environment
+    /// let reader = MemoizedReader::new(|env: i32| env + 1);
+    ///
+    /// // Chain with another reader that multiplies the result by 2
+    /// let result = reader.bind(|x| MemoizedReader::new(move |_| x * 2));
+    /// assert_eq!(result.run_reader(41), 84);
+    ///
+    /// // Results are cached for repeated calls
+    /// assert_eq!(result.run_reader(41), 84); // Uses cached result
+    /// ```
+    pub fn bind<B, G>(&self, g: G) -> MemoizedReader<E, B>
+    where
+        B: Clone + 'static,
+        G: Fn(A) -> MemoizedReader<E, B> + 'static,
+    {
+        let run_clone = self.run.clone();
+
+        MemoizedReader::new(move |e: E| {
+            let a = run_clone.call(e.clone());
+            let mb = g(a);
+            mb.run_reader(e)
+        })
+    }
+
+    /// Modifies the environment before running a memoized reader.
+    ///
+    /// This operation allows for local modifications to the environment that only
+    /// affect the current reader, without changing the environment for subsequent
+    /// operations in a chain. The memoization behavior is preserved.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function to modify the environment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::MemoizedReader;
+    ///
+    /// // Create a reader that works with strings
+    /// let reader = MemoizedReader::new(|env: String| env.len());
+    ///
+    /// // Run with a modified environment (uppercase)
+    /// let modified = reader.local(|e| e.to_uppercase());
+    /// assert_eq!(modified.run_reader("hello".to_string()), 5);
+    ///
+    /// // The original reader is unaffected
+    /// assert_eq!(reader.run_reader("hello".to_string()), 5);
+    /// ```
+    pub fn local<F>(&self, f: F) -> MemoizedReader<E, A>
+    where
+        F: Fn(E) -> E + 'static,
+    {
+        let run_clone = self.run.clone();
+
+        MemoizedReader::new(move |e: E| run_clone.call(f(e)))
+    }
+
+    /// Creates a reader that applies a function to the environment.
+    ///
+    /// This operation allows extracting or transforming specific parts of the
+    /// environment without changing the environment itself. The memoization
+    /// behavior is preserved.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function to extract or transform data from the environment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::MemoizedReader;
+    ///
+    /// #[derive(Clone)]
+    /// struct Config {
+    ///     name: String,
+    ///     version: String,
+    /// }
+    ///
+    /// // Extract just the name from the config
+    /// let name_reader = MemoizedReader::<Config, String>::asks(|config| config.name.clone());
+    ///
+    /// let config = Config {
+    ///     name: "MyApp".to_string(),
+    ///     version: "1.0.0".to_string(),
+    /// };
+    ///
+    /// assert_eq!(name_reader.run_reader(config), "MyApp");
+    /// ```
+    pub fn asks<B, F>(f: F) -> MemoizedReader<E, B>
+    where
+        B: Clone + 'static,
+        F: Fn(&E) -> B + 'static,
+    {
+        MemoizedReader::new(move |e: E| f(&e))
+    }
+
+    /// Creates a memoized reader that returns the environment unchanged.
+    ///
+    /// This is the identity operation for the MemoizedReader monad, allowing
+    /// direct access to the environment value.
+    ///
+    /// # Reader Monad Context
+    ///
+    /// In the context of the Reader monad, `ask` provides access to the
+    /// environment, which can then be used in subsequent operations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::MemoizedReader;
+    ///
+    /// #[derive(Clone)]
+    /// struct Config {
+    ///     name: String,
+    ///     version: String,
+    /// }
+    ///
+    /// let reader = MemoizedReader::<Config, Config>::ask();
+    /// let config = Config {
+    ///     name: "MyApp".to_string(),
+    ///     version: "1.0.0".to_string(),
+    /// };
+    ///
+    /// // The reader simply returns the environment
+    /// let result = reader.run_reader(config.clone());
+    /// assert_eq!(result.name, "MyApp");
+    /// assert_eq!(result.version, "1.0.0");
+    /// ```
+    pub fn ask() -> MemoizedReader<E, E> {
+        MemoizedReader::new(|e: E| e)
+    }
+
+    /// Creates a memoized reader that returns a transformed version of the environment.
+    /// Similar to `ask`, but allows specifying a transformation function.
+    ///
+    /// This method provides a convenient way to access and transform the environment
+    /// in a single operation, with results being cached for repeated calls.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function to transform the environment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::MemoizedReader;
+    ///
+    /// // Get the length of a string environment
+    /// let reader = MemoizedReader::<String, usize>::ask_with(|s| s.len());
+    /// assert_eq!(reader.run_reader("hello".to_string()), 5);
+    ///
+    /// // Extract a specific property from a complex environment
+    /// #[derive(Clone)]
+    /// struct AppConfig {
+    ///     name: String,
+    ///     version: String,
+    /// }
+    ///
+    /// let version_reader = MemoizedReader::<AppConfig, String>::ask_with(|config| config.version.clone());
+    /// let config = AppConfig {
+    ///     name: "MyApp".to_string(),
+    ///     version: "1.0.0".to_string(),
+    /// };
+    /// assert_eq!(version_reader.run_reader(config), "1.0.0");
+    /// ```
+    pub fn ask_with<B: Clone + 'static>(f: impl Fn(&E) -> B + 'static) -> MemoizedReader<E, B> {
+        MemoizedReader::new(move |e: E| f(&e))
+    }
+}

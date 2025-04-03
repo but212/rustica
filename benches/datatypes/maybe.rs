@@ -154,8 +154,31 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
         let age = "25";
         let numbers = vec![1, 2, 3, 4, 5];
 
+        let validate_email = |email: &str| -> Maybe<String> {
+            if email.contains('@') {
+                Maybe::Just(email.to_string())
+            } else {
+                Maybe::Nothing
+            }
+        };
+
+        let parse_age = |age: &str| -> Maybe<u32> {
+            match age.parse::<u32>() {
+                Ok(n) if (18..=100).contains(&n) => Maybe::Just(n),
+                _ => Maybe::Nothing,
+            }
+        };
+
+        let find_threshold = move |threshold: i32| -> Maybe<i32> {
+            for &n in &numbers {
+                if n > threshold {
+                    return Maybe::Just(n);
+                }
+            }
+            Maybe::Nothing
+        };
+
         b.iter(|| {
-            // User lookup
             black_box({
                 let maybe_user = Maybe::from_option(users.get(&user_id).cloned());
                 maybe_user
@@ -169,17 +192,9 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
                     .fmap(|user: &User| format!("Welcome back, {}!", user.name))
             });
 
-            // Form validation
             black_box({
-                let valid_email = if email.contains('@') {
-                    Maybe::Just(email.to_string())
-                } else {
-                    Maybe::Nothing
-                };
-                let valid_age = match age.parse::<u32>() {
-                    Ok(n) if (18..=100).contains(&n) => Maybe::Just(n),
-                    _ => Maybe::Nothing,
-                };
+                let valid_email = validate_email(email);
+                let valid_age = parse_age(age);
                 valid_email.lift2(&valid_age, |e: &String, a: &u32| {
                     format!("Valid submission: {} is {} years old", e, a)
                 })
@@ -203,20 +218,7 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
                     .fmap(|n: &i32| format!("Result: {}", n))
             });
 
-            // Sequence processing
-            black_box({
-                let find_first_over_threshold = |nums: &[i32], threshold: i32| -> Maybe<i32> {
-                    for &n in nums {
-                        if n > threshold {
-                            return Maybe::Just(n);
-                        }
-                    }
-                    Maybe::Nothing
-                };
-                find_first_over_threshold(&numbers, 3)
-                    .fmap(|n: &i32| n * 10)
-                    .fmap_or(0, |n| n)
-            });
+            black_box(find_threshold(3).fmap(|n: &i32| n * 10).fmap_or(0, |n| n));
         });
     });
 
