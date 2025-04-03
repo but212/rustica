@@ -1,4 +1,3 @@
-#[cfg(feature = "advanced")]
 mod test_io {
     use rustica::datatypes::io::IO;
     use std::sync::Arc;

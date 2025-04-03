@@ -1,15 +1,9 @@
-#[cfg(feature = "advanced")]
 use criterion::{black_box, Criterion};
-#[cfg(feature = "advanced")]
 use rustica::datatypes::choice::Choice;
-#[cfg(feature = "advanced")]
 use rustica::traits::applicative::Applicative;
-#[cfg(feature = "advanced")]
 use rustica::traits::functor::Functor;
-#[cfg(feature = "advanced")]
 use rustica::traits::monad::Monad;
 
-#[cfg(feature = "advanced")]
 pub fn choice_benchmarks(c: &mut Criterion) {
     // Creation and access operations
     let mut group = c.benchmark_group("Choice - Basic Operations");
@@ -86,7 +80,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
             black_box(
                 choice
                     .clone()
-                    .bind_owned(|x: i32| Choice::new(x + 1, vec![x * 2, x - 1])),
+                    .bind_owned(|x| Choice::new(x + 1, vec![x * 2, x - 1])),
             );
         });
     });
@@ -139,7 +133,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
     group.bench_function("find_alternative", |b| {
         let choice = Choice::new(1, vec![2, 3, 4, 5, 6, 7, 8, 9, 10]);
         b.iter(|| {
-            black_box(choice.iter().find(|&&x| x == 7));
+            black_box(choice.alternatives().iter().position(|&x| x == 7));
         });
     });
 
@@ -163,105 +157,41 @@ pub fn choice_benchmarks(c: &mut Criterion) {
 
     // Multi-criteria decision making
     group.bench_function("multi_criteria_decision", |b| {
-        b.iter(|| {
-            #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-            struct Option {
-                id: i32,
-                cost: i32,
-                quality: i32,
-                speed: i32,
-            }
+        #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        struct Option {
+            id: i32,
+            cost: i32,
+            quality: i32,
+            speed: i32,
+        }
 
-            let options = Choice::new(
+        let options = Choice::new(
+            Option {
+                id: 1,
+                cost: 100,
+                quality: 7,
+                speed: 5,
+            },
+            vec![
                 Option {
-                    id: 1,
-                    cost: 100,
-                    quality: 7,
-                    speed: 5,
+                    id: 2,
+                    cost: 150,
+                    quality: 9,
+                    speed: 4,
                 },
-                vec![
-                    Option {
-                        id: 2,
-                        cost: 150,
-                        quality: 9,
-                        speed: 4,
-                    },
-                    Option {
-                        id: 3,
-                        cost: 80,
-                        quality: 6,
-                        speed: 8,
-                    },
-                ],
-            );
+                Option {
+                    id: 3,
+                    cost: 80,
+                    quality: 6,
+                    speed: 8,
+                },
+            ],
+        );
 
+        b.iter(|| {
             black_box(
                 options
-                    .filter(|option| option.cost <= 150)
-                    .fmap_alternatives(|option| Option {
-                        id: option.id,
-                        cost: option.cost,
-                        quality: option.quality,
-                        speed: option.speed + (10 - option.quality),
-                    })
-                    .bind(|option| {
-                        Choice::new(
-                            option.clone(),
-                            vec![
-                                Option {
-                                    id: option.id,
-                                    cost: 250 - option.cost,
-                                    quality: option.quality,
-                                    speed: option.speed,
-                                },
-                                Option {
-                                    id: option.id,
-                                    cost: option.cost,
-                                    quality: option.quality,
-                                    speed: option.speed * 2,
-                                },
-                            ],
-                        )
-                    }),
-            );
-        });
-    });
-
-    group.bench_function("multi_criteria_decision_owned", |b| {
-        b.iter(|| {
-            #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-            struct Option {
-                id: i32,
-                cost: i32,
-                quality: i32,
-                speed: i32,
-            }
-
-            let options = Choice::new(
-                Option {
-                    id: 1,
-                    cost: 100,
-                    quality: 7,
-                    speed: 5,
-                },
-                vec![
-                    Option {
-                        id: 2,
-                        cost: 150,
-                        quality: 9,
-                        speed: 4,
-                    },
-                    Option {
-                        id: 3,
-                        cost: 80,
-                        quality: 6,
-                        speed: 8,
-                    },
-                ],
-            );
-
-            black_box(
-                options
+                    .clone()
                     .filter(|option| option.cost <= 150)
                     .fmap_alternatives(|option| Option {
                         id: option.id,
@@ -294,23 +224,19 @@ pub fn choice_benchmarks(c: &mut Criterion) {
 
     // Comparing performance against vector operations
     group.bench_function("compare_with_vector_alternatives", |b| {
+        let choice = Choice::new(1, vec![2, 3, 4, 5]);
+        let vec = [1, 2, 3, 4, 5];
+
         b.iter(|| {
             // Using Choice for alternatives
-            let choice = Choice::new(1, vec![2, 3, 4, 5]);
-            let result1 = choice.fmap_alternatives(|&x| x * 2);
+            let result1 = black_box(choice.fmap_alternatives(|&x| x * 2));
 
             // Using vectors directly
-            let vec = [1, 2, 3, 4, 5];
-            let result2: Vec<_> = vec.iter().map(|&x| x * 2).collect();
+            let result2: Vec<_> = black_box(vec.iter().map(|&x| x * 2).collect());
 
             black_box((result1, result2));
         });
     });
 
     group.finish();
-}
-
-#[cfg(not(feature = "advanced"))]
-pub fn choice_benchmarks(_c: &mut Criterion) {
-    // Benchmarks disabled when advanced feature is not enabled
 }

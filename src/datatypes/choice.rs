@@ -54,7 +54,6 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::iter::FromIterator;
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use smallvec::SmallVec;
@@ -90,10 +89,10 @@ use crate::traits::semigroup::Semigroup;
 /// assert_eq!(*choice.first().unwrap(), 1);
 /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
 /// ```
+#[repr(transparent)]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
     values: Arc<SmallVec<[T; 8]>>,
-    phantom: PhantomData<T>,
 }
 
 impl<T> Choice<T> {
@@ -111,7 +110,6 @@ impl<T> Choice<T> {
     pub fn new_empty() -> Self {
         Self {
             values: Arc::new(SmallVec::new()),
-            phantom: PhantomData,
         }
     }
 
@@ -140,7 +138,6 @@ impl<T> Choice<T> {
 
         Self {
             values: Arc::new(values),
-            phantom: PhantomData,
         }
     }
 
@@ -274,10 +271,7 @@ impl<T> Choice<T> {
     {
         let mut new_values = Arc::clone(&self.values);
         Arc::make_mut(&mut new_values).extend(items);
-        Self {
-            values: new_values,
-            phantom: PhantomData,
-        }
+        Self { values: new_values }
     }
 
     /// Removes an alternative at the specified index and returns a new `Choice`.
@@ -319,7 +313,6 @@ impl<T> Choice<T> {
 
         Self {
             values: Arc::new(new_values),
-            phantom: PhantomData,
         }
     }
 
@@ -356,7 +349,6 @@ impl<T> Choice<T> {
             0 => Self::new_empty(),
             _ => Self {
                 values: Arc::new(filtered),
-                phantom: PhantomData,
             },
         }
     }
@@ -511,7 +503,6 @@ impl<T> Choice<T> {
 
             Self {
                 values: Arc::new(values),
-                phantom: PhantomData,
             }
         } else {
             Self::new_empty()
@@ -554,7 +545,6 @@ impl<T> Choice<T> {
             0 => Self::new_empty(),
             _ => Self {
                 values: Arc::new(filtered),
-                phantom: PhantomData,
             },
         }
     }
@@ -636,7 +626,6 @@ impl<T> Choice<T> {
 
         Self {
             values: Arc::new(values),
-            phantom: PhantomData,
         }
     }
 }
@@ -1451,7 +1440,6 @@ impl<T: Clone> std::iter::Sum for Choice<T> {
                 // Create a new choice with the combined values
                 result = Self {
                     values: Arc::new(new_values),
-                    phantom: PhantomData,
                 };
             }
         }

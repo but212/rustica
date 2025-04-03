@@ -57,16 +57,14 @@ pub fn cont_benchmarks(c: &mut Criterion) {
 
     // Real-world use cases
     group.bench_function("error_handling", |b| {
-        b.iter(|| {
-            let safe_divide = |a: i32, b: i32| -> Cont<i32, i32> {
-                if b == 0 {
-                    Cont::new(|_| -1)
-                } else {
-                    Cont::return_cont(a / b)
-                }
-            };
-            black_box(safe_divide(10, 2).run(|x| x))
-        });
+        let safe_divide = |a: i32, b: i32| -> Cont<i32, i32> {
+            if b == 0 {
+                Cont::new(|_| -1)
+            } else {
+                Cont::return_cont(a / b)
+            }
+        };
+        b.iter(|| black_box(safe_divide(10, 2).run(|x| x)));
     });
 
     group.bench_function("state_machine", |b| {
@@ -87,6 +85,24 @@ pub fn cont_benchmarks(c: &mut Criterion) {
             }
 
             black_box(current.run(|final_state| final_state))
+        });
+    });
+
+    group.bench_function("continuation_composition", |b| {
+        b.iter(|| {
+            // Chain multiple continuations to simulate a pipeline
+            let step1 = Cont::<i32, i32>::return_cont(10);
+            let step2 = step1.bind(Arc::new(|x| Cont::return_cont(x + 5)));
+            let step3 = step2.bind(Arc::new(|x| Cont::return_cont(x * 2)));
+            let step4 = step3.bind(Arc::new(|x| {
+                if x > 20 {
+                    Cont::return_cont(x - 10)
+                } else {
+                    Cont::return_cont(x)
+                }
+            }));
+
+            black_box(step4.run(|x| x))
         });
     });
 

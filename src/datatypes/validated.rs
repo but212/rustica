@@ -23,75 +23,6 @@
 //! combining multiple validations while accumulating errors. This is particularly useful for
 //! form validation, configuration validation, or any scenario where you want to report all
 //! errors at once rather than one at a time.
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::prelude::*;
-//!
-//! // Validate a username
-//! fn validate_username(username: &str) -> Validated<String, String> {
-//!     if username.len() >= 3 {
-//!         Validated::valid(username.to_string())
-//!     } else {
-//!         Validated::invalid("Username must be at least 3 characters".to_string())
-//!     }
-//! }
-//!
-//! // Validate a password
-//! fn validate_password(password: &str) -> Validated<String, String> {
-//!     if password.len() >= 8 {
-//!         Validated::valid(password.to_string())
-//!     } else {
-//!         Validated::invalid("Password must be at least 8 characters".to_string())
-//!     }
-//! }
-//!
-//! // Combine validations using lift2
-//! let username_validation = validate_username("ab");
-//! let password_validation = validate_password("1234");
-//!
-//! // This will collect both errors
-//! let combined = username_validation.lift2(
-//!     &password_validation,
-//!     |username: &String, password: &String| format!("User: {}, Pass: {}", username, password)
-//! );
-//!
-//! // Result contains both error messages
-//! assert!(matches!(combined, Validated::SingleInvalid(_) | Validated::MultiInvalid(_)));
-//!
-//! ```
-//!
-//! ## Type Class Implementations
-//!
-//! `Validated` implements several type classes from functional programming:
-//!
-//! - **Functor**: Allows mapping over the valid value with `fmap`
-//! - **Applicative**: Enables combining multiple validations with `apply`, `lift2`, and `lift3`
-//! - **Monad**: Provides sequencing operations with `bind` and `join`
-//!
-//! ## Interoperability with Result
-//!
-//! `Validated` provides methods to convert to and from `Result`:
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! // Convert from Result
-//! let result: Result<i32, &str> = Ok(42);
-//! let validated = Validated::from_result(&result);
-//!
-//! // Convert back to Result
-//! let result_again = validated.to_result();
-//! assert_eq!(result_again, Ok(42));
-//! ```
-//!
-//! ## When to Use Validated vs Result
-//!
-//! - Use `Validated` when you want to collect multiple errors
-//! - Use `Result` when you want to fail fast on the first error
-//! - Use `Validated` for parallel, independent validations
-//! - Use `Result` for sequential, dependent operations
-
 use crate::traits::applicative::Applicative;
 use crate::traits::composable::Composable;
 use crate::traits::foldable::Foldable;
@@ -105,55 +36,22 @@ use std::borrow::Borrow;
 
 /// A validation type that can accumulate multiple errors.
 ///
-/// `Validated<E, A>` represents either a valid value of type `A` or a collection of
-/// errors of type `E`. Unlike `Result`, which fails fast on the first error,
-/// `Validated` can collect multiple errors during validation.
+/// Validated<E, A> represents either a valid value of type A or a collection of
+/// errors of type E. Unlike Result, which fails fast on the first error,
+/// Validated can collect multiple errors during validation.
 ///
 /// # Performance Optimization
 ///
-/// `Validated` uses `SmallVec<[E; 4]>` internally to store errors, which optimizes for
+/// Validated uses SmallVec<[E; 4]> internally to store errors, which optimizes for
 /// the common case of having 1-4 validation errors without requiring heap allocation.
-/// This provides better performance than using `Vec<E>` for small error lists.
-///
-/// # Type Parameters
-///
-/// * `E` - The error type
-/// * `A` - The value type
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::functor::Functor;
-///
-/// // Create a valid value
-/// let valid: Validated<&str, i32> = Validated::valid(42);
-///
-/// // Create an invalid value with one error
-/// let invalid: Validated<&str, i32> = Validated::invalid("error message");
-///
-/// // Map over valid values
-/// let mapped = valid.fmap(|x| x * 2);
-/// ```
-///
-/// # Functional Programming Context
-///
-/// `Validated` implements several type classes from functional programming:
-///
-/// - **Functor**: Transform the inner value with `fmap`
-/// - **Applicative**: Combine multiple validations with `apply`, `lift2`, and `lift3`
-/// - **Monad**: Chain computations with `bind`
-///
-/// These implementations allow `Validated` to be used in a functional programming style,
-/// enabling composition and transformation of validations.
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 pub enum Validated<E, A> {
-    /// Represents a valid value of type `A`.
+    /// Represents a valid value of type A.
     Valid(A),
-    /// Represents an invalid state with a single error of type `E`.
+    /// Represents an invalid state with a single error of type E.
     /// Optimized for the common case of a single error.
     SingleInvalid(E),
-    /// Represents an invalid state with multiple errors of type `E`.
+    /// Represents an invalid state with multiple errors of type E.
     /// Uses SmallVec for better performance with small error counts.
     MultiInvalid(SmallVec<[E; 4]>),
 }

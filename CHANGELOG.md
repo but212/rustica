@@ -1,6 +1,8 @@
 ## [0.6.0]
 
 ### Added
+- New `pvec` module that provides persistent vector implementations
+- Improved functional programming support for collection types
 - New `memoize` module in `wrapper` namespace for caching function results
 - Added memory optimization for wrapper types
 - Monoid trait implementation for Min and Max wrapper types
@@ -19,6 +21,13 @@
 - Renamed mapping methods in the `Either` type for better API consistency:
   - `map_left` -> `fmap_left`
   - `map_right` -> `fmap_right`
+- Simplified `Choice` datatype implementation:
+  - Removed duplicated methods in favor of ownership-based versions
+  - Refactor `swap_with_alternative` renamed ownership-based versions to be the default, removing the `_owned` suffix
+    - Removed reference-based versions in favor of the ownership-based implementations
+  - Refactor `add_alternative` renamed ownership-based versions to be the default, removing the `_owned` suffix
+    - Removed reference-based versions in favor of the ownership-based implementations
+  - Removed less commonly used methods like `change_first`, `all_values`, `find_alternative`, and `from_iterator`
 
 ### Removed
 - Removed several specialized methods from `Choice` to streamline the API:

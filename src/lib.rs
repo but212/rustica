@@ -33,32 +33,24 @@ pub mod datatypes {
 
     pub mod validated;
 
-    #[cfg(feature = "advanced")]
     pub mod writer;
 
-    #[cfg(feature = "advanced")]
     pub mod reader;
 
-    #[cfg(feature = "advanced")]
     pub mod state;
 
-    #[cfg(feature = "advanced")]
     pub mod prism;
 
-    #[cfg(feature = "advanced")]
     pub mod lens;
 
-    #[cfg(feature = "advanced")]
-    pub mod cont;
-
-    #[cfg(feature = "advanced")]
     pub mod choice;
 
     #[cfg(feature = "async")]
     pub mod async_monad;
 
-    #[cfg(feature = "advanced")]
     pub mod io;
+
+    pub mod cont;
 }
 
 /// Monad transformers and related utilities.
@@ -81,31 +73,22 @@ pub mod prelude {
     pub use crate::traits::semigroup::Semigroup;
 
     // Convenience re-exports of commonly used datatypes
-    #[cfg(feature = "advanced")]
     pub use crate::datatypes::choice::Choice;
     pub use crate::datatypes::either::Either;
     pub use crate::datatypes::id::Id;
     pub use crate::datatypes::maybe::Maybe;
-    #[cfg(feature = "advanced")]
     pub use crate::datatypes::validated::Validated;
 
-    #[cfg(feature = "advanced")]
     pub use crate::traits::hkt::BinaryHKT;
 
-    // Advanced datatypes (feature-gated)
-    #[cfg(feature = "advanced")]
     pub use crate::datatypes::writer::Writer;
 
-    #[cfg(feature = "advanced")]
     pub use crate::datatypes::state::State;
 
-    #[cfg(feature = "advanced")]
     pub use crate::datatypes::reader::Reader;
 
     // Common wrappers (feature-gated)
-    #[cfg(feature = "advanced")]
     pub use crate::datatypes::wrapper::first::First;
 
-    #[cfg(feature = "advanced")]
     pub use crate::datatypes::wrapper::last::Last;
 }

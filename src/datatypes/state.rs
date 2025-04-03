@@ -155,7 +155,7 @@ use std::sync::Arc;
 /// ```
 pub struct State<S, A> {
     /// The state transformation function
-    pub run: Arc<dyn Fn(S) -> (A, S) + 'static>,
+    pub run: Arc<dyn Fn(S) -> (A, S)>,
 }
 
 impl<S, A> Clone for State<S, A> {

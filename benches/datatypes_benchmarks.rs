@@ -4,20 +4,16 @@ use criterion::{criterion_group, criterion_main};
 mod datatypes {
     #[cfg(feature = "async")]
     pub mod async_monad;
-    #[cfg(feature = "advanced")]
     pub mod choice;
-    #[cfg(feature = "advanced")]
     pub mod cont;
     pub mod either;
     pub mod id;
-    #[cfg(feature = "advanced")]
     pub mod io;
     pub mod lens;
     pub mod maybe;
     pub mod prism;
     pub mod pvec;
     pub mod reader;
-    #[cfg(feature = "advanced")]
     pub mod state;
     pub mod validated;
     pub mod writer;
@@ -36,49 +32,12 @@ use datatypes::writer::writer_benchmarks;
 
 #[cfg(feature = "async")]
 use datatypes::async_monad::async_monad_benchmarks;
-#[cfg(feature = "advanced")]
 use datatypes::choice::choice_benchmarks;
-#[cfg(feature = "advanced")]
 use datatypes::cont::cont_benchmarks;
-#[cfg(feature = "advanced")]
 use datatypes::io::io_benchmarks;
-#[cfg(feature = "advanced")]
 use datatypes::state::state_benchmarks;
 
-// Configure criterion groups for different feature combinations
 #[cfg(not(feature = "async"))]
-#[cfg(not(feature = "advanced"))]
-criterion_group!(
-    datatype_benches,
-    maybe_benchmarks,
-    id_benchmarks,
-    validated_benchmarks,
-    writer_benchmarks,
-    either_benchmarks,
-    lens_benchmarks,
-    prism_benchmarks,
-    reader_benchmarks,
-    pvec_benchmarks,
-);
-
-#[cfg(feature = "async")]
-#[cfg(not(feature = "advanced"))]
-criterion_group!(
-    datatype_benches,
-    maybe_benchmarks,
-    id_benchmarks,
-    validated_benchmarks,
-    writer_benchmarks,
-    async_monad_benchmarks,
-    either_benchmarks,
-    lens_benchmarks,
-    prism_benchmarks,
-    reader_benchmarks,
-    pvec_benchmarks,
-);
-
-#[cfg(not(feature = "async"))]
-#[cfg(feature = "advanced")]
 criterion_group!(
     datatype_benches,
     maybe_benchmarks,
@@ -97,7 +56,6 @@ criterion_group!(
 );
 
 #[cfg(feature = "async")]
-#[cfg(feature = "advanced")]
 criterion_group!(
     datatype_benches,
     maybe_benchmarks,

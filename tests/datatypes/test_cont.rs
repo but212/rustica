@@ -1,4 +1,3 @@
-#[cfg(feature = "advanced")]
 mod test_cont {
     use rustica::datatypes::cont;
     use std::sync::Arc;

@@ -1,14 +1,9 @@
-#[cfg(feature = "advanced")]
 use criterion::{black_box, Criterion};
-#[cfg(feature = "advanced")]
 use rustica::datatypes::state::State;
-#[cfg(feature = "advanced")]
 use rustica::datatypes::state::{get, modify, put};
-#[cfg(feature = "advanced")]
 use std::time::SystemTime;
 
 // Define types for benchmarks
-#[cfg(feature = "advanced")]
 #[derive(Clone, Debug)]
 struct LogEntry {
     #[allow(dead_code)]
@@ -19,7 +14,6 @@ struct LogEntry {
     message: String,
 }
 
-#[cfg(feature = "advanced")]
 #[derive(Clone, Debug)]
 struct FileReaderState {
     #[allow(dead_code)]
@@ -31,7 +25,6 @@ struct FileReaderState {
     logs: Vec<LogEntry>,
 }
 
-#[cfg(feature = "advanced")]
 impl Default for FileReaderState {
     fn default() -> Self {
         FileReaderState {
@@ -43,7 +36,6 @@ impl Default for FileReaderState {
     }
 }
 
-#[cfg(feature = "advanced")]
 pub fn state_benchmarks(c: &mut Criterion) {
     // Basic operations
     let mut group = c.benchmark_group("State - Basic Operations");
@@ -244,9 +236,4 @@ pub fn state_benchmarks(c: &mut Criterion) {
     });
 
     group.finish();
-}
-
-#[cfg(not(feature = "advanced"))]
-pub fn state_benchmarks(_c: &mut Criterion) {
-    // No-op when feature is disabled
 }

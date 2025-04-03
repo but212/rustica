@@ -1,9 +1,6 @@
-#[cfg(feature = "advanced")]
 use criterion::{black_box, Criterion};
-#[cfg(feature = "advanced")]
 use rustica::datatypes::io::IO;
 
-#[cfg(feature = "advanced")]
 pub fn io_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("IO");
 
@@ -105,9 +102,4 @@ pub fn io_benchmarks(c: &mut Criterion) {
     });
 
     group.finish();
-}
-
-#[cfg(not(feature = "advanced"))]
-pub fn io_benchmarks(_c: &mut Criterion) {
-    // Empty function when advanced feature is not enabled
 }

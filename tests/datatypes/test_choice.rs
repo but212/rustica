@@ -1,4 +1,3 @@
-#[cfg(feature = "advanced")]
 mod test_choice {
     use rustica::datatypes::choice::Choice;
     use rustica::prelude::*;
