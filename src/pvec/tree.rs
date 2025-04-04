@@ -279,15 +279,17 @@ impl<T: Clone> Tree<T> {
         let (prefix, suffix_with_middle) = self.split_at(start);
         let (_, suffix) = suffix_with_middle.split_at(end - start);
 
-        // Combine the prefix and suffix parts
-        let mut result = prefix;
-        for i in 0..suffix.size {
-            if let Some(value) = suffix.get(i) {
-                result = result.push_back(value.clone());
-            }
+        // More efficiently combine the prefix and suffix
+        if prefix.is_empty() {
+            return suffix;
         }
-
-        result
+        
+        if suffix.is_empty() {
+            return prefix;
+        }
+        
+        // For larger trees, use more efficient concatenation
+        prefix.concat(&suffix)
     }
 
     /// Resize the tree to contain exactly `new_len` elements.
@@ -847,157 +849,13 @@ impl<T: Clone> Tree<T> {
             return None;
         }
 
-        // Helper function to recursively pop an element
-        fn pop_recursive<T: Clone>(
-            node: &ManagedRef<Node<T>>,
-            manager: &MemoryManager<T>,
-            shift: usize,
-        ) -> Option<(ManagedRef<Node<T>>, T)> {
-            match **node {
-                Node::Leaf { ref elements } => {
-                    let mut new_elements = manager.acquire_chunk();
-                    let element_count = elements.len();
-
-                    if element_count == 0 {
-                        return None;
-                    }
-
-                    // Copy all elements except the last one
-                    for i in 0..(element_count - 1) {
-                        new_elements
-                            .get_mut()
-                            .unwrap()
-                            .push_back(elements.as_ref()[i].clone());
-                    }
-
-                    // Get the last element
-                    let last_element = elements.as_ref()[element_count - 1].clone();
-
-                    // Create a new leaf node
-                    let new_node = Node::leaf(new_elements);
-                    let mut new_node_ref = manager.acquire_node();
-                    *new_node_ref.get_mut().unwrap() = new_node;
-
-                    Some((new_node_ref, last_element))
-                }
-                Node::Branch {
-                    ref children,
-                    ref sizes,
-                } => {
-                    let last_child_idx = if let Some(ref sizes) = sizes {
-                        // Find the last non-empty child using the size table
-                        if sizes.is_empty() {
-                            return None;
-                        }
-                        let mut idx = sizes.len() - 1;
-                        while idx > 0 && sizes[idx] == sizes[idx - 1] {
-                            idx -= 1;
-                        }
-                        idx
-                    } else {
-                        // For regular nodes, find the last non-empty child
-                        let mut idx = children.len() - 1;
-                        while idx > 0 && children[idx].is_none() {
-                            idx -= 1;
-                        }
-                        idx
-                    };
-
-                    if last_child_idx >= children.len() || children[last_child_idx].is_none() {
-                        return None;
-                    }
-
-                    let last_child = &children[last_child_idx];
-                    let new_shift = shift.saturating_sub(NODE_BITS);
-
-                    if let Some(ref child) = last_child {
-                        let pop_result = pop_recursive(child, manager, new_shift);
-
-                        if let Some((new_child, value)) = pop_result {
-                            // Create a new branch node with the updated child
-                            let mut new_children = Vec::with_capacity(children.len());
-                            let mut new_sizes = None;
-
-                            // Copy the size table if present
-                            if let Some(ref sizes) = sizes {
-                                let mut new_size_table = Vec::with_capacity(sizes.len());
-                                for (i, &size) in sizes.iter().enumerate() {
-                                    if i == last_child_idx {
-                                        // Update the size for the last child
-                                        let new_size = if i > 0 {
-                                            sizes[i - 1] + new_child.size()
-                                        } else {
-                                            new_child.size()
-                                        };
-                                        new_size_table.push(new_size);
-                                    } else {
-                                        new_size_table.push(size);
-                                    }
-                                }
-                                new_sizes = Some(new_size_table);
-                            }
-
-                            // Copy the children
-                            for (i, child) in children.iter().enumerate() {
-                                if i == last_child_idx {
-                                    if new_child.is_empty() {
-                                        new_children.push(None);
-                                    } else {
-                                        new_children.push(Some(new_child.clone()));
-                                    }
-                                } else {
-                                    new_children.push(child.clone());
-                                }
-                            }
-
-                            // Create the new branch node
-                            let new_node = Node::Branch {
-                                children: new_children,
-                                sizes: new_sizes,
-                            };
-
-                            let mut new_node_ref = manager.acquire_node();
-                            *new_node_ref.get_mut().unwrap() = new_node;
-
-                            Some((new_node_ref, value))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }
-            }
-        }
-
-        // Attempt to pop the last element
-        let result = pop_recursive(&self.root, &self.manager, self.shift());
-
-        if let Some((new_root, value)) = result {
-            let mut new_tree = self.clone();
-            new_tree.root = new_root;
-            new_tree.size -= 1;
-            new_tree.cache.invalidate();
-
-            // Check if we need to decrease the height of the tree
-            if new_tree.height > 0 {
-                if let Node::Branch { ref children, .. } = *new_tree.root {
-                    let non_empty_children = children.iter().filter(|c| c.is_some()).count();
-
-                    if non_empty_children == 1 {
-                        // Only one child, we can decrease the height
-                        if let Some(child) = children.iter().flatten().next() {
-                            new_tree.root = child.clone();
-                            new_tree.height -= 1;
-                        }
-                    }
-                }
-            }
-
-            Some((new_tree, value))
-        } else {
-            None
-        }
+        let last_idx = self.size - 1;
+        let last_element = self.get(last_idx)?.clone();
+        
+        // Create new tree without the last element
+        let (new_tree, _) = self.split_at(last_idx);
+        
+        Some((new_tree, last_element))
     }
 
     /// Set the memory manager for this tree.

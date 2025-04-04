@@ -115,8 +115,7 @@ impl<T: Clone> MemoryManager<T> {
                 let node = self
                     .node_pool
                     .lock()
-                    .acquire()
-                    .unwrap_or_else(|| Arc::new(Node::new()));
+                    .acquire_or_create(|| Arc::new(Node::new()));
                 ManagedRef::new(node, Some(pool_clone))
             }
         }

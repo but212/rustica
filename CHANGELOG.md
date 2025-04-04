@@ -4,6 +4,8 @@
 - New `pvec` module that provides persistent vector implementations
 - Improved functional programming support for collection types
 - New `memoize` module in `wrapper` namespace for caching function results
+- Added `MemoizeFn` type to `wrapper/memoize.rs` for enhanced function memoization
+- Added `MemoizeReader` type to `reader.rs` to support memoized Reader-pattern computations
 - Added memory optimization for wrapper types
 - Monoid trait implementation for Min and Max wrapper types
 - New documentation guides:
@@ -30,6 +32,7 @@
   - Removed less commonly used methods like `change_first`, `all_values`, `find_alternative`, and `from_iterator`
 
 ### Removed
+- Removed `BoxedFn` wrapper type from `wrapper/boxed_fn.rs`
 - Removed several specialized methods from `Choice` to streamline the API:
   - `replace_alternatives_with_first`: can be achieved with core methods
   - `with_ordered_alternatives` and `with_ordered_alternatives_owned`: specialized sorting operations
