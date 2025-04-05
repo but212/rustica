@@ -620,7 +620,16 @@ impl<T: Clone> PersistentVector<T> {
     /// ```
     #[inline]
     pub fn split_at(&self, index: usize) -> (Self, Self) {
-        (self.slice(0, index), self.slice(index, self.len()))
+        if index >= self.len() {
+            return (self.clone(), Self { tree: Tree::new() });
+        }
+        
+        if index == 0 {
+            return (Self { tree: Tree::new() }, self.clone());
+        }
+        
+        let (left_tree, right_tree) = self.tree.split_at(index);
+        (Self { tree: left_tree }, Self { tree: right_tree })
     }
 
     /// Returns a new vector containing the elements from `start` to `end` (exclusive).
@@ -1050,17 +1059,18 @@ impl<T: Clone> PersistentVector<T> {
     where
         T: Clone,
     {
-        let mut groups = std::collections::HashMap::<K, PersistentVector<T>>::new();
+        // First collect items into a HashMap of standard Vecs for efficient mutation
+        let mut groups = std::collections::HashMap::<K, Vec<T>>::new();
 
         for item in self.iter() {
             let key = f(item);
-            let entry = groups.entry(key).or_default();
-            *entry = entry.push_back(item.clone());
+            groups.entry(key).or_default().push(item.clone());
         }
 
+        // Convert the final result to PersistentVectors in one go
         let mut result = PersistentVector::new();
-        for (_, group) in groups {
-            result = result.push_back(group);
+        for (_, items) in groups {
+            result = result.push_back(PersistentVector::from_iter(items));
         }
 
         result
@@ -1122,17 +1132,14 @@ impl<T: Clone> PersistentVector<T> {
     /// let result = vec.flat_map(|&x| vec![x, x * 10]);
     /// assert_eq!(result.to_vec(), vec![1, 10, 2, 20, 3, 30]);
     /// ```
-    pub fn flat_map<I: IntoIterator<Item = T> + Clone, F: Fn(&T) -> I>(
+    pub fn flat_map<I: IntoIterator<Item = T>, F: Fn(&T) -> I>(
         &self,
         f: F,
     ) -> PersistentVector<T> {
-        let mapped = self.map(|item| f(item));
         let mut result = PersistentVector::new();
-
-        for inner_iter in mapped.iter() {
-            result = result.extend(inner_iter.clone());
+        for item in self.iter() {
+            result = result.extend(f(item));
         }
-
         result
     }
 }
@@ -1267,11 +1274,11 @@ impl<T: Clone> PersistentVector<T> {
         F: Fn(&T) -> U,
         U: Clone,
     {
-        let mut result = PersistentVector::<U>::new();
+        let mut buffer = Vec::with_capacity(self.len());
         for item in self.iter() {
-            result = result.push_back(f(item));
+            buffer.push(f(item));
         }
-        result
+        PersistentVector::from_iter(buffer)
     }
 
     /// Filters elements in the vector keeping only those that satisfy the predicate.
@@ -1290,13 +1297,13 @@ impl<T: Clone> PersistentVector<T> {
         F: Fn(&T) -> bool,
         T: Clone,
     {
-        let mut result = PersistentVector::new();
+        let mut buffer = Vec::with_capacity(self.len());
         for item in self.iter() {
             if predicate(item) {
-                result = result.push_back(item.clone());
+                buffer.push(item.clone());
             }
         }
-        result
+        PersistentVector::from_iter(buffer)
     }
 
     /// Returns the first element of the vector, or None if it's empty.
