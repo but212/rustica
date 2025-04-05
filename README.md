@@ -14,6 +14,7 @@ Rustica enables idiomatic functional programming in Rust by providing:
 - **Data Types**: Common functional data structures like `Maybe`, `Either`, `Choice`, and `IO`
 - **Composable APIs**: Tools for function composition and transformation
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
+- **Error Handling**: Functional error handling utilities that work across different types
 
 Whether you're coming from Haskell, Scala, or other functional languages, or just want to explore functional programming in Rust, Rustica provides the tools you need.
 
@@ -115,6 +116,42 @@ Rustica provides a rich collection of functional data types:
   - `Lens` - For focusing on parts of structures
   - `Prism` - For working with sum types
 
+### Error Handling Utilities
+
+Rustica provides standardized error handling utilities that work across different functional types:
+
+- **Core Functions**
+  - `sequence` - Combines a collection of `Result` values into a single `Result` containing a collection
+  - `traverse` - Applies a function that produces a `Result` to a collection, returning a single `Result`
+  - `traverse_validated` - Like `traverse` but collects all errors instead of failing fast
+
+- **Type Conversion**
+  - `ResultExt` trait - Extends `Result` with methods like `to_validated()` and `to_either()`
+  - `WithError` trait - Generic trait for any type that can represent error states
+  - Conversion functions between `Result`, `Either`, and `Validated`
+
+- **Error Types**
+  - `AppError<M, C>` - A structured error type that provides both a message and optional context
+  - Helper functions like `error()` and `error_with_context()`
+
+```rust
+use rustica::utils::error_utils::{traverse, sequence, ResultExt};
+use rustica::datatypes::validated::Validated;
+
+// Apply a fallible function to each element, collecting into a Result
+let inputs = vec!["1", "2", "3"];
+let parse_int = |s: &str| s.parse::<i32>().map_err(|_| "parse error");
+let results = traverse(inputs, parse_int)?; // Results in Ok(vec![1, 2, 3])
+
+// Combine multiple Results into one
+let results_vec = vec![Ok(1), Ok(2), Ok(3)];
+let combined = sequence(results_vec)?; // Results in Ok(vec![1, 2, 3])
+
+// Convert a Result to Validated for error accumulation
+let result: Result<i32, &str> = Err("Input error");
+let validated: Validated<&str, i32> = result.to_validated();
+```
+
 ### Higher-Kinded Types
 
 Rustica implements a pattern for working with higher-kinded types in Rust, providing:
@@ -167,6 +204,49 @@ let functions = Choice::new(add_one, vec![multiply_by_three]);
 let results = numbers.apply(&functions);
 // Primary result is add_one(2) = 3
 // Alternatives include all combinations of functions and values
+```
+
+### Error Handling with Validated
+
+```rust
+use rustica::prelude::*;
+use rustica::utils::error_utils::traverse_validated;
+use rustica::datatypes::validated::Validated;
+
+// Define validation functions
+let validate_positive = |x: i32| -> Result<i32, String> {
+    if x > 0 {
+        Ok(x)
+    } else {
+        Err(format!("Value must be positive: {}", x))
+    }
+};
+
+let validate_even = |x: i32| -> Result<i32, String> {
+    if x % 2 == 0 {
+        Ok(x)
+    } else {
+        Err(format!("Value must be even: {}", x))
+    }
+};
+
+// Validate multiple values, collecting all errors
+let inputs = vec![10, -5, 7, 8];
+let validation_result = traverse_validated(inputs, |x| {
+    let x = validate_positive(x)?;
+    validate_even(x)
+});
+
+// Check if validation passed or inspect all errors
+match validation_result {
+    Validated::Valid(values) => println!("All values valid: {:?}", values),
+    _ => {
+        println!("Validation errors:");
+        for error in validation_result.errors() {
+            println!("  - {}", error);
+        }
+    }
+}
 ```
 
 ## Inspiration

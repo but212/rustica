@@ -41,6 +41,7 @@ where
 }
 
 /// A pipeline is a sequence of transformations applied to a value.
+#[repr(transparent)]
 pub struct Pipeline<T>(T);
 
 impl<T> Pipeline<T> {
