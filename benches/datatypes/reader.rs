@@ -231,7 +231,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
 
         // Clone environment once
         let env = environment.clone();
-        
+
         b.iter(|| {
             black_box((
                 build_request.run_reader(env.clone()),
@@ -244,32 +244,35 @@ pub fn reader_benchmarks(c: &mut Criterion) {
     // Benchmark to compare memoized reader performance
     group.bench_function("real_world_use_cases_memoized", |b| {
         // Create readers once, outside the benchmark loop
-        let build_request = MemoizedReader::<AppEnvironment, String>::ask_with(|env: &AppEnvironment| {
-            let config = &env.config;
-            format!(
-                "GET {}/users HTTP/1.1\nAuthorization: Bearer {}\nTimeout: {}",
-                config.base_url, config.api_key, config.timeout_ms
-            )
-        });
+        let build_request =
+            MemoizedReader::<AppEnvironment, String>::ask_with(|env: &AppEnvironment| {
+                let config = &env.config;
+                format!(
+                    "GET {}/users HTTP/1.1\nAuthorization: Bearer {}\nTimeout: {}",
+                    config.base_url, config.api_key, config.timeout_ms
+                )
+            });
 
-        let get_feature_flag = MemoizedReader::<AppEnvironment, bool>::ask_with(|env: &AppEnvironment| {
-            let feature_enabled = env
-                .config
-                .feature_flags
-                .get("new_ui")
-                .cloned()
-                .unwrap_or(false);
-            let user_has_permission = env.user.permissions.contains(&"read".to_string());
-            feature_enabled && user_has_permission
-        });
+        let get_feature_flag =
+            MemoizedReader::<AppEnvironment, bool>::ask_with(|env: &AppEnvironment| {
+                let feature_enabled = env
+                    .config
+                    .feature_flags
+                    .get("new_ui")
+                    .cloned()
+                    .unwrap_or(false);
+                let user_has_permission = env.user.permissions.contains(&"read".to_string());
+                feature_enabled && user_has_permission
+            });
 
-        let is_authenticated = MemoizedReader::<AppEnvironment, bool>::ask_with(|env: &AppEnvironment| {
-            env.user.session_data.is_some()
-        });
+        let is_authenticated =
+            MemoizedReader::<AppEnvironment, bool>::ask_with(|env: &AppEnvironment| {
+                env.user.session_data.is_some()
+            });
 
         // Clone environment once
         let env = environment.clone();
-        
+
         b.iter(|| {
             black_box((
                 build_request.run_reader(env.clone()),

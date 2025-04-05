@@ -169,8 +169,8 @@ pub fn validated_benchmarks(c: &mut Criterion) {
 
         b.iter(|| {
             // Reuse pre-computed validations
-            let valid_result = valid_res1.bind(|x| validate_even(&x));
-            let invalid_result = invalid_res1.clone().bind(|x| validate_even(&x));
+            let valid_result = valid_res1.bind(|x| validate_even(x));
+            let invalid_result = invalid_res1.clone().bind(|x| validate_even(x));
             let combined_valid = valid_res1.lift2(&valid_res2, |a, b| a + b);
 
             black_box((

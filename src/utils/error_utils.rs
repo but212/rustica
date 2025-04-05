@@ -1,28 +1,27 @@
 //! Error handling utilities for working with functional programming patterns.
 //!
 //! This module provides standardized error handling functions that work with
-//! the functional programming abstractions in Rustica. It builds on the 
+//! the functional programming abstractions in Rustica. It builds on the
 //! functionality in `hkt_utils.rs` but with a focus on error handling patterns.
 
 use crate::datatypes::either::Either;
 use crate::datatypes::validated::Validated;
 use crate::prelude::HKT;
-use std::fmt::Debug;
 use smallvec::SmallVec;
+use std::fmt::Debug;
 
 /// Error handling trait for types that can fail with a specific error type.
 pub trait WithError<E>: HKT {
     /// The successful type
     type Success;
     type ErrorOutput<G>;
-    
+
     /// Maps a function over the error, transforming the error type
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
     where
         F: Fn(E) -> G,
         G: Clone;
 
-        
     /// Converts this type to a Result
     fn to_result(self) -> Result<Self::Success, E>;
 }
@@ -30,9 +29,9 @@ pub trait WithError<E>: HKT {
 impl<T, E: Clone> WithError<E> for Result<T, E> {
     type Success = T;
     type ErrorOutput<G> = Result<T, G>;
-    
+
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
-    where 
+    where
         F: FnOnce(E) -> G,
     {
         match self {
@@ -40,7 +39,7 @@ impl<T, E: Clone> WithError<E> for Result<T, E> {
             Err(e) => Err(f(e)),
         }
     }
-    
+
     fn to_result(self) -> Result<Self::Success, E> {
         self
     }
@@ -49,9 +48,9 @@ impl<T, E: Clone> WithError<E> for Result<T, E> {
 impl<T, E> WithError<E> for Either<E, T> {
     type Success = T;
     type ErrorOutput<G> = Either<G, T>;
-    
+
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
-    where 
+    where
         F: FnOnce(E) -> G,
     {
         match self {
@@ -59,7 +58,7 @@ impl<T, E> WithError<E> for Either<E, T> {
             Either::Right(t) => Either::Right(t),
         }
     }
-    
+
     fn to_result(self) -> Result<Self::Success, E> {
         match self {
             Either::Left(e) => Err(e),
@@ -71,9 +70,9 @@ impl<T, E> WithError<E> for Either<E, T> {
 impl<T: Clone, E: Clone> WithError<E> for Validated<E, T> {
     type Success = T;
     type ErrorOutput<G> = Validated<G, T>;
-    
+
     fn fmap_error<F, G>(self, mut f: F) -> Self::ErrorOutput<G>
-    where 
+    where
         F: FnMut(E) -> G,
         G: Clone,
         T: Clone,
@@ -87,7 +86,7 @@ impl<T: Clone, E: Clone> WithError<E> for Validated<E, T> {
             }
         }
     }
-    
+
     fn to_result(self) -> Result<Self::Success, E> {
         match self {
             Validated::Valid(t) => Ok(t),
@@ -164,14 +163,14 @@ where
 ///
 /// let parse_int = |s: &str| s.parse::<i32>().map_err(|_| "parse error");
 /// let inputs = vec!["1", "not_a_number", "3", "also_not_a_number"];
-/// 
+///
 /// let result = traverse_validated(inputs, parse_int);
 /// assert!(result.is_invalid());
 /// assert_eq!(result.errors().len(), 2);
 /// ```
 pub fn traverse_validated<A, B, E, F>(
-    collection: impl IntoIterator<Item = A>, 
-    f: F
+    collection: impl IntoIterator<Item = A>,
+    f: F,
 ) -> Validated<E, Vec<B>>
 where
     F: Fn(A) -> Result<B, E>,
@@ -232,14 +231,14 @@ where
     C: WithError<E, Success = T>,
 {
     let mut result = Vec::with_capacity(collection.len());
-    
+
     for item in collection {
         match item.to_result() {
             Ok(t) => result.push(t),
             Err(e) => return Err(e),
         }
     }
-    
+
     Ok(result)
 }
 
@@ -298,15 +297,15 @@ pub trait ResultExt<T, E> {
     where
         E: Clone,
         T: Clone;
-        
+
     /// Transforms a Result into an Either.
     fn to_either(self) -> Either<E, T>;
-    
+
     /// Returns the result or a default value.
     fn unwrap_or_default(self) -> T
     where
         T: Default;
-        
+
     /// Maps both the success and error values of a Result.
     fn bimap<U, F, G, E2>(self, success_map: F, error_map: G) -> Result<U, E2>
     where
@@ -326,12 +325,12 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
             Err(e) => Validated::invalid(e),
         }
     }
-    
+
     #[inline]
     fn to_either(self) -> Either<E, T> {
         result_to_either(self)
     }
-    
+
     #[inline]
     fn unwrap_or_default(self) -> T
     where
@@ -339,7 +338,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
     {
         self.unwrap_or_default()
     }
-    
+
     #[inline]
     fn bimap<U, F, G, E2>(self, success_map: F, error_map: G) -> Result<U, E2>
     where
@@ -381,7 +380,7 @@ impl<M, C> AppError<M, C> {
             context: None,
         }
     }
-    
+
     #[inline]
     pub fn with_context(message: M, context: C) -> Self {
         AppError {
@@ -389,17 +388,17 @@ impl<M, C> AppError<M, C> {
             context: Some(context),
         }
     }
-    
+
     #[inline]
     pub fn message(&self) -> &M {
         &self.message
     }
-    
+
     #[inline]
     pub fn context(&self) -> Option<&C> {
         self.context.as_ref()
     }
-    
+
     #[inline]
     pub fn map<N, F>(self, f: F) -> AppError<N, C>
     where
@@ -410,7 +409,7 @@ impl<M, C> AppError<M, C> {
             context: self.context,
         }
     }
-    
+
     #[inline]
     pub fn map_context<D, F>(self, f: F) -> AppError<M, D>
     where

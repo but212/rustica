@@ -3,11 +3,11 @@
 //! This example shows how to use the error handling utilities from the `error_utils` module
 //! to standardize error handling across an application.
 
+use rustica::datatypes::either::Either;
+use rustica::datatypes::validated::Validated;
 use rustica::utils::error_utils::{
     self, error_with_context, sequence, traverse, traverse_validated, ResultExt, WithError,
 };
-use rustica::datatypes::either::Either;
-use rustica::datatypes::validated::Validated;
 use std::fmt::Debug;
 
 // A domain-specific error type
@@ -72,7 +72,7 @@ fn process_inputs_collect_all_errors(inputs: &[&str]) -> Validated<AppError, Vec
 fn process_urls(urls: &[&str]) -> AppResult<Vec<String>> {
     // First map each URL to a Result
     let results: Vec<AppResult<String>> = urls.iter().map(|url| fetch_data(url)).collect();
-    
+
     // Then use sequence to combine the Results
     sequence(results)
 }
@@ -125,10 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Converted error: {:?}", either);
 
     // Example 6: Using custom error types with context
-    let app_error = error_with_context(
-        "Connection timeout",
-        "Trying to connect to database",
-    );
+    let app_error = error_with_context("Connection timeout", "Trying to connect to database");
     println!("Error with context: {}", app_error);
 
     // Example 7: Using the WithError trait for polymorphic error handling

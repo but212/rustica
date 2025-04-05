@@ -61,6 +61,7 @@ use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
+use crate::utils::error_utils::{AppError, WithError};
 use std::marker::PhantomData;
 
 /// A type that represents an optional value, optimized with null pointer optimization.
@@ -99,6 +100,26 @@ pub enum Maybe<T> {
     /// Represents the absence of a value
     Nothing,
 }
+
+/// Error type for Maybe operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MaybeError {
+    /// Error raised when attempting to access a value that doesn't exist
+    ValueNotPresent,
+    /// Error with a custom message
+    Custom(String),
+}
+
+impl std::fmt::Display for MaybeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MaybeError::ValueNotPresent => write!(f, "Attempted to access a value in a Nothing"),
+            MaybeError::Custom(msg) => write!(f, "{}", msg),
+        }
+    }
+}
+
+impl std::error::Error for MaybeError {}
 
 impl<T> Maybe<T> {
     /// Returns `true` if the maybe value is a `Just` value.
@@ -191,6 +212,93 @@ impl<T> Maybe<T> {
         }
     }
 
+    /// Converts this Maybe to a Result with the specified error.
+    ///
+    /// * `Just(x)` is converted to `Ok(x)`.
+    /// * `Nothing` is converted to `Err(error)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The error to use if this is `Nothing`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let maybe_just = Maybe::Just(42);
+    /// let maybe_nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// let ok_result = maybe_just.to_result("No value present");
+    /// let err_result = maybe_nothing.to_result("No value present");
+    ///
+    /// assert_eq!(ok_result, Ok(42));
+    /// assert_eq!(err_result, Err("No value present"));
+    /// ```
+    #[inline]
+    pub fn to_result<E>(self, error: E) -> Result<T, E> {
+        match self {
+            Maybe::Just(x) => Ok(x),
+            Maybe::Nothing => Err(error),
+        }
+    }
+
+    /// Converts this Maybe to a Result with a standard MaybeError.
+    ///
+    /// * `Just(x)` is converted to `Ok(x)`.
+    /// * `Nothing` is converted to `Err(MaybeError::ValueNotPresent)`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::{Maybe, MaybeError};
+    ///
+    /// let maybe_just = Maybe::Just(42);
+    /// let maybe_nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// let ok_result = maybe_just.to_standard_result();
+    /// let err_result = maybe_nothing.to_standard_result();
+    ///
+    /// assert_eq!(ok_result.is_ok(), true);
+    /// assert_eq!(err_result.unwrap_err(), MaybeError::ValueNotPresent);
+    /// ```
+    #[inline]
+    pub fn to_standard_result(self) -> Result<T, MaybeError> {
+        self.to_result(MaybeError::ValueNotPresent)
+    }
+
+    /// Unwraps a maybe, yielding the content of a `Just`.
+    ///
+    /// # Errors
+    ///
+    /// If the value is a `Nothing`, this function generates and returns an error
+    /// with a detailed message.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::utils::error_utils::ResultExt;
+    ///
+    /// let x = Maybe::Just("air");
+    /// let result = x.try_unwrap().unwrap_or_default();
+    /// assert_eq!(result, "air");
+    ///
+    /// let y: Maybe<&str> = Maybe::Nothing;
+    /// let result = y.try_unwrap();
+    /// assert!(result.is_err());
+    /// ```
+    #[inline]
+    pub fn try_unwrap(self) -> Result<T, AppError<&'static str, &'static str>> {
+        match self {
+            Maybe::Just(val) => Ok(val),
+            Maybe::Nothing => Err(AppError::with_context(
+                "Cannot unwrap Nothing value",
+                "Called `try_unwrap()` on a `Nothing` value",
+            )),
+        }
+    }
+
     /// Unwraps a maybe, yielding the content of a `Just`.
     ///
     /// # Panics
@@ -217,6 +325,27 @@ impl<T> Maybe<T> {
         match self {
             Maybe::Just(val) => val,
             Maybe::Nothing => panic!("called `Maybe::unwrap()` on a `Nothing` value"),
+        }
+    }
+
+    /// Unwraps a maybe, yielding the content of a `Just` or a default value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just.unwrap_or(0), 42);
+    /// assert_eq!(nothing.unwrap_or(0), 0);
+    /// ```
+    #[inline]
+    pub fn unwrap_or(self, default: T) -> T {
+        match self {
+            Maybe::Just(val) => val,
+            Maybe::Nothing => default,
         }
     }
 
@@ -440,6 +569,70 @@ impl<T> From<Maybe<T>> for Option<T> {
         match maybe {
             Maybe::Just(x) => Some(x),
             Maybe::Nothing => None,
+        }
+    }
+}
+
+impl<T> WithError<MaybeError> for Maybe<T> {
+    type Success = T;
+    type ErrorOutput<G> = Maybe<G>;
+
+    /// maybe does not store errors, so this function does nothing
+    fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
+    where
+        F: Fn(MaybeError) -> G,
+        G: Clone,
+    {
+        match self {
+            Maybe::Just(_) => Maybe::Just(f(MaybeError::ValueNotPresent)),
+            Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+
+    fn to_result(self) -> Result<Self::Success, MaybeError> {
+        match self {
+            Maybe::Just(x) => Ok(x),
+            Maybe::Nothing => Err(MaybeError::ValueNotPresent),
+        }
+    }
+}
+
+impl<T, E> From<Result<T, E>> for Maybe<T> {
+    #[inline]
+    fn from(result: Result<T, E>) -> Self {
+        match result {
+            Ok(value) => Maybe::Just(value),
+            Err(_) => Maybe::Nothing,
+        }
+    }
+}
+
+/// Extension trait for Maybe that provides additional error handling methods
+pub trait MaybeExt<T> {
+    /// Converts a Maybe to a Result with the specified error
+    fn to_result<E>(self, err: E) -> Result<T, E>;
+
+    /// Provides a safe unwrapping mechanism that returns a Result
+    fn try_unwrap(self) -> Result<T, AppError<&'static str, &'static str>>;
+}
+
+impl<T> MaybeExt<T> for Maybe<T> {
+    #[inline]
+    fn to_result<E>(self, err: E) -> Result<T, E> {
+        match self {
+            Maybe::Just(x) => Ok(x),
+            Maybe::Nothing => Err(err),
+        }
+    }
+
+    #[inline]
+    fn try_unwrap(self) -> Result<T, AppError<&'static str, &'static str>> {
+        match self {
+            Maybe::Just(val) => Ok(val),
+            Maybe::Nothing => Err(AppError::with_context(
+                "Cannot unwrap Nothing value",
+                "Called `try_unwrap()` on a `Nothing` value",
+            )),
         }
     }
 }

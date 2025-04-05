@@ -623,11 +623,11 @@ impl<T: Clone> PersistentVector<T> {
         if index >= self.len() {
             return (self.clone(), Self { tree: Tree::new() });
         }
-        
+
         if index == 0 {
             return (Self { tree: Tree::new() }, self.clone());
         }
-        
+
         let (left_tree, right_tree) = self.tree.split_at(index);
         (Self { tree: left_tree }, Self { tree: right_tree })
     }
@@ -1132,10 +1132,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let result = vec.flat_map(|&x| vec![x, x * 10]);
     /// assert_eq!(result.to_vec(), vec![1, 10, 2, 20, 3, 30]);
     /// ```
-    pub fn flat_map<I: IntoIterator<Item = T>, F: Fn(&T) -> I>(
-        &self,
-        f: F,
-    ) -> PersistentVector<T> {
+    pub fn flat_map<I: IntoIterator<Item = T>, F: Fn(&T) -> I>(&self, f: F) -> PersistentVector<T> {
         let mut result = PersistentVector::new();
         for item in self.iter() {
             result = result.extend(f(item));

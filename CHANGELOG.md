@@ -1,4 +1,4 @@
-## [0.6.0]
+## [0.6.0] - 2025-04-15
 
 ### Added
 - New `pvec` module that provides persistent vector implementations
@@ -12,6 +12,12 @@
   - DOCTEST_GUIDELINE.md - Best practices for writing effective doctests
   - PERFORMANCE.md - Performance characteristics and optimization guidelines
   - TUTORIAL.md - Comprehensive tutorial for functional programming beginners
+- Implemented `WithError` trait for `Maybe<T>` with the new `MaybeError` type
+- Added `MaybeExt` extension trait for additional error handling methods
+- Added `to_standard_result()` method that converts Maybe to Result with standardized error
+- Added `try_unwrap()` method that returns a Result with AppError for better error context
+- Added `to_result<E>()` method for converting to Result with a custom error
+- Added `MaybeError` enum with proper Display and Error implementations
 
 ### Changed
 - Removed redundant `map` method from `Id` type to encourage consistent use of `fmap` across library
@@ -30,6 +36,9 @@
   - Refactor `add_alternative` renamed ownership-based versions to be the default, removing the `_owned` suffix
     - Removed reference-based versions in favor of the ownership-based implementations
   - Removed less commonly used methods like `change_first`, `all_values`, `find_alternative`, and `from_iterator`
+- Enhanced conversion between Maybe, Option, and Result types
+- Provided better error context for failed unwrap operations
+- Added standard error handling with context propagation
 
 ### Removed
 - Removed `BoxedFn` wrapper type from `wrapper/boxed_fn.rs`

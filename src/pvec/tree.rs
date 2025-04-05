@@ -283,11 +283,11 @@ impl<T: Clone> Tree<T> {
         if prefix.is_empty() {
             return suffix;
         }
-        
+
         if suffix.is_empty() {
             return prefix;
         }
-        
+
         // For larger trees, use more efficient concatenation
         prefix.concat(&suffix)
     }
@@ -851,10 +851,10 @@ impl<T: Clone> Tree<T> {
 
         let last_idx = self.size - 1;
         let last_element = self.get(last_idx)?.clone();
-        
+
         // Create new tree without the last element
         let (new_tree, _) = self.split_at(last_idx);
-        
+
         Some((new_tree, last_element))
     }
 
