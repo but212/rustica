@@ -32,7 +32,6 @@ use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
 use smallvec::SmallVec;
-use std::borrow::Borrow;
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -383,11 +382,13 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// assert_eq!(validated, Validated::invalid("error"));
     /// ```
     #[inline]
-    pub fn from_result(result: &Result<A, E>) -> Validated<E, A> {
-        match result {
-            Ok(value) => Validated::Valid(value.clone()),
-            Err(err) => Validated::SingleInvalid(err.clone()),
-        }
+    pub fn from_result(result: &Result<A, E>) -> Validated<E, A>
+    where
+        A: Clone,
+        E: Clone,
+    {
+        use crate::utils::error_utils::ResultExt;
+        result.clone().to_validated()
     }
 
     /// Converts from `Result<A, E>` to `Validated<E, A>`, taking ownership of the Result.
@@ -416,10 +417,8 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// ```
     #[inline]
     pub fn from_result_owned(result: Result<A, E>) -> Validated<E, A> {
-        match result {
-            Ok(value) => Validated::Valid(value),
-            Err(err) => Validated::SingleInvalid(err),
-        }
+        use crate::utils::error_utils::ResultExt;
+        result.to_validated()
     }
 
     /// Converts this `Validated` into a `Result`.
@@ -437,16 +436,13 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// assert!(invalid.to_result().is_err());
     /// ```
     #[inline]
-    pub fn to_result(&self) -> Result<A, SmallVec<[E; 4]>> {
-        match self {
-            Validated::Valid(a) => Ok(a.clone()),
-            Validated::SingleInvalid(e) => {
-                let mut errors = SmallVec::new();
-                errors.push(e.clone());
-                Err(errors)
-            }
-            Validated::MultiInvalid(e) => Err(e.clone()),
-        }
+    pub fn to_result(&self) -> Result<A, E>
+    where
+        A: Clone,
+        E: Clone,
+    {
+        use crate::utils::error_utils::WithError;
+        self.clone().to_result()
     }
 
     /// Converts this `Validated` into a `Result`, taking ownership of the Validated.
@@ -464,16 +460,9 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// assert!(invalid.to_result_owned().is_err());
     /// ```
     #[inline]
-    pub fn to_result_owned(self) -> Result<A, SmallVec<[E; 4]>> {
-        match self {
-            Validated::Valid(a) => Ok(a),
-            Validated::SingleInvalid(e) => {
-                let mut errors = SmallVec::new();
-                errors.push(e);
-                Err(errors)
-            }
-            Validated::MultiInvalid(e) => Err(e),
-        }
+    pub fn to_result_owned(self) -> Result<A, E> {
+        use crate::utils::error_utils::WithError;
+        self.to_result()
     }
 
     /// Converts from `Option<A>` to `Validated<E, A>` with a provided error.
@@ -756,7 +745,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///     Validated::<&str, i32>::valid(3),
     /// ];
     ///
-    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(values.iter());
+    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(values.iter().cloned());
     /// assert_eq!(collected, Validated::valid(vec![1, 2, 3]));
     ///
     /// let mixed = vec![
@@ -765,34 +754,34 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///     Validated::<&str, i32>::valid(3),
     /// ];
     ///
-    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.iter());
+    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.iter().cloned());
     /// assert!(collected.is_invalid());
     /// ```
     #[inline]
     pub fn collect<I, C>(iter: I) -> Validated<E, C>
     where
-        I: Iterator,
-        I::Item: Borrow<Validated<E, A>>,
-        C: FromIterator<A>,
+        I: Iterator<Item = Validated<E, A>>,
+        C: FromIterator<A> + Clone,
+        A: Clone,
+        E: Clone,
     {
-        let mut errors = SmallVec::<[E; 4]>::new();
-        let mut valid_values = Vec::new();
-
-        for item in iter {
-            match item.borrow() {
-                Validated::Valid(x) => valid_values.push(x.clone()),
-                Validated::SingleInvalid(e) => errors.push(e.clone()),
-                Validated::MultiInvalid(es) => errors.extend(es.iter().cloned()),
+        use crate::utils::error_utils::traverse_validated;
+        traverse_validated(iter, |val| {
+            match val {
+                Validated::Valid(a) => Ok(a.clone()),
+                Validated::SingleInvalid(e) => Err(e.clone()),
+                Validated::MultiInvalid(es) => {
+                    // Take the first error as the primary error
+                    if !es.is_empty() {
+                        Err(es[0].clone())
+                    } else {
+                        // This should not happen with proper Validated usage
+                        panic!("MultiInvalid with no errors")
+                    }
+                }
             }
-        }
-
-        if errors.is_empty() {
-            Validated::Valid(valid_values.into_iter().collect())
-        } else if errors.len() == 1 {
-            Validated::SingleInvalid(errors.remove(0))
-        } else {
-            Validated::MultiInvalid(errors)
-        }
+        })
+        .fmap(|v| C::from_iter(v.clone()))
     }
 
     #[inline]
