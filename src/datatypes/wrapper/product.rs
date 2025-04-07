@@ -14,7 +14,9 @@
 //! ```
 
 use crate::traits::foldable::Foldable;
+use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
+use crate::traits::identity::Identity;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::fmt;
@@ -89,11 +91,47 @@ impl<T> HKT for Product<T> {
     type Output<U> = Product<U>;
 }
 
+impl<T: Clone + Mul<Output = T>> Identity for Product<T> {
+    fn value(&self) -> &Self::Source {
+        &self.0
+    }
+
+    fn into_value(self) -> Self::Source {
+        self.0
+    }
+
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+    where
+        Self::Output<A>: Identity,
+        A: Clone,
+    {
+        Product(value)
+    }
+}
+
+impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
+    #[inline]
+    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: FnOnce(&Self::Source) -> U,
+    {
+        Product(f(&self.0))
+    }
+
+    #[inline]
+    fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
+    where
+        F: FnOnce(Self::Source) -> U,
+    {
+        Product(f(self.0))
+    }
+}
+
 impl<T: Clone + Mul<Output = T>> Foldable for Product<T> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(&U, &Self::Source) -> U,
+        F: FnOnce(&U, &Self::Source) -> U,
     {
         f(init, &self.0)
     }
@@ -101,7 +139,7 @@ impl<T: Clone + Mul<Output = T>> Foldable for Product<T> {
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(&Self::Source, &U) -> U,
+        F: FnOnce(&Self::Source, &U) -> U,
     {
         f(&self.0, init)
     }

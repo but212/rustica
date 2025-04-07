@@ -14,9 +14,9 @@ parking_lot = "0.12.3"
 rayon = "1.10.0"
 smallvec = "1.14.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }
+quickcheck = "1.0"
 
 [dev-dependencies]
-quickcheck = "1.0"
 quickcheck_macros = "1.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 

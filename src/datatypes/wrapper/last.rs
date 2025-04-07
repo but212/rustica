@@ -18,7 +18,9 @@
 //! ```
 
 use crate::traits::foldable::Foldable;
+use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
+use crate::traits::identity::Identity;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::fmt;
@@ -99,7 +101,7 @@ impl<T: Clone> Foldable for Last<T> {
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(&U, &Self::Source) -> U,
+        F: FnOnce(&U, &Self::Source) -> U,
     {
         f(init, self.0.as_ref().unwrap())
     }
@@ -107,8 +109,50 @@ impl<T: Clone> Foldable for Last<T> {
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
-        F: Fn(&Self::Source, &U) -> U,
+        F: FnOnce(&Self::Source, &U) -> U,
     {
         f(self.0.as_ref().unwrap(), init)
+    }
+}
+
+impl<T: Clone> Identity for Last<T> {
+    fn value(&self) -> &Self::Source {
+        self.0.as_ref().unwrap()
+    }
+
+    fn into_value(self) -> Self::Source {
+        self.0.unwrap()
+    }
+
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+    where
+        Self::Output<A>: Identity,
+        A: Clone,
+    {
+        Last(Some(value))
+    }
+}
+
+impl<T: Clone> Functor for Last<T> {
+    #[inline]
+    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: FnOnce(&Self::Source) -> U,
+    {
+        match &self.0 {
+            Some(value) => Last(Some(f(value))),
+            None => Last(None),
+        }
+    }
+
+    #[inline]
+    fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
+    where
+        F: FnOnce(Self::Source) -> U,
+    {
+        match self.0 {
+            Some(value) => Last(Some(f(value))),
+            None => Last(None),
+        }
     }
 }

@@ -27,6 +27,8 @@
 //! ```
 
 use crate::traits::evaluate::Evaluate;
+use crate::traits::identity::Identity;
+use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 
 /// A simple value container that just returns its wrapped value when evaluated.
@@ -61,6 +63,42 @@ impl<T> Value<T> {
 impl<T> HKT for Value<T> {
     type Source = T;
     type Output<U> = Value<U>;
+}
+
+impl<T: Clone> Identity for Value<T> {
+    fn value(&self) -> &Self::Source {
+        &self.0
+    }
+
+    fn into_value(self) -> Self::Source {
+        self.0
+    }
+
+    fn pure_identity<A>(value: A) -> Self::Output<A>
+    where
+        Self::Output<A>: Identity,
+        A: Clone,
+    {
+        Value(value)
+    }
+}
+
+impl<T: Clone> Functor for Value<T> {
+    #[inline]
+    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: FnOnce(&Self::Source) -> U,
+    {
+        Value(f(&self.0))
+    }
+
+    #[inline]
+    fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
+    where
+        F: FnOnce(Self::Source) -> U,
+    {
+        Value(f(self.0))
+    }
 }
 
 impl<T: Clone> Evaluate for Value<T> {

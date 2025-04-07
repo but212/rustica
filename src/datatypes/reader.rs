@@ -585,7 +585,8 @@ use crate::datatypes::wrapper::memoize::MemoizeFn;
 ///
 /// # Type Parameters
 ///
-/// * `E` - The environment type that provides context for the computation
+/// * `E` - The environment type that provides context for the computation. Must implement
+///         `Hash` and `Eq` to enable caching.
 /// * `A` - The result type produced by the computation
 ///
 /// # Examples
@@ -610,7 +611,7 @@ pub struct MemoizedReader<E, A> {
     run: MemoizeFn<E, A>,
 }
 
-impl<E: Clone + 'static, A: Clone + 'static> MemoizedReader<E, A> {
+impl<E: Clone + Eq + std::hash::Hash + 'static, A: Clone + 'static> MemoizedReader<E, A> {
     /// Creates a new MemoizedReader from a function.
     ///
     /// This constructor takes a function that computes a value from an environment
