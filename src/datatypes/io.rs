@@ -47,6 +47,7 @@
 //! assert_eq!(result.run(), 86);
 //! ```
 
+use crate::utils::error_utils::AppError;
 use std::sync::Arc;
 
 /// A custom error type for IO operations
@@ -271,12 +272,12 @@ impl<A: 'static + Clone> IO<A> {
     /// Tries to get the value from this IO operation.
     ///
     /// This method runs the IO operation and wraps the result in a `Result`.
-    /// Since the IO operation itself doesn't have a failure mode in this implementation,
-    /// this always returns `Ok`.
+    /// The result contains either the computed value or an `AppError<IOError>`,
+    /// providing a standardized error handling approach.
     ///
     /// # Returns
     ///
-    /// A `Result` containing the computed value of type `A`
+    /// A `Result` containing the computed value of type `A` or an `AppError<IOError>`
     ///
     /// # Examples
     ///
@@ -287,11 +288,56 @@ impl<A: 'static + Clone> IO<A> {
     ///
     /// // Try to get the result
     /// let result = io_operation.try_get();
-    /// assert_eq!(result, Ok(42));
+    /// assert_eq!(result.is_ok(), true);
+    /// assert_eq!(result.unwrap(), 42);
     /// ```
     #[inline]
-    pub fn try_get(&self) -> Result<A, IOError> {
-        Ok(self.run())
+    pub fn try_get(&self) -> Result<A, AppError<IOError>> {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
+            Ok(value) => Ok(value),
+            Err(_) => Err(AppError::new(IOError::Other(
+                "IO operation panicked".to_string(),
+            ))),
+        }
+    }
+
+    /// Tries to get the value from this IO operation with context.
+    ///
+    /// This method is similar to `try_get`, but allows you to provide additional
+    /// context information that will be included in the error if the operation fails.
+    ///
+    /// # Arguments
+    ///
+    /// * `context` - Additional context information to include in the error
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the computed value of type `A` or an `AppError<IOError, C>`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let io_operation = IO::pure(42);
+    ///
+    /// // Try to get the result with context
+    /// let result = io_operation.try_get_with_context("loading configuration");
+    /// assert_eq!(result.is_ok(), true);
+    /// assert_eq!(result.unwrap(), 42);
+    /// ```
+    #[inline]
+    pub fn try_get_with_context<C: Clone + 'static>(
+        &self,
+        context: C,
+    ) -> Result<A, AppError<IOError, C>> {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
+            Ok(value) => Ok(value),
+            Err(_) => Err(AppError::with_context(
+                IOError::Other("IO operation panicked".to_string()),
+                context,
+            )),
+        }
     }
 
     /// Applies a function that returns an IO to this IO operation.
