@@ -1,3 +1,5 @@
+# CHANGELOG
+
 ## [0.6.0]
 
 ### Added
@@ -7,6 +9,7 @@
 - Added `MemoizeFn` type to `wrapper/memoize.rs` for enhanced function memoization
 - Added `MemoizeReader` type to `reader.rs` to support memoized Reader-pattern computations
 - Added memory optimization for wrapper types
+- Implemented `Identity` and `Functor` traits for wrapper types (`First`, `Last`, `Max`, `Min`, `Product`, `Sum`, `Value`)
 - Monoid trait implementation for Min and Max wrapper types
 - New documentation guides:
   - DOCTEST_GUIDELINE.md - Best practices for writing effective doctests
