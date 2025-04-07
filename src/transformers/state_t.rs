@@ -67,6 +67,7 @@ use std::sync::Arc;
 
 use crate::traits::monad::Monad;
 use crate::transformers::MonadTransformer;
+use crate::utils::error_utils::AppError;
 
 /// Type alias for a function that transforms a state-value pair to another state-value pair
 pub type StateValueMapper<S, A, B> = Box<dyn Fn((S, A)) -> (S, B) + Send + Sync>;
@@ -455,12 +456,276 @@ impl<S, M, A> MonadTransformer for StateT<S, M, A>
 where
     S: Clone + Send + Sync + 'static,
     M: Monad<Source = (S, A)> + Send + Sync + Clone + 'static,
-    A: Clone + 'static,
+    A: Clone + Send + Sync + 'static,
 {
     type BaseMonad = M;
 
     #[inline]
     fn lift(base: M) -> Self {
         StateT::new(move |_: S| base.clone())
+    }
+}
+
+impl<S, E, A> StateT<S, Result<(S, A), E>, A>
+where
+    S: Clone + 'static,
+    E: 'static,
+    A: Send + Sync + 'static,
+{
+    /// Runs the state transformer and converts errors to AppError for standardized error handling.
+    ///
+    /// This method executes the state transformer with the given initial state and converts
+    /// any errors to the standardized AppError type, providing consistent error handling
+    /// across the library.
+    ///
+    /// # Parameters
+    ///
+    /// * `state` - Initial state
+    ///
+    /// # Returns
+    ///
+    /// Result containing either the state-value pair or an AppError
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a StateT that may fail with division
+    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+    ///     if s == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok((s, 100 / s))
+    ///     }
+    /// });
+    ///
+    /// // Convert regular errors to AppError
+    /// let result = safe_div.try_run_state(4);
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap(), (4, 25)); // 100/4 = 25
+    ///
+    /// // With error
+    /// let result = safe_div.try_run_state(0);
+    /// assert!(result.is_err());
+    /// assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    /// ```
+    pub fn try_run_state(&self, state: S) -> Result<(S, A), AppError<E>> {
+        (self.run_fn)(state).map_err(AppError::new)
+    }
+
+    /// Runs the state transformer with context information for better error reporting.
+    ///
+    /// This method is similar to `try_run_state` but allows for adding context to the error,
+    /// which can provide more information about what was happening when the error occurred.
+    ///
+    /// # Parameters
+    ///
+    /// * `state` - Initial state
+    /// * `context` - Context information to include with errors
+    ///
+    /// # Returns
+    ///
+    /// Result containing either the state-value pair or an AppError with context
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a StateT that may fail with division
+    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+    ///     if s == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok((s, 100 / s))
+    ///     }
+    /// });
+    ///
+    /// // Run with context
+    /// let result = safe_div.try_run_state_with_context(4, "processing user input");
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap(), (4, 25)); // 100/4 = 25
+    ///
+    /// // With error and context
+    /// let result = safe_div.try_run_state_with_context(0, "processing user input");
+    /// assert!(result.is_err());
+    /// let error = result.unwrap_err();
+    /// assert_eq!(error.message(), &"Division by zero");
+    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// ```
+    pub fn try_run_state_with_context<C>(&self, state: S, context: C) -> Result<(S, A), AppError<E, C>>
+    where
+        C: Clone + 'static,
+    {
+        (self.run_fn)(state).map_err(|e| AppError::with_context(e, context))
+    }
+
+    /// Maps a function over the error contained in this StateT.
+    ///
+    /// This method transforms the error type of the StateT, allowing for conversion
+    /// between different error types while preserving the structure of the StateT.
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - Function to apply to the error
+    ///
+    /// # Returns
+    ///
+    /// A new StateT with the mapped error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    ///
+    /// // Create a StateT with a string error
+    /// let state_t: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+    ///     if s == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok((s, 100 / s))
+    ///     }
+    /// });
+    ///
+    /// // Map the error to a different type
+    /// let mapped = state_t.map_error(|e: String| e.len() as i32);
+    ///
+    /// // Now the error is an i32 (the length of the original error string)
+    /// let result = mapped.run_state(0);
+    /// assert_eq!(result, Err(16)); // "Division by zero" has length 16
+    /// ```
+    pub fn map_error<F, E2>(&self, f: F) -> StateT<S, Result<(S, A), E2>, A>
+    where
+        F: Fn(E) -> E2 + Send + Sync + 'static,
+        E2: 'static,
+    {
+        // Clone the function before capturing it in the closure
+        let run_fn_clone = self.run_fn.clone();
+        StateT::new(move |s: S| {
+            run_fn_clone(s).map_err(|e| f(e))
+        })
+    }
+
+    /// Runs the state transformer and returns only the value as a Result with AppError.
+    ///
+    /// This method is similar to `try_run_state` but discards the final state and
+    /// only returns the computed value.
+    ///
+    /// # Parameters
+    ///
+    /// * `state` - Initial state
+    ///
+    /// # Returns
+    ///
+    /// Result containing either the computed value or an AppError
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+    ///     if s == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok((s, 100 / s))
+    ///     }
+    /// });
+    ///
+    /// let result = safe_div.try_eval_state(4);
+    /// assert_eq!(result, Ok(25)); // 100/4 = 25
+    ///
+    /// let result = safe_div.try_eval_state(0);
+    /// assert!(result.is_err());
+    /// assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    /// ```
+    pub fn try_eval_state(&self, state: S) -> Result<A, AppError<E>> {
+        self.try_run_state(state).map(|(_, a)| a)
+    }
+
+    /// Runs the state transformer with context and returns only the value as a Result with AppError.
+    ///
+    /// This method is similar to `try_run_state_with_context` but discards the final state
+    /// and only returns the computed value.
+    ///
+    /// # Parameters
+    ///
+    /// * `state` - Initial state
+    /// * `context` - Context information to include with errors
+    ///
+    /// # Returns
+    ///
+    /// Result containing either the computed value or an AppError with context
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+    ///     if s == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok((s, 100 / s))
+    ///     }
+    /// });
+    ///
+    /// let result = safe_div.try_eval_state_with_context(4, "processing user input");
+    /// assert_eq!(result, Ok(25)); // 100/4 = 25
+    ///
+    /// let result = safe_div.try_eval_state_with_context(0, "processing user input");
+    /// assert!(result.is_err());
+    /// let error = result.unwrap_err();
+    /// assert_eq!(error.message(), &"Division by zero");
+    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// ```
+    pub fn try_eval_state_with_context<C>(&self, state: S, context: C) -> Result<A, AppError<E, C>>
+    where
+        C: Clone + 'static,
+    {
+        self.try_run_state_with_context(state, context).map(|(_, a)| a)
+    }
+
+    /// Runs the state transformer and returns only the final state as a Result with AppError.
+    ///
+    /// This method is similar to `try_run_state` but discards the computed value and
+    /// only returns the final state.
+    ///
+    /// # Parameters
+    ///
+    /// * `state` - Initial state
+    ///
+    /// # Returns
+    ///
+    /// Result containing either the final state or an AppError
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+    ///     if s == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok((s + 1, 100 / s))
+    ///     }
+    /// });
+    ///
+    /// let result = safe_div.try_exec_state(4);
+    /// assert_eq!(result, Ok(5)); // initial state 4 + 1 = 5
+    ///
+    /// let result = safe_div.try_exec_state(0);
+    /// assert!(result.is_err());
+    /// assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    /// ```
+    pub fn try_exec_state(&self, state: S) -> Result<S, AppError<E>> {
+        self.try_run_state(state).map(|(s, _)| s)
     }
 }

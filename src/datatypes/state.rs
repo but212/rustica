@@ -101,6 +101,8 @@
 //! ```
 //!
 use std::sync::Arc;
+use crate::traits::hkt::HKT;
+use crate::utils::error_utils::AppError;
 
 /// A monad that represents stateful computations.
 ///
@@ -734,6 +736,11 @@ where
     }
 }
 
+impl<S, A> HKT for State<S, A> {
+    type Source = A;
+    type Output<T> = State<S, T>;
+}
+
 /// Returns the current state.
 ///
 /// This function creates a State computation that returns the current state as its value
@@ -840,6 +847,7 @@ where
 ///         .bind(move |_| State::pure(format!("Original: {}", original)))
 ///         .bind(|msg| get::<i32>().bind(move |s| State::pure(format!("{}, New: {}", msg, s))));
 ///
+/// // Starting with 0: 0 -> 42
 /// assert_eq!(
 ///     computation.run_state(0),
 ///     ("Original: 21, New: 42".to_string(), 42)
@@ -925,4 +933,227 @@ where
     F: Fn(S) -> S + 'static,
 {
     State::new(move |s| ((), f(s)))
+}
+
+impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static> State<S, Result<A, Err>> {
+    /// Runs the state computation and converts the result to a Result with AppError.
+    ///
+    /// This method runs the state computation and returns a tuple containing the result 
+    /// wrapped in a Result with AppError and the final state.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a state computation that might fail
+    /// let state = State::new(|s: i32| {
+    ///     if s > 0 {
+    ///         (Ok(s * 2), s + 1)
+    ///     } else {
+    ///         (Err("Value must be positive"), s)
+    ///     }
+    /// });
+    ///
+    /// let (result, final_state) = state.try_run_state(5);
+    /// assert_eq!(result, Ok(10));
+    /// assert_eq!(final_state, 6);
+    ///
+    /// let (result, final_state) = state.try_run_state(-1);
+    /// assert!(result.is_err());
+    /// assert_eq!(result.unwrap_err().message(), &"Value must be positive");
+    /// assert_eq!(final_state, -1);
+    /// ```
+    pub fn try_run_state(&self, s: S) -> (Result<A, AppError<Err>>, S) {
+        let (result, final_state) = self.run_state(s);
+        let transformed_result = match result {
+            Ok(value) => Ok(value),
+            Err(error) => Err(AppError::new(error)),
+        };
+        (transformed_result, final_state)
+    }
+
+    /// Runs the state computation with context and returns a Result with AppError.
+    ///
+    /// This method is similar to `try_run_state` but allows for adding context to the error.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The initial state
+    /// * `context` - Context to add to the error if the computation fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Create a state computation that might fail
+    /// let state = State::new(|s: i32| {
+    ///     if s > 0 {
+    ///         (Ok(s * 2), s + 1)
+    ///     } else {
+    ///         (Err("Value must be positive"), s)
+    ///     }
+    /// });
+    ///
+    /// let (result, final_state) = state.try_run_state_with_context(5, "processing user input");
+    /// assert_eq!(result, Ok(10));
+    /// assert_eq!(final_state, 6);
+    ///
+    /// let (result, final_state) = state.try_run_state_with_context(-1, "processing user input");
+    /// assert!(result.is_err());
+    /// let error = result.unwrap_err();
+    /// assert_eq!(error.message(), &"Value must be positive");
+    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// assert_eq!(final_state, -1);
+    /// ```
+    pub fn try_run_state_with_context<C: Clone + 'static>(&self, s: S, context: C) -> (Result<A, AppError<Err, C>>, S) {
+        let (result, final_state) = self.run_state(s);
+        let transformed_result = match result {
+            Ok(value) => Ok(value),
+            Err(error) => Err(AppError::with_context(error, context)),
+        };
+        (transformed_result, final_state)
+    }
+
+    /// Runs the state computation and returns only the value as a Result with AppError.
+    ///
+    /// This method is similar to `eval_state` but converts errors to AppError.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Create a state computation that might fail
+    /// let state = State::new(|s: i32| {
+    ///     if s > 0 {
+    ///         (Ok(s * 2), s + 1)
+    ///     } else {
+    ///         (Err("Value must be positive"), s)
+    ///     }
+    /// });
+    ///
+    /// let result = state.try_eval_state(5);
+    /// assert_eq!(result, Ok(10));
+    ///
+    /// let result = state.try_eval_state(-1);
+    /// assert!(result.is_err());
+    /// assert_eq!(result.unwrap_err().message(), &"Value must be positive");
+    /// ```
+    pub fn try_eval_state(&self, s: S) -> Result<A, AppError<Err>> {
+        let (result, _) = self.try_run_state(s);
+        result
+    }
+
+    /// Runs the state computation with context and returns only the value as a Result with AppError.
+    ///
+    /// This method is similar to `try_eval_state` but allows for adding context to the error.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The initial state
+    /// * `context` - Context to add to the error if the computation fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Create a state computation that might fail
+    /// let state = State::new(|s: i32| {
+    ///     if s > 0 {
+    ///         (Ok(s * 2), s + 1)
+    ///     } else {
+    ///         (Err("Value must be positive"), s)
+    ///     }
+    /// });
+    ///
+    /// let result = state.try_eval_state_with_context(5, "processing user input");
+    /// assert_eq!(result, Ok(10));
+    ///
+    /// let result = state.try_eval_state_with_context(-1, "processing user input");
+    /// assert!(result.is_err());
+    /// let error = result.unwrap_err();
+    /// assert_eq!(error.message(), &"Value must be positive");
+    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// ```
+    pub fn try_eval_state_with_context<C: Clone + 'static>(&self, s: S, context: C) -> Result<A, AppError<Err, C>> {
+        let (result, _) = self.try_run_state_with_context(s, context);
+        result
+    }
+
+    /// Runs the state computation and returns only the final state.
+    ///
+    /// This method is similar to `exec_state` but returns a Result in case of error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Create a state computation that might fail
+    /// let state = State::new(|s: i32| {
+    ///     if s > 0 {
+    ///         (Ok(s * 2), s + 1)
+    ///     } else {
+    ///         (Err("Value must be positive"), s)
+    ///     }
+    /// });
+    ///
+    /// let final_state = state.try_exec_state(5);
+    /// assert_eq!(final_state, Ok(6));
+    ///
+    /// let final_state = state.try_exec_state(-1);
+    /// assert!(final_state.is_err());
+    /// assert_eq!(final_state.unwrap_err().message(), &"Value must be positive");
+    /// ```
+    pub fn try_exec_state(&self, s: S) -> Result<S, AppError<Err>> {
+        let (result, final_state) = self.try_run_state(s);
+        match result {
+            Ok(_) => Ok(final_state),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Runs the state computation with context and returns only the final state.
+    ///
+    /// This method is similar to `try_exec_state` but allows for adding context to the error.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The initial state
+    /// * `context` - Context to add to the error if the computation fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Create a state computation that might fail
+    /// let state = State::new(|s: i32| {
+    ///     if s > 0 {
+    ///         (Ok(s * 2), s + 1)
+    ///     } else {
+    ///         (Err("Value must be positive"), s)
+    ///     }
+    /// });
+    ///
+    /// let final_state = state.try_exec_state_with_context(5, "processing user input");
+    /// assert_eq!(final_state, Ok(6));
+    ///
+    /// let final_state = state.try_exec_state_with_context(-1, "processing user input");
+    /// assert!(final_state.is_err());
+    /// let error = final_state.unwrap_err();
+    /// assert_eq!(error.message(), &"Value must be positive");
+    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// ```
+    pub fn try_exec_state_with_context<C: Clone + 'static>(&self, s: S, context: C) -> Result<S, AppError<Err, C>> {
+        let (result, final_state) = self.try_run_state_with_context(s, context);
+        match result {
+            Ok(_) => Ok(final_state),
+            Err(error) => Err(error),
+        }
+    }
 }

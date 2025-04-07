@@ -163,6 +163,7 @@
 
 use super::MonadTransformer;
 use crate::traits::monad::Monad;
+use crate::utils::error_utils::AppError;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -650,6 +651,150 @@ where
     #[inline]
     pub fn unwrap_with(self, env: E) -> M {
         self.run_reader(env)
+    }
+}
+
+impl<E, Err, A> ReaderT<E, Result<A, Err>, A>
+where
+    E: Clone + 'static,
+    Err: 'static,
+    A: Clone + 'static,
+{
+    /// Runs the reader transformer and converts errors to AppError for standardized error handling.
+    ///
+    /// This method executes the reader transformer with the given environment and converts
+    /// any errors to the standardized AppError type, providing consistent error handling
+    /// across the library.
+    ///
+    /// # Parameters
+    ///
+    /// * `env` - Environment to run the reader with
+    ///
+    /// # Returns
+    ///
+    /// Result containing either the value or an AppError
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a ReaderT that may fail with division
+    /// let safe_div: ReaderT<i32, Result<i32, String>, i32> = ReaderT::new(|n: i32| {
+    ///     if n == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok(100 / n)
+    ///     }
+    /// });
+    ///
+    /// // Convert regular errors to AppError
+    /// let result = safe_div.try_run_reader(4);
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap(), 25); // 100/4 = 25
+    ///
+    /// // With error
+    /// let result = safe_div.try_run_reader(0);
+    /// assert!(result.is_err());
+    /// assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    /// ```
+    pub fn try_run_reader(&self, env: E) -> Result<A, AppError<Err>> {
+        self.run_reader(env).map_err(AppError::new)
+    }
+
+    /// Runs the reader transformer with context information for better error reporting.
+    ///
+    /// This method is similar to `try_run_reader` but allows for adding context to the error,
+    /// which can provide more information about what was happening when the error occurred.
+    ///
+    /// # Parameters
+    ///
+    /// * `env` - Environment to run the reader with
+    /// * `context` - Context information to include with errors
+    ///
+    /// # Returns
+    ///
+    /// Result containing either the value or an AppError with context
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a ReaderT that may fail with division
+    /// let safe_div: ReaderT<i32, Result<i32, String>, i32> = ReaderT::new(|n: i32| {
+    ///     if n == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok(100 / n)
+    ///     }
+    /// });
+    ///
+    /// // Run with context
+    /// let result = safe_div.try_run_reader_with_context(4, "processing user input");
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap(), 25); // 100/4 = 25
+    ///
+    /// // With error and context
+    /// let result = safe_div.try_run_reader_with_context(0, "processing user input");
+    /// assert!(result.is_err());
+    /// let error = result.unwrap_err();
+    /// assert_eq!(error.message(), &"Division by zero");
+    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// ```
+    pub fn try_run_reader_with_context<C>(&self, env: E, context: C) -> Result<A, AppError<Err, C>>
+    where
+        C: Clone + 'static,
+    {
+        self.run_reader(env).map_err(|e| AppError::with_context(e, context))
+    }
+
+    /// Maps a function over the error contained in this ReaderT.
+    ///
+    /// This method transforms the error type of the ReaderT, allowing for conversion
+    /// between different error types while preserving the structure of the ReaderT.
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - Function to apply to the error
+    ///
+    /// # Returns
+    ///
+    /// A new ReaderT with the mapped error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    ///
+    /// // Create a ReaderT with a string error
+    /// let reader_t: ReaderT<i32, Result<i32, String>, i32> = ReaderT::new(|n: i32| {
+    ///     if n == 0 {
+    ///         Err("Division by zero".to_string())
+    ///     } else {
+    ///         Ok(100 / n)
+    ///     }
+    /// });
+    ///
+    /// // Map the error to a different type
+    /// let mapped = reader_t.map_error(|e: String| e.len() as i32);
+    ///
+    /// // Now the error is an i32 (the length of the original error string)
+    /// let result = mapped.run_reader(0);
+    /// assert_eq!(result, Err(16)); // "Division by zero" has length 16
+    /// ```
+    pub fn map_error<F, Err2>(&self, f: F) -> ReaderT<E, Result<A, Err2>, A>
+    where
+        F: Fn(Err) -> Err2 + Send + Sync + 'static,
+        Err2: 'static,
+    {
+        // Clone the function before capturing it in the closure
+        let run_reader_fn_clone = self.run_reader_fn.clone();
+        ReaderT::new(move |e: E| {
+            run_reader_fn_clone(e).map_err(|err| f(err))
+        })
     }
 }
 

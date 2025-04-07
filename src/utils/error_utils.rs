@@ -372,6 +372,14 @@ pub struct AppError<M, C = ()> {
     context: Option<C>,
 }
 
+impl<M: PartialEq, C: PartialEq> PartialEq for AppError<M, C> {
+    fn eq(&self, other: &Self) -> bool {
+        self.message == other.message && self.context == other.context
+    }
+}
+
+impl<M: Eq + PartialEq, C: Eq + PartialEq> Eq for AppError<M, C> {}
+
 impl<M, C> AppError<M, C> {
     #[inline]
     pub fn new(message: M) -> Self {

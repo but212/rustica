@@ -27,9 +27,9 @@
 //! ```
 
 use crate::traits::evaluate::Evaluate;
-use crate::traits::identity::Identity;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
+use crate::traits::identity::Identity;
 
 /// A simple value container that just returns its wrapped value when evaluated.
 ///

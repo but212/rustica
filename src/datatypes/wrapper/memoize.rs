@@ -29,9 +29,9 @@
 use crate::traits::evaluate::Evaluate;
 use crate::traits::hkt::HKT;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -236,7 +236,7 @@ impl<T> Memoize<T> {
     }
 }
 
-impl<I, O> MemoizeFn<I, O> 
+impl<I, O> MemoizeFn<I, O>
 where
     I: Eq + Hash + Clone,
     O: Clone,
@@ -350,7 +350,7 @@ impl<T> ThreadSafeMemoize<T> {
     }
 }
 
-impl<I, O> ThreadSafeMemoizeFn<I, O> 
+impl<I, O> ThreadSafeMemoizeFn<I, O>
 where
     I: Eq + Hash + Clone,
     O: Clone,
@@ -409,7 +409,7 @@ where
             cache.insert(input.clone(), result);
         }
 
-        RefWrapper { 
+        RefWrapper {
             guard: cache,
             key: input,
         }

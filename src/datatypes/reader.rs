@@ -577,6 +577,8 @@ impl<E: Clone + 'static, A: Clone + 'static> Reader<E, A> {
 }
 
 use crate::datatypes::wrapper::memoize::MemoizeFn;
+use crate::traits::hkt::HKT;
+use crate::utils::error_utils::AppError;
 
 /// A reader monad implementation with memoization capabilities.
 ///
@@ -909,5 +911,162 @@ impl<E: Clone + Eq + std::hash::Hash + 'static, A: Clone + 'static> MemoizedRead
     /// ```
     pub fn ask_with<B: Clone + 'static>(f: impl Fn(&E) -> B + 'static) -> MemoizedReader<E, B> {
         MemoizedReader::new(move |e: E| f(&e))
+    }
+}
+
+impl<E, A> HKT for Reader<E, A> {
+    type Source = A;
+    type Output<U> = Reader<E, U>;
+}
+
+impl<E: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static> Reader<E, Result<A, Err>> {
+    /// Runs the reader and converts the result to a Result with AppError.
+    ///
+    /// This method runs the reader with the default environment and wraps any error
+    /// in an AppError structure, which can contain additional context.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a reader that might fail
+    /// let reader = Reader::new(|config: Option<String>| {
+    ///     if let Some(value) = config {
+    ///         Ok(value.len())
+    ///     } else {
+    ///         Err("Missing configuration")
+    ///     }
+    /// });
+    ///
+    /// // Get the result, using AppError for better error context
+    /// let result = reader.try_get();
+    /// assert!(result.is_err());
+    /// assert_eq!(result.unwrap_err().message(), &"Missing configuration");
+    /// ```
+    pub fn try_get(&self) -> Result<A, AppError<Err>> {
+        match self.run_reader(Default::default()) {
+            Ok(value) => Ok(value),
+            Err(error) => Err(AppError::new(error)),
+        }
+    }
+
+    /// Runs the reader and converts the result to a Result with AppError, including context.
+    ///
+    /// Similar to `try_get`, but allows adding context information to the error for better debugging.
+    ///
+    /// # Arguments
+    ///
+    /// * `context` - Contextual information to include in the error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a reader that might fail
+    /// let reader = Reader::new(|config: Option<String>| {
+    ///     if let Some(value) = config {
+    ///         Ok(value.len())
+    ///     } else {
+    ///         Err("Missing configuration")
+    ///     }
+    /// });
+    ///
+    /// // Get the result with context
+    /// let result = reader.try_get_with_context("while loading app settings");
+    /// assert!(result.is_err());
+    /// 
+    /// let err = result.unwrap_err();
+    /// assert_eq!(err.message(), &"Missing configuration");
+    /// assert_eq!(err.context(), Some(&"while loading app settings"));
+    /// ```
+    pub fn try_get_with_context<C>(&self, context: C) -> Result<A, AppError<Err, C>> {
+        match self.run_reader(Default::default()) {
+            Ok(value) => Ok(value),
+            Err(error) => Err(AppError::with_context(error, context)),
+        }
+    }
+}
+
+// Implementation for running a Reader with a specific environment
+impl<E: Clone + 'static, A: Clone + 'static, Err: Clone + 'static> Reader<E, Result<A, Err>> {
+    /// Runs the reader with a specific environment and converts the result to a Result with AppError.
+    ///
+    /// This method allows explicitly providing the environment to run with, rather than using the default.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment to run the reader with
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a reader that might fail
+    /// let reader = Reader::new(|threshold: i32| {
+    ///     if threshold > 10 {
+    ///         Ok("Valid configuration")
+    ///     } else {
+    ///         Err("Threshold too low")
+    ///     }
+    /// });
+    ///
+    /// // Run with a valid environment
+    /// let result = reader.try_get_with(20);
+    /// assert_eq!(result.unwrap(), "Valid configuration");
+    ///
+    /// // Run with an invalid environment
+    /// let result = reader.try_get_with(5);
+    /// assert!(result.is_err());
+    /// assert_eq!(result.unwrap_err().message(), &"Threshold too low");
+    /// ```
+    pub fn try_get_with(&self, env: E) -> Result<A, AppError<Err>> {
+        match self.run_reader(env) {
+            Ok(value) => Ok(value),
+            Err(error) => Err(AppError::new(error)),
+        }
+    }
+
+    /// Runs the reader with a specific environment and converts the result to a Result with AppError with context.
+    ///
+    /// Allows providing both a specific environment and error context.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment to run the reader with
+    /// * `context` - Contextual information to include in the error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::utils::error_utils::AppError;
+    ///
+    /// // Create a reader that might fail
+    /// let reader = Reader::new(|threshold: i32| {
+    ///     if threshold > 10 {
+    ///         Ok("Valid configuration")
+    ///     } else {
+    ///         Err("Threshold too low")
+    ///     }
+    /// });
+    ///
+    /// let result = reader.try_get_with_env_and_context(5, "config validation");
+    /// assert!(result.is_err());
+    /// 
+    /// let err = result.unwrap_err();
+    /// assert_eq!(err.message(), &"Threshold too low");
+    /// assert_eq!(err.context(), Some(&"config validation"));
+    /// ```
+    pub fn try_get_with_env_and_context<C>(&self, env: E, context: C) -> Result<A, AppError<Err, C>> {
+        match self.run_reader(env) {
+            Ok(value) => Ok(value),
+            Err(error) => Err(AppError::with_context(error, context)),
+        }
     }
 }

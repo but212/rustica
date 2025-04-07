@@ -199,13 +199,15 @@ fn test_validated_conversions() {
     let invalid: Validated<&str, i32> = Validated::invalid("error");
     let result = invalid.to_result();
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err()[0], "error");
+    let err_val = result.unwrap_err();
+    assert_eq!(err_val, "error");
 
     // Test to_result with Invalid (multiple errors)
     let multi_invalid: Validated<&str, i32> = Validated::invalid_many(["error1", "error2"]);
     let result = multi_invalid.to_result();
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err()[0], "error1");
+    let err_val = result.unwrap_err();
+    assert_eq!(err_val, "error1");
 
     // Test from_option with Some
     let some_value: Option<i32> = Some(42);
