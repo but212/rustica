@@ -814,7 +814,7 @@ impl<E: Clone + Eq + std::hash::Hash + 'static, A: Clone + 'static> MemoizedRead
     /// ```rust
     /// use rustica::datatypes::reader::MemoizedReader;
     ///
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Eq, Hash, PartialEq)]
     /// struct Config {
     ///     name: String,
     ///     version: String,
@@ -853,7 +853,7 @@ impl<E: Clone + Eq + std::hash::Hash + 'static, A: Clone + 'static> MemoizedRead
     /// ```rust
     /// use rustica::datatypes::reader::MemoizedReader;
     ///
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Eq, Hash, PartialEq)]
     /// struct Config {
     ///     name: String,
     ///     version: String,
@@ -894,7 +894,7 @@ impl<E: Clone + Eq + std::hash::Hash + 'static, A: Clone + 'static> MemoizedRead
     /// assert_eq!(reader.run_reader("hello".to_string()), 5);
     ///
     /// // Extract a specific property from a complex environment
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Eq, Hash, PartialEq)]
     /// struct AppConfig {
     ///     name: String,
     ///     version: String,
