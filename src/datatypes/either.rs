@@ -67,6 +67,7 @@ use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
+use crate::utils::error_utils;
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
 /// This is similar to `Result<T, E>` but without the semantic meaning of success/failure.
@@ -407,6 +408,46 @@ impl<L, R> Either<L, R> {
             Either::Left(l) => l,
             Either::Right(_) => default,
         }
+    }
+
+    /// Converts this `Either` to a `Result`.
+    ///
+    /// Left becomes `Err` and Right becomes `Ok`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let right: Either<&str, i32> = Either::right(42);
+    /// assert_eq!(right.to_result(), Ok(42));
+    ///
+    /// let left: Either<&str, i32> = Either::left("error");
+    /// assert_eq!(left.to_result(), Err("error"));
+    /// ```
+    #[inline]
+    pub fn to_result(self) -> Result<R, L> {
+        error_utils::either_to_result(self)
+    }
+
+    /// Creates an `Either` from a `Result`.
+    ///
+    /// `Err` becomes `Left` and `Ok` becomes `Right`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let ok_result: Result<i32, &str> = Ok(42);
+    /// assert_eq!(Either::from_result(ok_result), Either::right(42));
+    ///
+    /// let err_result: Result<i32, &str> = Err("error");
+    /// assert_eq!(Either::from_result(err_result), Either::left("error"));
+    /// ```
+    #[inline]
+    pub fn from_result(result: Result<R, L>) -> Self {
+        error_utils::result_to_either(result)
     }
 }
 
