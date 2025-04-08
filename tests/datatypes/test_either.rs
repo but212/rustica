@@ -134,13 +134,37 @@ fn test_either_applicative() {
     let f_left_owned: Either<&str, fn(i32) -> i32> = Either::left("function error owned");
 
     // Right <*> Right = Right
-    assert_eq!(value_right_owned.clone().apply_owned(f_right_owned.clone()).unwrap_right(), 43);
+    assert_eq!(
+        value_right_owned
+            .clone()
+            .apply_owned(f_right_owned.clone())
+            .unwrap_right(),
+        43
+    );
     // Left <*> Right = Left
-    assert_eq!(value_left_owned.clone().apply_owned(f_right_owned.clone()).unwrap_left(), "value error owned");
+    assert_eq!(
+        value_left_owned
+            .clone()
+            .apply_owned(f_right_owned.clone())
+            .unwrap_left(),
+        "value error owned"
+    );
     // Right <*> Left = Left
-    assert_eq!(value_right_owned.clone().apply_owned(f_left_owned.clone()).unwrap_left(), "function error owned");
+    assert_eq!(
+        value_right_owned
+            .clone()
+            .apply_owned(f_left_owned.clone())
+            .unwrap_left(),
+        "function error owned"
+    );
     // Left <*> Left = Left (first Left encountered)
-    assert_eq!(value_left_owned.clone().apply_owned(f_left_owned.clone()).unwrap_left(), "value error owned");
+    assert_eq!(
+        value_left_owned
+            .clone()
+            .apply_owned(f_left_owned.clone())
+            .unwrap_left(),
+        "value error owned"
+    );
 
     // Test lift2 short-circuiting behavior
     let a_right: Either<&str, i32> = Either::right(2);
@@ -151,48 +175,133 @@ fn test_either_applicative() {
     // Right lift Right = Right
     assert_eq!(a_right.lift2(&b_right, |x, y| x * y).unwrap_right(), 6);
     // Left lift Right = Left
-    assert_eq!(a_left.lift2(&b_right, |x, y| x * y).unwrap_left(), "a error");
+    assert_eq!(
+        a_left.lift2(&b_right, |x, y| x * y).unwrap_left(),
+        "a error"
+    );
     // Right lift Left = Left
-    assert_eq!(a_right.lift2(&b_left, |x, y| x * y).unwrap_left(), "b error");
+    assert_eq!(
+        a_right.lift2(&b_left, |x, y| x * y).unwrap_left(),
+        "b error"
+    );
     // Left lift Left = Left (first Left encountered)
     assert_eq!(a_left.lift2(&b_left, |x, y| x * y).unwrap_left(), "a error");
 
     // Test lift2_owned short-circuiting behavior
     // Right lift Right = Right
-    assert_eq!(a_right.clone().lift2_owned(b_right.clone(), |x, y| x * y).unwrap_right(), 6);
+    assert_eq!(
+        a_right
+            .clone()
+            .lift2_owned(b_right.clone(), |x, y| x * y)
+            .unwrap_right(),
+        6
+    );
     // Left lift Right = Left
-    assert_eq!(a_left.clone().lift2_owned(b_right.clone(), |x, y| x * y).unwrap_left(), "a error");
+    assert_eq!(
+        a_left
+            .clone()
+            .lift2_owned(b_right.clone(), |x, y| x * y)
+            .unwrap_left(),
+        "a error"
+    );
     // Right lift Left = Left
-    assert_eq!(a_right.clone().lift2_owned(b_left.clone(), |x, y| x * y).unwrap_left(), "b error");
+    assert_eq!(
+        a_right
+            .clone()
+            .lift2_owned(b_left.clone(), |x, y| x * y)
+            .unwrap_left(),
+        "b error"
+    );
     // Left lift Left = Left (first Left encountered)
-    assert_eq!(a_left.clone().lift2_owned(b_left.clone(), |x, y| x * y).unwrap_left(), "a error");
+    assert_eq!(
+        a_left
+            .clone()
+            .lift2_owned(b_left.clone(), |x, y| x * y)
+            .unwrap_left(),
+        "a error"
+    );
 
     // Test lift3 short-circuiting behavior
     let c_right: Either<&str, i32> = Either::right(4);
     let c_left: Either<&str, i32> = Either::left("c error");
 
     // R lift R lift R = R
-    assert_eq!(a_right.lift3(&b_right, &c_right, |x, y, z| x * y + z).unwrap_right(), 10);
+    assert_eq!(
+        a_right
+            .lift3(&b_right, &c_right, |x, y, z| x * y + z)
+            .unwrap_right(),
+        10
+    );
     // L lift R lift R = L (a)
-    assert_eq!(a_left.lift3(&b_right, &c_right, |x, y, z| x * y + z).unwrap_left(), "a error");
+    assert_eq!(
+        a_left
+            .lift3(&b_right, &c_right, |x, y, z| x * y + z)
+            .unwrap_left(),
+        "a error"
+    );
     // R lift L lift R = L (b)
-    assert_eq!(a_right.lift3(&b_left, &c_right, |x, y, z| x * y + z).unwrap_left(), "b error");
+    assert_eq!(
+        a_right
+            .lift3(&b_left, &c_right, |x, y, z| x * y + z)
+            .unwrap_left(),
+        "b error"
+    );
     // R lift R lift L = L (c)
-    assert_eq!(a_right.lift3(&b_right, &c_left, |x, y, z| x * y + z).unwrap_left(), "c error");
+    assert_eq!(
+        a_right
+            .lift3(&b_right, &c_left, |x, y, z| x * y + z)
+            .unwrap_left(),
+        "c error"
+    );
     // L lift L lift R = L (a)
-    assert_eq!(a_left.lift3(&b_left, &c_right, |x, y, z| x * y + z).unwrap_left(), "a error");
+    assert_eq!(
+        a_left
+            .lift3(&b_left, &c_right, |x, y, z| x * y + z)
+            .unwrap_left(),
+        "a error"
+    );
 
     // Test lift3_owned short-circuiting behavior
     // R lift R lift R = R
-    assert_eq!(a_right.clone().lift3_owned(b_right.clone(), c_right.clone(), |x, y, z| x * y + z).unwrap_right(), 10);
+    assert_eq!(
+        a_right
+            .clone()
+            .lift3_owned(b_right.clone(), c_right.clone(), |x, y, z| x * y + z)
+            .unwrap_right(),
+        10
+    );
     // L lift R lift R = L (a)
-    assert_eq!(a_left.clone().lift3_owned(b_right.clone(), c_right.clone(), |x, y, z| x * y + z).unwrap_left(), "a error");
+    assert_eq!(
+        a_left
+            .clone()
+            .lift3_owned(b_right.clone(), c_right.clone(), |x, y, z| x * y + z)
+            .unwrap_left(),
+        "a error"
+    );
     // R lift L lift R = L (b)
-    assert_eq!(a_right.clone().lift3_owned(b_left.clone(), c_right.clone(), |x, y, z| x * y + z).unwrap_left(), "b error");
+    assert_eq!(
+        a_right
+            .clone()
+            .lift3_owned(b_left.clone(), c_right.clone(), |x, y, z| x * y + z)
+            .unwrap_left(),
+        "b error"
+    );
     // R lift R lift L = L (c)
-    assert_eq!(a_right.clone().lift3_owned(b_right.clone(), c_left.clone(), |x, y, z| x * y + z).unwrap_left(), "c error");
+    assert_eq!(
+        a_right
+            .clone()
+            .lift3_owned(b_right.clone(), c_left.clone(), |x, y, z| x * y + z)
+            .unwrap_left(),
+        "c error"
+    );
     // L lift L lift R = L (a)
-    assert_eq!(a_left.clone().lift3_owned(b_left.clone(), c_right.clone(), |x, y, z| x * y + z).unwrap_left(), "a error");
+    assert_eq!(
+        a_left
+            .clone()
+            .lift3_owned(b_left.clone(), c_right.clone(), |x, y, z| x * y + z)
+            .unwrap_left(),
+        "a error"
+    );
 }
 
 #[test]

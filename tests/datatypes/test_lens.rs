@@ -38,9 +38,12 @@ fn name_lens() -> Lens<Person, String, impl Fn(&Person) -> String, impl Fn(Perso
 }
 
 // Lens for Person.address (focuses on the Rc<Address>)
-fn address_rc_lens(
-) -> Lens<Person, Rc<Address>, impl Fn(&Person) -> Rc<Address>, impl Fn(Person, Rc<Address>) -> Person>
-{
+fn address_rc_lens() -> Lens<
+    Person,
+    Rc<Address>,
+    impl Fn(&Person) -> Rc<Address>,
+    impl Fn(Person, Rc<Address>) -> Person,
+> {
     Lens::new(
         |p: &Person| p.address.clone(),
         |p: Person, address: Rc<Address>| Person { address, ..p },
@@ -48,8 +51,8 @@ fn address_rc_lens(
 }
 
 // Lens for Address.street
-fn street_lens() -> Lens<Address, String, impl Fn(&Address) -> String, impl Fn(Address, String) -> Address>
-{
+fn street_lens(
+) -> Lens<Address, String, impl Fn(&Address) -> String, impl Fn(Address, String) -> Address> {
     Lens::new(
         |a: &Address| a.street.clone(),
         |a: Address, street: String| Address { street, ..a },
@@ -68,7 +71,6 @@ fn address_val_lens(
         },
     )
 }
-
 
 // --- Test Cases ---
 
@@ -118,12 +120,14 @@ fn test_lens_set() {
     let lens = address_rc_lens();
 
     // Set Rc<Address> to a different Rc
-    let new_addr = Rc::new(Address { street: "456 Oak Ave".to_string(), city: "Shelbyville".to_string() });
+    let new_addr = Rc::new(Address {
+        street: "456 Oak Ave".to_string(),
+        city: "Shelbyville".to_string(),
+    });
     let updated_person = lens.set(person.clone(), new_addr.clone());
     assert!(Rc::ptr_eq(&updated_person.address, &new_addr));
     assert_ne!(Rc::as_ptr(&updated_person.address), original_address_ptr);
     assert_eq!(updated_person.name, "Alice");
-
 
     // Set Rc<Address> to the *same* Rc instance
     let not_updated_person = lens.set(person.clone(), person.address.clone());
@@ -133,7 +137,7 @@ fn test_lens_set() {
 
 #[test]
 fn test_lens_set_always() {
-     let point = Point { x: 10.0, y: 20.0 };
+    let point = Point { x: 10.0, y: 20.0 };
     let lens = x_lens();
 
     // Set to a different value
@@ -144,10 +148,10 @@ fn test_lens_set_always() {
     // Set to the same value - should still create a new object conceptually
     // (though for simple types like f64, it might optimize)
     let updated_again = lens.set_always(point.clone(), 10.0);
-     assert_eq!(updated_again.x, 10.0);
+    assert_eq!(updated_again.x, 10.0);
     assert_eq!(updated_again.y, 20.0);
 
-     // Test with Rc - should *not* share structure even if Rcs are equal
+    // Test with Rc - should *not* share structure even if Rcs are equal
     let person = Person {
         name: "Alice".to_string(),
         address: Rc::new(Address {
@@ -159,14 +163,13 @@ fn test_lens_set_always() {
     let same_addr_rc = person.address.clone();
 
     let updated_person = lens.set_always(person.clone(), same_addr_rc);
-     // Even though the address *content* is the same, set_always uses the provided Rc,
-     // so pointer equality should hold in this specific case *if* the Rc itself is the same clone.
-     // The key difference from `set` is that `set` *would* compare the inner Address values if they implement PartialEq.
-     // Since Rc<T> implements PartialEq if T does, `set` *would* likely return the original person here.
-     // `set_always` bypasses that check.
+    // Even though the address *content* is the same, set_always uses the provided Rc,
+    // so pointer equality should hold in this specific case *if* the Rc itself is the same clone.
+    // The key difference from `set` is that `set` *would* compare the inner Address values if they implement PartialEq.
+    // Since Rc<T> implements PartialEq if T does, `set` *would* likely return the original person here.
+    // `set_always` bypasses that check.
     assert!(Rc::ptr_eq(&updated_person.address, &person.address));
 }
-
 
 #[test]
 fn test_lens_modify() {
@@ -215,7 +218,7 @@ fn test_lens_modify() {
 
 #[test]
 fn test_lens_modify_always() {
-     let point = Point { x: 10.0, y: 20.0 };
+    let point = Point { x: 10.0, y: 20.0 };
     let lens = x_lens();
 
     // Modify to a different value
@@ -225,7 +228,7 @@ fn test_lens_modify_always() {
 
     // Modify to the same value - should still create new conceptually
     let modified_again = lens.modify_always(point.clone(), |x| x * 1.0);
-     assert_eq!(modified_again.x, 10.0);
+    assert_eq!(modified_again.x, 10.0);
     assert_eq!(modified_again.y, 20.0);
 
     // Test with Rc - should *not* share structure even if value is unchanged
@@ -236,7 +239,7 @@ fn test_lens_modify_always() {
             city: "Springfield".to_string(),
         }),
     };
-     let original_address_ptr = Rc::as_ptr(&person.address);
+    let original_address_ptr = Rc::as_ptr(&person.address);
     let lens = address_val_lens(); // Lens focusing on Address value
 
     // Modify returns same value, but modify_always bypasses check
@@ -245,7 +248,6 @@ fn test_lens_modify_always() {
     // Because modify_always unconditionally calls the setter, and our
     // address_val_lens setter *always* creates a new Rc, the pointers won't match.
     assert_ne!(Rc::as_ptr(&updated_person.address), original_address_ptr);
-
 }
 
 #[test]
@@ -255,7 +257,7 @@ fn test_lens_fmap() {
 
     // Map f64 to String and back
     let x_string_lens = x_lens.fmap(
-        |x| x.to_string(),                      // f64 -> String
+        |x| x.to_string(),                   // f64 -> String
         |s| s.parse::<f64>().unwrap_or(0.0), // String -> f64
     );
 
@@ -267,12 +269,11 @@ fn test_lens_fmap() {
     assert_eq!(updated_point.x, 25.5);
     assert_eq!(updated_point.y, 20.0); // Other fields unchanged
 
-     // Modify using the string representation
+    // Modify using the string representation
     let modified_point = x_string_lens.modify(point, |s| format!("{}0", s)); // "10" -> "100"
     assert_eq!(modified_point.x, 100.0);
     assert_eq!(modified_point.y, 20.0);
 }
-
 
 #[test]
 fn test_lens_composition() {
@@ -306,7 +307,7 @@ fn test_lens_composition() {
     assert_eq!(updated_person.address.city, "Springfield");
 
     // Check pointer inequality to confirm new Address and Rc were created
-     let original_address_ptr = Rc::as_ptr(&person.address);
+    let original_address_ptr = Rc::as_ptr(&person.address);
     assert_ne!(Rc::as_ptr(&updated_person.address), original_address_ptr);
 
     // --- Test Composition where inner modify results in no change ---
@@ -317,9 +318,6 @@ fn test_lens_composition() {
     let not_updated_person = person_addr_lens.modify(person.clone(), |addr| {
         addr_street_lens.set(addr, "123 Main St".to_string()) // Set to same value
     });
-     assert!(Rc::ptr_eq(&not_updated_person.address, &person.address)); // Pointers should be equal
-     assert_eq!(not_updated_person.address.street, "123 Main St");
-
-
+    assert!(Rc::ptr_eq(&not_updated_person.address, &person.address)); // Pointers should be equal
+    assert_eq!(not_updated_person.address.street, "123 Main St");
 }
-

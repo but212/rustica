@@ -313,7 +313,11 @@ impl<T> Choice<T> {
             panic!("Cannot remove alternative from Choice with no alternatives");
         }
         if index >= self.alternatives().len() {
-            panic!("Index out of bounds: the len is {} but the index is {}", self.alternatives().len(), index);
+            panic!(
+                "Index out of bounds: the len is {} but the index is {}",
+                self.alternatives().len(),
+                index
+            );
         }
 
         let mut new_values = self.values.as_ref().clone();
@@ -631,7 +635,11 @@ impl<T> Choice<T> {
             panic!("Cannot swap with alternative from Choice with no alternatives");
         }
         if alt_index >= self.alternatives().len() {
-            panic!("Index out of bounds: the len is {} but the index is {}", self.alternatives().len(), alt_index);
+            panic!(
+                "Index out of bounds: the len is {} but the index is {}",
+                self.alternatives().len(),
+                alt_index
+            );
         }
 
         let actual_alt_index = alt_index + 1; // +1 to account for first value
