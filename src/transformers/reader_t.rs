@@ -748,7 +748,8 @@ where
     where
         C: Clone + 'static,
     {
-        self.run_reader(env).map_err(|e| AppError::with_context(e, context))
+        self.run_reader(env)
+            .map_err(|e| AppError::with_context(e, context))
     }
 
     /// Maps a function over the error contained in this ReaderT.
@@ -792,9 +793,7 @@ where
     {
         // Clone the function before capturing it in the closure
         let run_reader_fn_clone = self.run_reader_fn.clone();
-        ReaderT::new(move |e: E| {
-            run_reader_fn_clone(e).map_err(|err| f(err))
-        })
+        ReaderT::new(move |e: E| run_reader_fn_clone(e).map_err(|err| f(err)))
     }
 }
 

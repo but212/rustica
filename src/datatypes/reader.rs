@@ -587,8 +587,7 @@ use crate::utils::error_utils::AppError;
 ///
 /// # Type Parameters
 ///
-/// * `E` - The environment type that provides context for the computation. Must implement
-///         `Hash` and `Eq` to enable caching.
+/// * `E` - The environment type that provides context for the computation. Must implement `Hash` and `Eq` to enable caching.
 /// * `A` - The result type produced by the computation
 ///
 /// # Examples
@@ -919,7 +918,9 @@ impl<E, A> HKT for Reader<E, A> {
     type Output<U> = Reader<E, U>;
 }
 
-impl<E: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static> Reader<E, Result<A, Err>> {
+impl<E: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static>
+    Reader<E, Result<A, Err>>
+{
     /// Runs the reader and converts the result to a Result with AppError.
     ///
     /// This method runs the reader with the default environment and wraps any error
@@ -978,7 +979,7 @@ impl<E: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static> Rea
     /// // Get the result with context
     /// let result = reader.try_get_with_context("while loading app settings");
     /// assert!(result.is_err());
-    /// 
+    ///
     /// let err = result.unwrap_err();
     /// assert_eq!(err.message(), &"Missing configuration");
     /// assert_eq!(err.context(), Some(&"while loading app settings"));
@@ -1058,12 +1059,16 @@ impl<E: Clone + 'static, A: Clone + 'static, Err: Clone + 'static> Reader<E, Res
     ///
     /// let result = reader.try_get_with_env_and_context(5, "config validation");
     /// assert!(result.is_err());
-    /// 
+    ///
     /// let err = result.unwrap_err();
     /// assert_eq!(err.message(), &"Threshold too low");
     /// assert_eq!(err.context(), Some(&"config validation"));
     /// ```
-    pub fn try_get_with_env_and_context<C>(&self, env: E, context: C) -> Result<A, AppError<Err, C>> {
+    pub fn try_get_with_env_and_context<C>(
+        &self,
+        env: E,
+        context: C,
+    ) -> Result<A, AppError<Err, C>> {
         match self.run_reader(env) {
             Ok(value) => Ok(value),
             Err(error) => Err(AppError::with_context(error, context)),

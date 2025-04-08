@@ -77,4 +77,36 @@ mod test_cont {
         let result2 = safe_div(10, 0).run(|_| "Unexpected success".to_string());
         assert_eq!(result2, "Division by zero");
     }
+
+    #[test]
+    fn test_cont_return_cont() {
+        // Test Cont::return_cont
+        let cont: cont::Cont<String, i32> = cont::Cont::return_cont(10);
+        let result = cont.run(|x| format!("Result: {}", x));
+        assert_eq!(result, "Result: 10");
+    }
+
+    #[test]
+    fn test_cont_call_cc() {
+        // Test call_cc for early exit
+        let computation_early_exit = cont::Cont::<String, i32>::return_cont(1).call_cc(|exit| {
+            cont::Cont::return_cont(1).bind(Arc::new(move |x| {
+                if x > 0 {
+                    // Exit early with value 100
+                    exit(100)
+                } else {
+                    cont::Cont::return_cont(x + 1)
+                }
+            }))
+        });
+        let result_early = computation_early_exit.run(|x| x.to_string());
+        assert_eq!(result_early, "100"); // Should exit early
+
+        // Test call_cc without early exit
+        let computation_no_exit = cont::Cont::<String, i32>::return_cont(5).call_cc(|_exit| {
+            cont::Cont::return_cont(5).fmap(|x| x * 2) // 5 * 2 = 10
+        });
+        let result_no_exit = computation_no_exit.run(|x| x.to_string());
+        assert_eq!(result_no_exit, "10");
+    }
 }

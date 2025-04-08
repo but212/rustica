@@ -143,4 +143,57 @@ mod test_async_monad {
         let error = AsyncM::from_result_or_default(error_fn, 100);
         assert_eq!(error.try_get().await, 100);
     }
+
+    #[tokio::test]
+    async fn test_async_monad_new() {
+        let async_m = AsyncM::new(|| async { 123 });
+        let result = async_m.try_get().await;
+        assert_eq!(result, 123);
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_apply_owned() {
+        let async_m_owned = AsyncM::pure(42);
+        let f_owned = AsyncM::pure(|x: i32| x.to_string());
+        let applied_owned = async_m_owned.apply_owned(f_owned); // Consumes both
+        let result_owned = applied_owned.try_get().await;
+        assert_eq!(result_owned, "42");
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_zip_with() {
+        let a = AsyncM::new(|| async { 10 });
+        let b = AsyncM::new(|| async { "hello" });
+        let zipped = a.zip_with(b, |x, y| format!("{} {}", y, x));
+        let result = zipped.try_get().await;
+        assert_eq!(result, "hello 10");
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_zip() {
+        let a = AsyncM::pure(20);
+        let b = AsyncM::pure("world");
+        let zipped = a.zip(b);
+        let result = zipped.try_get().await;
+        assert_eq!(result, (20, "world"));
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_recover_with() {
+        // Test recovery from panic
+        let faulty = AsyncM::new(|| async {
+            panic!("Intentional panic");
+            #[allow(unreachable_code)]
+            42
+        });
+        let recovered = faulty.recover_with(0);
+        let result_recovered = recovered.try_get().await;
+        assert_eq!(result_recovered, 0);
+
+        // Test no recovery needed
+        let working = AsyncM::pure(42);
+        let not_recovered = working.recover_with(0);
+        let result_not_recovered = not_recovered.try_get().await;
+        assert_eq!(result_not_recovered, 42);
+    }
 }

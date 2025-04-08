@@ -172,7 +172,12 @@ impl<T> Choice<T> {
     /// ```
     #[inline]
     pub fn alternatives(&self) -> &[T] {
-        &self.values.as_ref()[1..]
+        // Return empty slice if no alternatives exist
+        if self.values.len() <= 1 {
+            &[]
+        } else {
+            &self.values[1..]
+        }
     }
 
     /// Checks if there are any alternatives.
@@ -304,8 +309,11 @@ impl<T> Choice<T> {
     where
         T: Clone,
     {
-        if self.values.is_empty() || index >= self.alternatives().len() {
-            return self.clone();
+        if self.values.len() <= 1 {
+            panic!("Cannot remove alternative from Choice with no alternatives");
+        }
+        if index >= self.alternatives().len() {
+            panic!("Index out of bounds: the len is {} but the index is {}", self.alternatives().len(), index);
         }
 
         let mut new_values = self.values.as_ref().clone();
@@ -371,28 +379,34 @@ impl<T> Choice<T> {
     /// let choice = Choice::new(1, vec![2, 3, 4]);
     /// let doubled = choice.fmap_alternatives(|&x| x * 2);
     ///
-    /// assert_eq!(*doubled.first().unwrap(), 2);
+    /// assert_eq!(*doubled.first().unwrap(), 1);
     /// assert_eq!(doubled.alternatives(), &[4, 6, 8]);
     /// ```
     #[inline]
-    pub fn fmap_alternatives<F, U>(&self, f: F) -> Choice<U>
+    pub fn fmap_alternatives<F>(&self, f: F) -> Choice<T>
     where
-        F: Fn(&T) -> U,
-        U: Clone,
+        F: Fn(&T) -> T,
+        T: Clone,
     {
-        if self.values.is_empty() {
-            return Choice::new_empty();
+        if self.values.len() <= 1 {
+            return self.clone();
         }
 
         let values = self.values.as_ref();
-        let primary = f(&values[0]);
+        let primary = values[0].clone();
 
-        let mut alternatives: SmallVec<[U; 8]> = SmallVec::with_capacity(values.len() - 1);
+        let mut alternatives: SmallVec<[T; 8]> = SmallVec::with_capacity(values.len() - 1);
         for i in 1..values.len() {
             alternatives.push(f(&values[i]));
         }
 
-        Choice::new(primary, alternatives)
+        let mut new_values = SmallVec::with_capacity(values.len());
+        new_values.push(primary);
+        new_values.extend(alternatives);
+
+        Self {
+            values: Arc::new(new_values),
+        }
     }
 
     /// Flattens a `Choice` of iterable items into a `Choice` of individual items.
@@ -613,8 +627,11 @@ impl<T> Choice<T> {
     where
         T: Clone,
     {
-        if self.values.is_empty() || alt_index >= self.alternatives().len() {
-            return self;
+        if self.values.len() <= 1 {
+            panic!("Cannot swap with alternative from Choice with no alternatives");
+        }
+        if alt_index >= self.alternatives().len() {
+            panic!("Index out of bounds: the len is {} but the index is {}", self.alternatives().len(), alt_index);
         }
 
         let actual_alt_index = alt_index + 1; // +1 to account for first value
@@ -829,7 +846,7 @@ impl<T: Clone> Monad for Choice<T> {
 
         let first = primary_choice.first().unwrap().clone();
 
-        // Calculate capacity needed for all alternatives
+        // Calculate capacity for alternatives
         let capacity = primary_choice.alternatives().len() + self.alternatives().len() * 2;
         let mut alternatives = Vec::with_capacity(capacity);
 
@@ -866,7 +883,7 @@ impl<T: Clone> Monad for Choice<T> {
 
                 let first = primary_choice.first().unwrap().clone();
 
-                // Calculate capacity needed for all alternatives
+                // Calculate capacity for alternatives
                 let capacity = primary_choice.alternatives().len() + values.len() * 2;
                 let mut alternatives = Vec::with_capacity(capacity);
 
@@ -891,7 +908,7 @@ impl<T: Clone> Monad for Choice<T> {
 
                 let first = primary_choice.first().unwrap().clone();
 
-                // Calculate capacity needed for all alternatives
+                // Calculate capacity for alternatives
                 let capacity = primary_choice.alternatives().len() + (values.len() - 1) * 2;
                 let mut alternatives = Vec::with_capacity(capacity);
 
@@ -1349,17 +1366,15 @@ impl<T: Clone> Foldable for Choice<T> {
     }
 }
 
-impl<T: Clone> FromIterator<T> for Choice<T> {
+impl<T> FromIterator<T> for Choice<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let values: Vec<T> = iter.into_iter().collect();
-        if values.is_empty() {
-            return Self::new_empty();
+        let collected: SmallVec<[T; 8]> = iter.into_iter().collect();
+        match collected.len() {
+            0 => Self::new_empty(),
+            _ => Self {
+                values: Arc::new(collected),
+            },
         }
-
-        let first = values[0].clone();
-        let alternatives = values[1..].to_vec();
-
-        Self::new(first, alternatives)
     }
 }
 

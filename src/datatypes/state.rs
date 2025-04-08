@@ -100,9 +100,9 @@
 //! assert_eq!(stack_ops.run_state(Vec::new()), ((Some(3), Some(2)), vec![1]));
 //! ```
 //!
-use std::sync::Arc;
 use crate::traits::hkt::HKT;
 use crate::utils::error_utils::AppError;
+use std::sync::Arc;
 
 /// A monad that represents stateful computations.
 ///
@@ -935,10 +935,12 @@ where
     State::new(move |s| ((), f(s)))
 }
 
-impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static> State<S, Result<A, Err>> {
+impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static>
+    State<S, Result<A, Err>>
+{
     /// Runs the state computation and converts the result to a Result with AppError.
     ///
-    /// This method runs the state computation and returns a tuple containing the result 
+    /// This method runs the state computation and returns a tuple containing the result
     /// wrapped in a Result with AppError and the final state.
     ///
     /// # Examples
@@ -1008,7 +1010,11 @@ impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static> Sta
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// assert_eq!(final_state, -1);
     /// ```
-    pub fn try_run_state_with_context<C: Clone + 'static>(&self, s: S, context: C) -> (Result<A, AppError<Err, C>>, S) {
+    pub fn try_run_state_with_context<C: Clone + 'static>(
+        &self,
+        s: S,
+        context: C,
+    ) -> (Result<A, AppError<Err, C>>, S) {
         let (result, final_state) = self.run_state(s);
         let transformed_result = match result {
             Ok(value) => Ok(value),
@@ -1079,7 +1085,11 @@ impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static> Sta
     /// assert_eq!(error.message(), &"Value must be positive");
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// ```
-    pub fn try_eval_state_with_context<C: Clone + 'static>(&self, s: S, context: C) -> Result<A, AppError<Err, C>> {
+    pub fn try_eval_state_with_context<C: Clone + 'static>(
+        &self,
+        s: S,
+        context: C,
+    ) -> Result<A, AppError<Err, C>> {
         let (result, _) = self.try_run_state_with_context(s, context);
         result
     }
@@ -1149,7 +1159,11 @@ impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static> Sta
     /// assert_eq!(error.message(), &"Value must be positive");
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// ```
-    pub fn try_exec_state_with_context<C: Clone + 'static>(&self, s: S, context: C) -> Result<S, AppError<Err, C>> {
+    pub fn try_exec_state_with_context<C: Clone + 'static>(
+        &self,
+        s: S,
+        context: C,
+    ) -> Result<S, AppError<Err, C>> {
         let (result, final_state) = self.try_run_state_with_context(s, context);
         match result {
             Ok(_) => Ok(final_state),

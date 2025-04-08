@@ -556,7 +556,11 @@ where
     /// assert_eq!(error.message(), &"Division by zero");
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// ```
-    pub fn try_run_state_with_context<C>(&self, state: S, context: C) -> Result<(S, A), AppError<E, C>>
+    pub fn try_run_state_with_context<C>(
+        &self,
+        state: S,
+        context: C,
+    ) -> Result<(S, A), AppError<E, C>>
     where
         C: Clone + 'static,
     {
@@ -604,9 +608,7 @@ where
     {
         // Clone the function before capturing it in the closure
         let run_fn_clone = self.run_fn.clone();
-        StateT::new(move |s: S| {
-            run_fn_clone(s).map_err(|e| f(e))
-        })
+        StateT::new(move |s: S| run_fn_clone(s).map_err(|e| f(e)))
     }
 
     /// Runs the state transformer and returns only the value as a Result with AppError.
@@ -688,7 +690,8 @@ where
     where
         C: Clone + 'static,
     {
-        self.try_run_state_with_context(state, context).map(|(_, a)| a)
+        self.try_run_state_with_context(state, context)
+            .map(|(_, a)| a)
     }
 
     /// Runs the state transformer and returns only the final state as a Result with AppError.

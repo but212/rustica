@@ -5,6 +5,7 @@ mod test_cont;
 mod test_either;
 mod test_id;
 mod test_io;
+mod test_lens;
 mod test_pvec;
 mod test_validated;
 mod test_wrapper;
