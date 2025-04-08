@@ -434,6 +434,114 @@ where
     {
         ReaderT::new(move |e| pure(f(e)))
     }
+
+    // Add to the basic methods impl block
+
+    /// Creates a reader that returns a transformed version of the environment.
+    /// Similar to `ask`, but allows specifying a transformation function.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function to transform the environment
+    /// * `pure` - Function to lift the result into the base monad
+    ///
+    /// # Returns
+    ///
+    /// A `ReaderT` that transforms the environment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::prelude::*;
+    ///
+    /// // Define a configuration type
+    /// #[derive(Clone)]
+    /// struct Config {
+    ///     api_key: String,
+    ///     timeout: u32,
+    /// }
+    ///
+    /// // Create a reader that extracts and transforms the api_key
+    /// let api_reader = ReaderT::<Config, Option<String>, String>::ask_with(
+    ///     |config: &Config| format!("Bearer {}", config.api_key),
+    ///     |value: String| Some(value)
+    /// );
+    ///
+    /// // Test with a config
+    /// let config = Config {
+    ///     api_key: "secret123".to_string(),
+    ///     timeout: 30,
+    /// };
+    ///
+    /// assert_eq!(api_reader.run_reader(config), Some("Bearer secret123".to_string()));
+    /// ```
+    #[inline]
+    pub fn ask_with<B, F, P>(f: F, pure: P) -> ReaderT<E, M, B>
+    where
+        F: Fn(&E) -> B + Send + Sync + 'static,
+        P: Fn(B) -> M + Send + Sync + 'static,
+        B: 'static,
+    {
+        ReaderT::new(move |e| pure(f(&e)))
+    }
+
+    /// Creates a reader that returns a part of the environment.
+    /// Similar to `asks`, but allows specifying both a selector and a transformation.
+    ///
+    /// # Arguments
+    ///
+    /// * `select` - Function to select a part of the environment
+    /// * `transform` - Function to transform the selected part
+    /// * `pure` - Function to lift the result into the base monad
+    ///
+    /// # Returns
+    ///
+    /// A `ReaderT` that selects and transforms part of the environment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::prelude::*;
+    ///
+    /// #[derive(Clone)]
+    /// struct Config {
+    ///     count: i32,
+    ///     name: String,
+    /// }
+    ///
+    /// // Extract count, transform it, and wrap in Result
+    /// let count_reader: ReaderT<Config, Result<String, ()>, String> = ReaderT::<Config, Result<String, ()>, i32>::asks_with(
+    ///     |c: &Config| c.count,
+    ///     |count| format!("Count is {}", count),
+    ///     |s| Ok(s)
+    /// );
+    ///
+    /// let config = Config { count: 42, name: "Test".to_string() };
+    /// assert_eq!(count_reader.run_reader(config), Ok("Count is 42".to_string()));
+    ///
+    /// // Extract name, transform it, and wrap in Option
+    /// let name_reader: ReaderT<Config, Option<String>, String> = ReaderT::<Config, Option<String>, String>::asks_with(
+    ///     |c: &Config| c.name.clone(),
+    ///     |name| name.to_uppercase(),
+    ///     |s| Some(s)
+    /// );
+    ///
+    /// let config = Config { count: 42, name: "Test".to_string() };
+    /// assert_eq!(name_reader.run_reader(config), Some("TEST".to_string()));
+    /// ```
+    #[inline]
+    pub fn asks_with<B, C, S, T, P>(select: S, transform: T, pure: P) -> ReaderT<E, M, C>
+    where
+        S: Fn(&E) -> B + Send + Sync + 'static,
+        T: Fn(B) -> C + Send + Sync + 'static,
+        P: Fn(C) -> M + Send + Sync + 'static,
+        B: 'static,
+        C: 'static,
+    {
+        ReaderT::new(move |e| pure(transform(select(&e))))
+    }
 }
 
 impl<E, M, A> ReaderT<E, M, A>
@@ -474,7 +582,6 @@ where
     ///
     /// assert_eq!(doubled_reader.run_reader("hello".to_string()), Some(10));
     /// ```
-    #[inline]
     pub fn fmap_with<B, F, MapFn>(&self, f: F, map_fn: MapFn) -> ReaderT<E, M, B>
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
@@ -536,7 +643,6 @@ where
     /// assert_eq!(safe_div.run_reader(5), Some(20));  // 100 / 5 = 20
     /// assert_eq!(safe_div.run_reader(0), None);  // Division by zero
     /// ```
-    #[inline]
     pub fn bind_with<B, N, F, BindFn>(&self, f: F, bind_fn: BindFn) -> ReaderT<E, N, B>
     where
         F: Fn(A) -> ReaderT<E, N, B> + Clone + Send + Sync + 'static,
@@ -575,7 +681,6 @@ where
     /// # Returns
     ///
     /// A new ReaderT with the functions applied
-    #[inline]
     pub fn apply_with<B, F, ApFn>(&self, f: &ReaderT<E, M, F>, ap_fn: ApFn) -> ReaderT<E, M, B>
     where
         F: Fn(&A) -> B + Clone + Send + Sync + 'static,
@@ -595,6 +700,44 @@ where
         })
     }
 
+    /// Lifts a binary function to work with readers.
+    ///
+    /// This is an applicative functor operation that takes a function that
+    /// works on plain values and lifts it to work with ReaderT values.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Binary function to lift
+    /// * `combine_fn` - Function that knows how to combine values in the base monad
+    ///
+    /// # Returns
+    ///
+    /// A function that takes two readers and returns a new reader containing the result
+    /// of applying the function to the results of both readers.
+    pub fn lift2<B, C, F, CombineFn>(
+        f: F,
+        combine_fn: CombineFn,
+    ) -> impl Fn(&ReaderT<E, M, A>, &ReaderT<E, M, B>) -> ReaderT<E, M, C>
+    where
+        F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
+        CombineFn: Fn(M, M, F) -> M + Clone + Send + Sync + 'static,
+        B: Clone + 'static,
+        C: Clone + 'static,
+    {
+        move |ra, rb| {
+            let run_a = ra.run_reader_fn.clone();
+            let run_b = rb.run_reader_fn.clone();
+            let f_clone = f.clone();
+            let combine_fn_clone = combine_fn.clone();
+
+            ReaderT::new(move |e: E| {
+                let ma = run_a(e.clone());
+                let mb = run_b(e.clone());
+                combine_fn_clone(ma, mb, f_clone.clone())
+            })
+        }
+    }
+
     /// Combines this ReaderT with another using a binary function.
     ///
     /// This is useful for combining the results of two reader operations that depend
@@ -609,7 +752,6 @@ where
     /// # Returns
     ///
     /// A new ReaderT with the combined results
-    #[inline]
     pub fn combine_with<B, C, F, CombineFn>(
         &self,
         other: &ReaderT<E, M, B>,

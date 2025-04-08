@@ -36,9 +36,7 @@ fn test_reader_bind() {
 
     // Function for bind: takes usize, returns a new Reader
     let f = |len: usize| -> Reader<String, String> {
-        Reader::new(move |env: String| {
-            format!("Env '{}' has length {}", env, len)
-        })
+        Reader::new(move |env: String| format!("Env '{}' has length {}", env, len))
     };
 
     let bound_reader = reader_a.bind(f);
@@ -46,5 +44,8 @@ fn test_reader_bind() {
     // 1. reader_a runs: returns 5
     // 2. f(5) runs: returns Reader::new(|env| format!("Env '{}' has length 5", env))
     // 3. The new reader runs with "hello": returns "Env 'hello' has length 5"
-    assert_eq!(bound_reader.run_reader("hello".to_string()), "Env 'hello' has length 5");
+    assert_eq!(
+        bound_reader.run_reader("hello".to_string()),
+        "Env 'hello' has length 5"
+    );
 }

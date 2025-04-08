@@ -9,7 +9,8 @@
 
 ### Core Functionality
 - [ ] Add more monad transformers
-  - [ ] ReaderT
+  - [x] ReaderT
+  - [x] StateT
   - [ ] WriterT
   - [ ] EitherT
   - [ ] MaybeT

@@ -7,7 +7,7 @@ mod test_io;
 mod test_lens;
 mod test_prism;
 mod test_pvec;
+mod test_reader;
 mod test_validated;
 mod test_wrapper;
 mod test_writer;
-mod test_reader;
