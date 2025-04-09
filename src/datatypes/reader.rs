@@ -431,6 +431,56 @@ where
             }),
         }
     }
+
+    /// Converts this Reader into a ReaderT with any monad type.
+    ///
+    /// This method provides a way to lift a Reader into any monad transformer context
+    /// by providing a function to lift the inner value into the target monad.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `M` - The target monad
+    /// * `F` - The type of the lifting function
+    ///
+    /// # Parameters
+    ///
+    /// * `lift_fn` - Function to lift a value of type A into the monad M
+    ///
+    /// # Returns
+    ///
+    /// A new `ReaderT` instance with the same environment type but with values in monad M
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a simple Reader
+    /// let reader: Reader<i32, i32> = Reader::new(|env: i32| env * 2);
+    ///
+    /// // Convert to a ReaderT with Option as the monad
+    /// let reader_t: ReaderT<i32, Option<i32>, i32> = reader.clone().to_reader_t(|a: i32| Some(a));
+    ///
+    /// assert_eq!(reader_t.run_reader(21), Some(42));
+    ///
+    /// // Convert to a ReaderT with Result as the monad
+    /// let result_reader_t: ReaderT<i32, Result<i32, String>, i32> =
+    ///     reader.to_reader_t(|a: i32| Ok(a));
+    ///
+    /// assert_eq!(result_reader_t.run_reader(21), Ok(42));
+    /// ```
+    pub fn to_reader_t<M, F>(self, lift_fn: F) -> ReaderT<E, M, A>
+    where
+        M: Clone + Send + Sync + 'static,
+        F: Fn(A) -> M + Clone + Send + Sync + 'static,
+    {
+        ReaderT::new(move |env: E| {
+            let id_value = self.run_reader(env);
+            lift_fn(id_value)
+        })
+    }
 }
 
 impl<E: Clone + 'static, A: Clone + 'static> Clone for Reader<E, A> {

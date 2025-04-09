@@ -175,6 +175,8 @@
 //! assert_eq!(modified_reader.run_reader(42), Some("Value: 42 (length: 9)".to_string()));
 //! ```
 use super::MonadTransformer;
+use crate::prelude::Id;
+use crate::prelude::Reader;
 use crate::prelude::HKT;
 use crate::traits::monad::Monad;
 use crate::utils::error_utils::AppError;
@@ -183,7 +185,7 @@ use std::sync::Arc;
 
 /// Type alias for a function that combines two ReaderT instances with the same environment and monad types
 /// but potentially different value types, producing a new ReaderT.
-pub type ReaderCombineFn<Env, M1, A1, B1, C1> = 
+pub type ReaderCombineFn<Env, M1, A1, B1, C1> =
     dyn Fn(&ReaderT<Env, M1, A1>, &ReaderT<Env, M1, B1>) -> ReaderT<Env, M1, C1> + Send + Sync;
 
 /// The `ReaderT` monad transformer adds environment reading capabilities to any base monad.
@@ -752,17 +754,19 @@ where
     {
         let f_clone = f.clone();
         let combine_fn_clone = combine_fn.clone();
-        Box::new(move |reader1: &ReaderT<E, M, A>, reader2: &ReaderT<E, M, B>| {
-            let run1 = reader1.run_reader_fn.clone();
-            let run2 = reader2.run_reader_fn.clone();
-            let f_clone = f_clone.clone();
-            let combine_fn_inner = combine_fn_clone.clone();
-            ReaderT::new(move |e: E| {
-                let ma = run1(e.clone());
-                let mb = run2(e);
-                combine_fn_inner(ma, mb, f_clone.clone())
-            })
-        })
+        Box::new(
+            move |reader1: &ReaderT<E, M, A>, reader2: &ReaderT<E, M, B>| {
+                let run1 = reader1.run_reader_fn.clone();
+                let run2 = reader2.run_reader_fn.clone();
+                let f_clone = f_clone.clone();
+                let combine_fn_inner = combine_fn_clone.clone();
+                ReaderT::new(move |e: E| {
+                    let ma = run1(e.clone());
+                    let mb = run2(e);
+                    combine_fn_inner(ma, mb, f_clone.clone())
+                })
+            },
+        )
     }
 
     /// Combines this ReaderT with another using a binary function.
@@ -806,7 +810,6 @@ where
             let ma = self_fn(e.clone());
             let mb = other_fn(e.clone());
             let f_clone = f.clone();
-            let combine_fn_clone = combine_fn.clone();
 
             // Create a wrapper function that handles the reference-to-owned conversion
             let boxed_f = Box::new(move |a: &A, b: &B| {
@@ -816,7 +819,7 @@ where
                 f_clone(a_owned, b_owned)
             }) as Box<dyn Fn(&A, &B) -> C + Send + Sync + 'static>;
 
-            combine_fn_clone(ma, mb, boxed_f)
+            combine_fn.clone()(ma, mb, boxed_f)
         })
     }
 
@@ -1211,5 +1214,129 @@ where
     fn lift(base: Self::BaseMonad) -> Self {
         let base_clone = base.clone();
         ReaderT::new(move |_| base_clone.clone())
+    }
+}
+
+impl<E, M, A> ReaderT<E, M, A>
+where
+    E: 'static,
+    M: 'static,
+    A: 'static,
+{
+    /// Converts a ReaderT to a Reader when the base monad is Id.
+    ///
+    /// This is a specialization that only works when the underlying monad is Id.
+    ///
+    /// # Returns
+    ///
+    /// A Reader with the same environment and value types
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a ReaderT with Id as the base monad
+    /// let reader_t: ReaderT<i32, Id<i32>, i32> = ReaderT::new(|env: i32| Id::new(env * 2));
+    ///
+    /// // Convert to a Reader
+    /// let reader: Reader<i32, i32> = reader_t.to_reader();
+    ///
+    /// assert_eq!(reader.run_reader(21), 42);
+    /// ```
+    pub fn to_reader(self) -> Reader<E, A>
+    where
+        E: Clone + Send + Sync + 'static,
+        A: Clone + Send + Sync + 'static,
+        M: HKT<Source = A, Output<A> = Id<A>> + Monad,
+    {
+        // Create a new Reader that uses this ReaderT internally
+        Reader::new(move |env: E| {
+            // Extract the value from the Id monad
+            let id_value = self.run_reader(env);
+            id_value.value().clone()
+        })
+    }
+
+    /// Creates a ReaderT from a Reader, lifting it into any monad context.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `F` - The type of the lifting function
+    ///
+    /// # Parameters
+    ///
+    /// * `reader` - A Reader to lift
+    /// * `lift_fn` - Function to lift a value into the target monad
+    ///
+    /// # Returns
+    ///
+    /// A new ReaderT with values in the target monad
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a simple Reader
+    /// let reader: Reader<i32, i32> = Reader::new(|env: i32| env * 2);
+    ///
+    /// // Convert to a ReaderT with Option as the monad
+    /// let reader_t: ReaderT<i32, Option<i32>, i32> =
+    ///     ReaderT::from_reader(reader, |a: i32| Some(a));
+    ///
+    /// assert_eq!(reader_t.run_reader(21), Some(42));
+    /// ```
+    pub fn from_reader<F>(reader: Reader<E, A>, lift_fn: F) -> Self
+    where
+        E: Clone + Send + Sync + 'static,
+        A: Clone + Send + Sync + 'static,
+        F: Fn(A) -> M + Clone + Send + Sync + 'static,
+        M: Clone + Send + Sync + 'static,
+    {
+        // Use the to_reader_t method on Reader
+        reader.to_reader_t(lift_fn)
+    }
+
+    /// Lifts a value directly into a ReaderT context.
+    ///
+    /// This is similar to the `pure` function in Applicative, lifting
+    /// a pure value into the ReaderT context.
+    ///
+    /// # Parameters
+    ///
+    /// * `value` - The value to lift
+    /// * `pure` - Function to lift the value into the base monad
+    ///
+    /// # Returns
+    ///
+    /// A ReaderT that always returns the wrapped value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a ReaderT from a pure value
+    /// let reader_t: ReaderT<String, Option<i32>, i32> =
+    ///     ReaderT::pure(42, |a: i32| Some(a));
+    ///
+    /// // The environment is ignored
+    /// assert_eq!(reader_t.run_reader("any environment".to_string()), Some(42));
+    /// ```
+    pub fn pure<F>(value: A, pure_fn: F) -> Self
+    where
+        E: Clone + Send + Sync + 'static,
+        A: Clone + Send + Sync + 'static,
+        F: Fn(A) -> M + Clone + Send + Sync + 'static,
+        M: Clone + Send + Sync + 'static,
+    {
+        ReaderT::new(move |_: E| pure_fn(value.clone()))
     }
 }

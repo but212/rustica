@@ -22,6 +22,11 @@
 - `try_unwrap()` method returning `Result<T, AppError>` with context
 - `to_result<E>()` method for conversion with custom error types
 - Comprehensive test suite for Maybe error handling
+- Bidirectional conversion between `Reader` and `ReaderT` in Scala cats style:
+  - `to_reader_t` method for converting `Reader<E, A>` to `ReaderT<E, M, A>`
+  - `to_reader` method for converting `ReaderT<E, Id<A>, A>` back to `Reader<E, A>`
+  - `from_reader` constructor for creating `ReaderT` directly from `Reader`
+  - `pure` method for lifting values into `ReaderT` context
 
 ### Changed
 - Removed the `full` feature flag as core functionality is now included by default
