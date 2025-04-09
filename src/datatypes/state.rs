@@ -73,14 +73,14 @@
 //! use rustica::datatypes::state::State;
 //!
 //! // Define stack operations
-//! fn push<T: Clone + 'static>(x: T) -> State<Vec<T>, ()> {
+//! fn push<T: Send + Sync + Clone + 'static>(x: T) -> State<Vec<T>, ()> {
 //!     State::new(move |mut stack: Vec<T>| {
 //!         stack.push(x.clone());
 //!         ((), stack)
 //!     })
 //! }
 //!
-//! fn pop<T: Clone + 'static>() -> State<Vec<T>, Option<T>> {
+//! fn pop<T: Send + Sync + Clone + 'static>() -> State<Vec<T>, Option<T>> {
 //!     State::new(|mut stack: Vec<T>| {
 //!         let item = stack.pop();
 //!         (item, stack)
@@ -100,9 +100,12 @@
 //! assert_eq!(stack_ops.run_state(Vec::new()), ((Some(3), Some(2)), vec![1]));
 //! ```
 //!
+use crate::datatypes::id::Id;
+use crate::prelude::Monad;
 use crate::traits::hkt::HKT;
+use crate::traits::identity::Identity;
+use crate::transformers::StateT;
 use crate::utils::error_utils::AppError;
-use std::sync::Arc;
 
 /// A monad that represents stateful computations.
 ///
@@ -157,22 +160,22 @@ use std::sync::Arc;
 /// ```
 pub struct State<S, A> {
     /// The state transformation function
-    pub run: Arc<dyn Fn(S) -> (A, S)>,
+    inner: StateT<S, Id<(A, S)>, A>,
 }
 
-impl<S, A> Clone for State<S, A> {
+impl<S: Clone + Send + Sync + 'static, A: Clone + Send + Sync + 'static> Clone for State<S, A> {
     #[inline]
     fn clone(&self) -> Self {
         State {
-            run: Arc::clone(&self.run),
+            inner: self.inner.clone(),
         }
     }
 }
 
 impl<S, A> State<S, A>
 where
-    S: Clone + 'static,
-    A: Clone + 'static,
+    S: Clone + Send + Sync + 'static,
+    A: Clone + Send + Sync + 'static,
 {
     /// Creates a new State monad.
     ///
@@ -245,9 +248,11 @@ where
     #[inline]
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(S) -> (A, S) + 'static,
+        F: Fn(S) -> (A, S) + Send + Sync + 'static,
     {
-        State { run: Arc::new(f) }
+        State {
+            inner: StateT::new(move |s: S| Id::new(f(s))),
+        }
     }
 
     /// Runs the state computation with an initial state.
@@ -296,7 +301,8 @@ where
     /// ```
     #[inline]
     pub fn run_state(&self, s: S) -> (A, S) {
-        (self.run)(s)
+        // Direct mapping from Id monad's value
+        self.inner.run_state(s).value().clone()
     }
 
     /// Runs the state computation and returns only the final value.
@@ -351,20 +357,19 @@ where
     /// ```
     #[inline]
     pub fn eval_state(&self, s: S) -> A {
-        let (a, _) = self.run_state(s);
-        a
+        self.run_state(s).0
     }
 
     /// Runs the state computation and returns only the final state.
     ///
     /// This method is similar to `run_state`, but it discards the computed value and
     /// only returns the final state. This is useful when you're only interested in
-    /// the state changes, not the intermediate results.
+    /// the state changes, not the computed value.
     ///
     /// # State Monad Context
     ///
-    /// The `exec_state` operation is commonly used when the computation is performed
-    /// primarily for its state effects, and the intermediate values are not needed.
+    /// The `exec_state` operation is commonly used for side-effecting computations where
+    /// the primary goal is to modify the state.
     ///
     /// # Arguments
     ///
@@ -378,39 +383,24 @@ where
     ///
     /// ```rust
     /// use rustica::datatypes::state::State;
-    /// use rustica::datatypes::state::{modify};
+    /// use rustica::datatypes::state::{get, put, modify};
     ///
-    /// // A state computation that increments the state
-    /// let counter = State::new(|s: i32| (s * 2, s + 1));
+    /// // Define a series of state operations
+    /// let add_5 = modify(|s: i32| s + 5);
+    /// let multiply_by_2 = modify(|s: i32| s * 2);
+    /// let subtract_3 = modify(|s: i32| s - 3);
     ///
-    /// // Only get the final state, not the value
-    /// assert_eq!(counter.exec_state(5), 6);
-    ///
-    /// // Useful for building up state transformations
-    /// let increment_three_times = modify(|x: i32| x + 1)
-    ///     .bind(|_| modify(|x| x + 1))
-    ///     .bind(|_| modify(|x| x + 1));
-    ///
-    /// // Apply the transformation and get the final state
-    /// assert_eq!(increment_three_times.exec_state(0), 3);
-    ///
-    /// // Can be used to apply a series of state changes
-    /// let apply_operations = vec![
-    ///     modify(|x: i32| x + 5),
-    ///     modify(|x| x * 2),
-    ///     modify(|x| x - 3),
-    /// ].into_iter().fold(
-    ///     State::pure(()) as State<i32, ()>,
-    ///     |acc, op| acc.bind(move |_| op.clone())
-    /// );
+    /// // Chain operations together
+    /// let apply_operations = vec![add_5, multiply_by_2, subtract_3]
+    ///     .into_iter()
+    ///     .fold(State::pure(()), |acc, op| acc.bind(move |_| op.clone()));
     ///
     /// // Starting with 0: 0 -> 5 -> 10 -> 7
     /// assert_eq!(apply_operations.exec_state(0), 7);
     /// ```
     #[inline]
     pub fn exec_state(&self, s: S) -> S {
-        let (_, s) = self.run_state(s);
-        s
+        self.run_state(s).1
     }
 
     /// Maps a function over the value produced by a state computation.
@@ -486,8 +476,8 @@ where
     #[inline]
     pub fn fmap<B, F>(self, f: F) -> State<S, B>
     where
-        B: Clone + 'static,
-        F: Fn(A) -> B + 'static,
+        B: Clone + Send + Sync + 'static,
+        F: Fn(A) -> B + Send + Sync + 'static,
     {
         State::new(move |s| {
             let (a, s) = self.run_state(s);
@@ -563,26 +553,17 @@ where
     ///
     /// // Demonstrating the left identity law: pure(a).bind(f) = f(a)
     /// let value = 42;
+    /// let pure_value = State::pure(value);
     /// let f = |x: i32| State::new(move |s: i32| (x * 2, s + 1));
-    ///
-    /// let left_side = State::pure(value).bind(f.clone());
-    /// let right_side = f(value);
-    ///
-    /// assert_eq!(left_side.run_state(10), right_side.run_state(10));
-    ///
-    /// // Demonstrating the right identity law: m.bind(pure) = m
-    /// let m = State::new(|s: i32| (s * 2, s + 1));
-    ///
-    /// let left_side = m.clone().bind(State::pure);
-    /// let right_side = m;
-    ///
-    /// assert_eq!(left_side.run_state(10), right_side.run_state(10));
+    /// let left = pure_value.bind(f.clone());
+    /// let right = f(value);
+    /// assert_eq!(left.run_state(10), right.run_state(10));
     /// ```
     #[inline]
     pub fn bind<B, F>(self, f: F) -> State<S, B>
     where
-        B: Clone + 'static,
-        F: Fn(A) -> State<S, B> + 'static,
+        B: Clone + Send + Sync + 'static,
+        F: Fn(A) -> State<S, B> + Send + Sync + 'static,
     {
         State::new(move |s| {
             let (a, s) = self.run_state(s);
@@ -724,15 +705,186 @@ where
     #[inline]
     pub fn apply<B, C>(self, other: State<S, B>) -> State<S, C>
     where
-        B: Clone + 'static,
-        C: Clone + 'static,
-        A: Fn(B) -> C + Clone + 'static,
+        B: Clone + Send + Sync + 'static,
+        C: Clone + Send + Sync + 'static,
+        A: Fn(B) -> C + Clone + Send + Sync + 'static,
     {
         State::new(move |s| {
             let (f, s1) = self.run_state(s);
             let (a, s2) = other.run_state(s1);
             (f(a), s2)
         })
+    }
+
+    /// Converts this State into a StateT with any monad type.
+    ///
+    /// This method provides a way to lift a State into any monad transformer context
+    /// by providing a function to lift the inner value into the target monad.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `M` - The target monad
+    /// * `F` - The type of the lifting function
+    ///
+    /// # Parameters
+    ///
+    /// * `lift_fn` - Function to lift a tuple of type (A, S) into the monad M
+    ///
+    /// # Returns
+    ///
+    /// A new `StateT` instance with the same state type but with values in monad M
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    /// use rustica::transformers::StateT;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a simple State
+    /// let state: State<i32, i32> = State::new(|s: i32| (s * 2, s + 1));
+    ///
+    /// // Convert to a StateT with Option as the monad
+    /// let state_t: StateT<i32, Option<(i32, i32)>, i32> = state.clone().to_state_t(|t| Some(t));
+    ///
+    /// assert_eq!(state_t.run_state(21), Some((42, 22)));
+    ///
+    /// // Convert to a StateT with Result as the monad
+    /// let result_state_t: StateT<i32, Result<(i32, i32), String>, i32> =
+    ///     state.to_state_t(|t| Ok(t));
+    ///
+    /// assert_eq!(result_state_t.run_state(21), Ok((42, 22)));
+    /// ```
+    pub fn to_state_t<M, F>(self, lift_fn: F) -> StateT<S, M, A>
+    where
+        M: Clone + Send + Sync + 'static,
+        F: Fn((A, S)) -> M + Clone + Send + Sync + 'static,
+    {
+        StateT::new(move |s| {
+            let (value, new_state) = self.run_state(s);
+            lift_fn((value, new_state))
+        })
+    }
+
+    /// Converts a StateT with Id as the base monad back to a State.
+    ///
+    /// This method converts a StateT<S, Id<(S, A)>, A> back to a State<S, A>.
+    /// This is essentially the inverse operation of `to_state_t` when the monad is Id.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `M` - The monad type, which must be Id
+    ///
+    /// # Parameters
+    ///
+    /// * `state_t` - The StateT to convert
+    ///
+    /// # Returns
+    ///
+    /// A State instance equivalent to the StateT
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    /// use rustica::transformers::StateT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a StateT with Id as the monad
+    /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::new(|s: i32| {
+    ///     Id::new((s * 2, s + 1))
+    /// });
+    ///
+    /// // Convert back to State
+    /// let state: State<i32, i32> = State::to_state(state_t);
+    ///
+    /// // The behavior should be identical
+    /// assert_eq!(state.run_state(21), (22, 42));
+    /// ```
+    pub fn to_state<M>(state_t: StateT<S, M, A>) -> Self
+    where
+        M: Clone + Send + Sync + 'static,
+        M: HKT<Source = (S, A), Output<(S, A)> = M> + Monad,
+    {
+        State::new(move |s: S| {
+            let result = state_t.run_state(s.clone());
+            let (new_state, value) = result.value().clone();
+            (value, new_state)
+        })
+    }
+
+    /// Creates a State from a StateT.
+    ///
+    /// This is an alias for `to_state` with a more intuitive name.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `M` - The monad type, which must be Id
+    ///
+    /// # Parameters
+    ///
+    /// * `state_t` - The StateT to convert
+    ///
+    /// # Returns
+    ///
+    /// A State instance equivalent to the StateT
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    /// use rustica::transformers::StateT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a StateT with Id as the monad
+    /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::new(|s: i32| {
+    ///     Id::new((s * 2, s + 1))
+    /// });
+    ///
+    /// // Convert to State
+    /// let state: State<i32, i32> = State::from_state_t(state_t);
+    ///
+    /// // The behavior should be identical
+    /// assert_eq!(state.run_state(21), (21 + 1, 21 * 2));
+    /// ```
+    #[inline]
+    pub fn from_state_t<M>(state_t: StateT<S, M, A>) -> Self
+    where
+        M: Clone + Send + Sync + 'static,
+        M: HKT<Source = (S, A), Output<(S, A)> = M> + Monad,
+    {
+        Self::to_state(state_t)
+    }
+
+    /// Executes the state computation with a pure value.
+    ///
+    /// This method runs the state computation and returns only the final state,
+    /// discarding the computed value. It is the State equivalent of `StateT::exec_pure`.
+    ///
+    /// # Parameters
+    ///
+    /// * `s` - The initial state
+    ///
+    /// # Returns
+    ///
+    /// The final state after running the computation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Create a state that modifies the state but returns a value
+    /// let state = State::new(|s: i32| (s * 2, s + 1));
+    ///
+    /// // Run and extract only the state
+    /// let result = state.exec_pure(42);
+    /// assert_eq!(result, 43); // Only the state (42 + 1) is returned
+    /// ```
+    pub fn exec_pure(&self, s: S) -> S {
+        self.exec_state(s)
     }
 }
 
@@ -792,7 +944,7 @@ impl<S, A> HKT for State<S, A> {
 #[inline]
 pub fn get<S>() -> State<S, S>
 where
-    S: Clone + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     State::new(|s: S| (s.clone(), s))
 }
@@ -856,7 +1008,7 @@ where
 #[inline]
 pub fn put<S>(s: S) -> State<S, ()>
 where
-    S: Clone + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     State::new(move |_| ((), s.clone()))
 }
@@ -929,14 +1081,17 @@ where
 #[inline]
 pub fn modify<S, F>(f: F) -> State<S, ()>
 where
-    S: Clone + 'static,
-    F: Fn(S) -> S + 'static,
+    S: Clone + Send + Sync + 'static,
+    F: Fn(S) -> S + Send + Sync + 'static,
 {
     State::new(move |s| ((), f(s)))
 }
 
-impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static>
-    State<S, Result<A, Err>>
+impl<
+        S: Clone + Default + Send + Sync + 'static,
+        A: Clone + Send + Sync + 'static,
+        Err: Clone + Send + Sync + 'static,
+    > State<S, Result<A, Err>>
 {
     /// Runs the state computation and converts the result to a Result with AppError.
     ///
@@ -1010,7 +1165,7 @@ impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static>
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// assert_eq!(final_state, -1);
     /// ```
-    pub fn try_run_state_with_context<C: Clone + 'static>(
+    pub fn try_run_state_with_context<C: Clone + Send + Sync + 'static>(
         &self,
         s: S,
         context: C,
@@ -1085,7 +1240,7 @@ impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static>
     /// assert_eq!(error.message(), &"Value must be positive");
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// ```
-    pub fn try_eval_state_with_context<C: Clone + 'static>(
+    pub fn try_eval_state_with_context<C: Clone + Send + Sync + 'static>(
         &self,
         s: S,
         context: C,
@@ -1159,7 +1314,7 @@ impl<S: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static>
     /// assert_eq!(error.message(), &"Value must be positive");
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// ```
-    pub fn try_exec_state_with_context<C: Clone + 'static>(
+    pub fn try_exec_state_with_context<C: Clone + Send + Sync + 'static>(
         &self,
         s: S,
         context: C,

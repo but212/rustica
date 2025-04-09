@@ -34,13 +34,6 @@ If you want to use async features, add the `async` feature:
 rustica = { version = "0.5.4", features = ["async"] }
 ```
 
-or full features:
-
-```toml
-[dependencies]
-rustica = { version = "0.5.4", features = ["full"] }
-```
-
 Then import the prelude to get started:
 
 ```rust
