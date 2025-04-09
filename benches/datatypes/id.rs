@@ -58,11 +58,9 @@ pub fn id_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("apply_owned", |b| {
-        b.iter(|| {
-            let id_val = Id::new(42);
-            let id_fn = Id::new(|x: i32| x + 1);
-            let _ = black_box(id_val.apply_owned(id_fn));
-        });
+        let id_val = Id::new(42);
+        let id_fn = Id::new(|x: i32| x + 1);
+        b.iter(|| black_box(id_val.apply_owned(id_fn)));
     });
 
     group.bench_function("lift2", |b| {
@@ -78,10 +76,8 @@ pub fn id_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("bind_owned", |b| {
-        b.iter(|| {
-            let id = Id::new(42);
-            let _ = black_box(id.bind_owned(|x| Id::new(x + 1)));
-        });
+        let id = Id::new(42);
+        b.iter(|| black_box(id.bind_owned(|x| Id::new(x + 1))));
     });
 
     group.bench_function("join", |b| {

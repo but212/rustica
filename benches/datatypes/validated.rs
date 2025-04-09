@@ -231,7 +231,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
 
     // Form validation use case
     group.bench_function("form_validation_applicative", |b| {
-        #[derive(Clone)]
+        #[derive(PartialEq, Eq, Hash, Clone)]
         struct UserForm {
             username: String,
             email: String,

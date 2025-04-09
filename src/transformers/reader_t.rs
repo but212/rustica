@@ -160,12 +160,31 @@
 //!
 //! assert_eq!(get_max_conn.run_reader(config), Ok(100));
 //! ```
-
+//!
+//! ## Maps a function over the value produced by this ReaderT.
+//!
+//! ```rust
+//! use rustica::transformers::ReaderT;
+//!
+//! let reader_t: ReaderT<i32, Option<String>, String> =
+//!     ReaderT::new(|n: i32| Some(format!("Value: {}", n)));
+//!     
+//! // Map the reader to return a string with the length appended
+//! let modified_reader = reader_t.fmap(|s: String| format!("{} (length: {})", s, s.len()));
+//!     
+//! assert_eq!(modified_reader.run_reader(42), Some("Value: 42 (length: 9)".to_string()));
+//! ```
 use super::MonadTransformer;
+use crate::prelude::HKT;
 use crate::traits::monad::Monad;
 use crate::utils::error_utils::AppError;
 use std::marker::PhantomData;
 use std::sync::Arc;
+
+/// Type alias for a function that combines two ReaderT instances with the same environment and monad types
+/// but potentially different value types, producing a new ReaderT.
+pub type ReaderCombineFn<Env, M1, A1, B1, C1> = 
+    dyn Fn(&ReaderT<Env, M1, A1>, &ReaderT<Env, M1, B1>) -> ReaderT<Env, M1, C1> + Send + Sync;
 
 /// The `ReaderT` monad transformer adds environment reading capabilities to any base monad.
 ///
@@ -546,9 +565,11 @@ where
 
 impl<E, M, A> ReaderT<E, M, A>
 where
-    E: Clone + Send + Sync + 'static,
-    M: Monad<Source = A> + Clone + 'static,
     A: Clone + 'static,
+    E: Clone + Send + Sync + 'static,
+    M: Monad + Clone + 'static,
+    M: HKT<Source = A>,
+    M::Source: Clone,
 {
     /// Maps a function over the values inside this ReaderT.
     ///
@@ -591,7 +612,7 @@ where
         M: 'static,
     {
         let inner_fn = self.run_reader_fn.clone();
-        let f_clone = f.clone();
+        let f_clone = f;
 
         ReaderT::new(move |e| {
             let m = inner_fn(e);
@@ -619,8 +640,8 @@ where
     /// use rustica::transformers::ReaderT;
     /// use rustica::prelude::*;
     ///
-    /// // Create a reader that returns the input environment
-    /// let div_reader: ReaderT<i32, Option<i32>, i32> =
+    /// // Create a reader that returns some configuration value
+    /// let config_reader: ReaderT<i32, Option<i32>, i32> =
     ///     ReaderT::new(|env: i32| Some(env));
     ///
     /// // Create a function that takes the output and produces another reader
@@ -635,7 +656,7 @@ where
     /// };
     ///
     /// // Compose using bind_with
-    /// let safe_div: ReaderT<i32, Option<i32>, i32> = div_reader.bind_with(
+    /// let safe_div: ReaderT<i32, Option<i32>, i32> = config_reader.bind_with(
     ///     validate,
     ///     |m: Option<i32>, f| m.and_then(|v| f(v))
     /// );
@@ -647,7 +668,7 @@ where
     where
         F: Fn(A) -> ReaderT<E, N, B> + Clone + Send + Sync + 'static,
         BindFn: Fn(M, Arc<dyn Fn(A) -> N + Send + Sync>) -> N + Send + Sync + 'static,
-        A: Clone + 'static,
+        A: 'static,
         B: 'static,
         M: 'static,
         N: 'static,
@@ -681,11 +702,15 @@ where
     /// # Returns
     ///
     /// A new ReaderT with the functions applied
-    pub fn apply_with<B, F, ApFn>(&self, f: &ReaderT<E, M, F>, ap_fn: ApFn) -> ReaderT<E, M, B>
+    pub fn apply_with<B, Func, ApFn>(
+        &self,
+        f: &ReaderT<E, M, Func>,
+        ap_fn: ApFn,
+    ) -> ReaderT<E, M, B>
     where
-        F: Fn(&A) -> B + Clone + Send + Sync + 'static,
+        Func: Fn(A) -> B + Clone + Send + Sync + 'static,
         ApFn: Fn(M, M) -> M + Clone + Send + Sync + 'static,
-        A: Clone + 'static,
+        A: 'static,
         B: 'static,
         M: 'static,
     {
@@ -695,7 +720,7 @@ where
 
         ReaderT::new(move |e: E| {
             let ma = self_fn(e.clone());
-            let mf = f_fn(e.clone());
+            let mf = f_fn(e);
             ap_fn_clone(ma, mf)
         })
     }
@@ -715,27 +740,29 @@ where
     /// A function that takes two readers and returns a new reader containing the result
     /// of applying the function to the results of both readers.
     pub fn lift2<B, C, F, CombineFn>(
+        &self,
         f: F,
         combine_fn: CombineFn,
-    ) -> impl Fn(&ReaderT<E, M, A>, &ReaderT<E, M, B>) -> ReaderT<E, M, C>
+    ) -> Box<ReaderCombineFn<E, M, A, B, C>>
     where
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
         CombineFn: Fn(M, M, F) -> M + Clone + Send + Sync + 'static,
         B: Clone + 'static,
         C: Clone + 'static,
     {
-        move |ra, rb| {
-            let run_a = ra.run_reader_fn.clone();
-            let run_b = rb.run_reader_fn.clone();
-            let f_clone = f.clone();
-            let combine_fn_clone = combine_fn.clone();
-
+        let f_clone = f.clone();
+        let combine_fn_clone = combine_fn.clone();
+        Box::new(move |reader1: &ReaderT<E, M, A>, reader2: &ReaderT<E, M, B>| {
+            let run1 = reader1.run_reader_fn.clone();
+            let run2 = reader2.run_reader_fn.clone();
+            let f_clone = f_clone.clone();
+            let combine_fn_inner = combine_fn_clone.clone();
             ReaderT::new(move |e: E| {
-                let ma = run_a(e.clone());
-                let mb = run_b(e.clone());
-                combine_fn_clone(ma, mb, f_clone.clone())
+                let ma = run1(e.clone());
+                let mb = run2(e);
+                combine_fn_inner(ma, mb, f_clone.clone())
             })
-        }
+        })
     }
 
     /// Combines this ReaderT with another using a binary function.
@@ -759,22 +786,37 @@ where
         combine_fn: CombineFn,
     ) -> ReaderT<E, M, C>
     where
-        F: Fn(&A, &B) -> C + Clone + Send + Sync + 'static,
-        CombineFn: Fn(M, M, F) -> M + Clone + Send + Sync + 'static,
+        F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
+        CombineFn: for<'a> Fn(M, M, Box<dyn Fn(&A, &B) -> C + Send + Sync + 'a>) -> M
+            + Clone
+            + Send
+            + Sync
+            + 'static,
         A: Clone + 'static,
         B: Clone + 'static,
-        C: 'static,
-        M: 'static,
+        C: Clone + 'static,
+        M: HKT<Output<C> = M>,
     {
         let self_fn = self.run_reader_fn.clone();
         let other_fn = other.run_reader_fn.clone();
-        let f_clone = f.clone();
-        let combine_fn_clone = combine_fn.clone();
+        let f = Arc::new(f);
+        let combine_fn = Arc::new(combine_fn);
 
         ReaderT::new(move |e: E| {
             let ma = self_fn(e.clone());
             let mb = other_fn(e.clone());
-            combine_fn_clone(ma, mb, f_clone.clone())
+            let f_clone = f.clone();
+            let combine_fn_clone = combine_fn.clone();
+
+            // Create a wrapper function that handles the reference-to-owned conversion
+            let boxed_f = Box::new(move |a: &A, b: &B| {
+                // Clone the references to get owned values
+                let a_owned = a.clone();
+                let b_owned = b.clone();
+                f_clone(a_owned, b_owned)
+            }) as Box<dyn Fn(&A, &B) -> C + Send + Sync + 'static>;
+
+            combine_fn_clone(ma, mb, boxed_f)
         })
     }
 
@@ -785,7 +827,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `env` - The environment to use for unwrapping
+    /// * `env` - Environment to run the reader with
     ///
     /// # Returns
     ///
@@ -793,6 +835,224 @@ where
     #[inline]
     pub fn unwrap_with(self, env: E) -> M {
         self.run_reader(env)
+    }
+}
+
+impl<E, M, A> ReaderT<E, M, A>
+where
+    E: Clone + 'static,
+    M: Monad + Clone + 'static,
+    A: Clone + 'static,
+    M: HKT<Source = A>,
+    M::Source: Clone,
+{
+    /// Maps a function over the ReaderT value, producing a new ReaderT.
+    ///
+    /// This operation is part of the Functor pattern, allowing transformation of values
+    /// while preserving the ReaderT structure.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B`: The type of the resulting values
+    /// * `F`: The type of the function to apply
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - Function to apply to the value
+    ///
+    /// # Returns
+    ///
+    /// A new ReaderT with the function applied to its result
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a reader that returns the length of a string
+    /// let reader: ReaderT<String, Option<usize>, usize> = ReaderT::new(|s: String| {
+    ///     Some(s.len())
+    /// });
+    ///
+    /// // Map over the value to double it
+    /// let doubled_reader = reader.fmap(|n| n * 2);
+    ///
+    /// assert_eq!(doubled_reader.run_reader("hello".to_string()), Some(10));
+    /// ```
+    #[inline]
+    pub fn fmap<B, F>(&self, f: F) -> ReaderT<E, M, B>
+    where
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
+        B: Clone + 'static,
+        M: HKT<Output<B> = M>,
+    {
+        let reader_fn = self.run_reader_fn.clone();
+
+        ReaderT::new(move |e: E| {
+            let ma = reader_fn(e);
+            let f_clone = f.clone();
+
+            M::fmap(&ma, move |a: &A| f_clone(a.clone()))
+        })
+    }
+
+    /// Binds this ReaderT with a function that produces another ReaderT.
+    ///
+    /// This operation is part of the Monad pattern, allowing sequencing of operations
+    /// that depend on the result of previous operations.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B`: The type of the resulting values
+    /// * `F`: The type of the function that produces a new ReaderT
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - Function that takes a value and returns a new ReaderT
+    ///
+    /// # Returns
+    ///
+    /// A new ReaderT representing the sequenced computation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create a reader that returns some configuration value
+    /// let config_reader: ReaderT<i32, Option<i32>, i32> =
+    ///     ReaderT::new(|env: i32| Some(env));
+    ///
+    /// // Create a function that takes the output and produces another reader
+    /// let validate = |n: i32| {
+    ///     ReaderT::new(move |_: i32| {
+    ///         if n > 0 {
+    ///             Some(100 / n)
+    ///         } else {
+    ///             None  // Invalid value
+    ///         }
+    ///     }) as ReaderT<i32, Option<i32>, i32>
+    /// };
+    ///
+    /// // Compose using bind
+    /// let safe_div = config_reader.bind(validate);
+    ///
+    /// assert_eq!(safe_div.run_reader(5), Some(20));  // 100 / 5 = 20
+    /// assert_eq!(safe_div.run_reader(0), None);      // Invalid value
+    /// ```
+    #[inline]
+    pub fn bind<B, F>(&self, f: F) -> ReaderT<E, M, B>
+    where
+        F: Fn(A) -> ReaderT<E, M, B> + Clone + Send + Sync + 'static,
+        B: Clone + 'static,
+        M: HKT<Output<B> = M>,
+    {
+        let inner_fn = self.run_reader_fn.clone();
+        let f = Arc::new(f);
+
+        ReaderT::new(move |e: E| {
+            let ma = inner_fn(e.clone());
+            let f_clone = f.clone();
+            let e_clone = e.clone();
+
+            M::bind::<B, _>(&ma, move |source_ref: &M::Source| {
+                let a_owned = source_ref.clone();
+                // Use unsafe transmute to convert from M::Source to A
+                // This is safe because we have the constraint M: HKT<Source = A>
+                let a_value: A = unsafe { std::mem::transmute_copy(&a_owned) };
+                f_clone(a_value).run_reader(e_clone.clone())
+            })
+        })
+    }
+
+    /// Applies a function from another ReaderT to the values in this ReaderT.
+    ///
+    /// This operation is part of the Applicative pattern, allowing functions within
+    /// a context to be applied to values within the same context.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B`: The type of the resulting values
+    /// * `Func`: The type of the function within the other ReaderT
+    ///
+    /// # Parameters
+    ///
+    /// * `f` - ReaderT containing functions to apply
+    ///
+    /// # Returns
+    ///
+    /// A new ReaderT with the functions applied
+    pub fn apply<B, Func>(&self, f: &ReaderT<E, M, Func>) -> ReaderT<E, M, B>
+    where
+        Func: Fn(A) -> B + Clone + Send + Sync + 'static,
+        B: Clone + 'static,
+        M: HKT<Output<B> = M> + HKT<Output<Func> = M>,
+    {
+        self.combine(f, |a, func| func(a))
+    }
+
+    /// Combines this ReaderT with another using a binary function.
+    ///
+    /// This is useful for combining the results of two reader operations that depend
+    /// on the same environment.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B`: The type of values in the other ReaderT
+    /// * `C`: The type of the result after combining
+    /// * `F`: The type of the combining function
+    ///
+    /// # Parameters
+    ///
+    /// * `other`: Another ReaderT to combine with
+    /// * `f`: Function to combine the results
+    ///
+    /// # Returns
+    ///
+    /// A new ReaderT with the combined results
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::ReaderT;
+    /// use rustica::prelude::*;
+    ///
+    /// // Create two readers
+    /// let reader1: ReaderT<i32, Option<String>, String> = ReaderT::new(|n: i32| {
+    ///     Some(format!("Value: {}", n))
+    /// });
+    /// let reader2: ReaderT<i32, Option<String>, String> = ReaderT::new(|n: i32| {
+    ///     Some(format!("(length: {})", n.to_string().len()))
+    /// });
+    ///
+    /// // Combine them
+    /// let combined = reader1.combine(&reader2, |a, b| {
+    ///     format!("{} {}", a, b)
+    /// });
+    ///
+    /// assert_eq!(combined.run_reader(42), Some("Value: 42 (length: 2)".to_string()));
+    /// ```
+    #[inline]
+    pub fn combine<B, C, F>(&self, other: &ReaderT<E, M, B>, f: F) -> ReaderT<E, M, C>
+    where
+        F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
+        B: Clone + 'static,
+        C: Clone + 'static,
+        M: HKT<Output<B> = M> + HKT<Output<C> = M>,
+    {
+        let self_fn = self.run_reader_fn.clone();
+        let other_fn = other.run_reader_fn.clone();
+        let f = Arc::new(f);
+
+        ReaderT::new(move |e: E| {
+            let ma = self_fn(e.clone());
+            let mb = other_fn(e.clone());
+            let f_clone = f.clone();
+
+            M::lift2(&ma, &mb, move |a: &A, b: &B| f_clone(a.clone(), b.clone()))
+        })
     }
 }
 
@@ -935,14 +1195,14 @@ where
     {
         // Clone the function before capturing it in the closure
         let run_reader_fn_clone = self.run_reader_fn.clone();
-        ReaderT::new(move |e: E| run_reader_fn_clone(e).map_err(|err| f(err)))
+        ReaderT::new(move |e: E| run_reader_fn_clone(e).map_err(&f))
     }
 }
 
 impl<E, M, A> MonadTransformer for ReaderT<E, M, A>
 where
     E: Clone + 'static,
-    M: Monad<Source = A> + Send + Sync + Clone + 'static,
+    M: Monad + Send + Sync + Clone + 'static,
     A: Clone + 'static,
 {
     type BaseMonad = M;

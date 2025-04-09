@@ -608,7 +608,7 @@ where
     {
         // Clone the function before capturing it in the closure
         let run_fn_clone = self.run_fn.clone();
-        StateT::new(move |s: S| run_fn_clone(s).map_err(|e| f(e)))
+        StateT::new(move |s: S| run_fn_clone(s).map_err(&f))
     }
 
     /// Runs the state transformer and returns only the value as a Result with AppError.

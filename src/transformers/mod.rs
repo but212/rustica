@@ -30,8 +30,8 @@
 use crate::traits::monad::Monad;
 
 // mod maybe_t;
-mod reader_t;
-mod state_t;
+pub mod reader_t;
+pub mod state_t;
 // mod writer_t;
 
 // pub use maybe_t::MaybeT;

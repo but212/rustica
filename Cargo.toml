@@ -23,8 +23,6 @@ criterion = { version = "0.5", features = ["html_reports"] }
 [features]
 default = []
 async = ["futures", "tokio"]
-transformers = []
-full = ["async", "transformers"]
 
 [package.metadata.docs.rs]
 all-features = true

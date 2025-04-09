@@ -38,8 +38,6 @@
 //!
 //! // Create a reader that depends on a numeric environment
 //! let reader = Reader::new(|config: i32| config * 2);
-//!
-//! // Run the reader with a specific environment
 //! assert_eq!(reader.run_reader(21), 42);
 //! ```
 //!
@@ -56,8 +54,8 @@
 //! }
 //!
 //! // Create readers that extract different parts of the config
-//! let url_reader = Reader::<AppConfig, String>::asks(|config| config.base_url.clone());
-//! let timeout_reader = Reader::<AppConfig, u32>::asks(|config| config.timeout);
+//! let url_reader: Reader<AppConfig, String> = Reader::asks(|config: AppConfig| config.base_url.clone());
+//! let timeout_reader: Reader<AppConfig, u32> = Reader::asks(|config: AppConfig| config.timeout);
 //!
 //! // Combine them to create a formatted output
 //! let combined = url_reader.combine(&timeout_reader, |url, timeout| {
@@ -91,7 +89,9 @@
 //! assert_eq!(reader.run_reader("hello".to_string()), 5);
 //! ```
 
-use std::sync::Arc;
+use crate::datatypes::id::Id;
+use crate::prelude::*;
+use crate::transformers::ReaderT;
 
 /// The Reader monad represents computations that depend on some environment value.
 ///
@@ -106,972 +106,337 @@ use std::sync::Arc;
 /// use rustica::datatypes::reader::Reader;
 ///
 /// // Create a reader that doubles the environment value
-/// let reader = Reader::new(|e: i32| e * 2);
+/// let reader: Reader<i32, i32> = Reader::new(|e: i32| e * 2);
 /// assert_eq!(reader.run_reader(21), 42);
 ///
 /// // Transform the result using fmap
-/// let string_reader = reader.fmap(|x| x.to_string());
+/// let string_reader: Reader<i32, String> = reader.fmap(|x| x.to_string());
 /// assert_eq!(string_reader.run_reader(21), "42");
 /// ```
-#[derive(Clone)]
+#[repr(transparent)]
 pub struct Reader<E, A> {
-    run: Arc<dyn Fn(E) -> A>,
+    inner: ReaderT<E, Id<A>, A>,
 }
 
-impl<E: Clone + 'static, A: Clone + 'static> Reader<E, A> {
-    /// Creates a new Reader from a function.
+impl<E, A> Reader<E, A>
+where
+    E: Clone + Send + Sync + 'static,
+    A: Clone + Send + Sync + 'static,
+    Id<A>: HKT<Source = A, Output<A> = Id<A>> + Monad,
+{
+    /// Creates a new Reader monad from a function that depends on an environment.
     ///
-    /// # Arguments
+    /// # Parameters
     ///
     /// * `f` - Function that takes an environment and returns a value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// let reader = Reader::new(|env: i32| env + 1);
-    /// assert_eq!(reader.run_reader(41), 42);
-    /// ```
-    pub fn new<F>(f: F) -> Self
-    where
-        F: Fn(E) -> A + 'static,
-    {
-        Reader { run: Arc::new(f) }
-    }
-
-    /// Runs the reader with a given environment.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - The environment to run with
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// let reader = Reader::new(|env: i32| env * 2);
-    /// assert_eq!(reader.run_reader(21), 42);
-    /// ```
-    pub fn run_reader(&self, e: E) -> A {
-        (self.run)(e)
-    }
-
-    /// Creates a reader that returns the environment itself.
-    ///
-    /// This is a fundamental operation in the Reader monad, providing direct access
-    /// to the environment. It corresponds to the `ask` operation in other functional
-    /// programming languages.
-    ///
-    /// # Reader Monad Context
-    ///
-    /// The `ask` operation is often used as a building block for more complex reader
-    /// operations, allowing access to the environment within a computation chain.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Create a reader that simply returns the environment
-    /// let reader = Reader::<i32, i32>::ask();
-    /// assert_eq!(reader.run_reader(42), 42);
-    ///
-    /// // Use ask as part of a more complex computation
-    /// let complex = Reader::<i32, i32>::ask().bind(|env| {
-    ///     Reader::new(move |_| env * 2)
-    /// });
-    /// assert_eq!(complex.run_reader(21), 42);
-    /// ```
-    pub fn ask() -> Reader<E, E> {
-        Reader::new(|e| e)
-    }
-
-    /// Creates a reader by applying a function to the environment.
-    ///
-    /// This is a convenience method that creates a reader which transforms the
-    /// environment using the provided function. It's similar to `ask` followed by `fmap`,
-    /// but more concise.
-    ///
-    /// # Reader Monad Context
-    ///
-    /// The `asks` operation is commonly used to extract or transform specific parts
-    /// of the environment without needing to explicitly chain operations.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to apply to the environment
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Extract a specific part of the environment
-    /// let reader = Reader::<(i32, String), String>::asks(|(_, s)| s.clone());
-    /// assert_eq!(reader.run_reader((42, "hello".to_string())), "hello");
-    ///
-    /// // Transform the environment
-    /// let reader = Reader::<i32, String>::asks(|env: i32| env.to_string());
-    /// assert_eq!(reader.run_reader(42), "42");
-    ///
-    /// // Equivalent to ask().fmap(f)
-    /// let reader1 = Reader::<i32, String>::asks(|env| env.to_string());
-    /// let reader2 = Reader::<i32, i32>::ask().fmap(|env| env.to_string());
-    /// assert_eq!(reader1.run_reader(42), reader2.run_reader(42));
-    /// ```
-    pub fn asks<B: Clone + 'static>(f: impl Fn(E) -> B + 'static) -> Reader<E, B> {
-        Reader::new(f)
-    }
-
-    /// Maps a function over the reader's result.
-    ///
-    /// This implements the Functor pattern for Reader, allowing transformation of the
-    /// result value while preserving the Reader structure and environment access.
-    ///
-    /// # Functor Properties
-    ///
-    /// The fmap operation satisfies the functor laws:
-    /// - Identity: `reader.fmap(|x| x) ≡ reader`
-    /// - Composition: `reader.fmap(|x| g(f(x))) ≡ reader.fmap(f).fmap(g)`
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to apply to the result
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Create a reader that accesses the environment
-    /// let reader = Reader::new(|env: i32| env + 1);
-    ///
-    /// // Transform the result to a string
-    /// let string_reader = reader.fmap(|x| x.to_string());
-    /// assert_eq!(string_reader.run_reader(41), "42");
-    ///
-    /// // Chain multiple transformations
-    /// let complex_reader = reader
-    ///     .fmap(|x| x * 2)
-    ///     .fmap(|x| format!("The answer is {}", x));
-    /// assert_eq!(complex_reader.run_reader(20), "The answer is 42");
-    /// ```
-    pub fn fmap<B: Clone + 'static>(&self, f: impl Fn(A) -> B + 'static) -> Reader<E, B> {
-        let run = self.run.clone();
-        Reader::new(move |e| f((run)(e)))
-    }
-
-    /// Chains two readers together.
-    ///
-    /// This is the monadic bind operation for the Reader monad. It allows sequencing
-    /// operations where the next operation depends on the result of the previous one,
-    /// while maintaining access to the shared environment.
-    ///
-    /// # Monadic Properties
-    ///
-    /// The bind operation satisfies the monad laws:
-    /// - Left identity: `Reader::new(|_| a).bind(f) ≡ f(a)`
-    /// - Right identity: `reader.bind(|a| Reader::new(|_| a)) ≡ reader`
-    /// - Associativity: `reader.bind(f).bind(g) ≡ reader.bind(|a| f(a).bind(g))`
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function that takes the result of this reader and returns a new reader
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // A reader that adds 1 to the environment
-    /// let reader = Reader::new(|env: i32| env + 1);
-    ///
-    /// // Chain with another reader that multiplies the result by 2
-    /// let result = reader.bind(|x| Reader::new(move |_| x * 2));
-    /// assert_eq!(result.run_reader(41), 84);
-    ///
-    /// // More complex example with environment access in the second reader
-    /// let complex = reader.bind(|x| {
-    ///     Reader::new(move |env: i32| format!("{} derived from {}", x, env))
-    /// });
-    /// assert_eq!(complex.run_reader(41), "42 derived from 41");
-    /// ```
-    pub fn bind<B: Clone + 'static>(
-        &self,
-        f: impl Fn(A) -> Reader<E, B> + 'static,
-    ) -> Reader<E, B> {
-        let run = self.run.clone();
-        Reader::new(move |e: E| {
-            let a = (run)(e.clone());
-            f(a).run_reader(e)
-        })
-    }
-
-    /// Modifies the environment before running a reader.
-    ///
-    /// This operation allows for local modifications to the environment that only
-    /// affect the current reader, without changing the environment for subsequent
-    /// operations in a chain.
-    ///
-    /// # Reader Monad Context
-    ///
-    /// The `local` operation is crucial for creating readers that work with modified
-    /// environments while maintaining the original environment for other operations.
-    /// It's similar to the concept of lexical scoping in programming languages.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to modify the environment
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Create a reader that works with strings
-    /// let reader = Reader::new(|env: String| env.len());
-    ///
-    /// // Run with a modified environment (uppercase)
-    /// let modified = reader.local(|e| e.to_uppercase());
-    /// assert_eq!(modified.run_reader("hello".to_string()), 5);
-    ///
-    /// // The original environment transformation is preserved
-    /// assert_eq!(reader.run_reader("hello".to_string()), 5);
-    ///
-    /// // More complex example with a configuration struct
-    /// #[derive(Clone)]
-    /// struct Config { debug: bool, value: i32 }
-    ///
-    /// let reader = Reader::new(|config: Config| {
-    ///     if config.debug {
-    ///         format!("Debug: {}", config.value)
-    ///     } else {
-    ///         format!("Value: {}", config.value)
-    ///     }
-    /// });
-    ///
-    /// // Run with modified config (debug mode enabled)
-    /// let debug_reader = reader.local(|mut c| { c.debug = true; c });
-    /// let config = Config { debug: false, value: 42 };
-    ///
-    /// assert_eq!(reader.run_reader(config.clone()), "Value: 42");
-    /// assert_eq!(debug_reader.run_reader(config), "Debug: 42");
-    /// ```
-    pub fn local(&self, f: impl Fn(E) -> E + 'static) -> Reader<E, A> {
-        let run = self.run.clone();
-        Reader::new(move |e| (run)(f(e)))
-    }
-
-    /// Combines two readers using a function.
-    ///
-    /// This is part of the Applicative pattern implementation for Reader. It allows
-    /// combining the results of two readers that share the same environment type,
-    /// applying a function to both results.
-    ///
-    /// # Applicative Properties
-    ///
-    /// When used with appropriate functions, this operation helps satisfy the applicative laws.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - Another reader to combine with
-    /// * `f` - Function to combine the results
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Two readers that extract different information from the same environment
-    /// let reader1 = Reader::new(|env: i32| env + 1);
-    /// let reader2 = Reader::new(|env: i32| env * 2);
-    ///
-    /// // Combine them to produce a formatted string
-    /// let combined = reader1.combine(&reader2, |x, y| format!("{} and {}", x, y));
-    /// assert_eq!(combined.run_reader(20), "21 and 40");
-    ///
-    /// // Combine them for computation
-    /// let sum = reader1.combine(&reader2, |x, y| x + y);
-    /// assert_eq!(sum.run_reader(20), 61); // (20 + 1) + (20 * 2)
-    /// ```
-    pub fn combine<B, C>(
-        &self,
-        other: &Reader<E, B>,
-        f: impl Fn(A, B) -> C + 'static,
-    ) -> Reader<E, C>
-    where
-        B: Clone + 'static,
-        C: Clone + 'static,
-    {
-        let run1 = self.run.clone();
-        let run2 = other.run.clone();
-        Reader::new(move |e: E| {
-            let a = (run1)(e.clone());
-            let b = (run2)(e);
-            f(a, b)
-        })
-    }
-
-    /// Lifts a binary function to work with readers.
-    ///
-    /// This is another part of the Applicative pattern implementation. It takes a function
-    /// that works on plain values and lifts it to work with Reader values. This allows for
-    /// more flexible composition of readers.
-    ///
-    /// # Applicative Context
-    ///
-    /// This function enables point-free style programming with readers, where functions
-    /// can be composed without explicitly naming intermediate values.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Binary function to lift
     ///
     /// # Returns
     ///
-    /// A function that takes two readers and returns a new reader containing the result
-    /// of applying the function to the results of both readers.
+    /// A new Reader monad
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::reader::Reader;
     ///
-    /// // Define a binary function
-    /// let add = |x: i32, y: i32| x + y;
-    ///
-    /// // Create two readers
-    /// let reader1 = Reader::new(|env: i32| env + 1);
-    /// let reader2 = Reader::new(|env: i32| env * 2);
-    ///
-    /// // Lift the function to work with readers
-    /// let lifted = Reader::lift2(add);
-    ///
-    /// // Apply the lifted function to the readers
-    /// let result = lifted(&reader1, &reader2);
-    /// assert_eq!(result.run_reader(20), 61); // (20 + 1) + (20 * 2)
-    ///
-    /// // This is equivalent to using combine
-    /// let combined = reader1.combine(&reader2, add);
-    /// assert_eq!(combined.run_reader(20), 61);
-    /// ```
-    pub fn lift2<B, C>(
-        f: impl Fn(A, B) -> C + Clone + 'static,
-    ) -> impl Fn(&Reader<E, A>, &Reader<E, B>) -> Reader<E, C>
-    where
-        B: Clone + 'static,
-        C: Clone + 'static,
-    {
-        move |ra, rb| {
-            let run_a = ra.run.clone();
-            let run_b = rb.run.clone();
-            let f = f.clone();
-            Reader::new(move |e: E| {
-                let a = (run_a)(e.clone());
-                let b = (run_b)(e);
-                f(a, b)
-            })
-        }
-    }
-
-    /// Creates a reader that returns a transformed version of the environment.
-    /// Similar to `ask`, but allows specifying a transformation function.
-    ///
-    /// This is a convenience method that combines the functionality of `ask` and `fmap`
-    /// into a single operation, making it easier to work with the environment.
-    ///
-    /// # Reader Monad Context
-    ///
-    /// `ask_with` is particularly useful when you need to extract or transform information
-    /// from the environment without modifying it. It provides a more direct way to
-    /// access and transform the environment compared to chaining `ask` and `fmap`.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to transform the environment
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Get the length of a string environment
-    /// let reader: Reader<String, usize> = Reader::<String, usize>::ask_with(|s: &String| s.len());
-    /// assert_eq!(reader.run_reader("hello".to_string()), 5);
-    ///
-    /// // Extract a specific property from a complex environment
-    /// #[derive(Clone)]
-    /// struct AppConfig {
-    ///     name: String,
-    ///     version: String,
-    /// }
-    ///
-    /// let version_reader = Reader::<AppConfig, String>::ask_with(|config| config.version.clone());
-    /// let config = AppConfig {
-    ///     name: "MyApp".to_string(),
-    ///     version: "1.0.0".to_string(),
-    /// };
-    /// assert_eq!(version_reader.run_reader(config), "1.0.0");
-    /// ```
-    pub fn ask_with<B: Clone + 'static>(f: impl Fn(&E) -> B + 'static) -> Reader<E, B> {
-        Reader::new(move |e| f(&e))
-    }
-
-    /// Creates a reader that returns a part of the environment.
-    /// Similar to `asks`, but allows specifying both a selector and a transformation.
-    ///
-    /// This method provides a convenient way to select a part of the environment and
-    /// then transform it, all in a single operation. It's particularly useful for
-    /// working with complex environment types.
-    ///
-    /// # Reader Monad Context
-    ///
-    /// `asks_with` enables more complex transformations of the environment by separating
-    /// the selection of a part of the environment from its transformation. This separation
-    /// of concerns can make code more readable and maintainable.
-    ///
-    /// # Arguments
-    ///
-    /// * `select` - Function to select a part of the environment
-    /// * `f` - Function to transform the selected part
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// #[derive(Clone)]
-    /// struct Config {
-    ///     count: i32,
-    ///     name: String,
-    /// }
-    ///
-    /// // Extract and format the count from the config
-    /// let count_reader: Reader<Config, String> = Reader::<Config, String>::asks_with(
-    ///     |c| c.count,
-    ///     |count| format!("Count is {}", count)
-    /// );
-    /// assert_eq!(
-    ///     count_reader.run_reader(Config { count: 42, name: "Test".to_string() }),
-    ///     "Count is 42"
-    /// );
-    ///
-    /// // Extract and transform the name
-    /// let name_reader: Reader<Config, String> = Reader::<Config, String>::asks_with(
-    ///     |c| c.name.clone(),
-    ///     |name| name.to_uppercase()
-    /// );
-    /// assert_eq!(
-    ///     name_reader.run_reader(Config { count: 42, name: "Test".to_string() }),
-    ///     "TEST"
-    /// );
-    /// ```
-    pub fn asks_with<B: Clone + 'static, C: Clone + 'static>(
-        select: impl Fn(&E) -> B + 'static,
-        f: impl Fn(B) -> C + 'static,
-    ) -> Reader<E, C> {
-        Reader::new(move |e| f(select(&e)))
-    }
-}
-
-use crate::datatypes::wrapper::memoize::MemoizeFn;
-use crate::traits::hkt::HKT;
-use crate::utils::error_utils::AppError;
-
-/// A reader monad implementation with memoization capabilities.
-///
-/// `MemoizedReader` caches the results of computations based on their environment inputs,
-/// avoiding redundant calculations when the same environment is provided multiple times.
-///
-/// # Type Parameters
-///
-/// * `E` - The environment type that provides context for the computation. Must implement `Hash` and `Eq` to enable caching.
-/// * `A` - The result type produced by the computation
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::reader::MemoizedReader;
-///
-/// // Create a memoized reader that performs an "expensive" calculation
-/// let reader = MemoizedReader::new(|n: i32| {
-///     println!("Computing for {}", n);  // Side effect to show when computation happens
-///     n * n
-/// });
-///
-/// // First call computes the result
-/// assert_eq!(reader.run_reader(5), 25);
-///
-/// // Second call with same input returns cached result without recomputing
-/// assert_eq!(reader.run_reader(5), 25);
-/// ```
-#[derive(Clone)]
-pub struct MemoizedReader<E, A> {
-    run: MemoizeFn<E, A>,
-}
-
-impl<E: Clone + Eq + std::hash::Hash + 'static, A: Clone + 'static> MemoizedReader<E, A> {
-    /// Creates a new MemoizedReader from a function.
-    ///
-    /// This constructor takes a function that computes a value from an environment
-    /// and wraps it in a memoization layer that caches results based on inputs.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function that takes an environment and returns a value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::MemoizedReader;
-    ///
-    /// let reader = MemoizedReader::new(|env: i32| {
-    ///     // This computation will only happen once per unique input value
-    ///     env * env + env
-    /// });
-    ///
-    /// // First call performs the calculation
-    /// assert_eq!(reader.run_reader(5), 30);
-    /// // Second call uses the cached result
-    /// assert_eq!(reader.run_reader(5), 30);
+    /// // Create a reader that doubles the environment value
+    /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
+    /// assert_eq!(reader.run_reader(21), 42);
     /// ```
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(E) -> A + 'static,
+        F: Fn(E) -> A + Clone + Send + Sync + 'static,
     {
-        MemoizedReader {
-            run: MemoizeFn::new(f),
+        Reader {
+            inner: ReaderT::new(move |e: E| Id::new(f(e))),
         }
     }
 
-    /// Converts an existing Reader to a MemoizedReader.
+    /// Runs this Reader with the given environment, returning the final value.
     ///
-    /// This constructor takes a Reader and wraps it in a memoization layer
-    /// that caches results based on inputs.
+    /// # Parameters
     ///
-    /// # Arguments
+    /// * `env` - The environment to run the Reader with
     ///
-    /// * `reader` - Reader to convert
+    /// # Returns
+    ///
+    /// The result of running the Reader with the given environment
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::datatypes::reader::{Reader, MemoizedReader};
+    /// use rustica::datatypes::reader::Reader;
     ///
-    /// let reader = Reader::new(|env: i32| env * 2);
-    /// let memoized = MemoizedReader::from_reader(reader);
-    /// assert_eq!(memoized.run_reader(5), 10);
-    /// assert_eq!(memoized.run_reader(5), 10); // Cached result
-    /// ```
-    pub fn from_reader(reader: Reader<E, A>) -> Self {
-        MemoizedReader {
-            run: MemoizeFn::new(move |e| reader.run_reader(e)),
-        }
-    }
-
-    /// Runs the reader with the given environment.
-    ///
-    /// This method executes the reader with the provided environment and
-    /// returns the result, caching it for future calls with the same input.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - Environment to run the reader with
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::MemoizedReader;
-    ///
-    /// let reader = MemoizedReader::new(|env: i32| env * 2);
-    /// assert_eq!(reader.run_reader(5), 10);
-    /// assert_eq!(reader.run_reader(5), 10); // Cached result
+    /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
+    /// assert_eq!(reader.run_reader(21), 42);
     /// ```
     pub fn run_reader(&self, env: E) -> A {
-        (self.run).call(env)
+        let id_value = self.inner.run_reader(env);
+        id_value.value().clone()
     }
 
-    /// Maps a function over the memoized reader's result.
+    /// Maps a function over the value produced by this Reader.
     ///
-    /// This implements the Functor pattern for MemoizedReader, allowing transformation of the
-    /// result value while preserving the MemoizedReader structure, environment access, and caching behavior.
+    /// # Parameters
     ///
-    /// # Arguments
+    /// * `f` - Function to apply to the value
     ///
-    /// * `g` - Function to apply to the result
+    /// # Returns
+    ///
+    /// A new Reader with the function applied
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::datatypes::reader::MemoizedReader;
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::datatypes::id::Id;
     ///
-    /// let reader = MemoizedReader::new(|env: i32| env + 1);
-    /// let string_reader = reader.fmap(|x| x.to_string());
-    /// assert_eq!(string_reader.run_reader(41), "42");
-    ///
-    /// // The result is cached for repeated calls
-    /// assert_eq!(string_reader.run_reader(41), "42"); // Uses cached result
+    /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n + 10);
+    /// let mapped: Reader<i32, String> = reader.fmap(|n| n.to_string());
+    /// assert_eq!(mapped.run_reader(5), "15");
     /// ```
-    pub fn fmap<B, G>(&self, g: G) -> MemoizedReader<E, B>
+    pub fn fmap<B, F>(&self, f: F) -> Reader<E, B>
     where
-        B: Clone + 'static,
-        G: Fn(A) -> B + 'static,
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
+        B: Clone + Send + Sync + 'static,
+        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
-        let run_clone = self.run.clone();
+        let inner_clone = self.inner.clone();
 
-        MemoizedReader::new(move |e: E| {
-            let a = run_clone.call(e);
-            g(a)
-        })
+        Reader {
+            inner: ReaderT::new(move |e: E| {
+                let id_a = inner_clone.run_reader(e);
+                let a = id_a.value();
+                Id::new(f(a.clone()))
+            }),
+        }
     }
 
-    /// Chains two memoized readers together.
+    /// Sequences two Reader computations, passing the result of the first to the second.
     ///
-    /// This is the monadic bind operation for the MemoizedReader monad. It allows sequencing
-    /// operations where the next operation depends on the result of the previous one,
-    /// while maintaining access to the shared environment and preserving caching behavior.
+    /// # Parameters
     ///
-    /// # Arguments
+    /// * `f` - Function that takes the result of this Reader and returns a new Reader
     ///
-    /// * `g` - Function that takes the result of this reader and returns a new memoized reader
+    /// # Returns
+    ///
+    /// A new Reader that represents the sequential computation
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::datatypes::reader::MemoizedReader;
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::datatypes::id::Id;
     ///
-    /// // A reader that adds 1 to the environment
-    /// let reader = MemoizedReader::new(|env: i32| env + 1);
-    ///
-    /// // Chain with another reader that multiplies the result by 2
-    /// let result = reader.bind(|x| MemoizedReader::new(move |_| x * 2));
-    /// assert_eq!(result.run_reader(41), 84);
-    ///
-    /// // Results are cached for repeated calls
-    /// assert_eq!(result.run_reader(41), 84); // Uses cached result
+    /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n + 5);
+    /// let bound: Reader<i32, i32> = reader.bind(|n| Reader::new(move |env: i32| env * n));
+    /// assert_eq!(bound.run_reader(10), 150); // (10 + 5) * 10 = 150
     /// ```
-    pub fn bind<B, G>(&self, g: G) -> MemoizedReader<E, B>
+    pub fn bind<B, F>(&self, f: F) -> Reader<E, B>
     where
-        B: Clone + 'static,
-        G: Fn(A) -> MemoizedReader<E, B> + 'static,
+        F: Fn(A) -> Reader<E, B> + Clone + Send + Sync + 'static,
+        B: Clone + Send + Sync + 'static,
+        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
-        let run_clone = self.run.clone();
+        let inner_clone = self.inner.clone();
 
-        MemoizedReader::new(move |e: E| {
-            let a = run_clone.call(e.clone());
-            let mb = g(a);
-            mb.run_reader(e)
-        })
+        Reader {
+            inner: ReaderT::new(move |e: E| {
+                let id_a = inner_clone.run_reader(e.clone());
+                let a = id_a.value().clone();
+                let reader_b = f(a);
+                reader_b.inner.run_reader(e)
+            }),
+        }
     }
 
-    /// Modifies the environment before running a memoized reader.
+    /// Creates a Reader that returns the environment itself.
     ///
-    /// This operation allows for local modifications to the environment that only
-    /// affect the current reader, without changing the environment for subsequent
-    /// operations in a chain. The memoization behavior is preserved.
+    /// # Returns
     ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to modify the environment
+    /// A Reader that returns the environment
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::datatypes::reader::MemoizedReader;
+    /// use rustica::datatypes::reader::Reader;
     ///
-    /// // Create a reader that works with strings
-    /// let reader = MemoizedReader::new(|env: String| env.len());
+    /// let reader: Reader<String, String> = Reader::ask();
+    /// assert_eq!(reader.run_reader("hello".to_string()), "hello");
+    /// ```
+    pub fn ask() -> Self
+    where
+        E: Clone,
+        A: From<E>,
+    {
+        Reader {
+            inner: ReaderT::new(move |e: E| Id::new(A::from(e))),
+        }
+    }
+
+    /// Creates a Reader that returns the environment itself with a transformation function.
     ///
-    /// // Run with a modified environment (uppercase)
-    /// let modified = reader.local(|e| e.to_uppercase());
-    /// assert_eq!(modified.run_reader("hello".to_string()), 5);
+    /// # Parameters
     ///
-    /// // The original reader is unaffected
+    /// * `f` - Function to transform the environment into a value
+    ///
+    /// # Returns
+    ///
+    /// A Reader that returns the transformed environment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::Reader;
+    ///
+    /// let reader: Reader<String, String> = Reader::ask_transform(|env: String| env);
+    /// assert_eq!(reader.run_reader("hello".to_string()), "hello");
+    /// ```
+    pub fn ask_transform<F>(f: F) -> Self
+    where
+        F: Fn(E) -> A + Clone + Send + Sync + 'static,
+    {
+        Reader {
+            inner: ReaderT::new(move |e: E| Id::new(f(e))),
+        }
+    }
+
+    /// Creates a Reader that returns a value derived from the environment.
+    ///
+    /// # Parameters
+    ///
+    /// * `selector` - Function to extract a value from the environment
+    ///
+    /// # Returns
+    ///
+    /// A Reader that returns a value derived from the environment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::Reader;
+    ///
+    /// let reader: Reader<String, usize> = Reader::asks(|s: String| s.len());
     /// assert_eq!(reader.run_reader("hello".to_string()), 5);
     /// ```
-    pub fn local<F>(&self, f: F) -> MemoizedReader<E, A>
+    pub fn asks<S>(selector: S) -> Self
     where
-        F: Fn(E) -> E + 'static,
+        S: Fn(E) -> A + Clone + Send + Sync + 'static,
     {
-        let run_clone = self.run.clone();
-
-        MemoizedReader::new(move |e: E| run_clone.call(f(e)))
+        Reader {
+            inner: ReaderT::new(move |e: E| Id::new(selector(e))),
+        }
     }
 
-    /// Creates a reader that applies a function to the environment.
+    /// Creates a Reader with direct access to the environment.
     ///
-    /// This operation allows extracting or transforming specific parts of the
-    /// environment without changing the environment itself. The memoization
-    /// behavior is preserved.
+    /// # Parameters
     ///
-    /// # Arguments
+    /// * `f` - Function that processes the environment directly
+    /// * `transform` - Function to transform the extracted value into the monad
     ///
-    /// * `f` - Function to extract or transform data from the environment
+    /// # Returns
+    ///
+    /// A Reader that processes the environment directly
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::datatypes::reader::MemoizedReader;
+    /// use rustica::datatypes::reader::Reader;
+    /// use rustica::datatypes::id::Id;
     ///
-    /// #[derive(Clone, Eq, Hash, PartialEq)]
-    /// struct Config {
-    ///     name: String,
-    ///     version: String,
-    /// }
-    ///
-    /// // Extract just the name from the config
-    /// let name_reader = MemoizedReader::<Config, String>::asks(|config| config.name.clone());
-    ///
-    /// let config = Config {
-    ///     name: "MyApp".to_string(),
-    ///     version: "1.0.0".to_string(),
-    /// };
-    ///
-    /// assert_eq!(name_reader.run_reader(config), "MyApp");
+    /// let reader: Reader<i32, String> = Reader::ask_with(
+    ///     |env: &i32| format!("Env is: {}", env),
+    ///     |s: String| Id::new(s)
+    /// );
+    /// assert_eq!(reader.run_reader(42), "Env is: 42");
     /// ```
-    pub fn asks<B, F>(f: F) -> MemoizedReader<E, B>
+    pub fn ask_with<F, G>(f: F, transform: G) -> Self
     where
-        B: Clone + 'static,
-        F: Fn(&E) -> B + 'static,
+        F: Fn(&E) -> A + Clone + Send + Sync + 'static,
+        G: Fn(A) -> Id<A> + Clone + Send + Sync + 'static,
     {
-        MemoizedReader::new(move |e: E| f(&e))
-    }
-
-    /// Creates a memoized reader that returns the environment unchanged.
-    ///
-    /// This is the identity operation for the MemoizedReader monad, allowing
-    /// direct access to the environment value.
-    ///
-    /// # Reader Monad Context
-    ///
-    /// In the context of the Reader monad, `ask` provides access to the
-    /// environment, which can then be used in subsequent operations.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::MemoizedReader;
-    ///
-    /// #[derive(Clone, Eq, Hash, PartialEq)]
-    /// struct Config {
-    ///     name: String,
-    ///     version: String,
-    /// }
-    ///
-    /// let reader = MemoizedReader::<Config, Config>::ask();
-    /// let config = Config {
-    ///     name: "MyApp".to_string(),
-    ///     version: "1.0.0".to_string(),
-    /// };
-    ///
-    /// // The reader simply returns the environment
-    /// let result = reader.run_reader(config.clone());
-    /// assert_eq!(result.name, "MyApp");
-    /// assert_eq!(result.version, "1.0.0");
-    /// ```
-    pub fn ask() -> MemoizedReader<E, E> {
-        MemoizedReader::new(|e: E| e)
-    }
-
-    /// Creates a memoized reader that returns a transformed version of the environment.
-    /// Similar to `ask`, but allows specifying a transformation function.
-    ///
-    /// This method provides a convenient way to access and transform the environment
-    /// in a single operation, with results being cached for repeated calls.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to transform the environment
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::MemoizedReader;
-    ///
-    /// // Get the length of a string environment
-    /// let reader = MemoizedReader::<String, usize>::ask_with(|s| s.len());
-    /// assert_eq!(reader.run_reader("hello".to_string()), 5);
-    ///
-    /// // Extract a specific property from a complex environment
-    /// #[derive(Clone, Eq, Hash, PartialEq)]
-    /// struct AppConfig {
-    ///     name: String,
-    ///     version: String,
-    /// }
-    ///
-    /// let version_reader = MemoizedReader::<AppConfig, String>::ask_with(|config| config.version.clone());
-    /// let config = AppConfig {
-    ///     name: "MyApp".to_string(),
-    ///     version: "1.0.0".to_string(),
-    /// };
-    /// assert_eq!(version_reader.run_reader(config), "1.0.0");
-    /// ```
-    pub fn ask_with<B: Clone + 'static>(f: impl Fn(&E) -> B + 'static) -> MemoizedReader<E, B> {
-        MemoizedReader::new(move |e: E| f(&e))
-    }
-}
-
-impl<E, A> HKT for Reader<E, A> {
-    type Source = A;
-    type Output<U> = Reader<E, U>;
-}
-
-impl<E: Clone + Default + 'static, A: Clone + 'static, Err: Clone + 'static>
-    Reader<E, Result<A, Err>>
-{
-    /// Runs the reader and converts the result to a Result with AppError.
-    ///
-    /// This method runs the reader with the default environment and wraps any error
-    /// in an AppError structure, which can contain additional context.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    /// use rustica::utils::error_utils::AppError;
-    ///
-    /// // Create a reader that might fail
-    /// let reader = Reader::new(|config: Option<String>| {
-    ///     if let Some(value) = config {
-    ///         Ok(value.len())
-    ///     } else {
-    ///         Err("Missing configuration")
-    ///     }
-    /// });
-    ///
-    /// // Get the result, using AppError for better error context
-    /// let result = reader.try_get();
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().message(), &"Missing configuration");
-    /// ```
-    pub fn try_get(&self) -> Result<A, AppError<Err>> {
-        match self.run_reader(Default::default()) {
-            Ok(value) => Ok(value),
-            Err(error) => Err(AppError::new(error)),
+        Reader {
+            inner: ReaderT::new(move |e: E| transform(f(&e))),
         }
     }
 
-    /// Runs the reader and converts the result to a Result with AppError, including context.
+    /// Modifies the environment before running this Reader.
     ///
-    /// Similar to `try_get`, but allows adding context information to the error for better debugging.
+    /// # Parameters
     ///
-    /// # Arguments
+    /// * `f` - Function that transforms the environment
     ///
-    /// * `context` - Contextual information to include in the error
+    /// # Returns
+    ///
+    /// A new Reader that runs with the modified environment
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::reader::Reader;
-    /// use rustica::utils::error_utils::AppError;
     ///
-    /// // Create a reader that might fail
-    /// let reader = Reader::new(|config: Option<String>| {
-    ///     if let Some(value) = config {
-    ///         Ok(value.len())
-    ///     } else {
-    ///         Err("Missing configuration")
-    ///     }
-    /// });
-    ///
-    /// // Get the result with context
-    /// let result = reader.try_get_with_context("while loading app settings");
-    /// assert!(result.is_err());
-    ///
-    /// let err = result.unwrap_err();
-    /// assert_eq!(err.message(), &"Missing configuration");
-    /// assert_eq!(err.context(), Some(&"while loading app settings"));
+    /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
+    /// let local: Reader<i32, i32> = reader.local(|n: i32| n + 1);
+    /// assert_eq!(local.run_reader(5), 12); // (5 + 1) * 2 = 12
     /// ```
-    pub fn try_get_with_context<C>(&self, context: C) -> Result<A, AppError<Err, C>> {
-        match self.run_reader(Default::default()) {
-            Ok(value) => Ok(value),
-            Err(error) => Err(AppError::with_context(error, context)),
+    pub fn local<F>(&self, f: F) -> Self
+    where
+        F: Fn(E) -> E + Clone + Send + Sync + 'static,
+    {
+        let inner_clone = self.inner.clone();
+
+        Reader {
+            inner: ReaderT::new(move |e: E| inner_clone.run_reader(f(e))),
+        }
+    }
+
+    /// Combines two Readers using a binary function.
+    ///
+    /// # Parameters
+    ///
+    /// * `other` - Another Reader to combine with this one
+    /// * `f` - Function to combine the results
+    ///
+    /// # Returns
+    ///
+    /// A new Reader with the combined result
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::reader::Reader;
+    ///
+    /// let reader1: Reader<i32, i32> = Reader::new(|n: i32| n + 1);
+    /// let reader2: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
+    /// let combined: Reader<i32, String> = reader1.combine(&reader2, |a: i32, b: i32| format!("{} and {}", a, b));
+    /// assert_eq!(combined.run_reader(10), "11 and 20");
+    /// ```
+    pub fn combine<B, C, F>(&self, other: &Reader<E, B>, f: F) -> Reader<E, C>
+    where
+        F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
+        B: Clone + Send + Sync + 'static,
+        C: Clone + Send + Sync + 'static,
+        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
+        Id<C>: HKT<Source = C, Output<C> = Id<C>> + Monad,
+    {
+        let self_inner = self.inner.clone();
+        let other_inner = other.inner.clone();
+
+        Reader {
+            inner: ReaderT::new(move |e: E| {
+                let a = self_inner.run_reader(e.clone()).value().clone();
+                let b = other_inner.run_reader(e).value().clone();
+                Id::new(f(a, b))
+            }),
         }
     }
 }
 
-// Implementation for running a Reader with a specific environment
-impl<E: Clone + 'static, A: Clone + 'static, Err: Clone + 'static> Reader<E, Result<A, Err>> {
-    /// Runs the reader with a specific environment and converts the result to a Result with AppError.
-    ///
-    /// This method allows explicitly providing the environment to run with, rather than using the default.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment to run the reader with
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    /// use rustica::utils::error_utils::AppError;
-    ///
-    /// // Create a reader that might fail
-    /// let reader = Reader::new(|threshold: i32| {
-    ///     if threshold > 10 {
-    ///         Ok("Valid configuration")
-    ///     } else {
-    ///         Err("Threshold too low")
-    ///     }
-    /// });
-    ///
-    /// // Run with a valid environment
-    /// let result = reader.try_get_with(20);
-    /// assert_eq!(result.unwrap(), "Valid configuration");
-    ///
-    /// // Run with an invalid environment
-    /// let result = reader.try_get_with(5);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().message(), &"Threshold too low");
-    /// ```
-    pub fn try_get_with(&self, env: E) -> Result<A, AppError<Err>> {
-        match self.run_reader(env) {
-            Ok(value) => Ok(value),
-            Err(error) => Err(AppError::new(error)),
-        }
-    }
-
-    /// Runs the reader with a specific environment and converts the result to a Result with AppError with context.
-    ///
-    /// Allows providing both a specific environment and error context.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment to run the reader with
-    /// * `context` - Contextual information to include in the error
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    /// use rustica::utils::error_utils::AppError;
-    ///
-    /// // Create a reader that might fail
-    /// let reader = Reader::new(|threshold: i32| {
-    ///     if threshold > 10 {
-    ///         Ok("Valid configuration")
-    ///     } else {
-    ///         Err("Threshold too low")
-    ///     }
-    /// });
-    ///
-    /// let result = reader.try_get_with_env_and_context(5, "config validation");
-    /// assert!(result.is_err());
-    ///
-    /// let err = result.unwrap_err();
-    /// assert_eq!(err.message(), &"Threshold too low");
-    /// assert_eq!(err.context(), Some(&"config validation"));
-    /// ```
-    pub fn try_get_with_env_and_context<C>(
-        &self,
-        env: E,
-        context: C,
-    ) -> Result<A, AppError<Err, C>> {
-        match self.run_reader(env) {
-            Ok(value) => Ok(value),
-            Err(error) => Err(AppError::with_context(error, context)),
+impl<E: Clone + 'static, A: Clone + 'static> Clone for Reader<E, A> {
+    fn clone(&self) -> Self {
+        Reader {
+            inner: self.inner.clone(),
         }
     }
 }

@@ -54,7 +54,6 @@ pub mod datatypes {
 }
 
 /// Monad transformers and related utilities.
-#[cfg(feature = "transformers")]
 pub mod transformers;
 
 /// Convenient re-exports of commonly used items.
@@ -71,6 +70,8 @@ pub mod prelude {
     pub use crate::traits::monoid::Monoid;
     pub use crate::traits::pure::Pure;
     pub use crate::traits::semigroup::Semigroup;
+
+    pub use crate::transformers::MonadTransformer;
 
     // Convenience re-exports of commonly used datatypes
     pub use crate::datatypes::choice::Choice;

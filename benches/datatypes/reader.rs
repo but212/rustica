@@ -1,6 +1,7 @@
 use criterion::{black_box, Criterion};
-use rustica::datatypes::reader::{MemoizedReader, Reader};
-use std::collections::HashMap;
+use rustica::datatypes::id::Id;
+use rustica::datatypes::reader::Reader;
+use std::collections::BTreeMap;
 
 /// Function to use all fields to avoid unused field warnings in benchmarks
 #[allow(dead_code)]
@@ -31,7 +32,7 @@ fn use_all_fields(
 }
 
 /// Complex environment for real-world use cases
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 struct AppConfig {
     api_key: String,
@@ -40,33 +41,33 @@ struct AppConfig {
     max_retries: u32,
     debug_mode: bool,
     cache_settings: CacheConfig,
-    feature_flags: HashMap<String, bool>,
+    feature_flags: BTreeMap<String, bool>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct CacheConfig {
     enabled: bool,
     ttl_seconds: u32,
     max_size: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 struct UserContext {
     user_id: String,
     permissions: Vec<String>,
-    preferences: HashMap<String, String>,
+    preferences: BTreeMap<String, String>,
     session_data: Option<SessionData>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct SessionData {
     session_id: String,
     created_at: u64,
     last_active: u64,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 struct DatabaseConfig {
     host: String,
@@ -104,9 +105,10 @@ pub fn reader_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let reader1 = Reader::<Config, Config>::ask();
             let reader2 = Reader::<Config, i32>::asks(|cfg: Config| cfg.multiplier);
-            let reader3 = Reader::<Config, String>::ask_with(|cfg: &Config| {
-                format!("Multiplier: {}", cfg.multiplier)
-            });
+            let reader3 = Reader::<Config, String>::ask_with(
+                |cfg: &Config| format!("Multiplier: {}", cfg.multiplier),
+                |x| Id::new(x),
+            );
 
             black_box((
                 reader1.run_reader(basic_config.clone()),
@@ -121,9 +123,10 @@ pub fn reader_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let reader = Reader::new(|cfg: Config| cfg.multiplier);
 
-            let mapped = reader.fmap(|x: i32| format!("Result: {}", x));
-            let bound = reader
-                .bind(|x: i32| Reader::new(move |cfg: Config| format!("{}{}", cfg.prefix, x)));
+            let mapped = reader.fmap(|x: i32| Id::new(format!("Result: {}", x)));
+            let bound = reader.bind(|x: i32| {
+                Reader::new(move |cfg: Config| Id::new(format!("{}{}", cfg.prefix, x)))
+            });
 
             black_box((
                 mapped.run_reader(basic_config.clone()),
@@ -135,7 +138,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
     // Environment modification
     group.bench_function("environment_modification", |b| {
         b.iter(|| {
-            let reader = Reader::new(|cfg: Config| cfg.multiplier * 2);
+            let reader = Reader::new(|cfg: Config| Id::new(cfg.multiplier * 2));
             let local_reader = reader.local(|mut cfg: Config| {
                 cfg.multiplier *= 3;
                 cfg
@@ -158,7 +161,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
             max_size: 1000,
         },
         feature_flags: {
-            let mut flags = HashMap::new();
+            let mut flags = BTreeMap::new();
             flags.insert("new_ui".to_string(), true);
             flags.insert("analytics".to_string(), true);
             flags.insert("experimental".to_string(), false);
@@ -170,7 +173,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
         user_id: "user123".to_string(),
         permissions: vec!["read".to_string(), "write".to_string()],
         preferences: {
-            let mut prefs = HashMap::new();
+            let mut prefs = BTreeMap::new();
             prefs.insert("theme".to_string(), "dark".to_string());
             prefs.insert("language".to_string(), "en".to_string());
             prefs
@@ -182,8 +185,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
         }),
     };
 
-    #[derive(Clone)]
-    #[allow(dead_code)]
+    #[derive(Clone, PartialEq, Eq, Hash)]
     struct AppEnvironment {
         config: AppConfig,
         user: UserContext,
@@ -206,28 +208,35 @@ pub fn reader_benchmarks(c: &mut Criterion) {
     // Combined real-world use cases
     group.bench_function("real_world_use_cases", |b| {
         // Create readers once, outside the benchmark loop
-        let build_request = Reader::<AppEnvironment, String>::ask_with(|env: &AppEnvironment| {
-            let config = &env.config;
-            format!(
-                "GET {}/users HTTP/1.1\nAuthorization: Bearer {}\nTimeout: {}",
-                config.base_url, config.api_key, config.timeout_ms
-            )
-        });
+        let build_request = Reader::<AppEnvironment, String>::ask_with(
+            |env: &AppEnvironment| {
+                let config = &env.config;
+                format!(
+                    "GET {}/users HTTP/1.1\nAuthorization: Bearer {}\nTimeout: {}",
+                    config.base_url, config.api_key, config.timeout_ms
+                )
+            },
+            |x| Id::new(x),
+        );
 
-        let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(|env: &AppEnvironment| {
-            let feature_enabled = env
-                .config
-                .feature_flags
-                .get("new_ui")
-                .cloned()
-                .unwrap_or(false);
-            let user_has_permission = env.user.permissions.contains(&"read".to_string());
-            feature_enabled && user_has_permission
-        });
+        let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(
+            |env: &AppEnvironment| {
+                let feature_enabled = env
+                    .config
+                    .feature_flags
+                    .get("new_ui")
+                    .cloned()
+                    .unwrap_or(false);
+                let user_has_permission = env.user.permissions.contains(&"read".to_string());
+                feature_enabled && user_has_permission
+            },
+            |x| Id::new(x),
+        );
 
-        let is_authenticated = Reader::<AppEnvironment, bool>::ask_with(|env: &AppEnvironment| {
-            env.user.session_data.is_some()
-        });
+        let is_authenticated = Reader::<AppEnvironment, bool>::ask_with(
+            |env: &AppEnvironment| env.user.session_data.is_some(),
+            |x| Id::new(x),
+        );
 
         // Clone environment once
         let env = environment.clone();
@@ -244,17 +253,19 @@ pub fn reader_benchmarks(c: &mut Criterion) {
     // Benchmark to compare memoized reader performance
     group.bench_function("real_world_use_cases_memoized", |b| {
         // Create readers once, outside the benchmark loop
-        let build_request =
-            MemoizedReader::<AppEnvironment, String>::ask_with(|env: &AppEnvironment| {
+        let build_request = Reader::<AppEnvironment, String>::ask_with(
+            |env: &AppEnvironment| {
                 let config = &env.config;
                 format!(
                     "GET {}/users HTTP/1.1\nAuthorization: Bearer {}\nTimeout: {}",
                     config.base_url, config.api_key, config.timeout_ms
                 )
-            });
+            },
+            |x| Id::new(x),
+        );
 
-        let get_feature_flag =
-            MemoizedReader::<AppEnvironment, bool>::ask_with(|env: &AppEnvironment| {
+        let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(
+            |env: &AppEnvironment| {
                 let feature_enabled = env
                     .config
                     .feature_flags
@@ -263,12 +274,14 @@ pub fn reader_benchmarks(c: &mut Criterion) {
                     .unwrap_or(false);
                 let user_has_permission = env.user.permissions.contains(&"read".to_string());
                 feature_enabled && user_has_permission
-            });
+            },
+            |x| Id::new(x),
+        );
 
-        let is_authenticated =
-            MemoizedReader::<AppEnvironment, bool>::ask_with(|env: &AppEnvironment| {
-                env.user.session_data.is_some()
-            });
+        let is_authenticated = Reader::<AppEnvironment, bool>::ask_with(
+            |env: &AppEnvironment| env.user.session_data.is_some(),
+            |x| Id::new(x),
+        );
 
         // Clone environment once
         let env = environment.clone();
