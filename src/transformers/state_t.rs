@@ -450,6 +450,181 @@ where
             combine_fn((self_run_fn)(s.clone()), (other_run_fn)(s), combiner)
         })
     }
+
+    /// Creates a new `StateT` transformer with a pure value.
+    ///
+    /// This method lifts a pure value into the `StateT` monad without changing
+    /// the current state. It's the analog of `State::pure`.
+    ///
+    /// # Parameters
+    ///
+    /// * `a` - The value to lift into the StateT
+    /// * `pure_fn` - A function that lifts a tuple into the base monad
+    ///
+    /// # Returns
+    ///
+    /// A new `StateT` containing the value and preserving the state
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    ///
+    /// // Create a StateT with a pure value
+    /// let state_t = StateT::<i32, Option<(i32, String)>, String>::pure("hello".to_string(), Some);
+    ///
+    /// // Running with any state just returns the value and preserves the state
+    /// assert_eq!(state_t.run_state(42), Some((42, "hello".to_string())));
+    /// ```
+    pub fn pure<P>(a: A, pure_fn: P) -> Self
+    where
+        P: Fn((S, A)) -> M + Send + Sync + 'static,
+        A: Clone + Send + Sync,
+    {
+        StateT::new(move |s| pure_fn((s, a.clone())))
+    }
+
+    /// Runs the state computation and returns only the final state, discarding the value.
+    ///
+    /// # Parameters
+    ///
+    /// * `s` - The initial state
+    /// * `extract_state_fn` - Function that knows how to extract the state from the monadic result
+    ///
+    /// # Returns
+    ///
+    /// The final state after running the computation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    ///
+    /// // Create a state that increments the state
+    /// let state_t = StateT::<i32, Option<(i32, String)>, String>::new(|s| {
+    ///     Some((s + 1, format!("Value: {}", s)))
+    /// });
+    ///
+    /// // Run and extract only the state
+    /// let result = state_t.exec_state(42, |opt| opt.map(|(s, _)| s));
+    /// assert_eq!(result, Some(43));
+    /// ```
+    pub fn exec_state<F, B>(&self, s: S, extract_state_fn: F) -> B
+    where
+        F: FnOnce(M) -> B,
+    {
+        extract_state_fn(self.run_state(s))
+    }
+
+    /// Applies a function inside a StateT to a value inside another StateT.
+    /// Applies a function inside a StateT to a value inside another StateT.
+    ///
+    /// This is the applicative apply operation for StateT, allowing you to
+    /// apply a function in a stateful context to a value in a stateful context.
+    ///
+    /// # Parameters
+    ///
+    /// * `other` - A StateT containing the value to apply the function to
+    /// * `apply_fn` - A function that knows how to apply functions in the base monad
+    ///
+    /// # Returns
+    ///
+    /// A new StateT containing the result of applying the function to the value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    ///
+    /// // Define a function that adds state to its argument
+    /// let fn_state: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| {
+    ///     Some((s + 1, 10))
+    /// });
+    ///
+    /// // Define a state holding a value
+    /// let value_state: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| {
+    ///     Some((s * 2, 5))
+    /// });
+    ///
+    /// // Apply the function to the value
+    /// let result: StateT<i32, Option<(i32, i32)>, i32> = fn_state.apply(value_state, |f_result, v_result| {
+    ///     match (f_result, v_result) {
+    ///         (Some((s1, f)), Some((s2, v))) => {
+    ///             Some((s2, f + v)) // Using the second state, add the values
+    ///         },
+    ///         _ => None
+    ///     }
+    /// });
+    ///
+    /// // Run with state 10
+    /// // fn_state: returns (11, 10)
+    /// // value_state: returns (20, 5)
+    /// // apply: returns (20, 10 + 5) = (20, 15)
+    /// assert_eq!(result.run_state(10), Some((20, 15)));
+    /// ```
+    pub fn apply<B, C, ApplyFn>(&self, other: StateT<S, M, B>, apply_fn: ApplyFn) -> StateT<S, M, C>
+    where
+        A: Clone + Send + Sync + 'static,
+        B: Clone + Send + Sync + 'static,
+        C: Clone + Send + Sync + 'static,
+        S: Clone + Send + Sync + 'static,
+        ApplyFn: Fn(M, M) -> M + Send + Sync + 'static,
+    {
+        let self_run = Arc::clone(&self.run_fn);
+        let other_run = Arc::clone(&other.run_fn);
+
+        StateT::new(move |s: S| apply_fn(self_run(s.clone()), other_run(s)))
+    }
+
+    /// Joins a nested StateT structure, flattening it to a single level.
+    ///
+    /// This is useful when working with operations that return StateT instances
+    /// inside StateT, allowing you to flatten the nested structure.
+    ///
+    /// # Parameters
+    ///
+    /// * `join_fn` - Function that knows how to join/flatten the base monad
+    ///
+    /// # Returns
+    ///
+    /// A flattened StateT instance
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    ///
+    /// // Create a nested StateT (StateT inside StateT)
+    /// let nested: StateT<i32, Option<(i32, StateT<i32, Option<(i32, i32)>, i32>)>, StateT<i32, Option<(i32, i32)>, i32>> =
+    ///     StateT::new(|s: i32| {
+    ///         let inner = StateT::new(move |inner_s: i32| {
+    ///             Some((inner_s * 2, inner_s + s))
+    ///         });
+    ///         Some((s + 1, inner))
+    ///     });
+    ///
+    /// // Flatten the structure
+    /// let flattened = nested.join(|m| {
+    ///     m.and_then(|(outer_s, inner_state_t)| {
+    ///         inner_state_t.run_state(outer_s)
+    ///     })
+    /// });
+    ///
+    /// // Run the flattened computation
+    /// // With initial state 10:
+    /// // 1. outer: (11, inner_state_t)
+    /// // 2. inner_state_t with state 11: (22, 21)
+    /// assert_eq!(flattened.run_state(10), Some((22, 21)));
+    /// ```
+    pub fn join<JoinFn, OuterM>(&self, join_fn: JoinFn) -> StateT<S, OuterM, A>
+    where
+        A: Clone + Send + Sync + 'static,
+        JoinFn: Fn(M) -> OuterM + Send + Sync + 'static,
+        OuterM: 'static,
+    {
+        let run_fn = Arc::clone(&self.run_fn);
+        StateT::new(move |s: S| join_fn(run_fn(s)))
+    }
 }
 
 impl<S, M, A> MonadTransformer for StateT<S, M, A>

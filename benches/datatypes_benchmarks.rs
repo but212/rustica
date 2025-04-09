@@ -20,22 +20,21 @@ mod datatypes {
 }
 
 // Re-export benchmark functions
+#[cfg(feature = "async")]
+use datatypes::async_monad::async_monad_benchmarks;
+use datatypes::choice::choice_benchmarks;
+use datatypes::cont::cont_benchmarks;
 use datatypes::either::either_benchmarks;
 use datatypes::id::id_benchmarks;
+use datatypes::io::io_benchmarks;
 use datatypes::lens::lens_benchmarks;
 use datatypes::maybe::maybe_benchmarks;
 use datatypes::prism::prism_benchmarks;
 use datatypes::pvec::pvec_benchmarks;
 use datatypes::reader::reader_benchmarks;
+use datatypes::state::state_benchmarks;
 use datatypes::validated::validated_benchmarks;
 use datatypes::writer::writer_benchmarks;
-
-#[cfg(feature = "async")]
-use datatypes::async_monad::async_monad_benchmarks;
-use datatypes::choice::choice_benchmarks;
-use datatypes::cont::cont_benchmarks;
-use datatypes::io::io_benchmarks;
-use datatypes::state::state_benchmarks;
 
 #[cfg(not(feature = "async"))]
 criterion_group!(
