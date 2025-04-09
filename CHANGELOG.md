@@ -24,6 +24,8 @@
 - Comprehensive test suite for Maybe error handling
 
 ### Changed
+- Removed the `full` feature flag as core functionality is now included by default
+- Refactored `Reader` monad to use the `ReaderT` transformer internally, improving type safety and composability
 - Removed redundant `map` method from `Id` type to encourage consistent use of `fmap` across library
 - Simplified `Lens` and `Prism` implementations by removing `Arc` dependency, making type inference easier
 - Simplified the `Maybe` monad implementation:

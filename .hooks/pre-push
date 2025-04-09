@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+echo "Running pre-push hooks..."
+
+# Run all tests before pushing
+echo "Running cargo test..."
+cargo test --all-features
+
+# If any tests failed, the script will exit because of set -e
+echo "✅ All tests passed! Pushing to remote..."
