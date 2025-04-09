@@ -34,3 +34,6 @@ output.txt
 
 # 기타
 *.rs.bk
+
+# hooks
+.hooks
