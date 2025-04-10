@@ -29,7 +29,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Run all benchmarks
-        run: cargo bench --features advanced
+        run: cargo bench --features full
         
       - name: Save benchmark results
         run: |
