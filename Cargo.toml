@@ -22,8 +22,9 @@ criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
 default = []
+pvec = []
 async = ["futures", "tokio"]
-full = ["async"]
+full = ["async", "pvec"]
 
 [package.metadata.docs.rs]
 all-features = true

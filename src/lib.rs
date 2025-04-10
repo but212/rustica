@@ -19,6 +19,7 @@ pub mod traits;
 
 pub mod utils;
 
+#[cfg(feature = "pvec")]
 pub mod pvec;
 
 /// Implementations of functional data types.

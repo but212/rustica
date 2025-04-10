@@ -3,7 +3,7 @@
 ## [0.6.0]
 
 ### Added
-- New `pvec` module that provides persistent vector implementations
+- New `pvec` module that provides persistent vector implementations with optional feature flags for memory optimization strategies
 - Improved functional programming support for collection types
 - New `memoize` module in `wrapper` namespace for caching function results
 - Added `MemoizeFn` type to `wrapper/memoize.rs` for enhanced function memoization
