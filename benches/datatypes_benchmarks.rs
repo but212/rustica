@@ -74,6 +74,26 @@ criterion_group!(
 );
 
 #[cfg(feature = "async")]
+#[cfg(not(feature = "pvec"))]
+criterion_group!(
+    datatype_benches,
+    maybe_benchmarks,
+    id_benchmarks,
+    validated_benchmarks,
+    writer_benchmarks,
+    cont_benchmarks,
+    state_benchmarks,
+    choice_benchmarks,
+    io_benchmarks,
+    either_benchmarks,
+    lens_benchmarks,
+    prism_benchmarks,
+    reader_benchmarks,
+    async_monad_benchmarks,
+);
+
+#[cfg(feature = "async")]
+#[cfg(feature = "pvec")]
 criterion_group!(
     datatype_benches,
     maybe_benchmarks,
