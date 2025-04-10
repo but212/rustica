@@ -42,8 +42,7 @@ pub fn id_benchmarks(c: &mut Criterion) {
 
     // Functor operations
     group.bench_function("fmap_ref", |b| {
-        let id = Id::new(10);
-        b.iter(|| black_box(id.fmap(|x: &i32| x * 2)));
+        b.iter(|| black_box(Id::new(10).fmap(|x: &i32| x * 2)));
     });
 
     group.bench_function("fmap_owned", |b| {
@@ -90,6 +89,14 @@ pub fn id_benchmarks(c: &mut Criterion) {
         let id1 = Id::new(String::from("Hello, "));
         let id2 = Id::new(String::from("world!"));
         b.iter(|| black_box(id1.combine(&id2)));
+    });
+
+    group.bench_function("combine_owned", |b| {
+        b.iter(|| {
+            black_box(
+                Id::new(String::from("Hello, ")).combine_owned(Id::new(String::from("world!"))),
+            )
+        });
     });
 
     group.bench_function("empty", |b| {

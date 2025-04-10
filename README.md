@@ -12,6 +12,7 @@ Rustica enables idiomatic functional programming in Rust by providing:
 
 - **Type Classes**: Core abstractions like `Functor`, `Applicative`, and `Monad`
 - **Data Types**: Common functional data structures like `Maybe`, `Either`, `Choice`, and `IO`
+- **Monad Transformers**: Powerful composition with `StateT`, `ReaderT`, and more
 - **Composable APIs**: Tools for function composition and transformation
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
 - **Error Handling**: Functional error handling utilities that work across different types
@@ -24,14 +25,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.5.4"
+rustica = "0.6.0"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.5.4", features = ["async"] }
+rustica = { version = "0.6.0", features = ["async"] }
 ```
 
 Then import the prelude to get started:
@@ -96,7 +97,7 @@ Rustica provides a rich collection of functional data types:
 
 - **Effect Types**
   - `IO<A>` - For pure I/O operations
-  - `State<S, A>` - For stateful computations
+  - `State<S, A>` - For stateful computations with thread-safe implementations
   - `Reader<E, A>` - For environment-based computations
   - `Writer<W, A>` - For logging operations
   - `Cont<R, A>` - For continuation-based programming
@@ -104,6 +105,15 @@ Rustica provides a rich collection of functional data types:
 
 - **Special Purpose**
   - Various wrapper types (`First`, `Last`, `Min`, `Max`, etc.)
+
+- **Persistent Collections**
+  - `PersistentVector<T>` - An efficient immutable vector with structural sharing
+
+- **Transformers**
+  - `StateT<S, M, A>` - State monad transformer for combining state with other effects
+  - `ReaderT<E, M, A>` - Reader monad transformer for combining environment with other effects
+  - `WriterT<W, M, A>` - Writer monad transformer for combining logging with other effects
+  - Bidirectional conversion between monads and their transformer versions
 
 - **Optics**
   - `Lens` - For focusing on parts of structures
@@ -152,6 +162,88 @@ Rustica implements a pattern for working with higher-kinded types in Rust, provi
 - The `HKT` trait for type constructors
 - The `BinaryHKT` trait for types with two parameters
 - Utilities for working with HKTs
+
+### Persistent Collections
+
+Rustica provides persistent data structures that enable efficient immutable programming:
+
+```rust
+use rustica::prelude::*;
+use rustica::pvec::PersistentVector;
+use rustica::pvec; // Import the pvec! macro
+
+// Create using the constructor
+let mut vector = PersistentVector::<i32>::new();
+let vector = vector.push_back(1).push_back(2).push_back(3);
+
+// Create using the convenient macro
+let vector = pvec![1, 2, 3, 4, 5];
+
+// Access elements
+assert_eq!(vector.get(2), Some(&3));
+
+// Modify without changing the original
+let updated = vector.update(2, 10);
+assert_eq!(updated.get(2), Some(&10));
+assert_eq!(vector.get(2), Some(&3)); // Original unchanged
+
+// Efficient operations returning new vectors
+let appended = vector.append(6);
+let removed = vector.remove(0);
+let sliced = vector.slice(1, 3);
+
+// Convert to standard Vec if needed
+let std_vec = vector.to_vec();
+```
+
+The `PersistentVector<T>` is implemented using a Relaxed Radix Balanced (RRB) tree, providing:
+
+- **Performance**: O(log n) for most operations, O(1) amortized for push/pop
+- **Immutability**: All operations create new versions without modifying the original
+- **Structural Sharing**: Efficient memory usage by sharing common structure between versions
+- **Thread Safety**: Safe to use across threads due to its immutable nature
+- **Memory Optimization**: Special representation for small vectors to reduce overhead
+
+This makes it ideal for functional programming patterns, concurrent applications, and scenarios where you need to maintain multiple versions of a collection efficiently.
+
+### Monad Transformers
+
+Rustica provides a comprehensive set of monad transformers that allow you to combine monadic effects:
+
+```rust
+use rustica::prelude::*;
+use rustica::transformers::StateT;
+use rustica::transformers::ReaderT;
+use rustica::datatypes::state::State;
+use rustica::datatypes::reader::Reader;
+use rustica::datatypes::id::Id;
+
+// Converting between State and StateT
+let state_computation = State::new(|s: i32| (s * 2, s + 1));
+
+// Convert State to StateT with Option
+let state_t = state_computation.to_state_t(|t| Some(t));
+assert_eq!(state_t.run_state(5), Some((10, 6)));
+
+// Converting StateT back to State
+let state_t_with_id = StateT::new(|s: i32| Id::new((s * 2, s + 1)));
+let converted_state = State::to_state(state_t_with_id);
+assert_eq!(converted_state.run_state(5), (10, 6));
+
+// Bidirectional conversion for Reader/ReaderT
+let reader = Reader::new(|env: String| env.len());
+let reader_t = reader.to_reader_t(|a| Some(a));
+
+// Applying Reader with environment transformations
+let result = reader.run_reader("hello".to_string());
+assert_eq!(result, 5);
+```
+
+Transformers enable you to:
+- Combine different effects (like state + error handling)
+- Layer functionality while keeping concerns separated
+- Create reusable and composable components
+- Maintain type safety throughout your application architecture
 
 ## Examples
 
@@ -240,6 +332,48 @@ match validation_result {
         }
     }
 }
+```
+
+### Working with State Monad
+
+```rust
+use rustica::prelude::*;
+use rustica::datatypes::state::State;
+use rustica::datatypes::state::{get, put, modify};
+
+// Simple counter with State monad
+let counter = State::new(|s: i32| (s, s + 1));
+assert_eq!(counter.run_state(5), (5, 6));
+
+// Complex state transformations with bind
+let computation = get::<i32>().bind(|value| {
+    if value > 10 {
+        put(value * 2)
+    } else {
+        modify(|s: i32| s + 5)
+    }
+});
+
+// With initial state 5: get returns 5, then we modify to 5+5=10
+assert_eq!(computation.exec_state(5), 10);
+
+// With initial state 15: get returns 15, then we put 15*2=30
+assert_eq!(computation.exec_state(15), 30);
+
+// Using StateT for combining state with other effects
+use rustica::transformers::StateT;
+
+// StateT with Option as the base monad
+let safe_counter: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| {
+    if s >= 0 {
+        Some((s, s + 1))
+    } else {
+        None // Computation fails for negative numbers
+    }
+});
+
+assert_eq!(safe_counter.run_state(5), Some((5, 6)));
+assert_eq!(safe_counter.run_state(-1), None);
 ```
 
 ## Inspiration

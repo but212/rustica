@@ -158,6 +158,7 @@ use crate::utils::error_utils::AppError;
 /// // 3. Third computation returns ("Result: 9", 4 * 2) = ("Result: 9", 8)
 /// assert_eq!(computation.run_state(3), ("Result: 9".to_string(), 8));
 /// ```
+#[repr(transparent)]
 pub struct State<S, A> {
     /// The state transformation function
     inner: StateT<S, Id<(A, S)>, A>,
