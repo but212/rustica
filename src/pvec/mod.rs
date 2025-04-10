@@ -73,4 +73,4 @@ macro_rules! pvec {
 }
 
 // Re-export the macro at the pvec module level
-#[cfg(feature = "pvec")] pub use pvec;
+pub use pvec;
