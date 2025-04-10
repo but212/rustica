@@ -37,6 +37,25 @@ use datatypes::validated::validated_benchmarks;
 use datatypes::writer::writer_benchmarks;
 
 #[cfg(not(feature = "async"))]
+#[cfg(not(feature = "pvec"))]
+criterion_group!(
+    datatype_benches,
+    maybe_benchmarks,
+    id_benchmarks,
+    validated_benchmarks,
+    writer_benchmarks,
+    cont_benchmarks,
+    state_benchmarks,
+    choice_benchmarks,
+    io_benchmarks,
+    either_benchmarks,
+    lens_benchmarks,
+    prism_benchmarks,
+    reader_benchmarks,
+);
+
+#[cfg(not(feature = "async"))]
+#[cfg(feature = "pvec")]
 criterion_group!(
     datatype_benches,
     maybe_benchmarks,
