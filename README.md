@@ -35,6 +35,20 @@ If you want to use async features, add the `async` feature:
 rustica = { version = "0.6.0", features = ["async"] }
 ```
 
+If you want to use persistent vector collections, add the `pvec` feature:
+
+```toml
+[dependencies]
+rustica = { version = "0.6.0", features = ["pvec"] }
+```
+
+You can combine multiple features as needed:
+
+```toml
+[dependencies]
+rustica = { version = "0.6.0", features = ["async", "pvec"] }
+```
+
 Then import the prelude to get started:
 
 ```rust
