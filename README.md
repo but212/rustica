@@ -25,28 +25,28 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.6.0"
+rustica = "0.6.1"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.0", features = ["async"] }
+rustica = { version = "0.6.1", features = ["async"] }
 ```
 
 If you want to use persistent vector collections, add the `pvec` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.0", features = ["pvec"] }
+rustica = { version = "0.6.1", features = ["pvec"] }
 ```
 
 You can combine multiple features as needed:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.0", features = ["async", "pvec"] }
+rustica = { version = "0.6.1", features = ["full"] }
 ```
 
 Then import the prelude to get started:
@@ -57,14 +57,14 @@ use rustica::traits::composable::Composable;
 
 fn main() {
     // Be explicit with type annotations for generic types
-    let value: Maybe<i32> = Maybe::Just(42);
+    let value: Maybe<i32> = Maybe::just(42);
     let doubled = value.fmap(|x| x * 2);
     assert_eq!(doubled.unwrap(), 84);
 
     // Example using functional composition
     let add_one = |x: i32| x + 1;
     let multiply_two = |x: i32| x * 2;
-    let composed = Either::<(), i32>::compose(&add_one, &multiply_two);
+    let composed = compose(multiply_two, add_one);
     let result = composed(3); // (3 + 1) * 2 = 8
     println!("Result: {}", result);
 }
@@ -121,7 +121,7 @@ Rustica provides a rich collection of functional data types:
   - Various wrapper types (`First`, `Last`, `Min`, `Max`, etc.)
 
 - **Persistent Collections**
-  - `PersistentVector<T>` - An efficient immutable vector with structural sharing
+  - `PersistentVector<T>` - An efficient immutable vector with structural sharing and small vector optimization
 
 - **Transformers**
   - `StateT<S, M, A>` - State monad transformer for combining state with other effects
@@ -187,7 +187,7 @@ use rustica::pvec::PersistentVector;
 use rustica::pvec; // Import the pvec! macro
 
 // Create using the constructor
-let mut vector = PersistentVector::<i32>::new();
+let vector = PersistentVector::<i32>::new();
 let vector = vector.push_back(1).push_back(2).push_back(3);
 
 // Create using the convenient macro
@@ -201,18 +201,12 @@ let updated = vector.update(2, 10);
 assert_eq!(updated.get(2), Some(&10));
 assert_eq!(vector.get(2), Some(&3)); // Original unchanged
 
-// Efficient operations returning new vectors
-let appended = vector.append(6);
-let removed = vector.remove(0);
-let sliced = vector.slice(1, 3);
-
-// Convert to standard Vec if needed
-let std_vec = vector.to_vec();
+// Small vector optimization for better performance
+// Vectors with 8 or fewer elements use an optimized inline representation
+let small_vec = pvec![1, 2, 3]; // Uses optimized storage
 ```
 
-The `PersistentVector<T>` is implemented using a Relaxed Radix Balanced (RRB) tree, providing:
-
-- **Performance**: O(log n) for most operations, O(1) amortized for push/pop
+The `PersistentVector` provides:
 - **Immutability**: All operations create new versions without modifying the original
 - **Structural Sharing**: Efficient memory usage by sharing common structure between versions
 - **Thread Safety**: Safe to use across threads due to its immutable nature
@@ -222,44 +216,29 @@ This makes it ideal for functional programming patterns, concurrent applications
 
 ### Monad Transformers
 
-Rustica provides a comprehensive set of monad transformers that allow you to combine monadic effects:
+Monad transformers let you combine the effects of multiple monads:
 
 ```rust
 use rustica::prelude::*;
 use rustica::transformers::StateT;
-use rustica::transformers::ReaderT;
-use rustica::datatypes::state::State;
-use rustica::datatypes::reader::Reader;
-use rustica::datatypes::id::Id;
+use rustica::datatypes::maybe::Maybe;
 
-// Converting between State and StateT
-let state_computation = State::new(|s: i32| (s * 2, s + 1));
+// Define a stateful computation that returns a Maybe
+let state_t = StateT::new(|s: i32| {
+    // Increment state and return maybe value
+    if s > 0 {
+        Maybe::just((s + 1, s * 2))
+    } else {
+        Maybe::nothing()
+    }
+});
 
-// Convert State to StateT with Option
-let state_t = state_computation.to_state_t(|t| Some(t));
-assert_eq!(state_t.run_state(5), Some((10, 6)));
-
-// Converting StateT back to State
-let state_t_with_id = StateT::new(|s: i32| Id::new((s * 2, s + 1)));
-let converted_state = State::to_state(state_t_with_id);
-assert_eq!(converted_state.run_state(5), (10, 6));
-
-// Bidirectional conversion for Reader/ReaderT
-let reader = Reader::new(|env: String| env.len());
-let reader_t = reader.to_reader_t(|a| Some(a));
-
-// Applying Reader with environment transformations
-let result = reader.run_reader("hello".to_string());
-assert_eq!(result, 5);
+// Run the computation with initial state
+let result = state_t.run_state(5);
+assert_eq!(result, Maybe::just((6, 10)));
 ```
 
-Transformers enable you to:
-- Combine different effects (like state + error handling)
-- Layer functionality while keeping concerns separated
-- Create reusable and composable components
-- Maintain type safety throughout your application architecture
-
-## Examples
+### Examples
 
 ### Working with Maybe (Option)
 
@@ -273,10 +252,10 @@ let input = "42";
 let maybe_int: Maybe<i32> = input.parse::<i32>().ok().into();  // Convert to Maybe
 
 let result = maybe_int
-    .bind(|x: i32| if x > 0 { Maybe::Just(x) } else { Maybe::Nothing })
+    .bind(|x: i32| if x > 0 { Maybe::just(x) } else { Maybe::nothing() })
     .fmap(|x: i32| x * 2);
 
-assert_eq!(result, Maybe::Just(84));
+assert_eq!(result, Maybe::just(84));
 ```
 
 ### Working with Choice for non-deterministic computations
