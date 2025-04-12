@@ -277,7 +277,7 @@ impl<T: Clone> Node<T> {
 
                 // For regular nodes, calculate the size based on children
                 children.iter().flatten().map(|child| child.size()).sum()
-            }
+            },
         }
     }
 
@@ -437,7 +437,7 @@ impl<T: Clone> Node<T> {
                     let sub_index = index & mask;
                     (child_index, sub_index)
                 }
-            }
+            },
             _ => panic!("find_child_index called on a non-branch node"),
         }
     }
@@ -481,9 +481,7 @@ impl<T: Clone> Node<T> {
     /// A managed reference to the newly created branch node
     #[inline]
     fn create_branch_node(
-        &self,
-        manager: &MemoryManager<T>,
-        children: Vec<Option<ManagedRef<Node<T>>>>,
+        &self, manager: &MemoryManager<T>, children: Vec<Option<ManagedRef<Node<T>>>>,
         sizes: Option<Vec<usize>>,
     ) -> ManagedRef<Node<T>> {
         Self::create_node(manager, |node| {
@@ -506,8 +504,7 @@ impl<T: Clone> Node<T> {
     /// A managed reference to the newly created leaf node
     #[inline]
     fn create_leaf_node(
-        manager: &MemoryManager<T>,
-        elements: ManagedRef<Chunk<T>>,
+        manager: &MemoryManager<T>, elements: ManagedRef<Chunk<T>>,
     ) -> ManagedRef<Node<T>> {
         Self::create_node(manager, |node| {
             *node = Node::Leaf { elements };
@@ -568,11 +565,11 @@ impl<T: Clone> Node<T> {
             Ok(chunk) => {
                 modifier(chunk);
                 new_chunk
-            }
+            },
             Err(mut new_managed) => {
                 modifier(new_managed.get_mut().unwrap());
                 new_managed
-            }
+            },
         }
     }
 
@@ -611,7 +608,7 @@ impl<T: Clone> Node<T> {
                 }
 
                 new_node
-            }
+            },
             _ => panic!("Expected branch node"),
         }
     }
@@ -631,16 +628,11 @@ impl<T: Clone> Node<T> {
     ///
     /// A managed reference to the modified branch node
     fn replace_child(
-        &self,
-        manager: &MemoryManager<T>,
-        child_index: usize,
-        new_child: ManagedRef<Node<T>>,
+        &self, manager: &MemoryManager<T>, child_index: usize, new_child: ManagedRef<Node<T>>,
     ) -> ManagedRef<Node<T>> {
         self.modify_branch(manager, |children, sizes| {
             if child_index < children.len() {
-                let old_size = children[child_index]
-                    .as_ref()
-                    .map_or(0, |child| child.size());
+                let old_size = children[child_index].as_ref().map_or(0, |child| child.size());
                 let size_diff = new_child.size() as isize - old_size as isize;
 
                 // Replace the child node
@@ -750,8 +742,8 @@ impl<T: Clone> Node<T> {
         match self {
             Node::Branch { children, sizes } if sizes.is_none() => {
                 *sizes = Some(Self::build_size_table(children));
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 
@@ -793,7 +785,7 @@ impl<T: Clone> Node<T> {
                 }
 
                 None
-            }
+            },
         }
     }
 
@@ -829,11 +821,7 @@ impl<T: Clone> Node<T> {
     /// assert!(node.update(&manager, 5, 42, 0).is_none());
     /// ```
     pub fn update(
-        &self,
-        manager: &MemoryManager<T>,
-        index: usize,
-        value: T,
-        shift: usize,
+        &self, manager: &MemoryManager<T>, index: usize, value: T, shift: usize,
     ) -> Option<ManagedRef<Node<T>>> {
         match self {
             Node::Leaf { elements } => {
@@ -849,7 +837,7 @@ impl<T: Clone> Node<T> {
                 });
 
                 Some(Self::create_leaf_node(manager, new_elements))
-            }
+            },
             Node::Branch { children, sizes: _ } => {
                 let (child_index, sub_index) = self.find_child_index(index, shift);
 
@@ -868,10 +856,10 @@ impl<T: Clone> Node<T> {
                         } else {
                             Some(self.replace_child(manager, child_index, new_child))
                         }
-                    }
+                    },
                     None => None,
                 }
-            }
+            },
         }
     }
 
@@ -936,7 +924,7 @@ impl<T: Clone> Node<T> {
 
                     (new_node, true, Some(overflow))
                 }
-            }
+            },
             Node::Branch { children, sizes: _ } => {
                 if children.is_empty() {
                     // Empty branch node, create a leaf node instead
@@ -989,7 +977,7 @@ impl<T: Clone> Node<T> {
                         (new_node, false, None)
                     }
                 }
-            }
+            },
         }
     }
 
@@ -1052,7 +1040,7 @@ impl<T: Clone> Node<T> {
 
                     (new_node, true, Some(overflow))
                 }
-            }
+            },
             Node::Branch { children, sizes } => {
                 if children.is_empty() {
                     // Empty branch node, create a new leaf node
@@ -1162,7 +1150,7 @@ impl<T: Clone> Node<T> {
                     let new_node = self.create_branch_node(manager, new_children, new_sizes);
                     (new_node, false, None)
                 }
-            }
+            },
         }
     }
 
@@ -1210,10 +1198,7 @@ impl<T: Clone> Node<T> {
     /// assert_eq!(*joined.get(3, 0).unwrap(), 4);
     /// ```
     pub fn join(
-        &self,
-        manager: &MemoryManager<T>,
-        other: &Node<T>,
-        _shift: usize,
+        &self, manager: &MemoryManager<T>, other: &Node<T>, _shift: usize,
     ) -> ManagedRef<Node<T>> {
         match (self, other) {
             (Node::Leaf { elements: left }, Node::Leaf { elements: right }) => {
@@ -1244,7 +1229,7 @@ impl<T: Clone> Node<T> {
                         Some(vec![left_len, total_len]),
                     )
                 }
-            }
+            },
             (
                 Node::Branch {
                     children: left_children,
@@ -1281,7 +1266,7 @@ impl<T: Clone> Node<T> {
                             size_table.extend_from_slice(&right_sizes_offset);
 
                             Some(size_table)
-                        }
+                        },
                         (Some(left_sizes), None) => {
                             // Only left node is relaxed
                             let mut size_table = Vec::with_capacity(total_children);
@@ -1293,7 +1278,7 @@ impl<T: Clone> Node<T> {
                                 size_table.push(sum);
                             }
                             Some(size_table)
-                        }
+                        },
                         (None, Some(right_sizes)) => {
                             // Only right node is relaxed
                             let mut size_table = Vec::with_capacity(total_children);
@@ -1311,7 +1296,7 @@ impl<T: Clone> Node<T> {
                             size_table.extend_from_slice(&right_sizes_offset);
 
                             Some(size_table)
-                        }
+                        },
                         (None, None) => Some(Self::build_size_table(&new_children)),
                     };
 
@@ -1335,7 +1320,7 @@ impl<T: Clone> Node<T> {
                         Some(vec![left_size, total_size]),
                     )
                 }
-            }
+            },
             (leaf @ Node::Leaf { .. }, branch @ Node::Branch { .. }) => {
                 // Convert leaf to branch and merge
                 if let Node::Leaf { elements } = leaf {
@@ -1349,7 +1334,7 @@ impl<T: Clone> Node<T> {
                 } else {
                     unreachable!()
                 }
-            }
+            },
             (branch @ Node::Branch { .. }, leaf @ Node::Leaf { .. }) => {
                 // Convert leaf to branch and merge
                 if let Node::Leaf { elements } = leaf {
@@ -1363,7 +1348,7 @@ impl<T: Clone> Node<T> {
                 } else {
                     unreachable!()
                 }
-            }
+            },
         }
     }
 
@@ -1407,10 +1392,7 @@ impl<T: Clone> Node<T> {
     /// assert_eq!(*right.get(1, 0).unwrap(), 30);
     /// ```
     pub fn split(
-        &self,
-        manager: &MemoryManager<T>,
-        index: usize,
-        shift: usize,
+        &self, manager: &MemoryManager<T>, index: usize, shift: usize,
     ) -> (ManagedRef<Node<T>>, ManagedRef<Node<T>>) {
         match self {
             Node::Leaf { elements } => {
@@ -1450,7 +1432,7 @@ impl<T: Clone> Node<T> {
 
                     (left_node, right_node)
                 }
-            }
+            },
             Node::Branch { children, sizes } => {
                 if index == 0 {
                     // Split before the first element (left is empty)
@@ -1522,7 +1504,7 @@ impl<T: Clone> Node<T> {
 
                     (left_node, right_node)
                 }
-            }
+            },
         }
     }
 
@@ -1577,7 +1559,7 @@ impl<T: Clone> Node<T> {
 
                 let new_node = Self::create_leaf_node(manager, new_elements);
                 (new_node, result)
-            }
+            },
             Node::Branch {
                 children,
                 ref sizes,
@@ -1636,7 +1618,7 @@ impl<T: Clone> Node<T> {
 
                 let empty_branch = self.create_branch_node(manager, Vec::new(), Some(Vec::new()));
                 (empty_branch, None)
-            }
+            },
         }
     }
 
@@ -1690,7 +1672,7 @@ impl<T: Clone> Node<T> {
                 });
 
                 (Self::create_leaf_node(manager, new_elements), result)
-            }
+            },
             Node::Branch { children, sizes } => {
                 if children.is_empty() {
                     let mut new_node = manager.acquire_node();
@@ -1753,7 +1735,7 @@ impl<T: Clone> Node<T> {
                         (new_node, None)
                     }
                 }
-            }
+            },
         }
     }
 }
@@ -1781,7 +1763,7 @@ impl<T: Clone + Debug> Debug for Node<T> {
 
                 debug_struct.field("children", children);
                 debug_struct.finish()
-            }
+            },
         }
     }
 }

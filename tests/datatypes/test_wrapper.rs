@@ -457,50 +457,32 @@ fn test_real_world_use_cases() {
 
     // 1. Using Sum to calculate total
     let values = vec![1, 2, 3, 4, 5];
-    let total = values
-        .iter()
-        .map(|&x| Sum(x))
-        .fold(Sum(0), |acc, x| acc.combine(&x));
+    let total = values.iter().map(|&x| Sum(x)).fold(Sum(0), |acc, x| acc.combine(&x));
     assert_eq!(total, Sum(15));
 
     // 2. Using Product to calculate factorial
     let values = vec![1, 2, 3, 4, 5];
-    let factorial = values
-        .iter()
-        .map(|&x| Product(x))
-        .fold(Product(1), |acc, x| acc.combine(&x));
+    let factorial = values.iter().map(|&x| Product(x)).fold(Product(1), |acc, x| acc.combine(&x));
     assert_eq!(factorial, Product(120));
 
     // 3. Using Min to find minimum value
     let values = vec![5, 3, 8, 2, 7];
-    let minimum = values
-        .iter()
-        .map(|&x| Min(x))
-        .fold(Min(i32::MAX), |acc, x| acc.combine(&x));
+    let minimum = values.iter().map(|&x| Min(x)).fold(Min(i32::MAX), |acc, x| acc.combine(&x));
     assert_eq!(minimum, Min(2));
 
     // 4. Using Max to find maximum value
     let values = vec![5, 3, 8, 2, 7];
-    let maximum = values
-        .iter()
-        .map(|&x| Max(x))
-        .fold(Max(i32::MIN), |acc, x| acc.combine(&x));
+    let maximum = values.iter().map(|&x| Max(x)).fold(Max(i32::MIN), |acc, x| acc.combine(&x));
     assert_eq!(maximum, Max(8));
 
     // 5. Using First to get the first non-None value
     let values: Vec<Option<i32>> = vec![None, Some(42), Some(84), None];
-    let first = values
-        .iter()
-        .map(|&x| First(x))
-        .fold(First(None), |acc, x| acc.combine(&x));
+    let first = values.iter().map(|&x| First(x)).fold(First(None), |acc, x| acc.combine(&x));
     assert_eq!(first, First(Some(42)));
 
     // 6. Using Last to get the last non-None value
     let values: Vec<Option<i32>> = vec![None, Some(42), Some(84), None];
-    let last = values
-        .iter()
-        .map(|&x| Last(x))
-        .fold(Last(None), |acc, x| acc.combine(&x));
+    let last = values.iter().map(|&x| Last(x)).fold(Last(None), |acc, x| acc.combine(&x));
     assert_eq!(last, Last(Some(84)));
 
     // 7. Using Memoize for expensive computation

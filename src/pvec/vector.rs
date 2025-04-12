@@ -185,10 +185,7 @@ impl<T: Clone> SmallVec<T> {
 
     /// Convert to a standard Vec
     fn to_vec(&self) -> std::vec::Vec<T> {
-        self.elements[0..self.size]
-            .iter()
-            .filter_map(|opt| opt.clone())
-            .collect()
+        self.elements[0..self.size].iter().filter_map(|opt| opt.clone()).collect()
     }
 }
 
@@ -263,7 +260,7 @@ impl<T: Clone> VectorImpl<T> {
 
                     VectorImpl::Tree { tree }
                 }
-            }
+            },
             VectorImpl::Tree { tree } => VectorImpl::Tree {
                 tree: tree.push_back(value),
             },
@@ -281,7 +278,7 @@ impl<T: Clone> VectorImpl<T> {
                 } else {
                     self.clone()
                 }
-            }
+            },
             VectorImpl::Tree { tree } => {
                 if index < tree.len() {
                     VectorImpl::Tree {
@@ -290,7 +287,7 @@ impl<T: Clone> VectorImpl<T> {
                 } else {
                     self.clone()
                 }
-            }
+            },
         }
     }
 
@@ -306,7 +303,7 @@ impl<T: Clone> VectorImpl<T> {
                     }
                 }
                 result
-            }
+            },
         }
     }
 
@@ -346,7 +343,7 @@ impl<T: Clone> VectorImpl<T> {
                 }
 
                 result
-            }
+            },
             VectorImpl::Tree { tree } => {
                 if start_index >= tree.len() {
                     return StdVec::new();
@@ -365,7 +362,7 @@ impl<T: Clone> VectorImpl<T> {
                 }
 
                 result
-            }
+            },
         }
     }
 
@@ -402,7 +399,7 @@ impl<T: Clone> VectorImpl<T> {
                         last_elem,
                     ))
                 }
-            }
+            },
             VectorImpl::Tree { tree } => tree
                 .pop_back()
                 .map(|(new_tree, value)| (VectorImpl::Tree { tree: new_tree }, value)),
@@ -607,10 +604,7 @@ impl<T: Clone> PersistentVector<T> {
     /// with size between min_size and max_size (inclusive).
     #[inline]
     pub(crate) fn get_chunk(
-        &self,
-        start_index: usize,
-        min_size: usize,
-        max_size: usize,
+        &self, start_index: usize, min_size: usize, max_size: usize,
     ) -> StdVec<T> {
         self.inner.get_chunk(start_index, min_size, max_size)
     }
@@ -708,9 +702,7 @@ impl<T: Clone> PersistentVector<T> {
     /// ```
     #[inline]
     pub fn pop_back(&self) -> Option<(Self, T)> {
-        self.inner
-            .pop_back()
-            .map(|(inner, value)| (Self { inner }, value))
+        self.inner.pop_back().map(|(inner, value)| (Self { inner }, value))
     }
 
     /// Converts this vector to an `Arc<PersistentVector<T>>`.

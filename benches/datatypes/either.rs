@@ -231,10 +231,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
             let result = input
                 .fmap(|v: &Vec<i32>| v.iter().map(|x| x * 2).collect::<Vec<i32>>())
                 .fmap(|v: &Vec<i32>| {
-                    v.iter()
-                        .filter(|x| *x % 2 == 0)
-                        .cloned()
-                        .collect::<Vec<i32>>()
+                    v.iter().filter(|x| *x % 2 == 0).cloned().collect::<Vec<i32>>()
                 })
                 .fmap(|v: &Vec<i32>| v.iter().sum::<i32>())
                 .fmap_right(|sum: i32| if sum > 20 { "large" } else { "small" });

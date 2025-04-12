@@ -14,3 +14,36 @@ normalize_comments = true
 normalize_doc_attributes = true
 imports_granularity = "Crate"
 group_imports = "StdExternalCrate"
+
+# Enhanced settings for functional programming
+# Handling of complex type signatures and closures
+fn_args_layout = "Compressed"
+where_single_line = true
+overflow_delimited_expr = true
+struct_lit_single_line = false
+use_field_init_shorthand = true
+
+# Documentation and comments
+comment_width = 90
+wrap_comments = true
+doc_comment_code_block_width = 80
+
+# Type alignment for better readability of complex generics
+struct_field_align_threshold = 20
+enum_discrim_align_threshold = 20
+match_arm_leading_pipes = "Preserve"
+match_block_trailing_comma = true
+
+# Imports and modules
+merge_imports = true
+imports_indent = "Block"
+
+# Chains for fluent APIs and method chaining common in FP
+chain_width = 80
+use_try_shorthand = true
+
+# Spacing and line breaks for better readability of complex expressions
+blank_lines_upper_bound = 2
+brace_style = "SameLineWhere"
+control_brace_style = "AlwaysSameLine"
+empty_item_single_line = true

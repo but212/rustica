@@ -227,8 +227,7 @@ pub trait Arrow: Category {
     ///
     /// A morphism that applies both `f` and `g` to the input
     fn split<B: Clone, C, D, E>(
-        f: &Self::Morphism<B, C>,
-        g: &Self::Morphism<B, D>,
+        f: &Self::Morphism<B, C>, g: &Self::Morphism<B, D>,
     ) -> Self::Morphism<B, (C, D)> {
         let duplicate = Self::arrow(|b: B| (b.clone(), b));
         Self::compose_morphisms(&duplicate, &Self::combine_morphisms(f, g))
@@ -256,8 +255,7 @@ pub trait Arrow: Category {
     ///
     /// A morphism that processes both components of a pair independently
     fn combine_morphisms<B, C, D, E>(
-        f: &Self::Morphism<B, C>,
-        g: &Self::Morphism<D, E>,
+        f: &Self::Morphism<B, C>, g: &Self::Morphism<D, E>,
     ) -> Self::Morphism<(B, D), (C, E)> {
         Self::compose_morphisms(&Self::first(f), &Self::second(g))
     }

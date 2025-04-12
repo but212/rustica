@@ -142,23 +142,5 @@ pub fn id_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Performance comparison patterns
-    group.bench_function("reference_vs_owned", |b| {
-        b.iter(|| {
-            let id = Id::new(10);
-            let ref_result = id
-                .fmap(|x: &i32| x + 5)
-                .bind(|x: &i32| Id::new(x * 2))
-                .fmap(|x: &i32| x.to_string());
-
-            let owned_result = Id::new(10)
-                .fmap_owned(|x| x + 5)
-                .bind_owned(|x| Id::new(x * 2))
-                .fmap(|x| x.to_string());
-
-            black_box((ref_result, owned_result))
-        });
-    });
-
     group.finish();
 }

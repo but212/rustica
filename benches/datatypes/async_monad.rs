@@ -139,7 +139,7 @@ pub fn async_monad_benchmarks(c: &mut Criterion) {
                             let mut cache_guard = cache_clone.lock().unwrap();
                             cache_guard.insert(key, computed_value);
                             computed_value
-                        }
+                        },
                     }
                 }
             }));

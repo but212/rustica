@@ -196,11 +196,11 @@ fn test_prism_lens_composition() {
                 // If successful, modify the name and review back to Status
                 let new_name = format!("{}-updated", current_name);
                 prism.review(&new_name)
-            }
+            },
             None => {
                 // If not the 'Active' variant, return the status unchanged
                 status
-            }
+            },
         }
     });
     assert_eq!(
@@ -214,10 +214,10 @@ fn test_prism_lens_composition() {
             Some(current_name) => {
                 let new_name = format!("{}-updated", current_name);
                 prism.review(&new_name)
-            }
+            },
             None => {
                 status // Prism preview returns None, status is unchanged
-            }
+            },
         }
     });
     assert_eq!(not_updated_user.status, Status::Inactive);

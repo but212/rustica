@@ -135,11 +135,7 @@ pub fn state_benchmarks(c: &mut Criterion) {
     group.bench_function("bind_chain", |b| {
         b.iter(|| {
             let state: State<i32, i32> = State::pure(42);
-            black_box(
-                state
-                    .bind(|x: i32| State::pure(x * 2))
-                    .bind(|x: i32| State::pure(x + 10)),
-            )
+            black_box(state.bind(|x: i32| State::pure(x * 2)).bind(|x: i32| State::pure(x + 10)))
         });
     });
 
@@ -149,13 +145,7 @@ pub fn state_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("State - Chain Operations");
 
     group.bench_function("get_put_chain", |b| {
-        b.iter(|| {
-            black_box(
-                get::<i32>()
-                    .bind(|s: i32| put(s * 2))
-                    .bind(|_: ()| get::<i32>()),
-            )
-        });
+        b.iter(|| black_box(get::<i32>().bind(|s: i32| put(s * 2)).bind(|_: ()| get::<i32>())));
     });
 
     group.bench_function("chain_with_statechange", |b| {
@@ -212,8 +202,7 @@ pub fn state_benchmarks(c: &mut Criterion) {
     group.bench_function("logging_system", |b| {
         b.iter(|| {
             fn append_log(
-                level: &'static str,
-                message: &'static str,
+                level: &'static str, message: &'static str,
             ) -> State<FileReaderState, ()> {
                 let entry = LogEntry {
                     timestamp: 1647271234,

@@ -6,9 +6,7 @@ use std::collections::BTreeMap;
 /// Function to use all fields to avoid unused field warnings in benchmarks
 #[allow(dead_code)]
 fn use_all_fields(
-    app_config: &AppConfig,
-    cache_config: &CacheConfig,
-    session_data: &SessionData,
+    app_config: &AppConfig, cache_config: &CacheConfig, session_data: &SessionData,
 ) -> String {
     // Get a reference to cache_settings to mark it as used
     let _cache_ref = &app_config.cache_settings;
@@ -221,12 +219,8 @@ pub fn reader_benchmarks(c: &mut Criterion) {
 
         let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(
             |env: &AppEnvironment| {
-                let feature_enabled = env
-                    .config
-                    .feature_flags
-                    .get("new_ui")
-                    .cloned()
-                    .unwrap_or(false);
+                let feature_enabled =
+                    env.config.feature_flags.get("new_ui").cloned().unwrap_or(false);
                 let user_has_permission = env.user.permissions.contains(&"read".to_string());
                 feature_enabled && user_has_permission
             },
@@ -266,12 +260,8 @@ pub fn reader_benchmarks(c: &mut Criterion) {
 
         let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(
             |env: &AppEnvironment| {
-                let feature_enabled = env
-                    .config
-                    .feature_flags
-                    .get("new_ui")
-                    .cloned()
-                    .unwrap_or(false);
+                let feature_enabled =
+                    env.config.feature_flags.get("new_ui").cloned().unwrap_or(false);
                 let user_has_permission = env.user.permissions.contains(&"read".to_string());
                 feature_enabled && user_has_permission
             },

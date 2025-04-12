@@ -328,8 +328,7 @@ impl<A: 'static + Clone> IO<A> {
     /// ```
     #[inline]
     pub fn try_get_with_context<C: Clone + 'static>(
-        &self,
-        context: C,
+        &self, context: C,
     ) -> Result<A, AppError<IOError, C>> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),

@@ -106,9 +106,7 @@ fn test_io_monad() {
     assert_eq!(right_identity.run(), computation.run());
 
     // 3. Associativity: m.bind(f).bind(g) ≡ m.bind(|x| f(x).bind(g))
-    let assoc_left = computation
-        .bind(|x| IO::new(move || x * 2))
-        .bind(|x| IO::new(move || x + 1));
+    let assoc_left = computation.bind(|x| IO::new(move || x * 2)).bind(|x| IO::new(move || x + 1));
     let assoc_right = computation.bind(|x| IO::new(move || x * 2).bind(|y| IO::new(move || y + 1)));
     assert_eq!(assoc_left.run(), assoc_right.run());
 }

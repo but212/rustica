@@ -386,8 +386,7 @@ where
 /// ```
 #[inline]
 pub fn compose_async_fn<A, B, C, F, G, FutB, FutC>(
-    f: F,
-    g: G,
+    f: F, g: G,
 ) -> impl Fn(A) -> Pin<Box<dyn Future<Output = C> + 'static>>
 where
     F: Fn(A) -> FutB + Clone + 'static,
@@ -753,10 +752,7 @@ where
     move |a| {
         let collection = f(a);
         let predicate = predicate.clone();
-        collection
-            .into_iter()
-            .filter(move |item| predicate(item))
-            .collect()
+        collection.into_iter().filter(move |item| predicate(item)).collect()
     }
 }
 
@@ -936,10 +932,7 @@ where
     move |a| {
         let collection = f(a);
         let predicate = predicate.clone();
-        collection
-            .into_par_iter()
-            .filter(move |item| predicate(item))
-            .collect()
+        collection.into_par_iter().filter(move |item| predicate(item)).collect()
     }
 }
 

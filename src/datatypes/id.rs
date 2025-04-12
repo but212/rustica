@@ -327,10 +327,7 @@ impl<T: Clone> Applicative for Id<T> {
 
     #[inline]
     fn lift3_owned<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         F: FnOnce(Self::Source, B, C) -> D,

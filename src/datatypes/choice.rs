@@ -478,7 +478,7 @@ impl<T> Choice<T> {
                 }
 
                 Choice::new(first_item, alternatives)
-            }
+            },
             None => panic!("Primary value was an empty iterator in Choice::flatten"),
         }
     }
@@ -684,14 +684,8 @@ impl<T: Clone> Identity for Choice<T> {
     #[inline]
     fn into_value(self) -> Self::Source {
         match Arc::try_unwrap(self.values) {
-            Ok(values) => values
-                .into_iter()
-                .next()
-                .expect("Cannot get value from an empty Choice"),
-            Err(arc) => arc
-                .first()
-                .cloned()
-                .expect("Cannot get value from an empty Choice"),
+            Ok(values) => values.into_iter().next().expect("Cannot get value from an empty Choice"),
+            Err(arc) => arc.first().cloned().expect("Cannot get value from an empty Choice"),
         }
     }
 }
@@ -729,14 +723,14 @@ impl<T: Clone> Functor for Choice<T> {
                 let primary = f(values.remove(0));
                 let alternatives: Vec<B> = values.into_iter().map(f).collect();
                 Choice::new(primary, alternatives)
-            }
+            },
             Err(arc) => {
                 let values = arc.as_ref();
                 let mut f = f;
                 let primary = f(values[0].clone());
                 let alternatives: Vec<B> = values[1..].iter().cloned().map(&mut f).collect();
                 Choice::new(primary, alternatives)
-            }
+            },
         }
     }
 }
@@ -809,7 +803,7 @@ impl<T: Clone> Monad for Choice<T> {
                 }
 
                 Choice::new(first, alternatives)
-            }
+            },
             Err(arc) => {
                 let values = arc.as_ref();
                 let primary_choice = f(values[0].clone());
@@ -831,7 +825,7 @@ impl<T: Clone> Monad for Choice<T> {
                 }
 
                 Choice::new(first, alternatives)
-            }
+            },
         }
     }
 
@@ -905,7 +899,7 @@ impl<T: Clone> Monad for Choice<T> {
                 }
 
                 Choice::new(first, alternatives)
-            }
+            },
             Err(arc) => {
                 let values = arc.as_ref();
                 let primary_choice: Self::Output<U> = values[0].clone().into();
@@ -930,7 +924,7 @@ impl<T: Clone> Monad for Choice<T> {
                 }
 
                 Choice::new(first, alternatives)
-            }
+            },
         }
     }
 }
@@ -991,7 +985,7 @@ impl<T: Clone> Semigroup for Choice<T> {
                 alternatives.extend_from_slice(other.values.as_ref());
 
                 Choice::new(primary, alternatives)
-            }
+            },
             Err(arc) => {
                 let self_values = arc.as_ref();
                 let primary = self_values[0].clone();
@@ -1007,7 +1001,7 @@ impl<T: Clone> Semigroup for Choice<T> {
                 alternatives.extend_from_slice(other.values.as_ref());
 
                 Choice::new(primary, alternatives)
-            }
+            },
         }
     }
 }
@@ -1099,7 +1093,7 @@ impl<T: Clone> Applicative for Choice<T> {
                 }
 
                 Choice::new(primary, alternatives)
-            }
+            },
             Err(arc) => {
                 let self_values = arc.as_ref();
                 let f_values = f.values.as_ref();
@@ -1128,7 +1122,7 @@ impl<T: Clone> Applicative for Choice<T> {
                 }
 
                 Choice::new(primary, alternatives)
-            }
+            },
         }
     }
 
@@ -1231,10 +1225,7 @@ impl<T: Clone> Applicative for Choice<T> {
     }
 
     fn lift3_owned<B, C, D, G>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: G,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: G,
     ) -> Self::Output<D>
     where
         G: Fn(T, B, C) -> D,

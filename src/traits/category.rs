@@ -142,7 +142,6 @@ pub trait Category: HKT {
     ///
     /// A new morphism representing the composition of self and g
     fn compose_morphisms<A, B, C>(
-        f: &Self::Morphism<A, B>,
-        g: &Self::Morphism<B, C>,
+        f: &Self::Morphism<A, B>, g: &Self::Morphism<B, C>,
     ) -> Self::Morphism<A, C>;
 }

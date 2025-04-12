@@ -112,12 +112,9 @@ impl<T: Clone> MemoryManager<T> {
             AllocationStrategy::Direct => ManagedRef::new(Arc::new(Node::new()), None),
             _ => {
                 let pool_clone = self.node_pool.clone();
-                let node = self
-                    .node_pool
-                    .lock()
-                    .acquire_or_create(|| Arc::new(Node::new()));
+                let node = self.node_pool.lock().acquire_or_create(|| Arc::new(Node::new()));
                 ManagedRef::new(node, Some(pool_clone))
-            }
+            },
         }
     }
 
@@ -143,12 +140,9 @@ impl<T: Clone> MemoryManager<T> {
             AllocationStrategy::Direct => ManagedRef::new(Arc::new(Chunk::new()), None),
             _ => {
                 let pool_clone = self.chunk_pool.clone();
-                let chunk = self
-                    .chunk_pool
-                    .lock()
-                    .acquire_or_create(|| Arc::new(Chunk::new()));
+                let chunk = self.chunk_pool.lock().acquire_or_create(|| Arc::new(Chunk::new()));
                 ManagedRef::new(chunk, Some(pool_clone))
-            }
+            },
         }
     }
 
@@ -177,7 +171,7 @@ impl<T: Clone> MemoryManager<T> {
                 let pool_clone = self.node_pool.clone();
                 let arc_node = Arc::new(node);
                 ManagedRef::new(arc_node, Some(pool_clone))
-            }
+            },
         }
     }
 
@@ -459,7 +453,7 @@ impl<T: Clone> ManagedRef<T> {
                         // Otherwise allocate a new one
                         Arc::new(T::clone(&*self.inner))
                     }
-                }
+                },
                 None => Arc::new(T::clone(&*self.inner)),
             };
 

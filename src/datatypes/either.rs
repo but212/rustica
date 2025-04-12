@@ -520,7 +520,7 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         match (self, b, c) {
             (Either::Right(r), Either::Right(b_val), Either::Right(c_val)) => {
                 Either::Right(f(r, b_val, c_val))
-            }
+            },
             (Either::Left(l), _, _) => Either::Left(l.clone()),
             (_, Either::Left(l), _) => Either::Left(l.clone()),
             (_, _, Either::Left(l)) => Either::Left(l.clone()),
@@ -555,10 +555,7 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
 
     #[inline]
     fn lift3_owned<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         F: FnOnce(Self::Source, B, C) -> D,

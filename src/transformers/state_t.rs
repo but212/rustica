@@ -425,10 +425,7 @@ where
     ///
     /// A new StateT with the combined results
     pub fn combine_with<B, C, F, CombineFn>(
-        &self,
-        other: &StateT<S, M, B>,
-        f: F,
-        combine_fn: CombineFn,
+        &self, other: &StateT<S, M, B>, f: F, combine_fn: CombineFn,
     ) -> StateT<S, M, C>
     where
         F: Fn(A, B) -> C + Send + Sync + Clone + 'static,
@@ -732,9 +729,7 @@ where
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// ```
     pub fn try_run_state_with_context<C>(
-        &self,
-        state: S,
-        context: C,
+        &self, state: S, context: C,
     ) -> Result<(S, A), AppError<E, C>>
     where
         C: Clone + 'static,
@@ -865,8 +860,7 @@ where
     where
         C: Clone + 'static,
     {
-        self.try_run_state_with_context(state, context)
-            .map(|(_, a)| a)
+        self.try_run_state_with_context(state, context).map(|(_, a)| a)
     }
 
     /// Runs the state transformer and returns only the final state as a Result with AppError.

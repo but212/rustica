@@ -160,9 +160,7 @@ impl<'a, T: Clone> ChunksIter<'a, T> {
     /// Create a new chunk iterator with custom chunk size parameters.
     #[inline]
     pub(crate) fn new(
-        vector: &'a PersistentVector<T>,
-        min_chunk_size: usize,
-        max_chunk_size: usize,
+        vector: &'a PersistentVector<T>, min_chunk_size: usize, max_chunk_size: usize,
     ) -> Self {
         let len = vector.len();
         Self {

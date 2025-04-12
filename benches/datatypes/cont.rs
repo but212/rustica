@@ -27,12 +27,7 @@ pub fn cont_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("bind", |b| {
-        b.iter(|| {
-            black_box(
-                cont.clone()
-                    .bind(Arc::new(|x| Cont::<i32, i32>::return_cont(x * 2))),
-            )
-        });
+        b.iter(|| black_box(cont.clone().bind(Arc::new(|x| Cont::<i32, i32>::return_cont(x * 2)))));
     });
 
     group.bench_function("apply", |b| {

@@ -172,10 +172,7 @@ fn test_id_chaining() {
 #[test]
 fn test_id_optimized_chains() {
     // Fully owned transformation chain
-    let result = Id::new(10)
-        .fmap(|n| n + 5)
-        .fmap(|n| n * 2)
-        .fmap(|n| n.to_string());
+    let result = Id::new(10).fmap(|n| n + 5).fmap(|n| n * 2).fmap(|n| n.to_string());
     assert_eq!(*result.value(), "30");
 
     // Complex chain with bind_owned and fmap_owned

@@ -58,8 +58,7 @@ fn test_option_monad_plus_with_collection() {
 fn test_option_monad_plus_with_mapping() {
     // Implement a helper function to find the first Some after applying a function
     fn first_mapped<T: Clone, U, I: Iterator<Item = U>, F: Fn(U) -> Option<T>>(
-        iter: I,
-        f: F,
+        iter: I, f: F,
     ) -> Option<T> {
         for item in iter {
             let result = f(item);

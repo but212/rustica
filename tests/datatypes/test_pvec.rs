@@ -31,10 +31,7 @@ fn test_from_slice() {
 
 #[test]
 fn test_push_back_and_get() {
-    let vec = PersistentVector::<i32>::new()
-        .push_back(1)
-        .push_back(2)
-        .push_back(3);
+    let vec = PersistentVector::<i32>::new().push_back(1).push_back(2).push_back(3);
 
     assert_eq!(vec.len(), 3);
     assert_eq!(vec.get(0), Some(&1));

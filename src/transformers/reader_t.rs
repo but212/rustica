@@ -705,9 +705,7 @@ where
     ///
     /// A new ReaderT with the functions applied
     pub fn apply_with<B, Func, ApFn>(
-        &self,
-        f: &ReaderT<E, M, Func>,
-        ap_fn: ApFn,
+        &self, f: &ReaderT<E, M, Func>, ap_fn: ApFn,
     ) -> ReaderT<E, M, B>
     where
         Func: Fn(A) -> B + Clone + Send + Sync + 'static,
@@ -742,9 +740,7 @@ where
     /// A function that takes two readers and returns a new reader containing the result
     /// of applying the function to the results of both readers.
     pub fn lift2<B, C, F, CombineFn>(
-        &self,
-        f: F,
-        combine_fn: CombineFn,
+        &self, f: F, combine_fn: CombineFn,
     ) -> Box<ReaderCombineFn<E, M, A, B, C>>
     where
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
@@ -784,10 +780,7 @@ where
     ///
     /// A new ReaderT with the combined results
     pub fn combine_with<B, C, F, CombineFn>(
-        &self,
-        other: &ReaderT<E, M, B>,
-        f: F,
-        combine_fn: CombineFn,
+        &self, other: &ReaderT<E, M, B>, f: F, combine_fn: CombineFn,
     ) -> ReaderT<E, M, C>
     where
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
@@ -1153,8 +1146,7 @@ where
     where
         C: Clone + 'static,
     {
-        self.run_reader(env)
-            .map_err(|e| AppError::with_context(e, context))
+        self.run_reader(env).map_err(|e| AppError::with_context(e, context))
     }
 
     /// Maps a function over the error contained in this ReaderT.

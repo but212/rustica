@@ -2,3 +2,17 @@ disallowed-methods = []
 too-many-arguments-threshold = 7
 type-complexity-threshold = 250
 enum-variant-size-threshold = 200
+
+# Allow higher complexity in functional programming patterns
+cognitive-complexity-threshold = 30
+
+# Documentation-related configurations
+doc-valid-idents = ["PersistentVector", "HKT", "Functor", "Applicative", "Monad", "fmap"]
+
+# Configure thresholds for complex types often used in functional programming
+array-size-threshold = 15
+large-error-threshold = 200
+verbose-bit-mask-threshold = 1
+
+# Maximum levels of nesting appropriate for monadic compositions
+excessive-nesting-threshold = 8

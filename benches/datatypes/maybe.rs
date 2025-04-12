@@ -85,11 +85,7 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             black_box(maybe.bind(|x: &i32| Maybe::Just(x * 2)));
             black_box(Maybe::Just(42).bind_owned(|x: i32| Maybe::Just(x * 2)));
-            black_box(
-                maybe
-                    .bind(|x: &i32| Maybe::Just(x * 2))
-                    .bind(|x: &i32| Maybe::Just(x + 10)),
-            );
+            black_box(maybe.bind(|x: &i32| Maybe::Just(x * 2)).bind(|x: &i32| Maybe::Just(x + 10)));
             black_box(nested.join());
             black_box(Maybe::Just(Maybe::Just(42)).join_owned());
         });

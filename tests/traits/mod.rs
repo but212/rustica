@@ -119,10 +119,7 @@ impl<T> Applicative for TestFunctor<T> {
     }
 
     fn lift3_owned<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         F: Fn(Self::Source, B, C) -> D,

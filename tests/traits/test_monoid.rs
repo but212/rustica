@@ -100,9 +100,7 @@ fn semigroup_associativity(a: TestMonoid<i32>, b: TestMonoid<i32>, c: TestMonoid
 // Test the owned version of the associativity law
 #[quickcheck]
 fn semigroup_associativity_owned(
-    a: TestMonoid<i32>,
-    b: TestMonoid<i32>,
-    c: TestMonoid<i32>,
+    a: TestMonoid<i32>, b: TestMonoid<i32>, c: TestMonoid<i32>,
 ) -> bool {
     let left = a.clone().combine_owned(b.clone()).combine_owned(c.clone());
     let right = a.combine_owned(b.combine_owned(c));

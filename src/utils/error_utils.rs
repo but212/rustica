@@ -83,7 +83,7 @@ impl<T: Clone, E: Clone> WithError<E> for Validated<E, T> {
             Validated::MultiInvalid(es) => {
                 let mapped: SmallVec<[G; 4]> = es.into_iter().map(f).collect();
                 Validated::MultiInvalid(mapped)
-            }
+            },
         }
     }
 
@@ -99,7 +99,7 @@ impl<T: Clone, E: Clone> WithError<E> for Validated<E, T> {
                     // This should not happen with proper Validated usage
                     panic!("MultiInvalid with no errors")
                 }
-            }
+            },
         }
     }
 }
@@ -169,8 +169,7 @@ where
 /// assert_eq!(result.errors().len(), 2);
 /// ```
 pub fn traverse_validated<A, B, E, F>(
-    collection: impl IntoIterator<Item = A>,
-    f: F,
+    collection: impl IntoIterator<Item = A>, f: F,
 ) -> Validated<E, Vec<B>>
 where
     F: Fn(A) -> Result<B, E>,
@@ -187,7 +186,7 @@ where
             Err(e) => {
                 has_errors = true;
                 errors.push(e);
-            }
+            },
         }
     }
 
@@ -525,8 +524,7 @@ where
 
 // Traverse implementation for Result
 pub fn traverse_result<A, B, E, F>(
-    collection: impl IntoIterator<Item = A>,
-    f: F,
+    collection: impl IntoIterator<Item = A>, f: F,
 ) -> Result<Vec<B>, E>
 where
     F: Fn(A) -> Result<B, E>,

@@ -84,9 +84,7 @@ fn identity_law_right_identity() {
 
     // We need to use a fully-qualified path for Identity::id
     // Use the identity function with the specific type implementation
-    let left = x
-        .clone()
-        .fmap(|val| <TestFunctor<i32> as Identity>::id(*val));
+    let left = x.clone().fmap(|val| <TestFunctor<i32> as Identity>::id(*val));
 
     assert_eq!(left, x);
 }

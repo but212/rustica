@@ -366,10 +366,7 @@ impl<K: Eq + Hash + Clone, V: Semigroup + Clone> Semigroup for HashMap<K, V> {
     fn combine(&self, other: &Self) -> Self {
         let mut result = self.clone();
         for (k, v) in other {
-            result
-                .entry(k.clone())
-                .and_modify(|e| *e = e.combine(v))
-                .or_insert(v.clone());
+            result.entry(k.clone()).and_modify(|e| *e = e.combine(v)).or_insert(v.clone());
         }
         result
     }
@@ -382,10 +379,10 @@ impl<K: Eq + Hash + Clone, V: Semigroup + Clone> Semigroup for HashMap<K, V> {
                 Some(existing) => {
                     let combined = existing.clone().combine_owned(v);
                     *existing = combined;
-                }
+                },
                 None => {
                     result.insert(k, v);
-                }
+                },
             }
         }
         result
@@ -412,10 +409,7 @@ impl<K: Ord + Clone, V: Semigroup + Clone> Semigroup for BTreeMap<K, V> {
     fn combine(&self, other: &Self) -> Self {
         let mut result = self.clone();
         for (k, v) in other {
-            result
-                .entry(k.clone())
-                .and_modify(|e| *e = e.combine(v))
-                .or_insert(v.clone());
+            result.entry(k.clone()).and_modify(|e| *e = e.combine(v)).or_insert(v.clone());
         }
         result
     }
@@ -428,10 +422,10 @@ impl<K: Ord + Clone, V: Semigroup + Clone> Semigroup for BTreeMap<K, V> {
                 Some(existing) => {
                     let combined = existing.clone().combine_owned(v);
                     *existing = combined;
-                }
+                },
                 None => {
                     result.insert(k, v);
-                }
+                },
             }
         }
         result
@@ -608,7 +602,5 @@ where
     T: Semigroup,
     I: IntoIterator<Item = T>,
 {
-    values
-        .into_iter()
-        .fold(initial, |acc, x| acc.combine_owned(x))
+    values.into_iter().fold(initial, |acc, x| acc.combine_owned(x))
 }

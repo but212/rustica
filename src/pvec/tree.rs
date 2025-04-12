@@ -323,11 +323,11 @@ impl<T: Clone> Tree<T> {
                 for _ in 0..(new_len - self.size) {
                     result = result.push_back(value.clone());
                 }
-            }
+            },
             std::cmp::Ordering::Less => {
                 result = result.slice(0, new_len);
-            }
-            _ => {}
+            },
+            _ => {},
         }
 
         result
@@ -690,7 +690,7 @@ impl<T: Clone> Tree<T> {
                 result.root = new_root;
                 result.cache.invalidate();
                 result
-            }
+            },
             None => self.clone(),
         }
     }

@@ -78,11 +78,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
     group.bench_function("bind_owned", |b| {
         let choice = Choice::new(42, vec![1, 2, 3]);
         b.iter(|| {
-            black_box(
-                choice
-                    .clone()
-                    .bind_owned(|x| Choice::new(x + 1, vec![x * 2, x - 1])),
-            );
+            black_box(choice.clone().bind_owned(|x| Choice::new(x + 1, vec![x * 2, x - 1])));
         });
     });
 

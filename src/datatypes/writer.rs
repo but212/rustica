@@ -545,10 +545,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         F: Fn(&Self::Source, &B, &C) -> D,
     {
         Writer {
-            log_thunk: self
-                .log_thunk
-                .combine_with(&b.log_thunk)
-                .combine_with(&c.log_thunk),
+            log_thunk: self.log_thunk.combine_with(&b.log_thunk).combine_with(&c.log_thunk),
             value: f(&self.value, &b.value, &c.value),
         }
     }
@@ -579,20 +576,14 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
 
     #[inline]
     fn lift3_owned<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         F: Fn(Self::Source, B, C) -> D,
         Self: Sized,
     {
         Writer {
-            log_thunk: self
-                .log_thunk
-                .combine_with(&b.log_thunk)
-                .combine_with(&c.log_thunk),
+            log_thunk: self.log_thunk.combine_with(&b.log_thunk).combine_with(&c.log_thunk),
             value: f(self.value, b.value, c.value),
         }
     }

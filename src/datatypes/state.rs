@@ -1167,9 +1167,7 @@ impl<
     /// assert_eq!(final_state, -1);
     /// ```
     pub fn try_run_state_with_context<C: Clone + Send + Sync + 'static>(
-        &self,
-        s: S,
-        context: C,
+        &self, s: S, context: C,
     ) -> (Result<A, AppError<Err, C>>, S) {
         let (result, final_state) = self.run_state(s);
         let transformed_result = match result {
@@ -1242,9 +1240,7 @@ impl<
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// ```
     pub fn try_eval_state_with_context<C: Clone + Send + Sync + 'static>(
-        &self,
-        s: S,
-        context: C,
+        &self, s: S, context: C,
     ) -> Result<A, AppError<Err, C>> {
         let (result, _) = self.try_run_state_with_context(s, context);
         result
@@ -1316,9 +1312,7 @@ impl<
     /// assert_eq!(error.context(), Some(&"processing user input"));
     /// ```
     pub fn try_exec_state_with_context<C: Clone + Send + Sync + 'static>(
-        &self,
-        s: S,
-        context: C,
+        &self, s: S, context: C,
     ) -> Result<S, AppError<Err, C>> {
         let (result, final_state) = self.try_run_state_with_context(s, context);
         match result {

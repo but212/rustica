@@ -413,10 +413,7 @@ pub trait Applicative: Functor + Pure {
     ///
     /// An applicative containing the result of applying the function to all three values
     fn lift3_owned<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         F: Fn(Self::Source, B, C) -> D,
@@ -520,10 +517,7 @@ impl<A> Applicative for Option<A> {
 
     #[inline]
     fn lift3_owned<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         F: FnOnce(Self::Source, B, C) -> D,
@@ -654,10 +648,7 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
 
     #[inline]
     fn lift3_owned<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         F: FnOnce(Self::Source, B, C) -> D,
@@ -810,10 +801,7 @@ impl<A: Clone> Applicative for Vec<A> {
 
     #[inline]
     fn lift3_owned<B, C, D, F>(
-        self,
-        b: Self::Output<B>,
-        c: Self::Output<C>,
-        f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         F: Fn(Self::Source, B, C) -> D,
