@@ -131,14 +131,6 @@ impl<T: Clone> SmallVec<T> {
     ///
     /// Initializes a SmallVec with zero elements and all storage slots set to None.
     /// This operation is O(1) as it uses Default to initialize the array.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::SmallVec;
-    /// let vec: SmallVec<i32> = SmallVec::new();
-    /// assert_eq!(vec.len(), 0);
-    /// ```
     fn new() -> Self {
         Self {
             // Initialize all slots with None
@@ -148,16 +140,6 @@ impl<T: Clone> SmallVec<T> {
     }
 
     /// Returns a reference to the element at the given index, or None if out of bounds
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::SmallVec;
-    /// let vec = SmallVec::from_slice(&[1, 2, 3]);
-    /// assert_eq!(vec.get(0), Some(&1));
-    /// assert_eq!(vec.get(2), Some(&3));
-    /// assert_eq!(vec.get(3), None);
-    /// ```
     fn get(&self, index: usize) -> Option<&T> {
         if index < self.size {
             self.elements[index].as_ref()
@@ -167,41 +149,16 @@ impl<T: Clone> SmallVec<T> {
     }
 
     /// Returns true if the vector is empty
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::SmallVec;
-    /// let vec = SmallVec::new();
-    /// assert!(vec.is_empty());
-    /// ```
     const fn is_empty(&self) -> bool {
         self.size == 0
     }
 
     /// Returns the number of elements in the vector
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::SmallVec;
-    /// let vec = SmallVec::from_slice(&[1, 2, 3]);
-    /// assert_eq!(vec.len(), 3);
-    /// ```
     const fn len(&self) -> usize {
         self.size
     }
 
     /// Returns a new SmallVec with the given element appended
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::SmallVec;
-    /// let vec = SmallVec::from_slice(&[1, 2, 3]);
-    /// let new_vec = vec.push_back(4);
-    /// assert_eq!(new_vec.len(), 4);
-    /// ```
     fn push_back(&self, value: T) -> Self {
         if self.size < SMALL_VECTOR_SIZE {
             // We have space, add to inline storage
@@ -216,15 +173,6 @@ impl<T: Clone> SmallVec<T> {
     }
 
     /// Returns a new SmallVec with the element at the given index updated
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::SmallVec;
-    /// let vec = SmallVec::from_slice(&[1, 2, 3]);
-    /// let new_vec = vec.update(1, 20);
-    /// assert_eq!(new_vec.get(1), Some(&20));
-    /// ```
     fn update(&self, index: usize, value: T) -> Self {
         if index < self.size {
             let mut new_vec = self.clone();
@@ -236,15 +184,6 @@ impl<T: Clone> SmallVec<T> {
     }
 
     /// Convert to a standard Vec
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::SmallVec;
-    /// let vec = SmallVec::from_slice(&[1, 2, 3]);
-    /// let std_vec = vec.to_vec();
-    /// assert_eq!(std_vec, vec![1, 2, 3]);
-    /// ```
     fn to_vec(&self) -> std::vec::Vec<T> {
         self.elements[0..self.size]
             .iter()
@@ -261,14 +200,6 @@ impl<T: Clone> Default for SmallVec<T> {
 
 impl<T: Clone> VectorImpl<T> {
     /// Creates a new, empty vector
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::VectorImpl;
-    /// let vec = VectorImpl::new();
-    /// assert!(vec.is_empty());
-    /// ```
     fn new() -> Self {
         VectorImpl::Small {
             elements: SmallVec::new(),
@@ -276,15 +207,6 @@ impl<T: Clone> VectorImpl<T> {
     }
 
     /// Creates a unit vector with one element
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::VectorImpl;
-    /// let vec = VectorImpl::unit(42);
-    /// assert_eq!(vec.len(), 1);
-    /// assert_eq!(vec.get(0), Some(&42));
-    /// ```
     fn unit(value: T) -> Self {
         let mut elements = SmallVec::new();
         elements = elements.push_back(value);
@@ -292,15 +214,6 @@ impl<T: Clone> VectorImpl<T> {
     }
 
     /// Creates a vector from a slice of elements
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::VectorImpl;
-    /// let vec = VectorImpl::from_slice(&[1, 2, 3]);
-    /// assert_eq!(vec.len(), 3);
-    /// assert_eq!(vec.get(0), Some(&1));
-    /// ```
     fn from_slice(slice: &[T]) -> Self {
         if slice.len() <= SMALL_VECTOR_SIZE {
             // We can use the small vector optimization
@@ -318,15 +231,6 @@ impl<T: Clone> VectorImpl<T> {
     }
 
     /// Returns a reference to the element at the specified index, or None if the index is out of bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::VectorImpl;
-    /// let vec = VectorImpl::from_slice(&[10, 20, 30]);
-    /// assert_eq!(vec.get(1), Some(&20));
-    /// assert_eq!(vec.get(5), None); // Out of bounds
-    /// ```
     fn get(&self, index: usize) -> Option<&T> {
         match self {
             VectorImpl::Small { elements } => elements.get(index),
@@ -335,16 +239,6 @@ impl<T: Clone> VectorImpl<T> {
     }
 
     /// Returns a new vector with the given element appended
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::VectorImpl;
-    /// let vec = VectorImpl::from_slice(&[1, 2, 3]);
-    /// let new_vec = vec.push_back(4);
-    /// assert_eq!(new_vec.len(), 4);
-    /// assert_eq!(new_vec.get(3), Some(&4));
-    /// ```
     fn push_back(&self, value: T) -> Self {
         match self {
             VectorImpl::Small { elements } => {
@@ -377,17 +271,6 @@ impl<T: Clone> VectorImpl<T> {
     }
 
     /// Returns a new vector with the element at the given index updated
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::VectorImpl;
-    /// let vec = VectorImpl::from_slice(&[1, 2, 3]);
-    /// let new_vec = vec.update(1, 20);
-    /// assert_eq!(new_vec.get(1), Some(&20));
-    /// assert_eq!(new_vec.get(0), Some(&1));
-    /// assert_eq!(new_vec.get(2), Some(&3));
-    /// ```
     fn update(&self, index: usize, value: T) -> Self {
         match self {
             VectorImpl::Small { elements } => {
@@ -412,15 +295,6 @@ impl<T: Clone> VectorImpl<T> {
     }
 
     /// Convert to a standard Vec
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rustica::pvec::vector::VectorImpl;
-    /// let vec = VectorImpl::from_slice(&[1, 2, 3]);
-    /// let std_vec = vec.to_vec();
-    /// assert_eq!(std_vec, vec![1, 2, 3]);
-    /// ```
     fn to_vec(&self) -> std::vec::Vec<T> {
         match self {
             VectorImpl::Small { elements } => elements.to_vec(),
@@ -499,18 +373,6 @@ impl<T: Clone> VectorImpl<T> {
     ///
     /// Unlike the `extend` method in the `Extend` trait, this method returns a new vector
     /// rather than modifying the existing one, preserving immutability.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::PersistentVector;
-    ///
-    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
-    /// let extended = vec.extend(vec![4, 5, 6]);
-    /// assert_eq!(extended.to_vec(), vec![1, 2, 3, 4, 5, 6]);
-    /// // Original vector remains unchanged
-    /// assert_eq!(vec.to_vec(), vec![1, 2, 3]);
-    /// ```
     fn extend(&self, values: impl IntoIterator<Item = T>) -> Self {
         let mut result = self.clone();
         for item in values {
@@ -523,22 +385,6 @@ impl<T: Clone> VectorImpl<T> {
     ///
     /// This method returns a tuple containing the new vector (with the last element removed) and
     /// the removed element. If the vector is empty, it returns `None`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::PersistentVector;
-    ///
-    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
-    /// if let Some((new_vec, last)) = vec.pop_back() {
-    ///     assert_eq!(last, 3);
-    ///     assert_eq!(new_vec.len(), 2);
-    ///     assert_eq!(new_vec.to_vec(), vec![1, 2]);
-    /// }
-    ///
-    /// let empty: PersistentVector<i32> = PersistentVector::new();
-    /// assert_eq!(empty.pop_back(), None);
-    /// ```
     fn pop_back(&self) -> Option<(Self, T)> {
         match self {
             VectorImpl::Small { elements } => {
@@ -759,6 +605,7 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// A vector containing the elements in the specified range,
     /// with size between min_size and max_size (inclusive).
+    #[inline]
     pub(crate) fn get_chunk(
         &self,
         start_index: usize,
@@ -1003,8 +850,8 @@ impl<T: Clone> Index<usize> for PersistentVector<T> {
 
 impl<T: Clone> Extend<T> for PersistentVector<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        // 불변 벡터이므로 내부 값을 직접 변경할 수 없습니다.
-        // 대신 새 벡터를 만들고 자신에게 할당합니다.
+        // Since this is an immutable vector, we can't modify its contents directly.
+        // Instead, we create a new vector and assign it to self.
         let mut vec = self.clone();
         for item in iter {
             vec = vec.push_back(item);
@@ -1077,6 +924,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let empty: PersistentVector<i32> = PersistentVector::new();
     /// assert_eq!(empty.first(), None);
     /// ```
+    #[inline]
     pub fn first(&self) -> Option<&T> {
         self.get(0)
     }
@@ -1094,6 +942,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let empty: PersistentVector<i32> = PersistentVector::new();
     /// assert_eq!(empty.last(), None);
     /// ```
+    #[inline]
     pub fn last(&self) -> Option<&T> {
         if self.is_empty() {
             None

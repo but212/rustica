@@ -8,6 +8,7 @@ Rustica provides a set of functional programming abstractions for Rust, includin
 
 - Type classes like Functor, Applicative, and Monad
 - Functional data types like Maybe, Either, and Validated
+- Persistent immutable data structures like PersistentVector
 - Utilities for functional error handling
 - Tools for asynchronous functional programming
 
@@ -15,7 +16,7 @@ To get started with Rustica, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.5.4"
+rustica = "0.6.1"
 ```
 
 Then import the prelude to get access to the most commonly used types and traits:
@@ -36,7 +37,7 @@ A functor is a type that implements a mapping operation (`fmap`) which preserves
 use rustica::datatypes::maybe::Maybe;
 use rustica::traits::functor::Functor;
 
-let just_five = Maybe::Just(5);
+let just_five = Maybe::just(5);
 let doubled = just_five.fmap(|x| x * 2);  // Maybe::Just(10)
 ```
 
@@ -78,8 +79,8 @@ Rustica provides several functional data types:
 ```rust
 use rustica::datatypes::maybe::Maybe;
 
-let just_value = Maybe::Just(42);
-let nothing_value: Maybe<i32> = Maybe::Nothing;
+let just_value = Maybe::just(42);
+let nothing_value: Maybe<i32> = Maybe::nothing();
 ```
 
 ### Either
@@ -104,6 +105,35 @@ let valid: Validated<&str, i32> = Validated::valid(42);
 let invalid: Validated<&str, i32> = Validated::invalid("validation error");
 ```
 
+### PersistentVector
+
+`PersistentVector<T>` is an immutable vector implementation with memory optimization for small collections.
+
+```rust
+use rustica::pvec::{pvec, PersistentVector};
+
+// Create using macro
+let vec1 = pvec![1, 2, 3];
+
+// Create from slice
+let vec2 = PersistentVector::from_slice(&[4, 5, 6]);
+
+// Create new vector with additional element (original unchanged)
+let vec3 = vec1.push_back(4);
+
+// Update an element (returns new vector, original unchanged)
+let vec4 = vec3.update(1, 20);
+
+// Small vectors (≤8 elements) use optimized storage
+assert_eq!(vec1.get(0), Some(&1));
+```
+
+Key features:
+- Memory-efficient representation for small vectors using inline storage
+- Structural sharing for efficient updates and minimal copying
+- O(log n) complexity for most operations
+- Thread-safe due to immutability
+
 ### Choice
 
 `Choice<T>` represents a value with multiple alternatives. It contains a primary value (the first value) and a collection of alternatives. This is useful for scenarios where you need to maintain multiple options while focusing on a primary one.
@@ -123,9 +153,6 @@ assert_eq!(doubled.first(), Some(&2));
 
 // Filter alternatives based on a predicate
 let even_only = choice.filter(|x| x % 2 == 0);
-
-// Change the primary value
-let with_new_first = choice.change_first(10);
 
 // Swap the primary value with an alternative
 let swapped = choice.swap_with_alternative(1);

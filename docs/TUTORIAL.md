@@ -11,6 +11,7 @@ This tutorial introduces functional programming concepts in Rust using the Rusti
 6. [Function Composition](#function-composition)
 7. [Practical Examples](#practical-examples)
 8. [Advanced Topics](#advanced-topics)
+9. [Persistent Data Structures](#persistent-data-structures)
 
 <a name="introduction"></a>
 ## 1. Introduction to Functional Programming
@@ -34,7 +35,7 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.5.4"
+rustica = "0.6.1"
 ```
 
 ### Basic Usage
@@ -52,7 +53,7 @@ A monad is a design pattern that allows for sequential computation. In Rustica, 
 
 Key monad operations:
 - `pure`: Wraps a value in a monadic context
-- `bind`/`and_then`: Chains operations that return monadic values
+- `bind`: Chains operations that return monadic values
 
 ```rust
 use rustica::prelude::*;
@@ -62,8 +63,8 @@ fn main() {
     // Create a monadic value
     let value = Maybe::just(5);
     
-    // Chain operations with and_then (bind)
-    let result = value.and_then(|x| {
+    // Chain operations with bind
+    let result = value.bind(|x| {
         if x > 0 {
             Maybe::just(x * 2)
         } else {
@@ -99,8 +100,8 @@ fn main() {
     
     // Chaining operations
     let result = just_value
-        .and_then(|x| Maybe::just(x.to_string()))
-        .and_then(|s| Maybe::just(s + "!"));
+        .bind(|x| Maybe::just(x.to_string()))
+        .bind(|s| Maybe::just(s + "!"));
     assert_eq!(result, Maybe::just("42!".to_string()));
 }
 ```
@@ -146,7 +147,7 @@ fn main() {
     let multiply_by_two = |x: i32| x * 2;
     
     // Compose functions
-    let add_then_multiply = add_one.compose(multiply_by_two);
+    let add_then_multiply = compose(multiply_by_two, add_one);
     
     // Use the composed function
     let result = add_then_multiply(5);
@@ -185,8 +186,8 @@ fn main() {
     
     // Chain validations
     let validation_result = Maybe::just(username.to_string())
-        .and_then(|s| validate_length(&s))
-        .and_then(validate_no_special_chars);
+        .bind(|s| validate_length(&s))
+        .bind(validate_no_special_chars);
     
     match validation_result {
         Maybe::Just(valid_name) => println!("Valid username: {}", valid_name),
@@ -260,7 +261,7 @@ fn increment_and_get(amount: i32) -> StateT<Counter, Maybe<(Counter, i32)>, i32>
 fn main() {
     // Create a stateful computation
     let computation = increment_and_get(5)
-        .and_then(|value| {
+        .bind(|value| {
             // Use the value from the previous computation
             increment_and_get(value)
         });
@@ -335,6 +336,47 @@ fn main() {
     println!("Age after 5 years: {}", older_person.age);
 }
 ```
+
+<a name="persistent-data-structures"></a>
+## 9. Persistent Data Structures
+
+Rustica provides immutable data structures that efficiently create modified versions through structural sharing.
+
+```rust
+use rustica::prelude::*;
+use rustica::pvec::{pvec, PersistentVector};
+
+fn main() {
+    // Create a vector using the macro
+    let vec1 = pvec![1, 2, 3];
+    
+    // Create a new vector with an additional element
+    let vec2 = vec1.push_back(4);
+    
+    // The original vector is unchanged
+    assert_eq!(vec1.len(), 3);
+    assert_eq!(vec2.len(), 4);
+    
+    // Update an element
+    let vec3 = vec2.update(1, 20);
+    assert_eq!(vec3.get(1), Some(&20));
+    
+    // Efficient for small vectors
+    let small_vec = PersistentVector::from_slice(&[1, 2, 3]);
+    
+    // Pop the last element
+    if let Some((new_vec, last)) = small_vec.pop_back() {
+        assert_eq!(last, 3);
+        assert_eq!(new_vec.len(), 2);
+    }
+}
+```
+
+The `PersistentVector` implementation:
+- Uses an optimized representation for small vectors (≤8 elements)
+- Provides O(log n) time complexity for most operations
+- Ensures efficient memory usage through structural sharing
+- Is thread-safe due to its immutable nature
 
 ## Next Steps
 

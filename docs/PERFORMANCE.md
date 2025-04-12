@@ -4,6 +4,29 @@ This document outlines the performance characteristics of various implementation
 
 ## Core Types
 
+### PersistentVector
+
+`PersistentVector<T>` is an immutable vector implementation with structural sharing for efficient updates.
+
+| Operation | Time Complexity | Space Complexity | Notes |
+|-----------|----------------|------------------|-------|
+| `new`/`unit` | O(1) | O(1) | Constant-time creation |
+| `push_back` | O(1) amortized | O(log n) | Small vectors use O(1) inline storage |
+| `get` | O(log n) | O(1) | O(1) for small vectors (≤8 elements) |
+| `update` | O(log n) | O(log n) | Uses structural sharing to minimize copying |
+| `extend` | O(m log n) | O(m) | Where m is the size of the added sequence |
+| `pop_back` | O(1) amortized | O(log n) | Returns new vector and removed element |
+
+**Memory Optimization**: 
+- Small vectors (≤8 elements) use an optimized inline representation
+- Larger vectors use a Relaxed Radix Balanced tree structure
+
+**Best Used For**:
+- Functional programming patterns requiring immutable data structures
+- Scenarios where you need to maintain history of collection changes
+- Concurrent access without synchronization
+- Efficient snapshots and branches of data
+
 ### Maybe
 
 `Maybe<T>` is a wrapper around Rust's `Option<T>` with additional monadic operations.
@@ -12,7 +35,7 @@ This document outlines the performance characteristics of various implementation
 |-----------|----------------|------------------|-------|
 | `just`/`nothing` | O(1) | O(1) | Constant-time construction |
 | `is_just`/`is_nothing` | O(1) | O(1) | Simple enum variant check |
-| `and_then` | O(1) | O(1) + f | Where f is the complexity of the binding function |
+| `bind` | O(1) | O(1) + f | Where f is the complexity of the binding function |
 | `unwrap` | O(1) | O(1) | Panics if `Nothing` |
 | `value_or` | O(1) | O(1) | Returns default if `Nothing` |
 
@@ -33,7 +56,7 @@ This document outlines the performance characteristics of various implementation
 | `is_left`/`is_right` | O(1) | O(1) | Simple enum variant check |
 | `fmap_right` | O(1) | O(1) + f | Maps only on the Right variant |
 | `fmap_left` | O(1) | O(1) + f | Maps only on the Left variant |
-| `and_then` | O(1) | O(1) + f | Binds only on the Right variant |
+| `bind` | O(1) | O(1) + f | Binds only on the Right variant |
 | `value_or` | O(1) | O(1) | Returns Right value or default |
 
 **Memory Overhead**: One word (usize) for enum discriminant plus size of contained value (either L or R)
@@ -51,7 +74,7 @@ This document outlines the performance characteristics of various implementation
 |-----------|----------------|------------------|-------|
 | `new` | O(1) | O(1) | Constant-time construction |
 | `into_inner` | O(1) | O(1) | Unwraps the internal value |
-| `and_then` | O(1) | O(1) + f | Where f is the complexity of the binding function |
+| `bind` | O(1) | O(1) + f | Where f is the complexity of the binding function |
 
 **Memory Overhead**: Size of contained value plus potential alignment padding
 
@@ -90,7 +113,7 @@ This document outlines the performance characteristics of various implementation
 | `new` | O(1) | O(1) | Constant-time construction |
 | `run_state` | O(f) | O(f) | Where f is the complexity of the state function |
 | `fmap` | O(1) | O(1) | Adds a transformation to the result |
-| `and_then` | O(1) | O(1) | Chains another state computation |
+| `bind` | O(1) | O(1) | Chains another state computation |
 | `get` | O(1) | O(1) | Creates a computation that returns the current state |
 | `put` | O(1) | O(1) | Creates a computation that updates the state |
 | `modify` | O(1) | O(1) + f | Creates a computation that modifies the state |
@@ -106,17 +129,17 @@ This document outlines the performance characteristics of various implementation
 
 ### Chain Optimization
 
-When chaining operations like `fmap` and `and_then`, Rustica types try to minimize intermediate allocations:
+When chaining operations like `fmap` and `bind`, Rustica types try to minimize intermediate allocations:
 
 ```rust
 // More efficient:
 let result = value
     .fmap(|x| x + 1)
-    .fmap(|x| x.to_string());
+    .bind(|x| pure(x.to_string()));
 
 // Less efficient (but semantically equivalent):
 let intermediate = value.fmap(|x| x + 1);
-let result = intermediate.fmap(|x| x.to_string());
+let result = intermediate.bind(|x| pure(x.to_string()));
 ```
 
 ### Ownership vs. References
@@ -132,7 +155,7 @@ Example:
 let result = maybe_value.fmap(|x| x * 2);
 
 // Clones the value and preserves the original:
-let result = maybe_value.clone().fmap(|x| x * 2);
+let cloned_result = maybe_value.clone().fmap(|x| x * 2);
 ```
 
 ## Memory Usage Considerations
