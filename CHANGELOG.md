@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [0.6.1]
+
+### Added
+- Small vector optimization for PersistentVector to improve memory efficiency
+  - Optimized representation for vectors with 8 or fewer elements using inline storage
+  - Up to 97% performance improvement for empty vector creation
+  - ~5% improved performance for push operations
+- Additional methods for PersistentVector
+  - `pop_back` - Removes the last element and returns it with the updated vector
+  - `to_arc` - Converts vector to Arc for efficient sharing across threads
+- Enhanced documentation for vector operations
+  - Added comprehensive doctests and examples
+  - Improved API documentation with usage examples
+  - Updated README with memory optimization details
+
 ## [0.6.0]
 
 ### Added

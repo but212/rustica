@@ -52,7 +52,26 @@ pub use self::memory::MemoryManager;
 #[cfg(feature = "pvec")]
 pub use self::vector::PersistentVector;
 
-// Create a convenience macro for creating persistent vectors
+/// Creates a new `PersistentVector` with the provided elements.
+///
+/// # Examples
+///
+/// ```
+/// use rustica::pvec;
+///
+/// // Create an empty vector
+/// let empty: rustica::pvec::PersistentVector<i32> = pvec![];
+/// assert_eq!(empty.len(), 0);
+///
+/// // Create a vector with elements
+/// let numbers = pvec![1, 2, 3, 4];
+/// assert_eq!(numbers.len(), 4);
+/// assert_eq!(numbers.get(2), Some(&3));
+///
+/// // Trailing commas are supported
+/// let with_trailing = pvec![10, 20, 30,];
+/// assert_eq!(with_trailing.len(), 3);
+/// ```
 #[macro_export]
 #[cfg(feature = "pvec")]
 macro_rules! pvec {

@@ -154,7 +154,7 @@ let result = maybe_value.clone().fmap(|x| x * 2);
 The Rustica library includes benchmarks for core operations. You can run them with:
 
 ```bash
-cargo bench --features -- "either|id|maybe"
+cargo bench -- "either|id|maybe"
 ```
 
 Or run all benchmarks with:

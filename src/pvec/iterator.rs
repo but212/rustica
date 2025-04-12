@@ -229,9 +229,11 @@ impl<T: Clone> Iterator for ChunksIter<'_, T> {
     }
 }
 
-/// An iterator that yields elements in sorted order.
+/// An iterator that yields elements in sorted order without modifying the original vector.
 ///
-/// This doesn't actually sort the vector, but provides elements in sorted order.
+/// This iterator creates a sorted view of the vector by tracking indices in sorted order
+/// rather than modifying the original data structure. This provides efficient iteration
+/// over elements in their natural ordering while preserving the original vector's structure.
 pub struct SortedIter<'a, T: Clone + Ord> {
     /// Reference to the vector being iterated
     vector: &'a PersistentVector<T>,
@@ -239,12 +241,25 @@ pub struct SortedIter<'a, T: Clone + Ord> {
     /// Indices sorted by element values
     sorted_indices: Vec<usize>,
 
-    /// Current position
+    /// Current position in the iteration
     position: usize,
 }
 
 impl<'a, T: Clone + Ord> SortedIter<'a, T> {
     /// Create a new iterator that yields elements in sorted order.
+    ///
+    /// This method sorts the indices of the vector elements based on their values,
+    /// allowing iteration in sorted order without modifying the original vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[3, 1, 4, 2, 5]);
+    /// let sorted: Vec<&i32> = vec.sorted().collect();
+    /// assert_eq!(sorted, vec![&1, &2, &3, &4, &5]);
+    /// ```
     pub(crate) fn new(vector: &'a PersistentVector<T>) -> Self {
         let len = vector.len();
         let mut indices: Vec<usize> = (0..len).collect();
