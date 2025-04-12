@@ -1,22 +1,26 @@
 [package]
 name = "rustica"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["jeong-il suk <wjddlf211@naver.com>"]
 edition = "2021"
 description = "Rustica is a functional programming library for the Rust language."
 license = "Apache-2.0"
 repository = "https://github.com/but212/rustica"
 readme = "README.md"
+keywords = ["functional", "immutable", "monad", "persistent", "data-structures"]
+categories = ["data-structures", "rust-patterns", "algorithms", "no-std"]
+documentation = "https://docs.rs/rustica"
 
 [dependencies]
-futures = { version = "0.3", optional = true }
+futures = { version = "0.3", optional = true, features = ["thread-pool"] }
 parking_lot = "0.12.3"
 rayon = "1.10.0"
 smallvec = "1.14.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }
-quickcheck = "1.0"
+quickcheck = { version = "1.0", optional = true }
 
 [dev-dependencies]
+quickcheck = "1.0"
 quickcheck_macros = "1.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 
@@ -24,10 +28,12 @@ criterion = { version = "0.5", features = ["html_reports"] }
 default = []
 pvec = []
 async = ["futures", "tokio"]
-full = ["async", "pvec"]
+testing = ["quickcheck"]
+full = ["async", "pvec", "testing"]
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [[bench]]
 name = "datatypes_benchmarks"
