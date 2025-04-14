@@ -2,15 +2,26 @@ name: Rust Benchmarks
 
 on:
   push:
+    branches: [main, develop]
     tags:
-      - '*'
+      - 'v*'
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      compare_with:
+        description: 'Branch or tag to compare with (default: main)'
+        required: false
+        default: 'main'
 
 jobs:
   benchmark:
     name: Run benchmarks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for comparison
       
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -26,23 +37,155 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-benchmark-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-benchmark-
       
-      - name: Run all benchmarks
-        run: cargo bench --features full
-        
+      - name: Run benchmarks
+        run: cargo bench --features full -- --output-format bencher | tee bench-output.txt
+      
+      - name: Parse benchmark results
+        id: parse-benchmarks
+        run: |
+          python3 -c '
+          import re
+          import sys
+          with open("bench-output.txt", "r") as f:
+              content = f.read()
+          
+          results = {}
+          pattern = r"test\s+(\S+)\s+\.\.\.\s+bench:\s+([0-9,]+)\s+ns/iter"
+          matches = re.findall(pattern, content)
+          
+          for name, time in matches:
+              time_ns = int(time.replace(",", ""))
+              results[name] = time_ns
+          
+          # Output results in markdown table format
+          print("## Benchmark Results\n")
+          print("| Benchmark | Time (ns/iter) |")
+          print("|-----------|----------------|")
+          for name, time in results.items():
+              print(f"| {name} | {time:,} |")
+          ' > benchmark-results.md
+          
+          cat benchmark-results.md
+      
+      - name: Compare with baseline
+        if: github.event_name == 'pull_request' || github.event.inputs.compare_with
+        run: |
+          BASELINE_BRANCH="${{ github.event.inputs.compare_with }}"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASELINE_BRANCH="${{ github.base_ref }}"
+          fi
+          
+          # Checkout baseline branch
+          git checkout $BASELINE_BRANCH
+          
+          # Run baseline benchmarks
+          cargo bench --features full -- --output-format bencher | tee baseline-output.txt
+          
+          # Generate comparison
+          python3 -c '
+          import re
+          
+          def parse_benchmarks(file_path):
+              with open(file_path, "r") as f:
+                  content = f.read()
+              
+              results = {}
+              pattern = r"test\s+(\S+)\s+\.\.\.\s+bench:\s+([0-9,]+)\s+ns/iter"
+              matches = re.findall(pattern, content)
+              
+              for name, time in matches:
+                  time_ns = int(time.replace(",", ""))
+                  results[name] = time_ns
+              
+              return results
+          
+          baseline = parse_benchmarks("baseline-output.txt")
+          current = parse_benchmarks("bench-output.txt")
+          
+          # Calculate comparisons
+          comparisons = {}
+          for name in set(baseline.keys()) | set(current.keys()):
+              if name in baseline and name in current:
+                  diff_pct = (current[name] - baseline[name]) / baseline[name] * 100
+                  comparisons[name] = (baseline[name], current[name], diff_pct)
+              elif name in baseline:
+                  comparisons[name] = (baseline[name], None, None)
+              else:
+                  comparisons[name] = (None, current[name], None)
+          
+          # Output comparison in markdown table format
+          print("## Benchmark Comparison\n")
+          print("| Benchmark | Baseline (ns/iter) | Current (ns/iter) | Difference |")
+          print("|-----------|-------------------|------------------|------------|")
+          for name, (base, curr, diff) in sorted(comparisons.items()):
+              base_str = f"{base:,}" if base is not None else "N/A"
+              curr_str = f"{curr:,}" if curr is not None else "N/A"
+              
+              if diff is not None:
+                  if diff > 0:
+                      diff_str = f"🔴 +{diff:.2f}%"
+                  elif diff < 0:
+                      diff_str = f"🟢 {diff:.2f}%"
+                  else:
+                      diff_str = "0%"
+              else:
+                  diff_str = "N/A"
+              
+              print(f"| {name} | {base_str} | {curr_str} | {diff_str} |")
+          ' > benchmark-comparison.md
+          
+          cat benchmark-comparison.md
+      
       - name: Save benchmark results
         run: |
           mkdir -p benchmark-results
           cp -r target/criterion benchmark-results/
+          
+          # Create report.md
+          echo "# Benchmark Report" > benchmark-results/report.md
+          echo "\nGenerated on $(date)" >> benchmark-results/report.md
+          echo "\n## Git Information" >> benchmark-results/report.md
+          echo "\nBranch: $(git branch --show-current)" >> benchmark-results/report.md
+          echo "\nCommit: $(git rev-parse HEAD)" >> benchmark-results/report.md
+          
+          # Add benchmark results
+          if [ -f benchmark-results.md ]; then
+            cat benchmark-results.md >> benchmark-results/report.md
+          fi
+          
+          # Add comparison if available
+          if [ -f benchmark-comparison.md ]; then
+            echo "\n" >> benchmark-results/report.md
+            cat benchmark-comparison.md >> benchmark-results/report.md
+          fi
       
       - name: Deploy benchmark results to GitHub Pages
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./benchmark-results
           keep_files: true
           publish_branch: gh-pages
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Update benchmark results'
+          commit_message: 'Update benchmark results from ${{ github.ref }}'
+      
+      - name: Create benchmark summary PR comment
+        if: github.event_name == 'pull_request' && success()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const comparison = fs.readFileSync('benchmark-comparison.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comparison
+            });

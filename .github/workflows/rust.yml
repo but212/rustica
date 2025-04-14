@@ -1,22 +1,61 @@
-name: Rust
+name: Rust CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly run on Sundays
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta]
+        include:
+          - os: ubuntu-latest
+            rust: nightly
+      fail-fast: false
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --features=full --verbose
-    - name: Run tests
-      run: cargo test --features=full --verbose
+    
+    - name: Install Rust ${{ matrix.rust }}
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        override: true
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-${{ matrix.rust }}-
+    
+    - name: Build (default features)
+      run: cargo build --verbose
+    
+    - name: Test (default features)
+      run: cargo test --verbose
+    
+    - name: Build (all features)
+      run: cargo build --all-features --verbose
+      
+    - name: Test (all features)
+      run: cargo test --all-features --verbose
+      
+    - name: Test documentation examples
+      run: cargo test --doc --all-features

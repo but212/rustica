@@ -1,66 +1,132 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+name: SLSA Provenance Generator
 
-# This workflow lets you generate SLSA provenance file for your project.
-# The generation satisfies level 3 for the provenance requirements - see https://slsa.dev/spec/v0.1/requirements
-# The project is an initiative of the OpenSSF (openssf.org) and is developed at
-# https://github.com/slsa-framework/slsa-github-generator.
-# The provenance file can be verified using https://github.com/slsa-framework/slsa-verifier.
-# For more information about SLSA and how it improves the supply-chain, visit slsa.dev.
-
-name: SLSA generic generator
 on:
   workflow_dispatch:
   release:
-    types: [created]
+    types: [created, published]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      digests: ${{ steps.hash.outputs.digests }}
-
+      digests: ${{ steps.hash.outputs.hashes }}
+    
     steps:
       - uses: actions/checkout@v4
-
-      # ========================================================
-      #
-      # Step 1: Build your artifacts.
-      #
-      # ========================================================
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      # Build the actual Rust artifacts
       - name: Build artifacts
         run: |
-            # These are some amazing artifacts.
-            echo "artifact1" > artifact1
-            echo "artifact2" > artifact2
+          cargo build --release --all-features
+          
+          # Create a directory for release artifacts
+          mkdir -p release-artifacts
+          
+          # Copy the library file to the artifacts directory
+          cp target/release/librustica.so release-artifacts/ || true
+          cp target/release/librustica.a release-artifacts/ || true
+          cp target/release/librustica.dylib release-artifacts/ || true
+          cp target/release/rustica.lib release-artifacts/ || true
+          cp target/release/rustica.dll release-artifacts/ || true
+          
+          # Create an archive of the artifacts
+          cd release-artifacts
+          tar -czf rustica-artifacts.tar.gz *
+          cd ..
 
-      # ========================================================
-      #
-      # Step 2: Add a step to generate the provenance subjects
-      #         as shown below. Update the sha256 sum arguments
-      #         to include all binaries that you generate
-      #         provenance for.
-      #
-      # ========================================================
+      # Compute digests for SLSA provenance
       - name: Generate subject for provenance
         id: hash
         run: |
           set -euo pipefail
+          
+          cd release-artifacts
+          # List the artifacts the provenance will refer to
+          files=$(find . -type f -name "*.tar.gz")
+          
+          if [ -z "$files" ]; then
+            echo "No artifacts found. Aborting."
+            exit 1
+          fi
+          
+          # Generate the subjects (base64 encoded)
+          echo "hashes=$(sha256sum $files | base64 -w0)" >> $GITHUB_OUTPUT
+          
+          # Print checksums for verification
+          echo "Generated the following artifact checksums:"
+          sha256sum $files
 
-          # List the artifacts the provenance will refer to.
-          files=$(ls artifact*)
-          # Generate the subjects (base64 encoded).
-          echo "hashes=$(sha256sum $files | base64 -w0)" >> "${GITHUB_OUTPUT}"
+      # Upload artifacts for use in other workflows or for debugging
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: rustica-slsa-artifacts
+          path: release-artifacts/*.tar.gz
+          retention-days: 5
 
+  # The SLSA provenance generator job
   provenance:
     needs: [build]
     permissions:
-      actions: read   # To read the workflow path.
-      id-token: write # To sign the provenance.
-      contents: write # To add assets to a release.
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.0
+      actions: read   # To read the workflow path
+      id-token: write # To sign the provenance
+      contents: write # To add assets to a release
+    
+    # Using the latest version (v2.1.0) of the SLSA generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: "${{ needs.build.outputs.digests }}"
-      upload-assets: true # Optional: Upload to a new release
+      upload-assets: true # Upload provenance to the GitHub release
+      
+  # Verification job to ensure provenance is correctly generated and verifiable
+  verify:
+    needs: [provenance]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+      - name: Install SLSA verifier
+        run: |
+          curl -fsSL https://github.com/slsa-framework/slsa-verifier/releases/download/v2.4.0/slsa-verifier-linux-amd64 -o slsa-verifier
+          chmod +x slsa-verifier
+          ./slsa-verifier --version
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: rustica-slsa-artifacts
+          path: ./artifacts
+      
+      - name: Download provenance
+        run: |
+          # Get the provenance file from the release
+          gh release download ${{ github.ref_name }} -p "*.intoto.*" -D ./provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
+      - name: Verify provenance
+        run: |
+          for artifact in ./artifacts/*.tar.gz; do
+            echo "Verifying provenance for $artifact"
+            ./slsa-verifier verify-artifact \
+              --provenance-path="./provenance/*.intoto.jsonl" \
+              --source-uri="github.com/${{ github.repository }}" \
+              --source-tag=${{ github.ref_name }} \
+              $artifact
+          done

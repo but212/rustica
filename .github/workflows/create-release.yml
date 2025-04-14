@@ -4,6 +4,7 @@ permissions:
   contents: write  # Required for creating releases and uploading artifacts
   discussions: write  # Required if release notes are posted in discussions
   packages: write  # Required for uploading packages
+  id-token: write  # Required for SLSA provenance
 
 on:
   push:
@@ -11,21 +12,14 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
     outputs:
-      hashes: ${{ steps.hash.outputs.hashes }}
+      version: ${{ steps.check-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
       
       - name: Check crate version
         id: check-version
@@ -37,6 +31,34 @@ jobs:
             echo "::error::Version mismatch: Tag version ($VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
             exit 1
           fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+  
+  build:
+    needs: [validate]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-release-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Build with all features
         run: cargo build --release --features=full
@@ -45,24 +67,78 @@ jobs:
         run: cargo test --release --features=full
       
       - name: Package Artifacts
+        id: package
         run: |
+          PLATFORM="${{ matrix.os }}"
+          VERSION=${{ needs.validate.outputs.version }}
+          
+          # Create directory for artifacts
           mkdir -p release-artifacts
-          cp target/release/librustica.rlib release-artifacts/
-          cp -r examples/ release-artifacts/ || true
-          cd release-artifacts && tar -czf rustica-${{ github.ref_name }}.tar.gz *
+          
+          # Copy library files
+          if [[ "$PLATFORM" == "windows-latest" ]]; then
+            cp target/release/rustica.lib release-artifacts/
+            cp target/release/rustica.dll release-artifacts/
+            ARCHIVE_NAME="rustica-${VERSION}-windows-x86_64.zip"
+            (cd release-artifacts && 7z a "../${ARCHIVE_NAME}" *)
+          elif [[ "$PLATFORM" == "macos-latest" ]]; then
+            cp target/release/librustica.dylib release-artifacts/
+            cp target/release/librustica.a release-artifacts/
+            ARCHIVE_NAME="rustica-${VERSION}-macos-x86_64.tar.gz"
+            cp -r examples/ release-artifacts/ || true
+            tar -czf "${ARCHIVE_NAME}" -C release-artifacts .
+          else # ubuntu
+            cp target/release/librustica.so release-artifacts/
+            cp target/release/librustica.a release-artifacts/
+            ARCHIVE_NAME="rustica-${VERSION}-linux-x86_64.tar.gz"
+            cp -r examples/ release-artifacts/ || true
+            tar -czf "${ARCHIVE_NAME}" -C release-artifacts .
+          fi
+          
+          echo "archive_name=${ARCHIVE_NAME}" >> $GITHUB_OUTPUT
       
       - name: Generate checksums
         id: hash
         run: |
-          cd release-artifacts
-          echo "hashes=$(sha256sum *.tar.gz | base64 -w0)" >> $GITHUB_OUTPUT
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            ARCHIVE="${{ steps.package.outputs.archive_name }}"
+            echo "hashes=$(sha256sum "$ARCHIVE" | base64 -w0)" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: rustica-${{ matrix.os }}
+          path: ${{ steps.package.outputs.archive_name }}
+  
+  create-release:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v3
+        with:
+          configuration: ".github/changelog-config.json"
+          failOnError: false
+          toTag: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          files: release-artifacts/*.tar.gz
-          generate_release_notes: true
+          files: rustica-*/rustica-*
+          generate_release_notes: ${{ steps.changelog.outputs.changelog == '' }}
+          body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
   

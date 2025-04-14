@@ -28,6 +28,14 @@
   - Simplified collection operations like `compose_filter` and parallel operations to use basic composition
   - Added explanatory comments to clarify relationships between different composition functions
   - Improved modularity and maintainability through better functional composition
+  
+### CI/CD Improvements
+- Enhanced `rust.yml` with matrix testing across multiple platforms and Rust channels
+- Improved `code-quality.yml` with additional documentation checks and security audit
+- Updated `create-release.yml` with cross-platform artifact building and automatic changelog generation
+- Enhanced `publish-crates.yml` with version validation and duplicate publishing prevention
+- Improved `benchmark.yml` with comparison reports and PR comments
+- Updated `generator-generic-ossf-slsa3-publish.yml` to use latest SLSA generator (from v1.4.0 to v2.1.0)
 
 ## [0.6.1]
 
