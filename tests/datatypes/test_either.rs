@@ -115,8 +115,9 @@ fn test_either_applicative() {
     // Test apply short-circuiting behavior
     let value_right: Either<&str, i32> = Either::right(42);
     let value_left: Either<&str, i32> = Either::left("value error");
-    let f_right: Either<&str, Box<dyn Fn(&i32) -> i32>> = Either::right(Box::new(|x| x + 1));
-    let f_left: Either<&str, Box<dyn Fn(&i32) -> i32>> = Either::left("function error");
+    type EitherF<'a> = Either<&'a str, Box<dyn Fn(&i32) -> i32>>;
+    let f_right: EitherF = Either::right(Box::new(|x| x + 1));
+    let f_left: EitherF = Either::left("function error");
 
     // Right <*> Right = Right
     assert_eq!(value_right.apply(&f_right).unwrap_right(), 43);

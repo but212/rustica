@@ -105,7 +105,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
             let reader2 = Reader::<Config, i32>::asks(|cfg: Config| cfg.multiplier);
             let reader3 = Reader::<Config, String>::ask_with(
                 |cfg: &Config| format!("Multiplier: {}", cfg.multiplier),
-                |x| Id::new(x),
+                Id::new,
             );
 
             black_box((
@@ -214,7 +214,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
                     config.base_url, config.api_key, config.timeout_ms
                 )
             },
-            |x| Id::new(x),
+            Id::new,
         );
 
         let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(
@@ -224,12 +224,12 @@ pub fn reader_benchmarks(c: &mut Criterion) {
                 let user_has_permission = env.user.permissions.contains(&"read".to_string());
                 feature_enabled && user_has_permission
             },
-            |x| Id::new(x),
+            Id::new,
         );
 
         let is_authenticated = Reader::<AppEnvironment, bool>::ask_with(
             |env: &AppEnvironment| env.user.session_data.is_some(),
-            |x| Id::new(x),
+            Id::new,
         );
 
         // Clone environment once
@@ -255,7 +255,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
                     config.base_url, config.api_key, config.timeout_ms
                 )
             },
-            |x| Id::new(x),
+            Id::new,
         );
 
         let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(
@@ -265,12 +265,12 @@ pub fn reader_benchmarks(c: &mut Criterion) {
                 let user_has_permission = env.user.permissions.contains(&"read".to_string());
                 feature_enabled && user_has_permission
             },
-            |x| Id::new(x),
+            Id::new,
         );
 
         let is_authenticated = Reader::<AppEnvironment, bool>::ask_with(
             |env: &AppEnvironment| env.user.session_data.is_some(),
-            |x| Id::new(x),
+            Id::new,
         );
 
         // Clone environment once
