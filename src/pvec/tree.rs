@@ -652,7 +652,7 @@ impl<T: Clone> Tree<T> {
                                     continue;
                                 }
                             },
-                            _ => {}
+                            _ => {},
                         }
                     }
                 }

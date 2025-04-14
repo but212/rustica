@@ -177,10 +177,7 @@ fn test_either_applicative() {
 
     // Test lift2_owned short-circuiting behavior
     // Right lift Right = Right
-    assert_eq!(
-        a_right.lift2_owned(b_right, |x, y| x * y).unwrap_right(),
-        6
-    );
+    assert_eq!(a_right.lift2_owned(b_right, |x, y| x * y).unwrap_right(), 6);
     // Left lift Right = Left
     assert_eq!(
         a_left.lift2_owned(b_right, |x, y| x * y).unwrap_left(),
@@ -230,37 +227,27 @@ fn test_either_applicative() {
     // Test lift3_owned short-circuiting behavior
     // R lift R lift R = R
     assert_eq!(
-        a_right
-            .lift3_owned(b_right, c_right, |x, y, z| x * y + z)
-            .unwrap_right(),
+        a_right.lift3_owned(b_right, c_right, |x, y, z| x * y + z).unwrap_right(),
         10
     );
     // L lift R lift R = L (a)
     assert_eq!(
-        a_left
-            .lift3_owned(b_right, c_right, |x, y, z| x * y + z)
-            .unwrap_left(),
+        a_left.lift3_owned(b_right, c_right, |x, y, z| x * y + z).unwrap_left(),
         "a error"
     );
     // R lift L lift R = L (b)
     assert_eq!(
-        a_right
-            .lift3_owned(b_left, c_right, |x, y, z| x * y + z)
-            .unwrap_left(),
+        a_right.lift3_owned(b_left, c_right, |x, y, z| x * y + z).unwrap_left(),
         "b error"
     );
     // R lift R lift L = L (c)
     assert_eq!(
-        a_right
-            .lift3_owned(b_right, c_left, |x, y, z| x * y + z)
-            .unwrap_left(),
+        a_right.lift3_owned(b_right, c_left, |x, y, z| x * y + z).unwrap_left(),
         "c error"
     );
     // L lift L lift R = L (a)
     assert_eq!(
-        a_left
-            .lift3_owned(b_left, c_right, |x, y, z| x * y + z)
-            .unwrap_left(),
+        a_left.lift3_owned(b_left, c_right, |x, y, z| x * y + z).unwrap_left(),
         "a error"
     );
 }
