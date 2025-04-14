@@ -71,7 +71,10 @@ pub trait Traversable: Applicative {
     fn sequence<F>(&self) -> F::Output<Self::Output<F::Source>>
     where
         F: Applicative,
-        Self::Source: Into<F::Output<F::Source>> + Clone;
+        Self::Source: Into<F::Output<F::Source>> + Clone,
+    {
+        self.traverse::<F, F::Source, _>(|x| x.clone().into())
+    }
 
     /// Traverses the structure with ownership, applying the given function to each element and collecting the results.
     ///
@@ -113,5 +116,8 @@ pub trait Traversable: Applicative {
     where
         F: Applicative,
         Self::Source: Into<F::Output<F::Source>>,
-        Self: Sized;
+        Self: Sized,
+    {
+        self.traverse_owned::<F, F::Source, _>(|x| x.into())
+    }
 }
