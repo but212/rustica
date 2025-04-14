@@ -159,8 +159,8 @@ fn test_choice_semigroup() {
 #[test]
 fn test_choice_monoid() {
     let empty: Choice<i32> = Choice::new_empty();
-    assert_eq!(empty.is_empty(), true);
-    assert_eq!(empty.alternatives().is_empty(), true);
+    assert!(empty.is_empty());
+    assert!(empty.alternatives().is_empty());
 
     let choice = Choice::new(1, vec![2, 3]);
     let combined = choice.combine(&empty);

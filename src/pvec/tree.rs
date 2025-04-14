@@ -643,14 +643,16 @@ impl<T: Clone> Tree<T> {
                         // Calculate relative index
                         current_index = index - range.start;
 
-                        if let Node::Branch { children, .. } = &**current {
-                            if path_idx < children.len() {
+                        // Check if we can follow the cached path
+                        match &**current {
+                            Node::Branch { children, .. } if path_idx < children.len() => {
                                 if let Some(child) = &children[path_idx] {
                                     current = child;
                                     shift -= NODE_BITS;
                                     continue;
                                 }
-                            }
+                            },
+                            _ => {}
                         }
                     }
                 }

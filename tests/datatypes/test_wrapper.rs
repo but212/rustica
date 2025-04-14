@@ -456,22 +456,22 @@ fn test_real_world_use_cases() {
     // Test some practical use cases for the wrapper types
 
     // 1. Using Sum to calculate total
-    let values = vec![1, 2, 3, 4, 5];
+    let values = [1, 2, 3, 4, 5];
     let total = values.iter().map(|&x| Sum(x)).fold(Sum(0), |acc, x| acc.combine(&x));
     assert_eq!(total, Sum(15));
 
     // 2. Using Product to calculate factorial
-    let values = vec![1, 2, 3, 4, 5];
+    let values = [1, 2, 3, 4, 5];
     let factorial = values.iter().map(|&x| Product(x)).fold(Product(1), |acc, x| acc.combine(&x));
     assert_eq!(factorial, Product(120));
 
     // 3. Using Min to find minimum value
-    let values = vec![5, 3, 8, 2, 7];
+    let values = [5, 3, 8, 2, 7];
     let minimum = values.iter().map(|&x| Min(x)).fold(Min(i32::MAX), |acc, x| acc.combine(&x));
     assert_eq!(minimum, Min(2));
 
     // 4. Using Max to find maximum value
-    let values = vec![5, 3, 8, 2, 7];
+    let values = [5, 3, 8, 2, 7];
     let maximum = values.iter().map(|&x| Max(x)).fold(Max(i32::MIN), |acc, x| acc.combine(&x));
     assert_eq!(maximum, Max(8));
 

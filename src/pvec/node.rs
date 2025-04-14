@@ -125,7 +125,7 @@ impl<T: Clone + PartialEq> PartialEq for Node<T> {
                 },
             ) => {
                 // Compare the chunks by dereferencing them to get at the inner values
-                &**self_elements == &**other_elements
+                **self_elements == **other_elements
             },
             _ => false,
         }

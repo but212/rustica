@@ -480,10 +480,10 @@ impl<T: Clone> ManagedRef<T> {
                         obj
                     } else {
                         // Otherwise allocate a new one
-                        T::clone(&*self.inner).into()
+                        T::clone(&*self.inner)
                     }
                 },
-                None => T::clone(&*self.inner).into(),
+                None => T::clone(&*self.inner),
             };
 
             let new_ref = Self {

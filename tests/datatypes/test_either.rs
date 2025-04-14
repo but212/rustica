@@ -135,22 +135,22 @@ fn test_either_applicative() {
 
     // Right <*> Right = Right
     assert_eq!(
-        value_right_owned.clone().apply_owned(f_right_owned.clone()).unwrap_right(),
+        value_right_owned.apply_owned(f_right_owned).unwrap_right(),
         43
     );
     // Left <*> Right = Left
     assert_eq!(
-        value_left_owned.clone().apply_owned(f_right_owned.clone()).unwrap_left(),
+        value_left_owned.apply_owned(f_right_owned).unwrap_left(),
         "value error owned"
     );
     // Right <*> Left = Left
     assert_eq!(
-        value_right_owned.clone().apply_owned(f_left_owned.clone()).unwrap_left(),
+        value_right_owned.apply_owned(f_left_owned).unwrap_left(),
         "function error owned"
     );
     // Left <*> Left = Left (first Left encountered)
     assert_eq!(
-        value_left_owned.clone().apply_owned(f_left_owned.clone()).unwrap_left(),
+        value_left_owned.apply_owned(f_left_owned).unwrap_left(),
         "value error owned"
     );
 
@@ -178,22 +178,22 @@ fn test_either_applicative() {
     // Test lift2_owned short-circuiting behavior
     // Right lift Right = Right
     assert_eq!(
-        a_right.clone().lift2_owned(b_right.clone(), |x, y| x * y).unwrap_right(),
+        a_right.lift2_owned(b_right, |x, y| x * y).unwrap_right(),
         6
     );
     // Left lift Right = Left
     assert_eq!(
-        a_left.clone().lift2_owned(b_right.clone(), |x, y| x * y).unwrap_left(),
+        a_left.lift2_owned(b_right, |x, y| x * y).unwrap_left(),
         "a error"
     );
     // Right lift Left = Left
     assert_eq!(
-        a_right.clone().lift2_owned(b_left.clone(), |x, y| x * y).unwrap_left(),
+        a_right.lift2_owned(b_left, |x, y| x * y).unwrap_left(),
         "b error"
     );
     // Left lift Left = Left (first Left encountered)
     assert_eq!(
-        a_left.clone().lift2_owned(b_left.clone(), |x, y| x * y).unwrap_left(),
+        a_left.lift2_owned(b_left, |x, y| x * y).unwrap_left(),
         "a error"
     );
 
@@ -231,40 +231,35 @@ fn test_either_applicative() {
     // R lift R lift R = R
     assert_eq!(
         a_right
-            .clone()
-            .lift3_owned(b_right.clone(), c_right.clone(), |x, y, z| x * y + z)
+            .lift3_owned(b_right, c_right, |x, y, z| x * y + z)
             .unwrap_right(),
         10
     );
     // L lift R lift R = L (a)
     assert_eq!(
         a_left
-            .clone()
-            .lift3_owned(b_right.clone(), c_right.clone(), |x, y, z| x * y + z)
+            .lift3_owned(b_right, c_right, |x, y, z| x * y + z)
             .unwrap_left(),
         "a error"
     );
     // R lift L lift R = L (b)
     assert_eq!(
         a_right
-            .clone()
-            .lift3_owned(b_left.clone(), c_right.clone(), |x, y, z| x * y + z)
+            .lift3_owned(b_left, c_right, |x, y, z| x * y + z)
             .unwrap_left(),
         "b error"
     );
     // R lift R lift L = L (c)
     assert_eq!(
         a_right
-            .clone()
-            .lift3_owned(b_right.clone(), c_left.clone(), |x, y, z| x * y + z)
+            .lift3_owned(b_right, c_left, |x, y, z| x * y + z)
             .unwrap_left(),
         "c error"
     );
     // L lift L lift R = L (a)
     assert_eq!(
         a_left
-            .clone()
-            .lift3_owned(b_left.clone(), c_right.clone(), |x, y, z| x * y + z)
+            .lift3_owned(b_left, c_right, |x, y, z| x * y + z)
             .unwrap_left(),
         "a error"
     );

@@ -116,7 +116,7 @@ fn test_reader_t_with_complex_error_handling() {
     };
     let result = validate_config.try_run_reader(valid_config.clone());
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), true);
+    assert!(result.unwrap());
 
     // Test validation with an invalid config
     let invalid_config = Config {
