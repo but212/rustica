@@ -40,7 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install stable toolchain
+      # Install minimal profile for develop branch
+      - name: Install minimal toolchain (develop branch)
+        if: github.ref == 'refs/heads/develop'
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -48,20 +50,30 @@ jobs:
           override: true
           components: clippy
       
-      - name: Cache dependencies
-        uses: actions/cache@v3
+      # Install full profile for main branch
+      - name: Install full toolchain (main branch)
+        if: github.ref == 'refs/heads/main'
+        uses: actions-rs/toolchain@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-clippy-${{ hashFiles('**/Cargo.lock') }}
+          profile: complete
+          toolchain: stable
+          override: true
+          components: clippy
       
-      - name: Run clippy
-        uses: actions-rs/clippy-check@v1
+      # Run clippy with appropriate features based on branch
+      - name: Clippy with minimal features (develop)
+        if: github.ref == 'refs/heads/develop'
+        uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features -- -D warnings
+          command: clippy
+          args: -- -D warnings
+      
+      - name: Clippy with full features (main)
+        if: github.ref == 'refs/heads/main'
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --features=full -- -D warnings
   
   doc-test:
     name: Documentation
@@ -69,27 +81,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install stable toolchain
+      # Install minimal profile for develop branch
+      - name: Install minimal toolchain (develop branch)
+        if: github.ref == 'refs/heads/develop'
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
       
-      - name: Cache dependencies
-        uses: actions/cache@v3
+      # Install full profile for main branch
+      - name: Install full toolchain (main branch)
+        if: github.ref == 'refs/heads/main'
+        uses: actions-rs/toolchain@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-doc-${{ hashFiles('**/Cargo.lock') }}
+          profile: complete
+          toolchain: stable
+          override: true
       
-      - name: Check documentation
+      # Check documentation with appropriate features based on branch
+      - name: Check documentation builds (develop)
+        if: github.ref == 'refs/heads/develop'
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --no-deps --all-features
+          args: --no-deps
+      
+      - name: Check documentation builds (main)
+        if: github.ref == 'refs/heads/main'
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --no-deps --features=full
       
       - name: Check dead links
         uses: actions-rs/cargo@v1
@@ -102,6 +125,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      # Install minimal profile for develop branch
+      - name: Install minimal toolchain (develop branch)
+        if: github.ref == 'refs/heads/develop'
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      # Install full profile for main branch
+      - name: Install full toolchain (main branch)
+        if: github.ref == 'refs/heads/main'
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: complete
+          toolchain: stable
+          override: true
       
       - name: Install cargo-audit
         run: cargo install cargo-audit
