@@ -480,6 +480,18 @@ impl<T: Clone> Chunk<T> {
     }
 }
 
+impl<T: Clone + PartialEq> PartialEq for Chunk<T> {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        // Compare slice contents
+        let s1 = self.as_slice();
+        let s2 = other.as_slice();
+        s1 == s2
+    }
+}
+
+impl<T: Clone + Eq> Eq for Chunk<T> {}
+
 impl<T: Clone> Default for Chunk<T> {
     #[inline]
     fn default() -> Self {

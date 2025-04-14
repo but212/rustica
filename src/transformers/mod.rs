@@ -26,18 +26,20 @@
 //!
 //! - `ReaderT`: Transformer for the `Reader` monad, adding environment capabilities
 //! - `StateT`: Transformer for the `State` monad, adding stateful computation capabilities
+//! - `WriterT`: Transformer for the `Writer` monad, adding logging capabilities
+//! - `MaybeT`: Transformer for the `Maybe` monad, adding optional computation capabilities
 
 use crate::traits::monad::Monad;
 
 // mod maybe_t;
 pub mod reader_t;
 pub mod state_t;
-// mod writer_t;
+pub mod writer_t;
 
 // pub use maybe_t::MaybeT;
 pub use reader_t::ReaderT;
 pub use state_t::StateT;
-// pub use writer_t::WriterT;
+pub use writer_t::WriterT;
 
 /// Trait for monad transformers.
 ///

@@ -48,7 +48,10 @@ use super::node::{Node, NODE_BITS, NODE_SIZE};
 /// tree without modifying the original, allowing for efficient structural
 /// sharing between different versions.
 #[derive(Clone)]
-pub struct Tree<T: Clone> {
+pub struct Tree<T>
+where
+    T: Clone,
+{
     /// The root node of the tree.
     ///
     /// This is wrapped in a managed reference to enable efficient sharing
@@ -898,6 +901,17 @@ impl<T: Clone> Tree<T> {
         Arc::new(self)
     }
 }
+
+impl<T: Clone + PartialEq> PartialEq for Tree<T> {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        // Only compare the root node, size and height
+        // Ignore manager and cache as they don't affect the tree's values
+        self.root == other.root && self.size == other.size && self.height == other.height
+    }
+}
+
+impl<T: Clone + Eq> Eq for Tree<T> {}
 
 impl<T: Clone> Default for Tree<T> {
     #[inline]

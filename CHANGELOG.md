@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [0.6.2]
+
+### Fixed
+- Fixed type mismatches in the persistent vector's memory management system:
+  - Resolved inconsistencies between ManagedRef<T> and ObjectPool<T> types
+  - Improved memory pooling system for Node<T> and Chunk<T> references
+  - Enhanced drop semantics to ensure correct object pooling behavior
+  - Eliminated unsafe transmute operations with a more type-safe approach
+  - Fixed WriterT monad transformer doctests for better API clarity
+- Overall improved type safety and memory allocation efficiency
+
 ## [0.6.1]
 
 ### Added

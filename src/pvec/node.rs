@@ -39,6 +39,7 @@
 //! ```
 
 use std::fmt::{self, Debug};
+use std::sync::Arc;
 
 use crate::pvec::chunk::{Chunk, CHUNK_BITS, CHUNK_SIZE};
 use crate::pvec::memory::{ManagedRef, MemoryManager};
@@ -100,8 +101,42 @@ pub enum Node<T: Clone> {
     },
 }
 
+impl<T: Clone + Eq> Eq for Node<T> {}
+
+impl<T: Clone + PartialEq> PartialEq for Node<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Node::Branch {
+                    children: self_children,
+                    sizes: self_sizes,
+                },
+                Node::Branch {
+                    children: other_children,
+                    sizes: other_sizes,
+                },
+            ) => self_children == other_children && self_sizes == other_sizes,
+            (
+                Node::Leaf {
+                    elements: self_elements,
+                },
+                Node::Leaf {
+                    elements: other_elements,
+                },
+            ) => {
+                // Compare the chunks by dereferencing them to get at the inner values
+                &**self_elements == &**other_elements
+            },
+            _ => false,
+        }
+    }
+}
+
 /// Operations for manipulating nodes in the persistent vector tree structure
-trait NodeOps<T: Clone> {
+trait NodeOps<T>
+where
+    T: Clone,
+{
     /// Modifies a node by creating a new copy with the changes applied
     ///
     /// # Parameters
@@ -123,9 +158,17 @@ impl<T: Clone> NodeOps<T> for Node<T> {
     where
         F: FnOnce(&mut Node<T>),
     {
+        // Get a new node from the memory manager
         let mut new_node = manager.acquire_node();
-        *new_node.get_mut().unwrap() = self.clone();
-        modifier(new_node.get_mut().unwrap());
+
+        // Clone the current node into the new one
+        if let Some(node_mut) = new_node.get_mut() {
+            *node_mut = self.clone();
+
+            // Apply the modifier function
+            modifier(node_mut);
+        }
+
         new_node
     }
 }
@@ -187,6 +230,7 @@ impl<T: Clone> Node<T> {
     /// let manager = MemoryManager::<i32>::default();
     /// let mut chunk = manager.acquire_chunk();
     /// chunk.get_mut().unwrap().push_back(10);
+    /// chunk.get_mut().unwrap().push_back(20);
     /// let node = Node::leaf(chunk);
     ///
     /// let cloned = node.clone_node(&manager);
@@ -560,16 +604,28 @@ impl<T: Clone> Node<T> {
     where
         F: FnOnce(&mut Chunk<T>),
     {
+        // Clone the chunk reference
         let mut new_chunk = chunk.clone();
-        match new_chunk.make_mut() {
-            Ok(chunk) => {
-                modifier(chunk);
-                new_chunk
-            },
-            Err(mut new_managed) => {
-                modifier(new_managed.get_mut().unwrap());
-                new_managed
-            },
+
+        // Check if we can get a mutable reference directly
+        if let Some(chunk_mut) = new_chunk.get_mut() {
+            // If we can, modify it in place
+            modifier(chunk_mut);
+            new_chunk
+        } else {
+            // Otherwise, we need to clone the chunk
+            let mut cloned_chunk = Chunk::new();
+            cloned_chunk.clone_from(&**chunk);
+
+            // Get a mutable reference to our cloned chunk
+            let mut managed_chunk = ManagedRef::new(Arc::new(cloned_chunk), chunk.pool());
+
+            // Apply the modifier
+            if let Some(chunk_mut) = managed_chunk.get_mut() {
+                modifier(chunk_mut);
+            }
+
+            managed_chunk
         }
     }
 
@@ -1385,6 +1441,8 @@ impl<T: Clone> Node<T> {
     ///
     /// // Split at index 1
     /// let (left, right) = node.split(&manager, 1, 0);
+    ///
+    /// // Verify the result
     /// assert_eq!(left.size(), 1);
     /// assert_eq!(right.size(), 2);
     /// assert_eq!(*left.get(0, 0).unwrap(), 10);
@@ -1592,24 +1650,12 @@ impl<T: Clone> Node<T> {
                     }
 
                     if children.len() > 1 {
-                        let new_children: Vec<_> = children.iter().skip(1).cloned().collect();
+                        let mut new_children = Vec::with_capacity(children.len() - 1);
+                        new_children.extend(children.iter().skip(1).cloned());
 
-                        let new_sizes = if let Some(old_sizes) = sizes {
-                            if old_sizes.is_empty() {
-                                Some(Vec::new())
-                            } else {
-                                let first_size = old_sizes[0];
-                                Some(
-                                    old_sizes
-                                        .iter()
-                                        .skip(1)
-                                        .map(|&size| size - first_size)
-                                        .collect(),
-                                )
-                            }
-                        } else {
-                            None
-                        };
+                        let new_sizes = sizes
+                            .as_ref()
+                            .map(|old_sizes| old_sizes.iter().skip(1).cloned().collect());
 
                         let new_node = self.create_branch_node(manager, new_children, new_sizes);
                         return new_node.pop_front(manager, _shift);
@@ -1740,19 +1786,31 @@ impl<T: Clone> Node<T> {
     }
 }
 
+impl<T: Clone> Node<T> {}
+
 impl<T: Clone + Debug> Debug for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Node::Leaf { elements } => f
-                .debug_struct("Leaf")
-                .field("elements", elements)
-                .field("size", &elements.len())
-                .finish(),
+            Node::Leaf { elements } => {
+                // Use a debug struct to avoid dereferencing the ManagedRef directly
+                let mut debug_struct = f.debug_struct("Leaf");
+                debug_struct.field("size", &elements.len());
+
+                // Print a representation of the elements without dereferencing directly
+                let elements_str = format!("[{} items]", elements.len());
+                debug_struct.field("elements", &elements_str);
+
+                debug_struct.finish()
+            },
             Node::Branch { children, sizes } => {
                 let mut debug_struct = f.debug_struct("Branch");
 
-                debug_struct.field("size", &self.size());
-                debug_struct.field("child_count", &self.child_count());
+                // Use methods to access size and child count to avoid direct dereference
+                let size = self.size();
+                let child_count = self.child_count();
+
+                debug_struct.field("size", &size);
+                debug_struct.field("child_count", &child_count);
 
                 if let Some(sizes) = sizes {
                     debug_struct.field("relaxed", &true);
@@ -1761,7 +1819,10 @@ impl<T: Clone + Debug> Debug for Node<T> {
                     debug_struct.field("relaxed", &false);
                 }
 
-                debug_struct.field("children", children);
+                // Print a representation of the children count without dereferencing
+                let children_str = format!("[{} children]", children.len());
+                debug_struct.field("children", &children_str);
+
                 debug_struct.finish()
             },
         }

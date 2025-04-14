@@ -74,8 +74,11 @@ use super::tree::Tree;
 /// assert_eq!(vec2.len(), 4);
 /// ```
 #[repr(transparent)]
-#[derive(Clone)]
-pub struct PersistentVector<T: Clone> {
+#[derive(Clone, PartialEq, Eq)]
+pub struct PersistentVector<T>
+where
+    T: Clone,
+{
     /// The underlying implementation
     inner: VectorImpl<T>,
 }
@@ -89,8 +92,11 @@ pub struct PersistentVector<T: Clone> {
 /// The small vector optimization avoids the overhead of tree structures
 /// for collections with few elements, improving both memory usage and
 /// performance for common cases.
-#[derive(Clone)]
-enum VectorImpl<T: Clone> {
+#[derive(Clone, PartialEq, Eq)]
+enum VectorImpl<T>
+where
+    T: Clone,
+{
     /// Optimized storage for small vectors, using a fixed-size array
     Small {
         /// Direct inline storage of elements
@@ -118,7 +124,7 @@ const SMALL_VECTOR_SIZE: usize = 8;
 ///
 /// The implementation uses `Option<T>` for each slot to allow for efficient
 /// initialization without requiring `T` to implement `Default`.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 struct SmallVec<T> {
     /// The elements stored inline in a fixed-size array
     elements: [Option<T>; SMALL_VECTOR_SIZE],
@@ -415,6 +421,17 @@ impl<T: Clone> FromIterator<T> for VectorImpl<T> {
             result = result.push_back(item);
         }
         result
+    }
+}
+
+impl<T: Clone + Debug> Debug for VectorImpl<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VectorImpl::Small { elements } => {
+                f.debug_struct("Small").field("elements", elements).finish()
+            },
+            VectorImpl::Tree { tree } => f.debug_struct("Tree").field("tree", tree).finish(),
+        }
     }
 }
 

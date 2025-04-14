@@ -256,6 +256,17 @@ impl IndexCache {
     }
 }
 
+impl PartialEq for IndexCache {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        // Check only the cached index and validity state
+        // Path and ranges are implementation details that don't affect equality
+        self.index == other.index && self.valid == other.valid
+    }
+}
+
+impl Eq for IndexCache {}
+
 impl Default for IndexCache {
     #[inline]
     fn default() -> Self {
