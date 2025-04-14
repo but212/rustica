@@ -55,6 +55,7 @@
 //! ```
 
 use crate::traits::applicative::Applicative;
+use crate::traits::comonad::Comonad;
 use crate::traits::composable::Composable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
@@ -663,5 +664,28 @@ impl<T> Default for Maybe<T> {
     #[inline]
     fn default() -> Self {
         Maybe::Nothing
+    }
+}
+
+impl<T: Clone> Comonad for Maybe<T> {
+    fn extract(&self) -> T {
+        match self {
+            Maybe::Just(v) => v.clone(),
+            Maybe::Nothing => panic!("Called `Comonad::extract()` on a `Nothing` value"),
+        }
+    }
+
+    fn duplicate(&self) -> Self {
+        self.clone()
+    }
+
+    fn extend<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self) -> U,
+    {
+        match self {
+            Maybe::Just(_) => Maybe::Just(f(self)),
+            Maybe::Nothing => Maybe::Nothing,
+        }
     }
 }

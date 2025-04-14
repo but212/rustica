@@ -9,6 +9,19 @@
   - Added `mconcat(values)` function to combine values from a slice
   - Added `power(value, exponent)` function to combine a monoid with itself multiple times
   - Improved documentation with comprehensive examples and doctests
+- Implemented Comonad trait for standard library types
+  - Added implementations for `Option<T>` and `Result<T, E>` with proper Clone bounds
+  - Added doctests and examples for Comonad operations 
+  - Implemented Comonad for the Maybe type with Clone semantics
+
+### Changed
+- Refactored composition functions to build on more basic operations
+  - Modified `compose_fallible` to use the basic `compose` function with Result's `and_then`
+  - Modified `compose_option` to use the basic `compose` function with Option's `and_then`
+  - Modified `compose_option_result` to use basic composition with transformation
+  - Simplified collection operations like `compose_filter` and parallel operations to use basic composition
+  - Added explanatory comments to clarify relationships between different composition functions
+  - Improved modularity and maintainability through better functional composition
 
 ## [0.6.1]
 

@@ -194,7 +194,6 @@ pub trait Composable: HKT {
     /// # Returns
     ///
     /// A new function that applies `f`, then conditionally applies `g` based on the predicate.
-    #[inline]
     fn compose_when<U, F, G, P>(f: F, g: G, predicate: P) -> impl Fn(Self::Source) -> U
     where
         F: Fn(Self::Source) -> U,
@@ -449,7 +448,6 @@ where
 /// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even, so double is applied)
 /// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd, so double is not applied)
 /// ```
-#[inline]
 pub fn compose_when<A, B, F, G, P>(f: F, g: G, predicate: P) -> impl Fn(A) -> B
 where
     F: Fn(A) -> B,
@@ -525,10 +523,8 @@ where
     F: Fn(A) -> Result<B, E>,
     G: Fn(B) -> Result<C, E>,
 {
-    move |a| match f(a) {
-        Ok(b) => g(b),
-        Err(e) => Err(e),
-    }
+    // Using basic compose function with Result's and_then
+    compose(f, move |result: Result<B, E>| result.and_then(&g))
 }
 
 /// Composes a function returning Option with a function returning Result.
@@ -585,12 +581,10 @@ where
 pub fn compose_option_result<A, B, C, E, F, G>(f: F, g: G) -> impl Fn(A) -> Option<C>
 where
     F: Fn(A) -> Option<B>,
-    G: Fn(B) -> Result<C, E> + Clone,
+    G: Fn(B) -> Result<C, E>,
 {
-    move |a| {
-        let g = g.clone();
-        f(a).and_then(move |b| g(b).ok())
-    }
+    // Using basic compose function
+    compose(f, move |opt: Option<B>| opt.and_then(|b| g(b).ok()))
 }
 
 /// Composes two functions that return Options.
@@ -645,64 +639,10 @@ where
 pub fn compose_option<A, B, C, F, G>(f: F, g: G) -> impl Fn(A) -> Option<C>
 where
     F: Fn(A) -> Option<B>,
-    G: Fn(B) -> Option<C> + Clone,
+    G: Fn(B) -> Option<C>,
 {
-    move |a| {
-        let g = g.clone();
-        f(a).and_then(g)
-    }
-}
-
-/// Composes a function with an iterator-mapping function.
-///
-/// # Type Parameters
-///
-/// * `A`: Input type of the first function
-/// * `B`: Output type of the first function, input of the mapping function
-/// * `C`: Output type of the mapping function
-/// * `F`: Type of the first function
-/// * `G`: Type of the mapping function
-///
-/// # Arguments
-///
-/// * `f`: First function to apply
-/// * `g`: Second function to apply to each element
-///
-/// # Returns
-///
-/// A function that applies the first function and then maps the second function over each element
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::composable::compose_iter;
-///
-/// fn get_numbers(max: usize) -> Vec<i32> {
-///     (0..max as i32).collect()
-/// }
-///
-/// fn square(x: i32) -> i32 {
-///     x * x
-/// }
-///
-/// // Compose these functions
-/// let get_squares = compose_iter(get_numbers, square);
-///
-/// // Apply the composed function
-/// let squares = get_squares(5);
-/// assert_eq!(squares, vec![0, 1, 4, 9, 16]);
-/// ```
-#[inline]
-pub fn compose_iter<A, B, C, F, G>(f: F, g: G) -> impl Fn(A) -> Vec<C>
-where
-    F: Fn(A) -> Vec<B>,
-    G: Fn(B) -> C + Clone,
-{
-    move |a| {
-        let collection = f(a);
-        let g = g.clone();
-        collection.into_iter().map(g).collect()
-    }
+    // Using basic compose function with Option's and_then
+    compose(f, move |opt: Option<B>| opt.and_then(&g))
 }
 
 /// Composes a function with a filtering predicate function.
@@ -749,11 +689,11 @@ where
     F: Fn(A) -> Vec<B>,
     P: Fn(&B) -> bool + Clone,
 {
-    move |a| {
-        let collection = f(a);
+    // Using compose to build the filter operation
+    compose(f, move |collection: Vec<B>| {
         let predicate = predicate.clone();
         collection.into_iter().filter(move |item| predicate(item)).collect()
-    }
+    })
 }
 
 /// Chains multiple iterator-producing functions into a single function.
@@ -792,13 +732,14 @@ where
 /// // First all numbers from range1 (1..100), then all numbers from range2 (100..200), then all numbers from range3 (200..300)
 /// assert_eq!(all_numbers.len(), 9);
 /// ```
-#[inline]
 pub fn compose_iter_chain<A, B, F>(functions: Vec<F>) -> impl Fn(A) -> Vec<B>
 where
     F: Fn(A) -> Vec<B> + Clone,
     A: Clone,
 {
+    // Building upon the concept of compose_all, but for iterator-producing functions
     move |a| {
+        // Using flat_map to chain the results of each function
         functions
             .iter()
             .flat_map(|f| {
@@ -807,63 +748,6 @@ where
                 f(a)
             })
             .collect()
-    }
-}
-
-use rayon::prelude::*;
-
-/// Composes a function with a parallel mapping function using rayon.
-///
-/// This function requires the "rayon" feature to be enabled.
-///
-/// # Type Parameters
-///
-/// * `A`: Input type of the first function
-/// * `B`: Output type of the first function, input of the mapping function
-/// * `C`: Output type of the mapping function
-/// * `F`: Type of the first function
-/// * `G`: Type of the mapping function
-///
-/// # Arguments
-///
-/// * `f`: Function producing a collection
-/// * `g`: Function to apply to each element in parallel
-///
-/// # Returns
-///
-/// A function that composes the two functions with parallel execution of the mapping
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::composable::compose_par;
-///
-/// // A function that produces a vector of large numbers
-/// fn generate_large_numbers(count: usize) -> Vec<u64> {
-///     (1..=count as u64).collect()
-/// }
-///
-/// // A computationally intensive function to calculate factorial
-/// fn factorial(n: u64) -> u64 {
-///     (1..=n).product()
-/// }
-///
-/// // Use the composed function (will run in parallel)
-/// let get_factorials = compose_par(generate_large_numbers, factorial);
-/// let factorials = get_factorials(10);
-/// ```
-#[inline]
-pub fn compose_par<A, B, C, F, G>(f: F, g: G) -> impl Fn(A) -> Vec<C>
-where
-    F: Fn(A) -> Vec<B>,
-    G: Fn(B) -> C + Clone + Send + Sync,
-    B: Send,
-    C: Send,
-{
-    move |a| {
-        let collection = f(a);
-        let g = g.clone();
-        collection.into_par_iter().map(g).collect()
     }
 }
 
@@ -922,18 +806,74 @@ where
 /// let get_primes = compose_par_filter(generate_numbers, is_prime);
 /// let primes = get_primes(100);
 /// ```
-#[inline]
 pub fn compose_par_filter<A, B, F, P>(f: F, predicate: P) -> impl Fn(A) -> Vec<B>
 where
     F: Fn(A) -> Vec<B>,
     P: Fn(&B) -> bool + Clone + Send + Sync,
     B: Send,
 {
-    move |a| {
-        let collection = f(a);
+    // Using compose to build the parallel filter operation
+    compose(f, move |collection: Vec<B>| {
         let predicate = predicate.clone();
         collection.into_par_iter().filter(move |item| predicate(item)).collect()
-    }
+    })
+}
+
+use rayon::prelude::*;
+
+/// Composes a function with a parallel mapping function using rayon.
+///
+/// This function requires the "rayon" feature to be enabled.
+///
+/// # Type Parameters
+///
+/// * `A`: Input type of the first function
+/// * `B`: Output type of the first function, input of the mapping function
+/// * `C`: Output type of the mapping function
+/// * `F`: Type of the first function
+/// * `G`: Type of the mapping function
+///
+/// # Arguments
+///
+/// * `f`: Function producing a collection
+/// * `g`: Function to apply to each element in parallel
+///
+/// # Returns
+///
+/// A function that composes the two functions with parallel execution of the mapping
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::composable::compose_par;
+///
+/// // A function that produces a vector of large numbers
+/// fn generate_large_numbers(count: usize) -> Vec<u64> {
+///     (1..=count as u64).collect()
+/// }
+///
+/// // A computationally intensive function to calculate factorial
+/// fn factorial(n: u64) -> u64 {
+///     (1..=n).product()
+/// }
+///
+/// // Use the composed function (will run in parallel)
+/// let get_factorials = compose_par(generate_large_numbers, factorial);
+/// let factorials = get_factorials(10);
+/// ```
+#[inline]
+pub fn compose_par<A, B, C, F, G>(f: F, g: G) -> impl Fn(A) -> Vec<C>
+where
+    F: Fn(A) -> Vec<B>,
+    G: Fn(B) -> C + Clone + Send + Sync,
+    B: Send,
+    C: Send,
+{
+    // Using compose to build the parallel mapping operation
+    compose(f, move |collection: Vec<B>| {
+        let g = g.clone();
+        collection.into_par_iter().map(g).collect()
+    })
 }
 
 /// Chains multiple functions together and processes their results in parallel.
@@ -974,14 +914,15 @@ where
 /// // First all numbers from range1 (1..100), then all numbers from range2 (100..200), then all numbers from range3 (200..300)
 /// assert_eq!(all_numbers.len(), 299);
 /// ```
-#[inline]
 pub fn compose_par_chain<A, B, F>(functions: Vec<F>) -> impl Fn(A) -> Vec<B>
 where
     F: Fn(A) -> Vec<B> + Clone + Send + Sync,
     A: Clone + Send + Sync,
     B: Send,
 {
+    // Building upon the concept of compose_all, but for iterator-producing functions
     move |a| {
+        // Using flat_map to chain the results of each function
         functions
             .par_iter()
             .flat_map(|f| {
@@ -1029,7 +970,6 @@ where
 /// // Should contain results of all transformations: [20, 20, 100, -10]
 /// assert_eq!(results.len(), 4);
 /// ```
-#[inline]
 pub fn apply_par_all<A, B, F>(input: A, transformations: Vec<F>) -> Vec<B>
 where
     F: Fn(A) -> B + Clone + Send + Sync,

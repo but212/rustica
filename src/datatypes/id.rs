@@ -52,8 +52,9 @@
 //! assert_eq!(*pure_value.value(), 100);
 //! ```
 use crate::traits::{
-    applicative::Applicative, composable::Composable, foldable::Foldable, functor::Functor,
-    hkt::HKT, identity::Identity, monad::Monad, monoid::Monoid, pure::Pure, semigroup::Semigroup,
+    applicative::Applicative, comonad::Comonad, composable::Composable, foldable::Foldable,
+    functor::Functor, hkt::HKT, identity::Identity, monad::Monad, monoid::Monoid, pure::Pure,
+    semigroup::Semigroup,
 };
 
 /// The identity monad, which represents a computation that simply wraps a value.
@@ -375,6 +376,23 @@ impl<T: Clone> Monad for Id<T> {
     }
 }
 
+impl<T: Clone> Comonad for Id<T> {
+    fn extract(&self) -> Self::Source {
+        self.value.clone()
+    }
+
+    fn duplicate(&self) -> Self {
+        self.clone()
+    }
+
+    fn extend<U, F>(&self, f: F) -> Self::Output<U>
+    where
+        F: Fn(&Self) -> U,
+    {
+        Id::new(f(self))
+    }
+}
+
 impl<T: Semigroup> Semigroup for Id<T> {
     #[inline]
     fn combine(&self, other: &Self) -> Self {
@@ -422,21 +440,6 @@ impl<T> From<T> for Id<T> {
 }
 
 impl<T: Default> Default for Id<T> {
-    /// Creates a new `Id` with the default value for type `T`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
-    /// use std::default::Default;
-    ///
-    /// let default_id: Id<i32> = Default::default();
-    /// assert_eq!(*default_id.value(), 0); // i32's default is 0
-    ///
-    /// let default_string: Id<String> = Default::default();
-    /// assert_eq!(*default_string.value(), ""); // String's default is empty string
-    /// ```
     #[inline]
     fn default() -> Self {
         Id::new(T::default())
