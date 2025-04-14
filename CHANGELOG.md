@@ -2,14 +2,13 @@
 
 ## [0.6.2]
 
-### Fixed
-- Fixed type mismatches in the persistent vector's memory management system:
-  - Resolved inconsistencies between ManagedRef<T> and ObjectPool<T> types
-  - Improved memory pooling system for Node<T> and Chunk<T> references
-  - Enhanced drop semantics to ensure correct object pooling behavior
-  - Eliminated unsafe transmute operations with a more type-safe approach
-  - Fixed WriterT monad transformer doctests for better API clarity
-- Overall improved type safety and memory allocation efficiency
+### Added
+- Enhanced Monoid trait with additional utility functions
+  - Added `is_empty_monoid()` method to test if a value equals the identity element
+  - Added `repeat(value, n)` function to create a monoid by repeating an element n times
+  - Added `mconcat(values)` function to combine values from a slice
+  - Added `power(value, exponent)` function to combine a monoid with itself multiple times
+  - Improved documentation with comprehensive examples and doctests
 
 ## [0.6.1]
 

@@ -200,19 +200,15 @@ where
 ///
 /// This trait is automatically implemented for all types that implement `Monoid`.
 pub trait MonoidExt: Monoid {
-    /// Combines multiple monoid values with this value
+    /// Combines `self` with all elements in the provided iterator.
     ///
     /// # Type Parameters
     ///
-    /// * `I` - An iterator type yielding values of type `Self`
-    ///
-    /// # Parameters
-    ///
-    /// * `others` - An iterator of monoid values to combine with this value
+    /// * `I` - An iterator type yielding values of this monoid type
     ///
     /// # Returns
     ///
-    /// The combined result of this value and all other values
+    /// The result of combining `self` with all elements in the iterator
     ///
     /// # Examples
     ///
@@ -221,20 +217,203 @@ pub trait MonoidExt: Monoid {
     /// use rustica::traits::semigroup::Semigroup;
     ///
     /// let base = String::from("Hello");
-    /// let others = vec![String::from(" "), String::from("World")];
+    /// let others = vec![String::from(", "), String::from("World!")];
     /// let result = base.combine_all(others);
-    /// assert_eq!(result, String::from("Hello World"));
+    /// assert_eq!(result, "Hello, World!");
     /// ```
-    fn combine_all<I>(self, others: I) -> Self
-    where
-        I: IntoIterator<Item = Self>;
-}
-
-impl<T: Monoid> MonoidExt for T {
+    #[inline]
     fn combine_all<I>(self, others: I) -> Self
     where
         I: IntoIterator<Item = Self>,
     {
         others.into_iter().fold(self, |acc, x| acc.combine_owned(x))
+    }
+
+    /// Checks if this monoid value is equal to the identity element.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the value equals the identity element, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::monoid::{Monoid, MonoidExt};
+    ///
+    /// let empty_string = String::empty();
+    /// assert!(empty_string.is_empty_monoid());
+    ///
+    /// let non_empty = String::from("Hello");
+    /// assert!(!non_empty.is_empty_monoid());
+    ///
+    /// let empty_vec: Vec<i32> = Vec::empty();
+    /// assert!(empty_vec.is_empty_monoid());
+    /// ```
+    #[inline]
+    fn is_empty_monoid(&self) -> bool
+    where
+        Self: PartialEq,
+    {
+        self == &Self::empty()
+    }
+}
+
+impl<T: Monoid> MonoidExt for T {}
+
+/// Creates a monoid by repeating an element a specified number of times.
+///
+/// This function creates a new monoid value by combining n copies of the provided value.
+/// If n is 0, it returns the identity element.
+/// If n is 1, returns the value itself.
+/// For exponents > 1, combines the value with itself that many times.
+///
+/// # Type Parameters
+///
+/// * `M` - A type implementing `Monoid`
+///
+/// # Arguments
+///
+/// * `value` - The value to repeat
+/// * `n` - Number of times to repeat the value
+///
+/// # Returns
+///
+/// A new monoid value consisting of n copies of the input combined together
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::monoid::{self, Monoid};
+/// use rustica::traits::semigroup::Semigroup;
+///
+/// // Repeating a string
+/// let hello = String::from("Hello");
+/// let repeated = monoid::repeat(hello, 3);
+/// assert_eq!(repeated, "HelloHelloHello");
+///
+/// // Zero repetitions returns the identity
+/// let zero_repeat = monoid::repeat(String::from("World"), 0);
+/// assert_eq!(zero_repeat, String::empty());
+/// ```
+#[inline]
+pub fn repeat<M>(value: M, n: usize) -> M
+where
+    M: Monoid + Clone,
+{
+    if n == 0 {
+        return M::empty();
+    }
+
+    // Special case optimization for n == 1
+    if n == 1 {
+        return value;
+    }
+
+    let mut result = value.clone();
+    for _ in 1..n {
+        result = result.combine_owned(value.clone());
+    }
+    result
+}
+
+/// Combines a slice of monoid values.
+///
+/// This function takes a slice of monoid values and combines them all,
+/// returning the identity element if the slice is empty.
+///
+/// # Type Parameters
+///
+/// * `M` - A type implementing `Monoid`
+///
+/// # Arguments
+///
+/// * `values` - A slice of monoid values to combine
+///
+/// # Returns
+///
+/// The combined result of all values in the slice or the identity element if the slice is empty
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::monoid::{self, Monoid};
+/// use rustica::traits::semigroup::Semigroup;
+///
+/// // Combining strings
+/// let strings = [
+///     String::from("Hello"),
+///     String::from(" "),
+///     String::from("World")
+/// ];
+/// let result = monoid::mconcat(&strings);
+/// assert_eq!(result, "Hello World");
+///
+/// // Empty slice returns the identity element
+/// let empty: [String; 0] = [];
+/// let result = monoid::mconcat(&empty);
+/// assert_eq!(result, String::empty());
+/// ```
+#[inline]
+pub fn mconcat<M>(values: &[M]) -> M
+where
+    M: Monoid + Clone,
+{
+    if values.is_empty() {
+        return M::empty();
+    }
+
+    let mut result = values[0].clone();
+    for value in &values[1..] {
+        result = result.combine(value);
+    }
+    result
+}
+
+/// Creates a monoid that is combined with itself a specified number of times (raised to a power).
+///
+/// If the exponent is 0, returns the identity element.
+/// If the exponent is 1, returns the value itself.
+/// For exponents > 1, combines the value with itself that many times.
+///
+/// # Type Parameters
+///
+/// * `M` - A type implementing `Monoid`
+///
+/// # Arguments
+///
+/// * `value` - The base value
+/// * `exponent` - The power to raise the value to
+///
+/// # Returns
+///
+/// The value combined with itself `exponent` times
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::monoid::{self, Monoid};
+/// use rustica::traits::semigroup::Semigroup;
+///
+/// // String power
+/// let base = String::from("ab");
+/// assert_eq!(monoid::power(base.clone(), 0), String::empty());
+/// assert_eq!(monoid::power(base.clone(), 1), "ab");
+/// assert_eq!(monoid::power(base.clone(), 3), "ababab");
+///
+/// // Vec power
+/// let nums = vec![1, 2];
+/// assert_eq!(monoid::power(nums.clone(), 0), Vec::<i32>::empty());
+/// assert_eq!(monoid::power(nums.clone(), 1), vec![1, 2]);
+/// assert_eq!(monoid::power(nums.clone(), 3), vec![1, 2, 1, 2, 1, 2]);
+/// ```
+#[inline]
+pub fn power<M>(value: M, exponent: usize) -> M
+where
+    M: Monoid + Clone,
+{
+    match exponent {
+        0 => M::empty(),
+        1 => value,
+        _ => repeat(value, exponent),
     }
 }

@@ -597,30 +597,6 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 
     #[inline]
-    fn sequence_right<B>(&self, other: &Self::Output<B>) -> Self::Output<B>
-    where
-        B: Clone,
-    {
-        match (self, other) {
-            (Ok(_), Ok(b)) => Ok(b.clone()),
-            (Err(e), _) => Err(e.clone()),
-            (_, Err(e)) => Err(e.clone()),
-        }
-    }
-
-    #[inline]
-    fn sequence_left<B>(&self, other: &Self::Output<B>) -> Self::Output<Self::Source>
-    where
-        Self::Source: Clone,
-    {
-        match (self, other) {
-            (Ok(a), Ok(_)) => Ok(a.clone()),
-            (Err(e), _) => Err(e.clone()),
-            (_, Err(e)) => Err(e.clone()),
-        }
-    }
-
-    #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         F: FnOnce(Self::Source) -> B,
@@ -659,30 +635,6 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
             (Err(e), _, _) => Err(e),
             (_, Err(e), _) => Err(e),
             (_, _, Err(e)) => Err(e),
-        }
-    }
-
-    #[inline]
-    fn sequence_right_owned<B>(self, other: Self::Output<B>) -> Self::Output<B>
-    where
-        Self: Sized,
-    {
-        match (self, other) {
-            (Ok(_), Ok(b)) => Ok(b),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
-        }
-    }
-
-    #[inline]
-    fn sequence_left_owned<B>(self, other: Self::Output<B>) -> Self::Output<Self::Source>
-    where
-        Self: Sized,
-    {
-        match (self, other) {
-            (Ok(a), Ok(_)) => Ok(a),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
         }
     }
 }
@@ -742,30 +694,6 @@ impl<A: Clone> Applicative for Vec<A> {
         result
     }
 
-    #[inline]
-    fn sequence_right<B>(&self, other: &Self::Output<B>) -> Self::Output<B>
-    where
-        Self::Source: Clone,
-        B: Clone,
-    {
-        self.lift2(other, |_, b| b.clone())
-    }
-
-    #[inline]
-    fn sequence_left<B>(&self, other: &Self::Output<B>) -> Self::Output<Self::Source>
-    where
-        Self::Source: Clone,
-        B: Clone,
-    {
-        let mut result = Vec::with_capacity(self.len() * other.len());
-        for a in self {
-            for _ in other {
-                result.push(a.clone());
-            }
-        }
-        result
-    }
-
     // Ownership-based implementations for better performance
     #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
@@ -815,37 +743,6 @@ impl<A: Clone> Applicative for Vec<A> {
                 for c_val in c.clone() {
                     result.push(f(a.clone(), b_val.clone(), c_val));
                 }
-            }
-        }
-        result
-    }
-
-    #[inline]
-    fn sequence_right_owned<B>(self, other: Self::Output<B>) -> Self::Output<B>
-    where
-        Self: Sized,
-        B: Clone,
-    {
-        let mut result = Vec::with_capacity(self.len() * other.len());
-        let other_ref = &other; // Create a reference to avoid moving 'other'
-        for _ in self {
-            for b in other_ref {
-                result.push(b.clone());
-            }
-        }
-        result
-    }
-
-    #[inline]
-    fn sequence_left_owned<B>(self, other: Self::Output<B>) -> Self::Output<Self::Source>
-    where
-        Self: Sized,
-        Self::Source: Clone,
-    {
-        let mut result = Vec::with_capacity(self.len() * other.len());
-        for a in &self {
-            for _ in &other {
-                result.push(a.clone());
             }
         }
         result
