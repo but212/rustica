@@ -144,12 +144,9 @@ impl<T: Clone> MonadPlus for Option<T> {
 }
 
 // Implementation for Result with a shared error type
-impl<T: Clone, E: Clone + Debug> MonadPlus for Result<T, E> {
+impl<T: Clone, E: Clone + Debug + Default> MonadPlus for Result<T, E> {
     fn mzero<U: Clone>() -> Self::Output<U> {
-        // For Result, we need an error value to represent "zero"
-        // This is a bit problematic without a Default for E
-        // For a proper implementation, we might need a different trait bound
-        panic!("Result cannot implement MonadPlus properly without a default error value");
+        Err(E::default())
     }
 
     fn mplus(&self, other: &Self) -> Self {

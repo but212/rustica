@@ -15,6 +15,12 @@
   - Implemented Comonad for the Maybe type with Clone semantics
 
 ### Changed
+- Refactored Iso trait to use instance methods and improve composability
+  - Converted static methods to instance methods with `&self` parameter
+  - Implemented proper field usage in `ComposedIso` and `InverseIso` structs
+  - Added `iso_compose` method for composing isomorphisms in a functional style
+  - Fixed compilation issues with proper type constraints and Clone bounds
+  - Updated documentation and examples to reflect instance method usage
 - Refactored composition functions to build on more basic operations
   - Modified `compose_fallible` to use the basic `compose` function with Result's `and_then`
   - Modified `compose_option` to use the basic `compose` function with Option's `and_then`

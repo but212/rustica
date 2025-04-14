@@ -1,6 +1,361 @@
+//! # Isomorphism
+//!
+//! This module provides the [`Iso`] trait which represents isomorphisms between types.
+//! An isomorphism is a pair of functions that convert between two types while preserving
+//! their structure, with the property that converting from A to B and back to A gives
+//! you the original value (and similarly for B to A and back to B).
+//!
+//! ## Examples
+//!
+//! ```rust
+//! use rustica::traits::iso::Iso;
+//!
+//! // An isomorphism between String and Vec<char>
+//! struct StringVecIso;
+//!
+//! impl Iso<String, Vec<char>> for StringVecIso {
+//!     type From = String;
+//!     type To = Vec<char>;
+//!
+//!     fn forward(&self, from: &Self::From) -> Self::To {
+//!         from.chars().collect()
+//!     }
+//!
+//!     fn backward(&self, to: &Self::To) -> Self::From {
+//!         to.iter().collect()
+//!     }
+//! }
+//!
+//! // Using the isomorphism
+//! let s = String::from("hello");
+//! let vec = StringVecIso.forward(&s);
+//! assert_eq!(vec, vec!['h', 'e', 'l', 'l', 'o']);
+//! let s2 = StringVecIso.backward(&vec);
+//! assert_eq!(s, s2);
+//! ```
+//!
+//! ## Laws
+//!
+//! A valid isomorphism must satisfy these laws:
+//!
+//! 1. **Round-trip from A to B to A**: `backward(forward(a)) == a`
+//! 2. **Round-trip from B to A to B**: `forward(backward(b)) == b`
+//!
+//! ## Common Use Cases
+//!
+//! Isomorphisms are useful for:
+//!
+//! 1. **Data Conversion** - When you need to seamlessly convert between equivalent representations
+//! 2. **Lens and Optics** - Building blocks for lenses, prisms, and other optics
+//! 3. **Domain Modeling** - Creating type-safe abstractions that map between domain concepts
+
+use std::marker::PhantomData;
+
+/// A trait representing an isomorphism between two types.
+///
+/// An isomorphism defines a bidirectional mapping between types where converting
+/// from one type to the other and back yields the original value. This preserves
+/// all information during conversion.
+///
+/// # Type Parameters
+///
+/// * `A`: The first type in the isomorphism
+/// * `B`: The second type in the isomorphism
+///
+/// # Examples
+///
+/// Creating an isomorphism between a newtype and its inner value:
+///
+/// ```rust
+/// use rustica::traits::iso::Iso;
+///
+/// // A newtype wrapper
+/// struct UserId(u64);
+///
+/// // Isomorphism between UserId and u64
+/// struct UserIdIso;
+///
+/// impl Iso<UserId, u64> for UserIdIso {
+///     type From = UserId;
+///     type To = u64;
+///
+///     fn forward(&self, from: &Self::From) -> Self::To {
+///         from.0
+///     }
+///
+///     fn backward(&self, to: &Self::To) -> Self::From {
+///         UserId(*to)
+///     }
+/// }
+///
+/// let iso = UserIdIso;
+/// let user_id = UserId(123);
+/// let id_num = iso.forward(&user_id);
+/// assert_eq!(id_num, 123);
+///
+/// let user_id2 = iso.backward(&id_num);
+/// assert_eq!(user_id2.0, user_id.0);
+/// ```
 pub trait Iso<A, B> {
-    type To;
+    /// The source type of the isomorphism.
     type From;
-    fn forward(from: &Self::From) -> Self::To;
-    fn backward(to: &Self::To) -> Self::From;
+
+    /// The target type of the isomorphism.
+    type To;
+
+    /// Converts from the source type to the target type.
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - A reference to a value of the source type
+    ///
+    /// # Returns
+    ///
+    /// A value of the target type
+    fn forward(&self, from: &Self::From) -> Self::To;
+
+    /// Converts from the target type back to the source type.
+    ///
+    /// # Arguments
+    ///
+    /// * `to` - A reference to a value of the target type
+    ///
+    /// # Returns
+    ///
+    /// A value of the source type
+    fn backward(&self, to: &Self::To) -> Self::From;
+
+    /// Converts a function that operates on the target type to a function
+    /// that operates on the source type.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `F` - The type of the function that operates on target values
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes a reference to a target value and returns some result
+    ///
+    /// # Returns
+    ///
+    /// A function that takes a reference to a source value and returns the same result type
+    fn map_from_target<F, R>(&self, f: F) -> impl Fn(&Self::From) -> R
+    where
+        F: Fn(&Self::To) -> R,
+    {
+        move |from| f(&self.forward(from))
+    }
+
+    /// Converts a function that operates on the source type to a function
+    /// that operates on the target type.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `F` - The type of the function that operates on source values
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes a reference to a source value and returns some result
+    ///
+    /// # Returns
+    ///
+    /// A function that takes a reference to a target value and returns the same result type
+    fn map_from_source<F, R>(&self, f: F) -> impl Fn(&Self::To) -> R
+    where
+        F: Fn(&Self::From) -> R,
+    {
+        move |to| f(&self.backward(to))
+    }
+
+    /// Creates a new isomorphism by composing this isomorphism with another.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `C` - The target type of the second isomorphism
+    /// * `ISO2` - The type of the second isomorphism
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The second isomorphism to compose with
+    ///
+    /// # Returns
+    ///
+    /// A new isomorphism that represents the composition of the two isomorphisms
+    fn iso_compose<C, ISO2>(&self, other: ISO2) -> ComposedIso<Self, ISO2, A, B, C>
+    where
+        Self: Iso<A, B> + Sized + Clone,
+        Self::From: Clone,
+        Self::To: Clone,
+        B: Clone,
+        ISO2: Iso<B, C, From = B, To = C>,
+        ISO2::From: Clone,
+        ISO2::To: Clone,
+        C: Clone,
+    {
+        ComposedIso {
+            first: self.clone(),
+            second: other,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Creates an inverse isomorphism that swaps the source and target types.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `A` - The source type of the original isomorphism
+    /// * `B` - The target type of the original isomorphism
+    ///
+    /// # Returns
+    ///
+    /// A new isomorphism with the same types but with source and target swapped
+    fn inverse(&self) -> InverseIso<Self, A, B>
+    where
+        Self: Sized + Clone,
+    {
+        InverseIso {
+            original: self.clone(),
+            phantom: PhantomData,
+        }
+    }
 }
+
+/// An isomorphism created by composing two other isomorphisms.
+pub struct ComposedIso<ISO1, ISO2, A, B, C>
+where
+    ISO1: Iso<A, B>,
+    ISO2: Iso<B, C>,
+{
+    first: ISO1,
+    second: ISO2,
+    phantom: PhantomData<(A, B, C)>,
+}
+
+impl<ISO1, ISO2, A, B, C> Iso<A, C> for ComposedIso<ISO1, ISO2, A, B, C>
+where
+    ISO1: Iso<A, B, From = A, To = B>,
+    ISO2: Iso<B, C, From = B, To = C>,
+    A: Clone,
+    B: Clone,
+    C: Clone,
+{
+    type From = A;
+    type To = C;
+
+    fn forward(&self, from: &Self::From) -> Self::To {
+        // Since we've constrained the types to be equal, we can use them directly
+        let b = self.first.forward(from);
+        self.second.forward(&b)
+    }
+
+    fn backward(&self, to: &Self::To) -> Self::From {
+        // Since we've constrained the types to be equal, we can use them directly
+        let b = self.second.backward(to);
+        self.first.backward(&b)
+    }
+}
+
+/// An isomorphism that inverts the direction of another isomorphism.
+pub struct InverseIso<ISO, A, B>
+where
+    ISO: Iso<A, B>,
+{
+    original: ISO,
+    phantom: PhantomData<(A, B)>,
+}
+
+impl<ISO, A, B> Iso<B, A> for InverseIso<ISO, A, B>
+where
+    ISO: Iso<A, B, From = A, To = B>,
+    A: Clone,
+    B: Clone,
+{
+    type From = B;
+    type To = A;
+
+    fn forward(&self, from: &Self::From) -> Self::To {
+        // Since we've constrained the types to be equal, we can use them directly
+        self.original.backward(from)
+    }
+
+    fn backward(&self, to: &Self::To) -> Self::From {
+        // Since we've constrained the types to be equal, we can use them directly
+        self.original.forward(to)
+    }
+}
+
+/// Extension methods for types that implement `Iso`.
+pub trait IsoExt<A, B>: Iso<A, B> {
+    /// Applies this isomorphism to convert a value of the source type into the target type.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - A value of the source type
+    ///
+    /// # Returns
+    ///
+    /// The converted value in the target type
+    fn convert_forward(&self, value: &Self::From) -> Self::To {
+        self.forward(value)
+    }
+
+    /// Applies this isomorphism to convert a value of the target type back to the source type.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - A value of the target type
+    ///
+    /// # Returns
+    ///
+    /// The converted value in the source type
+    fn convert_backward(&self, value: &Self::To) -> Self::From {
+        self.backward(value)
+    }
+
+    /// Modifies a value of the source type by applying a function to its representation
+    /// in the target type.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `F` - The type of the function that modifies target values
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - A value of the source type
+    /// * `f` - A function that transforms a target value into another target value
+    ///
+    /// # Returns
+    ///
+    /// The modified value in the source type
+    fn modify<F>(&self, from: &Self::From, f: F) -> Self::From
+    where
+        F: FnOnce(Self::To) -> Self::To,
+    {
+        self.backward(&f(self.forward(from)))
+    }
+
+    /// Verifies that this isomorphism satisfies the isomorphism laws for the given values.
+    ///
+    /// # Arguments
+    ///
+    /// * `from` - A value of the source type
+    /// * `to` - A value of the target type
+    ///
+    /// # Returns
+    ///
+    /// `true` if the isomorphism laws are satisfied for the given values,
+    /// `false` otherwise
+    fn verify_laws(&self, from: &Self::From, to: &Self::To) -> bool
+    where
+        Self::From: PartialEq,
+        Self::To: PartialEq,
+    {
+        let round_trip_from = self.backward(&self.forward(from));
+        let round_trip_to = self.forward(&self.backward(to));
+
+        &round_trip_from == from && &round_trip_to == to
+    }
+}
+
+// Implement IsoExt for all types that implement Iso
+impl<T, A, B> IsoExt<A, B> for T where T: Iso<A, B> {}
