@@ -162,6 +162,7 @@ pub trait HKT {
 ///     F: Fn(&E) -> U,
 ///     T: Clone,
 ///     E: Clone,
+///     U: Clone,
 /// {
 ///     value.map_second(f)
 /// }
@@ -191,7 +192,8 @@ pub trait BinaryHKT: HKT {
     where
         F: Fn(&Self::Source2) -> NewType2,
         Self::Source: Clone,
-        Self::Source2: Clone;
+        Self::Source2: Clone,
+        NewType2: Clone;
 
     /// Maps a function over the second type parameter, consuming the HKT.
     ///
@@ -209,7 +211,8 @@ pub trait BinaryHKT: HKT {
     /// A new HKT with the second type parameter transformed
     fn map_second_owned<F, NewType2>(self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
     where
-        F: Fn(Self::Source2) -> NewType2;
+        F: Fn(Self::Source2) -> NewType2,
+        NewType2: Clone;
 }
 
 // Implementations for common Rust types

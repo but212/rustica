@@ -144,6 +144,38 @@ pub trait EvaluateExt: Evaluate {
     /// # Returns
     /// The transformed result after evaluation and mapping
     #[inline]
+    fn fmap_evaluate<F, U>(&self, f: F) -> U
+    where
+        F: Fn(Self::Source) -> U,
+    {
+        f(self.evaluate())
+    }
+
+    /// Maps a function over the result of evaluating this computation by reference.
+    ///
+    /// This method evaluates the computation first, then applies the function to the result.
+    ///
+    /// # Type Parameters
+    /// * `F` - The mapping function type
+    /// * `U` - The output type after mapping
+    ///
+    /// # Parameters
+    /// * `f` - A function that transforms the evaluation result
+    ///
+    /// # Returns
+    /// The transformed result after evaluation and mapping
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::value::Value;
+    ///
+    /// let value = Value::new(42);
+    /// let result = value.map_evaluate(|x| x.to_string());
+    /// assert_eq!(result, "42");
+    /// ```
+    #[inline]
     fn map_evaluate<F, U>(&self, f: F) -> U
     where
         F: Fn(Self::Source) -> U,
@@ -163,12 +195,47 @@ pub trait EvaluateExt: Evaluate {
     /// # Returns
     /// The transformed result after evaluation and mapping
     #[inline]
-    fn map_evaluate_owned<F, U>(self, f: F) -> U
+    fn fmap_evaluate_owned<F, U>(self, f: F) -> U
     where
         F: Fn(Self::Source) -> U,
         Self::Source: Clone,
     {
         f(self.evaluate())
+    }
+
+    /// Maps a function over the result of evaluating this computation by consuming it.
+    ///
+    /// This method consumes the computation, evaluates it, and applies the function to the result.
+    /// It may be more efficient than `map_evaluate` for types where taking ownership
+    /// allows avoiding unnecessary cloning.
+    ///
+    /// # Type Parameters
+    /// * `F` - The mapping function type
+    /// * `U` - The output type after mapping
+    ///
+    /// # Parameters
+    /// * `f` - A function that transforms the evaluation result
+    ///
+    /// # Returns
+    /// The transformed result after evaluation and mapping
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::value::Value;
+    ///
+    /// let value = Value::new(42);
+    /// let result = value.map_evaluate_owned(|x| x.to_string());
+    /// assert_eq!(result, "42");
+    /// ```
+    #[inline]
+    fn map_evaluate_owned<F, U>(self, f: F) -> U
+    where
+        F: Fn(Self::Source) -> U,
+        Self::Source: Clone,
+    {
+        f(self.evaluate_owned())
     }
 
     /// Evaluates this computation and then another computation based on the result.
@@ -184,6 +251,40 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// # Returns
     /// The result of evaluating the second computation
+    #[inline]
+    fn bind_evaluate<F, C>(&self, f: F) -> C::Source
+    where
+        F: Fn(Self::Source) -> C,
+        C: Evaluate,
+        Self::Source: Clone,
+    {
+        f(self.evaluate()).evaluate()
+    }
+
+    /// Evaluates this computation and then another computation based on the result.
+    ///
+    /// This method is similar to `bind_evaluate` but with a more monadic naming convention.
+    ///
+    /// # Type Parameters
+    /// * `F` - The function type
+    /// * `C` - The second computation type
+    ///
+    /// # Parameters
+    /// * `f` - A function that produces a new computation based on this one's result
+    ///
+    /// # Returns
+    /// The result of evaluating the second computation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::value::Value;
+    ///
+    /// let value = Value::new(42);
+    /// let result = value.and_then_evaluate(|x| Value::new(x.to_string()));
+    /// assert_eq!(result, "42");
+    /// ```
     #[inline]
     fn and_then_evaluate<F, C>(&self, f: F) -> C::Source
     where
@@ -209,13 +310,47 @@ pub trait EvaluateExt: Evaluate {
     /// # Returns
     /// The result of evaluating the second computation
     #[inline]
-    fn and_then_evaluate_owned<F, C>(self, f: F) -> C::Source
+    fn bind_evaluate_owned<F, C>(self, f: F) -> C::Source
     where
         F: Fn(Self::Source) -> C,
         C: Evaluate,
         Self::Source: Clone,
     {
         f(self.evaluate()).evaluate()
+    }
+
+    /// Evaluates this computation by consuming it, then feeds the result into another computation.
+    ///
+    /// This method is similar to `and_then_evaluate` but takes ownership of the original
+    /// computation, which can be more efficient when the computation is no longer needed.
+    ///
+    /// # Type Parameters
+    /// * `F` - The function type
+    /// * `C` - The second computation type
+    ///
+    /// # Parameters
+    /// * `f` - A function that produces a new computation based on this one's result
+    ///
+    /// # Returns
+    /// The result of evaluating the second computation
+    ///
+    /// # Examples
+    /// ```
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::value::Value;
+    ///
+    /// let value = Value::new(42);
+    /// let result = value.and_then_evaluate_owned(|x| Value::new(x.to_string()));
+    /// assert_eq!(result, "42");
+    /// ```
+    #[inline]
+    fn and_then_evaluate_owned<F, C>(self, f: F) -> C::Source
+    where
+        F: Fn(Self::Source) -> C,
+        C: Evaluate,
+        Self::Source: Clone,
+    {
+        f(self.evaluate_owned()).evaluate()
     }
 
     /// Combines the evaluation of this computation with another.

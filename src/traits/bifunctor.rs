@@ -347,7 +347,8 @@ pub trait Bifunctor: BinaryHKT {
     /// ```
     fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
     where
-        F: Fn(&Self::Source) -> C;
+        F: Fn(&Self::Source) -> C,
+        C: Clone;
 
     /// Maps a function over the second type parameter.
     ///
@@ -454,7 +455,8 @@ pub trait Bifunctor: BinaryHKT {
     /// ```
     fn second<D, G>(&self, f: G) -> Self::BinaryOutput<Self::Source, D>
     where
-        G: Fn(&Self::Source2) -> D;
+        G: Fn(&Self::Source2) -> D,
+        D: Clone;
 
     /// Maps two functions over both type parameters simultaneously.
     ///
@@ -552,5 +554,7 @@ pub trait Bifunctor: BinaryHKT {
     fn bimap<C, D, F, G>(&self, f: F, g: G) -> Self::BinaryOutput<C, D>
     where
         F: Fn(&Self::Source) -> C,
-        G: Fn(&Self::Source2) -> D;
+        G: Fn(&Self::Source2) -> D,
+        C: Clone,
+        D: Clone;
 }

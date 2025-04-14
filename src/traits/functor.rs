@@ -8,7 +8,7 @@
 //!
 //! # TODO: Improvements
 //! - Add full set of ownership-aware methods to optimize performance
-//! - Add #[inline] attributes to all methods for better performance
+//! - Add #\[inline\] attributes to all methods for better performance
 //! - Improve documentation examples with explicit type annotations
 //! - Add PhantomData support for zero-cost abstractions
 //! - Add blanket implementations for relevant trait combinations

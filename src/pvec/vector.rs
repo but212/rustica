@@ -741,6 +741,102 @@ impl<T: Clone> PersistentVector<T> {
     pub fn to_arc(self) -> Arc<Self> {
         Arc::new(self)
     }
+
+    /// Creates a slice of this vector, returning a new vector with elements from the specified range.
+    ///
+    /// # Parameters
+    ///
+    /// - `start`: The starting index (inclusive)
+    /// - `end`: The ending index (exclusive)
+    ///
+    /// # Returns
+    ///
+    /// A new `PersistentVector` containing only the elements in the specified range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
+    /// let slice = vec.slice(1, 4);
+    /// assert_eq!(slice.len(), 3);
+    /// assert_eq!(slice.get(0), Some(&2));
+    /// assert_eq!(slice.get(1), Some(&3));
+    /// assert_eq!(slice.get(2), Some(&4));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if `start > end` or if `end > len`.
+    #[inline]
+    pub fn slice(&self, start: usize, end: usize) -> Self
+    where
+        T: Clone,
+    {
+        if start > end {
+            panic!("start index {} greater than end index {}", start, end);
+        }
+        if end > self.len() {
+            panic!("end index {} out of bounds for length {}", end, self.len());
+        }
+
+        if start == end {
+            return Self::new();
+        }
+
+        let mut result = Self::new();
+        for i in start..end {
+            result = result.push_back(self.get(i).unwrap().clone());
+        }
+        result
+    }
+
+    /// Splits the vector at the given index, returning a pair of vectors.
+    ///
+    /// The first vector contains all elements up to (but not including) the given index,
+    /// and the second vector contains all elements from the given index to the end.
+    ///
+    /// # Parameters
+    ///
+    /// - `at`: The index at which to split
+    ///
+    /// # Returns
+    ///
+    /// A tuple of two `PersistentVector`s: `(left, right)` where `left` contains elements
+    /// with indices from `0` to `at-1`, and `right` contains elements with indices from `at`
+    /// to the end.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
+    /// let (left, right) = vec.split_at(3);
+    /// assert_eq!(left.len(), 3);
+    /// assert_eq!(right.len(), 2);
+    /// assert_eq!(left.to_vec(), vec![1, 2, 3]);
+    /// assert_eq!(right.to_vec(), vec![4, 5]);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if `at > len`.
+    #[inline]
+    pub fn split_at(&self, at: usize) -> (Self, Self)
+    where
+        T: Clone,
+    {
+        if at > self.len() {
+            panic!("split index {} out of bounds for length {}", at, self.len());
+        }
+
+        let left = self.slice(0, at);
+        let right = self.slice(at, self.len());
+
+        (left, right)
+    }
 }
 
 impl<T: Clone> Default for PersistentVector<T> {

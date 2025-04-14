@@ -24,10 +24,11 @@
 //! form validation, configuration validation, or any scenario where you want to report all
 //! errors at once rather than one at a time.
 use crate::traits::applicative::Applicative;
+use crate::traits::bifunctor::Bifunctor;
 use crate::traits::composable::Composable;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
-use crate::traits::hkt::HKT;
+use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
@@ -648,6 +649,32 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         }
     }
 
+    /// Unwraps a valid value or panics.
+    ///
+    /// If this is valid, returns the valid value.
+    /// If this is invalid, panics with a message.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert_eq!(valid.unwrap_invalid() , vec!["error"]);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if this is invalid.
+    #[inline]
+    pub fn unwrap_invalid(&self) -> Vec<E> {
+        match self {
+            Validated::SingleInvalid(e) => vec![e.clone()],
+            Validated::MultiInvalid(es) => es.to_vec(),
+            _ => panic!("Cannot unwrap invalid value"),
+        }
+    }
+
     /// Combines multiple Validated values using a function.
     ///
     /// This is similar to `lift2` but works with a slice of Validated values.
@@ -981,6 +1008,89 @@ impl<E: Clone, A: Clone> Functor for Validated<E, A> {
             Validated::Valid(x) => Validated::Valid(f(x)),
             Validated::SingleInvalid(e) => Validated::SingleInvalid(e),
             Validated::MultiInvalid(e) => Validated::MultiInvalid(e),
+        }
+    }
+}
+
+impl<E, A> BinaryHKT for Validated<E, A> {
+    type Source2 = E;
+    type BinaryOutput<U, V> = Validated<V, U>;
+
+    fn map_second<F, C>(&self, f: F) -> Self::BinaryOutput<A, C>
+    where
+        F: Fn(&Self::Source2) -> C,
+        Self::Source: Clone,
+        Self::Source2: Clone,
+        C: Clone,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(x.clone()),
+            Validated::SingleInvalid(e) => Validated::SingleInvalid(f(e)),
+            Validated::MultiInvalid(es) => {
+                let transformed: SmallVec<[C; 4]> = es.iter().map(f).collect();
+                Validated::MultiInvalid(transformed)
+            },
+        }
+    }
+
+    fn map_second_owned<F, C>(self, f: F) -> Self::BinaryOutput<A, C>
+    where
+        F: Fn(Self::Source2) -> C,
+        C: Clone,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(x),
+            Validated::SingleInvalid(e) => Validated::SingleInvalid(f(e)),
+            Validated::MultiInvalid(es) => {
+                let transformed: SmallVec<[C; 4]> = es.into_iter().map(f).collect();
+                Validated::MultiInvalid(transformed)
+            },
+        }
+    }
+}
+
+impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
+    fn bimap<C, D, F, G>(&self, f: F, g: G) -> Self::BinaryOutput<C, D>
+    where
+        F: Fn(&Self::Source) -> C,
+        G: Fn(&Self::Source2) -> D,
+        C: Clone,
+        D: Clone,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::SingleInvalid(e) => Validated::SingleInvalid(g(e)),
+            Validated::MultiInvalid(es) => {
+                let transformed: SmallVec<[D; 4]> = es.iter().map(g).collect();
+                Validated::MultiInvalid(transformed)
+            },
+        }
+    }
+
+    fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
+    where
+        F: Fn(&Self::Source) -> C,
+        C: Clone,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
+            Validated::MultiInvalid(es) => Validated::MultiInvalid(es.clone()),
+        }
+    }
+
+    fn second<D, G>(&self, g: G) -> Self::BinaryOutput<Self::Source, D>
+    where
+        G: Fn(&Self::Source2) -> D,
+        D: Clone,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(x.clone()),
+            Validated::SingleInvalid(e) => Validated::SingleInvalid(g(e)),
+            Validated::MultiInvalid(es) => {
+                let transformed: SmallVec<[D; 4]> = es.iter().map(g).collect();
+                Validated::MultiInvalid(transformed)
+            },
         }
     }
 }

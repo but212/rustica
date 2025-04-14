@@ -130,7 +130,10 @@ fn test_with_error_trait() {
         Either::left(TestError("error")),
         Either::right(3),
     ];
-    assert_eq!(sequence_with_error(eithers), Err(TestError("error")));
+    assert_eq!(
+        sequence_with_error::<Either<TestError, i32>, i32, TestError>(eithers),
+        Err(TestError("error"))
+    );
 }
 
 #[test]

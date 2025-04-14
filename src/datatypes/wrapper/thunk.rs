@@ -16,7 +16,7 @@
 //! assert_eq!(computation.evaluate(), 42);
 //!
 //! // Using extension methods
-//! let string_result: String = computation.map_evaluate(|x| x.to_string());
+//! let string_result: String = computation.fmap_evaluate(|x| x.to_string());
 //! assert_eq!(string_result, "42");
 //!
 //! // Evaluate by consuming the thunk
