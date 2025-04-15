@@ -350,57 +350,63 @@ fn test_to_arc() {
 
 #[test]
 fn test_tree_structure_debugging() {
-    use rustica::pvec::tree::Tree;
+    use rustica::pvec::PersistentVector;
 
     // Test for debugging tree structure
-    println!("Creating empty tree");
-    let mut tree = Tree::<i32>::new();
+    println!("Creating empty vector");
+    let mut vec = PersistentVector::<i32>::new();
 
     // Add first 32 elements and check structure
     for i in 0..32 {
-        tree = tree.push_back(i);
-        if i % 8 == 0 {
-            println!("Added {} elements, tree size: {}", i + 1, tree.len());
-        }
+        vec = vec.push_back(i);
     }
 
-    // Check structure when first chunk is filled
-    println!("First chunk filled. Tree size: {}", tree.len());
-
-    // Verify index access
-    for i in 28..32 {
-        println!("Element at index {}: {:?}", i, tree.get(i));
+    // Check that all elements are accessible
+    for i in 0..32 {
+        assert_eq!(
+            vec.get(i),
+            Some(&(i as i32)),
+            "Element at index {} should be {}",
+            i,
+            i
+        );
     }
 
-    // Check when adding 33rd element
-    tree = tree.push_back(32);
-    println!("Added 33rd element, tree size: {}", tree.len());
-
-    // Check elements at indices 31 and 32
-    println!("Element at index 31: {:?}", tree.get(31));
-    println!("Element at index 32: {:?}", tree.get(32));
-
-    // Add more elements
-    for i in 33..40 {
-        tree = tree.push_back(i);
-    }
-
-    println!("Added 40 elements, tree size: {}", tree.len());
-
-    // Check elements at various positions
-    println!("Element at index 0: {:?}", tree.get(0));
-    println!("Element at index 31: {:?}", tree.get(31));
-    println!("Element at index 32: {:?}", tree.get(32));
-    println!("Element at index 39: {:?}", tree.get(39));
-
-    // Check elements around chunk boundaries
-    println!("Elements around chunk boundaries:");
-    for i in 30..40 {
-        println!("Index {}: {:?}", i, tree.get(i));
+    // Add more elements to create a deeper structure
+    for i in 32..40 {
+        vec = vec.push_back(i);
     }
 
     // Verification
-    assert_eq!(tree.get(31), Some(&31), "Element at index 31 should be 31");
-    assert_eq!(tree.get(32), Some(&32), "Element at index 32 should be 32");
-    assert_eq!(tree.get(39), Some(&39), "Element at index 39 should be 39");
+    assert_eq!(vec.get(31), Some(&31), "Element at index 31 should be 31");
+    assert_eq!(vec.get(32), Some(&32), "Element at index 32 should be 32");
+    assert_eq!(vec.get(39), Some(&39), "Element at index 39 should be 39");
+}
+
+#[test]
+fn test_large_persistent_vector() {
+    use rustica::pvec::PersistentVector;
+    let n = 20_000;
+    let mut vec = PersistentVector::new();
+    for i in 0..n {
+        vec = vec.push_back(i);
+    }
+    // Check length
+    assert_eq!(vec.len(), n);
+    // Check random access
+    assert_eq!(vec.get(0), Some(&0));
+    assert_eq!(vec.get(n / 2), Some(&(n / 2)));
+    assert_eq!(vec.get(n - 1), Some(&(n - 1)));
+    // Check update does not mutate original
+    let updated = vec.update(n / 2, 42);
+    assert_eq!(updated.get(n / 2), Some(&42));
+    assert_eq!(vec.get(n / 2), Some(&(n / 2)));
+    // Test split
+    let (left, right) = vec.split_at(n / 2);
+    assert_eq!(left.len(), n / 2);
+    assert_eq!(right.len(), n - n / 2);
+    // Test concat
+    let concat = left.concat(&right);
+    assert_eq!(concat.len(), n);
+    assert_eq!(concat.get(n - 1), Some(&(n - 1)));
 }

@@ -3,23 +3,6 @@
 //! This module provides memory management utilities for the persistent vector.
 //! It includes a memory pool system that reduces allocation overhead by reusing
 //! memory for commonly allocated structures.
-//!
-//! # Examples
-//!
-//! ```
-//! use rustica::pvec::memory::{MemoryManager, AllocationStrategy};
-//!
-//! // Create a memory manager with pooled allocation
-//! let manager: MemoryManager<i32> = MemoryManager::new(AllocationStrategy::Pooled);
-//!
-//! // Acquire a node and a chunk
-//! let node = manager.acquire_node();
-//! let chunk = manager.acquire_chunk();
-//!
-//! // Get memory statistics
-//! let stats = manager.stats();
-//! println!("Node pool size: {}", stats.node_pool_size);
-//! ```
 
 use parking_lot::Mutex;
 use std::collections::VecDeque;
@@ -31,7 +14,7 @@ use crate::pvec::chunk::Chunk;
 use crate::pvec::node::Node;
 
 /// Default capacity for memory pools
-pub const DEFAULT_POOL_CAPACITY: usize = 128;
+pub(crate) const DEFAULT_POOL_CAPACITY: usize = 128;
 
 /// Strategy for allocating and recycling memory
 ///
@@ -58,7 +41,7 @@ pub enum AllocationStrategy {
 /// which reduces allocation overhead in operations that frequently
 /// create and discard nodes and chunks. It supports different allocation
 /// strategies to optimize for specific workloads.
-pub struct MemoryManager<T: Clone> {
+pub struct MemoryManager<T> {
     allocation_strategy: AllocationStrategy,
     node_pool: Arc<Mutex<ObjectPool<Node<T>>>>,
     chunk_pool: Arc<Mutex<ObjectPool<Chunk<T>>>>,
@@ -69,18 +52,6 @@ impl<T: Clone> MemoryManager<T> {
     ///
     /// This initializes the memory pools with the default capacity and sets up
     /// the memory manager according to the specified allocation strategy.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::{MemoryManager, AllocationStrategy};
-    ///
-    /// // Create a memory manager with pooled allocation
-    /// let manager: MemoryManager<i32> = MemoryManager::new(AllocationStrategy::Pooled);
-    ///
-    /// // Create a memory manager with direct allocation (no pooling)
-    /// let direct_manager: MemoryManager<String> = MemoryManager::new(AllocationStrategy::Direct);
-    /// ```
     pub fn new(strategy: AllocationStrategy) -> Self {
         Self {
             allocation_strategy: strategy,
@@ -89,173 +60,28 @@ impl<T: Clone> MemoryManager<T> {
         }
     }
 
-    /// Acquire a new node from the pool or allocate one
-    ///
-    /// This method retrieves a node from the memory pool if available,
-    /// otherwise allocates a new node. The returned node is wrapped in a
-    /// `ManagedRef` which ensures proper reference counting and deallocation.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::MemoryManager;
-    ///
-    /// let manager: MemoryManager<i32> = MemoryManager::default();
-    ///
-    /// // Acquire a new node
-    /// let node = manager.acquire_node();
-    /// ```
-    #[inline]
-    pub fn acquire_node(&self) -> ManagedRef<Node<T>> {
-        match self.allocation_strategy {
-            AllocationStrategy::Direct => ManagedRef::new(Arc::new(Node::new()), None),
-            _ => {
-                // Create a dummy pool for ManagedRef
-                // The key insight: we're not using the actual pool for recycling
-                // but we need something of the right type to avoid compiler errors
-                let dummy_pool = Arc::new(Mutex::new(ObjectPool::<Node<T>>::new(0)));
-
-                // Acquire a node from the actual pool
-                let node = self.node_pool.lock().acquire_or_create(|| Node::new());
-
-                // Create the managed reference with a dummy pool that won't actually recycle
-                ManagedRef::new(Arc::new(node), Some(dummy_pool))
-            },
-        }
-    }
-
-    /// Acquire a new chunk from the pool or allocate one
-    ///
-    /// This method retrieves a chunk from the memory pool if available,
-    /// otherwise allocates a new chunk. The returned chunk is wrapped in a
-    /// `ManagedRef` which ensures proper reference counting and deallocation.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::MemoryManager;
-    ///
-    /// let manager: MemoryManager<i32> = MemoryManager::default();
-    ///
-    /// // Acquire a new chunk
-    /// let chunk = manager.acquire_chunk();
-    /// ```
-    #[inline]
-    pub fn acquire_chunk(&self) -> ManagedRef<Chunk<T>> {
-        match self.allocation_strategy {
-            AllocationStrategy::Direct => ManagedRef::new(Arc::new(Chunk::new()), None),
-            _ => {
-                // Create a dummy pool for ManagedRef
-                // The key insight: we're not using the actual pool for recycling
-                // but we need something of the right type to avoid compiler errors
-                let dummy_pool = Arc::new(Mutex::new(ObjectPool::<Chunk<T>>::new(0)));
-
-                // Acquire a chunk from the actual pool
-                let chunk = self.chunk_pool.lock().acquire_or_create(|| Chunk::new());
-
-                // Create the managed reference with a dummy pool that won't actually recycle
-                ManagedRef::new(Arc::new(chunk), Some(dummy_pool))
-            },
-        }
-    }
-
-    /// Acquire a managed reference from an existing node
-    ///
-    /// This method takes an existing node and wraps it in a ManagedRef.
-    /// The node is wrapped in an Arc and associated with the appropriate pool.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::MemoryManager;
-    /// use rustica::pvec::node::Node;
-    ///
-    /// let manager: MemoryManager<i32> = MemoryManager::default();
-    /// let node = Node::new();
-    ///
-    /// // Acquire a managed reference from an existing node
-    /// let managed_node = manager.acquire_existing_node(node);
-    /// ```
-    #[inline]
-    pub fn acquire_existing_node(&self, node: Node<T>) -> ManagedRef<Node<T>> {
-        match self.allocation_strategy {
-            AllocationStrategy::Direct => ManagedRef::new(Arc::new(node), None),
-            _ => {
-                // Create a dummy pool for ManagedRef
-                // The key insight: we're not using the actual pool for recycling
-                // but we need something of the right type to avoid compiler errors
-                let dummy_pool = Arc::new(Mutex::new(ObjectPool::<Node<T>>::new(0)));
-
-                // Create the managed reference with a dummy pool
-                ManagedRef::new(Arc::new(node), Some(dummy_pool))
-            },
-        }
-    }
-
     /// Reserve capacity for at least `count` additional chunks
     ///
     /// This ensures that the chunk pool can hold at least `count` more chunks without
     /// reallocating its internal storage.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::MemoryManager;
-    ///
-    /// let manager: MemoryManager<i32> = MemoryManager::default();
-    /// manager.reserve_chunks(20);
-    /// ```
     #[inline]
     pub fn reserve_chunks(&self, count: usize) {
         self.chunk_pool.lock().reserve(count);
     }
 
     /// Get the current allocation strategy
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::{MemoryManager, AllocationStrategy};
-    ///
-    /// let manager: MemoryManager<i32> = MemoryManager::default();
-    ///
-    /// // Get the current allocation strategy
-    /// let strategy = manager.strategy();
-    /// ```
     #[inline]
     pub fn strategy(&self) -> AllocationStrategy {
         self.allocation_strategy
     }
 
     /// Change the allocation strategy
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::{MemoryManager, AllocationStrategy};
-    ///
-    /// let mut manager: MemoryManager<i32> = MemoryManager::default();
-    ///
-    /// // Change the allocation strategy
-    /// manager.set_strategy(AllocationStrategy::Direct);
-    /// ```
     #[inline]
     pub fn set_strategy(&mut self, strategy: AllocationStrategy) {
         self.allocation_strategy = strategy;
     }
 
     /// Get statistics about memory usage
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::MemoryManager;
-    ///
-    /// let manager: MemoryManager<i32> = MemoryManager::default();
-    ///
-    /// // Get memory statistics
-    /// let stats = manager.stats();
-    /// ```
     #[inline]
     pub fn stats(&self) -> MemoryStats {
         let node_pool = self.node_pool.lock();
@@ -270,17 +96,6 @@ impl<T: Clone> MemoryManager<T> {
     }
 
     /// Pre-allocate objects in the pools
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::MemoryManager;
-    ///
-    /// let manager: MemoryManager<i32> = MemoryManager::default();
-    ///
-    /// // Pre-allocate objects in the pools
-    /// manager.prefill();
-    /// ```
     #[inline]
     pub fn prefill(&self) {
         let mut node_pool = self.node_pool.lock();
@@ -329,211 +144,58 @@ impl<T: Clone> PartialEq for MemoryManager<T> {
 impl<T: Clone> Eq for MemoryManager<T> {}
 
 /// Statistics about memory usage in the memory pools
-///
-/// This struct provides information about the current state of memory pools
-/// including their sizes (current number of objects) and capacities (maximum
-/// number of objects they can hold).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemoryStats {
-    /// Number of nodes currently available in the node pool
+    /// Number of nodes currently in the node pool
     pub node_pool_size: usize,
-    /// Number of chunks currently available in the chunk pool
-    pub chunk_pool_size: usize,
     /// Maximum capacity of the node pool
     pub node_pool_capacity: usize,
+    /// Number of chunks currently in the chunk pool
+    pub chunk_pool_size: usize,
     /// Maximum capacity of the chunk pool
     pub chunk_pool_capacity: usize,
 }
 
 /// A reference-counted object that can be returned to a pool when dropped
 ///
-/// This struct wraps an `Arc<T>` and optionally associates it with an object pool.
-/// When the `ManagedRef` is dropped and it's the last reference to the inner value,
-/// the object is returned to the pool (if a pool is specified) rather than being deallocated.
-///
-/// # Type Parameters
-///
-/// * `T`: The type of the managed object, which must implement `Clone`
-pub struct ManagedRef<T: Clone> {
+/// This struct wraps an `Arc<T>` and does not attempt to pool or recycle memory.
+/// All pooling fields and logic are removed for simplicity and safety.
+pub(crate) struct ManagedRef<T> {
+    /// The underlying reference-counted object
     inner: Arc<T>,
-    pool: Option<Arc<Mutex<ObjectPool<T>>>>,
 }
 
-impl<T: Clone> ManagedRef<T> {
+impl<T> ManagedRef<T> {
     /// Create a new managed reference
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ManagedRef;
-    /// use std::sync::Arc;
-    ///
-    /// let obj = Arc::new(42);
-    ///
-    /// // Create a managed reference
-    /// let ref1 = ManagedRef::new(obj.clone(), None);
-    /// ```
     #[inline]
-    pub fn new(obj: Arc<T>, pool: Option<Arc<Mutex<ObjectPool<T>>>>) -> Self {
-        Self { inner: obj, pool }
+    pub fn new(obj: Arc<T>) -> Self {
+        Self { inner: obj }
     }
 
-    /// Get the pool associated with this managed reference
+    /// Get the underlying Arc<T>
     #[inline]
-    pub fn pool(&self) -> Option<Arc<Mutex<ObjectPool<T>>>> {
-        self.pool.clone()
-    }
-
-    /// Converts this managed reference to an Arc<T> by cloning the inner reference
-    ///
-    /// This method creates a new strong reference to the inner data without
-    /// affecting the reference counting of the managed reference itself.
-    ///
-    /// # Returns
-    ///
-    /// * `Arc<T>`: A new Arc<T> pointing to the same data as this managed reference
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ManagedRef;
-    /// use std::sync::Arc;
-    ///
-    /// let obj = Arc::new(42);
-    /// let managed = ManagedRef::new(obj, None);
-    /// let arc = managed.to_arc();
-    ///
-    /// assert_eq!(*arc, 42);
-    /// ```
-    #[inline]
-    pub fn to_arc(&self) -> Arc<T> {
-        self.inner.clone()
-    }
-
-    /// Checks if this reference is unique (not shared)
-    ///
-    /// # Returns
-    ///
-    /// `true` if the reference is unique, `false` otherwise
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ManagedRef;
-    /// use std::sync::Arc;
-    ///
-    /// let obj = Arc::new(42);
-    /// let managed = ManagedRef::new(obj, None);
-    ///
-    /// assert!(managed.is_unique());
-    /// ```
-    #[inline]
-    pub fn is_unique(&self) -> bool {
-        Arc::strong_count(&self.inner) == 1
-    }
-
-    /// Attempt to get a mutable reference to the inner object
-    ///
-    /// Returns None if the reference is shared
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ManagedRef;
-    /// use std::sync::Arc;
-    ///
-    /// let obj = Arc::new(42);
-    /// let mut managed = ManagedRef::new(obj, None);
-    ///
-    /// assert!(managed.get_mut().is_some());
-    /// ```
-    #[inline]
-    pub fn get_mut(&mut self) -> Option<&mut T> {
-        Arc::get_mut(&mut self.inner)
-    }
-
-    /// Get a mutable reference to the inner object, cloning it if necessary
-    ///
-    /// Returns a new ManagedRef if the object was cloned
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ManagedRef;
-    /// use std::sync::Arc;
-    ///
-    /// let obj = Arc::new(42);
-    /// let mut managed = ManagedRef::new(obj, None);
-    ///
-    /// assert!(managed.make_mut().is_ok());
-    /// ```
-    pub fn make_mut(&mut self) -> Result<&mut T, Self> {
-        if self.is_unique() {
-            Ok(Arc::get_mut(&mut self.inner).unwrap())
-        } else {
-            // We need to clone the inner object
-            let cloned = match &self.pool {
-                Some(pool) => {
-                    let mut pool_guard = pool.lock();
-                    if let Some(obj) = pool_guard.acquire() {
-                        // If the pool had an unused object, use that
-                        obj
-                    } else {
-                        // Otherwise allocate a new one
-                        T::clone(&*self.inner)
-                    }
-                },
-                None => T::clone(&*self.inner),
-            };
-
-            let new_ref = Self {
-                inner: cloned.into(),
-                pool: self.pool.clone(),
-            };
-
-            Err(new_ref)
-        }
+    pub fn inner(&self) -> &Arc<T> {
+        &self.inner
     }
 }
 
-impl<T: Clone> Drop for ManagedRef<T> {
-    #[inline]
-    fn drop(&mut self) {
-        // If this is the last reference and we have a pool, return the object to the pool
-        if Arc::strong_count(&self.inner) == 1 {
-            if let Some(pool) = &self.pool {
-                // For all types, just clone the inner value
-                let cloned_value = T::clone(&*self.inner);
-                let mut pool_guard = pool.lock();
-                // Add to the pool - we're ignoring the Arc here, just releasing the cloned value
-                if pool_guard.objects.len() < pool_guard.capacity {
-                    // Safety: We're adding the object to the pool
-                    // This is safe because the object is correctly cloned
-                    pool_guard.objects.push_back(cloned_value);
-                }
-            }
-        }
-    }
-}
-
-impl<T: Clone> Clone for ManagedRef<T> {
+impl<T> Clone for ManagedRef<T> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
-            pool: self.pool.clone(),
         }
     }
 }
 
-impl<T: Clone> AsRef<T> for ManagedRef<T> {
+impl<T> AsRef<T> for ManagedRef<T> {
     #[inline]
     fn as_ref(&self) -> &T {
         self.inner.as_ref()
     }
 }
 
-impl<T: Clone> std::ops::Deref for ManagedRef<T> {
+impl<T> std::ops::Deref for ManagedRef<T> {
     type Target = T;
 
     #[inline]
@@ -542,25 +204,22 @@ impl<T: Clone> std::ops::Deref for ManagedRef<T> {
     }
 }
 
-impl<T: Clone + Debug> Debug for ManagedRef<T> {
+impl<T: Debug> Debug for ManagedRef<T> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ManagedRef")
-            .field("inner", &self.inner)
-            .field("has_pool", &self.pool.is_some())
-            .finish()
+        f.debug_struct("ManagedRef").field("inner", &self.inner).finish()
     }
 }
 
-impl<T: Clone + PartialEq> PartialEq for ManagedRef<T> {
+impl<T: PartialEq> PartialEq for ManagedRef<T> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        // Compare only the inner values, not the pool references
+        // Compare only the inner values
         *self.inner == *other.inner
     }
 }
 
-impl<T: Clone + Eq> Eq for ManagedRef<T> {}
+impl<T: Eq> Eq for ManagedRef<T> {}
 
 /// A pool of reusable objects that helps reduce allocation overhead
 ///
@@ -572,23 +231,10 @@ impl<T: Clone + Eq> Eq for ManagedRef<T> {}
 /// # Type Parameters
 ///
 /// * `T`: The type of objects stored in the pool, which must be clonable
-///
-/// # Examples
-///
-/// ```
-/// use rustica::pvec::memory::ObjectPool;
-/// use std::sync::Arc;
-///
-/// let mut pool: ObjectPool<Arc<i32>> = ObjectPool::new(10);
-///
-/// // Acquire an object from the pool or create a new one if empty
-/// let obj = pool.acquire_or_create(|| Arc::new(42.into()));
-///
-/// // Release the object back to the pool
-/// pool.release(obj);
-/// ```
-pub struct ObjectPool<T> {
+pub(crate) struct ObjectPool<T> {
+    /// The objects currently in the pool
     objects: VecDeque<T>,
+    /// The maximum number of objects the pool can hold
     capacity: usize,
 }
 
@@ -602,57 +248,12 @@ impl<T: Clone> ObjectPool<T> {
     /// # Parameters
     ///
     /// * `capacity`: The maximum number of objects the pool can hold
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ObjectPool;
-    /// use std::sync::Arc;
-    ///
-    /// // Create a pool that can hold up to 32 objects
-    /// let pool: ObjectPool<Arc<i32>> = ObjectPool::new(32);
-    /// assert_eq!(pool.size(), 0);
-    /// assert_eq!(pool.capacity(), 32);
-    /// ```
     #[inline]
     pub fn new(capacity: usize) -> Self {
         Self {
             objects: VecDeque::with_capacity(capacity),
             capacity,
         }
-    }
-
-    /// Acquire an object from the pool
-    ///
-    /// This returns an object from the pool if available, otherwise returns `None`.
-    ///
-    /// # Returns
-    ///
-    /// * `Option<T>`: An object from the pool, or `None` if the pool is empty
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ObjectPool;
-    /// use std::sync::Arc;
-    ///
-    /// // Create a pool with 2 objects
-    /// let mut pool: ObjectPool<Arc<i32>> = ObjectPool::new(2);
-    /// pool.prefill(|i| Arc::new(42.into()));
-    ///
-    /// // Acquire objects from the pool
-    /// let obj1 = pool.acquire();
-    /// let obj2 = pool.acquire();
-    /// let obj3 = pool.acquire();
-    ///
-    /// // Check the results
-    /// assert_eq!(obj1.is_some(), true);
-    /// assert_eq!(obj2.is_some(), true);
-    /// assert_eq!(obj3.is_some(), false);
-    /// ```
-    #[inline]
-    pub fn acquire(&mut self) -> Option<T> {
-        self.objects.pop_front()
     }
 
     /// Reserves capacity for at least `count` additional objects
@@ -663,99 +264,9 @@ impl<T: Clone> ObjectPool<T> {
     /// # Parameters
     ///
     /// * `count`: The number of additional objects to reserve space for
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ObjectPool;
-    /// use std::sync::Arc;
-    ///
-    /// let mut pool: ObjectPool<Arc<i32>> = ObjectPool::new(10);
-    /// pool.reserve(20);
-    /// ```
     #[inline]
     pub fn reserve(&mut self, count: usize) {
         self.objects.reserve(count);
-    }
-
-    /// Acquire an object from the pool, or create a new one if the pool is empty
-    ///
-    /// This returns an object from the pool if available, otherwise creates a new
-    /// object using the provided `create_fn` and returns it.
-    ///
-    /// # Parameters
-    ///
-    /// * `create_fn`: A function that creates a new object of type `T`
-    ///
-    /// # Returns
-    ///
-    /// * `T`: An object from the pool or a newly created object
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ObjectPool;
-    /// use std::sync::Arc;
-    ///
-    /// // Create a pool with 2 objects
-    /// let mut pool: ObjectPool<Arc<i32>> = ObjectPool::new(2);
-    /// pool.prefill(|i| Arc::new((i as i32).into()));
-    ///
-    /// // Acquire objects from the pool
-    /// let obj1 = pool.acquire_or_create(|| Arc::new(42.into()));
-    /// let obj2 = pool.acquire_or_create(|| Arc::new(43.into()));
-    /// let obj3 = pool.acquire_or_create(|| Arc::new(44.into()));
-    ///
-    /// // Check the results
-    /// assert_eq!(*obj1, 0.into());
-    /// assert_eq!(*obj2, 1.into());
-    /// assert_eq!(*obj3, 44.into());
-    /// ```
-    #[inline]
-    pub fn acquire_or_create<F>(&mut self, create_fn: F) -> T
-    where
-        F: FnOnce() -> T,
-    {
-        self.acquire().unwrap_or_else(create_fn)
-    }
-
-    /// Release an object back to the pool
-    ///
-    /// This returns an object to the pool if the pool has available space.
-    /// If the pool is at capacity, the object will be dropped instead.
-    ///
-    /// # Parameters
-    ///
-    /// * `obj`: The object to release back to the pool
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ObjectPool;
-    /// use std::sync::Arc;
-    ///
-    /// // Create a pool with 2 objects
-    /// let mut pool: ObjectPool<Arc<i32>> = ObjectPool::new(2);
-    /// pool.prefill(|i| Arc::new((i as i32).into()));
-    ///
-    /// // Acquire and release objects
-    /// let obj1 = pool.acquire();
-    /// let obj2 = pool.acquire();
-    ///
-    /// // Release objects back to the pool
-    /// pool.release(obj1.unwrap());
-    /// pool.release(obj2.unwrap());
-    ///
-    /// // Check the results
-    /// assert_eq!(pool.size(), 2);
-    /// assert_eq!(pool.capacity(), 2);
-    /// ```
-    #[inline]
-    pub fn release(&mut self, obj: T) {
-        if self.objects.len() < self.capacity {
-            self.objects.push_back(obj);
-        }
-        // If we're at capacity, the object will be dropped
     }
 
     /// Get the current size of the pool
@@ -765,20 +276,6 @@ impl<T: Clone> ObjectPool<T> {
     /// # Returns
     ///
     /// * `usize`: The number of objects in the pool
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ObjectPool;
-    /// use std::sync::Arc;
-    ///
-    /// // Create a pool with 2 objects
-    /// let mut pool: ObjectPool<Arc<i32>> = ObjectPool::new(2);
-    /// pool.prefill(|i| Arc::new((i as i32).into()));
-    ///
-    /// // Check the size of the pool
-    /// assert_eq!(pool.size(), 2);
-    /// ```
     #[inline]
     pub fn size(&self) -> usize {
         self.objects.len()
@@ -791,19 +288,6 @@ impl<T: Clone> ObjectPool<T> {
     /// # Returns
     ///
     /// * `usize`: The capacity of the pool
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ObjectPool;
-    /// use std::sync::Arc;
-    ///
-    /// // Create a pool with a capacity of 2 objects
-    /// let pool: ObjectPool<Arc<i32>> = ObjectPool::new(2);
-    ///
-    /// // Check the capacity of the pool
-    /// assert_eq!(pool.capacity(), 2);
-    /// ```
     #[inline]
     pub fn capacity(&self) -> usize {
         self.capacity
@@ -817,22 +301,6 @@ impl<T: Clone> ObjectPool<T> {
     /// # Parameters
     ///
     /// * `create_fn`: A function that creates a new object of type `T`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::memory::ObjectPool;
-    /// use std::sync::Arc;
-    ///
-    /// // Create a pool with a capacity of 2 objects
-    /// let mut pool: ObjectPool<Arc<i32>> = ObjectPool::new(2);
-    ///
-    /// // Pre-fill the pool with objects
-    /// pool.prefill(|i| Arc::new((i as i32).into()));
-    ///
-    /// // Check the size of the pool
-    /// assert_eq!(pool.size(), 2);
-    /// ```
     #[inline]
     pub fn prefill<F>(&mut self, create_fn: F)
     where

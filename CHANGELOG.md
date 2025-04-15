@@ -37,6 +37,24 @@
 - Improved `benchmark.yml` with comparison reports and PR comments
 - Updated `generator-generic-ossf-slsa3-publish.yml` to use latest SLSA generator (from v1.4.0 to v2.1.0)
 
+### Refactored Node Memory Management
+- **Major Refactor:** Removed all custom pooling and Drop logic from persistent vector node and chunk management. Memory management is now handled entirely by Rust's standard ownership and reference counting (Arc), greatly simplifying the codebase.
+- All `ManagedRef` and node creation/manipulation APIs now use `Arc` and safe immutable references.
+- Methods no longer rely on `get_mut`, pooling, or manual memory recycling.
+- Pointer comparisons now use `Arc::ptr_eq` instead of deprecated or custom pointer logic.
+- All chunk and node modifications are done with new allocations and cloning, following Rust's functional and ownership principles.
+- Updated all relevant doctests and internal documentation to match the new memory management approach.
+- **Breaking Change:** Any code relying on the previous pooling or Drop behavior must be updated to use the new API.
+
+### Improved Encapsulation in the pvec Module
+- Restricted visibility of implementation details to improve API clarity
+  - Made internal components like `IndexCache`, `Chunk`, `Node`, and `Tree` non-public (`pub(crate)` or `pub(super)`)
+  - Restricted visibility of implementation constants (`CHUNK_SIZE`, `NODE_SIZE`, etc.)
+  - Kept only necessary types public (`PersistentVector`, iterators, `MemoryManager`)
+- Removed unnecessary internal methods that were no longer needed after memory management refactoring
+- Simplified the public API surface while maintaining all functionality
+- Updated tests to use the public API instead of internal implementation details
+
 ## [0.6.1]
 
 ### Added

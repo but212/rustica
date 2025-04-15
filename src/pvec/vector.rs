@@ -75,10 +75,7 @@ use super::tree::Tree;
 /// ```
 #[repr(transparent)]
 #[derive(Clone, PartialEq, Eq)]
-pub struct PersistentVector<T>
-where
-    T: Clone,
-{
+pub struct PersistentVector<T> {
     /// The underlying implementation
     inner: VectorImpl<T>,
 }
@@ -93,10 +90,7 @@ where
 /// for collections with few elements, improving both memory usage and
 /// performance for common cases.
 #[derive(Clone, PartialEq, Eq)]
-enum VectorImpl<T>
-where
-    T: Clone,
-{
+enum VectorImpl<T> {
     /// Optimized storage for small vectors, using a fixed-size array
     Small {
         /// Direct inline storage of elements

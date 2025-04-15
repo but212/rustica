@@ -65,7 +65,6 @@
 //! ```rust
 //! use rustica::pvec;
 //! use rustica::pvec::PersistentVector;
-//! use std::rc::Rc;
 //!
 //! // Create a large vector
 //! let mut large: PersistentVector<i32> = PersistentVector::new();
@@ -103,13 +102,50 @@
 //! assert_eq!(right.get(0), Some(&'d'));
 //! ```
 //!
+//! ### Thread-Safe Sharing with Arc
+//!
+//! ```rust
+//! use rustica::pvec;
+//! use rustica::pvec::PersistentVector;
+//! use std::sync::Arc;
+//! use std::thread;
+//!
+//! // Create a vector and convert it to Arc for thread-safe sharing
+//! let vec: PersistentVector<i32> = pvec![1, 2, 3, 4, 5];
+//! let arc_vec = vec.to_arc();
+//!
+//! // Spawn multiple threads that can safely access the same vector
+//! let handles: Vec<_> = (0..3)
+//!     .map(|id| {
+//!         let thread_vec = arc_vec.clone();
+//!         thread::spawn(move || {
+//!             // Each thread can safely read from the shared vector
+//!             println!("Thread {}: Element at 0: {:?}", id, thread_vec.get(0));
+//!             
+//!             // Create a new version without affecting other threads
+//!             let modified = thread_vec.update(0, id);
+//!             (id, modified.get(0).cloned())
+//!         })
+//!     })
+//!     .collect();
+//!
+//! // Wait for all threads to complete
+//! let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+//! for (id, value) in results {
+//!     assert_eq!(value, Some(id));
+//! }
+//!
+//! // Original vector is still unchanged
+//! assert_eq!(arc_vec.get(0), Some(&1));
+//! ```
+//!
 //! ## Implementation Details
 //!
 //! The vector uses a combination of strategies for optimal performance:
 //!
 //! 1. **Optimized Small Vector**: Vectors with few elements use a compact representation
 //! 2. **RRB-Tree Structure**: Larger vectors use a tree with a branching factor of 32
-//! 3. **Flexible Memory Management**: Custom memory manager reduces allocation overhead
+//! 3. **Efficient Memory Management**: Uses Arc for reference counting and structural sharing
 //! 4. **Path Caching**: Intelligent caching for faster sequential access
 //! 5. **Chunked Storage**: Elements are stored in fixed-size chunks for better cache locality
 //!
@@ -117,22 +153,27 @@
 //!
 //! This module consists of several components:
 //!
-//! - **vector**: The main PersistentVector implementation
-//! - **node**: Tree node implementation for the RRB-Tree
-//! - **memory**: Custom memory management for optimal performance
-//! - **cache**: Path caching to accelerate repeated access patterns
-//! - **chunk**: Efficient storage of elements in fixed-size arrays
-//! - **iterator**: Various iterators for traversing the vector
+//! - **vector**: The main `PersistentVector` implementation (public API)
+//! - **iterator**: Various iterators for traversing the vector (public API)
+//! - **memory**: Memory management with reference counting (internal implementation)
+//! - **node**: Tree node implementation for the RRB-Tree (internal implementation)
+//! - **tree**: Core tree implementation with balancing algorithms (internal implementation)
+//! - **cache**: Path caching to accelerate repeated access patterns (internal implementation)
+//! - **chunk**: Efficient storage of elements in fixed-size arrays (internal implementation)
+//!
+//! Note that only the vector implementation and iterators are exposed as public API,
+//! while the internal implementation details are encapsulated to provide a clean
+//! and stable interface.
 
 // Submodules
 
 /// Caching system for accelerating tree traversal paths.
 #[cfg(feature = "pvec")]
-pub mod cache;
+pub(crate) mod cache;
 
 /// Fixed-size chunks for storing elements efficiently.
 #[cfg(feature = "pvec")]
-pub mod chunk;
+pub(crate) mod chunk;
 
 /// Iterators for traversing persistent vectors.
 #[cfg(feature = "pvec")]
@@ -140,15 +181,15 @@ pub mod iterator;
 
 /// Custom memory management for optimal allocation.
 #[cfg(feature = "pvec")]
-pub mod memory;
+pub(crate) mod memory;
 
 /// Tree node implementation for the RRB-Tree structure.
 #[cfg(feature = "pvec")]
-pub mod node;
+pub(crate) mod node;
 
 /// Core tree implementation with balancing algorithms.
 #[cfg(feature = "pvec")]
-pub mod tree;
+pub(crate) mod tree;
 
 /// Main persistent vector implementation.
 #[cfg(feature = "pvec")]
@@ -172,48 +213,6 @@ pub use self::iterator::{ChunksIter, IntoIter, Iter, SortedIter};
 ///
 /// This macro provides a convenient way to create persistent vectors,
 /// similar to the standard library's `vec!` macro for `Vec`.
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::pvec;
-///
-/// // Create an empty vector
-/// let empty: rustica::pvec::PersistentVector<i32> = pvec![];
-/// assert_eq!(empty.len(), 0);
-///
-/// // Create a vector with elements
-/// let numbers = pvec![1, 2, 3, 4];
-/// assert_eq!(numbers.len(), 4);
-/// assert_eq!(numbers.get(2), Some(&3));
-///
-/// // Trailing commas are supported
-/// let with_trailing = pvec![10, 20, 30,];
-/// assert_eq!(with_trailing.len(), 3);
-/// ```
-///
-/// # Comparison with Standard Vec
-///
-/// Unlike the standard library's `Vec`, `PersistentVector` is immutable.
-/// Operations return new vectors rather than modifying the original:
-///
-/// ```rust
-/// use rustica::pvec;
-///
-/// let original = pvec![1, 2, 3];
-///
-/// // Creates a new vector instead of modifying the original
-/// let extended = {
-///     let mut temp = original.clone();
-///     temp = temp.push_back(4);
-///     temp = temp.push_back(5);
-///     temp
-/// };
-///
-/// // Original remains unchanged
-/// assert_eq!(original.len(), 3);
-/// assert_eq!(extended.len(), 5);
-/// ```
 #[macro_export]
 #[cfg(feature = "pvec")]
 macro_rules! pvec {
