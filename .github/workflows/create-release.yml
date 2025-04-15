@@ -39,7 +39,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
@@ -77,18 +77,7 @@ jobs:
           mkdir -p release-artifacts
           
           # Copy library files
-          if [[ "$PLATFORM" == "windows-latest" ]]; then
-            cp target/release/rustica.lib release-artifacts/
-            cp target/release/rustica.dll release-artifacts/
-            ARCHIVE_NAME="rustica-${VERSION}-windows-x86_64.zip"
-            (cd release-artifacts && 7z a "../${ARCHIVE_NAME}" *)
-          elif [[ "$PLATFORM" == "macos-latest" ]]; then
-            cp target/release/librustica.dylib release-artifacts/
-            cp target/release/librustica.a release-artifacts/
-            ARCHIVE_NAME="rustica-${VERSION}-macos-x86_64.tar.gz"
-            cp -r examples/ release-artifacts/ || true
-            tar -czf "${ARCHIVE_NAME}" -C release-artifacts .
-          else # ubuntu
+          if [[ "$PLATFORM" == "ubuntu-latest" ]]; then
             cp target/release/librustica.so release-artifacts/
             cp target/release/librustica.a release-artifacts/
             ARCHIVE_NAME="rustica-${VERSION}-linux-x86_64.tar.gz"
