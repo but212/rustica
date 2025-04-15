@@ -63,9 +63,8 @@ pub(crate) enum Node<T> {
     },
 }
 
-impl<T: Clone + Eq> Eq for Node<T> {}
-
-impl<T: Clone + PartialEq> PartialEq for Node<T> {
+impl<T: PartialEq> PartialEq for Node<T> {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (
@@ -94,8 +93,10 @@ impl<T: Clone + PartialEq> PartialEq for Node<T> {
     }
 }
 
+impl<T: Clone + Eq> Eq for Node<T> {}
+
 impl<T: Clone> Default for Node<T> {
-    #[inline]
+    #[inline(always)]
     fn default() -> Self {
         Self::new()
     }
@@ -111,7 +112,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A new empty branch node
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub(crate) fn new() -> Self {
         Node::Branch {
             children: Vec::with_capacity(NODE_SIZE),
@@ -131,7 +133,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A new leaf node containing the provided chunk
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub(crate) fn leaf(chunk: ManagedRef<Chunk<T>>) -> Self {
         Node::Leaf { elements: chunk }
     }
@@ -147,6 +150,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// * `usize` - The total number of elements in this node and its descendants
+    #[inline(always)]
+    #[must_use]
     pub(crate) fn size(&self) -> usize {
         match self {
             Node::Leaf { elements } => elements.inner().len(),
@@ -177,6 +182,8 @@ impl<T: Clone> Node<T> {
     /// A tuple containing:
     /// * The index of the child that contains the target element
     /// * The relative index within that child
+    #[inline(always)]
+    #[must_use]
     fn find_index_in_size_table(&self, sizes: &[usize], index: usize) -> (usize, usize) {
         // Search the size table directly to find which child contains the index
         let mut child_idx = 0;
@@ -221,7 +228,9 @@ impl<T: Clone> Node<T> {
     /// A tuple containing:
     /// * The index of the child that contains the target element
     /// * The relative index within that child
-    fn find_child_index(&self, index: usize, shift: usize) -> (usize, usize) {
+    #[inline(always)]
+    #[must_use]
+    pub(crate) fn find_child_index(&self, index: usize, shift: usize) -> (usize, usize) {
         match self {
             Node::Branch { sizes, .. } => {
                 if let Some(sizes) = sizes {
@@ -250,7 +259,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A managed reference to the newly created node
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub(crate) fn create_node<F>(creator: F) -> ManagedRef<Node<T>>
     where
         F: FnOnce(&mut Node<T>),
@@ -275,7 +285,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A managed reference to the newly created branch node
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub(crate) fn create_branch_node(
         &self, children: Vec<Option<ManagedRef<Node<T>>>>, sizes: Option<Vec<usize>>,
     ) -> ManagedRef<Node<T>> {
@@ -295,7 +306,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A managed reference to the newly created leaf node
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub(crate) fn create_leaf_node(elements: ManagedRef<Chunk<T>>) -> ManagedRef<Node<T>> {
         Self::create_node(|node| {
             *node = Node::Leaf { elements };
@@ -313,7 +325,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A vector containing the cumulative sizes of the children
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     fn build_size_table(children: &[Option<ManagedRef<Node<T>>>]) -> Vec<usize> {
         let mut size_table = Vec::with_capacity(children.len());
         let mut cumulative_size = 0;
@@ -345,7 +358,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A managed reference to the modified chunk
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub(crate) fn modify_chunk<F>(chunk: &ManagedRef<Chunk<T>>, modifier: F) -> ManagedRef<Chunk<T>>
     where
         F: FnOnce(&mut Chunk<T>),
@@ -370,6 +384,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A managed reference to the modified branch node
+    #[inline(always)]
+    #[must_use]
     fn modify_branch<F>(&self, modifier: F) -> ManagedRef<Node<T>>
     where
         F: FnOnce(&mut Vec<Option<ManagedRef<Node<T>>>>, &mut Option<Vec<usize>>),
@@ -404,6 +420,8 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A managed reference to the modified branch node
+    #[inline(always)]
+    #[must_use]
     fn replace_child(
         &self, child_index: usize, new_child: ManagedRef<Node<T>>,
     ) -> ManagedRef<Node<T>> {
@@ -425,19 +443,6 @@ impl<T: Clone> Node<T> {
         })
     }
 
-    /// Get the number of direct children this node has.
-    ///
-    /// # Returns
-    ///
-    /// The number of direct children this node has.
-    #[inline]
-    pub(crate) fn child_count(&self) -> usize {
-        match self {
-            Node::Leaf { .. } => 0,
-            Node::Branch { children, .. } => children.iter().flatten().count(),
-        }
-    }
-
     /// Get an element at the specified index.
     ///
     /// Returns a reference to the element if it exists, or `None` if the index is out of bounds.
@@ -446,6 +451,7 @@ impl<T: Clone> Node<T> {
     ///
     /// * `index` - The index of the element to retrieve
     /// * `shift` - The level in the tree (shift amount in bits)
+    #[inline(always)]
     pub(crate) fn get(&self, index: usize, shift: usize) -> Option<&T> {
         match self {
             Node::Leaf { elements } => elements.inner().get(index),
@@ -472,8 +478,9 @@ impl<T: Clone> Node<T> {
     /// * `index` - The index of the element to update
     /// * `value` - The new value for the element
     /// * `shift` - The level in the tree (shift amount in bits)
+    #[inline(always)]
     pub(crate) fn update(
-        &self, manager: &MemoryManager<T>, index: usize, value: T, shift: usize,
+        &self, _manager: &MemoryManager<T>, index: usize, value: T, shift: usize,
     ) -> Option<ManagedRef<Node<T>>> {
         match self {
             Node::Leaf { elements } => {
@@ -500,7 +507,7 @@ impl<T: Clone> Node<T> {
                 let child = &children[child_index].as_ref().unwrap();
 
                 // Recursive update with reduced shift
-                match child.update(manager, sub_index, value, shift - NODE_BITS) {
+                match child.update(_manager, sub_index, value, shift - NODE_BITS) {
                     Some(new_child) => {
                         // Only create a new branch if the child actually changed
                         if Arc::ptr_eq(child.inner(), new_child.inner()) {
@@ -531,6 +538,7 @@ impl<T: Clone> Node<T> {
     /// - A new node with the element added
     /// - A boolean indicating whether the node was split (true) or not (false)
     /// - The overflow node if a split occurred, otherwise None
+    #[inline(always)]
     pub(crate) fn push_back(&self, value: T, _shift: usize) -> PushResult<T> {
         match self {
             Node::Leaf { elements } => {
@@ -625,6 +633,7 @@ impl<T: Clone> Node<T> {
     /// A tuple containing:
     /// - The left part of the node (elements before index)
     /// - The right part of the node (elements at and after index)
+    #[inline(always)]
     pub(crate) fn split(
         &self, index: usize, shift: usize,
     ) -> (ManagedRef<Node<T>>, ManagedRef<Node<T>>) {
@@ -745,42 +754,15 @@ impl<T: Clone> Node<T> {
 impl<T: Clone> Node<T> {}
 
 impl<T: Clone + Debug> Debug for Node<T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Node::Leaf { elements } => {
-                // Use a debug struct to avoid dereferencing the ManagedRef directly
-                let mut debug_struct = f.debug_struct("Leaf");
-                debug_struct.field("size", &elements.inner().len());
-
-                // Print a representation of the elements without dereferencing directly
-                let elements_str = format!("[{} items]", elements.inner().len());
-                debug_struct.field("elements", &elements_str);
-
-                debug_struct.finish()
-            },
-            Node::Branch { children, sizes } => {
-                let mut debug_struct = f.debug_struct("Branch");
-
-                // Use methods to access size and child count to avoid direct dereference
-                let size = self.size();
-                let child_count = self.child_count();
-
-                debug_struct.field("size", &size);
-                debug_struct.field("child_count", &child_count);
-
-                if let Some(sizes) = sizes {
-                    debug_struct.field("relaxed", &true);
-                    debug_struct.field("sizes", sizes);
-                } else {
-                    debug_struct.field("relaxed", &false);
-                }
-
-                // Print a representation of the children count without dereferencing
-                let children_str = format!("[{} children]", children.len());
-                debug_struct.field("children", &children_str);
-
-                debug_struct.finish()
-            },
+            Node::Leaf { elements } => f.debug_tuple("Leaf").field(elements).finish(),
+            Node::Branch { children, sizes } => f
+                .debug_struct("Branch")
+                .field("children", children)
+                .field("sizes", sizes)
+                .finish(),
         }
     }
 }

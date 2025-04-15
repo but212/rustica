@@ -50,7 +50,8 @@ impl IndexCache {
     /// Create a new, empty index cache.
     ///
     /// This creates a cache with no valid path or index.
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub fn new() -> Self {
         Self {
             index: 0,
@@ -60,33 +61,19 @@ impl IndexCache {
         }
     }
 
-    /// Clear the cache, marking it as invalid.
+    /// Clear the cache, marking it as invalid and clearing all cached data.
     ///
-    /// This removes any cached path and index information.
-    #[inline]
+    /// This removes any cached path and index information and frees memory used by path/ranges.
+    #[inline(always)]
     pub fn invalidate(&mut self) {
         self.valid = false;
-    }
-
-    /// Check if the cache contains information for the given index.
-    #[inline]
-    pub fn has_index(&self, index: usize) -> bool {
-        self.valid && self.index == index
-    }
-
-    /// Get the cached path index for a specific level.
-    #[inline]
-    pub fn get_path_index(&self, level: usize) -> Option<usize> {
-        if self.valid && level < self.path.len() {
-            Some(self.path[level])
-        } else {
-            None
-        }
+        self.path.clear();
+        self.ranges.clear();
     }
 }
 
 impl PartialEq for IndexCache {
-    #[inline]
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         // Check only the cached index and validity state
         // Path and ranges are implementation details that don't affect equality
@@ -97,7 +84,7 @@ impl PartialEq for IndexCache {
 impl Eq for IndexCache {}
 
 impl Default for IndexCache {
-    #[inline]
+    #[inline(always)]
     fn default() -> Self {
         Self::new()
     }

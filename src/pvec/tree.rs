@@ -17,7 +17,7 @@ use std::sync::Arc;
 use crate::pvec::cache::IndexCache;
 use crate::pvec::chunk::Chunk;
 use crate::pvec::memory::{AllocationStrategy, ManagedRef, MemoryManager};
-use crate::pvec::node::{Node, NODE_BITS, NODE_SIZE};
+use crate::pvec::node::{Node, NODE_BITS};
 
 /// A persistent vector implemented as a Relaxed Radix Balanced (RRB) tree.
 ///
@@ -62,14 +62,12 @@ impl<T: Clone> Tree<T> {
     /// Create a new, empty tree.
     ///
     /// This initializes a tree with an empty root node and zero elements.
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub fn new() -> Self {
         let manager = MemoryManager::new(AllocationStrategy::Direct);
-
-        // Create an empty leaf node
         let chunk = Chunk::new();
         let root = Node::leaf(ManagedRef::new(Arc::new(chunk)));
-
         Self {
             root: ManagedRef::new(Arc::new(root)),
             size: 0,
@@ -80,6 +78,8 @@ impl<T: Clone> Tree<T> {
     }
 
     /// Create a new tree from a slice of elements.
+    #[inline(always)]
+    #[must_use]
     pub fn from_slice(slice: &[T]) -> Self
     where
         T: Clone,
@@ -87,7 +87,6 @@ impl<T: Clone> Tree<T> {
         if slice.is_empty() {
             return Self::new();
         }
-
         let manager = MemoryManager::new(AllocationStrategy::Direct);
         let mut result = Self {
             root: ManagedRef::new(Arc::new(Node::leaf(ManagedRef::new(
@@ -98,129 +97,68 @@ impl<T: Clone> Tree<T> {
             manager,
             cache: IndexCache::default(),
         };
-
-        // Create chunks directly from the slice
-        let mut remaining = slice;
-        let mut chunk = Chunk::new();
-        while !remaining.is_empty() {
-            let chunk_size = remaining.len().min(NODE_SIZE);
-            let (to_add, rest) = remaining.split_at(chunk_size);
-            for item in to_add {
-                chunk.push_back(item.clone());
+        // Efficiently push elements in chunks
+        for chunk in slice.chunks(crate::pvec::chunk::CHUNK_SIZE) {
+            for item in chunk {
+                result = result.push_back(item.clone());
             }
-            remaining = rest;
         }
-        let chunk_ref = ManagedRef::new(Arc::new(chunk));
-        // Set up the root node as a leaf
-        let root = Node::leaf(chunk_ref);
-        result.root = ManagedRef::new(Arc::new(root));
-        result.size = slice.len();
         result
     }
 
     /// Get the number of elements in the tree.
     ///
     /// This operation is O(1) as the size is cached at the tree level.
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub const fn len(&self) -> usize {
         self.size
     }
 
     /// Check if the tree is empty (contains no elements).
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.size == 0
     }
 
     /// Get the shift value for accessing elements at the current tree height.
-    ///
-    /// The shift value is used for bit operations in the tree traversal algorithm.
-    /// It depends on the height of the tree and the number of bits used for indexing
-    /// at each level.
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub fn shift(&self) -> usize {
-        if self.height == 0 {
-            0
-        } else {
-            self.height * NODE_BITS
-        }
+        self.height * NODE_BITS
     }
 
     /// Get a reference to the element at the specified index.
     ///
     /// Returns `None` if the index is out of bounds.
+    #[inline(always)]
     pub fn get(&self, index: usize) -> Option<&T> {
         if index >= self.size {
             return None;
         }
-
-        // Fast path for leaf-only trees (height 0)
-        if self.height == 0 {
-            if let Node::Leaf { ref elements } = *self.root {
-                return elements.get(index);
-            }
-            unreachable!("Leaf-only tree with height 0 contains a branch node");
-        }
-
-        // Check if the index is in cache and the cache is valid
-        if self.cache.valid && self.cache.has_index(index) {
-            // Use cached path for fast access
-            let mut current = &self.root;
-            let mut current_index = index;
-            let mut shift = self.shift();
-
-            for level in 0..self.height {
-                if let Some(path_idx) = self.cache.get_path_index(level) {
-                    if level < self.cache.ranges.len() {
-                        // Get the range at the current level
-                        let range = &self.cache.ranges[level];
-
-                        // Calculate relative index
-                        current_index = index - range.start;
-
-                        // Check if we can follow the cached path
-                        match &**current {
-                            Node::Branch { children, .. } if path_idx < children.len() => {
-                                if let Some(child) = &children[path_idx] {
-                                    current = child;
-                                    shift -= NODE_BITS;
-                                    continue;
-                                }
-                            },
-                            _ => {},
-                        }
-                    }
-                }
-                // Fall back to normal traversal if we can't follow the cache path
-                return self.root.get(index, self.shift());
-            }
-
-            // Find the element in the last subtree (using adjusted index)
-            return current.get(current_index, shift);
-        }
-
-        // Normal tree traversal without cache
         self.root.get(index, self.shift())
     }
 
     /// Update an element at the specified index, returning a new tree.
     ///
     /// Returns the original tree if the index is out of bounds.
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.size {
             return self.clone();
         }
-
-        let shift = self.shift();
-        match self.root.update(&self.manager, index, value, shift) {
-            Some(new_root) => {
-                let mut result = self.clone();
-                result.root = new_root;
-                result.cache.invalidate();
-                result
-            },
-            None => self.clone(),
+        if let Some(new_root) = self.root.update(&self.manager, index, value, self.shift()) {
+            Self {
+                root: new_root,
+                size: self.size,
+                height: self.height,
+                manager: self.manager.clone(),
+                cache: IndexCache::new(),
+            }
+        } else {
+            self.clone()
         }
     }
 
@@ -228,21 +166,16 @@ impl<T: Clone> Tree<T> {
     ///
     /// Returns a tuple containing two trees: the first with elements from `0..index`,
     /// and the second with elements from `index..len`.
-    ///
-    /// If `index` is greater than the length, the first tree will contain
-    /// all elements and the second will be empty. If `index` is equal to the length,
-    /// the first tree will contain all elements and the second will be empty.
+    #[inline(always)]
+    #[must_use]
     pub fn split_at(&self, index: usize) -> (Self, Self) {
-        if index > self.size {
+        if index >= self.size {
             return (self.clone(), Self::new());
         }
-
-        if index == self.size {
-            return (self.clone(), Self::new());
+        if index == 0 {
+            return (Self::new(), self.clone());
         }
-
         let (left, right) = self.root.split(index, self.shift());
-
         (
             Self {
                 root: left,
@@ -262,6 +195,8 @@ impl<T: Clone> Tree<T> {
     }
 
     /// Add an element to the end of the tree.
+    #[inline(always)]
+    #[must_use]
     pub fn push_back(&self, value: T) -> Self {
         let shift = self.shift();
         let (new_root, split, overflow) = self.root.push_back(value, shift);
@@ -306,6 +241,8 @@ impl<T: Clone> Tree<T> {
     ///
     /// Returns a tuple containing the new tree and the removed element,
     /// or `None` if the tree is empty.
+    #[inline(always)]
+    #[must_use]
     pub fn pop_back(&self) -> Option<(Self, T)> {
         if self.is_empty() {
             return None;
@@ -319,54 +256,55 @@ impl<T: Clone> Tree<T> {
 
         Some((new_tree, last_element))
     }
+
+    /// Collect all elements in the tree into a Vec
+    #[inline(always)]
+    #[must_use]
+    pub fn to_vec(&self) -> Vec<T> {
+        let mut out = Vec::with_capacity(self.size);
+        for i in 0..self.size {
+            if let Some(val) = self.get(i) {
+                out.push(val.clone());
+            }
+        }
+        out
+    }
 }
 
 impl<T: PartialEq> PartialEq for Tree<T> {
-    #[inline]
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
-        // Only compare the root node, size and height
-        // Ignore manager and cache as they don't affect the tree's values
-        Arc::ptr_eq(self.root.inner(), other.root.inner())
-            && self.size == other.size
-            && self.height == other.height
+        self.size == other.size && self.height == other.height && *self.root == *other.root
     }
 }
 
 impl<T: Eq> Eq for Tree<T> {}
 
 impl<T: Clone> Default for Tree<T> {
-    #[inline]
+    #[inline(always)]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T: Clone + Debug> Debug for Tree<T> {
-    #[inline]
+    #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Tree {{ size: {}, height: {} }}", self.size, self.height)
+        f.debug_struct("Tree")
+            .field("size", &self.size)
+            .field("height", &self.height)
+            .field("root", &self.root)
+            .finish()
     }
 }
 
 impl<T: Clone> FromIterator<T> for Tree<T> {
-    #[inline]
+    #[inline(always)]
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut tree = Self::new();
-        let iter = iter.into_iter();
-
-        // Optimize by pre-allocating chunks when possible
-        if let Some(size_hint) = iter.size_hint().1 {
-            tree.manager.reserve_chunks(size_hint / NODE_SIZE + 1);
-        }
-
         for item in iter {
             tree = tree.push_back(item);
-            // Avoid cache invalidation on each push for better performance
-            tree.cache.valid = true;
         }
-
-        // Final cache invalidation to ensure consistent state
-        tree.cache.invalidate();
         tree
     }
 }

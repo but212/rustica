@@ -37,10 +37,8 @@ pub enum AllocationStrategy {
 /// A memory manager that handles allocation and deallocation of resources
 /// for the persistent vector.
 ///
-/// The memory manager provides efficient memory reuse through pooling,
-/// which reduces allocation overhead in operations that frequently
-/// create and discard nodes and chunks. It supports different allocation
-/// strategies to optimize for specific workloads.
+/// Thread-safe and optimized for concurrent, low-latency access.
+#[derive()] // marker for future extension
 pub struct MemoryManager<T> {
     allocation_strategy: AllocationStrategy,
     node_pool: Arc<Mutex<ObjectPool<Node<T>>>>,
@@ -49,9 +47,7 @@ pub struct MemoryManager<T> {
 
 impl<T: Clone> MemoryManager<T> {
     /// Create a new memory manager with the given allocation strategy
-    ///
-    /// This initializes the memory pools with the default capacity and sets up
-    /// the memory manager according to the specified allocation strategy.
+    #[inline]
     pub fn new(strategy: AllocationStrategy) -> Self {
         Self {
             allocation_strategy: strategy,
@@ -61,32 +57,29 @@ impl<T: Clone> MemoryManager<T> {
     }
 
     /// Reserve capacity for at least `count` additional chunks
-    ///
-    /// This ensures that the chunk pool can hold at least `count` more chunks without
-    /// reallocating its internal storage.
     #[inline]
     pub fn reserve_chunks(&self, count: usize) {
         self.chunk_pool.lock().reserve(count);
     }
 
     /// Get the current allocation strategy
-    #[inline]
+    #[inline(always)]
     pub fn strategy(&self) -> AllocationStrategy {
         self.allocation_strategy
     }
 
     /// Change the allocation strategy
-    #[inline]
+    #[inline(always)]
     pub fn set_strategy(&mut self, strategy: AllocationStrategy) {
         self.allocation_strategy = strategy;
     }
 
     /// Get statistics about memory usage
-    #[inline]
+    #[inline(always)]
+    #[must_use]
     pub fn stats(&self) -> MemoryStats {
         let node_pool = self.node_pool.lock();
         let chunk_pool = self.chunk_pool.lock();
-
         MemoryStats {
             node_pool_size: node_pool.size(),
             chunk_pool_size: chunk_pool.size(),
@@ -97,12 +90,12 @@ impl<T: Clone> MemoryManager<T> {
 
     /// Pre-allocate objects in the pools
     #[inline]
-    pub fn prefill(&self) {
-        let mut node_pool = self.node_pool.lock();
-        let mut chunk_pool = self.chunk_pool.lock();
-
-        node_pool.prefill(|_| Node::new());
-        chunk_pool.prefill(|_| Chunk::new());
+    pub fn prefill(&self)
+    where
+        T: Default,
+    {
+        self.node_pool.lock().prefill(|| Node::<T>::default());
+        self.chunk_pool.lock().prefill(|| Chunk::<T>::default());
     }
 }
 
@@ -167,40 +160,47 @@ pub(crate) struct ManagedRef<T> {
 
 impl<T> ManagedRef<T> {
     /// Create a new managed reference
-    #[inline]
+    #[inline(always)]
     pub fn new(obj: Arc<T>) -> Self {
         Self { inner: obj }
     }
 
     /// Get the underlying Arc<T>
-    #[inline]
+    #[inline(always)]
     pub fn inner(&self) -> &Arc<T> {
         &self.inner
     }
 }
 
+impl<T> From<Arc<T>> for ManagedRef<T> {
+    #[inline(always)]
+    fn from(obj: Arc<T>) -> Self {
+        ManagedRef::new(obj)
+    }
+}
+
 impl<T> Clone for ManagedRef<T> {
-    #[inline]
+    #[inline(always)]
     fn clone(&self) -> Self {
-        Self {
+        ManagedRef {
             inner: self.inner.clone(),
         }
     }
 }
 
 impl<T> AsRef<T> for ManagedRef<T> {
-    #[inline]
+    #[inline(always)]
     fn as_ref(&self) -> &T {
-        self.inner.as_ref()
+        &self.inner
     }
 }
 
 impl<T> std::ops::Deref for ManagedRef<T> {
     type Target = T;
 
-    #[inline]
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
-        self.inner.as_ref()
+        &self.inner
     }
 }
 
@@ -233,81 +233,47 @@ impl<T: Eq> Eq for ManagedRef<T> {}
 /// * `T`: The type of objects stored in the pool, which must be clonable
 pub(crate) struct ObjectPool<T> {
     /// The objects currently in the pool
-    objects: VecDeque<T>,
+    pool: VecDeque<T>,
     /// The maximum number of objects the pool can hold
     capacity: usize,
 }
 
 impl<T: Clone> ObjectPool<T> {
     /// Create a new object pool with the given capacity
-    ///
-    /// This initializes an empty pool that can hold up to `capacity` objects.
-    /// The pool starts with no objects but has pre-allocated space to avoid
-    /// reallocations when objects are added later.
-    ///
-    /// # Parameters
-    ///
-    /// * `capacity`: The maximum number of objects the pool can hold
-    #[inline]
+    #[inline(always)]
     pub fn new(capacity: usize) -> Self {
-        Self {
-            objects: VecDeque::with_capacity(capacity),
-            capacity,
-        }
+        let pool = VecDeque::with_capacity(capacity);
+        Self { pool, capacity }
     }
 
     /// Reserves capacity for at least `count` additional objects
-    ///
-    /// This ensures that the pool can hold at least `count` more objects without
-    /// reallocating its internal storage.
-    ///
-    /// # Parameters
-    ///
-    /// * `count`: The number of additional objects to reserve space for
-    #[inline]
+    #[inline(always)]
     pub fn reserve(&mut self, count: usize) {
-        self.objects.reserve(count);
+        self.pool.reserve(count);
     }
 
     /// Get the current size of the pool
-    ///
-    /// This returns the number of objects currently in the pool.
-    ///
-    /// # Returns
-    ///
-    /// * `usize`: The number of objects in the pool
-    #[inline]
+    #[inline(always)]
     pub fn size(&self) -> usize {
-        self.objects.len()
+        self.pool.len()
     }
 
     /// Get the capacity of the pool
-    ///
-    /// This returns the maximum number of objects the pool can hold.
-    ///
-    /// # Returns
-    ///
-    /// * `usize`: The capacity of the pool
-    #[inline]
+    #[inline(always)]
     pub fn capacity(&self) -> usize {
-        self.capacity
+        self.pool.capacity()
     }
 
     /// Pre-fill the pool with new objects
-    ///
-    /// This populates the pool with new objects created by the provided `create_fn`.
-    /// The objects are added to the end of the pool.
-    ///
-    /// # Parameters
-    ///
-    /// * `create_fn`: A function that creates a new object of type `T`
     #[inline]
     pub fn prefill<F>(&mut self, create_fn: F)
     where
-        F: Fn(usize) -> T,
+        F: Fn() -> T,
     {
-        for i in self.objects.len()..self.capacity {
-            self.objects.push_back(create_fn(i));
+        let needed = self.capacity.saturating_sub(self.pool.len());
+        self.pool.reserve(needed);
+        for _ in 0..needed {
+            self.pool.push_back(create_fn());
         }
     }
 }

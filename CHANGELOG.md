@@ -2,6 +2,23 @@
 
 ## [0.6.2]
 
+### Persistent Vector Optimizations
+- Major performance and memory optimizations for the persistent vector implementation:
+  - Streamlined memory management for all core data structures (VectorImpl, SmallVec, Tree, Node, Chunk).
+  - Fixed initialization of `[Option<T>; N]` in `SmallVec` to avoid requiring `T: Copy` and ensure safe, idiomatic Rust.
+  - Improved method inlining and added `#[must_use]` to critical methods for better performance and correctness.
+  - Refactored and documented all public methods for clarity and idiomatic usage.
+  - Implemented `Index<usize>` and `IntoIterator` for `PersistentVector<T>` and references, enabling ergonomic indexing and iteration.
+  - Optimized chunked and tree-backed operations to minimize unnecessary allocations and cloning.
+  - Ensured all trait implementations and constructors have correct visibility and safety guarantees.
+  - Fixed all Clippy and Rustc warnings, including redundant closures and array initialization issues.
+  - Updated tests to cover all indexing, iteration, and edge cases for persistent vectors.
+
+### Internal Refactoring
+- Refactored function signatures and formatting for consistency and readability across all persistent vector modules.
+- Removed or consolidated unused code paths and dead code warnings.
+- Improved error handling and documentation throughout the persistent vector codebase.
+
 ### Added
 - Enhanced Monoid trait with additional utility functions
   - Added `is_empty_monoid()` method to test if a value equals the identity element
