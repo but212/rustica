@@ -34,6 +34,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
   
   build:
+    if: github.ref == 'refs/heads/main'
     needs: [validate]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -112,6 +113,7 @@ jobs:
           path: ${{ steps.package.outputs.archive_name }}
   
   create-release:
+    if: github.ref == 'refs/heads/main'
     needs: [build]
     runs-on: ubuntu-latest
     steps:
@@ -120,11 +122,11 @@ jobs:
           fetch-depth: 0
       
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
       
       - name: Generate changelog
         id: changelog
-        uses: mikepenz/release-changelog-builder-action@v3
+        uses: mikepenz/release-changelog-builder-action@v4
         with:
           configuration: ".github/changelog-config.json"
           failOnError: false
@@ -134,7 +136,7 @@ jobs:
       
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: rustica-*/rustica-*
           generate_release_notes: ${{ steps.changelog.outputs.changelog == '' }}
@@ -144,12 +146,13 @@ jobs:
   
   # SLSA provenance generation (using existing workflow)
   provenance:
+    if: github.ref == 'refs/heads/main'
     needs: [build]
     permissions:
       actions: read
       id-token: write
       contents: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: "${{ needs.build.outputs.hashes }}"
       upload-assets: true
