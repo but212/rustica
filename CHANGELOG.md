@@ -2,83 +2,31 @@
 
 ## [0.6.2]
 
-### Persistent Vector Optimizations
-- Major performance and memory optimizations for the persistent vector implementation:
-  - Streamlined memory management for all core data structures (VectorImpl, SmallVec, Tree, Node, Chunk).
-  - Fixed initialization of `[Option<T>; N]` in `SmallVec` to avoid requiring `T: Copy` and ensure safe, idiomatic Rust.
-  - Improved method inlining and added `#[must_use]` to critical methods for better performance and correctness.
-  - Refactored and documented all public methods for clarity and idiomatic usage.
-  - Implemented `Index<usize>` and `IntoIterator` for `PersistentVector<T>` and references, enabling ergonomic indexing and iteration.
-  - Optimized chunked and tree-backed operations to minimize unnecessary allocations and cloning.
-  - Ensured all trait implementations and constructors have correct visibility and safety guarantees.
-  - Fixed all Clippy and Rustc warnings, including redundant closures and array initialization issues.
-  - Updated tests to cover all indexing, iteration, and edge cases for persistent vectors.
-
-### Internal Refactoring
-- Refactored function signatures and formatting for consistency and readability across all persistent vector modules.
-- Removed or consolidated unused code paths and dead code warnings.
-- Improved error handling and documentation throughout the persistent vector codebase.
-
-### Added
-- Enhanced Monoid trait with additional utility functions
-  - Added `is_empty_monoid()` method to test if a value equals the identity element
-  - Added `repeat(value, n)` function to create a monoid by repeating an element n times
-  - Added `mconcat(values)` function to combine values from a slice
-  - Added `power(value, exponent)` function to combine a monoid with itself multiple times
-  - Improved documentation with comprehensive examples and doctests
-- Implemented Comonad trait for standard library types
-  - Added implementations for `Option<T>` and `Result<T, E>` with proper Clone bounds
-  - Added doctests and examples for Comonad operations 
-  - Implemented Comonad for the Maybe type with Clone semantics
-
-### Changed
-- Refactored Iso trait to use instance methods and improve composability
-  - Converted static methods to instance methods with `&self` parameter
-  - Implemented proper field usage in `ComposedIso` and `InverseIso` structs
-  - Added `iso_compose` method for composing isomorphisms in a functional style
-  - Fixed compilation issues with proper type constraints and Clone bounds
-  - Updated documentation and examples to reflect instance method usage
-- Refactored composition functions to build on more basic operations
-  - Modified `compose_fallible` to use the basic `compose` function with Result's `and_then`
-  - Modified `compose_option` to use the basic `compose` function with Option's `and_then`
-  - Modified `compose_option_result` to use basic composition with transformation
-  - Simplified collection operations like `compose_filter` and parallel operations to use basic composition
-  - Added explanatory comments to clarify relationships between different composition functions
-  - Improved modularity and maintainability through better functional composition
-  
-### CI/CD Improvements
-- Enhanced `rust.yml` with matrix testing across multiple platforms and Rust channels
-- Improved `code-quality.yml` with additional documentation checks and security audit
-- Updated `create-release.yml` with cross-platform artifact building and automatic changelog generation
-- Enhanced `publish-crates.yml` with version validation and duplicate publishing prevention
-- Improved `benchmark.yml` with comparison reports and PR comments
-- Updated `generator-generic-ossf-slsa3-publish.yml` to use latest SLSA generator (from v1.4.0 to v2.1.0)
-
-### Refactored Node Memory Management
-- **Major Refactor:** Removed all custom pooling and Drop logic from persistent vector node and chunk management. Memory management is now handled entirely by Rust's standard ownership and reference counting (Arc), greatly simplifying the codebase.
-- All `ManagedRef` and node creation/manipulation APIs now use `Arc` and safe immutable references.
-- Methods no longer rely on `get_mut`, pooling, or manual memory recycling.
-- Pointer comparisons now use `Arc::ptr_eq` instead of deprecated or custom pointer logic.
-- All chunk and node modifications are done with new allocations and cloning, following Rust's functional and ownership principles.
-- Updated all relevant doctests and internal documentation to match the new memory management approach.
-- **Breaking Change:** Any code relying on the previous pooling or Drop behavior must be updated to use the new API.
-
-### Improved Encapsulation in the pvec Module
-- Restricted visibility of implementation details to improve API clarity
-  - Made internal components like `IndexCache`, `Chunk`, `Iterator`, `Node`, and `Tree` non-public (`pub(crate)` or `pub(super)`)
-  - Restricted visibility of implementation constants (`CHUNK_SIZE`, `NODE_SIZE`, etc.)
-  - Kept only necessary types public (`PersistentVector`, `MemoryManager`)
-- Removed unnecessary internal methods that were no longer needed after memory management refactoring
-- Simplified the public API surface while maintaining all functionality
-- Updated tests to use the public API instead of internal implementation details
+### Persistent Vector Improvements
+- **Performance & Memory Optimization:** Major improvements to memory management and operation speed across all core data structures (VectorImpl, SmallVec, Tree, Node, Chunk).
+- **API & Documentation:** Refactored and documented all public methods for clarity, safety, and idiomatic usage.
+- **Indexing & Iteration:** Implemented `Index<usize>` and `IntoIterator` for `PersistentVector<T>` and references, enabling ergonomic indexing and iteration.
+- **Test Coverage:** Expanded tests to cover indexing, iteration, and edge cases for persistent vectors.
 
 ### Error Handling Standardization
-- Standardized error handling across all persistent vector modules (`src/pvec`) using the utilities from `src/utils/error_utils.rs`.
-  - Replaced all `panic!`s and ad-hoc error returns with composable `Result<T, AppError<String, String>>` or type aliases.
-  - Adopted `AppError` and `error_with_context` for rich, contextual error messages.
-  - Updated all core tree/node operations (`find_child_index`, `modify_branch`, `replace_child`, `split`, etc.) to propagate errors using idiomatic Rust patterns.
-  - Improved documentation for error types and propagation in method comments.
-  - Ensured all error handling is consistent, robust, and ready for downstream integration/testing.
+- **Unified Error Handling:** Standardized error handling across all persistent vector modules (`src/pvec`) using utilities from `src/utils/error_utils.rs`.
+- **Reduced Panics:** Replaced most `panic!`s and ad-hoc error returns with composable `Result<T, AppError<String, String>>` or type aliases, except in cases where panics are required for invariants or impossible states.
+- **Contextual Errors:** Adopted `AppError` and `error_with_context` for rich, contextual error messages in all core tree/node operations (`find_child_index`, `modify_branch`, `replace_child`, `split`, etc.).
+- **Improved Documentation:** Enhanced method documentation to clearly describe error types and propagation.
+
+### Monoid & Comonad Enhancements
+- **Monoid Utilities:** Added `is_empty_monoid()`, `repeat`, `mconcat`, `power`, and more, with comprehensive examples and doctests.
+- **Comonad Trait Implementations:** Provided `Comonad` trait implementations for `Option<T>`, `Result<T, E>`, and `Maybe`, with usage examples.
+
+### Iso Trait Enhancements
+- **New Isomorphism:** Added `Iso<Result<A, E>, Validated<E, A>>` as `ResultValidatedIso` in `src/traits/iso.rs`.
+    - Enables seamless, idiomatic conversion between `Result` and `Validated` types.
+    - Includes comprehensive doc-test for round-trip conversions and error/success cases.
+- **Refactoring Ready:** Existing code that manually converts between `Result` and `Validated` can now use this isomorphism for clarity and maintainability.
+
+### Other Refactoring
+- **Internal Cleanup:** Removed dead code and unused paths, improved formatting and function signatures for consistency.
+- **Iso Trait Improvements:** Converted static methods to instance methods for better composability.
 
 ## [0.6.1]
 
