@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [0.6.2] - 2025-04-10
+## [0.6.2] - 2025-04-17
 
 ### Added
 - **Flexible caching policy system for PersistentVector**
@@ -35,6 +35,15 @@
 ### Refactored
 - Integrated `cache`, `chunk`, and `memory` modules into unified `memory.rs`
 - Removed dead code and improved formatting for consistency
+
+### IO Monad Improvements
+- Refactored IO<A>:
+  - Internal implementation now uses `Arc<dyn Fn()>` with minimal value cloning for better performance and ergonomics.
+  - `pure`, `delay`, `delay_efficient` now only clone values when IO is run multiple times, reducing unnecessary heap allocations.
+  - `delay_efficient` now uses the `spin_sleep` crate for precise spin-based delays; `delay` continues to use `std::thread::sleep`.
+  - Each method is now thoroughly documented, including tradeoffs between blocking and spinning, and async/await extension notes.
+  - Doctests improved to follow Rust best practices for generics, trait imports, and error handling.
+- Updated documentation to clearly explain usage, error handling, and performance tradeoffs for large IO chains.
 
 ## [0.6.1]
 

@@ -23,15 +23,24 @@
 //! Advanced usage (explicit cache policy):
 //! ```
 //! use rustica::pvec::{PersistentVector, AlwaysCache};
-//! let vec = PersistentVector::with_cache_policy(Box::new(AlwaysCache));
+//! let vec: PersistentVector<i32> = PersistentVector::with_cache_policy(Box::new(AlwaysCache));
 //! ```
 //!
 //! Custom policy:
 //! ```
-//! use rustica::pvec::{PersistentVector, CachePolicy};
+//! use rustica::pvec::{PersistentVector, CachePolicy, BoxedCachePolicy};
 //! struct MyPolicy;
-//! impl CachePolicy for MyPolicy { /* ... */ }
-//! let vec = PersistentVector::with_cache_policy(Box::new(MyPolicy));
+//! impl CachePolicy for MyPolicy {
+//!     fn should_cache(&self, _index: usize) -> bool {
+//!         // Cache indices divisible by 3
+//!         _index % 3 == 0
+//!     }
+//!     
+//!     fn clone_box(&self) -> BoxedCachePolicy {
+//!         Box::new(MyPolicy)
+//!     }
+//! }
+//! let vec: PersistentVector<i32> = PersistentVector::with_cache_policy(Box::new(MyPolicy));
 //! ```
 //!
 //! A persistent vector is an immutable data structure that provides efficient
@@ -447,7 +456,7 @@ impl<T: Clone> PersistentVector<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::pvec::{PersistentVector, cache::{NeverCache, EvenIndexCache}};
+    /// use rustica::pvec::{PersistentVector, NeverCache, EvenIndexCache};
     /// let vec = PersistentVector::<i32>::with_cache_policy(Box::new(NeverCache));
     /// assert_eq!(vec.len(), 0);
     /// let vec2 = PersistentVector::from_slice_with_cache_policy(&[1,2,3], Box::new(EvenIndexCache));

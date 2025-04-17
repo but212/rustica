@@ -171,7 +171,7 @@ impl<T> Id<T> {
     /// let value = x.into_inner();
     /// assert_eq!(value, 42);
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn into_inner(self) -> T {
         self.value
     }
@@ -193,14 +193,14 @@ impl<T> Id<T> {
     /// let result = x.then(y);
     /// assert_eq!(*result.value(), "hello");
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn then<U>(self, next: Id<U>) -> Id<U> {
-        Id::new(next.value)
+        Id { value: next.value }
     }
 }
 
 impl<T> std::convert::AsRef<T> for Id<T> {
-    #[inline]
+    #[inline(always)]
     fn as_ref(&self) -> &T {
         &self.value
     }
@@ -237,7 +237,7 @@ impl<T> HKT for Id<T> {
 }
 
 impl<T> Identity for Id<T> {
-    #[inline]
+    #[inline(always)]
     fn value(&self) -> &Self::Source {
         &self.value
     }

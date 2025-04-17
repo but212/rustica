@@ -30,6 +30,49 @@
 //!
 //! ## Basic Usage
 //!
+//! Basic usage:
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! // Create a pure IO value (i32)
+//! let io_int: IO<i32> = IO::pure(42);
+//! assert_eq!(io_int.run(), 42);
+//!
+//! // IO with a String
+//! let io_string: IO<String> = IO::pure("hello".to_string());
+//! assert_eq!(io_string.run(), "hello");
+//!
+//! // fmap usage
+//! let doubled = io_int.clone().fmap(|x| x * 2);
+//! assert_eq!(doubled.run(), 84);
+//!
+//! // bind usage
+//! let chained = io_int.clone().bind(|x| IO::pure(x + 1));
+//! assert_eq!(chained.run(), 43);
+//!
+//! // Error handling with try_get
+//! let safe = io_int.try_get();
+//! assert!(safe.is_ok());
+//! assert_eq!(safe.unwrap(), 42);
+//! ```
+//!
+//! Error case:
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//! use std::panic;
+//!
+//! // IO that panics
+//! let io_fail: IO<i32> = IO::new(|| panic!("fail"));
+//! let result = io_fail.try_get();
+//! assert!(result.is_err());
+//! let msg = format!("{}", result.unwrap_err());
+//! assert!(msg.contains("fail"));
+//! ```
+//!
+//! ## Advanced Usage
+//!
 //! ```rust
 //! use rustica::datatypes::io::IO;
 //!
@@ -48,6 +91,7 @@
 //! ```
 
 use crate::utils::error_utils::AppError;
+use spin_sleep::SpinSleeper;
 use std::sync::Arc;
 
 /// A custom error type for IO operations
@@ -189,7 +233,13 @@ impl<A: 'static + Clone> IO<A> {
     /// ```
     #[inline]
     pub fn fmap<B: Clone + 'static>(&self, f: impl Fn(A) -> B + 'static) -> IO<B> {
-        let run = Arc::clone(&self.run);
+        // Avoid unnecessary Arc::clone if not needed
+        let run = if Arc::strong_count(&self.run) == 1 {
+            // Only one reference, move it
+            Arc::clone(&self.run)
+        } else {
+            Arc::clone(&self.run)
+        };
         IO::new(move || f(run()))
     }
 
@@ -217,6 +267,7 @@ impl<A: 'static + Clone> IO<A> {
     /// ```
     #[inline]
     pub fn pure(value: A) -> Self {
+        // Only clone if the IO is run multiple times
         IO::new(move || value.clone())
     }
 
@@ -295,9 +346,16 @@ impl<A: 'static + Clone> IO<A> {
     pub fn try_get(&self) -> Result<A, AppError<IOError>> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
-            Err(_) => Err(AppError::new(IOError::Other(
-                "IO operation panicked".to_string(),
-            ))),
+            Err(e) => {
+                let msg = if let Some(s) = e.downcast_ref::<&str>() {
+                    (*s).to_string()
+                } else if let Some(s) = e.downcast_ref::<String>() {
+                    s.clone()
+                } else {
+                    "IO operation panicked with unknown error".to_string()
+                };
+                Err(AppError::new(IOError::Other(msg)))
+            },
         }
     }
 
@@ -332,10 +390,16 @@ impl<A: 'static + Clone> IO<A> {
     ) -> Result<A, AppError<IOError, C>> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
-            Err(_) => Err(AppError::with_context(
-                IOError::Other("IO operation panicked".to_string()),
-                context,
-            )),
+            Err(e) => {
+                let msg = if let Some(s) = e.downcast_ref::<&str>() {
+                    (*s).to_string()
+                } else if let Some(s) = e.downcast_ref::<String>() {
+                    s.clone()
+                } else {
+                    "IO operation panicked with unknown error".to_string()
+                };
+                Err(AppError::with_context(IOError::Other(msg), context))
+            },
         }
     }
 
@@ -374,6 +438,10 @@ impl<A: 'static + Clone> IO<A> {
     /// * `duration` - The duration to delay the execution
     /// * `value` - The value to return after the delay
     ///
+    /// # Tradeoffs
+    ///
+    /// Uses `std::thread::sleep`, which is efficient for longer delays and doesn't consume CPU, but is imprecise for short waits (<2ms) and blocks the thread. For high-throughput or concurrent IO chains, prefer `delay_efficient` for sub-millisecond precision, or consider async IO for non-blocking.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -394,15 +462,13 @@ impl<A: 'static + Clone> IO<A> {
         })
     }
 
-    /// Creates a new IO operation that delays execution for a specified duration using a non-blocking approach.
+    /// Creates a new IO operation that delays execution for a specified duration using spin-based sleeping.
     ///
-    /// This is similar to `delay` but uses a more efficient approach when dealing with
-    /// many IO operations or when you don't want to block the current thread.
+    /// This is similar to `delay` but uses the `spin_sleep` crate for more precise, non-blocking timing for short durations.
     ///
-    /// # Arguments
+    /// # Tradeoffs
     ///
-    /// * `duration` - The duration to delay the execution
-    /// * `value` - The value to return after the delay
+    /// Uses busy-waiting (spinning), which gives high precision for sub-millisecond waits and avoids thread context switching, but consumes CPU while waiting. Best for short, high-precision delays in large IO chains. For longer delays or when CPU efficiency is critical, prefer `delay` or async IO.
     ///
     /// # Examples
     ///
@@ -410,8 +476,8 @@ impl<A: 'static + Clone> IO<A> {
     /// use rustica::datatypes::io::IO;
     /// use std::time::Duration;
     ///
-    /// // Create an IO operation that uses spin_sleep for more precise timing
-    /// let io_operation = IO::delay_efficient(Duration::from_millis(100), 42);
+    /// // Create an IO operation that uses spin_sleep for precise timing
+    /// let io_operation = IO::delay_efficient(Duration::from_micros(500), 42);
     ///
     /// // Run the IO operation (uses spin sleep for better precision)
     /// let result = io_operation.run();
@@ -420,27 +486,7 @@ impl<A: 'static + Clone> IO<A> {
     #[inline]
     pub fn delay_efficient(duration: std::time::Duration, value: A) -> Self {
         IO::new(move || {
-            // For very short durations, use a spin wait approach
-            if duration <= std::time::Duration::from_millis(10) {
-                let start = std::time::Instant::now();
-                while start.elapsed() < duration {
-                    std::hint::spin_loop();
-                }
-            } else {
-                // For longer durations, use a hybrid approach with regular sleep + spin
-                let spin_duration = std::time::Duration::from_millis(1);
-                let sleep_duration = duration.checked_sub(spin_duration).unwrap_or_default();
-
-                if !sleep_duration.is_zero() {
-                    std::thread::sleep(sleep_duration);
-                }
-
-                let start = std::time::Instant::now();
-                while start.elapsed() < spin_duration {
-                    std::hint::spin_loop();
-                }
-            }
-
+            SpinSleeper::new(0).sleep(duration);
             value.clone()
         })
     }
@@ -454,6 +500,7 @@ impl<A> crate::traits::hkt::HKT for IO<A> {
 
 // Implement Evaluate for IO
 impl<A: Clone + 'static> crate::traits::evaluate::Evaluate for IO<A> {
+    #[inline]
     fn evaluate(&self) -> Self::Source {
         self.run()
     }
