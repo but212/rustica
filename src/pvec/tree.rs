@@ -14,9 +14,8 @@ use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::sync::Arc;
 
-use crate::pvec::cache::IndexCache;
-use crate::pvec::chunk::Chunk;
-use crate::pvec::memory::{AllocationStrategy, ManagedRef, MemoryManager};
+use crate::pvec::memory::IndexCache;
+use crate::pvec::memory::{AllocationStrategy, BoxedCachePolicy, Chunk, ManagedRef, MemoryManager};
 use crate::pvec::node::{Node, NODE_BITS};
 
 /// A persistent vector implemented as a Relaxed Radix Balanced (RRB) tree.
@@ -58,7 +57,10 @@ pub(crate) struct Tree<T> {
     cache: IndexCache,
 
     /// Policy for controlling when to use the cache.
-    cache_policy: Box<dyn crate::pvec::cache::CachePolicy>,
+    ///
+    /// This policy determines when the cache should be used for operations.
+    /// It can be set to control caching behavior dynamically.
+    cache_policy: BoxedCachePolicy,
 }
 
 impl<T: Clone> Tree<T> {
@@ -77,7 +79,7 @@ impl<T: Clone> Tree<T> {
             height: 0,
             manager,
             cache: IndexCache::new(),
-            cache_policy: Box::new(crate::pvec::cache::AlwaysCache),
+            cache_policy: Box::new(crate::pvec::memory::AlwaysCache),
         }
     }
 
@@ -100,10 +102,10 @@ impl<T: Clone> Tree<T> {
             height: 0,
             manager,
             cache: IndexCache::default(),
-            cache_policy: Box::new(crate::pvec::cache::AlwaysCache),
+            cache_policy: Box::new(crate::pvec::memory::AlwaysCache),
         };
         // Efficiently push elements in chunks
-        for chunk in slice.chunks(crate::pvec::chunk::CHUNK_SIZE) {
+        for chunk in slice.chunks(crate::pvec::memory::CHUNK_SIZE) {
             for item in chunk {
                 result = result.push_back(item.clone());
             }
@@ -112,7 +114,7 @@ impl<T: Clone> Tree<T> {
     }
 
     /// Set the cache policy for this tree.
-    pub fn with_cache_policy(mut self, policy: Box<dyn crate::pvec::cache::CachePolicy>) -> Self {
+    pub fn with_cache_policy(mut self, policy: BoxedCachePolicy) -> Self {
         self.cache_policy = policy;
         self
     }

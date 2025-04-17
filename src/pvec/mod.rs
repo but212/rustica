@@ -167,21 +167,12 @@
 
 // Submodules
 
-/// Caching system for accelerating tree traversal paths.
 #[cfg(feature = "pvec")]
-pub mod cache;
-
-/// Fixed-size chunks for storing elements efficiently.
-#[cfg(feature = "pvec")]
-pub(crate) mod chunk;
+pub(crate) mod memory;
 
 /// Iterators for traversing persistent vectors.
 #[cfg(feature = "pvec")]
 pub(crate) mod iterator;
-
-/// Custom memory management for optimal allocation.
-#[cfg(feature = "pvec")]
-pub(crate) mod memory;
 
 /// Tree node implementation for the RRB-Tree structure.
 #[cfg(feature = "pvec")]
@@ -234,3 +225,10 @@ macro_rules! pvec {
 
 // Re-export the macro at the pvec module level
 pub use pvec;
+
+// Re-export cache policy types
+pub use crate::pvec::memory::AlwaysCache;
+pub use crate::pvec::memory::BoxedCachePolicy;
+pub use crate::pvec::memory::CachePolicy;
+pub use crate::pvec::memory::EvenIndexCache;
+pub use crate::pvec::memory::NeverCache;

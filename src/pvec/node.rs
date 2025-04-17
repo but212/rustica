@@ -1,24 +1,12 @@
-//! Tree Node Module
+//! Tree Node Module for PersistentVector
 //!
-//! This module defines the Node type, which is the building block
-//! for the internal tree structure of the persistent vector.
+//! Defines the Node type and related constants for the internal RRB-tree structure.
 //!
-//! # Overview
-//!
-//! The node module implements a relaxed radix balanced (RRB) tree structure
-//! that forms the backbone of the persistent vector. Nodes can be either:
-//!
-//! - **Leaf nodes**: Store elements directly in chunks
-//! - **Branch nodes**: Store references to child nodes
-//!
-//! The tree structure supports both regular nodes (with uniform child sizes)
-//! and relaxed nodes (with a size table for non-uniform children).
-
 use std::fmt::{self, Debug};
 use std::sync::Arc;
 
-use crate::pvec::chunk::{Chunk, CHUNK_BITS, CHUNK_SIZE};
-use crate::pvec::memory::{ManagedRef, MemoryManager};
+// Only import what is needed for node.rs, now that memory-related types are defined in memory.rs
+use crate::pvec::memory::{Chunk, ManagedRef, MemoryManager, CHUNK_BITS, CHUNK_SIZE};
 use crate::utils::error_utils::{error_with_context, AppError};
 
 /// Standard error type for pvec node operations
@@ -26,10 +14,8 @@ pub(crate) type PVecError = AppError<String, String>;
 
 /// The maximum number of children a node can have.
 pub(crate) const NODE_SIZE: usize = CHUNK_SIZE;
-
 /// Bit mask for extracting the index within a node.
 pub(crate) const NODE_MASK: usize = NODE_SIZE - 1;
-
 /// The number of bits needed to represent indices within a node.
 pub(crate) const NODE_BITS: usize = CHUNK_BITS;
 
@@ -278,11 +264,11 @@ impl<T: Clone> Node<T> {
     where
         F: FnOnce(&mut Node<T>),
     {
-        // 1. Node<T> 기본 생성
+        // 1. Create a default Node<T>
         let mut node = Node::new();
-        // 2. modifier 적용
+        // 2. Apply the modifier function
         creator(&mut node);
-        // 3. Arc로 감싸서 ManagedRef로 반환
+        // 3. Wrap in Arc and return as ManagedRef
         ManagedRef::new(Arc::new(node))
     }
 

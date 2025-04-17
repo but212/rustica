@@ -410,3 +410,91 @@ fn test_large_persistent_vector() {
     assert_eq!(concat.len(), n);
     assert_eq!(concat.get(n - 1), Some(&(n - 1)));
 }
+
+#[test]
+fn test_pvec_macro_variants() {
+    use rustica::pvec;
+    let empty: rustica::pvec::PersistentVector<i32> = pvec![];
+    assert!(empty.is_empty());
+    let single = pvec![42];
+    assert_eq!(single.len(), 1);
+    let trailing = pvec![1, 2, 3,];
+    assert_eq!(trailing.len(), 3);
+    assert_eq!(trailing.get(2), Some(&3));
+}
+
+#[test]
+fn test_with_cache_policy_and_from_slice_with_cache_policy() {
+    use rustica::pvec::{AlwaysCache, EvenIndexCache, NeverCache, PersistentVector};
+    let vec: PersistentVector<i32> = PersistentVector::with_cache_policy(Box::new(AlwaysCache));
+    assert_eq!(vec.len(), 0);
+    let vec2 = PersistentVector::from_slice_with_cache_policy(&[1, 2, 3], Box::new(NeverCache));
+    assert_eq!(vec2.len(), 3);
+    let vec3 = PersistentVector::from_slice_with_cache_policy(&[1, 2, 3], Box::new(EvenIndexCache));
+    assert_eq!(vec3.get(1), Some(&2));
+}
+
+#[test]
+fn test_custom_cache_policy_trait() {
+    use rustica::pvec::{BoxedCachePolicy, CachePolicy, PersistentVector};
+    struct CustomPolicy;
+    impl CachePolicy for CustomPolicy {
+        fn should_cache(&self, idx: usize) -> bool {
+            idx % 2 == 0
+        }
+        fn clone_box(&self) -> BoxedCachePolicy {
+            Box::new(CustomPolicy)
+        }
+    }
+    let vec: PersistentVector<i32> = PersistentVector::with_cache_policy(Box::new(CustomPolicy));
+    assert_eq!(vec.len(), 0);
+}
+
+#[test]
+fn test_get_with_cache_and_update_with_cache_policy() {
+    use rustica::pvec::PersistentVector;
+    let mut vec: PersistentVector<i32> = PersistentVector::from_slice(&[10, 20, 30]);
+    let val = vec.get_with_cache(1);
+    assert_eq!(val, Some(&20));
+    let updated = vec.update_with_cache_policy(1, 99);
+    assert_eq!(updated.get(1), Some(&99));
+    // Original is unchanged
+    assert_eq!(vec.get(1), Some(&20));
+}
+
+#[test]
+fn test_misc_methods() {
+    use rustica::pvec::PersistentVector;
+    let vec = PersistentVector::from_slice(&[1, 2, 2, 3, 4, 4, 5]);
+    let deduped = vec.dedup();
+    assert_eq!(deduped.to_vec(), vec![1, 2, 3, 4, 5]);
+    let inserted = vec.insert(2, 99);
+    assert_eq!(inserted.get(2), Some(&99));
+    let filtered = vec.filter_map(|x| if *x % 2 == 0 { Some(x * 10) } else { None });
+    assert_eq!(filtered.to_vec(), vec![20, 20, 40, 40]);
+    let flat = vec.flat_map(|&x| vec![x, x * 2]);
+    assert!(flat.len() > vec.len());
+}
+
+#[test]
+fn test_trait_impls_and_conversions() {
+    use rustica::pvec::PersistentVector;
+    let vec = PersistentVector::from_slice(&[1, 2, 3]);
+    let stdvec: Vec<_> = vec.clone().into();
+    assert_eq!(stdvec, vec![1, 2, 3]);
+    let pv2: PersistentVector<_> = stdvec.clone().into();
+    assert_eq!(pv2, vec);
+    let arc = vec.to_arc();
+    assert_eq!(arc.get(0), Some(&1));
+}
+
+#[test]
+fn test_edge_cases() {
+    use rustica::pvec::PersistentVector;
+    let empty: PersistentVector<i32> = PersistentVector::new();
+    assert!(empty.get(0).is_none());
+    let updated = empty.update(5, 42);
+    assert_eq!(updated.len(), 0);
+    let popped = empty.pop_back();
+    assert!(popped.is_none());
+}

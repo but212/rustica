@@ -1,44 +1,232 @@
-//! Memory Management Module
+//! Unified cache, chunk, and memory management for PersistentVector.
 //!
-//! This module provides memory management utilities for the persistent vector.
-//! It includes a memory pool system that reduces allocation overhead by reusing
-//! memory for commonly allocated structures.
+//! This module integrates caching logic, chunked storage, and custom memory
+//! management for efficient persistent vector operations. All types here are
+//! internal unless explicitly re-exported in mod.rs.
 
-use parking_lot::Mutex;
 use std::collections::VecDeque;
 use std::convert::AsRef;
-use std::fmt::Debug;
+use std::fmt::{self, Debug as StdDebug};
+use std::iter::FromIterator;
+use std::ops::{Index, IndexMut, Range};
 use std::sync::Arc;
 
-use crate::pvec::chunk::Chunk;
 use crate::pvec::node::Node;
 
-/// Default capacity for memory pools
+use parking_lot::Mutex;
+
+pub(super) const MAX_CACHE_LEVELS: usize = 10;
+
+pub type BoxedCachePolicy = Box<dyn CachePolicy>;
+
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub(super) struct IndexCache {
+    pub index: usize,
+    pub path: [usize; MAX_CACHE_LEVELS],
+    pub ranges: [Range<usize>; MAX_CACHE_LEVELS],
+    pub len: usize,
+    pub hits: usize,
+    pub misses: usize,
+}
+
+impl IndexCache {
+    #[inline(always)]
+    /// Creates a new `IndexCache` instance.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[inline(always)]
+    /// Checks if the cache is valid.
+    pub fn is_valid(&self) -> bool {
+        self.len > 0
+    }
+
+    #[inline(always)]
+    /// Invalidates the cache.
+    pub fn invalidate(&mut self) {
+        self.len = 0;
+    }
+
+    #[inline(always)]
+    /// Updates the cache with the given index, path, and ranges.
+    pub fn update(&mut self, index: usize, path: &[usize], ranges: &[Range<usize>]) {
+        self.index = index;
+        self.len = path.len().min(MAX_CACHE_LEVELS);
+        self.path[..self.len].copy_from_slice(&path[..self.len]);
+        self.ranges[..self.len].clone_from_slice(&ranges[..self.len]);
+    }
+
+    #[inline(always)]
+    /// Records a cache hit.
+    pub fn record_hit(&mut self) {
+        self.hits += 1;
+    }
+
+    #[inline(always)]
+    /// Records a cache miss.
+    pub fn record_miss(&mut self) {
+        self.misses += 1;
+    }
+}
+
+/// Trait for cache policy strategies used by PersistentVector.
+/// Implementors decide whether to cache a given index.
+pub trait CachePolicy: Send + Sync {
+    fn should_cache(&self, index: usize) -> bool;
+    fn clone_box(&self) -> BoxedCachePolicy;
+}
+
+impl Clone for BoxedCachePolicy {
+    #[inline(always)]
+    fn clone(&self) -> BoxedCachePolicy {
+        self.clone_box()
+    }
+}
+
+/// Cache policy implementations.
+///
+/// These structs implement the `CachePolicy` trait and decide whether to cache a given index.
+#[derive(Clone)]
+pub struct AlwaysCache;
+impl CachePolicy for AlwaysCache {
+    #[inline(always)]
+    fn should_cache(&self, _index: usize) -> bool {
+        true
+    }
+    #[inline(always)]
+    fn clone_box(&self) -> BoxedCachePolicy {
+        Box::new(self.clone())
+    }
+}
+
+#[derive(Clone)]
+pub struct NeverCache;
+impl CachePolicy for NeverCache {
+    #[inline(always)]
+    fn should_cache(&self, _index: usize) -> bool {
+        false
+    }
+    #[inline(always)]
+    fn clone_box(&self) -> BoxedCachePolicy {
+        Box::new(self.clone())
+    }
+}
+
+#[derive(Clone)]
+pub struct EvenIndexCache;
+impl CachePolicy for EvenIndexCache {
+    #[inline(always)]
+    fn should_cache(&self, index: usize) -> bool {
+        index % 2 == 0
+    }
+    #[inline(always)]
+    fn clone_box(&self) -> BoxedCachePolicy {
+        Box::new(self.clone())
+    }
+}
+
+pub(crate) const CHUNK_SIZE: usize = 32;
+pub(crate) const CHUNK_BITS: usize = 5;
+
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct Chunk<T> {
+    elements: Vec<T>,
+}
+
+impl<T: Clone> Chunk<T> {
+    #[inline(always)]
+    /// Creates a new `Chunk` instance.
+    pub fn new() -> Self {
+        Self {
+            elements: Vec::with_capacity(CHUNK_SIZE),
+        }
+    }
+
+    #[inline(always)]
+    /// Returns the length of the chunk.
+    pub fn len(&self) -> usize {
+        self.elements.len()
+    }
+
+    #[inline(always)]
+    /// Checks if the chunk is full.
+    pub fn is_full(&self) -> bool {
+        self.elements.len() >= CHUNK_SIZE
+    }
+
+    #[inline(always)]
+    /// Returns a reference to the element at the given index.
+    pub fn get(&self, index: usize) -> Option<&T> {
+        self.elements.get(index)
+    }
+
+    #[inline(always)]
+    /// Returns a mutable reference to the element at the given index.
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.elements.get_mut(index)
+    }
+
+    #[inline(always)]
+    /// Pushes a new element onto the chunk.
+    pub fn push_back(&mut self, value: T) -> bool {
+        if self.is_full() {
+            return false;
+        }
+        self.elements.push(value);
+        true
+    }
+}
+
+impl<T: Clone> Default for Chunk<T> {
+    #[inline(always)]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Clone + StdDebug> StdDebug for Chunk<T> {
+    #[inline(always)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.elements.iter()).finish()
+    }
+}
+
+impl<T: Clone> FromIterator<T> for Chunk<T> {
+    #[inline(always)]
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut elements = Vec::with_capacity(CHUNK_SIZE);
+        for item in iter.into_iter().take(CHUNK_SIZE) {
+            elements.push(item);
+        }
+        Self { elements }
+    }
+}
+
+impl<T: Clone> Index<usize> for Chunk<T> {
+    type Output = T;
+    #[inline(always)]
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.elements[index]
+    }
+}
+
+impl<T: Clone> IndexMut<usize> for Chunk<T> {
+    #[inline(always)]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.elements[index]
+    }
+}
+
 pub(crate) const DEFAULT_POOL_CAPACITY: usize = 128;
 
-/// Strategy for allocating and recycling memory
-///
-/// Controls how memory is allocated and recycled for persistent vector operations:
-/// - `Direct`: No pooling, standard allocation/deallocation
-/// - `Pooled`: Fixed-size memory pools for efficient reuse
-/// - `Adaptive`: Dynamic memory pools that can grow based on demand
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AllocationStrategy {
-    /// No pooling, allocate and free directly
     Direct,
-
-    /// Use memory pools with a fixed capacity
     Pooled,
-
-    /// Use memory pools but allow them to grow beyond capacity
     Adaptive,
 }
 
-/// A memory manager that handles allocation and deallocation of resources
-/// for the persistent vector.
-///
-/// Thread-safe and optimized for concurrent, low-latency access.
-#[derive()] // marker for future extension
 pub struct MemoryManager<T> {
     allocation_strategy: AllocationStrategy,
     node_pool: Arc<Mutex<ObjectPool<Node<T>>>>,
@@ -46,8 +234,8 @@ pub struct MemoryManager<T> {
 }
 
 impl<T: Clone> MemoryManager<T> {
-    /// Create a new memory manager with the given allocation strategy
-    #[inline]
+    #[inline(always)]
+    /// Creates a new `MemoryManager` instance.
     pub fn new(strategy: AllocationStrategy) -> Self {
         Self {
             allocation_strategy: strategy,
@@ -56,27 +244,26 @@ impl<T: Clone> MemoryManager<T> {
         }
     }
 
-    /// Reserve capacity for at least `count` additional chunks
-    #[inline]
+    #[inline(always)]
+    /// Reserves chunks in the chunk pool.
     pub fn reserve_chunks(&self, count: usize) {
         self.chunk_pool.lock().reserve(count);
     }
 
-    /// Get the current allocation strategy
     #[inline(always)]
+    /// Returns the allocation strategy.
     pub fn strategy(&self) -> AllocationStrategy {
         self.allocation_strategy
     }
 
-    /// Change the allocation strategy
     #[inline(always)]
+    /// Sets the allocation strategy.
     pub fn set_strategy(&mut self, strategy: AllocationStrategy) {
         self.allocation_strategy = strategy;
     }
 
-    /// Get statistics about memory usage
     #[inline(always)]
-    #[must_use]
+    /// Returns memory statistics.
     pub fn stats(&self) -> MemoryStats {
         let node_pool = self.node_pool.lock();
         let chunk_pool = self.chunk_pool.lock();
@@ -88,8 +275,8 @@ impl<T: Clone> MemoryManager<T> {
         }
     }
 
-    /// Pre-allocate objects in the pools
-    #[inline]
+    #[inline(always)]
+    /// Prefills the node and chunk pools.
     pub fn prefill(&self)
     where
         T: Default,
@@ -100,7 +287,7 @@ impl<T: Clone> MemoryManager<T> {
 }
 
 impl<T: Clone> Clone for MemoryManager<T> {
-    #[inline]
+    #[inline(always)]
     fn clone(&self) -> Self {
         Self {
             allocation_strategy: self.allocation_strategy,
@@ -111,13 +298,13 @@ impl<T: Clone> Clone for MemoryManager<T> {
 }
 
 impl<T: Clone> Default for MemoryManager<T> {
-    #[inline]
+    #[inline(always)]
     fn default() -> Self {
         Self::new(AllocationStrategy::Pooled)
     }
 }
 
-impl<T: Clone + Debug> Debug for MemoryManager<T> {
+impl<T: Clone + StdDebug> StdDebug for MemoryManager<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MemoryManager")
             .field("allocation_strategy", &self.allocation_strategy)
@@ -127,46 +314,35 @@ impl<T: Clone + Debug> Debug for MemoryManager<T> {
 }
 
 impl<T: Clone> PartialEq for MemoryManager<T> {
-    #[inline]
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
-        // Only compare the allocation strategy as the pools are implementation details
         self.allocation_strategy == other.allocation_strategy
     }
 }
 
 impl<T: Clone> Eq for MemoryManager<T> {}
 
-/// Statistics about memory usage in the memory pools
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemoryStats {
-    /// Number of nodes currently in the node pool
     pub node_pool_size: usize,
-    /// Maximum capacity of the node pool
     pub node_pool_capacity: usize,
-    /// Number of chunks currently in the chunk pool
     pub chunk_pool_size: usize,
-    /// Maximum capacity of the chunk pool
     pub chunk_pool_capacity: usize,
 }
 
-/// A reference-counted object that can be returned to a pool when dropped
-///
-/// This struct wraps an `Arc<T>` and does not attempt to pool or recycle memory.
-/// All pooling fields and logic are removed for simplicity and safety.
 pub(crate) struct ManagedRef<T> {
-    /// The underlying reference-counted object
     inner: Arc<T>,
 }
 
 impl<T> ManagedRef<T> {
-    /// Create a new managed reference
     #[inline(always)]
+    /// Creates a new `ManagedRef` instance.
     pub fn new(obj: Arc<T>) -> Self {
         Self { inner: obj }
     }
 
-    /// Get the underlying Arc<T>
     #[inline(always)]
+    /// Returns a reference to the inner object.
     pub fn inner(&self) -> &Arc<T> {
         &self.inner
     }
@@ -197,75 +373,59 @@ impl<T> AsRef<T> for ManagedRef<T> {
 
 impl<T> std::ops::Deref for ManagedRef<T> {
     type Target = T;
-
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl<T: Debug> Debug for ManagedRef<T> {
-    #[inline]
+impl<T: StdDebug> StdDebug for ManagedRef<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ManagedRef").field("inner", &self.inner).finish()
     }
 }
 
 impl<T: PartialEq> PartialEq for ManagedRef<T> {
-    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        // Compare only the inner values
         *self.inner == *other.inner
     }
 }
 
 impl<T: Eq> Eq for ManagedRef<T> {}
 
-/// A pool of reusable objects that helps reduce allocation overhead
-///
-/// This pool maintains a collection of pre-allocated objects that can be
-/// reused across operations, reducing the need for frequent allocations
-/// and deallocations. When objects are no longer needed, they can be
-/// returned to the pool instead of being dropped.
-///
-/// # Type Parameters
-///
-/// * `T`: The type of objects stored in the pool, which must be clonable
 pub(crate) struct ObjectPool<T> {
-    /// The objects currently in the pool
     pool: VecDeque<T>,
-    /// The maximum number of objects the pool can hold
     capacity: usize,
 }
 
 impl<T: Clone> ObjectPool<T> {
-    /// Create a new object pool with the given capacity
     #[inline(always)]
+    /// Creates a new `ObjectPool` instance.
     pub fn new(capacity: usize) -> Self {
         let pool = VecDeque::with_capacity(capacity);
         Self { pool, capacity }
     }
 
-    /// Reserves capacity for at least `count` additional objects
     #[inline(always)]
+    /// Reserves space in the pool.
     pub fn reserve(&mut self, count: usize) {
         self.pool.reserve(count);
     }
 
-    /// Get the current size of the pool
     #[inline(always)]
+    /// Returns the size of the pool.
     pub fn size(&self) -> usize {
         self.pool.len()
     }
 
-    /// Get the capacity of the pool
     #[inline(always)]
+    /// Returns the capacity of the pool.
     pub fn capacity(&self) -> usize {
         self.pool.capacity()
     }
 
-    /// Pre-fill the pool with new objects
-    #[inline]
+    #[inline(always)]
+    /// Prefills the pool with objects created by the given function.
     pub fn prefill<F>(&mut self, create_fn: F)
     where
         F: Fn() -> T,

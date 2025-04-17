@@ -1,46 +1,40 @@
 # CHANGELOG
 
-## [0.6.2]
-
-### Persistent Vector Improvements
-- **Performance & Memory Optimization:** Major improvements to memory management and operation speed across all core data structures (VectorImpl, SmallVec, Tree, Node, Chunk).
-- **API & Documentation:** Refactored and documented all public methods for clarity, safety, and idiomatic usage.
-- **Indexing & Iteration:** Implemented `Index<usize>` and `IntoIterator` for `PersistentVector<T>` and references, enabling ergonomic indexing and iteration.
-- **Test Coverage:** Expanded tests to cover indexing, iteration, and edge cases for persistent vectors.
-
-### Error Handling Standardization
-- **Unified Error Handling:** Standardized error handling across all persistent vector modules (`src/pvec`) using utilities from `src/utils/error_utils.rs`.
-- **Reduced Panics:** Replaced most `panic!`s and ad-hoc error returns with composable `Result<T, AppError<String, String>>` or type aliases, except in cases where panics are required for invariants or impossible states.
-- **Contextual Errors:** Adopted `AppError` and `error_with_context` for rich, contextual error messages in all core tree/node operations (`find_child_index`, `modify_branch`, `replace_child`, `split`, etc.).
-- **Improved Documentation:** Enhanced method documentation to clearly describe error types and propagation.
-
-### Monoid & Comonad Enhancements
-- **Monoid Utilities:** Added `is_empty_monoid()`, `repeat`, `mconcat`, `power`, and more, with comprehensive examples and doctests.
-- **Comonad Trait Implementations:** Provided `Comonad` trait implementations for `Option<T>`, `Result<T, E>`, and `Maybe`, with usage examples.
-
-### Iso Trait Enhancements
-- **New Isomorphism:** Added `Iso<Result<A, E>, Validated<E, A>>` as `ResultValidatedIso` in `src/traits/iso.rs`.
-    - Enables seamless, idiomatic conversion between `Result` and `Validated` types.
-    - Includes comprehensive doc-test for round-trip conversions and error/success cases.
-- **Refactoring Ready:** Existing code that manually converts between `Result` and `Validated` can now use this isomorphism for clarity and maintainability.
-
-### Other Refactoring
-- **Internal Cleanup:** Removed dead code and unused paths, improved formatting and function signatures for consistency.
-- **Iso Trait Improvements:** Converted static methods to instance methods for better composability.
+## [0.6.2] - 2025-04-10
 
 ### Added
 - **Flexible caching policy system for PersistentVector**
-    - Introduced the `CachePolicy` trait and several implementations (`AlwaysCache`, `NeverCache`, `NeverCache`, `EvenIndexCache`).
-    - PersistentVector and Tree now support pluggable cache policies, configurable at construction and during operations.
-    - Added APIs: `with_cache_policy`, `from_slice_with_cache_policy`, `push_back_with_cache_policy`, `update_with_cache_policy` for dynamic cache management.
-    - All cache-aware operations now respect the configured policy, enabling fine-grained control over caching behavior.
-    - Comprehensive documentation and examples for using custom caching strategies.
+  - Introduced `CachePolicy` trait with implementations (`AlwaysCache`, `NeverCache`, `EvenIndexCache`)
+  - Added dynamic cache management APIs: `with_cache_policy`, `from_slice_with_cache_policy`, etc.
+  - Comprehensive documentation and examples for custom caching strategies
 
 ### Changed
-- Internal vector and tree structures updated to propagate and respect cache policies throughout all relevant operations.
+- **Persistent Vector Improvements**
+  - Performance & memory optimization across all core data structures
+  - API & documentation refactoring for clarity and idiomatic usage
+  - Implemented `Index<usize>` and `IntoIterator` for better ergonomics
+  - Expanded test coverage for indexing, iteration, and edge cases
+
+- **Error Handling Standardization**
+  - Unified error handling using `AppError` from `error_utils.rs`
+  - Replaced most panics with composable `Result` types
+  - Added rich contextual error messages in core operations
+  - Enhanced documentation for error types and propagation
+
+- **Monoid & Comonad Enhancements**
+  - Added utilities: `is_empty_monoid()`, `repeat`, `mconcat`, `power`
+  - Implemented `Comonad` trait for `Option`, `Result`, and `Maybe`
+
+- **Iso Trait Enhancements**
+  - Added `ResultValidatedIso` for seamless conversion between `Result` and `Validated`
+  - Converted static methods to instance methods for better composability
 
 ### Fixed
-- SmallVec initialization from slice now uses a loop to avoid method compatibility issues.
+- SmallVec initialization from slice now uses a loop to avoid method compatibility issues
+
+### Refactored
+- Integrated `cache`, `chunk`, and `memory` modules into unified `memory.rs`
+- Removed dead code and improved formatting for consistency
 
 ## [0.6.1]
 

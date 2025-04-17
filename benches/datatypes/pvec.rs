@@ -32,11 +32,11 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     });
 
     // --- Cache Policy Benchmarks ---
-    use rustica::pvec::cache::{AlwaysCache, CachePolicy, EvenIndexCache, NeverCache};
+    use rustica::pvec::{AlwaysCache, BoxedCachePolicy, EvenIndexCache, NeverCache};
     use std::boxed::Box;
 
     // Helper: create vector with cache policy
-    fn make_pvec_with_policy(size: usize, policy: Box<dyn CachePolicy>) -> PersistentVector<usize> {
+    fn make_pvec_with_policy(size: usize, policy: BoxedCachePolicy) -> PersistentVector<usize> {
         let mut vec = PersistentVector::with_cache_policy(policy);
         for i in 0..size {
             vec = vec.push_back(i);
@@ -82,6 +82,40 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
             let mut v = vec.clone();
             for i in 0..100 {
                 v = v.update(black_box(i * 10), black_box(i * 2));
+            }
+            black_box(v)
+        })
+    });
+
+    // Benchmark: update with different cache policies
+    c.bench_function("pvec_update_with_always_cache", |b| {
+        let vec = make_pvec_with_policy(1000, Box::new(AlwaysCache));
+        b.iter(|| {
+            let mut v = vec.clone();
+            for i in 0..100 {
+                v = v.update_with_cache_policy(black_box(i * 10), black_box(i * 2));
+            }
+            black_box(v)
+        })
+    });
+
+    c.bench_function("pvec_update_with_never_cache", |b| {
+        let vec = make_pvec_with_policy(1000, Box::new(NeverCache));
+        b.iter(|| {
+            let mut v = vec.clone();
+            for i in 0..100 {
+                v = v.update_with_cache_policy(black_box(i * 10), black_box(i * 2));
+            }
+            black_box(v)
+        })
+    });
+
+    c.bench_function("pvec_update_with_even_cache", |b| {
+        let vec = make_pvec_with_policy(1000, Box::new(EvenIndexCache));
+        b.iter(|| {
+            let mut v = vec.clone();
+            for i in 0..100 {
+                v = v.update_with_cache_policy(black_box(i * 10), black_box(i * 2));
             }
             black_box(v)
         })

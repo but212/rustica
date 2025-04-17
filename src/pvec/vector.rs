@@ -4,6 +4,36 @@
 //! interface for the persistent vector data structure. It is implemented using
 //! a Relaxed Radix Balanced (RRB) tree for efficient operations.
 //!
+//! # API Philosophy
+//!
+//! - **Simple by default:** Most users do not need to care about cache policies.
+//!   Use `PersistentVector::new()` or the `pvec![]` macro for idiomatic usage.
+//! - **Advanced control:** For performance tuning, use `with_cache_policy`,
+//!   `from_slice_with_cache_policy`, or pass a custom policy to advanced methods.
+//! - **Extensible:** Implement the `CachePolicy` trait to define custom caching.
+//!
+//! # Examples
+//!
+//! Basic usage (internal/default cache policy):
+//! ```
+//! use rustica::pvec::PersistentVector;
+//! let vec = PersistentVector::new().push_back(1).push_back(2);
+//! ```
+//!
+//! Advanced usage (explicit cache policy):
+//! ```
+//! use rustica::pvec::{PersistentVector, AlwaysCache};
+//! let vec = PersistentVector::with_cache_policy(Box::new(AlwaysCache));
+//! ```
+//!
+//! Custom policy:
+//! ```
+//! use rustica::pvec::{PersistentVector, CachePolicy};
+//! struct MyPolicy;
+//! impl CachePolicy for MyPolicy { /* ... */ }
+//! let vec = PersistentVector::with_cache_policy(Box::new(MyPolicy));
+//! ```
+//!
 //! A persistent vector is an immutable data structure that provides efficient
 //! random access, updates, and structural modifications. All operations create
 //! a new version of the vector without modifying the original, allowing for
@@ -15,8 +45,9 @@
 //! use rustica::pvec::PersistentVector;
 //! use rustica::pvec::pvec;
 //!
-//! // Create a new vector
-//! let mut vec = PersistentVector::<i32>::new();
+//! // Create a new empty vector
+//! let vec = PersistentVector::<i32>::new();
+//! assert_eq!(vec.len(), 0);
 //!
 //! // Add elements to the vector
 //! let vec = vec.push_back(10);
@@ -46,6 +77,7 @@ use std::sync::Arc;
 
 use super::iterator::{ChunksIter, Iter, SortedIter};
 use super::tree::Tree;
+use crate::pvec::memory::BoxedCachePolicy;
 
 /// A persistent vector implemented using a Relaxed Radix Balanced (RRB) tree.
 ///
@@ -416,12 +448,12 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// ```rust
     /// use rustica::pvec::{PersistentVector, cache::{NeverCache, EvenIndexCache}};
-    /// let vec = PersistentVector::with_cache_policy(Box::new(NeverCache));
+    /// let vec = PersistentVector::<i32>::with_cache_policy(Box::new(NeverCache));
     /// assert_eq!(vec.len(), 0);
     /// let vec2 = PersistentVector::from_slice_with_cache_policy(&[1,2,3], Box::new(EvenIndexCache));
     /// assert_eq!(vec2.len(), 3);
     /// ```
-    pub fn with_cache_policy(policy: Box<dyn crate::pvec::cache::CachePolicy>) -> Self {
+    pub fn with_cache_policy(policy: BoxedCachePolicy) -> Self {
         Self {
             inner: VectorImpl::Tree {
                 tree: Box::new(crate::pvec::tree::Tree::new().with_cache_policy(policy)),
@@ -430,9 +462,7 @@ impl<T: Clone> PersistentVector<T> {
     }
 
     /// Creates a new persistent vector from a slice with a custom cache policy.
-    pub fn from_slice_with_cache_policy(
-        slice: &[T], policy: Box<dyn crate::pvec::cache::CachePolicy>,
-    ) -> Self {
+    pub fn from_slice_with_cache_policy(slice: &[T], policy: BoxedCachePolicy) -> Self {
         if slice.len() <= crate::pvec::vector::SMALL_VECTOR_SIZE {
             let mut v = crate::pvec::vector::SmallVec::new();
             for x in slice {
@@ -1295,7 +1325,8 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// ```rust
     /// use rustica::pvec::PersistentVector;
-    /// let mut vec = PersistentVector::from_slice(&[1, 2, 3]);
+    /// // Use 33 elements to ensure the Tree variant is used (CHUNK_SIZE is 32)
+    /// let mut vec = PersistentVector::from_slice(&(0..33).collect::<Vec<_>>());
     /// vec.get_with_cache(0);
     /// vec.get_with_cache(1);
     /// let (hits, misses) = vec.cache_stats();
