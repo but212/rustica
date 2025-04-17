@@ -25,28 +25,28 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.6.1"
+rustica = "0.6.3"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.1", features = ["async"] }
+rustica = { version = "0.6.3", features = ["async"] }
 ```
 
 If you want to use persistent vector collections, add the `pvec` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.1", features = ["pvec"] }
+rustica = { version = "0.6.3", features = ["pvec"] }
 ```
 
 You can combine multiple features as needed:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.1", features = ["full"] }
+rustica = { version = "0.6.3", features = ["full"] }
 ```
 
 Then import the prelude to get started:
