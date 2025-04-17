@@ -94,8 +94,8 @@ impl<T: Clone> MemoryManager<T> {
     where
         T: Default,
     {
-        self.node_pool.lock().prefill(|| Node::<T>::default());
-        self.chunk_pool.lock().prefill(|| Chunk::<T>::default());
+        self.node_pool.lock().prefill(Node::<T>::default);
+        self.chunk_pool.lock().prefill(Chunk::<T>::default);
     }
 }
 

@@ -65,12 +65,20 @@
 
 ### Improved Encapsulation in the pvec Module
 - Restricted visibility of implementation details to improve API clarity
-  - Made internal components like `IndexCache`, `Chunk`, `Node`, and `Tree` non-public (`pub(crate)` or `pub(super)`)
+  - Made internal components like `IndexCache`, `Chunk`, `Iterator`, `Node`, and `Tree` non-public (`pub(crate)` or `pub(super)`)
   - Restricted visibility of implementation constants (`CHUNK_SIZE`, `NODE_SIZE`, etc.)
-  - Kept only necessary types public (`PersistentVector`, iterators, `MemoryManager`)
+  - Kept only necessary types public (`PersistentVector`, `MemoryManager`)
 - Removed unnecessary internal methods that were no longer needed after memory management refactoring
 - Simplified the public API surface while maintaining all functionality
 - Updated tests to use the public API instead of internal implementation details
+
+### Error Handling Standardization
+- Standardized error handling across all persistent vector modules (`src/pvec`) using the utilities from `src/utils/error_utils.rs`.
+  - Replaced all `panic!`s and ad-hoc error returns with composable `Result<T, AppError<String, String>>` or type aliases.
+  - Adopted `AppError` and `error_with_context` for rich, contextual error messages.
+  - Updated all core tree/node operations (`find_child_index`, `modify_branch`, `replace_child`, `split`, etc.) to propagate errors using idiomatic Rust patterns.
+  - Improved documentation for error types and propagation in method comments.
+  - Ensured all error handling is consistent, robust, and ready for downstream integration/testing.
 
 ## [0.6.1]
 

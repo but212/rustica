@@ -177,7 +177,7 @@ pub(crate) mod chunk;
 
 /// Iterators for traversing persistent vectors.
 #[cfg(feature = "pvec")]
-pub mod iterator;
+pub(crate) mod iterator;
 
 /// Custom memory management for optimal allocation.
 #[cfg(feature = "pvec")]

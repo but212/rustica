@@ -1436,28 +1436,6 @@ impl<T: Clone + Default> Default for Choice<T> {
 
 impl<T: Clone> std::iter::Sum for Choice<T> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        let mut result = Self::new_empty();
-        for choice in iter {
-            if result.values.is_empty() {
-                result = choice;
-            } else {
-                // Create a new choice with all values from both choices
-                let result_values = result.values.as_ref();
-                let choice_values = choice.values.as_ref();
-
-                // Start with the current result values
-                let mut new_values =
-                    SmallVec::with_capacity(result_values.len() + choice_values.len());
-                new_values.extend(result_values.iter().cloned());
-                new_values.extend(choice_values.iter().cloned());
-
-                // Create a new choice with the combined values
-                result = Self {
-                    values: Arc::new(new_values),
-                };
-            }
-        }
-
-        result
+        Choice::from_iter(iter)
     }
 }

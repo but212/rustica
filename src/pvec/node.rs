@@ -19,6 +19,10 @@ use std::sync::Arc;
 
 use crate::pvec::chunk::{Chunk, CHUNK_BITS, CHUNK_SIZE};
 use crate::pvec::memory::{ManagedRef, MemoryManager};
+use crate::utils::error_utils::{error_with_context, AppError};
+
+/// Standard error type for pvec node operations
+pub(crate) type PVecError = AppError<String, String>;
 
 /// The maximum number of children a node can have.
 pub(crate) const NODE_SIZE: usize = CHUNK_SIZE;
@@ -228,23 +232,30 @@ impl<T: Clone> Node<T> {
     /// A tuple containing:
     /// * The index of the child that contains the target element
     /// * The relative index within that child
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if called on a non-branch node.
     #[inline(always)]
     #[must_use]
-    pub(crate) fn find_child_index(&self, index: usize, shift: usize) -> (usize, usize) {
+    pub(crate) fn find_child_index(
+        &self, index: usize, shift: usize,
+    ) -> Result<(usize, usize), PVecError> {
         match self {
             Node::Branch { sizes, .. } => {
                 if let Some(sizes) = sizes {
-                    // Use the size table for relaxed nodes
-                    self.find_index_in_size_table(sizes, index)
+                    Ok(self.find_index_in_size_table(sizes, index))
                 } else {
-                    // Use bit operations for regular nodes - more efficient
                     let mask = (1 << shift) - 1;
                     let child_index = (index >> shift) & NODE_MASK;
                     let sub_index = index & mask;
-                    (child_index, sub_index)
+                    Ok((child_index, sub_index))
                 }
             },
-            _ => panic!("find_child_index called on a non-branch node"),
+            _ => Err(error_with_context(
+                "find_child_index called on a non-branch node".to_string(),
+                format!("index: {}, shift: {}", index, shift),
+            )),
         }
     }
 
@@ -384,9 +395,13 @@ impl<T: Clone> Node<T> {
     /// # Returns
     ///
     /// A managed reference to the modified branch node
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if called on a non-branch node.
     #[inline(always)]
     #[must_use]
-    fn modify_branch<F>(&self, modifier: F) -> ManagedRef<Node<T>>
+    pub(crate) fn modify_branch<F>(&self, modifier: F) -> Result<ManagedRef<Node<T>>, PVecError>
     where
         F: FnOnce(&mut Vec<Option<ManagedRef<Node<T>>>>, &mut Option<Vec<usize>>),
     {
@@ -398,12 +413,15 @@ impl<T: Clone> Node<T> {
                 // modifier 적용
                 modifier(&mut new_children, &mut new_sizes);
                 // Arc로 감싸서 ManagedRef로 반환
-                ManagedRef::new(Arc::new(Node::Branch {
+                Ok(ManagedRef::new(Arc::new(Node::Branch {
                     children: new_children,
                     sizes: new_sizes,
-                }))
+                })))
             },
-            _ => panic!("modify_branch called on non-branch node"),
+            _ => Err(error_with_context(
+                "modify_branch called on non-branch node".to_string(),
+                String::new(),
+            )),
         }
     }
 
@@ -424,7 +442,7 @@ impl<T: Clone> Node<T> {
     #[must_use]
     fn replace_child(
         &self, child_index: usize, new_child: ManagedRef<Node<T>>,
-    ) -> ManagedRef<Node<T>> {
+    ) -> Result<ManagedRef<Node<T>>, PVecError> {
         self.modify_branch(|children, sizes| {
             if child_index < children.len() {
                 let old_size = children[child_index].as_ref().map_or(0, |child| child.size());
@@ -456,7 +474,7 @@ impl<T: Clone> Node<T> {
         match self {
             Node::Leaf { elements } => elements.inner().get(index),
             Node::Branch { children, sizes: _ } => {
-                let (child_index, sub_index) = self.find_child_index(index, shift);
+                let (child_index, sub_index) = self.find_child_index(index, shift).ok()?;
 
                 if child_index < children.len() {
                     if let Some(child) = &children[child_index] {
@@ -498,7 +516,7 @@ impl<T: Clone> Node<T> {
                 Some(Self::create_leaf_node(new_elements))
             },
             Node::Branch { children, sizes: _ } => {
-                let (child_index, sub_index) = self.find_child_index(index, shift);
+                let (child_index, sub_index) = self.find_child_index(index, shift).ok()?;
 
                 if child_index >= children.len() || children[child_index].is_none() {
                     return None;
@@ -513,7 +531,10 @@ impl<T: Clone> Node<T> {
                         if Arc::ptr_eq(child.inner(), new_child.inner()) {
                             Some(ManagedRef::new(std::sync::Arc::new(self.clone())))
                         } else {
-                            Some(self.replace_child(child_index, new_child))
+                            match self.replace_child(child_index, new_child) {
+                                Ok(node) => Some(node),
+                                Err(_) => None,
+                            }
                         }
                     },
                     None => None,
@@ -582,25 +603,39 @@ impl<T: Clone> Node<T> {
                         let new_node = self.replace_child(last_idx, new_child);
 
                         if !split {
-                            return (new_node, false, None);
+                            return (
+                                new_node.expect("Failed to create new node during push_back"),
+                                false,
+                                None,
+                            );
                         }
 
                         // Handle overflow by adding it as a new child if there's space
                         if children.len() < NODE_SIZE {
-                            let new_node = new_node.modify_branch(|children, sizes| {
-                                children.push(overflow.clone());
+                            let new_node = new_node
+                                .expect("Failed to create new node during push_back")
+                                .modify_branch(|children, sizes| {
+                                    children.push(overflow.clone());
 
-                                // Update size table if this is a relaxed node
-                                if let Some(size_table) = sizes {
-                                    let overflow_size = overflow.as_ref().unwrap().size();
-                                    size_table
-                                        .push(size_table.last().unwrap_or(&0) + overflow_size);
-                                }
-                            });
-                            (new_node, false, None)
+                                    // Update size table if this is a relaxed node
+                                    if let Some(size_table) = sizes {
+                                        let overflow_size = overflow.as_ref().unwrap().size();
+                                        size_table
+                                            .push(size_table.last().unwrap_or(&0) + overflow_size);
+                                    }
+                                });
+                            (
+                                new_node.expect("Failed to create new node during push_back"),
+                                false,
+                                None,
+                            )
                         } else {
                             // Branch node is full, split needed at this level too
-                            (new_node, true, overflow)
+                            (
+                                new_node.expect("Failed to create new node during push_back"),
+                                true,
+                                overflow,
+                            )
                         }
                     } else {
                         // Last child is None, replace with a new leaf node
@@ -610,7 +645,11 @@ impl<T: Clone> Node<T> {
                             Self::create_leaf_node(ManagedRef::new(Arc::new(new_chunk)));
 
                         let new_node = self.replace_child(last_idx, leaf_node);
-                        (new_node, false, None)
+                        (
+                            new_node.expect("Failed to create new node during push_back"),
+                            false,
+                            None,
+                        )
                     }
                 }
             },
@@ -633,72 +672,45 @@ impl<T: Clone> Node<T> {
     /// A tuple containing:
     /// - The left part of the node (elements before index)
     /// - The right part of the node (elements at and after index)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the node is not a branch node or if the index is out of bounds.
     #[inline(always)]
     pub(crate) fn split(
         &self, index: usize, shift: usize,
-    ) -> (ManagedRef<Node<T>>, ManagedRef<Node<T>>) {
+    ) -> Result<(ManagedRef<Node<T>>, ManagedRef<Node<T>>), PVecError> {
         match self {
-            Node::Leaf { elements } => {
-                if index == 0 {
-                    // Split before the first element (left is empty)
-                    let empty = Self::create_leaf_node(ManagedRef::new(Arc::new(Chunk::new())));
-                    let node = Self::create_leaf_node(elements.clone());
-                    (empty, node)
-                } else if index >= elements.inner().len() {
-                    // Split after the last element (right is empty)
-                    let node = Self::create_leaf_node(elements.clone());
-                    let empty = Self::create_leaf_node(ManagedRef::new(Arc::new(Chunk::new())));
-                    (node, empty)
-                } else {
-                    // Split in the middle
-                    // Create left chunk (elements before index)
-                    let left_chunk = {
-                        let mut new_chunk = Chunk::new();
-                        for i in 0..index {
-                            if let Some(val) = elements.inner().get(i) {
-                                new_chunk.push_back(val.clone());
-                            }
-                        }
-                        ManagedRef::new(Arc::new(new_chunk))
-                    };
-                    // Create right chunk (elements after index)
-                    let right_chunk = {
-                        let mut new_chunk = Chunk::new();
-                        for i in index..elements.inner().len() {
-                            if let Some(val) = elements.inner().get(i) {
-                                new_chunk.push_back(val.clone());
-                            }
-                        }
-                        ManagedRef::new(Arc::new(new_chunk))
-                    };
-                    let left = Self::create_leaf_node(left_chunk);
-                    let right = Self::create_leaf_node(right_chunk);
-                    (left, right)
-                }
-            },
             Node::Branch { children, sizes } => {
                 if index == 0 {
                     // Split before the first element (left is empty)
                     let empty = self.create_branch_node(Vec::new(), Some(Vec::new()));
                     let node = self.create_branch_node(children.clone(), sizes.clone());
-                    (empty, node)
+                    Ok((empty, node))
                 } else if index >= self.size() {
                     // Split after the last element (right is empty)
                     let node = self.create_branch_node(children.clone(), sizes.clone());
                     let empty = self.create_branch_node(Vec::new(), Some(Vec::new()));
-                    (node, empty)
+                    Ok((node, empty))
                 } else {
                     // Find the child node containing the split point
-                    let (child_index, sub_index) = self.find_child_index(index, shift);
+                    let (child_index, sub_index) = self.find_child_index(index, shift)?;
 
                     if child_index >= children.len() || children[child_index].is_none() {
-                        panic!("Invalid tree structure in split operation");
+                        return Err(error_with_context(
+                            "Invalid tree structure in split operation".to_string(),
+                            format!(
+                                "child_index: {}, children.len(): {}",
+                                child_index,
+                                children.len()
+                            ),
+                        ));
                     }
 
                     let child = children[child_index].as_ref().unwrap();
 
                     // Split the child node
-                    let (child_left, child_right) = child.split(sub_index, shift - NODE_BITS);
+                    let (child_left, child_right) = child.split(sub_index, shift - NODE_BITS)?;
 
                     // Create left branch (children up to child_index + child_left)
                     let mut left_children = Vec::with_capacity(child_index + 1);
@@ -744,9 +756,13 @@ impl<T: Clone> Node<T> {
                     let left_node = self.create_branch_node(left_children, left_sizes);
                     let right_node = self.create_branch_node(right_children, right_sizes);
 
-                    (left_node, right_node)
+                    Ok((left_node, right_node))
                 }
             },
+            _ => Err(error_with_context(
+                "split called on non-branch node".to_string(),
+                format!("index: {}, shift: {}", index, shift),
+            )),
         }
     }
 }

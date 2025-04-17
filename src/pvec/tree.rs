@@ -175,7 +175,10 @@ impl<T: Clone> Tree<T> {
         if index == 0 {
             return (Self::new(), self.clone());
         }
-        let (left, right) = self.root.split(index, self.shift());
+        let (left, right) = match self.root.split(index, self.shift()) {
+            Ok((l, r)) => (l, r),
+            Err(e) => panic!("Failed to split tree: {}", e),
+        };
         (
             Self {
                 root: left,
