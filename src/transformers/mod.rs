@@ -85,6 +85,7 @@
 use crate::traits::monad::Monad;
 
 // mod maybe_t;
+pub mod cont_t;
 pub mod reader_t;
 pub mod state_t;
 pub mod writer_t;

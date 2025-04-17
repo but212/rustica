@@ -2,6 +2,7 @@ name: Create Release
 
 permissions:
   contents: write
+  discussions: write
   packages: write
   id-token: write
 
@@ -34,6 +35,8 @@ jobs:
   build:
     needs: [validate]
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Rust
@@ -60,6 +63,36 @@ jobs:
         run: cargo test --release --all-features
       - name: Build docs
         run: cargo doc --all-features --no-deps
+      - name: Package Artifacts
+        run: |
+          mkdir -p release-artifacts
+          cp target/release/librustica.rlib release-artifacts/ || true
+          cp -r examples/ release-artifacts/ || true
+          cd release-artifacts && tar -czf rustica-${{ needs.validate.outputs.version }}.tar.gz *
+      - name: Generate checksums
+        id: hash
+        run: |
+          cd release-artifacts
+          echo "hashes=$(sha256sum *.tar.gz | base64 -w0)" >> $GITHUB_OUTPUT
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-artifacts/*.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.4.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      upload-assets: true
 
   publish:
     if: github.ref == 'refs/heads/main'
@@ -71,3 +104,18 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo publish --no-verify --locked
+      - name: Add comment to issue or PR
+        if: ${{ github.event.issue.number != null || github.event.pull_request.number != null }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue_number = context.issue.number || context.payload.pull_request?.number;
+            if (!issue_number) {
+              core.setFailed('No issue or PR number found!');
+            } else {
+              github.rest.issues.createComment({
+                ...context.repo,
+                issue_number,
+                body: `:rocket: Release published!`
+              });
+            }

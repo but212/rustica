@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.6.3] - 2025-04-17
+
+### Added
+- **Continuation Monad Transformer (`ContT`)**
+  - Introduced `ContT<R, M, A>`, a monad transformer version of the continuation monad.
+  - Provides core methods: `new`, `run`, `pure`, `bind`, `fmap`, `apply`, `call_cc`, and `lift`.
+  - Implements the `MonadTransformer` trait for seamless integration with other monads.
+  - Comprehensive documentation and usage examples included.
+  - Fixes and improvements for trait bounds and closure handling for safe, idiomatic Rust.
+
 ## [0.6.2] - 2025-04-17
 
 ### Added

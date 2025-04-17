@@ -121,7 +121,7 @@ Rustica provides a rich collection of functional data types:
   - Various wrapper types (`First`, `Last`, `Min`, `Max`, etc.)
 
 - **Persistent Collections**
-  - `PersistentVector<T>` - An efficient immutable vector with structural sharing and small vector optimization
+  - **PersistentVector<T>**: An efficient immutable vector with structural sharing and small vector optimization
 
 - **Transformers**
   - `StateT<S, M, A>` - State monad transformer for combining state with other effects
@@ -169,205 +169,141 @@ let result: Result<i32, &str> = Err("Input error");
 let validated: Validated<&str, i32> = result.to_validated();
 ```
 
-### Higher-Kinded Types
-
-Rustica implements a pattern for working with higher-kinded types in Rust, providing:
-
-- The `HKT` trait for type constructors
-- The `BinaryHKT` trait for types with two parameters
-- Utilities for working with HKTs
-
 ### Persistent Collections
 
-Rustica provides persistent data structures that enable efficient immutable programming:
+Rustica includes a high-performance, immutable persistent vector:
+
+- **PersistentVector<T>**: An efficient immutable vector with structural sharing, implemented as a Relaxed Radix Balanced (RRB) tree. Provides:
+  - Fast random access and updates (O(log n))
+  - Small vector optimization for memory efficiency
+  - Structural sharing for efficient cloning and branching
+  - Customizable cache policies for advanced use cases
+  - `pvec![]` macro for convenient construction
+
+### Example Usage
 
 ```rust
-use rustica::prelude::*;
-use rustica::pvec::PersistentVector;
-use rustica::pvec; // Import the pvec! macro
+use rustica::pvec::{PersistentVector, pvec};
 
-// Create using the constructor
-let vector = PersistentVector::<i32>::new();
-let vector = vector.push_back(1).push_back(2).push_back(3);
+// Create a new persistent vector
+let v1: PersistentVector<i32> = pvec![1, 2, 3, 4, 5];
 
-// Create using the convenient macro
-let vector = pvec![1, 2, 3, 4, 5];
+// Operations return new vectors, leaving the original unchanged
+let v2 = v1.push_back(6);
+let v3 = v1.update(0, 10);
 
-// Access elements
-assert_eq!(vector.get(2), Some(&3));
+assert_eq!(v1.get(0), Some(&1));
+assert_eq!(v2.len(), 6);
+assert_eq!(v3.get(0), Some(&10));
 
-// Modify without changing the original
-let updated = vector.update(2, 10);
-assert_eq!(updated.get(2), Some(&10));
-assert_eq!(vector.get(2), Some(&3)); // Original unchanged
+// Use with slices
+let from_slice = PersistentVector::from_slice(&[1, 2, 3]);
+assert_eq!(from_slice.len(), 3);
 
-// Small vector optimization for better performance
-// Vectors with 8 or fewer elements use an optimized inline representation
-let small_vec = pvec![1, 2, 3]; // Uses optimized storage
+// Advanced: custom cache policy
+use rustica::pvec::{AlwaysCache};
+let custom = PersistentVector::<i32>::with_cache_policy(Box::new(AlwaysCache));
+assert_eq!(custom.len(), 0);
 ```
 
-The `PersistentVector` provides:
-- **Immutability**: All operations create new versions without modifying the original
-- **Structural Sharing**: Efficient memory usage by sharing common structure between versions
-- **Thread Safety**: Safe to use across threads due to its immutable nature
-- **Memory Optimization**: Special representation for small vectors to reduce overhead
+See the [pvec module documentation](https://docs.rs/rustica/latest/rustica/pvec/index.html) for full details.
 
-This makes it ideal for functional programming patterns, concurrent applications, and scenarios where you need to maintain multiple versions of a collection efficiently.
+### Enhanced Validation and Error Accumulation
 
-### Monad Transformers
+Rustica's `Validated` type now uses `PersistentVector` for error accumulation, providing efficient, immutable error lists:
 
-Monad transformers let you combine the effects of multiple monads:
+- **Validated<E, T>**: Represents either a valid value or a collection of errors.
+  - Accumulates multiple errors (unlike `Result`, which fails fast)
+  - Implements Functor, Applicative, and Monad type classes
+  - Efficient error accumulation using persistent vectors
 
-```rust
-use rustica::prelude::*;
-use rustica::transformers::StateT;
-use rustica::datatypes::maybe::Maybe;
-
-// Define a stateful computation that returns a Maybe
-let state_t = StateT::new(|s: i32| {
-    // Increment state and return maybe value
-    if s > 0 {
-        Maybe::just((s + 1, s * 2))
-    } else {
-        Maybe::nothing()
-    }
-});
-
-// Run the computation with initial state
-let result = state_t.run_state(5);
-assert_eq!(result, Maybe::just((6, 10)));
-```
-
-### Examples
-
-### Working with Maybe (Option)
+### Example
 
 ```rust
-use rustica::prelude::*;
-use rustica::datatypes::maybe::Maybe;
-use rustica::traits::functor::Functor;
-
-// Using Maybe for optional values with explicit type annotations
-let input = "42";
-let maybe_int: Maybe<i32> = input.parse::<i32>().ok().into();  // Convert to Maybe
-
-let result = maybe_int
-    .bind(|x: i32| if x > 0 { Maybe::just(x) } else { Maybe::nothing() })
-    .fmap(|x: i32| x * 2);
-
-assert_eq!(result, Maybe::just(84));
-```
-
-### Working with Choice for non-deterministic computations
-
-```rust
-use rustica::prelude::*;
-use rustica::datatypes::choice::Choice;
-use rustica::traits::functor::Functor;
-use rustica::traits::applicative::Applicative;
-
-// Create a Choice with a primary value and alternatives
-let numbers: Choice<i32> = Choice::new(2, vec![3, 4, 5]);
-
-// Map over all possible values
-let doubled: Choice<i32> = numbers.fmap(|x| x * 2);
-assert_eq!(*doubled.first().unwrap(), 4);  // Primary value is 2*2=4
-assert_eq!(doubled.alternatives(), &[6, 8, 10]);  // Alternatives are [3*2, 4*2, 5*2]
-
-// Apply functions with applicative
-let add_one = |x: &i32| x + 1;
-let multiply_by_three = |x: &i32| x * 3;
-let functions = Choice::new(add_one, vec![multiply_by_three]);
-
-let results = numbers.apply(&functions);
-// Primary result is add_one(2) = 3
-// Alternatives include all combinations of functions and values
-```
-
-### Error Handling with Validated
-
-```rust
-use rustica::prelude::*;
-use rustica::utils::error_utils::traverse_validated;
 use rustica::datatypes::validated::Validated;
+use rustica::pvec::PersistentVector;
 
-// Define validation functions
-let validate_positive = |x: i32| -> Result<i32, String> {
-    if x > 0 {
-        Ok(x)
-    } else {
-        Err(format!("Value must be positive: {}", x))
-    }
-};
+let valid: Validated<&str, i32> = Validated::valid(42);
+let invalid: Validated<&str, i32> = Validated::invalid("error");
 
-let validate_even = |x: i32| -> Result<i32, String> {
-    if x % 2 == 0 {
-        Ok(x)
-    } else {
-        Err(format!("Value must be even: {}", x))
-    }
-};
-
-// Validate multiple values, collecting all errors
-let inputs = vec![10, -5, 7, 8];
-let validation_result = traverse_validated(inputs, |x| {
-    let x = validate_positive(x)?;
-    validate_even(x)
-});
-
-// Check if validation passed or inspect all errors
-match validation_result {
-    Validated::Valid(values) => println!("All values valid: {:?}", values),
-    _ => {
-        println!("Validation errors:");
-        for error in validation_result.errors() {
-            println!("  - {}", error);
-        }
-    }
+// Applicative validation accumulates errors
+let v1 = Validated::invalid("e1");
+let v2 = Validated::invalid("e2");
+let combined = v1.apply(&v2.fmap(|_| |x| x));
+assert!(matches!(combined, Validated::Invalid(_)));
+if let Validated::Invalid(errors) = combined {
+    assert_eq!(errors.to_vec(), vec!["e1", "e2"]);
 }
 ```
 
-### Working with State Monad
+### Writer Monad with Persistent Logs
+
+The `Writer` monad now uses `PersistentVector` for log accumulation, ensuring efficient, immutable logs with structural sharing:
+
+- **Writer<W, A>**: Accumulates logs of type `W` alongside computations
+- Efficient log accumulation and sharing
+
+### Example
 
 ```rust
-use rustica::prelude::*;
-use rustica::datatypes::state::State;
-use rustica::datatypes::state::{get, put, modify};
+use rustica::datatypes::writer::Writer;
+use rustica::pvec::PersistentVector;
 
-// Simple counter with State monad
-let counter = State::new(|s: i32| (s, s + 1));
-assert_eq!(counter.run_state(5), (5, 6));
-
-// Complex state transformations with bind
-let computation = get::<i32>().bind(|value| {
-    if value > 10 {
-        put(value * 2)
-    } else {
-        modify(|s: i32| s + 5)
-    }
-});
-
-// With initial state 5: get returns 5, then we modify to 5+5=10
-assert_eq!(computation.exec_state(5), 10);
-
-// With initial state 15: get returns 15, then we put 15*2=30
-assert_eq!(computation.exec_state(15), 30);
-
-// Using StateT for combining state with other effects
-use rustica::transformers::StateT;
-
-// StateT with Option as the base monad
-let safe_counter: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| {
-    if s >= 0 {
-        Some((s, s + 1))
-    } else {
-        None // Computation fails for negative numbers
-    }
-});
-
-assert_eq!(safe_counter.run_state(5), Some((5, 6)));
-assert_eq!(safe_counter.run_state(-1), None);
+let log1 = PersistentVector::from_slice(&["log1"]);
+let log2 = PersistentVector::from_slice(&["log2"]);
+let w1: Writer<_, i32> = Writer::new(log1, 10);
+let w2: Writer<_, i32> = Writer::new(log2, 20);
+let combined = w1.apply(&w2.fmap(|x| move |y| x + y));
+let (log, value) = combined.run();
+assert_eq!(log.to_vec(), vec!["log1", "log2"]);
+assert_eq!(value, 30);
 ```
+
+### Monoid Utilities
+
+Rustica provides enhanced utilities for working with monoids:
+
+- **MonoidExt**: Extension trait with methods like `combine_all`, `is_empty_monoid`
+- **Utility Functions**:
+  - `repeat(value, n)`: Combine a monoid value n times
+  - `mconcat(values)`: Combine a slice of monoid values
+  - `power(value, exponent)`: Raise a monoid to a power
+
+### Example
+
+```rust
+use rustica::traits::monoid::{Monoid, MonoidExt};
+
+#[derive(Clone, Debug, PartialEq)]
+struct Sum(i32);
+impl Monoid for Sum {
+    fn empty() -> Self { Sum(0) }
+    fn combine(&self, other: &Self) -> Self { Sum(self.0 + other.0) }
+}
+
+let values = vec![Sum(1), Sum(2), Sum(3)];
+let total = MonoidExt::combine_all(&values);
+assert_eq!(total, Sum(6));
+
+let repeated = MonoidExt::repeat(Sum(2), 3);
+assert_eq!(repeated, Sum(6));
+```
+
+### Improved Functor Trait
+
+- Blanket implementation for all Map trait implementers
+- Ownership-aware API: `fmap_owned`, `replace_owned`, `void_owned`
+- Performance: `#[inline]` on all methods
+- Improved documentation and law examples
+
+### Benchmarks and Documentation
+
+- Comprehensive benchmarks for all data types (see [benchmarks page](https://but212.github.io/rustica/criterion/report/index.html))
+- GitHub Pages documentation site: [https://but212.github.io/rustica/](https://but212.github.io/rustica/)
+
+### Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a complete list of recent changes and enhancements.
 
 ## Inspiration
 
