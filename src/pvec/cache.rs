@@ -37,38 +37,59 @@ pub(super) struct IndexCache {
     pub index: usize,
 
     /// The path from the root to the cached index (indices at each level)
-    pub path: Vec<usize>,
+    pub path: [usize; MAX_CACHE_LEVELS],
 
     /// The ranges covered by each level in the path
-    pub ranges: Vec<Range<usize>>,
+    pub ranges: [Range<usize>; MAX_CACHE_LEVELS],
 
-    /// Whether the cache is currently valid
-    pub valid: bool,
+    /// The number of valid levels in the path/ranges arrays
+    pub len: usize,
+
+    /// Cache hit counter (for profiling)
+    pub hits: usize,
+    /// Cache miss counter (for profiling)
+    pub misses: usize,
 }
 
 impl IndexCache {
-    /// Create a new, empty index cache.
-    ///
-    /// This creates a cache with no valid path or index.
-    #[inline(always)]
-    #[must_use]
+    /// Creates a new, invalid cache
     pub fn new() -> Self {
         Self {
             index: 0,
-            path: Vec::with_capacity(MAX_CACHE_LEVELS),
-            ranges: Vec::with_capacity(MAX_CACHE_LEVELS),
-            valid: false,
+            path: [0; MAX_CACHE_LEVELS],
+            ranges: core::array::from_fn(|_| 0..0),
+            len: 0,
+            hits: 0,
+            misses: 0,
         }
     }
 
-    /// Clear the cache, marking it as invalid and clearing all cached data.
-    ///
-    /// This removes any cached path and index information and frees memory used by path/ranges.
-    #[inline(always)]
+    /// Returns true if the cache is valid
+    pub fn is_valid(&self) -> bool {
+        self.len > 0
+    }
+
+    /// Invalidates the cache
     pub fn invalidate(&mut self) {
-        self.valid = false;
-        self.path.clear();
-        self.ranges.clear();
+        self.len = 0;
+    }
+
+    /// Updates the cache with a new index, path, and ranges
+    pub fn update(&mut self, index: usize, path: &[usize], ranges: &[Range<usize>]) {
+        self.index = index;
+        self.len = path.len().min(MAX_CACHE_LEVELS);
+        self.path[..self.len].copy_from_slice(&path[..self.len]);
+        self.ranges[..self.len].clone_from_slice(&ranges[..self.len]);
+    }
+
+    /// Record a cache hit (for profiling)
+    pub fn record_hit(&mut self) {
+        self.hits += 1;
+    }
+
+    /// Record a cache miss (for profiling)
+    pub fn record_miss(&mut self) {
+        self.misses += 1;
     }
 }
 
@@ -77,7 +98,7 @@ impl PartialEq for IndexCache {
     fn eq(&self, other: &Self) -> bool {
         // Check only the cached index and validity state
         // Path and ranges are implementation details that don't affect equality
-        self.index == other.index && self.valid == other.valid
+        self.index == other.index && (self.len > 0) == (other.len > 0)
     }
 }
 
@@ -87,5 +108,53 @@ impl Default for IndexCache {
     #[inline(always)]
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub trait CachePolicy: Send + Sync {
+    /// Decide whether to use the cache for a given index.
+    fn should_cache(&self, index: usize) -> bool;
+    fn clone_box(&self) -> Box<dyn CachePolicy>;
+}
+
+impl Clone for Box<dyn CachePolicy> {
+    fn clone(&self) -> Box<dyn CachePolicy> {
+        self.clone_box()
+    }
+}
+
+/// Always cache accesses (default policy).
+#[derive(Clone)]
+pub struct AlwaysCache;
+impl CachePolicy for AlwaysCache {
+    fn should_cache(&self, _index: usize) -> bool {
+        true
+    }
+    fn clone_box(&self) -> Box<dyn CachePolicy> {
+        Box::new(self.clone())
+    }
+}
+
+/// Never use the cache.
+#[derive(Clone)]
+pub struct NeverCache;
+impl CachePolicy for NeverCache {
+    fn should_cache(&self, _index: usize) -> bool {
+        false
+    }
+    fn clone_box(&self) -> Box<dyn CachePolicy> {
+        Box::new(self.clone())
+    }
+}
+
+/// Cache only even indices (example of custom logic).
+#[derive(Clone)]
+pub struct EvenIndexCache;
+impl CachePolicy for EvenIndexCache {
+    fn should_cache(&self, index: usize) -> bool {
+        index % 2 == 0
+    }
+    fn clone_box(&self) -> Box<dyn CachePolicy> {
+        Box::new(self.clone())
     }
 }

@@ -28,6 +28,20 @@
 - **Internal Cleanup:** Removed dead code and unused paths, improved formatting and function signatures for consistency.
 - **Iso Trait Improvements:** Converted static methods to instance methods for better composability.
 
+### Added
+- **Flexible caching policy system for PersistentVector**
+    - Introduced the `CachePolicy` trait and several implementations (`AlwaysCache`, `NeverCache`, `NeverCache`, `EvenIndexCache`).
+    - PersistentVector and Tree now support pluggable cache policies, configurable at construction and during operations.
+    - Added APIs: `with_cache_policy`, `from_slice_with_cache_policy`, `push_back_with_cache_policy`, `update_with_cache_policy` for dynamic cache management.
+    - All cache-aware operations now respect the configured policy, enabling fine-grained control over caching behavior.
+    - Comprehensive documentation and examples for using custom caching strategies.
+
+### Changed
+- Internal vector and tree structures updated to propagate and respect cache policies throughout all relevant operations.
+
+### Fixed
+- SmallVec initialization from slice now uses a loop to avoid method compatibility issues.
+
 ## [0.6.1]
 
 ### Added

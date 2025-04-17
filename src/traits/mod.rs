@@ -31,8 +31,6 @@ pub mod pure;
 // ===== Fundamental Abstractions =====
 /// Function application within a computational context.
 pub mod applicative;
-/// Error mapping and transformation.
-pub mod error_mapper;
 /// Structure-preserving mapping over computational contexts.
 pub mod functor;
 /// Sequential computation with context binding.

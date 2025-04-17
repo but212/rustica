@@ -31,6 +31,50 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         })
     });
 
+    // --- Cache Policy Benchmarks ---
+    use rustica::pvec::cache::{AlwaysCache, CachePolicy, EvenIndexCache, NeverCache};
+    use std::boxed::Box;
+
+    // Helper: create vector with cache policy
+    fn make_pvec_with_policy(size: usize, policy: Box<dyn CachePolicy>) -> PersistentVector<usize> {
+        let mut vec = PersistentVector::with_cache_policy(policy);
+        for i in 0..size {
+            vec = vec.push_back(i);
+        }
+        vec
+    }
+
+    // Benchmark: get_with_cache with AlwaysCache
+    c.bench_function("pvec_get_with_cache_always", |b| {
+        let mut vec: PersistentVector<usize> = make_pvec_with_policy(10000, Box::new(AlwaysCache));
+        b.iter(|| {
+            for i in (0..100).map(|i| i * 100) {
+                black_box(vec.get_with_cache(black_box(i)));
+            }
+        })
+    });
+
+    // Benchmark: get_with_cache with NeverCache
+    c.bench_function("pvec_get_with_cache_never", |b| {
+        let mut vec: PersistentVector<usize> = make_pvec_with_policy(10000, Box::new(NeverCache));
+        b.iter(|| {
+            for i in (0..100).map(|i| i * 100) {
+                black_box(vec.get_with_cache(black_box(i)));
+            }
+        })
+    });
+
+    // Benchmark: get_with_cache with EvenIndexCache
+    c.bench_function("pvec_get_with_cache_even_index", |b| {
+        let mut vec: PersistentVector<usize> =
+            make_pvec_with_policy(10000, Box::new(EvenIndexCache));
+        b.iter(|| {
+            for i in (0..100).map(|i| i * 100) {
+                black_box(vec.get_with_cache(black_box(i)));
+            }
+        })
+    });
+
     // Update operations
     c.bench_function("pvec_update", |b| {
         let vec = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));

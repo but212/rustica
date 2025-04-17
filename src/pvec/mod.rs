@@ -169,7 +169,7 @@
 
 /// Caching system for accelerating tree traversal paths.
 #[cfg(feature = "pvec")]
-pub(crate) mod cache;
+pub mod cache;
 
 /// Fixed-size chunks for storing elements efficiently.
 #[cfg(feature = "pvec")]

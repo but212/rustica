@@ -98,7 +98,7 @@ pub(crate) enum VectorImpl<T> {
     /// Full tree structure for larger vectors
     Tree {
         /// The underlying tree data structure
-        tree: Tree<T>,
+        tree: Box<Tree<T>>,
     },
 }
 
@@ -231,7 +231,7 @@ impl<T: Clone> VectorImpl<T> {
             }
         } else {
             VectorImpl::Tree {
-                tree: Tree::from_slice(slice),
+                tree: Box::new(Tree::from_slice(slice)),
             }
         }
     }
@@ -242,7 +242,7 @@ impl<T: Clone> VectorImpl<T> {
     pub fn get(&self, index: usize) -> Option<&T> {
         match self {
             VectorImpl::Small { elements } => elements.get(index),
-            VectorImpl::Tree { tree } => tree.get(index),
+            VectorImpl::Tree { tree } => tree.as_ref().get(index),
         }
     }
 
@@ -260,11 +260,11 @@ impl<T: Clone> VectorImpl<T> {
                 let mut v: Vec<T> = elements.to_vec();
                 v.push(value);
                 VectorImpl::Tree {
-                    tree: Tree::from_slice(&v),
+                    tree: Box::new(Tree::from_slice(&v)),
                 }
             },
             VectorImpl::Tree { tree } => VectorImpl::Tree {
-                tree: tree.push_back(value),
+                tree: Box::new(tree.as_ref().push_back(value)),
             },
         }
     }
@@ -278,7 +278,7 @@ impl<T: Clone> VectorImpl<T> {
                 elements: elements.update(index, value),
             },
             VectorImpl::Tree { tree } => VectorImpl::Tree {
-                tree: tree.update(index, value),
+                tree: Box::new(tree.as_ref().update(index, value)),
             },
         }
     }
@@ -289,7 +289,7 @@ impl<T: Clone> VectorImpl<T> {
     pub fn to_vec(&self) -> std::vec::Vec<T> {
         match self {
             VectorImpl::Small { elements } => elements.to_vec(),
-            VectorImpl::Tree { tree } => tree.to_vec(),
+            VectorImpl::Tree { tree } => tree.as_ref().to_vec(),
         }
     }
 
@@ -315,9 +315,14 @@ impl<T: Clone> VectorImpl<T> {
                 v.len -= 1;
                 Some((VectorImpl::Small { elements: v }, val))
             },
-            VectorImpl::Tree { tree } => tree
-                .pop_back()
-                .map(|(new_tree, val)| (VectorImpl::Tree { tree: new_tree }, val)),
+            VectorImpl::Tree { tree } => tree.as_ref().pop_back().map(|(new_tree, val)| {
+                (
+                    VectorImpl::Tree {
+                        tree: Box::new(new_tree),
+                    },
+                    val,
+                )
+            }),
             _ => None,
         }
     }
@@ -339,7 +344,7 @@ impl<T: Clone + Debug> Debug for VectorImpl<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             VectorImpl::Small { elements } => f.debug_list().entries(elements.to_vec()).finish(),
-            VectorImpl::Tree { tree } => tree.fmt(f),
+            VectorImpl::Tree { tree } => tree.as_ref().fmt(f),
         }
     }
 }
@@ -405,6 +410,48 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
+    /// Creates a new persistent vector with a custom cache policy.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::pvec::{PersistentVector, cache::{NeverCache, EvenIndexCache}};
+    /// let vec = PersistentVector::with_cache_policy(Box::new(NeverCache));
+    /// assert_eq!(vec.len(), 0);
+    /// let vec2 = PersistentVector::from_slice_with_cache_policy(&[1,2,3], Box::new(EvenIndexCache));
+    /// assert_eq!(vec2.len(), 3);
+    /// ```
+    pub fn with_cache_policy(policy: Box<dyn crate::pvec::cache::CachePolicy>) -> Self {
+        Self {
+            inner: VectorImpl::Tree {
+                tree: Box::new(crate::pvec::tree::Tree::new().with_cache_policy(policy)),
+            },
+        }
+    }
+
+    /// Creates a new persistent vector from a slice with a custom cache policy.
+    pub fn from_slice_with_cache_policy(
+        slice: &[T], policy: Box<dyn crate::pvec::cache::CachePolicy>,
+    ) -> Self {
+        if slice.len() <= crate::pvec::vector::SMALL_VECTOR_SIZE {
+            let mut v = crate::pvec::vector::SmallVec::new();
+            for x in slice {
+                v = v.push_back(x.clone());
+            }
+            Self {
+                inner: VectorImpl::Small { elements: v },
+            }
+        } else {
+            Self {
+                inner: VectorImpl::Tree {
+                    tree: Box::new(
+                        crate::pvec::tree::Tree::from_slice(slice).with_cache_policy(policy),
+                    ),
+                },
+            }
+        }
+    }
+
     /// Returns the number of elements in the vector.
     ///
     /// This operation is O(1) as it simply returns the cached length value.
@@ -422,7 +469,7 @@ impl<T: Clone> PersistentVector<T> {
     pub fn len(&self) -> usize {
         match &self.inner {
             VectorImpl::Small { elements } => elements.len(),
-            VectorImpl::Tree { tree } => tree.len(),
+            VectorImpl::Tree { tree } => tree.as_ref().len(),
         }
     }
 
@@ -494,6 +541,51 @@ impl<T: Clone> PersistentVector<T> {
     pub fn push_back(&self, value: T) -> Self {
         Self {
             inner: self.inner.push_back(value),
+        }
+    }
+
+    /// Returns a new vector with the given element appended, using the cache policy if present.
+    pub fn push_back_with_cache_policy(&self, value: T) -> Self {
+        match &self.inner {
+            VectorImpl::Small { elements }
+                if elements.len() < crate::pvec::vector::SMALL_VECTOR_SIZE =>
+            {
+                Self {
+                    inner: VectorImpl::Small {
+                        elements: elements.push_back(value),
+                    },
+                }
+            },
+            VectorImpl::Small { elements } => {
+                let mut v: Vec<T> = elements.to_vec();
+                v.push(value);
+                Self {
+                    inner: VectorImpl::Tree {
+                        tree: Box::new(crate::pvec::tree::Tree::from_slice(&v)),
+                    },
+                }
+            },
+            VectorImpl::Tree { tree } => Self {
+                inner: VectorImpl::Tree {
+                    tree: Box::new(tree.as_ref().push_back(value)),
+                },
+            },
+        }
+    }
+
+    /// Returns a new vector with the element at the given index updated, using the cache policy if present.
+    pub fn update_with_cache_policy(&self, index: usize, value: T) -> Self {
+        match &self.inner {
+            VectorImpl::Small { elements } => Self {
+                inner: VectorImpl::Small {
+                    elements: elements.update(index, value),
+                },
+            },
+            VectorImpl::Tree { tree } => Self {
+                inner: VectorImpl::Tree {
+                    tree: Box::new(tree.as_ref().update(index, value)),
+                },
+            },
         }
     }
 
@@ -605,7 +697,7 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Returns a tuple containing a new vector with the last element removed and the removed element, or None if the vector is empty.
+    /// Removes the last element from the vector and returns it, along with the updated vector.
     ///
     /// # Examples
     ///
@@ -737,10 +829,10 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// ```
     /// use rustica::pvec::PersistentVector;
-
+    ///
     /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
     /// assert_eq!(vec.last(), Some(&3));
-
+    ///
     /// let empty: PersistentVector<i32> = PersistentVector::new();
     /// assert_eq!(empty.last(), None);
     /// ```
@@ -931,12 +1023,14 @@ impl<T: Clone> PersistentVector<T> {
     pub fn resize(&self, new_len: usize, value: T) -> Self {
         let mut result = self.clone();
         let old_len = self.len();
-        if new_len < old_len {
-            result = result.truncate(new_len);
-        } else if new_len > old_len {
-            for _ in old_len..new_len {
-                result = result.push_back(value.clone());
-            }
+        match new_len.cmp(&old_len) {
+            std::cmp::Ordering::Less => result = result.truncate(new_len),
+            std::cmp::Ordering::Greater => {
+                for _ in old_len..new_len {
+                    result = result.push_back(value.clone());
+                }
+            },
+            _ => {},
         }
         result
     }
@@ -1022,7 +1116,6 @@ impl<T: Clone> PersistentVector<T> {
     /// assert_eq!(vec.binary_search(&6), Err(5));
     /// ```
     #[inline(always)]
-    #[must_use]
     pub fn binary_search(&self, x: &T) -> Result<usize, usize>
     where
         T: Ord,
@@ -1171,6 +1264,50 @@ impl<T: Clone> PersistentVector<T> {
             result = result.push_back(item.clone());
         }
         result
+    }
+
+    /// Get a reference to the element at the specified index, using the index cache for fast access if possible.
+    ///
+    /// This method provides a mutable access path that leverages the internal cache for repeated access patterns.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::pvec::PersistentVector;
+    /// let mut vec = PersistentVector::from_slice(&[10, 20, 30, 40]);
+    /// let val = vec.get_with_cache(2);
+    /// assert_eq!(val, Some(&30));
+    /// ```
+    #[inline(always)]
+    #[must_use]
+    pub fn get_with_cache(&mut self, index: usize) -> Option<&T> {
+        match &mut self.inner {
+            VectorImpl::Small { elements } => elements.get(index),
+            VectorImpl::Tree { tree } => tree.as_mut().get_with_cache(index),
+        }
+    }
+
+    /// Returns the cache hit/miss statistics as a tuple (hits, misses).
+    ///
+    /// This method allows users to profile the effectiveness of the cache when using `get_with_cache`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::pvec::PersistentVector;
+    /// let mut vec = PersistentVector::from_slice(&[1, 2, 3]);
+    /// vec.get_with_cache(0);
+    /// vec.get_with_cache(1);
+    /// let (hits, misses) = vec.cache_stats();
+    /// assert_eq!((hits, misses), (0, 2));
+    /// ```
+    #[inline(always)]
+    #[must_use]
+    pub fn cache_stats(&self) -> (usize, usize) {
+        match &self.inner {
+            VectorImpl::Small { .. } => (0, 0),
+            VectorImpl::Tree { tree } => tree.as_ref().cache_stats(),
+        }
     }
 }
 

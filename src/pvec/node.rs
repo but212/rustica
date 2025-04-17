@@ -39,6 +39,9 @@ pub(crate) const NODE_BITS: usize = CHUNK_BITS;
 /// - Optionally, a reference to the overflow node if a split occurred
 pub(crate) type PushResult<T> = (ManagedRef<Node<T>>, bool, Option<ManagedRef<Node<T>>>);
 
+/// Type alias for the result of a node pair operation
+pub(crate) type NodePairResult<T> = Result<(ManagedRef<Node<T>>, ManagedRef<Node<T>>), PVecError>;
+
 /// A node in the RRB tree.
 ///
 /// Nodes can be either:
@@ -237,7 +240,6 @@ impl<T: Clone> Node<T> {
     ///
     /// Returns an error if called on a non-branch node.
     #[inline(always)]
-    #[must_use]
     pub(crate) fn find_child_index(
         &self, index: usize, shift: usize,
     ) -> Result<(usize, usize), PVecError> {
@@ -400,7 +402,6 @@ impl<T: Clone> Node<T> {
     ///
     /// Returns an error if called on a non-branch node.
     #[inline(always)]
-    #[must_use]
     pub(crate) fn modify_branch<F>(&self, modifier: F) -> Result<ManagedRef<Node<T>>, PVecError>
     where
         F: FnOnce(&mut Vec<Option<ManagedRef<Node<T>>>>, &mut Option<Vec<usize>>),
@@ -439,7 +440,6 @@ impl<T: Clone> Node<T> {
     ///
     /// A managed reference to the modified branch node
     #[inline(always)]
-    #[must_use]
     fn replace_child(
         &self, child_index: usize, new_child: ManagedRef<Node<T>>,
     ) -> Result<ManagedRef<Node<T>>, PVecError> {
@@ -531,10 +531,7 @@ impl<T: Clone> Node<T> {
                         if Arc::ptr_eq(child.inner(), new_child.inner()) {
                             Some(ManagedRef::new(std::sync::Arc::new(self.clone())))
                         } else {
-                            match self.replace_child(child_index, new_child) {
-                                Ok(node) => Some(node),
-                                Err(_) => None,
-                            }
+                            self.replace_child(child_index, new_child).ok()
                         }
                     },
                     None => None,
@@ -677,9 +674,7 @@ impl<T: Clone> Node<T> {
     ///
     /// Returns an error if the node is not a branch node or if the index is out of bounds.
     #[inline(always)]
-    pub(crate) fn split(
-        &self, index: usize, shift: usize,
-    ) -> Result<(ManagedRef<Node<T>>, ManagedRef<Node<T>>), PVecError> {
+    pub(crate) fn split(&self, index: usize, shift: usize) -> NodePairResult<T> {
         match self {
             Node::Branch { children, sizes } => {
                 if index == 0 {

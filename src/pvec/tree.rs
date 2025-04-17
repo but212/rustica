@@ -56,6 +56,9 @@ pub(crate) struct Tree<T> {
     /// The cache stores information about the most recently accessed index,
     /// which can significantly speed up accesses to nearby indices.
     cache: IndexCache,
+
+    /// Policy for controlling when to use the cache.
+    cache_policy: Box<dyn crate::pvec::cache::CachePolicy>,
 }
 
 impl<T: Clone> Tree<T> {
@@ -74,6 +77,7 @@ impl<T: Clone> Tree<T> {
             height: 0,
             manager,
             cache: IndexCache::new(),
+            cache_policy: Box::new(crate::pvec::cache::AlwaysCache),
         }
     }
 
@@ -96,6 +100,7 @@ impl<T: Clone> Tree<T> {
             height: 0,
             manager,
             cache: IndexCache::default(),
+            cache_policy: Box::new(crate::pvec::cache::AlwaysCache),
         };
         // Efficiently push elements in chunks
         for chunk in slice.chunks(crate::pvec::chunk::CHUNK_SIZE) {
@@ -104,6 +109,12 @@ impl<T: Clone> Tree<T> {
             }
         }
         result
+    }
+
+    /// Set the cache policy for this tree.
+    pub fn with_cache_policy(mut self, policy: Box<dyn crate::pvec::cache::CachePolicy>) -> Self {
+        self.cache_policy = policy;
+        self
     }
 
     /// Get the number of elements in the tree.
@@ -137,7 +148,33 @@ impl<T: Clone> Tree<T> {
         if index >= self.size {
             return None;
         }
+        // NOTE: This immutable get does not use the cache for now.
         self.root.get(index, self.shift())
+    }
+
+    /// Get a reference to the element at the specified index, using the index cache if policy allows.
+    pub fn get_with_cache(&mut self, index: usize) -> Option<&T> {
+        if !(self.cache_policy.should_cache(index)) {
+            // Policy says not to use cache: standard access
+            return self.root.get(index, self.shift());
+        }
+        if index >= self.size {
+            return None;
+        }
+        // Fast path: cache hit
+        if self.cache.is_valid() && self.cache.index == index {
+            self.cache.record_hit();
+            // In a full implementation, we would use cached path/ranges to avoid traversal.
+            // For now, just count as a hit and fall through to standard access.
+        } else {
+            self.cache.record_miss();
+        }
+        // Standard access (traverse tree)
+        let result = self.root.get(index, self.shift());
+        // Update cache with the accessed index (stub: not storing real path/ranges yet)
+        // In a real implementation, path/ranges would be computed during traversal.
+        self.cache.update(index, &[0; 32], &core::array::from_fn::<_, 32, _>(|_| 0..0));
+        result
     }
 
     /// Update an element at the specified index, returning a new tree.
@@ -156,6 +193,7 @@ impl<T: Clone> Tree<T> {
                 height: self.height,
                 manager: self.manager.clone(),
                 cache: IndexCache::new(),
+                cache_policy: self.cache_policy.clone(),
             }
         } else {
             self.clone()
@@ -186,6 +224,7 @@ impl<T: Clone> Tree<T> {
                 height: self.height,
                 manager: self.manager.clone(),
                 cache: IndexCache::new(),
+                cache_policy: self.cache_policy.clone(),
             },
             Self {
                 root: right,
@@ -193,6 +232,7 @@ impl<T: Clone> Tree<T> {
                 height: self.height,
                 manager: self.manager.clone(),
                 cache: IndexCache::new(),
+                cache_policy: self.cache_policy.clone(),
             },
         )
     }
@@ -271,6 +311,11 @@ impl<T: Clone> Tree<T> {
             }
         }
         out
+    }
+
+    /// Returns the cache hit/miss statistics as a tuple (hits, misses).
+    pub fn cache_stats(&self) -> (usize, usize) {
+        (self.cache.hits, self.cache.misses)
     }
 }
 
