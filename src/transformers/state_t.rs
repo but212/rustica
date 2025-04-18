@@ -901,3 +901,74 @@ where
         self.try_run_state(state).map(|(s, _)| s)
     }
 }
+
+use crate::datatypes::id::Id;
+use crate::traits::identity::Identity;
+
+impl<S, A> StateT<S, Id<(S, A)>, A>
+where
+    S: Clone + Send + Sync + 'static,
+    A: Clone + Send + Sync + 'static,
+{
+    /// Converts this `StateT<S, Id<(S, A)>, A>` into a `State<S, A>`.
+    ///
+    /// This method allows you to convert a state transformer with the identity monad as its base
+    /// back into a regular `State` monad. This is useful when you want to drop the transformer
+    /// context and work with the simpler state monad.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::StateT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Create a StateT with Id as the monad
+    /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::new(|s: i32| {
+    ///     Id::new((s * 2, s + 1))
+    /// });
+    ///
+    /// // Convert to State
+    /// let state: State<i32, i32> = state_t.to_state();
+    ///
+    /// // The behavior should be identical
+    /// assert_eq!(state.run_state(21), (22, 42));
+    /// ```
+    pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
+        crate::datatypes::state::State::new(move |s: S| {
+            let result = self.run_state(s.clone());
+            let (new_state, value) = result.value().clone();
+            (value, new_state)
+        })
+    }
+
+    /// Converts a `State<S, A>` into a `StateT<S, Id<(S, A)>, A>`.
+    ///
+    /// This method allows you to lift a regular state monad into the transformer context
+    /// with the identity monad as the base. This is useful for composing stateful computations
+    /// with other monad transformers.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    /// use rustica::transformers::StateT;
+    ///
+    /// // Create a State
+    /// let state = State::new(|s: i32| (s * 2, s + 1));
+    ///
+    /// // Convert to StateT
+    /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::from_state(state);
+    ///
+    /// // The behavior should be identical
+    /// assert_eq!(state_t.run_state(21).value(), &(22, 42));
+    /// ```
+    pub fn from_state(state: crate::datatypes::state::State<S, A>) -> Self {
+        StateT::new(move |s: S| {
+            let (a, s2) = state.run_state(s);
+            Id::new((s2, a))
+        })
+    }
+}

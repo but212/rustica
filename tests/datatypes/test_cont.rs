@@ -26,7 +26,7 @@ fn test_cont_functor() {
 #[test]
 fn test_cont_bind() {
     let cont = cont::Cont::return_cont(42);
-    let bound = cont.bind(Arc::new(|x| cont::Cont::return_cont(x + 1)));
+    let bound = cont.bind(|x| cont::Cont::return_cont(x + 1));
     let result = bound.run(|x| x * 2);
     assert_eq!(result, 86);
 }
@@ -46,7 +46,7 @@ fn test_cont_complex_composition() {
     // Create a chain of computations
     let initial = cont::Cont::return_cont(10);
     let step1 = initial.fmap(|x| x * 2); // 20
-    let step2 = step1.bind(Arc::new(|x| cont::Cont::return_cont(x + 5))); // 25
+    let step2 = step1.bind(|x| cont::Cont::return_cont(x + 5)); // 25
     let step3 = step2.fmap(|x| x - 3); // 22
 
     // Run the final computation
@@ -88,14 +88,14 @@ fn test_cont_return_cont() {
 fn test_cont_call_cc() {
     // Test call_cc for early exit
     let computation_early_exit = cont::Cont::<String, i32>::return_cont(1).call_cc(|exit| {
-        cont::Cont::return_cont(1).bind(Arc::new(move |x| {
+        cont::Cont::return_cont(1).bind(move |x| {
             if x > 0 {
                 // Exit early with value 100
                 exit(100)
             } else {
                 cont::Cont::return_cont(x + 1)
             }
-        }))
+        })
     });
     let result_early = computation_early_exit.run(|x| x.to_string());
     assert_eq!(result_early, "100"); // Should exit early
@@ -106,4 +106,24 @@ fn test_cont_call_cc() {
     });
     let result_no_exit = computation_no_exit.run(|x| x.to_string());
     assert_eq!(result_no_exit, "10");
+}
+
+#[test]
+fn test_cont_fmap() {
+    let c = cont::Cont::<i32, i32>::return_cont(5);
+    let mapped = c.fmap(|x| x * 2);
+    assert_eq!(mapped.run(|x| x), 10);
+}
+
+#[test]
+fn test_cont_identity_laws() {
+    // fmap(|x| x) == id
+    let c = cont::Cont::<i32, i32>::return_cont(7);
+    let mapped = c.clone().fmap(|x| x);
+    assert_eq!(mapped.run(|x| x), c.run(|x| x));
+
+    // bind(return_cont) == id
+    let c2 = cont::Cont::<i32, i32>::return_cont(8);
+    let bound = c2.clone().bind(|x| cont::Cont::return_cont(x));
+    assert_eq!(bound.run(|x| x), c2.run(|x| x));
 }

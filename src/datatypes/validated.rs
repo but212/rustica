@@ -4,6 +4,70 @@
 //! or invalid with a collection of errors. Unlike `Result`, which fails fast on the first error,
 //! `Validated` can accumulate multiple errors during validation.
 //!
+//! ## Examples
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//!
+//! let valid: Validated<&str, i32> = Validated::valid(42);
+//! assert!(valid.is_valid());
+//!
+//! let invalid: Validated<&str, i32> = Validated::invalid("error");
+//! assert!(invalid.is_invalid());
+//! ```
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//!
+//! let result: Result<i32, &str> = Ok(42);
+//! let validated = Validated::from_result(&result);
+//! assert_eq!(validated, Validated::valid(42));
+//!
+//! let error_result: Result<i32, &str> = Err("error");
+//! let validated = Validated::from_result(&error_result);
+//! assert_eq!(validated, Validated::invalid("error"));
+//! ```
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//!
+//! let some_value: Option<i32> = Some(42);
+//! let validated: Validated<&str, i32> = Validated::from_option(&some_value, &"missing value");
+//! assert_eq!(validated, Validated::valid(42));
+//!
+//! let none_value: Option<i32> = None;
+//! let validated: Validated<&str, i32> = Validated::from_option(&none_value, &"missing value");
+//! assert_eq!(validated, Validated::invalid("missing value"));
+//! ```
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//!
+//! let values = vec![
+//!     Validated::<&str, i32>::valid(1),
+//!     Validated::<&str, i32>::valid(2),
+//!     Validated::<&str, i32>::valid(3),
+//! ];
+//! let collected: Validated<&str, Vec<i32>> = Validated::collect(values.iter().cloned());
+//! assert_eq!(collected, Validated::valid(vec![1, 2, 3]));
+//!
+//! let mixed = vec![
+//!     Validated::<&str, i32>::valid(1),
+//!     Validated::<&str, i32>::invalid("error"),
+//!     Validated::<&str, i32>::valid(3),
+//! ];
+//! let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.iter().cloned());
+//! assert!(collected.is_invalid());
+//! ```
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//!
+//! let invalid: Validated<&str, i32> = Validated::invalid("error");
+//! let mapped = invalid.fmap_invalid(|e| format!("Error: {}", e));
+//! assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, validation is often handled through types that can represent
@@ -1144,7 +1208,7 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
     fn apply_owned<B, F>(self, rf: Self::Output<F>) -> Self::Output<B>
     where
         Self: Sized,
-        F: FnOnce(A) -> B,
+        F: FnOnce(Self::Source) -> B,
     {
         match (self, rf) {
             (Validated::Valid(a), Validated::Valid(f)) => Validated::Valid(f(a)),

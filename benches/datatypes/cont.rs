@@ -27,7 +27,7 @@ pub fn cont_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("bind", |b| {
-        b.iter(|| black_box(cont.clone().bind(Arc::new(|x| Cont::<i32, i32>::return_cont(x * 2)))));
+        b.iter(|| black_box(cont.clone().bind(|x| Cont::<i32, i32>::return_cont(x * 2))));
     });
 
     group.bench_function("apply", |b| {
@@ -76,7 +76,7 @@ pub fn cont_benchmarks(c: &mut Criterion) {
             let mut current = Cont::<i32, i32>::return_cont(0);
             for input in inputs.iter() {
                 let input_val = *input;
-                current = current.bind(Arc::new(move |state| transition(state, input_val)));
+                current = current.bind(move |state| transition(state, input_val));
             }
 
             black_box(current.run(|final_state| final_state))
@@ -87,15 +87,15 @@ pub fn cont_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             // Chain multiple continuations to simulate a pipeline
             let step1 = Cont::<i32, i32>::return_cont(10);
-            let step2 = step1.bind(Arc::new(|x| Cont::return_cont(x + 5)));
-            let step3 = step2.bind(Arc::new(|x| Cont::return_cont(x * 2)));
-            let step4 = step3.bind(Arc::new(|x| {
+            let step2 = step1.bind(|x| Cont::return_cont(x + 5));
+            let step3 = step2.bind(|x| Cont::return_cont(x * 2));
+            let step4 = step3.bind(|x| {
                 if x > 20 {
                     Cont::return_cont(x - 10)
                 } else {
                     Cont::return_cont(x)
                 }
-            }));
+            });
 
             black_box(step4.run(|x| x))
         });

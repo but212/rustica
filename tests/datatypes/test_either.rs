@@ -372,3 +372,14 @@ fn test_either_error_handling() {
     let result4 = safe_div(10, 2).bind(|x| safe_div(*x, 0));
     assert_eq!(result4.unwrap_left(), "division by zero");
 }
+
+#[test]
+fn test_either_left_or_right_or() {
+    let l: Either<&str, i32> = Either::left("err");
+    let r: Either<&str, i32> = Either::right(42);
+
+    assert_eq!(l.left_or("default"), "err");
+    assert_eq!(r.left_or("default"), "default");
+    assert_eq!(l.right_or(0), 0);
+    assert_eq!(r.right_or(0), 42);
+}

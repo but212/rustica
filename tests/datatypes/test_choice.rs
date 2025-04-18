@@ -398,3 +398,72 @@ fn test_choice_filter_values() {
     assert_eq!(all.alternatives(), &[1, 3, 4, 5, 6]);
     assert_eq!(all.len(), 6);
 }
+
+#[test]
+fn test_choice_from_iter_and_vec_conversion() {
+    let v = vec![1, 2, 3];
+    let choice: Choice<i32> = v.clone().into();
+    assert_eq!(*choice.first().unwrap(), 1);
+    assert_eq!(choice.alternatives(), &[2, 3]);
+
+    let back: Vec<i32> = choice.clone().into();
+    assert_eq!(back, v);
+
+    let slice: &[i32] = &[4, 5, 6];
+    let from_slice: Choice<i32> = Choice::from(slice);
+    assert_eq!(*from_slice.first().unwrap(), 4);
+    assert_eq!(from_slice.alternatives(), &[5, 6]);
+}
+
+#[test]
+fn test_choice_default_and_sum() {
+    let default: Choice<i32> = Choice::default();
+    assert!(default.is_empty());
+
+    let sum: Choice<i32> = [Choice::new(1, vec![2]), Choice::new(3, vec![])].iter().cloned().sum();
+    assert_eq!(*sum.first().unwrap(), 1);
+    assert_eq!(sum.alternatives(), &[2, 3]);
+}
+
+#[test]
+fn test_choice_alternative_trait() {
+    let a = Choice::new(1, vec![2]);
+    let b = Choice::new(3, vec![4]);
+    let alt = a.alt(&b);
+    assert_eq!(*alt.first().unwrap(), 1);
+    assert_eq!(alt.alternatives(), &[2, 3, 4]);
+
+    let empty: Choice<i32> = Choice::<i32>::empty_alt();
+    assert!(empty.is_empty());
+
+    let guarded: Choice<()> = Choice::<()>::guard(true);
+    assert_eq!(guarded.len(), 1);
+    let not_guarded: Choice<()> = Choice::<()>::guard(false);
+    assert!(not_guarded.is_empty());
+
+    let many = Choice::new(1, vec![2]).many();
+    assert_eq!(*many.first().unwrap(), vec![1]);
+}
+
+#[test]
+fn test_choice_display_and_eq() {
+    let c1 = Choice::new(1, vec![2, 3]);
+    let c2 = Choice::new(1, vec![2, 3]);
+    let c3 = Choice::new(2, vec![3, 4]);
+    assert_eq!(c1, c2);
+    assert_ne!(c1, c3);
+
+    let s = format!("{}", c1);
+    assert!(s.contains("1"));
+    assert!(s.contains("2"));
+}
+
+#[test]
+fn test_choice_foldable() {
+    let c = Choice::new(1, vec![2, 3]);
+    let sum = c.fold_left(&0, |acc, x| acc + x);
+    assert_eq!(sum, 6);
+
+    let prod = c.fold_right(&1, |x, acc| x * acc);
+    assert_eq!(prod, 6);
+}

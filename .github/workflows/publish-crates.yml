@@ -66,7 +66,7 @@ jobs:
           args: --no-verify
       
       - name: Notify on success
-        if: success() && steps.check-published.outputs.already_published != 'true'
+        if: github.event_name == 'pull_request' || github.event_name == 'issues' && success() && steps.check-published.outputs.already_published != 'true'
         uses: actions/github-script@v6
         with:
           script: |

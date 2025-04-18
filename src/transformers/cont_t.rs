@@ -30,6 +30,7 @@
 //! ```
 
 use crate::traits::monad::Monad;
+
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -40,22 +41,71 @@ pub type ContTFn<M, A> = dyn Fn(Arc<dyn Fn(A) -> M + Send + Sync>) -> M + Send +
 #[derive(Clone)]
 pub struct ContT<R, M, A> {
     pub run_cont: Arc<ContTFn<M, A>>,
-    _phantom: PhantomData<(R, A)>,
+    phantom: PhantomData<(R, A)>,
 }
 
 impl<R, M, A> ContT<R, M, A> {
-    /// Create a new ContT from a function.
+    /// Creates a new continuation transformer from a function.
+    ///
+    /// This is the primary constructor for `ContT`, taking a function that
+    /// accepts a continuation and returns a value in the base monad.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes a continuation `(A -> M<R>)` and returns a value of type `M<R>`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::transformers::cont_t::ContT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    /// use std::sync::Arc;
+    ///
+    /// // Create a ContT that adds 1 to the continuation's result
+    /// let cont = ContT::<i32, Id<i32>, i32>::new(|k| {
+    ///     let result = k(42);
+    ///     Id::new(result.value() + 1)
+    /// });
+    ///
+    /// // Run with a continuation that doubles its input
+    /// let result = cont.run(|x| Id::new(x * 2));
+    /// assert_eq!(*result.value(), 85); // (42 * 2) + 1
+    /// ```
     pub fn new<F>(f: F) -> Self
     where
         F: Fn(Arc<dyn Fn(A) -> M + Send + Sync>) -> M + Send + Sync + 'static,
     {
         ContT {
             run_cont: Arc::new(f),
-            _phantom: PhantomData,
+            phantom: PhantomData,
         }
     }
 
-    /// Run the continuation transformer with a final continuation.
+    /// Runs this continuation transformer with the given continuation function.
+    ///
+    /// This method applies the provided continuation function to the result of this computation,
+    /// effectively executing the continuation and producing the final result in the base monad.
+    ///
+    /// # Arguments
+    ///
+    /// * `k` - A function that takes a value of type `A` and returns a value of type `M`
+    ///
+    /// # Returns
+    ///
+    /// The final result of type `M` after applying the continuation
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::transformers::cont_t::ContT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let cont = ContT::<i32, Id<i32>, i32>::pure(42);
+    /// let result = cont.run(|x| Id::new(x * 2));
+    /// assert_eq!(*result.value(), 84);
+    /// ```
     pub fn run<FN>(&self, k: FN) -> M
     where
         FN: Fn(A) -> M + Send + Sync + 'static,
@@ -63,7 +113,29 @@ impl<R, M, A> ContT<R, M, A> {
         (self.run_cont)(Arc::new(k))
     }
 
-    /// Lift a value into the continuation transformer context.
+    /// Lifts a value into the continuation transformer context.
+    ///
+    /// This creates a minimal continuation that simply passes the given value to any
+    /// continuation function it receives.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - The value to lift into the ContT context
+    ///
+    /// # Returns
+    ///
+    /// A `ContT` that will apply any continuation to the value `a`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::transformers::cont_t::ContT;
+    /// use rustica::datatypes::id::Id;
+    ///
+    /// let cont = ContT::<i32, Id<i32>, i32>::pure(42);
+    /// let result = cont.run(|x| Id::new(x * 2));
+    /// assert_eq!(result, Id::new(84));
+    /// ```
     pub fn pure(a: A) -> Self
     where
         M: Clone + 'static,
@@ -75,7 +147,31 @@ impl<R, M, A> ContT<R, M, A> {
 }
 
 impl<R, M, A> ContT<R, M, A> {
-    /// Monadic bind for ContT.
+    /// Monadic bind operation for the continuation transformer.
+    ///
+    /// Allows sequencing of continuation computations by applying a function to the result
+    /// of this continuation and returning a new continuation transformer.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that transforms a value of type `A` into a new continuation of type `ContT<R, M, B>`
+    ///
+    /// # Returns
+    ///
+    /// A new continuation transformer of type `ContT<R, M, B>`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::cont_t::ContT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let cont1 = ContT::<i32, Id<i32>, i32>::pure(5);
+    /// let cont2 = cont1.bind(|x| ContT::pure(x * 2));
+    /// let result = cont2.run(|x| Id::new(x));
+    /// assert_eq!(*result.value(), 10);
+    /// ```
     pub fn bind<B, F>(self, f: F) -> ContT<R, M, B>
     where
         F: Fn(A) -> ContT<R, M, B> + Send + Sync + 'static,
@@ -94,7 +190,30 @@ impl<R, M, A> ContT<R, M, A> {
         })
     }
 
-    /// Functor fmap for ContT.
+    /// Maps a function over the value inside this continuation transformer.
+    ///
+    /// This is the `fmap` operation for the `Functor` type class, allowing
+    /// transformation of the value inside the `ContT` context without
+    /// changing the continuation structure.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that transforms `A` into `B`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::transformers::cont_t::ContT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let computation = ContT::<i32, Id<i32>, i32>::pure(42);
+    ///
+    /// // Map a function over the continuation
+    /// let doubled = computation.fmap(|x| x * 2);
+    /// let result = doubled.run(|x| Id::new(x));
+    /// assert_eq!(*result.value(), 84);
+    /// ```
     pub fn fmap<B, F>(self, f: F) -> ContT<R, M, B>
     where
         F: Fn(A) -> B + Send + Sync + 'static,
@@ -110,7 +229,35 @@ impl<R, M, A> ContT<R, M, A> {
         })
     }
 
-    /// Applicative apply for ContT.
+    /// Applies a function wrapped in a `ContT` context to a value in another `ContT` context.
+    ///
+    /// This implements the applicative functor's apply operation for the continuation transformer,
+    /// allowing functions within the continuation context to be applied to values in the same context.
+    ///
+    /// # Arguments
+    ///
+    /// * `cf` - A continuation transformer containing a function from `A` to `B`
+    ///
+    /// # Returns
+    ///
+    /// A new continuation transformer of type `ContT<R, M, B>`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::sync::Arc;
+    /// use rustica::transformers::cont_t::ContT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let cont_val = ContT::<String, Id<String>, i32>::pure(5);
+    /// let cont_fn = ContT::<String, Id<String>, Arc<dyn Fn(i32) -> String + Send + Sync>>::pure(
+    ///     Arc::new(|x| format!("Value: {}", x))
+    /// );
+    ///
+    /// let result = cont_val.apply(cont_fn).run(|x| Id::new(x));
+    /// assert_eq!(*result.value(), "Value: 5");
+    /// ```
     pub fn apply<B>(self, cf: ContT<R, M, Arc<dyn Fn(A) -> B + Send + Sync>>) -> ContT<R, M, B>
     where
         A: Send + Sync + 'static,
@@ -129,7 +276,47 @@ impl<R, M, A> ContT<R, M, A> {
         })
     }
 
-    /// Example: call_cc (call-with-current-continuation)
+    /// Call with current continuation.
+    ///
+    /// Captures the current continuation and passes it to the given function.
+    /// This allows for complex control flow patterns like early returns and exception handling.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B` - The type that would be returned by the escape continuation
+    /// * `F` - The type of the function that receives the escape continuation
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes a continuation escape function and returns a continuation
+    ///
+    /// # Returns
+    ///
+    /// A new continuation transformer
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::sync::Arc;
+    /// use rustica::transformers::cont_t::ContT;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Use call_cc to implement early return
+    /// let computation = ContT::<i32, Id<i32>, i32>::pure(5).bind(|_| {
+    ///     ContT::call_cc(|exit| {
+    ///         // If condition is met, exit early with a different value
+    ///         if 5 > 3 {
+    ///             exit(10)
+    ///         } else {
+    ///             ContT::pure(5)
+    ///         }
+    ///     })
+    /// });
+    ///
+    /// let result = computation.run(|x| Id::new(x));
+    /// assert_eq!(*result.value(), 10);
+    /// ```
     pub fn call_cc<B, F>(f: F) -> ContT<R, M, A>
     where
         F: Fn(Arc<dyn Fn(A) -> ContT<R, M, B> + Send + Sync>) -> ContT<R, M, A>
@@ -161,5 +348,45 @@ impl<R, M: Monad + Clone + Send + Sync + 'static, A: Send + Sync + 'static> Mona
 
     fn lift(base: Self::BaseMonad) -> Self {
         ContT::new(move |_k| base.clone())
+    }
+}
+
+impl<R, A> ContT<R, crate::datatypes::id::Id<R>, A> {
+    /// Converts this `ContT<R, Id<R>, A>` into a `Cont<R, A>`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    /// use rustica::transformers::cont_t::ContT;
+    ///
+    /// let cont_t = ContT::<i32, Id<i32>, i32>::pure(5);
+    /// let cont = cont_t.to_cont();
+    /// let result = cont.run(|x| x + 1);
+    /// assert_eq!(result, 6);
+    /// ```
+    pub fn to_cont(self) -> crate::datatypes::cont::Cont<R, A> {
+        crate::datatypes::cont::Cont { inner: self }
+    }
+
+    /// Converts a `Cont<R, A>` into this `ContT<R, Id<R>, A>`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::identity::Identity;
+    /// use rustica::transformers::cont_t::ContT;
+    ///
+    /// let cont = Cont::return_cont(5);
+    /// let cont_t = ContT::<i32, Id<i32>, i32>::from_cont(cont);
+    /// let result = cont_t.run(|x| Id::new(x + 1));
+    /// assert_eq!(*result.value(), 6);
+    /// ```
+    pub fn from_cont(cont: crate::datatypes::cont::Cont<R, A>) -> Self {
+        cont.inner
     }
 }

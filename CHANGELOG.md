@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.6.4] - 2025-04-18
+
+### Changed
+- **Continuation Monad (`Cont`) Refactored**
+  - `Cont` is now implemented as a thin wrapper over the more general `ContT` (Continuation Monad Transformer).
+  - All core logic and methods (`new`, `run`, `pure`, `bind`, `fmap`, `apply`, `call_cc`, etc.) delegate to `ContT` for improved modularity and code reuse.
+  - This refactor enables seamless integration with other monads and makes the continuation monad implementation more idiomatic and extensible.
+  - The public API remains mostly unchanged, but closure signatures for `Cont::new` are now more ergonomic and consistent with transformer usage.
+  - Comprehensive documentation and tests updated to reflect the new structure.
+
 ## [0.6.3] - 2025-04-17
 
 ### Added

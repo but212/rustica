@@ -1298,8 +1298,12 @@ impl<T: Clone> Alternative for Choice<T> {
     where
         Self::Source: Clone,
     {
-        let values: Vec<T> = self.iter().cloned().collect();
-        Choice::new(values, vec![])
+        if self.is_empty() {
+            Choice::new_empty()
+        } else {
+            let primary = vec![self.first().unwrap().clone()];
+            Choice::new(primary, vec![])
+        }
     }
 }
 
@@ -1430,7 +1434,7 @@ impl<T: Clone> From<Choice<T>> for Vec<T> {
 
 impl<T: Clone + Default> Default for Choice<T> {
     fn default() -> Self {
-        Self::new(T::default(), vec![])
+        Self::new_empty()
     }
 }
 

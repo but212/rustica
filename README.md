@@ -53,21 +53,6 @@ Then import the prelude to get started:
 
 ```rust
 use rustica::prelude::*;
-use rustica::traits::composable::Composable;
-
-fn main() {
-    // Be explicit with type annotations for generic types
-    let value: Maybe<i32> = Maybe::just(42);
-    let doubled = value.fmap(|x| x * 2);
-    assert_eq!(doubled.unwrap(), 84);
-
-    // Example using functional composition
-    let add_one = |x: i32| x + 1;
-    let multiply_two = |x: i32| x * 2;
-    let composed = compose(multiply_two, add_one);
-    let result = composed(3); // (3 + 1) * 2 = 8
-    println!("Result: {}", result);
-}
 ```
 
 ## Features
@@ -151,24 +136,6 @@ Rustica provides standardized error handling utilities that work across differen
   - `AppError<M, C>` - A structured error type that provides both a message and optional context
   - Helper functions like `error()` and `error_with_context()`
 
-```rust
-use rustica::utils::error_utils::{traverse, sequence, ResultExt};
-use rustica::datatypes::validated::Validated;
-
-// Apply a fallible function to each element, collecting into a Result
-let inputs = vec!["1", "2", "3"];
-let parse_int = |s: &str| s.parse::<i32>().map_err(|_| "parse error");
-let results = traverse(inputs, parse_int)?; // Results in Ok(vec![1, 2, 3])
-
-// Combine multiple Results into one
-let results_vec = vec![Ok(1), Ok(2), Ok(3)];
-let combined = sequence(results_vec)?; // Results in Ok(vec![1, 2, 3])
-
-// Convert a Result to Validated for error accumulation
-let result: Result<i32, &str> = Err("Input error");
-let validated: Validated<&str, i32> = result.to_validated();
-```
-
 ### Persistent Collections
 
 Rustica includes a high-performance, immutable persistent vector:
@@ -180,114 +147,12 @@ Rustica includes a high-performance, immutable persistent vector:
   - Customizable cache policies for advanced use cases
   - `pvec![]` macro for convenient construction
 
-### Example Usage
-
-```rust
-use rustica::pvec::{PersistentVector, pvec};
-
-// Create a new persistent vector
-let v1: PersistentVector<i32> = pvec![1, 2, 3, 4, 5];
-
-// Operations return new vectors, leaving the original unchanged
-let v2 = v1.push_back(6);
-let v3 = v1.update(0, 10);
-
-assert_eq!(v1.get(0), Some(&1));
-assert_eq!(v2.len(), 6);
-assert_eq!(v3.get(0), Some(&10));
-
-// Use with slices
-let from_slice = PersistentVector::from_slice(&[1, 2, 3]);
-assert_eq!(from_slice.len(), 3);
-
-// Advanced: custom cache policy
-use rustica::pvec::{AlwaysCache};
-let custom = PersistentVector::<i32>::with_cache_policy(Box::new(AlwaysCache));
-assert_eq!(custom.len(), 0);
-```
-
-See the [pvec module documentation](https://docs.rs/rustica/latest/rustica/pvec/index.html) for full details.
-
-### Enhanced Validation and Error Accumulation
-
-Rustica's `Validated` type now uses `PersistentVector` for error accumulation, providing efficient, immutable error lists:
-
-- **Validated<E, T>**: Represents either a valid value or a collection of errors.
-  - Accumulates multiple errors (unlike `Result`, which fails fast)
-  - Implements Functor, Applicative, and Monad type classes
-  - Efficient error accumulation using persistent vectors
-
-### Example
-
-```rust
-use rustica::datatypes::validated::Validated;
-use rustica::pvec::PersistentVector;
-
-let valid: Validated<&str, i32> = Validated::valid(42);
-let invalid: Validated<&str, i32> = Validated::invalid("error");
-
-// Applicative validation accumulates errors
-let v1 = Validated::invalid("e1");
-let v2 = Validated::invalid("e2");
-let combined = v1.apply(&v2.fmap(|_| |x| x));
-assert!(matches!(combined, Validated::Invalid(_)));
-if let Validated::Invalid(errors) = combined {
-    assert_eq!(errors.to_vec(), vec!["e1", "e2"]);
-}
-```
-
 ### Writer Monad with Persistent Logs
 
 The `Writer` monad now uses `PersistentVector` for log accumulation, ensuring efficient, immutable logs with structural sharing:
 
 - **Writer<W, A>**: Accumulates logs of type `W` alongside computations
 - Efficient log accumulation and sharing
-
-### Example
-
-```rust
-use rustica::datatypes::writer::Writer;
-use rustica::pvec::PersistentVector;
-
-let log1 = PersistentVector::from_slice(&["log1"]);
-let log2 = PersistentVector::from_slice(&["log2"]);
-let w1: Writer<_, i32> = Writer::new(log1, 10);
-let w2: Writer<_, i32> = Writer::new(log2, 20);
-let combined = w1.apply(&w2.fmap(|x| move |y| x + y));
-let (log, value) = combined.run();
-assert_eq!(log.to_vec(), vec!["log1", "log2"]);
-assert_eq!(value, 30);
-```
-
-### Monoid Utilities
-
-Rustica provides enhanced utilities for working with monoids:
-
-- **MonoidExt**: Extension trait with methods like `combine_all`, `is_empty_monoid`
-- **Utility Functions**:
-  - `repeat(value, n)`: Combine a monoid value n times
-  - `mconcat(values)`: Combine a slice of monoid values
-  - `power(value, exponent)`: Raise a monoid to a power
-
-### Example
-
-```rust
-use rustica::traits::monoid::{Monoid, MonoidExt};
-
-#[derive(Clone, Debug, PartialEq)]
-struct Sum(i32);
-impl Monoid for Sum {
-    fn empty() -> Self { Sum(0) }
-    fn combine(&self, other: &Self) -> Self { Sum(self.0 + other.0) }
-}
-
-let values = vec![Sum(1), Sum(2), Sum(3)];
-let total = MonoidExt::combine_all(&values);
-assert_eq!(total, Sum(6));
-
-let repeated = MonoidExt::repeat(Sum(2), 3);
-assert_eq!(repeated, Sum(6));
-```
 
 ### Improved Functor Trait
 
@@ -304,6 +169,86 @@ assert_eq!(repeated, Sum(6));
 ### Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for a complete list of recent changes and enhancements.
+
+## Examples
+
+### Basic Usage
+
+```rust
+use rustica::datatypes::validated::Validated;
+
+let valid: Validated<&str, i32> = Validated::valid(42);
+assert!(valid.is_valid());
+
+let invalid: Validated<&str, i32> = Validated::invalid("error");
+assert!(invalid.is_invalid());
+```
+
+### Conversion from Result
+
+```rust
+use rustica::datatypes::validated::Validated;
+
+let result: Result<i32, &str> = Ok(42);
+let validated = Validated::from_result(&result);
+assert_eq!(validated, Validated::valid(42));
+
+let error_result: Result<i32, &str> = Err("error");
+let validated = Validated::from_result(&error_result);
+assert_eq!(validated, Validated::invalid("error"));
+```
+
+### Conversion from Option
+
+```rust
+use rustica::datatypes::validated::Validated;
+
+let some_value: Option<i32> = Some(42);
+let validated: Validated<&str, i32> = Validated::from_option(&some_value, &"missing value");
+assert_eq!(validated, Validated::valid(42));
+
+let none_value: Option<i32> = None;
+let validated: Validated<&str, i32> = Validated::from_option(&none_value, &"missing value");
+assert_eq!(validated, Validated::invalid("missing value"));
+```
+
+### Accumulating Errors from a Collection
+
+```rust
+use rustica::utils::error_utils::traverse_validated;
+use rustica::datatypes::validated::Validated;
+
+// Define a fallible parsing function
+let parse_int = |s: &str| -> Result<i32, String> {
+    s.parse::<i32>().map_err(|_| format!("'{}' is not a valid number", s))
+};
+
+// Process a collection with multiple errors
+let inputs: Vec<&str> = vec!["1", "not_a_number", "3", "also_not_a_number"];
+let result: Validated<String, Vec<i32>> = traverse_validated(inputs, parse_int);
+
+// Verify that the result is invalid and contains all errors
+assert!(result.is_invalid());
+assert_eq!(result.errors().len(), 2);
+assert!(result.errors()[0].contains("not_a_number"));
+assert!(result.errors()[1].contains("also_not_a_number"));
+
+// Process a collection with no errors
+let valid_inputs: Vec<&str> = vec!["1", "2", "3"];
+let valid_result: Validated<String, Vec<i32>> = traverse_validated(valid_inputs, parse_int);
+assert!(valid_result.is_valid());
+assert_eq!(valid_result.unwrap(), vec![1, 2, 3]);
+```
+
+### Mapping Over Errors
+
+```rust
+use rustica::datatypes::validated::Validated;
+
+let invalid: Validated<&str, i32> = Validated::invalid("error");
+let mapped = invalid.fmap_invalid(|e| format!("Error: {}", e));
+assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
+```
 
 ## Inspiration
 

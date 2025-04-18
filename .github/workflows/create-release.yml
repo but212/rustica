@@ -105,7 +105,6 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo publish --no-verify --locked
       - name: Add comment to issue or PR
-        if: ${{ github.event.issue.number != null || github.event.pull_request.number != null }}
         uses: actions/github-script@v6
         with:
           script: |

@@ -8,13 +8,10 @@
 ## High Priority Tasks
 
 ### Core Functionality
-- [ ] Add more monad transformers
+- [x] Add more monad transformers
   - [x] ReaderT
   - [x] StateT
-  - [ ] WriterT
-  - [ ] EitherT
-  - [ ] MaybeT
-  - [ ] ContT
+  - [x] ContT
 - [ ] Implement property-based tests for all category laws
 - [ ] Complete comprehensive test suite for all monads
 

@@ -13,6 +13,7 @@
 //! - Optics for data manipulation via `Lens` and `Prism`
 //! - Composable operations for error handling and data transformation
 //! - Zero-cost abstractions wherever possible
+//! - Advanced monad transformers: `StateT`, `ReaderT`, `WriterT`, `ContT`
 //!
 //! ## Getting Started
 //!
@@ -86,10 +87,7 @@
 //! Rustica provides several feature flags to customize the library for your needs:
 //!
 //! - `full`: Enables all features below
-//! - `async`: Adds async/await support for monadic operations
-//! - `serde`: Adds Serde serialization/deserialization for data types
 //! - `pvec`: Includes persistent vector implementation
-//! - `macros`: Enables utility macros for working with functional types
 //!
 //! ## Structure
 //!
@@ -200,32 +198,37 @@ pub mod prelude {
     pub use crate::traits::composable::Composable;
     pub use crate::traits::foldable::Foldable;
     pub use crate::traits::functor::Functor;
-    pub use crate::traits::hkt::HKT;
+    pub use crate::traits::hkt::{BinaryHKT, HKT};
     pub use crate::traits::identity::Identity;
     pub use crate::traits::monad::Monad;
     pub use crate::traits::monoid::Monoid;
     pub use crate::traits::pure::Pure;
     pub use crate::traits::semigroup::Semigroup;
 
+    // Monad transformer trait
     pub use crate::transformers::MonadTransformer;
 
-    // Convenience re-exports of commonly used datatypes
+    // Monad transformers (advanced)
+    pub use crate::transformers::cont_t::ContT;
+    pub use crate::transformers::reader_t::ReaderT;
+    pub use crate::transformers::state_t::StateT;
+    pub use crate::transformers::writer_t::WriterT;
+
+    // Core datatypes
     pub use crate::datatypes::choice::Choice;
     pub use crate::datatypes::either::Either;
     pub use crate::datatypes::id::Id;
     pub use crate::datatypes::maybe::Maybe;
+    pub use crate::datatypes::reader::Reader;
+    pub use crate::datatypes::state::State;
     pub use crate::datatypes::validated::Validated;
-
-    pub use crate::traits::hkt::BinaryHKT;
-
     pub use crate::datatypes::writer::Writer;
 
-    pub use crate::datatypes::state::State;
-
-    pub use crate::datatypes::reader::Reader;
-
-    // Common wrappers (feature-gated)
+    // Wrapper types
     pub use crate::datatypes::wrapper::first::First;
-
     pub use crate::datatypes::wrapper::last::Last;
+
+    // Feature-gated: async monad
+    #[cfg(feature = "async")]
+    pub use crate::datatypes::async_monad::AsyncM;
 }

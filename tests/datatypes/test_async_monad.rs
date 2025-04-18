@@ -196,4 +196,44 @@ mod test_async_monad {
         let result_not_recovered = not_recovered.try_get().await;
         assert_eq!(result_not_recovered, 42);
     }
+
+    #[tokio::test]
+    async fn test_async_monad_recover_with_panic() {
+        use rustica::datatypes::async_monad::AsyncM;
+
+        let panicking: AsyncM<i32> = AsyncM::new(|| async { panic!("fail!") });
+        let recovered = panicking.recover_with(123);
+        let result = recovered.try_get().await;
+        assert_eq!(result, 123);
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_chain_with_panic_and_recover() {
+        use rustica::datatypes::async_monad::AsyncM;
+
+        let async_m: AsyncM<i32> =
+            AsyncM::pure(1).bind(|_| async { panic!("fail!") }).recover_with(99);
+        let result = async_m.try_get().await;
+        assert_eq!(result, 99);
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_from_result_or_default_error() {
+        use rustica::datatypes::async_monad::AsyncM;
+
+        let async_m: AsyncM<i32> = AsyncM::from_result_or_default(|| async { Err("error") }, 55);
+        let result = async_m.try_get().await;
+        assert_eq!(result, 55);
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_zip_with_panic() {
+        use rustica::datatypes::async_monad::AsyncM;
+
+        let a: AsyncM<i32> = AsyncM::pure(1);
+        let b: AsyncM<i32> = AsyncM::new(|| async { panic!("fail!") });
+        let zipped = a.zip_with(b, |x, y| x + y).recover_with(0);
+        let result = zipped.try_get().await;
+        assert_eq!(result, 0);
+    }
 }
