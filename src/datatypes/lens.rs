@@ -88,7 +88,6 @@ use std::marker::PhantomData;
 ///
 /// # Design Notes
 ///
-/// - Uses `Arc` to make the lens `Clone` and thread-safe
 /// - Requires both the structure and focused part to be `Clone`
 /// - Functions are stored as trait objects to allow for different implementations
 ///
@@ -172,6 +171,7 @@ where
     ///     |p: Point, x: f64| Point { x, ..p },
     /// );
     /// ```
+    #[inline]
     pub fn new(get: GetFn, set: SetFn) -> Self {
         Lens {
             get,
@@ -191,6 +191,32 @@ where
     /// # Returns
     ///
     /// A clone of the focused part
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone)]
+    /// struct User {
+    ///     name: String,
+    ///     email: String,
+    /// }
+    ///
+    /// let name_lens = Lens::new(
+    ///     |u: &User| u.name.clone(),
+    ///     |u: User, name: String| User { name, ..u },
+    /// );
+    ///
+    /// let user = User {
+    ///     name: "Alice".to_string(),
+    ///     email: "alice@example.com".to_string(),
+    /// };
+    ///
+    /// let name = name_lens.get(&user);
+    /// assert_eq!(name, "Alice");
+    /// ```
+    #[inline]
     pub fn get(&self, source: &S) -> A {
         (self.get)(source)
     }
@@ -210,18 +236,45 @@ where
     ///
     /// A new structure with the focused part updated, or the original structure
     /// if the new value is equal to the current value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct User {
+    ///     name: String,
+    ///     email: String,
+    /// }
+    ///
+    /// let name_lens = Lens::new(
+    ///     |u: &User| u.name.clone(),
+    ///     |u: User, name: String| User { name, ..u },
+    /// );
+    ///
+    /// let user = User {
+    ///     name: "Alice".to_string(),
+    ///     email: "alice@example.com".to_string(),
+    /// };
+    ///
+    /// // Setting to a different value creates a new structure
+    /// let updated = name_lens.set(user.clone(), "Bob".to_string());
+    /// assert_ne!(updated, user);
+    ///
+    /// // Setting to the same value returns the original structure
+    /// let same = name_lens.set(user.clone(), "Alice".to_string());
+    /// assert_eq!(same, user);
+    /// ```
+    #[inline]
     pub fn set(&self, source: S, value: A) -> S
     where
         A: PartialEq,
     {
-        let current = (self.get)(&source);
-
-        // If the new value is equal to the current value, return the original structure
-        // This enables structural sharing when no actual change occurs
-        if current == value {
+        if self.get(&source) == value {
             source
         } else {
-            (self.set)(source, value)
+            self.set_always(source, value)
         }
     }
 
@@ -239,6 +292,33 @@ where
     /// # Returns
     ///
     /// A new structure with the focused part updated
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone)]
+    /// struct User {
+    ///     name: String,
+    ///     email: String,
+    /// }
+    ///
+    /// let name_lens = Lens::new(
+    ///     |u: &User| u.name.clone(),
+    ///     |u: User, name: String| User { name, ..u },
+    /// );
+    ///
+    /// let user = User {
+    ///     name: "Alice".to_string(),
+    ///     email: "alice@example.com".to_string(),
+    /// };
+    ///
+    /// // Always creates a new structure, even if the value is the same
+    /// let updated = name_lens.set_always(user, "Alice".to_string());
+    /// assert_eq!(updated.name, "Alice");
+    /// ```
+    #[inline]
     pub fn set_always(&self, source: S, value: A) -> S {
         (self.set)(source, value)
     }
@@ -259,21 +339,45 @@ where
     ///
     /// A new structure with the focused part modified by the function, or the
     /// original structure if no change was made
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct User {
+    ///     name: String,
+    ///     age: i32,
+    /// }
+    ///
+    /// let age_lens = Lens::new(
+    ///     |u: &User| u.age,
+    ///     |u: User, age: i32| User { age, ..u },
+    /// );
+    ///
+    /// let user = User {
+    ///     name: "Alice".to_string(),
+    ///     age: 30,
+    /// };
+    ///
+    /// // Increment the age
+    /// let older = age_lens.modify(user.clone(), |age| age + 1);
+    /// assert_eq!(older.age, 31);
+    ///
+    /// // No change when applying identity function
+    /// let same = age_lens.modify(user.clone(), |age| age);
+    /// assert_eq!(same, user); // Returns the original structure
+    /// ```
+    #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
         F: Fn(A) -> A,
         A: PartialEq,
     {
-        let original = (self.get)(&source);
-        let modified = f(original.clone());
-
-        // If the value didn't actually change, return the original structure
-        // This enables structural sharing for nested updates
-        if original == modified {
-            source
-        } else {
-            (self.set)(source, modified)
-        }
+        let current = self.get(&source);
+        let new_value = f(current.clone());
+        self.set(source, new_value)
     }
 
     /// Modifies the focused part using a function without checking equality.
@@ -290,12 +394,43 @@ where
     /// # Returns
     ///
     /// A new structure with the focused part modified by the function
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone)]
+    /// struct User {
+    ///     name: String,
+    ///     age: i32,
+    /// }
+    ///
+    /// let age_lens = Lens::new(
+    ///     |u: &User| u.age,
+    ///     |u: User, age: i32| User { age, ..u },
+    /// );
+    ///
+    /// let user = User {
+    ///     name: "Alice".to_string(),
+    ///     age: 30,
+    /// };
+    ///
+    /// // Always creates a new structure, even if the value doesn't change
+    /// let same_age = age_lens.modify_always(user.clone(), |age| age);
+    ///
+    /// // Increment the age
+    /// let older = age_lens.modify_always(user, |age| age + 1);
+    /// assert_eq!(older.age, 31);
+    /// ```
+    #[inline]
     pub fn modify_always<F>(&self, source: S, f: F) -> S
     where
         F: Fn(A) -> A,
     {
-        let value = f((self.get)(&source));
-        (self.set)(source, value)
+        let current = self.get(&source);
+        let new_value = f(current);
+        self.set_always(source, new_value)
     }
 
     /// Maps a function over the focused part, creating a new lens.
@@ -338,6 +473,7 @@ where
     ///     |s| s.parse().unwrap_or(0),
     /// );
     /// ```
+    #[inline]
     pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
     where
         B: Clone,
