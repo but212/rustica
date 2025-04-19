@@ -5,6 +5,10 @@
 ### Added
 - Added `iso_lens.rs`: Iso-based Lens optic for safe, functional, and composable access/modification of product types using the Iso trait abstraction. Includes full documentation and doctest examples.
 - Added `iso_prism.rs`: Iso-based Prism optic for safe, functional, and composable partial access/construction of sum types (enums) using the Iso trait abstraction. Includes full documentation, lawful optic law explanations, and doctest examples.
+- Added `compose` method to both `IsoLens` and `IsoPrism`:
+  - `IsoLens` now supports lawful composition of lenses, enabling deep, type-safe focusing into nested product types.
+  - `IsoPrism` now supports lawful composition of prisms, allowing composable and safe focusing on nested sum type variants.
+  - Both APIs are fully documented with usage examples and adhere to lawful optics principles.
 
 ## [0.6.4] - 2025-04-18
 

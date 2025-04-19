@@ -55,7 +55,7 @@
 //!
 //! See also: [`crate::datatypes::prism`], [`crate::traits::iso::Iso`]
 
-use crate::traits::iso::Iso;
+use crate::traits::iso::{ComposedIso, Iso};
 use std::marker::PhantomData;
 
 /// Iso-based Prism optic.
@@ -114,8 +114,8 @@ use std::marker::PhantomData;
 /// assert_eq!(ok_prism.review(&"new success".to_string()), Result::Ok("new success".to_string()));
 /// ```
 pub struct IsoPrism<S, A, L: Iso<S, Option<A>, From = S, To = Option<A>>> {
-    iso: L,
-    phantom: PhantomData<(S, A)>,
+    pub iso: L,
+    pub phantom: PhantomData<(S, A)>,
 }
 
 impl<S, A, L> IsoPrism<S, A, L>
@@ -256,5 +256,107 @@ where
         A: Clone,
     {
         self.iso.backward(&Some(a.clone()))
+    }
+
+    /// Composes this prism with another prism.
+    ///
+    /// # Arguments
+    /// * `other` - The other prism to compose with.
+    ///
+    /// # Returns
+    /// A new prism that is the composition of this prism and the other prism.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rustica::datatypes::iso_prism::IsoPrism;
+    /// # use rustica::traits::iso::Iso;
+    /// # #[derive(Clone, Debug, PartialEq)]
+    /// # enum MyEnum { Foo(i32), Bar(String) }
+    /// # struct FooPrismIso;
+    /// # impl Iso<MyEnum, Option<i32>> for FooPrismIso {
+    /// #     type From = MyEnum;
+    /// #     type To = Option<i32>;
+    /// #     fn forward(&self, from: &MyEnum) -> Option<i32> {
+    /// #         match from {
+    /// #             MyEnum::Foo(x) => Some(*x),
+    /// #             _ => None,
+    /// #         }
+    /// #     }
+    /// #     fn backward(&self, to: &Option<i32>) -> MyEnum {
+    /// #         match to {
+    /// #             Some(x) => MyEnum::Foo(*x),
+    /// #             None => MyEnum::Bar("default".to_string()),
+    /// #         }
+    /// #     }
+    /// # }
+    /// # struct BarPrismIso;
+    /// # impl Iso<i32, Option<String>> for BarPrismIso {
+    /// #     type From = i32;
+    /// #     type To = Option<String>;
+    /// #     fn forward(&self, from: &i32) -> Option<String> {
+    /// #         Some(from.to_string())
+    /// #     }
+    /// #     fn backward(&self, to: &Option<String>) -> i32 {
+    /// #         to.as_ref().map(|s| s.parse::<i32>().unwrap()).unwrap_or(0)
+    /// #     }
+    /// # }
+    /// let foo_prism = IsoPrism::new(FooPrismIso);
+    /// let bar_prism = IsoPrism::new(BarPrismIso);
+    /// let composed = foo_prism.compose(bar_prism);
+    /// let foo = MyEnum::Foo(10);
+    /// assert_eq!(composed.preview(&foo), Some("10".to_string()));
+    /// ```
+    pub fn compose<B, L2>(self, other: IsoPrism<A, B, L2>) -> ComposedIsoPrism<S, B, L, L2, A>
+    where
+        L2: Iso<A, Option<B>, From = A, To = Option<B>>,
+        S: Clone,
+        A: Clone,
+        B: Clone,
+    {
+        let lifted = LiftedPrismIso {
+            inner: other.iso,
+            phantom: PhantomData,
+        };
+        let composed = ComposedIso {
+            first: self.iso,
+            second: lifted,
+            phantom: PhantomData,
+        };
+        IsoPrism::new(composed)
+    }
+}
+
+type ComposedIsoPrism<S, B, L, L2, A> =
+    IsoPrism<S, B, ComposedIso<L, LiftedPrismIso<L2, A, B>, S, Option<A>, Option<B>>>;
+
+/// Lifts a prism to work with `Option`s.
+///
+/// This struct is used to lift a prism to work with `Option`s, allowing it to be composed with other prisms.
+pub struct LiftedPrismIso<L2, A, B>
+where
+    L2: Iso<A, Option<B>, From = A, To = Option<B>>,
+{
+    pub inner: L2,
+    pub phantom: PhantomData<(A, B)>,
+}
+
+impl<L2, A, B> Iso<Option<A>, Option<B>> for LiftedPrismIso<L2, A, B>
+where
+    L2: Iso<A, Option<B>, From = A, To = Option<B>>,
+    A: Clone,
+    B: Clone,
+{
+    type From = Option<A>;
+    type To = Option<B>;
+
+    fn forward(&self, from: &Option<A>) -> Option<B> {
+        match from {
+            Some(a) => self.inner.forward(a),
+            None => None,
+        }
+    }
+
+    fn backward(&self, to: &Option<B>) -> Option<A> {
+        to.as_ref().map(|b| self.inner.backward(&Some(b.clone())))
     }
 }

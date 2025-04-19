@@ -422,14 +422,74 @@ pub trait Iso<A, B> {
 }
 
 /// An isomorphism created by composing two other isomorphisms.
+///
+/// This type allows chaining two isomorphisms together to create a new isomorphism
+/// that transforms from type `A` to type `C` via an intermediate type `B`.
+///
+/// # Type Parameters
+///
+/// * `ISO1`: An isomorphism from `A` to `B`
+/// * `ISO2`: An isomorphism from `B` to `C`
+/// * `A`: The source type of the composed isomorphism
+/// * `B`: The intermediate type
+/// * `C`: The target type of the composed isomorphism
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::iso::Iso;
+///
+/// // Define isomorphisms for string <-> chars and chars <-> bytes
+/// #[derive(Clone)]
+/// struct StringCharsIso;
+/// #[derive(Clone)]
+/// struct CharsBytesIso;
+///
+/// impl Iso<String, Vec<char>> for StringCharsIso {
+///     type From = String;
+///     type To = Vec<char>;
+///
+///     fn forward(&self, from: &String) -> Vec<char> {
+///         from.chars().collect()
+///     }
+///
+///     fn backward(&self, to: &Vec<char>) -> String {
+///         to.iter().collect()
+///     }
+/// }
+///
+/// impl Iso<Vec<char>, Vec<u8>> for CharsBytesIso {
+///     type From = Vec<char>;
+///     type To = Vec<u8>;
+///
+///     fn forward(&self, from: &Vec<char>) -> Vec<u8> {
+///         from.iter().map(|&c| c as u8).collect()
+///     }
+///
+///     fn backward(&self, to: &Vec<u8>) -> Vec<char> {
+///         to.iter().map(|&b| b as char).collect()
+///     }
+/// }
+///
+/// // Compose the isomorphisms
+/// let string_iso = StringCharsIso;
+/// let bytes_iso = CharsBytesIso;
+/// let composed = string_iso.iso_compose(bytes_iso);
+///
+/// // Use the composed isomorphism
+/// let s = "Hello".to_string();
+/// let bytes = composed.forward(&s);
+/// let original = composed.backward(&bytes);
+/// assert_eq!(original, s);
+/// ```
 pub struct ComposedIso<ISO1, ISO2, A, B, C>
 where
     ISO1: Iso<A, B>,
     ISO2: Iso<B, C>,
 {
-    first: ISO1,
-    second: ISO2,
-    phantom: PhantomData<(A, B, C)>,
+    pub first: ISO1,
+    pub second: ISO2,
+    pub phantom: PhantomData<(A, B, C)>,
 }
 
 impl<ISO1, ISO2, A, B, C> Iso<A, C> for ComposedIso<ISO1, ISO2, A, B, C>
@@ -457,6 +517,50 @@ where
 }
 
 /// An isomorphism that inverts the direction of another isomorphism.
+///
+/// This struct allows you to flip the direction of an existing isomorphism,
+/// effectively swapping the `forward` and `backward` operations.
+///
+/// # Type Parameters
+///
+/// * `ISO` - The original isomorphism type
+/// * `A` - The source type of the original isomorphism
+/// * `B` - The target type of the original isomorphism
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::iso::Iso;
+/// use std::marker::PhantomData;
+///
+/// // Define an isomorphism between String and Vec<char>
+/// #[derive(Clone)]
+/// struct StringVecIso;
+///
+/// impl Iso<String, Vec<char>> for StringVecIso {
+///     type From = String;
+///     type To = Vec<char>;
+///
+///     fn forward(&self, from: &Self::From) -> Self::To {
+///         from.chars().collect()
+///     }
+///
+///     fn backward(&self, to: &Self::To) -> Self::From {
+///         to.iter().collect()
+///     }
+/// }
+///
+/// // Create and use the inverse isomorphism
+/// let iso = StringVecIso;
+/// let inverse = iso.inverse();
+///
+/// let chars = vec!['h', 'e', 'l', 'l', 'o'];
+/// let string = inverse.forward(&chars);
+/// assert_eq!(string, "hello");
+///
+/// let chars2 = inverse.backward(&string);
+/// assert_eq!(chars, chars2);
+/// ```
 pub struct InverseIso<ISO, A, B>
 where
     ISO: Iso<A, B>,
