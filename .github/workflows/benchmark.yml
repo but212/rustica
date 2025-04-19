@@ -3,22 +3,20 @@ name: Rust Benchmarks
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
+  schedule:
+    - cron: '0 3 * * 0'
 
 jobs:
   benchmark:
-    name: Run benchmarks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
-          profile: minimal
-      
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -27,21 +25,17 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      
       - name: Run all benchmarks
         run: cargo bench --features full
-        
-      - name: Save benchmark results
+      - name: Prepare benchmark results
         run: |
           mkdir -p benchmark-results
           cp -r target/criterion benchmark-results/
-      
       - name: Deploy benchmark results to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./benchmark-results
-          keep_files: true
           publish_branch: gh-pages
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
