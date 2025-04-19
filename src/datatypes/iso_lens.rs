@@ -123,7 +123,7 @@ where
     L: Iso<S, A, From = S, To = A>,
 {
     pub iso: L,
-    pub _phantom: std::marker::PhantomData<(S, A)>,
+    pub phantom: std::marker::PhantomData<(S, A)>,
 }
 
 impl<S, A, L> IsoLens<S, A, L>
@@ -170,7 +170,7 @@ where
     pub fn new(iso: L) -> Self {
         Self {
             iso,
-            _phantom: PhantomData,
+            phantom: PhantomData,
         }
     }
 

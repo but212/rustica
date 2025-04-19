@@ -66,6 +66,7 @@ use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
+use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use crate::utils::error_utils;
 
@@ -645,3 +646,28 @@ impl<L: Clone, R: Clone> Identity for Either<L, R> {
 }
 
 impl<L, R> Composable for Either<L, R> {}
+
+impl<L: Default + Clone, R: Clone> MonadPlus for Either<L, R> {
+    fn mzero<U: Clone>() -> Self::Output<U> {
+        Either::Left(L::default().clone())
+    }
+
+    fn mplus(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Either::Right(_), _) => self.clone(),
+            (Either::Left(_), Either::Right(_)) => other.clone(),
+            (Either::Left(_), Either::Left(_)) => self.clone(),
+        }
+    }
+
+    fn mplus_owned(self, other: Self) -> Self
+    where
+        Self: Sized,
+    {
+        match (&self, &other) {
+            (Either::Right(_), _) => self,
+            (Either::Left(_), Either::Right(_)) => other,
+            (Either::Left(_), Either::Left(_)) => self,
+        }
+    }
+}

@@ -61,6 +61,7 @@ use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
+use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use crate::utils::error_utils::{AppError, WithError};
 use std::marker::PhantomData;
@@ -540,6 +541,31 @@ impl<T> Monad for Maybe<T> {
         match self {
             Maybe::Just(m) => m.into(),
             Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+}
+
+impl<T: Clone> MonadPlus for Maybe<T> {
+    fn mzero<U: Clone>() -> Self::Output<U> {
+        Maybe::Nothing
+    }
+
+    fn mplus(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Maybe::Just(_), _) => self.clone(),
+            (Maybe::Nothing, Maybe::Just(_)) => other.clone(),
+            _ => Maybe::Nothing,
+        }
+    }
+
+    fn mplus_owned(self, other: Self) -> Self
+    where
+        Self: Sized,
+    {
+        match (self.clone(), other.clone()) {
+            (Maybe::Just(_), _) => self,
+            (Maybe::Nothing, Maybe::Just(_)) => other,
+            _ => Maybe::Nothing,
         }
     }
 }

@@ -9,6 +9,11 @@
   - `IsoLens` now supports lawful composition of lenses, enabling deep, type-safe focusing into nested product types.
   - `IsoPrism` now supports lawful composition of prisms, allowing composable and safe focusing on nested sum type variants.
   - Both APIs are fully documented with usage examples and adhere to lawful optics principles.
+- **Implemented `MonadPlus` for core datatypes:**
+  - `Maybe<T>`: Provides monadic choice and failure for optional values.
+  - `Either<L, R>`: Enables choice and error accumulation for sum types.
+  - `Validated<E, A>`: Supports error-accumulating monadic choice for validation scenarios.
+  - `Choice<T>`: Allows monadic choice and combination of multiple alternatives.
 
 ## [0.6.4] - 2025-04-18
 
@@ -258,6 +263,3 @@
 - Implemented Free Monad
 - Integrated SendSyncFn, SendSyncFnTrait, ContravariantFn, ExtendFn, MonadFn, and ApplyFn with FnType and FnTrait
 - Implemented Arrow and Category
-
-### Changed
-- Updated version to 0.3.0

@@ -99,7 +99,7 @@ pub type StateCombiner<S, A, B, C> = Box<dyn Fn((S, A), (S, B)) -> (S, C) + Send
 /// ```
 pub struct StateT<S, M, A> {
     run_fn: Arc<dyn Fn(S) -> M + Send + Sync>,
-    _phantom: PhantomData<A>,
+    phantom: PhantomData<A>,
 }
 
 impl<S, M, A> Clone for StateT<S, M, A>
@@ -110,7 +110,7 @@ where
     fn clone(&self) -> Self {
         StateT {
             run_fn: Arc::clone(&self.run_fn),
-            _phantom: PhantomData,
+            phantom: PhantomData,
         }
     }
 }
@@ -155,7 +155,7 @@ where
     {
         StateT {
             run_fn: Arc::new(f),
-            _phantom: PhantomData,
+            phantom: PhantomData,
         }
     }
 

@@ -218,7 +218,7 @@ pub struct ReaderT<E, M, A> {
     /// Internal function that runs with an environment to produce a monadic value
     run_reader_fn: Arc<dyn Fn(E) -> M + Send + Sync>,
     /// Phantom data to track the value type
-    _phantom: PhantomData<A>,
+    phantom: PhantomData<A>,
 }
 
 impl<E, M, A> Clone for ReaderT<E, M, A>
@@ -229,7 +229,7 @@ where
     fn clone(&self) -> Self {
         ReaderT {
             run_reader_fn: self.run_reader_fn.clone(),
-            _phantom: PhantomData,
+            phantom: PhantomData,
         }
     }
 }
@@ -274,7 +274,7 @@ where
     {
         ReaderT {
             run_reader_fn: Arc::new(f),
-            _phantom: PhantomData,
+            phantom: PhantomData,
         }
     }
 

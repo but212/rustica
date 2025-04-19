@@ -95,6 +95,7 @@ use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
+use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use smallvec::SmallVec;
 
@@ -723,8 +724,8 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// ```rust
     /// use rustica::datatypes::validated::Validated;
     ///
-    /// let valid: Validated<&str, i32> = Validated::invalid("error");
-    /// assert_eq!(valid.unwrap_invalid() , vec!["error"]);
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert_eq!(invalid.unwrap_invalid() , vec!["error"]);
     /// ```
     ///
     /// # Panics
@@ -1568,6 +1569,43 @@ impl<E, A> Foldable for Validated<E, A> {
         match self {
             Validated::Valid(a) => f(a, init),
             _ => init.clone(),
+        }
+    }
+}
+
+impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
+    fn mzero<U: Clone>() -> Self::Output<U> {
+        Validated::invalid_vec(Vec::new())
+    }
+
+    fn mplus(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Validated::Valid(_), _) => self.clone(),
+            (Validated::SingleInvalid(_), Validated::Valid(_))
+            | (Validated::MultiInvalid(_), Validated::Valid(_)) => other.clone(),
+            (Validated::SingleInvalid(_), Validated::SingleInvalid(_))
+            | (Validated::SingleInvalid(_), Validated::MultiInvalid(_))
+            | (Validated::MultiInvalid(_), Validated::SingleInvalid(_))
+            | (Validated::MultiInvalid(_), Validated::MultiInvalid(_)) => {
+                self.combine_errors(other)
+            },
+        }
+    }
+
+    fn mplus_owned(self, other: Self) -> Self
+    where
+        Self: Sized,
+    {
+        match (&self, &other) {
+            (Validated::Valid(_), _) => self,
+            (Validated::SingleInvalid(_), Validated::Valid(_))
+            | (Validated::MultiInvalid(_), Validated::Valid(_)) => other,
+            (Validated::SingleInvalid(_), Validated::SingleInvalid(_))
+            | (Validated::SingleInvalid(_), Validated::MultiInvalid(_))
+            | (Validated::MultiInvalid(_), Validated::SingleInvalid(_))
+            | (Validated::MultiInvalid(_), Validated::MultiInvalid(_)) => {
+                self.combine_errors(&other)
+            },
         }
     }
 }

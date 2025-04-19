@@ -62,6 +62,7 @@ use crate::prelude::*;
 use crate::traits::applicative::Applicative;
 use crate::traits::foldable::Foldable;
 use crate::traits::monad::Monad;
+use crate::traits::monad_plus::MonadPlus;
 use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
@@ -1303,6 +1304,32 @@ impl<T: Clone> Alternative for Choice<T> {
         } else {
             let primary = vec![self.first().unwrap().clone()];
             Choice::new(primary, vec![])
+        }
+    }
+}
+
+impl<T: Clone> MonadPlus for Choice<T> {
+    fn mzero<U: Clone>() -> Self::Output<U> {
+        Choice::new_empty()
+    }
+
+    fn mplus(&self, other: &Self) -> Self {
+        if self.is_empty() {
+            other.clone()
+        } else if other.is_empty() {
+            self.clone()
+        } else {
+            self.combine(other)
+        }
+    }
+
+    fn mplus_owned(self, other: Self) -> Self {
+        if self.is_empty() {
+            other
+        } else if other.is_empty() {
+            self
+        } else {
+            self.combine_owned(other)
         }
     }
 }
