@@ -15,6 +15,13 @@
   - `Validated<E, A>`: Supports error-accumulating monadic choice for validation scenarios.
   - `Choice<T>`: Allows monadic choice and combination of multiple alternatives.
 
+### Changed
+- **Enhanced `NaturalTransformation` trait:**
+  - Added extensive documentation and usage examples.
+  - Provided both reference-based (`transform`) and ownership-based (`transform_owned`) transformation methods.
+  - Introduced `identity_nat` utility for the identity natural transformation.
+  - Improved trait bounds and ergonomics for real-world use.
+
 ## [0.6.4] - 2025-04-18
 
 ### Changed
