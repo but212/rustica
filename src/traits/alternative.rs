@@ -23,32 +23,129 @@
 //! - Representing failure and recovery in computations
 //! - Parsing with multiple possible alternatives
 //! - Collecting multiple possible results
-
+//!
+//! ## Example
+//!
+//! ```rust
+//! use rustica::traits::alternative::Alternative;
+//!
+//! // Vec as Alternative
+//! let a = vec![1, 2];
+//! let b = vec![3, 4];
+//! let empty: Vec<i32> = <Vec<i32> as Alternative>::empty_alt::<i32>();
+//!
+//! // alt combines alternatives
+//! assert_eq!(a.alt(&b), vec![1, 2]);
+//! assert_eq!(empty.alt(&b), vec![3, 4]);
+//!
+//! // guard for conditional inclusion
+//! assert_eq!(Vec::<i32>::guard(true), vec![()]);
+//! assert_eq!(Vec::<i32>::guard(false), Vec::<()>::new());
+//!
+//! // many for repetition (Vec only)
+//! let xs = vec![42];
+//! assert_eq!(xs.many(), vec![vec![42]]);
+//! ```
 use crate::traits::applicative::Applicative;
 
 /// A trait for types that provide an alternative computation strategy.
 ///
 /// `Alternative` extends `Applicative` with operations for choice and failure.
+/// It represents applicative functors that also have a monoid structure.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::traits::alternative::Alternative;
+/// use rustica::traits::pure::Pure;
+///
+/// // Using Option as an Alternative
+/// let some_value: Option<i32> = Some(42);
+/// let none_value: Option<i32> = None;
+///
+/// // The alt method provides choice between alternatives
+/// assert_eq!(some_value.alt(&none_value), Some(42));
+/// assert_eq!(none_value.alt(&some_value), Some(42));
+///
+/// // The empty_alt method represents failure
+/// assert_eq!(Option::<i32>::empty_alt::<i32>(), None);
+///
+/// // Using guard for conditional computation
+/// assert_eq!(Option::<i32>::guard(true), Some(()));
+/// assert_eq!(Option::<i32>::guard(false), None);
+/// ```
 pub trait Alternative: Applicative {
     /// Returns an empty value representing failure for the alternative computation.
-    fn empty_alt<T>() -> Self::Output<T>;
+    ///
+    /// This is the identity element for the `alt` operation.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::alternative::Alternative;
+    ///
+    /// assert_eq!(Option::<i32>::empty_alt::<i32>(), None);
+    /// assert_eq!(Vec::<i32>::empty_alt::<i32>(), Vec::new());
+    /// ```
+    fn empty_alt<T: Clone>() -> Self::Output<T>;
 
     /// Combines two alternatives, choosing the first success.
     ///
     /// If `self` succeeds, it is returned. Otherwise, `other` is used.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::alternative::Alternative;
+    ///
+    /// let a = Some(1);
+    /// let b = Some(2);
+    /// let c: Option<i32> = None;
+    ///
+    /// assert_eq!(a.alt(&b), Some(1));
+    /// assert_eq!(c.alt(&b), Some(2));
+    /// assert_eq!(c.alt(&c), None);
+    /// ```
     fn alt(&self, other: &Self) -> Self
     where
         Self: Sized + Clone;
 
-    /// Creates a conditional computation.
+    /// Returns a value if the condition is true, otherwise returns the empty value.
     ///
-    /// Returns an empty alternative if the condition is false, or a successful
-    /// unit value if true.
+    /// # Laws
+    ///
+    /// - Identity: `Alternative::guard(true)` is not empty, `Alternative::guard(false)` is empty.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustica::traits::alternative::Alternative;
+    /// assert_eq!(Vec::<i32>::guard(true), vec![()]);
+    /// assert_eq!(Vec::<i32>::guard(false), Vec::<()>::new());
+    /// assert_eq!(Option::<i32>::guard(true), Some(()));
+    /// assert_eq!(Option::<i32>::guard(false), None);
+    /// ```
     fn guard(condition: bool) -> Self::Output<()>;
 
-    /// Applies the alternative computation zero or more times.
+    /// Repeats the structure zero or more times, collecting the results.
     ///
-    /// Returns a vector of all successful results.
+    /// # Laws
+    ///
+    /// - many(empty) == empty
+    /// - many(x) for non-empty x yields a collection containing x
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustica::traits::alternative::Alternative;
+    /// let empty: Vec<i32> = Vec::new();
+    /// assert_eq!(empty.many(), Vec::<Vec<i32>>::new());
+    /// let xs = vec![1,2];
+    /// assert_eq!(xs.many(), vec![vec![1,2]]);
+    ///
+    /// let none: Option<i32> = None;
+    /// let some = Some(42);
+    /// assert_eq!(none.many(), None);
+    /// assert_eq!(some.many(), Some(vec![42]));
+    /// ```
     fn many(&self) -> Self::Output<Vec<Self::Source>>
     where
         Self::Source: Clone;

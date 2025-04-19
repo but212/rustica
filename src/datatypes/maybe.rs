@@ -54,6 +54,7 @@
 //! });  // Maybe::Just(420)
 //! ```
 
+use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::comonad::Comonad;
 use crate::traits::composable::Composable;
@@ -566,6 +567,37 @@ impl<T: Clone> MonadPlus for Maybe<T> {
             (Maybe::Just(_), _) => self,
             (Maybe::Nothing, Maybe::Just(_)) => other,
             _ => Maybe::Nothing,
+        }
+    }
+}
+
+impl<T: Clone> Alternative for Maybe<T> {
+    fn empty_alt<U>() -> Self::Output<U> {
+        Maybe::Nothing
+    }
+
+    fn alt(&self, other: &Self) -> Self {
+        match self {
+            Maybe::Just(_) => self.clone(),
+            Maybe::Nothing => other.clone(),
+        }
+    }
+
+    fn guard(condition: bool) -> Self::Output<()> {
+        if condition {
+            Maybe::Just(())
+        } else {
+            Maybe::Nothing
+        }
+    }
+
+    fn many(&self) -> Self::Output<Vec<Self::Source>>
+    where
+        Self::Source: Clone,
+    {
+        match self {
+            Maybe::Just(x) => Maybe::Just(vec![x.clone()]),
+            Maybe::Nothing => Maybe::Nothing,
         }
     }
 }

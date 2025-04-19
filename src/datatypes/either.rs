@@ -60,6 +60,7 @@
 //!     let chained = right_val.bind(|x| Either::right(x.to_string()));  // Either::Right("42")
 //! }
 
+use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::composable::Composable;
 use crate::traits::functor::Functor;
@@ -668,6 +669,37 @@ impl<L: Default + Clone, R: Clone> MonadPlus for Either<L, R> {
             (Either::Right(_), _) => self,
             (Either::Left(_), Either::Right(_)) => other,
             (Either::Left(_), Either::Left(_)) => self,
+        }
+    }
+}
+
+impl<L: Default + Clone, R: Clone> Alternative for Either<L, R> {
+    fn empty_alt<B>() -> Self::Output<B> {
+        Either::Left(L::default())
+    }
+
+    fn alt(&self, other: &Self) -> Self {
+        match self {
+            Either::Right(_) => self.clone(),
+            Either::Left(_) => other.clone(),
+        }
+    }
+
+    fn guard(condition: bool) -> Self::Output<()> {
+        if condition {
+            Either::Right(())
+        } else {
+            Either::Left(L::default())
+        }
+    }
+
+    fn many(&self) -> Self::Output<Vec<Self::Source>>
+    where
+        Self::Source: Clone,
+    {
+        match self {
+            Either::Right(x) => Either::Right(vec![x.clone()]),
+            Either::Left(_) => Either::Left(L::default()),
         }
     }
 }

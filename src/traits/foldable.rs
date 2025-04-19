@@ -93,17 +93,6 @@
 //!
 //! - **Monoid**: `Foldable` frequently uses monoid operations to combine elements during folding,
 //!   making `Monoid` a natural companion trait.
-//!
-//! ## TODO: Future Improvements
-//!
-//! - **Additional Implementations**: Add implementations for more data structures (e.g., trees, custom containers)
-//! - **Advanced Fold Variants**: Implement specialized fold operations like `fold_map_m` for monadic operations
-//! - **Performance Optimization**: Add inline attributes and optimize fold operations for common cases
-//! - **Lazy Evaluation**: Support for lazy folding to avoid unnecessary computation
-//! - **Integration with Other Traits**: Enhance interoperability with Functor, Monoid, and other traits
-//! - **Extension Methods**: Expand FoldableExt trait with additional utility methods
-//! - **Parallel Folding**: Support for parallel fold operations on large data structures
-//! - **Documentation Examples**: Add more comprehensive examples demonstrating practical use cases
 
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;

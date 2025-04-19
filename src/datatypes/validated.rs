@@ -87,6 +87,7 @@
 //! combining multiple validations while accumulating errors. This is particularly useful for
 //! form validation, configuration validation, or any scenario where you want to report all
 //! errors at once rather than one at a time.
+use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::composable::Composable;
@@ -1569,6 +1570,39 @@ impl<E, A> Foldable for Validated<E, A> {
         match self {
             Validated::Valid(a) => f(a, init),
             _ => init.clone(),
+        }
+    }
+}
+
+impl<E: Clone + Default, A: Clone> Alternative for Validated<E, A> {
+    fn empty_alt<B: Clone>() -> Self::Output<B> {
+        Validated::invalid(E::default())
+    }
+
+    fn alt(&self, other: &Self) -> Self {
+        match self {
+            Validated::Valid(_) => self.clone(),
+            Validated::SingleInvalid(_) => other.clone(),
+            Validated::MultiInvalid(_) => other.clone(),
+        }
+    }
+
+    fn guard(condition: bool) -> Self::Output<()> {
+        if condition {
+            Validated::valid(())
+        } else {
+            Validated::invalid(E::default())
+        }
+    }
+
+    fn many(&self) -> Self::Output<Vec<Self::Source>>
+    where
+        Self::Source: Clone,
+    {
+        match self {
+            Validated::Valid(x) => Validated::valid(vec![x.clone()]),
+            Validated::SingleInvalid(_) => Validated::invalid(E::default()),
+            Validated::MultiInvalid(_) => Validated::invalid(E::default()),
         }
     }
 }

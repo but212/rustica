@@ -14,6 +14,10 @@
   - `Either<L, R>`: Enables choice and error accumulation for sum types.
   - `Validated<E, A>`: Supports error-accumulating monadic choice for validation scenarios.
   - `Choice<T>`: Allows monadic choice and combination of multiple alternatives.
+- Implemented the `Alternative` trait for four core datatypes:
+  - `Maybe<T>`: Optional value type, now supports `Alternative` for expressive failure and choice handling.
+  - `Either<L, R>`: Sum type for error/success, now supports `Alternative` (with `L: Default`) for left-bias failure and right-bias success.
+  - `Validated<E, A>`: Validation type with error accumulation, now supports `Alternative` (with `E: Default`) for combining validations and handling failure cases.
 
 ### Changed
 - **Enhanced `NaturalTransformation` trait:**
