@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Added
+- Added `iso_lens.rs`: Iso-based Lens optic for safe, functional, and composable access/modification of product types using the Iso trait abstraction. Includes full documentation and doctest examples.
+- Added `iso_prism.rs`: Iso-based Prism optic for safe, functional, and composable partial access/construction of sum types (enums) using the Iso trait abstraction. Includes full documentation, lawful optic law explanations, and doctest examples.
+
 ## [0.6.4] - 2025-04-18
 
 ### Changed

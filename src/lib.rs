@@ -163,8 +163,14 @@ pub mod datatypes {
     /// Prism implementation for focusing on particular variants of a sum type.
     pub mod prism;
 
+    /// Prism implementation for focusing on particular variants of a sum type.
+    pub mod iso_prism;
+
     /// Lens implementation for focusing on parts of product types.
     pub mod lens;
+
+    /// IsoLens implementation for focusing on parts of product types.
+    pub mod iso_lens;
 
     /// Choice type representing multiple alternatives.
     pub mod choice;
