@@ -6,17 +6,13 @@ on:
     tags:
       - 'v*'
   pull_request:
-    branches: [main, develop]
-  schedule:
-    - cron: '0 0 * * 0'
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: -D warnings
 
 jobs:
   test:
-    if: github.event_name != 'schedule' && (github.event_name == 'push' || github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +28,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-build-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Clippy
@@ -41,6 +37,25 @@ jobs:
         run: cargo build --release --all-features
       - name: Run tests
         run: cargo test --release --all-features
+
+  build-docs:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
       - name: Build docs
         run: cargo doc --all-features --no-deps
 
