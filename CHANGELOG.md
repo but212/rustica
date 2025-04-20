@@ -28,6 +28,14 @@
   assert_eq!(flat.alternatives(), &[1, 2, 4, 5]);
   ```
 
+- Implemented iterator support for all core datatypes:
+  - **Maybe<T>**: `IntoIterator` for owned, shared, and mutable references. Iterates over the value if present (like `Option`).
+  - **Validated<E, A>**: `IntoIterator` for owned, shared, and mutable references. Iterates over the valid value if present (0 or 1 item).
+  - **Id<T>**: `IntoIterator` for owned, shared, and mutable references. Always yields the single wrapped value.
+  - **Writer<W, A>**: `IntoIterator` for owned, shared, and mutable references. Iterates over the value, log is ignored.
+  - **Either<L, R>**: `IntoIterator` for owned, shared, and mutable references. Iterates over the right value if present (0 or 1 item). Left-iterators (`left_iter`, etc.) are also provided for ergonomic access to the left value.
+- All iterator implementations are documented with usage examples and tested for ergonomic, idiomatic Rust usage.
+
 ### Changed
 - **[Breaking] Changed `Choice<T>::flatten()` behavior:**
   - Previously, `flatten()` always returned alternatives in sorted order (requiring `Ord`).

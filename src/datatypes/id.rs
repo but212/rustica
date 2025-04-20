@@ -51,6 +51,18 @@
 //! let pure_value = Id::<i32>::pure(&100);
 //! assert_eq!(*pure_value.value(), 100);
 //! ```
+//!
+//! ## Iterator Example
+//!
+//! Iterating over an Id yields its value exactly once.
+//!
+//! ```rust
+//! use rustica::datatypes::id::Id;
+//! let id = Id::new(42);
+//! let mut iter = id.into_iter();
+//! assert_eq!(iter.next(), Some(42));
+//! assert_eq!(iter.next(), None);
+//! ```
 use crate::traits::{
     applicative::Applicative, comonad::Comonad, composable::Composable, foldable::Foldable,
     functor::Functor, hkt::HKT, identity::Identity, monad::Monad, monoid::Monoid, pure::Pure,
@@ -122,7 +134,7 @@ use crate::traits::{
 ///     .fmap(|n| n * 2)     // 6 -> 12
 ///     .fmap(|n| n.to_string());
 /// assert_eq!(*result.value(), "12");
-/// ```
+///
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 #[must_use = "This is a pure value wrapper which does nothing unless used"]
@@ -174,6 +186,11 @@ impl<T> Id<T> {
     #[inline(always)]
     pub fn into_inner(self) -> T {
         self.value
+    }
+
+    /// Returns a mutable reference to the inner value.
+    pub fn value_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 
     /// Sequences two Id operations, discarding the first result.
@@ -443,5 +460,33 @@ impl<T: Default> Default for Id<T> {
     #[inline]
     fn default() -> Self {
         Id::new(T::default())
+    }
+}
+
+// Iterator support: iterates over the value, always yields exactly one item.
+impl<T> IntoIterator for Id<T> {
+    type Item = T;
+    type IntoIter = std::option::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Some(self.into_inner()).into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Id<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        std::slice::from_ref(self.value()).iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Id<T> {
+    type Item = &'a mut T;
+    type IntoIter = std::slice::IterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        std::slice::from_mut(self.value_mut()).iter_mut()
     }
 }

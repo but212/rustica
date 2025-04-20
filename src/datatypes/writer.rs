@@ -79,7 +79,7 @@
 //! assert_eq!(log, Log(vec!["Computed value".to_string()]));
 //! ```
 //!
-//! # Iterator Example
+//! ### Iterator Example
 //!
 //! Iterating over a Writer yields its value once (if present), ignoring the log.
 //!
