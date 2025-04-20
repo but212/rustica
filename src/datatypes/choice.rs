@@ -356,7 +356,8 @@ impl<T> Choice<T> {
         P: Fn(&T) -> bool,
         T: Clone,
     {
-        let filtered: SmallVec<[T; 8]> = self.iter().filter(|v| predicate(v)).cloned().collect();
+        let filtered: SmallVec<[T; 8]> =
+            self.values.iter().filter(|v| predicate(v)).cloned().collect();
 
         match filtered.len() {
             0 => Self::new_empty(),
@@ -400,10 +401,7 @@ impl<T> Choice<T> {
         let values = self.values.as_ref();
         let primary = values[0].clone();
 
-        let mut alternatives: SmallVec<[T; 8]> = SmallVec::with_capacity(values.len() - 1);
-        for i in 1..values.len() {
-            alternatives.push(f(&values[i]));
-        }
+        let alternatives: SmallVec<[T; 8]> = values[1..].iter().map(f).collect();
 
         let mut new_values = SmallVec::with_capacity(values.len());
         new_values.push(primary);
@@ -442,7 +440,7 @@ impl<T> Choice<T> {
     /// let flattened = nested.flatten();
     ///
     /// assert_eq!(*flattened.first().unwrap(), 1);
-    /// assert_eq!(flattened.alternatives(), &[2, 3, 4, 5]);
+    /// assert_eq!(flattened.alternatives(), &[3, 4, 5, 2]);
     /// ```
     #[inline]
     pub fn flatten<I>(&self) -> Choice<I>
@@ -459,28 +457,77 @@ impl<T> Choice<T> {
 
         match primary_iter.next() {
             Some(first_item) => {
-                // Pre-calculate total capacity needed
-                let alternatives_count = self
-                    .alternatives()
-                    .iter()
-                    .map(|alt| alt.clone().into_iter().size_hint().0)
-                    .sum::<usize>();
-
-                // Add remaining items from primary + space for all alternatives
-                let total_capacity = primary_iter.size_hint().0 + alternatives_count;
-                let mut alternatives = SmallVec::<[I; 8]>::with_capacity(total_capacity);
-
-                // Add remaining items from the primary value
-                alternatives.extend(primary_iter);
-
-                // Add all items from all alternatives
-                for alt in self.alternatives() {
-                    alternatives.extend(alt.clone().into_iter());
-                }
+                // Collect all remaining items from primary and all alternatives
+                let alternatives = self.values.iter()
+                    .skip(1)  // Skip the primary value
+                    .flat_map(|val| val.clone().into_iter())
+                    .chain(primary_iter)  // Add remaining items from primary
+                    .collect::<SmallVec<[I; 8]>>();
 
                 Choice::new(first_item, alternatives)
             },
             None => panic!("Primary value was an empty iterator in Choice::flatten"),
+        }
+    }
+
+    /// Flattens a `Choice` of iterable items into a sorted `Choice` of individual items.
+    ///
+    /// Similar to `flatten()`, but sorts the alternatives according to their natural order.
+    /// The first item of the primary value becomes the new primary value, and all other items
+    /// (including those from alternatives) are sorted and collected into the new alternatives.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T`: The original type, which must be clonable and iterable.
+    /// * `I`: The item type of the iterable, which must be clonable and implement `Ord`.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice<I>` with flattened and sorted alternatives.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the primary value is an empty iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let nested = Choice::new(vec![3, 1], vec![vec![4, 2], vec![5]]);
+    /// let flattened = nested.flatten_sorted();
+    ///
+    /// assert_eq!(*flattened.first().unwrap(), 3);
+    /// assert_eq!(flattened.alternatives(), &[1, 2, 4, 5]);
+    /// ```
+    #[inline]
+    pub fn flatten_sorted<I>(&self) -> Choice<I>
+    where
+        T: IntoIterator<Item = I> + Clone,
+        I: Clone + Ord,
+    {
+        if self.values.is_empty() {
+            return Choice::new_empty();
+        }
+
+        let primary = self.first().unwrap().clone();
+        let mut primary_iter = primary.into_iter();
+
+        match primary_iter.next() {
+            Some(first_item) => {
+                // Collect all remaining items from primary and all alternatives
+                let mut alternatives = self.values.iter()
+                    .skip(1)  // Skip the primary value
+                    .flat_map(|val| val.clone().into_iter())
+                    .chain(primary_iter)  // Add remaining items from primary
+                    .collect::<SmallVec<[I; 8]>>();
+
+                // Sort the alternatives
+                alternatives.sort();
+
+                Choice::new(first_item, alternatives)
+            },
+            None => panic!("Primary value was an empty iterator in Choice::flatten_sorted"),
         }
     }
 
@@ -510,21 +557,14 @@ impl<T> Choice<T> {
         I: IntoIterator<Item = T>,
         T: Clone,
     {
-        let mut iter = many.into_iter();
+        let values: SmallVec<[T; 8]> = many.into_iter().collect();
 
-        if let Some(first) = iter.next() {
-            // Try to get a size hint for capacity planning
-            let (lower, _) = iter.size_hint();
-            let mut values = SmallVec::<[T; 8]>::with_capacity(lower + 1);
-
-            values.push(first);
-            values.extend(iter);
-
+        if values.is_empty() {
+            Self::new_empty()
+        } else {
             Self {
                 values: Arc::new(values),
             }
-        } else {
-            Self::new_empty()
         }
     }
 
@@ -558,7 +598,8 @@ impl<T> Choice<T> {
         T: Clone,
         F: Fn(&T) -> bool,
     {
-        let filtered: SmallVec<[T; 8]> = self.iter().filter(|v| predicate(v)).cloned().collect();
+        let filtered: SmallVec<[T; 8]> =
+            self.values.iter().filter(|v| predicate(v)).cloned().collect();
 
         match filtered.len() {
             0 => Self::new_empty(),
@@ -704,7 +745,7 @@ impl<T: Clone> Functor for Choice<T> {
 
         let values = self.values.as_ref();
         let primary = f(&values[0]);
-        let alternatives: Vec<B> = values[1..].iter().map(f).collect();
+        let alternatives: SmallVec<[B; 8]> = values[1..].iter().map(f).collect();
 
         Choice::new(primary, alternatives)
     }
@@ -722,7 +763,7 @@ impl<T: Clone> Functor for Choice<T> {
             Ok(mut values) => {
                 let mut f = f;
                 let primary = f(values.remove(0));
-                let alternatives: Vec<B> = values.into_iter().map(f).collect();
+                let alternatives: SmallVec<[B; 8]> = values.into_iter().map(f).collect();
                 Choice::new(primary, alternatives)
             },
             Err(arc) => {
@@ -948,17 +989,11 @@ impl<T: Clone> Semigroup for Choice<T> {
         // Take the primary value from self
         let primary = self_values[0].clone();
 
-        // Calculate capacity for alternatives
-        let capacity = self_values.len() - 1 + other_values.len();
-        let mut alternatives = Vec::with_capacity(capacity);
-
-        // Add self alternatives (excluding primary)
-        alternatives.extend_from_slice(&self_values[1..]);
-
-        // Add all other values (including primary)
-        alternatives.extend_from_slice(other_values);
-
-        Choice::new(primary, alternatives)
+        // Create a new Choice using iterators instead of extending vectors
+        Choice::new(
+            primary,
+            self_values[1..].iter().cloned().chain(other_values.iter().cloned()),
+        )
     }
 
     #[inline]
@@ -974,34 +1009,18 @@ impl<T: Clone> Semigroup for Choice<T> {
         match Arc::try_unwrap(self.values) {
             Ok(mut self_values) => {
                 let primary = self_values.remove(0);
-
-                // Calculate capacity for alternatives
-                let capacity = self_values.len() + other.values.len();
-                let mut alternatives = Vec::with_capacity(capacity);
-
-                // Add self alternatives
-                alternatives.extend(self_values);
-
-                // Add all other values
-                alternatives.extend_from_slice(other.values.as_ref());
-
-                Choice::new(primary, alternatives)
+                Choice::new(
+                    primary,
+                    self_values.into_iter().chain(other.values.as_ref().iter().cloned()),
+                )
             },
             Err(arc) => {
                 let self_values = arc.as_ref();
                 let primary = self_values[0].clone();
-
-                // Calculate capacity for alternatives
-                let capacity = self_values.len() - 1 + other.values.len();
-                let mut alternatives = Vec::with_capacity(capacity);
-
-                // Add self alternatives (excluding primary)
-                alternatives.extend_from_slice(&self_values[1..]);
-
-                // Add all other values
-                alternatives.extend_from_slice(other.values.as_ref());
-
-                Choice::new(primary, alternatives)
+                Choice::new(
+                    primary,
+                    self_values[1..].iter().cloned().chain(other.values.as_ref().iter().cloned()),
+                )
             },
         }
     }
@@ -1030,25 +1049,15 @@ impl<T: Clone> Applicative for Choice<T> {
 
         let primary = f_first(&self_values[0]);
 
-        // Calculate capacity for alternatives vector
-        let capacity = (f_values.len() - 1) + (self_values.len() - 1) * f_values.len();
-        let mut alternatives = Vec::with_capacity(capacity);
-
-        // First, apply additional functions to the primary value (f[1..] with self[0])
-        for f_alt in &f_values[1..] {
-            alternatives.push(f_alt(&self_values[0]));
-        }
-
-        // Then self[1..] with all of f
-        for self_alt in &self_values[1..] {
-            // First apply the primary function to self alternatives
-            alternatives.push(f_first(self_alt));
-
-            // Then apply alternative functions to self alternatives
-            for f_alt in &f_values[1..] {
-                alternatives.push(f_alt(self_alt));
-            }
-        }
+        // Apply additional functions to primary value + apply all functions to all alternatives
+        let alternatives: SmallVec<[B; 8]> = f_values[1..]
+            .iter()
+            .map(|f_alt| f_alt(&self_values[0]))
+            .chain(self_values[1..].iter().flat_map(|self_alt| {
+                std::iter::once(f_first(self_alt))
+                    .chain(f_values[1..].iter().map(move |f_alt| f_alt(self_alt)))
+            }))
+            .collect();
 
         Choice::new(primary, alternatives)
     }
@@ -1063,64 +1072,52 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
+        let f_values = f.values;
+
         match Arc::try_unwrap(self.values) {
             Ok(mut self_values) => {
-                let f_values = f.values.as_ref();
-                let f_first = &f_values[0];
-
-                let first_value = self_values.remove(0);
+                let f_first = &f_values.as_ref()[0];
+                let first_value = self_values[0].clone();
                 let primary = f_first(first_value);
 
-                // Calculate capacity for alternatives vector
-                let capacity = (f_values.len() - 1) + self_values.len() * f_values.len();
-                let mut alternatives = Vec::with_capacity(capacity);
+                // Apply functions to primary value
+                let primary_alternatives: SmallVec<[B; 8]> = f_values.as_ref()[1..]
+                    .iter()
+                    .map(|f_alt| f_alt(self_values[0].clone()))
+                    .collect();
 
-                // First, apply additional functions to the primary value (f[1..] with self[0])
-                for f_alt in &f_values[1..] {
-                    if !self_values.is_empty() {
-                        alternatives.push(f_alt(self_values[0].clone()));
-                    }
-                }
+                // Apply all functions to all alternative values
+                let remaining_values = self_values.drain(1..).collect::<Vec<_>>();
+                let other_alternatives: SmallVec<[B; 8]> = remaining_values
+                    .into_iter()
+                    .flat_map(|self_alt| {
+                        std::iter::once(f_first(self_alt.clone())).chain(
+                            f_values.as_ref()[1..].iter().map(move |f_alt| f_alt(self_alt.clone())),
+                        )
+                    })
+                    .collect();
 
-                // Then self[1..] with all of f
-                for self_alt in self_values {
-                    // First apply the primary function to self alternatives
-                    alternatives.push(f_first(self_alt.clone()));
+                // Combine all alternatives
+                let all_alternatives: SmallVec<[B; 8]> =
+                    primary_alternatives.into_iter().chain(other_alternatives).collect();
 
-                    // Then apply alternative functions to self alternatives
-                    for f_alt in &f_values[1..] {
-                        alternatives.push(f_alt(self_alt.clone()));
-                    }
-                }
-
-                Choice::new(primary, alternatives)
+                Choice::new(primary, all_alternatives)
             },
             Err(arc) => {
                 let self_values = arc.as_ref();
-                let f_values = f.values.as_ref();
-                let f_first = &f_values[0];
-
+                let f_first = &f_values.as_ref()[0];
                 let primary = f_first(self_values[0].clone());
 
-                // Calculate capacity for alternatives vector
-                let capacity = (f_values.len() - 1) + (self_values.len() - 1) * f_values.len();
-                let mut alternatives = Vec::with_capacity(capacity);
-
-                // First, apply additional functions to the primary value (f[1..] with self[0])
-                for f_alt in &f_values[1..] {
-                    alternatives.push(f_alt(self_values[0].clone()));
-                }
-
-                // Then self[1..] with all of f
-                for self_alt in &self_values[1..] {
-                    // First apply the primary function to self alternatives
-                    alternatives.push(f_first(self_alt.clone()));
-
-                    // Then apply alternative functions to self alternatives
-                    for f_alt in &f_values[1..] {
-                        alternatives.push(f_alt(self_alt.clone()));
-                    }
-                }
+                // Apply all functions to all values using iterators
+                let alternatives: SmallVec<[B; 8]> = f_values.as_ref()[1..]
+                    .iter()
+                    .map(|f_alt| f_alt(self_values[0].clone()))
+                    .chain(self_values[1..].iter().flat_map(|self_alt| {
+                        std::iter::once(f_first(self_alt.clone())).chain(
+                            f_values.as_ref()[1..].iter().map(move |f_alt| f_alt(self_alt.clone())),
+                        )
+                    }))
+                    .collect();
 
                 Choice::new(primary, alternatives)
             },
@@ -1137,7 +1134,6 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
-        // Get references to the values
         let self_values = self.values.as_ref();
         let b_values = b.values.as_ref();
 
@@ -1145,7 +1141,7 @@ impl<T: Clone> Applicative for Choice<T> {
 
         // Calculate capacity for alternatives vector
         let capacity = self_values.len() * b_values.len() - 1;
-        let mut alternatives = Vec::with_capacity(capacity);
+        let mut alternatives = SmallVec::<[C; 8]>::with_capacity(capacity);
 
         for (i, self_val) in self_values.iter().enumerate() {
             for (j, b_val) in b_values.iter().enumerate() {
@@ -1169,20 +1165,21 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
-        let primary = f(
-            self.values.as_ref()[0].clone(),
-            b.values.as_ref()[0].clone(),
-        );
+        let self_values = self.values;
+        let b_values = b.values;
 
-        let capacity = self.len() * b.len() - 1;
-        let mut alternatives = Vec::with_capacity(capacity);
+        let primary = f(self_values[0].clone(), b_values[0].clone());
 
-        for (i, a) in self.iter().enumerate() {
-            for (j, b_val) in b.iter().enumerate() {
+        // Calculate capacity for alternatives vector
+        let capacity = self_values.len() * b_values.len() - 1;
+        let mut alternatives = SmallVec::<[C; 8]>::with_capacity(capacity);
+
+        for (i, self_val) in self_values.iter().enumerate() {
+            for (j, b_val) in b_values.iter().enumerate() {
                 if i == 0 && j == 0 {
                     continue; // Skip primary
                 }
-                alternatives.push(f(a.clone(), b_val.clone()));
+                alternatives.push(f(self_val.clone(), b_val.clone()));
             }
         }
 
@@ -1209,7 +1206,7 @@ impl<T: Clone> Applicative for Choice<T> {
 
         // Calculate capacity for alternatives vector
         let capacity = self_values.len() * b_values.len() * c_values.len() - 1;
-        let mut alternatives = Vec::with_capacity(capacity);
+        let mut alternatives = SmallVec::<[D; 8]>::with_capacity(capacity);
 
         for (i, self_val) in self_values.iter().enumerate() {
             for (j, b_val) in b_values.iter().enumerate() {
@@ -1239,9 +1236,9 @@ impl<T: Clone> Applicative for Choice<T> {
         }
 
         let primary = f(
-            self.values.as_ref()[0].clone(),
-            b.values.as_ref()[0].clone(),
-            c.values.as_ref()[0].clone(),
+            self.values[0].clone(),
+            b.values[0].clone(),
+            c.values[0].clone(),
         );
 
         let capacity = self.len() * b.len() * c.len() - 1;
@@ -1275,12 +1272,14 @@ impl<T: Clone> Alternative for Choice<T> {
             return self.clone();
         }
 
-        // Create a new choice with self's primary and all values
-        let mut values = Vec::with_capacity(self.values.len() + other.values.len());
-        values.extend_from_slice(self.values.as_ref());
-        values.extend_from_slice(other.values.as_ref());
+        // Get the primary value from self
+        let primary = self.values[0].clone();
 
-        Choice::new(values[0].clone(), values[1..].to_vec())
+        // Use iterators with chain() instead of extending vectors
+        Choice::new(
+            primary,
+            self.values[1..].iter().cloned().chain(other.values.iter().cloned()),
+        )
     }
 
     fn empty_alt<B>() -> Self::Output<B> {
@@ -1339,7 +1338,7 @@ impl<'a, T> IntoIterator for &'a Choice<T> {
     type IntoIter = std::slice::Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.values.as_ref().iter()
+        self.values.iter()
     }
 }
 
@@ -1374,11 +1373,7 @@ impl<T: Clone> Foldable for Choice<T> {
         F: Fn(&B, &Self::Source) -> B,
         B: Clone,
     {
-        let mut acc = initial.clone();
-        for value in self.iter() {
-            acc = f(&acc, value);
-        }
-        acc
+        self.iter().fold(initial.clone(), |acc, value| f(&acc, value))
     }
 
     fn fold_right<B, F>(&self, initial: &B, f: F) -> B
@@ -1386,13 +1381,11 @@ impl<T: Clone> Foldable for Choice<T> {
         F: Fn(&Self::Source, &B) -> B,
         B: Clone,
     {
-        // Convert to Vec, then iterate in reverse
-        let values: Vec<T> = self.values.iter().cloned().collect();
-        let mut acc = initial.clone();
-        for value in values.into_iter().rev() {
-            acc = f(&value, &acc);
-        }
-        acc
+        self.values
+            .as_ref()
+            .iter()
+            .rev()
+            .fold(initial.clone(), |acc, value| f(value, &acc))
     }
 }
 
@@ -1410,19 +1403,20 @@ impl<T> FromIterator<T> for Choice<T> {
 
 impl<T: Clone> FromIterator<Choice<T>> for Choice<T> {
     fn from_iter<I: IntoIterator<Item = Choice<T>>>(iter: I) -> Self {
-        let mut all_values: SmallVec<[T; 8]> = SmallVec::new();
-        for choice in iter {
-            all_values.extend(choice.values.as_ref().iter().cloned());
+        let values: SmallVec<[T; 8]> = iter
+            .into_iter()
+            .flat_map(|choice| {
+                let values = choice.values.as_ref().to_vec();
+                values.into_iter()
+            })
+            .collect();
+
+        match values.len() {
+            0 => Self::new_empty(),
+            _ => Self {
+                values: Arc::new(values),
+            },
         }
-
-        if all_values.is_empty() {
-            return Self::new_empty();
-        }
-
-        let first = all_values[0].clone();
-        let alternatives: Vec<T> = all_values[1..].to_vec();
-
-        Self::new(first, alternatives)
     }
 }
 
@@ -1467,6 +1461,6 @@ impl<T: Clone + Default> Default for Choice<T> {
 
 impl<T: Clone> std::iter::Sum for Choice<T> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        Choice::from_iter(iter)
+        iter.fold(Choice::new_empty(), |acc, choice| acc.combine_owned(choice))
     }
 }

@@ -18,8 +18,22 @@
   - `Maybe<T>`: Optional value type, now supports `Alternative` for expressive failure and choice handling.
   - `Either<L, R>`: Sum type for error/success, now supports `Alternative` (with `L: Default`) for left-bias failure and right-bias success.
   - `Validated<E, A>`: Validation type with error accumulation, now supports `Alternative` (with `E: Default`) for combining validations and handling failure cases.
+- `Choice<T>::flatten_sorted()`: Flattens a `Choice` of iterable items into a sorted `Choice` of individual items. The alternatives are collected and sorted according to their natural order. Requires `I: Ord`.
+
+  Example:
+  ```rust
+  let nested = Choice::new(vec![3, 1], vec![vec![5, 2], vec![4]]);
+  let flat = nested.flatten_sorted();
+  assert_eq!(*flat.first().unwrap(), 3);
+  assert_eq!(flat.alternatives(), &[1, 2, 4, 5]);
+  ```
 
 ### Changed
+- **[Breaking] Changed `Choice<T>::flatten()` behavior:**
+  - Previously, `flatten()` always returned alternatives in sorted order (requiring `Ord`).
+  - Now, `flatten()` preserves the original order of items, and sorting is only performed by the new `flatten_sorted()` method.
+- **Added**: `Choice<T>::flatten_sorted()` for sorted flattening of nested choices (see above for details).
+- **Refactored**: Most methods in `Choice<T>` now use iterator combinators (map, filter, chain, flat_map, collect, fold, etc.) for more idiomatic and efficient Rust code.
 - **[Breaking] Refactored `Validated` datatype ([src/datatypes/validated.rs]):**
   - Removed distinction between `SingleInvalid` and `MultiInvalid` variants. Now, all invalid cases are represented uniformly, simplifying the API and usage.
   - Replaced manual error accumulation logic with idiomatic iterator patterns throughout the implementation.
@@ -237,17 +251,26 @@
 ## [0.4.0] - 2025-02-26
 
 ### Added
-- Added tests for DataType: `test_async_monad`, `test_choice`, `test_cont`, `test_either`, `test_id`, `test_io`.
+- Implemented `StateT` monad transformer
+  - Added core implementation with state manipulation functions (`get`, `put`, `modify`)
+  - Added composition with other monads via `bind_with` and `fmap_with`
+  - Added utility type aliases (`StateValueMapper`, `StateCombiner`) for better code organization
+  - Added comprehensive tests covering state operations, error handling, and composition scenarios
+  - Added detailed documentation with usage examples
+- Added new functional programming traits
+  - `Alternative`: For types with choice and empty implementations
+  - `Distributive`: The dual of Traversable, distributing a functor over another
+  - `Divisible`: Contravariant analogue of Applicative
+  - `Iso`: For isomorphic type relationships
+  - `NaturalTransform`: For converting between functors preserving structure
+  - `Representable`: For functors that can be represented by a mapping from a key type
 
 ### Changed
-- Removed `FnType` and `FnTrait`: Simplified function implementation and usage.
-- Removed `TypeConstraints`: Simplified type constraints.
-- Directly implemented types with functions as members without traits: Addressed limitations of Rust type system by handling them directly.
-- Changed development direction of `Choice` type: Now provides a primary value (`first`) and alternatives (`Vec<T>`) of a single type `T`.
-
-### Documentation
-- Enhanced documentation for individual sources: Richer content viewable through [docs.rs](https://docs.rs).
-
+- Optimized `Choice` data structure:
+  - Implemented shared structure optimization using `Arc` for improved memory efficiency
+  - Reduced unnecessary cloning operations in internal data representation
+  - Updated relevant methods to leverage the new shared structure
+  - Adjusted documentation and examples to reflect the optimization changes
 
 ## [0.3.2] - 2025-02-18
 

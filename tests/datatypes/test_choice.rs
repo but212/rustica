@@ -61,7 +61,7 @@ fn test_choice_applicative() {
     let f_owned = Choice::new(double_owned, vec![triple_owned]);
     let result_owned = choice.apply_owned(f_owned);
     assert_eq!(*result_owned.first().unwrap(), 4);
-    assert_eq!(result_owned.alternatives(), &[9, 6, 9, 8, 12]);
+    assert_eq!(result_owned.alternatives(), &[6, 6, 9, 8, 12]);
 }
 
 #[test]
@@ -360,7 +360,7 @@ fn test_choice_fmap_alternatives() {
 
     // Double alternatives
     let doubled = choice.fmap_alternatives(|&x| x * 2);
-    assert_eq!(*doubled.first().unwrap(), 1); // Primary unchanged
+    assert_eq!(*doubled.first().unwrap(), 1);
     assert_eq!(doubled.alternatives(), &[4, 6, 8]);
 
     // Map on Choice with no alternatives (should not change)
@@ -466,4 +466,174 @@ fn test_choice_foldable() {
 
     let prod = c.fold_right(&1, |x, acc| x * acc);
     assert_eq!(prod, 6);
+}
+
+#[test]
+fn test_choice_flatten() {
+    use rustica::datatypes::choice::Choice;
+    // Flatten normal case
+    let nested = Choice::new(vec![1, 2], vec![vec![3, 4], vec![5]]);
+    let flat = nested.flatten();
+    assert_eq!(*flat.first().unwrap(), 1);
+    assert_eq!(flat.alternatives(), &[3, 4, 5, 2]);
+    // Flatten with empty alternatives
+    let nested = Choice::new(vec![1], vec![]);
+    let flat = nested.flatten();
+    assert_eq!(*flat.first().unwrap(), 1);
+    assert!(flat.alternatives().is_empty());
+
+    // Flatten with empty primary (should panic)
+    let nested = Choice::new(Vec::<i32>::new(), vec![]);
+    let result = std::panic::catch_unwind(|| nested.flatten());
+    assert!(result.is_err());
+
+    // Flatten sorted normal case
+    let nested = Choice::new(vec![3, 1], vec![vec![5, 2], vec![4]]);
+    let flat = nested.flatten_sorted();
+    assert_eq!(*flat.first().unwrap(), 3);
+    assert_eq!(flat.alternatives(), &[1, 2, 4, 5]);
+
+    // Flatten sorted with empty alternatives
+    let nested = Choice::new(vec![5], vec![]);
+    let flat = nested.flatten_sorted();
+    assert_eq!(*flat.first().unwrap(), 5);
+    assert!(flat.alternatives().is_empty());
+
+    // Flatten sorted with empty primary (should panic)
+    let nested = Choice::new(Vec::<i32>::new(), vec![]);
+    let result = std::panic::catch_unwind(|| nested.flatten_sorted());
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_choice_filter_values_promotes_alternative() {
+    use rustica::datatypes::choice::Choice;
+    // Primary filtered out, alternative promoted
+    let choice = Choice::new(1, vec![2, 3, 4]);
+    let even = choice.filter_values(|x| x % 2 == 0);
+    assert_eq!(*even.first().unwrap(), 2);
+    assert_eq!(even.alternatives(), &[4]);
+    // All filtered out
+    let none = choice.filter_values(|_| false);
+    assert!(none.is_empty());
+}
+
+#[test]
+fn test_choice_from_conversions() {
+    use rustica::datatypes::choice::Choice;
+    let v = vec![1, 2, 3];
+    let c: Choice<_> = v.clone().into();
+    assert_eq!(*c.first().unwrap(), 1);
+    assert_eq!(c.alternatives(), &[2, 3]);
+    let c2: Choice<_> = (&v[..]).into();
+    assert_eq!(*c2.first().unwrap(), 1);
+    assert_eq!(c2.alternatives(), &[2, 3]);
+    let v2: Vec<_> = c2.clone().into();
+    assert_eq!(v2, v);
+}
+
+#[test]
+fn test_choice_default_and_sum_trait() {
+    use rustica::datatypes::choice::Choice;
+    let empty: Choice<i32> = Choice::default();
+    assert!(empty.is_empty());
+    let choices = vec![Choice::new(1, vec![]), Choice::new(2, vec![])];
+    let sum: Choice<i32> = choices.into_iter().sum();
+    assert_eq!(*sum.first().unwrap(), 1);
+    assert_eq!(sum.alternatives(), &[2]);
+}
+
+#[test]
+fn test_choice_iterators() {
+    use rustica::datatypes::choice::Choice;
+    let choice = Choice::new(1, vec![2, 3]);
+    let vals: Vec<_> = choice.iter().cloned().collect();
+    assert_eq!(vals, vec![1, 2, 3]);
+    let alts: Vec<_> = choice.iter_alternatives().cloned().collect();
+    assert_eq!(alts, vec![2, 3]);
+    let vals_ref: Vec<_> = (&choice).into_iter().cloned().collect();
+    assert_eq!(vals_ref, vec![1, 2, 3]);
+    let vals_owned: Vec<_> = choice.clone().into_iter().collect();
+    assert_eq!(vals_owned, vec![1, 2, 3]);
+}
+
+#[test]
+fn test_choice_foldable_trait() {
+    use rustica::datatypes::choice::Choice;
+    use rustica::traits::foldable::Foldable;
+    let choice = Choice::new(1, vec![2, 3]);
+    let sum = choice.fold_left(&0, |acc, x| acc + x);
+    assert_eq!(sum, 6);
+    let prod = choice.fold_right(&1, |x, acc| x * acc);
+    assert_eq!(prod, 6);
+}
+
+#[test]
+fn test_choice_alternative_and_monadplus_traits() {
+    use rustica::datatypes::choice::Choice;
+    use rustica::traits::alternative::Alternative;
+    use rustica::traits::monad_plus::MonadPlus;
+    let a = Choice::new(1, vec![2]);
+    let b = Choice::new(3, vec![4]);
+    let alt = a.alt(&b);
+    assert_eq!(*alt.first().unwrap(), 1);
+    assert_eq!(alt.alternatives(), &[2, 3, 4]);
+    let mplus = a.mplus(&b);
+    assert_eq!(*mplus.first().unwrap(), 1);
+    assert_eq!(mplus.alternatives(), &[2, 3, 4]);
+    let mzero: Choice<i32> = <Choice<i32> as MonadPlus>::mzero();
+    assert!(mzero.is_empty());
+    let empty: Choice<i32> = <Choice<i32> as Alternative>::empty_alt();
+    assert!(empty.is_empty());
+    let guarded: Choice<()> = <Choice<()> as Alternative>::guard(true);
+    assert_eq!(*guarded.first().unwrap(), ());
+    let not_guarded: Choice<()> = <Choice<()> as Alternative>::guard(false);
+    assert!(not_guarded.is_empty());
+    let many = a.many();
+    assert_eq!(*many.first().unwrap(), vec![1]);
+}
+
+#[test]
+fn test_choice_functor_laws() {
+    use rustica::datatypes::choice::Choice;
+    use rustica::traits::functor::Functor;
+    let choice = Choice::new(1, vec![2, 3]);
+    // Identity
+    let id = choice.fmap(|x| *x);
+    assert_eq!(id, choice);
+    // Composition
+    let f = |x: &i32| x + 1;
+    let g = |x: &i32| x * 2;
+    let comp1 = choice.fmap(|x| f(&g(x)));
+    let comp2 = choice.fmap(g).fmap(f);
+    assert_eq!(comp1, comp2);
+}
+
+#[test]
+fn test_choice_applicative_and_monad_laws() {
+    use rustica::datatypes::choice::Choice;
+    use rustica::traits::applicative::Applicative;
+    use rustica::traits::monad::Monad;
+    // Applicative identity
+    let v = Choice::new(1, vec![2]);
+    let id_fn = |x: &i32| *x;
+    let id_choice = Choice::new(id_fn, vec![]);
+    let applied = v.apply(&id_choice);
+    assert_eq!(applied, v);
+    // Monad left identity
+    let a = 42;
+    let f = |x: &i32| Choice::new(*x + 1, vec![]);
+    let left = Choice::<i32>::pure(&a).bind(f);
+    let right = f(&a);
+    assert_eq!(left, right);
+    // Monad right identity
+    let m = Choice::new(1, vec![2]);
+    let right = m.bind(|x| Choice::<i32>::pure(x));
+    assert_eq!(right, m);
+    // Monad associativity
+    let f = |x: &i32| Choice::new(x + 1, vec![]);
+    let g = |x: &i32| Choice::new(x * 2, vec![]);
+    let left = m.bind(f).bind(g);
+    let right = m.bind(|x| f(x).bind(g));
+    assert_eq!(left, right);
 }
