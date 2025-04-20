@@ -404,24 +404,18 @@ impl<T> Functor for Maybe<T> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        F: FnMut(&Self::Source) -> B,
     {
-        match self {
-            Maybe::Just(a) => Maybe::Just(f(a)),
-            Maybe::Nothing => Maybe::Nothing,
-        }
+        self.into_iter().map(f).next().map_or(Maybe::Nothing, Maybe::Just)
     }
 
     #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: FnOnce(Self::Source) -> B,
+        F: FnMut(Self::Source) -> B,
         Self: Sized,
     {
-        match self {
-            Maybe::Just(a) => Maybe::Just(f(a)),
-            Maybe::Nothing => Maybe::Nothing,
-        }
+        self.into_iter().map(f).next().map_or(Maybe::Nothing, Maybe::Just)
     }
 }
 
@@ -604,8 +598,7 @@ impl<T: Clone> Alternative for Maybe<T> {
 
 impl<T> FromIterator<T> for Maybe<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut iter = iter.into_iter();
-        iter.next().map_or(Maybe::Nothing, Maybe::Just)
+        iter.into_iter().next().map_or(Maybe::Nothing, Maybe::Just)
     }
 }
 
@@ -744,6 +737,44 @@ impl<T: Clone> Comonad for Maybe<T> {
         match self {
             Maybe::Just(_) => Maybe::Just(f(self)),
             Maybe::Nothing => Maybe::Nothing,
+        }
+    }
+}
+
+// Iterator and IntoIterator implementations for Maybe<T>
+
+impl<T> IntoIterator for Maybe<T> {
+    type Item = T;
+    type IntoIter = std::option::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Maybe::Just(val) => Some(val).into_iter(),
+            Maybe::Nothing => None.into_iter(),
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Maybe<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Maybe::Just(ref val) => std::slice::from_ref(val).iter(),
+            Maybe::Nothing => [].iter(),
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Maybe<T> {
+    type Item = &'a mut T;
+    type IntoIter = std::slice::IterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Maybe::Just(ref mut val) => std::slice::from_mut(val).iter_mut(),
+            Maybe::Nothing => [].iter_mut(),
         }
     }
 }
