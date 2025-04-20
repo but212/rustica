@@ -87,12 +87,10 @@ use crate::traits::monad::Monad;
 pub mod cont_t;
 pub mod reader_t;
 pub mod state_t;
-pub mod writer_t;
 
-// pub use maybe_t::MaybeT;
+pub use cont_t::ContT;
 pub use reader_t::ReaderT;
 pub use state_t::StateT;
-pub use writer_t::WriterT;
 
 /// Trait for monad transformers.
 ///

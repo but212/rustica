@@ -218,7 +218,6 @@ pub mod prelude {
     pub use crate::transformers::cont_t::ContT;
     pub use crate::transformers::reader_t::ReaderT;
     pub use crate::transformers::state_t::StateT;
-    pub use crate::transformers::writer_t::WriterT;
 
     // Core datatypes
     pub use crate::datatypes::choice::Choice;

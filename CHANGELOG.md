@@ -26,6 +26,10 @@
   - Unified invalid cases, now uses iterators for error accumulation.
 - **[Breaking] Removed `to_state`, `to_state_t`, `from_state_t`, `to_reader`, `from_reader`, `to_cont`, `from_cont` methods from State/Reader/Cont:**
   - All transformer-to-base conversions are now handled via the `From` trait (see below for migration).
+- **[Breaking] Removed WriterT transformer:**
+  - The WriterT transformer and all related code have been deleted.
+  - WriterT is rarely useful in practical Rust code; most logging/accumulation use-cases are better served by explicit fields or iterators.
+  - If monadic logging is needed, consider direct accumulation patterns or external loggers instead.
 - **Enhanced `NaturalTransformation` trait:**
   - Added documentation, usage examples, and improved ergonomics.
 
@@ -48,22 +52,6 @@
   let reader: Reader<i32, i32> = reader_t.into();
   ```
 - Update any code using the removed methods to use the `From` trait or `.into()` instead.
-
-### [Doctest & Documentation Best Practices]
-
-- **Doctests**:
-    - Always use explicit type annotations for generic types in doctests.
-    - When demonstrating trait methods, import both the type and the trait (e.g., `use rustica::traits::functor::Functor;`).
-    - Use turbofish syntax (`Type::<T>::method(...)`) for static methods on generic types.
-    - Keep doctests simple, focused, and include assertions for expected behavior.
-    - Use the `matches!` macro for pattern matching in assertions.
-    - Include both success and error case examples.
-- **Trait Implementation Examples**:
-    - Never implement traits for foreign types directly in doctests (orphan rule).
-    - Instead, use wrapper types in examples and add `#[derive(Clone)]` if needed.
-    - Use correct doc comment syntax: `///` for item-level, `//!` for module-level docs.
-
-Refer to the documentation for more details and examples.
 
 ## [0.6.4] - 2025-04-18
 
