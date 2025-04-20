@@ -177,9 +177,30 @@ impl<E, A> Validated<E, A> {
     where
         E: Clone,
     {
+        self.iter_errors().cloned().collect()
+    }
+
+    /// Returns an iterator over all errors if this is invalid, or an empty iterator if valid.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// let mut errors = valid.iter_errors();
+    /// assert!(errors.next().is_none());
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// let mut errors = invalid.iter_errors();
+    /// assert_eq!(errors.next().unwrap(), &"error");
+    /// assert!(errors.next().is_none());
+    /// ```
+    #[inline]
+    pub fn iter_errors(&self) -> std::slice::Iter<'_, E> {
         match self {
-            Validated::Valid(_) => Vec::new(),
-            Validated::Invalid(e) => e.clone().to_vec(),
+            Validated::Valid(_) => [].iter(),
+            Validated::Invalid(es) => es.iter(),
         }
     }
 }
@@ -301,7 +322,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// let mapped = invalid.fmap_invalid(|e| format!("Error: {}", e));
     /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// ```
-    #[inline]
     pub fn fmap_invalid<G, F>(&self, f: F) -> Validated<G, A>
     where
         F: Fn(&E) -> G,
@@ -309,8 +329,8 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
-            Validated::Invalid(es) => {
-                let transformed = es.iter().map(f).collect();
+            Validated::Invalid(_) => {
+                let transformed = self.iter_errors().map(f).collect();
                 Validated::Invalid(transformed)
             },
         }
@@ -344,7 +364,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// let mapped = invalid.fmap_invalid_owned(|e| format!("Error: {}", e));
     /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// ```
-    #[inline]
     pub fn fmap_invalid_owned<G, F>(self, f: F) -> Validated<G, A>
     where
         F: Fn(E) -> G,
@@ -353,7 +372,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
             Validated::Invalid(es) => {
-                let transformed = es.into_iter().map(f).collect();
+                let transformed: SmallVec<[G; 4]> = es.into_iter().map(f).collect();
                 Validated::Invalid(transformed)
             },
         }
@@ -393,8 +412,8 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             (Validated::Valid(_), Validated::Valid(_)) => unreachable!(),
             (Validated::Valid(_), invalid) => invalid.clone(),
             (invalid, Validated::Valid(_)) => invalid.clone(),
-            (Validated::Invalid(es1), Validated::Invalid(es2)) => {
-                let errors = es1.iter().chain(es2.iter()).cloned().collect::<SmallVec<[E; 4]>>();
+            (Validated::Invalid(_), Validated::Invalid(_)) => {
+                let errors = self.iter_errors().chain(other.iter_errors()).cloned().collect();
                 Validated::Invalid(errors)
             },
         }
@@ -709,10 +728,13 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///
     /// Panics if this is invalid.
     #[inline]
-    pub fn unwrap_invalid(&self) -> Vec<E> {
+    pub fn unwrap_invalid(&self) -> Vec<E>
+    where
+        E: Clone,
+    {
         match self {
-            Validated::Invalid(es) => es.to_vec(),
-            _ => panic!("Cannot unwrap invalid value"),
+            Validated::Invalid(_) => self.iter_errors().cloned().collect(),
+            _ => panic!("Cannot unwrap valid value"),
         }
     }
 
@@ -748,7 +770,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     ///
     /// assert_eq!(sum, Validated::valid(6));
     /// ```
-    #[inline]
     pub fn sequence<B, F>(values: &[&Validated<E, A>], f: &F) -> Validated<E, B>
     where
         F: Fn(&[A]) -> B,
@@ -771,13 +792,15 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             return Validated::Valid(f(&valid_values));
         }
 
-        // Collect errors
-        let mut errors = SmallVec::<[E; 4]>::new();
-        for v in values {
-            if let Validated::Invalid(es) = v {
-                errors.extend(es.iter().cloned());
-            }
-        }
+        // Collect all errors using iterator methods
+        let errors = values
+            .iter()
+            .filter_map(|v| match v {
+                Validated::Invalid(es) => Some(es.iter().cloned()),
+                _ => None,
+            })
+            .flatten()
+            .collect::<SmallVec<[E; 4]>>();
 
         Validated::Invalid(errors)
     }
@@ -819,7 +842,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.iter().cloned());
     /// assert!(collected.is_invalid());
     /// ```
-    #[inline]
     pub fn collect<I, C>(iter: I) -> Validated<E, C>
     where
         I: Iterator<Item = Validated<E, A>>,
@@ -827,14 +849,17 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         A: Clone,
         E: Clone,
     {
-        let mut values = Vec::new();
-        let mut errors = smallvec![];
-        for v in iter {
-            match v {
-                Validated::Valid(a) => values.push(a),
-                Validated::Invalid(es) => errors.extend(es),
-            }
-        }
+        let (values, errors): (Vec<_>, SmallVec<[E; 4]>) = iter.fold(
+            (Vec::new(), SmallVec::<[E; 4]>::new()),
+            |(mut values, mut errors), item| {
+                match item {
+                    Validated::Valid(a) => values.push(a),
+                    Validated::Invalid(es) => errors.extend(es),
+                }
+                (values, errors)
+            },
+        );
+
         if errors.is_empty() {
             Validated::Valid(C::from_iter(values))
         } else {
@@ -878,7 +903,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// assert_eq!(mapped, Validated::valid(84));
     /// # }
     /// ```
-    #[inline]
     pub async fn fmap_valid_async<B, F, Fut>(&self, f: F) -> Validated<E, B>
     where
         F: Fn(A) -> Fut + Send + 'static,
@@ -922,7 +946,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// # }
     /// ```
-    #[inline]
     pub async fn fmap_invalid_async<G, F, Fut>(&self, f: F) -> Validated<G, A>
     where
         F: Fn(E) -> Fut + Send + 'static + Clone,
@@ -977,7 +1000,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// assert_eq!(chained, Validated::<&str, String>::invalid("Value too small"));
     /// # }
     /// ```
-    #[inline]
     pub async fn and_then_async<B, F, Fut>(&self, f: F) -> Validated<E, B>
     where
         F: Fn(A) -> Fut + Send + 'static,
@@ -1003,14 +1025,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         match self {
             Validated::Valid(ref mut a) => IterMut { inner: Some(a) },
             _ => IterMut { inner: None },
-        }
-    }
-
-    /// Returns an iterator over the error(s) (0 or many).
-    pub fn iter_errors(&self) -> ErrorsIter<'_, E> {
-        match self {
-            Validated::Invalid(ref es) => ErrorsIter::Multi(es.iter()),
-            _ => ErrorsIter::Empty,
         }
     }
 
