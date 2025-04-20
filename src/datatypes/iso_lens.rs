@@ -167,6 +167,7 @@ where
     /// assert_eq!(updated.name, "Bob");
     /// assert_eq!(updated.age, 30); // Original value preserved
     /// ```
+    #[inline]
     pub fn new(iso: L) -> Self {
         Self {
             iso,
@@ -207,6 +208,7 @@ where
     /// let p = Person { name: "Alice".into(), age: 30 };
     /// assert_eq!(lens.get(&p), ("Alice".to_string(), p.clone()));
     /// ```
+    #[inline]
     pub fn get(&self, s: &S) -> A
     where
         A: Clone,
@@ -249,6 +251,7 @@ where
     /// let updated = lens.set(&p, &("Bob".to_string(), p.clone()));
     /// assert_eq!(updated.name, "Bob");
     /// ```
+    #[inline]
     pub fn set(&self, _s: &S, a: &A) -> S
     where
         S: Clone,
@@ -292,6 +295,7 @@ where
     /// let modified = lens.modify(&p, |n| (n.0.to_uppercase(), n.1.clone()));
     /// assert_eq!(modified.name, "ALICE");
     /// ```
+    #[inline]
     pub fn modify<F>(&self, s: &S, f: F) -> S
     where
         F: FnOnce(&A) -> A,
@@ -391,10 +395,12 @@ where
     type From = A;
     type To = (B, S);
 
+    #[inline]
     fn forward(&self, from: &A) -> (B, S) {
         self.inner.forward(from)
     }
 
+    #[inline]
     fn backward(&self, to: &(B, S)) -> A {
         self.inner.backward(to)
     }

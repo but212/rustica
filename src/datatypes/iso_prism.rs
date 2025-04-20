@@ -164,6 +164,7 @@ where
     /// let reviewed = prism.review(&20);
     /// assert_eq!(reviewed, MyEnum::Foo(20));
     /// ```
+    #[inline]
     pub fn new(iso: L) -> Self {
         Self {
             iso,
@@ -208,6 +209,7 @@ where
     /// let bar = MyEnum::Bar("hi".to_string());
     /// assert_eq!(prism.preview(&bar), None);
     /// ```
+    #[inline]
     pub fn preview(&self, s: &S) -> Option<A>
     where
         A: Clone,
@@ -250,6 +252,7 @@ where
     /// let reviewed = prism.review(&20);
     /// assert_eq!(reviewed, MyEnum::Foo(20));
     /// ```
+    #[inline]
     pub fn review(&self, a: &A) -> S
     where
         S: Clone,
@@ -349,6 +352,7 @@ where
     type From = Option<A>;
     type To = Option<B>;
 
+    #[inline]
     fn forward(&self, from: &Option<A>) -> Option<B> {
         match from {
             Some(a) => self.inner.forward(a),
@@ -356,6 +360,7 @@ where
         }
     }
 
+    #[inline]
     fn backward(&self, to: &Option<B>) -> Option<A> {
         to.as_ref().map(|b| self.inner.backward(&Some(b.clone())))
     }

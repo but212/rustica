@@ -166,7 +166,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(async_string.try_get().await, "hello");
     /// }
     /// ```
-    #[inline]
     pub fn pure(value: A) -> Self
     where
         A: Clone + Send + Sync + 'static,
@@ -247,7 +246,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, "52");
     /// }
     /// ```
-    #[inline]
     pub fn fmap<B, F, Fut>(&self, f: F) -> AsyncM<B>
     where
         B: Send + 'static,
@@ -312,7 +310,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 104);
     /// }
     /// ```
-    #[inline]
     pub fn bind<B, F, Fut>(&self, f: F) -> AsyncM<B>
     where
         B: Send + Sync + 'static,
@@ -370,7 +367,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
-    #[inline]
     pub fn apply<B, F>(&self, mf: AsyncM<F>) -> AsyncM<B>
     where
         B: Send + 'static,
@@ -433,7 +429,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(failure.try_get().await, 0);
     /// }
     /// ```
-    #[inline]
     pub fn from_result_or_default<F, Fut, E>(f: F, default_value: A) -> AsyncM<A>
     where
         F: Fn() -> Fut + Send + Sync + Clone + 'static,
@@ -490,7 +485,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
-    #[inline]
     pub fn fmap_owned<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
         F: FnOnce(A) -> Fut + Clone + Send + Sync + 'static,
@@ -544,7 +538,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 52);
     /// }
     /// ```
-    #[inline]
     pub fn bind_owned<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
         F: FnOnce(A) -> Fut + Clone + Send + Sync + 'static,
@@ -597,7 +590,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
-    #[inline]
     pub fn apply_owned<B, F>(self, mf: AsyncM<F>) -> AsyncM<B>
     where
         F: FnOnce(A) -> B + Send + Sync + 'static,
@@ -742,7 +734,6 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result, 42);
     /// }
     /// ```
-    #[inline]
     pub fn recover_with(self, default: A) -> AsyncM<A>
     where
         A: Send + Sync + Clone,

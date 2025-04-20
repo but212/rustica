@@ -541,6 +541,7 @@ impl<T> Monad for Maybe<T> {
 }
 
 impl<T: Clone> MonadPlus for Maybe<T> {
+    #[inline]
     fn mzero<U: Clone>() -> Self::Output<U> {
         Maybe::Nothing
     }
@@ -566,10 +567,12 @@ impl<T: Clone> MonadPlus for Maybe<T> {
 }
 
 impl<T: Clone> Alternative for Maybe<T> {
+    #[inline]
     fn empty_alt<U>() -> Self::Output<U> {
         Maybe::Nothing
     }
 
+    #[inline]
     fn alt(&self, other: &Self) -> Self {
         match self {
             Maybe::Just(_) => self.clone(),
@@ -577,6 +580,7 @@ impl<T: Clone> Alternative for Maybe<T> {
         }
     }
 
+    #[inline]
     fn guard(condition: bool) -> Self::Output<()> {
         if condition {
             Maybe::Just(())
@@ -585,6 +589,7 @@ impl<T: Clone> Alternative for Maybe<T> {
         }
     }
 
+    #[inline]
     fn many(&self) -> Self::Output<Vec<Self::Source>>
     where
         Self::Source: Clone,
@@ -719,6 +724,7 @@ impl<T> Default for Maybe<T> {
 }
 
 impl<T: Clone> Comonad for Maybe<T> {
+    #[inline]
     fn extract(&self) -> T {
         match self {
             Maybe::Just(v) => v.clone(),
@@ -726,10 +732,12 @@ impl<T: Clone> Comonad for Maybe<T> {
         }
     }
 
+    #[inline]
     fn duplicate(&self) -> Self {
         self.clone()
     }
 
+    #[inline]
     fn extend<U, F>(&self, f: F) -> Self::Output<U>
     where
         F: Fn(&Self) -> U,

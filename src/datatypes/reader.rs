@@ -143,6 +143,7 @@ where
     /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
     /// assert_eq!(reader.run_reader(21), 42);
     /// ```
+    #[inline]
     pub fn new<F>(f: F) -> Self
     where
         F: Fn(E) -> A + Clone + Send + Sync + 'static,
@@ -170,6 +171,7 @@ where
     /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
     /// assert_eq!(reader.run_reader(21), 42);
     /// ```
+    #[inline]
     pub fn run_reader(&self, env: E) -> A {
         let id_value = self.inner.run_reader(env);
         id_value.value().clone()
@@ -264,6 +266,7 @@ where
     /// let reader: Reader<String, String> = Reader::ask();
     /// assert_eq!(reader.run_reader("hello".to_string()), "hello");
     /// ```
+    #[inline]
     pub fn ask() -> Self
     where
         E: Clone,
@@ -292,6 +295,7 @@ where
     /// let reader: Reader<String, String> = Reader::ask_transform(|env: String| env);
     /// assert_eq!(reader.run_reader("hello".to_string()), "hello");
     /// ```
+    #[inline]
     pub fn ask_transform<F>(f: F) -> Self
     where
         F: Fn(E) -> A + Clone + Send + Sync + 'static,
@@ -319,6 +323,7 @@ where
     /// let reader: Reader<String, usize> = Reader::asks(|s: String| s.len());
     /// assert_eq!(reader.run_reader("hello".to_string()), 5);
     /// ```
+    #[inline]
     pub fn asks<S>(selector: S) -> Self
     where
         S: Fn(E) -> A + Clone + Send + Sync + 'static,
@@ -351,6 +356,7 @@ where
     /// );
     /// assert_eq!(reader.run_reader(42), "Env is: 42");
     /// ```
+    #[inline]
     pub fn ask_with<F, G>(f: F, transform: G) -> Self
     where
         F: Fn(&E) -> A + Clone + Send + Sync + 'static,
@@ -471,6 +477,7 @@ where
     ///
     /// assert_eq!(result_reader_t.run_reader(21), Ok(42));
     /// ```
+    #[inline]
     pub fn to_reader_t<M, F>(self, lift_fn: F) -> ReaderT<E, M, A>
     where
         M: Clone + Send + Sync + 'static,

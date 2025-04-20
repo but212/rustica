@@ -47,11 +47,19 @@
   - Replaced manual error accumulation logic with idiomatic iterator patterns throughout the implementation.
   - Methods such as `combine_errors`, `invalid_vec`, and `collect` now use iterator chains for clearer, more efficient error handling.
   - Improved code readability and maintainability by leveraging Rust's iterator and collection APIs.
+- **[Breaking] Removed `to_state`, `to_state_t`, and `from_state_t` methods from `State` ([benches/datatypes/state.rs])**:
+  - These methods for converting between `State` and `StateT` have been deleted.
+  - **Migration:** Use the `from_state` and `to_state` methods provided by `StateT` in `tests/transformers/state_t.rs` for conversions between `State` and `StateT`.
+  - This change unifies state transformer conversions and ensures all lifting/unlifting is handled through the transformer API.
 - **Enhanced `NaturalTransformation` trait:**
   - Added extensive documentation and usage examples.
   - Provided both reference-based (`transform`) and ownership-based (`transform_owned`) transformation methods.
   - Introduced `identity_nat` utility for the identity natural transformation.
   - Improved trait bounds and ergonomics for real-world use.
+- **[Breaking] Removed `to_state` and `to_state_t` methods from `State` ([benches/datatypes/state.rs])**:
+  - These methods for converting between `State` and `StateT` have been deleted.
+  - **Migration:** Use the `from_state` and `to_state` methods provided by `StateT` in `tests/transformers/state_t.rs` for conversions between `State` and `StateT`.
+  - This change unifies state transformer conversions and ensures all lifting/unlifting is handled through the transformer API.
 
 ## [0.6.4] - 2025-04-18
 

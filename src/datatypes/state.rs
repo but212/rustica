@@ -101,7 +101,6 @@
 //! ```
 //!
 use crate::datatypes::id::Id;
-use crate::prelude::Monad;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
 use crate::transformers::StateT;
@@ -703,7 +702,6 @@ where
     /// let result = add_state.apply(value);
     /// assert_eq!(result.run_state(5), (17, 8));
     /// ```
-    #[inline]
     pub fn apply<B, C>(self, other: State<S, B>) -> State<S, C>
     where
         B: Clone + Send + Sync + 'static,
@@ -715,148 +713,6 @@ where
             let (a, s2) = other.run_state(s1);
             (f(a), s2)
         })
-    }
-
-    /// Converts this State into a StateT with any monad type.
-    ///
-    /// This method provides a way to lift a State into any monad transformer context
-    /// by providing a function to lift the inner value into the target monad.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `M` - The target monad
-    /// * `F` - The type of the lifting function
-    ///
-    /// # Parameters
-    ///
-    /// * `lift_fn` - Function to lift a tuple of type (A, S) into the monad M
-    ///
-    /// # Returns
-    ///
-    /// A new `StateT` instance with the same state type but with values in monad M
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    /// use rustica::transformers::StateT;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a simple State
-    /// let state: State<i32, i32> = State::new(|s: i32| (s * 2, s + 1));
-    ///
-    /// // Convert to a StateT with Option as the monad
-    /// let state_t: StateT<i32, Option<(i32, i32)>, i32> = state.clone().to_state_t(|t| Some(t));
-    ///
-    /// assert_eq!(state_t.run_state(21), Some((42, 22)));
-    ///
-    /// // Convert to a StateT with Result as the monad
-    /// let result_state_t: StateT<i32, Result<(i32, i32), String>, i32> =
-    ///     state.to_state_t(|t| Ok(t));
-    ///
-    /// assert_eq!(result_state_t.run_state(21), Ok((42, 22)));
-    /// ```
-    pub fn to_state_t<M, F>(self, lift_fn: F) -> StateT<S, M, A>
-    where
-        M: Clone + Send + Sync + 'static,
-        F: Fn((A, S)) -> M + Clone + Send + Sync + 'static,
-    {
-        StateT::new(move |s| {
-            let (value, new_state) = self.run_state(s);
-            lift_fn((value, new_state))
-        })
-    }
-
-    /// Converts a StateT with Id as the base monad back to a State.
-    ///
-    /// This method converts a StateT<S, Id<(S, A)>, A> back to a State<S, A>.
-    /// This is essentially the inverse operation of `to_state_t` when the monad is Id.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `M` - The monad type, which must be Id
-    ///
-    /// # Parameters
-    ///
-    /// * `state_t` - The StateT to convert
-    ///
-    /// # Returns
-    ///
-    /// A State instance equivalent to the StateT
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    /// use rustica::transformers::StateT;
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a StateT with Id as the monad
-    /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::new(|s: i32| {
-    ///     Id::new((s * 2, s + 1))
-    /// });
-    ///
-    /// // Convert back to State
-    /// let state: State<i32, i32> = State::to_state(state_t);
-    ///
-    /// // The behavior should be identical
-    /// assert_eq!(state.run_state(21), (22, 42));
-    /// ```
-    pub fn to_state<M>(state_t: StateT<S, M, A>) -> Self
-    where
-        M: Clone + Send + Sync + 'static,
-        M: HKT<Source = (S, A), Output<(S, A)> = M> + Monad,
-    {
-        State::new(move |s: S| {
-            let result = state_t.run_state(s.clone());
-            let (new_state, value) = result.value().clone();
-            (value, new_state)
-        })
-    }
-
-    /// Creates a State from a StateT.
-    ///
-    /// This is an alias for `to_state` with a more intuitive name.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `M` - The monad type, which must be Id
-    ///
-    /// # Parameters
-    ///
-    /// * `state_t` - The StateT to convert
-    ///
-    /// # Returns
-    ///
-    /// A State instance equivalent to the StateT
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    /// use rustica::transformers::StateT;
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a StateT with Id as the monad
-    /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::new(|s: i32| {
-    ///     Id::new((s * 2, s + 1))
-    /// });
-    ///
-    /// // Convert to State
-    /// let state: State<i32, i32> = State::from_state_t(state_t);
-    ///
-    /// // The behavior should be identical
-    /// assert_eq!(state.run_state(21), (21 + 1, 21 * 2));
-    /// ```
-    #[inline]
-    pub fn from_state_t<M>(state_t: StateT<S, M, A>) -> Self
-    where
-        M: Clone + Send + Sync + 'static,
-        M: HKT<Source = (S, A), Output<(S, A)> = M> + Monad,
-    {
-        Self::to_state(state_t)
     }
 
     /// Executes the state computation with a pure value.

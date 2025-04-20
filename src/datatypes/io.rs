@@ -342,7 +342,6 @@ impl<A: 'static + Clone> IO<A> {
     /// assert_eq!(result.is_ok(), true);
     /// assert_eq!(result.unwrap(), 42);
     /// ```
-    #[inline]
     pub fn try_get(&self) -> Result<A, AppError<IOError>> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
@@ -384,7 +383,6 @@ impl<A: 'static + Clone> IO<A> {
     /// assert_eq!(result.is_ok(), true);
     /// assert_eq!(result.unwrap(), 42);
     /// ```
-    #[inline]
     pub fn try_get_with_context<C: Clone + 'static>(
         &self, context: C,
     ) -> Result<A, AppError<IOError, C>> {

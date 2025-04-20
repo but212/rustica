@@ -563,7 +563,6 @@ impl<L, R> Pure for Either<L, R> {
 }
 
 impl<L: Clone, R: Clone> Applicative for Either<L, R> {
-    #[inline]
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B,
@@ -575,7 +574,6 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         }
     }
 
-    #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
@@ -587,7 +585,6 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         }
     }
 
-    #[inline]
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
         F: Fn(&Self::Source, &B, &C) -> D,
@@ -602,7 +599,6 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         }
     }
 
-    #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         F: FnOnce(Self::Source) -> B,
@@ -615,7 +611,6 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         }
     }
 
-    #[inline]
     fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: FnOnce(Self::Source, B) -> C,
@@ -628,7 +623,6 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         }
     }
 
-    #[inline]
     fn lift3_owned<B, C, D, F>(
         self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
@@ -747,10 +741,12 @@ impl<L: Default + Clone, R: Clone> MonadPlus for Either<L, R> {
 }
 
 impl<L: Default + Clone, R: Clone> Alternative for Either<L, R> {
+    #[inline]
     fn empty_alt<B>() -> Self::Output<B> {
         Either::Left(L::default())
     }
 
+    #[inline]
     fn alt(&self, other: &Self) -> Self {
         match self {
             Either::Right(_) => self.clone(),
@@ -766,6 +762,7 @@ impl<L: Default + Clone, R: Clone> Alternative for Either<L, R> {
         }
     }
 
+    #[inline]
     fn many(&self) -> Self::Output<Vec<Self::Source>>
     where
         Self::Source: Clone,
