@@ -1177,3 +1177,33 @@ impl<
         }
     }
 }
+
+/// Allows conversion from a `StateT<S, Id<(A, S)>, A>` to a `State<S, A>`.
+///
+/// This implementation enables seamless conversion from the transformer type to the base type,
+/// following the same pattern as `Reader` and `ReaderT`. Typically, this is only valid when the
+/// base monad is `Id` and the output is a tuple `(A, S)`.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::datatypes::state::State;
+/// use rustica::transformers::state_t::StateT;
+/// use rustica::datatypes::id::Id;
+///
+/// // Create a StateT that increments the state
+/// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::new(|s| Id::new((s + 1, s + 1)));
+///
+/// // Convert to State
+/// let state: State<i32, i32> = State::from(state_t);
+/// assert_eq!(state.run_state(1), (2, 2));
+/// ```
+impl<S, A> From<StateT<S, Id<(A, S)>, A>> for State<S, A>
+where
+    S: Clone + Send + Sync + 'static,
+    A: Clone + Send + Sync + 'static,
+{
+    fn from(state_t: StateT<S, Id<(A, S)>, A>) -> Self {
+        State { inner: state_t }
+    }
+}

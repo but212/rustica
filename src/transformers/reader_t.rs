@@ -175,8 +175,6 @@
 //! assert_eq!(modified_reader.run_reader(42), Some("Value: 42 (length: 9)".to_string()));
 //! ```
 use super::MonadTransformer;
-use crate::prelude::Id;
-use crate::prelude::Reader;
 use crate::prelude::HKT;
 use crate::traits::monad::Monad;
 use crate::utils::error_utils::AppError;
@@ -1215,86 +1213,6 @@ where
     M: 'static,
     A: 'static,
 {
-    /// Converts a ReaderT to a Reader when the base monad is Id.
-    ///
-    /// This is a specialization that only works when the underlying monad is Id.
-    ///
-    /// # Returns
-    ///
-    /// A Reader with the same environment and value types
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::ReaderT;
-    /// use rustica::datatypes::reader::Reader;
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a ReaderT with Id as the base monad
-    /// let reader_t: ReaderT<i32, Id<i32>, i32> = ReaderT::new(|env: i32| Id::new(env * 2));
-    ///
-    /// // Convert to a Reader
-    /// let reader: Reader<i32, i32> = reader_t.to_reader();
-    ///
-    /// assert_eq!(reader.run_reader(21), 42);
-    /// ```
-    pub fn to_reader(self) -> Reader<E, A>
-    where
-        E: Clone + Send + Sync + 'static,
-        A: Clone + Send + Sync + 'static,
-        M: HKT<Source = A, Output<A> = Id<A>> + Monad,
-    {
-        // Create a new Reader that uses this ReaderT internally
-        Reader::new(move |env: E| {
-            // Extract the value from the Id monad
-            let id_value = self.run_reader(env);
-            id_value.value().clone()
-        })
-    }
-
-    /// Creates a ReaderT from a Reader, lifting it into any monad context.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F` - The type of the lifting function
-    ///
-    /// # Parameters
-    ///
-    /// * `reader` - A Reader to lift
-    /// * `lift_fn` - Function to lift a value into the target monad
-    ///
-    /// # Returns
-    ///
-    /// A new ReaderT with values in the target monad
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::ReaderT;
-    /// use rustica::datatypes::reader::Reader;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a simple Reader
-    /// let reader: Reader<i32, i32> = Reader::new(|env: i32| env * 2);
-    ///
-    /// // Convert to a ReaderT with Option as the monad
-    /// let reader_t: ReaderT<i32, Option<i32>, i32> =
-    ///     ReaderT::from_reader(reader, |a: i32| Some(a));
-    ///
-    /// assert_eq!(reader_t.run_reader(21), Some(42));
-    /// ```
-    pub fn from_reader<F>(reader: Reader<E, A>, lift_fn: F) -> Self
-    where
-        E: Clone + Send + Sync + 'static,
-        A: Clone + Send + Sync + 'static,
-        F: Fn(A) -> M + Clone + Send + Sync + 'static,
-        M: Clone + Send + Sync + 'static,
-    {
-        // Use the to_reader_t method on Reader
-        reader.to_reader_t(lift_fn)
-    }
-
     /// Lifts a value directly into a ReaderT context.
     ///
     /// This is similar to the `pure` function in Applicative, lifting
@@ -1322,6 +1240,7 @@ where
     /// // The environment is ignored
     /// assert_eq!(reader_t.run_reader("any environment".to_string()), Some(42));
     /// ```
+    #[inline]
     pub fn pure<F>(value: A, pure_fn: F) -> Self
     where
         E: Clone + Send + Sync + 'static,

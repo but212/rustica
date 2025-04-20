@@ -3,22 +3,13 @@
 ## [Unreleased]
 
 ### Added
-- Added `iso_lens.rs`: Iso-based Lens optic for safe, functional, and composable access/modification of product types using the Iso trait abstraction. Includes full documentation and doctest examples.
-- Added `iso_prism.rs`: Iso-based Prism optic for safe, functional, and composable partial access/construction of sum types (enums) using the Iso trait abstraction. Includes full documentation, lawful optic law explanations, and doctest examples.
-- Added `compose` method to both `IsoLens` and `IsoPrism`:
-  - `IsoLens` now supports lawful composition of lenses, enabling deep, type-safe focusing into nested product types.
-  - `IsoPrism` now supports lawful composition of prisms, allowing composable and safe focusing on nested sum type variants.
-  - Both APIs are fully documented with usage examples and adhere to lawful optics principles.
-- **Implemented `MonadPlus` for core datatypes:**
-  - `Maybe<T>`: Provides monadic choice and failure for optional values.
-  - `Either<L, R>`: Enables choice and error accumulation for sum types.
-  - `Validated<E, A>`: Supports error-accumulating monadic choice for validation scenarios.
-  - `Choice<T>`: Allows monadic choice and combination of multiple alternatives.
-- Implemented the `Alternative` trait for four core datatypes:
-  - `Maybe<T>`: Optional value type, now supports `Alternative` for expressive failure and choice handling.
-  - `Either<L, R>`: Sum type for error/success, now supports `Alternative` (with `L: Default`) for left-bias failure and right-bias success.
-  - `Validated<E, A>`: Validation type with error accumulation, now supports `Alternative` (with `E: Default`) for combining validations and handling failure cases.
-- `Choice<T>::flatten_sorted()`: Flattens a `Choice` of iterable items into a sorted `Choice` of individual items. The alternatives are collected and sorted according to their natural order. Requires `I: Ord`.
+- Added `iso_lens.rs` and `iso_prism.rs` for Iso-based optics (Lens/Prism) with lawful composition, full documentation, and doctest examples.
+- `IsoLens` and `IsoPrism` now support lawful composition for deep, type-safe focusing into nested product/sum types.
+- **MonadPlus** and **Alternative** traits implemented for core datatypes:
+    - `Maybe<T>`, `Either<L, R>`, `Validated<E, A>`, `Choice<T>`: All now support monadic choice, failure, and error accumulation where appropriate.
+    - `Alternative` trait: Supported for `Maybe<T>`, `Either<L, R>` (with `L: Default`), `Validated<E, A>` (with `E: Default`).
+- `Choice<T>::flatten_sorted()`: Flattens and sorts alternatives; see below for example.
+- Iterator support (`IntoIterator`) for all core datatypes: `Maybe`, `Validated`, `Id`, `Writer`, `Either` (including left/right iterators). All implementations are documented and tested for idiomatic Rust usage.
 
   Example:
   ```rust
@@ -28,38 +19,51 @@
   assert_eq!(flat.alternatives(), &[1, 2, 4, 5]);
   ```
 
-- Implemented iterator support for all core datatypes:
-  - **Maybe<T>**: `IntoIterator` for owned, shared, and mutable references. Iterates over the value if present (like `Option`).
-  - **Validated<E, A>**: `IntoIterator` for owned, shared, and mutable references. Iterates over the valid value if present (0 or 1 item).
-  - **Id<T>**: `IntoIterator` for owned, shared, and mutable references. Always yields the single wrapped value.
-  - **Writer<W, A>**: `IntoIterator` for owned, shared, and mutable references. Iterates over the value, log is ignored.
-  - **Either<L, R>**: `IntoIterator` for owned, shared, and mutable references. Iterates over the right value if present (0 or 1 item). Left-iterators (`left_iter`, etc.) are also provided for ergonomic access to the left value.
-- All iterator implementations are documented with usage examples and tested for ergonomic, idiomatic Rust usage.
-
 ### Changed
 - **[Breaking] Changed `Choice<T>::flatten()` behavior:**
-  - Previously, `flatten()` always returned alternatives in sorted order (requiring `Ord`).
-  - Now, `flatten()` preserves the original order of items, and sorting is only performed by the new `flatten_sorted()` method.
-- **Added**: `Choice<T>::flatten_sorted()` for sorted flattening of nested choices (see above for details).
-- **Refactored**: Most methods in `Choice<T>` now use iterator combinators (map, filter, chain, flat_map, collect, fold, etc.) for more idiomatic and efficient Rust code.
-- **[Breaking] Refactored `Validated` datatype ([src/datatypes/validated.rs]):**
-  - Removed distinction between `SingleInvalid` and `MultiInvalid` variants. Now, all invalid cases are represented uniformly, simplifying the API and usage.
-  - Replaced manual error accumulation logic with idiomatic iterator patterns throughout the implementation.
-  - Methods such as `combine_errors`, `invalid_vec`, and `collect` now use iterator chains for clearer, more efficient error handling.
-  - Improved code readability and maintainability by leveraging Rust's iterator and collection APIs.
-- **[Breaking] Removed `to_state`, `to_state_t`, and `from_state_t` methods from `State` ([benches/datatypes/state.rs])**:
-  - These methods for converting between `State` and `StateT` have been deleted.
-  - **Migration:** Use the `from_state` and `to_state` methods provided by `StateT` in `tests/transformers/state_t.rs` for conversions between `State` and `StateT`.
-  - This change unifies state transformer conversions and ensures all lifting/unlifting is handled through the transformer API.
+  - Now preserves original order; sorting is provided by `flatten_sorted()`.
+- **[Breaking] Refactored `Validated` datatype:**
+  - Unified invalid cases, now uses iterators for error accumulation.
+- **[Breaking] Removed `to_state`, `to_state_t`, `from_state_t`, `to_reader`, `from_reader`, `to_cont`, `from_cont` methods from State/Reader/Cont:**
+  - All transformer-to-base conversions are now handled via the `From` trait (see below for migration).
 - **Enhanced `NaturalTransformation` trait:**
-  - Added extensive documentation and usage examples.
-  - Provided both reference-based (`transform`) and ownership-based (`transform_owned`) transformation methods.
-  - Introduced `identity_nat` utility for the identity natural transformation.
-  - Improved trait bounds and ergonomics for real-world use.
-- **[Breaking] Removed `to_state` and `to_state_t` methods from `State` ([benches/datatypes/state.rs])**:
-  - These methods for converting between `State` and `StateT` have been deleted.
-  - **Migration:** Use the `from_state` and `to_state` methods provided by `StateT` in `tests/transformers/state_t.rs` for conversions between `State` and `StateT`.
-  - This change unifies state transformer conversions and ensures all lifting/unlifting is handled through the transformer API.
+  - Added documentation, usage examples, and improved ergonomics.
+
+## [Unifying Transformer Conversions]
+
+### Breaking Change: Unified Transformer-to-Base Conversions via `From` Trait
+
+- All conversions from transformer types to their respective base types are now standardized using the `From` trait:
+    - `From<ReaderT<E, Id<A>, A>> for Reader<E, A>`
+    - `From<StateT<S, Id<(A, S)>, A>> for State<S, A>`
+    - `From<ContT<R, Id<R>, A>> for Cont<R, A>`
+- Legacy conversion methods such as `to_reader`, `from_reader`, `to_state`, `from_state`, `to_cont`, `from_cont` have **all been removed** from the codebase.
+- This change ensures a clear, unified, and idiomatic Rust API for all monad/transformer conversions.
+
+#### Migration Guide
+- To convert from a transformer to a base type, use the `From` trait or `.into()`:
+  ```rust
+  let base: State<i32, i32> = State::from(state_t);
+  let cont: Cont<i32, i32> = cont_t.into();
+  let reader: Reader<i32, i32> = reader_t.into();
+  ```
+- Update any code using the removed methods to use the `From` trait or `.into()` instead.
+
+### [Doctest & Documentation Best Practices]
+
+- **Doctests**:
+    - Always use explicit type annotations for generic types in doctests.
+    - When demonstrating trait methods, import both the type and the trait (e.g., `use rustica::traits::functor::Functor;`).
+    - Use turbofish syntax (`Type::<T>::method(...)`) for static methods on generic types.
+    - Keep doctests simple, focused, and include assertions for expected behavior.
+    - Use the `matches!` macro for pattern matching in assertions.
+    - Include both success and error case examples.
+- **Trait Implementation Examples**:
+    - Never implement traits for foreign types directly in doctests (orphan rule).
+    - Instead, use wrapper types in examples and add `#[derive(Clone)]` if needed.
+    - Use correct doc comment syntax: `///` for item-level, `//!` for module-level docs.
+
+Refer to the documentation for more details and examples.
 
 ## [0.6.4] - 2025-04-18
 

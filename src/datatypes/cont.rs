@@ -422,3 +422,35 @@ where
         Self::return_cont(a)
     }
 }
+
+/// Allows conversion from a `ContT<R, Id<R>, A>` to a `Cont<R, A>`.
+///
+/// This implementation enables seamless conversion from the transformer type to the base type,
+/// following the same pattern as `Reader` and `ReaderT`. Typically, this is only valid when the
+/// base monad is `Id`.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::datatypes::cont::Cont;
+/// use rustica::transformers::cont_t::ContT;
+/// use rustica::datatypes::id::Id;
+///
+/// // Create a ContT that applies the continuation to the value 42
+/// let cont_t: ContT<i32, Id<i32>, i32> = ContT::new(|k| k(42));
+///
+/// // Convert to Cont
+/// let cont: Cont<i32, i32> = Cont::from(cont_t);
+/// let result = cont.run(|x| x + 1);
+/// assert_eq!(result, 43);
+/// ```
+impl<R, A> From<crate::transformers::cont_t::ContT<R, crate::datatypes::id::Id<R>, A>>
+    for Cont<R, A>
+where
+    R: Clone + Send + Sync + 'static,
+    A: Clone + Send + Sync + 'static,
+{
+    fn from(cont_t: crate::transformers::cont_t::ContT<R, crate::datatypes::id::Id<R>, A>) -> Self {
+        Cont { inner: cont_t }
+    }
+}
