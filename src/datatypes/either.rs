@@ -218,11 +218,11 @@ impl<L, R> Either<L, R> {
     #[inline]
     pub fn fmap_right<T, F>(self, f: F) -> Either<L, T>
     where
-        F: Fn(R) -> T,
+        F: FnMut(R) -> T,
     {
         match self {
             Either::Left(l) => Either::Left(l),
-            Either::Right(r) => Either::Right(f(r)),
+            Either::Right(r) => Either::Right(std::iter::once(r).map(f).next().unwrap()),
         }
     }
 
@@ -264,10 +264,7 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn unwrap_right(self) -> R {
-        match self {
-            Either::Left(_) => panic!("called unwrap_right on Left value"),
-            Either::Right(r) => r,
-        }
+        self.into_iter().next().expect("called unwrap_right on Left value")
     }
 
     /// Returns the contained `Left` value, consuming the `self` value.
@@ -320,10 +317,7 @@ impl<L, R> Either<L, R> {
     where
         Self: Sized,
     {
-        match self {
-            Either::Left(_) => panic!("Called right_value on an Either::Left"),
-            Either::Right(r) => r,
-        }
+        self.into_iter().next().expect("called right_value on an Either::Left")
     }
 
     /// Returns a reference to the `Left` value.
@@ -385,10 +379,7 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn right_or(self, default: R) -> R {
-        match self {
-            Either::Right(r) => r,
-            Either::Left(_) => default,
-        }
+        self.into_iter().next().unwrap_or(default)
     }
 
     /// Returns the contained `Left` value or a default.
@@ -701,5 +692,115 @@ impl<L: Default + Clone, R: Clone> Alternative for Either<L, R> {
             Either::Right(x) => Either::Right(vec![x.clone()]),
             Either::Left(_) => Either::Left(L::default()),
         }
+    }
+}
+
+// Iterator support for Either
+/// An iterator over the right value of an `Either<L, R>`.
+pub struct EitherIter<R> {
+    inner: Option<R>,
+}
+
+impl<L, R> IntoIterator for Either<L, R> {
+    type Item = R;
+    type IntoIter = EitherIter<R>;
+    /// Converts the `Either` into an iterator over the right value.
+    ///
+    /// If the value is `Right`, yields the contained value. If `Left`, yields nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    /// let e: Either<&str, i32> = Either::right(42);
+    /// let v: Vec<_> = e.into_iter().collect();
+    /// assert_eq!(v, vec![42]);
+    /// let e: Either<&str, i32> = Either::left("err");
+    /// let v: Vec<_> = e.into_iter().collect();
+    /// assert!(v.is_empty());
+    /// ```
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Either::Right(r) => EitherIter { inner: Some(r) },
+            Either::Left(_) => EitherIter { inner: None },
+        }
+    }
+}
+
+impl<R> Iterator for EitherIter<R> {
+    type Item = R;
+    fn next(&mut self) -> Option<R> {
+        self.inner.take()
+    }
+}
+
+/// An iterator over a reference to the right value of an `Either<L, R>`.
+pub struct EitherIterRef<'a, R> {
+    inner: Option<&'a R>,
+}
+
+impl<'a, L, R> IntoIterator for &'a Either<L, R> {
+    type Item = &'a R;
+    type IntoIter = EitherIterRef<'a, R>;
+    /// Converts a reference to `Either` into an iterator over a reference to the right value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    /// let e: Either<&str, i32> = Either::right(42);
+    /// let v: Vec<_> = (&e).into_iter().collect();
+    /// assert_eq!(v, vec![&42]);
+    /// let e: Either<&str, i32> = Either::left("err");
+    /// let v: Vec<_> = (&e).into_iter().collect::<Vec<_>>();
+    /// assert!(v.is_empty());
+    /// ```
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Either::Right(r) => EitherIterRef { inner: Some(r) },
+            Either::Left(_) => EitherIterRef { inner: None },
+        }
+    }
+}
+
+impl<'a, R> Iterator for EitherIterRef<'a, R> {
+    type Item = &'a R;
+    fn next(&mut self) -> Option<&'a R> {
+        self.inner.take()
+    }
+}
+
+/// An iterator over a mutable reference to the right value of an `Either<L, R>`.
+pub struct EitherIterMut<'a, R> {
+    inner: Option<&'a mut R>,
+}
+
+impl<'a, L, R> IntoIterator for &'a mut Either<L, R> {
+    type Item = &'a mut R;
+    type IntoIter = EitherIterMut<'a, R>;
+    /// Converts a mutable reference to `Either` into an iterator over a mutable reference to the right value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    /// let mut e: Either<&str, i32> = Either::right(42);
+    /// for v in &mut e {
+    ///     *v += 1;
+    /// }
+    /// assert_eq!(e, Either::right(43));
+    /// ```
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Either::Right(r) => EitherIterMut { inner: Some(r) },
+            Either::Left(_) => EitherIterMut { inner: None },
+        }
+    }
+}
+
+impl<'a, R> Iterator for EitherIterMut<'a, R> {
+    type Item = &'a mut R;
+    fn next(&mut self) -> Option<&'a mut R> {
+        self.inner.take()
     }
 }
