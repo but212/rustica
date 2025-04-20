@@ -313,11 +313,8 @@ impl<L, R> Either<L, R> {
     /// assert_eq!(x.right_value(), "hello");
     /// ```
     #[inline]
-    pub fn right_value(self) -> R
-    where
-        Self: Sized,
-    {
-        self.into_iter().next().expect("called right_value on an Either::Left")
+    pub fn right_value(self) -> R {
+        self.into_iter().next().expect("Called right_value() on a Left value")
     }
 
     /// Returns a reference to the `Left` value.
@@ -358,10 +355,7 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn right_ref(&self) -> &R {
-        match self {
-            Either::Left(_) => panic!("Called right_ref on an Either::Right"),
-            Either::Right(r) => r,
-        }
+        self.into_iter().next().expect("Called right_ref() on a Left value")
     }
 
     /// Returns the contained `Right` value or a default.
@@ -403,6 +397,24 @@ impl<L, R> Either<L, R> {
         }
     }
 
+    /// Returns the contained `Right` value as an Option.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let right: Either<&str, u32> = Either::right(7);
+    /// assert_eq!(right.right_option(), Some(7));
+    ///
+    /// let left: Either<&str, u32> = Either::left("foo");
+    /// assert_eq!(left.right_option(), None);
+    /// ```
+    #[inline]
+    pub fn right_option(self) -> Option<R> {
+        self.into_iter().next()
+    }
+
     /// Converts this `Either` to a `Result`.
     ///
     /// Left becomes `Err` and Right becomes `Ok`.
@@ -441,6 +453,76 @@ impl<L, R> Either<L, R> {
     #[inline]
     pub fn from_result(result: Result<R, L>) -> Self {
         error_utils::result_to_either(result)
+    }
+
+    /// Returns an iterator over the left value, consuming self.
+    pub fn left_iter(self) -> EitherLeftIter<L> {
+        match self {
+            Either::Left(l) => EitherLeftIter { left: Some(l) },
+            Either::Right(_) => EitherLeftIter { left: None },
+        }
+    }
+
+    /// Returns an iterator over a reference to the left value.
+    pub fn left_iter_ref(&self) -> EitherLeftIterRef<'_, L> {
+        match self {
+            Either::Left(ref l) => EitherLeftIterRef { left: Some(l) },
+            Either::Right(_) => EitherLeftIterRef { left: None },
+        }
+    }
+
+    /// Returns an iterator over a mutable reference to the left value.
+    pub fn left_iter_mut(&mut self) -> EitherLeftIterMut<'_, L> {
+        match self {
+            Either::Left(ref mut l) => EitherLeftIterMut { left: Some(l) },
+            Either::Right(_) => EitherLeftIterMut { left: None },
+        }
+    }
+
+    /// Returns the contained `Left` value as an Option.
+    pub fn left_option(self) -> Option<L> {
+        self.left_iter().next()
+    }
+
+    /// Returns a mutable reference to the `Left` value, panicking if not present.
+    pub fn left_mut(&mut self) -> &mut L {
+        self.left_iter_mut().next().expect("Called left_mut() on a Right value")
+    }
+}
+
+/// An iterator over the left value of an `Either<L, R>`.
+pub struct EitherLeftIter<L> {
+    left: Option<L>,
+}
+
+impl<L> Iterator for EitherLeftIter<L> {
+    type Item = L;
+    fn next(&mut self) -> Option<L> {
+        self.left.take()
+    }
+}
+
+/// An iterator over a reference to the left value of an `Either<L, R>`.
+pub struct EitherLeftIterRef<'a, L> {
+    left: Option<&'a L>,
+}
+
+impl<'a, L> Iterator for EitherLeftIterRef<'a, L> {
+    type Item = &'a L;
+    fn next(&mut self) -> Option<&'a L> {
+        self.left.take()
+    }
+}
+
+/// An iterator over a mutable reference to the left value of an `Either<L, R>`.
+pub struct EitherLeftIterMut<'a, L> {
+    left: Option<&'a mut L>,
+}
+
+impl<'a, L> Iterator for EitherLeftIterMut<'a, L> {
+    type Item = &'a mut L;
+    fn next(&mut self) -> Option<&'a mut L> {
+        self.left.take()
     }
 }
 

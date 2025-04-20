@@ -79,6 +79,41 @@
 //! assert_eq!(log, Log(vec!["Computed value".to_string()]));
 //! ```
 //!
+//! # Iterator Example
+//!
+//! Iterating over a Writer yields its value once (if present), ignoring the log.
+//!
+//! ```rust
+//! use rustica::datatypes::writer::Writer;
+//! use rustica::traits::monoid::Monoid;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Define a simple log type
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Log(String);
+//!
+//! impl Semigroup for Log {
+//!     fn combine(&self, other: &Self) -> Self {
+//!         Log(self.0.clone() + &other.0)
+//!     }
+//!
+//!     fn combine_owned(self, other: Self) -> Self {
+//!         Log(self.0 + &other.0)
+//!     }
+//! }
+//!
+//! impl Monoid for Log {
+//!     fn empty() -> Self {
+//!         Log(String::new())
+//!     }
+//! }
+//!
+//! let writer = Writer::new(Log("log".to_string()), 42);
+//! let mut iter = writer.into_iter();
+//! assert_eq!(iter.next(), Some(42));
+//! assert_eq!(iter.next(), None);
+//! ```
+//!
 //! ### Chaining Computations
 //!
 //! ```rust
@@ -657,5 +692,32 @@ impl<W: Monoid + Clone, A: Clone> Composable for Writer<W, A> {
         G: Fn(T) -> U,
     {
         move |x| g(f(x))
+    }
+}
+
+impl<W, A> IntoIterator for Writer<W, A> {
+    type Item = A;
+    type IntoIter = std::option::IntoIter<A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Some(self.value).into_iter()
+    }
+}
+
+impl<'a, W, A> IntoIterator for &'a Writer<W, A> {
+    type Item = &'a A;
+    type IntoIter = std::slice::Iter<'a, A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        std::slice::from_ref(&self.value).iter()
+    }
+}
+
+impl<'a, W, A> IntoIterator for &'a mut Writer<W, A> {
+    type Item = &'a mut A;
+    type IntoIter = std::slice::IterMut<'a, A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        std::slice::from_mut(&mut self.value).iter_mut()
     }
 }
