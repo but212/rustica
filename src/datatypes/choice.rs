@@ -442,7 +442,6 @@ impl<T> Choice<T> {
     /// assert_eq!(*flattened.first().unwrap(), 1);
     /// assert_eq!(flattened.alternatives(), &[3, 4, 5, 2]);
     /// ```
-    #[inline]
     pub fn flatten<I>(&self) -> Choice<I>
     where
         T: IntoIterator<Item = I> + Clone,
@@ -500,7 +499,6 @@ impl<T> Choice<T> {
     /// assert_eq!(*flattened.first().unwrap(), 3);
     /// assert_eq!(flattened.alternatives(), &[1, 2, 4, 5]);
     /// ```
-    #[inline]
     pub fn flatten_sorted<I>(&self) -> Choice<I>
     where
         T: IntoIterator<Item = I> + Clone,
@@ -750,7 +748,6 @@ impl<T: Clone> Functor for Choice<T> {
         Choice::new(primary, alternatives)
     }
 
-    #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: FnMut(T) -> B,
@@ -813,7 +810,6 @@ impl<T: Clone> Monad for Choice<T> {
         Choice::new(first, alternatives)
     }
 
-    #[inline]
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
     where
         F: Fn(Self::Source) -> Self::Output<U>,
@@ -972,7 +968,6 @@ impl<T: Clone> Monad for Choice<T> {
 }
 
 impl<T: Clone> Semigroup for Choice<T> {
-    #[inline]
     fn combine(&self, other: &Self) -> Self {
         if self.values.is_empty() {
             return other.clone();
@@ -996,7 +991,6 @@ impl<T: Clone> Semigroup for Choice<T> {
         )
     }
 
-    #[inline]
     fn combine_owned(self, other: Self) -> Self {
         if self.values.is_empty() {
             return other;
@@ -1062,7 +1056,6 @@ impl<T: Clone> Applicative for Choice<T> {
         Choice::new(primary, alternatives)
     }
 
-    #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
         F: Fn(T) -> B,
@@ -1459,7 +1452,7 @@ impl<T: Clone + Default> Default for Choice<T> {
     }
 }
 
-impl<T: Clone> std::iter::Sum for Choice<T> {
+impl<T: Clone + Default> std::iter::Sum for Choice<T> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(Choice::new_empty(), |acc, choice| acc.combine_owned(choice))
     }
