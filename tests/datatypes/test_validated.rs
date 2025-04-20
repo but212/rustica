@@ -332,3 +332,244 @@ fn test_validated_real_world_scenario() {
     assert_eq!(errors[1], "Age must be at least 18");
     assert_eq!(errors[2], "Email must contain @ symbol");
 }
+
+#[test]
+fn test_validated_edge_cases() {
+    use rustica::datatypes::validated::Validated;
+    // Empty error vector (invalid_many with empty)
+    let empty: Validated<String, i32> = Validated::invalid_many(Vec::<String>::new());
+    assert!(empty.is_invalid());
+    assert!(empty.errors().is_empty());
+    // Large error vector
+    let many: Vec<_> = (0..100).map(|i| format!("err{i}")).collect();
+    let large: Validated<String, i32> = Validated::invalid_many(many.clone());
+    assert_eq!(large.errors().len(), 100);
+    assert_eq!(large.errors()[0], "err0");
+    assert_eq!(large.errors()[99], "err99");
+}
+
+#[test]
+fn test_validated_fmap_invalid_multiple() {
+    use rustica::datatypes::validated::Validated;
+    let multi: Validated<&str, i32> = Validated::invalid_many(["e1", "e2"]);
+    let mapped = multi.fmap_invalid(|e| format!("Err: {e}"));
+    assert_eq!(
+        mapped.errors(),
+        &["Err: e1".to_string(), "Err: e2".to_string()]
+    );
+    let mapped_owned = multi.fmap_invalid_owned(|e| format!("Err: {e}"));
+    assert_eq!(
+        mapped_owned.errors(),
+        &["Err: e1".to_string(), "Err: e2".to_string()]
+    );
+}
+
+#[test]
+fn test_validated_apply_owned() {
+    use rustica::datatypes::validated::Validated;
+    let value: Validated<String, i32> = Validated::valid(10);
+    let f: Validated<String, fn(i32) -> i32> = Validated::valid(|x| x + 1);
+    let applied = value.clone().apply_owned(f.clone());
+    assert_eq!(applied, Validated::valid(11));
+    let invalid: Validated<String, i32> = Validated::invalid("err".to_string());
+    let applied = invalid.clone().apply_owned(f.clone());
+    assert!(applied.is_invalid());
+    let applied: Validated<String, i32> =
+        value.apply_owned::<i32, fn(i32) -> i32>(Validated::invalid("err2".to_string()));
+    assert!(applied.is_invalid());
+}
+
+#[test]
+fn test_validated_iterators_and_collections() {
+    use rustica::datatypes::validated::Validated;
+    let valid: Validated<String, i32> = Validated::valid(1);
+    let vals: Vec<_> = valid.iter().cloned().collect();
+    assert_eq!(vals, vec![1]);
+    let invalid: Validated<String, i32> =
+        Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
+    let errs: Vec<_> = invalid.iter_errors().cloned().collect();
+    assert_eq!(errs, vec!["e1".to_string(), "e2".to_string()]);
+}
+
+#[test]
+fn test_validated_foldable_and_identity() {
+    use rustica::datatypes::validated::Validated;
+    use rustica::traits::foldable::Foldable;
+    use rustica::traits::identity::Identity;
+    let valid: Validated<String, i32> = Validated::valid(5);
+    let sum = valid.fold_left(&0, |acc, x| acc + x);
+    assert_eq!(sum, 5);
+    let prod = valid.fold_right(&1, |x, acc| x * acc);
+    assert_eq!(prod, 5);
+    assert_eq!(valid.value(), &5);
+    assert_eq!(valid.into_value(), 5);
+    let pure: Validated<String, i32> = Validated::<String, i32>::pure_identity(42);
+    assert_eq!(pure, Validated::valid(42));
+}
+
+#[test]
+fn test_validated_laws() {
+    use rustica::datatypes::validated::Validated;
+    use rustica::traits::applicative::Applicative;
+    use rustica::traits::functor::Functor;
+    use rustica::traits::monad::Monad;
+    // Functor identity
+    let v: Validated<String, i32> = Validated::valid(5);
+    assert_eq!(v.fmap(|x| *x), v);
+    // Functor composition
+    let f = |x: &i32| x + 1;
+    let g = |x: &i32| x * 2;
+    let comp1 = v.fmap(|x| f(&g(x)));
+    let comp2 = v.fmap(g).fmap(f);
+    assert_eq!(comp1, comp2);
+    // Applicative identity
+    let id_fn = |x: &i32| *x;
+    let id_app = Validated::valid(id_fn);
+    let applied = v.apply(&id_app);
+    assert_eq!(applied, v);
+    // Monad left identity
+    let a = 42;
+    let f = |x: &i32| Validated::valid(*x + 1);
+    let left = Validated::<String, i32>::pure(&a).bind(f);
+    let right = f(&a);
+    assert_eq!(left, right);
+    // Monad right identity
+    let m = Validated::<String, i32>::valid(1);
+    let right = m.bind(|x| Validated::<String, i32>::pure(x));
+    assert_eq!(right, m);
+    // Monad associativity
+    let f = |x: &i32| Validated::<String, i32>::valid(x + 1);
+    let g = |x: &i32| Validated::<String, i32>::valid(x * 2);
+    let m = Validated::<String, i32>::valid(10);
+
+    let left = m.bind(f).bind(g);
+    let right = m.bind(|x| f(x).bind(g));
+    assert_eq!(left, right);
+
+    // Corrected test with consistent results
+    let composed = |x: &i32| f(x).bind(|&y| g(&y));
+    let result = composed(&11);
+    assert_eq!(result, Validated::valid(24));
+
+    // Test fold_left
+    let valid: Validated<String, i32> = Validated::valid(21);
+    let result = valid.fold_left(&0, |acc, x| acc + x);
+    assert_eq!(result, 21);
+
+    // Test fold_left with Invalid
+    let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
+    let result = invalid.fold_left(&0, |acc, x| acc + x);
+    assert_eq!(result, 0);
+}
+
+#[test]
+fn test_validated_equality_and_ordering() {
+    use rustica::datatypes::validated::Validated;
+    let v1 = Validated::<String, i32>::valid(1);
+    let v2 = Validated::<String, i32>::valid(1);
+    let v3 = Validated::<String, i32>::valid(2);
+    assert_eq!(v1, v2);
+    assert_ne!(v1, v3);
+    let i1 = Validated::<String, i32>::invalid("e".to_string());
+    let i2 = Validated::<String, i32>::invalid("e".to_string());
+    let i3 = Validated::<String, i32>::invalid("e2".to_string());
+    assert_eq!(i1, i2);
+    assert_ne!(i1, i3);
+}
+
+#[test]
+fn test_validated_unwrap_and_expect() {
+    use rustica::datatypes::validated::Validated;
+    let v = Validated::<String, i32>::valid(42);
+    assert_eq!(v.unwrap(), 42);
+    let i: Validated<String, i32> = Validated::<String, i32>::invalid("err".to_string());
+    let result = std::panic::catch_unwind(|| i.unwrap());
+    assert!(result.is_err());
+    let v = Validated::<String, i32>::valid(7);
+    assert_eq!(v.unwrap(), 7);
+}
+
+#[test]
+fn test_validated_invalid_vec_panics_on_empty() {
+    use std::panic;
+    let result = panic::catch_unwind(|| {
+        Validated::<&str, i32>::invalid_vec(Vec::<&str>::new());
+    });
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_validated_unwrap_invalid_panics_on_valid() {
+    use std::panic;
+    let valid = Validated::<&str, i32>::valid(1);
+    let result = panic::catch_unwind(|| {
+        valid.unwrap_invalid();
+    });
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_validated_iterators() {
+    let valid = Validated::<&str, i32>::valid(42);
+    let invalid = Validated::<&str, i32>::invalid("err");
+    // iter
+    let vals: Vec<_> = valid.iter().collect();
+    assert_eq!(vals, vec![&42]);
+    let vals: Vec<_> = invalid.iter().collect();
+    assert!(vals.is_empty());
+    // iter_mut
+    let mut valid2 = Validated::<&str, i32>::valid(100);
+    let mut invalid2 = Validated::<&str, i32>::invalid("err2");
+    let vals: Vec<_> = valid2.iter_mut().collect();
+    assert_eq!(vals.len(), 1);
+    let vals: Vec<_> = invalid2.iter_mut().collect();
+    assert!(vals.is_empty());
+    // iter_errors
+    let errs: Vec<_> = invalid.iter_errors().collect();
+    assert_eq!(errs, vec![&"err"]);
+    let errs: Vec<_> = valid.iter_errors().collect();
+    assert!(errs.is_empty());
+    // iter_errors_mut
+    let mut invalid3 = Validated::<&str, i32>::invalid("err3");
+    let errs: Vec<_> = invalid3.iter_errors_mut().collect();
+    assert_eq!(errs.len(), 1);
+}
+
+#[test]
+fn test_validated_trait_laws() {
+    use rustica::traits::applicative::Applicative;
+    use rustica::traits::functor::Functor;
+    use rustica::traits::monad::Monad;
+    // Functor identity
+    let v: Validated<String, i32> = Validated::valid(5);
+    assert_eq!(v.fmap(|x| *x), v);
+    // Functor composition
+    let f = |x: &i32| x + 1;
+    let g = |x: &i32| x * 2;
+    let lhs = v.fmap(|x| f(&g(x)));
+    let rhs = v.fmap(g).fmap(f);
+    assert_eq!(lhs, rhs);
+    // Applicative identity
+    let u: Validated<String, fn(&i32) -> i32> = Validated::valid(|x| *x);
+    let a = Validated::valid(7);
+    assert_eq!(a.apply(&u), a);
+    // Applicative homomorphism
+    let f = |x: &i32| x + 1;
+    let a: Validated<String, i32> = Validated::valid(3);
+    let u = Validated::valid(f);
+    assert_eq!(a.apply(&u), Validated::valid(f(&3)));
+    // Monad left identity
+    let f = |x: &i32| Validated::<String, i32>::valid(x * 2);
+    let a = 10;
+    assert_eq!(Validated::valid(a).bind(f), f(&a));
+    // Monad right identity
+    let m = Validated::<String, i32>::valid(9);
+    assert_eq!(m.bind(|x| Validated::valid(*x)), m);
+    // Monad associativity
+    let m = Validated::<String, i32>::valid(5);
+    let f = |x: &i32| Validated::<String, i32>::valid(x + 1);
+    let g = |x: &i32| Validated::<String, i32>::valid(x * 2);
+    let lhs = m.bind(f).bind(g);
+    let rhs = m.bind(|x| f(x).bind(g));
+    assert_eq!(lhs, rhs);
+}

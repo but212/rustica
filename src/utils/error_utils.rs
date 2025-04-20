@@ -163,35 +163,22 @@ impl<T: Clone, E: Clone> WithError<E> for Validated<E, T> {
     type Success = T;
     type ErrorOutput<G> = Validated<G, T>;
 
-    fn fmap_error<F, G>(self, mut f: F) -> Self::ErrorOutput<G>
+    fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
     where
-        F: FnMut(E) -> G,
+        F: Fn(E) -> G,
         G: Clone,
         T: Clone,
     {
         match self {
             Validated::Valid(t) => Validated::Valid(t),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(f(e)),
-            Validated::MultiInvalid(es) => {
-                let mapped: SmallVec<[G; 4]> = es.into_iter().map(f).collect();
-                Validated::MultiInvalid(mapped)
-            },
+            Validated::Invalid(e) => Validated::Invalid(e.into_iter().map(f).collect()),
         }
     }
 
     fn to_result(self) -> Result<Self::Success, E> {
         match self {
             Validated::Valid(t) => Ok(t),
-            Validated::SingleInvalid(e) => Err(e),
-            Validated::MultiInvalid(es) => {
-                // Take the first error as the primary error
-                if !es.is_empty() {
-                    Err(es[0].clone())
-                } else {
-                    // This should not happen with proper Validated usage
-                    panic!("MultiInvalid with no errors")
-                }
-            },
+            Validated::Invalid(e) => Err(e.into_iter().next().unwrap()),
         }
     }
 }
@@ -335,11 +322,7 @@ where
     }
 
     if had_error {
-        if errors.len() == 1 {
-            Validated::SingleInvalid(errors.pop().unwrap())
-        } else {
-            Validated::MultiInvalid(errors)
-        }
+        Validated::Invalid(errors)
     } else {
         Validated::Valid(values)
     }
@@ -518,9 +501,10 @@ pub trait ResultExt<T, E> {
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
     fn to_validated(self) -> Validated<E, T> {
+        use smallvec::smallvec;
         match self {
             Ok(value) => Validated::Valid(value),
-            Err(error) => Validated::SingleInvalid(error),
+            Err(error) => Validated::Invalid(smallvec![error]),
         }
     }
 

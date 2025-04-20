@@ -98,7 +98,7 @@ use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -114,12 +114,9 @@ use smallvec::SmallVec;
 pub enum Validated<E, A> {
     /// Represents a valid value of type A.
     Valid(A),
-    /// Represents an invalid state with a single error of type E.
-    /// Optimized for the common case of a single error.
-    SingleInvalid(E),
     /// Represents an invalid state with multiple errors of type E.
     /// Uses SmallVec for better performance with small error counts.
-    MultiInvalid(SmallVec<[E; 4]>),
+    Invalid(SmallVec<[E; 4]>),
 }
 
 impl<E, A> Validated<E, A> {
@@ -182,8 +179,7 @@ impl<E, A> Validated<E, A> {
     {
         match self {
             Validated::Valid(_) => Vec::new(),
-            Validated::SingleInvalid(e) => vec![e.clone()],
-            Validated::MultiInvalid(e) => e.clone().to_vec(),
+            Validated::Invalid(e) => e.clone().to_vec(),
         }
     }
 }
@@ -222,12 +218,12 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// ```
     #[inline]
     pub fn invalid(e: E) -> Self {
-        Validated::SingleInvalid(e)
+        Validated::Invalid(smallvec![e])
     }
 
     /// Creates a new invalid instance with multiple errors from a collection.
     ///
-    /// Unlike `invalid_vec`, this method always creates a `MultiInvalid` variant,
+    /// Unlike `invalid_vec`, this method always creates an `Invalid` variant,
     /// even if there are zero or one errors in the collection.
     ///
     /// # Arguments
@@ -246,7 +242,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     where
         I: IntoIterator<Item = E>,
     {
-        Validated::MultiInvalid(errors.into_iter().collect())
+        Validated::Invalid(errors.into_iter().collect())
     }
 
     /// Creates a new invalid instance with multiple errors from a collection.
@@ -267,11 +263,13 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     where
         I: IntoIterator<Item = E>,
     {
-        let e: SmallVec<[E; 4]> = errors.into_iter().collect();
-        match e.len() {
-            0 => panic!("Validated::invalid_vec requires at least one error"),
-            1 => Validated::SingleInvalid(e[0].clone()),
-            _ => Validated::MultiInvalid(e),
+        let mut errors = errors.into_iter();
+        if let Some(first) = errors.next() {
+            let mut vec = smallvec![first];
+            vec.extend(errors);
+            Validated::Invalid(vec)
+        } else {
+            panic!("Validated::invalid_vec requires at least one error")
         }
     }
 
@@ -311,10 +309,9 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(f(e)),
-            Validated::MultiInvalid(es) => {
-                let transformed: SmallVec<[G; 4]> = es.iter().map(f).collect();
-                Validated::MultiInvalid(transformed)
+            Validated::Invalid(es) => {
+                let transformed = es.iter().map(f).collect();
+                Validated::Invalid(transformed)
             },
         }
     }
@@ -355,10 +352,9 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(f(e)),
-            Validated::MultiInvalid(es) => {
-                let transformed: SmallVec<[G; 4]> = es.into_iter().map(f).collect();
-                Validated::MultiInvalid(transformed)
+            Validated::Invalid(es) => {
+                let transformed = es.into_iter().map(f).collect();
+                Validated::Invalid(transformed)
             },
         }
     }
@@ -397,29 +393,9 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             (Validated::Valid(_), Validated::Valid(_)) => unreachable!(),
             (Validated::Valid(_), invalid) => invalid.clone(),
             (invalid, Validated::Valid(_)) => invalid.clone(),
-            (Validated::SingleInvalid(e1), Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                errors.push(e1.clone());
-                errors.push(e2.clone());
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::SingleInvalid(e), Validated::MultiInvalid(es)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(1 + es.len());
-                errors.push(e.clone());
-                errors.extend(es.iter().cloned());
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::MultiInvalid(es), Validated::SingleInvalid(e)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(es.len() + 1);
-                errors.extend(es.iter().cloned());
-                errors.push(e.clone());
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::MultiInvalid(es1), Validated::MultiInvalid(es2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(es1.len() + es2.len());
-                errors.extend(es1.iter().cloned());
-                errors.extend(es2.iter().cloned());
-                Validated::MultiInvalid(errors)
+            (Validated::Invalid(es1), Validated::Invalid(es2)) => {
+                let errors = es1.iter().chain(es2.iter()).cloned().collect::<SmallVec<[E; 4]>>();
+                Validated::Invalid(errors)
             },
         }
     }
@@ -559,7 +535,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     pub fn from_option(option: &Option<A>, error: &E) -> Self {
         match option {
             Some(value) => Validated::Valid(value.clone()),
-            None => Validated::SingleInvalid(error.clone()),
+            None => Validated::Invalid(smallvec![error.clone()]),
         }
     }
 
@@ -590,7 +566,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     pub fn from_option_owned(option: Option<A>, error: E) -> Self {
         match option {
             Some(value) => Validated::Valid(value),
-            None => Validated::SingleInvalid(error),
+            None => Validated::Invalid(smallvec![error]),
         }
     }
 
@@ -624,7 +600,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     {
         match option {
             Some(value) => Validated::Valid(value.clone()),
-            None => Validated::SingleInvalid(error_fn()),
+            None => Validated::Invalid(smallvec![error_fn()]),
         }
     }
 
@@ -658,7 +634,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     {
         match option {
             Some(value) => Validated::Valid(value),
-            None => Validated::SingleInvalid(error_fn()),
+            None => Validated::Invalid(smallvec![error_fn()]),
         }
     }
 
@@ -735,8 +711,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     #[inline]
     pub fn unwrap_invalid(&self) -> Vec<E> {
         match self {
-            Validated::SingleInvalid(e) => vec![e.clone()],
-            Validated::MultiInvalid(es) => es.to_vec(),
+            Validated::Invalid(es) => es.to_vec(),
             _ => panic!("Cannot unwrap invalid value"),
         }
     }
@@ -799,18 +774,12 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         // Collect errors
         let mut errors = SmallVec::<[E; 4]>::new();
         for v in values {
-            match v {
-                Validated::SingleInvalid(e) => errors.push(e.clone()),
-                Validated::MultiInvalid(es) => errors.extend(es.iter().cloned()),
-                _ => {},
+            if let Validated::Invalid(es) = v {
+                errors.extend(es.iter().cloned());
             }
         }
 
-        match errors.len() {
-            0 => unreachable!(),
-            1 => Validated::SingleInvalid(errors.remove(0)),
-            _ => Validated::MultiInvalid(errors),
-        }
+        Validated::Invalid(errors)
     }
 
     /// Collects an iterator of Validated values into a single Validated value.
@@ -858,23 +827,19 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         A: Clone,
         E: Clone,
     {
-        use crate::utils::error_utils::traverse_validated;
-        traverse_validated(iter, |val| {
-            match val {
-                Validated::Valid(a) => Ok(a.clone()),
-                Validated::SingleInvalid(e) => Err(e.clone()),
-                Validated::MultiInvalid(es) => {
-                    // Take the first error as the primary error
-                    if !es.is_empty() {
-                        Err(es[0].clone())
-                    } else {
-                        // This should not happen with proper Validated usage
-                        panic!("MultiInvalid with no errors")
-                    }
-                },
+        let mut values = Vec::new();
+        let mut errors = smallvec![];
+        for v in iter {
+            match v {
+                Validated::Valid(a) => values.push(a),
+                Validated::Invalid(es) => errors.extend(es),
             }
-        })
-        .fmap(|v| C::from_iter(v.clone()))
+        }
+        if errors.is_empty() {
+            Validated::Valid(C::from_iter(values))
+        } else {
+            Validated::Invalid(errors)
+        }
     }
 
     #[inline]
@@ -925,8 +890,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
                 let result = f(x.clone()).await;
                 Validated::Valid(result)
             },
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e.clone()),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
     }
 
@@ -967,18 +931,13 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
-            Validated::SingleInvalid(e) => {
-                let result = f(e.clone()).await;
-                Validated::SingleInvalid(result)
-            },
-            Validated::MultiInvalid(es) => {
-                let futures = es.iter().map(|e| f(e.clone()));
-
+            Validated::Invalid(es) => {
                 // Using futures::future::join_all to run all futures concurrently
+                let futures = es.iter().map(|e| f(e.clone()));
                 let results = futures::future::join_all(futures).await;
                 let transformed: SmallVec<[G; 4]> = results.into_iter().collect();
 
-                Validated::MultiInvalid(transformed)
+                Validated::Invalid(transformed)
             },
         }
     }
@@ -1027,9 +986,142 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => f(x.clone()).await,
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e.clone()),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
+    }
+
+    /// Returns an iterator over the valid value (0 or 1 item).
+    pub fn iter(&self) -> Iter<'_, A> {
+        match self {
+            Validated::Valid(ref a) => Iter { inner: Some(a) },
+            _ => Iter { inner: None },
+        }
+    }
+
+    /// Returns a mutable iterator over the valid value (0 or 1 item).
+    pub fn iter_mut(&mut self) -> IterMut<'_, A> {
+        match self {
+            Validated::Valid(ref mut a) => IterMut { inner: Some(a) },
+            _ => IterMut { inner: None },
+        }
+    }
+
+    /// Returns an iterator over the error(s) (0 or many).
+    pub fn iter_errors(&self) -> ErrorsIter<'_, E> {
+        match self {
+            Validated::Invalid(ref es) => ErrorsIter::Multi(es.iter()),
+            _ => ErrorsIter::Empty,
+        }
+    }
+
+    /// Returns a mutable iterator over the error(s) (0 or many).
+    pub fn iter_errors_mut(&mut self) -> ErrorsIterMut<'_, E> {
+        match self {
+            Validated::Invalid(ref mut es) => ErrorsIterMut::Multi(es.iter_mut()),
+            _ => ErrorsIterMut::Empty,
+        }
+    }
+}
+
+/// Iterator over a Validated value (0 or 1 item)
+pub struct Iter<'a, A> {
+    inner: Option<&'a A>,
+}
+
+impl<'a, A> Iterator for Iter<'a, A> {
+    type Item = &'a A;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.take()
+    }
+}
+
+/// Mutable iterator over a Validated value (0 or 1 item)
+pub struct IterMut<'a, A> {
+    inner: Option<&'a mut A>,
+}
+
+impl<'a, A> Iterator for IterMut<'a, A> {
+    type Item = &'a mut A;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.take()
+    }
+}
+
+/// Iterator over errors in a Validated
+pub enum ErrorsIter<'a, E> {
+    Empty,
+    Multi(smallvec::alloc::slice::Iter<'a, E>),
+}
+
+impl<'a, E> Iterator for ErrorsIter<'a, E> {
+    type Item = &'a E;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ErrorsIter::Empty => None,
+            ErrorsIter::Multi(ref mut it) => it.next(),
+        }
+    }
+}
+
+/// Mutable iterator over errors in a Validated
+pub enum ErrorsIterMut<'a, E> {
+    Empty,
+    Multi(smallvec::alloc::slice::IterMut<'a, E>),
+}
+
+impl<'a, E> Iterator for ErrorsIterMut<'a, E> {
+    type Item = &'a mut E;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ErrorsIterMut::Empty => None,
+            ErrorsIterMut::Multi(ref mut it) => it.next(),
+        }
+    }
+}
+
+impl<E, A> IntoIterator for Validated<E, A> {
+    type Item = A;
+    type IntoIter = IntoIter<A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Validated::Valid(a) => IntoIter { inner: Some(a) },
+            _ => IntoIter { inner: None },
+        }
+    }
+}
+
+pub struct IntoIter<A> {
+    inner: Option<A>,
+}
+
+impl<A> Iterator for IntoIter<A> {
+    type Item = A;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.take()
+    }
+}
+
+impl<'a, E: Clone, A: Clone> IntoIterator for &'a Validated<E, A> {
+    type Item = &'a A;
+    type IntoIter = Iter<'a, A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, E: Clone, A: Clone> IntoIterator for &'a mut Validated<E, A> {
+    type Item = &'a mut A;
+    type IntoIter = IterMut<'a, A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -1041,12 +1133,12 @@ impl<E, A> HKT for Validated<E, A> {
 impl<E: Clone, A> Pure for Validated<E, A> {
     #[inline]
     fn pure<T: Clone>(x: &T) -> Self::Output<T> {
-        Validated::valid(x.clone())
+        Validated::Valid(x.clone())
     }
 
     #[inline]
     fn pure_owned<T: Clone>(x: T) -> Self::Output<T> {
-        Validated::valid(x)
+        Validated::Valid(x)
     }
 }
 
@@ -1059,8 +1151,7 @@ impl<E: Clone, A: Clone> Functor for Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e.clone()),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
     }
 
@@ -1072,8 +1163,7 @@ impl<E: Clone, A: Clone> Functor for Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e),
+            Validated::Invalid(e) => Validated::Invalid(e),
         }
     }
 }
@@ -1091,10 +1181,9 @@ impl<E, A> BinaryHKT for Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(f(e)),
-            Validated::MultiInvalid(es) => {
+            Validated::Invalid(es) => {
                 let transformed: SmallVec<[C; 4]> = es.iter().map(f).collect();
-                Validated::MultiInvalid(transformed)
+                Validated::Invalid(transformed)
             },
         }
     }
@@ -1106,10 +1195,9 @@ impl<E, A> BinaryHKT for Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(f(e)),
-            Validated::MultiInvalid(es) => {
+            Validated::Invalid(es) => {
                 let transformed: SmallVec<[C; 4]> = es.into_iter().map(f).collect();
-                Validated::MultiInvalid(transformed)
+                Validated::Invalid(transformed)
             },
         }
     }
@@ -1125,10 +1213,9 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(g(e)),
-            Validated::MultiInvalid(es) => {
+            Validated::Invalid(es) => {
                 let transformed: SmallVec<[D; 4]> = es.iter().map(g).collect();
-                Validated::MultiInvalid(transformed)
+                Validated::Invalid(transformed)
             },
         }
     }
@@ -1140,8 +1227,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
-            Validated::MultiInvalid(es) => Validated::MultiInvalid(es.clone()),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
     }
 
@@ -1152,17 +1238,15 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(g(e)),
-            Validated::MultiInvalid(es) => {
+            Validated::Invalid(es) => {
                 let transformed: SmallVec<[D; 4]> = es.iter().map(g).collect();
-                Validated::MultiInvalid(transformed)
+                Validated::Invalid(transformed)
             },
         }
     }
 }
 
 impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
-    #[inline]
     fn apply<B, F>(&self, rf: &Self::Output<F>) -> Self::Output<B>
     where
         F: Fn(&Self::Source) -> B,
@@ -1170,82 +1254,39 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
     {
         match (self, rf) {
             (Validated::Valid(a), Validated::Valid(f)) => Validated::Valid(f(a)),
-            (Validated::Valid(_), Validated::SingleInvalid(e)) => {
-                Validated::SingleInvalid(e.clone())
-            },
-            (Validated::Valid(_), Validated::MultiInvalid(e)) => Validated::MultiInvalid(e.clone()),
-            (Validated::SingleInvalid(e), Validated::Valid(_)) => {
-                Validated::SingleInvalid(e.clone())
-            },
-            (Validated::MultiInvalid(e), Validated::Valid(_)) => Validated::MultiInvalid(e.clone()),
-            // When both sides have errors, combine them efficiently
-            (Validated::SingleInvalid(e1), Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                errors.push(e1.clone());
-                errors.push(e2.clone());
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::SingleInvalid(e1), Validated::MultiInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(1 + e2.len());
-                errors.push(e1.clone());
-                errors.extend(e2.iter().cloned());
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::MultiInvalid(e1), Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + 1);
-                errors.extend(e1.iter().cloned());
-                errors.push(e2.clone());
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::MultiInvalid(e1), Validated::MultiInvalid(e2)) => {
+            (Validated::Valid(_), Validated::Invalid(e)) => Validated::Invalid(e.clone()),
+            (Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e.clone()),
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().cloned());
-                errors.extend(e2.iter().cloned());
-                Validated::MultiInvalid(errors)
+                errors.extend(e1.iter().cloned().chain(e2.iter().cloned()));
+                Validated::Invalid(errors)
             },
         }
     }
 
-    #[inline]
     fn apply_owned<B, F>(self, rf: Self::Output<F>) -> Self::Output<B>
     where
         Self: Sized,
         F: FnOnce(Self::Source) -> B,
+        B: Clone,
     {
         match (self, rf) {
             (Validated::Valid(a), Validated::Valid(f)) => Validated::Valid(f(a)),
-            (Validated::Valid(_), Validated::SingleInvalid(e)) => Validated::SingleInvalid(e),
-            (Validated::Valid(_), Validated::MultiInvalid(e)) => Validated::MultiInvalid(e),
-            (Validated::SingleInvalid(e), Validated::Valid(_)) => Validated::SingleInvalid(e),
-            (Validated::MultiInvalid(e), Validated::Valid(_)) => Validated::MultiInvalid(e),
-            (Validated::SingleInvalid(e1), Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                errors.push(e1);
-                errors.push(e2);
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::SingleInvalid(e1), Validated::MultiInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(1 + e2.len());
-                errors.push(e1);
-                errors.extend(e2);
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::MultiInvalid(e1), Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + 1);
-                errors.extend(e1);
-                errors.push(e2);
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::MultiInvalid(e1), Validated::MultiInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1);
-                errors.extend(e2);
-                Validated::MultiInvalid(errors)
+            (a, b) => {
+                let mut errors = SmallVec::<[E; 4]>::new();
+
+                if let Validated::Invalid(e) = a {
+                    errors.extend(e);
+                }
+                if let Validated::Invalid(e) = b {
+                    errors.extend(e);
+                }
+
+                Validated::Invalid(errors)
             },
         }
     }
 
-    #[inline]
     fn lift2<B, C, F>(&self, rb: &Self::Output<B>, f: F) -> Self::Output<C>
     where
         F: Fn(&Self::Source, &B) -> C,
@@ -1254,41 +1295,22 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
     {
         match (self, rb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
-            // Cases where at least one value is invalid
             _ => {
-                // Collect all errors
                 let mut errors = SmallVec::<[E; 4]>::new();
-                let mut has_errors = false;
 
-                if let Validated::SingleInvalid(e) = self {
-                    has_errors = true;
-                    errors.push(e.clone());
-                } else if let Validated::MultiInvalid(es) = self {
-                    has_errors = true;
+                if let Validated::Invalid(es) = self {
                     errors.extend(es.iter().cloned());
                 }
 
-                if let Validated::SingleInvalid(e) = rb {
-                    has_errors = true;
-                    errors.push(e.clone());
-                } else if let Validated::MultiInvalid(es) = rb {
-                    has_errors = true;
+                if let Validated::Invalid(es) = rb {
                     errors.extend(es.iter().cloned());
                 }
 
-                if !has_errors {
-                    // This shouldn't happen with the match pattern above
-                    unreachable!("No errors found in invalid Validated")
-                } else if errors.len() == 1 {
-                    Validated::SingleInvalid(errors.pop().unwrap())
-                } else {
-                    Validated::MultiInvalid(errors)
-                }
+                Validated::Invalid(errors)
             },
         }
     }
 
-    #[inline]
     fn lift2_owned<B, C, F>(self, rb: Self::Output<B>, f: F) -> Self::Output<C>
     where
         Self: Sized,
@@ -1296,37 +1318,19 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         B: Clone,
         C: Clone,
     {
-        // Avoid borrowing moved values by handling each case separately
         match (self, rb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
-            (Validated::SingleInvalid(e), Validated::Valid(_)) => Validated::SingleInvalid(e),
-            (Validated::Valid(_), Validated::SingleInvalid(e)) => Validated::SingleInvalid(e),
-            (Validated::MultiInvalid(e), Validated::Valid(_)) => Validated::MultiInvalid(e),
-            (Validated::Valid(_), Validated::MultiInvalid(e)) => Validated::MultiInvalid(e),
-            // Combinations with more than one invalid
-            (Validated::SingleInvalid(e1), Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                errors.push(e1);
-                errors.push(e2);
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::SingleInvalid(e1), Validated::MultiInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(1 + e2.len());
-                errors.push(e1);
-                errors.extend(e2);
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::MultiInvalid(e1), Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + 1);
-                errors.extend(e1);
-                errors.push(e2);
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::MultiInvalid(e1), Validated::MultiInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1);
-                errors.extend(e2);
-                Validated::MultiInvalid(errors)
+            (a, b) => {
+                let mut errors = SmallVec::<[E; 4]>::new();
+
+                if let Validated::Invalid(e) = a {
+                    errors.extend(e);
+                }
+                if let Validated::Invalid(e) = b {
+                    errors.extend(e);
+                }
+
+                Validated::Invalid(errors)
             },
         }
     }
@@ -1343,83 +1347,26 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
             (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
                 Validated::Valid(f(a, b, c))
             },
-            // Handle cases with at least one invalid value
             _ => {
-                // Efficiently collect all errors based on specific patterns
-                match (self, rb, rc) {
-                    // Single invalid cases
-                    (Validated::SingleInvalid(e), _, _) => {
-                        match (rb, rc) {
-                            (Validated::Valid(_), Validated::Valid(_)) => {
-                                Validated::SingleInvalid(e.clone())
-                            },
-                            (Validated::SingleInvalid(e2), Validated::Valid(_)) => {
-                                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                                errors.push(e.clone());
-                                errors.push(e2.clone());
-                                Validated::MultiInvalid(errors)
-                            },
-                            (Validated::Valid(_), Validated::SingleInvalid(e2)) => {
-                                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                                errors.push(e.clone());
-                                errors.push(e2.clone());
-                                Validated::MultiInvalid(errors)
-                            },
-                            _ => {
-                                // More complex cases with multiple errors
-                                let mut errors = SmallVec::<[E; 4]>::new();
-                                errors.push(e.clone());
+                let mut errors = SmallVec::<[E; 4]>::new();
 
-                                if let Validated::SingleInvalid(e2) = rb {
-                                    errors.push(e2.clone());
-                                } else if let Validated::MultiInvalid(es) = rb {
-                                    errors.extend(es.iter().cloned());
-                                }
-
-                                if let Validated::SingleInvalid(e2) = rc {
-                                    errors.push(e2.clone());
-                                } else if let Validated::MultiInvalid(es) = rc {
-                                    errors.extend(es.iter().cloned());
-                                }
-
-                                Validated::MultiInvalid(errors)
-                            },
-                        }
-                    },
-                    // Handle other invalid combinations
-                    _ => {
-                        let mut errors = SmallVec::<[E; 4]>::new();
-
-                        if let Validated::MultiInvalid(es) = self {
-                            errors.extend(es.iter().cloned());
-                        }
-
-                        if let Validated::SingleInvalid(e) = rb {
-                            errors.push(e.clone());
-                        } else if let Validated::MultiInvalid(es) = rb {
-                            errors.extend(es.iter().cloned());
-                        }
-
-                        if let Validated::SingleInvalid(e) = rc {
-                            errors.push(e.clone());
-                        } else if let Validated::MultiInvalid(es) = rc {
-                            errors.extend(es.iter().cloned());
-                        }
-
-                        if errors.len() == 1 {
-                            Validated::SingleInvalid(errors.pop().unwrap())
-                        } else {
-                            Validated::MultiInvalid(errors)
-                        }
-                    },
+                if let Validated::Invalid(es) = self {
+                    errors.extend(es.iter().cloned());
                 }
+                if let Validated::Invalid(es) = rb {
+                    errors.extend(es.iter().cloned());
+                }
+                if let Validated::Invalid(es) = rc {
+                    errors.extend(es.iter().cloned());
+                }
+
+                Validated::Invalid(errors)
             },
         }
     }
 
-    #[inline]
     fn lift3_owned<B, C, D, F>(
-        self, rb: Self::Output<B>, rc: Self::Output<C>, f: F,
+        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
         Self: Sized,
@@ -1428,42 +1375,31 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         C: Clone,
         D: Clone,
     {
-        match (self, rb, rc) {
-            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
-                Validated::Valid(f(a, b, c))
+        match (self, b, c) {
+            (Validated::Valid(a), Validated::Valid(b_val), Validated::Valid(c_val)) => {
+                Validated::Valid(f(a, b_val, c_val))
             },
-            // Fast path for single errors
-            (Validated::SingleInvalid(e), Validated::Valid(_), Validated::Valid(_)) => {
-                Validated::SingleInvalid(e)
+            (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
+                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len() + e3.len());
+                errors.extend(e1);
+                errors.extend(e2);
+                errors.extend(e3);
+                Validated::Invalid(errors)
             },
-            (Validated::Valid(_), Validated::SingleInvalid(e), Validated::Valid(_)) => {
-                Validated::SingleInvalid(e)
-            },
-            (Validated::Valid(_), Validated::Valid(_), Validated::SingleInvalid(e)) => {
-                Validated::SingleInvalid(e)
-            },
-            // Fast path for multi errors
-            (Validated::MultiInvalid(e), _, _) => Validated::MultiInvalid(e),
-            (_, Validated::MultiInvalid(e), _) => Validated::MultiInvalid(e),
-            (_, _, Validated::MultiInvalid(e)) => Validated::MultiInvalid(e),
-            // Combine two single errors
-            (Validated::SingleInvalid(e1), Validated::SingleInvalid(e2), _) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                errors.push(e1);
-                errors.push(e2);
-                Validated::MultiInvalid(errors)
-            },
-            (Validated::SingleInvalid(e1), _, Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                errors.push(e1);
-                errors.push(e2);
-                Validated::MultiInvalid(errors)
-            },
-            (_, Validated::SingleInvalid(e1), Validated::SingleInvalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(2);
-                errors.push(e1);
-                errors.push(e2);
-                Validated::MultiInvalid(errors)
+            (a, b, c) => {
+                let mut errors = SmallVec::<[E; 4]>::new();
+
+                if let Validated::Invalid(e) = a {
+                    errors.extend(e);
+                }
+                if let Validated::Invalid(e) = b {
+                    errors.extend(e);
+                }
+                if let Validated::Invalid(e) = c {
+                    errors.extend(e);
+                }
+
+                Validated::Invalid(errors)
             },
         }
     }
@@ -1478,8 +1414,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     {
         match self {
             Validated::Valid(a) => f(a),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e.clone()),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
     }
 
@@ -1492,8 +1427,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     {
         match self {
             Validated::Valid(inner) => inner.clone().into(),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e.clone()),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e.clone()),
+            Validated::Invalid(e) => Validated::Invalid(e.clone()),
         }
     }
 
@@ -1505,8 +1439,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     {
         match self {
             Validated::Valid(a) => f(a),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e),
+            Validated::Invalid(e) => Validated::Invalid(e),
         }
     }
 
@@ -1517,8 +1450,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     {
         match self {
             Validated::Valid(inner) => inner.into(),
-            Validated::SingleInvalid(e) => Validated::SingleInvalid(e),
-            Validated::MultiInvalid(e) => Validated::MultiInvalid(e),
+            Validated::Invalid(e) => Validated::Invalid(e),
         }
     }
 }
@@ -1582,8 +1514,7 @@ impl<E: Clone + Default, A: Clone> Alternative for Validated<E, A> {
     fn alt(&self, other: &Self) -> Self {
         match self {
             Validated::Valid(_) => self.clone(),
-            Validated::SingleInvalid(_) => other.clone(),
-            Validated::MultiInvalid(_) => other.clone(),
+            Validated::Invalid(_) => other.clone(),
         }
     }
 
@@ -1601,8 +1532,7 @@ impl<E: Clone + Default, A: Clone> Alternative for Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::valid(vec![x.clone()]),
-            Validated::SingleInvalid(_) => Validated::invalid(E::default()),
-            Validated::MultiInvalid(_) => Validated::invalid(E::default()),
+            Validated::Invalid(_) => Validated::invalid(E::default()),
         }
     }
 }
@@ -1615,13 +1545,12 @@ impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
     fn mplus(&self, other: &Self) -> Self {
         match (self, other) {
             (Validated::Valid(_), _) => self.clone(),
-            (Validated::SingleInvalid(_), Validated::Valid(_))
-            | (Validated::MultiInvalid(_), Validated::Valid(_)) => other.clone(),
-            (Validated::SingleInvalid(_), Validated::SingleInvalid(_))
-            | (Validated::SingleInvalid(_), Validated::MultiInvalid(_))
-            | (Validated::MultiInvalid(_), Validated::SingleInvalid(_))
-            | (Validated::MultiInvalid(_), Validated::MultiInvalid(_)) => {
-                self.combine_errors(other)
+            (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
+                errors.extend(e1.iter().cloned());
+                errors.extend(e2.iter().cloned());
+                Validated::Invalid(errors)
             },
         }
     }
@@ -1632,13 +1561,12 @@ impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
     {
         match (&self, &other) {
             (Validated::Valid(_), _) => self,
-            (Validated::SingleInvalid(_), Validated::Valid(_))
-            | (Validated::MultiInvalid(_), Validated::Valid(_)) => other,
-            (Validated::SingleInvalid(_), Validated::SingleInvalid(_))
-            | (Validated::SingleInvalid(_), Validated::MultiInvalid(_))
-            | (Validated::MultiInvalid(_), Validated::SingleInvalid(_))
-            | (Validated::MultiInvalid(_), Validated::MultiInvalid(_)) => {
-                self.combine_errors(&other)
+            (Validated::Invalid(_), Validated::Valid(_)) => other,
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
+                errors.extend(e1.iter().cloned());
+                errors.extend(e2.iter().cloned());
+                Validated::Invalid(errors)
             },
         }
     }

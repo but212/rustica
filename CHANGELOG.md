@@ -20,6 +20,11 @@
   - `Validated<E, A>`: Validation type with error accumulation, now supports `Alternative` (with `E: Default`) for combining validations and handling failure cases.
 
 ### Changed
+- **[Breaking] Refactored `Validated` datatype ([src/datatypes/validated.rs]):**
+  - Removed distinction between `SingleInvalid` and `MultiInvalid` variants. Now, all invalid cases are represented uniformly, simplifying the API and usage.
+  - Replaced manual error accumulation logic with idiomatic iterator patterns throughout the implementation.
+  - Methods such as `combine_errors`, `invalid_vec`, and `collect` now use iterator chains for clearer, more efficient error handling.
+  - Improved code readability and maintainability by leveraging Rust's iterator and collection APIs.
 - **Enhanced `NaturalTransformation` trait:**
   - Added extensive documentation and usage examples.
   - Provided both reference-based (`transform`) and ownership-based (`transform_owned`) transformation methods.
