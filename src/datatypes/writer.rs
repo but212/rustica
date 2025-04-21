@@ -32,7 +32,7 @@
 //!
 //! ## Requirements
 //!
-//! The log type `W` must implement the `Monoid` trait, which provides:
+//! The log type `W` must implement the Monoid trait, which provides:
 //!
 //! - An identity element (`empty`): The starting point for accumulation
 //! - A binary operation (`combine`): How to combine two logs
@@ -187,7 +187,7 @@ use std::sync::Arc;
 /// - Tracking the history of operations
 ///
 /// Type parameters:
-/// - `W`: The log type, which must implement the `Monoid` trait
+/// - `W`: The log type, which must implement the Monoid trait
 /// - `A`: The value type
 ///
 /// This implementation uses lazy evaluation for log combinations - logs are only combined

@@ -30,6 +30,11 @@
   - The WriterT transformer and all related code have been deleted.
   - WriterT is rarely useful in practical Rust code; most logging/accumulation use-cases are better served by explicit fields or iterators.
   - If monadic logging is needed, consider direct accumulation patterns or external loggers instead.
+- **[Breaking] Refactored the `prelude` module:**
+  - Prelude is now split into multiple logical modules: `traits`, `traits_ext`, `datatypes`, `wrapper`, `transformer`, and `utils` under `src/prelude/`.
+  - Added `prelude::traits_ext` for extension traits (e.g., `EvaluateExt`, `FunctorExt`, etc.).
+  - Users can now selectively import only the needed prelude components, improving ergonomics and compile times.
+  - Top-level `prelude` now re-exports all submodules for convenience.
 - **Enhanced `NaturalTransformation` trait:**
   - Added documentation, usage examples, and improved ergonomics.
 

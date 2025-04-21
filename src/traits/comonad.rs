@@ -1,6 +1,6 @@
 //! # Comonad
 //!
-//! This module provides the [`Comonad`] trait which represents the categorical dual of a monad.
+//! This module provides the `Comonad` trait which represents the categorical dual of a monad.
 //! While monads wrap values in a context and sequence computations that produce values,
 //! comonads extract values from a context and sequence computations that consume contexts.
 //!

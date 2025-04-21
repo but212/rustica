@@ -1,6 +1,6 @@
 //! # Isomorphism
 //!
-//! This module provides the [`Iso`] trait which represents isomorphisms between types.
+//! This module provides the `Iso` trait which represents isomorphisms between types.
 //! An isomorphism is a pair of functions that convert between two types while preserving
 //! their structure, with the property that converting from A to B and back to A gives
 //! you the original value (and similarly for B to A and back to B).

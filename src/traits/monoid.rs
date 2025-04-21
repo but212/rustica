@@ -1,6 +1,6 @@
 //! # Monoid Trait
 //!
-//! This module provides the [`Monoid`] trait, which extends [`Semigroup`] to add an identity element.
+//! This module provides the Monoid trait, which extends `Semigroup` to add an identity element.
 //!
 //! A monoid extends a semigroup by providing an identity element that, when combined with any other
 //! element, returns that element unchanged. This makes monoids particularly useful for operations
@@ -26,7 +26,7 @@
 //!
 //! ## Extension Trait
 //!
-//! The [`MonoidExt`] trait adds extension methods to all types implementing [`Monoid`].
+//! The `MonoidExt` trait adds extension methods to all types implementing Monoid.
 //!
 //! ## TODO: Future Improvements
 //!
@@ -51,13 +51,13 @@ use crate::traits::semigroup::Semigroup;
 ///
 /// # Laws
 ///
-/// For any value `x` of type implementing `Monoid`:
+/// For any value `x` of type implementing Monoid:
 /// ```text
 /// x.combine(Monoid::empty()) = x           // Right identity
 /// Monoid::empty().combine(x) = x           // Left identity
 /// ```
 ///
-/// Additionally, since `Monoid` extends `Semigroup`, the associativity law must hold:
+/// Additionally, since Monoid extends `Semigroup`, the associativity law must hold:
 /// ```text
 /// (a.combine(b)).combine(c) = a.combine(b.combine(c))
 /// ```
@@ -160,7 +160,7 @@ impl Monoid for String {
 ///
 /// # Type Parameters
 ///
-/// * `M` - A type implementing `Monoid`
+/// * `M` - A type implementing Monoid
 /// * `I` - An iterator type yielding values of type `M`
 ///
 /// # Returns
@@ -198,7 +198,7 @@ where
 
 /// A trait providing extension methods for monoid operations
 ///
-/// This trait is automatically implemented for all types that implement `Monoid`.
+/// This trait is automatically implemented for all types that implement Monoid.
 pub trait MonoidExt: Monoid {
     /// Combines `self` with all elements in the provided iterator.
     ///
@@ -269,7 +269,7 @@ impl<T: Monoid> MonoidExt for T {}
 ///
 /// # Type Parameters
 ///
-/// * `M` - A type implementing `Monoid`
+/// * `M` - A type implementing Monoid
 ///
 /// # Arguments
 ///
@@ -323,7 +323,7 @@ where
 ///
 /// # Type Parameters
 ///
-/// * `M` - A type implementing `Monoid`
+/// * `M` - A type implementing Monoid
 ///
 /// # Arguments
 ///
@@ -377,7 +377,7 @@ where
 ///
 /// # Type Parameters
 ///
-/// * `M` - A type implementing `Monoid`
+/// * `M` - A type implementing Monoid
 ///
 /// # Arguments
 ///

@@ -108,7 +108,7 @@
 /// - `Functor`: Types that can be mapped over
 /// - `Applicative`: Functors with application capabilities
 /// - `Monad`: Monadic types with binding operations
-/// - `Monoid`: Types that can be combined with an identity element
+/// - Monoid: Types that can be combined with an identity element
 #[macro_use]
 pub mod traits;
 
@@ -194,46 +194,4 @@ pub mod datatypes {
 pub mod transformers;
 
 /// Convenient re-exports of commonly used items.
-///
-/// This module re-exports the most frequently used traits, types, and functions
-/// from the library, allowing users to import them with a single use statement.
-pub mod prelude {
-    // Core traits
-    pub use crate::traits::alternative::Alternative;
-    pub use crate::traits::applicative::Applicative;
-    pub use crate::traits::composable::Composable;
-    pub use crate::traits::foldable::Foldable;
-    pub use crate::traits::functor::Functor;
-    pub use crate::traits::hkt::{BinaryHKT, HKT};
-    pub use crate::traits::identity::Identity;
-    pub use crate::traits::monad::Monad;
-    pub use crate::traits::monoid::Monoid;
-    pub use crate::traits::pure::Pure;
-    pub use crate::traits::semigroup::Semigroup;
-
-    // Monad transformer trait
-    pub use crate::transformers::MonadTransformer;
-
-    // Monad transformers (advanced)
-    pub use crate::transformers::cont_t::ContT;
-    pub use crate::transformers::reader_t::ReaderT;
-    pub use crate::transformers::state_t::StateT;
-
-    // Core datatypes
-    pub use crate::datatypes::choice::Choice;
-    pub use crate::datatypes::either::Either;
-    pub use crate::datatypes::id::Id;
-    pub use crate::datatypes::maybe::Maybe;
-    pub use crate::datatypes::reader::Reader;
-    pub use crate::datatypes::state::State;
-    pub use crate::datatypes::validated::Validated;
-    pub use crate::datatypes::writer::Writer;
-
-    // Wrapper types
-    pub use crate::datatypes::wrapper::first::First;
-    pub use crate::datatypes::wrapper::last::Last;
-
-    // Feature-gated: async monad
-    #[cfg(feature = "async")]
-    pub use crate::datatypes::async_monad::AsyncM;
-}
+pub mod prelude;

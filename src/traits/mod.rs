@@ -94,12 +94,3 @@ pub mod natural_transformation;
 pub mod profunctor;
 /// Representable functors.
 pub mod representable;
-
-// Re-export major traits for doc-linking and user convenience
-pub use arrow::Arrow;
-pub use category::Category;
-pub use comonad::Comonad;
-pub use foldable::Foldable;
-pub use iso::Iso;
-pub use monoid::{Monoid, MonoidExt};
-pub use semigroup::Semigroup;

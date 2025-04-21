@@ -1,6 +1,6 @@
 //! # Foldable
 //!
-//! This module provides the [`Foldable`] trait which represents a data structure that can be "folded" into a summary value.
+//! This module provides the `Foldable` trait which represents a data structure that can be "folded" into a summary value.
 //!
 //! ## Mathematical Definition
 //!
@@ -92,7 +92,7 @@
 //!   whereas `Foldable` accumulates values independent of sequence.
 //!
 //! - **Monoid**: `Foldable` frequently uses monoid operations to combine elements during folding,
-//!   making `Monoid` a natural companion trait.
+//!   making Monoid a natural companion trait.
 
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;

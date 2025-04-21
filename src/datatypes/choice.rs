@@ -58,14 +58,7 @@ use std::sync::Arc;
 
 use smallvec::SmallVec;
 
-use crate::prelude::*;
-use crate::traits::applicative::Applicative;
-use crate::traits::foldable::Foldable;
-use crate::traits::monad::Monad;
-use crate::traits::monad_plus::MonadPlus;
-use crate::traits::monoid::Monoid;
-use crate::traits::pure::Pure;
-use crate::traits::semigroup::Semigroup;
+use crate::prelude::traits::*;
 
 /// A type representing a value with multiple alternatives.
 ///

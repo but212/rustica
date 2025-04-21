@@ -1,6 +1,6 @@
 //! # Arrow
 //!
-//! This module provides the [`Arrow`] trait which represents a generalized notion of computation
+//! This module provides the `Arrow` trait which represents a generalized notion of computation
 //! beyond ordinary functions. Arrows combine the expressiveness of monads with additional
 //! abstractions for structuring computations, especially those involving pairs and parallelism.
 //!

@@ -136,3 +136,88 @@ fn vec_monoid_laws(a: Vec<i32>, b: Vec<i32>, c: Vec<i32>) -> bool {
 
     left_identity && right_identity && associativity
 }
+
+#[quickcheck]
+fn test_combine_all_empty() -> bool {
+    use rustica::traits::monoid::MonoidExt;
+    let combined = TestMonoid::<i32>::combine_all(TestMonoid::empty(), std::iter::empty());
+    combined == TestMonoid::empty()
+}
+
+#[quickcheck]
+fn test_combine_all_single(first: TestMonoid<i32>) -> bool {
+    use rustica::traits::monoid::MonoidExt;
+    let combined = TestMonoid::combine_all(first.clone(), std::iter::empty());
+    combined == first
+}
+
+#[quickcheck]
+fn test_combine_all_multiple(first: TestMonoid<i32>, second: TestMonoid<i32>) -> bool {
+    use rustica::traits::monoid::MonoidExt;
+    let rest = vec![second.clone()];
+    let combined = TestMonoid::combine_all(first.clone(), rest.into_iter());
+    let expected = first.combine(&second);
+    combined == expected
+}
+
+#[quickcheck]
+fn test_is_empty_monoid(x: TestMonoid<i32>) -> bool {
+    use rustica::traits::monoid::MonoidExt;
+    let empty = TestMonoid::<i32>::empty();
+    empty.is_empty_monoid() && (x.is_empty_monoid() == (x == empty))
+}
+
+#[quickcheck]
+fn test_repeat(x: TestMonoid<i32>, n: u8) -> bool {
+    use rustica::traits::monoid::repeat;
+    let n = (n % 10) as usize; // Limit to reasonable size
+
+    let repeated = repeat(x.clone(), n);
+
+    if n == 0 {
+        repeated == TestMonoid::empty()
+    } else {
+        let mut expected = x.clone();
+        for _ in 1..n {
+            expected = expected.combine(&x);
+        }
+        repeated == expected
+    }
+}
+
+#[quickcheck]
+fn test_mconcat(xs: Vec<TestMonoid<i32>>) -> bool {
+    use rustica::traits::monoid::mconcat;
+
+    let result = mconcat(&xs);
+
+    if xs.is_empty() {
+        result == TestMonoid::empty()
+    } else {
+        let mut expected = xs[0].clone();
+        for x in &xs[1..] {
+            expected = expected.combine(x);
+        }
+        result == expected
+    }
+}
+
+#[quickcheck]
+fn test_power(base: TestMonoid<i32>, n: u8) -> bool {
+    use rustica::traits::monoid::power;
+    let n = (n % 10) as usize; // Limit to reasonable size
+
+    let result = power(base.clone(), n);
+
+    if n == 0 {
+        result == TestMonoid::empty()
+    } else if n == 1 {
+        result == base
+    } else {
+        let mut expected = base.clone();
+        for _ in 1..n {
+            expected = expected.combine(&base);
+        }
+        result == expected
+    }
+}

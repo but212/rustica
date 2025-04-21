@@ -169,11 +169,11 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// ```rust
     /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-    /// use rustica::datatypes::wrapper::value::Value;
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
     ///
-    /// let value = Value::new(42);
-    /// let result = value.map_evaluate(|x| x.to_string());
-    /// assert_eq!(result, "42");
+    /// let computation: Thunk<_, i32> = Thunk::new(|| 42);
+    /// let stringified: String = computation.fmap_evaluate(|x| x.to_string());
+    /// assert_eq!(stringified, "42");
     /// ```
     #[inline]
     fn map_evaluate<F, U>(&self, f: F) -> U
@@ -223,11 +223,11 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// ```rust
     /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-    /// use rustica::datatypes::wrapper::value::Value;
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
     ///
-    /// let value = Value::new(42);
-    /// let result = value.map_evaluate_owned(|x| x.to_string());
-    /// assert_eq!(result, "42");
+    /// let computation: Thunk<_, i32> = Thunk::new(|| 42);
+    /// let stringified: String = computation.fmap_evaluate_owned(|x| x.to_string());
+    /// assert_eq!(stringified, "42");
     /// ```
     #[inline]
     fn map_evaluate_owned<F, U>(self, f: F) -> U
@@ -279,11 +279,11 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// ```rust
     /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-    /// use rustica::datatypes::wrapper::value::Value;
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
     ///
-    /// let value = Value::new(42);
-    /// let result = value.and_then_evaluate(|x| Value::new(x.to_string()));
-    /// assert_eq!(result, "42");
+    /// let computation: Thunk<_, i32> = Thunk::new(|| 42);
+    /// let chained = computation.bind_evaluate(|x| Thunk::new(move || x + 1));
+    /// assert_eq!(chained, 43);
     /// ```
     #[inline]
     fn and_then_evaluate<F, C>(&self, f: F) -> C::Source
@@ -309,6 +309,17 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// # Returns
     /// The result of evaluating the second computation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
+    ///
+    /// let computation: Thunk<_, i32> = Thunk::new(|| 42);
+    /// let chained = computation.bind_evaluate_owned(|x| Thunk::new(move || x + 1));
+    /// assert_eq!(chained, 43);
+    /// ```
     #[inline]
     fn bind_evaluate_owned<F, C>(self, f: F) -> C::Source
     where
@@ -335,13 +346,14 @@ pub trait EvaluateExt: Evaluate {
     /// The result of evaluating the second computation
     ///
     /// # Examples
-    /// ```
-    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-    /// use rustica::datatypes::wrapper::value::Value;
     ///
-    /// let value = Value::new(42);
-    /// let result = value.and_then_evaluate_owned(|x| Value::new(x.to_string()));
-    /// assert_eq!(result, "42");
+    /// ```rust
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
+    ///
+    /// let computation: Thunk<_, i32> = Thunk::new(|| 42);
+    /// let chained = computation.and_then_evaluate_owned(|x| Thunk::new(move || x + 1));
+    /// assert_eq!(chained, 43);
     /// ```
     #[inline]
     fn and_then_evaluate_owned<F, C>(self, f: F) -> C::Source
@@ -366,6 +378,20 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// # Returns
     /// The combined result after evaluating both computations
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
+    ///
+    /// let computation1 = Thunk::new(|| 42);
+    /// let computation2 = Thunk::new(|| "answer");
+    /// let combined = computation1.combine_evaluate(&computation2, |num, text| {
+    ///     format!("The {} is {}", text, num)
+    /// });
+    /// assert_eq!(combined, "The answer is 42");
+    /// ```
     #[inline]
     fn combine_evaluate<C, F, O>(&self, other: &C, f: F) -> O
     where
@@ -393,6 +419,20 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// # Returns
     /// The combined result after evaluating both computations
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
+    ///
+    /// let computation1 = Thunk::new(|| 42);
+    /// let computation2 = Thunk::new(|| "answer");
+    /// let combined = computation1.combine_evaluate_owned(computation2, |num, text| {
+    ///     format!("The {} is {}", text, num)
+    /// });
+    /// assert_eq!(combined, "The answer is 42");
+    /// ```
     #[inline]
     fn combine_evaluate_owned<C, F, O>(self, other: C, f: F) -> O
     where
@@ -420,14 +460,14 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// ```rust
     /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
     ///
-    /// // Using Option as an evaluatable computation
-    /// let some_value: Option<i32> = Some(42);
-    /// let filtered: Option<i32> = some_value.filter_evaluate(|&x| x > 0);
+    /// let computation: Thunk<_, i32> = Thunk::new(|| 42);
+    /// let filtered: Option<i32> = computation.filter_evaluate(|&x| x > 0);
     /// assert_eq!(filtered, Some(42));
     ///
-    /// let some_negative: Option<i32> = Some(-10);
-    /// let filtered: Option<i32> = some_negative.filter_evaluate(|&x| x > 0);
+    /// let computation: Thunk<_, i32> = Thunk::new(|| -10);
+    /// let filtered: Option<i32> = computation.filter_evaluate(|&x| x > 0);
     /// assert_eq!(filtered, None); // Filtered out because it doesn't match the predicate
     /// ```
     #[inline]
@@ -455,13 +495,28 @@ pub trait EvaluateExt: Evaluate {
     ///
     /// # Returns
     /// An Option containing the evaluation result if the predicate is satisfied, or None
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+    /// use rustica::datatypes::wrapper::thunk::Thunk;
+    ///
+    /// let computation: Thunk<_, i32> = Thunk::new(|| 42);
+    /// let filtered: Option<i32> = computation.filter_evaluate_owned(|&x| x > 0);
+    /// assert_eq!(filtered, Some(42));
+    ///
+    /// let computation: Thunk<_, i32> = Thunk::new(|| -10);
+    /// let filtered: Option<i32> = computation.filter_evaluate_owned(|&x| x > 0);
+    /// assert_eq!(filtered, None); // Filtered out because it doesn't match the predicate
+    /// ```
     #[inline]
     fn filter_evaluate_owned<F>(self, pred: F) -> Option<Self::Source>
     where
         F: Fn(&Self::Source) -> bool,
         Self::Source: Clone,
     {
-        let result = self.evaluate();
+        let result = self.evaluate_owned();
         if pred(&result) {
             Some(result)
         } else {

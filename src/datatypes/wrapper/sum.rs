@@ -6,7 +6,7 @@
 //! ## Key Features
 //!
 //! - Implements `Semigroup` for any type implementing `Add`
-//! - Implements `Monoid` when the inner type also has a zero value (`Default`)
+//! - Implements Monoid when the inner type also has a zero value (`Default`)
 //! - Provides a consistent way to combine values via addition
 //! - Useful for aggregating collections of numeric values
 //!

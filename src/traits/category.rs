@@ -1,6 +1,6 @@
 //! # Category
 //!
-//! This module provides the [`Category`] trait which represents a category in the sense of
+//! This module provides the `Category` trait which represents a category in the sense of
 //! category theory. Categories are a fundamental mathematical structure that help model
 //! and organize various types of objects and the mappings between them.
 //!

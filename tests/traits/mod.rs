@@ -2,6 +2,8 @@ mod monad_error;
 mod monad_plus;
 mod test_applicative;
 mod test_bifunctor;
+mod test_composable;
+mod test_foldable;
 mod test_functor;
 mod test_identity;
 mod test_monad;
@@ -11,6 +13,7 @@ mod test_semigroup;
 use quickcheck::{Arbitrary, Gen};
 use rustica::prelude::*;
 use rustica::traits::composable::Composable;
+use rustica::traits::foldable::Foldable;
 use rustica::traits::monad_error::{ErrorMapper, MonadError};
 use rustica::traits::monoid::Monoid;
 use rustica::traits::semigroup::Semigroup;
@@ -247,5 +250,21 @@ impl<T> Composable for TestFunctor<T> {
         G: Fn(U) -> V,
     {
         move |x| g(f(x))
+    }
+}
+
+impl<T> Foldable for TestFunctor<T> {
+    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    where
+        F: Fn(&U, &Self::Source) -> U,
+    {
+        f(init, &self.0)
+    }
+
+    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    where
+        F: Fn(&Self::Source, &U) -> U,
+    {
+        f(&self.0, init)
     }
 }

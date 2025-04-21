@@ -1,161 +1,125 @@
 use super::TestFunctor;
 use quickcheck_macros::quickcheck;
-use rustica::prelude::*;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::pure::Pure;
 
-// Applicative Identity Law: pure(id).apply(v) == v
+// Property-based test for Applicative Identity Law (covers identity law)
 #[quickcheck]
-fn applicative_identity(x: TestFunctor<i32>) -> bool {
+fn applicative_identity_law(x: TestFunctor<i32>) -> bool {
     let id = |x: &i32| *x;
     let pure_id = TestFunctor::<fn(&i32) -> i32>::pure(&id);
     x.apply(&pure_id) == x
 }
 
-// Applicative Homomorphism Law: pure(f).apply(pure(x)) == pure(f(x))
+// Property-based test for Applicative Homomorphism Law (covers homomorphism law)
 #[quickcheck]
-fn applicative_homomorphism() -> bool {
-    let f = |x: &i32| x + 1;
-    let x = 5;
-
+fn applicative_homomorphism_law(x: i32) -> bool {
+    let f = |x: &i32| x.saturating_add(1);
     let pure_f = TestFunctor::<fn(&i32) -> i32>::pure(&f);
     let pure_x = TestFunctor::<i32>::pure(&x);
-
     let left = pure_x.apply(&pure_f);
     let right = TestFunctor::<i32>::pure(&f(&x));
+    left == right
+}
+
+// Create a function that applies a function to a value
+fn apply_to_y_fn(y: i32) -> impl Fn(&fn(&i32) -> i32) -> i32 {
+    move |g| g(&y)
+}
+
+// Property-based test for Applicative Interchange Law
+#[quickcheck]
+fn applicative_interchange_law(y: i32) -> bool {
+    let f: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+    let u = TestFunctor::new(f);
+    let pure_y = TestFunctor::<i32>::pure(&y);
+    let left = pure_y.apply(&u);
+
+    let pure_apply_to_y = TestFunctor::new(apply_to_y_fn(y));
+    let right = u.apply(&pure_apply_to_y);
 
     left == right
 }
 
-// Applicative Interchange Law: u.apply(pure(y)) == pure(|f| f(y)).apply(u)
-#[test]
-fn applicative_interchange() {
-    // Define a specific type for the function to avoid inference issues
-    type Func = fn(&i32) -> i32;
-
-    let f: Func = |x| x * 2;
-    let u = TestFunctor::new(f);
-    let y = 10;
-    let pure_y = TestFunctor::new(y);
-
-    // u.apply(pure(y))
-    let left = pure_y.apply(&u);
-
-    // The closure needs to match the exact type stored in u
-    let apply_to_y = |g: &Func| g(&y);
-    let pure_apply_to_y = TestFunctor::new(apply_to_y);
-
-    // pure(|f| f(y)).apply(u)
-    let right = u.apply(&pure_apply_to_y);
-
-    assert_eq!(left, right);
-}
-
-// Applicative Composition Law:
-// Test simplified to avoid complex type issues
-#[test]
-fn applicative_composition() {
-    // Define functions and test values
-    let f = |x: &i32| x + 1;
-    let g = |x: &i32| x * 2;
-    let x = 5;
-
-    // Create functor instances
+// Property-based test for Applicative Composition Law
+#[quickcheck]
+fn applicative_composition_law(x: i32) -> bool {
+    let f = |x: &i32| x.saturating_add(1);
+    let g = |x: &i32| x.saturating_mul(2);
     let u = TestFunctor::new(f);
     let v = TestFunctor::new(g);
     let w = TestFunctor::new(x);
-
-    // First compute: w.apply(v).apply(u)
-    // This applies g then f to x
     let right = w.apply(&v).apply(&u);
-
-    // Then compute the expected result directly
     let expected = TestFunctor::new(f(&g(&x)));
-
-    assert_eq!(right, expected);
+    right == expected
 }
 
-// Test for lift2 method
-#[test]
-fn test_lift2() {
-    let x = TestFunctor::new(5);
-    let y = TestFunctor::new(3);
-
-    let add = |a: &i32, b: &i32| a + b;
-
-    // Using lift2
-    let result = x.lift2(&y, add);
-
-    assert_eq!(*result.value(), 8);
+// Property-based test for lift2
+#[quickcheck]
+fn applicative_lift2_law(a: i32, b: i32) -> bool {
+    let fa = TestFunctor::new(a);
+    let fb = TestFunctor::new(b);
+    let sum = |x: &i32, y: &i32| x.saturating_add(*y);
+    let result = fa.lift2(&fb, sum);
+    result == TestFunctor::new(a.saturating_add(b))
 }
 
-// Test for lift3 method
-#[test]
-fn test_lift3() {
-    let x = TestFunctor::new(5);
-    let y = TestFunctor::new(3);
-    let z = TestFunctor::new(2);
-
-    let add3 = |a: &i32, b: &i32, c: &i32| a + b + c;
-
-    // Using lift3
-    let result = x.lift3(&y, &z, add3);
-
-    assert_eq!(*result.value(), 10);
+// Property-based test for lift3
+#[quickcheck]
+fn applicative_lift3_law(a: i32, b: i32, c: i32) -> bool {
+    let fa = TestFunctor::new(a);
+    let fb = TestFunctor::new(b);
+    let fc = TestFunctor::new(c);
+    let sum3 = |x: &i32, y: &i32, z: &i32| x.saturating_add(*y).saturating_add(*z);
+    let result = fa.lift3(&fb, &fc, sum3);
+    result == TestFunctor::new(a.saturating_add(b).saturating_add(c))
 }
 
-// Test for sequence_right method
-#[test]
-fn test_sequence_right() {
-    let a = TestFunctor::new(1);
-    let b = TestFunctor::new(2);
-
-    let result = a.sequence_right(&b);
-
-    assert_eq!(*result.value(), 2);
+// Property-based test for sequence_right
+#[quickcheck]
+fn applicative_sequence_right_law(a: i32, b: i32) -> bool {
+    let fa = TestFunctor::new(a);
+    let fb = TestFunctor::new(b);
+    let result = fa.sequence_right(&fb);
+    result == fb
 }
 
-// Test for sequence_left method
-#[test]
-fn test_sequence_left() {
-    let a = TestFunctor::new(1);
-    let b = TestFunctor::new(2);
-
-    let result = a.sequence_left(&b);
-
-    assert_eq!(*result.value(), 1);
+// Property-based test for sequence_left
+#[quickcheck]
+fn applicative_sequence_left_law(a: i32, b: i32) -> bool {
+    let fa = TestFunctor::new(a);
+    let fb = TestFunctor::new(b);
+    let result = fa.sequence_left(&fb);
+    result == fa
 }
 
-// Test for apply_owned (owned version of apply)
-#[test]
-fn test_apply_owned() {
-    let x = TestFunctor::new(5);
-    let f = TestFunctor::new(|x| x * 2);
-
-    let result = x.apply_owned(f);
-
-    assert_eq!(*result.value(), 10);
+// Property-based test for apply (function in context, covers apply_owned)
+#[quickcheck]
+fn applicative_apply_law(a: i32) -> bool {
+    let f = |x: i32| x.saturating_sub(1);
+    let ff = TestFunctor::new(f);
+    let fa = TestFunctor::new(a);
+    let result = fa.clone().apply_owned(ff.clone());
+    result == TestFunctor::new(f(a))
 }
 
-// Test for lift2_owned (owned version of lift2)
-#[test]
-fn test_lift2_owned() {
-    let x = TestFunctor::new(5);
-    let y = TestFunctor::new(3);
-
-    let result = x.lift2_owned(y, |a, b| a + b);
-
-    assert_eq!(*result.value(), 8);
+// Property-based test for lift2_owned (owned version)
+#[quickcheck]
+fn applicative_lift2_owned_law(a: i32, b: i32) -> bool {
+    let fa = TestFunctor::new(a);
+    let fb = TestFunctor::new(b);
+    let sum = |x: i32, y: i32| x.saturating_add(y);
+    let result = fa.clone().lift2_owned(fb.clone(), sum);
+    result == TestFunctor::new(a.saturating_add(b))
 }
 
-// Test for lift3_owned (owned version of lift3)
-#[test]
-fn test_lift3_owned() {
-    let x = TestFunctor::new(5);
-    let y = TestFunctor::new(3);
-    let z = TestFunctor::new(2);
-
-    let result = x.lift3_owned(y, z, |a, b, c| a + b + c);
-
-    assert_eq!(*result.value(), 10);
+// Property-based test for lift3_owned (owned version)
+#[quickcheck]
+fn applicative_lift3_owned_law(a: i32, b: i32, c: i32) -> bool {
+    let fa = TestFunctor::new(a);
+    let fb = TestFunctor::new(b);
+    let fc = TestFunctor::new(c);
+    let sum3 = |x: i32, y: i32, z: i32| x.saturating_add(y).saturating_add(z);
+    let result = fa.clone().lift3_owned(fb.clone(), fc.clone(), sum3);
+    result == TestFunctor::new(a.saturating_add(b).saturating_add(c))
 }

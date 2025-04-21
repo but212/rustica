@@ -192,6 +192,7 @@ where
 /// assert_eq!(ok_result, Either::right(14));
 /// ```
 #[repr(transparent)]
+#[derive(Clone)]
 pub struct Pipeline<T>(T);
 
 impl<T> Pipeline<T> {
@@ -334,15 +335,14 @@ impl<T: Functor> Pipeline<T> {
     }
 }
 
-impl<T> Iterator for Pipeline<T>
+impl<T> IntoIterator for Pipeline<T>
 where
     T: IntoIterator,
 {
     type Item = T::Item;
-    fn next(&mut self) -> Option<Self::Item> {
-        // Replace the internal value with an empty value and return the first item
-        let value = std::mem::replace(&mut self.0, unsafe { std::mem::zeroed() });
-        let mut iter = value.into_iter();
-        iter.next()
+    type IntoIter = T::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
