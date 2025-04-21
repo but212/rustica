@@ -1,6 +1,8 @@
 use criterion::{black_box, Criterion};
+#[cfg(feature = "pvec")]
 use rustica::pvec::{pvec, PersistentVector};
 
+#[cfg(feature = "pvec")]
 pub fn pvec_benchmarks(c: &mut Criterion) {
     // Creation benchmark
     c.bench_function("pvec_create", |b| {

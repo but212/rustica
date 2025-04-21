@@ -51,6 +51,62 @@
 //! assert_eq!(updated.address.street, "Oak Ave");
 //! ```
 //!
+//! ## Advanced Example: Nested and Collection Structures
+//!
+//! This example demonstrates how IsoLens can be used for nested structures and collections.
+//!
+//! ```rust
+//! use rustica::datatypes::iso_lens::IsoLens;
+//! use rustica::traits::iso::Iso;
+//!
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Address { street: String, city: String }
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person { name: String, address: Address, tags: Vec<String> }
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Team { name: String, members: Vec<Person> }
+//!
+//! struct AddressIso;
+//! impl Iso<Person, (Address, Person)> for AddressIso {
+//!     type From = Person;
+//!     type To = (Address, Person);
+//!     fn forward(&self, from: &Person) -> (Address, Person) {
+//!         (from.address.clone(), from.clone())
+//!     }
+//!     fn backward(&self, to: &(Address, Person)) -> Person {
+//!         let mut p = to.1.clone();
+//!         p.address = to.0.clone();
+//!         p
+//!     }
+//! }
+//!
+//! struct MembersIso;
+//! impl Iso<Team, (Vec<Person>, Team)> for MembersIso {
+//!     type From = Team;
+//!     type To = (Vec<Person>, Team);
+//!     fn forward(&self, from: &Team) -> (Vec<Person>, Team) {
+//!         (from.members.clone(), from.clone())
+//!     }
+//!     fn backward(&self, to: &(Vec<Person>, Team)) -> Team {
+//!         let mut t = to.1.clone();
+//!         t.members = to.0.clone();
+//!         t
+//!     }
+//! }
+//!
+//! let team = Team {
+//!     name: "Alpha".to_string(),
+//!     members: vec![Person {
+//!         name: "Alice".to_string(),
+//!         address: Address { street: "Main".to_string(), city: "Spring".to_string() },
+//!         tags: vec!["dev".to_string()]
+//!     }]
+//! };
+//! let members_lens = IsoLens::new(MembersIso);
+//! let first_member = members_lens.get(&team).0[0].clone();
+//! assert_eq!(first_member.name, "Alice");
+//! ```
+//!
 //! ## Notes
 //!
 //! - IsoLens is especially useful for newtypes, tuple structs, and cases where you want to abstract over structural transformations.
@@ -373,6 +429,38 @@ where
             phantom: std::marker::PhantomData,
         };
         IsoLens::new(composed_iso)
+    }
+
+    /// Returns a reference to the underlying Iso.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use rustica::datatypes::iso_lens::IsoLens;
+    /// use rustica::traits::iso::Iso;
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Person { name: String, age: u32 }
+    /// struct NameIso;
+    /// impl Iso<Person, (String, Person)> for NameIso {
+    ///     type From = Person;
+    ///     type To = (String, Person);
+    ///     fn forward(&self, from: &Person) -> (String, Person) {
+    ///         (from.name.clone(), from.clone())
+    ///     }
+    ///     fn backward(&self, to: &(String, Person)) -> Person {
+    ///         let mut p = to.1.clone();
+    ///         p.name = to.0.clone();
+    ///         p
+    ///     }
+    /// }
+    /// let lens = IsoLens::new(NameIso);
+    /// let iso = lens.iso_ref();
+    /// let p = Person { name: "Alice".to_string(), age: 30 };
+    /// let (name, _) = iso.forward(&p);
+    /// assert_eq!(name, "Alice");
+    /// ```
+    #[inline]
+    pub fn iso_ref(&self) -> &L {
+        &self.iso
     }
 }
 

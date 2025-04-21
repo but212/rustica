@@ -9,9 +9,11 @@ mod datatypes {
     pub mod either;
     pub mod id;
     pub mod io;
+    pub mod iso_lens;
     pub mod lens;
     pub mod maybe;
     pub mod prism;
+    #[cfg(feature = "pvec")]
     pub mod pvec;
     pub mod reader;
     pub mod state;
@@ -27,9 +29,11 @@ use datatypes::cont::cont_benchmarks;
 use datatypes::either::either_benchmarks;
 use datatypes::id::id_benchmarks;
 use datatypes::io::io_benchmarks;
+use datatypes::iso_lens::iso_lens_benchmarks;
 use datatypes::lens::lens_benchmarks;
 use datatypes::maybe::maybe_benchmarks;
 use datatypes::prism::prism_benchmarks;
+#[cfg(feature = "pvec")]
 use datatypes::pvec::pvec_benchmarks;
 use datatypes::reader::reader_benchmarks;
 use datatypes::state::state_benchmarks;
@@ -50,6 +54,7 @@ criterion_group!(
     io_benchmarks,
     either_benchmarks,
     lens_benchmarks,
+    iso_lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
 );
@@ -68,6 +73,7 @@ criterion_group!(
     io_benchmarks,
     either_benchmarks,
     lens_benchmarks,
+    iso_lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
     pvec_benchmarks,
@@ -87,6 +93,7 @@ criterion_group!(
     io_benchmarks,
     either_benchmarks,
     lens_benchmarks,
+    iso_lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
     async_monad_benchmarks,
@@ -107,6 +114,7 @@ criterion_group!(
     io_benchmarks,
     either_benchmarks,
     lens_benchmarks,
+    iso_lens_benchmarks,
     prism_benchmarks,
     reader_benchmarks,
     pvec_benchmarks,
