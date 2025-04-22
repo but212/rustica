@@ -199,36 +199,7 @@ where
 /// A trait providing extension methods for monoid operations
 ///
 /// This trait is automatically implemented for all types that implement Monoid.
-pub trait MonoidExt: Monoid {
-    /// Combines `self` with all elements in the provided iterator.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `I` - An iterator type yielding values of this monoid type
-    ///
-    /// # Returns
-    ///
-    /// The result of combining `self` with all elements in the iterator
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::monoid::{Monoid, MonoidExt};
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let base = String::from("Hello");
-    /// let others = vec![String::from(", "), String::from("World!")];
-    /// let result = base.combine_all(others);
-    /// assert_eq!(result, "Hello, World!");
-    /// ```
-    #[inline]
-    fn combine_all<I>(self, others: I) -> Self
-    where
-        I: IntoIterator<Item = Self>,
-    {
-        others.into_iter().fold(self, |acc, x| acc.combine_owned(x))
-    }
-
+pub trait MonoidExt: Monoid + crate::traits::semigroup::SemigroupExt {
     /// Checks if this monoid value is equal to the identity element.
     ///
     /// # Returns
@@ -239,13 +210,10 @@ pub trait MonoidExt: Monoid {
     ///
     /// ```rust
     /// use rustica::traits::monoid::{Monoid, MonoidExt};
-    ///
     /// let empty_string = String::empty();
     /// assert!(empty_string.is_empty_monoid());
-    ///
     /// let non_empty = String::from("Hello");
     /// assert!(!non_empty.is_empty_monoid());
-    ///
     /// let empty_vec: Vec<i32> = Vec::empty();
     /// assert!(empty_vec.is_empty_monoid());
     /// ```

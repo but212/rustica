@@ -165,128 +165,51 @@ pub trait SemigroupExt: Semigroup {
     /// # Returns
     ///
     /// The result of combining `self` with all the elements in `others`
-    fn combine_all<I>(self, others: I) -> Self
-    where
-        I: IntoIterator<Item = Self>;
-
-    /// Extension methods for semigroups.
     ///
     /// # Examples
     ///
-    /// Combining multiple values at once:
     /// ```rust
     /// use rustica::traits::semigroup::{Semigroup, SemigroupExt};
+    /// use rustica::datatypes::wrapper::sum::Sum;
     ///
-    /// let a = vec![1, 2];
-    /// let b = vec![3, 4];
-    /// let c = vec![5, 6];
-    ///
-    /// let result = a.clone().combine_all_owned(vec![b.clone(), c.clone()]);
-    /// assert_eq!(result, vec![1, 2, 3, 4, 5, 6]);
+    /// let initial = Sum(5);
+    /// let values = vec![Sum(10), Sum(20), Sum(30)];
+    /// let result = initial.combine_all(values);
+    /// assert_eq!(result, Sum(65)); // 5 + 10 + 20 + 30 = 65
     /// ```
-    fn combine_all_owned<I>(self, others: I) -> Self
+    #[inline]
+    fn combine_all<I>(self, others: I) -> Self
     where
-        I: IntoIterator<Item = Self>;
+        I: IntoIterator<Item = Self>,
+        Self: Sized,
+    {
+        others.into_iter().fold(self, |acc, x| acc.combine_owned(x))
+    }
+
+    /// Combines all elements in an iterator into one value, starting from the first.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::traits::semigroup::{Semigroup, SemigroupExt};
+    /// use rustica::datatypes::wrapper::sum::Sum;
+    ///
+    /// let vals = vec![Sum(1), Sum(2), Sum(3)];
+    /// let total = SemigroupExt::combine_all_owned(vals);
+    /// assert_eq!(total, Sum(6));
+    /// ```
+    #[inline]
+    fn combine_all_owned<I>(vals: I) -> Self
+    where
+        I: IntoIterator<Item = Self>,
+        Self: Sized,
+    {
+        let mut iter = vals.into_iter();
+        let first = iter.next().expect("at least one element required");
+        iter.fold(first, |acc, x| acc.combine_owned(x))
+    }
 
     /// Combines the semigroup value with itself a specified number of times.
-    ///
-    /// # Parameters
-    ///
-    /// * `n` - The number of times to combine `self` with itself.
-    ///   If `n` is 0, returns `self`.
-    ///   If `n` is negative, the behavior is undefined and may panic.
-    ///
-    /// # Returns
-    ///
-    /// The result of combining `self` with itself `n` times.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::semigroup::{Semigroup, SemigroupExt};
-    ///
-    /// // Create a wrapper type for i32 to avoid orphan rule violations
-    /// #[derive(Debug, Clone, PartialEq, Eq)]
-    /// struct AddInt(i32);
-    ///
-    /// // Implement Semigroup for our wrapper type
-    /// impl Semigroup for AddInt {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         AddInt(self.0 + other.0)
-    ///     }
-    ///     
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         AddInt(self.0 + other.0)
-    ///     }
-    /// }
-    ///
-    /// // Using combine_n
-    /// let x = AddInt(5);
-    /// assert_eq!(x.combine_n(&3), AddInt(15));  // 5 + 5 + 5 = 15
-    /// assert_eq!(x.combine_n(&0), AddInt(5));   // Identity
-    /// ```
-    fn combine_n(&self, n: &usize) -> Self
-    where
-        Self: Clone;
-
-    /// Combines the semigroup value with itself a specified number of times, by reference.
-    ///
-    /// # Parameters
-    ///
-    /// * `n` - The number of times to combine `self` with itself.
-    ///   If `n` is 0, returns a clone of `self`.
-    ///   If `n` is negative, the behavior is undefined and may panic.
-    ///
-    /// # Returns
-    ///
-    /// The result of combining `self` with itself `n` times.
-    fn combine_n_owned(self, n: usize) -> Self
-    where
-        Self: Clone;
-}
-
-// Default implementation for all types implementing Semigroup
-impl<T: Semigroup> SemigroupExt for T {
-    #[inline]
-    fn combine_all<I>(self, others: I) -> Self
-    where
-        I: IntoIterator<Item = Self>,
-    {
-        let mut result = self;
-        for other in others {
-            result = result.combine_owned(other);
-        }
-        result
-    }
-
-    #[inline]
-    fn combine_all_owned<I>(self, others: I) -> Self
-    where
-        I: IntoIterator<Item = Self>,
-    {
-        let mut result = self;
-        for other in others {
-            result = result.combine_owned(other);
-        }
-        result
-    }
-
-    #[inline]
-    fn combine_n_owned(self, n: usize) -> Self
-    where
-        Self: Clone,
-    {
-        if n == 0 {
-            return self;
-        }
-
-        let mut result = self.clone();
-        for _ in 1..n {
-            result = result.combine_owned(self.clone());
-        }
-        result
-    }
-
     #[inline]
     fn combine_n(&self, n: &usize) -> Self
     where
@@ -295,14 +218,32 @@ impl<T: Semigroup> SemigroupExt for T {
         if *n == 0 {
             return self.clone();
         }
-
-        let mut result = self.clone();
+        let mut acc = self.clone();
         for _ in 1..*n {
-            result = result.combine(self);
+            acc = acc.combine(self);
         }
-        result
+        acc
+    }
+
+    /// Combines the semigroup value with itself a specified number of times, by value.
+    #[inline]
+    fn combine_n_owned(self, n: usize) -> Self
+    where
+        Self: Clone,
+    {
+        if n == 0 {
+            return self;
+        }
+        let mut acc = self;
+        for _ in 1..n {
+            acc = acc.clone().combine_owned(acc);
+        }
+        acc
     }
 }
+
+// Default implementation for all types implementing Semigroup
+impl<T: Semigroup> SemigroupExt for T {}
 
 // Implement extension methods
 impl<T: Semigroup> SemigroupExtAdapter<T> {

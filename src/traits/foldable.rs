@@ -537,63 +537,6 @@ pub trait FoldableExt: Foldable {
         })
     }
 
-    /// Maps a function over the structure and folds the results using a monoid.
-    ///
-    /// This is a more efficient version of mapping and then folding, as it combines
-    /// the operations into a single traversal.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B`: The monoid type
-    /// * `F`: The function type
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: Function to apply to each element before folding
-    ///
-    /// # Returns
-    ///
-    /// The combined result from the monoid after applying the function to each element.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// #[derive(Debug, PartialEq, Clone)]
-    /// struct Product(i32);
-    ///
-    /// impl Semigroup for Product {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         Product(self.0 * other.0)
-    ///     }
-    ///
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         Product(self.0 * other.0)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Product {
-    ///     fn empty() -> Self {
-    ///         Product(1)
-    ///     }
-    /// }
-    ///
-    /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
-    /// let squared: Product = numbers.fold_map(|n| Product(n * n));
-    /// assert_eq!(squared, Product(576)); // (1*1) * (2*2) * (3*3) * (4*4) = 576
-    /// ```
-    #[inline]
-    fn fold_map<B, F>(&self, f: F) -> B
-    where
-        F: Fn(&Self::Source) -> B,
-        B: Monoid + Clone,
-    {
-        self.fold_left(&B::empty(), |acc, x| acc.combine(&f(x)))
-    }
-
     /// Sums all elements in the foldable.
     ///
     /// # Returns

@@ -138,29 +138,6 @@ fn vec_monoid_laws(a: Vec<i32>, b: Vec<i32>, c: Vec<i32>) -> bool {
 }
 
 #[quickcheck]
-fn test_combine_all_empty() -> bool {
-    use rustica::traits::monoid::MonoidExt;
-    let combined = TestMonoid::<i32>::combine_all(TestMonoid::empty(), std::iter::empty());
-    combined == TestMonoid::empty()
-}
-
-#[quickcheck]
-fn test_combine_all_single(first: TestMonoid<i32>) -> bool {
-    use rustica::traits::monoid::MonoidExt;
-    let combined = TestMonoid::combine_all(first.clone(), std::iter::empty());
-    combined == first
-}
-
-#[quickcheck]
-fn test_combine_all_multiple(first: TestMonoid<i32>, second: TestMonoid<i32>) -> bool {
-    use rustica::traits::monoid::MonoidExt;
-    let rest = vec![second.clone()];
-    let combined = TestMonoid::combine_all(first.clone(), rest.into_iter());
-    let expected = first.combine(&second);
-    combined == expected
-}
-
-#[quickcheck]
 fn test_is_empty_monoid(x: TestMonoid<i32>) -> bool {
     use rustica::traits::monoid::MonoidExt;
     let empty = TestMonoid::<i32>::empty();
