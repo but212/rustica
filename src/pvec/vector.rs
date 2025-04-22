@@ -156,37 +156,31 @@ const SMALL_VECTOR_SIZE: usize = 8;
 /// the full tree structure, improving performance and memory usage for vectors
 /// with few elements.
 ///
-/// The implementation uses `Option<T>` for each slot to allow for efficient
-/// initialization without requiring `T` to implement `Default`.
-#[derive(Clone, PartialEq, Eq)]
-pub(crate) struct SmallVec<T> {
-    /// The elements stored inline in a fixed-size array
-    elements: [Option<T>; SMALL_VECTOR_SIZE],
-    /// The number of elements currently stored in the vector
+/// The implementation uses `MaybeUninit<T>` for each slot to allow for efficient
+/// initialization and avoid the overhead of `Option<T>`.
+use std::mem::MaybeUninit;
+use std::ptr;
+
+#[derive(Debug)]
+pub struct SmallVec<T> {
+    elements: [MaybeUninit<T>; SMALL_VECTOR_SIZE],
     len: usize,
 }
 
-impl<T: Clone> SmallVec<T> {
+impl<T> SmallVec<T> {
     /// Creates a new, empty SmallVec
-    #[inline(always)]
-    #[must_use]
     pub fn new() -> Self {
-        Self {
-            elements: Self::none_array(),
+        SmallVec {
+            elements: unsafe { MaybeUninit::uninit().assume_init() },
             len: 0,
         }
     }
 
-    fn none_array() -> [Option<T>; SMALL_VECTOR_SIZE] {
-        std::array::from_fn(|_| None)
-    }
-
     /// Returns a reference to the element at the given index, or None if out of bounds
-    #[inline(always)]
-    #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         if index < self.len {
-            self.elements[index].as_ref()
+            // SAFETY: index < len means the element is initialized
+            Some(unsafe { &*self.elements[index].as_ptr() })
         } else {
             None
         }
@@ -194,46 +188,100 @@ impl<T: Clone> SmallVec<T> {
 
     /// Returns the number of elements in the vector
     #[inline(always)]
-    #[must_use]
     pub fn len(&self) -> usize {
         self.len
     }
 
-    /// Returns a new SmallVec with the given element appended
+    /// Returns true if the vector is empty
     #[inline(always)]
-    #[must_use]
-    pub fn push_back(&self, value: T) -> Self {
-        let mut new = self.clone();
-        if new.len < SMALL_VECTOR_SIZE {
-            new.elements[new.len] = Some(value);
-            new.len += 1;
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+}
+
+impl<T> Default for SmallVec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> Drop for SmallVec<T> {
+    fn drop(&mut self) {
+        for i in 0..self.len {
+            unsafe {
+                ptr::drop_in_place(self.elements[i].as_mut_ptr());
+            }
         }
+    }
+}
+
+impl<T: Clone> Clone for SmallVec<T> {
+    fn clone(&self) -> Self {
+        let mut new = Self::new();
+        for i in 0..self.len {
+            unsafe {
+                let ptr = self.elements[i].as_ptr();
+                ptr::write(new.elements[i].as_mut_ptr(), (*ptr).clone());
+            }
+        }
+        new.len = self.len;
+        new
+    }
+}
+
+impl<T: PartialEq> PartialEq for SmallVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len != other.len {
+            return false;
+        }
+        for i in 0..self.len {
+            unsafe {
+                if *self.elements[i].as_ptr() != *other.elements[i].as_ptr() {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
+impl<T: Eq> Eq for SmallVec<T> {}
+
+impl<T: Clone> SmallVec<T> {
+    /// Returns a new SmallVec with the given element appended
+    pub fn push_back(&self, value: T) -> Self {
+        assert!(self.len < SMALL_VECTOR_SIZE, "SmallVec overflow");
+        let mut new = self.clone();
+        unsafe {
+            ptr::write(new.elements[self.len].as_mut_ptr(), value);
+        }
+        new.len += 1;
         new
     }
 
     /// Returns a new SmallVec with the element at the given index updated
-    #[inline(always)]
-    #[must_use]
     pub fn update(&self, index: usize, value: T) -> Self {
+        if index >= self.len {
+            // Out-of-bounds update is a no-op for persistent semantics
+            return self.clone();
+        }
         let mut new = self.clone();
-        if index < new.len {
-            new.elements[index] = Some(value);
+        unsafe {
+            ptr::write(new.elements[index].as_mut_ptr(), value);
         }
         new
     }
 
     /// Convert to a standard Vec
-    #[inline(always)]
-    #[must_use]
     pub fn to_vec(&self) -> std::vec::Vec<T> {
-        self.elements[..self.len].iter().filter_map(|x| x.clone()).collect()
-    }
-}
-
-impl<T: Clone> Default for SmallVec<T> {
-    #[inline(always)]
-    fn default() -> Self {
-        Self::new()
+        let mut v = Vec::with_capacity(self.len);
+        for i in 0..self.len {
+            // SAFETY: 0 <= i < len, so initialized
+            unsafe {
+                v.push((*self.elements[i].as_ptr()).clone());
+            }
+        }
+        v
     }
 }
 
@@ -287,6 +335,18 @@ impl<T: Clone> VectorImpl<T> {
         }
     }
 
+    /// Returns the number of elements in the vector.
+    #[inline(always)]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        match self {
+            VectorImpl::Small { elements } => elements.len(),
+            VectorImpl::Tree { tree } => tree.as_ref().len(),
+        }
+    }
+}
+
+impl<T: Clone> VectorImpl<T> {
     /// Returns a new vector with the given element appended
     #[inline(always)]
     #[must_use]
@@ -350,9 +410,9 @@ impl<T: Clone> VectorImpl<T> {
     #[must_use]
     pub fn pop_back(&self) -> Option<(Self, T)> {
         match self {
-            VectorImpl::Small { elements } if elements.len() > 0 => {
+            VectorImpl::Small { elements } if !elements.is_empty() => {
                 let mut v = elements.clone();
-                let val = v.elements[v.len - 1].take().unwrap();
+                let val = unsafe { v.elements[v.len - 1].as_ptr().read() };
                 v.len -= 1;
                 Some((VectorImpl::Small { elements: v }, val))
             },
@@ -506,10 +566,7 @@ impl<T: Clone> PersistentVector<T> {
     #[inline(always)]
     #[must_use]
     pub fn len(&self) -> usize {
-        match &self.inner {
-            VectorImpl::Small { elements } => elements.len(),
-            VectorImpl::Tree { tree } => tree.as_ref().len(),
-        }
+        self.inner.len()
     }
 
     /// Returns true if the vector contains no elements.
@@ -892,9 +949,9 @@ impl<T: Clone> PersistentVector<T> {
     /// ```
     /// use rustica::pvec::PersistentVector;
     ///
-    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
     /// assert!(vec.contains(&2));
-    /// assert!(!vec.contains(&4));
+    /// assert!(!vec.contains(&6));
     /// ```
     #[inline(always)]
     #[must_use]
