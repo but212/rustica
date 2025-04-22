@@ -227,6 +227,7 @@ macro_rules! pvec {
 pub use pvec;
 
 // Re-export cache policy types
+pub use crate::pvec::memory::AllocationStrategy;
 pub use crate::pvec::memory::AlwaysCache;
 pub use crate::pvec::memory::BoxedCachePolicy;
 pub use crate::pvec::memory::CachePolicy;

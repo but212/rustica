@@ -12,7 +12,6 @@
 
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
-use std::sync::Arc;
 
 use crate::pvec::memory::IndexCache;
 use crate::pvec::memory::{AllocationStrategy, BoxedCachePolicy, Chunk, ManagedRef, MemoryManager};
@@ -61,56 +60,104 @@ pub(crate) struct Tree<T> {
     /// This policy determines when the cache should be used for operations.
     /// It can be set to control caching behavior dynamically.
     cache_policy: BoxedCachePolicy,
+
+    /// The chunk size used for allocating chunks.
+    chunk_size: usize,
 }
 
 impl<T: Clone> Tree<T> {
-    /// Create a new, empty tree.
-    ///
-    /// This initializes a tree with an empty root node and zero elements.
+    /// Create a new, empty tree with the given chunk size.
     #[inline(always)]
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new_with_chunk_size(chunk_size: usize) -> Self {
         let manager = MemoryManager::new(AllocationStrategy::Direct);
-        let chunk = Chunk::new();
-        let root = Node::leaf(ManagedRef::new(Arc::new(chunk)));
+        let chunk = manager.allocate_chunk(Chunk::new_with_size(chunk_size));
+        let root = manager.allocate_node(Node::leaf(chunk));
         Self {
-            root: ManagedRef::new(Arc::new(root)),
+            root,
             size: 0,
             height: 0,
             manager,
             cache: IndexCache::new(),
             cache_policy: Box::new(crate::pvec::memory::AlwaysCache),
+            chunk_size,
         }
     }
 
-    /// Create a new tree from a slice of elements.
+    /// Create a new, empty tree with the default chunk size.
     #[inline(always)]
     #[must_use]
-    pub fn from_slice(slice: &[T]) -> Self
-    where
-        T: Clone,
-    {
+    pub fn new() -> Self {
+        Self::new_with_chunk_size(crate::pvec::memory::DEFAULT_CHUNK_SIZE)
+    }
+
+    /// Create a new tree from a slice of elements, with the given chunk size.
+    #[inline(always)]
+    #[must_use]
+    pub fn from_slice_with_chunk_size(slice: &[T], chunk_size: usize) -> Self {
+        use crate::pvec::memory::Chunk;
+        use crate::pvec::node::{Node, NODE_SIZE};
+
         if slice.is_empty() {
-            return Self::new();
+            return Self::new_with_chunk_size(chunk_size);
         }
+
+        // Step 1: Create leaf nodes from chunks
+        let mut leaf_nodes = Vec::new();
+        let mut size = 0;
         let manager = MemoryManager::new(AllocationStrategy::Direct);
-        let mut result = Self {
-            root: ManagedRef::new(Arc::new(Node::leaf(ManagedRef::new(
-                Arc::new(Chunk::new()),
-            )))),
-            size: 0,
-            height: 0,
+        for chunk in slice.chunks(chunk_size) {
+            let mut c = Chunk::new_with_size(chunk_size);
+            for item in chunk {
+                c.push_back(item.clone());
+            }
+            size += c.len();
+            let chunk_ref = manager.allocate_chunk(c);
+            leaf_nodes.push(manager.allocate_node(Node::leaf(chunk_ref)));
+        }
+
+        // Step 2: Build tree from leaves upward
+        let mut current_level = leaf_nodes;
+        let mut height = 0;
+        while current_level.len() > 1 {
+            let mut next_level = Vec::new();
+            for children in current_level.chunks(NODE_SIZE) {
+                let mut child_vec = Vec::with_capacity(children.len());
+                let mut sizes = Vec::with_capacity(children.len());
+                let mut acc = 0;
+                for child in children {
+                    let node_size = child.size();
+                    acc += node_size;
+                    sizes.push(acc);
+                    child_vec.push(Some(child.clone()));
+                }
+                let branch = manager.allocate_node(Node::Branch {
+                    children: child_vec,
+                    sizes: Some(sizes),
+                });
+                next_level.push(branch);
+            }
+            current_level = next_level;
+            height += 1;
+        }
+
+        let root = current_level.into_iter().next().unwrap();
+        Self {
+            root,
+            size,
+            height,
             manager,
             cache: IndexCache::default(),
             cache_policy: Box::new(crate::pvec::memory::AlwaysCache),
-        };
-        // Efficiently push elements in chunks
-        for chunk in slice.chunks(crate::pvec::memory::CHUNK_SIZE) {
-            for item in chunk {
-                result = result.push_back(item.clone());
-            }
+            chunk_size,
         }
-        result
+    }
+
+    /// Create a new tree from a slice of elements, with the default chunk size.
+    #[inline(always)]
+    #[must_use]
+    pub fn from_slice(slice: &[T]) -> Self {
+        Self::from_slice_with_chunk_size(slice, crate::pvec::memory::DEFAULT_CHUNK_SIZE)
     }
 
     /// Set the cache policy for this tree.
@@ -196,10 +243,17 @@ impl<T: Clone> Tree<T> {
                 manager: self.manager.clone(),
                 cache: IndexCache::new(),
                 cache_policy: self.cache_policy.clone(),
+                chunk_size: self.chunk_size,
             }
         } else {
             self.clone()
         }
+    }
+
+    #[inline(always)]
+    #[must_use]
+    pub fn chunk_size(&self) -> usize {
+        self.chunk_size
     }
 
     /// Splits the tree into two parts at the given index.
@@ -215,7 +269,7 @@ impl<T: Clone> Tree<T> {
         if index == 0 {
             return (Self::new(), self.clone());
         }
-        let (left, right) = match self.root.split(index, self.shift()) {
+        let (left, right) = match self.root.split(index, self.shift(), &self.manager) {
             Ok((l, r)) => (l, r),
             Err(e) => panic!("Failed to split tree: {}", e),
         };
@@ -227,6 +281,7 @@ impl<T: Clone> Tree<T> {
                 manager: self.manager.clone(),
                 cache: IndexCache::new(),
                 cache_policy: self.cache_policy.clone(),
+                chunk_size: self.chunk_size,
             },
             Self {
                 root: right,
@@ -235,6 +290,7 @@ impl<T: Clone> Tree<T> {
                 manager: self.manager.clone(),
                 cache: IndexCache::new(),
                 cache_policy: self.cache_policy.clone(),
+                chunk_size: self.chunk_size,
             },
         )
     }
@@ -244,7 +300,8 @@ impl<T: Clone> Tree<T> {
     #[must_use]
     pub fn push_back(&self, value: T) -> Self {
         let shift = self.shift();
-        let (new_root, split, overflow) = self.root.push_back(value, shift);
+        let (new_root, split, overflow) =
+            self.root.push_back(value, shift, self.chunk_size, &self.manager);
 
         let mut result = self.clone();
         result.size += 1;
@@ -268,12 +325,12 @@ impl<T: Clone> Tree<T> {
                 size_table.push(first_size + overflow_node.size());
             }
 
-            let new_branch = Node::Branch {
+            let new_branch = self.manager.allocate_node(Node::Branch {
                 children,
                 sizes: Some(size_table),
-            };
+            });
 
-            result.root = ManagedRef::new(Arc::new(new_branch));
+            result.root = new_branch;
             result.height += 1;
         } else {
             result.root = new_root;
@@ -351,10 +408,8 @@ impl<T: Clone + Debug> Debug for Tree<T> {
 impl<T: Clone> FromIterator<T> for Tree<T> {
     #[inline(always)]
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut tree = Self::new();
-        for item in iter {
-            tree = tree.push_back(item);
-        }
-        tree
+        let vec: Vec<T> = iter.into_iter().collect();
+        // Use the default chunk size for consistency
+        Self::from_slice_with_chunk_size(&vec, crate::pvec::memory::DEFAULT_CHUNK_SIZE)
     }
 }

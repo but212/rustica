@@ -498,3 +498,43 @@ fn test_edge_cases() {
     let popped = empty.pop_back();
     assert!(popped.is_none());
 }
+
+#[test]
+fn test_concat_chunk_size_consistency() {
+    use rustica::pvec::PersistentVector;
+    let vec1: PersistentVector<i32> = PersistentVector::with_chunk_size(4).extend([1, 2, 3]);
+    let vec2: PersistentVector<i32> = PersistentVector::with_chunk_size(8).extend([4, 5, 6]);
+    let combined = vec1.concat(&vec2);
+    assert_eq!(combined.to_vec(), vec![1, 2, 3, 4, 5, 6]);
+    assert_eq!(combined.chunk_size(), 4); // Inherits from vec1
+}
+
+#[test]
+fn test_extend_chunk_size_consistency() {
+    use rustica::pvec::PersistentVector;
+    let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(4).extend([1, 2, 3]);
+    let extended = vec.extend([4, 5, 6]);
+    assert_eq!(extended.to_vec(), vec![1, 2, 3, 4, 5, 6]);
+    assert_eq!(extended.chunk_size(), 4);
+}
+
+#[test]
+fn test_chunks_iter_respects_chunk_size() {
+    use rustica::pvec::PersistentVector;
+    let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(3).extend(0..7);
+    let chunks: Vec<Vec<i32>> = vec.chunks().collect();
+    assert_eq!(chunks.len(), 3); // 3, 3, 1 elements
+    assert_eq!(chunks[0], vec![0, 1, 2]);
+    assert_eq!(chunks[1], vec![3, 4, 5]);
+    assert_eq!(chunks[2], vec![6]);
+}
+
+#[test]
+fn test_concat_with_different_chunk_sizes_behavior() {
+    use rustica::pvec::PersistentVector;
+    let a: PersistentVector<i32> = PersistentVector::with_chunk_size(2).extend([1, 2]);
+    let b: PersistentVector<i32> = PersistentVector::with_chunk_size(5).extend([3, 4, 5]);
+    let ab = a.concat(&b);
+    assert_eq!(ab.chunk_size(), 2); // Inherits from a
+    assert_eq!(ab.to_vec(), vec![1, 2, 3, 4, 5]);
+}

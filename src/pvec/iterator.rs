@@ -198,10 +198,12 @@ impl<'a, T: Clone> ChunksIter<'a, T> {
     /// Create a new chunk iterator with default parameters.
     ///
     /// Returns a new iterator that yields chunks of elements in the vector.
+    /// The chunk size is set to the vector's configured chunk_size.
     #[inline(always)]
     #[must_use]
     pub(crate) fn with_default_sizes(vector: &'a PersistentVector<T>) -> Self {
-        Self::new(vector, 32, 128)
+        let chunk_size = vector.chunk_size();
+        Self::new(vector, chunk_size, chunk_size)
     }
 }
 

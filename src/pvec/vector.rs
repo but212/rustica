@@ -78,6 +78,134 @@
 //! let vec = pvec![1, 2, 3, 4, 5];
 //! assert_eq!(vec.len(), 5);
 //! ```
+//!
+//! # Chunk Size: API, Options, and Usage
+//!
+//! The `chunk_size` parameter directly affects the performance and memory efficiency of a `PersistentVector`.
+//!
+//! ## Key APIs
+//!
+//! - `PersistentVector::with_chunk_size(size)`: Create an empty vector with a custom chunk size.
+//! - `PersistentVector::from_slice_with_chunk_size(slice, size)`: Create a vector from a slice with a specific chunk size.
+//! - `vec.chunk_size()`: Query the current chunk size of a vector.
+//! - `concat`, `extend`: When merging vectors, the resulting vector always inherits the chunk size of the left operand (`self`).
+//! - `chunks()`: Iterate over the vector in blocks matching its chunk size.
+//!
+//! The default chunk size is 32, but you can tune this for large data or specific access patterns.
+//!
+//! ## Example Usage
+//!
+//! ```rust
+//! use rustica::pvec::PersistentVector;
+//!
+//! // Create a vector with chunk_size 16
+//! let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(16);
+//! assert_eq!(vec.chunk_size(), 16);
+//!
+//! // Create from slice with chunk_size 64
+//! let from_slice: PersistentVector<i32> = PersistentVector::from_slice_with_chunk_size(&[1,2,3,4], 64);
+//! assert_eq!(from_slice.chunk_size(), 64);
+//!
+//! // Merging preserves the left's chunk_size
+//! let a = PersistentVector::with_chunk_size(8).extend([1,2]);
+//! let b = PersistentVector::with_chunk_size(32).extend([3,4]);
+//! let merged = a.concat(&b);
+//! assert_eq!(merged.chunk_size(), 8); // inherits from `a`
+//!
+//! // Chunked iteration
+//! let v = PersistentVector::from_slice_with_chunk_size(&(0..10).collect::<Vec<_>>(), 4);
+//! let chunks: Vec<Vec<_>> = v.chunks().collect();
+//! assert_eq!(chunks, vec![vec![0,1,2,3], vec![4,5,6,7], vec![8,9]]);
+//! ```
+//!
+//! ## Performance Notes
+//!
+//! The chunk size impacts cache locality, memory usage, and potential for parallelism. For best performance, experiment with different chunk sizes based on your data and workload.
+//!
+//! # Chunk Size Options
+//!
+//! The `PersistentVector` supports configurable chunk sizes for advanced tuning.
+//!
+//! - Use [`PersistentVector::with_chunk_size`] to create a vector with a custom chunk size.
+//! - Use [`PersistentVector::from_slice_with_chunk_size`] to construct from a slice with a specific chunk size.
+//! - Most operations (push, update, concat, extend, etc.) preserve the current chunk size.
+//! - When merging vectors with different chunk sizes, the result inherits the chunk size of the left operand (`self`).
+//!
+//! ## Example: Custom Chunk Size
+//!
+//! ```rust
+//! use rustica::pvec::PersistentVector;
+//! let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(8);
+//! let vec = vec.push_back(1).push_back(2);
+//! assert_eq!(vec.chunk_size(), 8);
+//! ```
+//!
+//! ## Example: Merging with Different Chunk Sizes
+//!
+//! ```rust
+//! use rustica::pvec::PersistentVector;
+//! let a: PersistentVector<i32> = PersistentVector::with_chunk_size(4).extend([1, 2]);
+//! let b: PersistentVector<i32> = PersistentVector::with_chunk_size(8).extend([3, 4]);
+//! let ab = a.concat(&b);
+//! assert_eq!(ab.chunk_size(), 4); // Inherits from `a`
+//! ```
+//!
+//! ## Notes
+//!
+//! - Smaller chunk sizes use less memory per chunk but may increase tree height and slow down some operations.
+//! - Larger chunk sizes improve iteration and bulk operations, but may waste memory for small vectors.
+//! - The default chunk size is 32 unless otherwise specified.
+//!
+//! See each method's documentation for more details and examples.
+
+//! # PersistentVector: Chunk Size Policy
+//!
+//! The `chunk_size` parameter controls how many elements are grouped together in each chunk of the vector's internal tree.
+//!
+//! - **Default:** The default chunk size is 32 if not otherwise specified.
+//! - **Custom:** You can freely specify any chunk size (e.g., 4, 16, 64, 128, etc.) when constructing a vector. There is no upper or lower clamp enforced by the implementation.
+//! - **Performance:** Tuning chunk size can impact cache locality, memory usage, and iteration performance. For best results, experiment with different chunk sizes for your workload.
+//!
+//! ## Key APIs
+//!
+//! - `PersistentVector::with_chunk_size(size)`: Create an empty vector with a custom chunk size.
+//! - `PersistentVector::from_slice_with_chunk_size(slice, size)`: Create a vector from a slice with a specific chunk size.
+//! - `vec.chunk_size()`: Query the current chunk size of a vector.
+//! - `concat`, `extend`: When merging vectors, the resulting vector always inherits the chunk size of the left operand (`self`).
+//! - `chunks()`: Iterate over the vector in blocks matching its chunk size.
+//!
+//! ## Example Usage
+//!
+//! ```rust
+//! use rustica::pvec::PersistentVector;
+//!
+//! // Create with custom chunk size 16
+//! let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(16);
+//! assert!(vec.is_empty());
+//! assert_eq!(vec.chunk_size(), 16);
+//!
+//! // From slice with chunk size 64
+//! let from_slice = PersistentVector::from_slice_with_chunk_size(&[1,2,3,4], 64);
+//! assert_eq!(from_slice.chunk_size(), 64);
+//!
+//! // Merging: left's chunk_size is preserved
+//! let a: PersistentVector<i32> = PersistentVector::with_chunk_size(8).extend([1,2]);
+//! let b: PersistentVector<i32> = PersistentVector::with_chunk_size(32).extend([3,4]);
+//! let merged = a.concat(&b);
+//! assert_eq!(merged.chunk_size(), 8); // inherits from `a`
+//!
+//! // Chunked iteration
+//! let v = PersistentVector::from_slice_with_chunk_size(&(0..10).collect::<Vec<_>>(), 4);
+//! let chunks: Vec<Vec<_>> = v.chunks().collect();
+//! assert_eq!(chunks, vec![vec![0,1,2,3], vec![4,5,6,7], vec![8,9]]);
+//! ```
+//!
+//! ## Notes
+//!
+//! - Smaller chunk sizes use less memory per chunk but may increase tree height and slow down some operations.
+//! - Larger chunk sizes improve iteration and bulk operations, but may waste memory for small vectors.
+//! - There is **no hard-coded limit**: you may specify any chunk size that makes sense for your use case.
+//! - For best performance, experiment with different chunk sizes based on your data and workload.
 
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
@@ -113,11 +241,12 @@ use crate::pvec::memory::BoxedCachePolicy;
 /// assert_eq!(vec1.len(), 3);
 /// assert_eq!(vec2.len(), 4);
 /// ```
-#[repr(transparent)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PersistentVector<T> {
     /// The underlying implementation
     inner: VectorImpl<T>,
+    /// The intended chunk size for this vector
+    chunk_size: usize,
 }
 
 /// Optimized implementation for persistent vectors
@@ -370,6 +499,26 @@ impl<T: Clone> VectorImpl<T> {
         }
     }
 
+    pub fn pop_back(&self) -> Option<(Self, T)> {
+        match self {
+            VectorImpl::Small { elements } if !elements.is_empty() => {
+                let mut v = elements.clone();
+                let val = unsafe { v.elements[v.len - 1].as_ptr().read() };
+                v.len -= 1;
+                Some((VectorImpl::Small { elements: v }, val))
+            },
+            VectorImpl::Tree { tree } => tree.as_ref().pop_back().map(|(new_tree, val)| {
+                (
+                    VectorImpl::Tree {
+                        tree: Box::new(new_tree),
+                    },
+                    val,
+                )
+            }),
+            _ => None,
+        }
+    }
+
     /// Returns a new vector with the element at the given index updated
     #[inline(always)]
     #[must_use]
@@ -391,40 +540,6 @@ impl<T: Clone> VectorImpl<T> {
         match self {
             VectorImpl::Small { elements } => elements.to_vec(),
             VectorImpl::Tree { tree } => tree.as_ref().to_vec(),
-        }
-    }
-
-    /// Returns a new vector with all elements from the provided iterator appended to the end.
-    #[inline(always)]
-    #[must_use]
-    pub fn extend(&self, values: impl IntoIterator<Item = T>) -> Self {
-        let mut result = self.clone();
-        for v in values {
-            result = result.push_back(v);
-        }
-        result
-    }
-
-    /// Removes the last element from the vector and returns it, along with the updated vector.
-    #[inline(always)]
-    #[must_use]
-    pub fn pop_back(&self) -> Option<(Self, T)> {
-        match self {
-            VectorImpl::Small { elements } if !elements.is_empty() => {
-                let mut v = elements.clone();
-                let val = unsafe { v.elements[v.len - 1].as_ptr().read() };
-                v.len -= 1;
-                Some((VectorImpl::Small { elements: v }, val))
-            },
-            VectorImpl::Tree { tree } => tree.as_ref().pop_back().map(|(new_tree, val)| {
-                (
-                    VectorImpl::Tree {
-                        tree: Box::new(new_tree),
-                    },
-                    val,
-                )
-            }),
-            _ => None,
         }
     }
 }
@@ -467,6 +582,7 @@ impl<T: Clone> PersistentVector<T> {
     pub fn new() -> Self {
         Self {
             inner: VectorImpl::new(),
+            chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
         }
     }
 
@@ -486,6 +602,7 @@ impl<T: Clone> PersistentVector<T> {
     pub fn unit(value: T) -> Self {
         Self {
             inner: VectorImpl::unit(value),
+            chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
         }
     }
 
@@ -508,46 +625,7 @@ impl<T: Clone> PersistentVector<T> {
     pub fn from_slice(slice: &[T]) -> Self {
         Self {
             inner: VectorImpl::from_slice(slice),
-        }
-    }
-
-    /// Creates a new persistent vector with a custom cache policy.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::pvec::{PersistentVector, NeverCache, EvenIndexCache};
-    /// let vec = PersistentVector::<i32>::with_cache_policy(Box::new(NeverCache));
-    /// assert_eq!(vec.len(), 0);
-    /// let vec2 = PersistentVector::from_slice_with_cache_policy(&[1,2,3], Box::new(EvenIndexCache));
-    /// assert_eq!(vec2.len(), 3);
-    /// ```
-    pub fn with_cache_policy(policy: BoxedCachePolicy) -> Self {
-        Self {
-            inner: VectorImpl::Tree {
-                tree: Box::new(crate::pvec::tree::Tree::new().with_cache_policy(policy)),
-            },
-        }
-    }
-
-    /// Creates a new persistent vector from a slice with a custom cache policy.
-    pub fn from_slice_with_cache_policy(slice: &[T], policy: BoxedCachePolicy) -> Self {
-        if slice.len() <= crate::pvec::vector::SMALL_VECTOR_SIZE {
-            let mut v = crate::pvec::vector::SmallVec::new();
-            for x in slice {
-                v = v.push_back(x.clone());
-            }
-            Self {
-                inner: VectorImpl::Small { elements: v },
-            }
-        } else {
-            Self {
-                inner: VectorImpl::Tree {
-                    tree: Box::new(
-                        crate::pvec::tree::Tree::from_slice(slice).with_cache_policy(policy),
-                    ),
-                },
-            }
+            chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
         }
     }
 
@@ -609,12 +687,106 @@ impl<T: Clone> PersistentVector<T> {
         self.inner.get(index)
     }
 
-    /// Returns a new vector with the element at the specified index updated to the given value.
-    #[inline(always)]
-    #[must_use]
     pub fn update(&self, index: usize, value: T) -> Self {
         Self {
             inner: self.inner.update(index, value),
+            chunk_size: self.chunk_size,
+        }
+    }
+}
+
+impl<T: Clone> PersistentVector<T> {
+    /// Creates a new persistent vector with a custom cache policy.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::pvec::{PersistentVector, NeverCache, EvenIndexCache};
+    /// let vec = PersistentVector::<i32>::with_cache_policy(Box::new(NeverCache));
+    /// assert_eq!(vec.len(), 0);
+    /// let vec2 = PersistentVector::from_slice_with_cache_policy(&[1,2,3], Box::new(EvenIndexCache));
+    /// assert_eq!(vec2.len(), 3);
+    /// ```
+    pub fn with_cache_policy(policy: BoxedCachePolicy) -> Self {
+        Self {
+            inner: VectorImpl::Tree {
+                tree: Box::new(crate::pvec::tree::Tree::new().with_cache_policy(policy)),
+            },
+            chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
+        }
+    }
+
+    /// Creates a new persistent vector from a slice with a custom cache policy.
+    pub fn from_slice_with_cache_policy(slice: &[T], policy: BoxedCachePolicy) -> Self {
+        if slice.len() <= crate::pvec::vector::SMALL_VECTOR_SIZE {
+            let mut v = crate::pvec::vector::SmallVec::new();
+            for x in slice {
+                v = v.push_back(x.clone());
+            }
+            Self {
+                inner: VectorImpl::Small { elements: v },
+                chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
+            }
+        } else {
+            Self {
+                inner: VectorImpl::Tree {
+                    tree: Box::new(
+                        crate::pvec::tree::Tree::from_slice(slice).with_cache_policy(policy),
+                    ),
+                },
+                chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
+            }
+        }
+    }
+
+    /// Creates a new, empty persistent vector with a custom chunk size.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    /// let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(16);
+    /// assert!(vec.is_empty());
+    /// assert_eq!(vec.len(), 0);
+    /// ```
+    pub fn with_chunk_size(chunk_size: usize) -> Self {
+        Self {
+            inner: VectorImpl::Tree {
+                tree: Box::new(crate::pvec::tree::Tree::new_with_chunk_size(chunk_size)),
+            },
+            chunk_size,
+        }
+    }
+
+    /// Creates a new persistent vector from a slice with a custom chunk size.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    /// let vec = PersistentVector::from_slice_with_chunk_size(&[1, 2, 3], 16);
+    /// assert_eq!(vec.len(), 3);
+    /// assert_eq!(vec.get(2), Some(&3));
+    /// ```
+    pub fn from_slice_with_chunk_size(slice: &[T], chunk_size: usize) -> Self {
+        if slice.len() <= crate::pvec::vector::SMALL_VECTOR_SIZE {
+            let mut v = crate::pvec::vector::SmallVec::new();
+            for x in slice {
+                v = v.push_back(x.clone());
+            }
+            Self {
+                inner: VectorImpl::Small { elements: v },
+                chunk_size,
+            }
+        } else {
+            Self {
+                inner: VectorImpl::Tree {
+                    tree: Box::new(crate::pvec::tree::Tree::from_slice_with_chunk_size(
+                        slice, chunk_size,
+                    )),
+                },
+                chunk_size,
+            }
         }
     }
 
@@ -637,6 +809,7 @@ impl<T: Clone> PersistentVector<T> {
     pub fn push_back(&self, value: T) -> Self {
         Self {
             inner: self.inner.push_back(value),
+            chunk_size: self.chunk_size,
         }
     }
 
@@ -650,6 +823,7 @@ impl<T: Clone> PersistentVector<T> {
                     inner: VectorImpl::Small {
                         elements: elements.push_back(value),
                     },
+                    chunk_size: self.chunk_size,
                 }
             },
             VectorImpl::Small { elements } => {
@@ -659,12 +833,14 @@ impl<T: Clone> PersistentVector<T> {
                     inner: VectorImpl::Tree {
                         tree: Box::new(crate::pvec::tree::Tree::from_slice(&v)),
                     },
+                    chunk_size: self.chunk_size,
                 }
             },
             VectorImpl::Tree { tree } => Self {
                 inner: VectorImpl::Tree {
                     tree: Box::new(tree.as_ref().push_back(value)),
                 },
+                chunk_size: self.chunk_size,
             },
         }
     }
@@ -676,11 +852,13 @@ impl<T: Clone> PersistentVector<T> {
                 inner: VectorImpl::Small {
                     elements: elements.update(index, value),
                 },
+                chunk_size: self.chunk_size,
             },
             VectorImpl::Tree { tree } => Self {
                 inner: VectorImpl::Tree {
                     tree: Box::new(tree.as_ref().update(index, value)),
                 },
+                chunk_size: self.chunk_size,
             },
         }
     }
@@ -773,23 +951,28 @@ impl<T: Clone> PersistentVector<T> {
 
     /// Returns a new vector with all elements from the provided iterator appended to the end.
     ///
+    /// # Chunk Size Policy
+    ///
+    /// The resulting vector's `chunk_size` is always inherited from `self`.
+    /// If you need to control the chunk size of the result, use [`with_chunk_size`] or [`from_slice_with_chunk_size`].
+    ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use rustica::pvec::PersistentVector;
-    ///
-    /// let vec1 = PersistentVector::from_slice(&[1, 2, 3]);
-    /// let vec2 = vec1.extend(vec![4, 5, 6]);
-    ///
-    /// assert_eq!(vec1.len(), 3);
-    /// assert_eq!(vec2.len(), 6);
-    /// assert_eq!(vec2.to_vec(), vec![1, 2, 3, 4, 5, 6]);
+    /// let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(4).extend([1, 2, 3]);
+    /// let extended = vec.extend([4, 5, 6]);
+    /// assert_eq!(extended.to_vec(), vec![1, 2, 3, 4, 5, 6]);
+    /// assert_eq!(extended.chunk_size(), 4);
     /// ```
     #[inline(always)]
     #[must_use]
     pub fn extend(&self, values: impl IntoIterator<Item = T>) -> Self {
-        Self {
-            inner: self.inner.extend(values),
+        let mut v = self.to_vec();
+        v.extend(values);
+        PersistentVector {
+            inner: VectorImpl::from_slice(&v),
+            chunk_size: self.chunk_size,
         }
     }
 
@@ -813,7 +996,15 @@ impl<T: Clone> PersistentVector<T> {
     #[inline(always)]
     #[must_use]
     pub fn pop_back(&self) -> Option<(Self, T)> {
-        self.inner.pop_back().map(|(inner, val)| (Self { inner }, val))
+        self.inner.pop_back().map(|(inner, val)| {
+            (
+                Self {
+                    inner,
+                    chunk_size: self.chunk_size,
+                },
+                val,
+            )
+        })
     }
 
     /// Converts this vector to an `Arc<PersistentVector<T>>` for thread-safe sharing.
@@ -1342,24 +1533,28 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// This operation creates a new vector with the contents of `self` followed by all elements of `other`.
     ///
+    /// # Chunk Size Policy
+    ///
+    /// The resulting vector's `chunk_size` is always inherited from `self`, regardless of `other`'s chunk size.
+    /// If you need to control the chunk size of the result, use [`with_chunk_size`] or [`from_slice_with_chunk_size`].
+    ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use rustica::pvec::PersistentVector;
-    ///
-    /// let vec1 = PersistentVector::from_slice(&[1, 2, 3]);
-    /// let vec2 = PersistentVector::from_slice(&[4, 5, 6]);
+    /// let vec1: PersistentVector<i32> = PersistentVector::with_chunk_size(4).extend([1, 2, 3]);
+    /// let vec2: PersistentVector<i32> = PersistentVector::with_chunk_size(8).extend([4, 5, 6]);
     /// let combined = vec1.concat(&vec2);
     /// assert_eq!(combined.to_vec(), vec![1, 2, 3, 4, 5, 6]);
+    /// assert_eq!(combined.chunk_size(), 4); // Inherits from vec1
     /// ```
-    #[inline(always)]
-    #[must_use]
     pub fn concat(&self, other: &Self) -> Self {
-        let mut result = self.clone();
-        for item in other.iter() {
-            result = result.push_back(item.clone());
+        let mut v = self.to_vec();
+        v.extend(other.iter().cloned());
+        PersistentVector {
+            inner: VectorImpl::from_slice(&v),
+            chunk_size: self.chunk_size,
         }
-        result
     }
 
     /// Get a reference to the element at the specified index, using the index cache for fast access if possible.
@@ -1405,6 +1600,24 @@ impl<T: Clone> PersistentVector<T> {
             VectorImpl::Small { .. } => (0, 0),
             VectorImpl::Tree { tree } => tree.as_ref().cache_stats(),
         }
+    }
+
+    /// Returns the chunk size used for chunked storage.
+    ///
+    /// For vectors created with a custom chunk size (via `with_chunk_size` or `from_slice_with_chunk_size`),
+    /// this returns the configured value. For small vectors, returns the default chunk size.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::pvec::PersistentVector;
+    /// let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(8);
+    /// assert_eq!(vec.chunk_size(), 8);
+    /// ```
+    #[inline(always)]
+    #[must_use]
+    pub fn chunk_size(&self) -> usize {
+        self.chunk_size
     }
 }
 

@@ -9,6 +9,7 @@ use std::convert::AsRef;
 use std::fmt::{self, Debug as StdDebug};
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, Range};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use crate::pvec::node::Node;
@@ -126,33 +127,36 @@ impl CachePolicy for EvenIndexCache {
     }
 }
 
-pub(crate) const CHUNK_SIZE: usize = 32;
+pub(crate) const DEFAULT_CHUNK_SIZE: usize = 32;
 pub(crate) const CHUNK_BITS: usize = 5;
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct Chunk<T> {
     elements: Vec<T>,
+    chunk_size: usize,
 }
 
-impl<T: Clone> Chunk<T> {
-    #[inline(always)]
-    /// Creates a new `Chunk` instance.
-    pub fn new() -> Self {
+impl<T> Chunk<T> {
+    /// Creates a new `Chunk` instance with a given chunk size.
+    pub fn new_with_size(chunk_size: usize) -> Self {
         Self {
-            elements: Vec::with_capacity(CHUNK_SIZE),
+            elements: Vec::with_capacity(chunk_size),
+            chunk_size,
         }
+    }
+    /// Creates a new `Chunk` with the default chunk size.
+    pub fn new() -> Self {
+        Self::new_with_size(DEFAULT_CHUNK_SIZE)
+    }
+    /// Checks if the chunk is full.
+    pub fn is_full(&self) -> bool {
+        self.elements.len() >= self.chunk_size
     }
 
     #[inline(always)]
     /// Returns the length of the chunk.
     pub fn len(&self) -> usize {
         self.elements.len()
-    }
-
-    #[inline(always)]
-    /// Checks if the chunk is full.
-    pub fn is_full(&self) -> bool {
-        self.elements.len() >= CHUNK_SIZE
     }
 
     #[inline(always)]
@@ -178,7 +182,21 @@ impl<T: Clone> Chunk<T> {
     }
 }
 
-impl<T: Clone> Default for Chunk<T> {
+impl<T> FromIterator<T> for Chunk<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let chunk_size = DEFAULT_CHUNK_SIZE; // Could be parameterized if needed
+        let mut elements = Vec::with_capacity(chunk_size);
+        for item in iter.into_iter().take(chunk_size) {
+            elements.push(item);
+        }
+        Self {
+            elements,
+            chunk_size,
+        }
+    }
+}
+
+impl<T> Default for Chunk<T> {
     #[inline(always)]
     fn default() -> Self {
         Self::new()
@@ -189,17 +207,6 @@ impl<T: Clone + StdDebug> StdDebug for Chunk<T> {
     #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.elements.iter()).finish()
-    }
-}
-
-impl<T: Clone> FromIterator<T> for Chunk<T> {
-    #[inline(always)]
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut elements = Vec::with_capacity(CHUNK_SIZE);
-        for item in iter.into_iter().take(CHUNK_SIZE) {
-            elements.push(item);
-        }
-        Self { elements }
     }
 }
 
@@ -227,10 +234,26 @@ pub enum AllocationStrategy {
     Adaptive,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MemoryStats {
+    pub node_pool_size: usize,
+    pub node_pool_capacity: usize,
+    pub chunk_pool_size: usize,
+    pub chunk_pool_capacity: usize,
+    pub node_allocations: usize,
+    pub chunk_allocations: usize,
+    pub node_pool_hits: usize,
+    pub chunk_pool_hits: usize,
+}
+
 pub struct MemoryManager<T> {
     allocation_strategy: AllocationStrategy,
     node_pool: Arc<Mutex<ObjectPool<Node<T>>>>,
     chunk_pool: Arc<Mutex<ObjectPool<Chunk<T>>>>,
+    node_allocations: AtomicUsize,
+    chunk_allocations: AtomicUsize,
+    node_pool_hits: AtomicUsize,
+    chunk_pool_hits: AtomicUsize,
 }
 
 impl<T: Clone> MemoryManager<T> {
@@ -241,13 +264,20 @@ impl<T: Clone> MemoryManager<T> {
             allocation_strategy: strategy,
             node_pool: Arc::new(Mutex::new(ObjectPool::new(DEFAULT_POOL_CAPACITY))),
             chunk_pool: Arc::new(Mutex::new(ObjectPool::new(DEFAULT_POOL_CAPACITY))),
+            node_allocations: AtomicUsize::new(0),
+            chunk_allocations: AtomicUsize::new(0),
+            node_pool_hits: AtomicUsize::new(0),
+            chunk_pool_hits: AtomicUsize::new(0),
         }
     }
 
     #[inline(always)]
     /// Reserves chunks in the chunk pool.
     pub fn reserve_chunks(&self, count: usize) {
-        self.chunk_pool.lock().reserve(count);
+        let mut pool = self.chunk_pool.lock();
+        if pool.size() < count {
+            pool.prefill(|| Chunk::new_with_size(DEFAULT_CHUNK_SIZE));
+        }
     }
 
     #[inline(always)]
@@ -262,7 +292,54 @@ impl<T: Clone> MemoryManager<T> {
         self.allocation_strategy = strategy;
     }
 
-    #[inline(always)]
+    /// Allocate a node according to the current strategy (with adaptive logic).
+    pub(crate) fn allocate_node(&self, value: Node<T>) -> ManagedRef<Node<T>> {
+        match self.allocation_strategy {
+            AllocationStrategy::Direct => {
+                self.node_allocations.fetch_add(1, Ordering::Relaxed);
+                ManagedRef::new(Arc::new(value))
+            },
+            AllocationStrategy::Pooled => {
+                self.node_allocations.fetch_add(1, Ordering::Relaxed);
+                let mut pool = self.node_pool.lock();
+                if let Some(obj) = pool.get() {
+                    *Arc::get_mut(&mut Arc::clone(&obj)).unwrap() = value;
+                    ManagedRef::from(obj)
+                } else {
+                    ManagedRef::new(Arc::new(value))
+                }
+            },
+            AllocationStrategy::Adaptive => {
+                self.node_allocations.fetch_add(1, Ordering::Relaxed);
+                ManagedRef::new(Arc::new(value))
+            },
+        }
+    }
+
+    /// Allocate a chunk according to the current strategy (with adaptive logic).
+    pub(crate) fn allocate_chunk(&self, value: Chunk<T>) -> ManagedRef<Chunk<T>> {
+        match self.allocation_strategy {
+            AllocationStrategy::Direct => {
+                self.chunk_allocations.fetch_add(1, Ordering::Relaxed);
+                ManagedRef::new(Arc::new(value))
+            },
+            AllocationStrategy::Pooled => {
+                self.chunk_allocations.fetch_add(1, Ordering::Relaxed);
+                let mut pool = self.chunk_pool.lock();
+                if let Some(obj) = pool.get() {
+                    *Arc::get_mut(&mut Arc::clone(&obj)).unwrap() = value;
+                    ManagedRef::from(obj)
+                } else {
+                    ManagedRef::new(Arc::new(value))
+                }
+            },
+            AllocationStrategy::Adaptive => {
+                self.chunk_allocations.fetch_add(1, Ordering::Relaxed);
+                ManagedRef::new(Arc::new(value))
+            },
+        }
+    }
+
     /// Returns memory statistics.
     pub fn stats(&self) -> MemoryStats {
         let node_pool = self.node_pool.lock();
@@ -272,17 +349,11 @@ impl<T: Clone> MemoryManager<T> {
             chunk_pool_size: chunk_pool.size(),
             node_pool_capacity: node_pool.capacity(),
             chunk_pool_capacity: chunk_pool.capacity(),
+            node_allocations: self.node_allocations.load(Ordering::Relaxed),
+            chunk_allocations: self.chunk_allocations.load(Ordering::Relaxed),
+            node_pool_hits: self.node_pool_hits.load(Ordering::Relaxed),
+            chunk_pool_hits: self.chunk_pool_hits.load(Ordering::Relaxed),
         }
-    }
-
-    #[inline(always)]
-    /// Prefills the node and chunk pools.
-    pub fn prefill(&self)
-    where
-        T: Default,
-    {
-        self.node_pool.lock().prefill(Node::<T>::default);
-        self.chunk_pool.lock().prefill(Chunk::<T>::default);
     }
 }
 
@@ -293,6 +364,10 @@ impl<T: Clone> Clone for MemoryManager<T> {
             allocation_strategy: self.allocation_strategy,
             node_pool: self.node_pool.clone(),
             chunk_pool: self.chunk_pool.clone(),
+            node_allocations: AtomicUsize::new(self.node_allocations.load(Ordering::Relaxed)),
+            chunk_allocations: AtomicUsize::new(self.chunk_allocations.load(Ordering::Relaxed)),
+            node_pool_hits: AtomicUsize::new(self.node_pool_hits.load(Ordering::Relaxed)),
+            chunk_pool_hits: AtomicUsize::new(self.chunk_pool_hits.load(Ordering::Relaxed)),
         }
     }
 }
@@ -321,14 +396,6 @@ impl<T: Clone> PartialEq for MemoryManager<T> {
 }
 
 impl<T: Clone> Eq for MemoryManager<T> {}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MemoryStats {
-    pub node_pool_size: usize,
-    pub node_pool_capacity: usize,
-    pub chunk_pool_size: usize,
-    pub chunk_pool_capacity: usize,
-}
 
 pub(crate) struct ManagedRef<T> {
     inner: Arc<T>,
@@ -394,46 +461,35 @@ impl<T: PartialEq> PartialEq for ManagedRef<T> {
 impl<T: Eq> Eq for ManagedRef<T> {}
 
 pub(crate) struct ObjectPool<T> {
-    pool: VecDeque<T>,
+    pool: VecDeque<Arc<T>>,
     capacity: usize,
 }
 
-impl<T: Clone> ObjectPool<T> {
-    #[inline(always)]
-    /// Creates a new `ObjectPool` instance.
+impl<T> ObjectPool<T> {
     pub fn new(capacity: usize) -> Self {
-        let pool = VecDeque::with_capacity(capacity);
-        Self { pool, capacity }
+        Self {
+            pool: VecDeque::with_capacity(capacity),
+            capacity,
+        }
     }
 
-    #[inline(always)]
-    /// Reserves space in the pool.
-    pub fn reserve(&mut self, count: usize) {
-        self.pool.reserve(count);
-    }
-
-    #[inline(always)]
-    /// Returns the size of the pool.
     pub fn size(&self) -> usize {
         self.pool.len()
     }
-
-    #[inline(always)]
-    /// Returns the capacity of the pool.
     pub fn capacity(&self) -> usize {
-        self.pool.capacity()
+        self.capacity
     }
-
-    #[inline(always)]
-    /// Prefills the pool with objects created by the given function.
-    pub fn prefill<F>(&mut self, create_fn: F)
-    where
-        F: Fn() -> T,
-    {
-        let needed = self.capacity.saturating_sub(self.pool.len());
-        self.pool.reserve(needed);
-        for _ in 0..needed {
-            self.pool.push_back(create_fn());
+    pub fn prefill<F: Fn() -> T>(&mut self, create_fn: F) {
+        while self.pool.len() < self.capacity {
+            self.pool.push_back(Arc::new(create_fn()));
+        }
+    }
+    pub fn get(&mut self) -> Option<Arc<T>> {
+        self.pool.pop_front()
+    }
+    pub fn put(&mut self, obj: Arc<T>) {
+        if self.pool.len() < self.capacity {
+            self.pool.push_back(obj);
         }
     }
 }

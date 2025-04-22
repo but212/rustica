@@ -1,6 +1,7 @@
-use criterion::{black_box, Criterion};
+use criterion::{black_box, BenchmarkId, Criterion};
 #[cfg(feature = "pvec")]
 use rustica::pvec::{pvec, PersistentVector};
+use std::sync::Arc;
 
 #[cfg(feature = "pvec")]
 pub fn pvec_benchmarks(c: &mut Criterion) {
@@ -126,5 +127,99 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     // Macro creation
     c.bench_function("pvec_macro", |b| {
         b.iter(|| black_box(pvec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+    });
+
+    // --- Bulk Construction Benchmarks (Chunked Storage) ---
+    let chunk_sizes = [16, 32, 64, 128];
+    let input_sizes = [1_000, 10_000, 100_000];
+
+    for &chunk_size in &chunk_sizes {
+        for &input_size in &input_sizes {
+            let data: Vec<usize> = (0..input_size).collect();
+            let bench_name = format!("pvec_from_slice_chunk{}_n{}", chunk_size, input_size);
+            c.bench_with_input(BenchmarkId::new(&bench_name, input_size), &data, |b, d| {
+                b.iter(|| {
+                    let vec =
+                        PersistentVector::from_slice_with_chunk_size(black_box(d), chunk_size);
+                    black_box(vec)
+                })
+            });
+
+            let bench_name = format!("pvec_from_iter_chunk{}_n{}", chunk_size, input_size);
+            c.bench_with_input(BenchmarkId::new(&bench_name, input_size), &data, |b, d| {
+                b.iter(|| {
+                    let vec: PersistentVector<usize> = d.iter().cloned().collect();
+                    black_box(vec)
+                })
+            });
+        }
+    }
+
+    // --- Legacy (Push Back) Path for Comparison ---
+    for &input_size in &input_sizes {
+        let data: Vec<usize> = (0..input_size).collect();
+        let bench_name = format!("pvec_push_back_loop_n{}", input_size);
+        c.bench_with_input(BenchmarkId::new(&bench_name, input_size), &data, |b, d| {
+            b.iter(|| {
+                let mut vec = PersistentVector::new();
+                for &item in d.iter() {
+                    vec = vec.push_back(black_box(item));
+                }
+                black_box(vec)
+            })
+        });
+    }
+
+    // --- Node/Chunk Management Stress Benchmark ---
+    c.bench_function("pvec_split_merge_stress", |b| {
+        b.iter(|| {
+            let mut vec = PersistentVector::new();
+            // Alternate push and pop to trigger splits/merges
+            for i in 0..10_000 {
+                vec = vec.push_back(i);
+                if i % 8 == 0 && vec.len() > 0 {
+                    let _ = vec.pop_back();
+                }
+            }
+            black_box(vec)
+        })
+    });
+
+    // --- In-place Branch Modification Benchmark ---
+    c.bench_function("pvec_inplace_branch_modification", |b| {
+        b.iter(|| {
+            let mut vec = PersistentVector::new();
+            for i in 0..10_000 {
+                vec = vec.push_back(i);
+            }
+            // Perform updates that maximize structural sharing
+            for i in (0..10_000).step_by(7) {
+                let _ = vec.update(i, i + 1);
+            }
+            black_box(vec)
+        })
+    });
+
+    // --- AllocationStrategy/MemoryManager Benchmarks ---
+    use rustica::pvec::{AllocationStrategy, MemoryManager};
+
+    // Benchmark switching strategies at runtime
+    c.bench_function("pvec_memory_manager_switch_strategy", |b| {
+        b.iter(|| {
+            let mut manager: MemoryManager<i32> = MemoryManager::new(AllocationStrategy::Direct);
+            manager.set_strategy(AllocationStrategy::Pooled);
+            manager.set_strategy(AllocationStrategy::Adaptive);
+            manager.set_strategy(AllocationStrategy::Direct);
+            black_box(manager)
+        })
+    });
+
+    // Benchmark stats collection
+    c.bench_function("pvec_memory_manager_stats", |b| {
+        let manager: MemoryManager<i32> = MemoryManager::new(AllocationStrategy::Pooled);
+        b.iter(|| {
+            let stats = manager.stats();
+            black_box(stats)
+        })
     });
 }
