@@ -4,9 +4,9 @@
 //!
 //! # Key Utilities
 //!
-//! - [`error_utils`]: Error handling and conversion helpers (e.g., `collect_results`, `flatten_errors`)
-//! - [`hkt_utils`]: Higher-kinded type utilities (e.g., HKT conversions, type witnesses)
-//! - [`transform_utils`]: Function composition, transformation, and chaining utilities
+//! - `error_utils`: Error handling and conversion helpers (e.g., `collect_results`, `flatten_errors`)
+//! - `hkt_utils`: Higher-kinded type utilities (e.g., HKT conversions, type witnesses)
+//! - `transform_utils`: Function composition, transformation, and chaining utilities
 //!
 //! # Usage Examples
 //!

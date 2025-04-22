@@ -144,7 +144,6 @@ pub mod datatypes {
     /// Maybe type (equivalent to Option) with additional functional capabilities.
     pub mod maybe;
 
-    // Wrapper types for semigroups and monoids
     /// Wrapper types for working with semigroups and monoids.
     pub mod wrapper;
 
