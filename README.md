@@ -1,1 +1,0 @@
-visit to [https://but212.github.io/rustica/](https://but212.github.io/rustica/)
