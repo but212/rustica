@@ -250,12 +250,6 @@ impl<T: Clone> Tree<T> {
         }
     }
 
-    #[inline(always)]
-    #[must_use]
-    pub fn chunk_size(&self) -> usize {
-        self.chunk_size
-    }
-
     /// Splits the tree into two parts at the given index.
     ///
     /// Returns a tuple containing two trees: the first with elements from `0..index`,
@@ -269,9 +263,50 @@ impl<T: Clone> Tree<T> {
         if index == 0 {
             return (Self::new(), self.clone());
         }
-        let (left, right) = match self.root.split(index, self.shift(), &self.manager) {
-            Ok((l, r)) => (l, r),
-            Err(e) => panic!("Failed to split tree: {}", e),
+        let (left, right) = match self.height {
+            0 => {
+                // Handle split for leaf node directly
+                let chunk = match self.root.as_ref() {
+                    crate::pvec::node::Node::Leaf { elements } => elements,
+                    _ => panic!("Expected leaf node at height 0"),
+                };
+                let total = chunk.len();
+                if index > total {
+                    panic!(
+                        "Split index {} out of bounds for leaf of size {}",
+                        index, total
+                    );
+                }
+                let left_chunk = self.manager.allocate_chunk({
+                    let mut c = crate::pvec::memory::Chunk::new_with_size(chunk.len());
+                    for i in 0..index {
+                        if let Some(val) = chunk.get(i) {
+                            c.push_back(val.clone());
+                        }
+                    }
+                    c
+                });
+                let right_chunk = self.manager.allocate_chunk({
+                    let mut c = crate::pvec::memory::Chunk::new_with_size(chunk.len());
+                    for i in index..total {
+                        if let Some(val) = chunk.get(i) {
+                            c.push_back(val.clone());
+                        }
+                    }
+                    c
+                });
+                let left_node = self.manager.allocate_node(crate::pvec::node::Node::Leaf {
+                    elements: left_chunk,
+                });
+                let right_node = self.manager.allocate_node(crate::pvec::node::Node::Leaf {
+                    elements: right_chunk,
+                });
+                (left_node, right_node)
+            },
+            _ => match self.root.split(index, self.shift(), &self.manager) {
+                Ok((l, r)) => (l, r),
+                Err(e) => panic!("Failed to split tree: {}", e),
+            },
         };
         (
             Self {
@@ -354,7 +389,16 @@ impl<T: Clone> Tree<T> {
         let last_element = self.get(last_idx)?.clone();
 
         // Create new tree without the last element
-        let (new_tree, _) = self.split_at(last_idx);
+        let (mut new_tree, _) = self.split_at(last_idx);
+        // If after pop the tree is empty, reset height to 0 and root to a new empty leaf
+        if new_tree.size == 0 {
+            let chunk = self
+                .manager
+                .allocate_chunk(crate::pvec::memory::Chunk::new_with_size(self.chunk_size));
+            let root = self.manager.allocate_node(crate::pvec::node::Node::leaf(chunk));
+            new_tree.root = root;
+            new_tree.height = 0;
+        }
 
         Some((new_tree, last_element))
     }

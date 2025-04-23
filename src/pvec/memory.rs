@@ -487,9 +487,4 @@ impl<T> ObjectPool<T> {
     pub fn get(&mut self) -> Option<Arc<T>> {
         self.pool.pop_front()
     }
-    pub fn put(&mut self, obj: Arc<T>) {
-        if self.pool.len() < self.capacity {
-            self.pool.push_back(obj);
-        }
-    }
 }

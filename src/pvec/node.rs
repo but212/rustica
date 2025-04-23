@@ -247,72 +247,6 @@ impl<T: Clone> Node<T> {
         }
     }
 
-    /// Create a new node with a custom initializer function.
-    ///
-    /// This helper function creates a new node and applies the provided creator function to initialize it.
-    ///
-    /// # Parameters
-    ///
-    /// * `creator` - A function that initializes the newly created node
-    ///
-    /// # Returns
-    ///
-    /// A managed reference to the newly created node
-    #[inline(always)]
-    #[must_use]
-    pub(crate) fn create_node<F>(creator: F) -> ManagedRef<Node<T>>
-    where
-        F: FnOnce(&mut Node<T>),
-    {
-        // 1. Create a default Node<T>
-        let mut node = Node::new();
-        // 2. Apply the modifier function
-        creator(&mut node);
-        // 3. Wrap in Arc and return as ManagedRef
-        ManagedRef::new(Arc::new(node))
-    }
-
-    /// Create a new branch node with the given children and sizes.
-    ///
-    /// This function creates a new branch node by initializing it with the provided children and sizes.
-    ///
-    /// # Parameters
-    ///
-    /// * `children` - A vector of optional managed references to child nodes
-    /// * `sizes` - An optional vector of cumulative sizes of children
-    ///
-    /// # Returns
-    ///
-    /// A managed reference to the newly created branch node
-    #[inline(always)]
-    #[must_use]
-    pub(crate) fn create_branch_node(
-        &self, children: Vec<Option<ManagedRef<Node<T>>>>, sizes: Option<Vec<usize>>,
-    ) -> ManagedRef<Node<T>> {
-        Self::create_node(|node| {
-            *node = Node::Branch { children, sizes };
-        })
-    }
-
-    /// Create a new leaf node with the given elements.
-    ///
-    /// This function creates a new leaf node by initializing it with the provided elements.
-    ///
-    /// # Parameters
-    ///
-    /// * `elements` - A managed reference to a chunk of elements
-    ///
-    /// # Returns
-    ///
-    /// A managed reference to the newly created leaf node
-    #[inline(always)]
-    #[must_use]
-    pub(crate) fn create_leaf_node(elements: ManagedRef<Chunk<T>>) -> ManagedRef<Node<T>> {
-        Self::create_node(|node| {
-            *node = Node::Leaf { elements };
-        })
-    }
-
     /// Build a size table for the given children.
     ///
     /// This function creates a size table by iterating over the children and summing their sizes.
@@ -394,12 +328,12 @@ impl<T: Clone> Node<T> {
     {
         match self {
             Node::Branch { children, sizes } => {
-                // 복사본 생성
-                let mut new_children = children.clone();
+                let mut new_children = Vec::with_capacity(children.len());
+                for child in children.iter() {
+                    new_children.push(child.clone());
+                }
                 let mut new_sizes = sizes.clone();
-                // modifier 적용
                 modifier(&mut new_children, &mut new_sizes);
-                // Arc로 감싸서 ManagedRef로 반환
                 Ok(ManagedRef::new(Arc::new(Node::Branch {
                     children: new_children,
                     sizes: new_sizes,
@@ -650,117 +584,125 @@ impl<T: Clone> Node<T> {
     ///
     /// A tuple containing:
     /// - The left part of the node (elements before index)
-    /// - The right part of the node (elements at and after index)
+    /// - The right part of the node (elements from index onward)
     ///
     /// # Errors
     ///
-    /// Returns an error if the node is not a branch node or if the index is out of bounds.
-    #[inline(always)]
+    /// Returns an error if the split cannot be performed.
     pub(crate) fn split(
         &self, index: usize, shift: usize, manager: &MemoryManager<T>,
     ) -> NodePairResult<T> {
         match self {
-            Node::Branch { children, sizes } => {
-                if index == 0 {
-                    // Split before the first element (left is empty)
-                    let empty = manager.allocate_node(Node::Branch {
-                        children: Vec::new(),
-                        sizes: Some(Vec::new()),
-                    });
-                    let node = manager.allocate_node(Node::Branch {
-                        children: children.clone(),
-                        sizes: sizes.clone(),
-                    });
-                    Ok((empty, node))
-                } else if index >= self.size() {
-                    // Split after the last element (right is empty)
-                    let node = manager.allocate_node(Node::Branch {
-                        children: children.clone(),
-                        sizes: sizes.clone(),
-                    });
-                    let empty = manager.allocate_node(Node::Branch {
-                        children: Vec::new(),
-                        sizes: Some(Vec::new()),
-                    });
-                    Ok((node, empty))
-                } else {
-                    // Find the child node containing the split point
-                    let (child_index, sub_index) = self.find_child_index(index, shift)?;
-
-                    if child_index >= children.len() || children[child_index].is_none() {
-                        return Err(error_with_context(
-                            "Invalid tree structure in split operation".to_string(),
-                            format!(
-                                "child_index: {}, children.len(): {}",
-                                child_index,
-                                children.len()
-                            ),
-                        ));
-                    }
-
-                    let child = children[child_index].as_ref().unwrap();
-
-                    // Split the child node
-                    let (child_left, child_right) =
-                        child.split(sub_index, shift - NODE_BITS, manager)?;
-
-                    // Create left branch (children up to child_index + child_left)
-                    let mut left_children = Vec::with_capacity(child_index + 1);
-                    for child in children.iter().take(child_index) {
-                        left_children.push(child.clone());
-                    }
-                    left_children.push(Some(child_left.clone()));
-
-                    // Create size table for left node
-                    let left_sizes = if let Some(sizes) = sizes {
-                        // Use existing size table
-                        let mut left_size_table = Vec::with_capacity(child_index + 1);
-
-                        // Copy sizes of children before the split
-                        left_size_table.extend_from_slice(&sizes[..child_index]);
-
-                        // Add size of the left part of the split child
-                        let prev_size = if child_index > 0 {
-                            sizes[child_index - 1]
-                        } else {
-                            0
-                        };
-                        left_size_table.push(prev_size + child_left.size());
-
-                        Some(left_size_table)
-                    } else {
-                        // Calculate new size table
-                        Some(Self::build_size_table(&left_children))
-                    };
-
-                    // Create right branch (child_right + remaining children)
-                    let mut right_children = Vec::with_capacity(children.len() - child_index);
-                    right_children.push(Some(child_right.clone()));
-
-                    for child in children.iter().skip(child_index + 1) {
-                        right_children.push(child.clone());
-                    }
-
-                    // Create size table for right node
-                    let right_sizes = Some(Self::build_size_table(&right_children));
-
-                    // Create left and right branch nodes
-                    let left_node = manager.allocate_node(Node::Branch {
-                        children: left_children,
-                        sizes: left_sizes,
-                    });
-                    let right_node = manager.allocate_node(Node::Branch {
-                        children: right_children,
-                        sizes: right_sizes,
-                    });
-
-                    Ok((left_node, right_node))
+            Node::Leaf { elements } => {
+                let total = elements.inner().len();
+                if index > total {
+                    return Err(error_with_context(
+                        format!(
+                            "split index {} out of bounds for leaf of size {}",
+                            index, total
+                        ),
+                        String::new(),
+                    ));
                 }
+                // Defensive: if splitting at 0 or at total, return empty and full accordingly
+                let left_chunk = manager.allocate_chunk({
+                    let mut c = Chunk::new_with_size(elements.inner().len());
+                    for i in 0..index {
+                        if let Some(val) = elements.inner().get(i) {
+                            c.push_back(val.clone());
+                        }
+                    }
+                    c
+                });
+                let right_chunk = manager.allocate_chunk({
+                    let mut c = Chunk::new_with_size(elements.inner().len());
+                    for i in index..total {
+                        if let Some(val) = elements.inner().get(i) {
+                            c.push_back(val.clone());
+                        }
+                    }
+                    c
+                });
+                let left_node = manager.allocate_node(Node::Leaf {
+                    elements: left_chunk,
+                });
+                let right_node = manager.allocate_node(Node::Leaf {
+                    elements: right_chunk,
+                });
+                Ok((left_node, right_node))
             },
-            _ => Err(error_with_context(
-                "split called on non-branch node".to_string(),
-                format!("index: {}, shift: {}", index, shift),
-            )),
+            Node::Branch { children, sizes } => {
+                // (existing branch splitting logic unchanged)
+                if index == 0 {
+                    let empty = manager.allocate_node(Node::Branch {
+                        children: Vec::new(),
+                        sizes: Some(Vec::new()),
+                    });
+                    let node = manager.allocate_node(Node::Branch {
+                        children: children.clone(),
+                        sizes: sizes.clone(),
+                    });
+                    return Ok((empty, node));
+                } else if index >= self.size() {
+                    let node = manager.allocate_node(Node::Branch {
+                        children: children.clone(),
+                        sizes: sizes.clone(),
+                    });
+                    let empty = manager.allocate_node(Node::Branch {
+                        children: Vec::new(),
+                        sizes: Some(Vec::new()),
+                    });
+                    return Ok((node, empty));
+                }
+                // (rest of branch splitting logic unchanged)
+                let (child_index, sub_index) = self.find_child_index(index, shift)?;
+                if child_index >= children.len() || children[child_index].is_none() {
+                    return Err(error_with_context(
+                        "Invalid tree structure in split operation".to_string(),
+                        format!(
+                            "child_index: {}, children.len(): {}",
+                            child_index,
+                            children.len()
+                        ),
+                    ));
+                }
+                let child = children[child_index].as_ref().unwrap();
+                let (child_left, child_right) =
+                    child.split(sub_index, shift - NODE_BITS, manager)?;
+                let mut left_children = Vec::with_capacity(child_index + 1);
+                for child in children.iter().take(child_index) {
+                    left_children.push(child.clone());
+                }
+                left_children.push(Some(child_left.clone()));
+                let left_sizes = if let Some(sizes) = sizes {
+                    let mut left_size_table = Vec::with_capacity(child_index + 1);
+                    left_size_table.extend_from_slice(&sizes[..child_index]);
+                    let prev_size = if child_index > 0 {
+                        sizes[child_index - 1]
+                    } else {
+                        0
+                    };
+                    left_size_table.push(prev_size + child_left.size());
+                    Some(left_size_table)
+                } else {
+                    Some(Self::build_size_table(&left_children))
+                };
+                let mut right_children = Vec::with_capacity(children.len() - child_index);
+                right_children.push(Some(child_right.clone()));
+                for child in children.iter().skip(child_index + 1) {
+                    right_children.push(child.clone());
+                }
+                let right_sizes = Some(Self::build_size_table(&right_children));
+                let left_node = manager.allocate_node(Node::Branch {
+                    children: left_children,
+                    sizes: left_sizes,
+                });
+                let right_node = manager.allocate_node(Node::Branch {
+                    children: right_children,
+                    sizes: right_sizes,
+                });
+                Ok((left_node, right_node))
+            },
         }
     }
 }

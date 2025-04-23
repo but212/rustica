@@ -1,7 +1,6 @@
 use criterion::{black_box, BenchmarkId, Criterion};
 #[cfg(feature = "pvec")]
 use rustica::pvec::{pvec, PersistentVector};
-use std::sync::Arc;
 
 #[cfg(feature = "pvec")]
 pub fn pvec_benchmarks(c: &mut Criterion) {
@@ -220,6 +219,40 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let stats = manager.stats();
             black_box(stats)
+        })
+    });
+
+    // --- Pop Back Benchmark ---
+    c.bench_function("pvec_pop_back", |b| {
+        let mut vec = PersistentVector::new();
+        for i in 0..1000 {
+            vec = vec.push_back(i);
+        }
+        b.iter(|| {
+            let mut v = vec.clone();
+            for _ in 0..1000 {
+                v = v.pop_back().unwrap_or((v, 0)).0;
+            }
+            black_box(v)
+        })
+    });
+
+    // --- Concat Benchmark ---
+    c.bench_function("pvec_concat", |b| {
+        let v1 = (0..500).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let v2 = (500..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        b.iter(|| {
+            let merged = v1.concat(&v2);
+            black_box(merged)
+        })
+    });
+
+    // --- Split Benchmark ---
+    c.bench_function("pvec_split_at", |b| {
+        let vec = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        b.iter(|| {
+            let (left, right) = vec.split_at(500);
+            black_box((left, right))
         })
     });
 }
