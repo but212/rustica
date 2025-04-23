@@ -137,6 +137,7 @@
   - Added comprehensive doctests and examples
   - Improved API documentation with usage examples
   - Updated README with memory optimization details
+- Added `par_map` method to `PersistentVector` for parallel mapping of elements using Rayon (feature: "async").
 
 ## [0.6.0]
 

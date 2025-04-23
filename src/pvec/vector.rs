@@ -1619,6 +1619,44 @@ impl<T: Clone> PersistentVector<T> {
     pub fn chunk_size(&self) -> usize {
         self.chunk_size
     }
+
+    /// Maps elements in parallel using Rayon.
+    ///
+    /// Uses parallel chunks to improve performance for large vectors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    /// use rayon::prelude::*;
+    ///
+    /// let vec = PersistentVector::from_slice(&(0..1000).collect::<Vec<_>>());
+    /// let mapped = vec.par_map(|x| x + 1);
+    /// assert_eq!(mapped.get(0), Some(&1));
+    /// ```
+    #[cfg(feature = "async")]
+    pub fn par_map<F, U>(&self, f: F) -> PersistentVector<U>
+    where
+        F: Fn(&T) -> U + Send + Sync,
+        U: Clone + Send,
+        T: Sync,
+    {
+        use rayon::prelude::*;
+        
+        let chunked: Vec<Vec<U>> = self.chunks()
+            .collect::<Vec<_>>()
+            .par_iter()
+            .map(|chunk| chunk.iter().map(&f).collect())
+            .collect();
+            
+        let mut result = PersistentVector::with_chunk_size(self.chunk_size());
+        for chunk in chunked {
+            for item in chunk {
+                result = result.push_back(item);
+            }
+        }
+        result
+    }
 }
 
 impl<T: Clone> Default for PersistentVector<T> {

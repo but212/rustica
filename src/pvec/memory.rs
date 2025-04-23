@@ -397,6 +397,52 @@ impl<T: Clone> PartialEq for MemoryManager<T> {
 
 impl<T: Clone> Eq for MemoryManager<T> {}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccessPattern {
+    /// Sequential access pattern (e.g., iteration, scanning)
+    Sequential,
+    /// Random access pattern (e.g., frequent indexing, shuffling)
+    Random,
+}
+
+impl std::fmt::Display for AccessPattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AccessPattern::Sequential => write!(f, "Sequential"),
+            AccessPattern::Random => write!(f, "Random"),
+        }
+    }
+}
+
+impl<T: Clone> MemoryManager<T> {
+    /// Optimize the memory manager for a given size and access pattern.
+    ///
+    /// This method adjusts the allocation strategy and chunk pool based on the
+    /// expected vector size and access pattern to reduce memory overhead and improve performance.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The expected size of the vector.
+    /// * `access_pattern` - The expected access pattern (sequential or random).
+    pub fn optimize_for(&mut self, size: usize, access_pattern: AccessPattern) {
+        match (size, access_pattern) {
+            (s, _) if s < 1000 => {
+                self.set_strategy(AllocationStrategy::Direct);
+            },
+            (_, AccessPattern::Random) => {
+                self.set_strategy(AllocationStrategy::Adaptive);
+                self.reserve_chunks(size / DEFAULT_CHUNK_SIZE + 1);
+            },
+            (_, AccessPattern::Sequential) => {
+                self.set_strategy(AllocationStrategy::Pooled);
+                // Prefill the chunk pool for sequential access
+                let mut pool = self.chunk_pool.lock();
+                pool.prefill(|| Chunk::new_with_size(DEFAULT_CHUNK_SIZE));
+            },
+        }
+    }
+}
+
 pub(crate) struct ManagedRef<T> {
     inner: Arc<T>,
 }
