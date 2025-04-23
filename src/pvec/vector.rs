@@ -1642,13 +1642,14 @@ impl<T: Clone> PersistentVector<T> {
         T: Sync,
     {
         use rayon::prelude::*;
-        
-        let chunked: Vec<Vec<U>> = self.chunks()
+
+        let chunked: Vec<Vec<U>> = self
+            .chunks()
             .collect::<Vec<_>>()
             .par_iter()
             .map(|chunk| chunk.iter().map(&f).collect())
             .collect();
-            
+
         let mut result = PersistentVector::with_chunk_size(self.chunk_size());
         for chunk in chunked {
             for item in chunk {

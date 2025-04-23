@@ -1,6 +1,6 @@
 [package]
 name = "rustica"
-version = "0.6.4"
+version = "0.7.0"
 authors = ["jeong-il suk <wjddlf211@naver.com>"]
 edition = "2021"
 description = "Rustica is a functional programming library for the Rust language."

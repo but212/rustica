@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased]
+## [0.7.0]
 
 ### Added
 - Added `iso_lens.rs` and `iso_prism.rs` for Iso-based optics (Lens/Prism) with lawful composition, full documentation, and doctest examples.
