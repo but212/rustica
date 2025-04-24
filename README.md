@@ -25,28 +25,28 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.6.4"
+rustica = "0.7.0"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.4", features = ["async"] }
+rustica = { version = "0.7.0", features = ["async"] }
 ```
 
 If you want to use persistent vector collections, add the `pvec` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.4", features = ["pvec"] }
+rustica = { version = "0.7.0", features = ["pvec"] }
 ```
 
 You can combine multiple features as needed:
 
 ```toml
 [dependencies]
-rustica = { version = "0.6.4", features = ["full"] }
+rustica = { version = "0.7.0", features = ["full"] }
 ```
 
 Then import the prelude to get started:
@@ -117,6 +117,8 @@ Rustica provides a rich collection of functional data types:
 - **Optics**
   - `Lens` - For focusing on parts of structures
   - `Prism` - For working with sum types
+  - **IsoLens** - Lawful, composable lenses based on isomorphisms for deep focusing
+  - **IsoPrism** - Lawful, composable prisms based on isomorphisms for sum types
 
 ### Error Handling Utilities
 
@@ -136,35 +138,43 @@ Rustica provides standardized error handling utilities that work across differen
   - `AppError<M, C>` - A structured error type that provides both a message and optional context
   - Helper functions like `error()` and `error_with_context()`
 
-### Persistent Collections
+### Persistent Vector (pvec feature)
 
-Rustica includes a high-performance, immutable persistent vector:
+Rustica provides a high-performance, immutable persistent vector (RRB-Tree) for functional programming patterns.
 
-- **PersistentVector<T>**: An efficient immutable vector with structural sharing, implemented as a Relaxed Radix Balanced (RRB) tree. Provides:
-  - Fast random access and updates (O(log n))
-  - Small vector optimization for memory efficiency
-  - Structural sharing for efficient cloning and branching
-  - Customizable cache policies for advanced use cases
-  - `pvec![]` macro for convenient construction
+#### Enable the feature
+```toml
+[dependencies]
+rustica = { version = "0.7.0", features = ["pvec"] }
+```
 
-### Writer Monad with Persistent Logs
+#### Example Usage
+```rust
+use rustica::pvec::PersistentVector;
+use rustica::pvec::pvec;
 
-The `Writer` monad now uses `PersistentVector` for log accumulation, ensuring efficient, immutable logs with structural sharing:
+let v1: PersistentVector<i32> = pvec![1, 2, 3, 4, 5];
+let v2 = v1.push_back(6);
+let v3 = v1.update(0, 10);
 
-- **Writer<W, A>**: Accumulates logs of type `W` alongside computations
-- Efficient log accumulation and sharing
+assert_eq!(v1.get(0), Some(&1));
+assert_eq!(v2.get(5), Some(&6));
+assert_eq!(v3.get(0), Some(&10));
+```
 
-### Improved Functor Trait
+#### Advanced: Chunk Size and Cache Policy
+```rust
+let vec = PersistentVector::with_chunk_size(16);
+let vec = vec.push_back(1).push_back(2);
+assert_eq!(vec.chunk_size(), 16);
+```
 
-- Blanket implementation for all Map trait implementers
-- Ownership-aware API: `fmap_owned`, `replace_owned`, `void_owned`
-- Performance: `#[inline]` on all methods
-- Improved documentation and law examples
+### CI/CD & Publishing
 
-### Benchmarks and Documentation
+Rustica uses GitHub Actions for continuous integration, formatting, linting, and automated publishing to crates.io on tagged releases.
 
-- Comprehensive benchmarks for all data types (see [benchmarks page](https://but212.github.io/rustica/criterion/report/index.html))
-- GitHub Pages documentation site: [https://but212.github.io/rustica/](https://but212.github.io/rustica/)
+- Tests and formatting are run on every push and pull request.
+- When a tag (e.g. `v0.7.0`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
 
 ### Changelog
 
