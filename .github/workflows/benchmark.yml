@@ -26,17 +26,19 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Run all benchmarks
-        run: cargo bench --features full
-      - name: Prepare benchmark results
-        run: |
-          mkdir -p benchmark-results
-          cp -r target/criterion benchmark-results/
-      - name: Deploy benchmark results to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        run: cargo bench -- --output-format bencher | tee output.txt
+      - name: Store and publish benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./benchmark-results
-          publish_branch: gh-pages
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Update benchmark results'
+          name: Criterion Benchmark
+          tool: 'cargo'
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: benchmark
+          auto-push: true
+          alert-threshold: '200%'
+          fail-on-alert: true
+          comment-on-alert: true
+          # Optionally, mention users on regression
+          # alert-comment-cc-users: '@your-github-username'
