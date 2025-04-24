@@ -1,4 +1,4 @@
-name: Rust CI
+name: Rust CI & Docs & Pages
 
 on:
   push:
@@ -146,3 +146,65 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  readme-to-index:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract README sections and generate index.html
+        run: |
+          python3 .github/scripts/readme_to_index.py README.md index.html
+      - name: Upload index.html as artifact (for preview or deploy)
+        uses: actions/upload-artifact@v4
+        with:
+          name: index-html
+          path: index.html
+
+  copy-readme-to-gh-pages:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout gh-pages branch
+        run: |
+          git fetch origin gh-pages:gh-pages
+          git checkout gh-pages
+      - name: Copy README.md from main
+        run: |
+          git checkout main -- README.md
+      - name: Commit and push README.md to gh-pages
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: update README.md from main branch [ci skip]" || echo "No changes to commit"
+          git push origin gh-pages
+
+  deploy-docs-to-gh-pages:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build docs
+        run: cargo doc --all-features --no-deps
+      - name: Checkout gh-pages branch
+        run: |
+          git fetch origin gh-pages:gh-pages
+          git checkout gh-pages
+      - name: Copy docs to gh-pages
+        run: |
+          rm -rf doc/rustica
+          mkdir -p doc
+          cp -r target/doc doc/rustica
+      - name: Commit and push docs to gh-pages
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add doc/rustica
+          git commit -m "docs: update API docs for ${{ github.ref_name }} [ci skip]" || echo "No changes to commit"
+          git push origin gh-pages
