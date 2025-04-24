@@ -52,55 +52,75 @@
 </head>
 <body>
     <h1>Rustica</h1>
-    <p>A functional programming library for Rust.</p>
+    <p>Functional programming toolkit for Rust &mdash; type classes, persistent data structures, and more.</p>
     
     <nav>
         <a href="index.html" class="active">Home</a>
         <a href="criterion/report/index.html">Benchmarks</a>
-        <a href="./doc/rustica/index.html">API Documentation</a>
+        <a href="https://docs.rs/rustica/">API Docs</a>
+        <a href="https://crates.io/crates/rustica">Crate</a>
+        <a href="https://github.com/but212/rustica">GitHub</a>
     </nav>
     
     <div class="container">
         <h2>Overview</h2>
-        <p>Rustica provides functional programming abstractions and data types for Rust, inspired by functional programming languages and libraries like Haskell, Scala's Cats, and TypeScript's fp-ts.</p>
-        
-        <h2>Features</h2>
+        <p><b>Rustica</b> brings functional programming idioms and composable abstractions to Rust. It provides type classes (traits), immutable persistent data structures, and powerful optics for expressive, safe, and ergonomic code.</p>
         <ul>
-            <li>Type classes like <code>Functor</code>, <code>Applicative</code>, and <code>Monad</code></li>
-            <li>Data types like <code>Validated</code> for error accumulation</li>
-            <li>State monad for managing state in a functional way</li>
-            <li>And more!</li>
+            <li>Type classes: <code>Functor</code>, <code>Applicative</code>, <code>Monad</code>, <code>Monoid</code>, <code>IsoLens</code> and more</li>
+            <li>Persistent data structures: <code>PersistentVector</code> (RRB-Tree), <code>Validated</code> for error accumulation</li>
+            <li>Functional utilities: <code>State</code> monad, <code>Writer</code> monad, composition tools</li>
+            <li>Optics: <code>IsoLens</code> for composable getters/setters</li>
+            <li>Interoperability with Rust's standard library</li>
         </ul>
         
-        <h2>Documentation</h2>
-        <p>For detailed API documentation, visit the <a href="./doc/rustica/index.html">API documentation</a>.</p>
-        
-        <h2>Getting Started</h2>
-        <p>Add Rustica to your Cargo.toml:</p>
-        <pre><code>
-[dependencies]
-rustica = "0.5.4"
-        </code></pre>
+        <h2>Quick Start</h2>
+        <p>Add to your <code>Cargo.toml</code>:</p>
+        <pre><code>[dependencies]
+rustica = "0.7.0"  # or latest
+</code></pre>
 
-        <h2>Example</h2>
-        <pre><code>
-use rustica::prelude::*;
-use rustica::data::validated::Validated;
+        <h2>Examples</h2>
+        <h3>Validated: Error Accumulation</h3>
+        <pre><code>use rustica::validated::Validated;
+let valid: Validated<&str, i32> = Validated::valid(42);
+let invalid = Validated::invalid("error");
+let mapped = valid.fmap(|x| x * 2);
+assert!(matches!(mapped, Validated::Valid(84)));
+</code></pre>
 
-fn main() {
-    // Create valid and invalid values
-    let valid: Validated<&str, i32> = Validated::valid(42);
-    let invalid: Validated<&str, i32> = Validated::invalid("Error message");
-    
-    // Map over the values
-    let mapped = valid.fmap(|x| x * 2);
-    println!("{:?}", mapped); // Valid(84)
-}
-        </code></pre>
+        <h3>PersistentVector (pvec)</h3>
+        <pre><code>use rustica::pvec::{PersistentVector, pvec};
+let v1: PersistentVector<i32> = pvec![1, 2, 3];
+let v2 = v1.push_back(4);
+assert_eq!(v2.get(3), Some(&4));
+</code></pre>
+
+        <h3>Functor, Applicative, Monad</h3>
+        <pre><code>use rustica::traits::functor::Functor;
+let option = Some(2);
+let doubled = option.fmap(|x| x * 2);
+assert_eq!(doubled, Some(4));
+</code></pre>
+
+        <h3>IsoLens: Optics for Rust</h3>
+        <pre><code>use rustica::optics::{Iso, Lens};
+struct Point { x: i32, y: i32 }
+let lens = Lens::new(|p: &Point| p.x, |mut p: Point, x| { p.x = x; p });
+let p = Point { x: 1, y: 2 };
+let x = lens.get(&p);
+let p2 = lens.set(p, 10);
+</code></pre>
+
+        <h2>Links</h2>
+        <ul>
+            <li><a href="https://docs.rs/rustica/">API Documentation (docs.rs)</a></li>
+            <li><a href="https://crates.io/crates/rustica">Crates.io</a></li>
+            <li><a href="https://github.com/but212/rustica">GitHub</a></li>
+        </ul>
     </div>
     
     <footer style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; font-size: 0.9em;">
-        <p>Rustica - Copyright 2025</p>
+        <p>Rustica &copy; 2025 &mdash; <a href="https://github.com/but212/rustica">but212</a></p>
     </footer>
 </body>
 </html>
