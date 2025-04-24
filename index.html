@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rustica - Functional Programming in Rust</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        pre {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        nav {
+            margin-bottom: 30px;
+        }
+        nav a {
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rustica</h1>
+    <p>A functional programming library for Rust.</p>
+    
+    <nav>
+        <a href="index.html" class="active">Home</a>
+        <a href="criterion/report/index.html">Benchmarks</a>
+        <a href="./doc/rustica/index.html">API Documentation</a>
+    </nav>
+    
+    <div class="container">
+        <h2>Overview</h2>
+        <p>Rustica provides functional programming abstractions and data types for Rust, inspired by functional programming languages and libraries like Haskell, Scala's Cats, and TypeScript's fp-ts.</p>
+        
+        <h2>Features</h2>
+        <ul>
+            <li>Type classes like <code>Functor</code>, <code>Applicative</code>, and <code>Monad</code></li>
+            <li>Data types like <code>Validated</code> for error accumulation</li>
+            <li>State monad for managing state in a functional way</li>
+            <li>And more!</li>
+        </ul>
+        
+        <h2>Documentation</h2>
+        <p>For detailed API documentation, visit the <a href="./doc/rustica/index.html">API documentation</a>.</p>
+        
+        <h2>Getting Started</h2>
+        <p>Add Rustica to your Cargo.toml:</p>
+        <pre><code>
+[dependencies]
+rustica = "0.5.4"
+        </code></pre>
+
+        <h2>Example</h2>
+        <pre><code>
+use rustica::prelude::*;
+use rustica::data::validated::Validated;
+
+fn main() {
+    // Create valid and invalid values
+    let valid: Validated<&str, i32> = Validated::valid(42);
+    let invalid: Validated<&str, i32> = Validated::invalid("Error message");
+    
+    // Map over the values
+    let mapped = valid.fmap(|x| x * 2);
+    println!("{:?}", mapped); // Valid(84)
+}
+        </code></pre>
+    </div>
+    
+    <footer style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; font-size: 0.9em;">
+        <p>Rustica - Copyright 2025</p>
+    </footer>
+</body>
+</html>
