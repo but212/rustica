@@ -603,7 +603,7 @@ impl<T: Clone, E: Clone + std::fmt::Debug> Evaluate for Result<T, E> {
     fn evaluate(&self) -> T {
         match self {
             Ok(value) => value.clone(),
-            Err(e) => panic!("Cannot evaluate Err: {:?}", e),
+            Err(e) => panic!("Cannot evaluate Err: {e:?}"),
         }
     }
 

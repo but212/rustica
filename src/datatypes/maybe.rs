@@ -117,7 +117,7 @@ impl std::fmt::Display for MaybeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MaybeError::ValueNotPresent => write!(f, "Attempted to access a value in a Nothing"),
-            MaybeError::Custom(msg) => write!(f, "{}", msg),
+            MaybeError::Custom(msg) => write!(f, "{msg}"),
         }
     }
 }

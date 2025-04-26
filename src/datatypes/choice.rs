@@ -1382,7 +1382,7 @@ impl<T: Clone + Display> Display for Choice<T> {
                 .map(|alt| alt.to_string())
                 .collect::<Vec<_>>()
                 .join(", ");
-            write!(f, " | {}", alternatives)?;
+            write!(f, " | {alternatives}")?;
         }
         Ok(())
     }

@@ -516,7 +516,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let cache = self.cache.borrow();
         if let Some(ref cached) = *cache {
-            write!(f, "Memoize(cached: {:?})", cached)
+            write!(f, "Memoize(cached: {cached:?})")
         } else {
             write!(f, "Memoize(not cached)")
         }
@@ -530,7 +530,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let cache = self.cache.lock().unwrap();
         if let Some(ref cached) = *cache {
-            write!(f, "ThreadSafeMemoize(cached: {:?})", cached)
+            write!(f, "ThreadSafeMemoize(cached: {cached:?})")
         } else {
             write!(f, "ThreadSafeMemoize(not cached)")
         }

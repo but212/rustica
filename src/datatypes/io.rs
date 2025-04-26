@@ -107,7 +107,7 @@ impl std::fmt::Display for IOError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             IOError::ValueNotSet => write!(f, "Value not set"),
-            IOError::Other(msg) => write!(f, "IO Error: {}", msg),
+            IOError::Other(msg) => write!(f, "IO Error: {msg}"),
         }
     }
 }

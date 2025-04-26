@@ -79,7 +79,7 @@ impl<T: Clone> Semigroup for Last<T> {
 impl<T: fmt::Display> fmt::Display for Last<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            Some(value) => write!(f, "Last(Some({}))", value),
+            Some(value) => write!(f, "Last(Some({value}))"),
             None => write!(f, "Last(None)"),
         }
     }

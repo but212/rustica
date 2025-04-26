@@ -242,7 +242,7 @@ impl<T: Clone> Node<T> {
             },
             _ => Err(error_with_context(
                 "find_child_index called on a non-branch node".to_string(),
-                format!("index: {}, shift: {}", index, shift),
+                format!("index: {index}, shift: {shift}"),
             )),
         }
     }
@@ -599,10 +599,7 @@ impl<T: Clone> Node<T> {
                 let total = elements.inner().len();
                 if index > total {
                     return Err(error_with_context(
-                        format!(
-                            "split index {} out of bounds for leaf of size {}",
-                            index, total
-                        ),
+                        format!("split index {index} out of bounds for leaf of size {total}"),
                         String::new(),
                     ));
                 }

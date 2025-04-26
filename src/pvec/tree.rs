@@ -273,10 +273,7 @@ impl<T: Clone> Tree<T> {
                 };
                 let total = chunk.len();
                 if index > total {
-                    panic!(
-                        "Split index {} out of bounds for leaf of size {}",
-                        index, total
-                    );
+                    panic!("Split index {index} out of bounds for leaf of size {total}");
                 }
                 let left_chunk = self.manager.allocate_chunk({
                     let mut c = crate::pvec::memory::Chunk::new_with_size(chunk.len());
@@ -306,7 +303,7 @@ impl<T: Clone> Tree<T> {
             },
             _ => match self.root.split(index, self.shift(), &self.manager) {
                 Ok((l, r)) => (l, r),
-                Err(e) => panic!("Failed to split tree: {}", e),
+                Err(e) => panic!("Failed to split tree: {e}"),
             },
         };
         (

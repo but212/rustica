@@ -79,7 +79,7 @@ impl<T: Clone> Semigroup for First<T> {
 impl<T: fmt::Display> fmt::Display for First<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            Some(value) => write!(f, "First(Some({}))", value),
+            Some(value) => write!(f, "First(Some({value}))"),
             None => write!(f, "First(None)"),
         }
     }
