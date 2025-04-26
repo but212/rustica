@@ -46,17 +46,22 @@ jobs:
       - name: Build
         run: cargo build --release --all-features
       - name: Install cargo-tarpaulin
+        if: matrix.toolchain == 'stable'
         run: cargo install cargo-tarpaulin
       - name: Generate coverage report (HTML)
+        if: matrix.toolchain == 'stable'
         run: cargo tarpaulin --all-features --out Html --timeout 120
       - name: Deploy coverage report to gh-pages
-        if: github.ref == 'refs/heads/main'
+        if: matrix.toolchain == 'stable' && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./tarpaulin-report
           destination_dir: coverage
           keep_files: true
+      - name: Run tests
+        if: matrix.toolchain != 'stable'
+        run: cargo test --release --all-features
       - name: Install cargo-outdated
         run: cargo install cargo-outdated
       - name: Check outdated dependencies
@@ -98,7 +103,7 @@ jobs:
       - name: Install Rust (MSRV)
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.56.0
+          toolchain: 1.63.0
           override: true
       - name: Cache dependencies
         uses: actions/cache@v3

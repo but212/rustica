@@ -11,6 +11,13 @@ keywords = ["functional", "immutable", "monad", "persistent", "data-structures"]
 categories = ["data-structures", "rust-patterns", "algorithms", "no-std"]
 documentation = "https://docs.rs/rustica"
 
+[package.metadata]
+msrv = "1.63.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 futures = { version = "0.3", optional = true, features = ["thread-pool"] }
 parking_lot = "0.12.3"
@@ -32,10 +39,6 @@ async = ["futures", "tokio"]
 testing = ["quickcheck"]
 full = ["async", "pvec"]
 develop = ["testing", "full"]
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
 
 [[bench]]
 name = "datatypes_benchmarks"
