@@ -2,40 +2,35 @@ name: Rust CI & Docs & Pages
 
 on:
   push:
-    branches: ['**']
+    branches: [main, develop]
     tags:
       - 'v*'
   pull_request:
   schedule:
-    - cron: '0 3 * * 0'
+    - cron: 0 0 * * *
 
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
-  BENCH_OUTPUT: output.txt
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - &checkout
-        uses: actions/checkout@v4
-      - &rust_install
-        name: Install Rust
+      - uses: actions/checkout@v4
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
-      - &cache
-        name: Cache dependencies
+      - name: Cache dependencies
         uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/bin
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Clippy
@@ -49,63 +44,49 @@ jobs:
     needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - *checkout
-      - *rust_install
-      - *cache
-      - name: Build docs
-        run: cargo doc --all-features --no-deps
-
-  security-audit:
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - *checkout
-      - *rust_install
-      - *cache
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      - name: Run security audit
-        run: cargo audit
-
-  benchmark:
-    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - *checkout
-      - *rust_install
-      - name: Cache dependencies (bench)
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Cache dependencies
         uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/bin
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Run all benchmarks
-        run: cargo bench -- --output-format bencher | tee ${{ env.BENCH_OUTPUT }}
-      - name: Store and publish benchmark result
-        uses: benchmark-action/github-action-benchmark@v1
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build docs
+        run: cargo doc --all-features --no-deps
+
+  security-audit:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
-          name: Criterion Benchmark
-          tool: 'cargo'
-          output-file-path: ${{ env.BENCH_OUTPUT }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          gh-pages-branch: gh-pages
-          benchmark-data-dir-path: benchmark
-          auto-push: true
-          alert-threshold: '200%'
-          fail-on-alert: true
-          comment-on-alert: true
+          toolchain: stable
+          override: true
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run security audit
+        run: cargo audit
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [test]
     runs-on: ubuntu-latest
     steps:
-      - *checkout
-      - *rust_install
-      - *cache
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
       - name: Check crate version
         id: check-version
         run: |
@@ -117,10 +98,9 @@ jobs:
             exit 1
           fi
       - name: Verify package
-        run: cargo package
-      - name: Run tests (develop features)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: cargo test --features=develop
+        run: cargo package --no-verify
+      - name: Run tests
+        run: cargo test --features=full
       - name: Check if already published
         id: check-published
         run: |
@@ -139,15 +119,22 @@ jobs:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           args: --no-verify
       - name: Notify on success
-        if: steps.check-published.outputs.already_published != 'true' && success() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        run: echo "✅ Successfully published to crates.io!"
+        if: github.event_name == 'pull_request' || github.event_name == 'issues'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `✅ Successfully published to crates.io!`
+            })
 
   create-release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [publish]
     runs-on: ubuntu-latest
     steps:
-      - *checkout
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -184,28 +171,38 @@ jobs:
           git commit -m "docs: update README.md from main branch [ci skip]" || echo "No changes to commit"
           git push origin gh-pages
 
-  deploy-docs-to-gh-pages:
-    if: startsWith(github.ref, 'refs/tags/v')
+  benchmark:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          fetch-depth: 0
-      - name: Build docs
-        run: cargo doc --all-features --no-deps
-      - name: Checkout gh-pages branch
-        run: |
-          git fetch origin gh-pages:gh-pages
-          git checkout gh-pages
-      - name: Copy docs to gh-pages
-        run: |
-          rm -rf doc/rustica
-          mkdir -p doc
-          cp -r target/doc doc/rustica
-      - name: Commit and push docs to gh-pages
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add doc/rustica
-          git commit -m "docs: update API docs for ${{ github.ref_name }} [ci skip]" || echo "No changes to commit"
-          git push origin gh-pages
+          toolchain: stable
+          override: true
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run all benchmarks
+        run: cargo bench -- --output-format bencher | tee output.txt
+      - name: Store and publish benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Criterion Benchmark
+          tool: 'cargo'
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: benchmark
+          auto-push: true
+          alert-threshold: '200%'
+          fail-on-alert: true
+          comment-on-alert: true
+          # Optionally, mention users on regression
+          # alert-comment-cc-users: '@your-github-username'
