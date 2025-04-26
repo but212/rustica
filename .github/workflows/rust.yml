@@ -45,8 +45,6 @@ jobs:
         run: cargo clippy --all-features -- -D warnings
       - name: Build
         run: cargo build --release --all-features
-      - name: Run tests
-        run: cargo test --release --all-features
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Generate coverage report (HTML)
