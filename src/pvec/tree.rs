@@ -222,7 +222,8 @@ impl<T: Clone> Tree<T> {
         let result = self.root.get(index, self.shift());
         // Update cache with the accessed index (stub: not storing real path/ranges yet)
         // In a real implementation, path/ranges would be computed during traversal.
-        self.cache.update(index, &[0; 32], &core::array::from_fn::<_, 32, _>(|_| 0..0));
+        self.cache
+            .update(index, &[0; 32], &core::array::from_fn::<_, 32, _>(|_| 0..0));
         result
     }
 
@@ -336,7 +337,8 @@ impl<T: Clone> Tree<T> {
     pub fn push_back(&self, value: T) -> Self {
         let shift = self.shift();
         let (new_root, split, overflow) =
-            self.root.push_back(value, shift, self.chunk_size, &self.manager);
+            self.root
+                .push_back(value, shift, self.chunk_size, &self.manager);
 
         let mut result = self.clone();
         result.size += 1;
@@ -395,7 +397,9 @@ impl<T: Clone> Tree<T> {
             let chunk = self
                 .manager
                 .allocate_chunk(crate::pvec::memory::Chunk::new_with_size(self.chunk_size));
-            let root = self.manager.allocate_node(crate::pvec::node::Node::leaf(chunk));
+            let root = self
+                .manager
+                .allocate_node(crate::pvec::node::Node::leaf(chunk));
             new_tree.root = root;
             new_tree.height = 0;
         }

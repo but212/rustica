@@ -406,7 +406,10 @@ impl<T> Functor for Maybe<T> {
     where
         F: FnMut(&Self::Source) -> B,
     {
-        self.into_iter().map(f).next().map_or(Maybe::Nothing, Maybe::Just)
+        self.into_iter()
+            .map(f)
+            .next()
+            .map_or(Maybe::Nothing, Maybe::Just)
     }
 
     #[inline]
@@ -415,7 +418,10 @@ impl<T> Functor for Maybe<T> {
         F: FnMut(Self::Source) -> B,
         Self: Sized,
     {
-        self.into_iter().map(f).next().map_or(Maybe::Nothing, Maybe::Just)
+        self.into_iter()
+            .map(f)
+            .next()
+            .map_or(Maybe::Nothing, Maybe::Just)
     }
 }
 

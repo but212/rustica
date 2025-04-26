@@ -580,7 +580,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         F: Fn(&Self::Source, &B, &C) -> D,
     {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&b.log_thunk).combine_with(&c.log_thunk),
+            log_thunk: self
+                .log_thunk
+                .combine_with(&b.log_thunk)
+                .combine_with(&c.log_thunk),
             value: f(&self.value, &b.value, &c.value),
         }
     }
@@ -618,7 +621,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         Self: Sized,
     {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&b.log_thunk).combine_with(&c.log_thunk),
+            log_thunk: self
+                .log_thunk
+                .combine_with(&b.log_thunk)
+                .combine_with(&c.log_thunk),
             value: f(self.value, b.value, c.value),
         }
     }

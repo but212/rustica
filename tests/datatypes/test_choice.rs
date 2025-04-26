@@ -420,7 +420,10 @@ fn test_choice_default_and_sum() {
     let default: Choice<i32> = Choice::default();
     assert!(default.is_empty());
 
-    let sum: Choice<i32> = [Choice::new(1, vec![2]), Choice::new(3, vec![])].iter().cloned().sum();
+    let sum: Choice<i32> = [Choice::new(1, vec![2]), Choice::new(3, vec![])]
+        .iter()
+        .cloned()
+        .sum();
     assert_eq!(*sum.first().unwrap(), 1);
     assert_eq!(sum.alternatives(), &[2, 3]);
 }

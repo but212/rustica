@@ -365,7 +365,9 @@ impl<T: Clone> Node<T> {
     ) -> Result<ManagedRef<Node<T>>, PVecError> {
         self.modify_branch(|children, sizes| {
             if child_index < children.len() {
-                let old_size = children[child_index].as_ref().map_or(0, |child| child.size());
+                let old_size = children[child_index]
+                    .as_ref()
+                    .map_or(0, |child| child.size());
                 let size_diff = new_child.size() as isize - old_size as isize;
 
                 // Replace the child node

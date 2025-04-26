@@ -413,7 +413,11 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             (Validated::Valid(_), invalid) => invalid.clone(),
             (invalid, Validated::Valid(_)) => invalid.clone(),
             (Validated::Invalid(_), Validated::Invalid(_)) => {
-                let errors = self.iter_errors().chain(other.iter_errors()).cloned().collect();
+                let errors = self
+                    .iter_errors()
+                    .chain(other.iter_errors())
+                    .cloned()
+                    .collect();
                 Validated::Invalid(errors)
             },
         }

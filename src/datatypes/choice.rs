@@ -349,8 +349,12 @@ impl<T> Choice<T> {
         P: Fn(&T) -> bool,
         T: Clone,
     {
-        let filtered: SmallVec<[T; 8]> =
-            self.values.iter().filter(|v| predicate(v)).cloned().collect();
+        let filtered: SmallVec<[T; 8]> = self
+            .values
+            .iter()
+            .filter(|v| predicate(v))
+            .cloned()
+            .collect();
 
         match filtered.len() {
             0 => Self::new_empty(),
@@ -450,10 +454,12 @@ impl<T> Choice<T> {
         match primary_iter.next() {
             Some(first_item) => {
                 // Collect all remaining items from primary and all alternatives
-                let alternatives = self.values.iter()
-                    .skip(1)  // Skip the primary value
+                let alternatives = self
+                    .values
+                    .iter()
+                    .skip(1) // Skip the primary value
                     .flat_map(|val| val.clone().into_iter())
-                    .chain(primary_iter)  // Add remaining items from primary
+                    .chain(primary_iter) // Add remaining items from primary
                     .collect::<SmallVec<[I; 8]>>();
 
                 Choice::new(first_item, alternatives)
@@ -507,10 +513,12 @@ impl<T> Choice<T> {
         match primary_iter.next() {
             Some(first_item) => {
                 // Collect all remaining items from primary and all alternatives
-                let mut alternatives = self.values.iter()
-                    .skip(1)  // Skip the primary value
+                let mut alternatives = self
+                    .values
+                    .iter()
+                    .skip(1) // Skip the primary value
                     .flat_map(|val| val.clone().into_iter())
-                    .chain(primary_iter)  // Add remaining items from primary
+                    .chain(primary_iter) // Add remaining items from primary
                     .collect::<SmallVec<[I; 8]>>();
 
                 // Sort the alternatives
@@ -589,8 +597,12 @@ impl<T> Choice<T> {
         T: Clone,
         F: Fn(&T) -> bool,
     {
-        let filtered: SmallVec<[T; 8]> =
-            self.values.iter().filter(|v| predicate(v)).cloned().collect();
+        let filtered: SmallVec<[T; 8]> = self
+            .values
+            .iter()
+            .filter(|v| predicate(v))
+            .cloned()
+            .collect();
 
         match filtered.len() {
             0 => Self::new_empty(),
@@ -717,8 +729,14 @@ impl<T: Clone> Identity for Choice<T> {
     #[inline]
     fn into_value(self) -> Self::Source {
         match Arc::try_unwrap(self.values) {
-            Ok(values) => values.into_iter().next().expect("Cannot get value from an empty Choice"),
-            Err(arc) => arc.first().cloned().expect("Cannot get value from an empty Choice"),
+            Ok(values) => values
+                .into_iter()
+                .next()
+                .expect("Cannot get value from an empty Choice"),
+            Err(arc) => arc
+                .first()
+                .cloned()
+                .expect("Cannot get value from an empty Choice"),
         }
     }
 }
@@ -980,7 +998,10 @@ impl<T: Clone> Semigroup for Choice<T> {
         // Create a new Choice using iterators instead of extending vectors
         Choice::new(
             primary,
-            self_values[1..].iter().cloned().chain(other_values.iter().cloned()),
+            self_values[1..]
+                .iter()
+                .cloned()
+                .chain(other_values.iter().cloned()),
         )
     }
 
@@ -998,7 +1019,9 @@ impl<T: Clone> Semigroup for Choice<T> {
                 let primary = self_values.remove(0);
                 Choice::new(
                     primary,
-                    self_values.into_iter().chain(other.values.as_ref().iter().cloned()),
+                    self_values
+                        .into_iter()
+                        .chain(other.values.as_ref().iter().cloned()),
                 )
             },
             Err(arc) => {
@@ -1006,7 +1029,10 @@ impl<T: Clone> Semigroup for Choice<T> {
                 let primary = self_values[0].clone();
                 Choice::new(
                     primary,
-                    self_values[1..].iter().cloned().chain(other.values.as_ref().iter().cloned()),
+                    self_values[1..]
+                        .iter()
+                        .cloned()
+                        .chain(other.values.as_ref().iter().cloned()),
                 )
             },
         }
@@ -1078,14 +1104,18 @@ impl<T: Clone> Applicative for Choice<T> {
                     .into_iter()
                     .flat_map(|self_alt| {
                         std::iter::once(f_first(self_alt.clone())).chain(
-                            f_values.as_ref()[1..].iter().map(move |f_alt| f_alt(self_alt.clone())),
+                            f_values.as_ref()[1..]
+                                .iter()
+                                .map(move |f_alt| f_alt(self_alt.clone())),
                         )
                     })
                     .collect();
 
                 // Combine all alternatives
-                let all_alternatives: SmallVec<[B; 8]> =
-                    primary_alternatives.into_iter().chain(other_alternatives).collect();
+                let all_alternatives: SmallVec<[B; 8]> = primary_alternatives
+                    .into_iter()
+                    .chain(other_alternatives)
+                    .collect();
 
                 Choice::new(primary, all_alternatives)
             },
@@ -1100,7 +1130,9 @@ impl<T: Clone> Applicative for Choice<T> {
                     .map(|f_alt| f_alt(self_values[0].clone()))
                     .chain(self_values[1..].iter().flat_map(|self_alt| {
                         std::iter::once(f_first(self_alt.clone())).chain(
-                            f_values.as_ref()[1..].iter().map(move |f_alt| f_alt(self_alt.clone())),
+                            f_values.as_ref()[1..]
+                                .iter()
+                                .map(move |f_alt| f_alt(self_alt.clone())),
                         )
                     }))
                     .collect();
@@ -1264,7 +1296,10 @@ impl<T: Clone> Alternative for Choice<T> {
         // Use iterators with chain() instead of extending vectors
         Choice::new(
             primary,
-            self.values[1..].iter().cloned().chain(other.values.iter().cloned()),
+            self.values[1..]
+                .iter()
+                .cloned()
+                .chain(other.values.iter().cloned()),
         )
     }
 
@@ -1359,7 +1394,8 @@ impl<T: Clone> Foldable for Choice<T> {
         F: Fn(&B, &Self::Source) -> B,
         B: Clone,
     {
-        self.iter().fold(initial.clone(), |acc, value| f(&acc, value))
+        self.iter()
+            .fold(initial.clone(), |acc, value| f(&acc, value))
     }
 
     fn fold_right<B, F>(&self, initial: &B, f: F) -> B

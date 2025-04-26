@@ -494,7 +494,9 @@ impl<T> std::ops::Deref for ManagedRef<T> {
 
 impl<T: StdDebug> StdDebug for ManagedRef<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ManagedRef").field("inner", &self.inner).finish()
+        f.debug_struct("ManagedRef")
+            .field("inner", &self.inner)
+            .finish()
     }
 }
 

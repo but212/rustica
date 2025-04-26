@@ -219,8 +219,12 @@ pub fn reader_benchmarks(c: &mut Criterion) {
 
         let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(
             |env: &AppEnvironment| {
-                let feature_enabled =
-                    env.config.feature_flags.get("new_ui").cloned().unwrap_or(false);
+                let feature_enabled = env
+                    .config
+                    .feature_flags
+                    .get("new_ui")
+                    .cloned()
+                    .unwrap_or(false);
                 let user_has_permission = env.user.permissions.contains(&"read".to_string());
                 feature_enabled && user_has_permission
             },
@@ -260,8 +264,12 @@ pub fn reader_benchmarks(c: &mut Criterion) {
 
         let get_feature_flag = Reader::<AppEnvironment, bool>::ask_with(
             |env: &AppEnvironment| {
-                let feature_enabled =
-                    env.config.feature_flags.get("new_ui").cloned().unwrap_or(false);
+                let feature_enabled = env
+                    .config
+                    .feature_flags
+                    .get("new_ui")
+                    .cloned()
+                    .unwrap_or(false);
                 let user_has_permission = env.user.permissions.contains(&"read".to_string());
                 feature_enabled && user_has_permission
             },

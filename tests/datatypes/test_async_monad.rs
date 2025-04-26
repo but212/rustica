@@ -211,8 +211,9 @@ mod test_async_monad {
     async fn test_async_monad_chain_with_panic_and_recover() {
         use rustica::datatypes::async_monad::AsyncM;
 
-        let async_m: AsyncM<i32> =
-            AsyncM::pure(1).bind(|_| async { panic!("fail!") }).recover_with(99);
+        let async_m: AsyncM<i32> = AsyncM::pure(1)
+            .bind(|_| async { panic!("fail!") })
+            .recover_with(99);
         let result = async_m.try_get().await;
         assert_eq!(result, 99);
     }

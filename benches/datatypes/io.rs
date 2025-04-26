@@ -53,7 +53,12 @@ pub fn io_benchmarks(c: &mut Criterion) {
 
     group.bench_function("bind_chain", |b| {
         let io = IO::pure(42);
-        b.iter(|| black_box(io.bind(|x: i32| IO::pure(x * 2)).bind(|x: i32| IO::pure(x + 10))));
+        b.iter(|| {
+            black_box(
+                io.bind(|x: i32| IO::pure(x * 2))
+                    .bind(|x: i32| IO::pure(x + 10)),
+            )
+        });
     });
 
     // ======== COMPLEX OPERATIONS ========

@@ -860,7 +860,8 @@ where
     where
         C: Clone + 'static,
     {
-        self.try_run_state_with_context(state, context).map(|(_, a)| a)
+        self.try_run_state_with_context(state, context)
+            .map(|(_, a)| a)
     }
 
     /// Runs the state transformer and returns only the final state as a Result with AppError.

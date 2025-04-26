@@ -264,7 +264,9 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn unwrap_right(self) -> R {
-        self.into_iter().next().expect("called unwrap_right on Left value")
+        self.into_iter()
+            .next()
+            .expect("called unwrap_right on Left value")
     }
 
     /// Returns the contained `Left` value, consuming the `self` value.
@@ -314,7 +316,9 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn right_value(self) -> R {
-        self.into_iter().next().expect("Called right_value() on a Left value")
+        self.into_iter()
+            .next()
+            .expect("Called right_value() on a Left value")
     }
 
     /// Returns a reference to the `Left` value.
@@ -355,7 +359,9 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn right_ref(&self) -> &R {
-        self.into_iter().next().expect("Called right_ref() on a Left value")
+        self.into_iter()
+            .next()
+            .expect("Called right_ref() on a Left value")
     }
 
     /// Returns the contained `Right` value or a default.
@@ -486,7 +492,9 @@ impl<L, R> Either<L, R> {
 
     /// Returns a mutable reference to the `Left` value, panicking if not present.
     pub fn left_mut(&mut self) -> &mut L {
-        self.left_iter_mut().next().expect("Called left_mut() on a Right value")
+        self.left_iter_mut()
+            .next()
+            .expect("Called left_mut() on a Right value")
     }
 }
 

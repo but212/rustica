@@ -692,7 +692,10 @@ where
     // Using compose to build the filter operation
     compose(f, move |collection: Vec<B>| {
         let predicate = predicate.clone();
-        collection.into_iter().filter(move |item| predicate(item)).collect()
+        collection
+            .into_iter()
+            .filter(move |item| predicate(item))
+            .collect()
     })
 }
 
@@ -815,7 +818,10 @@ where
     // Using compose to build the parallel filter operation
     compose(f, move |collection: Vec<B>| {
         let predicate = predicate.clone();
-        collection.into_par_iter().filter(move |item| predicate(item)).collect()
+        collection
+            .into_par_iter()
+            .filter(move |item| predicate(item))
+            .collect()
     })
 }
 

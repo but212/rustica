@@ -1144,7 +1144,8 @@ where
     where
         C: Clone + 'static,
     {
-        self.run_reader(env).map_err(|e| AppError::with_context(e, context))
+        self.run_reader(env)
+            .map_err(|e| AppError::with_context(e, context))
     }
 
     /// Maps a function over the error contained in this ReaderT.
