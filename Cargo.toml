@@ -12,7 +12,7 @@ categories = ["data-structures", "rust-patterns", "algorithms", "no-std"]
 documentation = "https://docs.rs/rustica"
 
 [package.metadata]
-msrv = "1.63.0"
+msrv = "1.78.0"
 
 [package.metadata.docs.rs]
 all-features = true
