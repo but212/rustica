@@ -2,7 +2,7 @@ name: Rust CI & Docs & Pages
 
 on:
   push:
-    branches: [main, develop]
+    branches: ['**']
     tags:
       - 'v*'
   pull_request:
@@ -16,7 +16,6 @@ env:
 
 jobs:
   test:
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - &checkout
