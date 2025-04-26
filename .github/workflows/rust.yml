@@ -20,6 +20,8 @@ jobs:
     steps:
       - &checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - &rust_install
         name: Install Rust
         uses: actions-rs/toolchain@v1
