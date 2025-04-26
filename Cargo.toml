@@ -30,7 +30,8 @@ default = []
 pvec = []
 async = ["futures", "tokio"]
 testing = ["quickcheck"]
-full = ["async", "pvec", "testing"]
+full = ["async", "pvec"]
+develop = ["testing", "full"]
 
 [package.metadata.docs.rs]
 all-features = true
