@@ -1,8 +1,5 @@
-import pytest
 from pathlib import Path
 import sys
-import os
-import tempfile
 
 # Import functions from the script
 import importlib.util
