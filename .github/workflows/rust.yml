@@ -50,7 +50,10 @@ jobs:
         run: cargo install cargo-tarpaulin
       - name: Generate coverage report (HTML)
         if: matrix.toolchain == 'stable'
-        run: cargo tarpaulin --all-features --out Html --timeout 120
+        run: cargo tarpaulin --all-features --out Html --output-dir tarpaulin-report --timeout 120
+      - name: List coverage report files
+        if: matrix.toolchain == 'stable'
+        run: ls -l tarpaulin-report
       - name: Deploy coverage report to gh-pages
         if: matrix.toolchain == 'stable' && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
