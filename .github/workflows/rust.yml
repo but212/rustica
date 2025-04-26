@@ -92,7 +92,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-rust-
       - name: Build docs
-        run: cargo doc --all-features --no-deps
+        run: cargo doc --all-features
       - name: Install cargo-deadlinks
         run: cargo install cargo-deadlinks
       - name: Check docs for broken links
