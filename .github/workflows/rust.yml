@@ -20,8 +20,6 @@ jobs:
     steps:
       - &checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - &rust_install
         name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -163,28 +161,6 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  readme-to-index:
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Install markdown dependency
-        run: python3 -m pip install markdown
-      - name: Extract README sections and generate index.html
-        run: |
-          python3 .github/scripts/readme_to_index.py README.md index.html
-      - name: Upload index.html as artifact (for preview or deploy)
-        uses: actions/upload-artifact@v4
-        with:
-          name: index-html
-          path: index.html
 
   copy-readme-to-gh-pages:
     if: startsWith(github.ref, 'refs/tags/v')
