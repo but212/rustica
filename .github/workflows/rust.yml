@@ -66,8 +66,10 @@ jobs:
         if: matrix.toolchain != 'stable'
         run: cargo test --release --all-features
       - name: Install cargo-outdated
+        if: matrix.toolchain == 'stable'
         run: cargo install cargo-outdated
       - name: Check outdated dependencies
+        if: matrix.toolchain == 'stable'
         run: cargo outdated --exit-code 1 || true
 
   build-docs:
