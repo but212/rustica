@@ -106,7 +106,7 @@ jobs:
       - name: Install Rust (MSRV)
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.78.0
+          toolchain: 1.81.0
           override: true
       - name: Cache dependencies
         uses: actions/cache@v3
