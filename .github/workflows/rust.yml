@@ -16,13 +16,18 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: [stable, beta, nightly]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.toolchain }}
           override: true
+          components: rustfmt, clippy
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -30,7 +35,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-rust-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-${{ matrix.toolchain }}-
+            ${{ runner.os }}-rust-
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Clippy
@@ -50,6 +58,7 @@ jobs:
         with:
           toolchain: stable
           override: true
+          components: rustfmt, clippy
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -58,11 +67,13 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-
       - name: Build docs
         run: cargo doc --all-features --no-deps
 
   security-audit:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,6 +82,7 @@ jobs:
         with:
           toolchain: stable
           override: true
+          components: rustfmt, clippy
       - name: Install cargo-audit
         run: cargo install cargo-audit
       - name: Run security audit
@@ -87,6 +99,7 @@ jobs:
         with:
           toolchain: stable
           override: true
+          components: rustfmt, clippy
       - name: Check crate version
         id: check-version
         run: |
@@ -181,6 +194,7 @@ jobs:
         with:
           toolchain: stable
           override: true
+          components: rustfmt, clippy
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
@@ -189,6 +203,8 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - name: Run all benchmarks
         run: cargo bench -- --output-format bencher | tee output.txt
       - name: Store and publish benchmark result
@@ -204,5 +220,3 @@ jobs:
           alert-threshold: '200%'
           fail-on-alert: true
           comment-on-alert: true
-          # Optionally, mention users on regression
-          # alert-comment-cc-users: '@your-github-username'
