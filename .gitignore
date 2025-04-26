@@ -37,3 +37,5 @@ output.txt
 
 # hooks
 .hooks
+
+.pytest_cache/
