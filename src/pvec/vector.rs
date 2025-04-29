@@ -214,6 +214,7 @@ use std::sync::Arc;
 
 use super::iterator::{ChunksIter, Iter, SortedIter};
 use super::tree::Tree;
+use crate::datatypes::lens::Lens;
 use crate::pvec::memory::BoxedCachePolicy;
 
 /// A persistent vector implemented using a Relaxed Radix Balanced (RRB) tree.
@@ -693,102 +694,6 @@ impl<T: Clone> PersistentVector<T> {
             chunk_size: self.chunk_size,
         }
     }
-}
-
-impl<T: Clone> PersistentVector<T> {
-    /// Creates a new persistent vector with a custom cache policy.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::pvec::{PersistentVector, NeverCache, EvenIndexCache};
-    /// let vec = PersistentVector::<i32>::with_cache_policy(Box::new(NeverCache));
-    /// assert_eq!(vec.len(), 0);
-    /// let vec2 = PersistentVector::from_slice_with_cache_policy(&[1,2,3], Box::new(EvenIndexCache));
-    /// assert_eq!(vec2.len(), 3);
-    /// ```
-    pub fn with_cache_policy(policy: BoxedCachePolicy) -> Self {
-        Self {
-            inner: VectorImpl::Tree {
-                tree: Box::new(crate::pvec::tree::Tree::new().with_cache_policy(policy)),
-            },
-            chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
-        }
-    }
-
-    /// Creates a new persistent vector from a slice with a custom cache policy.
-    pub fn from_slice_with_cache_policy(slice: &[T], policy: BoxedCachePolicy) -> Self {
-        if slice.len() <= crate::pvec::vector::SMALL_VECTOR_SIZE {
-            let mut v = crate::pvec::vector::SmallVec::new();
-            for x in slice {
-                v = v.push_back(x.clone());
-            }
-            Self {
-                inner: VectorImpl::Small { elements: v },
-                chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
-            }
-        } else {
-            Self {
-                inner: VectorImpl::Tree {
-                    tree: Box::new(
-                        crate::pvec::tree::Tree::from_slice(slice).with_cache_policy(policy),
-                    ),
-                },
-                chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
-            }
-        }
-    }
-
-    /// Creates a new, empty persistent vector with a custom chunk size.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::PersistentVector;
-    /// let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(16);
-    /// assert!(vec.is_empty());
-    /// assert_eq!(vec.len(), 0);
-    /// ```
-    pub fn with_chunk_size(chunk_size: usize) -> Self {
-        Self {
-            inner: VectorImpl::Tree {
-                tree: Box::new(crate::pvec::tree::Tree::new_with_chunk_size(chunk_size)),
-            },
-            chunk_size,
-        }
-    }
-
-    /// Creates a new persistent vector from a slice with a custom chunk size.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::PersistentVector;
-    /// let vec = PersistentVector::from_slice_with_chunk_size(&[1, 2, 3], 16);
-    /// assert_eq!(vec.len(), 3);
-    /// assert_eq!(vec.get(2), Some(&3));
-    /// ```
-    pub fn from_slice_with_chunk_size(slice: &[T], chunk_size: usize) -> Self {
-        if slice.len() <= crate::pvec::vector::SMALL_VECTOR_SIZE {
-            let mut v = crate::pvec::vector::SmallVec::new();
-            for x in slice {
-                v = v.push_back(x.clone());
-            }
-            Self {
-                inner: VectorImpl::Small { elements: v },
-                chunk_size,
-            }
-        } else {
-            Self {
-                inner: VectorImpl::Tree {
-                    tree: Box::new(crate::pvec::tree::Tree::from_slice_with_chunk_size(
-                        slice, chunk_size,
-                    )),
-                },
-                chunk_size,
-            }
-        }
-    }
 
     /// Returns a new vector with the given element appended to the end.
     ///
@@ -817,7 +722,7 @@ impl<T: Clone> PersistentVector<T> {
     pub fn push_back_with_cache_policy(&self, value: T) -> Self {
         match &self.inner {
             VectorImpl::Small { elements }
-                if elements.len() < crate::pvec::vector::SMALL_VECTOR_SIZE =>
+                if elements.len() < SMALL_VECTOR_SIZE =>
             {
                 Self {
                     inner: VectorImpl::Small {
@@ -1050,13 +955,9 @@ impl<T: Clone> PersistentVector<T> {
     #[must_use]
     pub fn slice(&self, start: usize, end: usize) -> Self {
         assert!(start <= end && end <= self.len());
-        let mut result = Self::new();
-        for i in start..end {
-            if let Some(val) = self.get(i) {
-                result = result.push_back(val.clone());
-            }
-        }
-        result
+        (start..end)
+            .filter_map(|i| self.lens_at(i).get(self))
+            .fold(Self::new(), |acc, val| acc.push_back(val))
     }
 
     /// Splits the vector at the given index, returning a pair of vectors.
@@ -1076,18 +977,8 @@ impl<T: Clone> PersistentVector<T> {
     #[must_use]
     pub fn split_at(&self, at: usize) -> (Self, Self) {
         assert!(at <= self.len());
-        let mut left = Self::new();
-        let mut right = Self::new();
-        for i in 0..at {
-            if let Some(val) = self.get(i) {
-                left = left.push_back(val.clone());
-            }
-        }
-        for i in at..self.len() {
-            if let Some(val) = self.get(i) {
-                right = right.push_back(val.clone());
-            }
-        }
+        let left  = self.slice(0, at);
+        let right = self.slice(at, self.len());
         (left, right)
     }
 
@@ -1185,19 +1076,8 @@ impl<T: Clone> PersistentVector<T> {
     #[must_use]
     pub fn insert(&self, index: usize, value: T) -> Self {
         assert!(index <= self.len());
-        let mut result = Self::new();
-        for i in 0..index {
-            if let Some(val) = self.get(i) {
-                result = result.push_back(val.clone());
-            }
-        }
-        result = result.push_back(value);
-        for i in index..self.len() {
-            if let Some(val) = self.get(i) {
-                result = result.push_back(val.clone());
-            }
-        }
-        result
+        let (left, right) = self.split_at(index);
+        left.push_back(value).concat(&right)
     }
 
     /// Returns a new vector with the element at the given index removed.
@@ -1216,18 +1096,9 @@ impl<T: Clone> PersistentVector<T> {
     #[must_use]
     pub fn remove(&self, index: usize) -> (Self, T) {
         assert!(index < self.len());
-        let mut result = Self::new();
-        let mut removed = None;
-        for i in 0..self.len() {
-            if i == index {
-                removed = self.get(i).cloned();
-                continue;
-            }
-            if let Some(val) = self.get(i) {
-                result = result.push_back(val.clone());
-            }
-        }
-        (result, removed.expect("index out of bounds"))
+        let (left, right) = self.split_at(index);
+        let removed = right.get(0).cloned().expect("index out of bounds");
+        (left.concat(&right.slice(1, right.len())), removed)
     }
 
     /// Returns a new vector containing only elements that match the predicate.
@@ -1657,6 +1528,120 @@ impl<T: Clone> PersistentVector<T> {
             }
         }
         result
+    }
+
+    /// Creates a new persistent vector with a custom cache policy.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::pvec::{PersistentVector, NeverCache, EvenIndexCache};
+    /// let vec = PersistentVector::<i32>::with_cache_policy(Box::new(NeverCache));
+    /// assert_eq!(vec.len(), 0);
+    /// let vec2 = PersistentVector::from_slice_with_cache_policy(&[1,2,3], Box::new(EvenIndexCache));
+    /// assert_eq!(vec2.len(), 3);
+    /// ```
+    pub fn with_cache_policy(policy: BoxedCachePolicy) -> Self {
+        Self {
+            inner: VectorImpl::Tree {
+                tree: Box::new(crate::pvec::tree::Tree::new().with_cache_policy(policy)),
+            },
+            chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
+        }
+    }
+
+    /// Creates a new persistent vector from a slice with a custom cache policy.
+    pub fn from_slice_with_cache_policy(slice: &[T], policy: BoxedCachePolicy) -> Self {
+        if slice.len() <= SMALL_VECTOR_SIZE {
+            let mut v = SmallVec::new();
+            for x in slice {
+                v = v.push_back(x.clone());
+            }
+            Self {
+                inner: VectorImpl::Small { elements: v },
+                chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
+            }
+        } else {
+            Self {
+                inner: VectorImpl::Tree {
+                    tree: Box::new(
+                        crate::pvec::tree::Tree::from_slice(slice).with_cache_policy(policy),
+                    ),
+                },
+                chunk_size: crate::pvec::memory::DEFAULT_CHUNK_SIZE,
+            }
+        }
+    }
+
+    /// Creates a new, empty persistent vector with a custom chunk size.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    /// let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(16);
+    /// assert!(vec.is_empty());
+    /// assert_eq!(vec.len(), 0);
+    /// ```
+    pub fn with_chunk_size(chunk_size: usize) -> Self {
+        Self {
+            inner: VectorImpl::Tree {
+                tree: Box::new(crate::pvec::tree::Tree::new_with_chunk_size(chunk_size)),
+            },
+            chunk_size,
+        }
+    }
+
+    /// Creates a new persistent vector from a slice with a custom chunk size.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    /// let vec = PersistentVector::from_slice_with_chunk_size(&[1, 2, 3], 16);
+    /// assert_eq!(vec.len(), 3);
+    /// assert_eq!(vec.get(2), Some(&3));
+    /// ```
+    pub fn from_slice_with_chunk_size(slice: &[T], chunk_size: usize) -> Self {
+        if slice.len() <= SMALL_VECTOR_SIZE {
+            let mut v = SmallVec::new();
+            for x in slice {
+                v = v.push_back(x.clone());
+            }
+            Self {
+                inner: VectorImpl::Small { elements: v },
+                chunk_size,
+            }
+        } else {
+            Self {
+                inner: VectorImpl::Tree {
+                    tree: Box::new(crate::pvec::tree::Tree::from_slice_with_chunk_size(
+                        slice, chunk_size,
+                    )),
+                },
+                chunk_size,
+            }
+        }
+    }
+
+    /// Returns a lens focusing on the element at the given index.
+    #[inline]
+    pub fn lens_at(
+        &self, index: usize,
+    ) -> Lens<
+        PersistentVector<T>,
+        Option<T>,
+        impl Fn(&PersistentVector<T>) -> Option<T>,
+        impl Fn(PersistentVector<T>, Option<T>) -> PersistentVector<T>,
+    > {
+        let get = move |vec: &PersistentVector<T>| vec.get(index).cloned();
+        let set = move |mut vec: PersistentVector<T>, opt: Option<T>| {
+            if let Some(v) = opt {
+                vec.inner = vec.inner.update(index, v);
+            }
+            vec
+        };
+        Lens::new(get, set)
     }
 }
 
