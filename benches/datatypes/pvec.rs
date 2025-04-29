@@ -1,4 +1,4 @@
-use criterion::{black_box, BenchmarkId, Criterion};
+use criterion::{black_box, Criterion};
 #[cfg(feature = "pvec")]
 use rustica::pvec::{pvec, PersistentVector};
 
@@ -127,47 +127,6 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     c.bench_function("pvec_macro", |b| {
         b.iter(|| black_box(pvec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
     });
-
-    // --- Bulk Construction Benchmarks (Chunked Storage) ---
-    let chunk_sizes = [16, 32, 64, 128];
-    let input_sizes = [1_000, 10_000, 100_000];
-
-    for &chunk_size in &chunk_sizes {
-        for &input_size in &input_sizes {
-            let data: Vec<usize> = (0..input_size).collect();
-            let bench_name = format!("pvec_from_slice_chunk{}_n{}", chunk_size, input_size);
-            c.bench_with_input(BenchmarkId::new(&bench_name, input_size), &data, |b, d| {
-                b.iter(|| {
-                    let vec =
-                        PersistentVector::from_slice_with_chunk_size(black_box(d), chunk_size);
-                    black_box(vec)
-                })
-            });
-
-            let bench_name = format!("pvec_from_iter_chunk{}_n{}", chunk_size, input_size);
-            c.bench_with_input(BenchmarkId::new(&bench_name, input_size), &data, |b, d| {
-                b.iter(|| {
-                    let vec: PersistentVector<usize> = d.iter().cloned().collect();
-                    black_box(vec)
-                })
-            });
-        }
-    }
-
-    // --- Legacy (Push Back) Path for Comparison ---
-    for &input_size in &input_sizes {
-        let data: Vec<usize> = (0..input_size).collect();
-        let bench_name = format!("pvec_push_back_loop_n{}", input_size);
-        c.bench_with_input(BenchmarkId::new(&bench_name, input_size), &data, |b, d| {
-            b.iter(|| {
-                let mut vec = PersistentVector::new();
-                for &item in d.iter() {
-                    vec = vec.push_back(black_box(item));
-                }
-                black_box(vec)
-            })
-        });
-    }
 
     // --- Node/Chunk Management Stress Benchmark ---
     c.bench_function("pvec_split_merge_stress", |b| {
