@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Added
+- **Path Caching for PersistentVector Tree**
+    - Implemented path/range caching in the internal tree structure for `PersistentVector`.
+    - Added `get_with_path` and `get_by_path` methods to `Node<T>` to record and utilize traversal paths and ranges for efficient repeated access.
+    - The tree’s `get_with_cache` now records and reuses traversal paths, improving cache hit performance for repeated or nearby accesses.
+    - Added validation logic `validate_cache_path` to ensure cached paths/ranges are only used when still valid for the current tree structure.
+    - Tree modifications (push, update, split, etc.) automatically invalidate the cache to prevent stale accesses.
+
+### Improvements & Bug Fixes
+- Added validation logic for path/ranges cache in PersistentVector tree.
+    - Now, when the tree structure changes or if the cached path/ranges are no longer valid, the cache is safely treated as a miss.
+    - Introduced the `validate_cache_path` method, which ensures that the cached path and ranges match the current tree structure before using the cache in `get_with_cache`.
+    - Tree-modifying operations (such as push, update, etc.) continue to invalidate the cache to ensure consistency.
+
 ## [0.7.0]
 
 ### Added

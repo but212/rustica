@@ -160,6 +160,104 @@ impl<T: Clone> Node<T> {
         }
     }
 
+    /// Get an element at the specified index and record the path taken.
+    ///
+    /// Returns a reference to the element if it exists, and pushes the traversal path and ranges.
+    pub(crate) fn get_with_path(
+        &self,
+        index: usize,
+        shift: usize,
+        path: &mut Vec<usize>,
+        ranges: &mut Vec<std::ops::Range<usize>>,
+    ) -> Option<&T> {
+        match self {
+            Node::Leaf { elements } => {
+                path.push(index);
+                ranges.push(0..elements.inner().len());
+                elements.inner().get(index)
+            }
+            Node::Branch { children, sizes } => {
+                let (child_index, sub_index) = self.find_child_index(index, shift).ok()?;
+                path.push(child_index);
+                if let Some(sizes) = sizes {
+                    let start = if child_index == 0 { 0 } else { sizes[child_index - 1] };
+                    let end = sizes[child_index];
+                    ranges.push(start..end);
+                } else {
+                    let width = 1 << shift;
+                    let start = child_index * width;
+                    let end = start + width;
+                    ranges.push(start..end);
+                }
+                if child_index < children.len() {
+                    if let Some(child) = &children[child_index] {
+                        return child.get_with_path(sub_index, shift.saturating_sub(NODE_BITS), path, ranges);
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    /// Get an element at the specified index using a pre-recorded path.
+    ///
+    /// This function uses a previously recorded path to directly navigate to an element,
+    /// which can be more efficient than recalculating the path for repeated accesses.
+    ///
+    /// # Parameters
+    ///
+    /// * `index` - The absolute index to retrieve
+    /// * `shift` - The current tree level shift value
+    /// * `path` - Vector containing the path indices to follow
+    /// * `ranges` - Vector containing ranges for validation
+    ///
+    /// # Returns
+    ///
+    /// A reference to the element if it exists
+    pub(crate) fn get_by_path(
+        &self,
+        index: usize,
+        shift: usize,
+        path: &[usize],
+        ranges: &[std::ops::Range<usize>],
+    ) -> Option<&T> {
+        if path.is_empty() {
+            return None;
+        }
+
+        match self {
+            Node::Leaf { elements } => {
+                let leaf_index = path[0];
+                if leaf_index < elements.inner().len() {
+                    elements.inner().get(leaf_index)
+                } else {
+                    None
+                }
+            }
+            Node::Branch { children, .. } => {
+                let child_index = path[0];
+                if child_index < children.len() {
+                    if let Some(child) = &children[child_index] {
+                        if path.len() > 1 {
+                            child.get_by_path(
+                                index,
+                                shift.saturating_sub(NODE_BITS),
+                                &path[1..],
+                                if ranges.len() > 1 { &ranges[1..] } else { &[] },
+                            )
+                        } else {
+                            None // Path too short
+                        }
+                    } else {
+                        None // Child is None
+                    }
+                } else {
+                    None // Child index out of bounds
+                }
+            }
+        }
+    }
+
     /// Find the child index and sub-index in a relaxed node's size table using binary search.
     ///
     /// This function performs a binary search on the size table to find which child

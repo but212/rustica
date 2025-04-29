@@ -202,29 +202,66 @@ impl<T: Clone> Tree<T> {
     }
 
     /// Get a reference to the element at the specified index, using the index cache if policy allows.
+    /// Get a reference to the element at the specified index, using the index cache if policy allows.
     pub fn get_with_cache(&mut self, index: usize) -> Option<&T> {
         if !(self.cache_policy.should_cache(index)) {
-            // Policy says not to use cache: standard access
             return self.root.get(index, self.shift());
         }
         if index >= self.size {
             return None;
         }
-        // Fast path: cache hit
-        if self.cache.is_valid() && self.cache.index == index {
+        // Check cache validity
+        if self.cache.is_valid()
+            && self.cache.index == index
+            && self.validate_cache_path()
+        {
             self.cache.record_hit();
-            // In a full implementation, we would use cached path/ranges to avoid traversal.
-            // For now, just count as a hit and fall through to standard access.
+            return self.root.get_by_path(
+                index,
+                self.shift(),
+                &self.cache.path[..self.cache.len],
+                &self.cache.ranges[..self.cache.len],
+            );
         } else {
             self.cache.record_miss();
+            let mut path = Vec::new();
+            let mut ranges = Vec::new();
+            let result = self.root.get_with_path(index, self.shift(), &mut path, &mut ranges);
+            self.cache.update(index, &path, &ranges);
+            return result;
         }
-        // Standard access (traverse tree)
-        let result = self.root.get(index, self.shift());
-        // Update cache with the accessed index (stub: not storing real path/ranges yet)
-        // In a real implementation, path/ranges would be computed during traversal.
-        self.cache
-            .update(index, &[0; 32], &core::array::from_fn::<_, 32, _>(|_| 0..0));
-        result
+    }
+
+    fn validate_cache_path(&self) -> bool {
+        // Check if the cached path/ranges are valid in the current tree structure
+        let mut node = self.root.as_ref();
+        let mut shift = self.shift();
+        for (i, &child_index) in self.cache.path[..self.cache.len].iter().enumerate() {
+            match node {
+                Node::Branch { children, .. } => {
+                    if child_index >= children.len() {
+                        return false;
+                    }
+                    match &children[child_index] {
+                        Some(child) => {
+                            node = child.as_ref();
+                            shift = shift.saturating_sub(crate::pvec::node::NODE_BITS);
+                        }
+                        None => return false,
+                    }
+                }
+                Node::Leaf { elements } => {
+                    // Only the last path entry should access a leaf
+                    if i != self.cache.len - 1 {
+                        return false;
+                    }
+                    if child_index >= elements.inner().len() {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
     }
 
     /// Update an element at the specified index, returning a new tree.
