@@ -401,32 +401,6 @@ impl<T> Maybe<T> {
             Maybe::Nothing => None,
         }
     }
-
-    /// Converts a `Maybe<T>` to an `Option<&mut T>`.
-    ///
-    /// Converts `Just(x)` to `Some(&mut x)` and `Nothing` to `None`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    ///
-    /// let mut maybe_just = Maybe::Just(42);
-    /// let mut maybe_nothing: Maybe<i32> = Maybe::Nothing;
-    ///
-    /// if let Some(value) = maybe_just.as_mut() {
-    ///     *value += 1;
-    /// }
-    /// assert_eq!(maybe_just, Maybe::Just(43));
-    /// assert_eq!(maybe_nothing.as_mut(), None);
-    /// ```
-    #[inline]
-    pub const fn as_mut(&mut self) -> Option<&mut T> {
-        match *self {
-            Maybe::Just(ref mut x) => Some(x),
-            Maybe::Nothing => None,
-        }
-    }
 }
 
 // Use a specialized empty struct to enable null pointer optimization
