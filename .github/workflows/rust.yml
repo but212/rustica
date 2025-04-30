@@ -93,10 +93,8 @@ jobs:
             ${{ runner.os }}-rust-
       - name: Build docs
         run: cargo doc --all-features
-      - name: Install cargo-deadlinks
-        run: cargo install cargo-deadlinks
       - name: Check docs for broken links
-        run: cargo deadlinks --dir target/doc
+        run: cargo rustdoc --all-features -- -D rustdoc::broken_intra_doc_links
 
   msrv:
     name: Minimal Supported Rust Version
