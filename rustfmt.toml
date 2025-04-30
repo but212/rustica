@@ -1,13 +1,21 @@
+# Rustica rustfmt configuration - enhanced with stable options
+
+# Basic formatting
 edition = "2021"
 max_width = 100
 hard_tabs = false
-newline_style = "Auto"
 tab_spaces = 4
+newline_style = "Auto"
 use_small_heuristics = "Default"
+
+# Code organization
 reorder_imports = true
 reorder_modules = true
 remove_nested_parens = true
 use_field_init_shorthand = true
+merge_derives = true
+
+# Function and match formatting - important for FP patterns
 fn_params_layout = "Compressed"
 match_arm_leading_pipes = "Preserve"
 match_block_trailing_comma = true

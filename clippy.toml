@@ -16,3 +16,22 @@ verbose-bit-mask-threshold = 1
 
 # Maximum levels of nesting appropriate for monadic compositions
 excessive-nesting-threshold = 8
+
+# Disallowed types that should never be used in this codebase
+disallowed-types = [
+    # Add types that should never be used in the codebase
+]
+
+# Disallowed names to avoid in code
+disallowed-names = [
+    # Add names that should be avoided
+]
+
+# Custom configuration for checking private items
+check-private-items = true
+
+# Additional documentation enforcement
+missing-docs-in-crate-items = true
+
+# Set a stricter too-many-lines threshold for better readability
+too-many-lines-threshold = 300
