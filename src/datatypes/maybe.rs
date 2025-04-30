@@ -378,6 +378,55 @@ impl<T> Maybe<T> {
             Maybe::Nothing => default,
         }
     }
+
+    /// Converts a `Maybe<T>` to an `Option<&T>`.
+    ///
+    /// Converts `Just(x)` to `Some(&x)` and `Nothing` to `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let maybe_just = Maybe::Just(42);
+    /// let maybe_nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(maybe_just.as_ref(), Some(&42));
+    /// assert_eq!(maybe_nothing.as_ref(), None);
+    /// ```
+    #[inline]
+    pub const fn as_ref(&self) -> Option<&T> {
+        match *self {
+            Maybe::Just(ref x) => Some(x),
+            Maybe::Nothing => None,
+        }
+    }
+
+    /// Converts a `Maybe<T>` to an `Option<&mut T>`.
+    ///
+    /// Converts `Just(x)` to `Some(&mut x)` and `Nothing` to `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let mut maybe_just = Maybe::Just(42);
+    /// let mut maybe_nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// if let Some(value) = maybe_just.as_mut() {
+    ///     *value += 1;
+    /// }
+    /// assert_eq!(maybe_just, Maybe::Just(43));
+    /// assert_eq!(maybe_nothing.as_mut(), None);
+    /// ```
+    #[inline]
+    pub const fn as_mut(&mut self) -> Option<&mut T> {
+        match *self {
+            Maybe::Just(ref mut x) => Some(x),
+            Maybe::Nothing => None,
+        }
+    }
 }
 
 // Use a specialized empty struct to enable null pointer optimization
@@ -404,24 +453,23 @@ impl<T> Functor for Maybe<T> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: FnMut(&Self::Source) -> B,
+        F: FnOnce(&Self::Source) -> B,
     {
-        self.into_iter()
-            .map(f)
-            .next()
-            .map_or(Maybe::Nothing, Maybe::Just)
+        match self {
+            Maybe::Just(x) => Maybe::Just(f(x)),
+            Maybe::Nothing => Maybe::Nothing,
+        }
     }
 
     #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: FnMut(Self::Source) -> B,
-        Self: Sized,
+        F: FnOnce(Self::Source) -> B,
     {
-        self.into_iter()
-            .map(f)
-            .next()
-            .map_or(Maybe::Nothing, Maybe::Just)
+        match self {
+            Maybe::Just(x) => Maybe::Just(f(x)),
+            Maybe::Nothing => Maybe::Nothing,
+        }
     }
 }
 
