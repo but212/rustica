@@ -1694,12 +1694,7 @@ impl<T: Clone> PersistentVector<T> {
     #[inline]
     pub fn lens_at(
         &self, index: usize,
-    ) -> Lens<
-        PersistentVector<T>,
-        Option<T>,
-        LensGetFn<T>,
-        LensSetFn<T>,
-    > {
+    ) -> Lens<PersistentVector<T>, Option<T>, LensGetFn<T>, LensSetFn<T>> {
         let get: LensGetFn<T> = Box::new(move |vec: &PersistentVector<T>| vec.get(index).cloned());
         let set: LensSetFn<T> = Box::new(move |mut vec: PersistentVector<T>, opt: Option<T>| {
             if let Some(v) = opt {
