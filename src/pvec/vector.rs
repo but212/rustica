@@ -1619,26 +1619,6 @@ impl<T: Clone> PersistentVector<T> {
             }
         }
     }
-
-    /// Returns a lens focusing on the element at the given index.
-    #[inline]
-    pub fn lens_at(
-        &self, index: usize,
-    ) -> Lens<
-        PersistentVector<T>,
-        Option<T>,
-        impl Fn(&PersistentVector<T>) -> Option<T>,
-        impl Fn(PersistentVector<T>, Option<T>) -> PersistentVector<T>,
-    > {
-        let get = move |vec: &PersistentVector<T>| vec.get(index).cloned();
-        let set = move |mut vec: PersistentVector<T>, opt: Option<T>| {
-            if let Some(v) = opt {
-                vec.inner = vec.inner.update(index, v);
-            }
-            vec
-        };
-        Lens::new(get, set)
-    }
 }
 
 impl<T: Clone> Default for PersistentVector<T> {
@@ -1703,5 +1683,30 @@ impl<'a, T: Clone> IntoIterator for &'a PersistentVector<T> {
     #[inline(always)]
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+type LensGetFn<T> = Box<dyn Fn(&PersistentVector<T>) -> Option<T>>;
+type LensSetFn<T> = Box<dyn Fn(PersistentVector<T>, Option<T>) -> PersistentVector<T>>;
+
+impl<T: Clone> PersistentVector<T> {
+    /// Returns a lens focusing on the element at the given index.
+    #[inline]
+    pub fn lens_at(
+        &self, index: usize,
+    ) -> Lens<
+        PersistentVector<T>,
+        Option<T>,
+        LensGetFn<T>,
+        LensSetFn<T>,
+    > {
+        let get: LensGetFn<T> = Box::new(move |vec: &PersistentVector<T>| vec.get(index).cloned());
+        let set: LensSetFn<T> = Box::new(move |mut vec: PersistentVector<T>, opt: Option<T>| {
+            if let Some(v) = opt {
+                vec.inner = vec.inner.update(index, v);
+            }
+            vec
+        });
+        Lens::new(get, set)
     }
 }
