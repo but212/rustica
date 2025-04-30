@@ -47,6 +47,16 @@ pub struct Memoizer<K, V> {
     cache: RwLock<HashMap<K, V>>,
 }
 
+impl<K, V> Default for Memoizer<K, V>
+where
+    K: Eq + Hash + Clone,
+    V: Clone,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<K, V> Memoizer<K, V>
 where
     K: Eq + Hash + Clone,
