@@ -1,31 +1,13 @@
+// DEPRECATED: Use Memoizer<K, V> from memoizer.rs instead.
+// This type is retained for backward compatibility only.
+//
+// See memoizer.rs for the new, ergonomic, and efficient thread-safe memoization utility.
+
+#![allow(deprecated)]
+
 //! # Memoize
 //!
 //! This module provides the `Memoize` wrapper type that caches the result of a function call.
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::memoize::Memoize;
-//! use rustica::traits::evaluate::Evaluate;
-//! use std::sync::atomic::{AtomicUsize, Ordering};
-//!
-//! // Track number of evaluations
-//! static COUNTER: AtomicUsize = AtomicUsize::new(0);
-//!
-//! // Create a memoized function
-//! let expensive_fn = || {
-//!     COUNTER.fetch_add(1, Ordering::SeqCst);
-//!     42
-//! };
-//!
-//! let memoized = Memoize::new(expensive_fn);
-//!
-//! // First call computes the value
-//! assert_eq!(memoized.evaluate(), 42);
-//! assert_eq!(COUNTER.load(Ordering::SeqCst), 1);
-//!
-//! // Second call returns cached value
-//! assert_eq!(memoized.evaluate(), 42);
-//! assert_eq!(COUNTER.load(Ordering::SeqCst), 1);
-//! ```
 use crate::traits::evaluate::Evaluate;
 use crate::traits::hkt::HKT;
 use std::cell::RefCell;
@@ -44,30 +26,10 @@ use std::sync::{Arc, Mutex};
 ///
 /// * `F` - The function type that produces values of type `T`
 /// * `T` - The type of value produced by the function
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::wrapper::memoize::Memoize;
-/// use rustica::traits::evaluate::Evaluate;
-///
-/// // Create an expensive computation
-/// let expensive_computation = || {
-///     println!("Computing...");
-///     (1..1000).sum::<i32>()
-/// };
-///
-/// // Wrap it in Memoize
-/// let memoized = Memoize::new(expensive_computation);
-///
-/// // First call computes and caches
-/// let result1 = memoized.evaluate();
-/// // Second call uses cached value
-/// let result2 = memoized.evaluate();
-///
-/// assert_eq!(result1, result2);
-/// // "Computing..." is printed only once
-/// ```
+#[deprecated(
+    since = "0.8.0",
+    note = "Use Memoizer<K, V> from memoizer.rs for a more ergonomic and efficient thread-safe memoization. This type is retained for backward compatibility only."
+)]
 pub struct Memoize<T> {
     f: Rc<RefCell<dyn Fn() -> T>>,
     cache: Rc<RefCell<Option<T>>>,
@@ -82,28 +44,10 @@ pub struct Memoize<T> {
 ///
 /// * `I` - The input type for the function
 /// * `O` - The output type produced by the function
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::wrapper::memoize::MemoizeFn;
-/// use std::cell::RefCell;
-/// use std::rc::Rc;
-///
-/// // Create a memoized function
-/// let memoized = MemoizeFn::new(|x: i32| {
-///     println!("Computing for {}", x);
-///     x * x
-/// });
-///
-/// // First call computes and caches
-/// let result1 = memoized.clone().call(5);
-/// // Second call with same input uses cached value
-/// let result2 = memoized.call(5);
-///
-/// assert_eq!(result1, result2);
-/// // "Computing for 5" is printed only once
-/// ```
+#[deprecated(
+    since = "0.8.0",
+    note = "Use Memoizer<K, V> from memoizer.rs for a more ergonomic and efficient thread-safe memoization. This type is retained for backward compatibility only."
+)]
 #[derive(Clone)]
 pub struct MemoizeFn<I, O> {
     f: Rc<RefCell<dyn Fn(I) -> O>>,
@@ -118,34 +62,10 @@ pub struct MemoizeFn<I, O> {
 /// # Type Parameters
 ///
 /// * `T` - The type of value produced by the function
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::wrapper::memoize::ThreadSafeMemoize;
-/// use rustica::traits::evaluate::Evaluate;
-/// use std::sync::Arc;
-/// use std::thread;
-///
-/// // Create a memoized computation
-/// let memoized = ThreadSafeMemoize::new(|| {
-///     println!("Computing expensive result...");
-///     42
-/// });
-///
-/// // Share across threads
-/// let handles: Vec<_> = (0..5).map(|_| {
-///     let memo = memoized.clone();
-///     thread::spawn(move || {
-///         memo.evaluate()
-///     })
-/// }).collect();
-///
-/// // All threads get the same result, but computation happens only once
-/// for handle in handles {
-///     assert_eq!(handle.join().unwrap(), 42);
-/// }
-/// ```
+#[deprecated(
+    since = "0.8.0",
+    note = "Use Memoizer<K, V> from memoizer.rs for a more ergonomic and efficient thread-safe memoization. This type is retained for backward compatibility only."
+)]
 #[derive(Clone)]
 pub struct ThreadSafeMemoize<T> {
     f: Arc<dyn Fn() -> T + Send + Sync>,
@@ -161,33 +81,10 @@ pub struct ThreadSafeMemoize<T> {
 ///
 /// * `I` - The input type for the function
 /// * `O` - The output type produced by the function
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::wrapper::memoize::ThreadSafeMemoizeFn;
-/// use std::sync::Arc;
-/// use std::thread;
-///
-/// // Create a thread-safe memoized function
-/// let memoized = ThreadSafeMemoizeFn::new(|x: i32| {
-///     println!("Computing for {}", x);
-///     x * x
-/// });
-///
-/// // Share across threads with same input
-/// let handles: Vec<_> = (0..5).map(|_| {
-///     let memo = memoized.clone();
-///     thread::spawn(move || {
-///         memo.call(5)
-///     })
-/// }).collect();
-///
-/// // All threads get the same result, computation happens only once
-/// for handle in handles {
-///     assert_eq!(handle.join().unwrap(), 25);
-/// }
-/// ```
+#[deprecated(
+    since = "0.8.0",
+    note = "Use Memoizer<K, V> from memoizer.rs for a more ergonomic and efficient thread-safe memoization. This type is retained for backward compatibility only."
+)]
 #[derive(Clone)]
 pub struct ThreadSafeMemoizeFn<I, O> {
     f: Arc<dyn Fn(I) -> O + Send + Sync>,

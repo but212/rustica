@@ -1,9 +1,7 @@
 use rustica::datatypes::wrapper::first::First;
 use rustica::datatypes::wrapper::last::Last;
 use rustica::datatypes::wrapper::max::Max;
-use rustica::datatypes::wrapper::memoize::{
-    Memoize, MemoizeFn, ThreadSafeMemoize, ThreadSafeMemoizeFn,
-};
+use rustica::datatypes::wrapper::memoizer::Memoizer;
 use rustica::datatypes::wrapper::min::Min;
 use rustica::datatypes::wrapper::product::Product;
 use rustica::datatypes::wrapper::sum::Sum;
@@ -13,6 +11,7 @@ use rustica::prelude::*;
 use rustica::traits::evaluate::Evaluate;
 use rustica::traits::foldable::Foldable;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 #[test]
 fn test_first_wrapper() {
@@ -220,161 +219,63 @@ fn test_thunk_wrapper() {
 }
 
 #[test]
-fn test_memoize_wrapper() {
-    // Test basic memoization
+fn test_memoizer_basic() {
     let counter = Arc::new(Mutex::new(0));
     let counter_clone = counter.clone();
-
-    let memoized = Memoize::new(move || {
-        let mut count = counter_clone.lock().unwrap();
-        *count += 1;
-        println!("Computing value, counter: {}", *count);
-        *count
-    });
-
+    let memoizer = Memoizer::new();
     // First call should compute the value
-    println!("First evaluation");
-    assert_eq!(memoized.evaluate(), 1);
-    // Second call should return cached value
-    println!("Second evaluation (should use cache)");
-    assert_eq!(memoized.evaluate(), 1);
-    // Counter should only have been incremented once
-    assert_eq!(*counter.lock().unwrap(), 1);
-    println!(
-        "Cache hit confirmed, counter still at: {}",
-        *counter.lock().unwrap()
-    );
-
-    // Test clear_cache
-    println!("Clearing cache");
-    memoized.clear_cache();
-    // After clearing cache, should recompute
-    println!("Evaluation after cache clear");
-    assert_eq!(memoized.evaluate(), 2);
-    assert_eq!(*counter.lock().unwrap(), 2);
-
-    // Test get_ref
-    println!("Testing get_ref");
-    let value_ref = memoized.get_ref();
-    assert_eq!(*value_ref, 2);
-    // Using get_ref shouldn't recompute
-    println!("Verifying get_ref doesn't trigger computation");
-    assert_eq!(*counter.lock().unwrap(), 2);
-}
-
-#[test]
-fn test_memoize_fn_wrapper() {
-    // Test function memoization
-    let counter = Arc::new(Mutex::new(0));
-    let counter_clone = counter.clone();
-
-    let memoized = MemoizeFn::new(move |x: i32| {
-        let mut count = counter_clone.lock().unwrap();
-        *count += 1;
-        println!("Computing for input {}, counter: {}", x, *count);
-        x * 2
-    });
-
-    // First call with a value should compute
-    println!("First call with input 5");
-    assert_eq!(memoized.call(5), 10);
-    // Second call with same value should use cache
-    println!("Second call with input 5 (should use cache)");
-    assert_eq!(memoized.call(5), 10);
-    // Counter should only have been incremented once
-    assert_eq!(*counter.lock().unwrap(), 1);
-    println!(
-        "Cache hit confirmed, counter still at: {}",
-        *counter.lock().unwrap()
-    );
-
-    // Call with a different value should compute again
-    println!("Call with new input 10");
-    assert_eq!(memoized.call(10), 20);
-    assert_eq!(*counter.lock().unwrap(), 2);
-
-    // Test clear_cache
-    println!("Clearing cache");
-    memoized.clear_cache();
-    // After clearing cache, should recompute for same value
-    println!("Call with input 10 after cache clear");
-    assert_eq!(memoized.call(10), 20);
-    assert_eq!(*counter.lock().unwrap(), 3);
-
-    // Test get_ref
-    println!("Testing get_ref for input 10");
-    let value_ref = memoized.get_ref(10);
-    assert_eq!(*value_ref, 20);
-    // Using get_ref shouldn't recompute
-    println!("Verifying get_ref doesn't trigger computation");
-    assert_eq!(*counter.lock().unwrap(), 3);
-}
-
-#[test]
-fn test_thread_safe_memoize() {
-    // Test thread-safe memoization
-    let counter = Arc::new(Mutex::new(0));
-    let counter_clone = counter.clone();
-
-    let memoized = ThreadSafeMemoize::new(move || {
+    let v1 = memoizer.get_or_compute((), |_| {
         let mut count = counter_clone.lock().unwrap();
         *count += 1;
         *count
     });
-
-    // First call should compute the value
-    assert_eq!(memoized.evaluate(), 1);
-    // Second call should return cached value
-    assert_eq!(memoized.evaluate(), 1);
-    // Counter should only have been incremented once
+    assert_eq!(v1, 1);
+    // Second call should use cache
+    let v2 = memoizer.get_or_compute((), |_| unreachable!());
+    assert_eq!(v2, 1);
     assert_eq!(*counter.lock().unwrap(), 1);
-
-    // Test clear_cache
-    memoized.clear_cache();
-    // After clearing cache, should recompute
-    assert_eq!(memoized.evaluate(), 2);
-    assert_eq!(*counter.lock().unwrap(), 2);
-
-    // Test get_ref
-    let value_ref = memoized.get_ref();
-    assert_eq!(*value_ref, 2);
-    // Using get_ref shouldn't recompute
-    assert_eq!(*counter.lock().unwrap(), 2);
+    // Clear cache and recompute
+    memoizer.clear();
+    let v3 = memoizer.get_or_compute((), |_| {
+        let mut count = counter.lock().unwrap();
+        *count += 1;
+        *count
+    });
+    assert_eq!(v3, 2);
 }
 
 #[test]
-fn test_thread_safe_memoize_fn() {
-    // Test thread-safe function memoization
+fn test_memoizer_fn() {
     let counter = Arc::new(Mutex::new(0));
     let counter_clone = counter.clone();
-
-    let memoized = ThreadSafeMemoizeFn::new(move |x: i32| {
+    let memoizer = Memoizer::new();
+    // First call with value
+    let v1 = memoizer.get_or_compute(5, |_| {
         let mut count = counter_clone.lock().unwrap();
         *count += 1;
-        x * 2
+        10
     });
-
-    // First call with a value should compute
-    assert_eq!(memoized.call(5), 10);
-    // Second call with same value should use cache
-    assert_eq!(memoized.call(5), 10);
-    // Counter should only have been incremented once
+    assert_eq!(v1, 10);
+    // Second call with same value uses cache
+    let v2 = memoizer.get_or_compute(5, |_| unreachable!());
+    assert_eq!(v2, 10);
     assert_eq!(*counter.lock().unwrap(), 1);
-
-    // Call with a different value should compute again
-    assert_eq!(memoized.call(10), 20);
+    // Call with new value
+    let v3 = memoizer.get_or_compute(10, |_| {
+        let mut count = counter.lock().unwrap();
+        *count += 1;
+        20
+    });
+    assert_eq!(v3, 20);
     assert_eq!(*counter.lock().unwrap(), 2);
-
-    // Test clear_cache
-    memoized.clear_cache();
-    // After clearing cache, should recompute for same value
-    assert_eq!(memoized.call(10), 20);
-    assert_eq!(*counter.lock().unwrap(), 3);
-
-    // Test get_ref
-    let value_ref = memoized.get_ref(10);
-    assert_eq!(*value_ref, 20);
-    // Using get_ref shouldn't recompute
+    // Clear cache and recompute for same value
+    memoizer.clear();
+    let v4 = memoizer.get_or_compute(10, |_| {
+        let mut count = counter.lock().unwrap();
+        *count += 1;
+        20
+    });
+    assert_eq!(v4, 20);
     assert_eq!(*counter.lock().unwrap(), 3);
 }
 
@@ -503,28 +404,59 @@ fn test_real_world_use_cases() {
         .fold(Last(None), |acc, x| acc.combine(&x));
     assert_eq!(last, Last(Some(84)));
 
-    // 7. Using Memoize for expensive computation
+    // 7. Using Memoizer for expensive computation
     let counter = Arc::new(Mutex::new(0));
     let counter_clone = counter.clone();
 
     // Define an "expensive" function
-    let expensive_computation = Memoize::new(move || {
-        let mut count = counter_clone.lock().unwrap();
-        *count += 1;
-
-        // Simulate expensive work
-        let mut result = 0;
-        for i in 1..1000 {
-            result += i;
-        }
-        result
-    });
+    let memoizer = Memoizer::new();
 
     // Call multiple times
     for _ in 0..10 {
-        assert_eq!(expensive_computation.evaluate(), 499500);
+        assert_eq!(
+            memoizer.get_or_compute((), |_| {
+                let mut count = counter_clone.lock().unwrap();
+                *count += 1;
+                499500
+            }),
+            499500
+        );
     }
 
     // Should only have computed once
     assert_eq!(*counter.lock().unwrap(), 1);
+}
+
+#[test]
+fn single_thread_memoization() {
+    let memo: Memoizer<u32, u32> = Memoizer::new();
+    let result = memo.get_or_compute(5, |x| x * 2);
+    assert_eq!(result, 10);
+    // Should hit cache
+    let again = memo.get_or_compute(5, |_| 999);
+    assert_eq!(again, 10);
+}
+
+#[test]
+fn multi_threaded_memoization() {
+    let memo = Arc::new(Memoizer::new());
+    let handles: Vec<_> = (0..8)
+        .map(|i| {
+            let memo = memo.clone();
+            thread::spawn(move || memo.get_or_compute(i % 3, |x| x * 10))
+        })
+        .collect();
+    let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+    for &v in &[0, 10, 20] {
+        assert!(results.contains(&v));
+    }
+}
+
+#[test]
+fn clear_cache() {
+    let memo: Memoizer<u32, u32> = Memoizer::new();
+    memo.get_or_compute(1, |x| x + 1);
+    memo.clear();
+    let v = memo.get_or_compute(1, |_| 42);
+    assert_eq!(v, 42);
 }

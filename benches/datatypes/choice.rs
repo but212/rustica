@@ -1,6 +1,6 @@
 use criterion::{black_box, Criterion};
 use rustica::datatypes::choice::Choice;
-use rustica::datatypes::wrapper::memoize::MemoizeFn;
+use rustica::datatypes::wrapper::memoizer::Memoizer;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
 use rustica::traits::monad::Monad;
@@ -190,14 +190,15 @@ pub fn choice_benchmarks(c: &mut Criterion) {
         );
 
         // Create memoized functions for expensive operations
-        let quality_adjustment = MemoizeFn::new(|option: Option| Option {
+        let quality_adjustment = Memoizer::new();
+        let alternative_generator = Memoizer::new();
+        let quality_adjustment_fn = |option: Option| Option {
             id: option.id,
             cost: option.cost,
             quality: option.quality,
             speed: option.speed + (10 - option.quality),
-        });
-
-        let alternative_generator = MemoizeFn::new(|option: Option| {
+        };
+        let alternative_generator_fn = |option: Option| {
             Choice::new(
                 option.clone(),
                 vec![
@@ -209,23 +210,26 @@ pub fn choice_benchmarks(c: &mut Criterion) {
                     },
                     Option {
                         id: option.id,
-                        cost: option.cost,
-                        quality: option.quality,
-                        speed: option.speed * 2,
+                        cost: option.cost + 50,
+                        quality: option.quality + 1,
+                        speed: option.speed,
                     },
                 ],
             )
-        });
+        };
 
         b.iter(|| {
             let filtered = options.clone().filter(|option| option.cost <= 150);
 
-            let adjusted = filtered
-                .fmap_alternatives(|option| quality_adjustment.clone().call(option.clone()));
+            let adjusted = filtered.fmap_alternatives(|option| {
+                quality_adjustment
+                    .get_or_compute(option.clone(), |o| quality_adjustment_fn(o.clone()))
+            });
 
-            black_box(
-                adjusted.bind_owned(|option| alternative_generator.clone().call(option.clone())),
-            );
+            black_box(adjusted.bind_owned(|option| {
+                alternative_generator
+                    .get_or_compute(option.clone(), |o| alternative_generator_fn(o.clone()))
+            }));
         });
     });
 

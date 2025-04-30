@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- **Thread-safe Memoizer**
+    - Introduced `Memoizer<K, V>` in `wrapper/memoizer.rs` as a new, ergonomic, and efficient thread-safe memoization utility.
+    - Uses `RwLock<HashMap<K, V>>` for concurrent caching of pure function results.
+    - Provides a unified API (`get_or_compute`, `clear`) for safe, concurrent memoization.
+    - Includes comprehensive documentation and doctests for both single-threaded and multi-threaded use cases.
+    - Deprecated the old `ThreadSafeMemoizeFn` in favor of this new implementation.
 - **Path Caching for PersistentVector Tree**
     - Implemented path/range caching in the internal tree structure for `PersistentVector`.
     - Added `get_with_path` and `get_by_path` methods to `Node<T>` to record and utilize traversal paths and ranges for efficient repeated access.
