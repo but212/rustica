@@ -109,7 +109,6 @@
 /// - `Applicative`: Functors with application capabilities
 /// - `Monad`: Monadic types with binding operations
 /// - Monoid: Types that can be combined with an identity element
-#[macro_use]
 pub mod traits;
 
 /// Utility functions and helpers for common operations.

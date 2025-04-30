@@ -120,14 +120,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Get MSRV from Cargo.toml
-        id: get-msrv
         run: |
           MSRV=$(grep 'msrv' Cargo.toml | head -n 1 | cut -d '"' -f2)
-          echo "msrv=$MSRV" >> $GITHUB_OUTPUT
+          echo "msrv=$MSRV" >> $GITHUB_ENV
       - name: Install Rust (MSRV)
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ fromJson(steps.get-msrv.outputs.msrv) }}
+          toolchain: ${{ env.msrv }}
           override: true
       - name: Cache dependencies
         uses: actions/cache@v3

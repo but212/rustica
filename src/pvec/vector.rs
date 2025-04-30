@@ -721,15 +721,11 @@ impl<T: Clone> PersistentVector<T> {
     /// Returns a new vector with the given element appended, using the cache policy if present.
     pub fn push_back_with_cache_policy(&self, value: T) -> Self {
         match &self.inner {
-            VectorImpl::Small { elements }
-                if elements.len() < SMALL_VECTOR_SIZE =>
-            {
-                Self {
-                    inner: VectorImpl::Small {
-                        elements: elements.push_back(value),
-                    },
-                    chunk_size: self.chunk_size,
-                }
+            VectorImpl::Small { elements } if elements.len() < SMALL_VECTOR_SIZE => Self {
+                inner: VectorImpl::Small {
+                    elements: elements.push_back(value),
+                },
+                chunk_size: self.chunk_size,
             },
             VectorImpl::Small { elements } => {
                 let mut v: Vec<T> = elements.to_vec();
@@ -859,7 +855,7 @@ impl<T: Clone> PersistentVector<T> {
     /// # Chunk Size Policy
     ///
     /// The resulting vector's `chunk_size` is always inherited from `self`.
-    /// If you need to control the chunk size of the result, use [`with_chunk_size`] or [`from_slice_with_chunk_size`].
+    /// If you need to control the chunk size of the result, use `with_chunk_size` or `from_slice_with_chunk_size`.
     ///
     /// # Examples
     ///
@@ -977,7 +973,7 @@ impl<T: Clone> PersistentVector<T> {
     #[must_use]
     pub fn split_at(&self, at: usize) -> (Self, Self) {
         assert!(at <= self.len());
-        let left  = self.slice(0, at);
+        let left = self.slice(0, at);
         let right = self.slice(at, self.len());
         (left, right)
     }
@@ -1407,7 +1403,7 @@ impl<T: Clone> PersistentVector<T> {
     /// # Chunk Size Policy
     ///
     /// The resulting vector's `chunk_size` is always inherited from `self`, regardless of `other`'s chunk size.
-    /// If you need to control the chunk size of the result, use [`with_chunk_size`] or [`from_slice_with_chunk_size`].
+    /// If you need to control the chunk size of the result, use `with_chunk_size` or `from_slice_with_chunk_size`.
     ///
     /// # Examples
     ///

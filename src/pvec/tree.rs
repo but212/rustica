@@ -211,24 +211,23 @@ impl<T: Clone> Tree<T> {
             return None;
         }
         // Check cache validity
-        if self.cache.is_valid()
-            && self.cache.index == index
-            && self.validate_cache_path()
-        {
+        if self.cache.is_valid() && self.cache.index == index && self.validate_cache_path() {
             self.cache.record_hit();
-            return self.root.get_by_path(
+            self.root.get_by_path(
                 index,
                 self.shift(),
                 &self.cache.path[..self.cache.len],
                 &self.cache.ranges[..self.cache.len],
-            );
+            )
         } else {
             self.cache.record_miss();
             let mut path = Vec::new();
             let mut ranges = Vec::new();
-            let result = self.root.get_with_path(index, self.shift(), &mut path, &mut ranges);
+            let result = self
+                .root
+                .get_with_path(index, self.shift(), &mut path, &mut ranges);
             self.cache.update(index, &path, &ranges);
-            return result;
+            result
         }
     }
 
@@ -246,10 +245,10 @@ impl<T: Clone> Tree<T> {
                         Some(child) => {
                             node = child.as_ref();
                             shift = shift.saturating_sub(crate::pvec::node::NODE_BITS);
-                        }
+                        },
                         None => return false,
                     }
-                }
+                },
                 Node::Leaf { elements } => {
                     // Only the last path entry should access a leaf
                     if i != self.cache.len - 1 {
@@ -258,7 +257,7 @@ impl<T: Clone> Tree<T> {
                     if child_index >= elements.inner().len() {
                         return false;
                     }
-                }
+                },
             }
         }
         true
