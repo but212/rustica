@@ -1,6 +1,6 @@
 //! # Writer Monad
 //!
-//! The Writer monad represents computations that produce a value along with an accumulated log or output.
+//! The Writer monad represents computations that produce a value along with an accumulated log.
 //! It's a way to carry auxiliary data alongside the main computation result in a purely functional way.
 //!
 //! ## Core Concepts
@@ -177,7 +177,6 @@ use crate::traits::monad::Monad;
 use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
-use std::sync::Arc;
 
 /// The Writer monad represents computations that produce a value along with an accumulated log.
 ///
@@ -190,43 +189,14 @@ use std::sync::Arc;
 /// - `W`: The log type, which must implement the Monoid trait
 /// - `A`: The value type
 ///
-/// This implementation uses lazy evaluation for log combinations - logs are only combined
-/// when explicitly requested, which improves performance for chains of operations.
+/// This implementation uses direct log storage for efficiency and stability, avoiding potential issues
+/// with deeply nested recursive structures such as stack overflow, duplicate computation, or memory leaks.
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 pub struct Writer<W, A> {
-    /// Thunk that produces the log when evaluated
-    log_thunk: LogThunk<W>,
+    /// The log accumulated during computation
+    log: W,
     /// The value produced by the computation
     value: A,
-}
-
-/// A type to lazily evaluate and combine logs
-#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
-enum LogThunk<W> {
-    /// A simple log value
-    Value(W),
-    /// A thunk that will combine two logs when evaluated
-    Combine(Arc<LogThunk<W>>, Arc<LogThunk<W>>),
-}
-
-impl<W: Clone> LogThunk<W> {
-    /// Evaluates the thunk to produce the final log
-    #[inline]
-    fn evaluate(&self) -> W
-    where
-        W: Semigroup,
-    {
-        match self {
-            LogThunk::Value(w) => w.clone(),
-            LogThunk::Combine(left, right) => left.evaluate().combine(&right.evaluate()),
-        }
-    }
-
-    /// Combines this thunk with another without evaluating either
-    #[inline]
-    fn combine_with(&self, other: &Self) -> Self {
-        LogThunk::Combine(Arc::new(self.clone()), Arc::new(other.clone()))
-    }
 }
 
 impl<W: Monoid + Clone, A> Writer<W, A> {
@@ -272,10 +242,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// ```
     #[inline]
     pub const fn new(log: W, value: A) -> Self {
-        Writer {
-            log_thunk: LogThunk::Value(log),
-            value,
-        }
+        Writer { log, value }
     }
 
     /// Creates a Writer with the given log and the unit value `()`.
@@ -326,7 +293,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     }
 
     /// Extracts both the value and the log from the Writer.
-    /// This is where the log thunk is evaluated.
     ///
     /// # Examples
     ///
@@ -367,11 +333,10 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// ```
     #[inline]
     pub fn run(self) -> (W, A) {
-        (self.log_thunk.evaluate(), self.value)
+        (self.log, self.value)
     }
 
     /// Extracts just the value from the Writer, discarding the log.
-    /// This is efficient as it doesn't evaluate the log thunk.
     ///
     /// # Examples
     ///
@@ -413,16 +378,16 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
         self.value
     }
 
+    /// Creates a new Writer with the given value and an empty log.
+    ///
+    /// This is a convenience method that creates a Writer with a value and the empty monoid
+    /// as the log.
     #[inline]
     pub fn pure_value(value: A) -> Self {
-        Self {
-            log_thunk: LogThunk::Value(W::empty()),
-            value,
-        }
+        Self::new(W::empty(), value)
     }
 
     /// Extracts just the log from the Writer, discarding the value.
-    /// This evaluates the log thunk.
     ///
     /// # Examples
     ///
@@ -462,7 +427,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// ```
     #[inline]
     pub fn log(self) -> W {
-        self.log_thunk.evaluate()
+        self.log
     }
 }
 
@@ -488,11 +453,29 @@ impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
     }
 }
 
+impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
+    #[inline]
+    fn pure<T: Clone>(value: &T) -> Self::Output<T> {
+        Writer {
+            log: W::empty(),
+            value: value.clone(),
+        }
+    }
+
+    #[inline]
+    fn pure_owned<T>(value: T) -> Self::Output<T> {
+        Writer {
+            log: W::empty(),
+            value,
+        }
+    }
+}
+
 impl<W: Monoid + Clone, A: Clone + Monoid> Semigroup for Writer<W, A> {
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&other.log_thunk),
+            log: self.log.combine_owned(other.log),
             value: self.value.combine_owned(other.value),
         }
     }
@@ -500,7 +483,7 @@ impl<W: Monoid + Clone, A: Clone + Monoid> Semigroup for Writer<W, A> {
     #[inline]
     fn combine(&self, other: &Self) -> Self {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&other.log_thunk),
+            log: self.log.combine(&other.log),
             value: self.value.combine(&other.value),
         }
     }
@@ -510,7 +493,7 @@ impl<W: Monoid + Clone, A: Clone + Monoid> Monoid for Writer<W, A> {
     #[inline]
     fn empty() -> Self {
         Writer {
-            log_thunk: LogThunk::Value(W::empty()),
+            log: W::empty(),
             value: A::empty(),
         }
     }
@@ -520,10 +503,10 @@ impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        F: FnOnce(&Self::Source) -> B,
     {
         Writer {
-            log_thunk: self.log_thunk.clone(),
+            log: self.log.clone(),
             value: f(&self.value),
         }
     }
@@ -531,22 +514,11 @@ impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
     #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> B,
-        Self: Sized,
+        F: FnOnce(Self::Source) -> B,
     {
         Writer {
-            log_thunk: self.log_thunk,
+            log: self.log,
             value: f(self.value),
-        }
-    }
-}
-
-impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
-    #[inline]
-    fn pure<T: Clone>(value: &T) -> Self::Output<T> {
-        Writer {
-            log_thunk: LogThunk::Value(W::empty()),
-            value: value.clone(),
         }
     }
 }
@@ -558,7 +530,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         F: Fn(&Self::Source) -> B,
     {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&f.log_thunk),
+            log: self.log.combine(&f.log),
             value: (f.value)(&self.value),
         }
     }
@@ -566,10 +538,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
-        F: Fn(&Self::Source, &B) -> C,
+        F: FnOnce(&Self::Source, &B) -> C,
     {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&b.log_thunk),
+            log: self.log.combine(&b.log),
             value: f(&self.value, &b.value),
         }
     }
@@ -577,13 +549,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     #[inline]
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
-        F: Fn(&Self::Source, &B, &C) -> D,
+        F: FnOnce(&Self::Source, &B, &C) -> D,
     {
         Writer {
-            log_thunk: self
-                .log_thunk
-                .combine_with(&b.log_thunk)
-                .combine_with(&c.log_thunk),
+            log: self.log.combine(&b.log).combine(&c.log),
             value: f(&self.value, &b.value, &c.value),
         }
     }
@@ -591,11 +560,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> B,
-        Self: Sized,
+        F: FnOnce(Self::Source) -> B,
     {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&f.log_thunk),
+            log: self.log.combine_owned(f.log),
             value: (f.value)(self.value),
         }
     }
@@ -603,11 +571,10 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     #[inline]
     fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
-        F: Fn(Self::Source, B) -> C,
-        Self: Sized,
+        F: FnOnce(Self::Source, B) -> C,
     {
         Writer {
-            log_thunk: self.log_thunk.combine_with(&b.log_thunk),
+            log: self.log.combine_owned(b.log),
             value: f(self.value, b.value),
         }
     }
@@ -617,16 +584,11 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         self, b: Self::Output<B>, c: Self::Output<C>, f: F,
     ) -> Self::Output<D>
     where
-        F: Fn(Self::Source, B, C) -> D,
-        Self: Sized,
+        F: FnOnce(Self::Source, B, C) -> D,
     {
-        Writer {
-            log_thunk: self
-                .log_thunk
-                .combine_with(&b.log_thunk)
-                .combine_with(&c.log_thunk),
-            value: f(self.value, b.value, c.value),
-        }
+        let log = self.log.combine_owned(b.log).combine_owned(c.log);
+        let value = f(self.value, b.value, c.value);
+        Writer { log, value }
     }
 }
 
@@ -634,44 +596,36 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
-        F: Fn(&Self::Source) -> Self::Output<U>,
+        F: FnOnce(&Self::Source) -> Self::Output<U>,
     {
-        let Writer {
-            log_thunk: inner_log,
-            value: inner_value,
-        } = f(&self.value);
+        let Writer { log, value } = f(&self.value);
         Writer {
-            log_thunk: self.log_thunk.combine_with(&inner_log),
-            value: inner_value,
-        }
-    }
-
-    #[inline]
-    fn join<U>(&self) -> Self::Output<U>
-    where
-        Self::Source: Clone + Into<Self::Output<U>>,
-    {
-        let inner: Self::Output<U> = self.value.clone().into();
-        Writer {
-            log_thunk: self.log_thunk.combine_with(&inner.log_thunk),
-            value: inner.value,
+            log: self.log.combine(&log),
+            value,
         }
     }
 
     #[inline]
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
     where
-        F: Fn(Self::Source) -> Self::Output<U>,
-        U: Clone,
-        Self: Sized,
+        F: FnOnce(Self::Source) -> Self::Output<U>,
     {
-        let Writer {
-            log_thunk: inner_log,
-            value: inner_value,
-        } = f(self.value);
+        let result = f(self.value);
         Writer {
-            log_thunk: self.log_thunk.combine_with(&inner_log),
-            value: inner_value,
+            log: self.log.combine_owned(result.log),
+            value: result.value,
+        }
+    }
+
+    fn join<U>(&self) -> Self::Output<U>
+    where
+        Self::Source: Clone + Into<Self::Output<U>>,
+        U: Clone,
+    {
+        let inner: Self::Output<U> = self.value.clone().into();
+        Writer {
+            log: self.log.combine(&inner.log),
+            value: inner.value,
         }
     }
 
@@ -684,7 +638,7 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     {
         let inner: Self::Output<U> = self.value.into();
         Writer {
-            log_thunk: self.log_thunk.combine_with(&inner.log_thunk),
+            log: self.log.combine(&inner.log),
             value: inner.value,
         }
     }

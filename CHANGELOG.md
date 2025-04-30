@@ -10,6 +10,13 @@
     - Added validation logic `validate_cache_path` to ensure cached paths/ranges are only used when still valid for the current tree structure.
     - Tree modifications (push, update, split, etc.) automatically invalidate the cache to prevent stale accesses.
 
+### Changed
+- **Writer Monad Refactoring**
+  - Replaced the recursive LogThunk structure with direct log accumulation in the Writer struct.
+  - Eliminated risk of stack overflow and memory leaks from deep thunk chains.
+  - Simplified log combination logic to use immediate Monoid operations.
+
+
 ### Improvements & Bug Fixes
 - Added validation logic for path/ranges cache in PersistentVector tree.
     - Now, when the tree structure changes or if the cached path/ranges are no longer valid, the cache is safely treated as a miss.
