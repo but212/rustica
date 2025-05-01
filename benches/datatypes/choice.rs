@@ -189,46 +189,81 @@ pub fn choice_benchmarks(c: &mut Criterion) {
             ],
         );
 
-        // Create memoized functions for expensive operations
+        // Pre-compute memoized functions outside the benchmark loop
         let quality_adjustment = Memoizer::new();
         let alternative_generator = Memoizer::new();
-        let quality_adjustment_fn = |option: Option| Option {
-            id: option.id,
-            cost: option.cost,
-            quality: option.quality,
-            speed: option.speed + (10 - option.quality),
-        };
-        let alternative_generator_fn = |option: Option| {
-            Choice::new(
-                option.clone(),
-                vec![
-                    Option {
-                        id: option.id,
-                        cost: 250 - option.cost,
-                        quality: option.quality,
-                        speed: option.speed,
-                    },
-                    Option {
-                        id: option.id,
-                        cost: option.cost + 50,
-                        quality: option.quality + 1,
-                        speed: option.speed,
-                    },
-                ],
-            )
-        };
+
+        // Pre-populate memoizer cache
+        let primary = options.first().unwrap().clone();
+        let alts = options.alternatives();
+        quality_adjustment.get_or_compute(primary.clone(), |o| Option {
+            id: o.id,
+            cost: o.cost,
+            quality: o.quality,
+            speed: o.speed + (10 - o.quality),
+        });
+
+        for alt in alts.iter() {
+            quality_adjustment.get_or_compute(alt.clone(), |o| Option {
+                id: o.id,
+                cost: o.cost,
+                quality: o.quality,
+                speed: o.speed + (10 - o.quality),
+            });
+
+            alternative_generator.get_or_compute(alt.clone(), |o| {
+                Choice::new(
+                    o.clone(),
+                    vec![
+                        Option {
+                            id: o.id,
+                            cost: 250 - o.cost,
+                            quality: o.quality,
+                            speed: o.speed,
+                        },
+                        Option {
+                            id: o.id,
+                            cost: o.cost + 50,
+                            quality: o.quality + 1,
+                            speed: o.speed,
+                        },
+                    ],
+                )
+            });
+        }
 
         b.iter(|| {
             let filtered = options.clone().filter(|option| option.cost <= 150);
 
             let adjusted = filtered.fmap_alternatives(|option| {
-                quality_adjustment
-                    .get_or_compute(option.clone(), |o| quality_adjustment_fn(o.clone()))
+                quality_adjustment.get_or_compute(option.clone(), |o| Option {
+                    id: o.id,
+                    cost: o.cost,
+                    quality: o.quality,
+                    speed: o.speed + (10 - o.quality),
+                })
             });
 
             black_box(adjusted.bind_owned(|option| {
-                alternative_generator
-                    .get_or_compute(option.clone(), |o| alternative_generator_fn(o.clone()))
+                alternative_generator.get_or_compute(option.clone(), |o| {
+                    Choice::new(
+                        o.clone(),
+                        vec![
+                            Option {
+                                id: o.id,
+                                cost: 250 - o.cost,
+                                quality: o.quality,
+                                speed: o.speed,
+                            },
+                            Option {
+                                id: o.id,
+                                cost: o.cost + 50,
+                                quality: o.quality + 1,
+                                speed: o.speed,
+                            },
+                        ],
+                    )
+                })
             }));
         });
     });
