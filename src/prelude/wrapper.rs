@@ -8,7 +8,7 @@
 //! - [`First`], [`Last`]: First/last priority wrappers (useful for Monoid/Ord operations)
 //! - [`Max`], [`Min`]: Maximum/minimum value wrappers
 //! - [`Product`], [`Sum`]: Product/sum wrappers (numeric Monoids)
-//! - [`Memoize`], [`ThreadSafeMemoize`]: Memoization wrappers
+//! - [`Memoizer`]: Memoization wrappers
 //! - [`Thunk`]: Lazy evaluation wrapper
 //! - [`Value`]: Simple value wrapper
 //!
