@@ -230,19 +230,19 @@ fn test_choice_remove_alternative() {
     let choice = Choice::new(1, vec![2, 3, 4, 5]);
 
     // Remove middle
-    let removed_middle = choice.remove_alternative(1); // Remove '3' at index 1
+    let removed_middle = choice.clone().remove_alternative(1); // Remove '3' at index 1
     assert_eq!(*removed_middle.first().unwrap(), 1);
     assert_eq!(removed_middle.alternatives(), &[2, 4, 5]);
     assert_eq!(removed_middle.len(), 4);
 
     // Remove first alternative
-    let removed_first = choice.remove_alternative(0); // Remove '2' at index 0
+    let removed_first = choice.clone().remove_alternative(0); // Remove '2' at index 0
     assert_eq!(*removed_first.first().unwrap(), 1);
     assert_eq!(removed_first.alternatives(), &[3, 4, 5]);
     assert_eq!(removed_first.len(), 4);
 
     // Remove last alternative
-    let removed_last = choice.remove_alternative(3); // Remove '5' at index 3
+    let removed_last = choice.clone().remove_alternative(3); // Remove '5' at index 3
     assert_eq!(*removed_last.first().unwrap(), 1);
     assert_eq!(removed_last.alternatives(), &[2, 3, 4]);
     assert_eq!(removed_last.len(), 4);

@@ -268,9 +268,18 @@ impl<T> Choice<T> {
         T: Clone,
         I: IntoIterator<Item = T>,
     {
-        let mut new_values = Arc::clone(&self.values);
-        Arc::make_mut(&mut new_values).extend(items);
-        Self { values: new_values }
+        let values = match Arc::try_unwrap(self.values) {
+            Ok(mut values) => {
+                values.extend(items);
+                Arc::new(values)
+            },
+            Err(arc) => {
+                let mut new_values = Arc::clone(&arc);
+                Arc::make_mut(&mut new_values).extend(items);
+                new_values
+            },
+        };
+        Self { values }
     }
 
     /// Removes an alternative at the specified index and returns a new `Choice`.
@@ -299,7 +308,7 @@ impl<T> Choice<T> {
     /// assert_eq!(new_choice.alternatives(), &[2, 4]);
     /// ```
     #[inline]
-    pub fn remove_alternative(&self, index: usize) -> Self
+    pub fn remove_alternative(self, index: usize) -> Self
     where
         T: Clone,
     {
@@ -314,12 +323,19 @@ impl<T> Choice<T> {
             );
         }
 
-        let mut new_values = self.values.as_ref().clone();
-        new_values.remove(index + 1); // +1 because alternatives start at index 1
+        let values = match Arc::try_unwrap(self.values) {
+            Ok(mut values) => {
+                values.remove(index + 1); // +1 because alternatives start at index 1
+                Arc::new(values)
+            },
+            Err(arc) => {
+                let mut new_values = Arc::clone(&arc);
+                Arc::make_mut(&mut new_values).remove(index + 1);
+                new_values
+            },
+        };
 
-        Self {
-            values: Arc::new(new_values),
-        }
+        Self { values }
     }
 
     /// Filters the alternatives based on a predicate.
@@ -392,7 +408,7 @@ impl<T> Choice<T> {
         T: Clone,
     {
         if self.values.len() <= 1 {
-            return self.clone();
+            return Self { values: Arc::clone(&self.values) };
         }
 
         let values = self.values.as_ref();
@@ -687,16 +703,21 @@ impl<T> Choice<T> {
             );
         }
 
-        let actual_alt_index = alt_index + 1; // +1 to account for first value
+        let actual_alt_index = alt_index + 1;
 
-        let mut values = Arc::try_unwrap(self.values).unwrap_or_else(|arc| (*arc).clone());
+        let values = match Arc::try_unwrap(self.values) {
+            Ok(mut values) => {
+                values.swap(0, actual_alt_index);
+                Arc::new(values)
+            },
+            Err(arc) => {
+                let mut new_values = Arc::clone(&arc);
+                Arc::make_mut(&mut new_values).swap(0, actual_alt_index);
+                new_values
+            },
+        };
 
-        // Swap the first value with the alternative
-        values.swap(0, actual_alt_index);
-
-        Self {
-            values: Arc::new(values),
-        }
+        Self { values }
     }
 }
 
@@ -778,7 +799,10 @@ impl<T: Clone> Functor for Choice<T> {
                 let values = arc.as_ref();
                 let mut f = f;
                 let primary = f(values[0].clone());
-                let alternatives: Vec<B> = values[1..].iter().cloned().map(&mut f).collect();
+                let alternatives: SmallVec<[B; 8]> = values[1..]
+                    .iter()
+                    .map(|val| f(val.clone()))
+                    .collect();
                 Choice::new(primary, alternatives)
             },
         }

@@ -101,7 +101,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
     group.bench_function("remove_alternative", |b| {
         let choice = Choice::new(1, vec![2, 3, 4, 5]);
         b.iter(|| {
-            black_box(choice.remove_alternative(2));
+            black_box(choice.clone().remove_alternative(2));
         });
     });
 
