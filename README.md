@@ -117,8 +117,8 @@ Rustica provides a rich collection of functional data types:
 - **Optics**
   - `Lens` - For focusing on parts of structures
   - `Prism` - For working with sum types
-  - **IsoLens** - Lawful, composable lenses based on isomorphisms for deep focusing
-  - **IsoPrism** - Lawful, composable prisms based on isomorphisms for sum types
+  - `IsoLens` - Lawful, composable lenses based on isomorphisms for deep focusing
+  - `IsoPrism` - Lawful, composable prisms based on isomorphisms for sum types
 
 ### Error Handling Utilities
 
