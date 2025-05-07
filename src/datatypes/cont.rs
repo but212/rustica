@@ -400,9 +400,7 @@ where
         B: Clone + Send + Sync + 'static,
     {
         Cont {
-            inner: ContT::call_cc(move |k| {
-                f(Box::new(move |b| Cont { inner: k(b) })).inner
-            }),
+            inner: ContT::call_cc(move |k| f(Box::new(move |b| Cont { inner: k(b) })).inner),
         }
     }
 
