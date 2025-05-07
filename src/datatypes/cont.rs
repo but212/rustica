@@ -321,7 +321,7 @@ where
         B: Clone + Send + Sync + 'static,
     {
         Cont {
-            inner: self.inner.bind(move |a| f(a).inner.clone()),
+            inner: self.inner.bind(move |a| f(a).inner),
         }
     }
 
@@ -401,7 +401,7 @@ where
     {
         Cont {
             inner: ContT::call_cc(move |k| {
-                f(Box::new(move |b| Cont { inner: k(b) })).inner.clone()
+                f(Box::new(move |b| Cont { inner: k(b) })).inner
             }),
         }
     }
