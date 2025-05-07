@@ -1,7 +1,7 @@
 //! Module: predicate
 //!
 //! This module provides the `Predicate` type, representing intensional sets as predicate functions.
-//! 
+//!
 //! # Overview
 //!
 //! A `Predicate<A>` wraps a function that determines whether a value of type `A` satisfies a certain condition.
@@ -31,16 +31,16 @@
 //!
 //! This module is ideal for use cases where sets are defined by properties or conditions rather than explicit enumeration.
 
-use std::rc::Rc;
-use std::ops::{BitOr, BitAnd, Sub, Not};
-use crate::traits::semigroup::Semigroup;
-use crate::traits::monoid::Monoid;
 use crate::traits::hkt::HKT;
+use crate::traits::monoid::Monoid;
+use crate::traits::semigroup::Semigroup;
+use std::ops::{BitAnd, BitOr, Not, Sub};
+use std::rc::Rc;
 
 /// An intensional set, defined by a predicate function.
-/// 
-/// A `Predicate<A>` wraps a function that determines whether a value of type `A` 
-/// satisfies some condition. Predicates can be combined using logical operations 
+///
+/// A `Predicate<A>` wraps a function that determines whether a value of type `A`
+/// satisfies some condition. Predicates can be combined using logical operations
 /// like AND, OR, NOT, and difference.
 #[repr(transparent)]
 #[derive(Clone)]
