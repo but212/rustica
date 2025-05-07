@@ -25,28 +25,28 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.7.0"
+rustica = "0.7.1"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.7.0", features = ["async"] }
+rustica = { version = "0.7.1", features = ["async"] }
 ```
 
 If you want to use persistent vector collections, add the `pvec` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.7.0", features = ["pvec"] }
+rustica = { version = "0.7.1", features = ["pvec"] }
 ```
 
 You can combine multiple features as needed:
 
 ```toml
 [dependencies]
-rustica = { version = "0.7.0", features = ["full"] }
+rustica = { version = "0.7.1", features = ["full"] }
 ```
 
 Then import the prelude to get started:
@@ -145,7 +145,7 @@ Rustica provides a high-performance, immutable persistent vector (RRB-Tree) for 
 #### Enable the feature
 ```toml
 [dependencies]
-rustica = { version = "0.7.0", features = ["pvec"] }
+rustica = { version = "0.7.1", features = ["pvec"] }
 ```
 
 #### Example Usage
@@ -174,7 +174,7 @@ assert_eq!(vec.chunk_size(), 16);
 Rustica uses GitHub Actions for continuous integration, formatting, linting, and automated publishing to crates.io on tagged releases.
 
 - Tests and formatting are run on every push and pull request.
-- When a tag (e.g. `v0.7.0`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
+- When a tag (e.g. `v0.7.1`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
 
 ### Changelog
 

@@ -61,20 +61,16 @@ When writing doctests for functions that take closures as parameters, pay specia
 
 ### Owned vs. Reference Parameters
 
-1. For methods that consume values (like `fmap`, `bind`), the closure should take owned values:
+1. For methods that operate on references (like `fmap`, `bind`), the closure should take reference parameters:
    ```rust
    /// ```rust
    /// // CORRECT:
-   /// let result = maybe_value.fmap(|x: i32| x.to_string());
+   /// let result = maybe_value.fmap(|x: &i32| x.to_string());
    /// 
    /// // INCORRECT:
-   /// let result = maybe_value.fmap(|x: &i32| x.to_string());
+   /// let result = maybe_value.fmap(|x: i32| x.to_string());
    /// ```
    ```
-
-2. Check the method signature to determine if it's taking ownership:
-   - Methods that take `self` (not `&self`) usually expect closures that take ownership of inner values
-   - These methods typically use `FnOnce(T) -> U` bounds, not `Fn(&T) -> U` bounds
 
 ### Common Errors
 
@@ -96,7 +92,7 @@ indicates that the doctest is using a reference parameter when the method expect
 /// use rustica::traits::functor::Functor;
 /// 
 /// let value = Maybe::just(42);
-/// let result = value.fmap(|x| x * 2);
+/// let result = value.fmap(|x: &i32| x * 2);
 /// assert_eq!(result, Maybe::just(84));
 /// ```
 ```
@@ -110,7 +106,7 @@ indicates that the doctest is using a reference parameter when the method expect
 /// use rustica::traits::applicative::Applicative;
 /// 
 /// // Using explicit type for a function in Maybe context
-/// let f: Maybe<fn(i32) -> String> = Maybe::just(|x: i32| x.to_string());
+/// let f: Maybe<fn(i32) -> String> = Maybe::just(|x: &i32| x.to_string());
 /// let value = Maybe::just(42);
 /// let result = value.apply(&f);
 /// assert_eq!(result, Maybe::just("42".to_string()));
@@ -126,7 +122,7 @@ indicates that the doctest is using a reference parameter when the method expect
 /// use rustica::traits::monad::Monad;
 /// 
 /// let value = Maybe::just(42);
-/// let result = value.bind(|x| {
+/// let result = value.bind(|x: &i32| {
 ///     if x > 0 {
 ///         Maybe::just(x * 2)
 ///     } else {
@@ -162,12 +158,12 @@ Include comments about performance implications when appropriate:
 ```rust
 /// ```rust
 /// // This operation has O(1) complexity
-/// let result = maybe_value.fmap(|x| x + 1);
+/// let result = maybe_value.fmap(|x: &i32| x + 1);
 /// 
 /// // This chain avoids intermediate allocations
 /// let result = value
-///     .fmap(|x| x + 1)
-///     .bind(|x| pure(x.to_string()));
+///     .fmap(|x: &i32| x + 1)
+///     .bind(|x: &i32| pure(x.to_string()));
 /// ```
 ```
 

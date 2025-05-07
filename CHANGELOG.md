@@ -29,7 +29,7 @@
     - Introduced the `validate_cache_path` method, which ensures that the cached path and ranges match the current tree structure before using the cache in `get_with_cache`.
     - Tree-modifying operations (such as push, update, etc.) continue to invalidate the cache to ensure consistency.
 
-## [0.7.0]
+## [0.7.1]
 
 ### Added
 - Added `iso_lens.rs` and `iso_prism.rs` for Iso-based optics (Lens/Prism) with lawful composition, full documentation, and doctest examples.

@@ -35,7 +35,7 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.7.0"
+rustica = "0.7.1"
 ```
 
 ### Basic Usage
