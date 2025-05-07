@@ -51,6 +51,8 @@
 //! - Optimize performance for large collections of alternatives
 //! - Add property-based tests for typeclass laws
 
+#[cfg(feature = "develop")]
+use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::iter::FromIterator;
@@ -408,7 +410,9 @@ impl<T> Choice<T> {
         T: Clone,
     {
         if self.values.len() <= 1 {
-            return Self { values: Arc::clone(&self.values) };
+            return Self {
+                values: Arc::clone(&self.values),
+            };
         }
 
         let values = self.values.as_ref();
@@ -799,10 +803,8 @@ impl<T: Clone> Functor for Choice<T> {
                 let values = arc.as_ref();
                 let mut f = f;
                 let primary = f(values[0].clone());
-                let alternatives: SmallVec<[B; 8]> = values[1..]
-                    .iter()
-                    .map(|val| f(val.clone()))
-                    .collect();
+                let alternatives: SmallVec<[B; 8]> =
+                    values[1..].iter().map(|val| f(val.clone())).collect();
                 Choice::new(primary, alternatives)
             },
         }
@@ -1508,5 +1510,14 @@ impl<T: Clone + Default> Default for Choice<T> {
 impl<T: Clone + Default> std::iter::Sum for Choice<T> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(Choice::new_empty(), |acc, choice| acc.combine_owned(choice))
+    }
+}
+
+#[cfg(feature = "develop")]
+impl<T: Arbitrary + 'static> Arbitrary for Choice<T> {
+    fn arbitrary(g: &mut Gen) -> Self {
+        let primary = T::arbitrary(g);
+        let alternatives: Vec<T> = (0..g.size()).map(|_| T::arbitrary(g)).collect();
+        Choice::new(primary, alternatives)
     }
 }

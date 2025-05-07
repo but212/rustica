@@ -99,6 +99,8 @@ use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use smallvec::{smallvec, SmallVec};
+#[cfg(feature="develop")]
+use quickcheck::{Arbitrary, Gen};
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -1586,6 +1588,23 @@ impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
                 errors.extend(e2.iter().cloned());
                 Validated::Invalid(errors)
             },
+        }
+    }
+}
+
+#[cfg(feature="develop")]
+impl<E, A> Arbitrary for Validated<E, A>
+where
+    E: Arbitrary,
+    A: Arbitrary,
+{
+    fn arbitrary(g: &mut Gen) -> Self {
+        let x = A::arbitrary(g);
+        let y = E::arbitrary(g);
+        if bool::arbitrary(g) {
+            Validated::valid(x)
+        } else {
+            Validated::invalid(y)
         }
     }
 }

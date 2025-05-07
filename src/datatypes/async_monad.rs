@@ -52,7 +52,10 @@
 //! ```
 use futures::join;
 use futures::{Future, FutureExt};
+#[cfg(feature = "develop")]
+use quickcheck::{Arbitrary, Gen};
 use std::{marker::PhantomData, panic, pin::Pin, sync::Arc};
+
 /// A type alias for an asynchronous computation that can be sent between threads.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
@@ -756,5 +759,13 @@ impl<A: Send + 'static> AsyncM<A> {
             }),
             phantom: PhantomData,
         }
+    }
+}
+
+#[cfg(feature = "develop")]
+impl<A: Arbitrary + 'static + Send + Sync> Arbitrary for AsyncM<A> {
+    fn arbitrary(g: &mut Gen) -> Self {
+        let value = A::arbitrary(g);
+        AsyncM::pure(value)
     }
 }

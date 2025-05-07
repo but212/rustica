@@ -70,6 +70,8 @@ use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use crate::utils::error_utils;
+#[cfg(feature = "develop")]
+use quickcheck::{Arbitrary, Gen};
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
 /// This is similar to `Result<T, E>` but without the semantic meaning of success/failure.
@@ -889,5 +891,22 @@ impl<'a, R> Iterator for EitherIterMut<'a, R> {
     type Item = &'a mut R;
     fn next(&mut self) -> Option<&'a mut R> {
         self.inner.take()
+    }
+}
+
+#[cfg(feature = "develop")]
+impl<L, R> Arbitrary for Either<L, R>
+where
+    L: Arbitrary,
+    R: Arbitrary,
+{
+    fn arbitrary(g: &mut Gen) -> Self {
+        let left = L::arbitrary(g);
+        let right = R::arbitrary(g);
+        if bool::arbitrary(g) {
+            Either::Left(left)
+        } else {
+            Either::Right(right)
+        }
     }
 }

@@ -105,6 +105,8 @@ use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
 use crate::transformers::StateT;
 use crate::utils::error_utils::AppError;
+#[cfg(feature = "develop")]
+use quickcheck::{Arbitrary, Gen};
 
 /// A monad that represents stateful computations.
 ///
@@ -1205,5 +1207,17 @@ where
 {
     fn from(state_t: StateT<S, Id<(A, S)>, A>) -> Self {
         State { inner: state_t }
+    }
+}
+
+#[cfg(feature = "develop")]
+impl<S, A> Arbitrary for State<S, A>
+where
+    S: Arbitrary + Send + Sync + 'static,
+    A: Arbitrary + Send + Sync + 'static,
+{
+    fn arbitrary(g: &mut Gen) -> Self {
+        let value = A::arbitrary(g);
+        State::new(move |s: S| (value.clone(), s))
     }
 }

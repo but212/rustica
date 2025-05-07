@@ -65,6 +65,8 @@ use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use crate::utils::error_utils::{AppError, WithError};
+#[cfg(feature = "develop")]
+use quickcheck::{Arbitrary, Gen};
 use std::marker::PhantomData;
 
 /// A type that represents an optional value, optimized with null pointer optimization.
@@ -811,6 +813,21 @@ impl<'a, T> IntoIterator for &'a mut Maybe<T> {
         match self {
             Maybe::Just(ref mut val) => std::slice::from_mut(val).iter_mut(),
             Maybe::Nothing => [].iter_mut(),
+        }
+    }
+}
+
+#[cfg(feature = "develop")]
+impl<T> Arbitrary for Maybe<T>
+where
+    T: Arbitrary + Clone,
+{
+    fn arbitrary(g: &mut Gen) -> Self {
+        let value = T::arbitrary(g);
+        if bool::arbitrary(g) {
+            Maybe::Just(value)
+        } else {
+            Maybe::Nothing
         }
     }
 }

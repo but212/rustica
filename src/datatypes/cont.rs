@@ -75,6 +75,8 @@
 //! ```
 use crate::traits::identity::Identity;
 use crate::transformers::cont_t::ContT;
+#[cfg(feature = "develop")]
+use quickcheck::{Arbitrary, Gen};
 use std::sync::Arc;
 
 use crate::datatypes::id::Id;
@@ -450,5 +452,17 @@ where
 {
     fn from(cont_t: crate::transformers::cont_t::ContT<R, crate::datatypes::id::Id<R>, A>) -> Self {
         Cont { inner: cont_t }
+    }
+}
+
+#[cfg(feature = "develop")]
+impl<R, A> Arbitrary for Cont<R, A>
+where
+    R: Clone + Send + Sync + 'static,
+    A: Arbitrary + Send + Sync + 'static,
+{
+    fn arbitrary(g: &mut Gen) -> Self {
+        let val = A::arbitrary(g);
+        Cont::return_cont(val)
     }
 }

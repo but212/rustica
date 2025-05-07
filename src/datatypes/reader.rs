@@ -92,6 +92,8 @@
 use crate::datatypes::id::Id;
 use crate::prelude::*;
 use crate::transformers::ReaderT;
+#[cfg(feature = "develop")]
+use quickcheck::{Arbitrary, Gen};
 
 /// The Reader monad represents computations that depend on some environment value.
 ///
@@ -473,5 +475,15 @@ impl<E: Clone + 'static, A: Clone + 'static> Clone for Reader<E, A> {
         Reader {
             inner: self.inner.clone(),
         }
+    }
+}
+
+#[cfg(feature = "develop")]
+impl<E: Arbitrary + 'static + Send + Sync, A: Arbitrary + 'static + Send + Sync> Arbitrary
+    for Reader<E, A>
+{
+    fn arbitrary(g: &mut Gen) -> Self {
+        let value = A::arbitrary(g);
+        Reader::new(move |_: E| value.clone())
     }
 }

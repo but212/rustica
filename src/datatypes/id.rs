@@ -68,6 +68,8 @@ use crate::traits::{
     functor::Functor, hkt::HKT, identity::Identity, monad::Monad, monoid::Monoid, pure::Pure,
     semigroup::Semigroup,
 };
+#[cfg(feature = "develop")]
+use quickcheck::{Arbitrary, Gen};
 
 /// The identity monad, which represents a computation that simply wraps a value.
 ///
@@ -488,5 +490,12 @@ impl<'a, T> IntoIterator for &'a mut Id<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         std::slice::from_mut(self.value_mut()).iter_mut()
+    }
+}
+
+#[cfg(feature = "develop")]
+impl<T: Clone + Arbitrary> Arbitrary for Id<T> {
+    fn arbitrary(g: &mut Gen) -> Self {
+        Id::new(T::arbitrary(g))
     }
 }

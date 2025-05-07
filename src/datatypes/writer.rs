@@ -177,6 +177,8 @@ use crate::traits::monad::Monad;
 use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
+#[cfg(feature="develop")]
+use quickcheck::{Arbitrary, Gen};
 
 /// The Writer monad represents computations that produce a value along with an accumulated log.
 ///
@@ -679,5 +681,18 @@ impl<'a, W, A> IntoIterator for &'a mut Writer<W, A> {
 
     fn into_iter(self) -> Self::IntoIter {
         std::slice::from_mut(&mut self.value).iter_mut()
+    }
+}
+
+#[cfg(feature="develop")]
+impl<E, A> Arbitrary for Writer<E, A>
+where
+    E: Monoid + Arbitrary,
+    A: Arbitrary,
+{
+    fn arbitrary(g: &mut Gen) -> Self {
+        let x = A::arbitrary(g);
+        let y = E::arbitrary(g);
+        Writer::new(y, x)
     }
 }
