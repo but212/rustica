@@ -98,9 +98,9 @@ use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
-use smallvec::{smallvec, SmallVec};
-#[cfg(feature="develop")]
+#[cfg(feature = "develop")]
 use quickcheck::{Arbitrary, Gen};
+use smallvec::{smallvec, SmallVec};
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -1592,7 +1592,7 @@ impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
     }
 }
 
-#[cfg(feature="develop")]
+#[cfg(feature = "develop")]
 impl<E, A> Arbitrary for Validated<E, A>
 where
     E: Arbitrary,
