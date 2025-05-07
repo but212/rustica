@@ -113,7 +113,7 @@
 //! - For most everyday lens use-cases, the classic `Lens` may be simpler; use IsoLens when you want to leverage isomorphisms or need advanced optics composition.
 //!
 //! See also: [`crate::datatypes::lens`], [`crate::traits::iso::Iso`]
-
+//!
 //! # Iso-based Lens
 //!
 //! This module provides a Lens optic based on the Iso abstraction.
@@ -173,7 +173,8 @@ pub type ComposedIsoLens<S, A, B, L, L2> =
 /// let updated = lens.set(&person, &("Bob".to_string(), person.clone()));
 /// assert_eq!(updated.name, "Bob");
 /// assert_eq!(updated.age, 30); // Original value preserved
-///
+///```
+#[derive(Clone, Debug, PartialEq)]
 pub struct IsoLens<S, A, L>
 where
     L: Iso<S, A, From = S, To = A>,

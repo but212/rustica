@@ -128,7 +128,7 @@ use std::marker::PhantomData;
 /// let new_active = active_prism.review(&"Bob".to_string());
 /// assert!(matches!(new_active, Status::Active(name) if name == "Bob"));
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Prism<S, A, PreviewFn, ReviewFn>
 where
     PreviewFn: Fn(&S) -> Option<A>,

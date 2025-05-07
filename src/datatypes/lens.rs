@@ -125,7 +125,7 @@ use std::marker::PhantomData;
 /// let modified = name_lens.modify(person, |name| format!("Ms. {}", name));
 /// assert_eq!(modified.name, "Ms. Alice");
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Lens<S, A, GetFn, SetFn>
 where
     GetFn: Fn(&S) -> A,

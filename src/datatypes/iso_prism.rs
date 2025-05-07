@@ -113,6 +113,7 @@ use std::marker::PhantomData;
 /// assert_eq!(ok_prism.preview(&err_value), None);
 /// assert_eq!(ok_prism.review(&"new success".to_string()), Result::Ok("new success".to_string()));
 /// ```
+#[derive(Clone, Debug, PartialEq)]
 pub struct IsoPrism<S, A, L: Iso<S, Option<A>, From = S, To = Option<A>>> {
     pub iso: L,
     pub phantom: PhantomData<(S, A)>,
