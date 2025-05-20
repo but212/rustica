@@ -1,0 +1,22 @@
+# Configuration for cargo-release
+# See: https://github.com/crate-ci/cargo-release/blob/master/docs/reference.md
+
+[workspace]
+# Allow all branches to release
+allow-branch = ["*"]
+
+[release]
+# Don't automatically push tags and changes
+push = false
+# Don't automatically publish to crates.io
+publish = false
+# Sign the tag
+tag-sign = true
+# Push the tag after successful release
+push-remote = "origin"
+# Don't create a GitHub release
+pre-release-replacements = []
+# Update the changelog file
+changelog = "CHANGELOG.md"
+# Commit message for version updates
+version-update-message = "chore: bump version to {{version}}"
