@@ -95,7 +95,6 @@ jobs:
       
       - name: Run cargo-audit
         run: cargo audit
-
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -122,6 +121,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/doc
+          destination_dir: docs
           force_orphan: true
 
   publish:
@@ -165,15 +165,41 @@ jobs:
       - name: Get version from tag
         id: get_version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      
+        
+      - name: Extract version section from CHANGELOG.md
+        id: extract_changelog
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          # Extract the section for this version from CHANGELOG.md
+          # This assumes your CHANGELOG.md uses "## [x.y.z]" format for version headers
+          SECTION=$(awk -v version="$VERSION" '
+            /^## \[.*\]/ { 
+              if (found) exit;
+              if ($0 ~ "^## \\[" version "\\]") found=1;
+            } 
+            found {print}
+          ' CHANGELOG.md)
+          # Remove the first line (the version header) for the body
+          BODY=$(echo "$SECTION" | tail -n +2 | sed -e "/^## \[/{N;d;}" -e 's/^/\n/')
+          # If empty, use a default message
+          if [ -z "$BODY" ]; then
+            BODY="No changelog entry found for version $VERSION"
+          fi
+          # Output the body for the release
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+    
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          name: "Release v${{ steps.get_version.outputs.version }}"
-          body_path: CHANGELOG.md
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          body: ${{ steps.extract_changelog.outputs.body }}
           draft: false
           prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   benchmark:
     name: Performance Benchmarks
