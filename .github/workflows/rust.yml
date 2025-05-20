@@ -1,4 +1,4 @@
-name: Rust CI & Docs & Pages
+name: Rust CI
 
 on:
   push:
@@ -7,293 +7,206 @@ on:
       - 'v*'
   pull_request:
   schedule:
-    - cron: 0 0 * * *
+    - cron: '0 0 * * 0'  # Weekly on Sundays
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: -D warnings
+  RUSTFLAGS: "-D warnings"
+  CARGO_INCREMENTAL: 0
 
 jobs:
   test:
+    name: Test Suite
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        toolchain: [stable, beta, nightly]
+        rust: [stable, beta, nightly]
+        features: ["", "--all-features"]
       fail-fast: false
+    
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      
+      - name: Install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.toolchain }}
-          override: true
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-rust-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-rust-${{ matrix.toolchain }}-
-            ${{ runner.os }}-rust-
+      
+      - uses: Swatinem/rust-cache@v2
+      
       - name: Check formatting
         run: cargo fmt --all -- --check
-      - name: Clippy
-        run: cargo clippy --all-features -- -D warnings
-      - name: Build
-        run: cargo build --release --all-features
+      
+      - name: Run clippy
+        run: cargo clippy ${{ matrix.features }} -- -D warnings
+      
       - name: Run tests
-        run: cargo test --release --all-features -- --test-threads=1
-      - name: Cache cargo bin (cargo-outdated)
-        if: matrix.toolchain == 'stable'
-        uses: actions/cache@v3
+        run: cargo test ${{ matrix.features }}
+      
+      - name: Check for outdated dependencies
+        if: matrix.rust == 'stable' && matrix.features == '--all-features'
+        uses: taiki-e/install-action@v2
         with:
-          path: ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-bin-cargo-outdated-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-bin-cargo-outdated-
-      - name: Check outdated dependencies
-        if: matrix.toolchain == 'stable'
-        run: cargo outdated --exit-code 1 || true
-
-  build-docs:
-    needs: [test]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-rust-
-      - name: Build docs
-        run: cargo doc --all-features
-      - name: Check docs for broken links
-        run: cargo rustdoc --all-features -- -D rustdoc::broken_intra_doc_links
+          tool: cargo-outdated
+      
+      - run: cargo outdated --exit-code 1 || echo "::warning::Outdated dependencies found"
+        if: matrix.rust == 'stable' && matrix.features == '--all-features'
 
   msrv:
-    name: Minimal Supported Rust Version
+    name: Check MSRV
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Get MSRV from Cargo.toml
+      
+      - name: Extract MSRV
+        id: msrv
         run: |
-          MSRV=$(grep 'msrv' Cargo.toml | head -n 1 | cut -d '"' -f2)
-          echo "msrv=$MSRV" >> $GITHUB_ENV
-      - name: Install Rust (MSRV)
-        uses: actions-rs/toolchain@v1
+          MSRV=$(grep -m 1 "rust-version" Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "msrv=$MSRV" >> $GITHUB_OUTPUT
+      
+      - name: Install Rust ${{ steps.msrv.outputs.msrv }}
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.msrv }}
-          override: true
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-rust-msrv-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-rust-msrv-
-      - name: Build with MSRV
-        run: cargo build --all-features
-      - name: Test with MSRV
-        run: cargo test --all-features
+          toolchain: ${{ steps.msrv.outputs.msrv }}
+      
+      - uses: Swatinem/rust-cache@v2
+      
+      - name: Check MSRV compatibility
+        run: cargo check --all-features
 
-  security-audit:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request'
+  security:
+    name: Security audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      
+      - uses: taiki-e/install-action@v2
         with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      - name: Cache cargo bin (cargo-audit)
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-bin-cargo-audit-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-bin-cargo-audit-
-      - name: Run security audit
+          tool: cargo-deny,cargo-audit
+      
+      - name: Run cargo-deny
+        run: cargo deny check
+      
+      - name: Run cargo-audit
         run: cargo audit
 
-  publish:
-    if: startsWith(github.ref, 'refs/tags/v')
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
     needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-docs
+      
+      - uses: Swatinem/rust-cache@v2
+      
+      - name: Build documentation
+        run: cargo +nightly doc --all-features --no-deps
+      
+      - name: Check for broken intra-doc links
+        run: RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links" cargo +nightly doc --all-features --no-deps
+      
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/doc
+          force_orphan: true
+
+  publish:
+    name: Publish to crates.io
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, msrv, security, docs]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      - name: Check crate version
-        id: check-version
+      
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Check version match
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          CARGO_VERSION=$(grep "^version" Cargo.toml | head -n 1 | cut -d'"' -f2)
-          echo "Tagged version: $VERSION, Cargo.toml version: $CARGO_VERSION"
-          if [ "$VERSION" != "$CARGO_VERSION" ]; then
-            echo "::error::Version mismatch: Tag version ($VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          CARGO_VERSION=$(grep -m 1 '^version =' Cargo.toml | cut -d'"' -f2)
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::Version mismatch: Tag version ($TAG_VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
             exit 1
           fi
-      - name: Verify package
-        run: cargo package
-      - name: Run tests
-        run: cargo test --features=full
-      - name: Check if already published
-        id: check-published
+      
+      - name: Check changelog update
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          if cargo search rustica | grep -q "rustica = \"$VERSION\""; then
-            echo "Version $VERSION already published"
-            echo "already_published=true" >> $GITHUB_OUTPUT
-          else
-            echo "Version $VERSION not published yet"
-            echo "already_published=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Cache cargo bin (cargo-release)
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-bin-cargo-release-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-bin-cargo-release-
-      - name: Install cargo-release
-        run: cargo install cargo-release
-      - name: Dry-run cargo-release
-        run: cargo release minor --dry-run
-      - name: Publish
-        if: steps.check-published.outputs.already_published != 'true'
+          grep -q "$CARGO_VERSION" CHANGELOG.md || (echo "::error::No entry for version $CARGO_VERSION in CHANGELOG.md" && exit 1)
+      
+      - name: Publish to crates.io
         uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           args: --no-verify
-      - name: Notify on success
-        if: github.event_name == 'pull_request' || github.event_name == 'issues'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `✅ Successfully published to crates.io!`
-            })
 
-  create-release:
+  release:
+    name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [publish]
     runs-on: ubuntu-latest
     steps:
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+      - uses: actions/checkout@v4
+      
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          body: |
-            Automated release for ${{ github.ref_name }}.
-            See CHANGELOG.md for details.
+          name: "Release v${{ steps.get_version.outputs.version }}"
+          body_path: CHANGELOG.md
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   benchmark:
+    name: Performance Benchmarks
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+      
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      - name: Install criterion
-        run: |
-          cargo install cargo-criterion
+          components: rust-src
+      
+      - uses: Swatinem/rust-cache@v2
+      
       - name: Run benchmarks
         run: |
-          # Run benchmarks with criterion
-          cargo criterion --message-format=json | tee criterion-output.txt
-          
-          # Check if benchmark directory exists
-          if [ -d "target/criterion" ]; then
-            echo "Benchmark results generated"
-            # Convert criterion results to a simpler format if needed
-            # This is a placeholder - you might want to process the JSON output
-            echo '{"benchmarks":[]}' > output.json
-          else
-            echo 'No benchmark results were generated. Ensure you have benchmarks defined in benches/ directory.'
-            echo '{"benchmarks":[]}' > output.json
-          fi
-      - name: Archive benchmark results
-        uses: actions/upload-artifact@v3
-        if: always()
+          cargo install cargo-criterion
+          cargo criterion --all-features --message-format=json | tee benchmark_results.json
+      
+      - name: Upload benchmark results
+        uses: benchmark-action/github-action-benchmark@v1
         with:
-          name: benchmark-results
-          path: |
-            output.json
-            target/criterion/**/*
-      - name: Comment on PR with benchmark results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
+          name: Rust Benchmarks
+          tool: 'cargo-criterion'
+          output-file-path: benchmark_results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          comment-on-alert: true
+          alert-threshold: '150%'
+          fail-on-alert: true
+          alert-comment-cc-users: '@but212'
+          external-data-json-path: 'target/criterion/**/*.json'
+      
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          script: |
-            const fs = require('fs');
-            try {
-              const data = fs.readFileSync('output.json', 'utf8');
-              const results = JSON.parse(data);
-              
-              // Create a simple markdown summary
-              let comment = '## Benchmark Results\n\n';
-              if (results.benchmarks && results.benchmarks.length > 0) {
-                comment += '| Benchmark | Time |\n|-----------|------|\n';
-                results.benchmarks.forEach(bench => {
-                  comment += `| ${bench.name} | ${bench.time} |\n`;
-                });
-              } else {
-                comment += 'No benchmark results available. Make sure you have benchmarks defined in the `benches/` directory.';
-              }
-              
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-            } catch (error) {
-              console.error('Error processing benchmark results:', error);
-            }
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/criterion
+          destination_dir: criterion
+          keep_files: true
