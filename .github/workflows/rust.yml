@@ -62,8 +62,13 @@ jobs:
       - name: Extract MSRV
         id: msrv
         run: |
-          MSRV=$(grep -m 1 "rust-version" Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          # Extract version from package.metadata.msrv
+          MSRV=$(grep -A 1 "\[package.metadata\]" Cargo.toml | grep -m 1 "msrv" | cut -d '"' -f 2)
+          if [ -z "$MSRV" ]; then
+            MSRV="1.81.0"  # Fallback version
+          fi
           echo "msrv=$MSRV" >> $GITHUB_OUTPUT
+          echo "Using MSRV: $MSRV"
       
       - name: Install Rust ${{ steps.msrv.outputs.msrv }}
         uses: dtolnay/rust-toolchain@master
