@@ -1,0 +1,51 @@
+[licenses]
+# List of allowed licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unlicense",
+    "CC0-1.0",
+]
+
+# You can set exceptions for specific crates
+# [[licenses.ignore]]
+# name = "some-crate-name"
+# version = "*"
+# allow = ["some-license"]
+
+# Security vulnerability check settings
+[advisories]
+# Action to take when a security vulnerability is found (deny, warn, allow)
+vulnerability = "deny"
+# Action to take when using versions with unfixed security vulnerabilities
+unmaintained = "warn"
+# Action to take when using versions with known vulnerabilities
+notice = "warn"
+# Security vulnerability database update interval (in days)
+update-include = ["github:rustsec/advisory-db"]
+
+# You can ignore specific security vulnerabilities
+# [[advisories.ignore]]
+# id = "RUSTSEC-2020-0001"
+# reason = "reason"
+
+# Dependency version policy settings
+[bans]
+# Whether to allow multiple versions of the same crate
+multiple-versions = "warn"
+# Whether to allow unused dependencies
+unused-dependencies = "warn"
+# Add specific crates to the allowlist
+allow = [
+    # { name = "some-crate", version = "=1.2.3" },
+]
+
+# Add specific crates to the denylist
+# deny = [
+#     { name = "bad-crate", version = "*" },
+# ]
