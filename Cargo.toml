@@ -30,7 +30,7 @@ spin_sleep = "1.1"
 [dev-dependencies]
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.6", features = ["html_reports"] }
 
 [features]
 default = []
