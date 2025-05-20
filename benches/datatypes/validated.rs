@@ -1,8 +1,9 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::validated::Validated;
 use rustica::datatypes::wrapper::memoizer::Memoizer;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::monad::Monad;
+use std::hint::black_box;
 
 pub fn validated_benchmarks(c: &mut Criterion) {
     // Section 1: Basic Creation and Access Operations

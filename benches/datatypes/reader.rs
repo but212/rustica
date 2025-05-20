@@ -1,7 +1,8 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::id::Id;
 use rustica::datatypes::reader::Reader;
 use std::collections::BTreeMap;
+use std::hint::black_box;
 
 /// Function to use all fields to avoid unused field warnings in benchmarks
 #[allow(dead_code)]

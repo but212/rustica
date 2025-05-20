@@ -1,6 +1,7 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::iso_lens::IsoLens;
 use rustica::traits::iso::Iso;
+use std::hint::black_box;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Address {

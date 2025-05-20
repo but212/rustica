@@ -1,6 +1,7 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::id::Id;
 use rustica::prelude::*;
+use std::hint::black_box;
 
 pub fn id_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Id");

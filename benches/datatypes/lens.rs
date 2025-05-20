@@ -1,6 +1,7 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::lens::Lens;
 use std::collections::HashMap;
+use std::hint::black_box;
 
 // Simple test structures
 #[derive(Debug, PartialEq, Eq, Clone)]

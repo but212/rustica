@@ -1,10 +1,11 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::either::Either;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
 use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 use rustica::traits::pure::Pure;
+use std::hint::black_box;
 
 pub fn either_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Either");

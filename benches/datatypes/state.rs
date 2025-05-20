@@ -1,6 +1,7 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::state::State;
 use rustica::datatypes::state::{get, modify, put};
+use std::hint::black_box;
 use std::time::SystemTime;
 
 // Define types for benchmarks

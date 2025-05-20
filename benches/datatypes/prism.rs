@@ -1,8 +1,9 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::maybe::Maybe;
 use rustica::datatypes::prism::Prism;
 use rustica::traits::monad::Monad;
 use std::collections::HashMap;
+use std::hint::black_box;
 
 // Simple test structures for benchmarking
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -1,4 +1,4 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::writer::Writer;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
@@ -6,6 +6,7 @@ use rustica::traits::monad::Monad;
 use rustica::traits::monoid::Monoid;
 use rustica::traits::pure::Pure;
 use rustica::traits::semigroup::Semigroup;
+use std::hint::black_box;
 
 // A log type for benchmarking Writer performance
 #[derive(Debug, PartialEq, Eq, Clone)]

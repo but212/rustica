@@ -1,9 +1,10 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::choice::Choice;
 use rustica::datatypes::wrapper::memoizer::Memoizer;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
 use rustica::traits::monad::Monad;
+use std::hint::black_box;
 
 pub fn choice_benchmarks(c: &mut Criterion) {
     // Creation and access operations

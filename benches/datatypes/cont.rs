@@ -1,5 +1,6 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::cont::Cont;
+use std::hint::black_box;
 use std::sync::Arc;
 
 /// Benchmark tests for the Cont (Continuation) monad.

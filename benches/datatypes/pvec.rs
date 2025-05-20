@@ -1,6 +1,7 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 #[cfg(feature = "pvec")]
 use rustica::pvec::{pvec, PersistentVector};
+use std::hint::black_box;
 
 #[cfg(feature = "pvec")]
 pub fn pvec_benchmarks(c: &mut Criterion) {

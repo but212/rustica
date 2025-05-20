@@ -1,10 +1,11 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::maybe::Maybe;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
 use rustica::traits::monad::Monad;
 use rustica::traits::pure::Pure;
 use std::collections::HashMap;
+use std::hint::black_box;
 
 // Sample data structures for realistic benchmarks
 #[derive(Clone, Debug, PartialEq)]

@@ -1,9 +1,9 @@
-#[cfg(feature = "async")]
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 #[cfg(feature = "async")]
 use futures::future::join_all;
 #[cfg(feature = "async")]
 use rustica::datatypes::async_monad::AsyncM;
+use std::hint::black_box;
 #[cfg(feature = "async")]
 use std::sync::{Arc, Mutex};
 

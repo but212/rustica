@@ -1,5 +1,6 @@
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rustica::datatypes::io::IO;
+use std::hint::black_box;
 
 pub fn io_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("IO");
