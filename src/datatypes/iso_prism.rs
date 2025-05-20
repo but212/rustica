@@ -6,7 +6,7 @@
 //!
 //! ## Core Idea
 //!
-//! - A Prism can be generalized as an Iso of the form S <-> Option<A>
+//! - A Prism can be generalized as an Iso of the form S <-> `Option<A>`
 //! - preview/review functions are wrapped as Iso's forward/backward operations
 //!
 //! ## Examples
