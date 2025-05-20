@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Monad transformers and related utilities."><title>rustica::transformers - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module transformers</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#monad-transformers" title="Monad Transformers">Monad Transformers</a><ul><li><a href="#what-are-monad-transformers" title="What are Monad Transformers?">What are Monad Transformers?</a></li><li><a href="#core-concepts" title="Core Concepts">Core Concepts</a></li><li><a href="#transformer-stacks" title="Transformer Stacks">Transformer Stacks</a></li><li><a href="#available-transformers" title="Available Transformers">Available Transformers</a></li><li><a href="#implementation-pattern" title="Implementation Pattern">Implementation Pattern</a></li><li><a href="#stacking-transformers" title="Stacking Transformers">Stacking Transformers</a></li><li><a href="#performance-considerations" title="Performance Considerations">Performance Considerations</a></li></ul></li></ul><h3><a href="#reexports">Module Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate rustica</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">rustica</a></div><h1>Module <span>transformers</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/rustica/transformers/mod.rs.html#1-229">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Monad transformers and related utilities.</p>
+<p>Monad transformers allow combining the effects of multiple monads,
+such as adding error handling to stateful computations or adding
+state to asynchronous operations.</p>
+<h2 id="monad-transformers"><a class="doc-anchor" href="#monad-transformers">§</a>Monad Transformers</h2>
+<p>This module provides monad transformer implementations, which allow composing different
+monadic effects into a single monad. Monad transformers solve the problem of using multiple
+monads together without excessive nesting.</p>
+<h3 id="what-are-monad-transformers"><a class="doc-anchor" href="#what-are-monad-transformers">§</a>What are Monad Transformers?</h3>
+<p>Monad transformers allow you to:</p>
+<ul>
+<li>Combine multiple monadic effects (like option, state, reader, etc.)</li>
+<li>Access the operations of all combined monads through a unified interface</li>
+<li>Avoid deeply nested monadic types</li>
+</ul>
+<h3 id="core-concepts"><a class="doc-anchor" href="#core-concepts">§</a>Core Concepts</h3>
+<p>The key components of the monad transformer pattern:</p>
+<ul>
+<li><strong>Base Monad</strong>: The innermost monad being transformed (e.g., <code>Result</code>, <code>Option</code>, <code>Vec</code>)</li>
+<li><strong>Transformer</strong>: A wrapper that adds new effects while preserving the interface</li>
+<li><strong>Lift</strong>: Operations to promote values from the base monad to the transformer</li>
+<li><strong>Stack</strong>: The combination of transformers and base monad creates a “stack” of effects</li>
+</ul>
+<h3 id="transformer-stacks"><a class="doc-anchor" href="#transformer-stacks">§</a>Transformer Stacks</h3>
+<p>Transformers are typically used in stacks, with each transformer adding a new capability:</p>
+<div class="example-wrap"><pre class="language-text"><code>ReaderT&lt;StateT&lt;Option&lt;_&gt;&gt;&gt; = Environment + State + Optionality</code></pre></div>
+<p>In this example:</p>
+<ul>
+<li><code>Option&lt;_&gt;</code> is the base monad, providing optional computation</li>
+<li><code>StateT&lt;_&gt;</code> transforms it to add state management</li>
+<li><code>ReaderT&lt;_&gt;</code> adds environment access on top</li>
+</ul>
+<h3 id="available-transformers"><a class="doc-anchor" href="#available-transformers">§</a>Available Transformers</h3>
+<p>This module provides the following monad transformers:</p>
+<ul>
+<li>
+<p><code>ReaderT</code>: Adds environment capabilities</p>
+<ul>
+<li>Makes an environment value available throughout a computation</li>
+<li>Useful for dependency injection and configuration</li>
+</ul>
+</li>
+<li>
+<p><code>StateT</code>: Adds stateful computation capabilities</p>
+<ul>
+<li>Allows passing and modifying state through a computation</li>
+<li>Useful for tracking changing values without mutation</li>
+</ul>
+</li>
+<li>
+<p><code>WriterT</code>: Adds logging capabilities</p>
+<ul>
+<li>Accumulates a log or other appendable data alongside computation</li>
+<li>Useful for collecting messages, traces, or other output</li>
+</ul>
+</li>
+</ul>
+<h3 id="implementation-pattern"><a class="doc-anchor" href="#implementation-pattern">§</a>Implementation Pattern</h3>
+<p>Monad transformers generally follow this implementation pattern:</p>
+<ol>
+<li>Define a new type that wraps a function or value with the base monad inside</li>
+<li>Implement the <code>MonadTransformer</code> trait to provide lifting capabilities</li>
+<li>Implement the <code>Monad</code> trait to allow composition with other monads</li>
+<li>Provide additional methods specific to the transformer (like <code>run</code>, <code>exec</code>, etc.)</li>
+</ol>
+<h3 id="stacking-transformers"><a class="doc-anchor" href="#stacking-transformers">§</a>Stacking Transformers</h3>
+<p>When stacking multiple transformers, you’ll need to lift values through each layer:</p>
+<div class="example-wrap"><pre class="language-text"><code>// If you have a base monad value:
+let base_value: Option&lt;T&gt; = Some(value);
+
+// Lift through multiple layers:
+let value_in_state_reader_t = lift::&lt;ReaderT&lt;_, _, _&gt;&gt;(lift::&lt;StateT&lt;_, _, _&gt;&gt;(base_value));</code></pre></div><h3 id="performance-considerations"><a class="doc-anchor" href="#performance-considerations">§</a>Performance Considerations</h3>
+<p>Monad transformers add some overhead due to their layered nature. Consider:</p>
+<ul>
+<li>Each transformer adds a level of indirection</li>
+<li>Deep stacks may impact performance in critical sections</li>
+<li>More complex type signatures with multiple transformers</li>
+</ul>
+<p>For performance-critical code, consider using specialized combined monads
+instead of deep transformer stacks.</p>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.ContT"><code>pub use cont_t::<a class="struct" href="cont_t/struct.ContT.html" title="struct rustica::transformers::cont_t::ContT">ContT</a>;</code></dt><dt id="reexport.ReaderT"><code>pub use reader_t::<a class="struct" href="reader_t/struct.ReaderT.html" title="struct rustica::transformers::reader_t::ReaderT">ReaderT</a>;</code></dt><dt id="reexport.StateT"><code>pub use state_t::<a class="struct" href="state_t/struct.StateT.html" title="struct rustica::transformers::state_t::StateT">StateT</a>;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="cont_t/index.html" title="mod rustica::transformers::cont_t">cont_t</a></dt><dd>Continuation Monad Transformer (ContT)</dd><dt><a class="mod" href="reader_t/index.html" title="mod rustica::transformers::reader_t">reader_<wbr>t</a></dt><dd>Reader Transformer</dd><dt><a class="mod" href="state_t/index.html" title="mod rustica::transformers::state_t">state_t</a></dt><dd>The State monad transformer, adding stateful computations to any monad.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.MonadTransformer.html" title="trait rustica::transformers::MonadTransformer">Monad<wbr>Transformer</a></dt><dd>Trait for monad transformers.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.lift.html" title="fn rustica::transformers::lift">lift</a></dt><dd>Lifts a value from a base monad into a monad transformer.</dd></dl></section></div></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["pvec"],"mod":["datatypes","prelude","pvec","traits","transformers","utils"]};

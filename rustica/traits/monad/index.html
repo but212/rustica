@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Sequential computation with context binding."><title>rustica::traits::monad - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module monad</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#monad" title="Monad">Monad</a></li><li><a href="#relationship-to-other-traits" title="Relationship to other traits">Relationship to other traits</a></li><li><a href="#mathematical-definition" title="Mathematical Definition">Mathematical Definition</a></li><li><a href="#laws" title="Laws">Laws</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#traits">Module Items</a></h3><ul class="block"><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>traits</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">traits</a></div><h1>Module <span>monad</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/traits/monad.rs.html#1-366">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Sequential computation with context binding.</p>
+<h2 id="monad"><a class="doc-anchor" href="#monad">§</a>Monad</h2>
+<p>The <code>Monad</code> module provides trait definitions for implementing monadic operations
+in Rust, a core concept in functional programming.</p>
+<p>A monad is a design pattern that allows for chaining operations while preserving
+a computational context. Monads are particularly useful for handling effects like
+optional values, error handling, state management, or asynchronous operations.</p>
+<h2 id="relationship-to-other-traits"><a class="doc-anchor" href="#relationship-to-other-traits">§</a>Relationship to other traits</h2>
+<p>Monads are an extension of the Applicative functor concept, which itself extends Functors:</p>
+<div class="example-wrap"><pre class="language-text"><code>Functor -&gt; Applicative -&gt; Monad</code></pre></div>
+<p>Each level adds more capabilities for working with values in contexts:</p>
+<ul>
+<li>Functors: Transforming values in a context (<code>fmap</code>)</li>
+<li>Applicatives: Applying functions in a context to values in a context (<code>apply</code>)</li>
+<li>Monads: Sequencing operations that return values in a context (<code>bind</code>)</li>
+</ul>
+<h2 id="mathematical-definition"><a class="doc-anchor" href="#mathematical-definition">§</a>Mathematical Definition</h2>
+<p>Monads are applicative functors with additional structure:</p>
+<ul>
+<li><code>bind</code>: M A -&gt; (A -&gt; M B) -&gt; M B</li>
+<li><code>join</code>: M (M A) -&gt; M A</li>
+</ul>
+<h2 id="laws"><a class="doc-anchor" href="#laws">§</a>Laws</h2>
+<p>For a valid Monad implementation, the following laws must hold:</p>
+<ol>
+<li>
+<p>Left Identity:</p>
+<div class="example-wrap"><pre class="language-text"><code>pure(x).bind(f) == f(x)</code></pre></div>
+<p>Applying a function to a pure value should be the same as applying the function directly.</p>
+</li>
+<li>
+<p>Right Identity:</p>
+<div class="example-wrap"><pre class="language-text"><code>m.bind(pure) == m</code></pre></div>
+<p>Lifting a monadic value into a pure context should not change the value.</p>
+</li>
+<li>
+<p>Associativity:</p>
+<div class="example-wrap"><pre class="language-text"><code>m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))</code></pre></div>
+<p>The order of binding operations should not matter.</p>
+</li>
+</ol>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::monad::Monad;
+<span class="kw">use </span>rustica::traits::pure::Pure;
+<span class="kw">use </span>rustica::traits::functor::Functor;
+<span class="kw">use </span>rustica::traits::applicative::Applicative;
+<span class="kw">use </span>rustica::datatypes::validated::Validated;
+
+<span class="comment">// Creating a validated value
+</span><span class="kw">let </span>valid: Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt; = Validated::valid(<span class="number">42</span>);
+
+<span class="comment">// Using bind to sequence operations
+</span><span class="kw">let </span>result: Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt; = valid.bind(|x| {
+    <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">0 </span>{
+        Validated::valid(x * <span class="number">2</span>)
+    } <span class="kw">else </span>{
+        Validated::invalid(<span class="string">"Value must be positive"</span>)
+    }
+});
+
+<span class="macro">assert!</span>(<span class="macro">matches!</span>(result, Validated::Valid(<span class="number">84</span>)));
+
+<span class="comment">// Using join to flatten nested monads
+</span><span class="kw">let </span>nested: Validated&lt;<span class="kw-2">&amp;</span>str, Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt;&gt; = Validated::valid(Validated::valid(<span class="number">42</span>));
+<span class="kw">let </span>flattened: Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt; = nested.join();
+<span class="macro">assert!</span>(<span class="macro">matches!</span>(flattened, Validated::Valid(<span class="number">42</span>)));</code></pre></div>
+</div></details><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.Monad.html" title="trait rustica::traits::monad::Monad">Monad</a></dt><dd>A trait for monads, which are applicative functors that support sequencing of operations.</dd></dl></section></div></main></body></html>

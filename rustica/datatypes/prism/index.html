@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Prism implementation for focusing on particular variants of a sum type. Prisms are optics that focus on a specific case of a sum type."><title>rustica::datatypes::prism - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module prism</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#key-features" title="Key Features">Key Features</a></li><li><a href="#common-use-cases" title="Common Use Cases">Common Use Cases</a></li><li><a href="#relationship-to-lenses" title="Relationship to Lenses">Relationship to Lenses</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>prism</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/prism.rs.html#1-322">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Prism implementation for focusing on particular variants of a sum type.
+Prisms are optics that focus on a specific case of a sum type.</p>
+<p>A prism provides a way to:</p>
+<ul>
+<li>Selectively view a specific variant of an enum (sum type)</li>
+<li>Construct a value of the sum type from a value of the specific variant</li>
+</ul>
+<h2 id="key-features"><a class="doc-anchor" href="#key-features">§</a>Key Features</h2>
+<ul>
+<li><strong>Partial Focus</strong>: Unlike lenses which always succeed, prisms may fail to extract a value</li>
+<li><strong>Bidirectional</strong>: Can both extract from and construct a sum type</li>
+<li><strong>Composable</strong>: Can be combined with other optics for deeper access</li>
+</ul>
+<h2 id="common-use-cases"><a class="doc-anchor" href="#common-use-cases">§</a>Common Use Cases</h2>
+<ul>
+<li>Working with specific variants of enums</li>
+<li>Safely extracting data from sum types without pattern matching everywhere</li>
+<li>Building data transformation pipelines with error handling</li>
+</ul>
+<h2 id="relationship-to-lenses"><a class="doc-anchor" href="#relationship-to-lenses">§</a>Relationship to Lenses</h2>
+<p>While lenses focus on a part of a product type (like a struct field), prisms focus on
+a case of a sum type (like an enum variant). Lenses always succeed in getting/setting,
+but prisms may fail to extract a value if the wrong variant is present.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::prism::Prism;
+<span class="kw">use </span>rustica::datatypes::maybe::Maybe;
+
+<span class="comment">// Define a sum type
+</span><span class="attr">#[derive(Debug, PartialEq, Clone)]
+</span><span class="kw">enum </span>UserStatus {
+    LoggedIn { username: String, session_id: String },
+    LoggedOut,
+    Suspended { reason: String },
+}
+
+<span class="comment">// Create a prism for the LoggedIn variant
+</span><span class="kw">let </span>logged_in_prism = Prism::new(
+    |status: <span class="kw-2">&amp;</span>UserStatus| <span class="kw">match </span>status {
+        UserStatus::LoggedIn { username, session_id } =&gt; <span class="prelude-val">Some</span>((username.clone(), session_id.clone())),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+    },
+    |<span class="kw-2">&amp;</span>(<span class="kw-2">ref </span>username, <span class="kw-2">ref </span>session_id)| UserStatus::LoggedIn {
+        username: username.clone(),
+        session_id: session_id.clone(),
+    },
+);
+
+<span class="comment">// Use the prism to extract data
+</span><span class="kw">let </span>user = UserStatus::LoggedIn {
+    username: <span class="string">"alice"</span>.to_string(),
+    session_id: <span class="string">"abc123"</span>.to_string(),
+};
+
+<span class="kw">let </span>suspended = UserStatus::Suspended {
+    reason: <span class="string">"Violation of terms"</span>.to_string(),
+};
+
+<span class="comment">// Preview succeeds for LoggedIn
+</span><span class="kw">let </span>data = logged_in_prism.preview(<span class="kw-2">&amp;</span>user);
+<span class="macro">assert_eq!</span>(data, <span class="prelude-val">Some</span>((<span class="string">"alice"</span>.to_string(), <span class="string">"abc123"</span>.to_string())));
+
+<span class="comment">// Preview fails for other variants
+</span><span class="kw">let </span>no_data = logged_in_prism.preview(<span class="kw-2">&amp;</span>suspended);
+<span class="macro">assert_eq!</span>(no_data, <span class="prelude-val">None</span>);
+
+<span class="comment">// Create a new LoggedIn user
+</span><span class="kw">let </span>new_user = logged_in_prism.review(<span class="kw-2">&amp;</span>(<span class="string">"bob"</span>.to_string(), <span class="string">"xyz789"</span>.to_string()));
+<span class="macro">assert_eq!</span>(new_user, UserStatus::LoggedIn {
+    username: <span class="string">"bob"</span>.to_string(),
+    session_id: <span class="string">"xyz789"</span>.to_string(),
+});</code></pre></div>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Prism.html" title="struct rustica::datatypes::prism::Prism">Prism</a></dt><dd>A <code>Prism</code> is an optic that allows focusing on a specific case of a sum type.</dd></dl></section></div></main></body></html>

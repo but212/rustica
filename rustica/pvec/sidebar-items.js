@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AllocationStrategy"],"macro":["pvec"],"mod":["vector"],"struct":["AlwaysCache","ChunksIter","EvenIndexCache","IntoIter","Iter","MemoryManager","NeverCache","SortedIter"],"trait":["CachePolicy"],"type":["BoxedCachePolicy"]};

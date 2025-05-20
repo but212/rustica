@@ -1,0 +1,194 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Extension trait for functors providing additional utility methods."><title>FunctorExt in rustica::traits::functor - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Functor<wbr>Ext</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.filter_map" title="filter_map">filter_map</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.try_map_or" title="try_map_or">try_map_or</a></li><li><a href="#method.try_map_or_else" title="try_map_or_else">try_map_or_else</a></li></ul><h3><a href="#foreign-impls">Implementations on Foreign Types</a></h3><ul class="block"><li><a href="#impl-FunctorExt-for-Option%3CT%3E" title="Option&#60;T&#62;">Option&#60;T&#62;</a></li><li><a href="#impl-FunctorExt-for-Result%3CT,+E%3E" title="Result&#60;T, E&#62;">Result&#60;T, E&#62;</a></li><li><a href="#impl-FunctorExt-for-Vec%3CT%3E" title="Vec&#60;T&#62;">Vec&#60;T&#62;</a></li></ul><h3><a href="#dyn-compatibility">Dyn Compatibility</a></h3><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In rustica::<wbr>traits::<wbr>functor</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">traits</a>::<wbr><a href="index.html">functor</a></div><h1>Trait <span class="trait">FunctorExt</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/traits/functor.rs.html#265-426">Source</a> </span></div><pre class="rust item-decl"><code>pub trait FunctorExt: <a class="trait" href="trait.Functor.html" title="trait rustica::traits::functor::Functor">Functor</a> {
+    // Required method
+    fn <a href="#tymethod.filter_map" class="fn">filter_map</a>&lt;B, F&gt;(&amp;self, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;
+       <span class="where">where F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;B&gt;</span>;
+
+    // Provided methods
+    fn <a href="#method.try_map_or" class="fn">try_map_or</a>&lt;B, E, F&gt;(&amp;self, default: B, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;
+       <span class="where">where F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E&gt;,
+             B: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.try_map_or_else" class="fn">try_map_or_else</a>&lt;B, E, D, F&gt;(
+        &amp;self,
+        default_fn: D,
+        f: F,
+    ) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;
+       <span class="where">where F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E&gt;,
+             B: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a>,
+             D: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;E</a>) -&gt; B</span> { ... }
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Extension trait for functors providing additional utility methods.</p>
+<p>This trait extends the basic <code>Functor</code> trait with additional operations that
+are common in functional programming but not essential to the functor concept.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::functor::{Functor, FunctorExt};
+<span class="kw">use </span>rustica::traits::hkt::HKT;
+
+<span class="comment">// Using FunctorExt methods with Option
+</span><span class="kw">let </span>some_value: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(<span class="number">42</span>);
+
+<span class="comment">// Using inspect to perform side effects without changing the value
+</span><span class="kw">let </span>logged: <span class="prelude-ty">Option</span>&lt;i32&gt; = some_value.inspect(|x| {
+    <span class="macro">println!</span>(<span class="string">"Value: {}"</span>, x);
+});
+<span class="macro">assert_eq!</span>(logged, <span class="prelude-val">Some</span>(<span class="number">42</span>));
+
+<span class="comment">// Using inspect_err on Result (should do nothing for Ok variant)
+</span><span class="kw">let </span>ok_value: <span class="prelude-ty">Result</span>&lt;i32, <span class="kw-2">&amp;</span>str&gt; = <span class="prelude-val">Ok</span>(<span class="number">42</span>);
+<span class="kw">let </span>result = ok_value.inspect_err(|e| <span class="macro">panic!</span>(<span class="string">"Should not be called for Ok: {}"</span>, e));
+<span class="macro">assert_eq!</span>(result, <span class="prelude-val">Ok</span>(<span class="number">42</span>));
+
+<span class="comment">// Using filter_map to transform and potentially filter out values
+</span><span class="kw">let </span>filter_mapped: <span class="prelude-ty">Option</span>&lt;String&gt; = some_value.filter_map(|x| {
+    <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">40 </span>{
+        <span class="prelude-val">Some</span>(x.to_string())
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
+});
+<span class="macro">assert_eq!</span>(filter_mapped, <span class="prelude-val">Some</span>(<span class="string">"42"</span>.to_string()));
+
+<span class="comment">// Working with vectors
+</span><span class="kw">let </span>numbers: Vec&lt;i32&gt; = <span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>];
+<span class="kw">let </span>even_squared: Vec&lt;i32&gt; = numbers.filter_map(|x| {
+    <span class="kw">if </span>x % <span class="number">2 </span>== <span class="number">0 </span>{
+        <span class="prelude-val">Some</span>(x * x)
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
+});
+<span class="macro">assert_eq!</span>(even_squared, <span class="macro">vec!</span>[<span class="number">4</span>, <span class="number">16</span>]);</code></pre></div>
+</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.filter_map" class="method"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#423-425">Source</a><h4 class="code-header">fn <a href="#tymethod.filter_map" class="fn">filter_map</a>&lt;B, F&gt;(&amp;self, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;B&gt;,</div></h4></section></summary><div class="docblock"><p>Transforms values with a function that might return None, filtering out None results.</p>
+<p>This combines mapping and filtering into a single operation.</p>
+<h5 id="arguments"><a class="doc-anchor" href="#arguments">§</a>Arguments</h5>
+<ul>
+<li><code>f</code> - A function that returns an Option</li>
+</ul>
+<h5 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h5>
+<p>A new functor containing only the values for which the function returned Some</p>
+<h5 id="examples-1"><a class="doc-anchor" href="#examples-1">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::functor::{Functor, FunctorExt};
+<span class="kw">use </span>rustica::traits::hkt::HKT;
+
+<span class="kw">let </span>some_value: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(<span class="number">42</span>);
+
+<span class="comment">// Keep only values that pass a predicate and transform them
+</span><span class="kw">let </span>filter_mapped: <span class="prelude-ty">Option</span>&lt;String&gt; = some_value.filter_map(|x| {
+    <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">40 </span>{
+        <span class="prelude-val">Some</span>(x.to_string())
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
+});
+<span class="macro">assert_eq!</span>(filter_mapped, <span class="prelude-val">Some</span>(<span class="string">"42"</span>.to_string()));
+
+<span class="comment">// Value filtered out
+</span><span class="kw">let </span>filtered_out: <span class="prelude-ty">Option</span>&lt;String&gt; = some_value.filter_map(|x| {
+    <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">100 </span>{
+        <span class="prelude-val">Some</span>(x.to_string())
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
+});
+<span class="macro">assert_eq!</span>(filtered_out, <span class="prelude-val">None</span>);</code></pre></div>
+</div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.try_map_or" class="method"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#313-322">Source</a><h4 class="code-header">fn <a href="#method.try_map_or" class="fn">try_map_or</a>&lt;B, E, F&gt;(&amp;self, default: B, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E&gt;,
+    B: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a>,</div></h4></section></summary><div class="docblock"><p>Transforms values with a fallible function, handling errors by providing a default value.</p>
+<h5 id="arguments-1"><a class="doc-anchor" href="#arguments-1">§</a>Arguments</h5>
+<ul>
+<li><code>f</code> - A function that may fail</li>
+<li><code>default</code> - A default value to use in case of failure</li>
+</ul>
+<h5 id="returns-1"><a class="doc-anchor" href="#returns-1">§</a>Returns</h5>
+<p>A new functor with transformed values or defaults in case of errors</p>
+<h5 id="examples-2"><a class="doc-anchor" href="#examples-2">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::functor::{Functor, FunctorExt};
+<span class="kw">use </span>rustica::traits::hkt::HKT;
+
+<span class="kw">let </span>some_value: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(<span class="number">42</span>);
+
+<span class="comment">// Using try_map_or with a fallible function
+</span><span class="kw">let </span>result: <span class="prelude-ty">Option</span>&lt;String&gt; = some_value.try_map_or(
+    <span class="string">"default"</span>.to_string(),
+    |x| -&gt; <span class="prelude-ty">Result</span>&lt;String, <span class="kw-2">&amp;</span>str&gt; {
+        <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">0 </span>{
+            <span class="prelude-val">Ok</span>(x.to_string())
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Err</span>(<span class="string">"negative number"</span>)
+        }
+    }
+);
+<span class="macro">assert_eq!</span>(result, <span class="prelude-val">Some</span>(<span class="string">"42"</span>.to_string()));
+
+<span class="comment">// With a value that causes an error
+</span><span class="kw">let </span>negative: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(-<span class="number">10</span>);
+<span class="kw">let </span>result_with_default: <span class="prelude-ty">Option</span>&lt;String&gt; = negative.try_map_or(
+    <span class="string">"default"</span>.to_string(),
+    |x| -&gt; <span class="prelude-ty">Result</span>&lt;String, <span class="kw-2">&amp;</span>str&gt; {
+        <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">0 </span>{
+            <span class="prelude-val">Ok</span>(x.to_string())
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Err</span>(<span class="string">"negative number"</span>)
+        }
+    }
+);
+<span class="macro">assert_eq!</span>(result_with_default, <span class="prelude-val">Some</span>(<span class="string">"default"</span>.to_string()));</code></pre></div>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.try_map_or_else" class="method"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#371-381">Source</a><h4 class="code-header">fn <a href="#method.try_map_or_else" class="fn">try_map_or_else</a>&lt;B, E, D, F&gt;(&amp;self, default_fn: D, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E&gt;,
+    B: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a>,
+    D: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;E</a>) -&gt; B,</div></h4></section></summary><div class="docblock"><p>Transforms values with a fallible function, handling errors with a provided function.</p>
+<h5 id="arguments-2"><a class="doc-anchor" href="#arguments-2">§</a>Arguments</h5>
+<ul>
+<li><code>f</code> - A function that may fail</li>
+<li><code>default_fn</code> - A function that provides a default value from the error</li>
+</ul>
+<h5 id="returns-2"><a class="doc-anchor" href="#returns-2">§</a>Returns</h5>
+<p>A new functor with transformed values or computed defaults in case of errors</p>
+<h5 id="examples-3"><a class="doc-anchor" href="#examples-3">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::functor::{Functor, FunctorExt};
+<span class="kw">use </span>rustica::traits::hkt::HKT;
+
+<span class="kw">let </span>some_value: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(<span class="number">42</span>);
+
+<span class="comment">// Using try_map_or_else with a fallible function and error handler
+</span><span class="kw">let </span>result: <span class="prelude-ty">Option</span>&lt;String&gt; = some_value.try_map_or_else(
+    |err: <span class="kw-2">&amp;</span>String| <span class="macro">format!</span>(<span class="string">"Error: {}"</span>, err),
+    |x| -&gt; <span class="prelude-ty">Result</span>&lt;String, String&gt; {
+        <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">0 </span>{
+            <span class="prelude-val">Ok</span>(x.to_string())
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Err</span>(<span class="string">"negative number"</span>.to_string())
+        }
+    }
+);
+<span class="macro">assert_eq!</span>(result, <span class="prelude-val">Some</span>(<span class="string">"42"</span>.to_string()));
+
+<span class="comment">// With a value that causes an error
+</span><span class="kw">let </span>negative: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(-<span class="number">10</span>);
+<span class="kw">let </span>result_with_error_handler: <span class="prelude-ty">Option</span>&lt;String&gt; = negative.try_map_or_else(
+    |err: <span class="kw-2">&amp;</span>String| <span class="macro">format!</span>(<span class="string">"Error: {}"</span>, err),
+    |x| -&gt; <span class="prelude-ty">Result</span>&lt;String, String&gt; {
+        <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">0 </span>{
+            <span class="prelude-val">Ok</span>(x.to_string())
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Err</span>(<span class="string">"negative number"</span>.to_string())
+        }
+    }
+);
+<span class="macro">assert_eq!</span>(result_with_error_handler, <span class="prelude-val">Some</span>(<span class="string">"Error: negative number"</span>.to_string()));</code></pre></div>
+</div></details></div><h2 id="dyn-compatibility" class="section-header">Dyn Compatibility<a href="#dyn-compatibility" class="anchor">§</a></h2><div class="dyn-compatibility-info"><p>This trait is <b>not</b> <a href="https://doc.rust-lang.org/nightly/reference/items/traits.html#dyn-compatibility">dyn compatible</a>.</p><p><i>In older versions of Rust, dyn compatibility was called "object safety", so this trait is not object safe.</i></p></div><h2 id="foreign-impls" class="section-header">Implementations on Foreign Types<a href="#foreign-impls" class="anchor">§</a></h2><details class="toggle implementors-toggle"><summary><section id="impl-FunctorExt-for-Option%3CT%3E" class="impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#485-523">Source</a><a href="#impl-FunctorExt-for-Option%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.FunctorExt.html" title="trait rustica::traits::functor::FunctorExt">FunctorExt</a> for <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;T&gt;</h3></section></summary><div class="impl-items"><section id="method.filter_map" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#487-492">Source</a><a href="#method.filter_map" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.filter_map" class="fn">filter_map</a>&lt;B, F&gt;(&amp;self, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;B&gt;,</div></h4></section><section id="method.try_map_or-1" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#495-507">Source</a><a href="#method.try_map_or-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.try_map_or" class="fn">try_map_or</a>&lt;B, E, F&gt;(&amp;self, default: B, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E&gt;,
+    B: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a>,</div></h4></section><section id="method.try_map_or_else-1" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#510-522">Source</a><a href="#method.try_map_or_else-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.try_map_or_else" class="fn">try_map_or_else</a>&lt;B, E, D, F&gt;(&amp;self, default_fn: D, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E&gt;,
+    D: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;E</a>) -&gt; B,</div></h4></section></div></details><details class="toggle implementors-toggle"><summary><section id="impl-FunctorExt-for-Vec%3CT%3E" class="impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#447-483">Source</a><a href="#impl-FunctorExt-for-Vec%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.FunctorExt.html" title="trait rustica::traits::functor::FunctorExt">FunctorExt</a> for <a class="struct" href="https://doc.rust-lang.org/nightly/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;T&gt;</h3></section></summary><div class="impl-items"><section id="method.filter_map-1" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#449-454">Source</a><a href="#method.filter_map-1" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.filter_map" class="fn">filter_map</a>&lt;B, F&gt;(&amp;self, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;B&gt;,</div></h4></section><section id="method.try_map_or-2" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#457-468">Source</a><a href="#method.try_map_or-2" class="anchor">§</a><h4 class="code-header">fn <a href="#method.try_map_or" class="fn">try_map_or</a>&lt;B, E, F&gt;(&amp;self, default: B, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E&gt;,
+    B: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a>,</div></h4></section><section id="method.try_map_or_else-2" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#471-482">Source</a><a href="#method.try_map_or_else-2" class="anchor">§</a><h4 class="code-header">fn <a href="#method.try_map_or_else" class="fn">try_map_or_else</a>&lt;B, E, D, F&gt;(&amp;self, default_fn: D, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E&gt;,
+    D: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;E</a>) -&gt; B,</div></h4></section></div></details><details class="toggle implementors-toggle"><summary><section id="impl-FunctorExt-for-Result%3CT,+E%3E" class="impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#525-572">Source</a><a href="#impl-FunctorExt-for-Result%3CT,+E%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, E&gt; <a class="trait" href="trait.FunctorExt.html" title="trait rustica::traits::functor::FunctorExt">FunctorExt</a> for <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, E&gt;<div class="where">where
+    E: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/default/trait.Default.html" title="trait core::default::Default">Default</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html" title="trait core::fmt::Debug">Debug</a>,</div></h3></section></summary><div class="impl-items"><section id="method.filter_map-2" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#530-541">Source</a><a href="#method.filter_map-2" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.filter_map" class="fn">filter_map</a>&lt;B, F&gt;(&amp;self, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;B&gt;,</div></h4></section><section id="method.try_map_or-3" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#544-556">Source</a><a href="#method.try_map_or-3" class="anchor">§</a><h4 class="code-header">fn <a href="#method.try_map_or" class="fn">try_map_or</a>&lt;B, E2, F&gt;(&amp;self, default: B, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E2&gt;,
+    B: <a class="trait" href="https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a>,</div></h4></section><section id="method.try_map_or_else-3" class="method trait-impl"><a class="src rightside" href="../../../src/rustica/traits/functor.rs.html#559-571">Source</a><a href="#method.try_map_or_else-3" class="anchor">§</a><h4 class="code-header">fn <a href="#method.try_map_or_else" class="fn">try_map_or_else</a>&lt;B, E2, D, F&gt;(&amp;self, default_fn: D, f: F) -&gt; Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Output" title="type rustica::traits::hkt::HKT::Output">Output</a>&lt;B&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>(&amp;Self::<a class="associatedtype" href="../hkt/trait.HKT.html#associatedtype.Source" title="type rustica::traits::hkt::HKT::Source">Source</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;B, E2&gt;,
+    D: <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;E2</a>) -&gt; B,</div></h4></section></div></details><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"></div><script src="../../../trait.impl/rustica/traits/functor/trait.FunctorExt.js" data-ignore-extern-crates="alloc,core" async></script></section></div></main></body></html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Maybe type (equivalent to Option) with additional functional capabilities. The Maybe monad represents computations which may fail or return a value."><title>rustica::datatypes::maybe - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module maybe</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#key-features" title="Key Features">Key Features</a></li><li><a href="#common-use-cases" title="Common Use Cases">Common Use Cases</a></li><li><a href="#relationship-to-rusts-option" title="Relationship to Rust’s Option">Relationship to Rust’s Option</a></li><li><a href="#memory-optimization" title="Memory Optimization">Memory Optimization</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#enums">Module Items</a></h3><ul class="block"><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>maybe</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/maybe.rs.html#1-833">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Maybe type (equivalent to Option) with additional functional capabilities.
+The Maybe monad represents computations which may fail or return a value.</p>
+<p><code>Maybe&lt;T&gt;</code> is an enum that can be either <code>Just(T)</code> containing a value, or <code>Nothing</code>
+representing the absence of a value. This is similar to Rust’s built-in <code>Option&lt;T&gt;</code> type,
+but with additional monadic operations.</p>
+<h2 id="key-features"><a class="doc-anchor" href="#key-features">§</a>Key Features</h2>
+<ul>
+<li><strong>Failure Handling</strong>: Represents computations that might not return a value</li>
+<li><strong>Short-circuiting</strong>: Operations on <code>Nothing</code> propagate the <code>Nothing</code> value</li>
+<li><strong>Composition</strong>: Chain operations together without explicit null checks</li>
+</ul>
+<h2 id="common-use-cases"><a class="doc-anchor" href="#common-use-cases">§</a>Common Use Cases</h2>
+<ul>
+<li>Representing optional values without using <code>null</code></li>
+<li>Chaining operations that might fail</li>
+<li>Transforming optional values without unwrapping</li>
+</ul>
+<h2 id="relationship-to-rusts-option"><a class="doc-anchor" href="#relationship-to-rusts-option">§</a>Relationship to Rust’s Option</h2>
+<p><code>Maybe&lt;T&gt;</code> is functionally equivalent to Rust’s <code>Option&lt;T&gt;</code>, but provides
+additional monadic operations. Conversion methods are provided to interoperate
+with <code>Option&lt;T&gt;</code>.</p>
+<h2 id="memory-optimization"><a class="doc-anchor" href="#memory-optimization">§</a>Memory Optimization</h2>
+<p><code>Maybe&lt;T&gt;</code> has the same memory layout as <code>Option&lt;T&gt;</code> and takes advantage of the
+<a href="https://doc.rust-lang.org/std/option/index.html#representation">null pointer optimization</a>.
+This means that for types like <code>Box&lt;T&gt;</code>, <code>Vec&lt;T&gt;</code>, <code>String</code>, etc., <code>Maybe&lt;T&gt;</code> doesn’t
+require any additional memory beyond what’s needed to store <code>T</code>.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::maybe::Maybe;
+<span class="kw">use </span>rustica::traits::functor::Functor;
+<span class="kw">use </span>rustica::traits::monad::Monad;
+
+<span class="comment">// Creating Maybe values
+</span><span class="kw">let </span>just_value = Maybe::Just(<span class="number">42</span>);
+<span class="kw">let </span>nothing_value: Maybe&lt;i32&gt; = Maybe::Nothing;
+
+<span class="comment">// Using fmap to transform the value
+</span><span class="kw">let </span>doubled = just_value.fmap(|x| x * <span class="number">2</span>);  <span class="comment">// Maybe::Just(84)
+</span><span class="kw">let </span>doubled_nothing = nothing_value.fmap(|x| x * <span class="number">2</span>);  <span class="comment">// Maybe::Nothing
+
+// Chaining operations with bind
+</span><span class="kw">let </span>result = just_value.bind(|x| {
+    <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">0 </span>{
+        Maybe::Just(x * <span class="number">10</span>)
+    } <span class="kw">else </span>{
+        Maybe::Nothing
+    }
+});  <span class="comment">// Maybe::Just(420)</span></code></pre></div>
+</div></details><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.Maybe.html" title="enum rustica::datatypes::maybe::Maybe">Maybe</a></dt><dd>A type that represents an optional value, optimized with null pointer optimization.</dd><dt><a class="enum" href="enum.MaybeError.html" title="enum rustica::datatypes::maybe::MaybeError">Maybe<wbr>Error</a></dt><dd>Error type for Maybe operations</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.MaybeExt.html" title="trait rustica::datatypes::maybe::MaybeExt">Maybe<wbr>Ext</a></dt><dd>Extension trait for Maybe that provides additional error handling methods</dd></dl></section></div></main></body></html>

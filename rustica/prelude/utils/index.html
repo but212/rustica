@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Prelude: Utilities &#38; Extension Traits"><title>rustica::prelude::utils - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module utils</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#key-utilities" title="Key Utilities">Key Utilities</a></li><li><a href="#usage-examples" title="Usage Examples">Usage Examples</a></li><li><a href="#note" title="Note">Note</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>prelude</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">prelude</a></div><h1>Module <span>utils</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/prelude/utils.rs.html#1-68">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Prelude: Utilities &amp; Extension Traits</p>
+<p>This module re-exports various utility functions and extension traits from Rustica to make them available in a single import.</p>
+<h2 id="key-utilities"><a class="doc-anchor" href="#key-utilities">§</a>Key Utilities</h2>
+<ul>
+<li><code>error_utils</code>: Error handling and conversion helpers (e.g., <code>collect_results</code>, <code>flatten_errors</code>)</li>
+<li><code>hkt_utils</code>: Higher-kinded type utilities (e.g., HKT conversions, type witnesses)</li>
+<li><code>transform_utils</code>: Function composition, transformation, and chaining utilities</li>
+</ul>
+<h2 id="usage-examples"><a class="doc-anchor" href="#usage-examples">§</a>Usage Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::prelude::utils::<span class="kw-2">*</span>;
+
+<span class="comment">// --- Error Utilities ---
+</span><span class="kw">let </span>results = <span class="macro">vec!</span>[<span class="prelude-val">Ok</span>(<span class="number">1</span>), <span class="prelude-val">Ok</span>(<span class="number">2</span>), <span class="prelude-val">Ok</span>(<span class="number">3</span>)];
+<span class="kw">let </span>ok: <span class="prelude-ty">Result</span>&lt;Vec&lt;i32&gt;, <span class="kw-2">&amp;</span>str&gt; = sequence(results);
+<span class="macro">assert_eq!</span>(ok, <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]));
+
+<span class="kw">use </span>rustica::datatypes::validated::Validated;
+<span class="kw">let </span>inputs = <span class="macro">vec!</span>[<span class="string">"1"</span>, <span class="string">"not_a_number"</span>, <span class="string">"3"</span>];
+<span class="kw">let </span>parsed: Validated&lt;String, Vec&lt;i32&gt;&gt; =
+    traverse_validated(inputs, |s| s.parse::&lt;i32&gt;().map_err(|<span class="kw">_</span>| <span class="macro">format!</span>(<span class="string">"bad: {}"</span>, s)));
+<span class="macro">assert!</span>(parsed.is_invalid());
+<span class="macro">assert_eq!</span>(parsed.errors().len(), <span class="number">1</span>);
+<span class="macro">assert!</span>(parsed.errors()[<span class="number">0</span>].contains(<span class="string">"bad: not_a_number"</span>));
+
+<span class="kw">use </span>rustica::datatypes::either::Either;
+<span class="kw">let </span>ok_result: <span class="prelude-ty">Result</span>&lt;i32, <span class="kw-2">&amp;</span>str&gt; = <span class="prelude-val">Ok</span>(<span class="number">42</span>);
+<span class="kw">let </span>either: Either&lt;<span class="kw-2">&amp;</span>str, i32&gt; = result_to_either(ok_result);
+<span class="macro">assert_eq!</span>(either, Either::right(<span class="number">42</span>));
+
+<span class="comment">// --- HKT Utilities ---
+</span><span class="kw">let </span>numbers = <span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>];
+<span class="kw">let </span>evens_squared = filter_map(numbers, |<span class="kw-2">&amp;</span>n| n % <span class="number">2 </span>== <span class="number">0</span>, |n| n * n);
+<span class="macro">assert_eq!</span>(evens_squared, <span class="macro">vec!</span>[<span class="number">4</span>, <span class="number">16</span>, <span class="number">36</span>]);
+
+<span class="kw">let </span>a = <span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+<span class="kw">let </span>b = <span class="macro">vec!</span>[<span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>];
+<span class="kw">let </span>summed = zip_with(a, b, |x, y| x + y);
+<span class="macro">assert_eq!</span>(summed, <span class="macro">vec!</span>[<span class="number">5</span>, <span class="number">7</span>, <span class="number">9</span>]);
+
+<span class="kw">let </span>double_if_even = |n: i32| <span class="kw">if </span>n % <span class="number">2 </span>== <span class="number">0 </span>{ <span class="prelude-val">Some</span>(n * <span class="number">2</span>) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
+<span class="kw">let </span>result = pipeline_option(<span class="number">10</span>, <span class="macro">vec!</span>[double_if_even]);
+<span class="macro">assert_eq!</span>(result, <span class="prelude-val">Some</span>(<span class="number">20</span>));
+
+<span class="comment">// --- Transform Utilities ---
+</span><span class="kw">use </span>rustica::datatypes::maybe::Maybe;
+<span class="kw">let </span>maybes = <span class="macro">vec!</span>[Maybe::Just(<span class="number">1</span>), Maybe::Just(<span class="number">2</span>), Maybe::Nothing];
+<span class="kw">let </span>doubled: Vec&lt;Maybe&lt;i32&gt;&gt; = transform_all(<span class="kw-2">&amp;</span>maybes, |x| x * <span class="number">2</span>);
+<span class="macro">assert_eq!</span>(doubled, <span class="macro">vec!</span>[Maybe::Just(<span class="number">2</span>), Maybe::Just(<span class="number">4</span>), Maybe::Nothing]);
+
+<span class="kw">use </span>rustica::utils::transform_utils::Pipeline;
+<span class="kw">let </span>result = Pipeline::new(<span class="prelude-val">Some</span>(<span class="number">5</span>))
+    .map(|<span class="kw-2">&amp;</span>x| x * <span class="number">3</span>)
+    .map(|x| x.to_string())
+    .extract();
+<span class="macro">assert_eq!</span>(result, <span class="prelude-val">Some</span>(<span class="string">"15"</span>.to_string()));</code></pre></div>
+<h2 id="note"><a class="doc-anchor" href="#note">§</a>Note</h2>
+<p>These utilities form powerful combinations when used with Rustica’s datatypes, traits, and transformers.</p>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt><code>pub use crate::utils::<a class="mod" href="../../utils/error_utils/index.html" title="mod rustica::utils::error_utils">error_utils</a>::*;</code></dt><dt><code>pub use crate::utils::<a class="mod" href="../../utils/hkt_utils/index.html" title="mod rustica::utils::hkt_utils">hkt_utils</a>::*;</code></dt><dt><code>pub use crate::utils::<a class="mod" href="../../utils/transform_utils/index.html" title="mod rustica::utils::transform_utils">transform_utils</a>::*;</code></dt></dl></section></div></main></body></html>

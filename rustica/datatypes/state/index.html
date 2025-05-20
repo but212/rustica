@@ -1,0 +1,86 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="State monad for computations that maintain and modify state."><title>rustica::datatypes::state - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module state</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#state-monad" title="State Monad">State Monad</a><ul><li><a href="#core-concepts" title="Core Concepts">Core Concepts</a></li><li><a href="#use-cases" title="Use Cases">Use Cases</a></li><li><a href="#functional-patterns" title="Functional Patterns">Functional Patterns</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>state</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/state.rs.html#1-1223">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>State monad for computations that maintain and modify state.</p>
+<h2 id="state-monad"><a class="doc-anchor" href="#state-monad">§</a>State Monad</h2>
+<p>The State monad represents computations that can read and modify state in a purely functional way.
+It encapsulates a function that takes a state and returns a value along with a new state.</p>
+<h3 id="core-concepts"><a class="doc-anchor" href="#core-concepts">§</a>Core Concepts</h3>
+<ul>
+<li><strong>Stateful Computation</strong>: State allows you to model computations that depend on and may modify some state.</li>
+<li><strong>Pure Functional State</strong>: Unlike imperative programming where state is modified as a side effect,
+the State monad makes state transformations explicit and composable.</li>
+<li><strong>Sequential Operations</strong>: State operations can be chained together, with each operation
+receiving the state produced by the previous operation.</li>
+</ul>
+<h3 id="use-cases"><a class="doc-anchor" href="#use-cases">§</a>Use Cases</h3>
+<p>State is particularly useful in scenarios such as:</p>
+<ul>
+<li><strong>Stateful Algorithms</strong>: Implementing algorithms that need to track and update state</li>
+<li><strong>Parsing</strong>: Building parsers that consume input and maintain parsing state</li>
+<li><strong>Game Logic</strong>: Managing game state transitions without mutable variables</li>
+<li><strong>Simulations</strong>: Modeling step-by-step simulations with changing state</li>
+</ul>
+<h3 id="functional-patterns"><a class="doc-anchor" href="#functional-patterns">§</a>Functional Patterns</h3>
+<p>State implements several functional programming patterns:</p>
+<ul>
+<li><strong>Functor</strong>: Via the <code>fmap</code> method, allowing transformation of the result value</li>
+<li><strong>Applicative</strong>: Through the <code>pure</code> and <code>apply</code> methods</li>
+<li><strong>Monad</strong>: With the <code>bind</code> method for sequencing operations that depend on previous results</li>
+</ul>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3><h4 id="basic-usage"><a class="doc-anchor" href="#basic-usage">§</a>Basic Usage</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::state::State;
+
+<span class="comment">// A simple counter that returns the current state and increments it
+</span><span class="kw">let </span>counter = State::new(|s: i32| (s, s + <span class="number">1</span>));
+
+<span class="comment">// Run the state computation with initial state 0
+</span><span class="macro">assert_eq!</span>(counter.run_state(<span class="number">0</span>), (<span class="number">0</span>, <span class="number">1</span>));
+
+<span class="comment">// Run it again with a different initial state
+</span><span class="macro">assert_eq!</span>(counter.run_state(<span class="number">10</span>), (<span class="number">10</span>, <span class="number">11</span>));</code></pre></div>
+<h4 id="chaining-state-operations"><a class="doc-anchor" href="#chaining-state-operations">§</a>Chaining State Operations</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::state::State;
+<span class="kw">use </span>rustica::datatypes::state::{get, put, modify};
+
+<span class="comment">// Define a sequence of state operations
+</span><span class="kw">let </span>computation = get::&lt;i32&gt;()                     <span class="comment">// Get the current state
+    </span>.bind(|x| modify(<span class="kw">move </span>|s: i32| s + x)          <span class="comment">// Modify state by adding its current value
+        </span>.bind(|<span class="kw">_</span>| get::&lt;i32&gt;()                     <span class="comment">// Get the new state
+            </span>.bind(|y| put(y * <span class="number">2</span>)                   <span class="comment">// Double the state
+                </span>.bind(<span class="kw">move </span>|<span class="kw">_</span>| State::pure(y)))));      <span class="comment">// Return the previous state value
+
+// Run the computation with initial state 2
+// 1. get() returns (2, 2)
+// 2. modify(|s| s + x) changes state to 4 (2 + 2)
+// 3. get() returns (4, 4)
+// 4. put(y * 2) changes state to 8 (4 * 2)
+// 5. State::pure(y) returns the value 4 with state 8
+</span><span class="macro">assert_eq!</span>(computation.run_state(<span class="number">2</span>), (<span class="number">4</span>, <span class="number">8</span>));</code></pre></div>
+<h4 id="implementing-a-stack-with-state"><a class="doc-anchor" href="#implementing-a-stack-with-state">§</a>Implementing a Stack with State</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::state::State;
+
+<span class="comment">// Define stack operations
+</span><span class="kw">fn </span>push&lt;T: Send + Sync + Clone + <span class="lifetime">'static</span>&gt;(x: T) -&gt; State&lt;Vec&lt;T&gt;, ()&gt; {
+    State::new(<span class="kw">move </span>|<span class="kw-2">mut </span>stack: Vec&lt;T&gt;| {
+        stack.push(x.clone());
+        ((), stack)
+    })
+}
+
+<span class="kw">fn </span>pop&lt;T: Send + Sync + Clone + <span class="lifetime">'static</span>&gt;() -&gt; State&lt;Vec&lt;T&gt;, <span class="prelude-ty">Option</span>&lt;T&gt;&gt; {
+    State::new(|<span class="kw-2">mut </span>stack: Vec&lt;T&gt;| {
+        <span class="kw">let </span>item = stack.pop();
+        (item, stack)
+    })
+}
+
+<span class="comment">// Use the stack operations in a sequence
+</span><span class="kw">let </span>stack_ops = push(<span class="number">1</span>)
+    .bind(|<span class="kw">_</span>| push(<span class="number">2</span>))
+    .bind(|<span class="kw">_</span>| push(<span class="number">3</span>))
+    .bind(|<span class="kw">_</span>| pop::&lt;i32&gt;())
+    .bind(|x| pop::&lt;i32&gt;().bind(<span class="kw">move </span>|y| State::pure((x, y))));
+
+<span class="comment">// Run the stack operations with an empty stack
+// After pushing 1, 2, 3 and popping twice, we get the values 3 and 2
+// The final stack contains just [1]
+</span><span class="macro">assert_eq!</span>(stack_ops.run_state(Vec::new()), ((<span class="prelude-val">Some</span>(<span class="number">3</span>), <span class="prelude-val">Some</span>(<span class="number">2</span>)), <span class="macro">vec!</span>[<span class="number">1</span>]));</code></pre></div>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.State.html" title="struct rustica::datatypes::state::State">State</a></dt><dd>A monad that represents stateful computations.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.get.html" title="fn rustica::datatypes::state::get">get</a></dt><dd>Returns the current state.</dd><dt><a class="fn" href="fn.modify.html" title="fn rustica::datatypes::state::modify">modify</a></dt><dd>Modifies the state using a function.</dd><dt><a class="fn" href="fn.put.html" title="fn rustica::datatypes::state::put">put</a></dt><dd>Sets the state to a new value.</dd></dl></section></div></main></body></html>

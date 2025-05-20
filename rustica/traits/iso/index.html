@@ -1,0 +1,46 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Isomorphism between types."><title>rustica::traits::iso - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module iso</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#isomorphism" title="Isomorphism">Isomorphism</a><ul><li><a href="#examples" title="Examples">Examples</a></li><li><a href="#laws" title="Laws">Laws</a></li><li><a href="#common-use-cases" title="Common Use Cases">Common Use Cases</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>traits</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">traits</a></div><h1>Module <span>iso</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/traits/iso.rs.html#1-732">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Isomorphism between types.</p>
+<p>This module provides the Iso trait which represents isomorphisms between types.</p>
+<h2 id="isomorphism"><a class="doc-anchor" href="#isomorphism">§</a>Isomorphism</h2>
+<p>This module provides the <code>Iso</code> trait which represents isomorphisms between types.
+An isomorphism is a pair of functions that convert between two types while preserving
+their structure, with the property that converting from A to B and back to A gives
+you the original value (and similarly for B to A and back to B).</p>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::iso::Iso;
+
+<span class="comment">// An isomorphism between String and Vec&lt;char&gt;
+</span><span class="kw">struct </span>StringVecIso;
+
+<span class="kw">impl </span>Iso&lt;String, Vec&lt;char&gt;&gt; <span class="kw">for </span>StringVecIso {
+    <span class="kw">type </span>From = String;
+    <span class="kw">type </span>To = Vec&lt;char&gt;;
+
+    <span class="kw">fn </span>forward(<span class="kw-2">&amp;</span><span class="self">self</span>, from: <span class="kw-2">&amp;</span><span class="self">Self</span>::From) -&gt; <span class="self">Self</span>::To {
+        from.chars().collect()
+    }
+
+    <span class="kw">fn </span>backward(<span class="kw-2">&amp;</span><span class="self">self</span>, to: <span class="kw-2">&amp;</span><span class="self">Self</span>::To) -&gt; <span class="self">Self</span>::From {
+        to.iter().collect()
+    }
+}
+
+<span class="comment">// Using the isomorphism
+</span><span class="kw">let </span>s = String::from(<span class="string">"hello"</span>);
+<span class="kw">let </span>vec = StringVecIso.forward(<span class="kw-2">&amp;</span>s);
+<span class="macro">assert_eq!</span>(vec, <span class="macro">vec!</span>[<span class="string">'h'</span>, <span class="string">'e'</span>, <span class="string">'l'</span>, <span class="string">'l'</span>, <span class="string">'o'</span>]);
+<span class="kw">let </span>s2 = StringVecIso.backward(<span class="kw-2">&amp;</span>vec);
+<span class="macro">assert_eq!</span>(s, s2);</code></pre></div>
+<h3 id="laws"><a class="doc-anchor" href="#laws">§</a>Laws</h3>
+<p>A valid isomorphism must satisfy these laws:</p>
+<ol>
+<li><strong>Round-trip from A to B to A</strong>: <code>backward(forward(a)) == a</code></li>
+<li><strong>Round-trip from B to A to B</strong>: <code>forward(backward(b)) == b</code></li>
+</ol>
+<h3 id="common-use-cases"><a class="doc-anchor" href="#common-use-cases">§</a>Common Use Cases</h3>
+<p>Isomorphisms are useful for:</p>
+<ol>
+<li><strong>Data Conversion</strong> - When you need to seamlessly convert between equivalent representations</li>
+<li><strong>Lens and Optics</strong> - Building blocks for lenses, prisms, and other optics</li>
+<li><strong>Domain Modeling</strong> - Creating type-safe abstractions that map between domain concepts</li>
+</ol>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.ComposedIso.html" title="struct rustica::traits::iso::ComposedIso">Composed<wbr>Iso</a></dt><dd>An isomorphism created by composing two other isomorphisms.</dd><dt><a class="struct" href="struct.InverseIso.html" title="struct rustica::traits::iso::InverseIso">Inverse<wbr>Iso</a></dt><dd>An isomorphism that inverts the direction of another isomorphism.</dd><dt><a class="struct" href="struct.ResultEitherIso.html" title="struct rustica::traits::iso::ResultEitherIso">Result<wbr>Either<wbr>Iso</a></dt><dd>An isomorphism between Result&lt;R, L&gt; and Either&lt;L, R&gt;.</dd><dt><a class="struct" href="struct.ResultValidatedIso.html" title="struct rustica::traits::iso::ResultValidatedIso">Result<wbr>Validated<wbr>Iso</a></dt><dd>An isomorphism between Result&lt;A, E&gt; and Validated&lt;E, A&gt;.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.Iso.html" title="trait rustica::traits::iso::Iso">Iso</a></dt><dd>A trait representing an isomorphism between two types.</dd><dt><a class="trait" href="trait.IsoExt.html" title="trait rustica::traits::iso::IsoExt">IsoExt</a></dt><dd>Extension methods for types that implement <code>Iso</code>.</dd></dl></section></div></main></body></html>

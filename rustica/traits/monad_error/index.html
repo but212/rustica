@@ -1,0 +1,70 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Error handling within monadic contexts."><title>rustica::traits::monad_error - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module monad_<wbr>error</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#monaderror" title="MonadError">MonadError</a></li><li><a href="#relationship-to-other-traits" title="Relationship to other traits">Relationship to other traits</a></li><li><a href="#mathematical-definition" title="Mathematical Definition">Mathematical Definition</a></li><li><a href="#laws" title="Laws">Laws</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#traits">Module Items</a></h3><ul class="block"><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>traits</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">traits</a></div><h1>Module <span>monad_error</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/traits/monad_error.rs.html#1-364">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Error handling within monadic contexts.</p>
+<h2 id="monaderror"><a class="doc-anchor" href="#monaderror">§</a>MonadError</h2>
+<p>The <code>MonadError</code> module provides trait definitions for error handling in a monadic context.
+It extends the <code>Monad</code> trait with error-specific operations.</p>
+<p>MonadError is particularly useful for implementing error handling strategies that follow
+functional programming principles. It allows for catching, handling, and throwing errors
+within a monadic context without breaking the computation chain.</p>
+<h2 id="relationship-to-other-traits"><a class="doc-anchor" href="#relationship-to-other-traits">§</a>Relationship to other traits</h2>
+<p>MonadError is an extension of the Monad trait, providing specialized operations for error handling:</p>
+<div class="example-wrap"><pre class="language-text"><code>Functor -&gt; Applicative -&gt; Monad -&gt; MonadError</code></pre></div><h2 id="mathematical-definition"><a class="doc-anchor" href="#mathematical-definition">§</a>Mathematical Definition</h2>
+<p>A MonadError is a monad with additional error handling structure:</p>
+<ul>
+<li><code>throw</code>: E -&gt; M A</li>
+<li><code>catch</code>: M A -&gt; (E -&gt; M A) -&gt; M A</li>
+</ul>
+<h2 id="laws"><a class="doc-anchor" href="#laws">§</a>Laws</h2>
+<p>For a valid MonadError implementation, the following laws must hold:</p>
+<ol>
+<li>
+<p>Left Catch Law:</p>
+<div class="example-wrap"><pre class="language-text"><code>throw(e).catch(h) == h(e)</code></pre></div>
+<p>Catching an error that was just thrown should be equivalent to just handling that error.</p>
+</li>
+<li>
+<p>Right Catch Law:</p>
+<div class="example-wrap"><pre class="language-text"><code>m.catch(throw) == m</code></pre></div>
+<p>Catching with throw as the handler should be a no-op.</p>
+</li>
+<li>
+<p>Associativity Catch Law:</p>
+<div class="example-wrap"><pre class="language-text"><code>m.catch(h1).catch(h2) == m.catch(e -&gt; h1(e).catch(h2))</code></pre></div>
+<p>Nested catches can be rewritten as a single catch with a composed handler.</p>
+</li>
+</ol>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::monad_error::{MonadError, ErrorMapper};
+<span class="kw">use </span>rustica::traits::monad::Monad;
+<span class="kw">use </span>rustica::traits::pure::Pure;
+<span class="kw">use </span>rustica::traits::functor::Functor;
+
+<span class="comment">// Define a simple custom error that implements Clone
+</span><span class="attr">#[derive(Debug, Clone, PartialEq)]
+</span><span class="kw">struct </span>AppError {
+    message: String,
+    code: i32,
+}
+
+<span class="comment">// Using Result as a MonadError to handle errors
+</span><span class="kw">let </span>success_result: <span class="prelude-ty">Result</span>&lt;i32, AppError&gt; = <span class="prelude-ty">Result</span>::&lt;i32, AppError&gt;::pure(<span class="kw-2">&amp;</span><span class="number">42</span>);
+<span class="kw">let </span>error_result: <span class="prelude-ty">Result</span>&lt;i32, AppError&gt; = <span class="prelude-ty">Result</span>::&lt;i32, AppError&gt;::throw(AppError {
+    message: <span class="string">"Item not found"</span>.to_string(),
+    code: <span class="number">404</span>,
+});
+
+<span class="comment">// Catching errors
+</span><span class="kw">let </span>handled = error_result.catch(|e| {
+    <span class="kw">if </span>e.code == <span class="number">404 </span>{
+        <span class="prelude-val">Ok</span>(<span class="number">0</span>)  <span class="comment">// Default value for not found
+    </span>} <span class="kw">else </span>{
+        <span class="prelude-val">Err</span>(e.clone()) <span class="comment">// Pass through other errors
+    </span>}
+});
+
+<span class="macro">assert_eq!</span>(handled, <span class="prelude-val">Ok</span>(<span class="number">0</span>));
+
+<span class="comment">// Transforming between error types using ErrorMapper
+</span><span class="kw">let </span>string_error = success_result.map_error_to::&lt;String, <span class="kw">_</span>&gt;(|e| <span class="macro">format!</span>(<span class="string">"Error {}: {}"</span>, e.code, e.message));
+
+<span class="macro">assert_eq!</span>(string_error, <span class="prelude-val">Ok</span>(<span class="number">42</span>));</code></pre></div>
+</div></details><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.ErrorMapper.html" title="trait rustica::traits::monad_error::ErrorMapper">Error<wbr>Mapper</a></dt><dd>A trait for types that can map their error type to a different error type.</dd><dt><a class="trait" href="trait.MonadError.html" title="trait rustica::traits::monad_error::MonadError">Monad<wbr>Error</a></dt><dd>A trait for monads that can handle errors, extending the basic Monad trait.</dd></dl></section></div></main></body></html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Main persistent vector implementation. Persistent Vector Implementation"><title>rustica::pvec::vector - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module vector</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#api-philosophy" title="API Philosophy">API Philosophy</a></li><li><a href="#examples" title="Examples">Examples</a></li><li><a href="#examples-1" title="Examples">Examples</a></li><li><a href="#chunk-size-api-options-and-usage" title="Chunk Size: API, Options, and Usage">Chunk Size: API, Options, and Usage</a><ul><li><a href="#key-apis" title="Key APIs">Key APIs</a></li><li><a href="#example-usage" title="Example Usage">Example Usage</a></li><li><a href="#performance-notes" title="Performance Notes">Performance Notes</a></li></ul></li><li><a href="#chunk-size-options" title="Chunk Size Options">Chunk Size Options</a><ul><li><a href="#example-custom-chunk-size" title="Example: Custom Chunk Size">Example: Custom Chunk Size</a></li><li><a href="#example-merging-with-different-chunk-sizes" title="Example: Merging with Different Chunk Sizes">Example: Merging with Different Chunk Sizes</a></li><li><a href="#notes" title="Notes">Notes</a></li></ul></li><li><a href="#persistentvector-chunk-size-policy" title="PersistentVector: Chunk Size Policy">PersistentVector: Chunk Size Policy</a><ul><li><a href="#key-apis-1" title="Key APIs">Key APIs</a></li><li><a href="#example-usage-1" title="Example Usage">Example Usage</a></li><li><a href="#notes-1" title="Notes">Notes</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>pvec</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">pvec</a></div><h1>Module <span>vector</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/pvec/vector.rs.html#1-1707">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Main persistent vector implementation.
+Persistent Vector Implementation</p>
+<p>This module defines the <code>PersistentVector</code> type, which provides a high-level
+interface for the persistent vector data structure. It is implemented using
+a Relaxed Radix Balanced (RRB) tree for efficient operations.</p>
+<h2 id="api-philosophy"><a class="doc-anchor" href="#api-philosophy">§</a>API Philosophy</h2>
+<ul>
+<li><strong>Simple by default:</strong> Most users do not need to care about cache policies.
+Use <code>PersistentVector::new()</code> or the <code>pvec![]</code> macro for idiomatic usage.</li>
+<li><strong>Advanced control:</strong> For performance tuning, use <code>with_cache_policy</code>,
+<code>from_slice_with_cache_policy</code>, or pass a custom policy to advanced methods.</li>
+<li><strong>Extensible:</strong> Implement the <code>CachePolicy</code> trait to define custom caching.</li>
+</ul>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<p>Basic usage (internal/default cache policy):</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::pvec::PersistentVector;
+<span class="kw">let </span>vec = PersistentVector::new().push_back(<span class="number">1</span>).push_back(<span class="number">2</span>);</code></pre></div>
+<p>Advanced usage (explicit cache policy):</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::pvec::{PersistentVector, AlwaysCache};
+<span class="kw">let </span>vec: PersistentVector&lt;i32&gt; = PersistentVector::with_cache_policy(Box::new(AlwaysCache));</code></pre></div>
+<p>Custom policy:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::pvec::{PersistentVector, CachePolicy, BoxedCachePolicy};
+<span class="kw">struct </span>MyPolicy;
+<span class="kw">impl </span>CachePolicy <span class="kw">for </span>MyPolicy {
+    <span class="kw">fn </span>should_cache(<span class="kw-2">&amp;</span><span class="self">self</span>, _index: usize) -&gt; bool {
+        <span class="comment">// Cache indices divisible by 3
+        </span>_index % <span class="number">3 </span>== <span class="number">0
+    </span>}
+     
+    <span class="kw">fn </span>clone_box(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BoxedCachePolicy {
+        Box::new(MyPolicy)
+    }
+}
+<span class="kw">let </span>vec: PersistentVector&lt;i32&gt; = PersistentVector::with_cache_policy(Box::new(MyPolicy));</code></pre></div>
+<p>A persistent vector is an immutable data structure that provides efficient
+random access, updates, and structural modifications. All operations create
+a new version of the vector without modifying the original, allowing for
+efficient structural sharing between different versions.</p>
+<h2 id="examples-1"><a class="doc-anchor" href="#examples-1">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::pvec::PersistentVector;
+<span class="kw">use </span>rustica::pvec::pvec;
+
+<span class="comment">// Create a new empty vector
+</span><span class="kw">let </span>vec = PersistentVector::&lt;i32&gt;::new();
+<span class="macro">assert_eq!</span>(vec.len(), <span class="number">0</span>);
+
+<span class="comment">// Add elements to the vector
+</span><span class="kw">let </span>vec = vec.push_back(<span class="number">10</span>);
+<span class="kw">let </span>vec = vec.push_back(<span class="number">20</span>);
+<span class="kw">let </span>vec = vec.push_back(<span class="number">30</span>);
+
+<span class="comment">// Access elements
+</span><span class="macro">assert_eq!</span>(vec.get(<span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="number">20</span>));
+<span class="macro">assert_eq!</span>(vec.len(), <span class="number">3</span>);
+
+<span class="comment">// Update an element
+</span><span class="kw">let </span>updated_vec = vec.update(<span class="number">1</span>, <span class="number">25</span>);
+<span class="macro">assert_eq!</span>(updated_vec.get(<span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="number">25</span>));
+
+<span class="comment">// The original vector is unchanged
+</span><span class="macro">assert_eq!</span>(vec.get(<span class="number">1</span>), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="number">20</span>));
+
+<span class="comment">// Use the convenience macro
+</span><span class="kw">let </span>vec = <span class="macro">pvec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>];
+<span class="macro">assert_eq!</span>(vec.len(), <span class="number">5</span>);</code></pre></div>
+<h2 id="chunk-size-api-options-and-usage"><a class="doc-anchor" href="#chunk-size-api-options-and-usage">§</a>Chunk Size: API, Options, and Usage</h2>
+<p>The <code>chunk_size</code> parameter directly affects the performance and memory efficiency of a <code>PersistentVector</code>.</p>
+<h3 id="key-apis"><a class="doc-anchor" href="#key-apis">§</a>Key APIs</h3>
+<ul>
+<li><code>PersistentVector::with_chunk_size(size)</code>: Create an empty vector with a custom chunk size.</li>
+<li><code>PersistentVector::from_slice_with_chunk_size(slice, size)</code>: Create a vector from a slice with a specific chunk size.</li>
+<li><code>vec.chunk_size()</code>: Query the current chunk size of a vector.</li>
+<li><code>concat</code>, <code>extend</code>: When merging vectors, the resulting vector always inherits the chunk size of the left operand (<code>self</code>).</li>
+<li><code>chunks()</code>: Iterate over the vector in blocks matching its chunk size.</li>
+</ul>
+<p>The default chunk size is 32, but you can tune this for large data or specific access patterns.</p>
+<h3 id="example-usage"><a class="doc-anchor" href="#example-usage">§</a>Example Usage</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::pvec::PersistentVector;
+
+<span class="comment">// Create a vector with chunk_size 16
+</span><span class="kw">let </span>vec: PersistentVector&lt;i32&gt; = PersistentVector::with_chunk_size(<span class="number">16</span>);
+<span class="macro">assert_eq!</span>(vec.chunk_size(), <span class="number">16</span>);
+
+<span class="comment">// Create from slice with chunk_size 64
+</span><span class="kw">let </span>from_slice: PersistentVector&lt;i32&gt; = PersistentVector::from_slice_with_chunk_size(<span class="kw-2">&amp;</span>[<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>,<span class="number">4</span>], <span class="number">64</span>);
+<span class="macro">assert_eq!</span>(from_slice.chunk_size(), <span class="number">64</span>);
+
+<span class="comment">// Merging preserves the left's chunk_size
+</span><span class="kw">let </span>a = PersistentVector::with_chunk_size(<span class="number">8</span>).extend([<span class="number">1</span>,<span class="number">2</span>]);
+<span class="kw">let </span>b = PersistentVector::with_chunk_size(<span class="number">32</span>).extend([<span class="number">3</span>,<span class="number">4</span>]);
+<span class="kw">let </span>merged = a.concat(<span class="kw-2">&amp;</span>b);
+<span class="macro">assert_eq!</span>(merged.chunk_size(), <span class="number">8</span>); <span class="comment">// inherits from `a`
+
+// Chunked iteration
+</span><span class="kw">let </span>v = PersistentVector::from_slice_with_chunk_size(<span class="kw-2">&amp;</span>(<span class="number">0</span>..<span class="number">10</span>).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(), <span class="number">4</span>);
+<span class="kw">let </span>chunks: Vec&lt;Vec&lt;<span class="kw">_</span>&gt;&gt; = v.chunks().collect();
+<span class="macro">assert_eq!</span>(chunks, <span class="macro">vec!</span>[<span class="macro">vec!</span>[<span class="number">0</span>,<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>], <span class="macro">vec!</span>[<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>,<span class="number">7</span>], <span class="macro">vec!</span>[<span class="number">8</span>,<span class="number">9</span>]]);</code></pre></div>
+<h3 id="performance-notes"><a class="doc-anchor" href="#performance-notes">§</a>Performance Notes</h3>
+<p>The chunk size impacts cache locality, memory usage, and potential for parallelism. For best performance, experiment with different chunk sizes based on your data and workload.</p>
+<h2 id="chunk-size-options"><a class="doc-anchor" href="#chunk-size-options">§</a>Chunk Size Options</h2>
+<p>The <code>PersistentVector</code> supports configurable chunk sizes for advanced tuning.</p>
+<ul>
+<li>Use <a href="struct.PersistentVector.html#method.with_chunk_size" title="associated function rustica::pvec::vector::PersistentVector::with_chunk_size"><code>PersistentVector::with_chunk_size</code></a> to create a vector with a custom chunk size.</li>
+<li>Use <a href="struct.PersistentVector.html#method.from_slice_with_chunk_size" title="associated function rustica::pvec::vector::PersistentVector::from_slice_with_chunk_size"><code>PersistentVector::from_slice_with_chunk_size</code></a> to construct from a slice with a specific chunk size.</li>
+<li>Most operations (push, update, concat, extend, etc.) preserve the current chunk size.</li>
+<li>When merging vectors with different chunk sizes, the result inherits the chunk size of the left operand (<code>self</code>).</li>
+</ul>
+<h3 id="example-custom-chunk-size"><a class="doc-anchor" href="#example-custom-chunk-size">§</a>Example: Custom Chunk Size</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::pvec::PersistentVector;
+<span class="kw">let </span>vec: PersistentVector&lt;i32&gt; = PersistentVector::with_chunk_size(<span class="number">8</span>);
+<span class="kw">let </span>vec = vec.push_back(<span class="number">1</span>).push_back(<span class="number">2</span>);
+<span class="macro">assert_eq!</span>(vec.chunk_size(), <span class="number">8</span>);</code></pre></div>
+<h3 id="example-merging-with-different-chunk-sizes"><a class="doc-anchor" href="#example-merging-with-different-chunk-sizes">§</a>Example: Merging with Different Chunk Sizes</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::pvec::PersistentVector;
+<span class="kw">let </span>a: PersistentVector&lt;i32&gt; = PersistentVector::with_chunk_size(<span class="number">4</span>).extend([<span class="number">1</span>, <span class="number">2</span>]);
+<span class="kw">let </span>b: PersistentVector&lt;i32&gt; = PersistentVector::with_chunk_size(<span class="number">8</span>).extend([<span class="number">3</span>, <span class="number">4</span>]);
+<span class="kw">let </span>ab = a.concat(<span class="kw-2">&amp;</span>b);
+<span class="macro">assert_eq!</span>(ab.chunk_size(), <span class="number">4</span>); <span class="comment">// Inherits from `a`</span></code></pre></div>
+<h3 id="notes"><a class="doc-anchor" href="#notes">§</a>Notes</h3>
+<ul>
+<li>Smaller chunk sizes use less memory per chunk but may increase tree height and slow down some operations.</li>
+<li>Larger chunk sizes improve iteration and bulk operations, but may waste memory for small vectors.</li>
+<li>The default chunk size is 32 unless otherwise specified.</li>
+</ul>
+<p>See each method’s documentation for more details and examples.</p>
+<h2 id="persistentvector-chunk-size-policy"><a class="doc-anchor" href="#persistentvector-chunk-size-policy">§</a>PersistentVector: Chunk Size Policy</h2>
+<p>The <code>chunk_size</code> parameter controls how many elements are grouped together in each chunk of the vector’s internal tree.</p>
+<ul>
+<li><strong>Default:</strong> The default chunk size is 32 if not otherwise specified.</li>
+<li><strong>Custom:</strong> You can freely specify any chunk size (e.g., 4, 16, 64, 128, etc.) when constructing a vector. There is no upper or lower clamp enforced by the implementation.</li>
+<li><strong>Performance:</strong> Tuning chunk size can impact cache locality, memory usage, and iteration performance. For best results, experiment with different chunk sizes for your workload.</li>
+</ul>
+<h3 id="key-apis-1"><a class="doc-anchor" href="#key-apis-1">§</a>Key APIs</h3>
+<ul>
+<li><code>PersistentVector::with_chunk_size(size)</code>: Create an empty vector with a custom chunk size.</li>
+<li><code>PersistentVector::from_slice_with_chunk_size(slice, size)</code>: Create a vector from a slice with a specific chunk size.</li>
+<li><code>vec.chunk_size()</code>: Query the current chunk size of a vector.</li>
+<li><code>concat</code>, <code>extend</code>: When merging vectors, the resulting vector always inherits the chunk size of the left operand (<code>self</code>).</li>
+<li><code>chunks()</code>: Iterate over the vector in blocks matching its chunk size.</li>
+</ul>
+<h3 id="example-usage-1"><a class="doc-anchor" href="#example-usage-1">§</a>Example Usage</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::pvec::PersistentVector;
+
+<span class="comment">// Create with custom chunk size 16
+</span><span class="kw">let </span>vec: PersistentVector&lt;i32&gt; = PersistentVector::with_chunk_size(<span class="number">16</span>);
+<span class="macro">assert!</span>(vec.is_empty());
+<span class="macro">assert_eq!</span>(vec.chunk_size(), <span class="number">16</span>);
+
+<span class="comment">// From slice with chunk size 64
+</span><span class="kw">let </span>from_slice = PersistentVector::from_slice_with_chunk_size(<span class="kw-2">&amp;</span>[<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>,<span class="number">4</span>], <span class="number">64</span>);
+<span class="macro">assert_eq!</span>(from_slice.chunk_size(), <span class="number">64</span>);
+
+<span class="comment">// Merging: left's chunk_size is preserved
+</span><span class="kw">let </span>a: PersistentVector&lt;i32&gt; = PersistentVector::with_chunk_size(<span class="number">8</span>).extend([<span class="number">1</span>,<span class="number">2</span>]);
+<span class="kw">let </span>b: PersistentVector&lt;i32&gt; = PersistentVector::with_chunk_size(<span class="number">32</span>).extend([<span class="number">3</span>,<span class="number">4</span>]);
+<span class="kw">let </span>merged = a.concat(<span class="kw-2">&amp;</span>b);
+<span class="macro">assert_eq!</span>(merged.chunk_size(), <span class="number">8</span>); <span class="comment">// inherits from `a`
+
+// Chunked iteration
+</span><span class="kw">let </span>v = PersistentVector::from_slice_with_chunk_size(<span class="kw-2">&amp;</span>(<span class="number">0</span>..<span class="number">10</span>).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(), <span class="number">4</span>);
+<span class="kw">let </span>chunks: Vec&lt;Vec&lt;<span class="kw">_</span>&gt;&gt; = v.chunks().collect();
+<span class="macro">assert_eq!</span>(chunks, <span class="macro">vec!</span>[<span class="macro">vec!</span>[<span class="number">0</span>,<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>], <span class="macro">vec!</span>[<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>,<span class="number">7</span>], <span class="macro">vec!</span>[<span class="number">8</span>,<span class="number">9</span>]]);</code></pre></div>
+<h3 id="notes-1"><a class="doc-anchor" href="#notes-1">§</a>Notes</h3>
+<ul>
+<li>Smaller chunk sizes use less memory per chunk but may increase tree height and slow down some operations.</li>
+<li>Larger chunk sizes improve iteration and bulk operations, but may waste memory for small vectors.</li>
+<li>There is <strong>no hard-coded limit</strong>: you may specify any chunk size that makes sense for your use case.</li>
+<li>For best performance, experiment with different chunk sizes based on your data and workload.</li>
+</ul>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.PersistentVector.html" title="struct rustica::pvec::vector::PersistentVector">Persistent<wbr>Vector</a></dt><dd>A persistent vector implemented using a Relaxed Radix Balanced (RRB) tree.</dd><dt><a class="struct" href="struct.SmallVec.html" title="struct rustica::pvec::vector::SmallVec">Small<wbr>Vec</a></dt></dl></section></div></main></body></html>

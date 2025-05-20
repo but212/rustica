@@ -1,0 +1,62 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Continuation monad for expressing computations with continuations."><title>rustica::datatypes::cont - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module cont</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#continuation-monad" title="Continuation Monad">Continuation Monad</a><ul><li><a href="#core-concepts" title="Core Concepts">Core Concepts</a></li><li><a href="#functional-programming-context" title="Functional Programming Context">Functional Programming Context</a></li><li><a href="#use-cases" title="Use Cases">Use Cases</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>cont</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/cont.rs.html#1-468">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Continuation monad for expressing computations with continuations.</p>
+<h2 id="continuation-monad"><a class="doc-anchor" href="#continuation-monad">§</a>Continuation Monad</h2>
+<p>The Continuation monad represents computations with explicit control flow, allowing
+operations to be suspended and resumed. It provides a way to manipulate control flow
+in a purely functional manner.</p>
+<h3 id="core-concepts"><a class="doc-anchor" href="#core-concepts">§</a>Core Concepts</h3>
+<ul>
+<li><strong>Continuation-Passing Style</strong>: Functions receive an explicit continuation that represents “what to do next”</li>
+<li><strong>Explicit Control Flow</strong>: Allows implementing advanced control flow patterns like exceptions, backtracking, or coroutines</li>
+<li><strong>Composable Computations</strong>: Continuations can be composed and transformed using monadic operations</li>
+</ul>
+<h3 id="functional-programming-context"><a class="doc-anchor" href="#functional-programming-context">§</a>Functional Programming Context</h3>
+<p>In functional programming, continuations provide a way to represent and manipulate control flow
+as first-class values. The Continuation monad encapsulates this pattern, making it composable
+with other functional abstractions.</p>
+<p>The Continuation monad is particularly powerful because it can be used to implement other monads,
+making it sometimes called the “mother of all monads.”</p>
+<h3 id="use-cases"><a class="doc-anchor" href="#use-cases">§</a>Use Cases</h3>
+<p>The Continuation monad is useful for:</p>
+<ul>
+<li><strong>Custom Control Flow</strong>: Implementing non-standard control flow patterns</li>
+<li><strong>Exception Handling</strong>: Creating custom error handling mechanisms</li>
+<li><strong>Asynchronous Programming</strong>: Representing callbacks and asynchronous operations</li>
+<li><strong>Backtracking Algorithms</strong>: Implementing algorithms that need to explore multiple paths</li>
+<li><strong>Coroutines</strong>: Building cooperative multitasking systems</li>
+</ul>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3><h4 id="basic-usage"><a class="doc-anchor" href="#basic-usage">§</a>Basic Usage</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::cont::Cont;
+
+<span class="comment">// Create a simple continuation
+</span><span class="kw">let </span>cont = Cont::return_cont(<span class="number">42</span>);
+
+<span class="comment">// Run the continuation with a handler
+</span><span class="kw">let </span>result = cont.clone().run(|x| x * <span class="number">2</span>);
+<span class="macro">assert_eq!</span>(result, <span class="number">84</span>);
+
+<span class="comment">// Chain continuations
+</span><span class="kw">let </span>cont2 = cont.bind(|x| Cont::return_cont(x + <span class="number">1</span>));
+<span class="kw">let </span>result2 = cont2.run(|x| x * <span class="number">2</span>);
+<span class="macro">assert_eq!</span>(result2, <span class="number">86</span>);</code></pre></div>
+<h4 id="control-flow-example"><a class="doc-anchor" href="#control-flow-example">§</a>Control Flow Example</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>rustica::datatypes::cont::Cont;
+
+<span class="comment">// A function that uses continuations to implement early return
+</span><span class="kw">fn </span>safe_divide(a: i32, b: i32) -&gt; Cont&lt;i32, i32&gt; {
+    <span class="kw">if </span>b == <span class="number">0 </span>{
+        <span class="comment">// Early return with a default value
+        </span>Cont::new(|<span class="kw">_</span>| -<span class="number">1</span>)
+    } <span class="kw">else </span>{
+        <span class="comment">// Continue with the division
+        </span>Cont::return_cont(a / b)
+    }
+}
+
+<span class="comment">// Run with different inputs
+</span><span class="kw">let </span>result1 = safe_divide(<span class="number">10</span>, <span class="number">2</span>).run(|x| x);
+<span class="kw">let </span>result2 = safe_divide(<span class="number">10</span>, <span class="number">0</span>).run(|x| x);
+
+<span class="macro">assert_eq!</span>(result1, <span class="number">5</span>);
+<span class="macro">assert_eq!</span>(result2, -<span class="number">1</span>);</code></pre></div>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Cont.html" title="struct rustica::datatypes::cont::Cont">Cont</a></dt><dd>The <code>Cont</code> monad represents computations in continuation-passing style.</dd></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.ContFn.html" title="type rustica::datatypes::cont::ContFn">ContFn</a></dt><dd>Type alias for a continuation function</dd></dl></section></div></main></body></html>

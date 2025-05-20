@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Validated type for accumulating multiple errors."><title>rustica::datatypes::validated - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module validated</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#validated-datatype" title="Validated Datatype">Validated Datatype</a><ul><li><a href="#examples" title="Examples">Examples</a></li><li><a href="#functional-programming-context" title="Functional Programming Context">Functional Programming Context</a></li><li><a href="#applicative-validation" title="Applicative Validation">Applicative Validation</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>validated</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/validated.rs.html#1-1610">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Validated type for accumulating multiple errors.</p>
+<h2 id="validated-datatype"><a class="doc-anchor" href="#validated-datatype">§</a>Validated Datatype</h2>
+<p>The <code>Validated</code> datatype represents a validation result that can either be valid with a value
+or invalid with a collection of errors. Unlike <code>Result</code>, which fails fast on the first error,
+<code>Validated</code> can accumulate multiple errors during validation.</p>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::validated::Validated;
+
+<span class="kw">let </span>valid: Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt; = Validated::valid(<span class="number">42</span>);
+<span class="macro">assert!</span>(valid.is_valid());
+
+<span class="kw">let </span>invalid: Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt; = Validated::invalid(<span class="string">"error"</span>);
+<span class="macro">assert!</span>(invalid.is_invalid());</code></pre></div>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::validated::Validated;
+
+<span class="kw">let </span>result: <span class="prelude-ty">Result</span>&lt;i32, <span class="kw-2">&amp;</span>str&gt; = <span class="prelude-val">Ok</span>(<span class="number">42</span>);
+<span class="kw">let </span>validated = Validated::from_result(<span class="kw-2">&amp;</span>result);
+<span class="macro">assert_eq!</span>(validated, Validated::valid(<span class="number">42</span>));
+
+<span class="kw">let </span>error_result: <span class="prelude-ty">Result</span>&lt;i32, <span class="kw-2">&amp;</span>str&gt; = <span class="prelude-val">Err</span>(<span class="string">"error"</span>);
+<span class="kw">let </span>validated = Validated::from_result(<span class="kw-2">&amp;</span>error_result);
+<span class="macro">assert_eq!</span>(validated, Validated::invalid(<span class="string">"error"</span>));</code></pre></div>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::validated::Validated;
+
+<span class="kw">let </span>some_value: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(<span class="number">42</span>);
+<span class="kw">let </span>validated: Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt; = Validated::from_option(<span class="kw-2">&amp;</span>some_value, <span class="kw-2">&amp;</span><span class="string">"missing value"</span>);
+<span class="macro">assert_eq!</span>(validated, Validated::valid(<span class="number">42</span>));
+
+<span class="kw">let </span>none_value: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">None</span>;
+<span class="kw">let </span>validated: Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt; = Validated::from_option(<span class="kw-2">&amp;</span>none_value, <span class="kw-2">&amp;</span><span class="string">"missing value"</span>);
+<span class="macro">assert_eq!</span>(validated, Validated::invalid(<span class="string">"missing value"</span>));</code></pre></div>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::validated::Validated;
+
+<span class="kw">let </span>values = <span class="macro">vec!</span>[
+    Validated::&lt;<span class="kw-2">&amp;</span>str, i32&gt;::valid(<span class="number">1</span>),
+    Validated::&lt;<span class="kw-2">&amp;</span>str, i32&gt;::valid(<span class="number">2</span>),
+    Validated::&lt;<span class="kw-2">&amp;</span>str, i32&gt;::valid(<span class="number">3</span>),
+];
+<span class="kw">let </span>collected: Validated&lt;<span class="kw-2">&amp;</span>str, Vec&lt;i32&gt;&gt; = Validated::collect(values.iter().cloned());
+<span class="macro">assert_eq!</span>(collected, Validated::valid(<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]));
+
+<span class="kw">let </span>mixed = <span class="macro">vec!</span>[
+    Validated::&lt;<span class="kw-2">&amp;</span>str, i32&gt;::valid(<span class="number">1</span>),
+    Validated::&lt;<span class="kw-2">&amp;</span>str, i32&gt;::invalid(<span class="string">"error"</span>),
+    Validated::&lt;<span class="kw-2">&amp;</span>str, i32&gt;::valid(<span class="number">3</span>),
+];
+<span class="kw">let </span>collected: Validated&lt;<span class="kw-2">&amp;</span>str, Vec&lt;i32&gt;&gt; = Validated::collect(mixed.iter().cloned());
+<span class="macro">assert!</span>(collected.is_invalid());</code></pre></div>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::validated::Validated;
+
+<span class="kw">let </span>invalid: Validated&lt;<span class="kw-2">&amp;</span>str, i32&gt; = Validated::invalid(<span class="string">"error"</span>);
+<span class="kw">let </span>mapped = invalid.fmap_invalid(|e| <span class="macro">format!</span>(<span class="string">"Error: {}"</span>, e));
+<span class="macro">assert_eq!</span>(mapped, Validated::invalid(<span class="string">"Error: error"</span>.to_string()));</code></pre></div>
+<h3 id="functional-programming-context"><a class="doc-anchor" href="#functional-programming-context">§</a>Functional Programming Context</h3>
+<p>In functional programming, validation is often handled through types that can represent
+either success or failure. The <code>Validated</code> type is inspired by similar constructs in other
+functional programming languages, such as:</p>
+<ul>
+<li><code>Validated</code> in Cats (Scala)</li>
+<li><code>Validation</code> in Arrow (Kotlin)</li>
+<li><code>Validation</code> in fp-ts (TypeScript)</li>
+</ul>
+<p>The key difference between <code>Validated</code> and <code>Result</code> is that <code>Validated</code> is designed for
+scenarios where you want to collect all validation errors rather than stopping at the first one.</p>
+<h3 id="applicative-validation"><a class="doc-anchor" href="#applicative-validation">§</a>Applicative Validation</h3>
+<p>One of the most powerful aspects of <code>Validated</code> is its applicative instance, which allows
+combining multiple validations while accumulating errors. This is particularly useful for
+form validation, configuration validation, or any scenario where you want to report all
+errors at once rather than one at a time.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.IntoIter.html" title="struct rustica::datatypes::validated::IntoIter">Into<wbr>Iter</a></dt><dt><a class="struct" href="struct.Iter.html" title="struct rustica::datatypes::validated::Iter">Iter</a></dt><dd>Iterator over a Validated value (0 or 1 item)</dd><dt><a class="struct" href="struct.IterMut.html" title="struct rustica::datatypes::validated::IterMut">IterMut</a></dt><dd>Mutable iterator over a Validated value (0 or 1 item)</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ErrorsIter.html" title="enum rustica::datatypes::validated::ErrorsIter">Errors<wbr>Iter</a></dt><dd>Iterator over errors in a Validated</dd><dt><a class="enum" href="enum.ErrorsIterMut.html" title="enum rustica::datatypes::validated::ErrorsIterMut">Errors<wbr>Iter<wbr>Mut</a></dt><dd>Mutable iterator over errors in a Validated</dd><dt><a class="enum" href="enum.Validated.html" title="enum rustica::datatypes::validated::Validated">Validated</a></dt><dd>A validation type that can accumulate multiple errors.</dd></dl></section></div></main></body></html>

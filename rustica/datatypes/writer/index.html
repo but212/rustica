@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Writer monad for computations that produce values along with a log."><title>rustica::datatypes::writer - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module writer</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#writer-monad" title="Writer Monad">Writer Monad</a><ul><li><a href="#core-concepts" title="Core Concepts">Core Concepts</a></li><li><a href="#functional-programming-context" title="Functional Programming Context">Functional Programming Context</a></li><li><a href="#use-cases" title="Use Cases">Use Cases</a></li><li><a href="#requirements" title="Requirements">Requirements</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>writer</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/writer.rs.html#1-698">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Writer monad for computations that produce values along with a log.</p>
+<h2 id="writer-monad"><a class="doc-anchor" href="#writer-monad">§</a>Writer Monad</h2>
+<p>The Writer monad represents computations that produce a value along with an accumulated log.
+It’s a way to carry auxiliary data alongside the main computation result in a purely functional way.</p>
+<h3 id="core-concepts"><a class="doc-anchor" href="#core-concepts">§</a>Core Concepts</h3>
+<ul>
+<li><strong>Value and Log</strong>: Each Writer computation produces both a primary value and a log/output</li>
+<li><strong>Log Accumulation</strong>: When Writer computations are chained, their logs are combined using the monoid operation</li>
+<li><strong>Pure Functional Logging</strong>: Allows for logging without side effects</li>
+</ul>
+<h3 id="functional-programming-context"><a class="doc-anchor" href="#functional-programming-context">§</a>Functional Programming Context</h3>
+<p>In functional programming, the Writer monad solves the problem of producing output while maintaining referential
+transparency. Instead of mutating a global log or using side effects, the Writer monad makes the output an
+explicit part of the computation’s return value.</p>
+<p>The Writer monad implements several functional programming abstractions:</p>
+<ul>
+<li><strong>Functor</strong>: Via the <code>fmap</code> method, allowing transformation of the value</li>
+<li><strong>Applicative</strong>: Through the <code>combine</code> and <code>lift2</code> methods</li>
+<li><strong>Monad</strong>: With the <code>bind</code> method for sequencing operations</li>
+</ul>
+<h3 id="use-cases"><a class="doc-anchor" href="#use-cases">§</a>Use Cases</h3>
+<p>The Writer monad is particularly useful for:</p>
+<ul>
+<li><strong>Logging</strong>: Recording information about computation steps</li>
+<li><strong>Collecting Metrics</strong>: Gathering statistics during computation</li>
+<li><strong>Building Audit Trails</strong>: Tracking the history of operations</li>
+<li><strong>Accumulating Results</strong>: Collecting intermediate results alongside the main computation</li>
+</ul>
+<h3 id="requirements"><a class="doc-anchor" href="#requirements">§</a>Requirements</h3>
+<p>The log type <code>W</code> must implement the Monoid trait, which provides:</p>
+<ul>
+<li>An identity element (<code>empty</code>): The starting point for accumulation</li>
+<li>A binary operation (<code>combine</code>): How to combine two logs</li>
+</ul>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3><h4 id="basic-usage"><a class="doc-anchor" href="#basic-usage">§</a>Basic Usage</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::writer::Writer;
+<span class="kw">use </span>rustica::traits::monoid::Monoid;
+<span class="kw">use </span>rustica::traits::semigroup::Semigroup;
+
+<span class="comment">// Define a simple log type
+</span><span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Log(Vec&lt;String&gt;);
+
+<span class="kw">impl </span>Semigroup <span class="kw">for </span>Log {
+    <span class="kw">fn </span>combine(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>combined = <span class="self">self</span>.<span class="number">0</span>.clone();
+        combined.extend(other.<span class="number">0</span>.clone());
+        Log(combined)
+    }
+
+    <span class="kw">fn </span>combine_owned(<span class="self">self</span>, other: <span class="self">Self</span>) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>combined = <span class="self">self</span>.<span class="number">0</span>.clone();
+        combined.extend(other.<span class="number">0</span>.clone());
+        Log(combined)
+    }
+}
+
+<span class="kw">impl </span>Monoid <span class="kw">for </span>Log {
+    <span class="kw">fn </span>empty() -&gt; <span class="self">Self </span>{
+        Log(Vec::new())
+    }
+}
+
+<span class="comment">// Create a writer that produces a value with a log entry
+</span><span class="kw">let </span>writer = Writer::new(Log(<span class="macro">vec!</span>[<span class="string">"Computed value"</span>.to_string()]), <span class="number">42</span>);
+
+<span class="comment">// Extract both the value and the log
+</span><span class="kw">let </span>(log, value) = writer.run();
+<span class="macro">assert_eq!</span>(value, <span class="number">42</span>);
+<span class="macro">assert_eq!</span>(log, Log(<span class="macro">vec!</span>[<span class="string">"Computed value"</span>.to_string()]));</code></pre></div>
+<h4 id="iterator-example"><a class="doc-anchor" href="#iterator-example">§</a>Iterator Example</h4>
+<p>Iterating over a Writer yields its value once (if present), ignoring the log.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::writer::Writer;
+<span class="kw">use </span>rustica::traits::monoid::Monoid;
+<span class="kw">use </span>rustica::traits::semigroup::Semigroup;
+
+<span class="comment">// Define a simple log type
+</span><span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Log(String);
+
+<span class="kw">impl </span>Semigroup <span class="kw">for </span>Log {
+    <span class="kw">fn </span>combine(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="self">Self </span>{
+        Log(<span class="self">self</span>.<span class="number">0</span>.clone() + <span class="kw-2">&amp;</span>other.<span class="number">0</span>)
+    }
+
+    <span class="kw">fn </span>combine_owned(<span class="self">self</span>, other: <span class="self">Self</span>) -&gt; <span class="self">Self </span>{
+        Log(<span class="self">self</span>.<span class="number">0 </span>+ <span class="kw-2">&amp;</span>other.<span class="number">0</span>)
+    }
+}
+
+<span class="kw">impl </span>Monoid <span class="kw">for </span>Log {
+    <span class="kw">fn </span>empty() -&gt; <span class="self">Self </span>{
+        Log(String::new())
+    }
+}
+
+<span class="kw">let </span>writer = Writer::new(Log(<span class="string">"log"</span>.to_string()), <span class="number">42</span>);
+<span class="kw">let </span><span class="kw-2">mut </span>iter = writer.into_iter();
+<span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">Some</span>(<span class="number">42</span>));
+<span class="macro">assert_eq!</span>(iter.next(), <span class="prelude-val">None</span>);</code></pre></div>
+<h4 id="chaining-computations"><a class="doc-anchor" href="#chaining-computations">§</a>Chaining Computations</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::writer::Writer;
+<span class="kw">use </span>rustica::traits::monoid::Monoid;
+<span class="kw">use </span>rustica::traits::semigroup::Semigroup;
+<span class="kw">use </span>rustica::traits::monad::Monad;
+
+<span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Log(Vec&lt;String&gt;);
+
+<span class="kw">impl </span>Semigroup <span class="kw">for </span>Log {
+    <span class="kw">fn </span>combine(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>combined = <span class="self">self</span>.<span class="number">0</span>.clone();
+        combined.extend(other.<span class="number">0</span>.clone());
+        Log(combined)
+    }
+
+    <span class="kw">fn </span>combine_owned(<span class="self">self</span>, other: <span class="self">Self</span>) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>combined = <span class="self">self</span>.<span class="number">0</span>.clone();
+        combined.extend(other.<span class="number">0</span>.clone());
+        Log(combined)
+    }
+}
+
+<span class="kw">impl </span>Monoid <span class="kw">for </span>Log {
+    <span class="kw">fn </span>empty() -&gt; <span class="self">Self </span>{
+        Log(Vec::new())
+    }
+}
+
+<span class="comment">// Define a computation that doubles a number and logs the operation
+</span><span class="kw">let </span>double = |x: <span class="kw-2">&amp;</span>i32| -&gt; Writer&lt;Log, i32&gt; {
+    Writer::new(Log(<span class="macro">vec!</span>[<span class="macro">format!</span>(<span class="string">"Doubled {} to {}"</span>, x, x * <span class="number">2</span>)]), x * <span class="number">2</span>)
+};
+
+<span class="comment">// Define a computation that adds 10 to a number and logs the operation
+</span><span class="kw">let </span>add_ten = |x: <span class="kw-2">&amp;</span>i32| -&gt; Writer&lt;Log, i32&gt; {
+    Writer::new(Log(<span class="macro">vec!</span>[<span class="macro">format!</span>(<span class="string">"Added 10 to {} to get {}"</span>, x, x + <span class="number">10</span>)]), x + <span class="number">10</span>)
+};
+
+<span class="comment">// Chain the computations
+</span><span class="kw">let </span>computation = Writer::new(Log(<span class="macro">vec!</span>[<span class="string">"Starting with 5"</span>.to_string()]), <span class="number">5</span>);
+<span class="kw">let </span>result = computation.bind(<span class="kw-2">&amp;</span>double).bind(<span class="kw-2">&amp;</span>add_ten);
+
+<span class="comment">// Run the computation to get the final value and combined log
+</span><span class="kw">let </span>(log, value) = result.run();
+
+<span class="comment">// The value should be (5 * 2) + 10 = 20
+</span><span class="macro">assert_eq!</span>(value, <span class="number">20</span>);
+
+<span class="comment">// The log should contain entries from all three steps
+</span><span class="macro">assert_eq!</span>(log.<span class="number">0</span>.len(), <span class="number">3</span>);</code></pre></div>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Writer.html" title="struct rustica::datatypes::writer::Writer">Writer</a></dt><dd>The Writer monad represents computations that produce a value along with an accumulated log.</dd></dl></section></div></main></body></html>

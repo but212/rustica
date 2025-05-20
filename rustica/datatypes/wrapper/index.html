@@ -1,0 +1,78 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Wrapper types for working with semigroups and monoids."><title>rustica::datatypes::wrapper - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (60dabef95 2025-05-19)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module wrapper</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#wrapper-types" title="Wrapper Types">Wrapper Types</a><ul><li><a href="#purpose" title="Purpose">Purpose</a></li><li><a href="#available-wrapper-types" title="Available Wrapper Types">Available Wrapper Types</a></li><li><a href="#usage-patterns" title="Usage Patterns">Usage Patterns</a></li><li><a href="#when-to-use-wrapper-types" title="When to Use Wrapper Types">When to Use Wrapper Types</a></li><li><a href="#implementation-note" title="Implementation Note">Implementation Note</a></li></ul></li></ul><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>wrapper</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/wrapper/mod.rs.html#1-101">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Wrapper types for working with semigroups and monoids.</p>
+<h2 id="wrapper-types"><a class="doc-anchor" href="#wrapper-types">§</a>Wrapper Types</h2>
+<p>This module provides various wrapper types that implement functional programming patterns
+and algebraic structures. Wrappers enhance existing types with specific behaviors while
+preserving their original functionality.</p>
+<h3 id="purpose"><a class="doc-anchor" href="#purpose">§</a>Purpose</h3>
+<p>Wrapper types serve several important purposes in functional programming:</p>
+<ol>
+<li><strong>Algebraic Structures</strong>: Implement mathematical structures like monoids and semigroups</li>
+<li><strong>Type-Based Operations</strong>: Enable operations based on wrapped type (like Sum, Product)</li>
+<li><strong>Deferred Computation</strong>: Allow for lazy evaluation with types like Thunk</li>
+<li><strong>Context Addition</strong>: Add additional context or capabilities to basic types</li>
+</ol>
+<h3 id="available-wrapper-types"><a class="doc-anchor" href="#available-wrapper-types">§</a>Available Wrapper Types</h3><h4 id="semigroup-wrappers"><a class="doc-anchor" href="#semigroup-wrappers">§</a>Semigroup Wrappers</h4>
+<p>These wrappers implement the <code>Semigroup</code> trait with specific combine operations:</p>
+<ul>
+<li><code>Sum&lt;T&gt;</code>: Forms a semigroup under addition (T must support <code>Add</code>)</li>
+<li><code>Product&lt;T&gt;</code>: Forms a semigroup under multiplication (T must support <code>Mul</code>)</li>
+<li><code>Min&lt;T&gt;</code>: Forms a semigroup taking the minimum value (T must support <code>PartialOrd</code>)</li>
+<li><code>Max&lt;T&gt;</code>: Forms a semigroup taking the maximum value (T must support <code>PartialOrd</code>)</li>
+</ul>
+<h4 id="option-based-wrappers"><a class="doc-anchor" href="#option-based-wrappers">§</a>Option-Based Wrappers</h4>
+<p>These wrappers provide special handling for <code>Option</code> types:</p>
+<ul>
+<li><code>First&lt;T&gt;</code>: Takes the first <code>Some</code> value when combining multiple <code>Option&lt;T&gt;</code> values</li>
+<li><code>Last&lt;T&gt;</code>: Takes the last <code>Some</code> value when combining multiple <code>Option&lt;T&gt;</code> values</li>
+</ul>
+<h4 id="computation-wrappers"><a class="doc-anchor" href="#computation-wrappers">§</a>Computation Wrappers</h4>
+<p>These wrappers provide different ways to handle computations:</p>
+<ul>
+<li><code>Thunk&lt;T&gt;</code>: A lazy computation wrapper that evaluates only when needed</li>
+<li><code>Value&lt;T&gt;</code>: A simple wrapper implementing <code>Evaluate</code> for immediate values</li>
+<li><code>Memoize&lt;F&gt;</code>: Caches the result of a function for repeated calls</li>
+</ul>
+<h3 id="usage-patterns"><a class="doc-anchor" href="#usage-patterns">§</a>Usage Patterns</h3>
+<p>Wrapper types are typically used in these ways:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::wrapper::sum::Sum;
+<span class="kw">use </span>rustica::datatypes::wrapper::product::Product;
+<span class="kw">use </span>rustica::datatypes::wrapper::value::Value;
+<span class="kw">use </span>rustica::traits::{semigroup::Semigroup, evaluate::Evaluate};
+
+<span class="comment">// 1. Arithmetic with Sum/Product wrappers
+</span><span class="kw">let </span>sum1: Sum&lt;i32&gt; = Sum::new(<span class="number">5</span>);
+<span class="kw">let </span>sum2: Sum&lt;i32&gt; = Sum::new(<span class="number">7</span>);
+<span class="kw">let </span>combined = sum1.combine(<span class="kw-2">&amp;</span>sum2);
+<span class="macro">assert_eq!</span>(combined.inner(), <span class="number">12</span>); <span class="comment">// 5 + 7 = 12
+
+// 2. Combining multiple values into one
+</span><span class="kw">let </span>values = <span class="macro">vec!</span>[Sum::new(<span class="number">1</span>), Sum::new(<span class="number">2</span>), Sum::new(<span class="number">3</span>)];
+<span class="kw">let </span>sum: i32 = values.into_iter()
+    .fold(Sum::new(<span class="number">0</span>), |acc, x| acc.combine(<span class="kw-2">&amp;</span>x))
+    .inner();
+<span class="macro">assert_eq!</span>(sum, <span class="number">6</span>); <span class="comment">// 1 + 2 + 3 = 6
+
+// 3. Using Value for evaluation contexts
+</span><span class="kw">let </span>value: Value&lt;i32&gt; = Value::new(<span class="number">42</span>);
+<span class="kw">let </span>result: i32 = value.evaluate();
+<span class="macro">assert_eq!</span>(result, <span class="number">42</span>);</code></pre></div>
+<h3 id="when-to-use-wrapper-types"><a class="doc-anchor" href="#when-to-use-wrapper-types">§</a>When to Use Wrapper Types</h3>
+<ul>
+<li>Use <code>Sum</code>/<code>Product</code> when working with numeric collections that need to be combined</li>
+<li>Use <code>Min</code>/<code>Max</code> for finding extremes in collections</li>
+<li>Use <code>First</code>/<code>Last</code> when dealing with optional values that need to be combined with precedence rules</li>
+<li>Use <code>Thunk</code> when you need lazy evaluation</li>
+<li>Use <code>Value</code> when you need a simple evaluable container</li>
+<li>Use <code>Memoize</code> when you want to cache function results</li>
+</ul>
+<h3 id="implementation-note"><a class="doc-anchor" href="#implementation-note">§</a>Implementation Note</h3>
+<p>Most wrapper types follow a simple pattern:</p>
+<ol>
+<li>They store a single value of type T</li>
+<li>They implement relevant traits (Semigroup, Monoid, Functor, etc.)</li>
+<li>They provide methods to access the inner value</li>
+</ol>
+<p>This consistent interface makes it easy to understand and use these wrappers
+in your own code.</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="first/index.html" title="mod rustica::datatypes::wrapper::first">first</a></dt><dd>First</dd><dt><a class="mod" href="last/index.html" title="mod rustica::datatypes::wrapper::last">last</a></dt><dd>Last</dd><dt><a class="mod" href="max/index.html" title="mod rustica::datatypes::wrapper::max">max</a></dt><dd>Max</dd><dt><a class="mod" href="memoize/index.html" title="mod rustica::datatypes::wrapper::memoize">memoize</a></dt><dd>Memoize</dd><dt><a class="mod" href="memoizer/index.html" title="mod rustica::datatypes::wrapper::memoizer">memoizer</a></dt><dd>Thread-safe memoization utility for pure functions.</dd><dt><a class="mod" href="min/index.html" title="mod rustica::datatypes::wrapper::min">min</a></dt><dd>Min</dd><dt><a class="mod" href="predicate/index.html" title="mod rustica::datatypes::wrapper::predicate">predicate</a></dt><dd>Module: predicate</dd><dt><a class="mod" href="product/index.html" title="mod rustica::datatypes::wrapper::product">product</a></dt><dd>Product</dd><dt><a class="mod" href="sum/index.html" title="mod rustica::datatypes::wrapper::sum">sum</a></dt><dd>Sum Wrapper</dd><dt><a class="mod" href="thunk/index.html" title="mod rustica::datatypes::wrapper::thunk">thunk</a></dt><dd>A lightweight thunk that can be evaluated.</dd><dt><a class="mod" href="value/index.html" title="mod rustica::datatypes::wrapper::value">value</a></dt><dd>A simple value wrapper that can be evaluated.</dd></dl></section></div></main></body></html>
