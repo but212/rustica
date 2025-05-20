@@ -1,51 +1,64 @@
+# Cargo-deny configuration file
+# Settings for dependency graph
+[graph]
+# List of target platforms to support
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+]
+# Whether to activate all features
+all-features = true
+
+# Settings for security vulnerabilities and unmaintained crates check
+[advisories]
+# How to handle unmaintained crates (all, workspace, transitive, none)
+unmaintained = "none"
+# List of security vulnerabilities to ignore
+# [[advisories.ignore]]
+# id = "RUSTSEC-2020-0001"
+# reason = "reason"
+
+# License settings
 [licenses]
 # List of allowed licenses
 allow = [
     "MIT",
     "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "BSD-2-Clause",
-    "BSD-3-Clause",
-    "ISC",
-    "Zlib",
+    "Unicode-3.0",
     "Unlicense",
-    "CC0-1.0",
 ]
 
-# You can set exceptions for specific crates
-# [[licenses.ignore]]
-# name = "some-crate-name"
-# version = "*"
-# allow = ["some-license"]
+# License matching confidence threshold (0.0 ~ 1.0)
+confidence-threshold = 0.8
 
-# Security vulnerability check settings
-[advisories]
-# Action to take when a security vulnerability is found (deny, warn, allow)
-vulnerability = "deny"
-# Action to take when using versions with unfixed security vulnerabilities
-unmaintained = "warn"
-# Action to take when using versions with known vulnerabilities
-notice = "warn"
-# Security vulnerability database update interval (in days)
-update-include = ["github:rustsec/advisory-db"]
-
-# You can ignore specific security vulnerabilities
-# [[advisories.ignore]]
-# id = "RUSTSEC-2020-0001"
-# reason = "reason"
+# License exceptions for specific crates
+# [[licenses.clarify]]
+# name = "ring"
+# expression = "ISC AND MIT AND OpenSSL"
+# license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 # Dependency version policy settings
 [bans]
-# Whether to allow multiple versions of the same crate
+# Whether to allow multiple versions of the same crate (deny, warn, allow)
 multiple-versions = "warn"
-# Whether to allow unused dependencies
-unused-dependencies = "warn"
-# Add specific crates to the allowlist
+# Whether to allow wildcard versions (deny, warn, allow)
+wildcards = "warn"
+
+# List of specific crates to allow
 allow = [
     # { name = "some-crate", version = "=1.2.3" },
 ]
 
-# Add specific crates to the denylist
+# List of specific crates to ban
 # deny = [
 #     { name = "bad-crate", version = "*" },
+# ]
+
+# List of crates to skip (exclude from checks)
+# skip = [
+#     { name = "skipped-crate", version = "*" },
 # ]
