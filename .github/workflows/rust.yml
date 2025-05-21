@@ -14,6 +14,9 @@ env:
   RUSTFLAGS: "-D warnings"
   CARGO_INCREMENTAL: 0
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test Suite
@@ -26,6 +29,8 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       
       - name: Install Rust ${{ matrix.rust }}
         uses: dtolnay/rust-toolchain@master
@@ -58,6 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       
       - name: Extract MSRV
         id: msrv
@@ -65,7 +72,7 @@ jobs:
           # Extract version from package.metadata.msrv
           MSRV=$(grep -A 1 "\[package.metadata\]" Cargo.toml | grep -m 1 "msrv" | cut -d '"' -f 2)
           if [ -z "$MSRV" ]; then
-            MSRV="1.81.0"  # Fallback version
+            MSRV="1.81.0"
           fi
           echo "msrv=$MSRV" >> $GITHUB_OUTPUT
           echo "Using MSRV: $MSRV"
@@ -83,8 +90,12 @@ jobs:
   security:
     name: Security audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       
       - uses: taiki-e/install-action@v2
         with:
@@ -100,8 +111,12 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     needs: [test]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       
       - name: Install nightly toolchain
         uses: dtolnay/rust-toolchain@nightly
@@ -116,21 +131,36 @@ jobs:
       - name: Check for broken intra-doc links
         run: RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links" cargo +nightly doc --all-features --no-deps
       
+      - name: Verify docs directory exists
+        run: |
+          if [ ! -d "./target/doc" ]; then
+            echo "::error::Documentation build failed: target/doc directory not found"
+            exit 1
+          fi
+      
       - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main' && success()
+        uses: peaceiris/actions-gh-pages@v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/doc
-          force_orphan: true
+          force_orphan: false
+          keep_files: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'docs: update API documentation [skip ci]'
 
   publish:
     name: Publish to crates.io
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [test, msrv, security, docs]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -146,7 +176,12 @@ jobs:
       
       - name: Check changelog update
         run: |
+          CARGO_VERSION=$(grep -m 1 '^version =' Cargo.toml | cut -d'"' -f2)
           grep -q "$CARGO_VERSION" CHANGELOG.md || (echo "::error::No entry for version $CARGO_VERSION in CHANGELOG.md" && exit 1)
+      
+      - name: Add token mask
+        run: |
+          echo "::add-mask::${{ secrets.CARGO_REGISTRY_TOKEN }}"
       
       - name: Publish to crates.io
         uses: katyo/publish-crates@v2
@@ -159,8 +194,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [publish]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       
       - name: Get version from tag
         id: get_version
@@ -179,8 +218,14 @@ jobs:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -190,10 +235,21 @@ jobs:
       
       - uses: Swatinem/rust-cache@v2
       
+      - name: Check benchmark directory exists
+        run: |
+          mkdir -p target/criterion
+      
       - name: Run benchmarks
         run: |
           cargo install cargo-criterion
           cargo criterion --all-features --message-format=json | tee benchmark_results.json
+      
+      - name: Validate benchmark results
+        run: |
+          if [ ! -s benchmark_results.json ]; then
+            echo "::warning::Benchmark results are empty or failed to generate"
+            exit 1
+          fi
       
       - name: Upload benchmark results
         uses: benchmark-action/github-action-benchmark@v1
@@ -202,17 +258,24 @@ jobs:
           tool: 'cargo-criterion'
           output-file-path: benchmark_results.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
+          auto-push: false
           comment-on-alert: true
-          alert-threshold: '150%'
+          alert-threshold: '120%'
           fail-on-alert: true
-          alert-comment-cc-users: '@but212'
+          alert-comment-cc-users: '@but212,@security-team'
           external-data-json-path: 'target/criterion/**/*.json'
       
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Review benchmark results
+        run: |
+          echo "Benchmark results are available for review"
+          echo "Please check the results before publishing"
+      
+      - name: Publish benchmark results to GitHub Pages
+        if: success() && github.event_name != 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/criterion
           destination_dir: criterion
           keep_files: true
+          force_orphan: false
