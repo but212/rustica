@@ -1,0 +1,31 @@
+# Build artifacts
+/target/
+/dist/
+/build/
+
+# Documentation builds
+/docs/_site/
+/docs/.jekyll-cache/
+/docs/.sass-cache/
+
+# Dependencies
+/node_modules/
+
+# Generated files
+*.min.js
+*.min.css
+/docs/static.files/*.gz
+
+# Environment variables and secrets
+.env
+.env.local
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*~

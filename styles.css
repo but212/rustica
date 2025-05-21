@@ -21,7 +21,8 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+    sans-serif;
   line-height: 1.6;
   color: var(--text);
   background-color: var(--bg);
@@ -154,13 +155,13 @@ pre {
   padding: 1.5rem;
   background-color: var(--code-bg);
   overflow-x: auto;
-  font-family: 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+  font-family: "Fira Code", "Fira Mono", "Roboto Mono", monospace;
   font-size: 0.9rem;
   line-height: 1.6;
 }
 
 code {
-  font-family: 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+  font-family: "Fira Code", "Fira Mono", "Roboto Mono", monospace;
   font-size: 0.9em;
   background-color: var(--code-bg);
   padding: 0.2em 0.4em;
@@ -286,15 +287,15 @@ footer a:hover {
   header h1 {
     font-size: 2.25rem;
   }
-  
+
   .tagline {
     font-size: 1.1rem;
   }
-  
+
   .features-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .badge {
     font-size: 0.8rem;
     padding: 0.4rem 0.8rem;
@@ -302,24 +303,58 @@ footer a:hover {
 }
 
 /* Syntax Highlighting (basic) */
-.language-rust .keyword { color: #6f42c1; }
-.language-rust .type { color: #2c3e50; font-weight: bold; }
-.language-rust .string { color: #22863a; }
-.language-rust .number { color: #005cc5; }
-.language-rust .comment { color: #6a737d; font-style: italic; }
-.language-rust .macro { color: #6f42c1; font-weight: bold; }
-.language-rust .function { color: #6f42c1; }
-.language-rust .lifetime { color: #e36209; }
+.language-rust .keyword {
+  color: #6f42c1;
+}
+.language-rust .type {
+  color: #2c3e50;
+  font-weight: bold;
+}
+.language-rust .string {
+  color: #22863a;
+}
+.language-rust .number {
+  color: #005cc5;
+}
+.language-rust .comment {
+  color: #6a737d;
+  font-style: italic;
+}
+.language-rust .macro {
+  color: #6f42c1;
+  font-weight: bold;
+}
+.language-rust .function {
+  color: #6f42c1;
+}
+.language-rust .lifetime {
+  color: #e36209;
+}
 
-.language-toml .key { color: #6f42c1; }
-.language-toml .string { color: #22863a; }
-.language-toml .number { color: #005cc5; }
-.language-toml .comment { color: #6a737d; font-style: italic; }
+.language-toml .key {
+  color: #6f42c1;
+}
+.language-toml .string {
+  color: #22863a;
+}
+.language-toml .number {
+  color: #005cc5;
+}
+.language-toml .comment {
+  color: #6a737d;
+  font-style: italic;
+}
 
 /* Animation */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 section {
@@ -327,14 +362,30 @@ section {
 }
 
 /* Utility Classes */
-.hidden { display: none; }
-.text-center { text-align: center; }
-.mt-1 { margin-top: 0.5rem; }
-.mt-2 { margin-top: 1rem; }
-.mt-3 { margin-top: 1.5rem; }
-.mb-1 { margin-bottom: 0.5rem; }
-.mb-2 { margin-bottom: 1rem; }
-.mb-3 { margin-bottom: 1.5rem; }
+.hidden {
+  display: none;
+}
+.text-center {
+  text-align: center;
+}
+.mt-1 {
+  margin-top: 0.5rem;
+}
+.mt-2 {
+  margin-top: 1rem;
+}
+.mt-3 {
+  margin-top: 1.5rem;
+}
+.mb-1 {
+  margin-bottom: 0.5rem;
+}
+.mb-2 {
+  margin-bottom: 1rem;
+}
+.mb-3 {
+  margin-bottom: 1.5rem;
+}
 
 /* accessibility */
 .skip-link {

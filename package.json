@@ -1,0 +1,26 @@
+{
+  "name": "rustica-gh-pages",
+  "version": "1.0.0",
+  "description": "Rustica - A comprehensive functional programming library for Rust",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "biome lint",
+    "format": "biome format",
+    "lint:fix": "biome lint --fix",
+    "format:fix": "biome format --fix"
+  },
+  "keywords": ["rustica", "functional-programming", "rust", "monads", "documentation"],
+  "author": "Jeong-il Suk",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.11.0",
+  "dependencies": {
+    "lit": "^3.3.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "vite": "^6.3.5"
+  }
+}
