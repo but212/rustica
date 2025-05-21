@@ -16,9 +16,6 @@
   "author": "Jeong-il Suk",
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.11.0",
-  "dependencies": {
-    "lit": "^3.3.0"
-  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "vite": "^6.3.5"
