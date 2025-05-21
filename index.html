@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rustica - Functional Programming Library for Rust</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Rustica</h1>
+            <p class="tagline">A comprehensive functional programming library for Rust</p>
+            <div class="badges">
+                <a href="https://crates.io/crates/rustica" class="badge crates">
+                    <i class="fas fa-cube"></i> crates.io
+                </a>
+                <a href="https://docs.rs/rustica" class="badge docs">
+                    <i class="fas fa-book"></i> Documentation
+                </a>
+                <a href="LICENSE" class="badge license">
+                    <i class="fas fa-balance-scale"></i> Apache-2.0
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="intro">
+            <p>Rustica brings powerful abstractions from category theory and functional programming to the Rust ecosystem, providing a rich set of type classes, data types, and utilities commonly found in functional programming languages.</p>
+        </section>
+
+        <section class="getting-started">
+            <h2><i class="fas fa-rocket"></i> Getting Started</h2>
+            <p>Add Rustica to your <code>Cargo.toml</code>:</p>
+            <div class="code-block">
+                <pre><code class="language-toml">[dependencies]
+rustica = "0.7.1"</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">
+                    <i class="far fa-copy"></i>
+                </button>
+            </div>
+
+            <h3>Optional Features</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Async Support</h4>
+                    <div class="code-block">
+                        <pre><code class="language-toml">[dependencies]
+rustica = { version = "0.7.1", features = ["async"] }</code></pre>
+                        <button class="copy-btn" onclick="copyCode(this)">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <h4>Persistent Vectors</h4>
+                    <div class="code-block">
+                        <pre><code class="language-toml">[dependencies]
+rustica = { version = "0.7.1", features = ["pvec"] }</code></pre>
+                        <button class="copy-btn" onclick="copyCode(this)">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <p>Then import the prelude in your Rust code:</p>
+            <div class="code-block">
+                <pre><code class="language-rust">use rustica::prelude::*;</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">
+                    <i class="far fa-copy"></i>
+                </button>
+            </div>
+        </section>
+
+        <section class="features">
+            <h2><i class="fas fa-star"></i> Features</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shapes"></i>
+                    </div>
+                    <h3>Type Classes</h3>
+                    <ul>
+                        <li><code>Functor</code>, <code>Applicative</code>, <code>Monad</code></li>
+                        <li><code>Semigroup</code>, <code>Monoid</code></li>
+                        <li><code>Traversable</code>, <code>Foldable</code></li>
+                        <li><code>Bifunctor</code>, <code>Comonad</code></li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <h3>Data Types</h3>
+                    <ul>
+                        <li><code>Maybe&lt;T&gt;</code>, <code>Either&lt;L, R&gt;</code></li>
+                        <li><code>IO&lt;A&gt;</code>, <code>State&lt;S, A&gt;</code></li>
+                        <li><code>Reader&lt;E, A&gt;</code>, <code>Writer&lt;W, A&gt;</code></li>
+                        <li><code>Cont&lt;R, A&gt;</code>, <code>AsyncMonad&lt;A&gt;</code></li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <h3>Transformers</h3>
+                    <ul>
+                        <li><code>StateT&lt;S, M, A&gt;</code></li>
+                        <li><code>ReaderT&lt;E, M, A&gt;</code></li>
+                        <li><code>WriterT&lt;W, M, A&gt;</code></li>
+                        <li>Bidirectional conversion</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <h3>Optics</h3>
+                    <ul>
+                        <li><code>Lens</code> and <code>Prism</code></li>
+                        <li><code>IsoLens</code> and <code>IsoPrism</code></li>
+                        <li>Composable and type-safe</li>
+                        <li>Lawful implementations</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="example">
+            <h2><i class="fas fa-code"></i> Example: Identity Monad</h2>
+            <div class="code-block">
+                <pre><code class="language-rust">use rustica::prelude::*;
+use rustica::datatypes::id::Id;
+use rustica::traits::identity::Identity;
+
+// Create Id values
+let x = Id::new(5);
+let y = Id::new(3);
+let z = Id::new(2);
+
+// Access the inner value
+assert_eq!(*x.value(), 5);
+
+// Map over the value
+let doubled = x.fmap(|n| n * 2);
+assert_eq!(*doubled.value(), 10);
+
+// Chain computations
+let result = x.and_then(|a| 
+    y.and_then(move |b| 
+        z.fmap(move |c| a + b + c)
+    )
+);
+
+assert_eq!(*result.value(), 10); // 5 + 3 + 2</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">
+                    <i class="far fa-copy"></i>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p> 2025 Rustica - Functional Programming Library for Rust</p>
+            <p>Licensed under <a href="LICENSE">Apache License 2.0</a></p>
+        </div>
+    </footer>
+
+    <script>
+        function copyCode(button) {
+            const codeBlock = button.previousElementSibling;
+            const code = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const icon = button.querySelector('i');
+                const originalClass = icon.className;
+                
+                // Change to check icon
+                icon.className = 'fas fa-check';
+                
+                // Revert back after 2 seconds
+                setTimeout(() => {
+                    icon.className = originalClass;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy code: ', err);
+            });
+        }
+
+        // Add syntax highlighting
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('pre code').forEach((block) => {
+                // This would be replaced with a proper syntax highlighter
+                // like Prism.js or highlight.js in a real implementation
+                block.classList.add('language-rust');
+            });
+        });
+    </script>
+</body>
+</html>
