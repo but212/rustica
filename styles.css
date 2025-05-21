@@ -415,7 +415,8 @@ section {
   top: 0;
 }
 
-.visually-hidden, .sr-only {
+.visually-hidden,
+.sr-only {
   position: absolute !important;
   width: 1px !important;
   height: 1px !important;

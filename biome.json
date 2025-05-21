@@ -6,7 +6,17 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "error"
+      },
+      "performance": {
+        "recommended": true
+      },
+      "style": {
+        "useConst": "error",
+        "useTemplate": "error"
+      }
     }
   },
   "formatter": {
@@ -22,6 +32,6 @@
     }
   },
   "files": {
-    "ignore": ["docs/**/*"]
+    "ignore": ["docs/**/*", "node_modules/**/*", "dist/**/*"]
   }
 }
