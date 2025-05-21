@@ -3,30 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Rustica - A comprehensive functional programming library for Rust ecosystem">
+    <meta name="keywords" content="Rust, Functional Programming, Category Theory, Monad, Type Classes">
+    <meta name="author" content="Jeong-il Suk">
+    
+    <!-- Open Graph Metadata -->
+    <meta property="og:title" content="Rustica - Functional Programming Library for Rust">
+    <meta property="og:description" content="Powerful abstractions from category theory and functional programming for the Rust ecosystem">
+    <meta property="og:url" content="https://but212.github.io/rustica/">
+    <meta property="og:type" content="website">
+    
     <title>Rustica - Functional Programming Library for Rust</title>
+    
+    <!-- Resource Preloading -->
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" as="style">
+    
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
+    <a href="#main-content" class="skip-link visually-hidden">Skip to main content</a>
+    
     <header>
         <div class="container">
             <h1>Rustica</h1>
             <p class="tagline">A comprehensive functional programming library for Rust</p>
-            <div class="badges">
+            <nav class="badges" aria-label="Quick links">
                 <a href="https://crates.io/crates/rustica" class="badge crates">
-                    <i class="fas fa-cube"></i> crates.io
+                    <i class="fas fa-cube" aria-hidden="true"></i> crates.io
                 </a>
                 <a href="https://docs.rs/rustica" class="badge docs">
-                    <i class="fas fa-book"></i> Documentation
+                    <i class="fas fa-book" aria-hidden="true"></i> Documentation
                 </a>
                 <a href="LICENSE" class="badge license">
-                    <i class="fas fa-balance-scale"></i> Apache-2.0
+                    <i class="fas fa-balance-scale" aria-hidden="true"></i> Apache-2.0
                 </a>
-            </div>
+            </nav>
         </div>
     </header>
 
-    <main class="container">
+    <main id="main-content" class="container">
         <section class="intro">
             <h2>Introduction</h2>
             <p>Rustica brings powerful abstractions from category theory and functional programming to the Rust ecosystem, providing a rich set of type classes, data types, and utilities commonly found in functional programming languages.</p>
@@ -38,8 +55,8 @@
             <div class="code-block">
                 <pre><code class="language-toml">[dependencies]
 rustica = "0.7.1"</code></pre>
-                <button class="copy-btn" onclick="copyCode(this)">
-                    <i class="far fa-copy"></i>
+                <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code to clipboard">
+                    <i class="far fa-copy" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -50,8 +67,8 @@ rustica = "0.7.1"</code></pre>
                     <div class="code-block">
                         <pre><code class="language-toml">[dependencies]
 rustica = { version = "0.7.1", features = ["async"] }</code></pre>
-                        <button class="copy-btn" onclick="copyCode(this)">
-                            <i class="far fa-copy"></i>
+                        <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code to clipboard">
+                            <i class="far fa-copy" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -61,8 +78,8 @@ rustica = { version = "0.7.1", features = ["async"] }</code></pre>
                     <div class="code-block">
                         <pre><code class="language-toml">[dependencies]
 rustica = { version = "0.7.1", features = ["pvec"] }</code></pre>
-                        <button class="copy-btn" onclick="copyCode(this)">
-                            <i class="far fa-copy"></i>
+                        <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code to clipboard">
+                            <i class="far fa-copy" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -71,8 +88,8 @@ rustica = { version = "0.7.1", features = ["pvec"] }</code></pre>
             <p>Then import the prelude in your Rust code:</p>
             <div class="code-block">
                 <pre><code class="language-rust">use rustica::prelude::*;</code></pre>
-                <button class="copy-btn" onclick="copyCode(this)">
-                    <i class="far fa-copy"></i>
+                <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code to clipboard">
+                    <i class="far fa-copy" aria-hidden="true"></i>
                 </button>
             </div>
         </section>
@@ -136,9 +153,10 @@ rustica = { version = "0.7.1", features = ["pvec"] }</code></pre>
         </section>
 
         <section class="example">
-            <h2><i class="fas fa-code"></i> Example: Identity Monad</h2>
-            <div class="code-block">
-                <pre><code class="language-rust">use rustica::prelude::*;
+            <figure class="code-example">
+                <figcaption><h2><i class="fas fa-code" aria-hidden="true"></i> Example: Identity Monad</h2></figcaption>
+                <div class="code-block">
+                    <pre><code class="language-rust">use rustica::prelude::*;
 use rustica::datatypes::id::Id;
 use rustica::traits::identity::Identity;
 
@@ -162,10 +180,11 @@ let result = x.and_then(|a|
 );
 
 assert_eq!(*result.value(), 10); // 5 + 3 + 2</code></pre>
-                <button class="copy-btn" onclick="copyCode(this)">
-                    <i class="far fa-copy"></i>
-                </button>
-            </div>
+                    <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code to clipboard">
+                        <i class="far fa-copy" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </figure>
         </section>
     </main>
 
@@ -184,7 +203,7 @@ assert_eq!(*result.value(), 10); // 5 + 3 + 2</code></pre>
         </div>
     </footer>
 
-    <script>
+    <script defer>
         function copyCode(button) {
             const codeBlock = button.previousElementSibling;
             const code = codeBlock.textContent;
@@ -195,24 +214,24 @@ assert_eq!(*result.value(), 10); // 5 + 3 + 2</code></pre>
                 
                 // Change to check icon
                 icon.className = 'fas fa-check';
+                button.setAttribute('aria-label', 'Code copied!');
                 
                 // Revert back after 2 seconds
                 setTimeout(() => {
                     icon.className = originalClass;
+                    button.setAttribute('aria-label', 'Copy code to clipboard');
                 }, 2000);
             }).catch(err => {
                 console.error('Failed to copy code: ', err);
             });
         }
 
-        // Add syntax highlighting
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('pre code').forEach((block) => {
+        // Syntax highlighting is now using defer instead of DOMContentLoaded
+        document.querySelectorAll('pre code').forEach((block) => {
                 // This would be replaced with a proper syntax highlighter
                 // like Prism.js or highlight.js in a real implementation
                 block.classList.add('language-rust');
             });
-        });
     </script>
 </body>
 </html>
