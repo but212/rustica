@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["get","modify","put"],"struct":["State"]};

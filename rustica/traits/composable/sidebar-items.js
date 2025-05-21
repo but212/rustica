@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["apply_par_all","compose","compose_all","compose_async","compose_async_fn","compose_fallible","compose_filter","compose_iter_chain","compose_option","compose_option_result","compose_par","compose_par_chain","compose_par_filter","compose_when"],"trait":["Composable"]};

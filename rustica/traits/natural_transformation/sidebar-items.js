@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["identity_nat"],"trait":["NaturalTransformation"]};
