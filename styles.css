@@ -102,6 +102,10 @@ body {
   background-color: rgba(39, 174, 96, 0.9);
 }
 
+.badge.github {
+  background-color: rgba(36, 41, 46, 0.9);
+}
+
 /* Main Content */
 main {
   padding: 2rem 0;
