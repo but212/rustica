@@ -1,0 +1,69 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Monads with zero and plus operations."><title>rustica::traits::monad_plus - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (bc8215286 2025-05-20)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module monad_<wbr>plus</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#monadplus" title="MonadPlus">MonadPlus</a></li><li><a href="#laws" title="Laws">Laws</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#traits">Module Items</a></h3><ul class="block"><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>traits</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">traits</a></div><h1>Module <span>monad_plus</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/traits/monad_plus.rs.html#1-165">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Monads with zero and plus operations.</p>
+<h2 id="monadplus"><a class="doc-anchor" href="#monadplus">§</a>MonadPlus</h2>
+<p>The <code>MonadPlus</code> module provides a trait definition for monads that support
+choice operations, extending the basic Monad trait. It’s similar to Alternative
+in Haskell, but specifically for monads.</p>
+<p>MonadPlus adds two key operations:</p>
+<ul>
+<li><code>mzero</code>: A monad that represents failure or an empty computation</li>
+<li><code>mplus</code>: An operation to combine two monads of the same type</li>
+</ul>
+<h2 id="laws"><a class="doc-anchor" href="#laws">§</a>Laws</h2>
+<p>For a valid MonadPlus implementation, the following laws should hold:</p>
+<ol>
+<li>
+<p>Identity: <code>mzero().mplus(&amp;x) == x</code> and <code>x.mplus(&amp;mzero()) == x</code></p>
+<ul>
+<li>Zero is a neutral element for mplus</li>
+</ul>
+</li>
+<li>
+<p>Associativity: <code>a.mplus(&amp;b).mplus(&amp;c) == a.mplus(&amp;b.mplus(&amp;c))</code></p>
+<ul>
+<li>The mplus operation is associative</li>
+</ul>
+</li>
+<li>
+<p>Left Zero: <code>mzero().bind(f) == mzero()</code></p>
+<ul>
+<li>Zero is annihilator for bind</li>
+</ul>
+</li>
+<li>
+<p>Right Zero: <code>x.bind(|_| mzero()) == mzero()</code></p>
+<ul>
+<li>Zero is annihilator for bind in the other direction</li>
+</ul>
+</li>
+<li>
+<p>Left Distribution: <code>a.mplus(&amp;b).bind(f) == a.bind(f).mplus(&amp;b.bind(f))</code></p>
+<ul>
+<li>Bind distributes over mplus</li>
+</ul>
+</li>
+</ol>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::monad_plus::MonadPlus;
+<span class="kw">use </span>rustica::traits::monad::Monad;
+
+<span class="comment">// Option is a MonadPlus where None is mzero and mplus takes the first Some or None
+</span><span class="kw">let </span>opt1: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(<span class="number">42</span>);
+<span class="kw">let </span>opt2: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">None</span>;
+<span class="kw">let </span>opt3: <span class="prelude-ty">Option</span>&lt;i32&gt; = <span class="prelude-val">Some</span>(<span class="number">7</span>);
+
+<span class="comment">// Using mplus directly
+</span><span class="macro">assert_eq!</span>(<span class="prelude-ty">Option</span>::&lt;i32&gt;::mzero::&lt;i32&gt;(), <span class="prelude-val">None</span>);
+<span class="macro">assert_eq!</span>(opt1.mplus(<span class="kw-2">&amp;</span>opt2), <span class="prelude-val">Some</span>(<span class="number">42</span>));
+<span class="macro">assert_eq!</span>(opt2.mplus(<span class="kw-2">&amp;</span>opt3), <span class="prelude-val">Some</span>(<span class="number">7</span>));
+<span class="macro">assert_eq!</span>(opt2.mplus(<span class="kw-2">&amp;</span>opt2), <span class="prelude-val">None</span>);
+
+<span class="comment">// MonadPlus with bind (&gt;&gt;=)
+</span><span class="kw">let </span>result = opt1.bind(|x| {
+    <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">40 </span>{
+        <span class="prelude-ty">Option</span>::&lt;i32&gt;::mzero()
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Some</span>(x * <span class="number">2</span>)
+    }
+});
+<span class="macro">assert_eq!</span>(result, <span class="prelude-val">None</span>);</code></pre></div>
+</div></details><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.MonadPlus.html" title="trait rustica::traits::monad_plus::MonadPlus">Monad<wbr>Plus</a></dt><dd>A trait for monads that can represent a choice between multiple values.</dd></dl></section></div></main></body></html>

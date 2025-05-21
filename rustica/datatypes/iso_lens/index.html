@@ -1,0 +1,115 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="IsoLens implementation for focusing on parts of product types."><title>rustica::datatypes::iso_lens - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (bc8215286 2025-05-20)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module iso_<wbr>lens</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#isolens-iso-based-lens-optic" title="IsoLens: Iso-based Lens Optic">IsoLens: Iso-based Lens Optic</a><ul><li><a href="#core-idea" title="Core Idea">Core Idea</a></li><li><a href="#use-cases" title="Use Cases">Use Cases</a></li><li><a href="#example" title="Example">Example</a></li><li><a href="#advanced-example-nested-and-collection-structures" title="Advanced Example: Nested and Collection Structures">Advanced Example: Nested and Collection Structures</a></li><li><a href="#notes" title="Notes">Notes</a></li></ul></li><li><a href="#iso-based-lens" title="Iso-based Lens">Iso-based Lens</a><ul><li><a href="#core-idea-1" title="Core Idea">Core Idea</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>iso_lens</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/iso_lens.rs.html#1-496">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>IsoLens implementation for focusing on parts of product types.</p>
+<h2 id="isolens-iso-based-lens-optic"><a class="doc-anchor" href="#isolens-iso-based-lens-optic">§</a>IsoLens: Iso-based Lens Optic</h2>
+<p>This module provides an optic (IsoLens) that generalizes the concept of a Lens using the Iso abstraction.</p>
+<h3 id="core-idea"><a class="doc-anchor" href="#core-idea">§</a>Core Idea</h3>
+<ul>
+<li>An IsoLens is a lens built from an isomorphism (Iso) between a structure and a pair of (focused part, structure).</li>
+<li>All getter/setter logic is expressed using Iso’s <code>forward</code> and <code>backward</code> methods, ensuring bidirectional, type-safe, and immutable updates.</li>
+</ul>
+<h3 id="use-cases"><a class="doc-anchor" href="#use-cases">§</a>Use Cases</h3>
+<ul>
+<li>Accessing and updating nested fields in complex immutable data structures</li>
+<li>Building composable and reusable accessors for deeply nested types</li>
+<li>Adapting optics to types where you have a natural isomorphism (e.g., tuple wrappers, newtypes)</li>
+</ul>
+<h3 id="example"><a class="doc-anchor" href="#example">§</a>Example</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::iso_lens::IsoLens;
+<span class="kw">use </span>rustica::traits::iso::Iso;
+
+<span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Address { street: String, city: String }
+<span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Person { name: String, address: Address }
+
+<span class="kw">struct </span>AddressIso;
+<span class="kw">impl </span>Iso&lt;Person, (Address, Person)&gt; <span class="kw">for </span>AddressIso {
+    <span class="kw">type </span>From = Person;
+    <span class="kw">type </span>To = (Address, Person);
+    <span class="kw">fn </span>forward(<span class="kw-2">&amp;</span><span class="self">self</span>, from: <span class="kw-2">&amp;</span>Person) -&gt; (Address, Person) {
+        (from.address.clone(), from.clone())
+    }
+    <span class="kw">fn </span>backward(<span class="kw-2">&amp;</span><span class="self">self</span>, to: <span class="kw-2">&amp;</span>(Address, Person)) -&gt; Person {
+        <span class="kw">let </span><span class="kw-2">mut </span>p = to.<span class="number">1</span>.clone();
+        p.address = to.<span class="number">0</span>.clone();
+        p
+    }
+}
+
+<span class="kw">let </span>lens = IsoLens::new(AddressIso);
+<span class="kw">let </span>p = Person {
+    name: <span class="string">"Alice"</span>.to_string(),
+    address: Address { street: <span class="string">"Main St"</span>.to_string(), city: <span class="string">"Springfield"</span>.to_string() },
+};
+<span class="comment">// Get the address
+</span><span class="kw">let </span>addr = lens.get(<span class="kw-2">&amp;</span>p);
+<span class="macro">assert_eq!</span>(addr.<span class="number">0</span>.street, <span class="string">"Main St"</span>);
+<span class="comment">// Update the address
+</span><span class="kw">let </span>updated = lens.set(<span class="kw-2">&amp;</span>p, <span class="kw-2">&amp;</span>(Address { street: <span class="string">"Oak Ave"</span>.to_string(), city: <span class="string">"Springfield"</span>.to_string() }, p.clone()));
+<span class="macro">assert_eq!</span>(updated.address.street, <span class="string">"Oak Ave"</span>);</code></pre></div>
+<h3 id="advanced-example-nested-and-collection-structures"><a class="doc-anchor" href="#advanced-example-nested-and-collection-structures">§</a>Advanced Example: Nested and Collection Structures</h3>
+<p>This example demonstrates how IsoLens can be used for nested structures and collections.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::iso_lens::IsoLens;
+<span class="kw">use </span>rustica::traits::iso::Iso;
+
+<span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Address { street: String, city: String }
+<span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Person { name: String, address: Address, tags: Vec&lt;String&gt; }
+<span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Team { name: String, members: Vec&lt;Person&gt; }
+
+<span class="kw">struct </span>AddressIso;
+<span class="kw">impl </span>Iso&lt;Person, (Address, Person)&gt; <span class="kw">for </span>AddressIso {
+    <span class="kw">type </span>From = Person;
+    <span class="kw">type </span>To = (Address, Person);
+    <span class="kw">fn </span>forward(<span class="kw-2">&amp;</span><span class="self">self</span>, from: <span class="kw-2">&amp;</span>Person) -&gt; (Address, Person) {
+        (from.address.clone(), from.clone())
+    }
+    <span class="kw">fn </span>backward(<span class="kw-2">&amp;</span><span class="self">self</span>, to: <span class="kw-2">&amp;</span>(Address, Person)) -&gt; Person {
+        <span class="kw">let </span><span class="kw-2">mut </span>p = to.<span class="number">1</span>.clone();
+        p.address = to.<span class="number">0</span>.clone();
+        p
+    }
+}
+
+<span class="kw">struct </span>MembersIso;
+<span class="kw">impl </span>Iso&lt;Team, (Vec&lt;Person&gt;, Team)&gt; <span class="kw">for </span>MembersIso {
+    <span class="kw">type </span>From = Team;
+    <span class="kw">type </span>To = (Vec&lt;Person&gt;, Team);
+    <span class="kw">fn </span>forward(<span class="kw-2">&amp;</span><span class="self">self</span>, from: <span class="kw-2">&amp;</span>Team) -&gt; (Vec&lt;Person&gt;, Team) {
+        (from.members.clone(), from.clone())
+    }
+    <span class="kw">fn </span>backward(<span class="kw-2">&amp;</span><span class="self">self</span>, to: <span class="kw-2">&amp;</span>(Vec&lt;Person&gt;, Team)) -&gt; Team {
+        <span class="kw">let </span><span class="kw-2">mut </span>t = to.<span class="number">1</span>.clone();
+        t.members = to.<span class="number">0</span>.clone();
+        t
+    }
+}
+
+<span class="kw">let </span>team = Team {
+    name: <span class="string">"Alpha"</span>.to_string(),
+    members: <span class="macro">vec!</span>[Person {
+        name: <span class="string">"Alice"</span>.to_string(),
+        address: Address { street: <span class="string">"Main"</span>.to_string(), city: <span class="string">"Spring"</span>.to_string() },
+        tags: <span class="macro">vec!</span>[<span class="string">"dev"</span>.to_string()]
+    }]
+};
+<span class="kw">let </span>members_lens = IsoLens::new(MembersIso);
+<span class="kw">let </span>first_member = members_lens.get(<span class="kw-2">&amp;</span>team).<span class="number">0</span>[<span class="number">0</span>].clone();
+<span class="macro">assert_eq!</span>(first_member.name, <span class="string">"Alice"</span>);</code></pre></div>
+<h3 id="notes"><a class="doc-anchor" href="#notes">§</a>Notes</h3>
+<ul>
+<li>IsoLens is especially useful for newtypes, tuple structs, and cases where you want to abstract over structural transformations.</li>
+<li>For most everyday lens use-cases, the classic <code>Lens</code> may be simpler; use IsoLens when you want to leverage isomorphisms or need advanced optics composition.</li>
+</ul>
+<p>See also: <a href="../lens/index.html" title="mod rustica::datatypes::lens"><code>crate::datatypes::lens</code></a>, <a href="../../traits/iso/trait.Iso.html" title="trait rustica::traits::iso::Iso"><code>crate::traits::iso::Iso</code></a></p>
+<h2 id="iso-based-lens"><a class="doc-anchor" href="#iso-based-lens">§</a>Iso-based Lens</h2>
+<p>This module provides a Lens optic based on the Iso abstraction.
+A Lens is an optic that allows safe and functional access/modification of a field within a structure.</p>
+<h3 id="core-idea-1"><a class="doc-anchor" href="#core-idea-1">§</a>Core Idea</h3>
+<ul>
+<li>A Lens can be generalized as an Iso of the form S &lt;-&gt; (A, S)</li>
+<li>getter/setter functions are wrapped as Iso’s forward/backward operations</li>
+</ul>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.IsoLens.html" title="struct rustica::datatypes::iso_lens::IsoLens">IsoLens</a></dt><dd>Iso-based Lens optic.</dd><dt><a class="struct" href="struct.PairIso.html" title="struct rustica::datatypes::iso_lens::PairIso">PairIso</a></dt><dd>Helper Iso that converts between A &lt;-&gt; (B, S)</dd></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.ComposedIsoLens.html" title="type rustica::datatypes::iso_lens::ComposedIsoLens">Composed<wbr>IsoLens</a></dt><dd>Type alias for composed lens type</dd></dl></section></div></main></body></html>

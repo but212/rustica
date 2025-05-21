@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Lens implementation for focusing on parts of product types. Lens is a functional programming concept for accessing and modifying parts of immutable data structures."><title>rustica::datatypes::lens - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (bc8215286 2025-05-20)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module lens</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#key-features" title="Key Features">Key Features</a></li><li><a href="#common-use-cases" title="Common Use Cases">Common Use Cases</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>datatypes</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">datatypes</a></div><h1>Module <span>lens</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/datatypes/lens.rs.html#1-486">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Lens implementation for focusing on parts of product types.
+Lens is a functional programming concept for accessing and modifying parts of immutable data structures.</p>
+<p>A lens provides a way to:</p>
+<ul>
+<li>View a part of a larger data structure</li>
+<li>Update that part while preserving the rest of the structure</li>
+<li>Transform the focused part using functions</li>
+</ul>
+<h2 id="key-features"><a class="doc-anchor" href="#key-features">§</a>Key Features</h2>
+<ul>
+<li><strong>Immutable Updates</strong>: All operations create new instances instead of modifying in place</li>
+<li><strong>Composable</strong>: Lenses can be combined to focus on nested structures</li>
+<li><strong>Type-safe</strong>: The compiler ensures that updates maintain type consistency</li>
+</ul>
+<h2 id="common-use-cases"><a class="doc-anchor" href="#common-use-cases">§</a>Common Use Cases</h2>
+<ul>
+<li>Accessing and updating nested fields in complex data structures</li>
+<li>Modifying specific elements in collections</li>
+<li>Creating reusable accessors for data structures</li>
+</ul>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::datatypes::lens::Lens;
+<span class="kw">use </span>std::rc::Rc;
+
+<span class="comment">// A nested data structure
+</span><span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Address {
+    street: String,
+    city: String,
+}
+
+<span class="attr">#[derive(Clone, Debug, PartialEq)]
+</span><span class="kw">struct </span>Person {
+    name: String,
+    address: Rc&lt;Address&gt;, <span class="comment">// Using Rc for structural sharing
+</span>}
+
+<span class="comment">// Create lenses for accessing nested fields
+</span><span class="kw">let </span>address_lens = Lens::new(
+    |p: <span class="kw-2">&amp;</span>Person| p.address.as_ref().clone(),
+    |p: Person, addr: Address| Person {
+        address: Rc::new(addr),
+        ..p
+    },
+);
+
+<span class="kw">let </span>street_lens = Lens::new(
+    |a: <span class="kw-2">&amp;</span>Address| a.street.clone(),
+    |a: Address, s: String| Address { street: s, ..a },
+);
+
+<span class="comment">// Create initial data
+</span><span class="kw">let </span>person = Person {
+    name: <span class="string">"Alice"</span>.to_string(),
+    address: Rc::new(Address {
+        street: <span class="string">"123 Main St"</span>.to_string(),
+        city: <span class="string">"Springfield"</span>.to_string(),
+    }),
+};
+
+<span class="comment">// Update nested field - this will create new structures
+</span><span class="kw">let </span>updated = address_lens.modify(person.clone(), |addr| {
+    street_lens.set(addr, <span class="string">"456 Oak Ave"</span>.to_string())
+});
+
+<span class="macro">assert_eq!</span>(updated.address.street, <span class="string">"456 Oak Ave"</span>);
+<span class="macro">assert_eq!</span>(updated.address.city, <span class="string">"Springfield"</span>);
+
+<span class="comment">// Demonstrate structural sharing when no actual change is made
+</span><span class="kw">let </span>unchanged = address_lens.modify(person.clone(), |addr| {
+    street_lens.set(addr, <span class="string">"123 Main St"</span>.to_string()) <span class="comment">// Same value as before
+</span>});
+
+<span class="comment">// Verify it's the same object (structural sharing)
+</span><span class="macro">assert!</span>(Rc::ptr_eq(<span class="kw-2">&amp;</span>person.address, <span class="kw-2">&amp;</span>unchanged.address));</code></pre></div>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Lens.html" title="struct rustica::datatypes::lens::Lens">Lens</a></dt><dd>A lens is a first-class reference to a subpart of some data type.
+It provides a way to view, modify and transform a part of a larger structure.</dd></dl></section></div></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["either_to_result","error","error_with_context","result_to_either","sequence","sequence_with_error","traverse","traverse_validated"],"struct":["AppError"],"trait":["ResultExt","WithError"]};
