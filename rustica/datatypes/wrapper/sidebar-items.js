@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["first","last","max","memoize","memoizer","min","predicate","product","sum","thunk","value"]};

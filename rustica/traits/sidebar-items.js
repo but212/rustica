@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["alternative","applicative","arrow","bifunctor","category","comonad","composable","contravariant_functor","distributive","divisible","evaluate","foldable","functor","hkt","identity","iso","monad","monad_error","monad_plus","monoid","natural_transformation","profunctor","pure","representable","semigroup","traversable"]};

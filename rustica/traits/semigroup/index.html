@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Combinable types without identity elements."><title>rustica::traits::semigroup - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-0ce1a80b.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0-nightly (bc8215286 2025-05-20)" data-channel="nightly" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../rustica/index.html">rustica</a><span class="version">0.7.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module semigroup</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#semigroup" title="Semigroup">Semigroup</a><ul><li><a href="#todo-future-improvements" title="TODO: Future Improvements">TODO: Future Improvements</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In rustica::<wbr>traits</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">rustica</a>::<wbr><a href="../index.html">traits</a></div><h1>Module <span>semigroup</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/rustica/traits/semigroup.rs.html#1-555">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Combinable types without identity elements.</p>
+<h2 id="semigroup"><a class="doc-anchor" href="#semigroup">§</a>Semigroup</h2>
+<p>This module provides the <code>Semigroup</code> trait which represents an associative binary operation.</p>
+<p>In abstract algebra, a semigroup is an algebraic structure consisting of a set together
+with an associative binary operation. The binary operation combines two elements from the set
+to produce another element from the same set.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>rustica::traits::semigroup::Semigroup;
+<span class="kw">use </span>rustica::datatypes::wrapper::{
+product::Product,
+    sum::Sum
+};
+
+<span class="comment">// Using the Sum wrapper for addition
+</span><span class="kw">let </span>a = Sum(<span class="number">5</span>);
+<span class="kw">let </span>b = Sum(<span class="number">10</span>);
+<span class="kw">let </span>combined = a.combine(<span class="kw-2">&amp;</span>b);
+<span class="macro">assert_eq!</span>(combined, Sum(<span class="number">15</span>));
+
+<span class="comment">// Using the Product wrapper for multiplication
+</span><span class="kw">let </span>x = Product(<span class="number">2</span>);
+<span class="kw">let </span>y = Product(<span class="number">3</span>);
+<span class="kw">let </span>multiplied = x.combine(<span class="kw-2">&amp;</span>y);
+<span class="macro">assert_eq!</span>(multiplied, Product(<span class="number">6</span>));</code></pre></div>
+<h3 id="todo-future-improvements"><a class="doc-anchor" href="#todo-future-improvements">§</a>TODO: Future Improvements</h3>
+<ul>
+<li><strong>Additional Implementations</strong>: Add implementations for more numeric types and custom containers</li>
+<li><strong>Performance Optimization</strong>: Add benchmarks for combine operations and optimize hot paths</li>
+<li><strong>Composition Operations</strong>: Add tools for composing and transforming semigroups</li>
+<li><strong>Generic Operators</strong>: Support operator overloading for more ergonomic usage</li>
+<li><strong>SemigroupExt Enhancements</strong>: Add more utility methods to the extension trait</li>
+<li><strong>Advanced Examples</strong>: Add comprehensive examples showing practical applications</li>
+<li><strong>Property Testing</strong>: Implement property-based tests for semigroup laws</li>
+<li><strong>Concurrent Combining</strong>: Support combining values concurrently for large collections</li>
+</ul>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.SemigroupExtAdapter.html" title="struct rustica::traits::semigroup::SemigroupExtAdapter">Semigroup<wbr>ExtAdapter</a></dt><dd>Adapter struct to provide extension methods for semigroups.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.Semigroup.html" title="trait rustica::traits::semigroup::Semigroup">Semigroup</a></dt><dd>A trait for semigroups, which are algebraic structures with an associative binary operation.
+A semigroup consists of a set together with a binary operation that combines two elements
+of the set to yield a third element of the set, and the operation must be associative.</dd><dt><a class="trait" href="trait.SemigroupExt.html" title="trait rustica::traits::semigroup::SemigroupExt">Semigroup<wbr>Ext</a></dt><dd>Extension methods for semigroups, providing additional functionality.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.combine_all_values.html" title="fn rustica::traits::semigroup::combine_all_values">combine_<wbr>all_<wbr>values</a></dt><dd>Combines a sequence of semigroup values into a single result.</dd><dt><a class="fn" href="fn.combine_values.html" title="fn rustica::traits::semigroup::combine_values">combine_<wbr>values</a></dt><dd>Combines a sequence of semigroup values, starting with an initial value.</dd></dl></section></div></main></body></html>
