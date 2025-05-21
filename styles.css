@@ -36,7 +36,7 @@ body {
 }
 
 /* Header Styles */
-header {
+.site-header {
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
   padding: 3rem 0;
@@ -45,24 +45,24 @@ header {
   text-align: center;
 }
 
-header h1 {
+.site-header .site-title {
   font-size: 3rem;
   margin-bottom: 0.5rem;
   font-weight: 700;
 }
 
-.tagline {
-  font-size: 1.25rem;
-  opacity: 0.9;
-  margin-bottom: 1.5rem;
+.quick-links {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
 }
 
-.badges {
+.badges-list {
   display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
   justify-content: center;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
 }
 
 .badge {
@@ -111,6 +111,12 @@ section {
   margin-bottom: 3rem;
 }
 
+h2.site-tagline {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
 h2 {
   font-size: 2rem;
   margin-bottom: 1.5rem;
@@ -142,10 +148,11 @@ p {
 }
 
 /* Code Blocks */
-.code-block {
+figure.code-block {
   position: relative;
-  margin: 1.5rem 0;
+  background-color: var(--code-bg);
   border-radius: var(--radius);
+  margin: 1.5rem 0;
   overflow: hidden;
   box-shadow: var(--shadow);
 }
@@ -201,9 +208,9 @@ code {
   margin: 2rem 0;
 }
 
-.feature-card {
-  background: white;
-  border: 1px solid var(--border);
+article.feature-card {
+  background-color: var(--bg);
+  box-shadow: var(--shadow);
   border-radius: var(--radius);
   padding: 1.5rem;
   transition: var(--transition);
@@ -251,10 +258,11 @@ code {
 }
 
 /* Footer */
-footer {
-  background-color: var(--bg-alt);
+.site-footer {
+  background-color: var(--primary);
+  color: white;
   padding: 2rem 0;
-  margin-top: 3rem;
+  margin-top: 4rem;
   border-top: 1px solid var(--border);
   text-align: center;
   color: var(--text-light);
@@ -284,7 +292,7 @@ footer a:hover {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  header h1 {
+  .site-header .site-title {
     font-size: 2.25rem;
   }
 
@@ -403,13 +411,14 @@ section {
   top: 0;
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
+.visually-hidden, .sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
