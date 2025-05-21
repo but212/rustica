@@ -144,6 +144,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./target/doc
+          destination_dir: docs
           force_orphan: false
           keep_files: true
           user_name: 'github-actions[bot]'
@@ -242,11 +243,16 @@ jobs:
       - name: Run benchmarks
         run: |
           cargo install cargo-criterion
-          cargo criterion --all-features --message-format=json | tee benchmark_results.json
+          cargo criterion --all-features --message-format=json > benchmark_raw_results.json
+          cat benchmark_raw_results.json | jq -r '.[] | select(.reason == "benchmark-complete") | {
+            "name": .id,
+            "value": .median,
+            "unit": "ns/iter"
+          }' > formatted_benchmark_results.json
       
       - name: Validate benchmark results
         run: |
-          if [ ! -s benchmark_results.json ]; then
+          if [ ! -s formatted_benchmark_results.json ]; then
             echo "::warning::Benchmark results are empty or failed to generate"
             exit 1
           fi
@@ -255,8 +261,8 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmarks
-          tool: 'cargo-criterion'
-          output-file-path: benchmark_results.json
+          tool: 'customSmallerIsBetter'
+          output-file-path: formatted_benchmark_results.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: false
           comment-on-alert: true
