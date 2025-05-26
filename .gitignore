@@ -21,6 +21,8 @@ Cargo.lock
 *.bak
 *.tmp
 
+/node_modules
+
 # 로그 파일들
 *.log
 
