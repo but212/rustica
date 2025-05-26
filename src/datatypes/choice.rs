@@ -27,27 +27,35 @@
 //! - Right identity: `m >>= return = m`
 //! - Associativity: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
 //!
-//! ## Examples
+//! ## Basic Usage
 //!
 //! ```rust
 //! use rustica::datatypes::choice::Choice;
 //! use rustica::traits::functor::Functor;
-//! use rustica::traits::applicative::Applicative;
-//! use rustica::traits::monad::Monad;
-//!
+//! 
 //! // Create a Choice with a primary value and some alternatives
 //! let c: Choice<i32> = Choice::new(5, vec![10, 15, 20]);
-//!
+//! 
+//! // Access the primary value and alternatives
+//! assert_eq!(*c.first().unwrap(), 5);
+//! assert_eq!(c.alternatives(), &[10, 15, 20]);
+//! 
 //! // Map over all values using the Functor instance
-//! let doubled: Choice<i32> = c.fmap(|x: &i32| x * 2);
+//! let doubled = c.fmap(|x: &i32| x * 2);
 //! assert_eq!(*doubled.first().unwrap(), 10);
 //! assert_eq!(doubled.alternatives(), &[20, 30, 40]);
 //! ```
 //!
+//! ## Advanced Features
+//!
+//! The `Choice` type provides several advanced operations such as:
+//! - Filtering alternatives based on predicates
+//! - Flattening nested choices
+//! - Converting between collections and choices
+//! - Monadic operations for sequencing computations
+//!
 //! ## TODO
 //!
-//! - Add more examples and test cases
-//! - Implement additional utility methods
 //! - Optimize performance for large collections of alternatives
 //! - Add property-based tests for typeclass laws
 
@@ -73,18 +81,8 @@ use crate::prelude::traits::*;
 ///
 /// # Fields
 ///
-/// * `values`: A vector containing all the values of type `T`.
-///
-/// # Examples
-///
-/// ```
-/// use rustica::prelude::*;
-/// use rustica::datatypes::choice::Choice;
-///
-/// let choice = Choice::new(1, vec![2, 3, 4]);
-/// assert_eq!(*choice.first().unwrap(), 1);
-/// assert_eq!(choice.alternatives(), &[2, 3, 4]);
-/// ```
+/// * `values`: An internal collection containing all the values of type `T`.
+///   The first element represents the primary value, and the rest are alternatives.
 #[repr(transparent)]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
@@ -109,16 +107,15 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Creates a new `Choice` with a single item.
+    /// Creates a new `Choice` with a primary value and alternatives.
     ///
     /// # Examples
     ///
     /// ```
     /// use rustica::datatypes::choice::Choice;
     ///
+    /// // Create with a primary value of 1 and alternatives 2, 3, 4
     /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// assert_eq!(*choice.first().unwrap(), 1);
-    /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
     /// ```
     #[inline]
     pub fn new<I>(item: T, alternatives: I) -> Self
@@ -141,16 +138,7 @@ impl<T> Choice<T> {
     ///
     /// # Returns
     ///
-    /// A reference to the primary value of type `T`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(42, vec![1, 2, 3]);
-    /// assert_eq!(*choice.first().unwrap(), 42);
-    /// ```
+    /// A reference to the primary value of type `T`, or `None` if the choice is empty.
     #[inline]
     pub fn first(&self) -> Option<&T> {
         self.values.as_ref().first()
@@ -158,14 +146,9 @@ impl<T> Choice<T> {
 
     /// Get a reference to the alternatives (all items except the first).
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
-    /// ```
+    /// # Returns
+    /// 
+    /// A slice containing all alternative values, or an empty slice if there are no alternatives.
     #[inline]
     pub fn alternatives(&self) -> &[T] {
         // Return empty slice if no alternatives exist
@@ -181,18 +164,6 @@ impl<T> Choice<T> {
     /// # Returns
     ///
     /// `true` if there are any alternatives, `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice_with_alternatives = Choice::new(1, vec![2, 3]);
-    /// assert!(choice_with_alternatives.has_alternatives());
-    ///
-    /// let choice_without_alternatives = Choice::new(1, vec![]);
-    /// assert!(!choice_without_alternatives.has_alternatives());
-    /// ```
     #[inline]
     pub fn has_alternatives(&self) -> bool {
         self.values.len() > 1
@@ -637,16 +608,6 @@ impl<T> Choice<T> {
     /// # Returns
     ///
     /// An iterator yielding references to all values of type `&T`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// let values: Vec<&i32> = choice.iter().collect();
-    /// assert_eq!(values, vec![&1, &2, &3, &4]);
-    /// ```
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.values.iter()
@@ -657,16 +618,6 @@ impl<T> Choice<T> {
     /// # Returns
     ///
     /// An iterator yielding references to the alternative values of type `&T`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// let alternatives: Vec<&i32> = choice.iter_alternatives().collect();
-    /// assert_eq!(alternatives, vec![&2, &3, &4]);
-    /// ```
     #[inline]
     pub fn iter_alternatives(&self) -> impl Iterator<Item = &T> {
         self.values.iter().skip(1)

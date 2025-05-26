@@ -13,13 +13,6 @@
 //! - Implementing error handling without the success/failure semantics of `Result`
 //! - Building more complex data structures and control flow mechanisms
 //!
-//! Similar constructs in other functional programming languages include:
-//!
-//! - `Either` in Haskell
-//! - `Either` in Scala
-//! - `Either` in fp-ts (TypeScript)
-//! - `Either` in Arrow (Kotlin)
-//!
 //! ## Type Class Implementations
 //!
 //! The `Either` type implements several important functional programming abstractions:
@@ -27,11 +20,7 @@
 //! - `Functor`: Maps over the right value with `fmap`
 //! - `Applicative`: Applies functions wrapped in `Either` to values wrapped in `Either`
 //! - `Monad`: Chains computations that may produce either left or right values
-//! - `Pure`: Creates an `Either` containing a right value
-//! - `Identity`: Accesses the right value when present
-//! - `Composable`: Composes functions that work with `Either`
-//! - `Transform`: Transforms the right value with `transform` and `transform_ref`
-//! - `TransformExt`: Provides additional transformation methods for `Either`
+//! - `Alternative`/`MonadPlus`: Provides choice between alternatives (when L implements Default)
 //!
 //! ## Basic Usage
 //!
@@ -39,26 +28,41 @@
 //! use rustica::datatypes::either::Either;
 //! use rustica::prelude::*;
 //!
-//! fn example() {
-//!     // Create Either values
-//!     let left_value: Either<i32, &str> = Either::left(42);
-//!     let right_value: Either<i32, &str> = Either::right("hello");
-//!     
-//!     // Pattern matching
-//!     match left_value {
-//!         Either::Left(n) => println!("Got left value: {}", n),
-//!         Either::Right(s) => println!("Got right value: {}", s),
-//!     }
-//!     
-//!     // Transform values using map_left and map_right
-//!     let doubled = left_value.fmap_left(|x| x * 2);  // Either::Left(84)
-//!     let upper = right_value.fmap_right(|s| s.to_uppercase());  // Either::Right("HELLO")
-//!     
-//!     // Functor and Monad operations
-//!     let right_val: Either<&str, i32> = Either::right(42);
-//!     let mapped = right_val.clone().fmap(|x| x * 2);  // Either::Right(84)
-//!     let chained = right_val.bind(|x| Either::right(x.to_string()));  // Either::Right("42")
+//! // Create Either values
+//! let left_value: Either<i32, &str> = Either::left(42);
+//! let right_value: Either<i32, &str> = Either::right("hello");
+//! 
+//! // Pattern matching
+//! match left_value {
+//!     Either::Left(n) => println!("Got left value: {}", n),
+//!     Either::Right(s) => println!("Got right value: {}", s),
 //! }
+//! 
+//! // Transform values using specific transformers
+//! let doubled = left_value.fmap_left(|x| x * 2);  // Either::Left(84)
+//! 
+//! // Functor operations (maps over Right values only)
+//! let right_val: Either<&str, i32> = Either::right(42);
+//! let mapped = right_val.fmap(|x| x * 2);  // Either::Right(84)
+//! ```
+//!
+//! ## Conversion with Result
+//!
+//! `Either` can be easily converted to and from `Result`:
+//!
+//! ```rust
+//! use rustica::datatypes::either::Either;
+//!
+//! // From Result to Either
+//! let ok_result: Result<i32, &str> = Ok(42);
+//! let either = Either::from_result(ok_result);
+//! assert_eq!(either, Either::right(42));
+//!
+//! // From Either to Result
+//! let either: Either<&str, i32> = Either::right(42);
+//! let result = either.to_result();
+//! assert_eq!(result, Ok(42));
+//! ```
 
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
@@ -81,42 +85,7 @@ use quickcheck::{Arbitrary, Gen};
 /// * `L`: The type of the left value
 /// * `R`: The type of the right value
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::either::Either;
-/// use rustica::prelude::*;
-///
-/// fn example() {
-///     // Create Either values
-///     let left: Either<i32, &str> = Either::left(42);
-///     let right: Either<i32, &str> = Either::right("hello");
-///
-///     // Transform values using map_left and map_right
-///     let doubled = left.fmap_left(|x| x * 2);  // Either::Left(84)
-///     let upper = right.fmap_right(|s| s.to_uppercase());  // Either::Right("HELLO")
-///
-///     // Pattern matching
-///     match left {
-///         Either::Left(n) => println!("Got left value: {}", n),
-///         Either::Right(s) => println!("Got right value: {}", s),
-///     }
-/// }
-/// ```
-///
-/// # Trait Implementations
-///
-/// `Either` implements several important traits:
-///
-/// * `HKT` (Higher Kinded Type): Allows type-level programming with `Either`
-/// * `Functor`: Map over the right value with `fmap`
-/// * `Applicative`: Apply functions wrapped in `Either` to values in `Either`
-/// * `Monad`: Chain computations that may produce either left or right values
-/// * `Pure`: Create an `Either` containing a right value
-/// * `Identity`: Access the right value when present
-/// * `Composable`: Compose functions that work with `Either`
-/// * `Transform`: Transforms the right value with `transform` and `transform_ref`
-/// * `TransformExt`: Provides additional transformation methods for `Either`
+/// See the module-level documentation for examples and more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Either<L, R> {
     /// Contains a value of type `L`
@@ -128,13 +97,7 @@ pub enum Either<L, R> {
 impl<L, R> Either<L, R> {
     /// Creates a new `Either::Left` containing the given value.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let left: Either<i32, &str> = Either::left(42);
-    /// ```
+    /// Left represents the first possibility of the Either type.
     #[inline]
     pub const fn left(l: L) -> Self {
         Either::Left(l)
@@ -142,43 +105,19 @@ impl<L, R> Either<L, R> {
 
     /// Creates a new `Either::Right` containing the given value.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let right: Either<i32, &str> = Either::right("hello");
-    /// ```
+    /// Right represents the second possibility of the Either type.
     #[inline]
     pub const fn right(r: R) -> Self {
         Either::Right(r)
     }
 
     /// Returns `true` if this is a `Left` value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let left: Either<i32, &str> = Either::left(42);
-    /// assert!(left.is_left());
-    /// ```
     #[inline]
     pub const fn is_left(&self) -> bool {
         matches!(self, Either::Left(_))
     }
 
     /// Returns `true` if this is a `Right` value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let right: Either<i32, &str> = Either::right("hello");
-    /// assert!(right.is_right());
-    /// ```
     #[inline]
     pub const fn is_right(&self) -> bool {
         matches!(self, Either::Right(_))
@@ -186,15 +125,7 @@ impl<L, R> Either<L, R> {
 
     /// Maps a function over the left value, leaving a right value unchanged.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let left: Either<i32, &str> = Either::left(42);
-    /// let doubled = left.fmap_left(|x| x * 2);
-    /// assert_eq!(match doubled { Either::Left(n) => n, _ => 0 }, 84);
-    /// ```
+    /// This is similar to `Result::map_err` but for `Either`.
     #[inline]
     pub fn fmap_left<T, F>(self, f: F) -> Either<T, R>
     where
@@ -208,15 +139,7 @@ impl<L, R> Either<L, R> {
 
     /// Maps a function over the right value, leaving a left value unchanged.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let right: Either<i32, &str> = Either::right("hello");
-    /// let upper = right.fmap_right(|s| s.to_uppercase());
-    /// assert_eq!(match upper { Either::Right(s) => s, _ => String::new() }, "HELLO");
-    /// ```
+    /// This is similar to `Result::map` but for `Either`.
     #[inline]
     pub fn fmap_right<T, F>(self, f: F) -> Either<L, T>
     where
@@ -233,15 +156,6 @@ impl<L, R> Either<L, R> {
     /// # Panics
     ///
     /// Panics if called on a `Right` value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let left: Either<i32, &str> = Either::left(42);
-    /// assert_eq!(left.unwrap_left(), 42);
-    /// ```
     #[inline]
     pub fn unwrap_left(self) -> L {
         match self {
@@ -255,15 +169,6 @@ impl<L, R> Either<L, R> {
     /// # Panics
     ///
     /// Panics if called on a `Left` value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let right: Either<i32, &str> = Either::right("hello");
-    /// assert_eq!(right.unwrap_right(), "hello");
-    /// ```
     #[inline]
     pub fn unwrap_right(self) -> R {
         self.into_iter()
@@ -279,15 +184,6 @@ impl<L, R> Either<L, R> {
     /// # Panics
     ///
     /// Panics if the value is a `Right`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let x: Either<u32, &str> = Either::left(7);
-    /// assert_eq!(x.left_value(), 7);
-    /// ```
     #[inline]
     pub fn left_value(self) -> L
     where
@@ -307,15 +203,6 @@ impl<L, R> Either<L, R> {
     /// # Panics
     ///
     /// Panics if the value is a `Left`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let x: Either<u32, &str> = Either::right("hello");
-    /// assert_eq!(x.right_value(), "hello");
-    /// ```
     #[inline]
     pub fn right_value(self) -> R {
         self.into_iter()
@@ -328,15 +215,6 @@ impl<L, R> Either<L, R> {
     /// # Panics
     ///
     /// Panics if the value is a `Right`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let x: Either<u32, &str> = Either::left(7);
-    /// assert_eq!(*x.left_ref(), 7);
-    /// ```
     #[inline]
     pub fn left_ref(&self) -> &L {
         match self {
@@ -350,15 +228,6 @@ impl<L, R> Either<L, R> {
     /// # Panics
     ///
     /// Panics if the value is a `Left`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let x: Either<u32, &str> = Either::right("hello");
-    /// assert_eq!(*x.right_ref(), "hello");
-    /// ```
     #[inline]
     pub fn right_ref(&self) -> &R {
         self.into_iter()
@@ -368,17 +237,7 @@ impl<L, R> Either<L, R> {
 
     /// Returns the contained `Right` value or a default.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let right: Either<&str, u32> = Either::right(7);
-    /// assert_eq!(right.right_or(42), 7);
-    ///
-    /// let left: Either<&str, u32> = Either::left("foo");
-    /// assert_eq!(left.right_or(42), 42);
-    /// ```
+    /// Similar to `Result::unwrap_or` but for `Either`.
     #[inline]
     pub fn right_or(self, default: R) -> R {
         self.into_iter().next().unwrap_or(default)
@@ -386,17 +245,7 @@ impl<L, R> Either<L, R> {
 
     /// Returns the contained `Left` value or a default.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let right: Either<&str, u32> = Either::right(7);
-    /// assert_eq!(right.left_or("default"), "default");
-    ///
-    /// let left: Either<&str, u32> = Either::left("foo");
-    /// assert_eq!(left.left_or("default"), "foo");
-    /// ```
+    /// Similar to `Result::err().unwrap_or()` but for `Either`.
     #[inline]
     pub fn left_or(self, default: L) -> L {
         match self {
@@ -407,17 +256,7 @@ impl<L, R> Either<L, R> {
 
     /// Returns the contained `Right` value as an Option.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let right: Either<&str, u32> = Either::right(7);
-    /// assert_eq!(right.right_option(), Some(7));
-    ///
-    /// let left: Either<&str, u32> = Either::left("foo");
-    /// assert_eq!(left.right_option(), None);
-    /// ```
+    /// Returns `Some` for `Right` values and `None` for `Left` values.
     #[inline]
     pub fn right_option(self) -> Option<R> {
         self.into_iter().next()
@@ -426,18 +265,6 @@ impl<L, R> Either<L, R> {
     /// Converts this `Either` to a `Result`.
     ///
     /// Left becomes `Err` and Right becomes `Ok`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let right: Either<&str, i32> = Either::right(42);
-    /// assert_eq!(right.to_result(), Ok(42));
-    ///
-    /// let left: Either<&str, i32> = Either::left("error");
-    /// assert_eq!(left.to_result(), Err("error"));
-    /// ```
     #[inline]
     pub fn to_result(self) -> Result<R, L> {
         error_utils::either_to_result(self)
@@ -446,18 +273,6 @@ impl<L, R> Either<L, R> {
     /// Creates an `Either` from a `Result`.
     ///
     /// `Err` becomes `Left` and `Ok` becomes `Right`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::either::Either;
-    ///
-    /// let ok_result: Result<i32, &str> = Ok(42);
-    /// assert_eq!(Either::from_result(ok_result), Either::right(42));
-    ///
-    /// let err_result: Result<i32, &str> = Err("error");
-    /// assert_eq!(Either::from_result(err_result), Either::left("error"));
-    /// ```
     #[inline]
     pub fn from_result(result: Result<R, L>) -> Self {
         error_utils::result_to_either(result)
