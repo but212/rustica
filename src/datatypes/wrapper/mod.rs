@@ -91,7 +91,6 @@
 pub mod first;
 pub mod last;
 pub mod max;
-pub mod memoize;
 pub mod memoizer;
 pub mod min;
 pub mod predicate;
