@@ -140,53 +140,6 @@
 //! assert_eq!(assoc_left.run(), assoc_right.run());
 //! ```
 //!
-//! ### Property-Based Testing Support
-//!
-//! For comprehensive law verification, consider using property-based testing:
-//!
-//! ```rust
-//! #[cfg(test)]
-//! mod property_tests {
-//!     use super::*;
-//!     use quickcheck::{quickcheck, TestResult};
-//!     use rustica::datatypes::io::IO;
-//!
-//!     #[quickcheck]
-//!     fn functor_identity_law(x: i32) -> bool {
-//!         let io_value = IO::pure(x);
-//!         let identity = |y: i32| y;
-//!         io_value.clone().fmap(identity).run() == io_value.run()
-//!     }
-//!
-//!     #[quickcheck]
-//!     fn functor_composition_law(x: i32, a: i32, b: i32) -> bool {
-//!         let io_value = IO::pure(x);
-//!         let f = move |y: i32| y + a;
-//!         let g = move |y: i32| y * b;
-//!         let composed = move |y: i32| g(f(y));
-//!
-//!         let left = io_value.clone().fmap(composed);
-//!         let right = io_value.clone().fmap(f).fmap(g);
-//!         left.run() == right.run()
-//!     }
-//!
-//!     #[quickcheck]
-//!     fn monad_left_identity_law(x: i32, a: i32) -> bool {
-//!         let f = move |y: i32| IO::pure(y + a);
-//!         let left = IO::pure(x).bind(f);
-//!         let right = f(x);
-//!         left.run() == right.run()
-//!     }
-//!
-//!     #[quickcheck]
-//!     fn monad_right_identity_law(x: i32) -> bool {
-//!         let io_m = IO::pure(x);
-//!         let left = io_m.clone().bind(IO::pure);
-//!         left.run() == io_m.run()
-//!     }
-//! }
-//! ```
-//!
 //! ## Error Handling Patterns
 //!
 //! ```rust
