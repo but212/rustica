@@ -1,46 +1,59 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Changed
+
+- **`Sum` Wrapper Refinement** (`src/datatypes/wrapper/sum.rs`)
+  - Internal implementation details of the `Sum` wrapper have been encapsulated.
+  - Direct construction via `new` and direct access to the `inner` value are no longer part of the public API, promoting the use of trait-based operations (e.g., `Monoid::empty()`, `Semigroup::combine()`).
+  - Enhanced performance-related documentation with more diverse examples and clearer explanations of its use as a monoidal accumulator.
+
 ## [0.7.1]
 
 ### Added
+
 - **Thread-safe Memoizer**
-    - Introduced `Memoizer<K, V>` in `wrapper/memoizer.rs` as a new, ergonomic, and efficient thread-safe memoization utility.
-    - Uses `RwLock<HashMap<K, V>>` for concurrent caching of pure function results.
-    - Provides a unified API (`get_or_compute`, `clear`) for safe, concurrent memoization.
-    - Includes comprehensive documentation and doctests for both single-threaded and multi-threaded use cases.
-    - Deprecated the old `ThreadSafeMemoizeFn` in favor of this new implementation.
+  - Introduced `Memoizer<K, V>` in `wrapper/memoizer.rs` as a new, ergonomic, and efficient thread-safe memoization utility.
+  - Uses `RwLock<HashMap<K, V>>` for concurrent caching of pure function results.
+  - Provides a unified API (`get_or_compute`, `clear`) for safe, concurrent memoization.
+  - Includes comprehensive documentation and doctests for both single-threaded and multi-threaded use cases.
+  - Deprecated the old `ThreadSafeMemoizeFn` in favor of this new implementation.
 - **Path Caching for PersistentVector Tree**
-    - Implemented path/range caching in the internal tree structure for `PersistentVector`.
-    - Added `get_with_path` and `get_by_path` methods to `Node<T>` to record and utilize traversal paths and ranges for efficient repeated access.
-    - The tree’s `get_with_cache` now records and reuses traversal paths, improving cache hit performance for repeated or nearby accesses.
-    - Added validation logic `validate_cache_path` to ensure cached paths/ranges are only used when still valid for the current tree structure.
-    - Tree modifications (push, update, split, etc.) automatically invalidate the cache to prevent stale accesses.
+  - Implemented path/range caching in the internal tree structure for `PersistentVector`.
+  - Added `get_with_path` and `get_by_path` methods to `Node<T>` to record and utilize traversal paths and ranges for efficient repeated access.
+  - The tree’s `get_with_cache` now records and reuses traversal paths, improving cache hit performance for repeated or nearby accesses.
+  - Added validation logic `validate_cache_path` to ensure cached paths/ranges are only used when still valid for the current tree structure.
+  - Tree modifications (push, update, split, etc.) automatically invalidate the cache to prevent stale accesses.
 
 ### Changed
+
 - **Writer Monad Refactoring**
   - Replaced the recursive LogThunk structure with direct log accumulation in the Writer struct.
   - Eliminated risk of stack overflow and memory leaks from deep thunk chains.
   - Simplified log combination logic to use immediate Monoid operations.
 
-
 ### Improvements & Bug Fixes
+
 - Added validation logic for path/ranges cache in PersistentVector tree.
-    - Now, when the tree structure changes or if the cached path/ranges are no longer valid, the cache is safely treated as a miss.
-    - Introduced the `validate_cache_path` method, which ensures that the cached path and ranges match the current tree structure before using the cache in `get_with_cache`.
-    - Tree-modifying operations (such as push, update, etc.) continue to invalidate the cache to ensure consistency.
+  - Now, when the tree structure changes or if the cached path/ranges are no longer valid, the cache is safely treated as a miss.
+  - Introduced the `validate_cache_path` method, which ensures that the cached path and ranges match the current tree structure before using the cache in `get_with_cache`.
+  - Tree-modifying operations (such as push, update, etc.) continue to invalidate the cache to ensure consistency.
 
 ## [0.7.0]
 
 ### Added
+
 - Added `iso_lens.rs` and `iso_prism.rs` for Iso-based optics (Lens/Prism) with lawful composition, full documentation, and doctest examples.
 - `IsoLens` and `IsoPrism` now support lawful composition for deep, type-safe focusing into nested product/sum types.
 - **MonadPlus** and **Alternative** traits implemented for core datatypes:
-    - `Maybe<T>`, `Either<L, R>`, `Validated<E, A>`, `Choice<T>`: All now support monadic choice, failure, and error accumulation where appropriate.
-    - `Alternative` trait: Supported for `Maybe<T>`, `Either<L, R>` (with `L: Default`), `Validated<E, A>` (with `E: Default`).
+  - `Maybe<T>`, `Either<L, R>`, `Validated<E, A>`, `Choice<T>`: All now support monadic choice, failure, and error accumulation where appropriate.
+  - `Alternative` trait: Supported for `Maybe<T>`, `Either<L, R>` (with `L: Default`), `Validated<E, A>` (with `E: Default`).
 - `Choice<T>::flatten_sorted()`: Flattens and sorts alternatives; see below for example.
 - Iterator support (`IntoIterator`) for all core datatypes: `Maybe`, `Validated`, `Id`, `Writer`, `Either` (including left/right iterators). All implementations are documented and tested for idiomatic Rust usage.
 
   Example:
+
   ```rust
   let nested = Choice::new(vec![3, 1], vec![vec![5, 2], vec![4]]);
   let flat = nested.flatten_sorted();
@@ -49,6 +62,7 @@
   ```
 
 ### Changed
+
 - **[Breaking] Changed `Choice<T>::flatten()` behavior:**
   - Now preserves original order; sorting is provided by `flatten_sorted()`.
 - **[Breaking] Refactored `Validated` datatype:**
@@ -72,13 +86,14 @@
 ### Breaking Change: Unified Transformer-to-Base Conversions via `From` Trait
 
 - All conversions from transformer types to their respective base types are now standardized using the `From` trait:
-    - `From<ReaderT<E, Id<A>, A>> for Reader<E, A>`
-    - `From<StateT<S, Id<(A, S)>, A>> for State<S, A>`
-    - `From<ContT<R, Id<R>, A>> for Cont<R, A>`
+  - `From<ReaderT<E, Id<A>, A>> for Reader<E, A>`
+  - `From<StateT<S, Id<(A, S)>, A>> for State<S, A>`
+  - `From<ContT<R, Id<R>, A>> for Cont<R, A>`
 - Legacy conversion methods such as `to_reader`, `from_reader`, `to_state`, `from_state`, `to_cont`, `from_cont` have **all been removed** from the codebase.
 - This change ensures a clear, unified, and idiomatic Rust API for all monad/transformer conversions.
 
 #### Migration Guide
+
 - To convert from a transformer to a base type, use the `From` trait or `.into()`:
   ```rust
   let base: State<i32, i32> = State::from(state_t);
@@ -90,6 +105,7 @@
 ## [0.6.4] - 2025-04-18
 
 ### Changed
+
 - **Continuation Monad (`Cont`) Refactored**
   - `Cont` is now implemented as a thin wrapper over the more general `ContT` (Continuation Monad Transformer).
   - All core logic and methods (`new`, `run`, `pure`, `bind`, `fmap`, `apply`, `call_cc`, etc.) delegate to `ContT` for improved modularity and code reuse.
@@ -100,6 +116,7 @@
 ## [0.6.3] - 2025-04-17
 
 ### Added
+
 - **Continuation Monad Transformer (`ContT`)**
   - Introduced `ContT<R, M, A>`, a monad transformer version of the continuation monad.
   - Provides core methods: `new`, `run`, `pure`, `bind`, `fmap`, `apply`, `call_cc`, and `lift`.
@@ -110,25 +127,30 @@
 ## [0.6.2] - 2025-04-17
 
 ### Added
+
 - **Flexible caching policy system for PersistentVector**
   - Introduced `CachePolicy` trait with implementations (`AlwaysCache`, `NeverCache`, `EvenIndexCache`)
   - Added dynamic cache management APIs: `with_cache_policy`, `from_slice_with_cache_policy`, etc.
   - Comprehensive documentation and examples for custom caching strategies
 
 ### Changed
+
 - **Persistent Vector Improvements**
+
   - Performance & memory optimization across all core data structures
   - API & documentation refactoring for clarity and idiomatic usage
   - Implemented `Index<usize>` and `IntoIterator` for better ergonomics
   - Expanded test coverage for indexing, iteration, and edge cases
 
 - **Error Handling Standardization**
+
   - Unified error handling using `AppError` from `error_utils.rs`
   - Replaced most panics with composable `Result` types
   - Added rich contextual error messages in core operations
   - Enhanced documentation for error types and propagation
 
 - **Monoid & Comonad Enhancements**
+
   - Added utilities: `is_empty_monoid()`, `repeat`, `mconcat`, `power`
   - Implemented `Comonad` trait for `Option`, `Result`, and `Maybe`
 
@@ -137,13 +159,16 @@
   - Converted static methods to instance methods for better composability
 
 ### Fixed
+
 - SmallVec initialization from slice now uses a loop to avoid method compatibility issues
 
 ### Refactored
+
 - Integrated `cache`, `chunk`, and `memory` modules into unified `memory.rs`
 - Removed dead code and improved formatting for consistency
 
 ### IO Monad Improvements
+
 - Refactored IO<A>:
   - Internal implementation now uses `Arc<dyn Fn()>` with minimal value cloning for better performance and ergonomics.
   - `pure`, `delay`, `delay_efficient` now only clone values when IO is run multiple times, reducing unnecessary heap allocations.
@@ -155,6 +180,7 @@
 ## [0.6.1]
 
 ### Added
+
 - Small vector optimization for PersistentVector to improve memory efficiency
   - Optimized representation for vectors with 8 or fewer elements using inline storage
   - Up to 97% performance improvement for empty vector creation
@@ -171,6 +197,7 @@
 ## [0.6.0]
 
 ### Added
+
 - New `pvec` module that provides persistent vector implementations with optional feature flags for memory optimization strategies
 - Improved functional programming support for collection types
 - New `memoize` module in `wrapper` namespace for caching function results
@@ -197,6 +224,7 @@
   - `pure` method for lifting values into `ReaderT` context
 
 ### Changed
+
 - Removed the `transformers` and `advanced` feature flag as core functionality is now included by default
 - Refactored `Reader` monad to use the `ReaderT` transformer internally, improving type safety and composability
 - Removed redundant `map` method from `Id` type to encourage consistent use of `fmap` across library
@@ -221,19 +249,21 @@
 - Updated internal implementations to align with standardized error handling
 
 ### Removed
+
 - Removed `BoxedFn` wrapper type from `wrapper/boxed_fn.rs`
 - Removed several specialized methods from `Choice` to streamline the API:
   - `replace_alternatives_with_first`: can be achieved with core methods
   - `with_ordered_alternatives` and `with_ordered_alternatives_owned`: specialized sorting operations
   - `with_unique_alternatives` and `with_unique_alternatives_owned`: specialized deduplication operations
   - `partition`: static method with potential panic behavior
-  - `group_by`: complex categorization operation 
+  - `group_by`: complex categorization operation
   - `match_choice` and `match_choice_owned`: redundant with Rust's native pattern matching
   - `zip`: specialized operation for combining multiple `Choice` instances
 
 ## [0.5.4] - 2025-03-24
 
 ### Added
+
 - Implemented `StateT` monad transformer
   - Added core implementation with state manipulation functions (`get`, `put`, `modify`)
   - Added composition with other monads via `bind_with` and `fmap_with`
@@ -249,6 +279,7 @@
   - `Representable`: For functors that can be represented by a mapping from a key type
 
 ### Changed
+
 - Optimized `Choice` data structure:
   - Implemented shared structure optimization using `Arc` for improved memory efficiency
   - Reduced unnecessary cloning operations in internal data representation
@@ -258,6 +289,7 @@
 ## [0.5.3] - 2025-03-16
 
 ### Changed
+
 - Enhanced `Choice` data structure:
   - Modified `first()` method to return `Option<&T>` instead of `&T` for better safety
   - Added support for handling empty `Choice` instances
@@ -272,12 +304,13 @@
 ## [0.5.2] - 2025-03-09
 
 ### Changed
-- Updated docs.rs configuration to use `all-features = true` for more standard feature documentation
 
+- Updated docs.rs configuration to use `all-features = true` for more standard feature documentation
 
 ## [0.5.1] - 2025-03-09
 
 ### Added
+
 - Added `From`/`Into` implementation for `Id` type
 - Added implementations of `Semigroup`, `Monoid`, `Foldable`, and `Composable` traits for `Id` type
 - Added configuration for docs.rs to display documentation for all features (`full`)
@@ -285,6 +318,7 @@
 ## [0.5.0] - 2025-03-09
 
 ### Added
+
 - Added Wrapper Type: `boxed_fn`, `first`, `last`, `product`, `sum`, `value`, `thunk`, `min`, `max`
 - Added Utilities: `hkt_utils`, `transform_utils`
 - Added implementations of functional traits for standard library types (`Option`, `Result`, `Vec`)
@@ -294,6 +328,7 @@
 ## [0.4.0] - 2025-02-26
 
 ### Added
+
 - Implemented `StateT` monad transformer
   - Added core implementation with state manipulation functions (`get`, `put`, `modify`)
   - Added composition with other monads via `bind_with` and `fmap_with`
@@ -309,6 +344,7 @@
   - `Representable`: For functors that can be represented by a mapping from a key type
 
 ### Changed
+
 - Optimized `Choice` data structure:
   - Implemented shared structure optimization using `Arc` for improved memory efficiency
   - Reduced unnecessary cloning operations in internal data representation
@@ -318,12 +354,14 @@
 ## [0.3.2] - 2025-02-18
 
 ### Added
+
 - New `Choice` data type for alternative computations
 - Property-based tests for category laws
   - Added tests for Applicative laws (identity, composition, homomorphism, interchange, naturality)
   - Added tests for Bifunctor laws (identity, composition)
 
 ### Changed
+
 - Reorganized project structure
   - Renamed `monads` directory to `datatypes` for better organization
   - Renamed `category` directory to `traits` for better organization
@@ -331,17 +369,20 @@
 ## [0.3.1] - 2025-02-13
 
 ### Changed
+
 - Modified `lift2` and `lift3` to accept tuples for function types.
 - Modified category Morphism definitions.
 - Modified Free monad to be work in progress.
 - Refactored FnType methods into FnTrait and added documentation.
 
 ### Removed
+
 - Removed unnecessary function types.
 
 ## [0.3.0] - 2025-02-10
 
 ### Added
+
 - Implemented Free Monad
 - Integrated SendSyncFn, SendSyncFnTrait, ContravariantFn, ExtendFn, MonadFn, and ApplyFn with FnType and FnTrait
 - Implemented Arrow and Category

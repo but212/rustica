@@ -10,26 +10,33 @@
 //! - Provides a consistent way to combine values via addition
 //! - Useful for aggregating collections of numeric values
 //!
+//! ## Performance Characteristics
+//!
+//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
+//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
+//! - Clone Cost: Depends on the cost of cloning the inner type `T`
+//!
 //! ## Basic Usage
 //!
 //! ```rust
 //! use rustica::datatypes::wrapper::sum::Sum;
 //! use rustica::traits::semigroup::Semigroup;
 //! use rustica::traits::monoid::Monoid;
+//! use rustica::traits::identity::Identity;
 //!
 //! // Create Sum values with explicit type annotation
-//! let a: Sum<i32> = Sum::new(5);
-//! let b: Sum<i32> = Sum::new(10);
+//! let a: Sum<i32> = Sum(5);
+//! let b: Sum<i32> = Sum(10);
 //!
 //! // Combine them using the Semigroup trait
 //! let c = a.combine(&b);
-//! assert_eq!(*c.inner_ref(), 15);
+//! assert_eq!(*c.value(), 15);
 //!
 //! // Use the identity element from Monoid
 //! let zero: Sum<i32> = Sum::empty();  // Sum(0)
-//! assert_eq!(*zero.inner_ref(), 0);
-//! assert_eq!(*a.combine(&zero).inner_ref(), 5);
-//! assert_eq!(*zero.combine(&a).inner_ref(), 5);
+//! assert_eq!(*zero.value(), 0);
+//! assert_eq!(*a.combine(&zero).value(), 5);
+//! assert_eq!(*zero.combine(&a).value(), 5);
 //! ```
 //!
 //! ## With Collections
@@ -38,14 +45,64 @@
 //! use rustica::datatypes::wrapper::sum::Sum;
 //! use rustica::traits::semigroup::Semigroup;
 //! use rustica::traits::monoid::Monoid;
+//! use rustica::traits::identity::Identity;
 //!
 //! // Sum a collection of values
 //! let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
 //! let sum: Sum<i32> = numbers.iter()
-//!     .map(|&n| Sum::new(n))
+//!     .map(|&n| Sum(n))
 //!     .fold(Sum::empty(), |acc, x| acc.combine(&x));
 //!
-//! assert_eq!(*sum.inner_ref(), 15); // 1 + 2 + 3 + 4 + 5 = 15
+//! assert_eq!(*sum.value(), 15); // 1 + 2 + 3 + 4 + 5 = 15
+//! ```
+//!
+//! ## Semigroup Laws
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::sum::Sum;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Associativity: (a + b) + c = a + (b + c)
+//! fn verify_associativity<T>(a: T, b: T, c: T) -> bool
+//! where T: Clone + PartialEq + std::ops::Add<Output = T>
+//! {
+//!     let sum_a = Sum(a.clone());
+//!     let sum_b = Sum(b.clone());
+//!     let sum_c = Sum(c.clone());
+//!
+//!     let left = sum_a.clone().combine(&sum_b).combine(&sum_c.clone());
+//!     let right = sum_a.combine(&sum_b.combine(&sum_c));
+//!
+//!     left == right
+//! }
+//!
+//! assert!(verify_associativity(1, 2, 3));
+//! assert!(verify_associativity(1.5, 2.5, 3.5));
+//! ```
+//!
+//! ## Monoid Laws
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::sum::Sum;
+//! use rustica::traits::monoid::Monoid;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Left identity: empty() + a = a
+//! // Right identity: a + empty() = a
+//! fn verify_identity<T>(a: T) -> bool
+//! where T: Clone + PartialEq + std::ops::Add<Output = T> + Default
+//! {
+//!     let sum_a = Sum(a.clone());
+//!     let empty = Sum::<T>::empty();
+//!
+//!     let left_id = empty.clone().combine(&sum_a.clone());
+//!     let right_id = sum_a.clone().combine(&empty);
+//!
+//!     left_id == sum_a.clone() && right_id == sum_a
+//! }
+//!
+//! assert!(verify_identity(42));
+//! assert!(verify_identity(3.14));
 //! ```
 
 use crate::traits::foldable::Foldable;
@@ -74,6 +131,11 @@ use std::ops::Add;
 /// - **Associativity**: `(a + b) + c = a + (b + c)`
 /// - **Identity** (for Monoid): `0 + a = a + 0 = a`
 ///
+/// # Performance
+///
+/// - Time Complexity: All operations are O(1)
+/// - Memory Usage: Stores exactly one value of type `T`
+///
 /// # Examples
 ///
 /// Basic usage with integers:
@@ -82,29 +144,30 @@ use std::ops::Add;
 /// use rustica::datatypes::wrapper::sum::Sum;
 /// use rustica::traits::semigroup::Semigroup;
 /// use rustica::traits::monoid::Monoid;
+/// use rustica::traits::identity::Identity;
 ///
 /// // Create Sum values
-/// let a: Sum<i32> = Sum::new(5);
-/// let b: Sum<i32> = Sum::new(7);
+/// let a: Sum<i32> = Sum(5);
+/// let b: Sum<i32> = Sum(7);
 ///
 /// // Combine them (addition)
 /// let c = a.combine(&b);
-/// assert_eq!(*c.inner_ref(), 12);
+/// assert_eq!(*c.value(), 12);
 ///
 /// // Addition is associative: (a + b) + c = a + (b + c)
-/// let x: Sum<i32> = Sum::new(1);
-/// let y: Sum<i32> = Sum::new(2);
-/// let z: Sum<i32> = Sum::new(3);
+/// let x: Sum<i32> = Sum(1);
+/// let y: Sum<i32> = Sum(2);
+/// let z: Sum<i32> = Sum(3);
 ///
 /// let result1 = x.clone().combine(&y).combine(&z.clone());
 /// let result2 = x.combine(&y.combine(&z));
-/// assert_eq!(*result1.inner_ref(), *result2.inner_ref());
+/// assert_eq!(*result1.value(), *result2.value());
 ///
 /// // Identity element
-/// let id: Sum<i32> = Sum::empty();  // Sum(0)
-/// assert_eq!(*id.inner_ref(), 0);
-/// assert_eq!(*Sum::new(42).combine(&id).inner_ref(), 42);
-/// assert_eq!(*id.combine(&Sum::new(42)).inner_ref(), 42);
+/// let id: Sum<i32> = Sum(0);
+/// assert_eq!(*id.value(), 0);
+/// assert_eq!(*Sum(42).combine(&id).value(), 42);
+/// assert_eq!(*id.combine(&Sum(42)).value(), 42);
 /// ```
 ///
 /// Working with floating-point numbers:
@@ -112,11 +175,12 @@ use std::ops::Add;
 /// ```rust
 /// use rustica::datatypes::wrapper::sum::Sum;
 /// use rustica::traits::semigroup::Semigroup;
+/// use rustica::traits::identity::Identity;
 ///
-/// let a: Sum<f64> = Sum::new(2.5);
-/// let b: Sum<f64> = Sum::new(3.7);
+/// let a: Sum<f64> = Sum(2.5);
+/// let b: Sum<f64> = Sum(3.7);
 /// let c = a.combine(&b);
-/// assert_eq!(*c.inner_ref(), 6.2);
+/// assert_eq!(*c.value(), 6.2);
 /// ```
 ///
 /// Custom types that implement `Add`:
@@ -124,6 +188,7 @@ use std::ops::Add;
 /// ```rust
 /// use rustica::datatypes::wrapper::sum::Sum;
 /// use rustica::traits::semigroup::Semigroup;
+/// use rustica::traits::identity::Identity;
 /// use std::ops::Add;
 ///
 /// #[derive(Debug, Clone, PartialEq)]
@@ -144,92 +209,14 @@ use std::ops::Add;
 /// }
 ///
 /// // Now we can use Sum with our custom type
-/// let v1: Sum<Vector2D> = Sum::new(Vector2D { x: 1.0, y: 2.0 });
-/// let v2: Sum<Vector2D> = Sum::new(Vector2D { x: 3.0, y: 4.0 });
+/// let v1: Sum<Vector2D> = Sum(Vector2D { x: 1.0, y: 2.0 });
+/// let v2: Sum<Vector2D> = Sum(Vector2D { x: 3.0, y: 4.0 });
 /// let v3 = v1.combine(&v2);
 ///
-/// assert_eq!(*v3.inner_ref(), Vector2D { x: 4.0, y: 6.0 });
+/// assert_eq!(*v3.value(), Vector2D { x: 4.0, y: 6.0 });
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Sum<T>(pub T);
-
-impl<T> Sum<T> {
-    /// Creates a new `Sum` wrapper around a value.
-    ///
-    /// # Parameters
-    ///
-    /// * `value`: The value to wrap
-    ///
-    /// # Returns
-    ///
-    /// A new `Sum` instance containing the given value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    ///
-    /// let sum: Sum<i32> = Sum::new(42);
-    /// assert_eq!(*sum.inner_ref(), 42);
-    /// ```
-    #[inline]
-    pub fn new(value: T) -> Self {
-        Sum(value)
-    }
-
-    /// Returns the wrapped value, consuming the `Sum`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    ///
-    /// let value = Sum::new(42);
-    /// assert_eq!(value.inner(), 42);
-    /// ```
-    #[inline]
-    pub fn inner(self) -> T {
-        self.0
-    }
-
-    /// Returns a reference to the wrapped value.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    ///
-    /// let value = Sum::new(42);
-    /// assert_eq!(*value.inner_ref(), 42);
-    /// ```
-    #[inline]
-    pub fn inner_ref(&self) -> &T {
-        &self.0
-    }
-
-    /// Clones and returns the inner value.
-    ///
-    /// This method is useful when you want to get the inner value
-    /// without consuming the `Sum`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    ///
-    /// let value = Sum::new(42);
-    /// assert_eq!(value.inner_cloned(), 42);
-    /// // value can still be used
-    /// assert_eq!(*value.inner_ref(), 42);
-    /// ```
-    #[inline]
-    pub fn inner_cloned(&self) -> T
-    where
-        T: Clone,
-    {
-        self.0.clone()
-    }
-}
 
 impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     fn combine_owned(self, other: Self) -> Self {
