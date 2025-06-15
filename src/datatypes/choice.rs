@@ -7,8 +7,8 @@
 //!
 //! ## Core Concepts
 //!
-//! - **Primary Value**: The main, preferred value. Accessed via [`first()`](Choice::first).
-//! - **Alternatives**: A sequence of secondary values. Accessed via [`alternatives()`](Choice::alternatives).
+//! - **Primary Value**: The main, preferred value. Accessed via `first()`.
+//! - **Alternatives**: A sequence of secondary values. Accessed via `alternatives()`.
 //! - **Immutability and Copy-on-Write**: `Choice` instances are immutable. Operations that modify
 //!   a `Choice` (e.g., adding alternatives, filtering) return a new `Choice` instance.
 //!   Internally, `Choice` uses `Arc<SmallVec<[T; 8]>>` to store values, enabling efficient
