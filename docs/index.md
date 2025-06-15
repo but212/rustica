@@ -129,6 +129,7 @@ assert_eq!(vec1.get(0), Some(&1));
 ```
 
 Key features:
+
 - Memory-efficient representation for small vectors using inline storage
 - Structural sharing for efficient updates and minimal copying
 - O(log n) complexity for most operations

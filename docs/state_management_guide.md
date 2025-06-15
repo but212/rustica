@@ -11,6 +11,7 @@ At its core, `State<S, A>` represents a computation that takes an initial state 
 This simple wrapper allows us to chain and compose stateful operations together, where each operation implicitly receives the state from the previous one and passes its new state to the next.
 
 This is useful for:
+
 - Building parsers that consume input.
 - Managing game state or simulations.
 - Implementing algorithms that require intermediate state.
@@ -28,7 +29,7 @@ use rustica::datatypes::state::State;
 let counter: State<i32, i32> = State::new(|s: i32| (s, s + 1));
 ```
 
-This computation doesn't *do* anything on its own. It's a description of a state change. To execute it, you use one of the `run` methods with an initial state:
+This computation doesn't _do_ anything on its own. It's a description of a state change. To execute it, you use one of the `run` methods with an initial state:
 
 - `run_state(initial_state)`: Returns both the final result and the final state.
 - `eval_state(initial_state)`: Returns only the final result.
@@ -98,6 +99,7 @@ These three simple functions are the building blocks for all other stateful logi
 The true power of the `State` monad comes from `bind`, which allows you to sequence operations. It takes the result of one computation and uses it to decide what computation to run next.
 
 Let's create a computation that:
+
 1. Gets the current state (an integer).
 2. Adds that value back to the state.
 3. Returns the new state as the result.

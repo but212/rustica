@@ -58,11 +58,12 @@ fn main() {
     assert_eq!(still_nothing, Maybe::nothing());
 }
 ```
+
 If `some_number` was `Nothing`, `doubled_number` would also be `Nothing`. The `map` function only applies if there's a value.
 
 ## 6. Core Concept: Applicative Functors (e.g., `apply`)
 
-An Applicative Functor builds on Functor. While `map` applies a regular function to a value in a context, `apply` applies a *function that is also in a context* to a value in a context. This is useful for combining multiple values that are all in a context (like `Maybe`).
+An Applicative Functor builds on Functor. While `map` applies a regular function to a value in a context, `apply` applies a _function that is also in a context_ to a value in a context. This is useful for combining multiple values that are all in a context (like `Maybe`).
 
 **Example with `Maybe`:**
 
@@ -123,7 +124,7 @@ fn check_positive(n: i32) -> Maybe<i32> {
 
 fn main() {
     let input_str = "10";
-    
+
     // Chain the operations using bind
     let result: Maybe<i32> = try_parse(input_str)
         .bind(|parsed_num| check_positive(parsed_num));
@@ -133,11 +134,12 @@ fn main() {
     let invalid_input_str = "-5";
     let result_fail: Maybe<i32> = try_parse(invalid_input_str)
         .bind(|parsed_num| check_positive(parsed_num));
-        
+
     // try_parse("-5") is Just(-5), then check_positive(-5) is Nothing
-    assert_eq!(result_fail, Maybe::nothing()); 
+    assert_eq!(result_fail, Maybe::nothing());
 }
 ```
+
 If `try_parse` returns `Nothing`, `check_positive` is never called, and the whole chain results in `Nothing`. `bind` handles the 'short-circuiting'.
 
 ## 8. A Glimpse into State Management: The `State` Monad
@@ -184,7 +186,7 @@ This allows you to build complex stateful logic in a composable way without usin
 
 ## 9. Practical Example: Accumulating Errors with `Validated`
 
-While `Either` (or `Result`) is great for fail-fast validation, what if you want to show the user *all* the errors at once? This is where `Validated<E, A>` and the Applicative Functor pattern shine.
+While `Either` (or `Result`) is great for fail-fast validation, what if you want to show the user _all_ the errors at once? This is where `Validated<E, A>` and the Applicative Functor pattern shine.
 
 `Validated` can be `Valid(value)` or `Invalid(errors)`. When combining `Validated` instances using the Applicative `apply` method, it accumulates errors instead of short-circuiting.
 
@@ -220,7 +222,7 @@ fn main() {
     let name_input = "Alice";
     let age_input = 30;
 
-    let user: Validated<String, User> = 
+    let user: Validated<String, User> =
         Validated::valid(create_user)
             .apply(validate_name(name_input))
             .apply(validate_age(age_input));
@@ -232,7 +234,7 @@ fn main() {
     let invalid_name = "Al";
     let invalid_age = 17;
 
-    let failed_user: Validated<String, User> = 
+    let failed_user: Validated<String, User> =
         Validated::valid(create_user)
             .apply(validate_name(invalid_name))
             .apply(validate_age(invalid_age));

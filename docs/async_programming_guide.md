@@ -71,7 +71,7 @@ Notice that `AsyncM` is lazy. The `fetch_user_name` function is not called until
 
 ## 3. Sequencing Operations with `bind`
 
-The `bind` method (the core of the Monad pattern) is used to sequence asynchronous operations that depend on each other. It takes the result of one `AsyncM` and uses it to create the *next* `AsyncM` in the chain.
+The `bind` method (the core of the Monad pattern) is used to sequence asynchronous operations that depend on each other. It takes the result of one `AsyncM` and uses it to create the _next_ `AsyncM` in the chain.
 
 Imagine you need to first fetch a user's ID and then use that ID to fetch their profile. The second operation depends on the first.
 
@@ -113,7 +113,7 @@ async fn main() {
 
 ## 4. Running Operations Concurrently with `apply`
 
-What if you have multiple asynchronous operations that *don't* depend on each other? Running them sequentially with `bind` would be inefficient. This is where `apply` (from the Applicative pattern) shines. It allows you to run multiple `AsyncM` instances concurrently and combine their results.
+What if you have multiple asynchronous operations that _don't_ depend on each other? Running them sequentially with `bind` would be inefficient. This is where `apply` (from the Applicative pattern) shines. It allows you to run multiple `AsyncM` instances concurrently and combine their results.
 
 Let's say you need to fetch a user's profile and their recent activity from two different services. These can happen at the same time.
 
@@ -181,7 +181,7 @@ async fn main() {
     let get_user_id = AsyncM::pure(101);
 
     // Use fmap to transform the result directly
-    let user_id_as_string = get_user_id.fmap(|id| async move { 
+    let user_id_as_string = get_user_id.fmap(|id| async move {
         format!("User ID: {}", id)
     });
 
@@ -211,7 +211,7 @@ async fn might_fail(should_succeed: bool) -> Result<String, &'static str> {
 async fn main() {
     // Handle the success case
     let success_op = AsyncM::from_result_or_default(
-        || might_fail(true), 
+        || might_fail(true),
         "Default Value".to_string()
     );
     let result1 = success_op.try_get().await;
@@ -220,7 +220,7 @@ async fn main() {
 
     // Handle the failure case
     let failure_op = AsyncM::from_result_or_default(
-        || might_fail(false), 
+        || might_fail(false),
         "Default Value".to_string()
     );
     let result2 = failure_op.try_get().await;
