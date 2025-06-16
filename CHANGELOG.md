@@ -10,6 +10,8 @@
   - **Type Constraints:** The `S: Clone` and `A: Clone` type constraints were moved to the main `impl<S, A, L> IsoLens<S, A, L>` block, enhancing generality and removing redundancy from individual methods.
   - **`modify` Method:** The `modify` method was updated to use the new `set` signature and its closure signature was corrected to `F: FnOnce(A) -> A` for accurate ownership transfer.
   - Documentation examples were updated to reflect these API changes.
+  - **Documentation Clarity:** Added a "Semantic Note" to `IsoLens` documentation, explaining how the `Iso`'s target type `A` (typically `(FocusType, S_Context)`) enables traditional lens behavior by allowing reconstruction of `S` while preserving non-focused parts.
+  - **Ergonomic Helper:** Introduced `set_focus(&self, s: &S, new_focus_value: &FocusType) -> S` method for `IsoLens<S, (FocusType, S), L>`. This provides a more direct way to update the focused part, reducing boilerplate for common use cases.
 
 - **`Validated` Datatype Refinement & Enhancement**
   - **Documentation Overhaul:**

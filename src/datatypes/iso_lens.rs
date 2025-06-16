@@ -141,6 +141,15 @@ pub type ComposedIsoLens<S, A, B, L, L2> =
 /// * `A` - The type of the focused part.
 /// * `L` - The Iso implementation from `S` to `A`.
 ///
+/// # Semantic Note
+///
+/// While the `set` method of `IsoLens` takes only the new target value `a: &A`,
+/// to achieve traditional lens behavior (updating a part of `S` while preserving the rest),
+/// the type `A` (i.e., `L::To`) is typically structured as a pair: `(FocusType, S_Context)`.
+/// Here, `FocusType` is the actual type of the field being focused on, and `S_Context`
+/// is usually a clone of the original `S` structure. This allows the `Iso::backward`
+/// method to use `S_Context` to reconstruct the full `S` with only `FocusType` changed.
+///
 /// # Examples
 ///
 /// ```rust
@@ -464,6 +473,69 @@ where
     #[inline]
     pub fn iso_ref(&self) -> &L {
         &self.iso
+    }
+}
+
+impl<S, FocusType, L> IsoLens<S, (FocusType, S), L>
+where
+    L: Iso<S, (FocusType, S), From = S, To = (FocusType, S)>,
+    S: Clone,
+    FocusType: Clone,
+{
+    /// Sets the focused part of the structure `s` to `new_focus_value`,
+    /// preserving other parts of `s`.
+    ///
+    /// This is a convenience method for `IsoLens` instances where the target
+    /// type `A` of the Iso (i.e., `L::To`) is a pair `(FocusType, S)`.
+    /// It simplifies the call to `set` by constructing the required tuple internally,
+    /// which is then used by `Iso::backward`.
+    ///
+    /// # Arguments
+    /// * `s` - A reference to the original structure.
+    /// * `new_focus_value` - A reference to the new value for the focused part.
+    ///
+    /// # Returns
+    /// A new structure `S` with the focused part updated.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rustica::datatypes::iso_lens::IsoLens;
+    /// # use rustica::traits::iso::Iso;
+    /// #
+    /// # #[derive(Clone, Debug, PartialEq)]
+    /// # struct Person { name: String, age: u32 }
+    /// #
+    /// # struct NameIso;
+    /// # impl Iso<Person, (String, Person)> for NameIso {
+    /// #     type From = Person;
+    /// #     type To = (String, Person);
+    /// #     fn forward(&self, from: &Person) -> (String, Person) {
+    /// #         (from.name.clone(), from.clone())
+    /// #     }
+    /// #     fn backward(&self, to: &(String, Person)) -> Person {
+    /// #         let mut p = to.1.clone();
+    /// #         p.name = to.0.clone();
+    /// #         p
+    /// #     }
+    /// # }
+    /// #
+    /// let lens = IsoLens::new(NameIso);
+    /// let person = Person { name: "Alice".to_string(), age: 30 };
+    /// let new_name = "Bob".to_string();
+    ///
+    /// // Using the set_focus method:
+    /// let updated = lens.set_focus(&person, &new_name);
+    ///
+    /// // This is equivalent to manually constructing the tuple for `set`:
+    /// // let updated_manual = lens.set(&(new_name.clone(), person.clone()));
+    /// // assert_eq!(updated, updated_manual);
+    ///
+    /// assert_eq!(updated.name, "Bob");
+    /// assert_eq!(updated.age, 30); // Original age preserved
+    /// ```
+    pub fn set_focus(&self, s: &S, new_focus_value: &FocusType) -> S {
+        let a_tuple = (new_focus_value.clone(), s.clone());
+        self.iso.backward(&a_tuple)
     }
 }
 
