@@ -150,6 +150,113 @@ pub type ComposedIsoLens<S, A, B, L, L2> =
 /// is usually a clone of the original `S` structure. This allows the `Iso::backward`
 /// method to use `S_Context` to reconstruct the full `S` with only `FocusType` changed.
 ///
+/// # Lens Laws
+///
+/// An `IsoLens` derived from a valid `Iso` will satisfy the standard lens laws:
+///
+/// 1.  **Get-Set Law**: If you get a value `a` from a structure `s` and then set `a` back into `s`,
+///     you get the original `s` back.
+///     `lens.set(&lens.get(s)) == s`
+///     (This holds if `iso.backward(&iso.forward(s)) == s`, which is a law for valid `Iso`s.)
+///
+/// 2.  **Set-Get Law**: If you set a value `a` into a structure `s` (producing `s'`), and then get
+///     the value from `s'`, you get `a` back.
+///     `lens.get(&lens.set(&a)) == a`
+///     (This holds if `iso.forward(&iso.backward(a)) == a`, which is a law for valid `Iso`s,
+///     assuming `a` is a valid target for `backward`.)
+///
+/// 3.  **Set-Set Law**: If you set a value `a1` into `s` (producing `s'`), and then set `a2` into `s'`,
+///     the result is the same as just setting `a2` into the original `s`.
+///     `lens.set(&lens.set(&a1), &a2) == lens.set(&a2)`
+///     (The `set` operation is idempotent in its effect on the focused part based on the new value `a`.)
+///
+/// These laws ensure that the lens behaves predictably and doesn't cause unexpected side effects
+/// or loss of information, assuming the underlying `Iso` is correctly implemented.
+/// For `IsoLens` where `A` is `(FocusType, S_Context)`, the laws apply similarly to `set_focus` and `modify_focus`.
+///
+/// For example (conceptual, full verification in tests):
+/// ```rust
+/// # use rustica::datatypes::iso_lens::IsoLens;
+/// # use rustica::traits::iso::Iso;
+/// # #[derive(Clone, Debug, PartialEq)]
+/// # struct Person { name: String, age: u32 }
+/// # struct NameIso;
+/// # impl Iso<Person, (String, Person)> for NameIso {
+/// #     type From = Person; type To = (String, Person);
+/// #     fn forward(&self, from: &Person) -> (String, Person) { (from.name.clone(), from.clone()) }
+/// #     fn backward(&self, to: &(String, Person)) -> Person {
+/// #         let mut p = to.1.clone(); p.name = to.0.clone(); p
+/// #     }
+/// # }
+/// # let lens = IsoLens::new(NameIso);
+/// # let person = Person { name: "Alice".to_string(), age: 30 };
+/// # let new_name = "Bob".to_string();
+/// # let new_name_tuple = (new_name.clone(), person.clone());
+/// // Get-Set (simplified for A = (FocusType, S_Context))
+/// let original_a_from_s = lens.get(&person); // A = (String, Person)
+/// assert_eq!(lens.set(&original_a_from_s), person);
+///
+/// // Set-Get
+/// let person_after_set = lens.set(&new_name_tuple);
+/// // We need to create a new tuple with updated context for comparison
+/// let expected_tuple = (new_name, person_after_set.clone());
+/// assert_eq!(lens.get(&person_after_set), expected_tuple);
+/// ```
+///
+/// Below are runnable examples verifying these laws, particularly with `set_focus`:
+///
+/// ```rust
+/// # use rustica::datatypes::iso_lens::IsoLens;
+/// # use rustica::traits::iso::Iso;
+/// #
+/// #[derive(Clone, Debug, PartialEq)]
+/// struct Person { name: String, age: u32, city: String }
+///
+/// struct NameFocusIso;
+/// impl Iso<Person, (String, Person)> for NameFocusIso {
+///     type From = Person;
+///     type To = (String, Person);
+///     fn forward(&self, from: &Person) -> (String, Person) {
+///         (from.name.clone(), from.clone()) // Focus on name, keep Person as context
+///     }
+///     fn backward(&self, to: &(String, Person)) -> Person {
+///         let (new_name, original_person_context) = to;
+///         Person { name: new_name.clone(), ..original_person_context.clone() }
+///     }
+/// }
+///
+/// let lens = IsoLens::new(NameFocusIso);
+/// let person = Person { name: "Alice".to_string(), age: 30, city: "New York".to_string() };
+///
+/// // 1. Get-Set Law (using set_focus)
+/// // lens.set_focus(s, lens.get(s).0) == s
+/// let original_name_focus = lens.get(&person).0; // Get the (FocusType, S_Context).0 -> FocusType
+/// assert_eq!(lens.set_focus(&person, &original_name_focus), person, "Get-Set Law failed for set_focus");
+///
+/// // 2. Set-Get Law (using set_focus)
+/// // lens.get(lens.set_focus(s, new_focus)).0 == new_focus
+/// let new_name = "Bob".to_string();
+/// let person_after_set_focus = lens.set_focus(&person, &new_name);
+/// assert_eq!(lens.get(&person_after_set_focus).0, new_name, "Set-Get Law failed for set_focus");
+///
+/// // 3. Set-Set Law (using set_focus)
+/// // lens.set_focus(lens.set_focus(s, name1), name2) == lens.set_focus(s, name2)
+/// let name1 = "Charlie".to_string();
+/// let name2 = "David".to_string();
+/// let s_prime = lens.set_focus(&person, &name1);
+/// assert_eq!(lens.set_focus(&s_prime, &name2), lens.set_focus(&person, &name2), "Set-Set Law failed for set_focus");
+///
+/// // Verification with modify_focus (example: Modify-Get)
+/// // If f is identity, modify_focus(s, id).name == s.name
+/// let person_modified_id = lens.modify_focus(&person, |name| name); // Identity function
+/// assert_eq!(person_modified_id, person, "Modify-Get (identity) Law failed for modify_focus");
+///
+/// // Another modify_focus check: Get-Modify-Get
+/// // lens.get(lens.modify_focus(s, f)).0 == f(lens.get(s).0)
+/// let s_modified = lens.modify_focus(&person, |name| name.to_uppercase());
+/// assert_eq!(lens.get(&s_modified).0, person.name.to_uppercase(), "Get-Modify-Get Law failed for modify_focus");
+/// ```
+///
 /// # Examples
 ///
 /// ```rust
@@ -235,6 +342,9 @@ where
     /// assert_eq!(updated.name, "Bob");
     /// assert_eq!(updated.age, 30); // Original value preserved
     /// ```
+    ///
+    /// # Performance
+    /// This method is O(1) as it only involves struct initialization.
     #[inline]
     pub fn new(iso: L) -> Self {
         Self {
@@ -276,6 +386,10 @@ where
     /// let p = Person { name: "Alice".into(), age: 30 };
     /// assert_eq!(lens.get(&p), ("Alice".to_string(), p.clone()));
     /// ```
+    ///
+    /// # Performance
+    /// Performance depends on the underlying `Iso::forward` implementation and the cost of cloning `A`.
+    /// Typically, this involves cloning the focused part and potentially the context.
     #[inline]
     pub fn get(&self, s: &S) -> A
     where
@@ -424,6 +538,11 @@ where
     /// let updated = composed.set(&(100, Outer { inner: Inner { value: 100 } }));
     /// assert_eq!(updated.inner.value, 100);
     /// ```
+    ///
+    /// # Performance
+    /// This method is O(1) as it only involves creating a new `IsoLens` struct with a composed `Iso`.
+    /// The performance of the *resulting* lens's methods (`get`, `set`, etc.) will depend on the
+    /// combined complexities of the composed `Iso`s.
     pub fn compose<B, L2>(self, other: IsoLens<A, (B, S), L2>) -> ComposedIsoLens<S, A, B, L, L2>
     where
         L2: Iso<A, (B, S), From = A, To = (B, S)>,
@@ -470,6 +589,9 @@ where
     /// let (name, _) = iso.forward(&p);
     /// assert_eq!(name, "Alice");
     /// ```
+    ///
+    /// # Performance
+    /// This method is O(1) as it simply returns a reference.
     #[inline]
     pub fn iso_ref(&self) -> &L {
         &self.iso
