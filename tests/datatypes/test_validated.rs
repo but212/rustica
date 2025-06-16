@@ -1731,7 +1731,7 @@ mod comprehensive_test {
         let number_validation = generic_validation(42, true, "number error");
         assert!(number_validation.is_valid());
 
-        println!("✅ Type system integration works correctly!");
+        println!("Type system integration works correctly!");
     }
 
     #[test]
@@ -1756,12 +1756,12 @@ mod comprehensive_test {
             "Edge cases and stress testing",
         ];
 
-        println!("✅ Test coverage includes:");
+        println!("Test coverage includes:");
         for category in test_categories {
             println!("   - {}", category);
         }
 
-        println!("✅ Comprehensive test suite completed successfully!");
+        println!("Comprehensive test suite completed successfully!");
     }
 }
 
@@ -1810,7 +1810,7 @@ mod test_summary {
         let folded = valid1.fold_left(&0, |acc, x| acc + x);
         assert_eq!(folded, 10);
 
-        println!("✅ All major Validated operations work correctly!");
+        println!("All major Validated operations work correctly!");
     }
 }
 
@@ -1819,25 +1819,6 @@ mod test_summary {
 // =============================================================================
 
 // Note: This comprehensive test suite covers:
-//
-// 1. ✅ Basic creation and access patterns
-// 2. ✅ Functor laws and operations (fmap, fmap_owned, fmap_invalid)
-// 3. ✅ Applicative laws and operations (apply, lift2, lift3, pure)
-// 4. ✅ Monad laws and operations (bind, monadic composition)
-// 5. ✅ Foldable operations (fold_left, fold_right)
-// 6. ✅ Conversion functions (from/to Result, Option)
-// 7. ✅ Error accumulation and handling
-// 8. ✅ Iterator support (iter, iter_mut, iter_errors)
-// 9. ✅ Unwrap operations and panic conditions
-// 10. ✅ Real-world validation scenarios
-// 11. ✅ Performance and stress testing
-// 12. ✅ Type safety and ergonomics
-// 13. ✅ Property-based testing with QuickCheck
-// 14. ✅ Edge cases and regression testing
-// 15. ✅ Integration with standard library types
-// 16. ✅ Memory efficiency testing
-// 17. ✅ Unicode and special character handling
-// 18. ✅ Comprehensive workflow demonstrations
 //
 // The test suite is organized into logical modules following Rust best practices,
 // with clear separation of concerns and comprehensive coverage of all functionality.
