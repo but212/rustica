@@ -537,6 +537,61 @@ where
         let a_tuple = (new_focus_value.clone(), s.clone());
         self.iso.backward(&a_tuple)
     }
+
+    /// Applies a function to the focused part of the structure `s` and returns a new structure.
+    ///
+    /// This is a convenience method for `IsoLens` instances where the target
+    /// type `A` of the Iso (i.e., `L::To`) is a pair `(FocusType, S)`.
+    /// It allows direct transformation of the `FocusType`.
+    ///
+    /// The function `f` takes the current `FocusType` by value and should return
+    /// the modified `FocusType`.
+    ///
+    /// # Arguments
+    /// * `s` - A reference to the original structure.
+    /// * `f` - A function `FnOnce(FocusType) -> FocusType` to transform the focused part.
+    ///
+    /// # Returns
+    /// A new structure `S` with the focused part transformed.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rustica::datatypes::iso_lens::IsoLens;
+    /// # use rustica::traits::iso::Iso;
+    /// #
+    /// # #[derive(Clone, Debug, PartialEq)]
+    /// # struct Person { name: String, age: u32 }
+    /// #
+    /// # struct NameIso;
+    /// # impl Iso<Person, (String, Person)> for NameIso {
+    /// #     type From = Person;
+    /// #     type To = (String, Person);
+    /// #     fn forward(&self, from: &Person) -> (String, Person) {
+    /// #         (from.name.clone(), from.clone())
+    /// #     }
+    /// #     fn backward(&self, to: &(String, Person)) -> Person {
+    /// #         let mut p = to.1.clone();
+    /// #         p.name = to.0.clone();
+    /// #         p
+    /// #     }
+    /// # }
+    /// #
+    /// let lens = IsoLens::new(NameIso);
+    /// let person = Person { name: "Alice".to_string(), age: 30 };
+    ///
+    /// let updated_person = lens.modify_focus(&person, |name_focus| name_focus.to_uppercase());
+    ///
+    /// assert_eq!(updated_person.name, "ALICE");
+    /// assert_eq!(updated_person.age, 30); // Original age preserved
+    /// ```
+    pub fn modify_focus<F>(&self, s: &S, f: F) -> S
+    where
+        F: FnOnce(FocusType) -> FocusType,
+    {
+        let (current_focus_value, s_context) = self.iso.forward(s);
+        let new_focus_value = f(current_focus_value);
+        self.iso.backward(&(new_focus_value, s_context))
+    }
 }
 
 /// Helper Iso that converts between A <-> (B, S)

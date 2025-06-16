@@ -11,7 +11,8 @@
   - **`modify` Method:** The `modify` method was updated to use the new `set` signature and its closure signature was corrected to `F: FnOnce(A) -> A` for accurate ownership transfer.
   - Documentation examples were updated to reflect these API changes.
   - **Documentation Clarity:** Added a "Semantic Note" to `IsoLens` documentation, explaining how the `Iso`'s target type `A` (typically `(FocusType, S_Context)`) enables traditional lens behavior by allowing reconstruction of `S` while preserving non-focused parts.
-  - **Ergonomic Helper:** Introduced `set_focus(&self, s: &S, new_focus_value: &FocusType) -> S` method for `IsoLens<S, (FocusType, S), L>`. This provides a more direct way to update the focused part, reducing boilerplate for common use cases.
+  - **Ergonomic Helper (`set_focus`):** Introduced `set_focus(&self, s: &S, new_focus_value: &FocusType) -> S` method for `IsoLens<S, (FocusType, S), L>`. This provides a more direct way to update the focused part, reducing boilerplate for common use cases.
+  - **Ergonomic Helper (`modify_focus`):** Added `modify_focus<F>(&self, s: &S, f: F) -> S` method for `IsoLens<S, (FocusType, S), L>`, where `F: FnOnce(FocusType) -> FocusType`. This complements `set_focus` by allowing direct, efficient transformation of the focused part.
 
 - **`Validated` Datatype Refinement & Enhancement**
   - **Documentation Overhaul:**
