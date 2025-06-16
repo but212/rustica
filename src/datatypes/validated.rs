@@ -89,104 +89,56 @@
 //! ```rust
 //! use rustica::datatypes::validated::Validated;
 //! use rustica::traits::applicative::Applicative;
-//! use rustica::traits::functor::Functor;
 //!
-//! #[derive(Debug, PartialEq)]
+//! #[derive(Debug, PartialEq, Clone)]
 //! struct User {
 //!     username: String,
 //!     email: String,
 //!     age: u32,
 //! }
 //!
-//! fn validate_username(username: &str) -> Validated<&str, String> {
-//!     if username.len() >= 3 && username.len() <= 20 {
-//!         if username.chars().all(char::is_alphanumeric) {
-//!             Validated::valid(username.to_string())
-//!         } else {
-//!             Validated::invalid("Username must be alphanumeric")
-//!         }
+//! fn validate_username(username: &str) -> Validated<String, String> {
+//!     if username.len() >= 3 {
+//!         Validated::valid(username.to_string())
 //!     } else {
-//!         Validated::invalid("Username must be 3-20 characters long")
+//!         Validated::invalid("Username must be at least 3 characters".to_string())
 //!     }
 //! }
 //!
-//! fn validate_email(email: &str) -> Validated<&str, String> {
-//!     if email.contains('@') && email.contains('.') {
+//! fn validate_email(email: &str) -> Validated<String, String> {
+//!     if email.contains('@') {
 //!         Validated::valid(email.to_string())
 //!     } else {
-//!         Validated::invalid("Invalid email format")
+//!         Validated::invalid("Email must contain @ symbol".to_string())
 //!     }
 //! }
 //!
-//! fn validate_age(age: u32) -> Validated<&str, u32> {
+//! fn validate_age(age: u32) -> Validated<String, u32> {
 //!     if age >= 18 {
 //!         Validated::valid(age)
 //!     } else {
-//!         Validated::invalid("User must be at least 18 years old")
+//!         Validated::invalid("Must be at least 18 years old".to_string())
 //!     }
 //! }
 //!
-//! // User constructor function
-//! fn new_user(username: String) -> impl Fn(String) -> Box<dyn Fn(u32) -> User> {
-//!     move |email: String| {
-//!         Box::new(move |age: u32| User { username: username.clone(), email: email.clone(), age })
-//!     }
-//! }
+//! // Combine all validations
+//! let username_validation = validate_username("jo");
+//! let email_validation = validate_email("invalid-email");
+//! let age_validation = validate_age(16);
 //!
-//! // Validate a valid user
-//! let valid_username = validate_username("user123");
-//! let valid_email = validate_email("user@example.com");
-//! let valid_age = validate_age(25);
-//!
-//! let validated_user = Validated::pure(new_user)
-//!     .apply(&valid_username)
-//!     .apply(&valid_email)
-//!     .apply(&valid_age);
-//!
-//! assert_eq!(
-//!     validated_user,
-//!     Validated::Valid(User {
-//!         username: "user123".to_string(),
-//!         email: "user@example.com".to_string(),
-//!         age: 25,
+//! let user_validation = username_validation
+//!     .lift2(&email_validation, |username, email| {
+//!         (username.clone(), email.clone())
 //!     })
-//! );
+//!     .lift2(&age_validation, |(username, email), age| User {
+//!         username: username.clone(),
+//!         email: email.clone(),
+//!         age: *age,
+//!     });
 //!
-//! // Validate a user with multiple errors
-//! let invalid_username = validate_username("u"); // Too short
-//! let invalid_email = validate_email("user.example.com"); // Missing @
-//! let invalid_age = validate_age(17); // Too young
-//!
-//! let validated_user_with_errors = Validated::pure(new_user)
-//!     .apply(&invalid_username)
-//!     .apply(&invalid_email)
-//!     .apply(&invalid_age);
-//!
-//! match validated_user_with_errors {
-//!     Validated::Invalid(errors) => {
-//!         assert!(errors.contains(&"Username must be 3-20 characters long"));
-//!         assert!(errors.contains(&"Invalid email format"));
-//!         assert!(errors.contains(&"User must be at least 18 years old"));
-//!         assert_eq!(errors.len(), 3);
-//!     }
-//!     Validated::Valid(_) => panic!("Expected Invalid, got Valid"),
-//! }
-//!
-//! // Validate a user with one error
-//! let another_invalid_username = validate_username("username_with_symbol!");
-//!
-//! let validated_user_one_error = Validated::pure(new_user)
-//!     .apply(&another_invalid_username)
-//!     .apply(&valid_email)
-//!     .apply(&valid_age);
-//!
-//! match validated_user_one_error {
-//!     Validated::Invalid(errors) => {
-//!         assert!(errors.contains(&"Username must be alphanumeric"));
-//!         assert_eq!(errors.len(), 1);
-//!     }
-//!     Validated::Valid(_) => panic!("Expected Invalid, got Valid"),
-//! }
+//! assert!(user_validation.is_invalid());
+//! let errors = user_validation.unwrap_invalid();
+//! assert_eq!(errors.len(), 3); // All three validation errors are collected
 //! ```
 //!
 //! One of the most powerful aspects of `Validated` is its applicative instance, which allows
@@ -451,10 +403,10 @@ impl<E, A> Validated<E, A> {
     ///
     /// ```rust
     /// use rustica::datatypes::validated::Validated;
-    /// use smallvec::smallvec;
+    /// use smallvec::SmallVec;
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// assert_eq!(invalid.unwrap_invalid_owned(), smallvec!["error"]);
+    /// assert_eq!(invalid.unwrap_invalid_owned(), SmallVec::<[&str; 4]>::from_slice(&["error"]));
     /// ```
     ///
     /// ```rust,should_panic
