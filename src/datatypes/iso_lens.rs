@@ -47,7 +47,7 @@
 //! let addr = lens.get(&p);
 //! assert_eq!(addr.0.street, "Main St");
 //! // Update the address
-//! let updated = lens.set(&p, &(Address { street: "Oak Ave".to_string(), city: "Springfield".to_string() }, p.clone()));
+//! let updated = lens.set(&(Address { street: "Oak Ave".to_string(), city: "Springfield".to_string() }, p.clone()));
 //! assert_eq!(updated.address.street, "Oak Ave");
 //! ```
 //!
@@ -170,7 +170,7 @@ pub type ComposedIsoLens<S, A, B, L, L2> =
 /// let person = Person { name: "Alice".to_string(), age: 30 };
 ///
 /// assert_eq!(lens.get(&person), ("Alice".to_string(), person.clone()));
-/// let updated = lens.set(&person, &("Bob".to_string(), person.clone()));
+/// let updated = lens.set(&("Bob".to_string(), person.clone()));
 /// assert_eq!(updated.name, "Bob");
 /// assert_eq!(updated.age, 30); // Original value preserved
 ///```
@@ -186,6 +186,8 @@ where
 impl<S, A, L> IsoLens<S, A, L>
 where
     L: Iso<S, A, From = S, To = A>,
+    S: Clone,
+    A: Clone,
 {
     /// Creates a new IsoLens from an Iso implementation.
     ///
@@ -220,7 +222,7 @@ where
     /// let lens = IsoLens::new(NameIsoLens);
     /// let p = Person { name: "Alice".into(), age: 30 };
     /// assert_eq!(lens.get(&p), ("Alice".to_string(), p.clone()));
-    /// let updated = lens.set(&p, &("Bob".to_string(), p.clone()));
+    /// let updated = lens.set(&("Bob".to_string(), p.clone()));
     /// assert_eq!(updated.name, "Bob");
     /// assert_eq!(updated.age, 30); // Original value preserved
     /// ```
@@ -305,11 +307,11 @@ where
     /// # }
     /// let lens = IsoLens::new(NameIsoLens);
     /// let p = Person { name: "Alice".into(), age: 30 };
-    /// let updated = lens.set(&p, &("Bob".to_string(), p.clone()));
+    /// let updated = lens.set(&("Bob".to_string(), p.clone()));
     /// assert_eq!(updated.name, "Bob");
     /// ```
     #[inline]
-    pub fn set(&self, _s: &S, a: &A) -> S
+    pub fn set(&self, a: &A) -> S
     where
         S: Clone,
         A: Clone,
@@ -355,12 +357,12 @@ where
     #[inline]
     pub fn modify<F>(&self, s: &S, f: F) -> S
     where
-        F: FnOnce(&A) -> A,
+        F: FnOnce(A) -> A,
         S: Clone,
         A: Clone,
     {
         let a = self.get(s);
-        self.set(s, &f(&a))
+        self.set(&f(a))
     }
 
     /// Composes this IsoLens with another IsoLens to focus deeper into a nested structure.
@@ -410,7 +412,7 @@ where
     /// let composed = outer_lens.compose(value_pair_lens);
     /// let o = Outer { inner: Inner { value: 42 } };
     /// assert_eq!(composed.get(&o).0, 42);
-    /// let updated = composed.set(&o, &(100, Outer { inner: Inner { value: 100 } }));
+    /// let updated = composed.set(&(100, Outer { inner: Inner { value: 100 } }));
     /// assert_eq!(updated.inner.value, 100);
     /// ```
     pub fn compose<B, L2>(self, other: IsoLens<A, (B, S), L2>) -> ComposedIsoLens<S, A, B, L, L2>

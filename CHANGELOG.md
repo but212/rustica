@@ -4,6 +4,30 @@
 
 ### Changed
 
+- **`IsoLens` API and Constraint Refinements** (`src/datatypes/iso_lens.rs`)
+
+  - **API Consistency:** The `set` method signature was changed from `set(&self, _s: &S, a: &A) -> S` to `set(&self, a: &A) -> S`, removing the redundant `_s` parameter as the `Iso`'s `backward` method inherently reconstructs `S` from `A`.
+  - **Type Constraints:** The `S: Clone` and `A: Clone` type constraints were moved to the main `impl<S, A, L> IsoLens<S, A, L>` block, enhancing generality and removing redundancy from individual methods.
+  - **`modify` Method:** The `modify` method was updated to use the new `set` signature and its closure signature was corrected to `F: FnOnce(A) -> A` for accurate ownership transfer.
+  - Documentation examples were updated to reflect these API changes.
+
+- **`Validated` Datatype Refinement & Enhancement**
+  - **Documentation Overhaul:**
+    - Added a comprehensive, real-world "User Registration" example to demonstrate applicative validation for forms.
+    - Included detailed explanations for type parameter constraints (e.g., why `E: Clone` is often needed) and the behavior of trait implementations like `Alternative::empty`.
+  - **API Safety and Ergonomics:**
+    - Introduced `into_value()` and `into_error_payload()` as safe, non-panicking methods to consume a `Validated` instance and extract its contents.
+    - Added `unwrap_invalid_owned()` for ownership-based, panicking extraction of errors.
+    - Clarified the distinction between `invalid_vec` (panics on empty input) and `invalid_many` (handles empty input gracefully) with improved documentation and examples.
+  - **Performance Optimization:**
+    - Added `fmap_invalid_owned`, an ownership-taking variant of `fmap_invalid`, to avoid unnecessary cloning of the `Valid` value.
+    - Added `value()` and `error_payload()` methods to provide non-cloning, read-only access to the contained data.
+- **`Validated` Test Suite Refactoring & API Cleanup**
+
+  - The test suite for `Validated` (`tests/datatypes/test_validated.rs`) has been completely refactored into a modular structure for improved clarity, maintainability, and coverage.
+  - Trait law tests, panic tests, scenario tests, and property-based tests are now organized into distinct modules.
+  - Removed the `std_error` feature and its associated helper methods (`first_error_source`, `iter_error_sources`) to streamline the API.
+
 - **`Sum` Wrapper Refinement** (`src/datatypes/wrapper/sum.rs`)
   - Internal implementation details of the `Sum` wrapper have been encapsulated.
   - Direct construction via `new` and direct access to the `inner` value are no longer part of the public API, promoting the use of trait-based operations (e.g., `Monoid::empty()`, `Semigroup::combine()`).
