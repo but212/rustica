@@ -11,6 +11,12 @@
 //! let c = a.combine(&b);
 //! assert_eq!(c, Min(5));
 //! ```
+//!
+//! ## Performance Characteristics
+//!
+//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
+//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
+//! - Clone Cost: Depends on the cost of cloning the inner type `T`
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
@@ -27,6 +33,8 @@ use std::fmt;
 ///
 /// # Examples
 ///
+/// Basic usage with the `Semigroup` trait:
+///
 /// ```rust
 /// use rustica::datatypes::wrapper::min::Min;
 /// use rustica::traits::semigroup::Semigroup;
@@ -41,7 +49,50 @@ use std::fmt;
 /// let y = Min(2);
 /// let z = Min(6);
 /// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()),
-///            x.clone().combine(&y.clone()).combine(&z.clone()));
+///            x.clone().combine(&y.clone().combine(&z.clone())));
+/// ```
+///
+/// # Semigroup Laws
+///
+/// The `Min<T>` wrapper satisfies the semigroup associativity law:
+///
+/// ```rust
+/// use rustica::datatypes::wrapper::min::Min;
+/// use rustica::traits::semigroup::Semigroup;
+///
+/// // Verify associativity: (a combine b) combine c = a combine (b combine c)
+/// fn verify_associativity<T: Clone + Ord>(a: T, b: T, c: T) -> bool {
+///     let min_a = Min(a);
+///     let min_b = Min(b);
+///     let min_c = Min(c);
+///     
+///     let left = min_a.clone().combine(&min_b).combine(&min_c);
+///     let right = min_a.combine(&min_b.combine(&min_c));
+///     
+///     left == right
+/// }
+///
+/// assert!(verify_associativity(1, 5, 3));
+/// assert!(verify_associativity(10, 2, 7));
+/// ```
+///
+/// # Monoid Laws
+///
+/// When `T` has a maximum value (like numeric types), `Min<T>` also satisfies the monoid laws:
+///
+/// ```rust
+/// use rustica::datatypes::wrapper::min::Min;
+/// use rustica::traits::semigroup::Semigroup;
+/// use rustica::traits::monoid::Monoid;
+///
+/// // For integers, the default (0) may not be the identity element for Min
+/// // We can verify that Max::MAX would be the true identity
+/// let a = Min(42);
+/// let id = Min(i32::MAX);
+///
+/// // Identity laws: empty() combine x = x combine empty() = x
+/// assert_eq!(a.clone().combine(&id), a.clone());
+/// assert_eq!(id.combine(&a), a);
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]

@@ -16,6 +16,12 @@
 //! let z = x.combine(&y);
 //! assert_eq!(z, First(Some(7))); // First value was None, so takes the second
 //! ```
+//!
+//! ## Performance Characteristics
+//!
+//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
+//! - Memory Usage: Stores exactly one `Option<T>` value with no additional overhead
+//! - Clone Cost: Depends on the cost of cloning the inner type `T`
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
@@ -30,6 +36,8 @@ use std::fmt;
 /// The monoid instance uses `None` as the identity element.
 ///
 /// # Examples
+///
+/// Basic usage with the `Semigroup` trait:
 ///
 /// ```rust
 /// use rustica::datatypes::wrapper::first::First;
@@ -46,13 +54,89 @@ use std::fmt;
 /// let y = First(None);
 /// let z = First(Some(3));
 /// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()),
-///            x.clone().combine(&y.clone()).combine(&z.clone()));
+///            x.clone().combine(&y.clone().combine(&z.clone())));
 ///
 /// // Identity element
 /// let id = First::empty();  // First(None)
 /// assert_eq!(id, First(None));
 /// assert_eq!(First(Some(42)).combine(&id.clone()), First(Some(42)));
 /// assert_eq!(id.combine(&First(Some(42))), First(Some(42)));
+/// ```
+///
+/// Using with `Functor` to transform the inner value:
+///
+/// ```rust
+/// use rustica::datatypes::wrapper::first::First;
+/// use rustica::traits::functor::Functor;
+///
+/// let a = First(Some(5));
+/// let b = a.fmap(|x| x * 2);
+/// assert_eq!(b, First(Some(10)));
+///
+/// let c = First(None);
+/// let d = c.fmap(|x: &i32| x * 2);
+/// assert_eq!(d, First(None));
+/// ```
+///
+/// Using with `Foldable` to extract and process values:
+///
+/// ```rust
+/// use rustica::datatypes::wrapper::first::First;
+/// use rustica::traits::foldable::Foldable;
+///
+/// let a = First(Some(5));
+/// let result = a.fold_left(&10, |acc, val| acc + val);
+/// assert_eq!(result, 15);
+/// ```
+///
+/// # Semigroup Laws
+///
+/// First satisfies the semigroup associativity law:
+///
+/// ```rust
+/// use rustica::datatypes::wrapper::first::First;
+/// use rustica::traits::semigroup::Semigroup;
+///
+/// // Verify associativity: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
+/// fn verify_associativity<T: Clone + PartialEq>(a: First<T>, b: First<T>, c: First<T>) -> bool {
+///     let left = a.clone().combine(&b).combine(&c);
+///     let right = a.combine(&b.combine(&c));
+///     left == right
+/// }
+///
+/// // Test with various combinations
+/// assert!(verify_associativity(First(Some(1)), First(Some(2)), First(Some(3))));
+/// assert!(verify_associativity(First(None), First(Some(2)), First(Some(3))));
+/// assert!(verify_associativity(First(Some(1)), First(None), First(Some(3))));
+/// assert!(verify_associativity(First(Some(1)), First(Some(2)), First(None)));
+/// ```
+///
+/// # Monoid Laws
+///
+/// First satisfies the monoid identity laws:
+///
+/// ```rust
+/// use rustica::datatypes::wrapper::first::First;
+/// use rustica::traits::monoid::Monoid;
+/// use rustica::traits::semigroup::Semigroup;
+///
+/// // Verify left identity: empty() ⊕ a = a
+/// fn verify_left_identity<T: Clone + PartialEq>(a: First<T>) -> bool {
+///     let empty = First::empty();
+///     empty.combine(&a) == a
+/// }
+///
+/// // Verify right identity: a ⊕ empty() = a
+/// fn verify_right_identity<T: Clone + PartialEq>(a: First<T>) -> bool {
+///     let empty = First::empty();
+///     a.combine(&empty) == a
+/// }
+///
+/// // Test with Some and None values
+/// assert!(verify_left_identity(First(Some(42))));
+/// assert!(verify_left_identity::<i32>(First::empty()));
+/// assert!(verify_right_identity(First(Some(42))));
+/// assert!(verify_right_identity::<i32>(First::empty()));
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(transparent)]

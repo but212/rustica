@@ -42,6 +42,14 @@
 //! # Usage
 //!
 //! This module is ideal for use cases where sets are defined by properties or conditions rather than explicit enumeration.
+//!
+//! # Performance Characteristics
+//!
+//! - Creation: O(1) - Creating a predicate only wraps a function in an Rc
+//! - Evaluation: O(f) - Performance depends on the wrapped function's complexity
+//! - Composition: O(1) - Combining predicates has constant overhead but adds indirection
+//! - Memory: O(n) where n is the number of composed predicates in a chain
+//! - Clone: O(1) - Cloning only increments an Rc counter
 
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;
@@ -80,6 +88,11 @@ impl<A> Predicate<A> {
     /// assert!(is_even.contains(&2));
     /// assert!(!is_even.contains(&3));
     /// ```
+    ///
+    /// # Performance
+    ///
+    /// - Time Complexity: O(1) - Simply wraps the function in an Rc
+    /// - Memory Usage: O(1) - Stores a single Rc pointer to the function
     #[inline]
     pub fn new<F>(f: F) -> Self
     where
@@ -107,6 +120,11 @@ impl<A> Predicate<A> {
     /// assert!(is_positive.contains(&5));
     /// assert!(!is_positive.contains(&-3));
     /// ```
+    ///
+    /// # Performance
+    ///
+    /// - Time Complexity: O(f) where f is the complexity of the wrapped function
+    /// - Memory Usage: O(1) - No additional memory allocated during evaluation
     #[inline]
     pub fn contains(&self, a: &A) -> bool {
         (self.func)(a)
@@ -139,6 +157,13 @@ impl<A> Predicate<A> {
     /// assert!(even_or_positive.contains(&3));  // Positive but not even
     /// assert!(!even_or_positive.contains(&-5)); // Neither even nor positive
     /// ```
+    ///
+    /// # Performance
+    ///
+    /// - Time Complexity: O(1) for creation, O(f1 + f2) for evaluation where f1 and f2 are the
+    ///   complexities of the component predicates
+    /// - Memory Usage: O(1) - Creates a new predicate with references to existing ones
+    /// - Short-circuit Evaluation: Returns early if the first predicate evaluates to true
     pub fn union(&self, other: &Predicate<A>) -> Predicate<A>
     where
         A: 'static,
@@ -177,6 +202,13 @@ impl<A> Predicate<A> {
     /// assert!(!even_and_positive.contains(&3));  // Positive but not even
     /// assert!(!even_and_positive.contains(&-5)); // Neither even nor positive
     /// ```
+    ///
+    /// # Performance
+    ///
+    /// - Time Complexity: O(1) for creation, O(f1 + f2) for evaluation where f1 and f2 are the
+    ///   complexities of the component predicates
+    /// - Memory Usage: O(1) - Creates a new predicate with references to existing ones
+    /// - Short-circuit Evaluation: Returns early if the first predicate evaluates to false
     pub fn intersection(&self, other: &Predicate<A>) -> Predicate<A>
     where
         A: 'static,
@@ -214,6 +246,13 @@ impl<A> Predicate<A> {
     /// assert!(!positive_integers.contains(&-3.0)); // Integer but negative
     /// assert!(!positive_integers.contains(&1.5));  // Not an integer
     /// ```
+    ///
+    /// # Performance
+    ///
+    /// - Time Complexity: O(1) for creation, O(f1 + f2) for evaluation where f1 and f2 are the
+    ///   complexities of the component predicates
+    /// - Memory Usage: O(1) - Creates a new predicate with references to existing ones
+    /// - Short-circuit Evaluation: Returns early if the first predicate evaluates to false
     pub fn diff(&self, remove: &Predicate<A>) -> Predicate<A>
     where
         A: 'static,
@@ -245,6 +284,12 @@ impl<A> Predicate<A> {
     /// assert!(!is_odd.contains(&2));
     /// assert!(is_odd.contains(&3));
     /// ```
+    ///
+    /// # Performance
+    ///
+    /// - Time Complexity: O(1) for creation, O(f) for evaluation where f is the
+    ///   complexity of the original predicate
+    /// - Memory Usage: O(1) - Creates a new predicate with a reference to the existing one
     pub fn negate(&self) -> Predicate<A>
     where
         A: 'static,
