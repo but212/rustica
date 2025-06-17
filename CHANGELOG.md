@@ -4,6 +4,16 @@
 
 ### Changed
 
+- **`Memoizer` Enhancements** (`src/datatypes/wrapper/memoizer.rs`)
+
+  - Replaced `std::sync::RwLock` with `parking_lot::RwLock` for potentially better performance and to avoid poisoning.
+  - Integrated `lru::LruCache` to enforce a configurable capacity, preventing unbounded memory growth.
+  - Cached values are now wrapped in `Arc<V>` to avoid expensive cloning of `V` on cache hits.
+  - Added metrics: `hits()`, `misses()`, and `hit_rate()` methods to observe cache performance.
+  - Introduced `get_or_compute_fallible` for computations that can fail, caching only successful `Ok(Arc<V>)` results.
+  - Refined locking strategy in `get_or_compute` and `get_or_compute_fallible` to use a single write lock and `LruCache::get_mut` for improved correctness with LRU behavior and to resolve compiler errors.
+  - Updated documentation examples and tests to reflect these changes.
+
 - **`IsoLens` API and Constraint Refinements** (`src/datatypes/iso_lens.rs`)
 
   - **API Consistency:** The `set` method signature was changed from `set(&self, _s: &S, a: &A) -> S` to `set(&self, a: &A) -> S`, removing the redundant `_s` parameter as the `Iso`'s `backward` method inherently reconstructs `S` from `A`.

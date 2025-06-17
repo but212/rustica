@@ -1,96 +1,108 @@
 # Rustica TODO List
 
-## Project Status
-
-- **Current Focus**: Implementing and documenting functional programming patterns in Rust
-- **Last Updated**: 2025-04-05
-
 ## High Priority Tasks
 
-### Core Functionality
-- [x] Add more monad transformers
-  - [x] ReaderT
-  - [x] StateT
-  - [x] ContT
-- [ ] Implement property-based tests for all category laws
-- [ ] Complete comprehensive test suite for all monads
+### 1. Documentation and Usability Improvements
 
-### Documentation
-- [ ] Add more code examples for each trait implementation
-- [ ] Document doctest best practices (explicit type annotations, trait imports)
-- [ ] Create tutorial-style documentation for beginners
-- [ ] Document performance characteristics for each implementation
+- [x] **Create Practical Guide Examples**
+  - [x] "Getting Started" tutorial (core concepts in 30 minutes)
+  - [x] Real project case study: Web API error handling with Validated
+  - [x] Asynchronous programming patterns with AsyncMonad
+  - [x] State management patterns with State monad
+- [ ] **Enhance API Documentation Quality**
+  - [ ] Add executable examples for all public functions
+  - [ ] Document performance characteristics (Big-O complexity, memory usage)
+  - [ ] Include type class law examples with verification methods
 
-## Medium Priority Tasks
+### 2. Performance Optimization and Profiling
 
-### Features & Ergonomics
-- [ ] Add more convenience methods and utility functions
-- [ ] Consider adding proc macros for reducing boilerplate
-- [x] Improve error messages and error handling
-- [ ] Document category theory concepts more thoroughly with examples
-- [ ] Add visual diagrams for category relationships
+- [ ] **Benchmark-based Optimization**
+  - [ ] Profiling memory usage of PersistentVector
+  - [ ] Identifying and optimizing hot paths (especially get, update operations)
+  - [ ] Comparative performance analysis across caching policies
+- [ ] **Memory Management Improvements**
+  - [ ] Optimizing Arc usage (removing unnecessary clones)
+  - [ ] Reviewing and improving memory pooling strategies
 
-### Error Handling (New Features)
-- [ ] Add integration with async error handling
-- [ ] Create error type hierarchies with auto-conversion
-- [ ] Add property-based tests for error utilities
-- [ ] Create specialized errors for each datatype
-- [ ] Add context propagation for error chains
+### 3. Ecosystem Integration and Compatibility
 
-### Performance & Optimization
-- [ ] Add zero-cost abstractions where possible
-- [ ] Profile and improve memory usage
-- [ ] Consider adding compile-time optimizations
-- [ ] Add performance regression testing
+- [ ] **Integration with Major Crates**
+  - [ ] Adding serde support (serialization/deserialization)
+  - [ ] Enhancing native tokio support
+  - [ ] Integrating rayon parallel processing
 
-### Testing & Quality
-- [ ] Create test utilities for common testing patterns
-- [ ] Implement regression tests for known edge cases
-- [ ] Implement security scanning
+## Medium Priority
 
-## Infrastructure & Community
+### 4. Feature Extensions and New Data Types
 
-### Build & Deployment
-- [ ] Implement automated documentation deployment
+- [ ] **Free Monad Implementation**
+  - [ ] Basic Free monad structure
+  - [ ] Interpreter pattern examples
+  - [ ] DSL creation guide
+- [ ] **Additional Lens Types**
+  - [ ] Traversal implementation
+  - [ ] Fold implementation
+  - [ ] Lens composition for nested data structures
 
-### Community Building
-- [ ] Create contribution guidelines
-- [ ] Add code of conduct
-- [ ] Improve README with getting started guide
-- [ ] Create FAQ document
-- [ ] Write blog posts about implementation details
+### 5. Developer Experience Improvements
 
-## Examples & Tutorials
-- [ ] Create real-world example applications
-- [x] Create error handling examples
-- [ ] Create cookbook with common patterns
-- [ ] Add examples for concurrent programming
-- [ ] Document best practices and anti-patterns
-- [ ] Create interactive examples
+- [ ] **Macro Enhancements**
+  - [ ] monad! macro (do-notation style)
+  - [ ] derive macros for boilerplate reduction
+  - [ ] Automatic type class instance generation
+- [ ] **Error Message Improvements**
+  - [ ] Clearer error messages at compile time
+  - [ ] Adding contextual information for runtime errors
 
-## Future Considerations
+### 6. Testing Infrastructure Strengthening
 
-### Language Features
-- [ ] Consider support for newer Rust features
-- [ ] Evaluate async/await integration (Async Monad)
-- [ ] Consider adding more derive macros
-- [ ] Investigate GAT usage when stable
-- [ ] Make compatible with dynamic dispatch (dyn)
+- [ ] **Expanding Property-based Testing**
+  - [ ] Automatic verification of all type class laws
+  - [ ] QuickCheck-based random test case generation
+  - [ ] Automating performance regression tests
 
-### Ecosystem Integration
-- [ ] Add integrations with popular Rust libraries
-- [ ] Consider creating companion crates
-- [ ] Add serialization support
+## Long-term Goals
 
-## Maintenance
+### 7. Advanced Functional Patterns
 
-### Code Quality
-- [ ] Review and update dependencies
-- [ ] Clean up deprecated features
-- [ ] Reduce code duplication
+- [ ] **Effects System Implementation**
+  - [ ] Basic structure for Algebraic Effects
+  - [ ] Effect Handler patterns
+  - [ ] Practical examples (file I/O, networking)
+- [ ] **Type-level Programming**
+  - [ ] Improving HKT (Higher-Kinded Types) simulation
+  - [ ] Enhancing type safety with phantom types
 
-### Documentation Maintenance
-- [ ] Keep API documentation up to date
-- [ ] Update examples for new versions
-- [ ] Maintain changelog
-- [ ] Review and update code comments
+### 8. Community and Ecosystem
+
+- [ ] **Creating Educational Materials**
+  - [ ] Blog series on functional programming concepts
+  - [ ] Practical application case studies
+  - [ ] Conference presentation materials
+- [ ] **Library Division**
+  - [ ] rustica-core: Core type classes
+  - [ ] rustica-collections: Immutable data structures
+  - [ ] rustica-async: Asynchronous abstractions
+
+## Technical Debt and Maintenance
+
+### 9. Code Quality Improvements
+
+- [ ] **Dependency Cleanup**
+  - [ ] Removing unused dependencies
+  - [ ] Automating security updates
+  - [ ] Optimizing crate size
+- [ ] **Internal API Consistency**
+  - [ ] Unifying naming conventions
+  - [ ] Standardizing error type system
+  - [ ] Optimizing module structure
+
+### 10. Expanding Platform Support
+
+- [ ] **WASM Support**
+  - [ ] Verifying functionality in browser environments
+  - [ ] Optimizing bundle size
+  - [ ] Example web application
+- [ ] **Enhancing No-std Support**
+  - [ ] Testing in embedded environments
+  - [ ] Optimizing for memory-constrained environments

@@ -96,17 +96,21 @@ Now, let's create a function that validates a whole `UserRegistration` object. W
 To do this, we start with a `Validated` that contains a function (in this case, a curried constructor for `UserRegistration`) and then successively `apply` the results of our validation functions to it.
 
 ```rust
-// A curried constructor for UserRegistration
-fn create_user_registration(username: String) -> impl Fn(String) -> (impl Fn(String) -> UserRegistration) {
-    move |email| move |password| UserRegistration { username, email, password }
-}
-
 /// Takes the raw input and runs all validations.
 fn validate_registration(input: &UserRegistration) -> Validated<ValidationError, UserRegistration> {
-    Validated::valid(create_user_registration)
-        .apply(validate_username(&input.username))
-        .apply(validate_email(&input.email))
-        .apply(validate_password(&input.password))
+    let username_v = validate_username(&input.username);
+    let email_v = validate_email(&input.email);
+    let password_v = validate_password(&input.password);
+
+    username_v
+        .lift2(&email_v, |username, email| {
+            (username.clone(), email.clone()) // Intermediate tuple
+        })
+        .lift2(&password_v, |(username, email), password| UserRegistration {
+            username, // Cloned in the previous step
+            email,    // Cloned in the previous step
+            password: password.clone(),
+        })
 }
 
 fn main() {
