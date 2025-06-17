@@ -384,10 +384,9 @@ impl<E, A> Validated<E, A> {
     {
         match self {
             Validated::Valid(a) => a,
-            Validated::Invalid(e) => panic!(
-                "Called Validated::unwrap_owned() on an Invalid value: {:?}",
-                e
-            ),
+            Validated::Invalid(e) => {
+                panic!("Called Validated::unwrap_owned() on an Invalid value: {e:?}")
+            },
         }
     }
 
@@ -422,10 +421,9 @@ impl<E, A> Validated<E, A> {
         A: std::fmt::Debug,
     {
         match self {
-            Validated::Valid(a) => panic!(
-                "Called Validated::unwrap_invalid_owned() on a Valid value: {:?}",
-                a
-            ),
+            Validated::Valid(a) => {
+                panic!("Called Validated::unwrap_invalid_owned() on a Valid value: {a:?}")
+            },
             Validated::Invalid(e) => e,
         }
     }
