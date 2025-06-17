@@ -82,16 +82,13 @@ pub fn iso_lens_benchmarks(c: &mut Criterion) {
 
     group.bench_function("set", |b| {
         b.iter(|| {
-            let updated = lens.set(
-                black_box(&person),
-                black_box(&(
-                    Address {
-                        street: "Oak Ave".to_string(),
-                        city: "Springfield".to_string(),
-                    },
-                    person.clone(),
-                )),
-            );
+            let updated = lens.set(black_box(&(
+                Address {
+                    street: "Oak Ave".to_string(),
+                    city: "Springfield".to_string(),
+                },
+                person.clone(),
+            )));
             black_box(updated)
         })
     });

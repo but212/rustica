@@ -13,14 +13,14 @@ fn test_filter_map_basic() {
 fn test_filter_map_empty() {
     let numbers: Vec<i32> = vec![];
     let result: Vec<i32> = filter_map(numbers, |&n| n > 0, |n| n * 2);
-    assert_eq!(result, vec![]);
+    assert_eq!(result, Vec::<i32>::new());
 }
 
 #[test]
 fn test_filter_map_all_filtered() {
     let numbers = vec![1, 3, 5];
     let result: Vec<i32> = filter_map(numbers, |&n| n % 2 == 0, |n| n * 2);
-    assert_eq!(result, vec![]);
+    assert_eq!(result, Vec::<i32>::new());
 }
 
 #[test]
