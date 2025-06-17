@@ -31,16 +31,16 @@
 //! // Create Either values
 //! let left_value: Either<i32, &str> = Either::left(42);
 //! let right_value: Either<i32, &str> = Either::right("hello");
-//! 
+//!
 //! // Pattern matching
 //! match left_value {
 //!     Either::Left(n) => println!("Got left value: {}", n),
 //!     Either::Right(s) => println!("Got right value: {}", s),
 //! }
-//! 
+//!
 //! // Transform values using specific transformers
 //! let doubled = left_value.fmap_left(|x| x * 2);  // Either::Left(84)
-//! 
+//!
 //! // Functor operations (maps over Right values only)
 //! let right_val: Either<&str, i32> = Either::right(42);
 //! let mapped = right_val.fmap(|x| x * 2);  // Either::Right(84)
@@ -98,6 +98,21 @@ impl<L, R> Either<L, R> {
     /// Creates a new `Either::Left` containing the given value.
     ///
     /// Left represents the first possibility of the Either type.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this constructor to create an `Either` instance holding a `Left` value.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let e: Either<i32, String> = Either::left(42);
+    /// assert!(e.is_left());
+    /// ```
     #[inline]
     pub const fn left(l: L) -> Self {
         Either::Left(l)
@@ -106,18 +121,69 @@ impl<L, R> Either<L, R> {
     /// Creates a new `Either::Right` containing the given value.
     ///
     /// Right represents the second possibility of the Either type.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this constructor to create an `Either` instance holding a `Right` value.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let e: Either<i32, String> = Either::right("hello".to_string());
+    /// assert!(e.is_right());
+    /// ```
     #[inline]
     pub const fn right(r: R) -> Self {
         Either::Right(r)
     }
 
     /// Returns `true` if this is a `Left` value.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Check if an `Either` is `Left` without consuming it or panicking.
+    /// Useful for conditional logic based on the variant.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let left: Either<i32, &str> = Either::Left(1);
+    /// assert!(left.is_left());
+    /// let right: Either<i32, &str> = Either::Right("test");
+    /// assert!(!right.is_left());
+    /// ```
     #[inline]
     pub const fn is_left(&self) -> bool {
         matches!(self, Either::Left(_))
     }
 
     /// Returns `true` if this is a `Right` value.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Check if an `Either` is `Right` without consuming it or panicking.
+    /// Useful for conditional logic based on the variant.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let right: Either<i32, &str> = Either::Right("test");
+    /// assert!(right.is_right());
+    /// let left: Either<i32, &str> = Either::Left(1);
+    /// assert!(!left.is_right());
+    /// ```
     #[inline]
     pub const fn is_right(&self) -> bool {
         matches!(self, Either::Right(_))
@@ -126,6 +192,28 @@ impl<L, R> Either<L, R> {
     /// Maps a function over the left value, leaving a right value unchanged.
     ///
     /// This is similar to `Result::map_err` but for `Either`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1), assuming the provided function `f` is O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use `fmap_left` to apply a transformation to the `Left` value if present,
+    /// while leaving a `Right` value untouched. This is useful for changing the
+    /// type or value of the `Left` case, often an error or alternative type.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let left_val: Either<i32, String> = Either::Left(10);
+    /// let mapped = left_val.fmap_left(|x| x * 2);
+    /// assert_eq!(mapped, Either::Left(20));
+    ///
+    /// let right_val: Either<i32, String> = Either::Right("hello".to_string());
+    /// let mapped_right = right_val.fmap_left(|x| x * 2); // f is not called
+    /// assert_eq!(mapped_right, Either::Right("hello".to_string()));
+    /// ```
     #[inline]
     pub fn fmap_left<T, F>(self, f: F) -> Either<T, R>
     where
@@ -139,19 +227,56 @@ impl<L, R> Either<L, R> {
 
     /// Maps a function over the right value, leaving a left value unchanged.
     ///
-    /// This is similar to `Result::map` but for `Either`.
+    /// This is similar to `Result::map` but for `Either`. It is the primary
+    /// way to transform the `Right` variant and is fundamental to `Either`'s
+    /// role as a `Functor` (see `Functor::fmap_owned` for the general version).
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1), assuming the provided function `f` is O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use `fmap_right` to apply a transformation to the `Right` value without
+    /// affecting a `Left` value. For example, if you have an `Either<Error, Data>`,
+    /// you can use `fmap_right` to process `Data` while propagating `Error`.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let right_val: Either<String, i32> = Either::Right(10);
+    /// let mapped = right_val.fmap_right(|x| x * 2);
+    /// assert_eq!(mapped, Either::Right(20));
+    ///
+    /// let left_val: Either<String, i32> = Either::Left("error".to_string());
+    /// let mapped_left = left_val.fmap_right(|x| x * 2); // f is not called
+    /// assert_eq!(mapped_left, Either::Left("error".to_string()));
+    /// ```
     #[inline]
-    pub fn fmap_right<T, F>(self, f: F) -> Either<L, T>
+    pub fn fmap_right<T, F>(self, mut f: F) -> Either<L, T>
     where
         F: FnMut(R) -> T,
     {
         match self {
             Either::Left(l) => Either::Left(l),
-            Either::Right(r) => Either::Right(std::iter::once(r).map(f).next().unwrap()),
+            Either::Right(r) => Either::Right(f(r)),
         }
     }
 
     /// Extracts the left value, panicking if this is a `Right`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this method when you are certain that the `Either` contains a `Left`
+    /// value and a panic is an acceptable outcome if this assumption is wrong.
+    /// This is often used in tests or when a `Left` value is a precondition
+    /// for subsequent logic. For a non-panicking alternative, consider `left_option`
+    /// or pattern matching.
     ///
     /// # Panics
     ///
@@ -166,20 +291,45 @@ impl<L, R> Either<L, R> {
 
     /// Extracts the right value, panicking if this is a `Left`.
     ///
+    /// This method delegates to `right_value`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this method when you are certain that the `Either` contains a `Right`
+    /// value and a panic is an acceptable outcome if this assumption is wrong.
+    /// This is often used in tests or when a `Right` value is a precondition
+    /// for subsequent logic. For a non-panicking alternative, consider `right_option`
+    /// or pattern matching.
+    ///
     /// # Panics
     ///
     /// Panics if called on a `Left` value.
     #[inline]
     pub fn unwrap_right(self) -> R {
-        self.into_iter()
-            .next()
-            .expect("called unwrap_right on Left value")
+        self.right_value()
     }
 
     /// Returns the contained `Left` value, consuming the `self` value.
     ///
-    /// Because this function consumes the original Either, there is no need to clone
-    /// the content, making this method more efficient than `unwrap_left`.
+    /// Because this function consumes the original `Either`, there is no need to clone
+    /// the content if `L` is not `Copy`. This can be more efficient than `unwrap_left`
+    /// in such cases, though `unwrap_left` also consumes `self`.
+    /// The main distinction is often stylistic or historical.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Similar to `unwrap_left`, use this when you expect a `Left` value and
+    /// want to consume the `Either` to get it. A panic occurs if it's `Right`.
     ///
     /// # Panics
     ///
@@ -197,20 +347,43 @@ impl<L, R> Either<L, R> {
 
     /// Returns the contained `Right` value, consuming the `self` value.
     ///
-    /// Because this function consumes the original Either, there is no need to clone
-    /// the content, making this method more efficient than `unwrap_right`.
+    /// Because this function consumes the original `Either`, there is no need to clone
+    /// the content if `R` is not `Copy`. This can be more efficient than methods
+    /// that might require cloning if `self` were borrowed.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Similar to `unwrap_right`, use this when you expect a `Right` value and
+    /// want to consume the `Either` to get it. A panic occurs if it's `Left`.
     ///
     /// # Panics
     ///
     /// Panics if the value is a `Left`.
     #[inline]
     pub fn right_value(self) -> R {
-        self.into_iter()
-            .next()
-            .expect("Called right_value() on a Left value")
+        match self {
+            Either::Right(r) => r,
+            Either::Left(_) => panic!("called right_value on Left value"),
+        }
     }
 
     /// Returns a reference to the `Left` value.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this to get an immutable reference to the `Left` value without consuming
+    /// the `Either`. This is useful when you need to inspect the `Left` value but
+    /// keep the `Either` instance for later use. Panics if the `Either` is `Right`.
     ///
     /// # Panics
     ///
@@ -225,6 +398,17 @@ impl<L, R> Either<L, R> {
 
     /// Returns a reference to the `Right` value.
     ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this to get an immutable reference to the `Right` value without consuming
+    /// the `Either`. This is useful when you need to inspect the `Right` value but
+    /// keep the `Either` instance for later use. Panics if the `Either` is `Left`.
+    ///
     /// # Panics
     ///
     /// Panics if the value is a `Left`.
@@ -238,6 +422,27 @@ impl<L, R> Either<L, R> {
     /// Returns the contained `Right` value or a default.
     ///
     /// Similar to `Result::unwrap_or` but for `Either`.
+    /// Consumes `self` and returns the `Right` value if present, otherwise returns
+    /// the provided `default`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this method to extract the `Right` value if it exists, or fall back to a
+    /// default value if it's a `Left`. This avoids panics.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let right: Either<String, i32> = Either::Right(100);
+    /// assert_eq!(right.right_or(0), 100);
+    ///
+    /// let left: Either<String, i32> = Either::Left("error".to_string());
+    /// assert_eq!(left.right_or(0), 0);
+    /// ```
     #[inline]
     pub fn right_or(self, default: R) -> R {
         self.into_iter().next().unwrap_or(default)
@@ -246,6 +451,27 @@ impl<L, R> Either<L, R> {
     /// Returns the contained `Left` value or a default.
     ///
     /// Similar to `Result::err().unwrap_or()` but for `Either`.
+    /// Consumes `self` and returns the `Left` value if present, otherwise returns
+    /// the provided `default`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this method to extract the `Left` value if it exists, or fall back to a
+    /// default value if it's a `Right`. This avoids panics.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let left: Either<i32, String> = Either::Left(42);
+    /// assert_eq!(left.left_or(0), 42);
+    ///
+    /// let right: Either<i32, String> = Either::Right("ok".to_string());
+    /// assert_eq!(right.left_or(0), 0);
+    /// ```
     #[inline]
     pub fn left_or(self, default: L) -> L {
         match self {
@@ -256,7 +482,28 @@ impl<L, R> Either<L, R> {
 
     /// Returns the contained `Right` value as an Option.
     ///
-    /// Returns `Some` for `Right` values and `None` for `Left` values.
+    /// Returns `Some(R)` for `Right(R)` values and `None` for `Left(L)` values.
+    /// Consumes `self`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Convert an `Either` into an `Option<R>`, discarding the `Left` value.
+    /// This is useful for integrating with Option-based APIs or when you only
+    /// care about the `Right` case and want to treat `Left` as absence of value.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let right: Either<String, i32> = Either::Right(10);
+    /// assert_eq!(right.right_option(), Some(10));
+    ///
+    /// let left: Either<String, i32> = Either::Left("error".to_string());
+    /// assert_eq!(left.right_option(), None);
+    /// ```
     #[inline]
     pub fn right_option(self) -> Option<R> {
         self.into_iter().next()
@@ -264,7 +511,29 @@ impl<L, R> Either<L, R> {
 
     /// Converts this `Either` to a `Result`.
     ///
-    /// Left becomes `Err` and Right becomes `Ok`.
+    /// `Either::Left(L)` becomes `Result::Err(L)` and `Either::Right(R)` becomes `Result::Ok(R)`.
+    /// Consumes `self`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this to bridge `Either` with Rust's standard `Result` type, especially
+    /// when `Either` is used to represent a computation that can fail (where `Left`
+    /// typically holds an error type) and you want to leverage `Result`'s error
+    /// handling mechanisms (e.g., the `?` operator).
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let right_either: Either<String, i32> = Either::Right(100);
+    /// assert_eq!(right_either.to_result(), Ok(100));
+    ///
+    /// let left_either: Either<String, i32> = Either::Left("failed".to_string());
+    /// assert_eq!(left_either.to_result(), Err("failed".to_string()));
+    /// ```
     #[inline]
     pub fn to_result(self) -> Result<R, L> {
         error_utils::either_to_result(self)
@@ -272,7 +541,28 @@ impl<L, R> Either<L, R> {
 
     /// Creates an `Either` from a `Result`.
     ///
-    /// `Err` becomes `Left` and `Ok` becomes `Right`.
+    /// `Result::Err(L)` becomes `Either::Left(L)` and `Result::Ok(R)` becomes `Either::Right(R)`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Use this to convert a standard `Result` into an `Either`. This is useful
+    /// when interfacing with functions that return `Result` but you want to work
+    /// with `Either`'s more general two-possibility semantics without the inherent
+    /// success/failure implication of `Result`.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let ok_result: Result<i32, String> = Ok(100);
+    /// assert_eq!(Either::from_result(ok_result), Either::Right(100));
+    ///
+    /// let err_result: Result<i32, String> = Err("oops".to_string());
+    /// assert_eq!(Either::from_result(err_result), Either::Left("oops".to_string()));
+    /// ```
     #[inline]
     pub fn from_result(result: Result<R, L>) -> Self {
         error_utils::result_to_either(result)
@@ -303,6 +593,29 @@ impl<L, R> Either<L, R> {
     }
 
     /// Returns the contained `Left` value as an Option.
+    ///
+    /// Returns `Some(L)` for `Left(L)` values and `None` for `Right(R)` values.
+    /// Consumes `self`.
+    ///
+    /// # Performance
+    ///
+    /// - Time complexity: O(1).
+    /// - Space complexity: O(1).
+    ///
+    /// # Usage
+    ///
+    /// Convert an `Either` into an `Option<L>`, discarding the `Right` value.
+    /// This is useful when you only care about the `Left` case and want to treat
+    /// `Right` as absence of the `Left` type.
+    ///
+    /// ```
+    /// # use rustica::datatypes::either::Either;
+    /// let left: Either<i32, String> = Either::Left(42);
+    /// assert_eq!(left.left_option(), Some(42));
+    ///
+    /// let right: Either<i32, String> = Either::Right("ok".to_string());
+    /// assert_eq!(right.left_option(), None);
+    /// ```
     pub fn left_option(self) -> Option<L> {
         self.left_iter().next()
     }
