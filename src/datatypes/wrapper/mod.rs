@@ -50,20 +50,20 @@
 //! use rustica::traits::{semigroup::Semigroup, evaluate::Evaluate};
 //!
 //! // 1. Arithmetic with Sum/Product wrappers
-//! let sum1: Sum<i32> = Sum::new(5);
-//! let sum2: Sum<i32> = Sum::new(7);
+//! let sum1: Sum<i32> = Sum(5);
+//! let sum2: Sum<i32> = Sum(7);
 //! let combined = sum1.combine(&sum2);
-//! assert_eq!(combined.inner(), 12); // 5 + 7 = 12
+//! assert_eq!(combined.0, 12); // 5 + 7 = 12
 //!
 //! // 2. Combining multiple values into one
-//! let values = vec![Sum::new(1), Sum::new(2), Sum::new(3)];
+//! let values = vec![Sum(1), Sum(2), Sum(3)];
 //! let sum: i32 = values.into_iter()
-//!     .fold(Sum::new(0), |acc, x| acc.combine(&x))
-//!     .inner();
+//!     .fold(Sum(0), |acc, x| acc.combine(&x))
+//!     .0;
 //! assert_eq!(sum, 6); // 1 + 2 + 3 = 6
 //!
 //! // 3. Using Value for evaluation contexts
-//! let value: Value<i32> = Value::new(42);
+//! let value: Value<i32> = Value(42);
 //! let result: i32 = value.evaluate();
 //! assert_eq!(result, 42);
 //! ```
