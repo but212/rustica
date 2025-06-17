@@ -198,7 +198,7 @@ use smallvec::{smallvec, SmallVec};
 /// - **`E: Clone`**: The error type `E` often requires a `Clone` bound. This is because:
 ///   - Operations that accumulate errors from multiple `Validated` instances (e.g., in `Applicative::apply` when both are `Invalid`) may need to combine and thus clone error collections.
 ///   - Methods providing access to errors (e.g., `errors()`, which returns `Vec<E>`) typically clone the internal errors to avoid lifetime issues or to provide owned data.
-///   If your error type `E` is expensive to clone, consider wrapping it in an `Arc<E>` or ensure that operations that trigger cloning are used judiciously.
+///   - If your error type `E` is expensive to clone, consider wrapping it in an `Arc<E>` or ensure that operations that trigger cloning are used judiciously.
 ///
 /// - **`A: Clone`**: The value type `A` also often requires a `Clone` bound for similar reasons, especially for methods that operate on `&self` but need to return an owned `Validated` or extract the value (e.g., `unwrap()`, `fmap_invalid` when `self` is `Valid`). Ownership-taking variants of methods (e.g., `fmap_owned`, `unwrap_owned` if it existed) can sometimes alleviate this requirement for `A`.
 ///
