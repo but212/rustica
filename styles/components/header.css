@@ -1,0 +1,70 @@
+/* Header Styles */
+.site-header {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white;
+  padding: 3rem 0;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.site-header .site-title {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.quick-links {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.badges-list {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: var(--transition);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 0.9rem;
+}
+
+.badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+}
+
+.badge i {
+  font-size: 1rem;
+}
+
+.badge.crates {
+  background-color: rgba(77, 119, 174, 0.9);
+}
+
+.badge.docs {
+  background-color: rgba(111, 66, 193, 0.9);
+}
+
+.badge.license {
+  background-color: rgba(39, 174, 96, 0.9);
+}
+
+.badge.github {
+  background-color: rgba(36, 41, 46, 0.9);
+}

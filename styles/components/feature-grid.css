@@ -1,0 +1,56 @@
+/* Features Grid */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+  }
+  
+  article.feature-card {
+    background-color: var(--bg);
+    box-shadow: var(--shadow);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    transition: var(--transition);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .feature-icon {
+    font-size: 2rem;
+    color: var(--secondary);
+    margin-bottom: 1rem;
+  }
+  
+  .feature-card h3 {
+    margin-top: 0;
+    font-size: 1.25rem;
+  }
+  
+  .feature-card ul {
+    list-style: none;
+    margin: 0.75rem 0;
+    padding: 0;
+    flex-grow: 1;
+  }
+  
+  .feature-card li {
+    margin-bottom: 0.5rem;
+    padding-left: 1.5rem;
+    position: relative;
+    line-height: 1.5;
+  }
+  
+  .feature-card li::before {
+    content: "•";
+    color: var(--secondary);
+    font-weight: bold;
+    position: absolute;
+    left: 0;
+  }

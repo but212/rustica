@@ -1,0 +1,108 @@
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Main Content */
+main {
+  padding: 2rem 0;
+}
+
+section {
+  margin-bottom: 3rem;
+}
+
+h2.site-tagline {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+h2 {
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+h2 i {
+  color: var(--secondary);
+}
+
+h3 {
+  font-size: 1.5rem;
+  margin: 1.5rem 0 1rem;
+  color: var(--primary);
+}
+
+h4 {
+  font-size: 1.25rem;
+  margin: 1.25rem 0 0.75rem;
+  color: var(--primary);
+}
+
+p {
+  margin-bottom: 1.25rem;
+  line-height: 1.7;
+}
+
+/* Footer */
+.site-footer {
+  background-color: var(--primary);
+  color: white;
+  padding: 2rem 0;
+  margin-top: 4rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--text-light);
+  font-size: 0.9rem;
+}
+
+footer a {
+  color: var(--secondary);
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+.license-list {
+  list-style-type: disc;
+  padding-left: 20px;
+  margin: 10px 0;
+  justify-items: center;
+}
+
+.license-list li {
+  display: list-item;
+  margin: 5px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .site-header .site-title {
+    font-size: 2.25rem;
+  }
+
+  .tagline {
+    font-size: 1.1rem;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+  }
+}
+
+section {
+  animation: fadeIn 0.5s ease-out forwards;
+}
