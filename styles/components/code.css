@@ -1,96 +1,95 @@
-
 /* Code Blocks */
 figure.code-block {
-    position: relative;
-    background-color: var(--code-bg);
-    border-radius: var(--radius);
-    margin: 1.5rem 0;
-    overflow: hidden;
-    box-shadow: var(--shadow);
-  }
-  
-  pre {
-    margin: 0;
-    padding: 1.5rem;
-    background-color: var(--code-bg);
-    overflow-x: auto;
-    font-family: "Fira Code", "Fira Mono", "Roboto Mono", monospace;
-    font-size: 0.9rem;
-    line-height: 1.6;
-  }
-  
-  code {
-    font-family: "Fira Code", "Fira Mono", "Roboto Mono", monospace;
-    font-size: 0.9em;
-    background-color: var(--code-bg);
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
-  }
-  
-  .copy-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-    color: var(--text-light);
-    font-size: 0.8rem;
-    transition: var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-  }
-  
-  .copy-btn:hover {
-    background: var(--secondary);
-    color: white;
-    border-color: var(--secondary);
-  }
+  position: relative;
+  background-color: var(--code-bg);
+  border-radius: var(--radius);
+  margin: 1.5rem 0;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
 
-  /* Syntax Highlighting (basic) */
+pre {
+  margin: 0;
+  padding: 1.5rem;
+  background-color: var(--code-bg);
+  overflow-x: auto;
+  font-family: "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+code {
+  font-family: "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+  font-size: 0.9em;
+  background-color: var(--code-bg);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  color: var(--text-light);
+  font-size: 0.8rem;
+  transition: var(--transition-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+}
+
+.copy-btn:hover {
+  background: var(--secondary);
+  color: white;
+  border-color: var(--secondary);
+}
+
+/* Syntax Highlighting (basic) */
 .language-rust .keyword {
-    color: #6f42c1;
-  }
-  .language-rust .type {
-    color: #2c3e50;
-    font-weight: bold;
-  }
-  .language-rust .string {
-    color: #22863a;
-  }
-  .language-rust .number {
-    color: #005cc5;
-  }
-  .language-rust .comment {
-    color: #6a737d;
-    font-style: italic;
-  }
-  .language-rust .macro {
-    color: #6f42c1;
-    font-weight: bold;
-  }
-  .language-rust .function {
-    color: #6f42c1;
-  }
-  .language-rust .lifetime {
-    color: #e36209;
-  }
-  
-  .language-toml .key {
-    color: #6f42c1;
-  }
-  .language-toml .string {
-    color: #22863a;
-  }
-  .language-toml .number {
-    color: #005cc5;
-  }
-  .language-toml .comment {
-    color: #6a737d;
-    font-style: italic;
-  }
+  color: #6f42c1;
+}
+.language-rust .type {
+  color: #2c3e50;
+  font-weight: bold;
+}
+.language-rust .string {
+  color: #22863a;
+}
+.language-rust .number {
+  color: #005cc5;
+}
+.language-rust .comment {
+  color: #6a737d;
+  font-style: italic;
+}
+.language-rust .macro {
+  color: #6f42c1;
+  font-weight: bold;
+}
+.language-rust .function {
+  color: #6f42c1;
+}
+.language-rust .lifetime {
+  color: #e36209;
+}
+
+.language-toml .key {
+  color: #6f42c1;
+}
+.language-toml .string {
+  color: #22863a;
+}
+.language-toml .number {
+  color: #005cc5;
+}
+.language-toml .comment {
+  color: #6a737d;
+  font-style: italic;
+}
