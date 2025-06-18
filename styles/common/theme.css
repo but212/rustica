@@ -11,5 +11,7 @@
   --code-bg: #f6f8fa;
   --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   --radius: 6px;
-  --transition: all 0.2s ease;
+  --transition-fast: all 0.1s ease;
+  --transition-default: all 0.2s ease;
+  --transition-slow: all 0.3s ease;
 }
