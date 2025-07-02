@@ -4,17 +4,24 @@ This tutorial introduces functional programming concepts in Rust using the Rusti
 
 ## Table of Contents
 
-1. [Introduction to Functional Programming](#introduction)
-2. [Getting Started with Rustica](#getting-started)
-3. [Understanding Monads](#understanding-monads)
-4. [Working with Maybe (Option)](#working-with-maybe)
-5. [Understanding Either (Result)](#understanding-either)
-6. [Function Composition](#function-composition)
-7. [Practical Examples](#practical-examples)
-8. [Advanced Topics](#advanced-topics)
-9. [Persistent Data Structures](#persistent-data-structures)
-
-<a name="introduction"></a>
+- [Rustica Tutorial: Functional Programming in Rust](#rustica-tutorial-functional-programming-in-rust)
+  - [Table of Contents](#table-of-contents)
+  - [1. Introduction to Functional Programming](#1-introduction-to-functional-programming)
+  - [2. Getting Started with Rustica](#2-getting-started-with-rustica)
+    - [Installation](#installation)
+    - [Basic Usage](#basic-usage)
+  - [3. Understanding Monads](#3-understanding-monads)
+  - [4. Working with Maybe (Option)](#4-working-with-maybe-option)
+  - [5. Understanding Either (Result)](#5-understanding-either-result)
+  - [6. Function Composition](#6-function-composition)
+  - [7. Practical Examples](#7-practical-examples)
+    - [Example 1: Validating User Input](#example-1-validating-user-input)
+    - [Example 2: Error Handling with Either](#example-2-error-handling-with-either)
+  - [8. Advanced Topics](#8-advanced-topics)
+    - [Monad Transformers](#monad-transformers)
+    - [Lenses](#lenses)
+  - [9. Persistent Data Structures](#9-persistent-data-structures)
+  - [Next Steps](#next-steps)
 
 ## 1. Introduction to Functional Programming
 
@@ -27,8 +34,6 @@ Functional programming is a paradigm that treats computation as the evaluation o
 - **Composition**: Building complex functions by combining simpler ones
 
 Rust, despite being a systems language, has excellent support for functional programming through its type system, closures, and iterators.
-
-<a name="getting-started"></a>
 
 ## 2. Getting Started with Rustica
 
@@ -48,8 +53,6 @@ Import the prelude to get access to common traits and functions:
 ```rust
 use rustica::prelude::*;
 ```
-
-<a name="understanding-monads"></a>
 
 ## 3. Understanding Monads
 
@@ -81,8 +84,6 @@ fn main() {
 }
 ```
 
-<a name="working-with-maybe"></a>
-
 ## 4. Working with Maybe (Option)
 
 The `Maybe` type represents computations that might not return a value, similar to Rust's `Option`.
@@ -112,8 +113,6 @@ fn main() {
 }
 ```
 
-<a name="understanding-either"></a>
-
 ## 5. Understanding Either (Result)
 
 The `Either` type represents computations that might fail with an error, similar to Rust's `Result`.
@@ -140,8 +139,6 @@ fn main() {
 }
 ```
 
-<a name="function-composition"></a>
-
 ## 6. Function Composition
 
 Rustica provides tools for composing functions in a point-free style:
@@ -162,8 +159,6 @@ fn main() {
     assert_eq!(result, 12); // (5 + 1) * 2 = 12
 }
 ```
-
-<a name="practical-examples"></a>
 
 ## 7. Practical Examples
 
@@ -243,8 +238,6 @@ fn main() {
     }
 }
 ```
-
-<a name="advanced-topics"></a>
 
 ## 8. Advanced Topics
 
@@ -346,8 +339,6 @@ fn main() {
     println!("Age after 5 years: {}", older_person.age);
 }
 ```
-
-<a name="persistent-data-structures"></a>
 
 ## 9. Persistent Data Structures
 
