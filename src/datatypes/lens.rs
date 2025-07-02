@@ -17,6 +17,56 @@
 //! - Modifying specific elements in collections
 //! - Creating reusable accessors for data structures
 //!
+//! # Performance Characteristics
+//!
+//! ## Time Complexity
+//!
+//! * **Construction**: O(1) - Creating a lens is a constant-time operation
+//! * **Get**: O(g) - Where g is the complexity of the getter function
+//! * **Set**: O(g + s) - Where g is the complexity of the getter function and s is the complexity of the setter function
+//! * **Modify**: O(g + f + s) - Where g is the getter complexity, f is the modifier function complexity, and s is the setter complexity
+//!
+//! ## Memory Usage
+//!
+//! * **Storage**: Each lens stores two closures (getter and setter)
+//! * **Operation**: Operations that change the focused part create a new instance of the whole structure
+//! * **Optimization**: When setting/modifying with equal values (determined by `PartialEq`), the original structure is returned to enable structural sharing
+//!
+//! # Lens Laws
+//!
+//! Lenses follow three fundamental laws that ensure their correct behavior:
+//!
+//! ```rust
+//! use rustica::datatypes::lens::Lens;
+//!
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person { name: String, age: u32 }
+//!
+//! let name_lens = Lens::new(
+//!     |p: &Person| p.name.clone(),
+//!     |p: Person, name: String| Person { name, ..p },
+//! );
+//!
+//! let person = Person { name: "Alice".to_string(), age: 30 };
+//!
+//! // 1. GetSet Law: Getting a value and then setting it back results in the original structure
+//! let value = name_lens.get(&person);
+//! let result = name_lens.set(person.clone(), value);
+//! assert_eq!(result, person);
+//!
+//! // 2. SetGet Law: Setting a value and then getting it returns the value that was set
+//! let new_name = "Bob".to_string();
+//! let updated = name_lens.set(person.clone(), new_name.clone());
+//! assert_eq!(name_lens.get(&updated), new_name);
+//!
+//! // 3. SetSet Law: Setting a value twice is the same as setting it once with the second value
+//! let first_set = name_lens.set(person.clone(), "Bob".to_string());
+//! let second_set = name_lens.set(first_set, "Charlie".to_string());
+//!
+//! let direct_set = name_lens.set(person.clone(), "Charlie".to_string());
+//! assert_eq!(second_set, direct_set);
+//! ```
+//!
 //! # Examples
 //!
 //! ```rust
@@ -81,15 +131,43 @@ use std::marker::PhantomData;
 /// A lens is a first-class reference to a subpart of some data type.
 /// It provides a way to view, modify and transform a part of a larger structure.
 ///
+/// Lenses follow a functional approach to accessing and modifying nested data
+/// structures, allowing for immutable updates that preserve the original structure.
+///
+/// # Performance Characteristics
+///
+/// ## Time Complexity
+///
+/// * **Construction**: O(1) - Creating a lens only involves storing the getter and setter functions
+/// * **Get**: O(g) - Determined by the complexity of the getter function
+/// * **Set**: O(g + s) - Involves getting the current value and setting the new value
+/// * **Modify**: O(g + f + s) - Involves getting, applying a function, and setting
+/// * **Composition**: O(1) - Composing lenses is a constant-time operation
+///
+/// ## Memory Usage
+///
+/// * Each lens stores two closures, typically requiring minimal memory
+/// * Operations preserve structural sharing when possible (when values haven't changed)
+/// * Memory consumption for modifications depends on the portion of the structure that needs to be recreated
+///
+/// ## Thread Safety
+///
+/// * Lenses are `Send` and `Sync` when their getter and setter functions are
+/// * Can be safely shared between threads for concurrent access to different parts of a structure
+///
 /// # Type Parameters
 ///
 /// * `S` - The type of the whole structure
 /// * `A` - The type of the part being focused on
+/// * `GetFn` - The type of the getter function
+/// * `SetFn` - The type of the setter function
 ///
 /// # Design Notes
 ///
 /// - Requires both the structure and focused part to be `Clone`
-/// - Functions are stored as trait objects to allow for different implementations
+/// - Functions are stored directly to avoid boxing overhead and enable better compiler optimizations
+/// - Implements structural sharing optimization when `A` implements `PartialEq`
+/// - Provides variants without equality checks (`set_always`, `modify_always`) for types without `PartialEq`
 ///
 /// # Examples
 ///
@@ -145,6 +223,23 @@ where
 {
     /// Creates a new lens from getter and setter functions.
     ///
+    /// A lens consists of two components:
+    /// 1. A getter function that extracts a focus from a structure
+    /// 2. A setter function that updates the focus in a structure
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Construction**: O(1) - Creating a lens only involves storing the functions
+    /// * **Memory Usage**: O(1) - Memory usage is constant regardless of structure size
+    ///
+    /// ## Implementation Notes
+    ///
+    /// * The getter and setter functions are stored directly, not as trait objects
+    /// * No allocation occurs during lens creation (beyond the lens itself)
+    /// * Both the structure and focused part must be `Clone`
+    ///
     /// # Arguments
     ///
     /// * `get` - A function that extracts a part from the whole structure
@@ -152,24 +247,76 @@ where
     ///
     /// # Type Parameters
     ///
-    /// * `G` - The type of the getter function
-    /// * `F` - The type of the setter function
+    /// * `GetFn` - The type of the getter function: `Fn(&S) -> A`
+    /// * `SetFn` - The type of the setter function: `Fn(S, A) -> S`
     ///
     /// # Examples
+    ///
+    /// Basic lens for a simple struct:
     ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
     ///
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Debug, PartialEq)]
     /// struct Point {
     ///     x: f64,
     ///     y: f64,
     /// }
     ///
+    /// // Create a lens focusing on the x coordinate
     /// let x_lens = Lens::new(
     ///     |p: &Point| p.x,
     ///     |p: Point, x: f64| Point { x, ..p },
     /// );
+    ///
+    /// let point = Point { x: 2.0, y: 3.0 };
+    ///
+    /// // Use the lens to view the focused value
+    /// assert_eq!(x_lens.get(&point), 2.0);
+    ///
+    /// // Use the lens to update the focused value
+    /// let updated = x_lens.set(point, 5.0);
+    /// assert_eq!(updated, Point { x: 5.0, y: 3.0 });
+    /// ```
+    ///
+    /// Creating a lens for nested structures:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    /// use std::collections::HashMap;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct User {
+    ///     name: String,
+    ///     metadata: HashMap<String, String>,
+    /// }
+    ///
+    /// // Create a lens focusing on the metadata
+    /// let metadata_lens = Lens::new(
+    ///     |u: &User| u.metadata.clone(),
+    ///     |u: User, metadata: HashMap<String, String>| User { metadata, ..u },
+    /// );
+    ///
+    /// // Create an initial user
+    /// let mut initial_metadata = HashMap::new();
+    /// initial_metadata.insert("created_at".to_string(), "2023-01-01".to_string());
+    ///
+    /// let user = User {
+    ///     name: "Alice".to_string(),
+    ///     metadata: initial_metadata,
+    /// };
+    ///
+    /// // Get the metadata
+    /// let meta = metadata_lens.get(&user);
+    /// assert_eq!(meta.get("created_at"), Some(&"2023-01-01".to_string()));
+    ///
+    /// // Update the metadata
+    /// let mut new_metadata = meta.clone();
+    /// new_metadata.insert("last_login".to_string(), "2023-02-01".to_string());
+    ///
+    /// let updated_user = metadata_lens.set(user, new_metadata);
+    /// assert_eq!(updated_user.metadata.get("last_login"), Some(&"2023-02-01".to_string()));
+    /// assert_eq!(updated_user.name, "Alice");
     /// ```
     #[inline]
     pub fn new(get: GetFn, set: SetFn) -> Self {
@@ -183,6 +330,24 @@ where
     /// Gets the focused part from the whole structure.
     ///
     /// This operation is non-destructive and returns a clone of the focused part.
+    /// It's the fundamental operation for viewing a portion of a data structure
+    /// through a lens.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Complexity**: O(g + c) - Where g is the complexity of the getter function
+    ///   and c is the complexity of cloning the focused value
+    /// * **Best Case**: O(1) - For simple getters accessing a field directly
+    /// * **Worst Case**: Dependent on the complexity of the getter function and cloning
+    ///   the focused value, especially for large or deeply nested data structures
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Allocation**: Creates a new instance of the focused part via cloning
+    /// * **Overhead**: Memory usage depends on the size of the focused part
+    /// * **Optimization**: The original structure is not modified or copied
     ///
     /// # Arguments
     ///
@@ -194,10 +359,12 @@ where
     ///
     /// # Examples
     ///
+    /// Basic usage with a simple struct:
+    ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
     ///
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Debug, PartialEq)]
     /// struct User {
     ///     name: String,
     ///     email: String,
@@ -216,6 +383,73 @@ where
     /// let name = name_lens.get(&user);
     /// assert_eq!(name, "Alice");
     /// ```
+    ///
+    /// Accessing nested structures:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    /// use std::rc::Rc;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Address {
+    ///     city: String,
+    ///     street: String,
+    /// }
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Person {
+    ///     name: String,
+    ///     address: Rc<Address>, // Using Rc for structural sharing
+    /// }
+    ///
+    /// let address_lens = Lens::new(
+    ///     |p: &Person| p.address.as_ref().clone(),
+    ///     |p: Person, addr: Address| Person {
+    ///         address: Rc::new(addr),
+    ///         ..p
+    ///     },
+    /// );
+    ///
+    /// let person = Person {
+    ///     name: "Bob".to_string(),
+    ///     address: Rc::new(Address {
+    ///         city: "New York".to_string(),
+    ///         street: "Broadway".to_string(),
+    ///     }),
+    /// };
+    ///
+    /// let addr = address_lens.get(&person);
+    /// assert_eq!(addr.city, "New York");
+    /// assert_eq!(addr.street, "Broadway");
+    /// ```
+    ///
+    /// Accessing elements in a collection:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    /// use std::collections::HashMap;
+    ///
+    /// // Create a lens focusing on a specific key in a HashMap
+    /// fn hash_map_key_lens<K: Clone + Eq + std::hash::Hash, V: Clone + Default>(key: K) -> Lens<HashMap<K, V>, V> {
+    ///     Lens::new(
+    ///         move |map: &HashMap<K, V>| map.get(&key).cloned().unwrap_or_default(),
+    ///         move |mut map: HashMap<K, V>, value: V| {
+    ///             map.insert(key.clone(), value);
+    ///             map
+    ///         },
+    ///     )
+    /// }
+    ///
+    /// let mut scores = HashMap::new();
+    /// scores.insert("Alice".to_string(), 95);
+    /// scores.insert("Bob".to_string(), 87);
+    ///
+    /// let alice_lens = hash_map_key_lens("Alice".to_string());
+    /// assert_eq!(alice_lens.get(&scores), 95);
+    ///
+    /// let charlie_lens = hash_map_key_lens("Charlie".to_string());
+    /// assert_eq!(charlie_lens.get(&scores), 0); // Returns default value when key not found
+    /// ```
     #[inline]
     pub fn get(&self, source: &S) -> A {
         (self.get)(source)
@@ -225,7 +459,32 @@ where
     ///
     /// This operation creates a new structure rather than modifying the existing one.
     /// If the new value is equal to the current value, the original structure is
-    /// returned to enable structural sharing.
+    /// returned to enable structural sharing, which is an important optimization for
+    /// larger data structures.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Complexity**: O(g + eq + s) - Where:
+    ///   - g is the complexity of the getter function
+    ///   - eq is the complexity of equality comparison
+    ///   - s is the complexity of the setter function
+    /// * **Best Case**: O(g + eq) when the new value equals the current one (no setting needed)
+    /// * **Worst Case**: Dependent on the complexity of cloning and updating the structure,
+    ///   especially for large or deeply nested data structures
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Allocation**: Creates a new instance of the whole structure if the value changes
+    /// * **Optimization**: Returns the original structure when the value doesn't change
+    /// * **Structural Sharing**: Enables partial copying where only changed parts of a
+    ///   nested structure are recreated
+    ///
+    /// # Requirements
+    ///
+    /// * The focused type `A` must implement `PartialEq` for equality comparison
+    /// * If `A` doesn't implement `PartialEq`, use `set_always` instead
     ///
     /// # Arguments
     ///
@@ -238,6 +497,8 @@ where
     /// if the new value is equal to the current value
     ///
     /// # Examples
+    ///
+    /// Basic usage with structural sharing optimization:
     ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
@@ -261,10 +522,50 @@ where
     /// // Setting to a different value creates a new structure
     /// let updated = name_lens.set(user.clone(), "Bob".to_string());
     /// assert_ne!(updated, user);
+    /// assert_eq!(updated.name, "Bob");
+    /// assert_eq!(updated.email, user.email); // Other fields remain unchanged
     ///
     /// // Setting to the same value returns the original structure
     /// let same = name_lens.set(user.clone(), "Alice".to_string());
-    /// assert_eq!(same, user);
+    /// assert!(std::ptr::eq(&same, &user)); // Shows it's the same instance, not just equal
+    /// ```
+    ///
+    /// Setting nested structures:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    /// use std::collections::HashMap;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Config {
+    ///     settings: HashMap<String, String>,
+    ///     enabled: bool,
+    /// }
+    ///
+    /// let settings_lens = Lens::new(
+    ///     |c: &Config| c.settings.clone(),
+    ///     |c: Config, settings: HashMap<String, String>| Config { settings, ..c },
+    /// );
+    ///
+    /// // Initial configuration
+    /// let mut initial_settings = HashMap::new();
+    /// initial_settings.insert("theme".to_string(), "dark".to_string());
+    ///
+    /// let config = Config {
+    ///     settings: initial_settings,
+    ///     enabled: true,
+    /// };
+    ///
+    /// // Update settings
+    /// let mut new_settings = settings_lens.get(&config);
+    /// new_settings.insert("font_size".to_string(), "14".to_string());
+    /// new_settings.insert("theme".to_string(), "light".to_string());
+    ///
+    /// let updated = settings_lens.set(config.clone(), new_settings);
+    ///
+    /// assert_eq!(updated.settings.get("theme"), Some(&"light".to_string()));
+    /// assert_eq!(updated.settings.get("font_size"), Some(&"14".to_string()));
+    /// assert_eq!(updated.enabled, true); // Other fields remain unchanged
     /// ```
     #[inline]
     pub fn set(&self, source: S, value: A) -> S
@@ -282,7 +583,26 @@ where
     ///
     /// This variant of set always creates a new structure, even if the value
     /// doesn't change. Use this when A doesn't implement PartialEq or when
-    /// you know the value will always be different.
+    /// you know the value will always be different. This method is also useful
+    /// when working with types where equality comparison is expensive.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Complexity**: O(g + s) - Where:
+    ///   - g is the complexity of the getter function (needed only for some setter implementations)
+    ///   - s is the complexity of the setter function
+    /// * **Comparison to `set`**: Faster than `set` by avoiding equality check, but without the
+    ///   structural sharing optimization when values don't change
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Allocation**: Always creates a new instance of the whole structure
+    /// * **Trade-off**: Sacrifices the structural sharing optimization for potentially better
+    ///   performance when equality checks are expensive
+    /// * **Use Cases**: Ideal for large structures where equality checks are expensive but
+    ///   cloning is relatively cheap
     ///
     /// # Arguments
     ///
@@ -295,28 +615,81 @@ where
     ///
     /// # Examples
     ///
+    /// Basic usage with a type lacking `PartialEq`:
+    ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
     ///
+    /// // A type that doesn't implement PartialEq
     /// #[derive(Clone)]
-    /// struct User {
-    ///     name: String,
-    ///     email: String,
+    /// struct CustomData {
+    ///     value: String,
     /// }
     ///
-    /// let name_lens = Lens::new(
-    ///     |u: &User| u.name.clone(),
-    ///     |u: User, name: String| User { name, ..u },
+    /// #[derive(Clone)]
+    /// struct Container {
+    ///     data: CustomData,
+    ///     tag: String,
+    /// }
+    ///
+    /// let data_lens = Lens::new(
+    ///     |c: &Container| c.data.clone(),
+    ///     |c: Container, data: CustomData| Container { data, ..c },
     /// );
     ///
-    /// let user = User {
-    ///     name: "Alice".to_string(),
-    ///     email: "alice@example.com".to_string(),
+    /// let container = Container {
+    ///     data: CustomData { value: "original".to_string() },
+    ///     tag: "v1".to_string(),
     /// };
     ///
-    /// // Always creates a new structure, even if the value is the same
-    /// let updated = name_lens.set_always(user, "Alice".to_string());
-    /// assert_eq!(updated.name, "Alice");
+    /// let new_data = CustomData { value: "updated".to_string() };
+    /// let updated = data_lens.set_always(container, new_data);
+    /// assert_eq!(updated.data.value, "updated");
+    /// ```
+    ///
+    /// Performance optimization for types with expensive equality checks:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    /// use std::collections::HashMap;
+    ///
+    /// #[derive(Clone, PartialEq)]
+    /// struct LargeConfig {
+    ///     // Imagine this is a large configuration with many fields
+    ///     settings: HashMap<String, String>,
+    ///     // ... many more fields
+    /// }
+    ///
+    /// #[derive(Clone)]
+    /// struct Application {
+    ///     config: LargeConfig,
+    ///     name: String,
+    /// }
+    ///
+    /// let config_lens = Lens::new(
+    ///     |app: &Application| app.config.clone(),
+    ///     |app: Application, config: LargeConfig| Application { config, ..app },
+    /// );
+    ///
+    /// // Initial application
+    /// let mut settings = HashMap::new();
+    /// settings.insert("debug".to_string(), "false".to_string());
+    ///
+    /// let app = Application {
+    ///     config: LargeConfig { settings },
+    ///     name: "MyApp".to_string(),
+    /// };
+    ///
+    /// // When we know we're changing the config and equality check would be expensive,
+    /// // we can skip it with set_always
+    /// let mut new_settings = HashMap::new();
+    /// new_settings.insert("debug".to_string(), "true".to_string());
+    ///
+    /// let new_config = LargeConfig { settings: new_settings };
+    /// let updated = config_lens.set_always(app, new_config);
+    ///
+    /// // The update succeeded without performing expensive equality comparison
+    /// assert_eq!(updated.config.settings.get("debug"), Some(&"true".to_string()));
     /// ```
     #[inline]
     pub fn set_always(&self, source: S, value: A) -> S {
@@ -330,6 +703,31 @@ where
     /// equality comparison), the original structure is returned to enable
     /// structural sharing.
     ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Complexity**: O(g + f + eq + s) - Where:
+    ///   - g is the complexity of the getter function
+    ///   - f is the complexity of the transformation function
+    ///   - eq is the complexity of equality comparison
+    ///   - s is the complexity of the setter function (only if the value changes)
+    /// * **Best Case**: O(g + f + eq) when the function doesn't change the value
+    /// * **Optimization**: Avoids calling the setter function when the transformation
+    ///   doesn't change the value
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Allocation**: Creates a new instance of the whole structure only if the value changes
+    /// * **Structural Sharing**: Returns the original structure when the value doesn't change
+    /// * **Efficiency**: More efficient than separate `get`/`set` calls, especially when
+    ///   the transformation often results in no change
+    ///
+    /// # Requirements
+    ///
+    /// * The focused type `A` must implement `PartialEq` for equality comparison
+    /// * If `A` doesn't implement `PartialEq`, use `modify_always` instead
+    ///
     /// # Arguments
     ///
     /// * `source` - The whole structure to modify
@@ -341,6 +739,8 @@ where
     /// original structure if no change was made
     ///
     /// # Examples
+    ///
+    /// Basic modification with structural sharing:
     ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
@@ -364,10 +764,102 @@ where
     /// // Increment the age
     /// let older = age_lens.modify(user.clone(), |age| age + 1);
     /// assert_eq!(older.age, 31);
+    /// assert_eq!(older.name, "Alice");
     ///
-    /// // No change when applying identity function
+    /// // No change when applying identity function - structural sharing in action
     /// let same = age_lens.modify(user.clone(), |age| age);
-    /// assert_eq!(same, user); // Returns the original structure
+    /// assert!(std::ptr::eq(&same, &user)); // Shows it's the same instance
+    /// ```
+    ///
+    /// Conditional modifications:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Item {
+    ///     name: String,
+    ///     count: i32,
+    ///     enabled: bool,
+    /// }
+    ///
+    /// let count_lens = Lens::new(
+    ///     |item: &Item| item.count,
+    ///     |item: Item, count: i32| Item { count, ..item },
+    /// );
+    ///
+    /// let item = Item {
+    ///     name: "Widget".to_string(),
+    ///     count: 5,
+    ///     enabled: true,
+    /// };
+    ///
+    /// // Only increment if count is less than 10
+    /// let incremented = count_lens.modify(item.clone(), |count| {
+    ///     if count < 10 {
+    ///         count + 1
+    ///     } else {
+    ///         count
+    ///     }
+    /// });
+    /// assert_eq!(incremented.count, 6);
+    ///
+    /// // When we reach the limit, no new object is created
+    /// let max_item = Item {
+    ///     name: "Widget".to_string(),
+    ///     count: 10,
+    ///     enabled: true,
+    /// };
+    ///
+    /// let attempted = count_lens.modify(max_item.clone(), |count| {
+    ///     if count < 10 {
+    ///         count + 1
+    ///     } else {
+    ///         count
+    ///     }
+    /// });
+    ///
+    /// // Since the count didn't change, we get back the original structure
+    /// assert!(std::ptr::eq(&attempted, &max_item));
+    /// ```
+    ///
+    /// Working with strings:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Document {
+    ///     title: String,
+    ///     content: String,
+    /// }
+    ///
+    /// let title_lens = Lens::new(
+    ///     |doc: &Document| doc.title.clone(),
+    ///     |doc: Document, title: String| Document { title, ..doc },
+    /// );
+    ///
+    /// let doc = Document {
+    ///     title: "draft report".to_string(),
+    ///     content: "Lorem ipsum...".to_string(),
+    /// };
+    ///
+    /// // Capitalize the title
+    /// let formatted = title_lens.modify(doc, |title| {
+    ///     title.split_whitespace()
+    ///         .map(|word| {
+    ///             let mut chars = word.chars();
+    ///             match chars.next() {
+    ///                 None => String::new(),
+    ///                 Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+    ///             }
+    ///         })
+    ///         .collect::<Vec<_>>()
+    ///         .join(" ")
+    /// });
+    ///
+    /// assert_eq!(formatted.title, "Draft Report");
+    /// assert_eq!(formatted.content, "Lorem ipsum...");
     /// ```
     #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
@@ -384,7 +876,29 @@ where
     ///
     /// This variant of modify always creates a new structure, even if the
     /// value doesn't change. Use this when A doesn't implement PartialEq
-    /// or when you know the value will always change.
+    /// or when you know the value will always change. This method is also useful
+    /// when equality comparison is expensive compared to creating a new structure.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Complexity**: O(g + f + s) - Where:
+    ///   - g is the complexity of the getter function
+    ///   - f is the complexity of the transformation function
+    ///   - s is the complexity of the setter function
+    /// * **Comparison to `modify`**: Faster than `modify` by avoiding equality check, but without
+    ///   the structural sharing optimization when values don't change
+    /// * **Consistency**: Always follows the same code path regardless of the transformation result,
+    ///   making performance more predictable
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Allocation**: Always creates a new instance of the whole structure
+    /// * **Trade-off**: Sacrifices the potential memory optimization of structural sharing
+    ///   for simpler and sometimes faster code execution
+    /// * **Use Cases**: Ideal for types without `PartialEq` implementation or when
+    ///   the equality check is more expensive than recreation
     ///
     /// # Arguments
     ///
@@ -397,31 +911,97 @@ where
     ///
     /// # Examples
     ///
+    /// Basic usage with a type lacking `PartialEq`:
+    ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
     ///
+    /// // A type that doesn't implement PartialEq
     /// #[derive(Clone)]
-    /// struct User {
-    ///     name: String,
-    ///     age: i32,
+    /// struct CustomVector {
+    ///     data: Vec<f64>,
     /// }
     ///
-    /// let age_lens = Lens::new(
-    ///     |u: &User| u.age,
-    ///     |u: User, age: i32| User { age, ..u },
+    /// #[derive(Clone)]
+    /// struct Analysis {
+    ///     values: CustomVector,
+    ///     description: String,
+    /// }
+    ///
+    /// let values_lens = Lens::new(
+    ///     |a: &Analysis| a.values.clone(),
+    ///     |a: Analysis, values: CustomVector| Analysis { values, ..a },
     /// );
     ///
-    /// let user = User {
-    ///     name: "Alice".to_string(),
-    ///     age: 30,
+    /// let analysis = Analysis {
+    ///     values: CustomVector { data: vec![1.0, 2.0, 3.0] },
+    ///     description: "Initial data".to_string(),
     /// };
     ///
-    /// // Always creates a new structure, even if the value doesn't change
-    /// let same_age = age_lens.modify_always(user.clone(), |age| age);
+    /// // Transform the vector data
+    /// let normalized = values_lens.modify_always(analysis, |mut values| {
+    ///     // Normalize the vector
+    ///     let sum: f64 = values.data.iter().sum();
+    ///     for val in &mut values.data {
+    ///         *val /= sum;
+    ///     }
+    ///     values
+    /// });
     ///
-    /// // Increment the age
-    /// let older = age_lens.modify_always(user, |age| age + 1);
-    /// assert_eq!(older.age, 31);
+    /// // Verify the transformation worked
+    /// let expected_sum = 1.0;
+    /// let actual_sum: f64 = normalized.values.data.iter().sum();
+    /// assert!((actual_sum - expected_sum).abs() < 1e-10);
+    /// ```
+    ///
+    /// Performance optimization for expensive transformations:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    /// use std::collections::HashMap;
+    ///
+    /// #[derive(Clone, PartialEq)]
+    /// struct DataCache {
+    ///     entries: HashMap<String, Vec<i32>>,
+    /// }
+    ///
+    /// #[derive(Clone)]
+    /// struct Service {
+    ///     cache: DataCache,
+    ///     name: String,
+    /// }
+    ///
+    /// let cache_lens = Lens::new(
+    ///     |s: &Service| s.cache.clone(),
+    ///     |s: Service, cache: DataCache| Service { cache, ..s },
+    /// );
+    ///
+    /// // Setup initial service
+    /// let mut initial_entries = HashMap::new();
+    /// initial_entries.insert("key1".to_string(), vec![1, 2, 3]);
+    ///
+    /// let service = Service {
+    ///     cache: DataCache { entries: initial_entries },
+    ///     name: "DataProcessor".to_string(),
+    /// };
+    ///
+    /// // When transformations are complex and equality checks would be expensive,
+    /// // modify_always can be more efficient
+    /// let updated = cache_lens.modify_always(service, |mut cache| {
+    ///     // Complex transformation that would make equality check expensive
+    ///     cache.entries.insert("key2".to_string(), vec![4, 5, 6]);
+    ///     
+    ///     // Maybe update existing entries
+    ///     if let Some(values) = cache.entries.get_mut("key1") {
+    ///         values.push(4);
+    ///     }
+    ///     
+    ///     cache
+    /// });
+    ///
+    /// // Verify the transformations
+    /// assert_eq!(updated.cache.entries.get("key1"), Some(&vec![1, 2, 3, 4]));
+    /// assert_eq!(updated.cache.entries.get("key2"), Some(&vec![4, 5, 6]));
     /// ```
     #[inline]
     pub fn modify_always<F>(&self, source: S, f: F) -> S
@@ -437,16 +1017,42 @@ where
     ///
     /// This allows for transforming the type of the focused part while maintaining
     /// the lens laws. The transformation must be bidirectional, meaning you need
-    /// to provide both forward and backward transformations.
+    /// to provide both forward and backward transformations. This operation enables
+    /// lens composition with type transformation.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Construction**: O(1) - Creates a new lens that composes functions
+    /// * **Get Operation**: O(g + f) - Where g is the complexity of the original getter
+    ///   and f is the complexity of the forward transformation
+    /// * **Set Operation**: O(g + s + h) - Where g is the complexity of the original getter,
+    ///   s is the complexity of the original setter, and h is the complexity of the
+    ///   backward transformation
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Lens Creation**: O(1) - Creates a new lens with composed functions
+    /// * **Operations**: Memory usage depends on the original lens operations plus
+    ///   any additional memory used by the transformation functions
+    ///
+    /// # Implementation Notes
+    ///
+    /// * The transformations must be consistent with each other to maintain lens laws
+    /// * For all values x: g(f(x)) should be approximately equal to x (within reasonable bounds)
+    /// * The resulting lens is a proper lens if the transformation functions maintain the lens laws
     ///
     /// # Arguments
     ///
-    /// * `f` - The forward transformation function
-    /// * `g` - The backward transformation function
+    /// * `f` - The forward transformation function from A to B
+    /// * `g` - The backward transformation function from B to A
     ///
     /// # Type Parameters
     ///
     /// * `B` - The new type of the focused part
+    /// * `F` - The type of the forward transformation function: `Fn(A) -> B`
+    /// * `G` - The type of the backward transformation function: `Fn(B) -> A`
     ///
     /// # Returns
     ///
@@ -454,10 +1060,12 @@ where
     ///
     /// # Examples
     ///
+    /// Basic type conversion example:
+    ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
     ///
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Debug, PartialEq)]
     /// struct Person {
     ///     age: u32,
     /// }
@@ -472,6 +1080,96 @@ where
     ///     |n| n.to_string(),
     ///     |s| s.parse().unwrap_or(0),
     /// );
+    ///
+    /// let person = Person { age: 30 };
+    ///
+    /// // Use the transformed lens to get a string representation
+    /// assert_eq!(age_string_lens.get(&person), "30");
+    ///
+    /// // Use the transformed lens to set from a string
+    /// let updated = age_string_lens.set(person, "42".to_string());
+    /// assert_eq!(updated.age, 42);
+    /// ```
+    ///
+    /// Practical example with unit conversion:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Temperature {
+    ///     celsius: f64,
+    /// }
+    ///
+    /// // Create a lens focused on the celsius field
+    /// let celsius_lens = Lens::new(
+    ///     |t: &Temperature| t.celsius,
+    ///     |t: Temperature, c: f64| Temperature { celsius: c },
+    /// );
+    ///
+    /// // Create a derived lens for Fahrenheit
+    /// let fahrenheit_lens = celsius_lens.fmap(
+    ///     // Convert Celsius to Fahrenheit
+    ///     |c| c * 9.0/5.0 + 32.0,
+    ///     // Convert Fahrenheit to Celsius
+    ///     |f| (f - 32.0) * 5.0/9.0,
+    /// );
+    ///
+    /// let temp = Temperature { celsius: 25.0 };
+    ///
+    /// // Get temperature in Fahrenheit
+    /// let f_temp = fahrenheit_lens.get(&temp);
+    /// assert!((f_temp - 77.0).abs() < 0.001);
+    ///
+    /// // Set temperature using Fahrenheit
+    /// let freezing = fahrenheit_lens.set(temp, 32.0);
+    /// assert!((freezing.celsius - 0.0).abs() < 0.001);
+    /// ```
+    ///
+    /// Example with complex data transformation:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    /// use std::collections::HashMap;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct UserDatabase {
+    ///     users: HashMap<String, u32>, // username -> age
+    /// }
+    ///
+    /// // Lens focused on the users HashMap
+    /// let users_lens = Lens::new(
+    ///     |db: &UserDatabase| db.users.clone(),
+    ///     |db: UserDatabase, users: HashMap<String, u32>| UserDatabase { users },
+    /// );
+    ///
+    /// // Lens that transforms the HashMap into a Vec of usernames
+    /// let usernames_lens = users_lens.fmap(
+    ///     // Extract just the usernames as a vector
+    ///     |users| users.keys().cloned().collect::<Vec<String>>(),
+    ///     
+    ///     // Recreate the HashMap (this is lossy, but demonstrates the concept)
+    ///     |usernames| {
+    ///         let mut map = HashMap::new();
+    ///         for name in usernames {
+    ///             map.insert(name, 0); // Default age when reconstructing
+    ///         }
+    ///         map
+    ///     },
+    /// );
+    ///
+    /// // Create a test database
+    /// let mut users = HashMap::new();
+    /// users.insert("alice".to_string(), 30);
+    /// users.insert("bob".to_string(), 25);
+    ///
+    /// let db = UserDatabase { users };
+    ///
+    /// // Get just the usernames
+    /// let names = usernames_lens.get(&db);
+    /// assert_eq!(names.len(), 2);
+    /// assert!(names.contains(&"alice".to_string()));
+    /// assert!(names.contains(&"bob".to_string()));
     /// ```
     #[inline]
     pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>

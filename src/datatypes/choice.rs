@@ -618,31 +618,31 @@ impl<T> Choice<T> {
     /// assert_eq!(after_remove_last.alternatives(), &[200, 300]);
     /// ```
     ///
-    /// /// ### Panics - Index out of bounds
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
-    /// /// // Panics because index 2 is out of bounds for alternatives.
-    /// /// let _ = choice.remove_alternative(2);
-    /// /// ```
+    /// ### Panics - Index out of bounds
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
     ///
-    /// /// ### Panics - No alternatives to remove
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
-    /// /// // Panics because there are no alternatives to remove.
-    /// /// let _ = choice_only_primary.remove_alternative(0);
-    /// /// ```
+    /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
+    /// // Panics because index 2 is out of bounds for alternatives.
+    /// let _ = choice.remove_alternative(2);
+    /// ```
     ///
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// /// // Panics because an empty choice has no alternatives.
-    /// /// let _ = empty_choice.remove_alternative(0);
-    /// /// ```
+    /// ### Panics - No alternatives to remove
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
+    /// // Panics because there are no alternatives to remove.
+    /// let _ = choice_only_primary.remove_alternative(0);
+    /// ```
+    ///
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let empty_choice: Choice<i32> = Choice::new_empty();
+    /// // Panics because an empty choice has no alternatives.
+    /// let _ = empty_choice.remove_alternative(0);
+    /// ```
     #[inline]
     /// # See Also
     /// - [`filter()`](Self::filter) - To remove multiple alternatives based on a predicate.
@@ -1372,32 +1372,32 @@ impl<T> Choice<T> {
     /// assert_eq!(swapped3.alternatives(), &[200, 300, 100]);
     /// ```
     ///
-    /// /// ### Panics - Index out of bounds
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
-    /// /// // Panics because alt_index 2 is out of bounds.
-    /// /// let _ = choice.swap_with_alternative(2);
-    /// /// ```
+    /// ### Panics - Index out of bounds
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
     ///
-    /// /// ### Panics - No alternatives to swap with
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
-    /// /// // Panics because there are no alternatives.
-    /// /// let _ = choice_only_primary.swap_with_alternative(0);
-    /// /// ```
+    /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
+    /// // Panics because alt_index 2 is out of bounds.
+    /// let _ = choice.swap_with_alternative(2);
+    /// ```
     ///
-    /// /// ### Panics - Empty Choice
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// /// // Panics because an empty choice has no primary or alternatives.
-    /// /// let _ = empty_choice.swap_with_alternative(0);
-    /// /// ```
+    /// ### Panics - No alternatives to swap with
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
+    /// // Panics because there are no alternatives.
+    /// let _ = choice_only_primary.swap_with_alternative(0);
+    /// ```
+    ///
+    /// ### Panics - Empty Choice
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let empty_choice: Choice<i32> = Choice::new_empty();
+    /// // Panics because an empty choice has no primary or alternatives.
+    /// let _ = empty_choice.swap_with_alternative(0);
+    /// ```
     ///
     /// # See Also
     /// - [`Choice::new()`](Self::new) - For creating a `Choice`.

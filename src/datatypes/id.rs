@@ -19,6 +19,16 @@
 //! - `Identity` in fp-ts (TypeScript)
 //! - `Identity` in Haskell
 //!
+//! ## Performance Characteristics
+//!
+//! The `Id` monad has optimal performance characteristics as it adds minimal overhead:
+//!
+//! - **Time Complexity**: All operations are O(1) as they simply manipulate the wrapped value directly
+//! - **Memory Usage**: Uses only the memory required by the wrapped value plus a constant small overhead
+//! - **Stack Usage**: No additional stack frames beyond the function calls themselves
+//!
+//! This makes `Id` ideal for situations where you need monadic interfaces without performance penalties.
+//!
 //! ## Type Class Implementations
 //!
 //! The `Id` type implements several important type classes:
@@ -26,9 +36,66 @@
 //! - `Functor`: Allows mapping functions over the wrapped value
 //! - `Applicative`: Enables applying functions wrapped in `Id` to values wrapped in `Id`
 //! - `Monad`: Provides sequencing of operations and context-sensitive computations
+//! - `Comonad`: Provides operations to extract values and extend computations
+//! - `Semigroup`: Combines two Id values when the inner type is a Semigroup
+//! - `Monoid`: Provides an empty value when the inner type is a Monoid
+//! - `Foldable`: Enables folding operations over the contained value
 //!
 //! These implementations follow the standard laws for each type class, making `Id` a lawful
 //! instance of these abstractions.
+//!
+//! ## Type Class Laws
+//!
+//! ### Functor Laws
+//!
+//! ```rust
+//! use rustica::datatypes::id::Id;
+//! use rustica::traits::functor::Functor;
+//!
+//! // Identity: fmap(id) = id
+//! let x = Id::new(42);
+//! let id_fn = |x: &i32| *x;
+//! assert_eq!(x.fmap(id_fn), x);
+//!
+//! // Composition: fmap(f . g) = fmap(f) . fmap(g)
+//! let f = |x: &i32| x + 1;
+//! let g = |x: &i32| x * 2;
+//! let h = |x: &i32| f(&g(x));
+//!
+//! let left = x.fmap(h);
+//! let right = x.fmap(g).fmap(f);
+//! assert_eq!(left, right);
+//! ```
+//!
+//! ### Monad Laws
+//!
+//! ```rust
+//! use rustica::datatypes::id::Id;
+//! use rustica::traits::monad::Monad;
+//! use rustica::traits::identity::Identity;
+//!
+//! // Left identity: pure(a).bind(f) = f(a)
+//! let a = 42;
+//! let f = |x: &i32| Id::new(x + 1);
+//! let left = Id::new(a).bind(f);
+//! let right = f(&a);
+//! assert_eq!(left, right);
+//!
+//! // Right identity: m.bind(pure) = m
+//! let m = Id::new(42);
+//! let pure_fn = |x: &i32| Id::new(*x);
+//! let result = m.bind(pure_fn);
+//! assert_eq!(result, m);
+//!
+//! // Associativity: m.bind(f).bind(g) = m.bind(x -> f(x).bind(g))
+//! let m = Id::new(5);
+//! let f = |x: &i32| Id::new(x * 2);
+//! let g = |x: &i32| Id::new(x + 10);
+//!
+//! let left = m.bind(f).bind(g);
+//! let right = m.bind(|x| f(x).bind(g));
+//! assert_eq!(left, right);
+//! ```
 //!
 //! ## Basic Usage
 //!
@@ -79,6 +146,14 @@ use quickcheck::{Arbitrary, Gen};
 /// 1. It provides a way to work with pure values in a monadic context
 /// 2. It serves as a good example for understanding monad laws and behavior
 /// 3. It's useful for testing and prototyping monadic code
+/// 4. It serves as a base case for monad transformers
+/// 5. It helps create a consistent API across different monadic types
+///
+/// # Performance Characteristics
+///
+/// * **Time Complexity**: O(1) for all operations
+/// * **Memory Usage**: O(1) overhead beyond the wrapped value
+/// * **Stack Usage**: No additional stack frames beyond the function calls themselves
 ///
 /// # Type Parameters
 ///
@@ -358,6 +433,60 @@ impl<T: Clone> Applicative for Id<T> {
 }
 
 impl<T: Clone> Monad for Id<T> {
+    /// Sequences two Id operations, with the second depending on the result of the first.
+    ///
+    /// This method implements the `bind` operation (also known as `flatMap` or `>>=`)
+    /// from the Monad typeclass in functional programming. It allows you to sequence
+    /// Id computations where the second computation depends on the value produced
+    /// by the first.
+    ///
+    /// # Performance
+    ///
+    /// * Time Complexity: O(1) - Simply applies the function to the wrapped value
+    /// * Memory Usage: Depends only on the function `f` and its output
+    ///
+    /// # Type Parameters
+    ///
+    /// * `U`: The type of the value produced by the second computation
+    /// * `F`: The type of the function that produces the second computation
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function that takes the value from the first computation and returns a new Id computation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// // Simple binding with a transformation
+    /// let x = Id::new(5);
+    /// let result = x.bind(|n| Id::new(n * 2));
+    /// assert_eq!(*result.value(), 10);
+    ///
+    /// // Chaining multiple bind operations
+    /// let result = Id::new(5)
+    ///     .bind(|n| Id::new(n + 3))          // 5 -> 8
+    ///     .bind(|n| Id::new(n * 2))          // 8 -> 16
+    ///     .bind(|n| Id::new(format!("{}", n))); // 16 -> "16"
+    /// assert_eq!(*result.value(), "16");
+    ///
+    /// // Conditional logic in bind
+    /// let process = |n: &i32| {
+    ///     if *n > 0 {
+    ///         Id::new(format!("Positive: {}", n))
+    ///     } else {
+    ///         Id::new(format!("Non-positive: {}", n))
+    ///     }
+    /// };
+    ///
+    /// let pos = Id::new(42).bind(process);
+    /// assert_eq!(*pos.value(), "Positive: 42");
+    ///
+    /// let neg = Id::new(-10).bind(process);
+    /// assert_eq!(*neg.value(), "Non-positive: -10");
+    /// ```
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
@@ -396,14 +525,97 @@ impl<T: Clone> Monad for Id<T> {
 }
 
 impl<T: Clone> Comonad for Id<T> {
+    /// Extracts the value from the Id context.
+    ///
+    /// The `extract` operation (also known as `counit`) is the dual to the `pure` operation
+    /// in a Monad. It extracts the contained value from the `Id` context.
+    ///
+    /// # Performance
+    ///
+    /// * Time Complexity: O(1) - Simple clone operation
+    /// * Memory Usage: Dependent on the size of the wrapped value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::comonad::Comonad;
+    ///
+    /// let id = Id::new(42);
+    /// let value = id.extract();
+    /// assert_eq!(value, 42);
+    /// ```
+    #[inline]
     fn extract(&self) -> Self::Source {
         self.value.clone()
     }
 
+    /// Creates a nested `Id` structure, wrapping the current `Id` in another `Id`.
+    ///
+    /// The `duplicate` operation is the dual of `join` in a Monad. While `join` flattens
+    /// a nested monadic structure, `duplicate` creates a nested structure.
+    ///
+    /// # Performance
+    ///
+    /// * Time Complexity: O(1) - Simple clone operation
+    /// * Memory Usage: Slight overhead from nested structure
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::comonad::Comonad;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let id = Id::new(42);
+    /// let nested = id.duplicate();
+    ///
+    /// // The result is equivalent to Id::new(Id::new(42))
+    /// assert_eq!(*nested.value(), 42);
+    /// ```
+    #[inline]
     fn duplicate(&self) -> Self {
         self.clone()
     }
 
+    /// Applies a function to the entire `Id` context and wraps the result in a new `Id`.
+    ///
+    /// The `extend` operation (also known as `cobind` or `=>>`) is the dual of `bind` in a Monad.
+    /// While `bind` unpacks a value to feed it to a function, `extend` feeds the whole context
+    /// to a function.
+    ///
+    /// # Performance
+    ///
+    /// * Time Complexity: O(1) plus the complexity of function `f`
+    /// * Memory Usage: Depends on the return type of function `f`
+    ///
+    /// # Type Parameters
+    ///
+    /// * `U`: The type of the value produced by the function
+    /// * `F`: The type of the function that processes the context
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Function that takes the entire Id context and returns a value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::comonad::Comonad;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let id = Id::new(5);
+    ///
+    /// // Apply a function to the context
+    /// let result = id.extend(|ctx| {
+    ///     let inner_value = *ctx.value();
+    ///     inner_value * inner_value  // Square the value
+    /// });
+    ///
+    /// assert_eq!(*result.value(), 25);
+    /// ```
+    #[inline]
     fn extend<U, F>(&self, f: F) -> Self::Output<U>
     where
         F: Fn(&Self) -> U,
@@ -413,11 +625,67 @@ impl<T: Clone> Comonad for Id<T> {
 }
 
 impl<T: Semigroup> Semigroup for Id<T> {
+    /// Combines two `Id` values using the `combine` operation of the inner type.
+    ///
+    /// This operation is available when the wrapped type `T` implements the `Semigroup` trait.
+    /// It allows combining two `Id` values by combining their inner values.
+    ///
+    /// # Performance
+    ///
+    /// * Time Complexity: O(1) plus the complexity of the inner type's `combine` operation
+    /// * Memory Usage: Depends on the memory usage of the inner type's `combine` operation
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Another `Id` value to combine with this one
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::semigroup::Semigroup;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Combining two Id<String> values
+    /// let a = Id::new("Hello, ".to_string());
+    /// let b = Id::new("world!".to_string());
+    ///
+    /// let combined = a.combine(&b);
+    /// assert_eq!(*combined.value(), "Hello, world!");
+    /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
         Id::new(self.value.combine(&other.value))
     }
 
+    /// Owned version of `combine` that consumes both values.
+    ///
+    /// This works the same as `combine` but takes ownership of both values, potentially
+    /// avoiding unnecessary clones when the values are no longer needed separately.
+    ///
+    /// # Performance
+    ///
+    /// * Time Complexity: O(1) plus the complexity of the inner type's `combine_owned` operation
+    /// * Memory Usage: Potentially more efficient than `combine` as it can avoid clones
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Another `Id` value to combine with this one
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::semigroup::Semigroup;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Combining two Id<Vec<i32>> values
+    /// let a = Id::new(vec![1, 2, 3]);
+    /// let b = Id::new(vec![4, 5, 6]);
+    ///
+    /// let combined = a.combine_owned(b);
+    /// assert_eq!(*combined.value(), vec![1, 2, 3, 4, 5, 6]);
+    /// ```
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
         Id::new(self.value.combine_owned(other.value))

@@ -197,7 +197,7 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
                 let valid_email = validate_email(email);
                 let valid_age = parse_age(age);
                 valid_email.lift2(&valid_age, |e: &String, a: &u32| {
-                    format!("Valid submission: {} is {} years old", e, a)
+                    format!("Valid submission: {e} is {a} years old")
                 })
             });
 
@@ -216,7 +216,7 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
                         }
                     })
                     .fmap(|n: &i32| n * 10)
-                    .fmap(|n: &i32| format!("Result: {}", n))
+                    .fmap(|n: &i32| format!("Result: {n}"))
             });
 
             black_box(find_threshold(3).fmap(|n: &i32| n * 10).fmap_or(0, |n| n));

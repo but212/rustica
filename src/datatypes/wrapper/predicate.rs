@@ -347,11 +347,152 @@ where
 }
 
 impl<A: 'static> Semigroup for Predicate<A> {
+    /// Combines two predicates using logical OR operation (union).
+    ///
+    /// The resulting predicate will evaluate to `true` for an input if either
+    /// this predicate or the `other` predicate evaluates to `true` for that input.
+    /// This is equivalent to the union of the two sets defined by these predicates.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for creation, O(f1 + f2) for evaluation where f1 and f2 are the
+    ///   complexities of the component predicates
+    /// - **Memory Usage**: O(1) - Creates a new predicate with references to existing predicates
+    /// - **Short-circuit Evaluation**: Returns early if the first predicate evaluates to true
+    /// - **Cloning**: Only the Rc pointers are cloned, not the underlying functions
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Associativity: (a `combine` b) `combine` c = a `combine` (b `combine` c)
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // Define three simple predicates
+    /// let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+    /// let is_positive = Predicate::new(|x: &i32| *x > 0);
+    /// let is_multiple_of_3 = Predicate::new(|x: &i32| *x % 3 == 0);
+    ///
+    /// // Test values
+    /// let test_values = [-6, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 9, 12];
+    ///
+    /// // Verify associativity
+    /// fn verify_associativity(a: &Predicate<i32>, b: &Predicate<i32>, c: &Predicate<i32>, x: &i32) -> bool {
+    ///     let left = a.combine(&b).combine(c).contains(x);
+    ///     let right = a.combine(&b.combine(c)).contains(x);
+    ///     left == right
+    /// }
+    ///
+    /// // Verify the law for all test values
+    /// for &val in test_values.iter() {
+    ///     assert!(verify_associativity(&is_even, &is_positive, &is_multiple_of_3, &val));
+    /// }
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Basic usage with numeric predicates:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+    /// let is_large = Predicate::new(|x: &i32| *x > 100);
+    ///
+    /// // Combine predicates using Semigroup trait
+    /// let is_even_or_large = is_even.combine(&is_large);
+    ///
+    /// assert!(is_even_or_large.contains(&2));      // Even but not large
+    /// assert!(is_even_or_large.contains(&200));    // Both even and large
+    /// assert!(is_even_or_large.contains(&101));    // Large but not even
+    /// assert!(!is_even_or_large.contains(&51));    // Neither even nor large
+    /// ```
+    ///
+    /// With complex types:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // Define predicates for strings
+    /// let contains_a = Predicate::new(|s: &String| s.contains('a'));
+    /// let is_long = Predicate::new(|s: &String| s.len() > 10);
+    ///
+    /// // Combine the predicates
+    /// let either_condition = contains_a.combine(&is_long);
+    ///
+    /// let short_with_a = "apple".to_string();
+    /// let long_without_a = "hello world".to_string();
+    /// let long_with_a = "banana milkshake".to_string();
+    /// let short_without_a = "hello".to_string();
+    ///
+    /// assert!(either_condition.contains(&short_with_a));     // Contains 'a' but not long
+    /// assert!(either_condition.contains(&long_without_a));   // Long but no 'a'
+    /// assert!(either_condition.contains(&long_with_a));      // Both long and contains 'a'
+    /// assert!(!either_condition.contains(&short_without_a)); // Neither long nor contains 'a'
+    /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
         self.union(other)
     }
 
+    /// Combines two predicates by consuming them, using logical OR operation (union).
+    ///
+    /// This is the ownership-consuming variant of `combine`. The resulting predicate
+    /// will evaluate to `true` for an input if either of the original predicates
+    /// would evaluate to `true` for that input.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for creation, O(f1 + f2) for evaluation
+    /// - **Memory Usage**: More efficient than `combine` when both predicates are
+    ///   no longer needed separately
+    /// - **Ownership**: Consumes both predicates rather than cloning references
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// let is_divisible_by_2 = Predicate::new(|x: &i32| *x % 2 == 0);
+    /// let is_divisible_by_3 = Predicate::new(|x: &i32| *x % 3 == 0);
+    ///
+    /// // Consume both predicates to create a new one
+    /// let is_divisible_by_2_or_3 = is_divisible_by_2.combine_owned(is_divisible_by_3);
+    ///
+    /// assert!(is_divisible_by_2_or_3.contains(&6));   // Divisible by both 2 and 3
+    /// assert!(is_divisible_by_2_or_3.contains(&4));   // Divisible by 2 only
+    /// assert!(is_divisible_by_2_or_3.contains(&9));   // Divisible by 3 only
+    /// assert!(!is_divisible_by_2_or_3.contains(&5));  // Divisible by neither
+    /// ```
+    ///
+    /// Using with more complex predicates:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::semigroup::Semigroup;
+    /// use std::collections::HashSet;
+    ///
+    /// // Predicates using heap-allocated values
+    /// let allowed_names: HashSet<String> = ["Alice", "Bob", "Charlie"]
+    ///     .iter().map(|&s| s.to_string()).collect();
+    ///
+    /// let admin_names: HashSet<String> = ["Admin", "Root", "Superuser"]
+    ///     .iter().map(|&s| s.to_string()).collect();
+    ///
+    /// let is_allowed = Predicate::new(move |name: &String| allowed_names.contains(name));
+    /// let is_admin = Predicate::new(move |name: &String| admin_names.contains(name));
+    ///
+    /// // Combine with ownership transfer
+    /// let has_access = is_allowed.combine_owned(is_admin);
+    ///
+    /// assert!(has_access.contains(&"Alice".to_string()));      // Regular user
+    /// assert!(has_access.contains(&"Admin".to_string()));      // Admin user
+    /// assert!(!has_access.contains(&"Eve".to_string()));       // Unauthorized user
+    /// ```
     fn combine_owned(self, other: Self) -> Self {
         Predicate::new({
             let f1 = self.func;
@@ -367,6 +508,113 @@ impl<A> HKT for Predicate<A> {
 }
 
 impl<A: 'static> Monoid for Predicate<A> {
+    /// Returns the identity element for the `combine` operation: a predicate that always returns `false`.
+    ///
+    /// This represents the empty set in set theory, which when unioned with any other set,
+    /// yields that other set unchanged. Similarly, when this empty predicate is combined with
+    /// any other predicate using `combine` (logical OR), the result is equivalent to the other predicate.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for both creation and evaluation
+    /// - **Memory Usage**: Minimal, just stores an Rc to a trivial function
+    /// - **Evaluation**: Always returns false regardless of input
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Left Identity: `empty().combine(a) = a`
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+    /// let test_values = [-10, -5, -2, -1, 0, 1, 2, 5, 10];
+    ///
+    /// // Verify left identity law
+    /// fn verify_left_identity(a: &Predicate<i32>, x: i32) -> bool {
+    ///     let empty = Predicate::<i32>::empty();
+    ///     empty.combine(a).contains(&x) == a.contains(&x)
+    /// }
+    ///
+    /// // Test with multiple values
+    /// for &val in test_values.iter() {
+    ///     assert!(verify_left_identity(&is_even, val));
+    /// }
+    /// ```
+    ///
+    /// ## Right Identity: `a.combine(empty()) = a`
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// let is_positive = Predicate::new(|x: &i32| *x > 0);
+    /// let test_values = [-10, -5, -2, -1, 0, 1, 2, 5, 10];
+    ///
+    /// // Verify right identity law
+    /// fn verify_right_identity(a: &Predicate<i32>, x: i32) -> bool {
+    ///     let empty = Predicate::<i32>::empty();
+    ///     a.combine(&empty).contains(&x) == a.contains(&x)
+    /// }
+    ///
+    /// // Test with multiple values
+    /// for &val in test_values.iter() {
+    ///     assert!(verify_right_identity(&is_positive, val));
+    /// }
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Basic usage with the empty predicate:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // Create the empty predicate
+    /// let empty_pred = Predicate::<i32>::empty();
+    ///
+    /// // It always returns false
+    /// assert!(!empty_pred.contains(&42));
+    /// assert!(!empty_pred.contains(&-7));
+    /// assert!(!empty_pred.contains(&0));
+    ///
+    /// // Combining with other predicates
+    /// let is_positive = Predicate::new(|x: &i32| *x > 0);
+    /// let combined = empty_pred.combine(&is_positive);
+    ///
+    /// // The result is equivalent to the non-empty predicate
+    /// assert!(combined.contains(&5));
+    /// assert!(!combined.contains(&-5));
+    /// ```
+    ///
+    /// Using with fold operations:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::predicate::Predicate;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // Create several predicates
+    /// let divisible_by_2 = Predicate::new(|x: &i32| *x % 2 == 0);
+    /// let divisible_by_3 = Predicate::new(|x: &i32| *x % 3 == 0);
+    /// let divisible_by_5 = Predicate::new(|x: &i32| *x % 5 == 0);
+    ///
+    /// // Combine all using fold with empty() as the initial value
+    /// let predicates = vec![divisible_by_2, divisible_by_3, divisible_by_5];
+    /// let any_divisor = predicates.iter()
+    ///     .fold(Predicate::<i32>::empty(), |acc, p| acc.combine(p));
+    ///
+    /// assert!(any_divisor.contains(&6));   // Divisible by 2 and 3
+    /// assert!(any_divisor.contains(&10));  // Divisible by 2 and 5
+    /// assert!(any_divisor.contains(&15));  // Divisible by 3 and 5
+    /// assert!(any_divisor.contains(&30));  // Divisible by all three
+    /// assert!(!any_divisor.contains(&7));  // Divisible by none
+    /// ```
     #[inline]
     fn empty() -> Self {
         Predicate::new(|_| false)

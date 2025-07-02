@@ -238,7 +238,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
                 Maybe::from_option(users.get("alice").cloned())
                     .bind(|status: &UserStatus| Maybe::from_option(logged_in_prism.preview(status)))
                     .fmap_or("Not found".to_string(), |(username, session_id)| {
-                        format!("User {} with session {}", username, session_id)
+                        format!("User {username} with session {session_id}")
                     })
             });
         });
@@ -270,9 +270,9 @@ pub fn prism_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             black_box({
                 match success_prism.preview(&success_response) {
-                    Some((data, _)) => format!("Success: {}", data),
+                    Some((data, _)) => format!("Success: {data}"),
                     None => match error_prism.preview(&success_response) {
-                        Some((code, message)) => format!("Error {}: {}", code, message),
+                        Some((code, message)) => format!("Error {code}: {message}"),
                         None => "Unknown response type".to_string(),
                     },
                 }

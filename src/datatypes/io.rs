@@ -28,6 +28,105 @@
 //! - `Applicative`: Enables applying functions wrapped in `IO` to values wrapped in `IO`
 //! - `Monad`: Provides sequencing of IO operations where each operation can depend on the result of previous ones
 //!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//!
+//! * **Construction**: O(1) - Creating an IO instance is a constant-time operation
+//! * **Composition**: O(1) - Combining IO instances with `fmap`, `pure`, `bind`, etc., is constant-time
+//! * **Execution**: O(f) - Where f is the complexity of the underlying operation when `run()` is called
+//!
+//! ### Memory Usage
+//!
+//! * **Storage**: Each IO instance stores a closure representing its computation
+//! * **Composition**: Each composition layer adds a constant amount of overhead
+//! * **Lazy Evaluation**: No execution overhead until `run()` is called
+//!
+//! ### Concurrency
+//!
+//! * Thread-safe if the encapsulated operations are thread-safe
+//! * All IO composition operations are thread-safe
+//! * Execution via `run()` happens synchronously on the calling thread
+//!
+//! ## Type Class Laws
+//!
+//! ### Functor Laws
+//!
+//! IO satisfies the Functor laws:
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! // 1. Identity: fmap(id) == id
+//! let io = IO::pure(42);
+//! let id_mapped = io.clone().fmap(|x| x);
+//! assert_eq!(io.run(), id_mapped.run());
+//!
+//! // 2. Composition: fmap(f . g) == fmap(f) . fmap(g)
+//! let f = |x: i32| x + 1;
+//! let g = |x: i32| x * 2;
+//!
+//! let left = io.clone().fmap(|x| f(g(x)));
+//! let right = io.clone().fmap(g).fmap(f);
+//! assert_eq!(left.run(), right.run());
+//! ```
+//!
+//! ### Applicative Laws
+//!
+//! IO satisfies the Applicative laws:
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! // 1. Identity: pure(id) <*> v == v
+//! let v = IO::pure(42);
+//! let id_fn = |x| x;
+//! let id_io = IO::pure(id_fn);
+//!
+//! // Using apply to simulate <*>
+//! let result = v.clone().bind(|x| id_io.clone().fmap(move |f| f(x)));
+//! assert_eq!(v.run(), result.run());
+//!
+//! // 2. Homomorphism: pure(f) <*> pure(x) == pure(f(x))
+//! let f = |x: i32| x + 5;
+//! let x = 10;
+//!
+//! let left = IO::pure(f).bind(|f| IO::pure(x).fmap(move |x| f(x)));
+//! let right = IO::pure(f(x));
+//! assert_eq!(left.run(), right.run());
+//! ```
+//!
+//! ### Monad Laws
+//!
+//! IO satisfies the Monad laws:
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! // 1. Left Identity: return a >>= f == f a
+//! let a = 42;
+//! let f = |x: i32| IO::pure(x + 10);
+//!
+//! let left = IO::pure(a).bind(f);
+//! let right = f(a);
+//! assert_eq!(left.run(), right.run());
+//!
+//! // 2. Right Identity: m >>= return == m
+//! let m = IO::pure(42);
+//!
+//! let left = m.clone().bind(|x| IO::pure(x));
+//! assert_eq!(m.run(), left.run());
+//!
+//! // 3. Associativity: (m >>= f) >>= g == m >>= (\x -> f x >>= g)
+//! let m = IO::pure(42);
+//! let f = |x: i32| IO::pure(x + 10);
+//! let g = |x: i32| IO::pure(x * 2);
+//!
+//! let left = m.clone().bind(f).bind(g);
+//! let right = m.clone().bind(|x| f(x).bind(g));
+//! assert_eq!(left.run(), right.run());
+//! ```
+//!
 //! ## Basic Usage
 //!
 //! Basic usage:
@@ -249,11 +348,32 @@ impl std::error::Error for IOError {}
 /// encapsulating the effects within a monadic context. This allows for composing and
 /// sequencing effectful operations while maintaining referential transparency.
 ///
+/// # Performance Characteristics
+///
+/// ## Time Complexity
+///
+/// * **Construction**: O(1) - Creating an IO instance is a constant-time operation
+/// * **Composition (fmap, bind)**: O(1) - Combining IOs adds only function composition overhead
+/// * **Execution (run)**: O(f) - Where f is the complexity of the underlying operation
+///
+/// ## Memory Usage
+///
+/// * **Storage**: Each IO instance stores a closure and maintains minimal overhead
+/// * **Lazy Evaluation**: No computation happens until `run()` is called, allowing for efficient composition
+/// * **Composition**: Each layer of composition (fmap, bind) adds constant overhead from closure creation
+///
+/// # Thread Safety
+///
+/// `IO<A>` implements `Send` and `Sync` when `A` implements `Send` and `Sync`, making it safe to share between threads.
+/// All operations are thread-safe, though the actual side effects when run depend on the enclosed function.
+///
 /// # Type Parameters
 ///
 /// * `A` - The type of the value that will be produced by the IO operation
 ///
 /// # Examples
+///
+/// Basic usage:
 ///
 /// ```rust
 /// use rustica::datatypes::io::IO;
@@ -271,6 +391,68 @@ impl std::error::Error for IOError {}
 /// // Transform the result using fmap
 /// let transformed = io_operation.fmap(|x| x * 2);
 /// assert_eq!(transformed.run(), 84);
+/// ```
+///
+/// Composing multiple IO operations:
+///
+/// ```rust
+/// use rustica::datatypes::io::IO;
+///
+/// // Define multiple operations
+/// let read_input = IO::new(|| "user input".to_string());
+/// let process = |input: String| IO::new(move || input.to_uppercase());
+/// let display = |processed: String| IO::new(move || {
+///     // In real code this might print to stdout
+///     format!("Output: {}", processed)
+/// });
+///
+/// // Compose operations using bind (monadic sequencing)
+/// let program = read_input.bind(|input| {
+///     process(input).bind(|processed| {
+///         display(processed)
+///     })
+/// });
+///
+/// // Execute the entire chain of operations
+/// let result = program.run();
+/// assert_eq!(result, "Output: USER INPUT");
+/// ```
+///
+/// Error handling with `try_get`:
+///
+/// ```rust
+/// use rustica::datatypes::io::IO;
+///
+/// // An IO that might fail
+/// let safe_operation = IO::new(|| {
+///     // This operation succeeds
+///     Ok::<_, &str>(42)
+/// });
+///
+/// let risky_operation = IO::new(|| {
+///     // This operation fails
+///     if true { Err("Operation failed") } else { Ok(10) }
+/// });
+///
+/// // Using try_get to handle the result
+/// let safe_result = safe_operation
+///     .bind(|res| match res {
+///         Ok(val) => IO::pure(val),
+///         Err(_) => IO::pure(0),  // Fallback value
+///     })
+///     .run();
+///
+/// assert_eq!(safe_result, 42);
+///
+/// // Handle the error case
+/// let risky_result = risky_operation
+///     .bind(|res| match res {
+///         Ok(val) => IO::pure(val),
+///         Err(_) => IO::pure(0),  // Fallback value
+///     })
+///     .run();
+///
+/// assert_eq!(risky_result, 0);
 /// ```
 #[derive(Clone)]
 pub struct IO<A> {
@@ -350,14 +532,22 @@ impl<A: 'static + Clone> IO<A> {
     ///
     /// This is the `fmap` operation for the `Functor` type class, allowing
     /// transformation of the value inside the `IO` context without executing
-    /// the IO operation.
+    /// the IO operation. It enables function application to the eventual result
+    /// of an IO computation while preserving the IO context.
     ///
-    /// # Performance
+    /// # Performance Characteristics
     ///
-    /// - Time Complexity: O(1) for creating the new IO, O(f + g) when executed
-    ///   (where f is the original operation and g is the mapping function)
-    /// - Memory Usage: O(1) additional Arc allocation
-    /// - Lazy Evaluation: The mapping function is not executed until `run()` is called
+    /// ## Time Complexity
+    ///
+    /// * **Construction**: O(1) - Creates a new IO with composed functions without execution
+    /// * **Execution**: O(f + g) - Where f is the complexity of this IO and g is the complexity of the mapping function
+    ///
+    /// ## Memory Usage
+    ///
+    /// * Creates a new IO that captures both the original operation and the mapping function
+    /// * Memory efficiency through lazy evaluation - no transformation is performed until `run()` is called
+    /// * Each fmap adds one layer of function composition overhead
+    /// * O(1) additional allocation beyond the function capture
     ///
     /// # Arguments
     ///
@@ -365,13 +555,42 @@ impl<A: 'static + Clone> IO<A> {
     ///
     /// # Examples
     ///
+    /// Basic transformation example:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let io_number = IO::pure(42);
+    /// let io_string = io_number.fmap(|n| format!("The answer is {}", n));
+    ///
+    /// assert_eq!(io_string.run(), "The answer is 42");
+    /// ```
+    ///
+    /// Chaining multiple transformations:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let io_base = IO::pure(10);
+    ///
+    /// let result = io_base
+    ///     .fmap(|n| n * 2)        // 20
+    ///     .fmap(|n| n + 5)        // 25
+    ///     .fmap(|n| n.to_string()) // "25"
+    ///     .run();
+    ///     
+    /// assert_eq!(result, "25");
+    /// ```
+    ///
+    /// Demonstrating lazy evaluation:
+    ///
     /// ```rust
     /// use rustica::datatypes::io::IO;
     /// use std::time::Instant;
     ///
     /// let io_base = IO::new(|| {
-    ///     // Expensive computation
-    ///     (0..1_000_000).sum::<i64>()
+    ///     // Expensive computation (simplified for testing)
+    ///     (0..10000).sum::<i32>()
     /// });
     ///
     /// // fmap is lazy - no computation happens here
@@ -384,9 +603,37 @@ impl<A: 'static + Clone> IO<A> {
     /// let result = io_doubled.run();
     /// let run_duration = start_run.elapsed();
     ///
-    /// assert_eq!(result, 999999000000); // Corrected sum for 0..1_000_000 is 499999500000, then *2
-    /// assert!(fmap_duration < std::time::Duration::from_micros(50)); // Adjusted for typical systems
-    /// println!("fmap took: {:?}, run took: {:?}", fmap_duration, run_duration);
+    /// assert_eq!(result, 49995000);
+    /// assert!(fmap_duration < run_duration); // fmap should be much faster than run
+    /// ```
+    ///
+    /// Working with complex data structures:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    /// use std::collections::HashMap;
+    ///
+    /// // IO operation that produces a HashMap
+    /// let io_map = IO::new(|| {
+    ///     let mut map = HashMap::new();
+    ///     map.insert("one", 1);
+    ///     map.insert("two", 2);
+    ///     map.insert("three", 3);
+    ///     map
+    /// });
+    ///
+    /// // Transform the map to get only values > 1
+    /// let filtered_map = io_map.fmap(|map| {
+    ///     map.into_iter()
+    ///         .filter(|(_, value)| *value > 1)
+    ///         .collect::<HashMap<_, _>>()
+    /// });
+    ///
+    /// let result = filtered_map.run();
+    /// assert_eq!(result.len(), 2);
+    /// assert_eq!(result.get("two"), Some(&2));
+    /// assert_eq!(result.get("three"), Some(&3));
+    /// assert_eq!(result.get("one"), None);
     /// ```
     #[inline]
     pub fn fmap<B: Clone + 'static>(&self, f: impl Fn(A) -> B + 'static) -> IO<B> {
@@ -404,6 +651,21 @@ impl<A: 'static + Clone> IO<A> {
     ///
     /// This is the `pure` operation for the `Applicative` type class, lifting
     /// a pure value into the `IO` context without performing any side effects.
+    /// This is a fundamental operation that serves as the basis for introducing
+    /// values into the IO monadic context.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Construction**: O(1) - Creates a simple IO that captures the value
+    /// * **Execution**: O(1) - Simply returns the captured value
+    ///
+    /// ## Memory Usage
+    ///
+    /// * Creates a new IO that stores the given value
+    /// * Memory usage depends on the size of the wrapped value
+    /// * No additional memory allocation during execution
     ///
     /// # Arguments
     ///
@@ -411,16 +673,59 @@ impl<A: 'static + Clone> IO<A> {
     ///
     /// # Examples
     ///
+    /// Basic usage with different types:
+    ///
     /// ```rust
     /// use rustica::datatypes::io::IO;
     ///
-    /// // Create a pure IO value
+    /// // Create a pure IO value with an integer
     /// let io_int = IO::pure(42);
     /// assert_eq!(io_int.run(), 42);
     ///
     /// // Works with any type that implements Clone
     /// let io_string = IO::pure("hello".to_string());
     /// assert_eq!(io_string.run(), "hello");
+    ///
+    /// // Works with complex types
+    /// let tuple = (1, "test".to_string(), true);
+    /// let io_tuple = IO::pure(tuple.clone());
+    /// assert_eq!(io_tuple.run(), tuple);
+    /// ```
+    ///
+    /// Using `pure` in combination with other IO operations:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// // Create an IO that performs a calculation
+    /// let io_calculation = IO::new(|| 10 * 5);
+    ///
+    /// // Use pure with bind to create a conditional workflow
+    /// let io_result = io_calculation.bind(|result| {
+    ///     if result > 40 {
+    ///         IO::pure("Greater than 40")
+    ///     } else {
+    ///         IO::pure("Not greater than 40")
+    ///     }
+    /// });
+    ///
+    /// assert_eq!(io_result.run(), "Greater than 40");
+    /// ```
+    ///
+    /// Using `pure` as a starting point for IO chains:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// // Start with a pure value and build a computation chain
+    /// let io_chain = IO::pure(5)
+    ///     .fmap(|n| n * 2)
+    ///     .bind(|n| IO::new(move || {
+    ///         // In real code, this might do some IO work
+    ///         format!("{} processed", n)
+    ///     }));
+    ///
+    /// assert_eq!(io_chain.run(), "10 processed");
     /// ```
     #[inline]
     pub fn pure(value: A) -> Self {
@@ -432,13 +737,30 @@ impl<A: 'static + Clone> IO<A> {
     ///
     /// This is the `bind` operation for the `Monad` type class, allowing
     /// sequencing of IO operations where each operation can depend on
-    /// the result of the previous one.
+    /// the result of the previous one. This is a fundamental operation that
+    /// enables composing complex IO workflows where each step depends on the
+    /// result of previous steps.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Construction**: O(1) - Creates a new IO with composed functions without execution
+    /// * **Execution**: O(f + g) - Where f is the complexity of this IO and g is the complexity of the operation returned by function `f`
+    ///
+    /// ## Memory Usage
+    ///
+    /// * Creates a new IO that captures both this IO and the binding function
+    /// * Memory efficiency through lazy evaluation - no computation happens until `run()` is called
+    /// * Each bind adds one layer of function composition overhead
     ///
     /// # Arguments
     ///
     /// * `f` - A function that takes the result of this operation and returns a new IO operation
     ///
     /// # Examples
+    ///
+    /// Basic binding example:
     ///
     /// ```rust
     /// use rustica::datatypes::io::IO;
@@ -457,16 +779,82 @@ impl<A: 'static + Clone> IO<A> {
     ///     .bind(|x| IO::pure(x + 10))
     ///     .bind(|x| IO::pure(x * 2));
     /// assert_eq!(result.run(), 104);
+    /// ```
     ///
-    /// // Real-world example: reading and processing input
-    /// let read_and_process = IO::new(|| "user input".to_string())
-    ///     .bind(|input| IO::new(move || {
-    ///         // Process the input
-    ///         let processed = input.to_uppercase();
-    ///         // Return the processed result
-    ///         processed
-    ///     }));
-    /// assert_eq!(read_and_process.run(), "USER INPUT");
+    /// Real-world example - file processing pipeline:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    /// use std::collections::HashMap;
+    ///
+    /// // Simulate reading a config file
+    /// let read_config = IO::new(|| {
+    ///     let mut config = HashMap::new();
+    ///     config.insert("input_file".to_string(), "data.csv".to_string());
+    ///     config.insert("output_format".to_string(), "json".to_string());
+    ///     config
+    /// });
+    ///
+    /// // Simulate reading data from a file
+    /// let read_data = |filename: String| IO::new(move || {
+    ///     // In a real app, this would read from the file
+    ///     vec!["line1".to_string(), "line2".to_string(), "line3".to_string()]
+    /// });
+    ///
+    /// // Process data based on format
+    /// let process_data = |data: Vec<String>, format: String| IO::new(move || {
+    ///     match format.as_str() {
+    ///         "json" => format!("[{}]", data.iter()
+    ///             .map(|line| format!("\"{}\"", line))
+    ///             .collect::<Vec<_>>()
+    ///             .join(", ")),
+    ///         _ => data.join("\n"),
+    ///     }
+    /// });
+    ///
+    /// // Create the processing pipeline using bind
+    /// let pipeline = read_config.bind(|config| {
+    ///     // Extract the input filename from config
+    ///     let input_file = config.get("input_file").unwrap().clone();
+    ///     let output_format = config.get("output_format").unwrap().clone();
+    ///     
+    ///     // Read the data file
+    ///     read_data(input_file).bind(move |data| {
+    ///         // Process the data according to the output format
+    ///         process_data(data, output_format)
+    ///     })
+    /// });
+    ///
+    /// // Run the entire pipeline
+    /// let result = pipeline.run();
+    /// assert_eq!(result, "[\"line1\", \"line2\", \"line3\"]");
+    /// ```
+    ///
+    /// Error handling with bind:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// // An operation that might fail
+    /// let parse_number = |input: &str| IO::new(move || {
+    ///     input.parse::<i32>().ok()
+    /// });
+    ///
+    /// // Chain operations with error handling
+    /// let safe_calculation = |input: &str| parse_number(input).bind(|result| {
+    ///     match result {
+    ///         Some(num) => IO::pure(Some(num * 2)),
+    ///         None => IO::pure(None),
+    ///     }
+    /// });
+    ///
+    /// // Try with valid input
+    /// let valid_result = safe_calculation("42").run();
+    /// assert_eq!(valid_result, Some(84));
+    ///
+    /// // Try with invalid input
+    /// let invalid_result = safe_calculation("not a number").run();
+    /// assert_eq!(invalid_result, None);
     /// ```
     #[inline]
     pub fn bind<B: Clone + 'static>(&self, f: impl Fn(A) -> IO<B> + 'static) -> IO<B> {

@@ -122,7 +122,7 @@ pub fn reader_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let reader = Reader::new(|cfg: Config| cfg.multiplier);
 
-            let mapped = reader.fmap(|x: i32| Id::new(format!("Result: {}", x)));
+            let mapped = reader.fmap(|x: i32| Id::new(format!("Result: {x}")));
             let bound = reader.bind(|x: i32| {
                 Reader::new(move |cfg: Config| Id::new(format!("{}{}", cfg.prefix, x)))
             });

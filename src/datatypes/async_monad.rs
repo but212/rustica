@@ -105,17 +105,6 @@
 //! }
 //! ```
 //!
-//! # Method Comparison Guide
-//!
-//! | Method        | Ownership     | Use Case                                | Performance          |
-//! | ------------- | ------------- | --------------------------------------- | -------------------- |
-//! | `fmap`        | Borrows self  | Multiple transformations on same AsyncM | Additional Arc clone |
-//! | `fmap_owned`  | Consumes self | Single transformation chain             | More efficient       |
-//! | `bind`        | Borrows self  | Reusable async chains                   | Additional Arc clone |
-//! | `bind_owned`  | Consumes self | Linear async pipelines                  | More efficient       |
-//! | `apply`       | Borrows self  | Applying multiple functions             | Parallel execution   |
-//! | `apply_owned` | Consumes self | Single function application             | Most efficient       |
-//!
 //! # Common Pitfalls and Solutions
 //!
 //! ## Infinite Recursion

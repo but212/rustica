@@ -11,6 +11,23 @@
 //! - **Sequential Operations**: State operations can be chained together, with each operation
 //!   receiving the state produced by the previous operation.
 //!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//!
+//! - **Construction (new/pure)**: O(1) - Constant time to create a State instance
+//! - **run_state**: O(n) - Where n is the complexity of the wrapped function
+//! - **eval_state/exec_state**: O(n) - Same as run_state but returning only part of the result
+//! - **fmap**: O(n) - Where n is the complexity of the wrapped function plus the mapping function
+//! - **bind**: O(m + n) - Where m is the complexity of the first computation and n is the complexity of the second
+//!
+//! ### Memory Usage
+//!
+//! - **Structure**: Minimal - Stores only a function pointer and does not allocate memory itself
+//! - **Laziness**: State operations are lazy - they only execute when `run_state`, `eval_state`, or `exec_state` is called
+//! - **Composition**: Each composition creates a new function wrapper but defers execution
+//! - **Cloning**: O(1) for the State monad itself, as it uses Arc for internal sharing
+//!
 //! ## Use Cases
 //!
 //! State is particularly useful in scenarios such as:
@@ -27,6 +44,70 @@
 //! - **Functor**: Via the `fmap` method, allowing transformation of the result value
 //! - **Applicative**: Through the `pure` and `apply` methods
 //! - **Monad**: With the `bind` method for sequencing operations that depend on previous results
+//!
+//! ## Type Class Laws
+//!
+//! ### Functor Laws
+//!
+//! 1. **Identity Law**: `fmap(id) = id`
+//!    ```rust
+//!    # use rustica::datatypes::state::State;
+//!    let state = State::new(|s: i32| (s * 2, s + 1));
+//!    let id = |x| x;
+//!    assert_eq!(state.clone().fmap(id).run_state(5), state.run_state(5));
+//!    ```
+//!
+//! 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
+//!    ```rust
+//!    # use rustica::datatypes::state::State;
+//!    let state = State::new(|s: i32| (s, s + 1));
+//!    let f = |x: i32| x * 3;
+//!    let g = |x: i32| x + 2;
+//!    
+//!    // fmap(f . g) - composing functions and mapping once
+//!    let composed = state.clone().fmap(|x| f(g(x)));
+//!    
+//!    // fmap(f) . fmap(g) - mapping twice with individual functions
+//!    let chained = state.clone().fmap(g).fmap(f);
+//!    
+//!    assert_eq!(composed.run_state(10), chained.run_state(10));
+//!    ```
+//!
+//! ### Monad Laws
+//!
+//! 1. **Left Identity**: `pure(a).bind(f) = f(a)`
+//!    ```rust
+//!    # use rustica::datatypes::state::State;
+//!    let value = 10;
+//!    let f = |x: i32| State::new(move |s: i32| (x * 2, s + 1));
+//!    
+//!    let left_side = State::pure(value).bind(f.clone());
+//!    let right_side = f(value);
+//!    
+//!    assert_eq!(left_side.run_state(5), right_side.run_state(5));
+//!    ```
+//!
+//! 2. **Right Identity**: `m.bind(pure) = m`
+//!    ```rust
+//!    # use rustica::datatypes::state::State;
+//!    let m = State::new(|s: i32| (s * 3, s + 2));
+//!    let right_side = m.clone().bind(State::pure);
+//!    
+//!    assert_eq!(m.run_state(5), right_side.run_state(5));
+//!    ```
+//!
+//! 3. **Associativity**: `m.bind(f).bind(g) = m.bind(x => f(x).bind(g))`
+//!    ```rust
+//!    # use rustica::datatypes::state::State;
+//!    let m = State::new(|s: i32| (s, s + 1));
+//!    let f = |x: i32| State::new(move |s: i32| (x * 2, s + 5));
+//!    let g = |x: i32| State::new(move |s: i32| (x + 10, s * 2));
+//!    
+//!    let left_side = m.clone().bind(f.clone()).bind(g.clone());
+//!    let right_side = m.clone().bind(move |x| f(x).bind(g.clone()));
+//!    
+//!    assert_eq!(left_side.run_state(3), right_side.run_state(3));
+//!    ```
 //!
 //! ## Examples
 //!
@@ -114,6 +195,21 @@ use quickcheck::{Arbitrary, Gen};
 /// It encapsulates a function that takes a state and returns a tuple
 /// containing a value and a new state.
 ///
+/// # Performance Characteristics
+///
+/// ## Time Complexity
+///
+/// * **Construction**: O(1) - Creating a State instance is a constant-time operation
+/// * **run_state**: O(n) - Where n is the complexity of the wrapped function
+/// * **fmap/bind**: O(1) for the operation itself, but the resulting State will have O(m+n) execution time
+///   where m is the complexity of the original function and n is the complexity of the mapped/bound function
+///
+/// ## Memory Usage
+///
+/// * **Structure**: Minimal - Uses a function pointer wrapped in Arc for thread safety
+/// * **Cloning**: O(1) - Internally uses Arc for efficient cloning with shared ownership
+/// * **Composition**: Each composition (fmap/bind) creates a new wrapper function but defers execution
+///
 /// # Functional Programming Context
 ///
 /// The `new` constructor is the primary way to create custom State computations.
@@ -127,6 +223,27 @@ use quickcheck::{Arbitrary, Gen};
 /// - `S` is the type of the state
 /// - `A` is the type of the value being computed
 /// - The function takes a state and returns both a value and a new state
+///
+/// # Type Class Laws
+///
+/// State satisfies the following laws:
+///
+/// ## Functor Laws
+///
+/// 1. **Identity**: `fmap(id, state) = state`
+/// 2. **Composition**: `fmap(f . g, state) = fmap(f, fmap(g, state))`
+///
+/// ## Monad Laws
+///
+/// 1. **Left Identity**: `pure(a).bind(f) = f(a)`
+/// 2. **Right Identity**: `state.bind(pure) = state`
+/// 3. **Associativity**: `state.bind(f).bind(g) = state.bind(x => f(x).bind(g))`
+///
+/// # Thread Safety
+///
+/// The State monad is thread-safe and can be safely shared across threads when the state
+/// and value types implement `Send + Sync`. The implementation uses Arc internally to enable
+/// safe sharing.
 ///
 /// # Type Parameters
 ///
@@ -158,6 +275,12 @@ use quickcheck::{Arbitrary, Gen};
 /// // 2. Second computation returns (6 + 3, 3 + 1) = (9, 4)
 /// // 3. Third computation returns ("Result: 9", 4 * 2) = ("Result: 9", 8)
 /// assert_eq!(computation.run_state(3), ("Result: 9".to_string(), 8));
+///
+/// // Verifying functor identity law
+/// let state = State::new(|s: i32| (s + 1, s * 2));
+/// let identity = |x| x;
+/// let mapped = state.clone().fmap(identity);
+/// assert_eq!(state.run_state(5), mapped.run_state(5));
 /// ```
 #[repr(transparent)]
 pub struct State<S, A> {
@@ -185,6 +308,19 @@ where
     /// transformation function. The function takes a state and returns a tuple
     /// containing a value and a new state.
     ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Construction**: O(1) - Creating the State instance is a constant-time operation
+    /// * **Execution**: O(n) - Where n is the complexity of the wrapped function when run_state is called
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Structure**: Minimal - Stores only the function pointer wrapped in Arc
+    /// * **Thread Safety**: Safe to share across threads when the state and value types implement `Send + Sync`
+    /// * **Composition**: Zero overhead until executed - State monad is lazily evaluated
+    ///
     /// # State Monad Context
     ///
     /// The `new` constructor is the primary way to create custom State computations.
@@ -204,12 +340,20 @@ where
     ///
     /// # Examples
     ///
+    /// ## Basic Usage
+    ///
     /// ```rust
     /// use rustica::datatypes::state::State;
     ///
     /// // Create a state computation that returns the state as the value and increments the state
     /// let counter = State::new(|s: i32| (s, s + 1));
     /// assert_eq!(counter.run_state(5), (5, 6));
+    /// ```
+    ///
+    /// ## Complex State Transformations
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
     ///
     /// // Create a state computation that performs a more complex transformation
     /// let complex = State::new(|s: String| {
@@ -222,6 +366,12 @@ where
     ///     complex.run_state("hello".to_string()),
     ///     ("HELLO".to_string(), "hello-HELLO".to_string())
     /// );
+    /// ```
+    ///
+    /// ## Pattern Matching with State
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
     ///
     /// // Create a state computation that uses pattern matching
     /// let process_option = State::new(|s: Option<i32>| {
@@ -247,6 +397,36 @@ where
     ///     ("No value".to_string(), None)
     /// );
     /// ```
+    ///
+    /// ## Creating a Custom Computation
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Custom state transformer for a simple counter with reset capability
+    /// struct Counter {
+    ///     value: i32,
+    ///     max: i32,
+    /// }
+    ///
+    /// // Create a state computation that increments the counter and resets if it exceeds max
+    /// let increment = State::new(|s: Counter| {
+    ///     let new_value = s.value + 1;
+    ///     let reset = new_value > s.max;
+    ///     let next_value = if reset { 0 } else { new_value };
+    ///     (reset, Counter { value: next_value, max: s.max })
+    /// });
+    ///
+    /// let mut counter = Counter { value: 9, max: 10 };
+    /// let (did_reset, next_counter) = increment.run_state(counter);
+    /// assert_eq!(did_reset, false);
+    /// assert_eq!(next_counter.value, 10);
+    ///
+    /// counter = next_counter;
+    /// let (did_reset, next_counter) = increment.run_state(counter);
+    /// assert_eq!(did_reset, true);
+    /// assert_eq!(next_counter.value, 0);
+    /// ```
     #[inline]
     pub fn new<F>(f: F) -> Self
     where
@@ -263,10 +443,24 @@ where
     /// state transformation function to the provided initial state and returns both
     /// the computed value and the final state.
     ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Execution**: O(n) - Where n is the complexity of the wrapped function
+    /// * **For Composed States**: O(m + n + ...) - Sum of complexities of all composed functions
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Stack Usage**: Proportional to the depth of nested function calls in composed State monads
+    /// * **Heap Usage**: Depends on the state and value types and what transformations occur
+    ///
     /// # State Monad Context
     ///
     /// The `run_state` operation is the entry point for state computations, allowing
     /// you to provide an initial state and retrieve both the result and the final state.
+    /// In the context of the State monad laws, `run_state` is what makes the abstract
+    /// computation concrete and observable.
     ///
     /// # Arguments
     ///
@@ -277,6 +471,8 @@ where
     /// A tuple containing the computed value and the final state.
     ///
     /// # Examples
+    ///
+    /// ## Basic Usage
     ///
     /// ```rust
     /// use rustica::datatypes::state::State;
@@ -289,6 +485,12 @@ where
     ///
     /// // Run with a different initial state
     /// assert_eq!(counter.run_state(21), (21, 42));
+    /// ```
+    ///
+    /// ## Composing Multiple State Operations
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
     ///
     /// // Run a more complex computation
     /// let complex = State::new(|s: i32| (s * 2, s))
@@ -300,6 +502,47 @@ where
     /// // 2. Second computation returns (6 + 3, 3 + 1) = (9, 4)
     /// // 3. Third computation returns ("Result: 9", 4 * 2) = ("Result: 9", 8)
     /// assert_eq!(complex.run_state(3), ("Result: 9".to_string(), 8));
+    /// ```
+    ///
+    /// ## Tracking State Transitions
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Create a computation that tracks a history of operations
+    /// type History = Vec<String>;
+    /// type Count = i32;
+    /// type StateWithHistory = (Count, History);
+    ///
+    /// // Increment counter and log the action
+    /// let increment = State::new(|s: StateWithHistory| {
+    ///     let (count, mut history) = s;
+    ///     history.push(format!("Increment from {}", count));
+    ///     (count + 1, (count + 1, history))
+    /// });
+    ///
+    /// // Double counter and log the action
+    /// let double = State::new(|s: StateWithHistory| {
+    ///     let (count, mut history) = s;
+    ///     history.push(format!("Double from {}", count));
+    ///     (count * 2, (count * 2, history))
+    /// });
+    ///
+    /// // Chain operations
+    /// let operations = increment
+    ///     .bind(|_| double)
+    ///     .bind(|_| increment);
+    ///
+    /// // Start with count 5 and empty history
+    /// let initial_state = (5, vec![]);
+    /// let (final_count, (_, history)) = operations.run_state(initial_state);
+    ///
+    /// assert_eq!(final_count, 13);
+    /// assert_eq!(history, vec![
+    ///     "Increment from 5".to_string(),
+    ///     "Double from 6".to_string(),
+    ///     "Increment from 12".to_string(),
+    /// ]);
     /// ```
     #[inline]
     pub fn run_state(&self, s: S) -> (A, S) {
@@ -411,6 +654,22 @@ where
     /// functional programming. It transforms the value produced by a State computation
     /// without affecting the state transitions.
     ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Construction**: O(1) - Creating the mapped State is a constant-time operation
+    /// * **Execution**: O(m + n) - Where m is the complexity of the original state computation
+    ///   and n is the complexity of the mapping function
+    /// * **Multiple fmaps**: O(1) per fmap construction, but execution combines all transformations
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Lazy Evaluation**: No computation happens until `run_state` is called
+    /// * **Composition**: Each `fmap` creates a new function wrapper but defers execution
+    /// * **Closure Capture**: The mapping function may capture variables from its environment,
+    ///   potentially increasing memory usage
+    ///
     /// # Functional Programming Context
     ///
     /// The `fmap` operation (often written as `<$>` or `map` in functional languages)
@@ -422,9 +681,15 @@ where
     /// 2. Applying the function to the value
     /// 3. Returning the transformed value with the same new state
     ///
-    /// The `fmap` operation satisfies important laws:
-    /// - Identity: `fmap(id) = id`
-    /// - Composition: `fmap(f . g) = fmap(f) . fmap(g)`
+    /// # Functor Laws
+    ///
+    /// The `fmap` operation must satisfy these laws for State to be a lawful Functor:
+    ///
+    /// 1. **Identity Law**: `fmap(id) = id`
+    ///    - Mapping the identity function over a State should produce an equivalent State
+    ///
+    /// 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
+    ///    - Mapping a composed function should be the same as mapping the functions in sequence
     ///
     /// # Type Parameters
     ///
@@ -441,6 +706,8 @@ where
     ///
     /// # Examples
     ///
+    /// ## Basic Transformation
+    ///
     /// ```rust
     /// use rustica::datatypes::state::State;
     ///
@@ -450,6 +717,14 @@ where
     /// // Map a function over the value
     /// let doubled = counter.clone().fmap(|x| x * 2);
     /// assert_eq!(doubled.run_state(5), (10, 6));
+    /// ```
+    ///
+    /// ## Complex Transformations
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// let counter = State::new(|s: i32| (s, s + 1));
     ///
     /// // Map a more complex transformation
     /// let formatted = counter.clone().fmap(|x| format!("Value: {}", x));
@@ -467,13 +742,46 @@ where
     /// // 3. Second fmap transforms 10 to 11
     /// // 4. Third fmap transforms 11 to "Result: 11"
     /// assert_eq!(complex.run_state(5), ("Result: 11".to_string(), 6));
+    /// ```
     ///
-    /// // Demonstrating the identity law: fmap(id) = id
+    /// ## Verifying Functor Laws
+    ///
+    /// ### Identity Law: fmap(id) = id
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Define a state computation
+    /// let state = State::new(|s: i32| (s * 2, s + 1));
+    ///
+    /// // Apply the identity function
     /// let identity_fn = |x: i32| x;
-    /// let original = State::new(|s: i32| (s * 2, s + 1));
-    /// let mapped = original.clone().fmap(identity_fn);
+    /// let mapped = state.clone().fmap(identity_fn);
     ///
-    /// assert_eq!(original.run_state(5), mapped.run_state(5));
+    /// // Verify that applying the identity function preserves the state computation
+    /// assert_eq!(state.run_state(5), mapped.run_state(5));
+    /// ```
+    ///
+    /// ### Composition Law: fmap(f . g) = fmap(f) . fmap(g)
+    ///
+    /// ```rust
+    /// use rustica::datatypes::state::State;
+    ///
+    /// // Define a state computation
+    /// let state = State::new(|s: i32| (s, s + 1));
+    ///
+    /// // Define two functions to compose
+    /// let f = |x: i32| x * 3;
+    /// let g = |x: i32| x + 2;
+    ///
+    /// // Compose the functions first, then fmap
+    /// let composed = state.clone().fmap(|x| f(g(x)));
+    ///
+    /// // Apply the functions in sequence with separate fmaps
+    /// let chained = state.clone().fmap(g).fmap(f);
+    ///
+    /// // Verify that both approaches yield the same result
+    /// assert_eq!(composed.run_state(10), chained.run_state(10));
     /// ```
     #[inline]
     pub fn fmap<B, F>(self, f: F) -> State<S, B>
