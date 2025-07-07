@@ -4,6 +4,24 @@
 //! It provides a way to thread an environment through a computation without explicitly passing
 //! it as a parameter to every function.
 //!
+//! ## Functional Programming Context
+//!
+//! In functional programming, the Reader monad is part of the core set of primitive monads
+//! commonly used across different functional languages. It serves several important roles:
+//!
+//! - **Dependency Injection**: Reader provides a functional approach to dependency injection without
+//!   relying on mutable state or global variables.
+//! - **Environmental Effects**: It represents computations that need to read from a shared context
+//!   without modifying it, forming part of the "effects system" in pure FP.
+//! - **Function Environment**: Reader can be understood as a generalization of curried functions,
+//!   allowing a more composable way to provide configuration to functions.
+//!
+//! This monad is equivalent to:
+//! - **Haskell**: `Control.Monad.Reader` and `(->) r` (the function arrow from `r`)
+//! - **Scala**: `cats.data.Reader` and `scalaz.Reader`
+//! - **PureScript**: `Control.Monad.Reader`
+//! - **Kotlin**: `arrow.mtl.Reader` from Arrow library
+//!
 //! ## Core Concepts
 //!
 //! - **Environment Dependency**: Reader allows functions to access a shared environment without
@@ -62,14 +80,14 @@
 //!
 //! // Identity: fmap id = id
 //! let reader = Reader::new(|x: i32| x * 2);
-//! let id = |x: &i32| *x;
+//! let id = |x: i32| x;
 //! let env = 10;
 //! assert_eq!(reader.fmap(id).run_reader(env), reader.run_reader(env));
 //!
 //! // Composition: fmap (f . g) = fmap f . fmap g
-//! let f = |x: &i32| x + 5;
-//! let g = |x: &i32| x * 3;
-//! let compose = |x: &i32| f(&g(x));
+//! let f = |x: i32| x + 5;
+//! let g = |x: i32| x * 3;
+//! let compose = move |x: i32| f(g(x));
 //! let reader = Reader::new(|x: i32| x + 1);
 //! assert_eq!(reader.fmap(compose).run_reader(env), reader.fmap(g).fmap(f).run_reader(env));
 //! ```
@@ -82,22 +100,22 @@
 //!
 //! // Left identity: return a >>= f = f a
 //! let a = 42;
-//! let f = |x: &i32| Reader::new(move |_: i32| *x + 10);
+//! let f = |x: i32| Reader::new(move |_: i32| x + 10);
 //! let return_a = Reader::new(move |_: i32| a);
 //! let env = 10;
-//! assert_eq!(return_a.bind(f).run_reader(env), f(&a).run_reader(env));
+//! assert_eq!(return_a.bind(f).run_reader(env), f(a).run_reader(env));
 //!
 //! // Right identity: m >>= return = m
 //! let m = Reader::new(|x: i32| x * 2);
-//! let return_fn = |x: &i32| Reader::new(move |_: i32| *x);
+//! let return_fn = |x: i32| Reader::new(move |_: i32| x);
 //! assert_eq!(m.bind(return_fn).run_reader(env), m.run_reader(env));
 //!
 //! // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
 //! let m = Reader::new(|x: i32| x + 3);
-//! let f = |x: &i32| Reader::new(move |_: i32| *x * 2);
-//! let g = |x: &i32| Reader::new(move |_: i32| *x + 10);
+//! let f = |x: i32| Reader::new(move |_: i32| x * 2);
+//! let g = |x: i32| Reader::new(move |_: i32| x + 10);
 //! let left = m.bind(f).bind(g).run_reader(env);
-//! let right = m.bind(|x| f(x).bind(g)).run_reader(env);
+//! let right = m.bind(move |x| f(x).bind(g)).run_reader(env);
 //! assert_eq!(left, right);
 //! ```
 //!
@@ -477,7 +495,7 @@ where
     ///     .bind(|n| Reader::new(move |config: i32| n + config))
     ///     .bind(|n| Reader::new(move |_: i32| n.to_string()));
     ///     
-    /// assert_eq!(result.run_reader(10), "26"); // ((10 + 3) * 2) + 10 = 26
+    /// assert_eq!(result.run_reader(10), "36"); // ((10 + 3) * 2) + 10 = 36
     /// ```
     ///
     /// Using bind with complex environment:
@@ -565,7 +583,7 @@ where
     /// use rustica::datatypes::reader::Reader;
     ///
     /// // Custom type that can be created from a string
-    /// #[derive(Debug, PartialEq)]
+    /// #[derive(Debug, PartialEq, Clone)]
     /// struct Config {
     ///     value: String,
     /// }
@@ -681,8 +699,8 @@ where
     /// // Create readers for different aspects of the environment
     /// let debug_reader = Reader::asks(|env: AppEnvironment| env.debug_mode);
     /// let version_reader = Reader::asks(|env: AppEnvironment| env.version.clone());
-    /// let config_value_reader = |key: &str| Reader::asks(move |env: AppEnvironment| {
-    ///     env.config.get(key).cloned().unwrap_or_default()
+    /// let config_value_reader = |key: String| Reader::asks(move |env: AppEnvironment| {
+    ///     env.config.get(&key).cloned().unwrap_or_default()
     /// });
     ///
     /// // Create the environment
@@ -700,7 +718,7 @@ where
     /// assert_eq!(debug_reader.run_reader(env.clone()), true);
     /// assert_eq!(version_reader.run_reader(env.clone()), "1.0.0");
     ///
-    /// let api_url_reader = config_value_reader("api_url");
+    /// let api_url_reader = config_value_reader("api_url".to_string());
     /// assert_eq!(api_url_reader.run_reader(env.clone()), "https://api.example.com");
     /// ```
     ///
@@ -709,6 +727,7 @@ where
     /// ```rust
     /// use rustica::datatypes::reader::Reader;
     ///
+    /// #[derive(Clone)]
     /// struct Rectangle {
     ///     width: f64,
     ///     height: f64,
@@ -829,8 +848,8 @@ where
     /// }
     ///
     /// // Reader that looks up a value from the config
-    /// let lookup = |key: &str| Reader::new(move |config: AppConfig| {
-    ///     config.settings.get(key)
+    /// let lookup = |key: String| Reader::new(move |config: AppConfig| {
+    ///     config.settings.get(&key)
     ///         .cloned()
     ///         .unwrap_or(config.default_value.clone())
     /// });
@@ -845,7 +864,7 @@ where
     /// };
     ///
     /// // Get the "name" value
-    /// let name_reader = lookup("name");
+    /// let name_reader = lookup("name".to_string());
     /// assert_eq!(name_reader.run_reader(config.clone()), "original");
     ///
     /// // Modify the environment to provide a different setting
@@ -857,7 +876,7 @@ where
     /// assert_eq!(modified_reader.run_reader(config.clone()), "modified");
     ///
     /// // Using local to provide a default for a missing key
-    /// let key_reader = lookup("missing_key");
+    /// let key_reader = lookup("missing_key".to_string());
     /// assert_eq!(key_reader.run_reader(config.clone()), "default");
     ///
     /// // Modify the environment to change the default

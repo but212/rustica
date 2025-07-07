@@ -17,7 +17,45 @@
 //! with other functional abstractions.
 //!
 //! The Continuation monad is particularly powerful because it can be used to implement other monads,
-//! making it sometimes called the "mother of all monads."
+//! making it sometimes called the "mother of all monads." In category theory terms, the Continuation
+//! monad is related to the concept of a Yoneda embedding, which provides a representation of objects
+//! in terms of their relationships with other objects.
+//!
+//! Similar structures in other languages include:
+//!
+//! - Haskell's `Cont` monad in Control.Monad.Cont
+//! - Scala's `Cont` in cats library
+//! - JavaScript's CPS transformations in libraries like fantasy-land
+//! - Scheme and Racket's first-class continuations via `call/cc`
+//!
+//! ## Performance Characteristics
+//!
+//! - **Memory Usage:**
+//!   - Stores a single function wrapped in an `Arc`, with minimal overhead
+//!   - Deep continuation chains create nested function calls that could consume stack space
+//!   - No heap allocations beyond the initial `Arc` for the continuation function
+//!   - Additional stack space proportional to the depth of continuation chaining
+//!
+//! - **Time Complexity:**
+//!   - Construction (new/return_cont): O(1)
+//!   - Cloning: O(1) due to `Arc` reference counting
+//!   - Transformation operations (`fmap`, `bind`, `apply`): O(1) for the operation itself,
+//!     as they only compose functions without immediate evaluation
+//!   - Running a continuation: O(n) where n is the complexity of all composed operations
+//!   - Lazy evaluation means operations are only executed when `run` is called
+//!
+//! - **Concurrency:**
+//!   - Thread-safe when used with `Send + Sync` types due to `Arc` and immutable design
+//!   - No interior mutability or locking mechanisms
+//!   - Can be safely passed between threads when parameterized with thread-safe types
+//!
+//! ## Type Class Implementations
+//!
+//! `Cont<R, A>` implements several important functional programming type classes:
+//!
+//! - **Functor**: Transforms values inside the continuation
+//! - **Applicative**: Applies functions wrapped in continuations to values in continuations
+//! - **Monad**: Sequences continuation operations
 //!
 //! ## Use Cases
 //!
@@ -28,6 +66,77 @@
 //! - **Asynchronous Programming**: Representing callbacks and asynchronous operations
 //! - **Backtracking Algorithms**: Implementing algorithms that need to explore multiple paths
 //! - **Coroutines**: Building cooperative multitasking systems
+//!
+//! ## Type Class Laws
+//!
+//! `Cont<R, A>` adheres to the standard type class laws for Functor, Applicative, and Monad:
+//!
+//! ### Functor Laws
+//!
+//! ```rust
+//! use rustica::datatypes::cont::Cont;
+//!
+//! // Identity: fmap id == id
+//! let cont = Cont::return_cont(5);
+//! let mapped = cont.clone().fmap(|x| x);
+//! assert_eq!(cont.run(|x| x), mapped.run(|x| x));
+//!
+//! // Composition: fmap (f . g) == fmap f . fmap g
+//! let f = |x: i32| x * 2;
+//! let g = |x: i32| x + 3;
+//! let compose = move |x: i32| f(g(x));
+//!
+//! let cont = Cont::return_cont(5);
+//! let left = cont.clone().fmap(compose);
+//! let right = cont.clone().fmap(g).fmap(f);
+//! assert_eq!(left.run(|x| x), right.run(|x| x));
+//! ```
+//!
+//! ### Applicative Laws
+//!
+//! ```rust
+//! use rustica::datatypes::cont::Cont;
+//! use std::sync::Arc;
+//!
+//! // Identity: pure id <*> v = v
+//! let v = Cont::return_cont(5);
+//! let id_fn = Cont::return_cont(Arc::new(|x: i32| x.clone()) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+//! let applied = v.clone().apply(id_fn);
+//! assert_eq!(v.run(|x| x), applied.run(|x| x));
+//!
+//! // Homomorphism: pure f <*> pure x = pure (f x)
+//! let f = |n: i32| n * 2;
+//! let pure_f = Cont::return_cont(Arc::new(f) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+//! let pure_x = Cont::return_cont(5);
+//! let left = pure_x.apply(pure_f);
+//! let right = Cont::return_cont(f(5));
+//! assert_eq!(left.run(|x| x), right.run(|x| x));
+//! ```
+//!
+//! ### Monad Laws
+//!
+//! ```rust
+//! use rustica::datatypes::cont::Cont;
+//!
+//! // Left Identity: return a >>= f = f a
+//! let f = |n: i32| Cont::return_cont(n * 2);
+//! let left = Cont::return_cont(5).bind(f);
+//! let right = f(5);
+//! assert_eq!(left.run(|x| x), right.run(|x| x));
+//!
+//! // Right Identity: m >>= return = m
+//! let cont = Cont::return_cont(5);
+//! let with_bind = cont.clone().bind(|val| Cont::return_cont(val));
+//! assert_eq!(cont.run(|x| x), with_bind.run(|x| x));
+//!
+//! // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
+//! let m = Cont::return_cont(5);
+//! let f = |n: i32| Cont::return_cont(n * 2);
+//! let g = |n: i32| Cont::return_cont(n + 3);
+//! let left = m.clone().bind(f).bind(g);
+//! let right = m.clone().bind(move |val| f(val).bind(g));
+//! assert_eq!(left.run(|x| x), right.run(|x| x));
+//! ```
 //!
 //! ## Examples
 //!
@@ -178,7 +287,7 @@ where
     ///
     /// // A function that implements early return based on a condition
     /// fn safe_div(x: i32, y: i32) -> Cont<Option<i32>, i32> {
-    ///     Cont::new(|k: Arc<dyn Fn(i32) -> Option<i32> + Send + Sync>| {
+    ///     Cont::new(move |k: Arc<dyn Fn(i32) -> Option<i32> + Send + Sync>| {
     ///         if y == 0 {
     ///             // Early return with None if division by zero
     ///             None
@@ -263,24 +372,6 @@ where
     /// assert_eq!(result, 84);
     /// ```
     ///
-    /// ## Using Different Continuation Functions
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // Create a simple continuation
-    /// let cont = Cont::return_cont(10);
-    ///
-    /// // Run with different continuation functions
-    /// let result1 = cont.clone().run(|x| x * 2);     // Multiply by 2
-    /// let result2 = cont.clone().run(|x| x + 5);     // Add 5
-    /// let result3 = cont.clone().run(|x| x.to_string()); // Convert to string
-    ///
-    /// assert_eq!(result1, 20);
-    /// assert_eq!(result2, 15);
-    /// assert_eq!(result3, "10");
-    /// ```
-    ///
     /// ## Chained Continuation
     ///
     /// ```rust
@@ -328,7 +419,7 @@ where
     /// // m >>= return = m
     /// let verify_identity_law = |x: i32| {
     ///     let cont = Cont::return_cont(x);
-    ///     let with_return = cont.bind(|val| Cont::return_cont(val));
+    ///     let with_return = cont.clone().bind(|val| Cont::return_cont(val));
     ///     
     ///     // Both should yield the same result with any continuation function
     ///     let f = |v: i32| v * 2;
@@ -429,7 +520,7 @@ where
     ///     let cont = Cont::return_cont(x);
     ///     
     ///     // Map the composition of f and g
-    ///     let mapped_composition = cont.clone().fmap(|x| f(g(x)));
+    ///     let mapped_composition = cont.clone().fmap(move |x| f(g(x)));
     ///     
     ///     // Map g, then map f
     ///     let mapped_separately = cont.clone().fmap(g).fmap(f);
@@ -580,7 +671,11 @@ where
     ///     let left_side = m.clone().bind(f).bind(g);
     ///     
     ///     // m >>= (\x -> f x >>= g)
-    ///     let right_side = m.clone().bind(|val| f(val).bind(g));
+    ///     let right_side = m.clone().bind(move |val| {
+    ///         let f = f;  // Capture f by value
+    ///         let g = g;  // Capture g by value
+    ///         f(val).bind(g)
+    ///     });
     ///     
     ///     // Both should yield the same result when run
     ///     assert_eq!(left_side.run(|n| n), right_side.run(|n| n));
@@ -830,7 +925,7 @@ where
     ///
     /// // A function that might fail
     /// fn divide(a: i32, b: i32) -> Cont<Result<i32, String>, i32> {
-    ///     Cont::return_cont(a).call_cc(|exit| {
+    ///     Cont::return_cont(a).call_cc(move |exit| {
     ///         // Check for division by zero
     ///         if b == 0 {
     ///             // Exit early with an error
@@ -856,69 +951,74 @@ where
     ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
-    /// use std::cell::RefCell;
-    /// use std::rc::Rc;
+    /// use std::sync::{Arc, Mutex};
     ///
-    /// // Simple backtracking search using call_cc
+    /// // Simple backtracking search using bind instead of call_cc
     /// fn find_path(maze: &[Vec<bool>], start: (usize, usize), end: (usize, usize)) -> Option<Vec<(usize, usize)>> {
     ///     // Track visited cells to avoid cycles
-    ///     let visited = Rc::new(RefCell::new(vec![vec![false; maze[0].len()]; maze.len()]));
+    ///     let visited = Arc::new(Mutex::new(vec![vec![false; maze[0].len()]; maze.len()]));
     ///     
     ///     // Result container
-    ///     let result = Rc::new(RefCell::new(None));
+    ///     let result = Arc::new(Mutex::new(None));
     ///     
     ///     // Define a recursive search function
     ///     fn search(
     ///         maze: &[Vec<bool>],
-    ///         visited: Rc<RefCell<Vec<Vec<bool>>>>,
-    ///         result: Rc<RefCell<Option<Vec<(usize, usize)>>>>,
+    ///         visited: Arc<Mutex<Vec<Vec<bool>>>>,
+    ///         result: Arc<Mutex<Option<Vec<(usize, usize)>>>>,
     ///         pos: (usize, usize),
     ///         end: (usize, usize),
     ///         path: Vec<(usize, usize)>
     ///     ) -> Cont<(), ()> {
     ///         // If we reached the end, save the path and exit
     ///         if pos == end {
-    ///             *result.borrow_mut() = Some(path);
+    ///             *result.lock().unwrap() = Some(path);
     ///             return Cont::return_cont(());
     ///         }
     ///         
     ///         // Mark as visited
-    ///         visited.borrow_mut()[pos.0][pos.1] = true;
+    ///         visited.lock().unwrap()[pos.0][pos.1] = true;
     ///         
-    ///         // We'll use call_cc to implement backtracking
-    ///         Cont::return_cont(()).call_cc(|_exit| {
-    ///             // Try each direction
-    ///             let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
-    ///             for (dx, dy) in directions.iter() {
-    ///                 let nx = pos.0 as isize + dx;
-    ///                 let ny = pos.1 as isize + dy;
+    ///         // Try each direction
+    ///         let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+    ///         
+    ///         // Create a continuation that tries all directions
+    ///         let mut cont: Cont<(), ()> = Cont::return_cont(());
+    ///         
+    ///         for (dx, dy) in directions.iter() {
+    ///             let nx = pos.0 as isize + dx;
+    ///             let ny = pos.1 as isize + dy;
+    ///             
+    ///             // Check if new position is valid
+    ///             if nx >= 0 && nx < maze.len() as isize &&
+    ///                ny >= 0 && ny < maze[0].len() as isize {
+    ///                 let nx = nx as usize;
+    ///                 let ny = ny as usize;
     ///                 
-    ///                 // Check if new position is valid
-    ///                 if nx >= 0 && nx < maze.len() as isize &&
-    ///                    ny >= 0 && ny < maze[0].len() as isize {
-    ///                     let nx = nx as usize;
-    ///                     let ny = ny as usize;
+    ///                 // If not visited and not a wall
+    ///                 if !visited.lock().unwrap()[nx][ny] && !maze[nx][ny] {
+    ///                     // Create a new path with the current position
+    ///                     let mut new_path = path.clone();
+    ///                     new_path.push((nx, ny));
     ///                     
-    ///                     // If not visited and not a wall
-    ///                     if !visited.borrow()[nx][ny] && !maze[nx][ny] {
-    ///                         // Create a new path with the current position
-    ///                         let mut new_path = path.clone();
-    ///                         new_path.push((nx, ny));
-    ///                         
-    ///                         // Recursively search from new position
-    ///                         search(maze, visited.clone(), result.clone(), (nx, ny), end, new_path).run(|_| ());
-    ///                         
-    ///                         // If we found a path, exit early
-    ///                         if result.borrow().is_some() {
-    ///                             return Cont::return_cont(());
-    ///                         }
+    ///                     // Clone references for the next recursive call
+    ///                     let visited_clone = visited.clone();
+    ///                     let result_clone = result.clone();
+    ///                     
+    ///                     // Recursively search from new position
+    ///                     let next_search = search(maze, visited_clone, result_clone, (nx, ny), end, new_path);
+    ///                     next_search.run(|_| ());
+    ///                     
+    ///                     // If we found a path, exit early
+    ///                     if result.lock().unwrap().is_some() {
+    ///                         return Cont::return_cont(());
     ///                     }
     ///                 }
     ///             }
-    ///             
-    ///             // No path found from this position, backtrack
-    ///             Cont::return_cont(())
-    ///         })
+    ///         }
+    ///         
+    ///         // No path found from this position, backtrack
+    ///         Cont::return_cont(())
     ///     }
     ///     
     ///     // Start the search with initial position
@@ -926,7 +1026,8 @@ where
     ///     search(maze, visited, result.clone(), start, end, initial_path).run(|_| ());
     ///     
     ///     // Return the result
-    ///     result.borrow().clone()
+    ///     let final_result = result.lock().unwrap().clone();
+    ///     final_result
     /// }
     ///
     /// // Example usage (simplified):

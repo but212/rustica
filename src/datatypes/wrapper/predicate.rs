@@ -2,20 +2,80 @@
 //!
 //! This module provides the `Predicate` type, representing intensional sets as predicate functions.
 //!
-//! # Overview
+//! ## Overview
 //!
 //! A `Predicate<A>` wraps a function that determines whether a value of type `A` satisfies a certain condition.
 //! Predicates are composable and support logical operations such as AND, OR, NOT, and difference, making them
 //! useful for representing and manipulating sets defined by conditions.
 //!
-//! # Features
+//! ## Features
 //!
 //! - Functional, composable representation of sets
 //! - Logical operations: union, intersection, difference, and negation
 //! - Operator overloading for expressive predicate composition
 //! - Implements `Semigroup` and `Monoid` traits for algebraic composition
 //!
-//! # Examples
+//! ## Functional Programming Context
+//!
+//! `Predicate<A>` implements several functional programming type classes:
+//!
+//! - **Semigroup**: Predicates can be combined using logical OR via `combine`
+//! - **Monoid**: Provides an identity element (`empty`) that always returns false
+//! - **Functor**: Allows mapping over the input type while preserving the predicate behavior
+//!
+//! These implementations enable predicates to work seamlessly with other functional abstractions in Rustica.
+//!
+//! ## Performance Characteristics
+//!
+//! - **Creation**: O(1) - Creating a predicate only wraps a function in an Rc
+//! - **Evaluation**: O(f) - Performance depends on the wrapped function's complexity
+//! - **Composition**: O(1) - Combining predicates has constant overhead but adds indirection
+//! - **Memory**: O(n) where n is the number of composed predicates in a chain
+//! - **Clone**: O(1) - Cloning only increments an Rc counter
+//! - **Short-circuit Evaluation**: Logical operations use short-circuiting for efficiency
+//!
+//! ## Type Class Implementations
+//!
+//! - **Semigroup**: `combine` creates a union of predicates (logical OR)
+//! - **Monoid**: `empty` creates a predicate that always returns false
+//! - **HKT**: Higher-kinded type representation for advanced type-level operations
+//!
+//! ## Basic Usage
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::predicate::Predicate;
+//!
+//! // Create a simple predicate that checks if a number is even
+//! let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+//!
+//! // Test the predicate
+//! assert!(is_even.contains(&2));
+//! assert!(!is_even.contains(&3));
+//!
+//! // Create another predicate
+//! let is_positive = Predicate::new(|x: &i32| *x > 0);
+//!
+//! // Combine predicates using methods
+//! let even_and_positive = is_even.intersection(&is_positive);
+//! let even_or_positive = is_even.union(&is_positive);
+//!
+//! // Or use operator overloading
+//! let even_and_positive = is_even.clone() & is_positive.clone();
+//! let even_or_positive = is_even | is_positive;
+//! ```
+//!
+//! ## Type Class Laws
+//!
+//! ### Semigroup Laws
+//!
+//! - **Associativity**: `(a.combine(b)).combine(c) == a.combine(b.combine(c))`
+//!
+//! ### Monoid Laws
+//!
+//! - **Left Identity**: `empty().combine(a) == a`
+//! - **Right Identity**: `a.combine(empty()) == a`
+//!
+//! ## Examples
 //!
 //! ```rust
 //! use rustica::datatypes::wrapper::predicate::Predicate;
@@ -39,17 +99,9 @@
 //! assert!(positive_but_not_large.contains(&5));
 //! ```
 //!
-//! # Usage
+//! ## Usage
 //!
 //! This module is ideal for use cases where sets are defined by properties or conditions rather than explicit enumeration.
-//!
-//! # Performance Characteristics
-//!
-//! - Creation: O(1) - Creating a predicate only wraps a function in an Rc
-//! - Evaluation: O(f) - Performance depends on the wrapped function's complexity
-//! - Composition: O(1) - Combining predicates has constant overhead but adds indirection
-//! - Memory: O(n) where n is the number of composed predicates in a chain
-//! - Clone: O(1) - Cloning only increments an Rc counter
 
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;

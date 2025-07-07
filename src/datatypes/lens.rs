@@ -1,3 +1,5 @@
+//! # Lens (`Lens<S, A>`)
+//!
 //! Lens is a functional programming concept for accessing and modifying parts of immutable data structures.
 //!
 //! A lens provides a way to:
@@ -5,39 +7,125 @@
 //! - Update that part while preserving the rest of the structure
 //! - Transform the focused part using functions
 //!
-//! # Key Features
+//! ## Core Concepts
 //!
 //! - **Immutable Updates**: All operations create new instances instead of modifying in place
 //! - **Composable**: Lenses can be combined to focus on nested structures
 //! - **Type-safe**: The compiler ensures that updates maintain type consistency
 //!
-//! # Common Use Cases
+//! ## Functional Programming Context
 //!
-//! - Accessing and updating nested fields in complex data structures
-//! - Modifying specific elements in collections
-//! - Creating reusable accessors for data structures
+//! In functional programming, lenses are a form of *functional reference* or *optic* that solve the
+//! problem of updating immutable nested data structures. The concept originates from category theory
+//! and extends the idea of getters and setters to a composable, algebraic structure.
 //!
-//! # Performance Characteristics
+//! Key aspects of lenses in functional programming:
 //!
-//! ## Time Complexity
+//! - **Bidirectionality**: Unlike simple getter/setter pairs, lenses maintain a bidirectional relationship
+//!   between a structure and its components, allowing roundtrip transformations.
 //!
-//! * **Construction**: O(1) - Creating a lens is a constant-time operation
-//! * **Get**: O(g) - Where g is the complexity of the getter function
-//! * **Set**: O(g + s) - Where g is the complexity of the getter function and s is the complexity of the setter function
-//! * **Modify**: O(g + f + s) - Where g is the getter complexity, f is the modifier function complexity, and s is the setter complexity
+//! - **Compositionality**: Lenses can be composed, allowing navigation through deeply nested structures.
 //!
-//! ## Memory Usage
+//! - **Lawfulness**: Well-behaved lenses adhere to specific laws (GetSet, SetGet, SetSet) ensuring
+//!   predictable behavior.
 //!
-//! * **Storage**: Each lens stores two closures (getter and setter)
-//! * **Operation**: Operations that change the focused part create a new instance of the whole structure
-//! * **Optimization**: When setting/modifying with equal values (determined by `PartialEq`), the original structure is returned to enable structural sharing
+//! - **Referential Transparency**: Lens operations maintain referential transparency, making them
+//!   suitable for purely functional programming.
 //!
-//! # Lens Laws
+//! Similar concepts in other functional languages:
 //!
-//! Lenses follow three fundamental laws that ensure their correct behavior:
+//! - Haskell's `lens` library by Edward Kmett
+//! - Scala's `Monocle` and `Quicklens` libraries
+//! - OCaml's `Lenses` and `Optics` modules
+//! - PureScript's optics libraries
+//!
+//! ## Type Class Implementations
+//!
+//! Lenses implement several functional programming abstractions:
+//!
+//! - **Getter**: The ability to retrieve a component from a larger structure
+//! - **Setter**: The ability to update a component in an immutable structure
+//! - **Functor Mapping**: The ability to apply a function over the focused component
+//! - **Composable**: Lenses can be composed to access nested structures
+//!
+//! ## Basic Usage
 //!
 //! ```rust
 //! use rustica::datatypes::lens::Lens;
+//!
+//! // Define a simple data structure
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person {
+//!     name: String,
+//!     age: u32,
+//! }
+//!
+//! // Create lenses for each field
+//! let name_lens = Lens::new(
+//!     |p: &Person| p.name.clone(),
+//!     |p: Person, name: String| Person { name, ..p },
+//! );
+//!
+//! let age_lens = Lens::new(
+//!     |p: &Person| p.age,
+//!     |p: Person, age: u32| Person { age, ..p },
+//! );
+//!
+//! // Use the lenses
+//! let person = Person {
+//!     name: "Alice".to_string(),
+//!     age: 30,
+//! };
+//!
+//! // Get values
+//! assert_eq!(name_lens.get(&person), "Alice");
+//! assert_eq!(age_lens.get(&person), 30);
+//!
+//! // Set values
+//! let updated = name_lens.set(person.clone(), "Bob".to_string());
+//! assert_eq!(updated.name, "Bob");
+//! assert_eq!(updated.age, 30); // Original value preserved
+//!
+//! // Modify values
+//! let older = age_lens.modify(person, |age| age + 5);
+//! assert_eq!(older.age, 35);
+//! ```
+//!
+//! ## Performance Characteristics
+//!
+//! ### Memory Usage
+//!
+//! - **Structure Size**: Each lens stores two closures (getter and setter)
+//! - **Cloning**: Operations that modify focused parts clone the affected portions of the structure
+//! - **Optimization**: Structural sharing via equality check prevents unnecessary cloning
+//! - **Reference Types**: Using reference-counted types like `Rc` or `Arc` improves sharing efficiency
+//!
+//! ### Time Complexity
+//!
+//! - **Construction**: O(1) - Creating a lens is a constant-time operation
+//! - **Get**: O(g) - Where g is the complexity of the getter function
+//! - **Set**: O(g + s) - Where g is the complexity of the getter and s is the complexity of the setter
+//! - **Modify**: O(g + f + s) - Where f is the additional cost of the modifier function
+//! - **Composition**: O(1) - Composing lenses has constant overhead
+//!
+//! ### Concurrency
+//!
+//! - **Thread Safety**: Lenses are `Send` and `Sync` when their getter and setter functions are
+//! - **Immutability**: All operations create new structures, making concurrent access safe
+//! - **No Locks**: No synchronization primitives needed due to the immutable design
+//!
+//! ## Type Class Laws
+//!
+//! Lenses follow three fundamental laws that ensure their correct behavior:
+//!
+//! ### GetSet Law
+//!
+//! ```rust
+//! use rustica::datatypes::lens::Lens;
+//!
+//! // For any lens l and structure s:
+//! // l.set(s, l.get(s)) == s
+//! // "Setting a value to what it already is doesn't change anything"
 //!
 //! #[derive(Clone, Debug, PartialEq)]
 //! struct Person { name: String, age: u32 }
@@ -49,21 +137,61 @@
 //!
 //! let person = Person { name: "Alice".to_string(), age: 30 };
 //!
-//! // 1. GetSet Law: Getting a value and then setting it back results in the original structure
+//! // GetSet Law verification
 //! let value = name_lens.get(&person);
 //! let result = name_lens.set(person.clone(), value);
 //! assert_eq!(result, person);
+//! ```
 //!
-//! // 2. SetGet Law: Setting a value and then getting it returns the value that was set
+//! ### SetGet Law
+//!
+//! ```rust
+//! use rustica::datatypes::lens::Lens;
+//!
+//! // For any lens l, structure s, and value v:
+//! // l.get(l.set(s, v)) == v
+//! // "If you set a value, that's what you get back"
+//!
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person { name: String, age: u32 }
+//!
+//! let name_lens = Lens::new(
+//!     |p: &Person| p.name.clone(),
+//!     |p: Person, name: String| Person { name, ..p },
+//! );
+//!
+//! let person = Person { name: "Alice".to_string(), age: 30 };
 //! let new_name = "Bob".to_string();
-//! let updated = name_lens.set(person.clone(), new_name.clone());
-//! assert_eq!(name_lens.get(&updated), new_name);
 //!
-//! // 3. SetSet Law: Setting a value twice is the same as setting it once with the second value
+//! // SetGet Law verification
+//! let updated = name_lens.set(person, new_name.clone());
+//! assert_eq!(name_lens.get(&updated), new_name);
+//! ```
+//!
+//! ### SetSet Law
+//!
+//! ```rust
+//! use rustica::datatypes::lens::Lens;
+//!
+//! // For any lens l, structure s, and values v1 and v2:
+//! // l.set(l.set(s, v1), v2) == l.set(s, v2)
+//! // "Setting a value and then immediately setting another value is the same as just setting the second value"
+//!
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person { name: String, age: u32 }
+//!
+//! let name_lens = Lens::new(
+//!     |p: &Person| p.name.clone(),
+//!     |p: Person, name: String| Person { name, ..p },
+//! );
+//!
+//! let person = Person { name: "Alice".to_string(), age: 30 };
+//!
+//! // SetSet Law verification
 //! let first_set = name_lens.set(person.clone(), "Bob".to_string());
 //! let second_set = name_lens.set(first_set, "Charlie".to_string());
 //!
-//! let direct_set = name_lens.set(person.clone(), "Charlie".to_string());
+//! let direct_set = name_lens.set(person, "Charlie".to_string());
 //! assert_eq!(second_set, direct_set);
 //! ```
 //!
@@ -430,9 +558,17 @@ where
     /// use std::collections::HashMap;
     ///
     /// // Create a lens focusing on a specific key in a HashMap
-    /// fn hash_map_key_lens<K: Clone + Eq + std::hash::Hash, V: Clone + Default>(key: K) -> Lens<HashMap<K, V>, V> {
+    /// fn hash_map_key_lens<K: Clone + Eq + std::hash::Hash, V: Clone + Default>(
+    ///     key: K
+    /// ) -> Lens<
+    ///     HashMap<K, V>,
+    ///     V,
+    ///     impl Fn(&HashMap<K, V>) -> V + Clone,
+    ///     impl Fn(HashMap<K, V>, V) -> HashMap<K, V> + Clone
+    /// > {
+    ///     let key_for_get = key.clone();
     ///     Lens::new(
-    ///         move |map: &HashMap<K, V>| map.get(&key).cloned().unwrap_or_default(),
+    ///         move |map: &HashMap<K, V>| map.get(&key_for_get).cloned().unwrap_or_default(),
     ///         move |mut map: HashMap<K, V>, value: V| {
     ///             map.insert(key.clone(), value);
     ///             map
@@ -527,7 +663,8 @@ where
     ///
     /// // Setting to the same value returns the original structure
     /// let same = name_lens.set(user.clone(), "Alice".to_string());
-    /// assert!(std::ptr::eq(&same, &user)); // Shows it's the same instance, not just equal
+    /// assert_eq!(same, user); // Values are equal
+    /// // Note: ptr::eq would fail as set returns a clone even for equal values
     /// ```
     ///
     /// Setting nested structures:
@@ -768,7 +905,7 @@ where
     ///
     /// // No change when applying identity function - structural sharing in action
     /// let same = age_lens.modify(user.clone(), |age| age);
-    /// assert!(std::ptr::eq(&same, &user)); // Shows it's the same instance
+    /// assert_eq!(same, user); // Same value due to no change
     /// ```
     ///
     /// Conditional modifications:
@@ -819,8 +956,8 @@ where
     ///     }
     /// });
     ///
-    /// // Since the count didn't change, we get back the original structure
-    /// assert!(std::ptr::eq(&attempted, &max_item));
+    /// // Since the count didn't change, we get back the identical structure
+    /// assert_eq!(attempted, max_item);
     /// ```
     ///
     /// Working with strings:

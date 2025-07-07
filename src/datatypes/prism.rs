@@ -1,24 +1,80 @@
+//! # Prism (`Prism<S, A, PreviewFn, ReviewFn>`)
+//!
 //! Prisms are optics that focus on a specific case of a sum type.
 //!
 //! A prism provides a way to:
 //! - Selectively view a specific variant of an enum (sum type)
 //! - Construct a value of the sum type from a value of the specific variant
 //!
-//! # Performance Characteristics
+//! ## Functional Programming Context
 //!
-//! ## Time Complexity
+//! Prisms represent a fundamental optic in functional programming, originating from the Haskell lens library.
+//! They're part of a family of functional optics that includes lenses, traversals, and isos, each serving
+//! a specific role in immutable data manipulation.
+//!
+//! Key aspects of Prisms in functional programming:
+//!
+//! - **Partial Function Abstraction**: Prisms encapsulate the pattern of functions that may fail
+//!   when attempting to extract a value, especially useful for accessing enum variants
+//!
+//! - **Compositionality**: Prisms can be composed with other optics (lenses, other prisms) to create
+//!   pipelines for deeply nested data access and transformation
+//!
+//! - **Type Safety**: Provides compile-time guarantees that operations on the extracted data
+//!   will be properly type-checked
+//!
+//! - **Immutability-Friendly**: Operations with prisms create new data structures rather than
+//!   modifying existing ones, adhering to functional programming's immutability principles
+//!
+//! - **Bidirectionality**: Unlike ordinary accessor functions, prisms allow both extracting and
+//!   constructing data in a symmetric fashion
+//!
+//! Similar constructs in other functional languages include:
+//!
+//! - Haskell's `Prism` type from the lens library
+//! - PureScript's `Prism` from the profunctor-lenses library
+//! - Scala's `Prism` from the Monocle library
+//! - TypeScript's `Prism` from the monocle-ts library
+//!
+//! ## Performance Characteristics
+//!
+//! ### Memory Usage
+//!
+//! * **Instance Size**: Constant O(1) - Stores only two function pointers with minimal overhead
+//! * **Preview Operation**:
+//!   - No allocations when operation fails (returns `None`)
+//!   - When successful, allocates only what's necessary for the extracted value
+//!   - Cloning complexity depends on the implementation of the provided preview function
+//! * **Review Operation**:
+//!   - Creates a new instance of the sum type
+//!   - Memory usage depends on the variant being constructed and any contained data
+//!   - Copy-on-write semantics - no data is shared between input and output
+//!
+//! ### Time Complexity
 //!
 //! * **Construction**: O(1) - Creating a prism stores the functions but doesn't execute them
-//! * **Preview (get)**: O(m) - Where m is the complexity of the matcher function
-//!   - Typically O(1) for simple enum matching operations
-//! * **Review (set)**: O(c) - Where c is the complexity of the constructor function
+//! * **Preview (get)**: O(m) where m is the complexity of the matcher function
+//!   - Typically O(1) for simple enum pattern matching
+//!   - May be higher for complex data structures requiring deep cloning
+//! * **Review (set)**: O(c) where c is the complexity of the constructor function
 //!   - Typically O(1) for simple enum construction
+//!   - Potentially higher for variants containing complex data structures
 //!
-//! ## Memory Usage
+//! ### Concurrency
 //!
-//! * **Prism Instance**: O(1) - Stores two function pointers with minimal overhead
-//! * **Preview**: No additional allocations beyond what's needed to store the extracted value
-//! * **Review**: Creates a new instance of the sum type (typically O(1) for enums)
+//! * **Thread Safety**: `Prism` is `Send` and `Sync` when its function types are
+//! * **Immutability**: All operations create new data structures rather than modifying existing ones
+//! * **Side Effects**: Functions should be pure with no side effects for predictable behavior
+//!
+//! ## Type Class Implementations
+//!
+//! `Prism` implements several important type classes and functionality:
+//!
+//! - **Composable**: Enables creating complex data access pipelines
+//! - **Preview**: Attempts to extract a focus value from a structure
+//! - **Review**: Constructs a structure from a focus value
+//! - **PreviewRef**: Non-cloning variant of preview when appropriate
+//! - **Modify**: Applies a function to the focus if it exists
 //!
 //! # Key Features
 //!
@@ -40,26 +96,89 @@
 //! a case of a sum type (like an enum variant). Lenses always succeed in getting/setting,
 //! but prisms may fail to extract a value if the wrong variant is present.
 //!
-//! # Type Class Laws
+//! ## Basic Usage
+//!
+//! ```rust
+//! use rustica::datatypes::prism::Prism;
+//!
+//! // Define an enum (sum type)
+//! #[derive(Debug, Clone, PartialEq)]
+//! enum UserStatus {
+//!     Active { username: String, last_login: u64 },
+//!     Inactive { username: String, since: u64 },
+//!     Pending { username: String },
+//! }
+//!
+//! // Create a prism for the Active variant
+//! let active_prism = Prism::new(
+//!     // Preview function - extract data if it's the Active variant
+//!     |status: &UserStatus| match status {
+//!         UserStatus::Active { username, last_login } =>
+//!             Some((username.clone(), *last_login)),
+//!         _ => None,
+//!     },
+//!     // Review function - create an Active variant from the data
+//!     |(username, last_login): &(String, u64)| UserStatus::Active {
+//!         username: username.clone(),
+//!         last_login: *last_login
+//!     },
+//! );
+//!
+//! // Create sample data
+//! let active_user = UserStatus::Active {
+//!     username: "alice".to_string(),
+//!     last_login: 1625097600
+//! };
+//! let inactive_user = UserStatus::Inactive {
+//!     username: "bob".to_string(),
+//!     since: 1622505600
+//! };
+//!
+//! // Preview (extract) data - succeeds for the matching variant
+//! let active_data = active_prism.preview(&active_user);
+//! assert_eq!(active_data, Some(("alice".to_string(), 1625097600)));
+//!
+//! // Preview fails for non-matching variant
+//! let no_data = active_prism.preview(&inactive_user);
+//! assert_eq!(no_data, None);
+//!
+//! // Review (construct) - create a new UserStatus::Active
+//! let new_active = active_prism.review(&("carol".to_string(), 1633046400));
+//! assert_eq!(new_active, UserStatus::Active {
+//!     username: "carol".to_string(),
+//!     last_login: 1633046400
+//! });
+//!
+//! // Transform - preview, modify, and review if it's the right variant
+//! let updated = match active_prism.preview(&active_user) {
+//!     Some((name, _)) => active_prism.review(&(name, 1633046400)),
+//!     None => active_user.clone(),
+//! };
+//! assert_eq!(updated, UserStatus::Active {
+//!     username: "alice".to_string(),
+//!     last_login: 1633046400
+//! });
+//!
+//! // Transform does nothing for wrong variant
+//! let unchanged = match active_prism.preview(&inactive_user) {
+//!     Some((name, _)) => active_prism.review(&(name, 1633046400)),
+//!     None => inactive_user.clone(),
+//! };
+//! assert_eq!(unchanged, inactive_user);
+//! ```
+//!
+//! ## Type Class Laws
 //!
 //! Prisms must satisfy the following laws to be considered well-behaved:
 //!
-//! ## First Law: Preview-Review
+//! ### First Law: Preview-Review
 //!
 //! If we successfully preview a value and then review it, we get back a value
 //! that would preview to the same result:
 //!
-//! ```
-//! preview(s).map(|a| review(a)) == preview(s).map(|_| s)
-//! ```
-//!
 //! ## Second Law: Review-Preview
 //!
 //! If we review a value and then successfully preview it, we get back the original value:
-//!
-//! ```
-//! preview(review(a)) == Some(a)
-//! ```
 //!
 //! ## Verification Example
 //!
@@ -239,17 +358,9 @@ use std::marker::PhantomData;
 ///
 /// 1. **Preview-Review**: For any source `s` where `preview(s)` succeeds with value `a`,
 ///    `review(a)` should produce a value equivalent to `s` when viewed through the prism.
-///    ```
-///    if let Some(a) = prism.preview(&s) {
-///        assert_eq!(prism.preview(&prism.review(&a)), Some(a.clone()));
-///    }
-///    ```
 ///
 /// 2. **Review-Preview**: For any value `a` of the focus type,
 ///    `preview(review(a))` should always succeed and return `a`.
-///    ```
-///    assert_eq!(prism.preview(&prism.review(&a)), Some(a.clone()));
-///    ```
 ///
 /// # Type Parameters
 ///

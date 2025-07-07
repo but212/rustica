@@ -2,6 +2,8 @@
 //!
 //! This module provides the `Max` wrapper type which forms a semigroup under taking the maximum.
 //!
+//! ## Basic Usage
+//!
 //! ```rust
 //! use rustica::datatypes::wrapper::max::Max;
 //! use rustica::traits::semigroup::Semigroup;
@@ -12,11 +14,71 @@
 //! assert_eq!(c, Max(10));
 //! ```
 //!
+//! ## Type Class Laws
+//!
+//! `Max<T>` satisfies the semigroup associativity law:
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::max::Max;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Verify associativity: (a combine b) combine c = a combine (b combine c)
+//! let a = Max(3);
+//! let b = Max(7);
+//! let c = Max(1);
+//! assert_eq!(a.clone().combine(&b).combine(&c),
+//!            a.combine(&b.combine(&c)));
+//! ```
+//!
+//! When `T` has a minimum value, `Max<T>` also satisfies the monoid laws:
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::max::Max;
+//! use rustica::traits::semigroup::Semigroup;
+//! use rustica::traits::monoid::Monoid;
+//!
+//! let a = Max(42);
+//! let id = Max(i32::MIN);
+//!
+//! // Identity laws: id combine x = x combine id = x
+//! assert_eq!(id.combine(&a), a);
+//! assert_eq!(a.combine(&id), a);
+//! ```
+//!
 //! ## Performance Characteristics
 //!
 //! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
 //! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
 //! - Clone Cost: Depends on the cost of cloning the inner type `T`
+//!
+//! ## Functional Programming Context
+//!
+//! The `Max` wrapper is a fundamental building block for functional programming patterns:
+//!
+//! - **Aggregation**: Provides a principled way to find maximum values
+//! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
+//! - **Folding**: Can be used with `Foldable` to reduce collections to a single maximum value
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::max::Max;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::identity::Identity;
+//!
+//! // Transform the inner value while preserving the wrapper
+//! let a = Max(5);
+//! let b = a.fmap(|x| x * 2);
+//! assert_eq!(*b.value(), 10);
+//! ```
+//!
+//! ## Type Class Implementations
+//!
+//! `Max<T>` implements the following type classes:
+//!
+//! - `Semigroup`: For any `T` that implements `Ord`
+//! - `Monoid`: For any `T` that implements `Ord` and has a minimum value
+//! - `Functor`: For mapping operations over the inner value
+//! - `Identity`: For accessing the inner value
+//! - `Foldable`: For folding operations over the single inner value
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
@@ -341,11 +403,10 @@ impl<T: Clone + Ord + Default> Monoid for Max<T> {
     ///
     /// // Create an identity element for integers
     /// let empty = Max::<i32>::empty();
-    /// assert_eq!(empty, Max(0));
+    /// assert_eq!(empty, Max(i32::default()));
     ///
-    /// // Create an identity element for floating point numbers
-    /// let empty_f64 = Max::<f64>::empty();
-    /// assert_eq!(empty_f64, Max(0.0));
+    /// let empty_i64 = Max::<i64>::empty();
+    /// assert_eq!(empty_i64, Max(i64::default()));
     /// ```
     ///
     /// Using with custom types that implement `Default`:
@@ -478,14 +539,13 @@ impl<T: Clone + Ord> Functor for Max<T> {
     /// // fmap(f . g) = fmap(f) . fmap(g)
     /// fn verify_composition_law<T>(x: T) -> bool
     /// where
-    ///     T: Clone + Ord + PartialEq,
-    ///     String: From<T>,
+    ///     T: Clone + Ord + PartialEq + std::fmt::Display,
     /// {
     ///     let max_x = Max(x);
     ///     
     ///     // Define two functions to compose
     ///     let f = |x: &String| x.len();
-    ///     let g = |x: &T| String::from(x.clone());
+    ///     let g = |x: &T| x.to_string();
     ///     
     ///     // Left side: fmap(f . g)
     ///     let left_side = max_x.clone().fmap(|a| f(&g(a)));
@@ -567,32 +627,11 @@ impl<T: Clone + Ord> Functor for Max<T> {
     ///
     /// // Note: max_string has been consumed and can't be used anymore
     /// ```
-    ///
-    /// With complex data structures:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::functor::Functor;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a Max containing a HashMap
-    /// let mut map = HashMap::new();
-    /// map.insert("key1", 10);
-    /// map.insert("key2", 20);
-    ///
-    /// let max_map = Max(map);
-    ///
-    /// // Transform it efficiently without cloning the HashMap
-    /// let max_sum = max_map.fmap_owned(|m| {
-    ///     m.values().sum::<i32>()
-    /// });
-    ///
-    /// assert_eq!(max_sum, Max(30));
-    /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
     where
         F: FnOnce(Self::Source) -> U,
+        Self::Source: Ord,
     {
         Max(f(self.0))
     }

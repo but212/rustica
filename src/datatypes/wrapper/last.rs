@@ -2,6 +2,26 @@
 //!
 //! This module provides the `Last` wrapper type which forms a semigroup by taking the last non-None value.
 //!
+//! ## Functional Programming Context
+//!
+//! The `Last` type is a wrapper around `Option<T>` that implements various type classes with specific semantics:
+//!
+//! - As a `Semigroup`, it combines values by keeping the last non-None value
+//! - As a `Monoid`, it uses `None` as its identity element
+//! - As a `Functor`, it maps functions over the inner value if present
+//! - As a `Foldable`, it allows extraction and reduction of the inner value
+//!
+//! ## Type Class Implementations
+//!
+//! - `Semigroup`: Combines by keeping the rightmost `Some` value
+//! - `Monoid`: Uses `None` as identity element
+//! - `Functor`: Maps functions over the contained value
+//! - `Foldable`: Allows folding over the contained value
+//! - `Identity`: Provides access to the wrapped value
+//! - `HKT`: Higher-kinded type representation
+//!
+//! ## Basic Usage
+//!
 //! ```rust
 //! use rustica::datatypes::wrapper::last::Last;
 //! use rustica::traits::semigroup::Semigroup;
@@ -16,6 +36,16 @@
 //! let z = x.combine(&y);
 //! assert_eq!(z, Last(Some(7))); // First value was None, so takes the second
 //! ```
+//!
+//! ## Type Class Laws
+//!
+//! The `Last` type satisfies the following laws:
+//!
+//! - **Semigroup Associativity**: `(a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)`
+//! - **Monoid Left Identity**: `empty() ⊕ a = a`
+//! - **Monoid Right Identity**: `a ⊕ empty() = a`
+//! - **Functor Identity**: `fmap(id) = id`
+//! - **Functor Composition**: `fmap(f ∘ g) = fmap(f) ∘ fmap(g)`
 //!
 //! ## Performance Characteristics
 //!

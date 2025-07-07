@@ -4,7 +4,7 @@
 //! The `Memoizer` implements thread-safe memoization using a reader-writer lock pattern to optimize
 //! for concurrent reads while ensuring exclusive access during writes.
 //!
-//! # Key Features
+//! ## Key Features
 //!
 //! - Thread-safe caching with optimized read concurrency
 //! - Protection against redundant calculations (race condition handling)
@@ -12,7 +12,51 @@
 //! - Support for any hashable key and cloneable value types
 //! - Cache management via explicit clearing
 //!
-//! # Example (Single-threaded)
+//! ## Functional Programming Context
+//!
+//! The `Memoizer` aligns with functional programming principles by:
+//!
+//! - Promoting pure functions (same inputs always yield same outputs)
+//! - Preserving referential transparency (cached results are equivalent to direct computation)
+//! - Supporting idempotent operations (repeated calls with same input return identical results)
+//! - Enabling transparent performance optimization without changing semantics
+//!
+//! ## Type Class Implementations
+//!
+//! `Memoizer<K, V>` implements:
+//!
+//! - `Default`: Creates an empty memoizer via `Memoizer::new()`
+//!
+//! ## Basic Usage
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::memoizer::Memoizer;
+//!
+//! // Create a new memoizer for string keys and integer values
+//! let memo = Memoizer::<String, i32>::new();
+//!
+//! // Compute and cache a value
+//! let value = memo.get_or_compute("example".to_string(), |s| s.len() as i32);
+//! assert_eq!(value, 7);
+//!
+//! // Retrieve from cache on subsequent calls
+//! let cached = memo.get_or_compute("example".to_string(), |_| panic!("Not called"));
+//! assert_eq!(cached, 7);
+//!
+//! // Clear the cache when needed
+//! memo.clear();
+//! ```
+//!
+//! ## Type Class Laws
+//!
+//! While `Memoizer` doesn't directly implement algebraic type classes like `Functor` or `Monad`,
+//! it follows these important laws:
+//!
+//! - **Idempotence**: `memo.get_or_compute(k, f) == memo.get_or_compute(k, f)` for all `k` and `f`
+//! - **Transparency**: `memo.get_or_compute(k, f) == f(k)` for the first call with key `k`
+//! - **Consistency**: Once computed, a value for key `k` remains the same until `clear()` is called
+//!
+//! ## Example (Single-threaded)
 //!
 //! Basic usage with scalar types:
 //!
@@ -28,7 +72,7 @@
 //! assert_eq!(again, 100);
 //! ```
 //!
-//! # Example (Multi-threaded)
+//! ## Example (Multi-threaded)
 //!
 //! Concurrent access from multiple threads with automatic synchronization:
 //!
@@ -49,7 +93,7 @@
 //! assert!(results.contains(&10));
 //! ```
 //!
-//! # Advanced Example (Complex Types)
+//! ## Advanced Example (Complex Types)
 //!
 //! Memoizing expensive operations with complex keys and values:
 //!
@@ -86,7 +130,7 @@
 //! assert_eq!(cached.get("to"), Some(&2));
 //! ```
 //!
-//! # Performance Characteristics
+//! ## Performance Characteristics
 //!
 //! - **Memory Usage**: O(n) where n is the number of cached key-value pairs
 //! - **Thread Safety**: Uses `RwLock` for concurrent read access with exclusive write locking
@@ -101,7 +145,7 @@
 //!   - Cache misses in parallel threads for the same key are efficiently handled
 //!     (only one thread performs computation, others wait and receive the result)
 //!
-//! # Thread Safety Guarantees
+//! ## Thread Safety Guarantees
 //!
 //! The `Memoizer` provides several guarantees for concurrent usage:
 //!

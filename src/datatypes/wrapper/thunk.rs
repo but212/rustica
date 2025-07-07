@@ -24,11 +24,54 @@
 //! assert_eq!(result, 42);
 //! ```
 //!
-//! # Performance Characteristics
+//! ## Functional Programming Context
 //!
-//! - Time Complexity: O(1) for creation, O(F) for evaluation where F is the complexity of the wrapped function
-//! - Space Complexity: O(1) for the wrapper itself, plus the size of the wrapped function
-//! - Memory Usage: Minimal overhead - only stores the function object and a zero-sized PhantomData
+//! Thunks are a fundamental concept in functional programming, representing delayed computations.
+//! They enable:
+//!
+//! - **Lazy evaluation**: Computations are only performed when their results are needed
+//! - **Separation of definition and execution**: Define what to compute separately from when to compute it
+//! - **Memoization potential**: Results can be cached after first evaluation (not implemented in this type)
+//!
+//! ## Performance Characteristics
+//!
+//! - **Time Complexity**: O(1) for creation, O(F) for evaluation where F is the complexity of the wrapped function
+//! - **Space Complexity**: O(1) for the wrapper itself, plus the size of the wrapped function
+//! - **Memory Usage**: Minimal overhead - only stores the function object and a zero-sized PhantomData
+//! - **Laziness**: Computation is deferred until explicitly evaluated
+//!
+//! ## Type Class Implementations
+//!
+//! - **Evaluate**: Core functionality for executing the wrapped function
+//! - **HKT**: Higher-kinded type support for working with generic type transformations
+//! - **Clone**: Allows duplicating the thunk with its wrapped function
+//!
+//! ## Basic Usage
+//!
+//! ```rust
+//! use rustica::traits::evaluate::{Evaluate, EvaluateExt};
+//! use rustica::datatypes::wrapper::thunk::Thunk;
+//!
+//! // Create a thunk with captured variables
+//! let base = 10;
+//! let computation = Thunk::new(move || base * 5);
+//!
+//! // Evaluate when needed
+//! let result = computation.evaluate();
+//! assert_eq!(result, 50);
+//!
+//! // Transform the result
+//! let formatted = computation.fmap_evaluate(|x| format!("Result: {}", x));
+//! assert_eq!(formatted, "Result: 50");
+//! ```
+//!
+//! ## Type Class Laws
+//!
+//! Thunk satisfies the following laws:
+//!
+//! - **Idempotence**: For pure functions, multiple evaluations produce the same result
+//! - **Referential Transparency**: A thunk can be replaced with its evaluated result without changing behavior
+//! - **Composition**: Thunks compose well with other monadic operations
 
 use crate::traits::evaluate::Evaluate;
 use crate::traits::hkt::HKT;
@@ -294,7 +337,7 @@ where
     /// use rustica::traits::evaluate::Evaluate;
     ///
     /// // evaluate_owned() should produce the same result as evaluate() for pure functions
-    /// fn verify_owned_equivalence<T: PartialEq>(pure_fn: impl Fn() -> T + Clone) -> bool {
+    /// fn verify_owned_equivalence<T: PartialEq + Clone>(pure_fn: impl Fn() -> T + Clone) -> bool {
     ///     let thunk1 = Thunk::new(pure_fn.clone());
     ///     let thunk2 = Thunk::new(pure_fn);
     ///     
@@ -328,7 +371,7 @@ where
     ///
     /// // Create a thunk that captures a value
     /// let value = String::from("Hello");
-    /// let thunk = Thunk::new(move || value + ", world!"); // value is moved into the closure
+    /// let thunk = Thunk::new(move || value.clone() + ", world!"); // clone the value before using it
     ///
     /// // Consume the thunk to get the result
     /// let result = thunk.evaluate_owned();

@@ -2,10 +2,20 @@
 //!
 //! This module provides an optic (IsoLens) that generalizes the concept of a Lens using the Iso abstraction.
 //!
-//! ## Core Idea
+//! ## Functional Programming Context
 //!
-//! - An IsoLens is a lens built from an isomorphism (Iso) between a structure and a pair of (focused part, structure).
-//! - All getter/setter logic is expressed using Iso's `forward` and `backward` methods, ensuring bidirectional, type-safe, and immutable updates.
+//! In functional programming, lenses are a form of optic that provide a powerful way to access and modify deeply
+//! nested immutable data structures. The IsoLens combines concepts from:
+//!
+//! - **Profunctor Optics**: IsoLens is part of the optics hierarchy (Lens, Prism, Iso, etc.) used for functional data access
+//! - **Isomorphisms**: IsoLens utilizes the Iso abstraction to define bidirectional transformations between types
+//! - **Functional References**: Provides immutable, functional equivalents to traditional object-oriented getters and setters
+//!
+//! Similar constructs in other languages include:
+//! - **Haskell**: `Control.Lens.Lens` and `Control.Lens.Iso` from the lens library
+//! - **Scala**: `monocle.Lens` and `monocle.Iso` from the Monocle library
+//! - **PureScript**: `Data.Lens.Lens` and `Data.Lens.Iso` from the purescript-profunctor-lenses package
+//! - **Kotlin**: `arrow.optics.Lens` and `arrow.optics.Iso` from the Arrow library
 //!
 //! ## Performance Characteristics
 //!
@@ -19,11 +29,72 @@
 //! - **Composition**: O(1) for the composition itself, but the composed lens operations will have the combined
 //!   complexity of both lenses.
 //!
+//! ## Type Class Implementations
+//!
+//! While the IsoLens itself does not directly implement traditional functional programming type classes like Functor or Monad,
+//! it does conform to the laws and principles of the lens abstraction, which can be considered as its own type class:
+//!
+//! - **Category**: IsoLens instances can be composed to form new lenses (through nested data structures)
+//! - **Strong Profunctor**: The IsoLens can be seen as an implementation of the Strong Profunctor pattern
+//!
+//! The optics implementation in Rustica follows the laws that ensure proper lens behavior:
+//! - Get-Set: Getting a value and setting it back results in the same structure
+//! - Set-Get: Setting a value and then getting it returns the value that was set
+//! - Set-Set: Setting twice is the same as setting once with the final value
+//!
 //! ## Use Cases
 //!
 //! - Accessing and updating nested fields in complex immutable data structures
 //! - Building composable and reusable accessors for deeply nested types
 //! - Adapting optics to types where you have a natural isomorphism (e.g., tuple wrappers, newtypes)
+//!
+//! ## Basic Usage
+//!
+//! ```rust
+//! use rustica::datatypes::iso_lens::IsoLens;
+//! use rustica::traits::iso::Iso;
+//!
+//! // Define a simple data structure
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person {
+//!     name: String,
+//!     age: u32
+//! }
+//!
+//! // Create an Iso implementation for accessing the name field
+//! struct NameIso;
+//! impl Iso<Person, (String, Person)> for NameIso {
+//!     type From = Person;
+//!     type To = (String, Person);
+//!     
+//!     fn forward(&self, from: &Person) -> (String, Person) {
+//!         (from.name.clone(), from.clone())
+//!     }
+//!     
+//!     fn backward(&self, to: &(String, Person)) -> Person {
+//!         let mut p = to.1.clone();
+//!         p.name = to.0.clone();
+//!         p
+//!     }
+//! }
+//!
+//! // Create and use the lens
+//! let lens = IsoLens::new(NameIso);
+//! let alice = Person { name: "Alice".to_string(), age: 30 };
+//!
+//! // Get the name
+//! let (name, _) = lens.get(&alice);
+//! assert_eq!(name, "Alice");
+//!
+//! // Set a new name
+//! let bob = lens.set_focus(&alice, &"Bob".to_string());
+//! assert_eq!(bob.name, "Bob");
+//! assert_eq!(bob.age, 30); // Other fields are preserved
+//!
+//! // Modify the name with a function
+//! let shouting = lens.modify_focus(&alice, |name| name.to_uppercase());
+//! assert_eq!(shouting.name, "ALICE");
+//! ```
 //!
 //! ## Example
 //!
@@ -746,13 +817,16 @@ where
     /// the modified `FocusType`.
     ///
     /// # Arguments
+    ///
     /// * `s` - A reference to the original structure.
     /// * `f` - A function `FnOnce(FocusType) -> FocusType` to transform the focused part.
     ///
     /// # Returns
+    ///
     /// A new structure `S` with the focused part transformed.
     ///
     /// # Examples
+    ///
     /// ```rust
     /// use rustica::datatypes::iso_lens::IsoLens;
     /// use rustica::traits::iso::Iso;
@@ -772,24 +846,10 @@ where
     ///     }
     /// }
     ///
-    /// struct NameIso;
-    /// impl Iso<Person, (String, Person)> for NameIso {
-    ///     type From = Person;
-    ///     type To = (String, Person);
-    ///     fn forward(&self, from: &Person) -> (String, Person) {
-    ///         (from.name.clone(), from.clone())
-    ///     }
-    ///     fn backward(&self, to: &(String, Person)) -> Person {
-    ///         let mut p = to.1.clone();
-    ///         p.name = to.0.clone();
-    ///         p
-    ///     }
-    /// }
-    ///
     /// let lens = IsoLens::new(NameIso);
     /// let person = Person { name: "Alice".to_string(), age: 30 };
     ///
-    /// let updated_person = lens.modify_focus(&person, |name_focus| name_focus.to_uppercase());
+    /// let updated_person = lens.modify_focus(&person, |name_focus: String| name_focus.to_uppercase());
     ///
     /// assert_eq!(updated_person.name, "ALICE");
     /// assert_eq!(updated_person.age, 30); // Original age preserved

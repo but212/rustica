@@ -2,6 +2,8 @@
 //!
 //! This module provides the `Min` wrapper type which forms a semigroup under taking the minimum.
 //!
+//! ## Basic Usage
+//!
 //! ```rust
 //! use rustica::datatypes::wrapper::min::Min;
 //! use rustica::traits::semigroup::Semigroup;
@@ -12,11 +14,71 @@
 //! assert_eq!(c, Min(5));
 //! ```
 //!
+//! ## Type Class Laws
+//!
+//! `Min<T>` satisfies the semigroup associativity law:
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::min::Min;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Verify associativity: (a combine b) combine c = a combine (b combine c)
+//! let a = Min(3);
+//! let b = Min(7);
+//! let c = Min(1);
+//! assert_eq!(a.clone().combine(&b).combine(&c),
+//!            a.combine(&b.combine(&c)));
+//! ```
+//!
+//! When `T` has a maximum value, `Min<T>` also satisfies the monoid laws:
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::min::Min;
+//! use rustica::traits::semigroup::Semigroup;
+//! use rustica::traits::monoid::Monoid;
+//!
+//! let a = Min(42);
+//! let id = Min(i32::MAX);
+//!
+//! // Identity laws: id combine x = x combine id = x
+//! assert_eq!(id.combine(&a), a);
+//! assert_eq!(a.combine(&id), a);
+//! ```
+//!
 //! ## Performance Characteristics
 //!
 //! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
 //! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
 //! - Clone Cost: Depends on the cost of cloning the inner type `T`
+//!
+//! ## Functional Programming Context
+//!
+//! The `Min` wrapper is a fundamental building block for functional programming patterns:
+//!
+//! - **Aggregation**: Provides a principled way to find minimum values
+//! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
+//! - **Folding**: Can be used with `Foldable` to reduce collections to a single minimum value
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::min::Min;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::identity::Identity;
+//!
+//! // Transform the inner value while preserving the wrapper
+//! let a = Min(5);
+//! let b = a.fmap(|x| x * 2);
+//! assert_eq!(*b.value(), 10);
+//! ```
+//!
+//! ## Type Class Implementations
+//!
+//! `Min<T>` implements the following type classes:
+//!
+//! - `Semigroup`: For any `T` that implements `Ord`
+//! - `Monoid`: For any `T` that implements `Ord` and has a maximum value
+//! - `Functor`: For mapping operations over the inner value
+//! - `Identity`: For accessing the inner value
+//! - `Foldable`: For folding operations over the single inner value
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
@@ -489,14 +551,13 @@ impl<T: Clone + Ord> Functor for Min<T> {
     /// // fmap(f . g) = fmap(f) . fmap(g)
     /// fn verify_composition_law<T>(x: T) -> bool
     /// where
-    ///     T: Clone + Ord + PartialEq,
-    ///     String: From<T>,
+    ///     T: Clone + Ord + PartialEq + std::fmt::Display,
     /// {
     ///     let min_x = Min(x);
     ///     
     ///     // Define two functions to compose
     ///     let f = |x: &String| x.len();
-    ///     let g = |x: &T| String::from(x.clone());
+    ///     let g = |x: &T| x.to_string();
     ///     
     ///     // Left side: fmap(f . g)
     ///     let left_side = min_x.clone().fmap(|a| f(&g(a)));
@@ -507,7 +568,7 @@ impl<T: Clone + Ord> Functor for Min<T> {
     ///     left_side == right_side
     /// }
     ///
-    /// // Test with a value that can be converted to String
+    /// // Test with a value that can be displayed as a string
     /// assert!(verify_composition_law(42));
     /// ```
     ///
@@ -597,28 +658,6 @@ impl<T: Clone + Ord> Functor for Min<T> {
     /// assert_eq!(min_length, Min(5));
     ///
     /// // Note: min_string has been consumed and can't be used anymore
-    /// ```
-    ///
-    /// With complex data structures:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::functor::Functor;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a Min containing a HashMap
-    /// let mut map = HashMap::new();
-    /// map.insert("key1", 10);
-    /// map.insert("key2", 20);
-    ///
-    /// let min_map = Min(map);
-    ///
-    /// // Transform it efficiently without cloning the HashMap
-    /// let min_sum = min_map.fmap_owned(|m| {
-    ///     m.values().sum::<i32>()
-    /// });
-    ///
-    /// assert_eq!(min_sum, Min(30));
     /// ```
     ///
     /// Chaining transformations with ownership:

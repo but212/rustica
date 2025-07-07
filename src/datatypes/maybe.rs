@@ -1,8 +1,38 @@
+//! # Maybe (`Maybe<T>`)
+//!
 //! The Maybe monad represents computations which may fail or return a value.
 //!
 //! `Maybe<T>` is an enum that can be either `Just(T)` containing a value, or `Nothing`
 //! representing the absence of a value. This is similar to Rust's built-in `Option<T>` type,
 //! but with additional monadic operations.
+//!
+//! ## Functional Programming Context
+//!
+//! The Maybe type (also known as Option in some languages) is a fundamental abstraction in functional
+//! programming that elegantly handles the concept of optional values without resorting to null
+//! references. It represents one of the simplest and most commonly used monads in functional programming.
+//!
+//! Key aspects of Maybe in functional programming:
+//!
+//! - **Nullability Alternative**: Provides a type-safe way to represent the possible absence of a value,
+//!   eliminating null pointer exceptions/panics common in imperative programming
+//!
+//! - **Error Handling Pattern**: Offers a lightweight approach for handling failures or computations
+//!   that might not produce a result
+//!
+//! - **Compositional Logic**: Enables clean composition of operations that might fail without
+//!   explicit conditional statements
+//!
+//! - **Short-Circuit Evaluation**: Automatically propagates failure states (`Nothing`) through
+//!   computation chains, similar to how Rust's `?` operator works
+//!
+//! Similar constructs in other functional languages include:
+//!
+//! - Haskell's `Maybe` type with `Just` and `Nothing` constructors
+//! - Scala's `Option[T]` with `Some[T]` and `None` cases
+//! - OCaml's `option` type with `Some` and `None` variants
+//! - F#'s `Option<'T>` with `Some` and `None` cases
+//! - TypeScript's `Option<T>` in fp-ts
 //!
 //! # Key Features
 //!
@@ -16,24 +46,34 @@
 //! - Chaining operations that might fail
 //! - Transforming optional values without unwrapping
 //!
-//! # Performance Characteristics
+//! ## Performance Characteristics
 //!
-//! ## Time Complexity
+//! ### Memory Usage
+//!
+//! - **Optimized Size**: Takes advantage of the [null pointer optimization](https://doc.rust-lang.org/std/option/index.html#representation)
+//!   for types like `Box<T>`, `Vec<T>`, `String`, etc., meaning `Maybe<T>` doesn't require any
+//!   additional memory beyond what's needed to store `T`
+//! - **Zero-Copy Design**: Memory layout is identical to `Option<T>` with the same optimizations
+//! - **Enum Representation**: For simple types, size is typically `size_of::<T>() + size_of::<u8>()`
+//!   for tag discrimination (possibly with padding)
+//! - **Cloning Impact**: Cloning a `Just` value costs as much as cloning the inner value
+//!   while cloning `Nothing` is free
+//!
+//! ### Time Complexity
 //!
 //! - **Construction**: O(1) - Both `Just` and `Nothing` constructors are constant time
-//! - **Predicates** (`is_just`, `is_nothing`): O(1) - Simple pattern matching
-//! - **Transformations** (`fmap`, `bind`): 
-//!   - O(1) for `Nothing` cases (short-circuits)
+//! - **Predicates** (`is_just`, `is_nothing`): O(1) - Simple pattern matching operations
+//! - **Transformations** (`fmap`, `bind`):
+//!   - O(1) for `Nothing` cases (short-circuits without evaluating function)
 //!   - O(f) for `Just` cases where `f` is the time complexity of the applied function
-//! - **Conversions** (to/from Option, Result): O(1) - Zero-cost due to same memory layout
-//! - **Unwrapping**: O(1) - Direct access to inner value
+//! - **Conversions** (to/from Option, Result): O(1) - Zero-cost due to identical memory layout
+//! - **Unwrapping**: O(1) - Direct access to inner value with minimal overhead
 //!
-//! ## Memory Usage
+//! ### Concurrency
 //!
-//! - Takes advantage of the [null pointer optimization](https://doc.rust-lang.org/std/option/index.html#representation)
-//! - For types like `Box<T>`, `Vec<T>`, `String`, etc., `Maybe<T>` doesn't require any 
-//!   additional memory beyond what's needed to store `T`
-//! - Memory layout is identical to `Option<T>` with the same optimizations
+//! - **Thread Safety**: `Maybe<T>` is `Send` and `Sync` when `T` is `Send` and `Sync`
+//! - **Immutability**: Operations produce new instances rather than modifying existing ones
+//! - **Lock-Free**: No internal synchronization or locks are used
 //!
 //! # Relationship to Rust's Option
 //!
@@ -41,31 +81,87 @@
 //! additional monadic operations. Conversion methods are provided to interoperate
 //! with `Option<T>`.
 //!
-//! # Type Class Implementations
+//! ## Basic Usage
+//!
+//! ```rust
+//! use rustica::datatypes::maybe::Maybe;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Creating Maybe values
+//! let just_value = Maybe::Just(42);
+//! let nothing_value: Maybe<i32> = Maybe::Nothing;
+//!
+//! // Checking which variant we have
+//! assert!(just_value.is_just());
+//! assert!(nothing_value.is_nothing());
+//!
+//! // Converting to and from Option
+//! let option_some = just_value.to_option();  // Some(42)
+//! let maybe_from_option = Maybe::from_option(Some(100));  // Just(100)
+//!
+//! // Safely extracting values with defaults
+//! assert_eq!(just_value.unwrap_or(0), 42);
+//! assert_eq!(nothing_value.unwrap_or(0), 0);
+//!
+//! // Transforming values with fmap
+//! let doubled = just_value.fmap(|x| x * 2);  // Just(84)
+//! let doubled_nothing = nothing_value.fmap(|x| x * 2);  // Nothing
+//!
+//! // Chaining operations with bind
+//! let safe_divide = |x: &i32, y: &i32| -> Maybe<i32> {
+//!     if *y == 0 {
+//!         Maybe::Nothing
+//!     } else {
+//!         Maybe::Just(x / y)
+//!     }
+//! };
+//!
+//! let result1 = Maybe::Just(10).bind(|x| safe_divide(x, &2));  // Just(5)
+//! let result2 = Maybe::Just(10).bind(|x| safe_divide(x, &0));  // Nothing
+//!
+//! // Short-circuiting behavior
+//! let combined = Maybe::Just(10)
+//!     .bind(|x| safe_divide(x, &2))  // Just(5)
+//!     .bind(|x| safe_divide(x, &0))  // Nothing
+//!     .bind(|x| Maybe::Just(x + 1)); // Nothing (never executes this function)
+//!
+//! assert_eq!(combined, Maybe::Nothing);
+//! ```
+//!
+//! ## Type Class Implementations
 //!
 //! `Maybe<T>` implements several important type classes:
 //!
-//! - `Functor`: Maps a function over a `Maybe` value
-//! - `Applicative`: Applies a function inside a `Maybe` to a value inside another `Maybe`
-//! - `Monad`: Allows sequencing of `Maybe` operations with dependencies
-//! - `MonadPlus`: Extends `Monad` with ability to combine or choose alternatives
-//! - `Alternative`: Provides choice between values and an empty value
-//! - `Foldable`: Allows folding over the contained value
+//! - **Functor**: Maps a function over a `Maybe` value
+//! - **Applicative**: Applies a function inside a `Maybe` to a value inside another `Maybe`
+//! - **Monad**: Allows sequencing of `Maybe` operations with dependencies
+//! - **MonadPlus**: Extends `Monad` with ability to combine or choose alternatives
+//! - **Alternative**: Provides choice between values and an empty value
+//! - **Foldable**: Allows folding over the contained value
 //!
-//! # Type Class Laws
+//! ## Type Class Laws
 //!
-//! ## Functor Laws
+//! ### Functor Laws
+//!
+//! The `Maybe` implementation satisfies the functor laws:
+//!
+//! 1. **Identity Law**: Mapping the identity function over a `Maybe` is the same as the original `Maybe`
+//!    - `fmap id = id`
+//!
+//! 2. **Composition Law**: Mapping a composition of functions is the same as composing the mapped functions
+//!    - `fmap (f . g) = fmap f . fmap g`
 //!
 //! ```rust
 //! use rustica::datatypes::maybe::Maybe;
 //! use rustica::traits::functor::Functor;
 //!
-//! // Identity: fmap id = id
+//! // Identity Law: fmap id = id
 //! let m1 = Maybe::Just(42);
 //! let id = |x: &i32| *x;
 //! assert_eq!(m1.fmap(id), m1);
 //!
-//! // Composition: fmap (f . g) = fmap f . fmap g
+//! // Composition Law: fmap (f . g) = fmap f . fmap g
 //! let f = |x: &i32| x + 1;
 //! let g = |x: &i32| x * 2;
 //! let compose = |x: &i32| f(&g(x));
@@ -73,25 +169,77 @@
 //! let m2 = Maybe::Just(10);
 //! assert_eq!(m2.fmap(compose), m2.fmap(g).fmap(f));
 //!
-//! // Nothing case
+//! // Nothing case should also satisfy both laws
 //! let m3: Maybe<i32> = Maybe::Nothing;
-//! assert_eq!(m3.fmap(f), Maybe::Nothing);
+//! assert_eq!(m3.fmap(id), m3);  // Identity law for Nothing
+//! assert_eq!(m3.fmap(compose), m3.fmap(g).fmap(f));  // Composition law for Nothing
 //! ```
 //!
-//! ## Monad Laws
+//! ### Applicative Laws
+//!
+//! The `Maybe` implementation satisfies the applicative functor laws:
+//!
+//! 1. **Identity Law**: Applying `pure id` to any applicative value gives back the same value
+//!    - `pure id <*> v = v`
+//!
+//! 2. **Homomorphism**: Applying a pure function to a pure value is the same as applying the function to the value and then using pure
+//!    - `pure f <*> pure x = pure (f x)`
+//!
+//! 3. **Interchange**: Applying an applicative function to a pure value is the same as applying the pure function application to the function
+//!    - `u <*> pure y = pure ($ y) <*> u`
+//!
+//! 4. **Composition**: Composing applicative functions is associative
+//!    - `pure (.) <*> u <*> v <*> w = u <*> (v <*> w)`
+//!
+//! ```rust
+//! use rustica::datatypes::maybe::Maybe;
+//! use rustica::traits::applicative::Applicative;
+//! use rustica::traits::pure::Pure;
+//!
+//! // Identity Law for Just
+//! let v = Maybe::Just(42);
+//! let id = |x: &i32| *x;
+//! let pure_id = Maybe::Just(id);
+//! assert_eq!(v.apply(&pure_id), v);
+//!
+//! // Identity Law for Nothing
+//! let v_nothing: Maybe<i32> = Maybe::Nothing;
+//! assert_eq!(v_nothing.apply(&pure_id), v_nothing);
+//!
+//! // Homomorphism Law
+//! let f = |x: &i32| x + 5;
+//! let x = 10;
+//! let pure_f = Maybe::Just(f);
+//! let pure_x = Maybe::Just(x);
+//! assert_eq!(pure_x.apply(&pure_f), Maybe::Just(f(&x)));
+//! ```
+//!
+//! ### Monad Laws
+//!
+//! The `Maybe` implementation satisfies the monad laws:
+//!
+//! 1. **Left Identity**: Binding a function to a pure value is the same as applying the function
+//!    - `return a >>= f = f a`
+//!
+//! 2. **Right Identity**: Binding `return` to a monad gives the original monad
+//!    - `m >>= return = m`
+//!
+//! 3. **Associativity**: Sequential binds can be nested or flattened equivalently
+//!    - `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
 //!
 //! ```rust
 //! use rustica::datatypes::maybe::Maybe;
 //! use rustica::traits::monad::Monad;
+//! use rustica::traits::pure::Pure;
 //!
-//! // Left identity: return a >>= f = f a
+//! // Left Identity: return a >>= f = f a
 //! let a = 42;
 //! let f = |x: &i32| Maybe::Just(x + 10);
-//! assert_eq!(Maybe::Just(a).bind(f), f(&a));
+//! assert_eq!(Maybe::<i32>::pure(&a).bind(f), f(&a));
 //!
-//! // Right identity: m >>= return = m
+//! // Right Identity: m >>= return = m
 //! let m = Maybe::Just(42);
-//! let return_fn = |x: &i32| Maybe::Just(*x);
+//! let return_fn = |x: &i32| Maybe::<i32>::pure(x);
 //! assert_eq!(m.bind(return_fn), m);
 //!
 //! // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
@@ -102,10 +250,50 @@
 //! let left = m.bind(f).bind(g);
 //! let right = m.bind(|x| f(x).bind(g));
 //! assert_eq!(left, right);
-//! 
-//! // Nothing propagates
+//!
+//! // All laws should hold for Nothing as well
 //! let nothing: Maybe<i32> = Maybe::Nothing;
-//! assert_eq!(nothing.bind(f), Maybe::Nothing);
+//! assert_eq!(nothing.bind(f), Maybe::Nothing);  // Nothing propagates
+//! assert_eq!(nothing.bind(return_fn), nothing);  // Right identity for Nothing
+//! ```
+//!
+//! ### MonadPlus/Alternative Laws
+//!
+//! The `Maybe` implementation satisfies these additional laws:
+//!
+//! 1. **Left Identity**: `mzero` is a left identity for `mplus`
+//!    - `mzero `mplus` m = m`
+//!
+//! 2. **Right Identity**: `mzero` is a right identity for `mplus`
+//!    - `m `mplus` mzero = m`
+//!
+//! 3. **Left Zero**: `mzero` is a left zero for `bind`
+//!    - `mzero >>= f = mzero`
+//!
+//! 4. **Distributivity**: `mplus` distributes over `bind`
+//!    - `(m `mplus` n) >>= f = (m >>= f) `mplus` (n >>= f)`
+//!
+//! ```rust
+//! use rustica::datatypes::maybe::Maybe;
+//! use rustica::traits::monad_plus::MonadPlus;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Left and Right Identity
+//! let m = Maybe::Just(42);
+//! let mzero = Maybe::<i32>::mzero();
+//!
+//! assert_eq!(mzero.mplus(&m), m);  // Left identity
+//! assert_eq!(m.mplus(&mzero), m);  // Right identity
+//!
+//! // Left Zero
+//! let f = |x: &i32| Maybe::Just(x + 10);
+//! assert_eq!(mzero.bind(f), mzero);
+//!
+//! // Distributivity
+//! let n = Maybe::Just(7);
+//! let left = m.mplus(&n).bind(f);
+//! let right = m.bind(f).mplus(&n.bind(f));
+//! assert_eq!(left, right);
 //! ```
 //!
 //! # Examples
@@ -215,7 +403,7 @@ use std::marker::PhantomData;
 ///
 /// let a = Maybe::Just(5);
 /// let b = Maybe::Just(10);
-/// 
+///
 /// // Using lift2 from the Applicative trait to combine values
 /// let sum = a.lift2(&b, |x, y| *x + *y);
 /// assert_eq!(sum, Maybe::Just(15));
@@ -712,7 +900,7 @@ impl<T> Monad for Maybe<T> {
     ///
     /// // Using bind with conditional logic
     /// let m = Maybe::Just(10);
-    /// 
+    ///
     /// // This succeeds because 2 is not zero
     /// let result = m.bind(|x| safe_divide(*x, 2));
     /// assert_eq!(result, Maybe::Just(5));
@@ -763,7 +951,7 @@ impl<T> Monad for Maybe<T> {
     ///
     /// // Using bind_owned with a String (non-Copy type)
     /// let m = Maybe::Just(String::from("hello"));
-    /// 
+    ///
     /// // This consumes both the Maybe and the String
     /// let result = m.bind_owned(|s| {
     ///     if s.len() > 3 {
@@ -772,9 +960,9 @@ impl<T> Monad for Maybe<T> {
     ///         Maybe::Nothing
     ///     }
     /// });
-    /// 
+    ///
     /// assert_eq!(result, Maybe::Just(String::from("hello world")));
-    /// 
+    ///
     /// // The original m is moved and can't be used again
     /// // let invalid = m;  // This would cause a compile error
     /// ```
@@ -948,17 +1136,17 @@ impl<T> Monad for Maybe<T> {
     ///
     /// // A large vector that would be expensive to clone
     /// let large_data = vec![1; 1000000];
-    /// 
+    ///
     /// // Wrap it in nested Maybes
     /// let nested_clone = Maybe::Just(Maybe::Just(large_data.clone()));
     /// let nested_owned = Maybe::Just(Maybe::Just(large_data));
-    /// 
+    ///
     /// // join requires a clone of the inner Maybe
     /// let result1 = nested_clone.join();
-    /// 
+    ///
     /// // join_owned moves the inner Maybe, avoiding the clone
     /// let result2 = nested_owned.join_owned();
-    /// 
+    ///
     /// // Both produce the same result, but join_owned is more efficient
     /// // for large or non-Copy types
     /// ```

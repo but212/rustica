@@ -3,6 +3,28 @@
 //! The State monad represents computations that can read and modify state in a purely functional way.
 //! It encapsulates a function that takes a state and returns a value along with a new state.
 //!
+//! ## Functional Programming Context
+//!
+//! In functional programming, the State monad provides a principled way to work with stateful computations
+//! while maintaining referential transparency. It is a foundational abstraction for handling state in
+//! pure functional programming languages and libraries.
+//!
+//! The State monad can be understood as:
+//!
+//! - **A Functional Alternative to Mutable Variables**: Instead of modifying variables in place, the State monad
+//!   models state transitions as pure functions that produce new states.
+//! - **Sequential State Transformer**: State enables chaining operations where each step depends on and potentially
+//!   modifies the state from previous steps.
+//! - **Encapsulation of Effects**: State is part of the broader category of effect systems in functional programming
+//!   that make side effects explicit in the type system.
+//!
+//! Similar constructs in other functional languages include:
+//!
+//! - **Haskell**: `Control.Monad.State` and `StateT` transformer
+//! - **Scala**: `cats.data.State` and `scalaz.State`
+//! - **PureScript**: `Control.Monad.State`
+//! - **Kotlin**: `arrow.mtl.State` from Arrow library
+//!
 //! ## Core Concepts
 //!
 //! - **Stateful Computation**: State allows you to model computations that depend on and may modify some state.
@@ -37,13 +59,28 @@
 //! - **Game Logic**: Managing game state transitions without mutable variables
 //! - **Simulations**: Modeling step-by-step simulations with changing state
 //!
-//! ## Functional Patterns
+//! ## Type Class Implementations
 //!
-//! State implements several functional programming patterns:
+//! The State monad implements several important functional programming type classes:
 //!
-//! - **Functor**: Via the `fmap` method, allowing transformation of the result value
-//! - **Applicative**: Through the `pure` and `apply` methods
-//! - **Monad**: With the `bind` method for sequencing operations that depend on previous results
+//! - **Functor**: State implements the Functor type class through its `fmap` method, which allows
+//!   transforming the values inside the State context while preserving the state transitions.
+//!   - Implementation: `fmap :: (A -> B) -> State<S, A> -> State<S, B>`
+//!
+//! - **Applicative**: State implements the Applicative type class through its `pure` and `apply` methods:
+//!   - `pure`: Creates a State that returns the provided value without modifying the state
+//!     - Implementation: `pure :: A -> State<S, A>`
+//!   - `apply`: Applies a function inside a State to a value inside another State
+//!     - Implementation: `apply :: State<S, (A -> B)> -> State<S, A> -> State<S, B>`
+//!
+//! - **Monad**: State implements the Monad type class through its `bind` method, enabling sequential
+//!   composition of stateful computations where each computation can depend on the result of the previous.
+//!   - Implementation: `bind :: State<S, A> -> (A -> State<S, B>) -> State<S, B>`
+//!
+//! - **MonadState**: State implements the MonadState type class through the utility functions:
+//!   - `get`: Retrieves the current state without modification
+//!   - `put`: Replaces the current state and returns unit
+//!   - `modify`: Updates the state using a provided function
 //!
 //! ## Type Class Laws
 //!
@@ -65,7 +102,7 @@
 //!    let g = |x: i32| x + 2;
 //!    
 //!    // fmap(f . g) - composing functions and mapping once
-//!    let composed = state.clone().fmap(|x| f(g(x)));
+//!    let composed = state.clone().fmap(move |x| f(g(x)));
 //!    
 //!    // fmap(f) . fmap(g) - mapping twice with individual functions
 //!    let chained = state.clone().fmap(g).fmap(f);
@@ -404,6 +441,7 @@ where
     /// use rustica::datatypes::state::State;
     ///
     /// // Custom state transformer for a simple counter with reset capability
+    /// #[derive(Clone)]
     /// struct Counter {
     ///     value: i32,
     ///     max: i32,
@@ -529,9 +567,9 @@ where
     /// });
     ///
     /// // Chain operations
-    /// let operations = increment
-    ///     .bind(|_| double)
-    ///     .bind(|_| increment);
+    /// let operations = increment.clone()
+    ///     .bind(move |_| double.clone())
+    ///     .bind(move |_| increment.clone());
     ///
     /// // Start with count 5 and empty history
     /// let initial_state = (5, vec![]);
@@ -775,7 +813,7 @@ where
     /// let g = |x: i32| x + 2;
     ///
     /// // Compose the functions first, then fmap
-    /// let composed = state.clone().fmap(|x| f(g(x)));
+    /// let composed = state.clone().fmap(move |x| f(g(x)));
     ///
     /// // Apply the functions in sequence with separate fmaps
     /// let chained = state.clone().fmap(g).fmap(f);

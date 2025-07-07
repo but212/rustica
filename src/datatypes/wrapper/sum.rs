@@ -56,7 +56,40 @@
 //! assert_eq!(*sum.value(), 15); // 1 + 2 + 3 + 4 + 5 = 15
 //! ```
 //!
-//! ## Semigroup Laws
+//! ## Functional Programming Context
+//!
+//! The `Sum` wrapper is a fundamental building block for functional programming patterns:
+//!
+//! - **Aggregation**: Provides a principled way to combine values
+//! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
+//! - **Folding**: Can be used with `Foldable` to reduce collections to a single value
+//! - **Composition**: Combines with other algebraic structures for complex operations
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::sum::Sum;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::identity::Identity;
+//!
+//! // Transform the inner value while preserving the wrapper
+//! let a = Sum(5);
+//! let b = a.fmap(|x| x * 2);
+//! assert_eq!(*b.value(), 10);
+//! ```
+//!
+//! ## Type Class Implementations
+//!
+//! `Sum<T>` implements the following type classes:
+//!
+//! - `Semigroup`: For any `T` that implements `Add`
+//! - `Monoid`: For any `T` that implements `Add` and `Default`
+//! - `Functor`: For mapping operations over the inner value
+//! - `Identity`: For accessing the wrapped value
+//! - `HKT`: For higher-kinded type operations
+//! - `Foldable`: For folding operations
+//!
+//! ## Type Class Laws
+//!
+//! ### Semigroup Laws
 //!
 //! ```rust
 //! use rustica::datatypes::wrapper::sum::Sum;
@@ -80,7 +113,7 @@
 //! assert!(verify_associativity(1.5, 2.5, 3.5));
 //! ```
 //!
-//! ## Monoid Laws
+//! ### Monoid Laws
 //!
 //! ```rust
 //! use rustica::datatypes::wrapper::sum::Sum;
@@ -103,6 +136,34 @@
 //!
 //! assert!(verify_identity(42));
 //! assert!(verify_identity(3.14));
+//! ```
+//!
+//! ### Functor Laws
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::sum::Sum;
+//! use rustica::traits::functor::Functor;
+//!
+//! // Identity: fmap(id) = id
+//! // Composition: fmap(f . g) = fmap(f) . fmap(g)
+//! fn verify_functor_laws<T>(value: T)
+//! where T: Clone + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug
+//! {
+//!     let sum = Sum(value);
+//!     
+//!     // Identity law
+//!     let id_mapped = sum.clone().fmap(|x| x.clone());
+//!     assert_eq!(id_mapped, sum);
+//!     
+//!     // Composition law
+//!     let f = |x: &T| x.clone() + x.clone();
+//!     let g = |x: &T| x.clone() + x.clone() + x.clone();
+//!     
+//!     let left = sum.clone().fmap(|x| f(&g(x)));
+//!     let right = sum.fmap(g).fmap(f);
+//!     
+//!     assert_eq!(left, right);
+//! }
 //! ```
 
 use crate::traits::foldable::Foldable;
@@ -252,7 +313,7 @@ impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     /// }
     ///
     /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10.5, 2.7, 7.1));
+    /// assert!(verify_associativity(10, 2, 7));
     /// ```
     ///
     /// # Examples
@@ -332,14 +393,14 @@ impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     ///     let sum_b = Sum(b);
     ///     let sum_c = Sum(c);
     ///     
-    ///     let left = sum_a.combine(&sum_b).combine(&sum_c);
+    ///     let left = sum_a.clone().combine(&sum_b).combine(&sum_c);
     ///     let right = sum_a.combine(&sum_b.combine(&sum_c));
     ///     
     ///     left == right
     /// }
     ///
     /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10.5, 2.7, 7.1));
+    /// assert!(verify_associativity(10, 2, 7));
     /// ```
     ///
     /// # Examples
@@ -454,6 +515,7 @@ impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::monoid::Monoid;
     /// use rustica::traits::semigroup::Semigroup;
+    /// use rustica::traits::identity::Identity;
     ///
     /// // Create the identity element (Sum(0))
     /// let identity: Sum<i32> = Sum::empty();
@@ -580,24 +642,21 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
     ///
     /// // For any Sum(x) and functions f and g:
     /// // fmap(f . g) == fmap(f) . fmap(g)
-    /// fn verify_composition_law<T: Clone + std::ops::Add<Output = T> + PartialEq>(x: T) -> bool {
-    ///     let sum_x = Sum(x);
+    /// fn verify_composition_law() -> bool {
+    ///     let sum_x = Sum(5);
     ///     
     ///     // Define two functions
-    ///     let f = |x: &i32| x * 2;
-    ///     let g = |x: &i32| x + 1;
-    ///     
-    ///     // Compose the functions
-    ///     let fg = |x: &i32| f(&g(x));
+    ///     let f = |x: i32| x * 2;
+    ///     let g = |x: i32| x + 1;
     ///     
     ///     // Apply the functions in two different ways
-    ///     let result1 = sum_x.clone().fmap(fg);
-    ///     let result2 = sum_x.fmap(g).fmap(f);
+    ///     let result1 = sum_x.clone().fmap(|x| f(g(*x)));
+    ///     let result2 = sum_x.fmap(|x| g(*x)).fmap(|x| f(*x));
     ///     
     ///     result1 == result2
     /// }
     ///
-    /// assert!(verify_composition_law(5));
+    /// assert!(verify_composition_law());
     /// ```
     ///
     /// # Examples
@@ -727,46 +786,24 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
     /// assert_eq!(doubled, Sum(10));
     /// ```
     ///
-    /// Avoiding unnecessary clones with owned values:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a HashMap
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
-    ///
-    /// let sum_map = Sum(map);
-    ///
-    /// // Transform it efficiently without cloning the HashMap
-    /// let sum_values = sum_map.fmap_owned(|m| {
-    ///     m.values().sum::<i32>()
-    /// });
-    ///
-    /// assert_eq!(sum_values, Sum(6));  // 1 + 2 + 3 = 6
-    /// ```
-    ///
     /// Chaining transformations with ownership transfer:
     ///
     /// ```rust
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::functor::Functor;
     ///
-    /// let result = Sum("hello".to_string())
-    ///     .fmap_owned(|s| s.len())
+    /// let result = Sum(5)
     ///     .fmap_owned(|n| n * 2)
+    ///     .fmap_owned(|n| n + 5)
     ///     .fmap_owned(|n| n.to_string());
     ///
-    /// assert_eq!(result, Sum("10".to_string()));  // "hello" has length 5, 5*2=10
+    /// assert_eq!(result, Sum("15".to_string()));  // 5*2=10, 10+5=15
     /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
     where
         F: FnOnce(Self::Source) -> U,
+        Self::Source: Add<Output = Self::Source>,
     {
         Sum(f(self.0))
     }

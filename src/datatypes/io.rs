@@ -66,7 +66,7 @@
 //! let f = |x: i32| x + 1;
 //! let g = |x: i32| x * 2;
 //!
-//! let left = io.clone().fmap(|x| f(g(x)));
+//! let left = io.clone().fmap(move |x| f(g(x)));
 //! let right = io.clone().fmap(g).fmap(f);
 //! assert_eq!(left.run(), right.run());
 //! ```
@@ -84,14 +84,14 @@
 //! let id_io = IO::pure(id_fn);
 //!
 //! // Using apply to simulate <*>
-//! let result = v.clone().bind(|x| id_io.clone().fmap(move |f| f(x)));
+//! let result = v.clone().bind(move |x| id_io.clone().fmap(move |f| f(x)));
 //! assert_eq!(v.run(), result.run());
 //!
 //! // 2. Homomorphism: pure(f) <*> pure(x) == pure(f(x))
 //! let f = |x: i32| x + 5;
 //! let x = 10;
 //!
-//! let left = IO::pure(f).bind(|f| IO::pure(x).fmap(move |x| f(x)));
+//! let left = IO::pure(f).bind(move |f| IO::pure(x).fmap(move |x| f(x)));
 //! let right = IO::pure(f(x));
 //! assert_eq!(left.run(), right.run());
 //! ```
@@ -123,7 +123,7 @@
 //! let g = |x: i32| IO::pure(x * 2);
 //!
 //! let left = m.clone().bind(f).bind(g);
-//! let right = m.clone().bind(|x| f(x).bind(g));
+//! let right = m.clone().bind(move |x| f(x).bind(g));
 //! assert_eq!(left.run(), right.run());
 //! ```
 //!
@@ -407,8 +407,9 @@ impl std::error::Error for IOError {}
 /// });
 ///
 /// // Compose operations using bind (monadic sequencing)
-/// let program = read_input.bind(|input| {
-///     process(input).bind(|processed| {
+/// let program = read_input.bind(move |input| {
+///     let input_owned = input.clone();
+///     process(input_owned).bind(move |processed| {
 ///         display(processed)
 ///     })
 /// });
@@ -603,7 +604,7 @@ impl<A: 'static + Clone> IO<A> {
     /// let result = io_doubled.run();
     /// let run_duration = start_run.elapsed();
     ///
-    /// assert_eq!(result, 49995000);
+    /// assert_eq!(result, 99990000);
     /// assert!(fmap_duration < run_duration); // fmap should be much faster than run
     /// ```
     ///
@@ -813,7 +814,7 @@ impl<A: 'static + Clone> IO<A> {
     /// });
     ///
     /// // Create the processing pipeline using bind
-    /// let pipeline = read_config.bind(|config| {
+    /// let pipeline = read_config.bind(move |config| {
     ///     // Extract the input filename from config
     ///     let input_file = config.get("input_file").unwrap().clone();
     ///     let output_format = config.get("output_format").unwrap().clone();
@@ -821,7 +822,7 @@ impl<A: 'static + Clone> IO<A> {
     ///     // Read the data file
     ///     read_data(input_file).bind(move |data| {
     ///         // Process the data according to the output format
-    ///         process_data(data, output_format)
+    ///         process_data(data, output_format.clone())
     ///     })
     /// });
     ///
@@ -836,12 +837,12 @@ impl<A: 'static + Clone> IO<A> {
     /// use rustica::datatypes::io::IO;
     ///
     /// // An operation that might fail
-    /// let parse_number = |input: &str| IO::new(move || {
+    /// let parse_number = |input: String| IO::new(move || {
     ///     input.parse::<i32>().ok()
     /// });
     ///
     /// // Chain operations with error handling
-    /// let safe_calculation = |input: &str| parse_number(input).bind(|result| {
+    /// let safe_calculation = |input: String| parse_number(input).bind(|result| {
     ///     match result {
     ///         Some(num) => IO::pure(Some(num * 2)),
     ///         None => IO::pure(None),
@@ -849,11 +850,11 @@ impl<A: 'static + Clone> IO<A> {
     /// });
     ///
     /// // Try with valid input
-    /// let valid_result = safe_calculation("42").run();
+    /// let valid_result = safe_calculation("42".to_string()).run();
     /// assert_eq!(valid_result, Some(84));
     ///
     /// // Try with invalid input
-    /// let invalid_result = safe_calculation("not a number").run();
+    /// let invalid_result = safe_calculation("not a number".to_string()).run();
     /// assert_eq!(invalid_result, None);
     /// ```
     #[inline]

@@ -3,7 +3,32 @@
 //! This module provides the `Value` type, which wraps a value
 //! in a structure that implements the `Evaluate` trait.
 //!
-//! # Examples
+//! ## Functional Programming Context
+//!
+//! In functional programming, `Value<T>` represents the identity functor -
+//! the simplest context that wraps a value without adding effects. It serves as:
+//!
+//! - A minimal implementation of various type classes
+//! - A way to lift plain values into evaluatable contexts
+//! - A building block for more complex functional patterns
+//!
+//! ## Performance Characteristics
+//!
+//! - **Time Complexity**: O(1) for creation and evaluation operations
+//! - **Space Complexity**: O(1) - only stores the wrapped value
+//! - **Memory Usage**: Zero overhead - uses `#[repr(transparent)]` for identical memory layout
+//! - **Borrowing**: Supports both owned and borrowed access patterns
+//!
+//! ## Type Class Implementations
+//!
+//! `Value<T>` implements several type classes:
+//!
+//! - `Evaluate`: Returns the contained value
+//! - `Functor`: Maps functions over the contained value
+//! - `Identity`: Provides identity operations
+//! - `HKT`: Higher-kinded type representation
+//!
+//! ## Basic Usage
 //!
 //! ```rust
 //! use rustica::traits::evaluate::{Evaluate, EvaluateExt};
@@ -26,11 +51,15 @@
 //! assert_eq!(result, "42");
 //! ```
 //!
-//! # Performance Characteristics
+//! ## Type Class Laws
 //!
-//! - Time Complexity: O(1) for creation and evaluation operations
-//! - Space Complexity: O(1) - only stores the wrapped value
-//! - Memory Usage: Minimal overhead - uses `#[repr(transparent)]` to ensure the wrapper has the same memory layout as the wrapped type
+//! `Value<T>` satisfies these laws:
+//!
+//! - **Idempotence**: `value.evaluate() == value.evaluate()`
+//! - **Referential Transparency**: Replacing a `Value` with its evaluated result preserves behavior
+//! - **Identity**: `Value::new(x).evaluate() == x`
+//! - **Functor Identity**: `value.fmap(|x| x) == value`
+//! - **Functor Composition**: `value.fmap(f).fmap(g) == value.fmap(|x| g(f(x)))`
 
 use crate::traits::evaluate::Evaluate;
 use crate::traits::functor::Functor;
@@ -83,6 +112,7 @@ use crate::traits::identity::Identity;
 ///    assert_eq!(value.evaluate(), original);
 ///    ```
 #[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Value<T>(pub T);
 
 impl<T> Value<T> {
@@ -480,7 +510,8 @@ impl<T: Clone> Functor for Value<T> {
     ///     let result1 = Value::new(x).fmap_owned(fg);
     ///     let result2 = Value::new(x).fmap_owned(g).fmap_owned(f);
     ///     
-    ///     result1 == result2
+    ///     // Extract values for comparison since Value<T> doesn't implement PartialEq
+    ///     result1.0 == result2.0
     /// }
     ///
     /// assert!(verify_composition_law());

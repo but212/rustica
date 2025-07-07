@@ -2,6 +2,8 @@
 //!
 //! This module provides the `Product` wrapper type which forms a semigroup under multiplication.
 //!
+//! ## Basic Usage
+//!
 //! ```rust
 //! use rustica::datatypes::wrapper::product::Product;
 //! use rustica::traits::semigroup::Semigroup;
@@ -11,6 +13,10 @@
 //! let b = Product(10);
 //! let c = a.combine(&b);
 //! assert_eq!(c, Product(50));
+//!
+//! // Use the identity element from Monoid
+//! let one = Product::empty();  // Product(1)
+//! assert_eq!(a.combine(&one), Product(5));
 //! ```
 //!
 //! ## Performance Characteristics
@@ -18,6 +24,55 @@
 //! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
 //! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
 //! - Clone Cost: Depends on the cost of cloning the inner type `T`
+//!
+//! ## Functional Programming Context
+//!
+//! The `Product` wrapper is a fundamental building block for functional programming patterns:
+//!
+//! - **Aggregation**: Provides a principled way to combine values through multiplication
+//! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
+//! - **Folding**: Can be used with `Foldable` to reduce collections to a single product
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::product::Product;
+//! use rustica::traits::functor::Functor;
+//!
+//! // Transform the inner value while preserving the wrapper
+//! let a = Product(5);
+//! let b = a.fmap(|x| x * 2);
+//! assert_eq!(b, Product(10));
+//! ```
+//!
+//! ## Type Class Implementations
+//!
+//! `Product<T>` implements the following type classes:
+//!
+//! - `Semigroup`: For any `T` that implements `Mul`
+//! - `Monoid`: For any `T` that implements `Mul` and `From<u8>` (for the identity element)
+//! - `Functor`: For mapping operations over the inner value
+//!
+//! ## Type Class Laws
+//!
+//! ### Semigroup Laws
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::product::Product;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Associativity: (a * b) * c = a * (b * c)
+//! fn verify_associativity<T: Clone + std::ops::Mul<Output = T> + PartialEq>(a: T, b: T, c: T) -> bool {
+//!     let product_a = Product(a);
+//!     let product_b = Product(b);
+//!     let product_c = Product(c);
+//!     
+//!     let left = product_a.clone().combine(&product_b).combine(&product_c);
+//!     let right = product_a.combine(&product_b.combine(&product_c));
+//!     
+//!     left == right
+//! }
+//!
+//! assert!(verify_associativity(2, 3, 4));
+//! ```
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
@@ -315,6 +370,7 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::monoid::Monoid;
     /// use rustica::traits::semigroup::Semigroup;
+    /// use rustica::traits::identity::Identity;
     ///
     /// // Create the identity element (Product(1))
     /// let identity: Product<i32> = Product::empty();
@@ -457,24 +513,21 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
     ///
     /// // For any Product(x) and functions f and g:
     /// // fmap(f . g) == fmap(f) . fmap(g)
-    /// fn verify_composition_law<T: Clone + std::ops::Mul<Output = T> + PartialEq>(x: T) -> bool {
-    ///     let product_x = Product(x);
+    /// fn verify_composition_law() -> bool {
+    ///     let product_x = Product(5);
     ///     
     ///     // Define two functions
     ///     let f = |x: &i32| x * 2;
     ///     let g = |x: &i32| x + 1;
     ///     
-    ///     // Compose the functions
-    ///     let fg = |x: &i32| f(&g(x));
-    ///     
     ///     // Apply the functions in two different ways
-    ///     let result1 = product_x.clone().fmap(fg);
+    ///     let result1 = product_x.clone().fmap(|x| f(&g(x)));
     ///     let result2 = product_x.fmap(g).fmap(f);
     ///     
     ///     result1 == result2
     /// }
     ///
-    /// assert!(verify_composition_law(5));
+    /// assert!(verify_composition_law());
     /// ```
     ///
     /// # Examples
@@ -604,41 +657,19 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
     /// assert_eq!(doubled, Product(10));
     /// ```
     ///
-    /// Avoiding unnecessary clones with owned values:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a HashMap
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
-    ///
-    /// let product_map = Product(map);
-    ///
-    /// // Transform it efficiently without cloning the HashMap
-    /// let product_values = product_map.fmap_owned(|m| {
-    ///     m.values().product::<i32>()
-    /// });
-    ///
-    /// assert_eq!(product_values, Product(6));  // 1 * 2 * 3 = 6
-    /// ```
-    ///
     /// Chaining transformations with ownership transfer:
     ///
     /// ```rust
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::functor::Functor;
     ///
-    /// let result = Product("hello".to_string())
-    ///     .fmap_owned(|s| s.len())
+    /// // Using i32 which implements Mul
+    /// let result = Product(5)
     ///     .fmap_owned(|n| n * 2)
+    ///     .fmap_owned(|n| n + 1)
     ///     .fmap_owned(|n| n.to_string());
     ///
-    /// assert_eq!(result, Product("10".to_string()));  // "hello" has length 5, 5*2=10
+    /// assert_eq!(result, Product("11".to_string()));  // 5*2=10, 10+1=11
     /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>

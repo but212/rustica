@@ -42,7 +42,7 @@
 //!
 //! // 1. Identity: fmap id = id
 //! let e: Either<i32, String> = Either::right("test".to_string());
-//! assert_eq!(e.fmap(|x| x), e);
+//! assert_eq!(e.fmap(|x| x.clone()), e);
 //!
 //! // 2. Composition: fmap (f . g) = fmap f . fmap g
 //! let e: Either<i32, i32> = Either::right(5);
@@ -54,7 +54,8 @@
 //!
 //! // Laws hold for Left values too (trivially, since fmap doesn't affect Left)
 //! let e: Either<i32, String> = Either::left(10);
-//! assert_eq!(e.fmap(|x: &String| x.len()), e);
+//! let e_with_len = e.clone().fmap(|x: &String| x.len());
+//! assert_eq!(e_with_len, Either::left(10));
 //! ```
 //!
 //! ### Monad Laws
@@ -412,7 +413,10 @@ impl<L, R> Either<L, R> {
     /// Panics if called on a `Left` value.
     #[inline]
     pub fn unwrap_right(self) -> R {
-        self.right_value()
+        match self {
+            Either::Right(r) => r,
+            Either::Left(_) => panic!("called unwrap_right on Left value"),
+        }
     }
 
     /// Returns the contained `Left` value, consuming the `self` value.

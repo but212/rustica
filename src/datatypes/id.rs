@@ -459,6 +459,7 @@ impl<T: Clone> Monad for Id<T> {
     /// ```rust
     /// use rustica::datatypes::id::Id;
     /// use rustica::traits::monad::Monad;
+    /// use rustica::traits::identity::Identity;
     ///
     /// // Simple binding with a transformation
     /// let x = Id::new(5);

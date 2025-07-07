@@ -1,10 +1,20 @@
-//! # First
-//!
 //! This module provides the `First` wrapper type which forms a semigroup by taking the first non-None value.
+//!
+//! ## Functional Programming Context
+//!
+//! The `First` type is a wrapper around `Option<T>` that implements various type classes with specific semantics:
+//!
+//! - As a `Semigroup`, it combines values by keeping the first non-None value
+//! - As a `Monoid`, it uses `None` as its identity element
+//! - As a `Functor`, it maps functions over the inner value if present
+//! - As a `Foldable`, it allows extraction and reduction of the inner value
+//!
+//! ## Basic Usage
 //!
 //! ```rust
 //! use rustica::datatypes::wrapper::first::First;
 //! use rustica::traits::semigroup::Semigroup;
+//! use rustica::traits::monoid::Monoid;
 //!
 //! let a = First(Some(5));
 //! let b = First(Some(10));
@@ -15,6 +25,41 @@
 //! let y = First(Some(7));
 //! let z = x.combine(&y);
 //! assert_eq!(z, First(Some(7))); // First value was None, so takes the second
+//!
+//! // Use the identity element from Monoid
+//! let empty = First::<i32>::empty();  // First(None)
+//! assert_eq!(empty.combine(&a), a);
+//! ```
+//!
+//! ## Type Class Laws
+//!
+//! `First<T>` satisfies the semigroup associativity law:
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::first::First;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Verify associativity: (a combine b) combine c = a combine (b combine c)
+//! let a = First(Some(1));
+//! let b = First(Some(2));
+//! let c = First(Some(3));
+//! assert_eq!(a.clone().combine(&b).combine(&c),
+//!            a.combine(&b.combine(&c)));
+//! ```
+//!
+//! `First<T>` also satisfies the monoid identity laws:
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::first::First;
+//! use rustica::traits::semigroup::Semigroup;
+//! use rustica::traits::monoid::Monoid;
+//!
+//! let a = First(Some(42));
+//! let id = First::empty();  // First(None)
+//!
+//! // Identity laws: id combine x = x combine id = x
+//! assert_eq!(id.combine(&a), a);
+//! assert_eq!(a.combine(&id), a);
 //! ```
 //!
 //! ## Performance Characteristics
@@ -22,6 +67,15 @@
 //! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
 //! - Memory Usage: Stores exactly one `Option<T>` value with no additional overhead
 //! - Clone Cost: Depends on the cost of cloning the inner type `T`
+//!
+//! ## Type Class Implementations
+//!
+//! `First<T>` implements the following type classes:
+//!
+//! - `Semigroup`: For any `T` that implements `Clone`
+//! - `Monoid`: For any `T` that implements `Clone`
+//! - `Functor`: For mapping operations over the inner value
+//! - `Foldable`: For extracting and processing the inner value
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;

@@ -10,6 +10,35 @@
 //! - preview/review functions are wrapped as Iso's forward/backward operations
 //! - This abstraction builds on Iso to provide lawful prism behavior
 //!
+//! ## Functional Programming Context
+//!
+//! In functional programming, a Prism is a type of optic used for handling sum types (like enums in Rust).
+//! Unlike Lens, which focuses on product types (like structs), Prisms handle cases where the focus might not
+//! exist. This makes them particularly suitable for enum variants.
+//!
+//! The IsoPrism implementation specifically builds on the concept of isomorphisms (Iso), adapting
+//! them to the partial nature of Prisms. This representation provides several advantages:
+//!
+//! - **Composable Abstractions**: IsoPrisms can be composed with other optics following function composition semantics
+//! - **Type Safety**: Leverages Rust's type system to ensure correct handling of variants
+//! - **Functional Purity**: Operations maintain referential transparency and avoid side effects
+//! - **Law Abidance**: Follows the standard optic laws expected of well-behaved Prisms
+//!
+//! Related concepts in other functional languages include:
+//!
+//! - Haskell's Prism in libraries like lens
+//! - Scala's Prism in libraries like Monocle
+//! - PureScript's Prism
+//! - TypeScript's Prism in fp-ts-optics
+//!
+//! ## Type Class Implementations
+//!
+//! IsoPrism implements several important functional programming interfaces:
+//!
+//! - **Composable Optic**: Prisms can be composed with other prisms using the `compose` method
+//! - **Optional Getter**: Safely extracts a value if it exists via the `preview` method
+//! - **Constructor**: Creates a value of the parent type from the focus type via `review`
+//!
 //! ## Performance Characteristics
 //!
 //! ### Time Complexity
@@ -154,7 +183,7 @@
 //! assert_eq!(new_circle_drawing, Drawing::Shape(Shape::Circle { radius: 10.0 }));
 //! ```
 //!
-//! ## Lawful Optic Laws
+//! ## Type Class Laws
 //!
 //! IsoPrism follows the standard prism laws:
 //!
@@ -162,22 +191,22 @@
 //!   - This law ensures that if you review a value and then preview the result, you get back the original value.
 //!   - Example:
 //!   ```rust
-//!   # use rustica::datatypes::iso_prism::IsoPrism;
-//!   # use rustica::traits::iso::Iso;
-//!   # #[derive(Clone, Debug, PartialEq)]
-//!   # enum MyEnum { Foo(i32), Bar(String) }
-//!   # struct FooPrismIso;
-//!   # impl Iso<MyEnum, Option<i32>> for FooPrismIso {
-//!   #     type From = MyEnum;
-//!   #     type To = Option<i32>;
-//!   #     fn forward(&self, from: &MyEnum) -> Option<i32> {
-//!   #         match from { MyEnum::Foo(x) => Some(*x), _ => None, }
-//!   #     }
-//!   #     fn backward(&self, to: &Option<i32>) -> MyEnum {
-//!   #         match to { Some(x) => MyEnum::Foo(*x), None => MyEnum::Bar("default".to_string()), }
-//!   #     }
-//!   # }
-//!   # let prism = IsoPrism::new(FooPrismIso);
+//!   use rustica::datatypes::iso_prism::IsoPrism;
+//!   use rustica::traits::iso::Iso;
+//!   #[derive(Clone, Debug, PartialEq)]
+//!   enum MyEnum { Foo(i32), Bar(String) }
+//!   struct FooPrismIso;
+//!   impl Iso<MyEnum, Option<i32>> for FooPrismIso {
+//!       type From = MyEnum;
+//!       type To = Option<i32>;
+//!       fn forward(&self, from: &MyEnum) -> Option<i32> {
+//!           match from { MyEnum::Foo(x) => Some(*x), _ => None, }
+//!       }
+//!       fn backward(&self, to: &Option<i32>) -> MyEnum {
+//!           match to { Some(x) => MyEnum::Foo(*x), None => MyEnum::Bar("default".to_string()), }
+//!       }
+//!   }
+//!   let prism = IsoPrism::new(FooPrismIso);
 //!   let value = 42;
 //!   let reviewed = prism.review(&value);
 //!   assert_eq!(prism.preview(&reviewed), Some(value));
@@ -187,22 +216,22 @@
 //!   - This law states that previewing a value and then reviewing the result gives you back something equivalent to the original.
 //!   - Example:
 //!   ```rust
-//!   # use rustica::datatypes::iso_prism::IsoPrism;
-//!   # use rustica::traits::iso::Iso;
-//!   # #[derive(Clone, Debug, PartialEq)]
-//!   # enum MyEnum { Foo(i32), Bar(String) }
-//!   # struct FooPrismIso;
-//!   # impl Iso<MyEnum, Option<i32>> for FooPrismIso {
-//!   #     type From = MyEnum;
-//!   #     type To = Option<i32>;
-//!   #     fn forward(&self, from: &MyEnum) -> Option<i32> {
-//!   #         match from { MyEnum::Foo(x) => Some(*x), _ => None, }
-//!   #     }
-//!   #     fn backward(&self, to: &Option<i32>) -> MyEnum {
-//!   #         match to { Some(x) => MyEnum::Foo(*x), None => MyEnum::Bar("default".to_string()), }
-//!   #     }
-//!   # }
-//!   # let prism = IsoPrism::new(FooPrismIso);
+//!   use rustica::datatypes::iso_prism::IsoPrism;
+//!   use rustica::traits::iso::Iso;
+//!   #[derive(Clone, Debug, PartialEq)]
+//!   enum MyEnum { Foo(i32), Bar(String) }
+//!   struct FooPrismIso;
+//!   impl Iso<MyEnum, Option<i32>> for FooPrismIso {
+//!       type From = MyEnum;
+//!       type To = Option<i32>;
+//!       fn forward(&self, from: &MyEnum) -> Option<i32> {
+//!           match from { MyEnum::Foo(x) => Some(*x), _ => None, }
+//!       }
+//!       fn backward(&self, to: &Option<i32>) -> MyEnum {
+//!           match to { Some(x) => MyEnum::Foo(*x), None => MyEnum::Bar("default".to_string()), }
+//!       }
+//!   }
+//!   let prism = IsoPrism::new(FooPrismIso);
 //!   let original = MyEnum::Foo(42);
 //!   if let Some(value) = prism.preview(&original) {
 //!       let reconstructed = prism.review(&value);

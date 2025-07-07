@@ -32,11 +32,36 @@
 //! transparency. Instead of mutating a global log or using side effects, the Writer monad makes the output an
 //! explicit part of the computation's return value.
 //!
-//! The Writer monad implements several functional programming abstractions:
+//! ## Type Class Implementations
 //!
-//! - **Functor**: Via the `fmap` method, allowing transformation of the value
-//! - **Applicative**: Through the `combine` and `lift2` methods
-//! - **Monad**: With the `bind` method for sequencing operations
+//! The Writer monad implements several important functional programming type classes:
+//!
+//! - **Functor**: Writer implements the Functor type class through its `fmap` method, which allows
+//!   transforming the value inside the Writer context while preserving the accumulated log.
+//!   - Implementation: `fmap :: (A -> B) -> Writer<W, A> -> Writer<W, B>`
+//!   - This enables mapping operations over the contained value without affecting the log.
+//!
+//! - **Applicative**: Writer implements the Applicative type class through its `pure` and `apply` methods:
+//!   - `pure`: Creates a Writer with the provided value and an empty log
+//!     - Implementation: `pure :: A -> Writer<W, A>`
+//!   - `apply`: Applies a function inside a Writer to a value inside another Writer, combining their logs
+//!     - Implementation: `apply :: Writer<W, (A -> B)> -> Writer<W, A> -> Writer<W, B>`
+//!
+//! - **Monad**: Writer implements the Monad type class through its `bind` method, enabling sequential
+//!   composition of Writer computations, where each computation can depend on the result of the previous
+//!   and logs are combined.
+//!   - Implementation: `bind :: Writer<W, A> -> (A -> Writer<W, B>) -> Writer<W, B>`
+//!
+//! - **MonadWriter**: Writer implements the MonadWriter type class through the utility functions:
+//!   - `tell`: Creates a Writer with the given log and unit value
+//!     - Implementation: `tell :: W -> Writer<W, ()>`
+//!   - `listen`: Executes a Writer computation and returns both the original result and the accumulated log
+//!     - Implementation: `listen :: Writer<W, A> -> Writer<W, (A, W)>`
+//!   - `pass`: Executes a Writer computation that produces a value and a function to transform the log
+//!     - Implementation: `pass :: Writer<W, (A, W -> W)> -> Writer<W, A>`
+//!
+//! - **Monoid**: When the value type is a Monoid, the Writer itself forms a Monoid
+//!   - Implementation: `empty :: () -> Writer<W, A>` and `combine :: Writer<W, A> -> Writer<W, A> -> Writer<W, A>`
 //!
 //! ## Type Class Laws
 //!
@@ -1425,7 +1450,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(profile.get("id").unwrap(), "42");
     /// assert_eq!(profile.get("name").unwrap(), "Alice");
     /// assert_eq!(profile.get("role").unwrap(), "Admin");
-    ///
+    /// ```
     /// This method is similar to `apply` but it consumes the Writer instances, potentially allowing
     /// for more efficient memory usage in some cases.
     ///
@@ -1655,7 +1680,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// }
     ///
     /// // Create a Writer for calculating tax
-    /// let price = Writer::new(Log(vec!["Base price: $100".to_string()]), 100);
+    /// let price = Writer::new(Log(vec!["Base price: $100".to_string()]), 100.0);
     /// let tax_rate = Writer::new(Log(vec!["Tax rate: 8%".to_string()]), 0.08);
     ///
     /// // Calculate total price with tax
@@ -1784,7 +1809,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// }
     ///
     /// // Define a simple order structure
-    /// #[derive(Debug, PartialEq)]
+    /// #[derive(Debug, PartialEq, Clone)]
     /// struct Order {
     ///     id: u32,
     ///     product: String,
