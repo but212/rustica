@@ -184,7 +184,7 @@
 //! ```
 use crate::traits::identity::Identity;
 use crate::transformers::cont_t::ContT;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::sync::Arc;
 
@@ -1104,7 +1104,7 @@ where
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<R, A> Arbitrary for Cont<R, A>
 where
     R: Clone + Send + Sync + 'static,

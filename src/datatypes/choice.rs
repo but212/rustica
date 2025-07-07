@@ -242,7 +242,7 @@
 //! - Optimize performance for large collections of alternatives
 //! - Add property-based tests for typeclass laws
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
@@ -2258,7 +2258,7 @@ impl<T: Clone + Default> std::iter::Sum for Choice<T> {
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<T: Arbitrary + 'static> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         let primary = T::arbitrary(g);

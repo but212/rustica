@@ -317,7 +317,7 @@
 //! ```
 
 use crate::utils::error_utils::AppError;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use spin_sleep::SpinSleeper;
 use std::sync::Arc;
@@ -1077,7 +1077,7 @@ impl<A: Clone + 'static> crate::traits::evaluate::Evaluate for IO<A> {
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<A: Clone + Arbitrary> Arbitrary for IO<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);

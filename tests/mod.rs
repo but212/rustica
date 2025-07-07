@@ -1,8 +1,8 @@
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 pub mod datatypes;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 pub mod traits;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 pub mod transformers;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 pub mod utils_test;

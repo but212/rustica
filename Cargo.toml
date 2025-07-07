@@ -36,8 +36,9 @@ criterion = { version = "0.6", features = ["html_reports"] }
 default = []
 pvec = []
 async = ["futures", "tokio"]
-full = ["async", "pvec"]
-develop = ["quickcheck", "full"]
+full = ["async", "pvec", "quickcheck"]
+develop = ["full"]
+quickcheck = ["dep:quickcheck"]
 
 [[bench]]
 name = "datatypes_benchmarks"

@@ -424,7 +424,7 @@ use crate::traits::monad::Monad;
 use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 
 /// The Writer monad represents computations that produce a value along with an accumulated log.
@@ -2247,7 +2247,7 @@ impl<'a, W, A> IntoIterator for &'a mut Writer<W, A> {
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<E, A> Arbitrary for Writer<E, A>
 where
     E: Monoid + Arbitrary,

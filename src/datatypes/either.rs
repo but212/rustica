@@ -176,7 +176,7 @@ use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use crate::utils::error_utils;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
@@ -1127,7 +1127,7 @@ impl<'a, R> Iterator for EitherIterMut<'a, R> {
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<L, R> Arbitrary for Either<L, R>
 where
     L: Arbitrary,
