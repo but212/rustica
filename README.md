@@ -106,7 +106,7 @@ Rustica provides a rich collection of functional data types:
   - Various wrapper types (`First`, `Last`, `Min`, `Max`, etc.)
 
 - **Persistent Collections**
-  - **PersistentVector<T>**: An efficient immutable vector with structural sharing and small vector optimization
+  - `PersistentVector<T>` - An efficient immutable vector with structural sharing and small vector optimization
 
 - **Transformers**
   - `StateT<S, M, A>` - State monad transformer for combining state with other effects
@@ -142,13 +142,15 @@ Rustica provides standardized error handling utilities that work across differen
 
 Rustica provides a high-performance, immutable persistent vector (RRB-Tree) for functional programming patterns.
 
-#### Enable the feature
+Enable the feature
+
 ```toml
 [dependencies]
 rustica = { version = "0.7.1", features = ["pvec"] }
 ```
 
-#### Example Usage
+Example Usage
+
 ```rust
 use rustica::pvec::PersistentVector;
 use rustica::pvec::pvec;
@@ -162,7 +164,8 @@ assert_eq!(v2.get(5), Some(&6));
 assert_eq!(v3.get(0), Some(&10));
 ```
 
-#### Advanced: Chunk Size and Cache Policy
+Advanced: Chunk Size and Cache Policy
+
 ```rust
 let vec = PersistentVector::with_chunk_size(16);
 let vec = vec.push_back(1).push_back(2);

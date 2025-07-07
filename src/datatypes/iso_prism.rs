@@ -8,8 +8,59 @@
 //!
 //! - A Prism can be generalized as an Iso of the form S <-> `Option<A>`
 //! - preview/review functions are wrapped as Iso's forward/backward operations
+//! - This abstraction builds on Iso to provide lawful prism behavior
+//!
+//! ## Functional Programming Context
+//!
+//! In functional programming, a Prism is a type of optic used for handling sum types (like enums in Rust).
+//! Unlike Lens, which focuses on product types (like structs), Prisms handle cases where the focus might not
+//! exist. This makes them particularly suitable for enum variants.
+//!
+//! The IsoPrism implementation specifically builds on the concept of isomorphisms (Iso), adapting
+//! them to the partial nature of Prisms. This representation provides several advantages:
+//!
+//! - **Composable Abstractions**: IsoPrisms can be composed with other optics following function composition semantics
+//! - **Type Safety**: Leverages Rust's type system to ensure correct handling of variants
+//! - **Functional Purity**: Operations maintain referential transparency and avoid side effects
+//! - **Law Abidance**: Follows the standard optic laws expected of well-behaved Prisms
+//!
+//! Related concepts in other functional languages include:
+//!
+//! - Haskell's Prism in libraries like lens
+//! - Scala's Prism in libraries like Monocle
+//! - PureScript's Prism
+//! - TypeScript's Prism in fp-ts-optics
+//!
+//! ## Type Class Implementations
+//!
+//! IsoPrism implements several important functional programming interfaces:
+//!
+//! - **Composable Optic**: Prisms can be composed with other prisms using the `compose` method
+//! - **Optional Getter**: Safely extracts a value if it exists via the `preview` method
+//! - **Constructor**: Creates a value of the parent type from the focus type via `review`
+//!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//!
+//! - **Construction**: O(1) - Minimal overhead for creating the IsoPrism wrapper
+//! - **preview (Get)**: O(m) - Where m is the complexity of the underlying Iso's forward function
+//!   - Typically O(1) for simple pattern matching on enum variants
+//! - **review (Set)**: O(n) - Where n is the complexity of the underlying Iso's backward function
+//!   - Typically O(1) for simple enum construction
+//! - **compose**: O(1) - Constant time to create a composition of prisms
+//!   - The composed operations will have the combined complexity of the constituent prisms
+//!
+//! ### Memory Usage
+//!
+//! - **Structure**: Minimal - Stores only the Iso implementation and PhantomData
+//! - **Operations**: Determined by the underlying Iso implementation
+//!   - Memory usage depends on whether the Iso's functions perform cloning or create new data structures
+//! - **Composition**: No immediate memory overhead for composition itself
 //!
 //! ## Examples
+//!
+//! ### Basic Usage
 //!
 //! ```rust
 //! use rustica::datatypes::iso_prism::IsoPrism;
@@ -48,10 +99,145 @@
 //! assert_eq!(reviewed, MyEnum::Foo(20));
 //! ```
 //!
-//! ## Lawful Optic Laws
+//! ### Composing IsoPrisms
+//!
+//! ```rust
+//! use rustica::datatypes::iso_prism::IsoPrism;
+//! use rustica::traits::iso::Iso;
+//! use std::marker::PhantomData;
+//!
+//! // Nested enum structure
+//! #[derive(Clone, Debug, PartialEq)]
+//! enum Shape {
+//!     Circle { radius: f64 },
+//!     Rectangle { width: f64, height: f64 },
+//! }
+//!
+//! #[derive(Clone, Debug, PartialEq)]
+//! enum Drawing {
+//!     Shape(Shape),
+//!     Text(String),
+//! }
+//!
+//! // Iso for focusing on the Shape variant in Drawing
+//! struct ShapeIso;
+//! impl Iso<Drawing, Option<Shape>> for ShapeIso {
+//!     type From = Drawing;
+//!     type To = Option<Shape>;
+//!
+//!     fn forward(&self, from: &Drawing) -> Option<Shape> {
+//!         match from {
+//!             Drawing::Shape(shape) => Some(shape.clone()),
+//!             _ => None,
+//!         }
+//!     }
+//!
+//!     fn backward(&self, to: &Option<Shape>) -> Drawing {
+//!         match to {
+//!             Some(shape) => Drawing::Shape(shape.clone()),
+//!             None => Drawing::Text("Placeholder".to_string()),
+//!         }
+//!     }
+//! }
+//!
+//! // Iso for focusing on the Circle variant in Shape
+//! struct CircleIso;
+//! impl Iso<Shape, Option<f64>> for CircleIso {
+//!     type From = Shape;
+//!     type To = Option<f64>;
+//!
+//!     fn forward(&self, from: &Shape) -> Option<f64> {
+//!         match from {
+//!             Shape::Circle { radius } => Some(*radius),
+//!             _ => None,
+//!         }
+//!     }
+//!
+//!     fn backward(&self, to: &Option<f64>) -> Shape {
+//!         match to {
+//!             Some(radius) => Shape::Circle { radius: *radius },
+//!             None => Shape::Rectangle { width: 0.0, height: 0.0 },
+//!         }
+//!     }
+//! }
+//!
+//! // Create the prisms
+//! let shape_prism = IsoPrism::new(ShapeIso);
+//! let circle_prism = IsoPrism::new(CircleIso);
+//!
+//! // Compose them to get a prism that focuses on Circle within Drawing
+//! let circle_in_drawing_prism = shape_prism.compose(circle_prism);
+//!
+//! // Use the composed prism
+//! let circle_drawing = Drawing::Shape(Shape::Circle { radius: 5.0 });
+//! let rect_drawing = Drawing::Shape(Shape::Rectangle { width: 3.0, height: 4.0 });
+//! let text_drawing = Drawing::Text("Hello".to_string());
+//!
+//! // Extract the radius from various drawings
+//! assert_eq!(circle_in_drawing_prism.preview(&circle_drawing), Some(5.0));
+//! assert_eq!(circle_in_drawing_prism.preview(&rect_drawing), None);
+//! assert_eq!(circle_in_drawing_prism.preview(&text_drawing), None);
+//!
+//! // Create a new drawing with a circle of radius 10.0
+//! let new_circle_drawing = circle_in_drawing_prism.review(&10.0);
+//! assert_eq!(new_circle_drawing, Drawing::Shape(Shape::Circle { radius: 10.0 }));
+//! ```
+//!
+//! ## Type Class Laws
+//!
+//! IsoPrism follows the standard prism laws:
 //!
 //! - **Review-Preview Law:** `prism.preview(&prism.review(&a)) == Some(a)`
-//! - **Preview-Review Law:** If `prism.preview(s) == Some(a)`, then `prism.review(&a) == s`
+//!   - This law ensures that if you review a value and then preview the result, you get back the original value.
+//!   - Example:
+//!   ```rust
+//!   use rustica::datatypes::iso_prism::IsoPrism;
+//!   use rustica::traits::iso::Iso;
+//!   #[derive(Clone, Debug, PartialEq)]
+//!   enum MyEnum { Foo(i32), Bar(String) }
+//!   struct FooPrismIso;
+//!   impl Iso<MyEnum, Option<i32>> for FooPrismIso {
+//!       type From = MyEnum;
+//!       type To = Option<i32>;
+//!       fn forward(&self, from: &MyEnum) -> Option<i32> {
+//!           match from { MyEnum::Foo(x) => Some(*x), _ => None, }
+//!       }
+//!       fn backward(&self, to: &Option<i32>) -> MyEnum {
+//!           match to { Some(x) => MyEnum::Foo(*x), None => MyEnum::Bar("default".to_string()), }
+//!       }
+//!   }
+//!   let prism = IsoPrism::new(FooPrismIso);
+//!   let value = 42;
+//!   let reviewed = prism.review(&value);
+//!   assert_eq!(prism.preview(&reviewed), Some(value));
+//!   ```
+//!
+//! - **Preview-Review Law:** If `prism.preview(s) == Some(a)`, then `prism.review(&a)` should be equivalent to `s`.
+//!   - This law states that previewing a value and then reviewing the result gives you back something equivalent to the original.
+//!   - Example:
+//!   ```rust
+//!   use rustica::datatypes::iso_prism::IsoPrism;
+//!   use rustica::traits::iso::Iso;
+//!   #[derive(Clone, Debug, PartialEq)]
+//!   enum MyEnum { Foo(i32), Bar(String) }
+//!   struct FooPrismIso;
+//!   impl Iso<MyEnum, Option<i32>> for FooPrismIso {
+//!       type From = MyEnum;
+//!       type To = Option<i32>;
+//!       fn forward(&self, from: &MyEnum) -> Option<i32> {
+//!           match from { MyEnum::Foo(x) => Some(*x), _ => None, }
+//!       }
+//!       fn backward(&self, to: &Option<i32>) -> MyEnum {
+//!           match to { Some(x) => MyEnum::Foo(*x), None => MyEnum::Bar("default".to_string()), }
+//!       }
+//!   }
+//!   let prism = IsoPrism::new(FooPrismIso);
+//!   let original = MyEnum::Foo(42);
+//!   if let Some(value) = prism.preview(&original) {
+//!       let reconstructed = prism.review(&value);
+//!       assert_eq!(reconstructed, original);
+//!   }
+//!   ```
 //!
 //! See also: [`crate::datatypes::prism`], [`crate::traits::iso::Iso`]
 
@@ -64,12 +250,38 @@ use std::marker::PhantomData;
 /// It allows safe and functional partial access to a variant of a sum type (e.g., enum variant),
 /// and the ability to construct the sum type from the focused value.
 ///
+/// # Performance Characteristics
+///
+/// ## Time Complexity
+///
+/// * **Construction**: O(1) - Constant time to create the IsoPrism wrapper
+/// * **preview**: O(m) - Where m is the complexity of the underlying Iso's forward function
+/// * **review**: O(n) - Where n is the complexity of the underlying Iso's backward function
+/// * **compose**: O(1) - Constant time to create a composition of prisms
+///
+/// ## Memory Usage
+///
+/// * **Structure**: Minimal - Stores only the Iso implementation and PhantomData markers
+/// * **Thread Safety**: The IsoPrism is as thread-safe as its underlying Iso implementation
+/// * **Operations**: Memory usage depends on the underlying Iso implementation and whether
+///   it performs cloning or creates new data structures
+///
+/// # Design Notes
+///
+/// * IsoPrism implements a prism using Iso's bidirectional mapping capabilities
+/// * The abstraction treats the Prism as an isomorphism between S and Option<A>
+/// * A well-behaved IsoPrism should uphold the prism laws
+/// * This implementation allows for zero-cost abstractions when the Iso implementation is efficient
+/// * Composition of IsoPrisms follows function composition semantics
+///
 /// # Type Parameters
 /// * `S` - The sum type (e.g., enum)
 /// * `A` - The type of the focused variant
 /// * `L` - The Iso implementation from `S` to `Option<A>`
 ///
 /// # Examples
+///
+/// ## Basic Usage
 ///
 /// ```rust
 /// use rustica::datatypes::iso_prism::IsoPrism;

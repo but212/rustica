@@ -13,6 +13,16 @@
 //! - Implementing error handling without the success/failure semantics of `Result`
 //! - Building more complex data structures and control flow mechanisms
 //!
+//! ## Performance Characteristics
+//!
+//! - **Memory Usage**: An `Either<L, R>` uses the same memory as the larger of `L` or `R`, plus a tag (usually 1 byte) to
+//!   distinguish between Left and Right variants.
+//! - **Construction**: O(1) time and space complexity.
+//! - **Pattern Matching**: O(1) time complexity for checking whether a value is Left or Right.
+//! - **Transformations**: Operations like `fmap`, `fmap_left`, and `bind` have O(1) complexity for the operation itself,
+//!   with the overall complexity determined by the provided function.
+//! - **Cloning**: O(n) where n is the size of the contained value (Left or Right).
+//!
 //! ## Type Class Implementations
 //!
 //! The `Either` type implements several important functional programming abstractions:
@@ -21,6 +31,56 @@
 //! - `Applicative`: Applies functions wrapped in `Either` to values wrapped in `Either`
 //! - `Monad`: Chains computations that may produce either left or right values
 //! - `Alternative`/`MonadPlus`: Provides choice between alternatives (when L implements Default)
+//!
+//! ## Type Class Laws
+//!
+//! ### Functor Laws
+//!
+//! ```rust
+//! use rustica::datatypes::either::Either;
+//! use rustica::traits::functor::Functor;
+//!
+//! // 1. Identity: fmap id = id
+//! let e: Either<i32, String> = Either::right("test".to_string());
+//! assert_eq!(e.fmap(|x| x.clone()), e);
+//!
+//! // 2. Composition: fmap (f . g) = fmap f . fmap g
+//! let e: Either<i32, i32> = Either::right(5);
+//! let f = |x: &i32| x * 2;
+//! let g = |x: &i32| x + 3;
+//! let composed = |x: &i32| f(&g(x));
+//!
+//! assert_eq!(e.fmap(composed), e.fmap(g).fmap(f));
+//!
+//! // Laws hold for Left values too (trivially, since fmap doesn't affect Left)
+//! let e: Either<i32, String> = Either::left(10);
+//! let e_with_len = e.clone().fmap(|x: &String| x.len());
+//! assert_eq!(e_with_len, Either::left(10));
+//! ```
+//!
+//! ### Monad Laws
+//!
+//! ```rust
+//! use rustica::datatypes::either::Either;
+//! use rustica::traits::pure::Pure;
+//! use rustica::traits::monad::Monad;
+//!
+//! // 1. Left Identity: return a >>= f = f a
+//! let a = 5;
+//! let f = |x: &i32| Either::<String, i32>::right(*x * 2);
+//! assert_eq!(Either::<String, i32>::pure(&a).bind(f), f(&a));
+//!
+//! // 2. Right Identity: m >>= return = m
+//! let m: Either<String, i32> = Either::right(5);
+//! assert_eq!(m.bind(|x| Either::<String, i32>::pure(x)), m);
+//!
+//! // 3. Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
+//! let m: Either<String, i32> = Either::right(5);
+//! let f = |x: &i32| Either::<String, i32>::right(*x * 2);
+//! let g = |x: &i32| Either::<String, i32>::right(*x + 3);
+//!
+//! assert_eq!(m.bind(f).bind(g), m.bind(|x| f(x).bind(g)));
+//! ```
 //!
 //! ## Basic Usage
 //!
@@ -46,6 +106,32 @@
 //! let mapped = right_val.fmap(|x| x * 2);  // Either::Right(84)
 //! ```
 //!
+//! ## Advanced Usage: Chaining Computations
+//!
+//! ```rust
+//! use rustica::datatypes::either::Either;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a function that might fail (return Left) or succeed (return Right)
+//! fn safe_divide(a: i32, b: i32) -> Either<String, i32> {
+//!     if b == 0 {
+//!         Either::left("Division by zero".to_string())
+//!     } else {
+//!         Either::right(a / b)
+//!     }
+//! }
+//!
+//! // Chain computations safely
+//! let result = safe_divide(10, 2)
+//!     .bind(|x| safe_divide(*x, 1)); // Will succeed with Right(5)
+//!     
+//! let error_result = safe_divide(10, 2)
+//!     .bind(|x| safe_divide(*x, 0)); // Will fail with Left("Division by zero")
+//!
+//! assert_eq!(result, Either::right(5));
+//! assert_eq!(error_result, Either::left("Division by zero".to_string()));
+//! ```
+//!
 //! ## Conversion with Result
 //!
 //! `Either` can be easily converted to and from `Result`:
@@ -63,6 +149,22 @@
 //! let result = either.to_result();
 //! assert_eq!(result, Ok(42));
 //! ```
+//!
+//! ## Iterator Support
+//!
+//! ```rust
+//! use rustica::datatypes::either::Either;
+//!
+//! // Iterate over Right values
+//! let right_val: Either<&str, i32> = Either::right(42);
+//! let values: Vec<i32> = right_val.into_iter().collect();
+//! assert_eq!(values, vec![42]);
+//!
+//! // Left values yield empty iterators
+//! let left_val: Either<&str, i32> = Either::left("error");
+//! let values: Vec<i32> = left_val.into_iter().collect();
+//! assert!(values.is_empty());
+//! ```
 
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
@@ -74,7 +176,7 @@ use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use crate::utils::error_utils;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
@@ -311,7 +413,10 @@ impl<L, R> Either<L, R> {
     /// Panics if called on a `Left` value.
     #[inline]
     pub fn unwrap_right(self) -> R {
-        self.right_value()
+        match self {
+            Either::Right(r) => r,
+            Either::Left(_) => panic!("called unwrap_right on Left value"),
+        }
     }
 
     /// Returns the contained `Left` value, consuming the `self` value.
@@ -1022,7 +1127,7 @@ impl<'a, R> Iterator for EitherIterMut<'a, R> {
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<L, R> Arbitrary for Either<L, R>
 where
     L: Arbitrary,

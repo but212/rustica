@@ -290,7 +290,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
                 .get_or_compute(form.username.clone(), |u| validate_username_fn(u.clone()));
             let email_v =
                 validate_email.get_or_compute(form.email.clone(), |e| validate_email_fn(e.clone()));
-            let age_v = validate_age.get_or_compute(form.age, |a| validate_age_fn(a.clone()));
+            let age_v = validate_age.get_or_compute(form.age, |a| validate_age_fn(*a));
             username_v.lift3(&email_v, &age_v, |u, e, a| (u.clone(), e.clone(), *a))
         };
 

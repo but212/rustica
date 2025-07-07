@@ -37,7 +37,7 @@
 //!
 //! - `Thunk<T>`: A lazy computation wrapper that evaluates only when needed
 //! - `Value<T>`: A simple wrapper implementing `Evaluate` for immediate values
-//! - `Memoize<F>`: Caches the result of a function for repeated calls
+//! - `Memoizer<F>`: Caches the result of a function for repeated calls
 //!
 //! ## Usage Patterns
 //!
@@ -75,7 +75,7 @@
 //! - Use `First`/`Last` when dealing with optional values that need to be combined with precedence rules
 //! - Use `Thunk` when you need lazy evaluation
 //! - Use `Value` when you need a simple evaluable container
-//! - Use `Memoize` when you want to cache function results
+//! - Use `Memoizer` when you want to cache function results
 //!
 //! ## Implementation Note
 //!

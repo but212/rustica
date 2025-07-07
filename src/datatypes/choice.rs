@@ -5,6 +5,25 @@
 //! while keeping other possibilities available. `Choice` is particularly useful in contexts like
 //! configuration management, user preference handling, or any situation involving fallback mechanisms.
 //!
+//! ## Functional Programming Context
+//!
+//! In functional programming, `Choice<T>` represents a non-deterministic computation with a preferred result.
+//! Key functional programming aspects include:
+//!
+//! - **Non-determinism**: Encapsulates multiple potential values, making it useful for representing
+//!   computations with several possible outcomes.
+//! - **Preference Hierarchy**: Unlike the more common `List` type, `Choice` distinguishes a primary value,
+//!   establishing a clear preference order among the possibilities.
+//! - **Monadic Sequencing**: Allows chaining of operations where subsequent computations depend on
+//!   the result of earlier ones, with alternative values propagating through the computation chain.
+//!
+//! Similar structures in other functional languages include:
+//!
+//! - `NonEmptyList` in Haskell and Scala (though with less emphasis on preference)
+//! - `OneOf` types in various FP libraries
+//! - `Alt` in some JavaScript FP libraries like Sanctuary or Folktale
+//! - Stream processing libraries that prioritize certain values
+//!
 //! ## Core Concepts
 //!
 //! - **Primary Value**: The main, preferred value. Accessed via `first()`.
@@ -15,7 +34,7 @@
 //!   cloning (cheap reference count increment) and copy-on-write semantics when modifications are needed.
 //!   This means cloning a `Choice` is very fast, and modifications only incur the cost of copying the
 //!   underlying data if the `Arc` is shared (i.e., has more than one reference).
-//! - **Typeclass Implementations**: `Choice` implements standard functional typeclasses like
+//! - **Type Class Implementations**: `Choice` implements standard functional typeclasses like
 //!   `Functor`, `Applicative`, and `Monad`, allowing for powerful and expressive data transformations.
 //!
 //! ## Basic Usage
@@ -78,20 +97,37 @@
 //! assert_eq!(*processed.first().unwrap(), "verified_user123");
 //! ```
 //!
-//! ## Performance Considerations
+//! ## Performance Characteristics
 //!
-//! - **Cloning**: Cloning a `Choice<T>` is cheap (O(1)) due to `Arc`.
-//! - **Modification**: Operations like `add_alternatives`, `filter`, `fmap`, etc., may involve
-//!   cloning the internal `SmallVec` if the `Arc` is shared (more than one reference exists).
-//!   This copy-on-write (CoW) behavior ensures safety but can have performance implications
-//!   if `Choice` instances are frequently cloned and then modified. If the `Arc` is not shared
-//!   (i.e., `Arc::get_mut` returns `Some`), modifications can sometimes be done more efficiently.
-//! - **`SmallVec`**: The use of `SmallVec<[T; 8]>` means that for `Choice` instances with up to 8
-//!   values (1 primary + 7 alternatives, or fewer if `T` is large), allocations can often be
-//!   avoided for the `SmallVec` itself, improving performance for common small cases.
-//! - **Iteration**: Iterating over values is efficient, similar to iterating over a `Vec` or slice.
+//! - **Memory Usage:**
+//!   - Uses `Arc<SmallVec<[T; 8]>>` for efficient memory management
+//!   - Small instances (up to 8 elements) avoid heap allocation via `SmallVec` optimization
+//!   - Cloning a `Choice<T>` is O(1) due to `Arc` reference counting
+//!   - Copy-on-write semantics avoid unnecessary copies when modifications occur
 //!
-//! ## Typeclass Laws
+//! - **Time Complexity:**
+//!   - Construction: O(n) where n is the number of alternatives
+//!   - Cloning: O(1) via `Arc`
+//!   - Access operations (`first()`, `alternatives()`): O(1)
+//!   - Modification operations (`add_alternatives`, `filter_values`): O(n) in the worst case due to potential cloning
+//!   - `fmap`, `bind`: O(n) where n is the number of elements
+//!   - Iteration: O(n) linear time, similar to `Vec`
+//!
+//! - **Concurrency:**
+//!   - Thread-safe due to immutable semantics and `Arc` for shared ownership
+//!   - No interior mutability or synchronization overhead
+//!   - Safe to share across thread boundaries when `T: Send + Sync`
+//!
+//! ## Type Class Implementations
+//!
+//! `Choice<T>` implements several important functional programming type classes:
+//!
+//! - **Functor**: Transforms the values inside the `Choice` container with `fmap`
+//! - **Applicative**: Allows applying functions wrapped in a `Choice` to values in another `Choice`
+//! - **Monad**: Enables sequencing operations where each depends on the result of the previous one
+//! - **Semigroup** and **Monoid**: When `T` implements these type classes, `Choice<T>` does too
+//!
+//! ## Type Class Laws
 //!
 //! `Choice` adheres to standard functional programming laws.
 //!
@@ -206,7 +242,7 @@
 //! - Optimize performance for large collections of alternatives
 //! - Add property-based tests for typeclass laws
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
@@ -618,31 +654,31 @@ impl<T> Choice<T> {
     /// assert_eq!(after_remove_last.alternatives(), &[200, 300]);
     /// ```
     ///
-    /// /// ### Panics - Index out of bounds
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
-    /// /// // Panics because index 2 is out of bounds for alternatives.
-    /// /// let _ = choice.remove_alternative(2);
-    /// /// ```
+    /// ### Panics - Index out of bounds
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
     ///
-    /// /// ### Panics - No alternatives to remove
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
-    /// /// // Panics because there are no alternatives to remove.
-    /// /// let _ = choice_only_primary.remove_alternative(0);
-    /// /// ```
+    /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
+    /// // Panics because index 2 is out of bounds for alternatives.
+    /// let _ = choice.remove_alternative(2);
+    /// ```
     ///
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// /// // Panics because an empty choice has no alternatives.
-    /// /// let _ = empty_choice.remove_alternative(0);
-    /// /// ```
+    /// ### Panics - No alternatives to remove
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
+    /// // Panics because there are no alternatives to remove.
+    /// let _ = choice_only_primary.remove_alternative(0);
+    /// ```
+    ///
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let empty_choice: Choice<i32> = Choice::new_empty();
+    /// // Panics because an empty choice has no alternatives.
+    /// let _ = empty_choice.remove_alternative(0);
+    /// ```
     #[inline]
     /// # See Also
     /// - [`filter()`](Self::filter) - To remove multiple alternatives based on a predicate.
@@ -687,13 +723,13 @@ impl<T> Choice<T> {
     /// If the original `Choice` has a primary value but no alternatives, the new `Choice`
     /// will be identical (containing only the primary value).
     ///
-    /// This method uses copy-on-write semantics. If the `Arc` holding the values
-    /// has other references, the underlying `SmallVec` is cloned. Otherwise,
-    /// a new `SmallVec` is constructed for the filtered results.
+    /// This method uses reference counting optimization: if the current `Choice` has
+    /// exclusive ownership of its data (`Arc` reference count is 1), it reuses the
+    /// existing allocation. Otherwise, it creates a new allocation.
     ///
     /// # Arguments
     ///
-    /// * `predicate` - A closure `F: FnMut(&T) -> bool` that takes a reference to an
+    /// * `predicate` - A closure `F: Fn(&T) -> bool` that takes a reference to an
     ///   alternative value and returns `true` if the alternative should be kept,
     ///   or `false` if it should be discarded.
     ///
@@ -704,39 +740,41 @@ impl<T> Choice<T> {
     ///
     /// # Performance
     /// - Time complexity: O(N) where N is the number of alternatives. The predicate is called
-    ///   for each alternative. If a clone of the internal `SmallVec` is needed due to shared
-    ///   `Arc` references, this can also take O(M) where M is the total number of items
-    ///   (primary + alternatives) in the original `Choice`.
-    /// - Space complexity: O(M) in the worst case for the new `Choice` if all items are kept
-    ///   and a clone occurs.
-    /// - Memory efficiency: Uses `Arc` for shared ownership.
+    ///   for each alternative.
+    /// - Space complexity: O(M) for the new `Choice` where M is the number of items kept.
+    /// - Memory efficiency: Reuses existing allocation when possible (when Arc reference count is 1),
+    ///   otherwise allocates new memory.
     ///
     /// # Examples
     ///
     /// ```
     /// use rustica::datatypes::choice::Choice;
     ///
-    /// let choice = Choice::new(10, vec![20, 3, 45, 60, 7]);
+    /// let choice = Choice::new(1, vec![2, 3, 4, 5, 6]);
     ///
-    /// // Filter for even alternatives
-    /// let even_alts_choice = choice.filter(|&alt| alt % 2 == 0);
-    /// assert_eq!(even_alts_choice.first(), Some(&10)); // Primary is kept
-    /// assert_eq!(even_alts_choice.alternatives(), &[20, 60]);
+    /// // Filter alternatives for even numbers
+    /// let even_alternatives = choice.filter(|&x| x % 2 == 0);
     ///
-    /// // Filter that removes all alternatives
-    /// let no_matching_alts_choice = choice.filter(|&alt| alt > 100);
-    /// assert_eq!(no_matching_alts_choice.first(), Some(&10));
-    /// assert!(no_matching_alts_choice.alternatives().is_empty());
+    /// // Primary value (1) is always kept, even though it's odd
+    /// assert_eq!(*even_alternatives.first().unwrap(), 1);
+    /// // Only even alternatives are kept
+    /// assert_eq!(even_alternatives.alternatives(), &[2, 4, 6]);
     ///
-    /// // Filter on a choice with no alternatives
-    /// let primary_only_choice = Choice::new(100, Vec::<i32>::new());
-    /// let filtered_primary_only = primary_only_choice.filter(|&alt| alt % 2 == 0);
-    /// assert_eq!(filtered_primary_only.first(), Some(&100));
-    /// assert!(filtered_primary_only.alternatives().is_empty());
+    /// // Primary value is kept even when it doesn't satisfy the predicate
+    /// let choice2 = Choice::new(7, vec![8, 9, 10]);
+    /// let filtered = choice2.filter(|&x| x % 2 == 0);
+    /// assert_eq!(*filtered.first().unwrap(), 7); // 7 is kept despite being odd
+    /// assert_eq!(filtered.alternatives(), &[8, 10]);
     ///
-    /// // Filter on an empty choice
-    /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// let filtered_empty = empty_choice.filter(|&alt| alt > 0);
+    /// // When there are no alternatives, the primary is still kept
+    /// let single = Choice::new(10, Vec::<i32>::new());
+    /// let filtered_single = single.filter(|&x| x > 100);
+    /// assert_eq!(*filtered_single.first().unwrap(), 10);
+    /// assert!(filtered_single.alternatives().is_empty());
+    ///
+    /// // Empty Choice remains empty
+    /// let empty: Choice<i32> = Choice::new_empty();
+    /// let filtered_empty = empty.filter(|&x| x > 0);
     /// assert!(filtered_empty.is_empty());
     /// ```
     ///
@@ -752,33 +790,29 @@ impl<T> Choice<T> {
         T: Clone,
     {
         if self.is_empty() {
-            // If the Choice is empty, return an empty Choice.
             return Self::new_empty();
         }
 
-        // The primary value is always kept.
-        // We know self.values is not empty here, so self.values[0] is safe.
-        let primary_value = self.values[0].clone();
+        match Arc::try_unwrap(self.values.clone()) {
+            Ok(mut values) => {
+                // We have exclusive ownership, reuse the allocation
+                values.truncate(1); // Keep only primary
+                values.extend(self.values.iter().skip(1).filter(|v| predicate(v)).cloned());
 
-        let mut new_alternatives = SmallVec::<[T; 8]>::new();
-        // Only iterate and filter if there are actual alternatives.
-        if self.values.len() > 1 {
-            for alt_value in &self.values[1..] {
-                // Iterate over the slice of alternatives
-                if predicate(alt_value) {
-                    new_alternatives.push(alt_value.clone());
+                Self {
+                    values: Arc::new(values),
                 }
-            }
-        }
+            },
+            Err(_) => {
+                // Shared ownership, create new allocation
+                let mut filtered = SmallVec::<[T; 8]>::with_capacity(self.values.len());
+                filtered.push(self.values[0].clone());
+                filtered.extend(self.values.iter().skip(1).filter(|v| predicate(v)).cloned());
 
-        // Construct the new SmallVec for Arc.
-        // Capacity is 1 (for primary) + number of new alternatives.
-        let mut final_values = SmallVec::with_capacity(1 + new_alternatives.len());
-        final_values.push(primary_value);
-        final_values.extend(new_alternatives); // new_alternatives is already a SmallVec of T
-
-        Self {
-            values: Arc::new(final_values),
+                Self {
+                    values: Arc::new(filtered),
+                }
+            },
         }
     }
 
@@ -1372,32 +1406,32 @@ impl<T> Choice<T> {
     /// assert_eq!(swapped3.alternatives(), &[200, 300, 100]);
     /// ```
     ///
-    /// /// ### Panics - Index out of bounds
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
-    /// /// // Panics because alt_index 2 is out of bounds.
-    /// /// let _ = choice.swap_with_alternative(2);
-    /// /// ```
+    /// ### Panics - Index out of bounds
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
     ///
-    /// /// ### Panics - No alternatives to swap with
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
-    /// /// // Panics because there are no alternatives.
-    /// /// let _ = choice_only_primary.swap_with_alternative(0);
-    /// /// ```
+    /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
+    /// // Panics because alt_index 2 is out of bounds.
+    /// let _ = choice.swap_with_alternative(2);
+    /// ```
     ///
-    /// /// ### Panics - Empty Choice
-    /// /// ```should_panic
-    /// /// use rustica::datatypes::choice::Choice;
-    /// ///
-    /// /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// /// // Panics because an empty choice has no primary or alternatives.
-    /// /// let _ = empty_choice.swap_with_alternative(0);
-    /// /// ```
+    /// ### Panics - No alternatives to swap with
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
+    /// // Panics because there are no alternatives.
+    /// let _ = choice_only_primary.swap_with_alternative(0);
+    /// ```
+    ///
+    /// ### Panics - Empty Choice
+    /// ```should_panic
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let empty_choice: Choice<i32> = Choice::new_empty();
+    /// // Panics because an empty choice has no primary or alternatives.
+    /// let _ = empty_choice.swap_with_alternative(0);
+    /// ```
     ///
     /// # See Also
     /// - [`Choice::new()`](Self::new) - For creating a `Choice`.
@@ -2224,7 +2258,7 @@ impl<T: Clone + Default> std::iter::Sum for Choice<T> {
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<T: Arbitrary + 'static> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         let primary = T::arbitrary(g);

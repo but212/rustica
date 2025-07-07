@@ -17,7 +17,45 @@
 //! with other functional abstractions.
 //!
 //! The Continuation monad is particularly powerful because it can be used to implement other monads,
-//! making it sometimes called the "mother of all monads."
+//! making it sometimes called the "mother of all monads." In category theory terms, the Continuation
+//! monad is related to the concept of a Yoneda embedding, which provides a representation of objects
+//! in terms of their relationships with other objects.
+//!
+//! Similar structures in other languages include:
+//!
+//! - Haskell's `Cont` monad in Control.Monad.Cont
+//! - Scala's `Cont` in cats library
+//! - JavaScript's CPS transformations in libraries like fantasy-land
+//! - Scheme and Racket's first-class continuations via `call/cc`
+//!
+//! ## Performance Characteristics
+//!
+//! - **Memory Usage:**
+//!   - Stores a single function wrapped in an `Arc`, with minimal overhead
+//!   - Deep continuation chains create nested function calls that could consume stack space
+//!   - No heap allocations beyond the initial `Arc` for the continuation function
+//!   - Additional stack space proportional to the depth of continuation chaining
+//!
+//! - **Time Complexity:**
+//!   - Construction (new/return_cont): O(1)
+//!   - Cloning: O(1) due to `Arc` reference counting
+//!   - Transformation operations (`fmap`, `bind`, `apply`): O(1) for the operation itself,
+//!     as they only compose functions without immediate evaluation
+//!   - Running a continuation: O(n) where n is the complexity of all composed operations
+//!   - Lazy evaluation means operations are only executed when `run` is called
+//!
+//! - **Concurrency:**
+//!   - Thread-safe when used with `Send + Sync` types due to `Arc` and immutable design
+//!   - No interior mutability or locking mechanisms
+//!   - Can be safely passed between threads when parameterized with thread-safe types
+//!
+//! ## Type Class Implementations
+//!
+//! `Cont<R, A>` implements several important functional programming type classes:
+//!
+//! - **Functor**: Transforms values inside the continuation
+//! - **Applicative**: Applies functions wrapped in continuations to values in continuations
+//! - **Monad**: Sequences continuation operations
 //!
 //! ## Use Cases
 //!
@@ -28,6 +66,77 @@
 //! - **Asynchronous Programming**: Representing callbacks and asynchronous operations
 //! - **Backtracking Algorithms**: Implementing algorithms that need to explore multiple paths
 //! - **Coroutines**: Building cooperative multitasking systems
+//!
+//! ## Type Class Laws
+//!
+//! `Cont<R, A>` adheres to the standard type class laws for Functor, Applicative, and Monad:
+//!
+//! ### Functor Laws
+//!
+//! ```rust
+//! use rustica::datatypes::cont::Cont;
+//!
+//! // Identity: fmap id == id
+//! let cont = Cont::return_cont(5);
+//! let mapped = cont.clone().fmap(|x| x);
+//! assert_eq!(cont.run(|x| x), mapped.run(|x| x));
+//!
+//! // Composition: fmap (f . g) == fmap f . fmap g
+//! let f = |x: i32| x * 2;
+//! let g = |x: i32| x + 3;
+//! let compose = move |x: i32| f(g(x));
+//!
+//! let cont = Cont::return_cont(5);
+//! let left = cont.clone().fmap(compose);
+//! let right = cont.clone().fmap(g).fmap(f);
+//! assert_eq!(left.run(|x| x), right.run(|x| x));
+//! ```
+//!
+//! ### Applicative Laws
+//!
+//! ```rust
+//! use rustica::datatypes::cont::Cont;
+//! use std::sync::Arc;
+//!
+//! // Identity: pure id <*> v = v
+//! let v = Cont::return_cont(5);
+//! let id_fn = Cont::return_cont(Arc::new(|x: i32| x.clone()) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+//! let applied = v.clone().apply(id_fn);
+//! assert_eq!(v.run(|x| x), applied.run(|x| x));
+//!
+//! // Homomorphism: pure f <*> pure x = pure (f x)
+//! let f = |n: i32| n * 2;
+//! let pure_f = Cont::return_cont(Arc::new(f) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+//! let pure_x = Cont::return_cont(5);
+//! let left = pure_x.apply(pure_f);
+//! let right = Cont::return_cont(f(5));
+//! assert_eq!(left.run(|x| x), right.run(|x| x));
+//! ```
+//!
+//! ### Monad Laws
+//!
+//! ```rust
+//! use rustica::datatypes::cont::Cont;
+//!
+//! // Left Identity: return a >>= f = f a
+//! let f = |n: i32| Cont::return_cont(n * 2);
+//! let left = Cont::return_cont(5).bind(f);
+//! let right = f(5);
+//! assert_eq!(left.run(|x| x), right.run(|x| x));
+//!
+//! // Right Identity: m >>= return = m
+//! let cont = Cont::return_cont(5);
+//! let with_bind = cont.clone().bind(|val| Cont::return_cont(val));
+//! assert_eq!(cont.run(|x| x), with_bind.run(|x| x));
+//!
+//! // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
+//! let m = Cont::return_cont(5);
+//! let f = |n: i32| Cont::return_cont(n * 2);
+//! let g = |n: i32| Cont::return_cont(n + 3);
+//! let left = m.clone().bind(f).bind(g);
+//! let right = m.clone().bind(move |val| f(val).bind(g));
+//! assert_eq!(left.run(|x| x), right.run(|x| x));
+//! ```
 //!
 //! ## Examples
 //!
@@ -75,7 +184,7 @@
 //! ```
 use crate::traits::identity::Identity;
 use crate::transformers::cont_t::ContT;
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::sync::Arc;
 
@@ -136,6 +245,12 @@ where
     /// The function parameter represents the computation to be performed, which will
     /// eventually call the provided continuation to produce the final result.
     ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for construction, O(f) for execution where f is the complexity of the provided function
+    /// - **Memory Usage**: O(f) where f is the size of the closure/function being wrapped
+    /// - **Allocation**: Allocates memory for storing the function
+    ///
     /// # Arguments
     ///
     /// * `f` - A function that takes a continuation and returns a result wrapped in `Id`
@@ -145,6 +260,8 @@ where
     /// A new `Cont<R, A>` instance
     ///
     /// # Examples
+    ///
+    /// ## Basic Construction and Execution
     ///
     /// ```rust
     /// use std::sync::Arc;
@@ -160,6 +277,34 @@ where
     /// // Run the continuation with the identity function
     /// let result = cont.run(|x| x);
     /// assert_eq!(result, 11);
+    /// ```
+    ///
+    /// ## Custom Control Flow Implementation
+    ///
+    /// ```rust
+    /// use std::sync::Arc;
+    /// use rustica::datatypes::cont::Cont;
+    ///
+    /// // A function that implements early return based on a condition
+    /// fn safe_div(x: i32, y: i32) -> Cont<Option<i32>, i32> {
+    ///     Cont::new(move |k: Arc<dyn Fn(i32) -> Option<i32> + Send + Sync>| {
+    ///         if y == 0 {
+    ///             // Early return with None if division by zero
+    ///             None
+    ///         } else {
+    ///             // Continue with the computation
+    ///             k(x / y)
+    ///         }
+    ///     })
+    /// }
+    ///
+    /// // Example with valid division
+    /// let result1 = safe_div(10, 2).run(|x| Some(x));
+    /// assert_eq!(result1, Some(5));
+    ///
+    /// // Example with division by zero
+    /// let result2 = safe_div(10, 0).run(|x| Some(x));
+    /// assert_eq!(result2, None);
     /// ```
     #[inline]
     pub fn new<F>(f: F) -> Self
@@ -198,7 +343,14 @@ where
     /// Runs this continuation with the given continuation function.
     ///
     /// This method applies the provided continuation function to the result of this computation,
-    /// effectively executing the continuation and producing the final result.
+    /// effectively executing the continuation and producing the final result. It is the primary
+    /// way to extract a value from a continuation.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(n) where n is the complexity of all continuation operations and the final continuation function
+    /// - **Memory Usage**: O(1) additional memory beyond what's already in the continuation
+    /// - **Execution Pattern**: Evaluates the entire continuation chain in a single pass
     ///
     /// # Arguments
     ///
@@ -210,12 +362,30 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    /// ## Basic Usage
+    ///
+    /// ```rust
     /// use rustica::datatypes::cont::Cont;
     ///
     /// let cont = Cont::return_cont(42);
     /// let result = cont.run(|x| x * 2);
     /// assert_eq!(result, 84);
+    /// ```
+    ///
+    /// ## Chained Continuation
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// // Create a chain of continuations
+    /// let cont1 = Cont::return_cont(5);
+    /// let cont2 = cont1.bind(|x| Cont::return_cont(x * 2));
+    /// let cont3 = cont2.bind(|x| Cont::return_cont(x + 1));
+    ///
+    /// // Run the final continuation
+    /// let result = cont3.run(|x| x);
+    /// assert_eq!(result, 11); // (5 * 2) + 1 = 11
     /// ```
     #[inline]
     pub fn run<FN>(&self, k: FN) -> R
@@ -228,7 +398,36 @@ where
     /// Creates a continuation that immediately returns the given value.
     ///
     /// This is a convenience method that creates a continuation which, when run,
-    /// simply passes the provided value to the continuation function.
+    /// simply passes the provided value to the continuation function. It serves as the
+    /// implementation of `pure` for the `Applicative` type class and `return` for the `Monad` type class.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Constant time construction
+    /// - **Memory Usage**: O(1) - Minimal overhead beyond the size of the provided value
+    /// - **Allocation**: Single allocation for the continuation structure
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Identity Law (Monad)
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// // For any continuation cont, binding with return_cont should return the original continuation
+    /// // m >>= return = m
+    /// let verify_identity_law = |x: i32| {
+    ///     let cont = Cont::return_cont(x);
+    ///     let with_return = cont.clone().bind(|val| Cont::return_cont(val));
+    ///     
+    ///     // Both should yield the same result with any continuation function
+    ///     let f = |v: i32| v * 2;
+    ///     assert_eq!(cont.run(f), with_return.run(f));
+    /// };
+    ///
+    /// verify_identity_law(42);
+    /// ```
     ///
     /// # Arguments
     ///
@@ -240,12 +439,31 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    /// ## Basic Usage
+    ///
+    /// ```rust
     /// use rustica::datatypes::cont::Cont;
     ///
     /// let cont = Cont::return_cont(42);
     /// let result = cont.run(|x| x * 2);
     /// assert_eq!(result, 84);
+    /// ```
+    ///
+    /// ## As First Step in a Chain
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// // Start with a simple value
+    /// let computation = Cont::return_cont(10)
+    ///     // Chain operations using bind
+    ///     .bind(|x| Cont::return_cont(x + 5))
+    ///     .bind(|x| Cont::return_cont(x * 2));
+    ///     
+    /// // Run the computation
+    /// let result = computation.run(|x| x);
+    /// assert_eq!(result, 30); // (10 + 5) * 2 = 30
     /// ```
     #[inline]
     pub fn return_cont(a: A) -> Self {
@@ -260,11 +478,67 @@ where
     /// transformation of the value inside the `Cont` context without
     /// changing the continuation structure.
     ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for the operation itself, plus the complexity of function f
+    /// - **Memory Usage**: O(1) additional memory for the function composition
+    /// - **Execution**: Deferred until the continuation is run
+    /// - **Composition**: Multiple fmap operations compose efficiently without immediate evaluation
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Functor Identity Law
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    ///
+    /// // For any continuation cont, mapping the identity function should return an equivalent continuation
+    /// // fmap id = id
+    /// let verify_identity_law = |x: i32| {
+    ///     let cont = Cont::return_cont(x);
+    ///     let mapped = cont.clone().fmap(|x| x); // Identity function
+    ///     
+    ///     // Both should yield the same result when run
+    ///     assert_eq!(cont.run(|x| x), mapped.run(|x| x));
+    /// };
+    ///
+    /// verify_identity_law(42);
+    /// ```
+    ///
+    /// ## Functor Composition Law
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    ///
+    /// // For any continuation cont and functions f and g, mapping their composition
+    /// // should be the same as mapping f and then mapping g
+    /// // fmap (f . g) = fmap f . fmap g
+    /// let verify_composition_law = |x: i32| {
+    ///     let f = |x: i32| x * 2;
+    ///     let g = |x: i32| x + 3;
+    ///     
+    ///     let cont = Cont::return_cont(x);
+    ///     
+    ///     // Map the composition of f and g
+    ///     let mapped_composition = cont.clone().fmap(move |x| f(g(x)));
+    ///     
+    ///     // Map g, then map f
+    ///     let mapped_separately = cont.clone().fmap(g).fmap(f);
+    ///     
+    ///     // Both should yield the same result when run
+    ///     assert_eq!(mapped_composition.run(|x| x), mapped_separately.run(|x| x));
+    /// };
+    ///
+    /// verify_composition_law(10); // (10 + 3) * 2 = 26
+    /// ```
+    ///
     /// # Arguments
     ///
     /// * `f` - A function that transforms `A` into `B`
     ///
     /// # Examples
+    ///
+    /// ## Basic Transformation
     ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
@@ -274,12 +548,44 @@ where
     /// // Map a function over the continuation
     /// let doubled = computation.fmap(|x| x * 2);
     /// assert_eq!(doubled.run(|x| x), 84);
+    /// ```
+    ///
+    /// ## Chaining Transformations
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
     ///
     /// // Chain multiple transformations
     /// let result = Cont::return_cont(42)
     ///     .fmap(|x| x + 10)
     ///     .fmap(|x| x.to_string());
     /// assert_eq!(result.run(|x| x), "52");
+    /// ```
+    ///
+    /// ## Transforming Complex Types
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use std::collections::HashMap;
+    ///
+    /// // Create a continuation with a vector
+    /// let vector_cont = Cont::return_cont(vec![1, 2, 3, 4]);
+    ///
+    /// // Transform it into a HashMap
+    /// let map_cont = vector_cont.fmap(|vec| {
+    ///     let mut map = HashMap::new();
+    ///     for (i, val) in vec.into_iter().enumerate() {
+    ///         map.insert(i, val);
+    ///     }
+    ///     map
+    /// });
+    ///
+    /// // Extract and verify
+    /// let result = map_cont.run(|map| {
+    ///     map.get(&1).cloned().unwrap_or(0)
+    /// });
+    ///
+    /// assert_eq!(result, 2); // Value at index 1 is 2
     /// ```
     #[inline]
     pub fn fmap<B, F>(self, f: F) -> Cont<R, B>
@@ -295,7 +601,88 @@ where
     /// Monadic bind operation for the continuation monad.
     ///
     /// Allows sequencing of continuation computations by applying a function to the result
-    /// of this continuation and returning a new continuation.
+    /// of this continuation and returning a new continuation. This is the core operation that
+    /// enables chaining complex control flow patterns in a composable manner.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for the operation itself, with evaluation deferred until run time
+    /// - **Memory Usage**: O(1) additional memory for the function composition
+    /// - **Execution**: Lazy - only evaluated when the final continuation is run
+    /// - **Composition**: Multiple bind operations can be chained efficiently without immediate evaluation
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Left Identity Law
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// // For any function f and value x, return x >>= f should be equivalent to f(x)
+    /// // return a >>= f = f a
+    /// let verify_left_identity = |x: i32| {
+    ///     let f = |n: i32| Cont::return_cont(n * 2);
+    ///     
+    ///     let left_side = Cont::return_cont(x).bind(f);
+    ///     let right_side = f(x);
+    ///     
+    ///     // Both should yield the same result when run
+    ///     assert_eq!(left_side.run(|n| n), right_side.run(|n| n));
+    /// };
+    ///
+    /// verify_left_identity(5); // Both sides should result in 10
+    /// ```
+    ///
+    /// ## Right Identity Law
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// // For any continuation m, m >>= return should be equivalent to m
+    /// // m >>= return = m
+    /// let verify_right_identity = |x: i32| {
+    ///     let cont = Cont::return_cont(x);
+    ///     
+    ///     let with_bind = cont.clone().bind(|val| Cont::return_cont(val));
+    ///     
+    ///     // Both should yield the same result when run
+    ///     assert_eq!(cont.run(|n| n), with_bind.run(|n| n));
+    /// };
+    ///
+    /// verify_right_identity(5);
+    /// ```
+    ///
+    /// ## Associativity Law
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use rustica::traits::monad::Monad;
+    ///
+    /// // For any continuation m and functions f and g:
+    /// // (m >>= f) >>= g = m >>= (\x -> f x >>= g)
+    /// let verify_associativity = |x: i32| {
+    ///     let m = Cont::return_cont(x);
+    ///     let f = |n: i32| Cont::return_cont(n * 2);
+    ///     let g = |n: i32| Cont::return_cont(n + 3);
+    ///     
+    ///     // (m >>= f) >>= g
+    ///     let left_side = m.clone().bind(f).bind(g);
+    ///     
+    ///     // m >>= (\x -> f x >>= g)
+    ///     let right_side = m.clone().bind(move |val| {
+    ///         let f = f;  // Capture f by value
+    ///         let g = g;  // Capture g by value
+    ///         f(val).bind(g)
+    ///     });
+    ///     
+    ///     // Both should yield the same result when run
+    ///     assert_eq!(left_side.run(|n| n), right_side.run(|n| n));
+    /// };
+    ///
+    /// verify_associativity(5); // Both sides should result in 13 ((5*2)+3)
+    /// ```
     ///
     /// # Arguments
     ///
@@ -307,6 +694,8 @@ where
     ///
     /// # Examples
     ///
+    /// ## Basic Usage
+    ///
     /// ```rust
     /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
@@ -315,6 +704,44 @@ where
     /// let cont2 = cont1.bind(|x| Cont::return_cont(x * 2));
     /// let result = cont2.run(|x| x);
     /// assert_eq!(result, 10);
+    /// ```
+    ///
+    /// ## Chaining Multiple Operations
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    ///
+    /// // Create a chain of operations
+    /// let computation = Cont::return_cont(5)
+    ///     .bind(|x| Cont::return_cont(x * 2))  // 5 * 2 = 10
+    ///     .bind(|x| Cont::return_cont(x + 7))  // 10 + 7 = 17
+    ///     .bind(|x| Cont::return_cont(format!("Result: {}", x)));
+    ///     
+    /// let result = computation.run(|x| x);
+    /// assert_eq!(result, "Result: 17");
+    /// ```
+    ///
+    /// ## Implementing Custom Control Flow
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    ///
+    /// // A simple validation function that returns an error message or a valid value
+    /// fn validate(value: i32) -> Cont<Result<i32, String>, i32> {
+    ///     if value > 0 {
+    ///         Cont::return_cont(value)
+    ///     } else {
+    ///         Cont::new(|_| Result::Err("Value must be positive".to_string()))
+    ///     }
+    /// }
+    ///
+    /// // Create a validation pipeline
+    /// let pipeline = validate(10)
+    ///     .bind(|x| validate(x - 5))  // This passes (5 is positive)
+    ///     .bind(|x| validate(x - 10)); // This fails (-5 is negative)
+    ///     
+    /// let result = pipeline.run(|x| Result::Ok(x));
+    /// assert_eq!(result, Result::Err("Value must be positive".to_string()));
     /// ```
     #[inline]
     pub fn bind<B, F>(self, f: F) -> Cont<R, B>
@@ -329,7 +756,60 @@ where
 
     /// Applies a function contained in a continuation to the value in this continuation.
     ///
-    /// This is the applicative functor's apply operation for the continuation monad.
+    /// This is the applicative functor's apply operation for the continuation monad. It allows
+    /// combining two independent continuations where one contains a function and the other contains
+    /// a value to be applied to that function.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for the operation itself, with evaluation deferred until run time
+    /// - **Memory Usage**: O(1) additional memory for the function composition
+    /// - **Execution**: Lazy - only evaluated when the final continuation is run
+    /// - **Composition**: Efficiently combines independent continuations
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Identity Law (Applicative)
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use std::sync::Arc;
+    ///
+    /// // For any applicative v, pure id <*> v = v
+    /// let verify_identity_law = |x: i32| {
+    ///     let v = Cont::return_cont(x);
+    ///     let id_fn = Cont::return_cont(Arc::new(|x| x) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+    ///     
+    ///     let applied = v.clone().apply(id_fn);
+    ///     
+    ///     // Both should yield the same result when run
+    ///     assert_eq!(v.run(|x| x), applied.run(|x| x));
+    /// };
+    ///
+    /// verify_identity_law(5);
+    /// ```
+    ///
+    /// ## Homomorphism Law (Applicative)
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use std::sync::Arc;
+    ///
+    /// // pure f <*> pure x = pure (f x)
+    /// let verify_homomorphism_law = |x: i32| {
+    ///     let f = |n: i32| n * 2;
+    ///     
+    ///     let pure_f = Cont::return_cont(Arc::new(f) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+    ///     let pure_x = Cont::return_cont(x);
+    ///     
+    ///     let left_side = pure_x.clone().apply(pure_f);
+    ///     let right_side = Cont::return_cont(f(x));
+    ///     
+    ///     assert_eq!(left_side.run(|x| x), right_side.run(|x| x));
+    /// };
+    ///
+    /// verify_homomorphism_law(5); // Both sides should equal 10
+    /// ```
     ///
     /// # Arguments
     ///
@@ -341,6 +821,8 @@ where
     ///
     /// # Examples
     ///
+    /// ## Basic Usage
+    ///
     /// ```rust
     /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
@@ -349,6 +831,32 @@ where
     /// let cont_fn = Cont::return_cont(Arc::new(|x| x * 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
     /// let result = cont_val.apply(cont_fn).run(|x| x);
     /// assert_eq!(result, 10);
+    /// ```
+    ///
+    /// ## Applying Multiple Arguments
+    ///
+    /// ```rust
+    /// use std::sync::Arc;
+    /// use rustica::datatypes::cont::Cont;
+    ///
+    /// // A function to add two numbers
+    /// let add = |x: i32| -> Arc<dyn Fn(i32) -> i32 + Send + Sync> {
+    ///     Arc::new(move |y| x + y)
+    /// };
+    ///
+    /// // Wrap the function and arguments in Cont
+    /// let cont_fn = Cont::return_cont(Arc::new(add) as
+    ///     Arc<dyn Fn(i32) -> Arc<dyn Fn(i32) -> i32 + Send + Sync> + Send + Sync>);
+    /// let cont_x = Cont::return_cont(5);
+    /// let cont_y = Cont::return_cont(7);
+    ///
+    /// // Apply arguments one by one
+    /// let partial_result = cont_x.apply(cont_fn);
+    /// let final_result = cont_y.apply(partial_result);
+    ///
+    /// // Run and check result
+    /// let result = final_result.run(|x| x);
+    /// assert_eq!(result, 12); // 5 + 7 = 12
     /// ```
     #[inline]
     pub fn apply<B>(self, cf: Cont<R, Arc<dyn Fn(A) -> B + Send + Sync>>) -> Cont<R, B>
@@ -360,10 +868,26 @@ where
         }
     }
 
-    /// Call with current continuation.
+    /// Call with current continuation (call/cc).
     ///
-    /// Captures the current continuation and passes it to the given function.
-    /// This allows for complex control flow patterns like early returns and exception handling.
+    /// Captures the current continuation and passes it to the given function as an "escape function".
+    /// This allows for complex control flow patterns like early returns, exceptions, backtracking,
+    /// and other non-linear control flow structures. It's one of the most powerful features of the
+    /// Continuation monad.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for the operation itself, with the complexity of function f when executed
+    /// - **Memory Usage**: O(1) additional memory for the escape function
+    /// - **Execution Pattern**: Creates a reified continuation that can be invoked or ignored
+    /// - **Control Flow**: Enables non-local returns and complex branching patterns
+    ///
+    /// # Advanced Functional Concepts
+    ///
+    /// `call_cc` (call-with-current-continuation) is a powerful control operator that reifies the
+    /// current continuation as a first-class value, allowing for advanced control flow patterns.
+    /// When invoked, the escape function immediately returns its argument as the result of the
+    /// entire `call_cc` expression, effectively "jumping out" of the current context.
     ///
     /// # Arguments
     ///
@@ -374,6 +898,8 @@ where
     /// A new continuation of type `Cont<R, B>`
     ///
     /// # Examples
+    ///
+    /// ## Early Return
     ///
     /// ```rust
     /// use std::sync::Arc;
@@ -390,6 +916,129 @@ where
     /// });
     ///
     /// assert_eq!(computation.run(|x| x), 10);
+    /// ```
+    ///
+    /// ## Exception Handling Pattern
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    ///
+    /// // A function that might fail
+    /// fn divide(a: i32, b: i32) -> Cont<Result<i32, String>, i32> {
+    ///     Cont::return_cont(a).call_cc(move |exit| {
+    ///         // Check for division by zero
+    ///         if b == 0 {
+    ///             // Exit early with an error
+    ///             let error_cont = Cont::new(|_| Result::Err("Division by zero".to_string()));
+    ///             return error_cont;
+    ///         }
+    ///         
+    ///         // Otherwise, continue with normal calculation
+    ///         Cont::return_cont(a / b)
+    ///     })
+    /// }
+    ///
+    /// // Success case
+    /// let success = divide(10, 2).run(|x| Result::Ok(x));
+    /// assert_eq!(success, Result::Ok(5));
+    ///
+    /// // Error case
+    /// let error = divide(10, 0).run(|x| Result::Ok(x));
+    /// assert_eq!(error, Result::Err("Division by zero".to_string()));
+    /// ```
+    ///
+    /// ## Backtracking Search Implementation
+    ///
+    /// ```rust
+    /// use rustica::datatypes::cont::Cont;
+    /// use std::sync::{Arc, Mutex};
+    ///
+    /// // Simple backtracking search using bind instead of call_cc
+    /// fn find_path(maze: &[Vec<bool>], start: (usize, usize), end: (usize, usize)) -> Option<Vec<(usize, usize)>> {
+    ///     // Track visited cells to avoid cycles
+    ///     let visited = Arc::new(Mutex::new(vec![vec![false; maze[0].len()]; maze.len()]));
+    ///     
+    ///     // Result container
+    ///     let result = Arc::new(Mutex::new(None));
+    ///     
+    ///     // Define a recursive search function
+    ///     fn search(
+    ///         maze: &[Vec<bool>],
+    ///         visited: Arc<Mutex<Vec<Vec<bool>>>>,
+    ///         result: Arc<Mutex<Option<Vec<(usize, usize)>>>>,
+    ///         pos: (usize, usize),
+    ///         end: (usize, usize),
+    ///         path: Vec<(usize, usize)>
+    ///     ) -> Cont<(), ()> {
+    ///         // If we reached the end, save the path and exit
+    ///         if pos == end {
+    ///             *result.lock().unwrap() = Some(path);
+    ///             return Cont::return_cont(());
+    ///         }
+    ///         
+    ///         // Mark as visited
+    ///         visited.lock().unwrap()[pos.0][pos.1] = true;
+    ///         
+    ///         // Try each direction
+    ///         let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+    ///         
+    ///         // Create a continuation that tries all directions
+    ///         let mut cont: Cont<(), ()> = Cont::return_cont(());
+    ///         
+    ///         for (dx, dy) in directions.iter() {
+    ///             let nx = pos.0 as isize + dx;
+    ///             let ny = pos.1 as isize + dy;
+    ///             
+    ///             // Check if new position is valid
+    ///             if nx >= 0 && nx < maze.len() as isize &&
+    ///                ny >= 0 && ny < maze[0].len() as isize {
+    ///                 let nx = nx as usize;
+    ///                 let ny = ny as usize;
+    ///                 
+    ///                 // If not visited and not a wall
+    ///                 if !visited.lock().unwrap()[nx][ny] && !maze[nx][ny] {
+    ///                     // Create a new path with the current position
+    ///                     let mut new_path = path.clone();
+    ///                     new_path.push((nx, ny));
+    ///                     
+    ///                     // Clone references for the next recursive call
+    ///                     let visited_clone = visited.clone();
+    ///                     let result_clone = result.clone();
+    ///                     
+    ///                     // Recursively search from new position
+    ///                     let next_search = search(maze, visited_clone, result_clone, (nx, ny), end, new_path);
+    ///                     next_search.run(|_| ());
+    ///                     
+    ///                     // If we found a path, exit early
+    ///                     if result.lock().unwrap().is_some() {
+    ///                         return Cont::return_cont(());
+    ///                     }
+    ///                 }
+    ///             }
+    ///         }
+    ///         
+    ///         // No path found from this position, backtrack
+    ///         Cont::return_cont(())
+    ///     }
+    ///     
+    ///     // Start the search with initial position
+    ///     let mut initial_path = vec![start];
+    ///     search(maze, visited, result.clone(), start, end, initial_path).run(|_| ());
+    ///     
+    ///     // Return the result
+    ///     let final_result = result.lock().unwrap().clone();
+    ///     final_result
+    /// }
+    ///
+    /// // Example usage (simplified):
+    /// let maze = vec![
+    ///     vec![false, false, false],
+    ///     vec![true, true, false],
+    ///     vec![false, false, false],
+    /// ];
+    ///
+    /// let path = find_path(&maze, (0, 0), (2, 2));
+    /// assert!(path.is_some());
     /// ```
     #[inline]
     pub fn call_cc<B, F>(self, f: F) -> Cont<R, B>
@@ -455,7 +1104,7 @@ where
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<R, A> Arbitrary for Cont<R, A>
 where
     R: Clone + Send + Sync + 'static,

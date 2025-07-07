@@ -2,16 +2,99 @@
 //!
 //! This module provides an optic (IsoLens) that generalizes the concept of a Lens using the Iso abstraction.
 //!
-//! ## Core Idea
+//! ## Functional Programming Context
 //!
-//! - An IsoLens is a lens built from an isomorphism (Iso) between a structure and a pair of (focused part, structure).
-//! - All getter/setter logic is expressed using Iso's `forward` and `backward` methods, ensuring bidirectional, type-safe, and immutable updates.
+//! In functional programming, lenses are a form of optic that provide a powerful way to access and modify deeply
+//! nested immutable data structures. The IsoLens combines concepts from:
+//!
+//! - **Profunctor Optics**: IsoLens is part of the optics hierarchy (Lens, Prism, Iso, etc.) used for functional data access
+//! - **Isomorphisms**: IsoLens utilizes the Iso abstraction to define bidirectional transformations between types
+//! - **Functional References**: Provides immutable, functional equivalents to traditional object-oriented getters and setters
+//!
+//! Similar constructs in other languages include:
+//! - **Haskell**: `Control.Lens.Lens` and `Control.Lens.Iso` from the lens library
+//! - **Scala**: `monocle.Lens` and `monocle.Iso` from the Monocle library
+//! - **PureScript**: `Data.Lens.Lens` and `Data.Lens.Iso` from the purescript-profunctor-lenses package
+//! - **Kotlin**: `arrow.optics.Lens` and `arrow.optics.Iso` from the Arrow library
+//!
+//! ## Performance Characteristics
+//!
+//! - **Memory Usage**: An `IsoLens<S, A, L>` itself is lightweight, typically requiring only the size of `L` plus a marker.
+//!   However, lens operations generally involve cloning the structure and focused data.
+//! - **Construction**: O(1) time and space complexity.
+//! - **Get Operation**: Complexity is determined by the underlying `Iso::forward` implementation, typically O(1) for
+//!   direct field access, but may be O(n) if deep cloning is involved.
+//! - **Set/Modify Operations**: Complexity is determined by the underlying `Iso::backward` implementation, typically O(1)
+//!   for simple field updates but may be O(n) if deep structure reconstruction is required.
+//! - **Composition**: O(1) for the composition itself, but the composed lens operations will have the combined
+//!   complexity of both lenses.
+//!
+//! ## Type Class Implementations
+//!
+//! While the IsoLens itself does not directly implement traditional functional programming type classes like Functor or Monad,
+//! it does conform to the laws and principles of the lens abstraction, which can be considered as its own type class:
+//!
+//! - **Category**: IsoLens instances can be composed to form new lenses (through nested data structures)
+//! - **Strong Profunctor**: The IsoLens can be seen as an implementation of the Strong Profunctor pattern
+//!
+//! The optics implementation in Rustica follows the laws that ensure proper lens behavior:
+//! - Get-Set: Getting a value and setting it back results in the same structure
+//! - Set-Get: Setting a value and then getting it returns the value that was set
+//! - Set-Set: Setting twice is the same as setting once with the final value
 //!
 //! ## Use Cases
 //!
 //! - Accessing and updating nested fields in complex immutable data structures
 //! - Building composable and reusable accessors for deeply nested types
 //! - Adapting optics to types where you have a natural isomorphism (e.g., tuple wrappers, newtypes)
+//!
+//! ## Basic Usage
+//!
+//! ```rust
+//! use rustica::datatypes::iso_lens::IsoLens;
+//! use rustica::traits::iso::Iso;
+//!
+//! // Define a simple data structure
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person {
+//!     name: String,
+//!     age: u32
+//! }
+//!
+//! // Create an Iso implementation for accessing the name field
+//! struct NameIso;
+//! impl Iso<Person, (String, Person)> for NameIso {
+//!     type From = Person;
+//!     type To = (String, Person);
+//!     
+//!     fn forward(&self, from: &Person) -> (String, Person) {
+//!         (from.name.clone(), from.clone())
+//!     }
+//!     
+//!     fn backward(&self, to: &(String, Person)) -> Person {
+//!         let mut p = to.1.clone();
+//!         p.name = to.0.clone();
+//!         p
+//!     }
+//! }
+//!
+//! // Create and use the lens
+//! let lens = IsoLens::new(NameIso);
+//! let alice = Person { name: "Alice".to_string(), age: 30 };
+//!
+//! // Get the name
+//! let (name, _) = lens.get(&alice);
+//! assert_eq!(name, "Alice");
+//!
+//! // Set a new name
+//! let bob = lens.set_focus(&alice, &"Bob".to_string());
+//! assert_eq!(bob.name, "Bob");
+//! assert_eq!(bob.age, 30); // Other fields are preserved
+//!
+//! // Modify the name with a function
+//! let shouting = lens.modify_focus(&alice, |name| name.to_uppercase());
+//! assert_eq!(shouting.name, "ALICE");
+//! ```
 //!
 //! ## Example
 //!
@@ -123,6 +206,72 @@
 //!
 //! - A Lens can be generalized as an Iso of the form S <-> (A, S)
 //! - getter/setter functions are wrapped as Iso's forward/backward operations
+//!
+//! ## Type Class Laws and Verification
+//!
+//! The IsoLens type class laws can be verified directly using the lens operations. Here's a complete example:
+//!
+//! ```rust
+//! use rustica::datatypes::iso_lens::IsoLens;
+//! use rustica::traits::iso::Iso;
+//!
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person { name: String, age: u32, email: String }
+//!
+//! struct NameIso;
+//! impl Iso<Person, (String, Person)> for NameIso {
+//!     type From = Person;
+//!     type To = (String, Person);
+//!     fn forward(&self, from: &Person) -> (String, Person) {
+//!         (from.name.clone(), from.clone())
+//!     }
+//!     fn backward(&self, to: &(String, Person)) -> Person {
+//!         Person { name: to.0.clone(), ..to.1.clone() }
+//!     }
+//! }
+//!
+//! fn verify_lens_laws() -> bool {
+//!     let lens = IsoLens::new(NameIso);
+//!     let person = Person {
+//!         name: "Alice".to_string(),
+//!         age: 30,
+//!         email: "alice@example.com".to_string()
+//!     };
+//!     let new_name = "Bob".to_string();
+//!     
+//!     // 1. Get-Set Law: lens.set(s, lens.get(s)) == s
+//!     // Get the focus value and context
+//!     let got = lens.get(&person);
+//!     // Set it back
+//!     let restored = lens.set(&got);
+//!     let get_set_law = person == restored;
+//!     
+//!     // 2. Set-Get Law: lens.get(lens.set(s, a)) == a
+//!     // For this, we need to create the proper input for set first
+//!     let new_value = (new_name.clone(), person.clone());
+//!     let updated = lens.set(&new_value);
+//!     let extracted = lens.get(&updated);
+//!     // We need to compare the focused value, but the context may have changed
+//!     // since the context is now from the updated structure
+//!     let set_get_law = new_value.0 == extracted.0;
+//!     
+//!     // 3. Set-Set Law: lens.set(lens.set(s, a), b) == lens.set(s, b)
+//!     let name1 = "Charlie".to_string();
+//!     let name2 = "David".to_string();
+//!     let val1 = (name1, person.clone());
+//!     let val2 = (name2.clone(), person.clone());
+//!     
+//!     let set_once = lens.set(&val1);
+//!     let set_twice = lens.set(&(name2.clone(), set_once.clone()));
+//!     let set_direct = lens.set(&val2);
+//!     let set_set_law = set_twice == set_direct;
+//!     
+//!     // All laws should hold
+//!     get_set_law && set_get_law && set_set_law
+//! }
+//!
+//! assert!(verify_lens_laws());
+//! ```
 
 use crate::traits::iso::{ComposedIso, Iso};
 use std::marker::PhantomData;
@@ -176,22 +325,22 @@ pub type ComposedIsoLens<S, A, B, L, L2> =
 ///
 /// For example (conceptual, full verification in tests):
 /// ```rust
-/// # use rustica::datatypes::iso_lens::IsoLens;
-/// # use rustica::traits::iso::Iso;
-/// # #[derive(Clone, Debug, PartialEq)]
-/// # struct Person { name: String, age: u32 }
-/// # struct NameIso;
-/// # impl Iso<Person, (String, Person)> for NameIso {
-/// #     type From = Person; type To = (String, Person);
-/// #     fn forward(&self, from: &Person) -> (String, Person) { (from.name.clone(), from.clone()) }
-/// #     fn backward(&self, to: &(String, Person)) -> Person {
-/// #         let mut p = to.1.clone(); p.name = to.0.clone(); p
-/// #     }
-/// # }
-/// # let lens = IsoLens::new(NameIso);
-/// # let person = Person { name: "Alice".to_string(), age: 30 };
-/// # let new_name = "Bob".to_string();
-/// # let new_name_tuple = (new_name.clone(), person.clone());
+/// use rustica::datatypes::iso_lens::IsoLens;
+/// use rustica::traits::iso::Iso;
+/// #[derive(Clone, Debug, PartialEq)]
+/// struct Person { name: String, age: u32 }
+/// struct NameIso;
+/// impl Iso<Person, (String, Person)> for NameIso {
+///     type From = Person; type To = (String, Person);
+///     fn forward(&self, from: &Person) -> (String, Person) { (from.name.clone(), from.clone()) }
+///     fn backward(&self, to: &(String, Person)) -> Person {
+///         let mut p = to.1.clone(); p.name = to.0.clone(); p
+///     }
+/// }
+/// let lens = IsoLens::new(NameIso);
+/// let person = Person { name: "Alice".to_string(), age: 30 };
+/// let new_name = "Bob".to_string();
+/// let new_name_tuple = (new_name.clone(), person.clone());
 /// // Get-Set (simplified for A = (FocusType, S_Context))
 /// let original_a_from_s = lens.get(&person); // A = (String, Person)
 /// assert_eq!(lens.set(&original_a_from_s), person);
@@ -206,9 +355,9 @@ pub type ComposedIsoLens<S, A, B, L, L2> =
 /// Below are runnable examples verifying these laws, particularly with `set_focus`:
 ///
 /// ```rust
-/// # use rustica::datatypes::iso_lens::IsoLens;
-/// # use rustica::traits::iso::Iso;
-/// #
+/// use rustica::datatypes::iso_lens::IsoLens;
+/// use rustica::traits::iso::Iso;
+///
 /// #[derive(Clone, Debug, PartialEq)]
 /// struct Person { name: String, age: u32, city: String }
 ///
@@ -365,23 +514,23 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// # use rustica::datatypes::iso_lens::IsoLens;
-    /// # use rustica::traits::iso::Iso;
-    /// # #[derive(Clone, Debug, PartialEq)]
-    /// # struct Person { name: String, age: u32 }
-    /// # struct NameIsoLens;
-    /// # impl Iso<Person, (String, Person)> for NameIsoLens {
-    /// #     type From = Person;
-    /// #     type To = (String, Person);
-    /// #     fn forward(&self, from: &Person) -> (String, Person) {
-    /// #         (from.name.clone(), from.clone())
-    /// #     }
-    /// #     fn backward(&self, to: &(String, Person)) -> Person {
-    /// #         let mut p = to.1.clone();
-    /// #         p.name = to.0.clone();
-    /// #         p
-    /// #     }
-    /// # }
+    /// use rustica::datatypes::iso_lens::IsoLens;
+    /// use rustica::traits::iso::Iso;
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Person { name: String, age: u32 }
+    /// struct NameIsoLens;
+    /// impl Iso<Person, (String, Person)> for NameIsoLens {
+    ///     type From = Person;
+    ///     type To = (String, Person);
+    ///     fn forward(&self, from: &Person) -> (String, Person) {
+    ///         (from.name.clone(), from.clone())
+    ///     }
+    ///     fn backward(&self, to: &(String, Person)) -> Person {
+    ///         let mut p = to.1.clone();
+    ///         p.name = to.0.clone();
+    ///         p
+    ///     }
+    /// }
     /// let lens = IsoLens::new(NameIsoLens);
     /// let p = Person { name: "Alice".into(), age: 30 };
     /// assert_eq!(lens.get(&p), ("Alice".to_string(), p.clone()));
@@ -411,23 +560,23 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// # use rustica::datatypes::iso_lens::IsoLens;
-    /// # use rustica::traits::iso::Iso;
-    /// # #[derive(Clone, Debug, PartialEq)]
-    /// # struct Person { name: String, age: u32 }
-    /// # struct NameIsoLens;
-    /// # impl Iso<Person, (String, Person)> for NameIsoLens {
-    /// #     type From = Person;
-    /// #     type To = (String, Person);
-    /// #     fn forward(&self, from: &Person) -> (String, Person) {
-    /// #         (from.name.clone(), from.clone())
-    /// #     }
-    /// #     fn backward(&self, to: &(String, Person)) -> Person {
-    /// #         let mut p = to.1.clone();
-    /// #         p.name = to.0.clone();
-    /// #         p
-    /// #     }
-    /// # }
+    /// use rustica::datatypes::iso_lens::IsoLens;
+    /// use rustica::traits::iso::Iso;
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Person { name: String, age: u32 }
+    /// struct NameIsoLens;
+    /// impl Iso<Person, (String, Person)> for NameIsoLens {
+    ///     type From = Person;
+    ///     type To = (String, Person);
+    ///     fn forward(&self, from: &Person) -> (String, Person) {
+    ///         (from.name.clone(), from.clone())
+    ///     }
+    ///     fn backward(&self, to: &(String, Person)) -> Person {
+    ///         let mut p = to.1.clone();
+    ///         p.name = to.0.clone();
+    ///         p
+    ///     }
+    /// }
     /// let lens = IsoLens::new(NameIsoLens);
     /// let p = Person { name: "Alice".into(), age: 30 };
     /// let updated = lens.set(&("Bob".to_string(), p.clone()));
@@ -455,23 +604,23 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// # use rustica::datatypes::iso_lens::IsoLens;
-    /// # use rustica::traits::iso::Iso;
-    /// # #[derive(Clone, Debug, PartialEq)]
-    /// # struct Person { name: String, age: u32 }
-    /// # struct NameIsoLens;
-    /// # impl Iso<Person, (String, Person)> for NameIsoLens {
-    /// #     type From = Person;
-    /// #     type To = (String, Person);
-    /// #     fn forward(&self, from: &Person) -> (String, Person) {
-    /// #         (from.name.clone(), from.clone())
-    /// #     }
-    /// #     fn backward(&self, to: &(String, Person)) -> Person {
-    /// #         let mut p = to.1.clone();
-    /// #         p.name = to.0.clone();
-    /// #         p
-    /// #     }
-    /// # }
+    /// use rustica::datatypes::iso_lens::IsoLens;
+    /// use rustica::traits::iso::Iso;
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Person { name: String, age: u32 }
+    /// struct NameIsoLens;
+    /// impl Iso<Person, (String, Person)> for NameIsoLens {
+    ///     type From = Person;
+    ///     type To = (String, Person);
+    ///     fn forward(&self, from: &Person) -> (String, Person) {
+    ///         (from.name.clone(), from.clone())
+    ///     }
+    ///     fn backward(&self, to: &(String, Person)) -> Person {
+    ///         let mut p = to.1.clone();
+    ///         p.name = to.0.clone();
+    ///         p
+    ///     }
+    /// }
     /// let lens = IsoLens::new(NameIsoLens);
     /// let p = Person { name: "Alice".into(), age: 30 };
     /// let modified = lens.modify(&p, |n| (n.0.to_uppercase(), n.1.clone()));
@@ -621,26 +770,24 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// # use rustica::datatypes::iso_lens::IsoLens;
-    /// # use rustica::traits::iso::Iso;
-    /// #
-    /// # #[derive(Clone, Debug, PartialEq)]
-    /// # struct Person { name: String, age: u32 }
-    /// #
-    /// # struct NameIso;
-    /// # impl Iso<Person, (String, Person)> for NameIso {
-    /// #     type From = Person;
-    /// #     type To = (String, Person);
-    /// #     fn forward(&self, from: &Person) -> (String, Person) {
-    /// #         (from.name.clone(), from.clone())
-    /// #     }
-    /// #     fn backward(&self, to: &(String, Person)) -> Person {
-    /// #         let mut p = to.1.clone();
-    /// #         p.name = to.0.clone();
-    /// #         p
-    /// #     }
-    /// # }
-    /// #
+    /// use rustica::datatypes::iso_lens::IsoLens;
+    /// use rustica::traits::iso::Iso;
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Person { name: String, age: u32 }
+    /// struct NameIso;
+    /// impl Iso<Person, (String, Person)> for NameIso {
+    ///     type From = Person;
+    ///     type To = (String, Person);
+    ///     fn forward(&self, from: &Person) -> (String, Person) {
+    ///         (from.name.clone(), from.clone())
+    ///     }
+    ///     fn backward(&self, to: &(String, Person)) -> Person {
+    ///         let mut p = to.1.clone();
+    ///         p.name = to.0.clone();
+    ///         p
+    ///     }
+    /// }
+    ///
     /// let lens = IsoLens::new(NameIso);
     /// let person = Person { name: "Alice".to_string(), age: 30 };
     /// let new_name = "Bob".to_string();
@@ -670,38 +817,39 @@ where
     /// the modified `FocusType`.
     ///
     /// # Arguments
+    ///
     /// * `s` - A reference to the original structure.
     /// * `f` - A function `FnOnce(FocusType) -> FocusType` to transform the focused part.
     ///
     /// # Returns
+    ///
     /// A new structure `S` with the focused part transformed.
     ///
     /// # Examples
+    ///
     /// ```rust
-    /// # use rustica::datatypes::iso_lens::IsoLens;
-    /// # use rustica::traits::iso::Iso;
-    /// #
-    /// # #[derive(Clone, Debug, PartialEq)]
-    /// # struct Person { name: String, age: u32 }
-    /// #
-    /// # struct NameIso;
-    /// # impl Iso<Person, (String, Person)> for NameIso {
-    /// #     type From = Person;
-    /// #     type To = (String, Person);
-    /// #     fn forward(&self, from: &Person) -> (String, Person) {
-    /// #         (from.name.clone(), from.clone())
-    /// #     }
-    /// #     fn backward(&self, to: &(String, Person)) -> Person {
-    /// #         let mut p = to.1.clone();
-    /// #         p.name = to.0.clone();
-    /// #         p
-    /// #     }
-    /// # }
-    /// #
+    /// use rustica::datatypes::iso_lens::IsoLens;
+    /// use rustica::traits::iso::Iso;
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Person { name: String, age: u32 }
+    /// struct NameIso;
+    /// impl Iso<Person, (String, Person)> for NameIso {
+    ///     type From = Person;
+    ///     type To = (String, Person);
+    ///     fn forward(&self, from: &Person) -> (String, Person) {
+    ///         (from.name.clone(), from.clone())
+    ///     }
+    ///     fn backward(&self, to: &(String, Person)) -> Person {
+    ///         let mut p = to.1.clone();
+    ///         p.name = to.0.clone();
+    ///         p
+    ///     }
+    /// }
+    ///
     /// let lens = IsoLens::new(NameIso);
     /// let person = Person { name: "Alice".to_string(), age: 30 };
     ///
-    /// let updated_person = lens.modify_focus(&person, |name_focus| name_focus.to_uppercase());
+    /// let updated_person = lens.modify_focus(&person, |name_focus: String| name_focus.to_uppercase());
     ///
     /// assert_eq!(updated_person.name, "ALICE");
     /// assert_eq!(updated_person.age, 30); // Original age preserved

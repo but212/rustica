@@ -4,6 +4,12 @@
 
 ### Changed
 
+- **`Choice` Filter Methods Clarification** (`src/datatypes/choice.rs`)  
+  - Established clear division of responsibilities between filter methods:
+    - `filter`: Only applies the predicate to alternative values, always preserves the primary value
+    - `filter_value`: Applies the predicate to all values including primary
+  - Updated documentation and tests to reflect this design decision
+
 - **`Memoizer` Enhancements** (`src/datatypes/wrapper/memoizer.rs`)
 
   - Replaced `std::sync::RwLock` with `parking_lot::RwLock` for potentially better performance and to avoid poisoning.
@@ -132,11 +138,13 @@
 #### Migration Guide
 
 - To convert from a transformer to a base type, use the `From` trait or `.into()`:
+
   ```rust
   let base: State<i32, i32> = State::from(state_t);
   let cont: Cont<i32, i32> = cont_t.into();
   let reader: Reader<i32, i32> = reader_t.into();
   ```
+
 - Update any code using the removed methods to use the `From` trait or `.into()` instead.
 
 ## [0.6.4] - 2025-04-18

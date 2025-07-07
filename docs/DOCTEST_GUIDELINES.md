@@ -49,6 +49,7 @@ This document outlines best practices for writing doctests in the Rustica codeba
    ````
 
 5. **Import both the type and its trait** when using trait methods:
+
    ````rust
    /// ```rust
    /// use rustica::datatypes::maybe::Maybe;
@@ -66,6 +67,7 @@ When writing doctests for functions that take closures as parameters, pay specia
 ### Owned vs. Reference Parameters
 
 1. For methods that operate on references (like `fmap`, `bind`), the closure should take reference parameters:
+
    ````rust
    /// ```rust
    /// // CORRECT:
@@ -80,7 +82,7 @@ When writing doctests for functions that take closures as parameters, pay specia
 
 The error "type mismatch in closure arguments" with message like:
 
-```
+```text
 expected closure signature `fn(_) -> _`
 found closure signature `fn(&_) -> _`
 ```

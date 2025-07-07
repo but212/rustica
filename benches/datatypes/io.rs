@@ -84,7 +84,7 @@ pub fn io_benchmarks(c: &mut Criterion) {
                         nums.iter().filter(|&&n| n > 5).cloned().collect::<Vec<_>>()
                     })
                     .fmap(|nums: Vec<i32>| nums.iter().sum::<i32>())
-                    .bind(|sum: i32| IO::new(move || format!("Processed sum: {}", sum))),
+                    .bind(|sum: i32| IO::new(move || format!("Processed sum: {sum}"))),
             )
         });
     });
@@ -95,8 +95,8 @@ pub fn io_benchmarks(c: &mut Criterion) {
             let io_operation = IO::new(|| -> Result<i32, &'static str> { Ok(42) });
             black_box(
                 io_operation.bind(|result: Result<i32, &'static str>| match result {
-                    Ok(value) => IO::pure(format!("Success: {}", value)),
-                    Err(err) => IO::pure(format!("Failure: {}", err)),
+                    Ok(value) => IO::pure(format!("Success: {value}")),
+                    Err(err) => IO::pure(format!("Failure: {err}")),
                 }),
             )
         });

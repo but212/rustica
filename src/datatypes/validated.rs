@@ -1,8 +1,47 @@
-//! # Validated Datatype
+//! # Validated Datatype (`Validated<E, A>`)
 //!
 //! The `Validated` datatype represents a validation result that can either be valid with a value
 //! or invalid with a collection of errors. Unlike `Result`, which fails fast on the first error,
 //! `Validated` can accumulate multiple errors during validation.
+//!
+//! ## Performance Characteristics
+//!
+//! ### Memory Usage
+//!
+//! * **Instance Size**: O(1) for Valid variant, O(n) for Invalid variant where n is the number of errors
+//! * **Validated::Valid**: Stores a single value of type A
+//! * **Validated::Invalid**: Uses a SmallVec with inline capacity for up to 4 errors, avoiding heap allocations for common cases
+//! * **Clone Operations**:
+//!   - Cloning requires O(n) time and space when errors are present
+//!   - Performance depends on the Clone implementation of the contained types E and A
+//!
+//! ### Time Complexity
+//!
+//! * **Construction**: O(1) for valid, O(n) for invalid where n is the collection size
+//! * **Validation Operations**:
+//!   - map, ap: O(1) for valid case, O(n) when combining errors
+//!   - combine_errors: O(n+m) where n and m are the number of errors in each Validated
+//!   - fmap_invalid: O(n) where n is the number of errors
+//! * **Conversions**:
+//!   - from_result: O(1)
+//!   - from_option: O(1)
+//!   - to_result: O(1) for Valid, O(n) for Invalid (need to choose first error)
+//!
+//! ### Concurrency
+//!
+//! * **Thread Safety**: `Validated<E, A>` is `Send` and `Sync` when its type parameters E and A are
+//! * **Immutability**: All operations create new instances rather than modifying existing ones
+//! * **Side Effects**: Functions should be pure with no side effects for predictable behavior
+//!
+//! ## Type Class Implementations
+//!
+//! `Validated<E, A>` implements several type classes that enable its core functionality:
+//!
+//! - **Functor**: Maps functions over the valid value
+//! - **Bifunctor**: Maps functions over both the error and valid values
+//! - **Applicative**: Allows applying functions wrapped in Validated contexts
+//! - **Semigroup**: Combines error values when both Validated values are invalid
+//! - **Foldable**: Folds valid values (ignoring invalid ones)
 //!
 //! ## Examples
 //!
@@ -80,6 +119,170 @@
 //!
 //! The key difference between `Validated` and `Result` is that `Validated` is designed for
 //! scenarios where you want to collect all validation errors rather than stopping at the first one.
+//!
+//! ## Type Class Laws
+//!
+//! `Validated<E, A>` implements several type classes with the following laws:
+//!
+//! ### Functor Laws
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::functor::Functor;
+//!
+//! // Identity: fmap(id) == id
+//! let v: Validated<&str, i32> = Validated::valid(42);
+//! let identity = |x: &i32| *x;
+//! assert_eq!(v.fmap(identity), v);
+//!
+//! // Composition: fmap(f . g) == fmap(f) . fmap(g)
+//! let f = |x: &i32| x + 1;
+//! let g = |x: &i32| x * 2;
+//! let comp = |x: &i32| f(&g(x));
+//!
+//! let v: Validated<&str, i32> = Validated::valid(5);
+//! assert_eq!(v.fmap(comp), v.fmap(g).fmap(f));
+//! ```
+//!
+//! ### Bifunctor Laws
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::bifunctor::Bifunctor;
+//!
+//! // Bifunctor identity: bimap(id, id) == id
+//! let v_valid = Validated::valid(42);
+//! let v_invalid = Validated::invalid("error");
+//! let id_int = |x: &i32| *x;
+//! let id_str = |x: &&str| x.to_string();
+//!
+//! assert_eq!(v_valid.bimap(id_int, id_str), Validated::valid(42));
+//! assert_eq!(v_invalid.bimap(id_int, id_str), Validated::invalid("error".to_string()));
+//!
+//! // Bifunctor composition
+//! let f1 = |x: &i32| x + 1;
+//! let f2 = |x: &i32| x * 2;
+//! let g1 = |s: &String| format!("{}-a", s);
+//! let g2 = |s: &&str| s.to_string();
+//!
+//! let v_valid = Validated::valid(5);
+//! let v_invalid = Validated::invalid("error");
+//!
+//! // bimap(f1 . f2, g1 . g2) == bimap(f1, g1) . bimap(f2, g2)
+//! let comp_f = |x: &i32| f1(&f2(x));
+//! let comp_g = |x: &&str| g1(&g2(x));
+//!
+//! let left_valid = v_valid.clone().bimap(comp_f, comp_g);
+//! let right_valid = v_valid.bimap(f2, g2).bimap(f1, g1);
+//!
+//! let left_invalid = v_invalid.clone().bimap(comp_f, comp_g);
+//! let right_invalid = v_invalid.bimap(f2, g2).bimap(f1, g1);
+//!
+//! assert_eq!(left_valid, right_valid);
+//! assert_eq!(left_invalid, right_invalid);
+//! ```
+//!
+//! ### Applicative Laws
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::applicative::Applicative;
+//!
+//! // Identity: pure(id) <*> v = v
+//! let v = Validated::valid(42);
+//! let id_fn = Validated::valid(|x: &i32| *x);
+//! assert_eq!(v.apply(&id_fn), v);
+//!
+//! // Homomorphism: pure(f) <*> pure(x) = pure(f(x))
+//! let f = |x: &i32| x + 1;
+//! let x = 5;
+//! let left = Validated::valid(x).apply(&Validated::valid(f));
+//! let right = Validated::valid(f(&x));
+//! assert_eq!(left, right);
+//! ```
+//!
+//! ### Semigroup Laws
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Associativity: (a <> b) <> c = a <> (b <> c)
+//! let a: Validated<&str, i32> = Validated::invalid("a");
+//! let b: Validated<&str, i32> = Validated::invalid("b");
+//! let c: Validated<&str, i32> = Validated::invalid("c");
+//!
+//! let left = a.clone().combine(&b).combine(&c);
+//! let right = a.combine(&b.clone().combine(&c));
+//! assert_eq!(left, right);
+//! ```
+//!
+//! ### Monoid Laws
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::monoid::Monoid;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Left identity: mempty <> a = a
+//! let a = Validated::invalid("a");
+//! let empty = Validated::<&str, i32>::empty();
+//! assert_eq!(empty.combine(&a), a);
+//!
+//! // Right identity: a <> mempty = a
+//! assert_eq!(a.combine(&empty), a);
+//! ```
+//!
+//! ## Basic Usage
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::monoid::Monoid;
+//! use rustica::traits::semigroup::Semigroup;
+//! use rustica::traits::functor::Functor;
+//! use smallvec::smallvec;
+//!
+//! // Creating valid and invalid instances
+//! let valid: Validated<String, i32> = Validated::valid(42);
+//! let invalid_single: Validated<String, i32> = Validated::invalid("Invalid input".to_string());
+//! let invalid_multiple: Validated<String, i32> = Validated::invalid_many(
+//!     vec!["Error 1".to_string(), "Error 2".to_string()]
+//! );
+//!
+//! // Checking validity
+//! assert!(valid.is_valid());
+//! assert!(invalid_single.is_invalid());
+//!
+//! // Accessing values
+//! assert_eq!(valid.value(), Some(&42));
+//! assert_eq!(invalid_single.value(), None);
+//!
+//! // Accessing errors
+//! assert!(valid.errors().is_empty());
+//! assert_eq!(invalid_multiple.errors(), vec!["Error 1".to_string(), "Error 2".to_string()]);
+//!
+//! // Transforming valid values with map
+//! let mapped = valid.fmap(|x| x * 2);
+//! assert_eq!(mapped, Validated::valid(84));
+//!
+//! // Transforming error values with fmap_invalid
+//! let with_context = invalid_single.fmap_invalid(|e| format!("Context: {}", e));
+//! assert_eq!(with_context, Validated::invalid("Context: Invalid input".to_string()));
+//!
+//! // Converting from Result
+//! let ok_result: Result<i32, String> = Ok(42);
+//! let err_result: Result<i32, String> = Err("Error".to_string());
+//!
+//! let from_ok = Validated::from_result_owned(ok_result);
+//! let from_err = Validated::from_result_owned(err_result);
+//!
+//! assert_eq!(from_ok, Validated::valid(42));
+//! assert_eq!(from_err, Validated::invalid("Error".to_string()));
+//!
+//! // Converting to Result
+//! assert_eq!(valid.to_result(), Ok(42));
+//! assert_eq!(invalid_single.to_result(), Err("Invalid input".to_string()));
+//! ```
 //!
 //! ## Applicative Validation
 //! The `Applicative` instance for `Validated` is particularly powerful for accumulating errors from multiple independent validation steps. This is often used in scenarios like form validation.
@@ -160,8 +363,10 @@ use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
+use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
-#[cfg(feature = "develop")]
+use crate::traits::semigroup::Semigroup;
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use smallvec::{smallvec, SmallVec};
 
@@ -2512,7 +2717,41 @@ impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
     }
 }
 
-#[cfg(feature = "develop")]
+impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
+    fn combine(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Validated::Valid(_), _) => self.clone(),
+            (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
+                errors.extend(e1.iter().cloned());
+                errors.extend(e2.iter().cloned());
+                Validated::Invalid(errors)
+            },
+        }
+    }
+
+    fn combine_owned(self, other: Self) -> Self {
+        match (self.clone(), other.clone()) {
+            (Validated::Valid(_), _) => self,
+            (Validated::Invalid(_), Validated::Valid(_)) => other,
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
+                errors.extend(e1.iter().cloned());
+                errors.extend(e2.iter().cloned());
+                Validated::Invalid(errors)
+            },
+        }
+    }
+}
+
+impl<E: Clone, A: Clone> Monoid for Validated<E, A> {
+    fn empty() -> Self {
+        Validated::Invalid(SmallVec::new())
+    }
+}
+
+#[cfg(feature = "full")]
 impl<E, A> Arbitrary for Validated<E, A>
 where
     E: Arbitrary,

@@ -2,6 +2,8 @@
 //!
 //! This module provides the `Max` wrapper type which forms a semigroup under taking the maximum.
 //!
+//! ## Basic Usage
+//!
 //! ```rust
 //! use rustica::datatypes::wrapper::max::Max;
 //! use rustica::traits::semigroup::Semigroup;
@@ -12,11 +14,71 @@
 //! assert_eq!(c, Max(10));
 //! ```
 //!
+//! ## Type Class Laws
+//!
+//! `Max<T>` satisfies the semigroup associativity law:
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::max::Max;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Verify associativity: (a combine b) combine c = a combine (b combine c)
+//! let a = Max(3);
+//! let b = Max(7);
+//! let c = Max(1);
+//! assert_eq!(a.clone().combine(&b).combine(&c),
+//!            a.combine(&b.combine(&c)));
+//! ```
+//!
+//! When `T` has a minimum value, `Max<T>` also satisfies the monoid laws:
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::max::Max;
+//! use rustica::traits::semigroup::Semigroup;
+//! use rustica::traits::monoid::Monoid;
+//!
+//! let a = Max(42);
+//! let id = Max(i32::MIN);
+//!
+//! // Identity laws: id combine x = x combine id = x
+//! assert_eq!(id.combine(&a), a);
+//! assert_eq!(a.combine(&id), a);
+//! ```
+//!
 //! ## Performance Characteristics
 //!
 //! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
 //! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
 //! - Clone Cost: Depends on the cost of cloning the inner type `T`
+//!
+//! ## Functional Programming Context
+//!
+//! The `Max` wrapper is a fundamental building block for functional programming patterns:
+//!
+//! - **Aggregation**: Provides a principled way to find maximum values
+//! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
+//! - **Folding**: Can be used with `Foldable` to reduce collections to a single maximum value
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::max::Max;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::identity::Identity;
+//!
+//! // Transform the inner value while preserving the wrapper
+//! let a = Max(5);
+//! let b = a.fmap(|x| x * 2);
+//! assert_eq!(*b.value(), 10);
+//! ```
+//!
+//! ## Type Class Implementations
+//!
+//! `Max<T>` implements the following type classes:
+//!
+//! - `Semigroup`: For any `T` that implements `Ord`
+//! - `Monoid`: For any `T` that implements `Ord` and has a minimum value
+//! - `Functor`: For mapping operations over the inner value
+//! - `Identity`: For accessing the inner value
+//! - `Foldable`: For folding operations over the single inner value
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
@@ -102,6 +164,95 @@ use std::fmt;
 pub struct Max<T>(pub T);
 
 impl<T: Clone + Ord> Semigroup for Max<T> {
+    /// Combines two `Max` values by taking the maximum, consuming self.
+    ///
+    /// This method implements the Semigroup operation for `Max<T>`, which is taking
+    /// the maximum of two values. This method consumes both operands.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Just performs a comparison and returns one of the values
+    /// - **Memory Usage**: No additional memory allocation
+    /// - **Ownership**: Takes ownership of both `self` and `other`
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Associativity
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
+    /// // where ⊕ is the combine operation
+    /// fn verify_associativity<T: Clone + Ord>(a: T, b: T, c: T) -> bool {
+    ///     let max_a = Max(a);
+    ///     let max_b = Max(b);
+    ///     let max_c = Max(c);
+    ///     
+    ///     let left = max_a.clone().combine_owned(max_b.clone()).combine_owned(max_c.clone());
+    ///     let right = max_a.combine_owned(max_b.combine_owned(max_c));
+    ///     
+    ///     left == right
+    /// }
+    ///
+    /// assert!(verify_associativity(1, 5, 3));
+    /// assert!(verify_associativity(10, 2, 7));
+    /// assert!(verify_associativity(-5, -10, -3));
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// let a = Max(5);
+    /// let b = Max(10);
+    ///
+    /// // a and b are consumed
+    /// let c = a.combine_owned(b);
+    /// assert_eq!(c, Max(10));
+    /// ```
+    ///
+    /// With custom types that implement `Ord`:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::semigroup::Semigroup;
+    /// use std::cmp::Ordering;
+    ///
+    /// #[derive(Clone, Debug, PartialEq, Eq)]
+    /// struct Version(u32, u32, u32);  // Major, minor, patch
+    ///
+    /// impl PartialOrd for Version {
+    ///     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    ///         Some(self.cmp(other))
+    ///     }
+    /// }
+    ///
+    /// impl Ord for Version {
+    ///     fn cmp(&self, other: &Self) -> Ordering {
+    ///         match self.0.cmp(&other.0) {
+    ///             Ordering::Equal => match self.1.cmp(&other.1) {
+    ///                 Ordering::Equal => self.2.cmp(&other.2),
+    ///                 ord => ord,
+    ///             },
+    ///             ord => ord,
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// let v1 = Max(Version(1, 0, 0));
+    /// let v2 = Max(Version(2, 0, 0));
+    /// let v3 = Max(Version(1, 5, 0));
+    ///
+    /// // Find the maximum version
+    /// let max_v = v1.combine_owned(v2).combine_owned(v3);
+    /// assert_eq!(max_v, Max(Version(2, 0, 0)));
+    /// ```
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
         match self.0.cmp(&other.0) {
@@ -110,6 +261,75 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
         }
     }
 
+    /// Combines two `Max` values by taking the maximum, borrowing self.
+    ///
+    /// This method implements the Semigroup operation for `Max<T>`, which is taking
+    /// the maximum of two values. This method borrows both operands and returns a new `Max`.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Just performs a comparison and clones one of the values
+    /// - **Memory Usage**: Creates a new `Max` wrapper with a clone of one of the input values
+    /// - **Borrowing**: Borrows `self` and `other`, avoiding unnecessary cloning of both
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Associativity
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
+    /// // where ⊕ is the combine operation
+    /// fn verify_associativity<T: Clone + Ord + PartialEq>(a: T, b: T, c: T) -> bool {
+    ///     let max_a = Max(a);
+    ///     let max_b = Max(b);
+    ///     let max_c = Max(c);
+    ///     
+    ///     let left = max_a.combine(&max_b).combine(&max_c);
+    ///     let right = max_a.combine(&max_b.combine(&max_c));
+    ///     
+    ///     left == right
+    /// }
+    ///
+    /// assert!(verify_associativity(1, 5, 3));
+    /// assert!(verify_associativity(10, 2, 7));
+    /// assert!(verify_associativity(-5, -10, -3));
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// let a = Max(5);
+    /// let b = Max(10);
+    ///
+    /// // a and b are borrowed
+    /// let c = a.combine(&b);
+    /// assert_eq!(c, Max(10));
+    ///
+    /// // a and b can still be used
+    /// let d = b.combine(&a);
+    /// assert_eq!(d, Max(10));
+    /// ```
+    ///
+    /// Combining multiple values:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// let values = vec![Max(3), Max(8), Max(2), Max(10), Max(5)];
+    ///
+    /// // Find the maximum value in the collection
+    /// let result = values.iter().fold(Max(std::i32::MIN), |acc, x| acc.combine(x));
+    /// assert_eq!(result, Max(10));
+    /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
         match self.0.cmp(&other.0) {
@@ -120,6 +340,119 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
 }
 
 impl<T: Clone + Ord + Default> Monoid for Max<T> {
+    /// Returns the identity element for the `Max` monoid, which is `Max(T::default())`,
+    /// typically the minimum possible value of `T`.
+    ///
+    /// For numeric types, this is usually the minimum possible value (e.g., MIN_INT for integers).
+    /// When combined with any other `Max` value, the result will always be the other value.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Simply creates a wrapper with the default value
+    /// - **Memory Usage**: Space required for the wrapper and the default value of type T
+    /// - **Allocation**: Any allocations required by T::default() implementation
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Left Identity
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // For any Max(x), empty() ⊕ Max(x) = Max(x)
+    /// fn verify_left_identity<T: Clone + Ord + Default + PartialEq>(x: T) -> bool {
+    ///     let empty = Max::<T>::empty();
+    ///     let value = Max(x);
+    ///     
+    ///     empty.combine(&value) == value
+    /// }
+    ///
+    /// assert!(verify_left_identity(42));
+    /// assert!(verify_left_identity(0));
+    /// ```
+    ///
+    /// ## Right Identity
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // For any Max(x), Max(x) ⊕ empty() = Max(x)
+    /// fn verify_right_identity<T: Clone + Ord + Default + PartialEq>(x: T) -> bool {
+    ///     let value = Max(x);
+    ///     let empty = Max::<T>::empty();
+    ///     
+    ///     value.combine(&empty) == value
+    /// }
+    ///
+    /// assert!(verify_right_identity(42));
+    /// assert!(verify_right_identity(0));
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // Create an identity element for integers
+    /// let empty = Max::<i32>::empty();
+    /// assert_eq!(empty, Max(i32::default()));
+    ///
+    /// let empty_i64 = Max::<i64>::empty();
+    /// assert_eq!(empty_i64, Max(i64::default()));
+    /// ```
+    ///
+    /// Using with custom types that implement `Default`:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::semigroup::Semigroup;
+    /// use std::cmp::Ordering;
+    ///
+    /// #[derive(Clone, Debug, PartialEq, Eq)]
+    /// struct Version(u32, u32, u32);
+    ///
+    /// impl Default for Version {
+    ///     fn default() -> Self {
+    ///         // The minimum possible version is 0.0.0
+    ///         Version(0, 0, 0)
+    ///     }
+    /// }
+    ///
+    /// impl PartialOrd for Version {
+    ///     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    ///         Some(self.cmp(other))
+    ///     }
+    /// }
+    ///
+    /// impl Ord for Version {
+    ///     fn cmp(&self, other: &Self) -> Ordering {
+    ///         match self.0.cmp(&other.0) {
+    ///             Ordering::Equal => match self.1.cmp(&other.1) {
+    ///                 Ordering::Equal => self.2.cmp(&other.2),
+    ///                 ord => ord,
+    ///             },
+    ///             ord => ord,
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// let empty = Max::<Version>::empty();
+    /// assert_eq!(empty, Max(Version(0, 0, 0)));
+    ///
+    /// // Verify identity laws
+    /// let v = Max(Version(1, 2, 3));
+    /// assert_eq!(empty.combine(&v), v);
+    /// assert_eq!(v.combine(&empty), v);
+    /// ```
     #[inline]
     fn empty() -> Self {
         Max(T::default())
@@ -162,6 +495,98 @@ impl<T: Clone + Ord> Identity for Max<T> {
 }
 
 impl<T: Clone + Ord> Functor for Max<T> {
+    /// Maps a function over the value contained in this `Max` wrapper.
+    ///
+    /// This method implements the Functor typeclass by applying the function `f`
+    /// to the inner value and wrapping the result in a new `Max` container.
+    /// This method borrows the inner value, avoiding consumption.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) plus the complexity of function `f`
+    /// - **Memory Usage**: Creates a new `Max` wrapper with the transformed value
+    /// - **Borrowing**: Takes a reference to the inner value, avoiding cloning it
+    ///
+    /// # Type Class Laws
+    ///
+    /// ## Identity Law
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::functor::Functor;
+    ///
+    /// // For any Max(x), fmap(id) = id
+    /// // where id is the identity function
+    /// fn verify_identity_law<T: Clone + Ord + PartialEq>(x: T) -> bool {
+    ///     let max_x = Max(x.clone());
+    ///     let mapped = max_x.fmap(|a| a.clone());
+    ///     mapped == max_x
+    /// }
+    ///
+    /// // Test with various values
+    /// assert!(verify_identity_law(42));
+    /// assert!(verify_identity_law(-7));
+    /// assert!(verify_identity_law(0));
+    /// ```
+    ///
+    /// ## Composition Law
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::functor::Functor;
+    ///
+    /// // For any Max(x) and functions f and g:
+    /// // fmap(f . g) = fmap(f) . fmap(g)
+    /// fn verify_composition_law<T>(x: T) -> bool
+    /// where
+    ///     T: Clone + Ord + PartialEq + std::fmt::Display,
+    /// {
+    ///     let max_x = Max(x);
+    ///     
+    ///     // Define two functions to compose
+    ///     let f = |x: &String| x.len();
+    ///     let g = |x: &T| x.to_string();
+    ///     
+    ///     // Left side: fmap(f . g)
+    ///     let left_side = max_x.clone().fmap(|a| f(&g(a)));
+    ///     
+    ///     // Right side: fmap(f) . fmap(g)
+    ///     let right_side = max_x.clone().fmap(g).fmap(f);
+    ///     
+    ///     left_side == right_side
+    /// }
+    ///
+    /// // Test with a value that can be converted to String
+    /// assert!(verify_composition_law(42));
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Basic transformation:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::functor::Functor;
+    ///
+    /// let max_value = Max(5);
+    /// let doubled = max_value.fmap(|x| x * 2);
+    /// assert_eq!(doubled, Max(10));
+    /// ```
+    ///
+    /// Chaining transformations:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::functor::Functor;
+    ///
+    /// let max_value = Max(5);
+    /// let result = max_value
+    ///     .fmap(|x| x * 2)       // Max(10)
+    ///     .fmap(|x| x + 5)       // Max(15)
+    ///     .fmap(|x| x.to_string()); // Max("15")
+    ///
+    /// assert_eq!(result, Max("15".to_string()));
+    /// ```
     #[inline]
     fn fmap<U, F>(&self, f: F) -> Self::Output<U>
     where
@@ -170,10 +595,43 @@ impl<T: Clone + Ord> Functor for Max<T> {
         Max(f(&self.0))
     }
 
+    /// Maps a function over the value contained in this `Max` wrapper, consuming it.
+    ///
+    /// This method is similar to `fmap` but takes ownership of `self` and passes
+    /// ownership of the inner value to the mapping function. This avoids unnecessary
+    /// cloning when the original value is no longer needed.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) plus the complexity of function `f`
+    /// - **Memory Usage**: Creates a new `Max` wrapper with the transformed value
+    /// - **Ownership**: Consumes `self`, avoiding unnecessary cloning
+    ///
+    /// # Type Class Laws
+    ///
+    /// The same functor laws apply as for `fmap`, but with ownership semantics.
+    ///
+    /// # Examples
+    ///
+    /// Basic transformation with ownership:
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::traits::functor::Functor;
+    ///
+    /// let max_string = Max(String::from("hello"));
+    ///
+    /// // Efficiently transform without cloning the string
+    /// let max_length = max_string.fmap_owned(|s| s.len());
+    /// assert_eq!(max_length, Max(5));
+    ///
+    /// // Note: max_string has been consumed and can't be used anymore
+    /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
     where
         F: FnOnce(Self::Source) -> U,
+        Self::Source: Ord,
     {
         Max(f(self.0))
     }

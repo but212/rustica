@@ -50,6 +50,7 @@
 //!     assert_eq!(result.try_get().await, 86);
 //! }
 //! ```
+//!
 //! # Complete Example: Building an Async Pipeline
 //!
 //! ```rust
@@ -86,10 +87,16 @@
 //!     // Build a pipeline using AsyncM
 //!     let pipeline = AsyncM::pure(123)
 //!         .fmap(|user_id| fetch_user(user_id))
-//!         .bind(|user| async move {
+//!         .bind(|user| {
+//!             let user_clone = user.clone();
 //!             let user_id = user.id;
-//!             AsyncM::new(move || fetch_orders(user_id))
-//!                 .fmap(move |orders| async move { (user.clone(), orders) })
+//!             async move {
+//!                 AsyncM::new(move || fetch_orders(user_id))
+//!                     .fmap(move |orders| {
+//!                         let value = user_clone.clone();
+//!                         async move { (value, orders) }
+//!                     })
+//!             }
 //!         })
 //!         .bind(|(user, orders)| async move {
 //!             let discount = calculate_discount(&orders).await;
@@ -103,22 +110,52 @@
 //!     
 //!     println!("{}", pipeline.try_get().await);
 //! }
+//!```
+//!
+//! ## Performance Characteristics
+//!
+//! - **Memory Usage:** Each `AsyncM` instance carries an `Arc<dyn Fn>` overhead (16–24 bytes on 64-bit systems). Cloning an `AsyncM` is cheap (just increments an Arc reference count). There are `owned` variants that avoid one level of Arc wrapping for better performance.
+//! - **Time Complexity:**
+//!     - `pure`: O(1) — immediate value wrapping
+//!     - `fmap`/`bind`: O(1) — deferred computation composition
+//!     - `try_get`: O(n), where n is the chain length of operations
+//!     - `zip_with`/`apply`: Both computations are run in parallel, bounded by the slower one
+//! - **Concurrency:** `zip_with` and `apply` use `tokio::join!` for parallel execution. All operations are `Send + Sync` safe for cross-thread usage.
+//!
+//! ## Type Class Laws
+//!
+//! The `AsyncM` type abides by the standard Functor, Applicative, and Monad laws. For reference, here are the Monad laws illustrated using AsyncM (see also tests for more examples):
+//!
+//! ```rust
+//! # use rustica::datatypes::async_monad::AsyncM;
+//! # use tokio;
+//! # #[tokio::main]
+//! # async fn main() {
+//! // Left identity: pure(a).bind(f) == f(a)
+//! let a = 42;
+//! let f = |x| async move { AsyncM::pure(x * 2) };
+//! let left = AsyncM::pure(a).bind(f.clone());
+//! let right = f(a).await;
+//! assert_eq!(left.try_get().await, right.try_get().await);
+//!
+//! // Right identity: m.bind(pure) == m
+//! let m = AsyncM::pure(42);
+//! let bound = m.clone().bind(|x| async move { AsyncM::pure(x) });
+//! assert_eq!(m.try_get().await, bound.try_get().await);
+//!
+//! // Associativity: (m.bind(f)).bind(g) == m.bind(|x| f(x).bind(g))
+//! let m = AsyncM::pure(10);
+//! let f = |x| async move { AsyncM::pure(x + 1) };
+//! let g = |x| async move { AsyncM::pure(x * 2) };
+//! let left = m.clone().bind(f.clone()).bind(g.clone());
+//! let right = m.bind(move |x| async move { f(x).await.bind(g.clone()) });
+//! assert_eq!(left.try_get().await, right.try_get().await);
+//! # }
 //! ```
 //!
-//! # Method Comparison Guide
+//! ## Common Pitfalls and Solutions
 //!
-//! | Method        | Ownership     | Use Case                                | Performance          |
-//! | ------------- | ------------- | --------------------------------------- | -------------------- |
-//! | `fmap`        | Borrows self  | Multiple transformations on same AsyncM | Additional Arc clone |
-//! | `fmap_owned`  | Consumes self | Single transformation chain             | More efficient       |
-//! | `bind`        | Borrows self  | Reusable async chains                   | Additional Arc clone |
-//! | `bind_owned`  | Consumes self | Linear async pipelines                  | More efficient       |
-//! | `apply`       | Borrows self  | Applying multiple functions             | Parallel execution   |
-//! | `apply_owned` | Consumes self | Single function application             | Most efficient       |
-//!
-//! # Common Pitfalls and Solutions
-//!
-//! ## Infinite Recursion
+//! ### Infinite Recursion
 //! ```rust,no_run
 //! // DON'T: This creates infinite recursion
 //! let bad = AsyncM::new(|| async {
@@ -127,14 +164,16 @@
 //! });
 //!
 //! // DO: Use bind for chaining
+//! use rustica::datatypes::async_monad::AsyncM;
+//!
 //! let good = AsyncM::pure(42)
 //!     .bind(|x| async move { AsyncM::pure(x * 2) });
 //! ```
 //!
-//! ## Shared State Issues
+//! ### Shared State Issues
 //! ```rust
-//! # use std::sync::Arc;
-//! # use tokio::sync::Mutex;
+//! # use std::sync::{Arc, Mutex};
+//! # use rustica::datatypes::async_monad::AsyncM;
 //! // DON'T: Capturing mutable references
 //! let mut counter = 0;
 //! // let bad = AsyncM::new(|| async { counter += 1; counter }); // Won't compile
@@ -143,17 +182,20 @@
 //! let counter = Arc::new(Mutex::new(0));
 //! let good = AsyncM::new({
 //!     let counter = counter.clone();
-//!     move || async move {
-//!         let mut c = counter.lock().await;
-//!         *c += 1;
-//!         *c
+//!     move || {
+//!         let value = counter.clone();
+//!         async move {
+//!             let mut c = value.lock().unwrap();
+//!             *c += 1;
+//!             *c
+//!         }
 //!     }
 //! });
 //! ```
 
 use futures::join;
 use futures::{Future, FutureExt};
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::{marker::PhantomData, panic, pin::Pin, sync::Arc};
 
@@ -1083,7 +1125,7 @@ impl<A: Send + 'static> AsyncM<A> {
     }
 }
 
-#[cfg(feature = "develop")]
+#[cfg(feature = "full")]
 impl<A: Arbitrary + 'static + Send + Sync> Arbitrary for AsyncM<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);
