@@ -320,25 +320,25 @@ fn test_choice_swap_with_alternative_panic_no_alternatives() {
 fn test_choice_filter() {
     let choice = Choice::new(2, vec![1, 3, 4, 5, 6]);
 
-    // Filter evens (primary survives)
+    // Filter evens (only filters alternatives)
     let evens = choice.filter(|&x| x % 2 == 0);
     assert_eq!(*evens.first().unwrap(), 2);
     assert_eq!(evens.alternatives(), &[4, 6]);
     assert_eq!(evens.len(), 3);
 
-    // Filter odds (primary is filtered out, first alternative becomes primary)
+    // Filter odds (only filters alternatives)
     let odds = choice.filter(|&x| x % 2 != 0);
-    assert_eq!(*odds.first().unwrap(), 1);
-    assert_eq!(odds.alternatives(), &[3, 5]);
-    assert_eq!(odds.len(), 3);
+    assert_eq!(*odds.first().unwrap(), 2);
+    assert_eq!(odds.alternatives(), &[1, 3, 5]);
+    assert_eq!(odds.len(), 4);
 
-    // Filter everything (results in empty Choice)
-    let none = choice.filter(|_| false);
-    assert!(none.is_empty());
-    assert!(none.alternatives().is_empty());
-    assert_eq!(none.len(), 0);
+    // Filter all alternatives
+    let none_alt = choice.filter(|_| false);
+    assert_eq!(*none_alt.first().unwrap(), 2);
+    assert!(none_alt.alternatives().is_empty());
+    assert_eq!(none_alt.len(), 1);
 
-    // Filter nothing (returns original)
+    // Filter no alternatives
     let all = choice.filter(|_| true);
     assert_eq!(*all.first().unwrap(), 2);
     assert_eq!(all.alternatives(), &[1, 3, 4, 5, 6]);
@@ -346,12 +346,10 @@ fn test_choice_filter() {
 
     // Filter on a Choice with only a primary value
     let single = Choice::new(10, vec![]);
-    let single_filtered_out = single.filter(|&x| x < 5);
-    assert!(single_filtered_out.is_empty());
-    let single_kept = single.filter(|&x| x > 5);
-    assert_eq!(*single_kept.first().unwrap(), 10);
-    assert!(single_kept.alternatives().is_empty());
-    assert_eq!(single_kept.len(), 1);
+    let single_filtered = single.filter(|&x| x < 5);
+    assert_eq!(*single_filtered.first().unwrap(), 10);
+    assert!(single_filtered.alternatives().is_empty());
+    assert_eq!(single_filtered.len(), 1);
 }
 
 #[test]
