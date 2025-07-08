@@ -319,7 +319,7 @@
 use crate::utils::error_utils::AppError;
 #[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 /// A custom error type for IO operations
