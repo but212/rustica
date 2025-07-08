@@ -121,13 +121,26 @@
 //!
 //! ## Iterator Example
 //!
-//! Iterating over an Id yields its value exactly once.
+//! Iterating over an `Id` yields its value exactly once. `Id` supports iteration for owned, shared, and mutable references.
 //!
 //! ```rust
 //! use rustica::datatypes::id::Id;
 //! let id = Id::new(42);
+//! // Owned iterator
 //! let mut iter = id.into_iter();
 //! assert_eq!(iter.next(), Some(42));
+//! assert_eq!(iter.next(), None);
+//!
+//! // Shared reference iterator
+//! let id = Id::new(42);
+//! let mut iter = (&id).into_iter();
+//! assert_eq!(iter.next(), Some(&42));
+//! assert_eq!(iter.next(), None);
+//!
+//! // Mutable reference iterator
+//! let mut id = Id::new(42);
+//! let mut iter = (&mut id).into_iter();
+//! assert_eq!(iter.next(), Some(&mut 42));
 //! assert_eq!(iter.next(), None);
 //! ```
 use crate::traits::{
@@ -211,7 +224,7 @@ use quickcheck::{Arbitrary, Gen};
 ///     .fmap(|n| n * 2)     // 6 -> 12
 ///     .fmap(|n| n.to_string());
 /// assert_eq!(*result.value(), "12");
-///
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 #[must_use = "This is a pure value wrapper which does nothing unless used"]
@@ -354,7 +367,7 @@ impl<T> Functor for Id<T> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: FnOnce(&Self::Source) -> B,
+        F: Fn(&Self::Source) -> B,
     {
         Id::new(f(&self.value))
     }
@@ -389,7 +402,7 @@ impl<T: Clone> Applicative for Id<T> {
     #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
-        F: FnOnce(&Self::Source, &B) -> C,
+        F: Fn(&Self::Source, &B) -> C,
     {
         Id::new(f(&self.value, b.value()))
     }
@@ -397,7 +410,7 @@ impl<T: Clone> Applicative for Id<T> {
     #[inline]
     fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
     where
-        F: FnOnce(&Self::Source, &B, &C) -> D,
+        F: Fn(&Self::Source, &B, &C) -> D,
     {
         Id::new(f(&self.value, b.value(), c.value()))
     }
@@ -551,15 +564,15 @@ impl<T: Clone> Comonad for Id<T> {
         self.value.clone()
     }
 
-    /// Creates a nested `Id` structure, wrapping the current `Id` in another `Id`.
+    /// Returns a copy of the current `Id` value.
     ///
-    /// The `duplicate` operation is the dual of `join` in a Monad. While `join` flattens
-    /// a nested monadic structure, `duplicate` creates a nested structure.
+    /// The `duplicate` operation is the dual of `join` in a Monad. For `Id`, it simply
+    /// returns a clone of the current `Id` value, as there is no nested structure to create.
     ///
     /// # Performance
     ///
     /// * Time Complexity: O(1) - Simple clone operation
-    /// * Memory Usage: Slight overhead from nested structure
+    /// * Memory Usage: Slight overhead from cloning the value
     ///
     /// # Examples
     ///
@@ -569,10 +582,10 @@ impl<T: Clone> Comonad for Id<T> {
     /// use rustica::traits::identity::Identity;
     ///
     /// let id = Id::new(42);
-    /// let nested = id.duplicate();
+    /// let duplicated = id.duplicate();
     ///
-    /// // The result is equivalent to Id::new(Id::new(42))
-    /// assert_eq!(*nested.value(), 42);
+    /// // The result is equivalent to id.clone()
+    /// assert_eq!(*duplicated.value(), 42);
     /// ```
     #[inline]
     fn duplicate(&self) -> Self {
@@ -582,8 +595,7 @@ impl<T: Clone> Comonad for Id<T> {
     /// Applies a function to the entire `Id` context and wraps the result in a new `Id`.
     ///
     /// The `extend` operation (also known as `cobind` or `=>>`) is the dual of `bind` in a Monad.
-    /// While `bind` unpacks a value to feed it to a function, `extend` feeds the whole context
-    /// to a function.
+    /// It applies a function to the entire `Id` context, producing a new `Id` with the result.
     ///
     /// # Performance
     ///
@@ -608,10 +620,10 @@ impl<T: Clone> Comonad for Id<T> {
     ///
     /// let id = Id::new(5);
     ///
-    /// // Apply a function to the context
+    /// // Apply a function to the context, squaring the inner value
     /// let result = id.extend(|ctx| {
     ///     let inner_value = *ctx.value();
-    ///     inner_value * inner_value  // Square the value
+    ///     inner_value * inner_value  // Produces 25
     /// });
     ///
     /// assert_eq!(*result.value(), 25);
@@ -629,7 +641,7 @@ impl<T: Semigroup> Semigroup for Id<T> {
     /// Combines two `Id` values using the `combine` operation of the inner type.
     ///
     /// This operation is available when the wrapped type `T` implements the `Semigroup` trait.
-    /// It allows combining two `Id` values by combining their inner values.
+    /// It combines the inner values using their `combine` operation and wraps the result in a new `Id`.
     ///
     /// # Performance
     ///
@@ -653,6 +665,12 @@ impl<T: Semigroup> Semigroup for Id<T> {
     ///
     /// let combined = a.combine(&b);
     /// assert_eq!(*combined.value(), "Hello, world!");
+    ///
+    /// // Combining two Id<Vec<i32>> values
+    /// let v1 = Id::new(vec![1, 2]);
+    /// let v2 = Id::new(vec![3, 4]);
+    /// let combined_vec = v1.combine(&v2);
+    /// assert_eq!(*combined_vec.value(), vec![1, 2, 3, 4]);
     /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
@@ -694,6 +712,26 @@ impl<T: Semigroup> Semigroup for Id<T> {
 }
 
 impl<T: Monoid> Monoid for Id<T> {
+    /// Returns an empty `Id` value using the `empty` operation of the inner type.
+    ///
+    /// This operation is available when the wrapped type `T` implements the `Monoid` trait.
+    /// It creates an `Id` wrapping the `empty` value of the inner type.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::id::Id;
+    /// use rustica::traits::monoid::Monoid;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Empty Id<String>
+    /// let empty_string = Id::<String>::empty();
+    /// assert_eq!(*empty_string.value(), "");
+    ///
+    /// // Empty Id<Vec<i32>>
+    /// let empty_vec = Id::<Vec<i32>>::empty();
+    /// assert_eq!(*empty_vec.value(), vec![]);
+    /// ```
     #[inline]
     fn empty() -> Self {
         Id::new(T::empty())
@@ -705,7 +743,7 @@ impl<T: Clone> Foldable for Id<T> {
     fn fold_left<U, F>(&self, init: &U, f: F) -> U
     where
         U: Clone,
-        F: FnOnce(&U, &Self::Source) -> U,
+        F: Fn(&U, &Self::Source) -> U,
     {
         f(init, &self.value)
     }
@@ -714,7 +752,7 @@ impl<T: Clone> Foldable for Id<T> {
     fn fold_right<U, F>(&self, init: &U, f: F) -> U
     where
         U: Clone,
-        F: FnOnce(&Self::Source, &U) -> U,
+        F: Fn(&Self::Source, &U) -> U,
     {
         f(&self.value, init)
     }
