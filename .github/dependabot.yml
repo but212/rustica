@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    reviewers:
+      - "but212"
+    assignees:
+      - "but212"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
