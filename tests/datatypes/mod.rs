@@ -1,3 +1,4 @@
+#[cfg(feature = "async")]
 mod test_async_monad;
 mod test_choice;
 mod test_cont;
