@@ -1,5 +1,6 @@
 use rustica::datatypes::choice::Choice;
 use rustica::prelude::*;
+use std::collections::HashMap;
 
 #[test]
 fn test_choice_creation_and_access() {
@@ -476,7 +477,7 @@ fn test_choice_flatten() {
     let nested = Choice::new(vec![1, 2], vec![vec![3, 4], vec![5]]);
     let flat = nested.flatten();
     assert_eq!(*flat.first().unwrap(), 1);
-    assert_eq!(flat.alternatives(), &[3, 4, 5, 2]);
+    assert_eq!(flat.alternatives(), &[2, 3, 4, 5]);
     // Flatten with empty alternatives
     let nested = Choice::new(vec![1], vec![]);
     let flat = nested.flatten();
@@ -637,4 +638,81 @@ fn test_choice_applicative_and_monad_laws() {
     let left = m.bind(f).bind(g);
     let right = m.bind(|x| f(x).bind(g));
     assert_eq!(left, right);
+}
+
+#[test]
+fn test_to_vec() {
+    let choice = Choice::new(1, vec![2, 3, 4]);
+    assert_eq!(choice.to_vec(), vec![1, 2, 3, 4]);
+
+    let single_choice = Choice::new(1, vec![]);
+    assert_eq!(single_choice.to_vec(), vec![1]);
+
+    let empty_choice: Choice<i32> = Choice::new_empty();
+    assert_eq!(empty_choice.to_vec(), Vec::<i32>::new());
+}
+
+#[test]
+fn test_find_first() {
+    let choice = Choice::new(1, vec![2, 3, 4, 5]);
+    assert_eq!(choice.find_first(|&&x| x > 3), Some(&4));
+    assert_eq!(choice.find_first(|&&x| x == 1), Some(&1));
+    assert_eq!(choice.find_first(|&&x| x > 5), None);
+
+    let empty_choice: Choice<i32> = Choice::new_empty();
+    assert_eq!(empty_choice.find_first(|_| true), None);
+}
+
+#[test]
+fn test_fold() {
+    let choice = Choice::new(1, vec![2, 3, 4]);
+    let sum = choice.fold(0, |acc, &x| acc + x);
+    assert_eq!(sum, 10);
+
+    let product = choice.fold(1, |acc, &x| acc * x);
+    assert_eq!(product, 24);
+
+    let empty_choice: Choice<i32> = Choice::new_empty();
+    let sum_empty = empty_choice.fold(0, |acc, &x| acc + x);
+    assert_eq!(sum_empty, 0);
+}
+
+#[test]
+fn test_sequence() {
+    let choice_all_some = Choice::new(Some(1), vec![Some(2), Some(3)]);
+    let sequenced = choice_all_some.sequence();
+    assert_eq!(sequenced, Some(Choice::new(1, vec![2, 3])));
+
+    let choice_with_none = Choice::new(Some(1), vec![None, Some(3)]);
+    let sequenced_none = choice_with_none.sequence();
+    assert_eq!(sequenced_none, None);
+
+    let empty_choice: Choice<Option<i32>> = Choice::new_empty();
+    assert_eq!(empty_choice.sequence(), Some(Choice::new_empty()));
+
+    let choice_all_none: Choice<Option<i32>> = Choice::new(None, vec![None]);
+    assert_eq!(choice_all_none.sequence(), None);
+}
+
+#[test]
+fn test_to_map_with_key() {
+    let choice = Choice::new(
+        "apple".to_string(),
+        vec![
+            "banana".to_string(),
+            "apricot".to_string(),
+            "blueberry".to_string(),
+        ],
+    );
+    let map = choice.to_map_with_key(|s| s.chars().next().unwrap());
+
+    let mut expected = HashMap::new();
+    expected.insert('a', "apple".to_string());
+    expected.insert('b', "banana".to_string());
+
+    assert_eq!(map, expected);
+
+    let empty_choice: Choice<String> = Choice::new_empty();
+    let empty_map = empty_choice.to_map_with_key(|s| s.chars().next().unwrap());
+    assert!(empty_map.is_empty());
 }

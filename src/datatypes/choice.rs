@@ -62,8 +62,14 @@
 //! assert_eq!(extended.alternatives().len(), 5); // Now has 5 alternatives
 //!
 //! // Filter values
-//! let filtered = choice.filter_values(|&x| x > 25);
-//! assert_eq!(filtered.first(), Some(&30)); // First value that passes the predicate
+//! // Filter values (alternatives only)
+//! let filtered_alts = choice.clone().filter(|&x| x < 35);
+//! assert_eq!(filtered_alts.first(), Some(&10)); // Primary is preserved
+//! assert_eq!(filtered_alts.alternatives(), &[20, 30]);
+//!
+//! // Filter all values (primary and alternatives)
+//! let filtered_all = choice.filter_values(|&x| x > 25);
+//! assert_eq!(filtered_all.first(), Some(&30)); // First value that passes the predicate
 //! ```
 //!
 //! ## Advanced Usage Patterns
@@ -102,14 +108,14 @@
 //! - **Memory Usage:**
 //!   - Uses `Arc<SmallVec<[T; 8]>>` for efficient memory management
 //!   - Small instances (up to 8 elements) avoid heap allocation via `SmallVec` optimization
-//!   - Cloning a `Choice<T>` is O(1) due to `Arc` reference counting
-//!   - Copy-on-write semantics avoid unnecessary copies when modifications occur
+//!   - Cloning a `Choice<T>` is O(1) (a cheap reference count bump). Modifications to a shared `Choice`
+//!     trigger a copy-on-write, incurring an O(n) cost.
 //!
 //! - **Time Complexity:**
 //!   - Construction: O(n) where n is the number of alternatives
 //!   - Cloning: O(1) via `Arc`
 //!   - Access operations (`first()`, `alternatives()`): O(1)
-//!   - Modification operations (`add_alternatives`, `filter_values`): O(n) in the worst case due to potential cloning
+//!   - Modification operations (`add_alternatives`, `filter`, `filter_values`): O(n) in the worst case due to potential cloning
 //!   - `fmap`, `bind`: O(n) where n is the number of elements
 //!   - Iteration: O(n) linear time, similar to `Vec`
 //!
@@ -156,9 +162,9 @@
 //!
 //! ### Applicative Laws
 //!
-//! 1.  **Identity**: `Choice::pure(|x| x).apply(&choice) == choice`
-//! 2.  **Homomorphism**: `Choice::pure(f).apply(&Choice::pure(x)) == Choice::pure(f(x))`
-//! 3.  **Interchange**: `func_choice.apply(&Choice::pure(y)) == Choice::pure(|f_inner| f_inner(y)).apply(&func_choice)`
+//! 1.  **Identity**: `choice.apply(&Choice::pure(|x| x)) == choice`
+//! 2.  **Homomorphism**: `Choice::pure(x).apply(&Choice::pure(f)) == Choice::pure(f(x))`
+//! 3.  **Interchange**: `Choice::pure(y).apply(&func_choice) == func_choice.fmap(|f| f(y))`
 //!     (Note: `apply` takes a reference to the argument for ergonomic borrowing)
 //! 4.  **Composition**: `Choice::pure(|g_val| |f_val| g_val(f_val)).apply(&u).apply(&v).apply(&w) == u.apply(&v.apply(&w))`
 //!     (This is a bit complex to show directly due to currying and types, simplified version often shown)
@@ -169,16 +175,16 @@
 //!
 //! // Identity law
 //! let choice = Choice::new(5, vec![10, 15]);
-//! let id_fn = |x: &i32| *x;
-//! let id_fn_choice = Choice::new(id_fn, vec![]);
+//! let id_fn: fn(&i32) -> i32 = |x: &i32| *x;
+//! let id_fn_choice = Choice::<fn(&i32) -> i32>::pure(&id_fn);
 //! let applied = choice.clone().apply(&id_fn_choice);
 //! assert_eq!(choice, applied);
 //!
 //! // Homomorphism law
 //! let f = |x: &i32| *x * 2;
 //! let x = 7;
-//! let pure_f = Choice::new(f, vec![]);
-//! let pure_x = Choice::new(x, vec![]);
+//! let pure_f = Choice::<fn(&i32) -> i32>::pure(&f);
+//! let pure_x = Choice::<fn(&i32) -> i32>::pure(&x);
 //! let lhs = pure_x.apply(&pure_f);
 //! let result = f(&x);
 //! let rhs = Choice::new(result, vec![]);
@@ -304,18 +310,18 @@ impl<T> Choice<T> {
     ///
     /// // Create with a primary value and alternatives
     /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// assert_eq!(*choice.first().unwrap(), 1);
+    /// assert_eq!(choice.first(), Some(&1));
     /// assert_eq!(choice.alternatives(), &[2, 3, 4]);
     /// assert_eq!(choice.len(), 4);
     ///
     /// // Create with empty alternatives
     /// let single: Choice<&str> = Choice::new("primary", Vec::<&str>::new());
-    /// assert_eq!(*single.first().unwrap(), "primary");
+    /// assert_eq!(single.first(), Some(&"primary"));
     /// assert!(single.alternatives().is_empty());
     ///
     /// // Create with a different type
     /// let string_choice = Choice::new("hello".to_string(), vec!["world".to_string()]);
-    /// assert_eq!(*string_choice.first().unwrap(), "hello");
+    /// assert_eq!(string_choice.first(), Some(&"hello".to_string()));
     /// ```
     #[inline]
     pub fn new<I>(item: T, alternatives: I) -> Self
@@ -429,7 +435,7 @@ impl<T> Choice<T> {
     /// - `false` if the `Choice` only contains a primary value or is empty.
     ///
     /// # Performance
-    /// - Time complexity: O(1) as it's a check on the length of the internal collection.
+    /// - Time complexity: O(1) as it checks the length of the internal collection.
     /// - Space complexity: O(1).
     ///
     /// # Examples
@@ -525,6 +531,137 @@ impl<T> Choice<T> {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    /// Converts the `Choice` into a `Vec<T>` containing all its values.
+    ///
+    /// The primary value will be the first element in the vector, followed by the alternatives.
+    /// This method clones the values.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<T>` with all values from the `Choice`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(10, vec![20, 30]);
+    /// let vec = choice.to_vec();
+    /// assert_eq!(vec, vec![10, 20, 30]);
+    /// ```
+    #[inline]
+    pub fn to_vec(&self) -> Vec<T>
+    where
+        T: Clone,
+    {
+        self.values.to_vec()
+    }
+
+    /// Finds the first value that satisfies a predicate.
+    ///
+    /// It iterates through the primary value and then the alternatives, returning the first
+    /// value for which the predicate returns `true`.
+    ///
+    /// # Arguments
+    ///
+    /// * `predicate` - A closure that takes a reference to a value and returns `true` if it matches.
+    ///
+    /// # Returns
+    ///
+    /// An `Option<&T>` containing a reference to the first matching value, or `None` if no value matches.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(10, vec![25, 30, 45]);
+    /// let found = choice.find_first(|&&x| x > 20);
+    /// assert_eq!(found, Some(&25));
+    ///
+    /// let not_found = choice.find_first(|&&x| x > 50);
+    /// assert_eq!(not_found, None);
+    /// ```
+    #[inline]
+    pub fn find_first<'a, P>(&'a self, predicate: P) -> Option<&'a T>
+    where
+        P: Fn(&&'a T) -> bool,
+    {
+        self.iter().find(predicate)
+    }
+
+    /// Folds the values in the `Choice` into a single value.
+    ///
+    /// This method iterates over all values (primary and alternatives), applying a function
+    /// to accumulate a result, starting with an initial value.
+    ///
+    /// # Arguments
+    ///
+    /// * `initial` - The initial value of the accumulator.
+    /// * `f` - A closure that takes the accumulator and an item, and returns the new accumulator value.
+    ///
+    /// # Returns
+    ///
+    /// The final accumulated value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// let sum = choice.fold(0, |acc, &x| acc + x);
+    /// assert_eq!(sum, 10);
+    /// ```
+    pub fn fold<B, F>(&self, initial: B, f: F) -> B
+    where
+        F: Fn(B, &T) -> B,
+    {
+        self.values.iter().fold(initial, f)
+    }
+
+    /// Converts the `Choice` into a `HashMap` using a provided key-extraction function.
+    ///
+    /// This method iterates over all values, generates a key for each, and inserts the value into the map.
+    /// If multiple values produce the same key, only the first one encountered (primary before alternatives)
+    /// is kept in the map.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A closure that takes a reference to a value and returns a key `K`.
+    ///
+    /// # Returns
+    ///
+    /// A `HashMap<K, T>` containing the values from the `Choice`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    /// use std::collections::HashMap;
+    ///
+    /// let choice = Choice::new("apple".to_string(), vec!["banana".to_string(), "apricot".to_string()]);
+    /// let map = choice.to_map_with_key(|s| s.chars().next().unwrap());
+    ///
+    /// let mut expected = HashMap::new();
+    /// expected.insert('a', "apple".to_string());
+    /// expected.insert('b', "banana".to_string());
+    ///
+    /// assert_eq!(map, expected);
+    /// ```
+    pub fn to_map_with_key<K, F>(&self, mut f: F) -> std::collections::HashMap<K, T>
+    where
+        T: Clone,
+        K: std::hash::Hash + Eq,
+        F: FnMut(&T) -> K,
+    {
+        let mut map = std::collections::HashMap::with_capacity(self.len());
+        for value in self.iter() {
+            map.entry(f(value)).or_insert_with(|| value.clone());
+        }
+        map
     }
 
     /// Adds multiple new alternatives to the `Choice`, consuming the original.
@@ -756,20 +893,20 @@ impl<T> Choice<T> {
     /// let even_alternatives = choice.filter(|&x| x % 2 == 0);
     ///
     /// // Primary value (1) is always kept, even though it's odd
-    /// assert_eq!(*even_alternatives.first().unwrap(), 1);
+    /// assert_eq!(even_alternatives.first(), Some(&1));
     /// // Only even alternatives are kept
     /// assert_eq!(even_alternatives.alternatives(), &[2, 4, 6]);
     ///
     /// // Primary value is kept even when it doesn't satisfy the predicate
     /// let choice2 = Choice::new(7, vec![8, 9, 10]);
     /// let filtered = choice2.filter(|&x| x % 2 == 0);
-    /// assert_eq!(*filtered.first().unwrap(), 7); // 7 is kept despite being odd
+    /// assert_eq!(filtered.first(), Some(&7)); // 7 is kept despite being odd
     /// assert_eq!(filtered.alternatives(), &[8, 10]);
     ///
     /// // When there are no alternatives, the primary is still kept
     /// let single = Choice::new(10, Vec::<i32>::new());
     /// let filtered_single = single.filter(|&x| x > 100);
-    /// assert_eq!(*filtered_single.first().unwrap(), 10);
+    /// assert_eq!(filtered_single.first(), Some(&10));
     /// assert!(filtered_single.alternatives().is_empty());
     ///
     /// // Empty Choice remains empty
@@ -928,14 +1065,14 @@ impl<T> Choice<T> {
     ///
     /// ```
     /// use rustica::datatypes::choice::Choice;
-    /// use rustica::traits::functor::Functor; // For fmap in the string example
+    /// use rustica::traits::functor::Functor;
     ///
     /// // Basic flattening with Vec<i32>
     /// let nested_numbers: Choice<Vec<i32>> = Choice::new(vec![1, 2], vec![vec![3, 4], vec![5]]);
     /// let flattened_numbers: Choice<i32> = nested_numbers.flatten();
     /// assert_eq!(*flattened_numbers.first().unwrap(), 1);
-    /// // Order of alternatives: items from alternatives ([3, 4], then [5]), then rest of primary ([2])
-    /// assert_eq!(flattened_numbers.alternatives(), &[3, 4, 5, 2]);
+    /// // Order of alternatives: rest of primary ([2]), then items from alternatives ([3, 4], then [5])
+    /// assert_eq!(flattened_numbers.alternatives(), &[2, 3, 4, 5]);
     ///
     /// // Flattening with strings, demonstrating fmap to prepare for flatten
     /// let words: Choice<&str> = Choice::new("hello", vec!["world", "rust"]);
@@ -943,15 +1080,15 @@ impl<T> Choice<T> {
     /// let choice_of_vec_char: Choice<Vec<char>> = words.fmap(|s: &&str| s.chars().collect::<Vec<_>>());
     /// let flattened_chars: Choice<char> = choice_of_vec_char.flatten();
     /// assert_eq!(*flattened_chars.first().unwrap(), 'h');
-    /// // Order: chars from alternatives ("world", then "rust"), then rest of primary ("hello")
-    /// assert_eq!(flattened_chars.alternatives(), &['w', 'o', 'r', 'l', 'd', 'r', 'u', 's', 't', 'e', 'l', 'l', 'o']);
+    /// // Order: rest of primary ("hello"), then chars from alternatives ("world", then "rust")
+    /// assert_eq!(flattened_chars.alternatives(), &['e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd', 'r', 'u', 's', 't']);
     ///
     /// // Flattening a Choice where alternatives are empty Vecs
     /// let single_nested_list: Choice<Vec<i32>> = Choice::new(vec![10, 20, 30], vec![Vec::<i32>::new(), vec![40]]);
     /// let flat_from_single_list: Choice<i32> = single_nested_list.flatten();
     /// assert_eq!(*flat_from_single_list.first().unwrap(), 10);
     /// // Order: items from alternatives (empty, then [40]), then rest of primary ([20, 30])
-    /// assert_eq!(flat_from_single_list.alternatives(), &[40, 20, 30]);
+    /// assert_eq!(flat_from_single_list.alternatives(), &[20, 30, 40]);
     ///
     /// // Flattening an empty Choice
     /// let empty_nested: Choice<Vec<i32>> = Choice::new_empty();
@@ -965,10 +1102,9 @@ impl<T> Choice<T> {
     /// ```
     ///
     /// # See Also
-    ///
-    /// * [`flatten_sorted`](Self::flatten_sorted) - Similar, but sorts the resulting alternatives.
-    /// * [`join`](crate::traits::monad::Monad::join) - The Monad trait's equivalent operation for `Choice<Choice<T>>`.
-    /// * [`bind`](crate::traits::monad::Monad::bind) - For more general monadic sequencing which can achieve flattening.
+    /// - [`flatten_sorted`](Self::flatten_sorted) - Similar, but sorts the resulting alternatives.
+    /// - [`join`](crate::traits::monad::Monad::join) - The Monad trait's equivalent operation for `Choice<Choice<T>>`.
+    /// - [`bind`](crate::traits::monad::Monad::bind) - For more general monadic sequencing which can achieve flattening.
     pub fn flatten<I>(&self) -> Choice<I>
     where
         T: IntoIterator<Item = I> + Clone,
@@ -983,13 +1119,15 @@ impl<T> Choice<T> {
 
         match primary_iter.next() {
             Some(first_item) => {
-                // Collect all remaining items from primary and all alternatives
-                let alternatives = self
-                    .values
-                    .iter()
-                    .skip(1) // Skip the primary value
-                    .flat_map(|val| val.clone().into_iter())
-                    .chain(primary_iter) // Add remaining items from primary
+                // The rest of the primary's iterator comes first.
+                let alternatives = primary_iter
+                    // Then chain the flattened alternatives.
+                    .chain(
+                        self.values
+                            .iter()
+                            .skip(1) // Skip the primary value
+                            .flat_map(|val| val.clone().into_iter()),
+                    )
                     .collect::<SmallVec<[I; 8]>>();
 
                 Choice::new(first_item, alternatives)
@@ -1404,6 +1542,12 @@ impl<T> Choice<T> {
     /// let swapped3 = choice3.swap_with_alternative(2); // Swap 100 with 400 (alt_index 2)
     /// assert_eq!(*swapped3.first().unwrap(), 400);
     /// assert_eq!(swapped3.alternatives(), &[200, 300, 100]);
+    ///
+    /// // Swap with the last alternative
+    /// let choice3 = Choice::new(100, vec![200, 300, 400]); // primary: 100, alts: [200, 300, 400]
+    /// let swapped3 = choice3.swap_with_alternative(2); // Swap 100 with 400 (alt_index 2)
+    /// assert_eq!(*swapped3.first().unwrap(), 400);
+    /// assert_eq!(swapped3.alternatives(), &[200, 300, 100]);
     /// ```
     ///
     /// ### Panics - Index out of bounds
@@ -1477,11 +1621,11 @@ impl<T> HKT for Choice<T> {
 
 impl<T> Pure for Choice<T> {
     fn pure<A: Clone>(value: &A) -> Self::Output<A> {
-        Choice::new(value.clone(), vec![])
+        Choice::from_iter([value.clone()])
     }
 
     fn pure_owned<A: Clone>(value: A) -> Self::Output<A> {
-        Choice::new(value, vec![])
+        Choice::from_iter([value])
     }
 }
 
@@ -1810,9 +1954,9 @@ impl<T: Clone> Semigroup for Choice<T> {
     }
 }
 
-impl<T: Clone + Default> Monoid for Choice<T> {
+impl<T: Clone> Monoid for Choice<T> {
     fn empty() -> Self {
-        Self::new(T::default(), vec![])
+        Self::new_empty()
     }
 }
 
@@ -1954,21 +2098,18 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
-        let self_values = self.values;
-        let b_values = b.values;
-
-        let primary = f(self_values[0].clone(), b_values[0].clone());
+        let primary = f(self.values[0].clone(), b.values[0].clone());
 
         // Calculate capacity for alternatives vector
-        let capacity = self_values.len() * b_values.len() - 1;
-        let mut alternatives = SmallVec::<[C; 8]>::with_capacity(capacity);
+        let capacity = self.len() * b.len() - 1;
+        let mut alternatives = Vec::with_capacity(capacity);
 
-        for (i, self_val) in self_values.iter().enumerate() {
-            for (j, b_val) in b_values.iter().enumerate() {
+        for (i, a) in self.values.iter().enumerate() {
+            for (j, b_val) in b.values.iter().enumerate() {
                 if i == 0 && j == 0 {
                     continue; // Skip primary
                 }
-                alternatives.push(f(self_val.clone(), b_val.clone()));
+                alternatives.push(f(a.clone(), b_val.clone()));
             }
         }
 
@@ -2100,7 +2241,7 @@ impl<T: Clone> Alternative for Choice<T> {
 }
 
 impl<T: Clone> MonadPlus for Choice<T> {
-    fn mzero<U: Clone>() -> Self::Output<U> {
+    fn mzero<U>() -> Self::Output<U> {
         Choice::new_empty()
     }
 
@@ -2125,6 +2266,33 @@ impl<T: Clone> MonadPlus for Choice<T> {
     }
 }
 
+impl<T: Clone> Choice<Option<T>> {
+    /// Sequences a `Choice` of `Option`s into an `Option` of a `Choice`.
+    ///
+    /// If all values inside the `Choice` are `Some(T)`, this returns `Some(Choice<T>)`.
+    /// If any value is `None`, this returns `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice_all_some = Choice::new(Some(1), vec![Some(2), Some(3)]);
+    /// let sequenced = choice_all_some.sequence();
+    /// assert_eq!(sequenced, Some(Choice::new(1, vec![2, 3])));
+    ///
+    /// let choice_with_none = Choice::new(Some(1), vec![None, Some(3)]);
+    /// let sequenced_none = choice_with_none.sequence();
+    /// assert_eq!(sequenced_none, None);
+    /// ```
+    pub fn sequence(self) -> Option<Choice<T>> {
+        let sequenced_values: Option<SmallVec<[T; 8]>> = self.values.iter().cloned().collect();
+        sequenced_values.map(|values| Choice {
+            values: Arc::new(values),
+        })
+    }
+}
+
 impl<'a, T> IntoIterator for &'a Choice<T> {
     type Item = &'a T;
     type IntoIter = std::slice::Iter<'a, T>;
@@ -2136,26 +2304,34 @@ impl<'a, T> IntoIterator for &'a Choice<T> {
 
 impl<T: Clone> IntoIterator for Choice<T> {
     type Item = T;
-    type IntoIter = std::vec::IntoIter<T>;
+    type IntoIter = smallvec::IntoIter<[T; 8]>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let values = self.values.as_ref().to_vec();
-        values.into_iter()
+        // This is a bit of a hack. We're trying to get the inner SmallVec out of the Arc.
+        // If the Arc has only one reference, we can take ownership.
+        // Otherwise, we have to clone it.
+        let vec = Arc::try_unwrap(self.values).unwrap_or_else(|arc| (*arc).clone());
+        vec.into_iter()
     }
 }
 
 impl<T: Clone + Display> Display for Choice<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.values[0])?;
-        if self.values.len() > 1 {
-            let alternatives = self.values[1..]
-                .iter()
-                .map(|alt| alt.to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-            write!(f, " | {alternatives}")?;
+        if let Some(first) = self.first() {
+            write!(f, "{first}")?;
+            let alternatives_slice = self.alternatives();
+            if !alternatives_slice.is_empty() {
+                let alternatives_str = alternatives_slice
+                    .iter()
+                    .map(|alt| alt.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, " | {alternatives_str}")?;
+            }
+            Ok(())
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 }
 
@@ -2254,15 +2430,14 @@ impl<T: Clone + Default> Default for Choice<T> {
 
 impl<T: Clone + Default> std::iter::Sum for Choice<T> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Choice::new_empty(), |acc, choice| acc.combine_owned(choice))
+        iter.fold(Self::empty(), |a, b| a.mplus(&b))
     }
 }
 
 #[cfg(feature = "full")]
 impl<T: Arbitrary + 'static> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
-        let primary = T::arbitrary(g);
-        let alternatives: Vec<T> = (0..g.size()).map(|_| T::arbitrary(g)).collect();
-        Choice::new(primary, alternatives)
+        let items: Vec<T> = Arbitrary::arbitrary(g);
+        Choice::of_many(items)
     }
 }

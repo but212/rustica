@@ -1,14 +1,19 @@
 # CHANGELOG
 
-## [Unreleased]
+## [0.8.0]
 
-### Changed
+### Changed - 0.8.0
 
 - **`Choice` Filter Methods Clarification** (`src/datatypes/choice.rs`)  
   - Established clear division of responsibilities between filter methods:
     - `filter`: Only applies the predicate to alternative values, always preserves the primary value
     - `filter_value`: Applies the predicate to all values including primary
   - Updated documentation and tests to reflect this design decision
+
+### Fixed - 0.8.0
+
+- **`Choice::flatten()` Ordering Logic** (`src/datatypes/choice.rs`)
+  - Corrected the implementation of `flatten` to match its documentation. The new alternatives now correctly consist of the remaining items from the primary iterator, followed by the items from the alternatives' iterators.
 
 - **`Memoizer` Enhancements** (`src/datatypes/wrapper/memoizer.rs`)
 
@@ -54,7 +59,7 @@
 
 ## [0.7.1]
 
-### Added
+### Added - 0.7.1
 
 - **Thread-safe Memoizer**
   - Introduced `Memoizer<K, V>` in `wrapper/memoizer.rs` as a new, ergonomic, and efficient thread-safe memoization utility.
@@ -69,14 +74,14 @@
   - Added validation logic `validate_cache_path` to ensure cached paths/ranges are only used when still valid for the current tree structure.
   - Tree modifications (push, update, split, etc.) automatically invalidate the cache to prevent stale accesses.
 
-### Changed
+### Changed - 0.7.1
 
 - **Writer Monad Refactoring**
   - Replaced the recursive LogThunk structure with direct log accumulation in the Writer struct.
   - Eliminated risk of stack overflow and memory leaks from deep thunk chains.
   - Simplified log combination logic to use immediate Monoid operations.
 
-### Improvements & Bug Fixes
+### Improvements & Bug Fixes - 0.7.1
 
 - Added validation logic for path/ranges cache in PersistentVector tree.
   - Now, when the tree structure changes or if the cached path/ranges are no longer valid, the cache is safely treated as a miss.
@@ -85,7 +90,7 @@
 
 ## [0.7.0]
 
-### Added
+### Added - 0.7.0
 
 - Added `iso_lens.rs` and `iso_prism.rs` for Iso-based optics (Lens/Prism) with lawful composition, full documentation, and doctest examples.
 - `IsoLens` and `IsoPrism` now support lawful composition for deep, type-safe focusing into nested product/sum types.
@@ -104,7 +109,7 @@
   assert_eq!(flat.alternatives(), &[1, 2, 4, 5]);
   ```
 
-### Changed
+### Changed - 0.7.0
 
 - **[Breaking] Changed `Choice<T>::flatten()` behavior:**
   - Now preserves original order; sorting is provided by `flatten_sorted()`.
@@ -149,7 +154,7 @@
 
 ## [0.6.4] - 2025-04-18
 
-### Changed
+### Changed - 0.6.4
 
 - **Continuation Monad (`Cont`) Refactored**
   - `Cont` is now implemented as a thin wrapper over the more general `ContT` (Continuation Monad Transformer).
@@ -160,7 +165,7 @@
 
 ## [0.6.3] - 2025-04-17
 
-### Added
+### Added - 0.6.3
 
 - **Continuation Monad Transformer (`ContT`)**
   - Introduced `ContT<R, M, A>`, a monad transformer version of the continuation monad.
@@ -171,14 +176,14 @@
 
 ## [0.6.2] - 2025-04-17
 
-### Added
+### Added - 0.6.2
 
 - **Flexible caching policy system for PersistentVector**
   - Introduced `CachePolicy` trait with implementations (`AlwaysCache`, `NeverCache`, `EvenIndexCache`)
   - Added dynamic cache management APIs: `with_cache_policy`, `from_slice_with_cache_policy`, etc.
   - Comprehensive documentation and examples for custom caching strategies
 
-### Changed
+### Changed - 0.6.2
 
 - **Persistent Vector Improvements**
 
@@ -203,18 +208,18 @@
   - Added `ResultValidatedIso` for seamless conversion between `Result` and `Validated`
   - Converted static methods to instance methods for better composability
 
-### Fixed
+### Fixed - 0.6.2
 
 - SmallVec initialization from slice now uses a loop to avoid method compatibility issues
 
-### Refactored
+### Refactored - 0.6.2
 
 - Integrated `cache`, `chunk`, and `memory` modules into unified `memory.rs`
 - Removed dead code and improved formatting for consistency
 
-### IO Monad Improvements
+### IO Monad Improvements - 0.6.2
 
-- Refactored IO<A>:
+- Refactored `IO<A>`:
   - Internal implementation now uses `Arc<dyn Fn()>` with minimal value cloning for better performance and ergonomics.
   - `pure`, `delay`, `delay_efficient` now only clone values when IO is run multiple times, reducing unnecessary heap allocations.
   - `delay_efficient` now uses the `spin_sleep` crate for precise spin-based delays; `delay` continues to use `std::thread::sleep`.
@@ -224,7 +229,7 @@
 
 ## [0.6.1]
 
-### Added
+### Added - 0.6.1
 
 - Small vector optimization for PersistentVector to improve memory efficiency
   - Optimized representation for vectors with 8 or fewer elements using inline storage
@@ -241,7 +246,7 @@
 
 ## [0.6.0]
 
-### Added
+### Added - 0.6.0
 
 - New `pvec` module that provides persistent vector implementations with optional feature flags for memory optimization strategies
 - Improved functional programming support for collection types
@@ -268,7 +273,7 @@
   - `from_reader` constructor for creating `ReaderT` directly from `Reader`
   - `pure` method for lifting values into `ReaderT` context
 
-### Changed
+### Changed - 0.6.0
 
 - Removed the `transformers` and `advanced` feature flag as core functionality is now included by default
 - Refactored `Reader` monad to use the `ReaderT` transformer internally, improving type safety and composability
@@ -293,7 +298,7 @@
 - Enhanced conversions between `Maybe`, `Option`, and `Result` types
 - Updated internal implementations to align with standardized error handling
 
-### Removed
+### Removed - 0.6.0
 
 - Removed `BoxedFn` wrapper type from `wrapper/boxed_fn.rs`
 - Removed several specialized methods from `Choice` to streamline the API:
@@ -307,7 +312,7 @@
 
 ## [0.5.4] - 2025-03-24
 
-### Added
+### Added - 0.5.4
 
 - Implemented `StateT` monad transformer
   - Added core implementation with state manipulation functions (`get`, `put`, `modify`)
@@ -323,7 +328,7 @@
   - `NaturalTransform`: For converting between functors preserving structure
   - `Representable`: For functors that can be represented by a mapping from a key type
 
-### Changed
+### Changed - 0.5.4
 
 - Optimized `Choice` data structure:
   - Implemented shared structure optimization using `Arc` for improved memory efficiency
@@ -333,7 +338,7 @@
 
 ## [0.5.3] - 2025-03-16
 
-### Changed
+### Changed - 0.5.3
 
 - Enhanced `Choice` data structure:
   - Modified `first()` method to return `Option<&T>` instead of `&T` for better safety
@@ -348,13 +353,13 @@
 
 ## [0.5.2] - 2025-03-09
 
-### Changed
+### Changed - 0.5.2
 
 - Updated docs.rs configuration to use `all-features = true` for more standard feature documentation
 
 ## [0.5.1] - 2025-03-09
 
-### Added
+### Added - 0.5.1
 
 - Added `From`/`Into` implementation for `Id` type
 - Added implementations of `Semigroup`, `Monoid`, `Foldable`, and `Composable` traits for `Id` type
@@ -362,7 +367,7 @@
 
 ## [0.5.0] - 2025-03-09
 
-### Added
+### Added - 0.5.0
 
 - Added Wrapper Type: `boxed_fn`, `first`, `last`, `product`, `sum`, `value`, `thunk`, `min`, `max`
 - Added Utilities: `hkt_utils`, `transform_utils`
@@ -372,7 +377,7 @@
 
 ## [0.4.0] - 2025-02-26
 
-### Added
+### Added - 0.4.0
 
 - Implemented `StateT` monad transformer
   - Added core implementation with state manipulation functions (`get`, `put`, `modify`)
@@ -388,7 +393,7 @@
   - `NaturalTransform`: For converting between functors preserving structure
   - `Representable`: For functors that can be represented by a mapping from a key type
 
-### Changed
+### Changed - 0.4.0
 
 - Optimized `Choice` data structure:
   - Implemented shared structure optimization using `Arc` for improved memory efficiency
@@ -398,14 +403,14 @@
 
 ## [0.3.2] - 2025-02-18
 
-### Added
+### Added - 0.3.2
 
 - New `Choice` data type for alternative computations
 - Property-based tests for category laws
   - Added tests for Applicative laws (identity, composition, homomorphism, interchange, naturality)
   - Added tests for Bifunctor laws (identity, composition)
 
-### Changed
+### Changed - 0.3.2
 
 - Reorganized project structure
   - Renamed `monads` directory to `datatypes` for better organization
@@ -413,20 +418,20 @@
 
 ## [0.3.1] - 2025-02-13
 
-### Changed
+### Changed - 0.3.1
 
 - Modified `lift2` and `lift3` to accept tuples for function types.
 - Modified category Morphism definitions.
 - Modified Free monad to be work in progress.
 - Refactored FnType methods into FnTrait and added documentation.
 
-### Removed
+### Removed - 0.3.1
 
 - Removed unnecessary function types.
 
 ## [0.3.0] - 2025-02-10
 
-### Added
+### Added - 0.3.0
 
 - Implemented Free Monad
 - Integrated SendSyncFn, SendSyncFnTrait, ContravariantFn, ExtendFn, MonadFn, and ApplyFn with FnType and FnTrait
