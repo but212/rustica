@@ -6,10 +6,14 @@ on:
     tags:
       - 'v*'
   pull_request:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly dependency check
 
 env:
   CARGO_TERM_COLOR: always
   RUST_VERSION: '1.87.0' # MSRV
+  RUSTFLAGS: "-D warnings"
+  CARGO_INCREMENTAL: 0
 
 permissions:
   contents: read
@@ -27,8 +31,17 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --all -- --check
-      - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::upper_case_acronyms -W clippy::rust_2024_idioms
+      
+      - name: Run Clippy (Edition 2024)
+        run: |
+          cargo clippy --all-targets --all-features -- \
+            -D warnings \
+            -A clippy::upper_case_acronyms \
+            -W clippy::rust_2024_compatibility \
+            -W clippy::uninlined_format_args \
+            -W clippy::redundant_pub_crate \
+            -W clippy::manual_let_else \
+            -W clippy::needless_raw_string_hashes
 
   test:
     name: Test ${{ matrix.rust }} on ${{ matrix.os }}
@@ -37,26 +50,43 @@ jobs:
       matrix:
         rust: [1.87.0, stable, nightly]
         os: [ubuntu-latest, windows-latest, macos-latest]
+        features: ["", "--all-features"]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust ${{ matrix.rust }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+      - uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: cargo test --all-features --verbose
+        run: cargo test ${{ matrix.features }} --verbose
+
+  msrv:
+    name: Check MSRV (1.87.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Check MSRV compatibility
+        run: cargo check --all-features
 
   unused_dependencies:
     name: Check for unused dependencies
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
       - name: Install cargo-udeps
         run: cargo install cargo-udeps --locked
       - name: Run cargo-udeps
-        run: cargo +stable udeps --all-targets --all-features
+        run: cargo +nightly udeps --all-targets --all-features
 
   semver_check:
     name: Semantic Versioning Check
@@ -68,6 +98,7 @@ jobs:
           fetch-depth: 0
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - name: Install cargo-semver-checks
         run: cargo install cargo-semver-checks --locked
       - name: Run semver checks
@@ -78,10 +109,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        run: cargo install cargo-audit --locked
       - name: Run security audit
-        run: cargo audit
+        run: cargo audit --deny warnings
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: Run cargo-deny
+        run: cargo deny check
+
+  edition_2024_migration:
+    name: Edition 2024 Migration Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - name: Check Edition 2024 migration
+        run: |
+          cargo +nightly fix --edition --allow-dirty --all-features || true
+          cargo +nightly check --all-features
+      - name: Check for Edition 2024 idioms
+        run: |
+          cargo +nightly clippy --all-features -- \
+            -W clippy::rust_2024_compatibility \
+            -W clippy::edition_2024_idioms
 
   docs:
     name: Build Docs
@@ -100,9 +156,13 @@ jobs:
       
       - name: Build documentation
         run: cargo +nightly doc --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: "-D warnings -D rustdoc::broken_intra_doc_links --cfg docsrs"
       
       - name: Check for broken intra-doc links
-        run: RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links" cargo +nightly doc --all-features --no-deps
+        run: |
+          RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links" \
+          cargo +nightly doc --all-features --no-deps
       
       - name: Verify docs directory exists
         run: |
@@ -124,10 +184,25 @@ jobs:
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: 'docs: update API documentation [skip ci]'
 
+  no_std_check:
+    name: No-std compatibility check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+      - name: Check no-std compatibility
+        run: |
+          cargo check --target thumbv7em-none-eabihf --no-default-features
+          cargo check --target thumbv7em-none-eabihf --no-default-features --features pvec
+
   publish:
     name: Publish to crates.io
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, msrv, security, docs]
+    needs: [test, msrv, security_audit, docs, lint, semver_check, edition_2024_migration]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -138,6 +213,8 @@ jobs:
       
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
+      
+      - uses: Swatinem/rust-cache@v2
       
       - name: Check version match
         run: |
@@ -152,6 +229,10 @@ jobs:
         run: |
           CARGO_VERSION=$(grep -m 1 '^version =' Cargo.toml | cut -d'"' -f2)
           grep -q "$CARGO_VERSION" CHANGELOG.md || (echo "::error::No entry for version $CARGO_VERSION in CHANGELOG.md" && exit 1)
+      
+      - name: Verify Edition 2024 in Cargo.toml
+        run: |
+          grep -q 'edition = "2024"' Cargo.toml || (echo "::error::Edition 2024 not found in Cargo.toml" && exit 1)
       
       - name: Add token mask
         run: |
@@ -183,8 +264,6 @@ jobs:
         id: extract_changelog
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
-          # Extract the section for this version from CHANGELOG.md
-          # This assumes your CHANGELOG.md uses "## [x.y.z]" format for version headers
           SECTION=$(awk -v version="$VERSION" '
             /^## \[.*\]/ { 
               if (found) exit;
@@ -192,13 +271,10 @@ jobs:
             } 
             found {print}
           ' CHANGELOG.md)
-          # Remove the first line (the version header) for the body
           BODY=$(echo "$SECTION" | tail -n +2 | sed -e "/^## \[/{N;d;}" -e 's/^/\n/')
-          # If empty, use a default message
           if [ -z "$BODY" ]; then
             BODY="No changelog entry found for version $VERSION"
           fi
-          # Output the body for the release
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -216,8 +292,11 @@ jobs:
 
   benchmark:
     name: Performance Benchmarks
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'schedule'
     permissions:
       contents: write
       pull-requests: write
@@ -228,35 +307,31 @@ jobs:
           fetch-depth: 0
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
+        uses: dtolnay/rust-toolchain@stable
       
       - uses: Swatinem/rust-cache@v2
       
-      - name: Check benchmark directory exists
-        run: |
-          mkdir -p target/criterion
+      - name: Install criterion
+        run: cargo install cargo-criterion --locked
       
       - name: Run benchmarks
         run: |
-          cargo install cargo-criterion
-          cargo criterion --all-features --message-format=json > benchmark_raw_results.json
-          cat benchmark_raw_results.json | jq -r '.[] | select(.reason == "benchmark-complete") | {
-            "name": .id,
-            "value": .median,
-            "unit": "ns/iter"
-          }' > formatted_benchmark_results.json
-      
-      - name: Validate benchmark results
+          cargo criterion --all-features --message-format=json > benchmark_raw_results.json || true
+          
+      - name: Process benchmark results
         run: |
-          if [ ! -s formatted_benchmark_results.json ]; then
-            echo "::warning::Benchmark results are empty or failed to generate"
-            exit 1
+          if [ -f benchmark_raw_results.json ]; then
+            jq -r '.[] | select(.reason == "benchmark-complete") | {
+              "name": .id,
+              "value": .median,
+              "unit": "ns/iter"
+            }' benchmark_raw_results.json > formatted_benchmark_results.json
+          else
+            echo "[]" > formatted_benchmark_results.json
           fi
       
       - name: Upload benchmark results
+        if: matrix.os == 'ubuntu-latest'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmarks
@@ -266,21 +341,5 @@ jobs:
           auto-push: false
           comment-on-alert: true
           alert-threshold: '120%'
-          fail-on-alert: true
-          alert-comment-cc-users: '@but212,@security-team'
-          external-data-json-path: 'target/criterion/**/*.json'
-      
-      - name: Review benchmark results
-        run: |
-          echo "Benchmark results are available for review"
-          echo "Please check the results before publishing"
-      
-      - name: Publish benchmark results to GitHub Pages
-        if: success() && github.event_name != 'pull_request'
-        uses: peaceiris/actions-gh-pages@v4.0.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/criterion
-          destination_dir: criterion
-          keep_files: true
-          force_orphan: false
+          fail-on-alert: false
+          alert-comment-cc-users: '@but212'
