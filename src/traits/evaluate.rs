@@ -477,11 +477,7 @@ pub trait EvaluateExt: Evaluate {
         Self::Source: Clone,
     {
         let result = self.evaluate();
-        if pred(&result) {
-            Some(result)
-        } else {
-            None
-        }
+        if pred(&result) { Some(result) } else { None }
     }
 
     /// Evaluates this computation by consuming it and returns the result if a predicate is satisfied,
@@ -517,11 +513,7 @@ pub trait EvaluateExt: Evaluate {
         Self::Source: Clone,
     {
         let result = self.evaluate_owned();
-        if pred(&result) {
-            Some(result)
-        } else {
-            None
-        }
+        if pred(&result) { Some(result) } else { None }
     }
 }
 

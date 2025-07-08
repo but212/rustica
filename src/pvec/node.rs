@@ -6,8 +6,8 @@ use std::fmt::{self, Debug};
 use std::sync::Arc;
 
 // Only import what is needed for node.rs, now that memory-related types are defined in memory.rs
-use crate::pvec::memory::{Chunk, ManagedRef, MemoryManager, CHUNK_BITS, DEFAULT_CHUNK_SIZE};
-use crate::utils::error_utils::{error_with_context, AppError};
+use crate::pvec::memory::{CHUNK_BITS, Chunk, DEFAULT_CHUNK_SIZE, ManagedRef, MemoryManager};
+use crate::utils::error_utils::{AppError, error_with_context};
 
 /// Standard error type for pvec node operations
 pub(crate) type PVecError = AppError<String, String>;

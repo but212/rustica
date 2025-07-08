@@ -192,11 +192,7 @@ where
     }
 
     fn guard(condition: bool) -> Self::Output<()> {
-        if condition {
-            vec![()]
-        } else {
-            Vec::new()
-        }
+        if condition { vec![()] } else { Vec::new() }
     }
 
     fn many(&self) -> Self::Output<Vec<Self::Source>>

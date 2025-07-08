@@ -19,8 +19,8 @@ struct User {
 // --- Helper Prisms ---
 
 // Prism for Status::Active(String)
-fn active_prism(
-) -> Prism<Status, String, impl Fn(&Status) -> Option<String>, impl Fn(&String) -> Status> {
+fn active_prism()
+-> Prism<Status, String, impl Fn(&Status) -> Option<String>, impl Fn(&String) -> Status> {
     Prism::new(
         |s: &Status| match s {
             Status::Active(name) => Some(name.clone()),

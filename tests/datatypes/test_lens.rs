@@ -51,8 +51,8 @@ fn address_rc_lens() -> Lens<
 }
 
 // Lens for Address.street
-fn street_lens(
-) -> Lens<Address, String, impl Fn(&Address) -> String, impl Fn(Address, String) -> Address> {
+fn street_lens()
+-> Lens<Address, String, impl Fn(&Address) -> String, impl Fn(Address, String) -> Address> {
     Lens::new(
         |a: &Address| a.street.clone(),
         |a: Address, street: String| Address { street, ..a },
@@ -61,8 +61,8 @@ fn street_lens(
 
 // Lens for Address (focuses on the Address value inside the Rc)
 // Note: This involves cloning the Address for modification
-fn address_val_lens(
-) -> Lens<Person, Address, impl Fn(&Person) -> Address, impl Fn(Person, Address) -> Person> {
+fn address_val_lens()
+-> Lens<Person, Address, impl Fn(&Person) -> Address, impl Fn(Person, Address) -> Person> {
     Lens::new(
         |p: &Person| (*p.address).clone(), // Clone Address on get
         |p: Person, addr: Address| Person {

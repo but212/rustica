@@ -9,8 +9,8 @@ use std::convert::AsRef;
 use std::fmt::{self, Debug as StdDebug};
 use std::iter::FromIterator;
 use std::ops::{Index, IndexMut, Range};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::pvec::node::Node;
 

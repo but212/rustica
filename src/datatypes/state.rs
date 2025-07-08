@@ -1293,10 +1293,10 @@ where
 }
 
 impl<
-        S: Clone + Default + Send + Sync + 'static,
-        A: Clone + Send + Sync + 'static,
-        Err: Clone + Send + Sync + 'static,
-    > State<S, Result<A, Err>>
+    S: Clone + Default + Send + Sync + 'static,
+    A: Clone + Send + Sync + 'static,
+    Err: Clone + Send + Sync + 'static,
+> State<S, Result<A, Err>>
 {
     /// Runs the state computation and converts the result to a Result with AppError.
     ///

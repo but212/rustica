@@ -12,7 +12,7 @@ use rustica::traits::foldable::Foldable;
 use rustica::traits::functor::Functor;
 use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 // =============================================================================
 // BASIC CREATION AND ACCESS TESTS

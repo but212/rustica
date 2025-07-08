@@ -1,6 +1,6 @@
 use criterion::Criterion;
 #[cfg(feature = "pvec")]
-use rustica::pvec::{pvec, PersistentVector};
+use rustica::pvec::{PersistentVector, pvec};
 use std::hint::black_box;
 
 #[cfg(feature = "pvec")]

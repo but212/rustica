@@ -73,22 +73,14 @@ fn test_option_monad_plus_with_mapping() {
     let result = first_mapped(
         numbers.into_iter(),
         |x: i32| {
-            if x > 2 {
-                Some(x * 10)
-            } else {
-                None
-            }
+            if x > 2 { Some(x * 10) } else { None }
         },
     );
     assert_eq!(result, Some(30));
 
     let small_numbers = vec![1, 2];
     let result = first_mapped(small_numbers.into_iter(), |x: i32| {
-        if x > 2 {
-            Some(x * 10)
-        } else {
-            None
-        }
+        if x > 2 { Some(x * 10) } else { None }
     });
     assert_eq!(result, None);
 }

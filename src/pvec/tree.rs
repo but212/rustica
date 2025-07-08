@@ -15,7 +15,7 @@ use std::iter::FromIterator;
 
 use crate::pvec::memory::IndexCache;
 use crate::pvec::memory::{AllocationStrategy, BoxedCachePolicy, Chunk, ManagedRef, MemoryManager};
-use crate::pvec::node::{Node, NODE_BITS};
+use crate::pvec::node::{NODE_BITS, Node};
 
 /// A persistent vector implemented as a Relaxed Radix Balanced (RRB) tree.
 ///
@@ -96,7 +96,7 @@ impl<T: Clone> Tree<T> {
     #[must_use]
     pub fn from_slice_with_chunk_size(slice: &[T], chunk_size: usize) -> Self {
         use crate::pvec::memory::Chunk;
-        use crate::pvec::node::{Node, NODE_SIZE};
+        use crate::pvec::node::{NODE_SIZE, Node};
 
         if slice.is_empty() {
             return Self::new_with_chunk_size(chunk_size);
