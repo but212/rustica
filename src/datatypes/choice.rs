@@ -175,16 +175,16 @@
 //!
 //! // Identity law
 //! let choice = Choice::new(5, vec![10, 15]);
-//! let id_fn = |x: &i32| x;
-//! let id_fn_choice = Choice::pure(&id_fn);
+//! let id_fn: fn(&i32) -> i32 = |x: &i32| *x;
+//! let id_fn_choice = Choice::<fn(&i32) -> i32>::pure(&id_fn);
 //! let applied = choice.clone().apply(&id_fn_choice);
 //! assert_eq!(choice, applied);
 //!
 //! // Homomorphism law
 //! let f = |x: &i32| *x * 2;
 //! let x = 7;
-//! let pure_f = Choice::new(f, vec![]);
-//! let pure_x = Choice::new(x, vec![]);
+//! let pure_f = Choice::<fn(&i32) -> i32>::pure(&f);
+//! let pure_x = Choice::<fn(&i32) -> i32>::pure(&x);
 //! let lhs = pure_x.apply(&pure_f);
 //! let result = f(&x);
 //! let rhs = Choice::new(result, vec![]);
@@ -1621,11 +1621,11 @@ impl<T> HKT for Choice<T> {
 
 impl<T> Pure for Choice<T> {
     fn pure<A: Clone>(value: &A) -> Self::Output<A> {
-        Choice::new(value.clone(), vec![])
+        Choice::from_iter([value.clone()])
     }
 
     fn pure_owned<A: Clone>(value: A) -> Self::Output<A> {
-        Choice::new(value, vec![])
+        Choice::from_iter([value])
     }
 }
 
