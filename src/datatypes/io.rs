@@ -1146,8 +1146,8 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
 
     /// Creates a new IO operation that waits for a specified duration before completing (synchronous).
     ///
-    /// This method uses a spin-wait loop for the delay, which can be CPU-intensive
-    /// but offers high-precision delays. It is suitable for short, precise waits.
+    /// This method uses `std::thread::sleep`, which yields control to the OS scheduler
+    /// for the specified duration, making it an efficient way to pause execution without consuming CPU cycles.
     ///
     /// # Arguments
     ///
@@ -1161,43 +1161,13 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// use std::time::{Duration, Instant};
     ///
     /// let start = Instant::now();
-    /// let delayed_io = IO::delay_sync(Duration::from_micros(100), 123);
+    /// let delayed_io = IO::delay_sync(Duration::from_millis(10), 123);
     /// let result = delayed_io.run();
     ///
     /// assert_eq!(result, 123);
-    /// assert!(start.elapsed() >= Duration::from_micros(100));
-    /// ```
-    pub fn delay_sync(duration: Duration, a: A) -> Self {
-        IO::new(move || {
-            std::thread::sleep(duration);
-            a.clone()
-        })
-    }
-
-    /// Creates a new IO operation that waits for a specified duration with high efficiency (synchronous).
-    ///
-    /// This method uses `std::thread::sleep` which attempts to use OS-level
-    /// sleep functions when possible to reduce CPU usage during longer waits.
-    ///
-    /// # Arguments
-    ///
-    /// * `duration` - The duration to wait.
-    /// * `a` - The value to be produced after the delay.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::io::IO;
-    /// use std::time::{Duration, Instant};
-    ///
-    /// let start = Instant::now();
-    /// let delayed_io = IO::delay_sync_efficient(Duration::from_millis(10), 456);
-    /// let result = delayed_io.run();
-    ///
-    /// assert_eq!(result, 456);
     /// assert!(start.elapsed() >= Duration::from_millis(10));
     /// ```
-    pub fn delay_sync_efficient(duration: Duration, a: A) -> Self {
+    pub fn delay_sync(duration: Duration, a: A) -> Self {
         IO::new(move || {
             std::thread::sleep(duration);
             a.clone()
