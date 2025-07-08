@@ -269,7 +269,7 @@ use std::marker::PhantomData;
 /// # Design Notes
 ///
 /// * IsoPrism implements a prism using Iso's bidirectional mapping capabilities
-/// * The abstraction treats the Prism as an isomorphism between S and Option<A>
+/// * The abstraction treats the Prism as an isomorphism between S and `Option<A>`
 /// * A well-behaved IsoPrism should uphold the prism laws
 /// * This implementation allows for zero-cost abstractions when the Iso implementation is efficient
 /// * Composition of IsoPrisms follows function composition semantics
