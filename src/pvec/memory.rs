@@ -119,7 +119,7 @@ pub struct EvenIndexCache;
 impl CachePolicy for EvenIndexCache {
     #[inline(always)]
     fn should_cache(&self, index: usize) -> bool {
-        index % 2 == 0
+        index.is_multiple_of(2)
     }
     #[inline(always)]
     fn clone_box(&self) -> BoxedCachePolicy {

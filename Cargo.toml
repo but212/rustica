@@ -1,8 +1,8 @@
 [package]
 name = "rustica"
-version = "0.7.1"
+version = "0.8.0"
 authors = ["jeong-il suk <wjddlf211@naver.com>"]
-edition = "2021"
+edition = "2024"
 description = "Rustica is a functional programming library for the Rust language."
 license = "Apache-2.0"
 repository = "https://github.com/but212/rustica"
@@ -12,7 +12,7 @@ categories = ["data-structures", "rust-patterns", "algorithms", "no-std"]
 documentation = "https://docs.rs/rustica"
 
 [package.metadata]
-msrv = "1.81.0"
+msrv = "1.87.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -25,7 +25,7 @@ rayon = "1.10.0"
 smallvec = "1.14.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }
 quickcheck = { version = "1.0", optional = true }
-spin_sleep = "1.1"
+lazy_static = "1.5.0"
 
 [dev-dependencies]
 quickcheck = "1.0"

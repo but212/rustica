@@ -499,7 +499,7 @@ pub trait FoldableExt: Foldable {
             } else {
                 match prev {
                     None => (true, Some(curr.clone())),
-                    Some(ref p) => (p <= curr, Some(curr.clone())),
+                    Some(p) => (p <= curr, Some(curr.clone())),
                 }
             }
         })

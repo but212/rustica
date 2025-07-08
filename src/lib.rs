@@ -88,6 +88,7 @@
 //!
 //! - `full`: Enables all features below
 //! - `pvec`: Includes persistent vector implementation
+//! - `async`: Includes async monad implementation
 //!
 //! ## Structure
 //!

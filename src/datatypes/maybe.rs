@@ -1392,7 +1392,7 @@ impl<'a, T> IntoIterator for &'a Maybe<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Maybe::Just(ref val) => std::slice::from_ref(val).iter(),
+            Maybe::Just(val) => std::slice::from_ref(val).iter(),
             Maybe::Nothing => [].iter(),
         }
     }
@@ -1404,7 +1404,7 @@ impl<'a, T> IntoIterator for &'a mut Maybe<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Maybe::Just(ref mut val) => std::slice::from_mut(val).iter_mut(),
+            Maybe::Just(val) => std::slice::from_mut(val).iter_mut(),
             Maybe::Nothing => [].iter_mut(),
         }
     }

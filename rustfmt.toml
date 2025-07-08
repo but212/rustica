@@ -1,7 +1,7 @@
 # Rustica rustfmt configuration - enhanced with stable options
 
 # Basic formatting
-edition = "2021"
+edition = "2024"
 max_width = 100
 hard_tabs = false
 tab_spaces = 4

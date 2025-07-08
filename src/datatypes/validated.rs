@@ -374,7 +374,7 @@ use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
 #[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -1739,7 +1739,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// Returns an iterator over the valid value (0 or 1 item).
     pub fn iter(&self) -> Iter<'_, A> {
         match self {
-            Validated::Valid(ref a) => Iter { inner: Some(a) },
+            Validated::Valid(a) => Iter { inner: Some(a) },
             _ => Iter { inner: None },
         }
     }
@@ -1747,7 +1747,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// Returns a mutable iterator over the valid value (0 or 1 item).
     pub fn iter_mut(&mut self) -> IterMut<'_, A> {
         match self {
-            Validated::Valid(ref mut a) => IterMut { inner: Some(a) },
+            Validated::Valid(a) => IterMut { inner: Some(a) },
             _ => IterMut { inner: None },
         }
     }
@@ -1755,7 +1755,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// Returns a mutable iterator over the error(s) (0 or many).
     pub fn iter_errors_mut(&mut self) -> ErrorsIterMut<'_, E> {
         match self {
-            Validated::Invalid(ref mut es) => ErrorsIterMut::Multi(es.iter_mut()),
+            Validated::Invalid(es) => ErrorsIterMut::Multi(es.iter_mut()),
             _ => ErrorsIterMut::Empty,
         }
     }
@@ -1799,7 +1799,7 @@ impl<'a, E> Iterator for ErrorsIter<'a, E> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             ErrorsIter::Empty => None,
-            ErrorsIter::Multi(ref mut it) => it.next(),
+            ErrorsIter::Multi(it) => it.next(),
         }
     }
 }
@@ -1816,7 +1816,7 @@ impl<'a, E> Iterator for ErrorsIterMut<'a, E> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             ErrorsIterMut::Empty => None,
-            ErrorsIterMut::Multi(ref mut it) => it.next(),
+            ErrorsIterMut::Multi(it) => it.next(),
         }
     }
 }

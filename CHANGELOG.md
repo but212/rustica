@@ -4,6 +4,8 @@
 
 ### Changed - 0.8.0
 
+- Upgraded to Rust 2024 edition with minimum supported version 1.87.0
+
 - **`Choice` Filter Methods Clarification** (`src/datatypes/choice.rs`)  
   - Established clear division of responsibilities between filter methods:
     - `filter`: Only applies the predicate to alternative values, always preserves the primary value

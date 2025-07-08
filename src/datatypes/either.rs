@@ -739,7 +739,7 @@ impl<L, R> Either<L, R> {
     /// Returns an iterator over a reference to the left value.
     pub fn left_iter_ref(&self) -> EitherLeftIterRef<'_, L> {
         match self {
-            Either::Left(ref l) => EitherLeftIterRef { left: Some(l) },
+            Either::Left(l) => EitherLeftIterRef { left: Some(l) },
             Either::Right(_) => EitherLeftIterRef { left: None },
         }
     }
@@ -747,7 +747,7 @@ impl<L, R> Either<L, R> {
     /// Returns an iterator over a mutable reference to the left value.
     pub fn left_iter_mut(&mut self) -> EitherLeftIterMut<'_, L> {
         match self {
-            Either::Left(ref mut l) => EitherLeftIterMut { left: Some(l) },
+            Either::Left(l) => EitherLeftIterMut { left: Some(l) },
             Either::Right(_) => EitherLeftIterMut { left: None },
         }
     }
