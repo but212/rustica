@@ -1,6 +1,6 @@
 //! Tests for the composable trait and composition utilities.
 
-use quickcheck::{quickcheck, TestResult};
+use quickcheck::{TestResult, quickcheck};
 use rustica::traits::composable::*;
 
 #[test]
