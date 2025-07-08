@@ -319,8 +319,8 @@
 use crate::utils::error_utils::AppError;
 #[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
-use spin_sleep::SpinSleeper;
 use std::sync::Arc;
+use std::time::Duration;
 
 /// A custom error type for IO operations
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -457,10 +457,21 @@ impl std::error::Error for IOError {}
 /// ```
 #[derive(Clone)]
 pub struct IO<A> {
-    run: Arc<dyn Fn() -> A + 'static>,
+    run: Arc<dyn Fn() -> A + Send + Sync + 'static>,
 }
 
-impl<A: 'static + Clone> IO<A> {
+#[cfg(feature = "async")]
+use tokio::runtime::{Builder, Runtime};
+
+#[cfg(feature = "async")]
+lazy_static::lazy_static! {
+    static ref TOKIO_RUNTIME: Runtime = Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to create Tokio runtime");
+}
+
+impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// Creates a new IO operation from a function.
     ///
     /// This constructor allows you to create an `IO` from any function that
@@ -490,7 +501,7 @@ impl<A: 'static + Clone> IO<A> {
     #[inline]
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn() -> A + 'static,
+        F: Fn() -> A + Send + Sync + 'static,
     {
         IO { run: Arc::new(f) }
     }
@@ -527,6 +538,97 @@ impl<A: 'static + Clone> IO<A> {
     #[inline]
     pub fn run(&self) -> A {
         (self.run)()
+    }
+
+    /// Runs the IO operation asynchronously.
+    ///
+    /// This method is available when the `async` feature is enabled.
+    /// It executes the encapsulated synchronous function in a non-blocking way
+    /// by using `tokio::task::spawn_blocking`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let io = IO::new(|| {
+    ///     // Simulate a blocking operation
+    ///     std::thread::sleep(std::time::Duration::from_millis(10));
+    ///     42
+    /// });
+    ///
+    /// let result = io.run_async().await;
+    /// assert_eq!(result, 42);
+    /// # }
+    /// ```
+    #[cfg(feature = "async")]
+    pub async fn run_async(&self) -> A
+    where
+        A: Send + Sync,
+    {
+        let f = self.run.clone();
+        let handle = tokio::runtime::Handle::current();
+        handle
+            .spawn_blocking(move || f())
+            .await
+            .expect("Failed to run blocking task")
+    }
+
+    /// Creates a new `IO` from an `async` block.
+    ///
+    /// This method is available when the `async` feature is enabled.
+    /// It allows creating an `IO` operation from an asynchronous computation.
+    /// The provided future is executed on a shared Tokio runtime.
+    ///
+    /// # Arguments
+    ///
+    /// * `fut` - A future that resolves to the value of the IO operation.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// use rustica::datatypes::io::IO;
+    /// use std::time::Duration;
+    ///
+    /// let async_io = IO::new_async(async {
+    ///     tokio::time::sleep(Duration::from_millis(10)).await;
+    ///     "done".to_string()
+    /// });
+    ///
+    /// assert_eq!(async_io.run_async().await, "done");
+    /// # }
+    /// ```
+    #[cfg(feature = "async")]
+    pub fn new_async<F>(fut: F) -> Self
+    where
+        F: Future<Output = A> + Send + 'static,
+        A: Send + Sync,
+    {
+        let future_once = Arc::new(Mutex::new(Some(fut)));
+        let result_cache = Arc::new(OnceLock::<A>::new());
+
+        IO::new(move || {
+            if let Some(cached_result) = result_cache.get() {
+                return cached_result.clone();
+            }
+
+            let future_to_run = future_once.lock().unwrap().take();
+            if let Some(f) = future_to_run {
+                let result = TOKIO_RUNTIME
+                    .block_on(tokio::task::spawn_blocking(move || {
+                        TOKIO_RUNTIME.block_on(f)
+                    }))
+                    .unwrap();
+                let _ = result_cache.set(result.clone());
+                result
+            } else {
+                result_cache.get().unwrap().clone()
+            }
+        })
     }
 
     /// Maps a function over the result of this IO operation.
@@ -637,7 +739,9 @@ impl<A: 'static + Clone> IO<A> {
     /// assert_eq!(result.get("one"), None);
     /// ```
     #[inline]
-    pub fn fmap<B: Clone + 'static>(&self, f: impl Fn(A) -> B + 'static) -> IO<B> {
+    pub fn fmap<B: Clone + 'static + Send + Sync>(
+        &self, f: impl Fn(A) -> B + 'static + Send + Sync,
+    ) -> IO<B> {
         // Avoid unnecessary Arc::clone if not needed
         let run = if Arc::strong_count(&self.run) == 1 {
             // Only one reference, move it
@@ -858,11 +962,13 @@ impl<A: 'static + Clone> IO<A> {
     /// assert_eq!(invalid_result, None);
     /// ```
     #[inline]
-    pub fn bind<B: Clone + 'static>(&self, f: impl Fn(A) -> IO<B> + 'static) -> IO<B> {
+    pub fn bind<B: Send + Sync + Clone + 'static>(
+        &self, f: impl Fn(A) -> IO<B> + Send + Sync + 'static,
+    ) -> IO<B> {
         let run = Arc::clone(&self.run);
         IO::new(move || {
             let a = run();
-            f(a).run()
+            (f(a).run)()
         })
     }
 
@@ -995,70 +1101,106 @@ impl<A: 'static + Clone> IO<A> {
     /// assert!(result_fail.try_get().is_err());
     /// ```
     #[inline]
-    pub fn apply<B: Clone + 'static>(&self, mf: impl Fn(A) -> IO<B> + 'static) -> IO<B> {
+    pub fn apply<B: Send + Sync + Clone + 'static>(
+        &self, mf: impl Fn(A) -> IO<B> + Send + Sync + 'static,
+    ) -> IO<B> {
         self.bind(mf)
     }
 
-    /// Creates a new IO operation that delays execution for a specified duration.
+    /// Creates an IO operation that completes after a specified duration.
     ///
-    /// This is a utility function that allows you to create an `IO` that will
-    /// delay its execution for a specified duration before returning a value.
+    /// This method is available when the `async` feature is enabled and uses `tokio::time::sleep`.
+    /// The resulting `IO` operation will resolve to the given value `a` after the delay.
     ///
     /// # Arguments
     ///
-    /// * `duration` - The duration to delay the execution
-    /// * `value` - The value to return after the delay
-    ///
-    /// # Tradeoffs
-    ///
-    /// Uses `std::thread::sleep`, which is efficient for longer delays and doesn't consume CPU, but is imprecise for short waits (<2ms) and blocks the thread. For high-throughput or concurrent IO chains, prefer `delay_efficient` for sub-millisecond precision, or consider async IO for non-blocking.
+    /// * `duration` - The duration to wait.
+    /// * `a` - The value to be produced after the delay.
     ///
     /// # Examples
     ///
     /// ```rust
+    /// # #[tokio::main]
+    /// # async fn main() {
     /// use rustica::datatypes::io::IO;
+    /// use std::time::{Duration, Instant};
     ///
-    /// // Create an IO operation that delays for 1 second and returns 42
-    /// let io_operation = IO::delay(std::time::Duration::from_secs(1), 42);
+    /// let start = Instant::now();
+    /// let delayed_io = IO::delay(Duration::from_millis(20), 42);
+    /// let result = delayed_io.run_async().await;
     ///
-    /// // Run the IO operation
-    /// let result = io_operation.run();
     /// assert_eq!(result, 42);
+    /// assert!(start.elapsed() >= Duration::from_millis(20));
+    /// # }
     /// ```
-    #[inline]
-    pub fn delay(duration: std::time::Duration, value: A) -> Self {
-        IO::new(move || {
-            std::thread::sleep(duration);
-            value.clone()
+    #[cfg(feature = "async")]
+    pub fn delay(duration: Duration, a: A) -> Self
+    where
+        A: Send + Sync,
+    {
+        IO::new_async(async move {
+            tokio::time::sleep(duration).await;
+            a
         })
     }
 
-    /// Creates a new IO operation that delays execution for a specified duration using spin-based sleeping.
+    /// Creates a new IO operation that waits for a specified duration before completing (synchronous).
     ///
-    /// This is similar to `delay` but uses the `spin_sleep` crate for more precise, non-blocking timing for short durations.
+    /// This method uses a spin-wait loop for the delay, which can be CPU-intensive
+    /// but offers high-precision delays. It is suitable for short, precise waits.
     ///
-    /// # Tradeoffs
+    /// # Arguments
     ///
-    /// Uses busy-waiting (spinning), which gives high precision for sub-millisecond waits and avoids thread context switching, but consumes CPU while waiting. Best for short, high-precision delays in large IO chains. For longer delays or when CPU efficiency is critical, prefer `delay` or async IO.
+    /// * `duration` - The duration to wait.
+    /// * `a` - The value to be produced after the delay.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::io::IO;
-    /// use std::time::Duration;
+    /// use std::time::{Duration, Instant};
     ///
-    /// // Create an IO operation that uses spin_sleep for precise timing
-    /// let io_operation = IO::delay_efficient(Duration::from_micros(500), 42);
+    /// let start = Instant::now();
+    /// let delayed_io = IO::delay_sync(Duration::from_micros(100), 123);
+    /// let result = delayed_io.run();
     ///
-    /// // Run the IO operation (uses spin sleep for better precision)
-    /// let result = io_operation.run();
-    /// assert_eq!(result, 42);
+    /// assert_eq!(result, 123);
+    /// assert!(start.elapsed() >= Duration::from_micros(100));
     /// ```
-    #[inline]
-    pub fn delay_efficient(duration: std::time::Duration, value: A) -> Self {
+    pub fn delay_sync(duration: Duration, a: A) -> Self {
         IO::new(move || {
-            SpinSleeper::new(0).sleep(duration);
-            value.clone()
+            std::thread::sleep(duration);
+            a.clone()
+        })
+    }
+
+    /// Creates a new IO operation that waits for a specified duration with high efficiency (synchronous).
+    ///
+    /// This method uses `std::thread::sleep` which attempts to use OS-level
+    /// sleep functions when possible to reduce CPU usage during longer waits.
+    ///
+    /// # Arguments
+    ///
+    /// * `duration` - The duration to wait.
+    /// * `a` - The value to be produced after the delay.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    /// use std::time::{Duration, Instant};
+    ///
+    /// let start = Instant::now();
+    /// let delayed_io = IO::delay_sync_efficient(Duration::from_millis(10), 456);
+    /// let result = delayed_io.run();
+    ///
+    /// assert_eq!(result, 456);
+    /// assert!(start.elapsed() >= Duration::from_millis(10));
+    /// ```
+    pub fn delay_sync_efficient(duration: Duration, a: A) -> Self {
+        IO::new(move || {
+            std::thread::sleep(duration);
+            a.clone()
         })
     }
 }
@@ -1073,12 +1215,12 @@ impl<A> crate::traits::hkt::HKT for IO<A> {
 impl<A: Clone + 'static> crate::traits::evaluate::Evaluate for IO<A> {
     #[inline]
     fn evaluate(&self) -> Self::Source {
-        self.run()
+        (self.run)()
     }
 }
 
 #[cfg(feature = "full")]
-impl<A: Clone + Arbitrary> Arbitrary for IO<A> {
+impl<A: Send + Sync + Clone + Arbitrary> Arbitrary for IO<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);
         IO::pure(value)
