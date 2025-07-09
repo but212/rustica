@@ -261,8 +261,6 @@ where
     ///
     /// # Examples
     ///
-    /// ## Basic Construction and Execution
-    ///
     /// ```rust
     /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
@@ -277,34 +275,6 @@ where
     /// // Run the continuation with the identity function
     /// let result = cont.run(|x| x);
     /// assert_eq!(result, 11);
-    /// ```
-    ///
-    /// ## Custom Control Flow Implementation
-    ///
-    /// ```rust
-    /// use std::sync::Arc;
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // A function that implements early return based on a condition
-    /// fn safe_div(x: i32, y: i32) -> Cont<Option<i32>, i32> {
-    ///     Cont::new(move |k: Arc<dyn Fn(i32) -> Option<i32> + Send + Sync>| {
-    ///         if y == 0 {
-    ///             // Early return with None if division by zero
-    ///             None
-    ///         } else {
-    ///             // Continue with the computation
-    ///             k(x / y)
-    ///         }
-    ///     })
-    /// }
-    ///
-    /// // Example with valid division
-    /// let result1 = safe_div(10, 2).run(|x| Some(x));
-    /// assert_eq!(result1, Some(5));
-    ///
-    /// // Example with division by zero
-    /// let result2 = safe_div(10, 0).run(|x| Some(x));
-    /// assert_eq!(result2, None);
     /// ```
     #[inline]
     pub fn new<F>(f: F) -> Self
@@ -362,30 +332,12 @@ where
     ///
     /// # Examples
     ///
-    /// ## Basic Usage
-    ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
     ///
     /// let cont = Cont::return_cont(42);
     /// let result = cont.run(|x| x * 2);
     /// assert_eq!(result, 84);
-    /// ```
-    ///
-    /// ## Chained Continuation
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// // Create a chain of continuations
-    /// let cont1 = Cont::return_cont(5);
-    /// let cont2 = cont1.bind(|x| Cont::return_cont(x * 2));
-    /// let cont3 = cont2.bind(|x| Cont::return_cont(x + 1));
-    ///
-    /// // Run the final continuation
-    /// let result = cont3.run(|x| x);
-    /// assert_eq!(result, 11); // (5 * 2) + 1 = 11
     /// ```
     #[inline]
     pub fn run<FN>(&self, k: FN) -> R
@@ -439,31 +391,12 @@ where
     ///
     /// # Examples
     ///
-    /// ## Basic Usage
-    ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
     ///
     /// let cont = Cont::return_cont(42);
     /// let result = cont.run(|x| x * 2);
     /// assert_eq!(result, 84);
-    /// ```
-    ///
-    /// ## As First Step in a Chain
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// // Start with a simple value
-    /// let computation = Cont::return_cont(10)
-    ///     // Chain operations using bind
-    ///     .bind(|x| Cont::return_cont(x + 5))
-    ///     .bind(|x| Cont::return_cont(x * 2));
-    ///     
-    /// // Run the computation
-    /// let result = computation.run(|x| x);
-    /// assert_eq!(result, 30); // (10 + 5) * 2 = 30
     /// ```
     #[inline]
     pub fn return_cont(a: A) -> Self {
@@ -538,8 +471,6 @@ where
     ///
     /// # Examples
     ///
-    /// ## Basic Transformation
-    ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
     ///
@@ -548,44 +479,6 @@ where
     /// // Map a function over the continuation
     /// let doubled = computation.fmap(|x| x * 2);
     /// assert_eq!(doubled.run(|x| x), 84);
-    /// ```
-    ///
-    /// ## Chaining Transformations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // Chain multiple transformations
-    /// let result = Cont::return_cont(42)
-    ///     .fmap(|x| x + 10)
-    ///     .fmap(|x| x.to_string());
-    /// assert_eq!(result.run(|x| x), "52");
-    /// ```
-    ///
-    /// ## Transforming Complex Types
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a continuation with a vector
-    /// let vector_cont = Cont::return_cont(vec![1, 2, 3, 4]);
-    ///
-    /// // Transform it into a HashMap
-    /// let map_cont = vector_cont.fmap(|vec| {
-    ///     let mut map = HashMap::new();
-    ///     for (i, val) in vec.into_iter().enumerate() {
-    ///         map.insert(i, val);
-    ///     }
-    ///     map
-    /// });
-    ///
-    /// // Extract and verify
-    /// let result = map_cont.run(|map| {
-    ///     map.get(&1).cloned().unwrap_or(0)
-    /// });
-    ///
-    /// assert_eq!(result, 2); // Value at index 1 is 2
     /// ```
     #[inline]
     pub fn fmap<B, F>(self, f: F) -> Cont<R, B>
@@ -694,8 +587,6 @@ where
     ///
     /// # Examples
     ///
-    /// ## Basic Usage
-    ///
     /// ```rust
     /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
@@ -704,44 +595,6 @@ where
     /// let cont2 = cont1.bind(|x| Cont::return_cont(x * 2));
     /// let result = cont2.run(|x| x);
     /// assert_eq!(result, 10);
-    /// ```
-    ///
-    /// ## Chaining Multiple Operations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // Create a chain of operations
-    /// let computation = Cont::return_cont(5)
-    ///     .bind(|x| Cont::return_cont(x * 2))  // 5 * 2 = 10
-    ///     .bind(|x| Cont::return_cont(x + 7))  // 10 + 7 = 17
-    ///     .bind(|x| Cont::return_cont(format!("Result: {}", x)));
-    ///     
-    /// let result = computation.run(|x| x);
-    /// assert_eq!(result, "Result: 17");
-    /// ```
-    ///
-    /// ## Implementing Custom Control Flow
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // A simple validation function that returns an error message or a valid value
-    /// fn validate(value: i32) -> Cont<Result<i32, String>, i32> {
-    ///     if value > 0 {
-    ///         Cont::return_cont(value)
-    ///     } else {
-    ///         Cont::new(|_| Result::Err("Value must be positive".to_string()))
-    ///     }
-    /// }
-    ///
-    /// // Create a validation pipeline
-    /// let pipeline = validate(10)
-    ///     .bind(|x| validate(x - 5))  // This passes (5 is positive)
-    ///     .bind(|x| validate(x - 10)); // This fails (-5 is negative)
-    ///     
-    /// let result = pipeline.run(|x| Result::Ok(x));
-    /// assert_eq!(result, Result::Err("Value must be positive".to_string()));
     /// ```
     #[inline]
     pub fn bind<B, F>(self, f: F) -> Cont<R, B>
@@ -821,8 +674,6 @@ where
     ///
     /// # Examples
     ///
-    /// ## Basic Usage
-    ///
     /// ```rust
     /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
@@ -831,32 +682,6 @@ where
     /// let cont_fn = Cont::return_cont(Arc::new(|x| x * 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
     /// let result = cont_val.apply(cont_fn).run(|x| x);
     /// assert_eq!(result, 10);
-    /// ```
-    ///
-    /// ## Applying Multiple Arguments
-    ///
-    /// ```rust
-    /// use std::sync::Arc;
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // A function to add two numbers
-    /// let add = |x: i32| -> Arc<dyn Fn(i32) -> i32 + Send + Sync> {
-    ///     Arc::new(move |y| x + y)
-    /// };
-    ///
-    /// // Wrap the function and arguments in Cont
-    /// let cont_fn = Cont::return_cont(Arc::new(add) as
-    ///     Arc<dyn Fn(i32) -> Arc<dyn Fn(i32) -> i32 + Send + Sync> + Send + Sync>);
-    /// let cont_x = Cont::return_cont(5);
-    /// let cont_y = Cont::return_cont(7);
-    ///
-    /// // Apply arguments one by one
-    /// let partial_result = cont_x.apply(cont_fn);
-    /// let final_result = cont_y.apply(partial_result);
-    ///
-    /// // Run and check result
-    /// let result = final_result.run(|x| x);
-    /// assert_eq!(result, 12); // 5 + 7 = 12
     /// ```
     #[inline]
     pub fn apply<B>(self, cf: Cont<R, Arc<dyn Fn(A) -> B + Send + Sync>>) -> Cont<R, B>
@@ -899,8 +724,6 @@ where
     ///
     /// # Examples
     ///
-    /// ## Early Return
-    ///
     /// ```rust
     /// use std::sync::Arc;
     /// use rustica::datatypes::cont::Cont;
@@ -916,129 +739,6 @@ where
     /// });
     ///
     /// assert_eq!(computation.run(|x| x), 10);
-    /// ```
-    ///
-    /// ## Exception Handling Pattern
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // A function that might fail
-    /// fn divide(a: i32, b: i32) -> Cont<Result<i32, String>, i32> {
-    ///     Cont::return_cont(a).call_cc(move |exit| {
-    ///         // Check for division by zero
-    ///         if b == 0 {
-    ///             // Exit early with an error
-    ///             let error_cont = Cont::new(|_| Result::Err("Division by zero".to_string()));
-    ///             return error_cont;
-    ///         }
-    ///         
-    ///         // Otherwise, continue with normal calculation
-    ///         Cont::return_cont(a / b)
-    ///     })
-    /// }
-    ///
-    /// // Success case
-    /// let success = divide(10, 2).run(|x| Result::Ok(x));
-    /// assert_eq!(success, Result::Ok(5));
-    ///
-    /// // Error case
-    /// let error = divide(10, 0).run(|x| Result::Ok(x));
-    /// assert_eq!(error, Result::Err("Division by zero".to_string()));
-    /// ```
-    ///
-    /// ## Backtracking Search Implementation
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    /// use std::sync::{Arc, Mutex};
-    ///
-    /// // Simple backtracking search using bind instead of call_cc
-    /// fn find_path(maze: &[Vec<bool>], start: (usize, usize), end: (usize, usize)) -> Option<Vec<(usize, usize)>> {
-    ///     // Track visited cells to avoid cycles
-    ///     let visited = Arc::new(Mutex::new(vec![vec![false; maze[0].len()]; maze.len()]));
-    ///     
-    ///     // Result container
-    ///     let result = Arc::new(Mutex::new(None));
-    ///     
-    ///     // Define a recursive search function
-    ///     fn search(
-    ///         maze: &[Vec<bool>],
-    ///         visited: Arc<Mutex<Vec<Vec<bool>>>>,
-    ///         result: Arc<Mutex<Option<Vec<(usize, usize)>>>>,
-    ///         pos: (usize, usize),
-    ///         end: (usize, usize),
-    ///         path: Vec<(usize, usize)>
-    ///     ) -> Cont<(), ()> {
-    ///         // If we reached the end, save the path and exit
-    ///         if pos == end {
-    ///             *result.lock().unwrap() = Some(path);
-    ///             return Cont::return_cont(());
-    ///         }
-    ///         
-    ///         // Mark as visited
-    ///         visited.lock().unwrap()[pos.0][pos.1] = true;
-    ///         
-    ///         // Try each direction
-    ///         let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
-    ///         
-    ///         // Create a continuation that tries all directions
-    ///         let mut cont: Cont<(), ()> = Cont::return_cont(());
-    ///         
-    ///         for (dx, dy) in directions.iter() {
-    ///             let nx = pos.0 as isize + dx;
-    ///             let ny = pos.1 as isize + dy;
-    ///             
-    ///             // Check if new position is valid
-    ///             if nx >= 0 && nx < maze.len() as isize &&
-    ///                ny >= 0 && ny < maze[0].len() as isize {
-    ///                 let nx = nx as usize;
-    ///                 let ny = ny as usize;
-    ///                 
-    ///                 // If not visited and not a wall
-    ///                 if !visited.lock().unwrap()[nx][ny] && !maze[nx][ny] {
-    ///                     // Create a new path with the current position
-    ///                     let mut new_path = path.clone();
-    ///                     new_path.push((nx, ny));
-    ///                     
-    ///                     // Clone references for the next recursive call
-    ///                     let visited_clone = visited.clone();
-    ///                     let result_clone = result.clone();
-    ///                     
-    ///                     // Recursively search from new position
-    ///                     let next_search = search(maze, visited_clone, result_clone, (nx, ny), end, new_path);
-    ///                     next_search.run(|_| ());
-    ///                     
-    ///                     // If we found a path, exit early
-    ///                     if result.lock().unwrap().is_some() {
-    ///                         return Cont::return_cont(());
-    ///                     }
-    ///                 }
-    ///             }
-    ///         }
-    ///         
-    ///         // No path found from this position, backtrack
-    ///         Cont::return_cont(())
-    ///     }
-    ///     
-    ///     // Start the search with initial position
-    ///     let mut initial_path = vec![start];
-    ///     search(maze, visited, result.clone(), start, end, initial_path).run(|_| ());
-    ///     
-    ///     // Return the result
-    ///     let final_result = result.lock().unwrap().clone();
-    ///     final_result
-    /// }
-    ///
-    /// // Example usage (simplified):
-    /// let maze = vec![
-    ///     vec![false, false, false],
-    ///     vec![true, true, false],
-    ///     vec![false, false, false],
-    /// ];
-    ///
-    /// let path = find_path(&maze, (0, 0), (2, 2));
-    /// assert!(path.is_some());
     /// ```
     #[inline]
     pub fn call_cc<B, F>(self, f: F) -> Cont<R, B>

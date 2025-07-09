@@ -242,12 +242,6 @@
 //! - Flattening nested choices
 //! - Converting between collections and choices
 //! - Monadic operations for sequencing computations
-//!
-//! ## TODO
-//!
-//! - Optimize performance for large collections of alternatives
-//! - Add property-based tests for typeclass laws
-
 #[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Debug, Display, Formatter};

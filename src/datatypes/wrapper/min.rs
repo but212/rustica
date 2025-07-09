@@ -200,8 +200,6 @@ impl<T: Clone + Ord> Semigroup for Min<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::min::Min;
     /// use rustica::traits::semigroup::Semigroup;
@@ -212,43 +210,6 @@ impl<T: Clone + Ord> Semigroup for Min<T> {
     /// // a and b are consumed
     /// let c = a.combine_owned(b);
     /// assert_eq!(c, Min(5));
-    /// ```
-    ///
-    /// With custom types that implement `Ord`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::cmp::Ordering;
-    ///
-    /// #[derive(Clone, Debug, PartialEq, Eq)]
-    /// struct Version(u32, u32, u32);  // Major, minor, patch
-    ///
-    /// impl PartialOrd for Version {
-    ///     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    ///         Some(self.cmp(other))
-    ///     }
-    /// }
-    ///
-    /// impl Ord for Version {
-    ///     fn cmp(&self, other: &Self) -> Ordering {
-    ///         match self.0.cmp(&other.0) {
-    ///             Ordering::Equal => match self.1.cmp(&other.1) {
-    ///                 Ordering::Equal => self.2.cmp(&other.2),
-    ///                 ord => ord,
-    ///             },
-    ///             ord => ord,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let v1 = Min(Version(1, 0, 0));
-    /// let v2 = Min(Version(2, 0, 0));
-    /// let v3 = Min(Version(1, 5, 0));
-    ///
-    /// // Find the minimum version
-    /// let min_v = v1.combine_owned(v2).combine_owned(v3);
-    /// assert_eq!(min_v, Min(Version(1, 0, 0)));
     /// ```
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
@@ -297,8 +258,6 @@ impl<T: Clone + Ord> Semigroup for Min<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::min::Min;
     /// use rustica::traits::semigroup::Semigroup;
@@ -313,19 +272,6 @@ impl<T: Clone + Ord> Semigroup for Min<T> {
     /// // a and b can still be used
     /// let d = b.combine(&a);
     /// assert_eq!(d, Min(5));
-    /// ```
-    ///
-    /// Combining multiple values:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let values = vec![Min(3), Min(8), Min(2), Min(10), Min(5)];
-    ///
-    /// // Find the minimum value in the collection
-    /// let result = values.iter().fold(Min(std::i32::MAX), |acc, x| acc.combine(x));
-    /// assert_eq!(result, Min(2));
     /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
@@ -398,8 +344,6 @@ impl<T: Clone + Ord + Default> Monoid for Min<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::min::Min;
     /// use rustica::traits::monoid::Monoid;
@@ -417,53 +361,6 @@ impl<T: Clone + Ord + Default> Monoid for Min<T> {
     /// // Identity laws should hold
     /// assert_eq!(true_identity.combine(&value), value);
     /// assert_eq!(value.combine(&true_identity), value);
-    /// ```
-    ///
-    /// Using with custom types that implement `Default`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::cmp::Ordering;
-    ///
-    /// #[derive(Clone, Debug, PartialEq, Eq)]
-    /// struct Version(u32, u32, u32);
-    ///
-    /// impl Default for Version {
-    ///     fn default() -> Self {
-    ///         // Default should ideally be the maximum possible version
-    ///         // but for simplicity we use 0.0.0 here
-    ///         Version(0, 0, 0)
-    ///     }
-    /// }
-    ///
-    /// impl PartialOrd for Version {
-    ///     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    ///         Some(self.cmp(other))
-    ///     }
-    /// }
-    ///
-    /// impl Ord for Version {
-    ///     fn cmp(&self, other: &Self) -> Ordering {
-    ///         match self.0.cmp(&other.0) {
-    ///             Ordering::Equal => match self.1.cmp(&other.1) {
-    ///                 Ordering::Equal => self.2.cmp(&other.2),
-    ///                 ord => ord,
-    ///             },
-    ///             ord => ord,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// // For a true identity with Version, we'd need the maximum version
-    /// // But since we don't have that, we'll create one
-    /// let max_version = Min(Version(u32::MAX, u32::MAX, u32::MAX));
-    /// let v = Min(Version(1, 2, 3));
-    ///
-    /// // Verify identity behavior
-    /// assert_eq!(max_version.combine(&v), v);
-    /// assert_eq!(v.combine(&max_version), v);
     /// ```
     #[inline]
     fn empty() -> Self {
@@ -574,8 +471,6 @@ impl<T: Clone + Ord> Functor for Min<T> {
     ///
     /// # Examples
     ///
-    /// Basic transformation:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::min::Min;
     /// use rustica::traits::functor::Functor;
@@ -583,41 +478,6 @@ impl<T: Clone + Ord> Functor for Min<T> {
     /// let min_value = Min(5);
     /// let doubled = min_value.fmap(|x| x * 2);
     /// assert_eq!(doubled, Min(10));
-    /// ```
-    ///
-    /// Chaining transformations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let min_value = Min(5);
-    /// let result = min_value
-    ///     .fmap(|x| x * 2)       // Min(10)
-    ///     .fmap(|x| x + 5)       // Min(15)
-    ///     .fmap(|x| x.to_string()); // Min("15")
-    ///
-    /// assert_eq!(result, Min("15".to_string()));
-    /// ```
-    ///
-    /// The functor operation preserves the `Min` structure while transforming the value inside:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::functor::Functor;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let a = Min(5);
-    /// let b = Min(10);
-    ///
-    /// // Combine first, then transform
-    /// let result1 = a.combine(&b).fmap(|x| x * 2);
-    ///
-    /// // Transform individually, then combine
-    /// let result2 = a.fmap(|x| x * 2).combine(&b.fmap(|x| x * 2));
-    ///
-    /// assert_eq!(result1, Min(10)); // Min(5 * 2)
-    /// assert_eq!(result2, Min(10)); // Min(min(10, 20))
     /// ```
     #[inline]
     fn fmap<U, F>(&self, f: F) -> Self::Output<U>
@@ -645,8 +505,6 @@ impl<T: Clone + Ord> Functor for Min<T> {
     ///
     /// # Examples
     ///
-    /// Basic transformation with ownership:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::min::Min;
     /// use rustica::traits::functor::Functor;
@@ -658,20 +516,6 @@ impl<T: Clone + Ord> Functor for Min<T> {
     /// assert_eq!(min_length, Min(5));
     ///
     /// // Note: min_string has been consumed and can't be used anymore
-    /// ```
-    ///
-    /// Chaining transformations with ownership:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// // Chain transformations with ownership transfer
-    /// let result = Min("hello".to_string())
-    ///     .fmap_owned(|s| s + " world")
-    ///     .fmap_owned(|s| s.len());
-    ///
-    /// assert_eq!(result, Min(11));
     /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>

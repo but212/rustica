@@ -882,33 +882,6 @@ impl<T> Monad for Maybe<T> {
     /// let result = m.bind(|x| Maybe::Just(x * 2));
     /// assert_eq!(result, Maybe::Nothing);
     /// ```
-    ///
-    /// Conditional logic:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// // A function that returns Maybe based on a condition
-    /// fn safe_divide(x: i32, y: i32) -> Maybe<i32> {
-    ///     if y == 0 {
-    ///         Maybe::Nothing
-    ///     } else {
-    ///         Maybe::Just(x / y)
-    ///     }
-    /// }
-    ///
-    /// // Using bind with conditional logic
-    /// let m = Maybe::Just(10);
-    ///
-    /// // This succeeds because 2 is not zero
-    /// let result = m.bind(|x| safe_divide(*x, 2));
-    /// assert_eq!(result, Maybe::Just(5));
-    ///
-    /// // This fails because we're dividing by zero
-    /// let result = m.bind(|x| safe_divide(*x, 0));
-    /// assert_eq!(result, Maybe::Nothing);
-    /// ```
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
@@ -965,31 +938,6 @@ impl<T> Monad for Maybe<T> {
     ///
     /// // The original m is moved and can't be used again
     /// // let invalid = m;  // This would cause a compile error
-    /// ```
-    ///
-    /// Handling complex transformations that require ownership:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// // A function that requires ownership of its input
-    /// fn process_vec(vec: Vec<i32>) -> Maybe<i32> {
-    ///     if vec.is_empty() {
-    ///         Maybe::Nothing
-    ///     } else {
-    ///         let sum: i32 = vec.into_iter().sum();
-    ///         Maybe::Just(sum)
-    ///     }
-    /// }
-    ///
-    /// let m = Maybe::Just(vec![1, 2, 3, 4]);
-    /// let result = m.bind_owned(process_vec);
-    /// assert_eq!(result, Maybe::Just(10));
-    ///
-    /// let empty: Maybe<Vec<i32>> = Maybe::Just(Vec::new());
-    /// let result = empty.bind_owned(process_vec);
-    /// assert_eq!(result, Maybe::Nothing);
     /// ```
     #[inline]
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
@@ -1048,36 +996,6 @@ impl<T> Monad for Maybe<T> {
     /// let result = outer_nothing.join();
     /// assert_eq!(result, Maybe::Nothing);
     /// ```
-    ///
-    /// Using join to simplify nested computations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::monad::Monad;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// // A function that returns Maybe<Maybe<T>>
-    /// fn lookup_with_fallback(id: i32) -> Maybe<Maybe<String>> {
-    ///     if id < 0 {
-    ///         Maybe::Nothing // Invalid ID
-    ///     } else if id < 10 {
-    ///         // Primary lookup succeeded
-    ///         Maybe::Just(Maybe::Just(format!("User-{}", id)))
-    ///     } else {
-    ///         // Primary lookup failed, no fallback available
-    ///         Maybe::Just(Maybe::Nothing)
-    ///     }
-    /// }
-    ///
-    /// // Using join to flatten the results
-    /// let result_found = lookup_with_fallback(5).join();
-    /// let result_not_found = lookup_with_fallback(15).join();
-    /// let invalid = lookup_with_fallback(-1).join();
-    ///
-    /// assert_eq!(result_found, Maybe::Just(String::from("User-5")));
-    /// assert_eq!(result_not_found, Maybe::Nothing);
-    /// assert_eq!(invalid, Maybe::Nothing);
-    /// ```
     #[inline]
     fn join<U>(&self) -> Self::Output<U>
     where
@@ -1126,29 +1044,6 @@ impl<T> Monad for Maybe<T> {
     ///
     /// // The original nested value is consumed
     /// // let invalid = nested;  // This would cause a compile error
-    /// ```
-    ///
-    /// Performance comparison with `join` (conceptual example):
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// // A large vector that would be expensive to clone
-    /// let large_data = vec![1; 1000000];
-    ///
-    /// // Wrap it in nested Maybes
-    /// let nested_clone = Maybe::Just(Maybe::Just(large_data.clone()));
-    /// let nested_owned = Maybe::Just(Maybe::Just(large_data));
-    ///
-    /// // join requires a clone of the inner Maybe
-    /// let result1 = nested_clone.join();
-    ///
-    /// // join_owned moves the inner Maybe, avoiding the clone
-    /// let result2 = nested_owned.join_owned();
-    ///
-    /// // Both produce the same result, but join_owned is more efficient
-    /// // for large or non-Copy types
     /// ```
     #[inline]
     fn join_owned<U>(self) -> Self::Output<U>

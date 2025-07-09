@@ -485,8 +485,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///
     /// # Examples
     ///
-    /// ## Basic Usage
-    ///
     /// ```rust
     /// use rustica::datatypes::writer::Writer;
     /// use rustica::prelude::*;
@@ -522,98 +520,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// let (log, value) = writer.run();
     /// assert_eq!(value, 42);
     /// assert_eq!(log, Log(vec!["Created value 42".to_string()]));
-    /// ```
-    ///
-    /// ## As A Starting Point For Computation Chains
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::prelude::*;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Define some operations
-    /// let double = |x: &i32| -> Writer<Log, i32> {
-    ///     Writer::new(Log(vec![format!("Doubled {} to {}", x, x * 2)]), x * 2)
-    /// };
-    ///
-    /// // Start a computation chain
-    /// let computation = Writer::new(Log(vec!["Starting with 5".to_string()]), 5);
-    /// let result = computation.bind(&double);
-    ///
-    /// // Run the computation to get the final value and combined log
-    /// let (log, value) = result.run();
-    ///
-    /// assert_eq!(value, 10); // 5 * 2 = 10
-    /// assert_eq!(log.0.len(), 2); // Two log entries
-    /// ```
-    ///
-    /// ## With Different Log Types
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::prelude::*;
-    /// use std::collections::HashMap;
-    ///
-    /// // A more complex log type for collecting metrics
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Metrics(HashMap<String, i32>);
-    ///
-    /// impl Semigroup for Metrics {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         for (key, &value) in &other.0 {
-    ///             *combined.entry(key.clone()).or_insert(0) += value;
-    ///         }
-    ///         Metrics(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         for (key, value) in other.0 {
-    ///             *combined.entry(key).or_insert(0) += value;
-    ///         }
-    ///         Metrics(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Metrics {
-    ///     fn empty() -> Self {
-    ///         Metrics(HashMap::new())
-    ///     }
-    /// }
-    ///
-    /// // Create initial metrics
-    /// let mut metrics = HashMap::new();
-    /// metrics.insert("operations".to_string(), 1);
-    ///
-    /// // Create a writer with a value and metrics
-    /// let writer = Writer::new(Metrics(metrics), "result");
-    ///
-    /// // Run the computation
-    /// let (log, value) = writer.run();
-    ///
-    /// assert_eq!(value, "result");
-    /// assert_eq!(log.0.get("operations"), Some(&1));
     /// ```
     #[inline]
     pub const fn new(log: W, value: A) -> Self {
@@ -680,8 +586,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///
     /// # Examples
     ///
-    /// ## Basic Usage
-    ///
     /// ```rust
     /// use rustica::datatypes::writer::Writer;
     /// use rustica::traits::monoid::Monoid;
@@ -716,111 +620,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// let (log, value) = writer.run();
     /// assert_eq!(value, 42);
     /// assert_eq!(log, Log(vec!["Log entry".to_string()]));
-    /// ```
-    ///
-    /// ## Finalizing a Computation Chain
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Define a multi-step computation
-    /// let step1 = |x: &i32| -> Writer<Log, i32> {
-    ///     Writer::new(Log(vec![format!("Step 1: {} -> {}", x, x + 10)]), x + 10)
-    /// };
-    ///
-    /// let step2 = |x: &i32| -> Writer<Log, i32> {
-    ///     Writer::new(Log(vec![format!("Step 2: {} -> {}", x, x * 2)]), x * 2)
-    /// };
-    ///
-    /// // Chain the computations and then extract the final result
-    /// let computation = Writer::new(Log(vec!["Starting with 5".to_string()]), 5);
-    /// let result = computation.bind(&step1).bind(&step2);
-    ///
-    /// let (log, final_value) = result.run();
-    ///
-    /// // Check the final value: (5 + 10) * 2 = 30
-    /// assert_eq!(final_value, 30);
-    ///
-    /// // Check that the log contains entries from all three steps
-    /// assert_eq!(log.0.len(), 3);
-    /// assert_eq!(log.0[0], "Starting with 5");
-    /// assert_eq!(log.0[1], "Step 1: 5 -> 15");
-    /// assert_eq!(log.0[2], "Step 2: 15 -> 30");
-    /// ```
-    ///
-    /// ## Processing the Final Result
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create a writer with some value and logs
-    /// let writer = Writer::new(Log(vec!["Computation started".to_string(), "Processing data".to_string()]), 42);
-    ///
-    /// // Run the computation and process both the log and value
-    /// let (log, value) = writer.run();
-    ///
-    /// // Format the logs for display
-    /// let formatted_logs = log.0.iter()
-    ///     .enumerate()
-    ///     .map(|(i, entry)| format!("{}: {}", i + 1, entry))
-    ///     .collect::<Vec<_>>()
-    ///     .join("\n");
-    ///
-    /// // Process the value
-    /// let result_message = format!("Final result: {}", value);
-    ///
-    /// // Verify the formatting worked correctly
-    /// assert_eq!(formatted_logs, "1: Computation started\n2: Processing data");
-    /// assert_eq!(result_message, "Final result: 42");
     /// ```
     #[inline]
     pub fn run(self) -> (W, A) {
@@ -1028,8 +827,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     ///
     /// # Examples
     ///
-    /// ## Basic Function Application
-    ///
     /// ```rust
     /// use rustica::datatypes::writer::Writer;
     /// use rustica::traits::monoid::Monoid;
@@ -1082,58 +879,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// // Check that logs were combined
     /// assert_eq!(log.0[0], "Value: 10");
     /// assert_eq!(log.0[1], "Function: add 5");
-    /// ```
-    ///
-    /// ## Application with Multiple Functions
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create a Writer with a value
-    /// let value = Writer::new(Log(vec!["Starting value: 5".to_string()]), 5);
-    ///
-    /// // Create Writers with different functions
-    /// let double = Writer::new(Log(vec!["Function: double".to_string()]), |x: &i32| x * 2);
-    /// let add_one = Writer::new(Log(vec!["Function: add one".to_string()]), |x: &i32| x + 1);
-    ///
-    /// // Apply functions in sequence
-    /// let result = value.apply(&double).apply(&add_one);
-    ///
-    /// // Extract the result
-    /// let (log, final_value) = result.run();
-    ///
-    /// // Check the value: (5 * 2) + 1 = 11
-    /// assert_eq!(final_value, 11);
-    ///
-    /// // Check that logs were combined in order
-    /// assert_eq!(log.0[0], "Starting value: 5");
-    /// assert_eq!(log.0[1], "Function: double");
-    /// assert_eq!(log.0[2], "Function: add one");
     /// ```
     #[inline]
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
@@ -1203,61 +948,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// // Check that logs were combined
     /// assert_eq!(log.0[0], "Value a: 10");
     /// assert_eq!(log.0[1], "Value b: 5");
-    /// ```
-    ///
-    /// ## Complex Data Combination
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create two Writers with different data types
-    /// let user_id = Writer::new(Log(vec!["Found user ID".to_string()]), 42);
-    /// let user_name = Writer::new(Log(vec!["Retrieved user name".to_string()]), "Alice".to_string());
-    ///
-    /// // Combine them to create a user record
-    /// let user = user_id.lift2(&user_name, |&id, name| {
-    ///     let mut user = HashMap::new();
-    ///     user.insert("id".to_string(), id.to_string());
-    ///     user.insert("name".to_string(), name.clone());
-    ///     user
-    /// });
-    ///
-    /// // Extract the result
-    /// let (log, user_record) = user.run();
-    ///
-    /// // Check the user record
-    /// assert_eq!(user_record.get("id").unwrap(), "42");
-    /// assert_eq!(user_record.get("name").unwrap(), "Alice");
-    ///
-    /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Found user ID");
-    /// assert_eq!(log.0[1], "Retrieved user name");
     /// ```
     #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
@@ -1334,123 +1024,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         }
     }
 
-    /// Applies a function to values from three Writer instances, combining all their logs.
-    ///
-    /// This method allows you to combine three independent Writer computations using a ternary function.
-    /// It's particularly useful for operations that need to gather values from multiple sources while
-    /// preserving the logs from each computation.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + L3 + V) - Where L1, L2, and L3 are the sizes of the input logs, and V is the size of the result value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    ///
-    /// # Examples
-    ///
-    /// ## Basic Three-way Combination
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create three Writers with different values
-    /// let a = Writer::new(Log(vec!["Value a: 10".to_string()]), 10);
-    /// let b = Writer::new(Log(vec!["Value b: 5".to_string()]), 5);
-    /// let c = Writer::new(Log(vec!["Value c: 2".to_string()]), 2);
-    ///
-    /// // Combine them with a function
-    /// let result = a.lift3(&b, &c, |x, y, z| x + y * z);
-    ///
-    /// // Extract the result
-    /// let (log, value) = result.run();
-    ///
-    /// // Check the value: 10 + (5 * 2) = 20
-    /// assert_eq!(value, 20);
-    ///
-    /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Value a: 10");
-    /// assert_eq!(log.0[1], "Value b: 5");
-    /// assert_eq!(log.0[2], "Value c: 2");
-    /// ```
-    ///
-    /// ## Combining Complex Data
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create Writers with different user data components
-    /// let user_id = Writer::new(Log(vec!["Retrieved user ID".to_string()]), 42);
-    /// let user_name = Writer::new(Log(vec!["Retrieved user name".to_string()]), "Alice".to_string());
-    /// let user_role = Writer::new(Log(vec!["Retrieved user role".to_string()]), "Admin".to_string());
-    ///
-    /// // Combine all components to create a complete user profile
-    /// let user_profile = user_id.lift3(&user_name, &user_role, |&id, name, role| {
-    ///     let mut profile = HashMap::new();
-    ///     profile.insert("id".to_string(), id.to_string());
-    ///     profile.insert("name".to_string(), name.clone());
-    ///     profile.insert("role".to_string(), role.clone());
-    ///     profile
-    /// });
-    ///
-    /// // Extract the result
-    /// let (log, profile) = user_profile.run();
-    ///
-    /// // Check the user profile
-    /// assert_eq!(profile.get("id").unwrap(), "42");
-    /// assert_eq!(profile.get("name").unwrap(), "Alice");
-    /// assert_eq!(profile.get("role").unwrap(), "Admin");
-    /// ```
     /// This method is similar to `apply` but it consumes the Writer instances, potentially allowing
     /// for more efficient memory usage in some cases.
     ///
@@ -1516,64 +1089,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(log.0[0], "Value: 10");
     /// assert_eq!(log.0[1], "Function: add 5");
     /// ```
-    ///
-    /// ## In A Processing Chain
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create a starting value
-    /// let start = Writer::new(Log(vec!["Start: 5".to_string()]), 5);
-    ///
-    /// // Create a function wrapped in a Writer
-    /// let double = Writer::new(Log(vec!["Doubling".to_string()]), |x| x * 2);
-    ///
-    /// // Apply the function, consuming both Writers
-    /// let intermediate = start.apply_owned(double);
-    ///
-    /// // Create another function
-    /// let add_three = Writer::new(Log(vec!["Adding 3".to_string()]), |x| x + 3);
-    ///
-    /// // Apply the second function, again consuming both Writers
-    /// let result = intermediate.apply_owned(add_three);
-    ///
-    /// // Extract the final result
-    /// let (log, value) = result.run();
-    ///
-    /// // Value should be (5 * 2) + 3 = 13
-    /// assert_eq!(value, 13);
-    ///
-    /// // Check combined logs
-    /// assert_eq!(log.0[0], "Start: 5");
-    /// assert_eq!(log.0[1], "Doubling");
-    /// assert_eq!(log.0[2], "Adding 3");
-    /// ```
     #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
@@ -1599,8 +1114,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// - **Ownership**: Consumes both Writer instances, which can be more efficient than borrowing when used in a chain
     ///
     /// # Examples
-    ///
-    /// ## Basic Binary Operation
     ///
     /// ```rust
     /// use rustica::datatypes::writer::Writer;
@@ -1647,61 +1160,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(log.0[0], "Value a: 10");
     /// assert_eq!(log.0[1], "Value b: 5");
     /// ```
-    ///
-    /// ## In A Processing Pipeline
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create a Writer for calculating tax
-    /// let price = Writer::new(Log(vec!["Base price: $100".to_string()]), 100.0);
-    /// let tax_rate = Writer::new(Log(vec!["Tax rate: 8%".to_string()]), 0.08);
-    ///
-    /// // Calculate total price with tax
-    /// let total_with_tax = price.lift2_owned(tax_rate, |p, rate| {
-    ///     let tax_amount = p * rate;
-    ///     p + tax_amount
-    /// });
-    ///
-    /// // Format the result for display
-    /// let formatted = total_with_tax.fmap(|value| format!("${:.2}", value));
-    ///
-    /// // Extract the result
-    /// let (log, value) = formatted.run();
-    ///
-    /// // Check the formatted value: $100 + ($100 * 0.08) = $108.00
-    /// assert_eq!(value, "$108.00");
-    ///
-    /// // Check the logs
-    /// assert_eq!(log.0[0], "Base price: $100");
-    /// assert_eq!(log.0[1], "Tax rate: 8%");
-    /// ```
     #[inline]
     fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
@@ -1727,8 +1185,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// - **Ownership**: Consumes all three Writer instances, which can be more efficient than borrowing when used in a chain
     ///
     /// # Examples
-    ///
-    /// ## Basic Three-way Combination
     ///
     /// ```rust
     /// use rustica::datatypes::writer::Writer;
@@ -1777,68 +1233,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(log.0[1], "Value b: 5");
     /// assert_eq!(log.0[2], "Value c: 2");
     /// ```
-    ///
-    /// ## Building a Complex Structure
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Define a simple order structure
-    /// #[derive(Debug, PartialEq, Clone)]
-    /// struct Order {
-    ///     id: u32,
-    ///     product: String,
-    ///     quantity: u32,
-    /// }
-    ///
-    /// // Create three Writers with order components
-    /// let order_id = Writer::new(Log(vec!["Generated order ID: 1001".to_string()]), 1001u32);
-    /// let product = Writer::new(Log(vec!["Selected product: Keyboard".to_string()]), "Keyboard".to_string());
-    /// let quantity = Writer::new(Log(vec!["Set quantity: 2".to_string()]), 2u32);
-    ///
-    /// // Combine them to create an order, consuming all Writers
-    /// let order = order_id.lift3_owned(product, quantity, |id, product, quantity| {
-    ///     Order { id, product, quantity }
-    /// });
-    ///
-    /// // Extract the result
-    /// let (log, order_value) = order.run();
-    ///
-    /// // Check the order values
-    /// assert_eq!(order_value.id, 1001);
-    /// assert_eq!(order_value.product, "Keyboard");
-    /// assert_eq!(order_value.quantity, 2);
-    ///
-    /// // Check the logs
-    /// assert_eq!(log.0[0], "Generated order ID: 1001");
-    /// assert_eq!(log.0[1], "Selected product: Keyboard");
-    /// assert_eq!(log.0[2], "Set quantity: 2");
-    /// ```
     #[inline]
     fn lift3_owned<B, C, D, F>(
         self, b: Self::Output<B>, c: Self::Output<C>, f: F,
@@ -1866,8 +1260,6 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     /// - **Allocation**: Creates a new Writer instance with combined logs
     ///
     /// # Examples
-    ///
-    /// ## Basic Chaining of Computations
     ///
     /// ```rust
     /// use rustica::datatypes::writer::Writer;
@@ -1902,100 +1294,21 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     ///     Writer::new(Log(vec![format!("Doubled {} to {}", x, x * 2)]), x * 2)
     /// };
     ///
-    /// // Define a function to add 5 to a value and log the operation
-    /// let add_five = |x: &i32| -> Writer<Log, i32> {
-    ///     Writer::new(Log(vec![format!("Added 5 to {} to get {}", x, x + 5)]), x + 5)
-    /// };
-    ///
     /// // Create an initial Writer
     /// let initial = Writer::new(Log(vec!["Starting with 3".to_string()]), 3);
     ///
     /// // Chain operations using bind
-    /// let result = initial.bind(&double).bind(&add_five);
+    /// let result = initial.bind(&double);
     ///
     /// // Extract final value and log
     /// let (log, value) = result.run();
     ///
-    /// // Value should be (3 * 2) + 5 = 11
-    /// assert_eq!(value, 11);
+    /// // Value should be 3 * 2 = 6
+    /// assert_eq!(value, 6);
     ///
-    /// // Log should contain all three entries in order
+    /// // Log should contain both entries in order
     /// assert_eq!(log.0[0], "Starting with 3");
     /// assert_eq!(log.0[1], "Doubled 3 to 6");
-    /// assert_eq!(log.0[2], "Added 5 to 6 to get 11");
-    /// ```
-    ///
-    /// ## Multi-step Data Processing
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monad::Monad;
-    /// use std::collections::HashMap;
-    ///
-    /// // A metrics log type for collecting statistics
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Metrics(HashMap<String, i32>);
-    ///
-    /// impl Semigroup for Metrics {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         for (key, &value) in &other.0 {
-    ///             *combined.entry(key.clone()).or_insert(0) += value;
-    ///         }
-    ///         Metrics(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         for (key, value) in other.0 {
-    ///             *combined.entry(key).or_insert(0) += value;
-    ///         }
-    ///         Metrics(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Metrics {
-    ///     fn empty() -> Self {
-    ///         Metrics(HashMap::new())
-    ///     }
-    /// }
-    ///
-    /// // Define a data processing pipeline
-    /// let validate = |data: &String| -> Writer<Metrics, String> {
-    ///     let mut metrics = HashMap::new();
-    ///     metrics.insert("validation_count".to_string(), 1);
-    ///     Writer::new(Metrics(metrics), data.clone())
-    /// };
-    ///
-    /// let normalize = |data: &String| -> Writer<Metrics, String> {
-    ///     let mut metrics = HashMap::new();
-    ///     metrics.insert("normalize_count".to_string(), 1);
-    ///     let result = data.to_lowercase();
-    ///     Writer::new(Metrics(metrics), result)
-    /// };
-    ///
-    /// let tokenize = |data: &String| -> Writer<Metrics, Vec<String>> {
-    ///     let mut metrics = HashMap::new();
-    ///     metrics.insert("tokenize_count".to_string(), 1);
-    ///     let tokens = data.split_whitespace().map(|s| s.to_string()).collect();
-    ///     Writer::new(Metrics(metrics), tokens)
-    /// };
-    ///
-    /// // Process some input data through the pipeline
-    /// let input = Writer::new(Metrics(HashMap::new()), "Hello World".to_string());
-    /// let processed = input.bind(&validate).bind(&normalize).bind(&tokenize);
-    ///
-    /// // Extract results
-    /// let (metrics, tokens) = processed.run();
-    ///
-    /// // Check tokens
-    /// assert_eq!(tokens, vec!["hello", "world"]);
-    ///
-    /// // Check metrics
-    /// assert_eq!(*metrics.0.get("validation_count").unwrap(), 1);
-    /// assert_eq!(*metrics.0.get("normalize_count").unwrap(), 1);
-    /// assert_eq!(*metrics.0.get("tokenize_count").unwrap(), 1);
     /// ```
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>

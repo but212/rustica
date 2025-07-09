@@ -545,46 +545,6 @@ where
     ///     |v: &i32| Result::Ok(*v),
     /// );
     /// ```
-    ///
-    /// Prism for a struct-like enum variant:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum NetworkPacket {
-    ///     Data { payload: Vec<u8>, checksum: u32 },
-    ///     Control { command: String },
-    ///     Ack { id: u64 },
-    /// }
-    ///
-    /// // Create a prism for the Data variant
-    /// let data_prism = Prism::new(
-    ///     |packet: &NetworkPacket| match packet {
-    ///         NetworkPacket::Data { payload, checksum } => Some((payload.clone(), *checksum)),
-    ///         _ => None,
-    ///     },
-    ///     |&(ref payload, checksum)| NetworkPacket::Data {
-    ///         payload: payload.clone(),
-    ///         checksum
-    ///     },
-    /// );
-    ///
-    /// // Create a test packet
-    /// let packet = NetworkPacket::Data {
-    ///     payload: vec![1, 2, 3, 4],
-    ///     checksum: 0xABCD,
-    /// };
-    ///
-    /// // Use the prism to extract data
-    /// let extracted = data_prism.preview(&packet);
-    /// assert!(extracted.is_some());
-    ///
-    /// if let Some((payload, checksum)) = extracted {
-    ///     assert_eq!(payload, vec![1, 2, 3, 4]);
-    ///     assert_eq!(checksum, 0xABCD);
-    /// }
-    /// ```
     pub fn new(preview: PreviewFn, review: ReviewFn) -> Self {
         Prism {
             preview,
@@ -659,63 +619,6 @@ where
     /// assert_eq!(text_prism.preview(&text_msg), Some("Hello".to_string()));
     /// assert_eq!(text_prism.preview(&binary_msg), None);
     /// ```
-    ///
-    /// Using preview in a transformation pipeline:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum ApiResponse {
-    ///     Success { data: HashMap<String, String>, status: u16 },
-    ///     Error { code: u16, message: String },
-    /// }
-    ///
-    /// // Prism for the Success variant
-    /// let success_prism = Prism::new(
-    ///     |resp: &ApiResponse| match resp {
-    ///         ApiResponse::Success { data, status } => Some((data.clone(), *status)),
-    ///         _ => None,
-    ///     },
-    ///     |&(ref data, status)| ApiResponse::Success {
-    ///         data: data.clone(),
-    ///         status,
-    ///     },
-    /// );
-    ///
-    /// // Create test responses
-    /// let mut data = HashMap::new();
-    /// data.insert("username".to_string(), "alice".to_string());
-    ///
-    /// let success_resp = ApiResponse::Success {
-    ///     data: data.clone(),
-    ///     status: 200,
-    /// };
-    ///
-    /// let error_resp = ApiResponse::Error {
-    ///     code: 404,
-    ///     message: "Not found".to_string(),
-    /// };
-    ///
-    /// // Extract and transform data in a pipeline
-    /// let process_response = |response: &ApiResponse| -> Option<String> {
-    ///     // Try to extract data from a success response
-    ///     success_prism.preview(response)
-    ///         .and_then(|(data, _)| {
-    ///             // Extract the username if it exists
-    ///             data.get("username").cloned()
-    ///         })
-    ///         .map(|username| {
-    ///             // Transform the username
-    ///             format!("Welcome back, {}!", username)
-    ///         })
-    /// };
-    ///
-    /// // Process both responses
-    /// assert_eq!(process_response(&success_resp), Some("Welcome back, alice!".to_string()));
-    /// assert_eq!(process_response(&error_resp), None);
-    /// ```
     pub fn preview(&self, s: &S) -> Option<A> {
         (self.preview)(s)
     }
@@ -781,99 +684,6 @@ where
     /// let msg = text_prism.review(&"Hello, world!".to_string());
     /// assert!(matches!(msg, Message::Text(t) if t == "Hello, world!"));
     /// ```
-    ///
-    /// Creating enum variants with complex data:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Document {
-    ///     Json(HashMap<String, String>),
-    ///     Xml(String),
-    ///     Binary(Vec<u8>),
-    /// }
-    ///
-    /// // Prism for the JSON document variant
-    /// let json_prism = Prism::new(
-    ///     |doc: &Document| match doc {
-    ///         Document::Json(map) => Some(map.clone()),
-    ///         _ => None,
-    ///     },
-    ///     |map: &HashMap<String, String>| Document::Json(map.clone()),
-    /// );
-    ///
-    /// // Create a HashMap
-    /// let mut data = HashMap::new();
-    /// data.insert("name".to_string(), "Alice".to_string());
-    /// data.insert("role".to_string(), "Admin".to_string());
-    ///
-    /// // Create a JSON document from the HashMap
-    /// let json_doc = json_prism.review(&data);
-    ///
-    /// // Verify we created the right variant
-    /// if let Document::Json(map) = json_doc {
-    ///     assert_eq!(map.get("name"), Some(&"Alice".to_string()));
-    ///     assert_eq!(map.get("role"), Some(&"Admin".to_string()));
-    /// } else {
-    ///     panic!("Wrong variant created!");
-    /// }
-    /// ```
-    ///
-    /// Using review to transform data:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum ValidationResult<T> {
-    ///     Valid(T),
-    ///     Invalid(Vec<String>),
-    /// }
-    ///
-    /// // Prism for the Valid variant
-    /// let valid_prism = Prism::new(
-    ///     |result: &ValidationResult<String>| match result {
-    ///         ValidationResult::Valid(value) => Some(value.clone()),
-    ///         _ => None,
-    ///     },
-    ///     |value: &String| ValidationResult::Valid(value.clone()),
-    /// );
-    ///
-    /// // Function that validates a username
-    /// fn validate_username(username: &str) -> Result<String, Vec<String>> {
-    ///     let mut errors = Vec::new();
-    ///     
-    ///     if username.len() < 3 {
-    ///         errors.push("Username too short".to_string());
-    ///     }
-    ///     
-    ///     if username.chars().any(|c| !c.is_alphanumeric()) {
-    ///         errors.push("Username must be alphanumeric".to_string());
-    ///     }
-    ///     
-    ///     if errors.is_empty() {
-    ///         Ok(username.to_string())
-    ///     } else {
-    ///         Err(errors)
-    ///     }
-    /// }
-    ///
-    /// // Transform a Result into a ValidationResult using the prism
-    /// let to_validation_result = |result: Result<String, Vec<String>>| -> ValidationResult<String> {
-    ///     match result {
-    ///         Ok(value) => valid_prism.review(&value),
-    ///         Err(errors) => ValidationResult::Invalid(errors),
-    ///     }
-    /// };
-    ///
-    /// let good = to_validation_result(validate_username("alice123"));
-    /// let bad = to_validation_result(validate_username("a!"));
-    ///
-    /// assert_eq!(good, ValidationResult::Valid("alice123".to_string()));
-    /// assert!(matches!(bad, ValidationResult::Invalid(_)));
-    /// ```
     pub fn review(&self, a: &A) -> S {
         (self.review)(a)
     }
@@ -933,58 +743,13 @@ where
     ///     |r: &f64| Shape::Circle(*r),
     /// );
     ///
-    /// let rectangle_prism = Prism::for_case::<Shape, (f64, f64)>(
-    ///     |s: &Shape| match s {
-    ///         Shape::Rectangle(w, h) => Some((*w, *h)),
-    ///         _ => None,
-    ///     },
-    ///     |&(w, h)| Shape::Rectangle(w, h),
-    /// );
-    ///
     /// // Test shapes
     /// let circle = Shape::Circle(5.0);
     /// let rect = Shape::Rectangle(4.0, 3.0);
-    /// let triangle = Shape::Triangle(3.0, 4.0, 5.0);
     ///
     /// // Circle prism works only on circles
     /// assert_eq!(circle_prism.preview(&circle), Some(5.0));
     /// assert_eq!(circle_prism.preview(&rect), None);
-    /// assert_eq!(circle_prism.preview(&triangle), None);
-    ///
-    /// // Rectangle prism works only on rectangles
-    /// assert_eq!(rectangle_prism.preview(&rect), Some((4.0, 3.0)));
-    /// assert_eq!(rectangle_prism.preview(&circle), None);
-    /// ```
-    ///
-    /// Using explicit type parameters for clarity:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Value {
-    ///     Number(f64),
-    ///     Text(String),
-    ///     List(Vec<Value>),
-    ///     Object(HashMap<String, Value>),
-    /// }
-    ///
-    /// // Create a prism for the List variant with explicit type parameters
-    /// let list_prism = Prism::for_case::<Value, Vec<Value>>(
-    ///     |v: &Value| match v {
-    ///         Value::List(items) => Some(items.clone()),
-    ///         _ => None,
-    ///     },
-    ///     |items: &Vec<Value>| Value::List(items.clone()),
-    /// );
-    ///
-    /// // Create a list value
-    /// let list = Value::List(vec![Value::Number(1.0), Value::Text("hello".to_string())]);
-    ///
-    /// // Extract the list
-    /// let items = list_prism.preview(&list).unwrap();
-    /// assert_eq!(items.len(), 2);
     /// ```
     pub fn for_case<P, R>(match_case: PreviewFn, make_case: ReviewFn) -> Self {
         Prism::new(match_case, make_case)

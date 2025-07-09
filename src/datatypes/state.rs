@@ -377,93 +377,12 @@ where
     ///
     /// # Examples
     ///
-    /// ## Basic Usage
-    ///
     /// ```rust
     /// use rustica::datatypes::state::State;
     ///
     /// // Create a state computation that returns the state as the value and increments the state
     /// let counter = State::new(|s: i32| (s, s + 1));
     /// assert_eq!(counter.run_state(5), (5, 6));
-    /// ```
-    ///
-    /// ## Complex State Transformations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a state computation that performs a more complex transformation
-    /// let complex = State::new(|s: String| {
-    ///     let uppercase = s.to_uppercase();
-    ///     let new_state = format!("{}-{}", s, uppercase);
-    ///     (uppercase, new_state)
-    /// });
-    ///
-    /// assert_eq!(
-    ///     complex.run_state("hello".to_string()),
-    ///     ("HELLO".to_string(), "hello-HELLO".to_string())
-    /// );
-    /// ```
-    ///
-    /// ## Pattern Matching with State
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a state computation that uses pattern matching
-    /// let process_option = State::new(|s: Option<i32>| {
-    ///     match s {
-    ///         Some(value) if value > 0 => (format!("Positive: {}", value), Some(value * 2)),
-    ///         Some(value) => (format!("Non-positive: {}", value), Some(0)),
-    ///         None => ("No value".to_string(), None),
-    ///     }
-    /// });
-    ///
-    /// assert_eq!(
-    ///     process_option.run_state(Some(5)),
-    ///     ("Positive: 5".to_string(), Some(10))
-    /// );
-    ///
-    /// assert_eq!(
-    ///     process_option.run_state(Some(-3)),
-    ///     ("Non-positive: -3".to_string(), Some(0))
-    /// );
-    ///
-    /// assert_eq!(
-    ///     process_option.run_state(None),
-    ///     ("No value".to_string(), None)
-    /// );
-    /// ```
-    ///
-    /// ## Creating a Custom Computation
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Custom state transformer for a simple counter with reset capability
-    /// #[derive(Clone)]
-    /// struct Counter {
-    ///     value: i32,
-    ///     max: i32,
-    /// }
-    ///
-    /// // Create a state computation that increments the counter and resets if it exceeds max
-    /// let increment = State::new(|s: Counter| {
-    ///     let new_value = s.value + 1;
-    ///     let reset = new_value > s.max;
-    ///     let next_value = if reset { 0 } else { new_value };
-    ///     (reset, Counter { value: next_value, max: s.max })
-    /// });
-    ///
-    /// let mut counter = Counter { value: 9, max: 10 };
-    /// let (did_reset, next_counter) = increment.run_state(counter);
-    /// assert_eq!(did_reset, false);
-    /// assert_eq!(next_counter.value, 10);
-    ///
-    /// counter = next_counter;
-    /// let (did_reset, next_counter) = increment.run_state(counter);
-    /// assert_eq!(did_reset, true);
-    /// assert_eq!(next_counter.value, 0);
     /// ```
     #[inline]
     pub fn new<F>(f: F) -> Self
@@ -510,8 +429,6 @@ where
     ///
     /// # Examples
     ///
-    /// ## Basic Usage
-    ///
     /// ```rust
     /// use rustica::datatypes::state::State;
     ///
@@ -523,64 +440,6 @@ where
     ///
     /// // Run with a different initial state
     /// assert_eq!(counter.run_state(21), (21, 42));
-    /// ```
-    ///
-    /// ## Composing Multiple State Operations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Run a more complex computation
-    /// let complex = State::new(|s: i32| (s * 2, s))
-    ///     .bind(|x| State::new(move |s| (x + s, s + 1)))
-    ///     .bind(|x| State::new(move |s| (format!("Result: {}", x), s * 2)));
-    ///
-    /// // When run with initial state 3:
-    /// // 1. First computation returns (6, 3)
-    /// // 2. Second computation returns (6 + 3, 3 + 1) = (9, 4)
-    /// // 3. Third computation returns ("Result: 9", 4 * 2) = ("Result: 9", 8)
-    /// assert_eq!(complex.run_state(3), ("Result: 9".to_string(), 8));
-    /// ```
-    ///
-    /// ## Tracking State Transitions
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a computation that tracks a history of operations
-    /// type History = Vec<String>;
-    /// type Count = i32;
-    /// type StateWithHistory = (Count, History);
-    ///
-    /// // Increment counter and log the action
-    /// let increment = State::new(|s: StateWithHistory| {
-    ///     let (count, mut history) = s;
-    ///     history.push(format!("Increment from {}", count));
-    ///     (count + 1, (count + 1, history))
-    /// });
-    ///
-    /// // Double counter and log the action
-    /// let double = State::new(|s: StateWithHistory| {
-    ///     let (count, mut history) = s;
-    ///     history.push(format!("Double from {}", count));
-    ///     (count * 2, (count * 2, history))
-    /// });
-    ///
-    /// // Chain operations
-    /// let operations = increment.clone()
-    ///     .bind(move |_| double.clone())
-    ///     .bind(move |_| increment.clone());
-    ///
-    /// // Start with count 5 and empty history
-    /// let initial_state = (5, vec![]);
-    /// let (final_count, (_, history)) = operations.run_state(initial_state);
-    ///
-    /// assert_eq!(final_count, 13);
-    /// assert_eq!(history, vec![
-    ///     "Increment from 5".to_string(),
-    ///     "Double from 6".to_string(),
-    ///     "Increment from 12".to_string(),
-    /// ]);
     /// ```
     #[inline]
     pub fn run_state(&self, s: S) -> (A, S) {

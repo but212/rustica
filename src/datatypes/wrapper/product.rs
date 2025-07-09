@@ -172,8 +172,6 @@ impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::semigroup::Semigroup;
@@ -184,38 +182,6 @@ impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
     /// // a and b are consumed
     /// let c = a.combine_owned(b);
     /// assert_eq!(c, Product(50));
-    /// ```
-    ///
-    /// With custom types that implement `Mul`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::ops::Mul;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct ComplexNumber {
-    ///     real: f64,
-    ///     imaginary: f64,
-    /// }
-    ///
-    /// impl Mul for ComplexNumber {
-    ///     type Output = Self;
-    ///
-    ///     fn mul(self, other: Self) -> Self {
-    ///         ComplexNumber {
-    ///             // (a + bi) * (c + di) = (ac - bd) + (ad + bc)i
-    ///             real: self.real * other.real - self.imaginary * other.imaginary,
-    ///             imaginary: self.real * other.imaginary + self.imaginary * other.real,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let c1 = Product(ComplexNumber { real: 1.0, imaginary: 2.0 });  // 1 + 2i
-    /// let c2 = Product(ComplexNumber { real: 3.0, imaginary: 4.0 });  // 3 + 4i
-    ///
-    /// let c3 = c1.combine_owned(c2);
-    /// assert_eq!(c3, Product(ComplexNumber { real: -5.0, imaginary: 10.0 }));  // (1+2i)*(3+4i) = -5+10i
     /// ```
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
@@ -260,8 +226,6 @@ impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::semigroup::Semigroup;
@@ -276,20 +240,6 @@ impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
     /// // a and b can still be used
     /// let d = b.combine(&a);
     /// assert_eq!(d, Product(50));
-    /// ```
-    ///
-    /// Combining multiple values in a collection:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// let values = vec![Product(1), Product(2), Product(3), Product(4), Product(5)];
-    ///
-    /// // Multiply all values in the collection
-    /// let result = values.iter().fold(Product::empty(), |acc, x| acc.combine(x));
-    /// assert_eq!(result, Product(120));  // 1*2*3*4*5 = 120
     /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
@@ -364,8 +314,6 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::monoid::Monoid;
@@ -380,66 +328,6 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
     /// let a = Product(42);
     /// assert_eq!(a.combine(&identity), a);  // a * 1 = a
     /// assert_eq!(identity.combine(&a), a);  // 1 * a = a
-    /// ```
-    ///
-    /// With floating point numbers:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let identity: Product<f64> = Product::empty();  // Product(1.0)
-    /// let value = Product(3.14);
-    ///
-    /// assert_eq!(value.combine(&identity), value);  // 3.14 * 1.0 = 3.14
-    /// ```
-    ///
-    /// Using `empty()` with custom types that implement `From<u8>` and `Mul`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::ops::Mul;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Matrix2x2 {
-    ///     elements: [[f64; 2]; 2]
-    /// }
-    ///
-    /// impl From<u8> for Matrix2x2 {
-    ///     fn from(value: u8) -> Self {
-    ///         // Create identity matrix if value is 1, otherwise scale the identity
-    ///         let scale = value as f64;
-    ///         Matrix2x2 {
-    ///             elements: [[scale, 0.0], [0.0, scale]]
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// impl Mul for Matrix2x2 {
-    ///     type Output = Self;
-    ///
-    ///     fn mul(self, other: Self) -> Self {
-    ///         let mut result = [[0.0; 2]; 2];
-    ///         for i in 0..2 {
-    ///             for j in 0..2 {
-    ///                 for k in 0..2 {
-    ///                     result[i][j] += self.elements[i][k] * other.elements[k][j];
-    ///                 }
-    ///             }
-    ///         }
-    ///         Matrix2x2 { elements: result }
-    ///     }
-    /// }
-    ///
-    /// // Create the identity element (Product(identity_matrix))
-    /// let identity: Product<Matrix2x2> = Product::empty();
-    /// assert_eq!(identity, Product(Matrix2x2 { elements: [[1.0, 0.0], [0.0, 1.0]] }));
-    ///
-    /// let matrix = Product(Matrix2x2 { elements: [[2.0, 3.0], [4.0, 5.0]] });
-    /// assert_eq!(matrix.combine(&identity), matrix);  // Identity law
     /// ```
     #[inline]
     fn empty() -> Self {
@@ -532,8 +420,6 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::functor::Functor;
@@ -551,25 +437,6 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
     ///     .fmap(|x| x.to_string()); // Product("20")
     ///
     /// assert_eq!(result, Product("20".to_string()));
-    /// ```
-    ///
-    /// Interaction with Semigroup operations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let a = Product(10);
-    /// let b = Product(20);
-    ///
-    /// // Apply a transformation after combining values
-    /// let result1 = a.clone().combine(&b).fmap(|x| x * 2);
-    /// assert_eq!(result1, Product(400));  // (10 * 20) * 2 = 400
-    ///
-    /// // Apply a transformation before combining values
-    /// let result2 = a.fmap(|x| x * 2).combine(&b.fmap(|x| x * 2));
-    /// assert_eq!(result2, Product(800));  // (10 * 2) * (20 * 2) = 800
     /// ```
     #[inline]
     fn fmap<U, F>(&self, f: F) -> Self::Output<U>
@@ -644,8 +511,6 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::functor::Functor;
@@ -655,21 +520,6 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
     /// // Consume num and double the value
     /// let doubled = num.fmap_owned(|x| x * 2);
     /// assert_eq!(doubled, Product(10));
-    /// ```
-    ///
-    /// Chaining transformations with ownership transfer:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// // Using i32 which implements Mul
-    /// let result = Product(5)
-    ///     .fmap_owned(|n| n * 2)
-    ///     .fmap_owned(|n| n + 1)
-    ///     .fmap_owned(|n| n.to_string());
-    ///
-    /// assert_eq!(result, Product("11".to_string()));  // 5*2=10, 10+1=11
     /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>

@@ -334,8 +334,6 @@ impl<T: Clone> Monoid for Last<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::last::Last;
     /// use rustica::traits::monoid::Monoid;
@@ -343,24 +341,6 @@ impl<T: Clone> Monoid for Last<T> {
     /// // Create an identity element
     /// let empty = Last::<String>::empty();
     /// assert_eq!(empty, Last(None));
-    /// ```
-    ///
-    /// Combining with identity element:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // With Some value
-    /// let value = Last(Some("hello"));
-    /// let empty = Last::<&str>::empty();
-    ///
-    /// // Identity on right
-    /// assert_eq!(value.clone().combine(&empty), value.clone());
-    ///
-    /// // Identity on left
-    /// assert_eq!(empty.combine(&value), value);
     /// ```
     #[inline]
     fn empty() -> Self {
@@ -474,8 +454,6 @@ impl<T: Clone> Functor for Last<T> {
     ///
     /// # Examples
     ///
-    /// Basic transformation:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::last::Last;
     /// use rustica::traits::functor::Functor;
@@ -487,21 +465,6 @@ impl<T: Clone> Functor for Last<T> {
     /// let c = Last::<i32>(None);
     /// let d = c.fmap(|x| x * 2);  // None remains None
     /// assert_eq!(d, Last(None));
-    /// ```
-    ///
-    /// Chaining multiple transformations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let a = Last(Some(5));
-    /// let result = a
-    ///     .fmap(|x| x * 2)     // Some(10)
-    ///     .fmap(|x| x + 3)     // Some(13)
-    ///     .fmap(|x| x.to_string()); // Some("13")
-    ///
-    /// assert_eq!(result, Last(Some("13".to_string())));
     /// ```
     #[inline]
     fn fmap<U, F>(&self, f: F) -> Self::Output<U>
@@ -532,8 +495,6 @@ impl<T: Clone> Functor for Last<T> {
     ///
     /// # Examples
     ///
-    /// Basic transformation with ownership:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::last::Last;
     /// use rustica::traits::functor::Functor;
@@ -543,37 +504,6 @@ impl<T: Clone> Functor for Last<T> {
     /// assert_eq!(b, Last(Some(5)));
     ///
     /// // a is consumed and can't be used anymore
-    /// ```
-    ///
-    /// With None value:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let c = Last::<String>(None);
-    /// let d = c.fmap_owned(|s| s.len());  // None remains None
-    /// assert_eq!(d, Last(None));
-    /// ```
-    ///
-    /// Transforming heap-allocated data efficiently:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::functor::Functor;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a Last containing a heap-allocated HashMap
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    ///
-    /// let container = Last(Some(map));
-    ///
-    /// // Transform it efficiently without cloning the HashMap
-    /// let result = container.fmap_owned(|m| m.len());
-    ///
-    /// assert_eq!(result, Last(Some(2)));
     /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>

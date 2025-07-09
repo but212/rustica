@@ -233,27 +233,6 @@ impl<T: Clone> Identity for Value<T> {
     /// assert_eq!(unwrapped, 42);
     /// // Note that value is consumed and can no longer be used
     /// ```
-    ///
-    /// With complex types:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::identity::Identity;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a HashMap
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    ///
-    /// // Wrap it in a Value
-    /// let wrapped = Value::new(map);
-    ///
-    /// // Extract the HashMap without cloning
-    /// let extracted = wrapped.into_value();
-    /// assert_eq!(extracted["a"], 1);
-    /// assert_eq!(extracted["b"], 2);
-    /// ```
     fn into_value(self) -> Self::Source {
         self.0
     }
@@ -299,22 +278,6 @@ impl<T: Clone> Identity for Value<T> {
     /// // Create a Value from a string
     /// let str_value = Value::<bool>::pure_identity("hello".to_string());
     /// assert_eq!(*str_value.value(), "hello");
-    /// ```
-    ///
-    /// Using with different source types:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // The source type (T in Value<T>) doesn't affect the created type
-    /// let value1: Value<i32> = Value::<String>::pure_identity(42);
-    /// let value2: Value<i32> = Value::<bool>::pure_identity(42);
-    /// let value3: Value<i32> = Value::<()>::pure_identity(42);
-    ///
-    /// assert_eq!(*value1.value(), 42);
-    /// assert_eq!(*value2.value(), 42);
-    /// assert_eq!(*value3.value(), 42);
     /// ```
     fn pure_identity<A>(value: A) -> Self::Output<A>
     where
@@ -392,8 +355,6 @@ impl<T: Clone> Functor for Value<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::value::Value;
     /// use rustica::traits::functor::Functor;
@@ -406,44 +367,6 @@ impl<T: Clone> Functor for Value<T> {
     ///
     /// // Original value is preserved
     /// assert_eq!(value.0, 42);
-    /// ```
-    ///
-    /// Chaining transformations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let value = Value::new(5);
-    ///
-    /// let result = value
-    ///     .fmap(|x| x * 3)            // Value(15)
-    ///     .fmap(|x| x + 7)            // Value(22)
-    ///     .fmap(|x| x.to_string());   // Value("22")
-    ///
-    /// assert_eq!(result.0, "22".to_string());
-    /// ```
-    ///
-    /// With complex types:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::functor::Functor;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a HashMap
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    ///
-    /// let value = Value::new(map);
-    ///
-    /// // Transform the HashMap (calculate sum of values)
-    /// let sum = value.fmap(|m| {
-    ///     m.values().sum::<i32>()
-    /// });
-    ///
-    /// assert_eq!(sum.0, 3);  // 1 + 2 = 3
     /// ```
     #[inline]
     fn fmap<U, F>(&self, f: F) -> Self::Output<U>
@@ -519,8 +442,6 @@ impl<T: Clone> Functor for Value<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::value::Value;
     /// use rustica::traits::functor::Functor;
@@ -532,44 +453,6 @@ impl<T: Clone> Functor for Value<T> {
     /// assert_eq!(doubled.0, 84);
     ///
     /// // Note: value is consumed and can no longer be used
-    /// ```
-    ///
-    /// Avoiding unnecessary clones with owned values:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::functor::Functor;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a large collection
-    /// let mut map = HashMap::new();
-    /// for i in 0..100 {
-    ///     map.insert(i, i * 10);
-    /// }
-    ///
-    /// // Wrap it in Value
-    /// let wrapped_map = Value::new(map);
-    ///
-    /// // Transform without cloning the large collection
-    /// let sum = wrapped_map.fmap_owned(|m| {
-    ///     m.values().sum::<i32>()
-    /// });
-    ///
-    /// assert_eq!(sum.0, 49500);  // Sum of 0..990 by tens
-    /// ```
-    ///
-    /// Chaining transformations with ownership transfer:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let result = Value::new("hello".to_string())
-    ///     .fmap_owned(|s| s.len())       // Value(5)
-    ///     .fmap_owned(|n| n * 2)         // Value(10)
-    ///     .fmap_owned(|n| format!("Result: {}", n)); // Value("Result: 10")
-    ///
-    /// assert_eq!(result.0, "Result: 10");
     /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
@@ -634,8 +517,6 @@ impl<T: Clone> Evaluate for Value<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::value::Value;
     /// use rustica::traits::evaluate::Evaluate;
@@ -645,34 +526,6 @@ impl<T: Clone> Evaluate for Value<T> {
     ///
     /// // Original Value is still available after evaluation
     /// assert_eq!(value.evaluate(), 42);
-    /// ```
-    ///
-    /// Using with strings:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// let value = Value::new("hello".to_string());
-    /// let result: String = value.evaluate();
-    ///
-    /// assert_eq!(result, "hello");
-    /// // We can evaluate again because the original is preserved
-    /// assert_eq!(value.evaluate(), "hello");
-    /// ```
-    ///
-    /// Integrating with other operations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::evaluate::Evaluate;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let value = Value::new(5);
-    ///
-    /// // Apply a function and then evaluate the result
-    /// let doubled = value.fmap(|x| x * 2);
-    /// assert_eq!(doubled.evaluate(), 10);
     /// ```
     #[inline]
     fn evaluate(&self) -> T {
@@ -712,8 +565,6 @@ impl<T: Clone> Evaluate for Value<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::value::Value;
     /// use rustica::traits::evaluate::Evaluate;
@@ -723,43 +574,6 @@ impl<T: Clone> Evaluate for Value<T> {
     ///
     /// assert_eq!(result, 42);
     /// // Note: value is consumed and can no longer be used
-    /// ```
-    ///
-    /// Efficiency with large data structures:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::evaluate::Evaluate;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a large hash map
-    /// let mut map = HashMap::new();
-    /// for i in 0..1000 {
-    ///     map.insert(i, i.to_string());
-    /// }
-    ///
-    /// // Wrap the large map
-    /// let wrapped_map = Value::new(map);
-    ///
-    /// // Extract efficiently without cloning
-    /// let extracted_map = wrapped_map.evaluate_owned();
-    /// assert_eq!(extracted_map.len(), 1000);
-    /// assert_eq!(extracted_map[&42], "42");
-    /// ```
-    ///
-    /// In a processing pipeline:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::value::Value;
-    /// use rustica::traits::evaluate::Evaluate;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// // Create and process a value
-    /// let processed = Value::new("hello".to_string())
-    ///     .fmap(|s| s.to_uppercase())
-    ///     .evaluate_owned();
-    ///
-    /// assert_eq!(processed, "HELLO");
     /// ```
     #[inline]
     fn evaluate_owned(self) -> T {

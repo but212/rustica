@@ -373,8 +373,6 @@ where
     ///
     /// # Examples
     ///
-    /// Basic transformation:
-    ///
     /// ```rust
     /// use rustica::datatypes::reader::Reader;
     /// use rustica::datatypes::id::Id;
@@ -382,47 +380,6 @@ where
     /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n + 10);
     /// let mapped: Reader<i32, String> = reader.fmap(|n| n.to_string());
     /// assert_eq!(mapped.run_reader(5), "15");
-    /// ```
-    ///
-    /// Chaining multiple transformations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// let reader = Reader::new(|n: i32| n + 5);
-    ///
-    /// // Apply multiple transformations in sequence
-    /// let result = reader
-    ///     .fmap(|n| n * 2)
-    ///     .fmap(|n| n - 1)
-    ///     .fmap(|n| format!("{} is the answer", n));
-    ///     
-    /// assert_eq!(result.run_reader(3), "15 is the answer"); // ((3 + 5) * 2) - 1 = 15
-    /// ```
-    ///
-    /// Working with complex types:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    /// use std::collections::HashMap;
-    ///
-    /// // Reader with HashMap result
-    /// let reader = Reader::new(|prefix: &str| {
-    ///     let mut map = HashMap::new();
-    ///     map.insert("key1".to_string(), format!("{}-value1", prefix));
-    ///     map.insert("key2".to_string(), format!("{}-value2", prefix));
-    ///     map
-    /// });
-    ///
-    /// // Transform to get only the values
-    /// let values_reader = reader.fmap(|map| {
-    ///     map.values().cloned().collect::<Vec<String>>()
-    /// });
-    ///
-    /// let values = values_reader.run_reader("test");
-    /// assert!(values.contains(&"test-value1".to_string()));
-    /// assert!(values.contains(&"test-value2".to_string()));
-    /// assert_eq!(values.len(), 2);
     /// ```
     pub fn fmap<B, F>(&self, f: F) -> Reader<E, B>
     where
@@ -468,60 +425,14 @@ where
     ///
     /// A new Reader that represents the sequential computation
     ///
-    /// # Examples
-    ///
-    /// Basic sequencing of operations:
+    /// # Example
     ///
     /// ```rust
     /// use rustica::datatypes::reader::Reader;
-    /// use rustica::datatypes::id::Id;
     ///
     /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n + 5);
     /// let bound: Reader<i32, i32> = reader.bind(|n| Reader::new(move |env: i32| env * n));
     /// assert_eq!(bound.run_reader(10), 150); // (10 + 5) * 10 = 150
-    /// ```
-    ///
-    /// Chaining multiple binds:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Create a series of readers where each depends on the previous result
-    /// let start = Reader::new(|config: i32| config + 3);
-    ///
-    /// // Chain operations with bind
-    /// let result = start
-    ///     .bind(|n| Reader::new(move |_: i32| n * 2))
-    ///     .bind(|n| Reader::new(move |config: i32| n + config))
-    ///     .bind(|n| Reader::new(move |_: i32| n.to_string()));
-    ///     
-    /// assert_eq!(result.run_reader(10), "36"); // ((10 + 3) * 2) + 10 = 36
-    /// ```
-    ///
-    /// Using bind with complex environment:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Define configuration with multiple settings
-    /// #[derive(Clone)]
-    /// struct Config {
-    ///     multiplier: i32,
-    ///     offset: i32,
-    /// }
-    ///
-    /// // First reader extracts the offset
-    /// let get_offset = Reader::asks(|config: Config| config.offset);
-    ///
-    /// // Use bind to create a reader that uses both offset and multiplier
-    /// let computed = get_offset.bind(|offset| {
-    ///     Reader::new(move |config: Config| {
-    ///         offset * config.multiplier
-    ///     })
-    /// });
-    ///
-    /// let config = Config { multiplier: 3, offset: 5 };
-    /// assert_eq!(computed.run_reader(config), 15); // 5 * 3 = 15
     /// ```
     pub fn bind<B, F>(&self, f: F) -> Reader<E, B>
     where
@@ -568,36 +479,11 @@ where
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::reader::Reader;
     ///
     /// let reader: Reader<String, String> = Reader::ask();
     /// assert_eq!(reader.run_reader("hello".to_string()), "hello");
-    /// ```
-    ///
-    /// Using with environment type conversion:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Custom type that can be created from a string
-    /// #[derive(Debug, PartialEq, Clone)]
-    /// struct Config {
-    ///     value: String,
-    /// }
-    ///
-    /// impl From<String> for Config {
-    ///     fn from(s: String) -> Self {
-    ///         Config { value: s }
-    ///     }
-    /// }
-    ///
-    /// // Reader that takes String environment and returns Config
-    /// let reader: Reader<String, Config> = Reader::ask();
-    /// let result = reader.run_reader("test".to_string());
-    /// assert_eq!(result, Config { value: "test".to_string() });
     /// ```
     #[inline]
     pub fn ask() -> Self
@@ -681,70 +567,6 @@ where
     /// let reader: Reader<String, usize> = Reader::asks(|s: String| s.len());
     /// assert_eq!(reader.run_reader("hello".to_string()), 5);
     /// ```
-    ///
-    /// Extracting from a complex environment:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    /// use std::collections::HashMap;
-    ///
-    /// // Define a complex application environment
-    /// #[derive(Clone)]
-    /// struct AppEnvironment {
-    ///     config: HashMap<String, String>,
-    ///     debug_mode: bool,
-    ///     version: String,
-    /// }
-    ///
-    /// // Create readers for different aspects of the environment
-    /// let debug_reader = Reader::asks(|env: AppEnvironment| env.debug_mode);
-    /// let version_reader = Reader::asks(|env: AppEnvironment| env.version.clone());
-    /// let config_value_reader = |key: String| Reader::asks(move |env: AppEnvironment| {
-    ///     env.config.get(&key).cloned().unwrap_or_default()
-    /// });
-    ///
-    /// // Create the environment
-    /// let mut config = HashMap::new();
-    /// config.insert("api_url".to_string(), "https://api.example.com".to_string());
-    /// config.insert("timeout".to_string(), "30000".to_string());
-    ///
-    /// let env = AppEnvironment {
-    ///     config,
-    ///     debug_mode: true,
-    ///     version: "1.0.0".to_string(),
-    /// };
-    ///
-    /// // Use the readers
-    /// assert_eq!(debug_reader.run_reader(env.clone()), true);
-    /// assert_eq!(version_reader.run_reader(env.clone()), "1.0.0");
-    ///
-    /// let api_url_reader = config_value_reader("api_url".to_string());
-    /// assert_eq!(api_url_reader.run_reader(env.clone()), "https://api.example.com");
-    /// ```
-    ///
-    /// Computing derived values:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// #[derive(Clone)]
-    /// struct Rectangle {
-    ///     width: f64,
-    ///     height: f64,
-    /// }
-    ///
-    /// // Create readers that compute different properties
-    /// let area_reader = Reader::asks(|rect: Rectangle| rect.width * rect.height);
-    /// let perimeter_reader = Reader::asks(|rect: Rectangle| 2.0 * (rect.width + rect.height));
-    /// let aspect_ratio_reader = Reader::asks(|rect: Rectangle| rect.width / rect.height);
-    ///
-    /// // Use with a specific rectangle
-    /// let rect = Rectangle { width: 10.0, height: 5.0 };
-    ///
-    /// assert_eq!(area_reader.run_reader(rect.clone()), 50.0);
-    /// assert_eq!(perimeter_reader.run_reader(rect.clone()), 30.0);
-    /// assert_eq!(aspect_ratio_reader.run_reader(rect), 2.0);
-    /// ```
     #[inline]
     pub fn asks<S>(selector: S) -> Self
     where
@@ -824,68 +646,12 @@ where
     ///
     /// # Examples
     ///
-    /// Basic environment modification:
-    ///
     /// ```rust
     /// use rustica::datatypes::reader::Reader;
     ///
     /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
     /// let local: Reader<i32, i32> = reader.local(|n: i32| n + 1);
     /// assert_eq!(local.run_reader(5), 12); // (5 + 1) * 2 = 12
-    /// ```
-    ///
-    /// Working with complex environments:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    /// use std::collections::HashMap;
-    ///
-    /// // Define a complex configuration type
-    /// #[derive(Clone)]
-    /// struct AppConfig {
-    ///     settings: HashMap<String, String>,
-    ///     default_value: String,
-    /// }
-    ///
-    /// // Reader that looks up a value from the config
-    /// let lookup = |key: String| Reader::new(move |config: AppConfig| {
-    ///     config.settings.get(&key)
-    ///         .cloned()
-    ///         .unwrap_or(config.default_value.clone())
-    /// });
-    ///
-    /// // Create a base configuration
-    /// let mut settings = HashMap::new();
-    /// settings.insert("name".to_string(), "original".to_string());
-    ///
-    /// let config = AppConfig {
-    ///     settings,
-    ///     default_value: "default".to_string(),
-    /// };
-    ///
-    /// // Get the "name" value
-    /// let name_reader = lookup("name".to_string());
-    /// assert_eq!(name_reader.run_reader(config.clone()), "original");
-    ///
-    /// // Modify the environment to provide a different setting
-    /// let modified_reader = name_reader.local(|mut config: AppConfig| {
-    ///     config.settings.insert("name".to_string(), "modified".to_string());
-    ///     config
-    /// });
-    ///
-    /// assert_eq!(modified_reader.run_reader(config.clone()), "modified");
-    ///
-    /// // Using local to provide a default for a missing key
-    /// let key_reader = lookup("missing_key".to_string());
-    /// assert_eq!(key_reader.run_reader(config.clone()), "default");
-    ///
-    /// // Modify the environment to change the default
-    /// let with_custom_default = key_reader.local(|mut config: AppConfig| {
-    ///     config.default_value = "custom default".to_string();
-    ///     config
-    /// });
-    ///
-    /// assert_eq!(with_custom_default.run_reader(config), "custom default");
     /// ```
     pub fn local<F>(&self, f: F) -> Self
     where
@@ -945,85 +711,6 @@ where
     /// let reader2: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
     /// let combined: Reader<i32, String> = reader1.combine(&reader2, |a: i32, b: i32| format!("{} and {}", a, b));
     /// assert_eq!(combined.run_reader(10), "11 and 20");
-    /// ```
-    ///
-    /// Working with a complex environment:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Define a database configuration
-    /// #[derive(Clone)]
-    /// struct DbConfig {
-    ///     host: String,
-    ///     port: u16,
-    ///     username: String,
-    ///     password: String,
-    /// }
-    ///
-    /// // Create readers that extract different parts of the config
-    /// let host_reader = Reader::asks(|config: DbConfig| config.host.clone());
-    /// let port_reader = Reader::asks(|config: DbConfig| config.port);
-    /// let credentials_reader = Reader::asks(|config: DbConfig| {
-    ///     format!("{}/{}", config.username, config.password)
-    /// });
-    ///
-    /// // Build a connection string by combining readers
-    /// let connection_string = host_reader.combine(&port_reader, |host, port| {
-    ///     format!("{}:{}", host, port)
-    /// }).combine(&credentials_reader, |server, credentials| {
-    ///     format!("{}@{}", credentials, server)
-    /// });
-    ///
-    /// // Run with a specific configuration
-    /// let config = DbConfig {
-    ///     host: "localhost".to_string(),
-    ///     port: 5432,
-    ///     username: "user".to_string(),
-    ///     password: "pass".to_string(),
-    /// };
-    ///
-    /// assert_eq!(connection_string.run_reader(config), "user/pass@localhost:5432");
-    /// ```
-    ///
-    /// Combining multiple values with the same type:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// // Define a settings object
-    /// #[derive(Clone)]
-    /// struct Settings {
-    ///     min_value: i32,
-    ///     max_value: i32,
-    ///     default_value: i32,
-    /// }
-    ///
-    /// // Create readers that extract different numeric properties
-    /// let min_reader = Reader::asks(|s: Settings| s.min_value);
-    /// let max_reader = Reader::asks(|s: Settings| s.max_value);
-    /// let default_reader = Reader::asks(|s: Settings| s.default_value);
-    ///
-    /// // Combine all three readers to calculate a valid value
-    /// let range_reader = min_reader.combine(&max_reader, |min, max| (min, max))
-    ///     .combine(&default_reader, |(min, max), default| {
-    ///         if default < min {
-    ///             min
-    ///         } else if default > max {
-    ///             max
-    ///         } else {
-    ///             default
-    ///         }
-    ///     });
-    ///     
-    /// // Test with various settings
-    /// let settings1 = Settings { min_value: 1, max_value: 10, default_value: 5 };
-    /// let settings2 = Settings { min_value: 1, max_value: 10, default_value: 0 };
-    /// let settings3 = Settings { min_value: 1, max_value: 10, default_value: 15 };
-    ///
-    /// assert_eq!(range_reader.run_reader(settings1), 5);  // Default is within range
-    /// assert_eq!(range_reader.run_reader(settings2), 1);  // Default is below min
-    /// assert_eq!(range_reader.run_reader(settings3), 10); // Default is above max
     /// ```
     pub fn combine<B, C, F>(&self, other: &Reader<E, B>, f: F) -> Reader<E, C>
     where

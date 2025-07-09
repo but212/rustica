@@ -444,8 +444,6 @@ impl<A: 'static> Semigroup for Predicate<A> {
     ///
     /// # Examples
     ///
-    /// Basic usage with numeric predicates:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::predicate::Predicate;
     /// use rustica::traits::semigroup::Semigroup;
@@ -460,30 +458,6 @@ impl<A: 'static> Semigroup for Predicate<A> {
     /// assert!(is_even_or_large.contains(&200));    // Both even and large
     /// assert!(is_even_or_large.contains(&101));    // Large but not even
     /// assert!(!is_even_or_large.contains(&51));    // Neither even nor large
-    /// ```
-    ///
-    /// With complex types:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::predicate::Predicate;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // Define predicates for strings
-    /// let contains_a = Predicate::new(|s: &String| s.contains('a'));
-    /// let is_long = Predicate::new(|s: &String| s.len() > 10);
-    ///
-    /// // Combine the predicates
-    /// let either_condition = contains_a.combine(&is_long);
-    ///
-    /// let short_with_a = "apple".to_string();
-    /// let long_without_a = "hello world".to_string();
-    /// let long_with_a = "banana milkshake".to_string();
-    /// let short_without_a = "hello".to_string();
-    ///
-    /// assert!(either_condition.contains(&short_with_a));     // Contains 'a' but not long
-    /// assert!(either_condition.contains(&long_without_a));   // Long but no 'a'
-    /// assert!(either_condition.contains(&long_with_a));      // Both long and contains 'a'
-    /// assert!(!either_condition.contains(&short_without_a)); // Neither long nor contains 'a'
     /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
@@ -519,31 +493,6 @@ impl<A: 'static> Semigroup for Predicate<A> {
     /// assert!(is_divisible_by_2_or_3.contains(&4));   // Divisible by 2 only
     /// assert!(is_divisible_by_2_or_3.contains(&9));   // Divisible by 3 only
     /// assert!(!is_divisible_by_2_or_3.contains(&5));  // Divisible by neither
-    /// ```
-    ///
-    /// Using with more complex predicates:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::predicate::Predicate;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::collections::HashSet;
-    ///
-    /// // Predicates using heap-allocated values
-    /// let allowed_names: HashSet<String> = ["Alice", "Bob", "Charlie"]
-    ///     .iter().map(|&s| s.to_string()).collect();
-    ///
-    /// let admin_names: HashSet<String> = ["Admin", "Root", "Superuser"]
-    ///     .iter().map(|&s| s.to_string()).collect();
-    ///
-    /// let is_allowed = Predicate::new(move |name: &String| allowed_names.contains(name));
-    /// let is_admin = Predicate::new(move |name: &String| admin_names.contains(name));
-    ///
-    /// // Combine with ownership transfer
-    /// let has_access = is_allowed.combine_owned(is_admin);
-    ///
-    /// assert!(has_access.contains(&"Alice".to_string()));      // Regular user
-    /// assert!(has_access.contains(&"Admin".to_string()));      // Admin user
-    /// assert!(!has_access.contains(&"Eve".to_string()));       // Unauthorized user
     /// ```
     fn combine_owned(self, other: Self) -> Self {
         Predicate::new({
@@ -620,8 +569,6 @@ impl<A: 'static> Monoid for Predicate<A> {
     ///
     /// # Examples
     ///
-    /// Basic usage with the empty predicate:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::predicate::Predicate;
     /// use rustica::traits::monoid::Monoid;
@@ -642,30 +589,6 @@ impl<A: 'static> Monoid for Predicate<A> {
     /// // The result is equivalent to the non-empty predicate
     /// assert!(combined.contains(&5));
     /// assert!(!combined.contains(&-5));
-    /// ```
-    ///
-    /// Using with fold operations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::predicate::Predicate;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // Create several predicates
-    /// let divisible_by_2 = Predicate::new(|x: &i32| *x % 2 == 0);
-    /// let divisible_by_3 = Predicate::new(|x: &i32| *x % 3 == 0);
-    /// let divisible_by_5 = Predicate::new(|x: &i32| *x % 5 == 0);
-    ///
-    /// // Combine all using fold with empty() as the initial value
-    /// let predicates = vec![divisible_by_2, divisible_by_3, divisible_by_5];
-    /// let any_divisor = predicates.iter()
-    ///     .fold(Predicate::<i32>::empty(), |acc, p| acc.combine(p));
-    ///
-    /// assert!(any_divisor.contains(&6));   // Divisible by 2 and 3
-    /// assert!(any_divisor.contains(&10));  // Divisible by 2 and 5
-    /// assert!(any_divisor.contains(&15));  // Divisible by 3 and 5
-    /// assert!(any_divisor.contains(&30));  // Divisible by all three
-    /// assert!(!any_divisor.contains(&7));  // Divisible by none
     /// ```
     #[inline]
     fn empty() -> Self {

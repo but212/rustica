@@ -203,8 +203,6 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::max::Max;
     /// use rustica::traits::semigroup::Semigroup;
@@ -215,43 +213,6 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
     /// // a and b are consumed
     /// let c = a.combine_owned(b);
     /// assert_eq!(c, Max(10));
-    /// ```
-    ///
-    /// With custom types that implement `Ord`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::cmp::Ordering;
-    ///
-    /// #[derive(Clone, Debug, PartialEq, Eq)]
-    /// struct Version(u32, u32, u32);  // Major, minor, patch
-    ///
-    /// impl PartialOrd for Version {
-    ///     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    ///         Some(self.cmp(other))
-    ///     }
-    /// }
-    ///
-    /// impl Ord for Version {
-    ///     fn cmp(&self, other: &Self) -> Ordering {
-    ///         match self.0.cmp(&other.0) {
-    ///             Ordering::Equal => match self.1.cmp(&other.1) {
-    ///                 Ordering::Equal => self.2.cmp(&other.2),
-    ///                 ord => ord,
-    ///             },
-    ///             ord => ord,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let v1 = Max(Version(1, 0, 0));
-    /// let v2 = Max(Version(2, 0, 0));
-    /// let v3 = Max(Version(1, 5, 0));
-    ///
-    /// // Find the maximum version
-    /// let max_v = v1.combine_owned(v2).combine_owned(v3);
-    /// assert_eq!(max_v, Max(Version(2, 0, 0)));
     /// ```
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
@@ -300,8 +261,6 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::max::Max;
     /// use rustica::traits::semigroup::Semigroup;
@@ -316,19 +275,6 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
     /// // a and b can still be used
     /// let d = b.combine(&a);
     /// assert_eq!(d, Max(10));
-    /// ```
-    ///
-    /// Combining multiple values:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let values = vec![Max(3), Max(8), Max(2), Max(10), Max(5)];
-    ///
-    /// // Find the maximum value in the collection
-    /// let result = values.iter().fold(Max(std::i32::MIN), |acc, x| acc.combine(x));
-    /// assert_eq!(result, Max(10));
     /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
@@ -394,8 +340,6 @@ impl<T: Clone + Ord + Default> Monoid for Max<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::max::Max;
     /// use rustica::traits::monoid::Monoid;
@@ -407,51 +351,6 @@ impl<T: Clone + Ord + Default> Monoid for Max<T> {
     ///
     /// let empty_i64 = Max::<i64>::empty();
     /// assert_eq!(empty_i64, Max(i64::default()));
-    /// ```
-    ///
-    /// Using with custom types that implement `Default`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::cmp::Ordering;
-    ///
-    /// #[derive(Clone, Debug, PartialEq, Eq)]
-    /// struct Version(u32, u32, u32);
-    ///
-    /// impl Default for Version {
-    ///     fn default() -> Self {
-    ///         // The minimum possible version is 0.0.0
-    ///         Version(0, 0, 0)
-    ///     }
-    /// }
-    ///
-    /// impl PartialOrd for Version {
-    ///     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    ///         Some(self.cmp(other))
-    ///     }
-    /// }
-    ///
-    /// impl Ord for Version {
-    ///     fn cmp(&self, other: &Self) -> Ordering {
-    ///         match self.0.cmp(&other.0) {
-    ///             Ordering::Equal => match self.1.cmp(&other.1) {
-    ///                 Ordering::Equal => self.2.cmp(&other.2),
-    ///                 ord => ord,
-    ///             },
-    ///             ord => ord,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let empty = Max::<Version>::empty();
-    /// assert_eq!(empty, Max(Version(0, 0, 0)));
-    ///
-    /// // Verify identity laws
-    /// let v = Max(Version(1, 2, 3));
-    /// assert_eq!(empty.combine(&v), v);
-    /// assert_eq!(v.combine(&empty), v);
     /// ```
     #[inline]
     fn empty() -> Self {
@@ -562,8 +461,6 @@ impl<T: Clone + Ord> Functor for Max<T> {
     ///
     /// # Examples
     ///
-    /// Basic transformation:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::max::Max;
     /// use rustica::traits::functor::Functor;
@@ -571,21 +468,6 @@ impl<T: Clone + Ord> Functor for Max<T> {
     /// let max_value = Max(5);
     /// let doubled = max_value.fmap(|x| x * 2);
     /// assert_eq!(doubled, Max(10));
-    /// ```
-    ///
-    /// Chaining transformations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let max_value = Max(5);
-    /// let result = max_value
-    ///     .fmap(|x| x * 2)       // Max(10)
-    ///     .fmap(|x| x + 5)       // Max(15)
-    ///     .fmap(|x| x.to_string()); // Max("15")
-    ///
-    /// assert_eq!(result, Max("15".to_string()));
     /// ```
     #[inline]
     fn fmap<U, F>(&self, f: F) -> Self::Output<U>

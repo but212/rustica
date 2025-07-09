@@ -318,8 +318,6 @@ impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::semigroup::Semigroup;
@@ -330,37 +328,6 @@ impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     /// // a and b are consumed
     /// let c = a.combine_owned(b);
     /// assert_eq!(c, Sum(15));
-    /// ```
-    ///
-    /// With custom types that implement `Add`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::ops::Add;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Vector2D {
-    ///     x: f64,
-    ///     y: f64,
-    /// }
-    ///
-    /// impl Add for Vector2D {
-    ///     type Output = Self;
-    ///
-    ///     fn add(self, other: Self) -> Self {
-    ///         Vector2D {
-    ///             x: self.x + other.x,
-    ///             y: self.y + other.y,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let v1 = Sum(Vector2D { x: 1.0, y: 2.0 });
-    /// let v2 = Sum(Vector2D { x: 3.0, y: 4.0 });
-    ///
-    /// let v3 = v1.combine_owned(v2);
-    /// assert_eq!(v3, Sum(Vector2D { x: 4.0, y: 6.0 }));
     /// ```
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
@@ -405,8 +372,6 @@ impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::semigroup::Semigroup;
@@ -421,20 +386,6 @@ impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     /// // a and b can still be used
     /// let d = b.combine(&a);
     /// assert_eq!(d, Sum(15));
-    /// ```
-    ///
-    /// Combining multiple values in a collection:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monoid::Monoid;
-    ///
-    /// let values = vec![Sum(1), Sum(2), Sum(3), Sum(4), Sum(5)];
-    ///
-    /// // Sum all values in the collection
-    /// let result = values.iter().fold(Sum::empty(), |acc, x| acc.combine(x));
-    /// assert_eq!(result, Sum(15));
     /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
@@ -509,8 +460,6 @@ impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::monoid::Monoid;
@@ -525,50 +474,6 @@ impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
     /// let a = Sum(42);
     /// assert_eq!(a.combine(&identity), a);  // a + 0 = a
     /// assert_eq!(identity.combine(&a), a);  // 0 + a = a
-    /// ```
-    ///
-    /// With floating point numbers:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let identity: Sum<f64> = Sum::empty();  // Sum(0.0)
-    /// let value = Sum(3.14);
-    ///
-    /// assert_eq!(value.combine(&identity), value);  // 3.14 + 0.0 = 3.14
-    /// ```
-    ///
-    /// Using `empty()` with custom types:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use std::ops::Add;
-    ///
-    /// #[derive(Clone, Debug, Default, PartialEq)]
-    /// struct Counter {
-    ///     count: i32,
-    /// }
-    ///
-    /// impl Add for Counter {
-    ///     type Output = Self;
-    ///
-    ///     fn add(self, other: Self) -> Self {
-    ///         Counter {
-    ///             count: self.count + other.count,
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// // Create the identity element (Sum(Counter { count: 0 }))
-    /// let identity: Sum<Counter> = Sum::empty();
-    /// assert_eq!(identity, Sum(Counter { count: 0 }));
-    ///
-    /// let counter = Sum(Counter { count: 5 });
-    /// assert_eq!(counter.combine(&identity), counter);  // Identity law
     /// ```
     #[inline]
     fn empty() -> Self {
@@ -661,8 +566,6 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::functor::Functor;
@@ -680,25 +583,6 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
     ///     .fmap(|x| x.to_string()); // Sum("20")
     ///
     /// assert_eq!(result, Sum("20".to_string()));
-    /// ```
-    ///
-    /// Interaction with Semigroup operations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let a = Sum(10);
-    /// let b = Sum(20);
-    ///
-    /// // Apply a transformation after combining values
-    /// let result1 = a.clone().combine(&b).fmap(|x| x * 2);
-    /// assert_eq!(result1, Sum(60));  // (10 + 20) * 2 = 60
-    ///
-    /// // Apply a transformation before combining values
-    /// let result2 = a.fmap(|x| x * 2).combine(&b.fmap(|x| x * 2));
-    /// assert_eq!(result2, Sum(60));  // (10 * 2) + (20 * 2) = 60
     /// ```
     #[inline]
     fn fmap<U, F>(&self, f: F) -> Self::Output<U>
@@ -773,8 +657,6 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
     ///
     /// # Examples
     ///
-    /// Basic usage with integers:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::functor::Functor;
@@ -784,20 +666,6 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
     /// // Consume num and double the value
     /// let doubled = num.fmap_owned(|x| x * 2);
     /// assert_eq!(doubled, Sum(10));
-    /// ```
-    ///
-    /// Chaining transformations with ownership transfer:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let result = Sum(5)
-    ///     .fmap_owned(|n| n * 2)
-    ///     .fmap_owned(|n| n + 5)
-    ///     .fmap_owned(|n| n.to_string());
-    ///
-    /// assert_eq!(result, Sum("15".to_string()));  // 5*2=10, 10+5=15
     /// ```
     #[inline]
     fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>

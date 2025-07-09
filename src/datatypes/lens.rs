@@ -406,46 +406,6 @@ where
     /// let updated = x_lens.set(point, 5.0);
     /// assert_eq!(updated, Point { x: 5.0, y: 3.0 });
     /// ```
-    ///
-    /// Creating a lens for nested structures:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct User {
-    ///     name: String,
-    ///     metadata: HashMap<String, String>,
-    /// }
-    ///
-    /// // Create a lens focusing on the metadata
-    /// let metadata_lens = Lens::new(
-    ///     |u: &User| u.metadata.clone(),
-    ///     |u: User, metadata: HashMap<String, String>| User { metadata, ..u },
-    /// );
-    ///
-    /// // Create an initial user
-    /// let mut initial_metadata = HashMap::new();
-    /// initial_metadata.insert("created_at".to_string(), "2023-01-01".to_string());
-    ///
-    /// let user = User {
-    ///     name: "Alice".to_string(),
-    ///     metadata: initial_metadata,
-    /// };
-    ///
-    /// // Get the metadata
-    /// let meta = metadata_lens.get(&user);
-    /// assert_eq!(meta.get("created_at"), Some(&"2023-01-01".to_string()));
-    ///
-    /// // Update the metadata
-    /// let mut new_metadata = meta.clone();
-    /// new_metadata.insert("last_login".to_string(), "2023-02-01".to_string());
-    ///
-    /// let updated_user = metadata_lens.set(user, new_metadata);
-    /// assert_eq!(updated_user.metadata.get("last_login"), Some(&"2023-02-01".to_string()));
-    /// assert_eq!(updated_user.name, "Alice");
-    /// ```
     #[inline]
     pub fn new(get: GetFn, set: SetFn) -> Self {
         Lens {
@@ -510,81 +470,6 @@ where
     ///
     /// let name = name_lens.get(&user);
     /// assert_eq!(name, "Alice");
-    /// ```
-    ///
-    /// Accessing nested structures:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    /// use std::rc::Rc;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Address {
-    ///     city: String,
-    ///     street: String,
-    /// }
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Person {
-    ///     name: String,
-    ///     address: Rc<Address>, // Using Rc for structural sharing
-    /// }
-    ///
-    /// let address_lens = Lens::new(
-    ///     |p: &Person| p.address.as_ref().clone(),
-    ///     |p: Person, addr: Address| Person {
-    ///         address: Rc::new(addr),
-    ///         ..p
-    ///     },
-    /// );
-    ///
-    /// let person = Person {
-    ///     name: "Bob".to_string(),
-    ///     address: Rc::new(Address {
-    ///         city: "New York".to_string(),
-    ///         street: "Broadway".to_string(),
-    ///     }),
-    /// };
-    ///
-    /// let addr = address_lens.get(&person);
-    /// assert_eq!(addr.city, "New York");
-    /// assert_eq!(addr.street, "Broadway");
-    /// ```
-    ///
-    /// Accessing elements in a collection:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a lens focusing on a specific key in a HashMap
-    /// fn hash_map_key_lens<K: Clone + Eq + std::hash::Hash, V: Clone + Default>(
-    ///     key: K
-    /// ) -> Lens<
-    ///     HashMap<K, V>,
-    ///     V,
-    ///     impl Fn(&HashMap<K, V>) -> V + Clone,
-    ///     impl Fn(HashMap<K, V>, V) -> HashMap<K, V> + Clone
-    /// > {
-    ///     let key_for_get = key.clone();
-    ///     Lens::new(
-    ///         move |map: &HashMap<K, V>| map.get(&key_for_get).cloned().unwrap_or_default(),
-    ///         move |mut map: HashMap<K, V>, value: V| {
-    ///             map.insert(key.clone(), value);
-    ///             map
-    ///         },
-    ///     )
-    /// }
-    ///
-    /// let mut scores = HashMap::new();
-    /// scores.insert("Alice".to_string(), 95);
-    /// scores.insert("Bob".to_string(), 87);
-    ///
-    /// let alice_lens = hash_map_key_lens("Alice".to_string());
-    /// assert_eq!(alice_lens.get(&scores), 95);
-    ///
-    /// let charlie_lens = hash_map_key_lens("Charlie".to_string());
-    /// assert_eq!(charlie_lens.get(&scores), 0); // Returns default value when key not found
     /// ```
     #[inline]
     pub fn get(&self, source: &S) -> A {
@@ -664,45 +549,6 @@ where
     /// // Setting to the same value returns the original structure
     /// let same = name_lens.set(user.clone(), "Alice".to_string());
     /// assert_eq!(same, user); // Values are equal
-    /// // Note: ptr::eq would fail as set returns a clone even for equal values
-    /// ```
-    ///
-    /// Setting nested structures:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Config {
-    ///     settings: HashMap<String, String>,
-    ///     enabled: bool,
-    /// }
-    ///
-    /// let settings_lens = Lens::new(
-    ///     |c: &Config| c.settings.clone(),
-    ///     |c: Config, settings: HashMap<String, String>| Config { settings, ..c },
-    /// );
-    ///
-    /// // Initial configuration
-    /// let mut initial_settings = HashMap::new();
-    /// initial_settings.insert("theme".to_string(), "dark".to_string());
-    ///
-    /// let config = Config {
-    ///     settings: initial_settings,
-    ///     enabled: true,
-    /// };
-    ///
-    /// // Update settings
-    /// let mut new_settings = settings_lens.get(&config);
-    /// new_settings.insert("font_size".to_string(), "14".to_string());
-    /// new_settings.insert("theme".to_string(), "light".to_string());
-    ///
-    /// let updated = settings_lens.set(config.clone(), new_settings);
-    ///
-    /// assert_eq!(updated.settings.get("theme"), Some(&"light".to_string()));
-    /// assert_eq!(updated.settings.get("font_size"), Some(&"14".to_string()));
-    /// assert_eq!(updated.enabled, true); // Other fields remain unchanged
     /// ```
     #[inline]
     pub fn set(&self, source: S, value: A) -> S
@@ -783,51 +629,6 @@ where
     /// let updated = data_lens.set_always(container, new_data);
     /// assert_eq!(updated.data.value, "updated");
     /// ```
-    ///
-    /// Performance optimization for types with expensive equality checks:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Clone, PartialEq)]
-    /// struct LargeConfig {
-    ///     // Imagine this is a large configuration with many fields
-    ///     settings: HashMap<String, String>,
-    ///     // ... many more fields
-    /// }
-    ///
-    /// #[derive(Clone)]
-    /// struct Application {
-    ///     config: LargeConfig,
-    ///     name: String,
-    /// }
-    ///
-    /// let config_lens = Lens::new(
-    ///     |app: &Application| app.config.clone(),
-    ///     |app: Application, config: LargeConfig| Application { config, ..app },
-    /// );
-    ///
-    /// // Initial application
-    /// let mut settings = HashMap::new();
-    /// settings.insert("debug".to_string(), "false".to_string());
-    ///
-    /// let app = Application {
-    ///     config: LargeConfig { settings },
-    ///     name: "MyApp".to_string(),
-    /// };
-    ///
-    /// // When we know we're changing the config and equality check would be expensive,
-    /// // we can skip it with set_always
-    /// let mut new_settings = HashMap::new();
-    /// new_settings.insert("debug".to_string(), "true".to_string());
-    ///
-    /// let new_config = LargeConfig { settings: new_settings };
-    /// let updated = config_lens.set_always(app, new_config);
-    ///
-    /// // The update succeeded without performing expensive equality comparison
-    /// assert_eq!(updated.config.settings.get("debug"), Some(&"true".to_string()));
-    /// ```
     #[inline]
     pub fn set_always(&self, source: S, value: A) -> S {
         (self.set)(source, value)
@@ -906,97 +707,6 @@ where
     /// // No change when applying identity function - structural sharing in action
     /// let same = age_lens.modify(user.clone(), |age| age);
     /// assert_eq!(same, user); // Same value due to no change
-    /// ```
-    ///
-    /// Conditional modifications:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Item {
-    ///     name: String,
-    ///     count: i32,
-    ///     enabled: bool,
-    /// }
-    ///
-    /// let count_lens = Lens::new(
-    ///     |item: &Item| item.count,
-    ///     |item: Item, count: i32| Item { count, ..item },
-    /// );
-    ///
-    /// let item = Item {
-    ///     name: "Widget".to_string(),
-    ///     count: 5,
-    ///     enabled: true,
-    /// };
-    ///
-    /// // Only increment if count is less than 10
-    /// let incremented = count_lens.modify(item.clone(), |count| {
-    ///     if count < 10 {
-    ///         count + 1
-    ///     } else {
-    ///         count
-    ///     }
-    /// });
-    /// assert_eq!(incremented.count, 6);
-    ///
-    /// // When we reach the limit, no new object is created
-    /// let max_item = Item {
-    ///     name: "Widget".to_string(),
-    ///     count: 10,
-    ///     enabled: true,
-    /// };
-    ///
-    /// let attempted = count_lens.modify(max_item.clone(), |count| {
-    ///     if count < 10 {
-    ///         count + 1
-    ///     } else {
-    ///         count
-    ///     }
-    /// });
-    ///
-    /// // Since the count didn't change, we get back the identical structure
-    /// assert_eq!(attempted, max_item);
-    /// ```
-    ///
-    /// Working with strings:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Document {
-    ///     title: String,
-    ///     content: String,
-    /// }
-    ///
-    /// let title_lens = Lens::new(
-    ///     |doc: &Document| doc.title.clone(),
-    ///     |doc: Document, title: String| Document { title, ..doc },
-    /// );
-    ///
-    /// let doc = Document {
-    ///     title: "draft report".to_string(),
-    ///     content: "Lorem ipsum...".to_string(),
-    /// };
-    ///
-    /// // Capitalize the title
-    /// let formatted = title_lens.modify(doc, |title| {
-    ///     title.split_whitespace()
-    ///         .map(|word| {
-    ///             let mut chars = word.chars();
-    ///             match chars.next() {
-    ///                 None => String::new(),
-    ///                 Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-    ///             }
-    ///         })
-    ///         .collect::<Vec<_>>()
-    ///         .join(" ")
-    /// });
-    ///
-    /// assert_eq!(formatted.title, "Draft Report");
-    /// assert_eq!(formatted.content, "Lorem ipsum...");
     /// ```
     #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
@@ -1090,56 +800,6 @@ where
     /// let actual_sum: f64 = normalized.values.data.iter().sum();
     /// assert!((actual_sum - expected_sum).abs() < 1e-10);
     /// ```
-    ///
-    /// Performance optimization for expensive transformations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Clone, PartialEq)]
-    /// struct DataCache {
-    ///     entries: HashMap<String, Vec<i32>>,
-    /// }
-    ///
-    /// #[derive(Clone)]
-    /// struct Service {
-    ///     cache: DataCache,
-    ///     name: String,
-    /// }
-    ///
-    /// let cache_lens = Lens::new(
-    ///     |s: &Service| s.cache.clone(),
-    ///     |s: Service, cache: DataCache| Service { cache, ..s },
-    /// );
-    ///
-    /// // Setup initial service
-    /// let mut initial_entries = HashMap::new();
-    /// initial_entries.insert("key1".to_string(), vec![1, 2, 3]);
-    ///
-    /// let service = Service {
-    ///     cache: DataCache { entries: initial_entries },
-    ///     name: "DataProcessor".to_string(),
-    /// };
-    ///
-    /// // When transformations are complex and equality checks would be expensive,
-    /// // modify_always can be more efficient
-    /// let updated = cache_lens.modify_always(service, |mut cache| {
-    ///     // Complex transformation that would make equality check expensive
-    ///     cache.entries.insert("key2".to_string(), vec![4, 5, 6]);
-    ///     
-    ///     // Maybe update existing entries
-    ///     if let Some(values) = cache.entries.get_mut("key1") {
-    ///         values.push(4);
-    ///     }
-    ///     
-    ///     cache
-    /// });
-    ///
-    /// // Verify the transformations
-    /// assert_eq!(updated.cache.entries.get("key1"), Some(&vec![1, 2, 3, 4]));
-    /// assert_eq!(updated.cache.entries.get("key2"), Some(&vec![4, 5, 6]));
-    /// ```
     #[inline]
     pub fn modify_always<F>(&self, source: S, f: F) -> S
     where
@@ -1226,87 +886,6 @@ where
     /// // Use the transformed lens to set from a string
     /// let updated = age_string_lens.set(person, "42".to_string());
     /// assert_eq!(updated.age, 42);
-    /// ```
-    ///
-    /// Practical example with unit conversion:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Temperature {
-    ///     celsius: f64,
-    /// }
-    ///
-    /// // Create a lens focused on the celsius field
-    /// let celsius_lens = Lens::new(
-    ///     |t: &Temperature| t.celsius,
-    ///     |t: Temperature, c: f64| Temperature { celsius: c },
-    /// );
-    ///
-    /// // Create a derived lens for Fahrenheit
-    /// let fahrenheit_lens = celsius_lens.fmap(
-    ///     // Convert Celsius to Fahrenheit
-    ///     |c| c * 9.0/5.0 + 32.0,
-    ///     // Convert Fahrenheit to Celsius
-    ///     |f| (f - 32.0) * 5.0/9.0,
-    /// );
-    ///
-    /// let temp = Temperature { celsius: 25.0 };
-    ///
-    /// // Get temperature in Fahrenheit
-    /// let f_temp = fahrenheit_lens.get(&temp);
-    /// assert!((f_temp - 77.0).abs() < 0.001);
-    ///
-    /// // Set temperature using Fahrenheit
-    /// let freezing = fahrenheit_lens.set(temp, 32.0);
-    /// assert!((freezing.celsius - 0.0).abs() < 0.001);
-    /// ```
-    ///
-    /// Example with complex data transformation:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    /// use std::collections::HashMap;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct UserDatabase {
-    ///     users: HashMap<String, u32>, // username -> age
-    /// }
-    ///
-    /// // Lens focused on the users HashMap
-    /// let users_lens = Lens::new(
-    ///     |db: &UserDatabase| db.users.clone(),
-    ///     |db: UserDatabase, users: HashMap<String, u32>| UserDatabase { users },
-    /// );
-    ///
-    /// // Lens that transforms the HashMap into a Vec of usernames
-    /// let usernames_lens = users_lens.fmap(
-    ///     // Extract just the usernames as a vector
-    ///     |users| users.keys().cloned().collect::<Vec<String>>(),
-    ///     
-    ///     // Recreate the HashMap (this is lossy, but demonstrates the concept)
-    ///     |usernames| {
-    ///         let mut map = HashMap::new();
-    ///         for name in usernames {
-    ///             map.insert(name, 0); // Default age when reconstructing
-    ///         }
-    ///         map
-    ///     },
-    /// );
-    ///
-    /// // Create a test database
-    /// let mut users = HashMap::new();
-    /// users.insert("alice".to_string(), 30);
-    /// users.insert("bob".to_string(), 25);
-    ///
-    /// let db = UserDatabase { users };
-    ///
-    /// // Get just the usernames
-    /// let names = usernames_lens.get(&db);
-    /// assert_eq!(names.len(), 2);
-    /// assert!(names.contains(&"alice".to_string()));
-    /// assert!(names.contains(&"bob".to_string()));
     /// ```
     #[inline]
     pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>

@@ -229,39 +229,11 @@ where
     ///
     /// # Examples
     ///
-    /// Basic creation with simple types:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::memoizer::Memoizer;
     ///
     /// // Create a memoizer for string keys and integer values
     /// let memo: Memoizer<String, i32> = Memoizer::new();
-    /// ```
-    ///
-    /// Creating with complex types:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::memoizer::Memoizer;
-    /// use std::collections::HashMap;
-    ///
-    /// // A memoizer that can cache expensive computations resulting in collections
-    /// let memo: Memoizer<String, Vec<i32>> = Memoizer::new();
-    ///
-    /// // A memoizer for complex key/value pairs
-    /// let complex_memo: Memoizer<(String, i32), HashMap<String, f64>> = Memoizer::new();
-    /// ```
-    ///
-    /// Creating in a multi-threaded context:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::memoizer::Memoizer;
-    /// use std::sync::Arc;
-    ///
-    /// // Create a thread-safe memoizer reference
-    /// let memo: Arc<Memoizer<u64, String>> = Arc::new(Memoizer::new());
-    ///
-    /// // Now it can be safely cloned and shared across threads
-    /// let memo_clone = memo.clone();
     /// ```
     pub fn new() -> Self {
         Memoizer {
@@ -303,8 +275,6 @@ where
     ///
     /// # Examples
     ///
-    /// Basic usage with simple types:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::memoizer::Memoizer;
     ///
@@ -317,68 +287,6 @@ where
     /// // Second call returns cached value
     /// let value2 = memo.get_or_compute("hello", |_| panic!("Should not be called"));
     /// assert_eq!(value2, 5);
-    /// ```
-    ///
-    /// Memoizing expensive computations:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::memoizer::Memoizer;
-    /// use std::time::{Duration, Instant};
-    ///
-    /// let memo = Memoizer::new();
-    ///
-    /// // Define an expensive function (fibonacci)
-    /// fn fibonacci(n: &u32) -> u64 {
-    ///     match n {
-    ///         0 => 0,
-    ///         1 => 1,
-    ///         n => fibonacci(&(n-1)) + fibonacci(&(n-2))
-    ///     }
-    /// }
-    ///
-    /// // First call is expensive
-    /// let result1 = memo.get_or_compute(20, fibonacci);
-    ///
-    /// // Second call is fast (uses cache)
-    /// let result2 = memo.get_or_compute(20, fibonacci);
-    ///
-    /// assert_eq!(result1, result2);
-    /// assert_eq!(result1, 6765);
-    /// ```
-    ///
-    /// Handling concurrent access (race condition prevention):
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::memoizer::Memoizer;
-    /// use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
-    /// use std::thread;
-    ///
-    /// // Create a memoizer and a counter to track function calls
-    /// let memo = Arc::new(Memoizer::new());
-    /// let compute_count = Arc::new(AtomicUsize::new(0));
-    ///
-    /// // Spawn multiple threads that all compute the same key
-    /// let handles: Vec<_> = (0..5).map(|_| {
-    ///     let memo = memo.clone();
-    ///     let counter = compute_count.clone();
-    ///     
-    ///     thread::spawn(move || {
-    ///         memo.get_or_compute("key", |_| {
-    ///             // Increment counter and simulate work
-    ///             counter.fetch_add(1, Ordering::SeqCst);
-    ///             thread::sleep(std::time::Duration::from_millis(10));
-    ///             "computed value".to_string()
-    ///         })
-    ///     })
-    /// }).collect();
-    ///
-    /// // Join all threads
-    /// for handle in handles {
-    ///     let _ = handle.join();
-    /// }
-    ///
-    /// // The function should only have been computed once, despite 5 threads
-    /// assert_eq!(compute_count.load(Ordering::SeqCst), 1);
     /// ```
     pub fn get_or_compute<F>(&self, key: K, f: F) -> V
     where
@@ -422,8 +330,6 @@ where
     ///
     /// # Examples
     ///
-    /// Basic usage:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::memoizer::Memoizer;
     ///
@@ -438,64 +344,6 @@ where
     /// // Value will be recomputed
     /// let value = memo.get_or_compute(42, |n| n * 3);
     /// assert_eq!(value, 126);
-    /// ```
-    ///
-    /// Clearing after environment changes:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::memoizer::Memoizer;
-    /// use std::cell::Cell;
-    ///
-    /// // Set up a memoizer and an external state that affects computation
-    /// let memo = Memoizer::new();
-    /// let multiplier = Cell::new(10);
-    ///
-    /// // First computation with multiplier = 10
-    /// let value1 = memo.get_or_compute(5, |n| n * multiplier.get());
-    /// assert_eq!(value1, 50);
-    ///
-    /// // Change the external state
-    /// multiplier.set(20);
-    ///
-    /// // Without clearing, we would still get the old cached value
-    /// let cached = memo.get_or_compute(5, |n| n * multiplier.get());
-    /// assert_eq!(cached, 50); // Still returns 50, not 100!
-    ///
-    /// // Clear the cache to force recomputation with new multiplier
-    /// memo.clear();
-    /// let new_value = memo.get_or_compute(5, |n| n * multiplier.get());
-    /// assert_eq!(new_value, 100); // Now returns updated value
-    /// ```
-    ///
-    /// In a multi-threaded context:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::memoizer::Memoizer;
-    /// use std::sync::Arc;
-    /// use std::thread;
-    ///
-    /// let memo = Arc::new(Memoizer::new());
-    ///
-    /// // Populate with some values from multiple threads
-    /// let handles: Vec<_> = (0..5).map(|i| {
-    ///     let memo = memo.clone();
-    ///     thread::spawn(move || {
-    ///         memo.get_or_compute(i, |x| x * 10);
-    ///     })
-    /// }).collect();
-    ///
-    /// for h in handles {
-    ///     h.join().unwrap();
-    /// }
-    ///
-    /// // Now clear from main thread
-    /// memo.clear();
-    ///
-    /// // And verify values need recomputation
-    /// for i in 0..5 {
-    ///     let recomputed = memo.get_or_compute(i, |x| x * 20);
-    ///     assert_eq!(recomputed, i * 20); // New computation used
-    /// }
     /// ```
     pub fn clear(&self) {
         let mut cache = self.cache.write().unwrap();

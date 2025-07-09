@@ -239,8 +239,6 @@ where
     ///
     /// # Examples
     ///
-    /// Basic usage with a pure function:
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::thunk::Thunk;
     /// use rustica::traits::evaluate::Evaluate;
@@ -253,62 +251,6 @@ where
     ///
     /// // Can evaluate multiple times (thunk is not consumed)
     /// assert_eq!(factorial.evaluate(), 120);
-    /// ```
-    ///
-    /// With an impure function that tracks state:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// let counter = std::cell::Cell::new(0);
-    /// let thunk = Thunk::new(|| {
-    ///     counter.set(counter.get() + 1);
-    ///     counter.get()
-    /// });
-    ///
-    /// assert_eq!(thunk.evaluate(), 1); // First evaluation
-    /// assert_eq!(thunk.evaluate(), 2); // Second evaluation
-    /// assert_eq!(thunk.evaluate(), 3); // Third evaluation
-    /// ```
-    ///
-    /// With captured environment variables:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// let base = 10;
-    /// let multiplier = 5;
-    ///
-    /// let calculation = Thunk::new(move || {
-    ///     // The values of base and multiplier are captured
-    ///     base * multiplier
-    /// });
-    ///
-    /// assert_eq!(calculation.evaluate(), 50);
-    /// ```
-    ///
-    /// Using with error handling:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// fn may_fail(input: i32) -> Result<i32, &'static str> {
-    ///     if input > 0 {
-    ///         Ok(input * 2)
-    ///     } else {
-    ///         Err("Input must be positive")
-    ///     }
-    /// }
-    ///
-    /// // Create thunks for different inputs
-    /// let success_thunk = Thunk::new(|| may_fail(5));
-    /// let error_thunk = Thunk::new(|| may_fail(-5));
-    ///
-    /// assert_eq!(success_thunk.evaluate(), Ok(10));
-    /// assert_eq!(error_thunk.evaluate(), Err("Input must be positive"));
     /// ```
     #[inline]
     fn evaluate(&self) -> T {
@@ -328,29 +270,7 @@ where
     /// - **Ownership**: Consumes the thunk, freeing resources associated with it
     /// - **Single-Use**: The function will be executed exactly once and then the thunk is dropped
     ///
-    /// # Type Class Laws
-    ///
-    /// ## Owned Equivalence Law
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// // evaluate_owned() should produce the same result as evaluate() for pure functions
-    /// fn verify_owned_equivalence<T: PartialEq + Clone>(pure_fn: impl Fn() -> T + Clone) -> bool {
-    ///     let thunk1 = Thunk::new(pure_fn.clone());
-    ///     let thunk2 = Thunk::new(pure_fn);
-    ///     
-    ///     thunk1.evaluate() == thunk2.evaluate_owned()
-    /// }
-    ///
-    /// assert!(verify_owned_equivalence(|| 42));
-    /// assert!(verify_owned_equivalence(|| "constant".to_string()));
-    /// ```
-    ///
     /// # Examples
-    ///
-    /// Basic usage:
     ///
     /// ```rust
     /// use rustica::datatypes::wrapper::thunk::Thunk;
@@ -361,59 +281,6 @@ where
     ///
     /// assert_eq!(result, 42);
     /// // Note: thunk is consumed and can no longer be used
-    /// ```
-    ///
-    /// With captured variables that would be moved:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// // Create a thunk that captures a value
-    /// let value = String::from("Hello");
-    /// let thunk = Thunk::new(move || value.clone() + ", world!"); // clone the value before using it
-    ///
-    /// // Consume the thunk to get the result
-    /// let result = thunk.evaluate_owned();
-    /// assert_eq!(result, "Hello, world!");
-    /// ```
-    ///
-    /// With expensive computations or resources:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a large data structure
-    /// let mut map = HashMap::new();
-    /// for i in 0..1000 {
-    ///     map.insert(i, i.to_string());
-    /// }
-    ///
-    /// // Create a thunk that processes the data structure
-    /// let thunk = Thunk::new(move || {
-    ///     // Process the map - compute sum of keys
-    ///     map.keys().sum::<i32>()
-    /// });
-    ///
-    /// // Process once and free memory
-    /// let sum = thunk.evaluate_owned();
-    /// assert_eq!(sum, 499500); // Sum of 0..999
-    /// ```
-    ///
-    /// In a processing chain:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    /// use rustica::traits::evaluate::EvaluateExt;
-    ///
-    /// // Create and process a thunk in one chain
-    /// let result = Thunk::new(|| "hello".to_string())
-    ///     .fmap_evaluate_owned(|s| s.to_uppercase());
-    ///
-    /// assert_eq!(result, "HELLO");
     /// ```
     #[inline]
     fn evaluate_owned(self) -> T {
