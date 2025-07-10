@@ -1,5 +1,5 @@
 #[cfg(feature = "async")]
-mod test_async_monad {
+mod async_monad_tests {
     use rustica::datatypes::async_monad::AsyncM;
 
     #[tokio::test]
@@ -164,7 +164,7 @@ mod test_async_monad {
     async fn test_async_monad_zip_with() {
         let a = AsyncM::new(|| async { 10 });
         let b = AsyncM::new(|| async { "hello" });
-        let zipped = a.zip_with(b, |x, y| format!("{} {}", y, x));
+        let zipped = a.zip_with(b, |x, y| format!("{y} {x}"));
         let result = zipped.try_get().await;
         assert_eq!(result, "hello 10");
     }

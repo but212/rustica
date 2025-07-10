@@ -118,7 +118,7 @@ fn test_io_composition() {
     let read_number = IO::new(|| 42);
     let result = read_number
         .bind(|x| IO::new(move || x * 2))
-        .bind(|x| IO::new(move || format!("Result: {}", x)));
+        .bind(|x| IO::new(move || format!("Result: {x}")));
 
     assert_eq!(result.run(), "Result: 84");
 }

@@ -131,57 +131,37 @@ pub mod pvec;
 /// programming data types and containers, each with appropriate trait
 /// implementations.
 pub mod datatypes {
-    // Core data types are always included
-
-    /// Either type for representing one of two possible values.
-    ///
-    /// Useful for error handling and branching computations.
     pub mod either;
 
-    /// Identity monad implementation.
     pub mod id;
 
-    /// Maybe type (equivalent to Option) with additional functional capabilities.
     pub mod maybe;
 
-    /// Wrapper types for working with semigroups and monoids.
     pub mod wrapper;
 
-    /// Validated type for accumulating multiple errors.
     pub mod validated;
 
-    /// Writer monad for computations that produce values along with a log.
     pub mod writer;
 
-    /// Reader monad for computations that read from a shared environment.
     pub mod reader;
 
-    /// State monad for computations that maintain and modify state.
     pub mod state;
 
-    /// Prism implementation for focusing on particular variants of a sum type.
     pub mod prism;
 
-    /// Prism implementation for focusing on particular variants of a sum type.
     pub mod iso_prism;
 
-    /// Lens implementation for focusing on parts of product types.
     pub mod lens;
 
-    /// IsoLens implementation for focusing on parts of product types.
     pub mod iso_lens;
 
-    /// Choice type representing multiple alternatives.
     pub mod choice;
 
-    /// Async monad for asynchronous computations.
     #[cfg(feature = "async")]
     pub mod async_monad;
 
-    /// IO monad for safely handling side effects.
     pub mod io;
 
-    /// Continuation monad for expressing computations with continuations.
     pub mod cont;
 }
 

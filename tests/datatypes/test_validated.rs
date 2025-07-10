@@ -115,7 +115,7 @@ mod functor_tests {
     fn test_fmap_invalid_operations() {
         // Single error
         let invalid: Validated<&str, i32> = Validated::invalid("error");
-        let mapped = invalid.fmap_invalid(|e| format!("Error: {}", e));
+        let mapped = invalid.fmap_invalid(|e| format!("Error: {e}"));
         assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
 
         // Multiple errors
@@ -287,7 +287,7 @@ mod monad_tests {
     #[test]
     fn test_monad_right_identity_law() {
         let m = Validated::<String, i32>::valid(1);
-        let right = m.bind(|x| Validated::<String, i32>::pure(x));
+        let right = m.bind(Validated::<String, i32>::pure);
         assert_eq!(right, m);
     }
 
@@ -747,14 +747,14 @@ mod performance_tests {
 
     #[test]
     fn test_error_accumulation_performance() {
-        let errors: Vec<String> = (0..1000).map(|i| format!("error_{}", i)).collect();
+        let errors: Vec<String> = (0..1000).map(|i| format!("error_{i}")).collect();
         let start = Instant::now();
 
         let validated: Validated<String, i32> = Validated::invalid_many(errors.clone());
         assert_eq!(validated.errors().len(), 1000);
 
         let duration = start.elapsed();
-        println!("Error accumulation took: {:?}", duration);
+        println!("Error accumulation took: {duration:?}");
         // Performance should be reasonable for 1000 errors
         assert!(duration.as_millis() < 1000);
     }
@@ -771,7 +771,7 @@ mod performance_tests {
         assert_eq!(result.value(), Some(&5050)); // Sum of 1..100 = 5050
 
         let duration = start.elapsed();
-        println!("Nested operations took: {:?}", duration);
+        println!("Nested operations took: {duration:?}");
         assert!(duration.as_millis() < 100);
     }
 }
@@ -995,7 +995,7 @@ mod documentation_tests {
                 Validated::invalid("Invalid email".to_string())
             };
 
-            let age_valid = if age >= 0 && age <= 120 {
+            let age_valid = if (0..=120).contains(&age) {
                 Validated::valid(age as u8)
             } else {
                 Validated::invalid("Invalid age".to_string())
@@ -1026,10 +1026,10 @@ mod documentation_tests {
     #[test]
     fn test_result_conversion_example() {
         fn parse_number(s: &str) -> Result<i32, String> {
-            s.parse().map_err(|_| format!("Failed to parse: {}", s))
+            s.parse().map_err(|_| format!("Failed to parse: {s}"))
         }
 
-        let results = vec!["42", "invalid", "123"];
+        let results = ["42", "invalid", "123"];
         let validations: Vec<_> = results
             .iter()
             .map(|s| {
@@ -1139,7 +1139,7 @@ mod property_tests {
     fn prop_value_accessor_on_invalid_returns_none(errors: Vec<String>) -> bool {
         let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors);
-        v.value() == None
+        v.value().is_none()
     }
 
     // Property tests for error_payload accessor
@@ -1153,7 +1153,7 @@ mod property_tests {
     #[quickcheck]
     fn prop_error_payload_accessor_on_valid_returns_none(value: i32) -> bool {
         let v: Validated<String, i32> = Validated::Valid(value);
-        v.error_payload() == None
+        v.error_payload().is_none()
     }
 
     // Property tests for functor laws
@@ -1250,20 +1250,21 @@ mod stress_tests {
                 if x < 1000 {
                     Validated::valid(x + i)
                 } else {
-                    Validated::invalid(format!("Overflow at step {}", i))
+                    Validated::invalid(format!("Overflow at step {i}"))
                 }
             });
         }
 
         // Should fail since we exceed 1000 at some point
         assert!(!result.is_valid());
-        assert!(result.errors().len() > 0);
-        assert!(result.errors()[0].contains("Overflow at step"));
+        println!("Result: {:#?}", result.errors());
+        assert!(!result.errors().is_empty());
+        assert!(result.errors().contains(&"Overflow at step 46".to_string()));
     }
 
     #[test]
     fn test_very_large_error_collections() {
-        let large_errors: Vec<String> = (0..10000).map(|i| format!("error_{:04}", i)).collect();
+        let large_errors: Vec<String> = (0..10000).map(|i| format!("error_{i:04}")).collect();
 
         let validated: Validated<String, i32> = Validated::invalid_many(large_errors.clone());
 
@@ -1588,7 +1589,7 @@ mod comprehensive_test {
         }
 
         fn validate_age(age: u8) -> Validated<String, u8> {
-            if age >= 13 && age <= 120 {
+            if (13..=120).contains(&age) {
                 Validated::valid(age)
             } else {
                 Validated::invalid("Age must be between 13 and 120".to_string())
@@ -1641,7 +1642,7 @@ mod comprehensive_test {
         assert_eq!(user.username, "john_doe");
         assert_eq!(user.email, "john@example.com");
         assert_eq!(user.age, 25);
-        assert_eq!(user.preferences.newsletter, true);
+        assert!(user.preferences.newsletter);
         assert_eq!(user.preferences.theme, "dark");
 
         // Test validation with multiple errors
@@ -1703,7 +1704,7 @@ mod comprehensive_test {
 
         // Test error mapping
         let mapped_errors =
-            invalid_user.fmap_invalid(|error| format!("[VALIDATION_ERROR] {}", error));
+            invalid_user.fmap_invalid(|error| format!("[VALIDATION_ERROR] {error}"));
 
         assert!(mapped_errors.is_invalid());
         for error in mapped_errors.errors() {
@@ -1758,7 +1759,7 @@ mod comprehensive_test {
 
         println!("Test coverage includes:");
         for category in test_categories {
-            println!("   - {}", category);
+            println!("   - {category}");
         }
 
         println!("Comprehensive test suite completed successfully!");

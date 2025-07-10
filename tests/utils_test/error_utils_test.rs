@@ -87,10 +87,10 @@ fn test_result_extensions() {
     );
 
     // Test bimap extension
-    let transformed = ok_result.bimap(|x| x.to_string(), |e| format!("Error: {:?}", e));
+    let transformed = ok_result.bimap(|x| x.to_string(), |e| format!("Error: {e:?}"));
     assert_eq!(transformed, Ok("42".to_string()));
 
-    let transformed = err_result.bimap(|x| x.to_string(), |e| format!("Error: {:?}", e));
+    let transformed = err_result.bimap(|x| x.to_string(), |e| format!("Error: {e:?}"));
     assert_eq!(transformed, Err("Error: TestError(\"error\")".to_string()));
 }
 
@@ -151,7 +151,7 @@ fn test_custom_error() {
     );
 
     // Test error mapping
-    let mapped = contextualized.map(|msg| format!("ERROR: {}", msg));
+    let mapped = contextualized.map(|msg| format!("ERROR: {msg}"));
     assert_eq!(mapped.message(), &"ERROR: Network error");
     assert_eq!(
         mapped.context(),

@@ -43,6 +43,7 @@ fn inactive_prism() -> Prism<Status, (), impl Fn(&Status) -> Option<()>, impl Fn
 
 // Prism for Status::Error { code, message }
 // Focuses on a tuple (u32, String)
+// Note: Complex return type is necessary for Prism implementation
 fn error_prism() -> Prism<
     Status,
     (u32, String),
@@ -194,7 +195,7 @@ fn test_prism_lens_composition() {
         match prism.preview(&status) {
             Some(current_name) => {
                 // If successful, modify the name and review back to Status
-                let new_name = format!("{}-updated", current_name);
+                let new_name = format!("{current_name}-updated");
                 prism.review(&new_name)
             },
             None => {
@@ -212,7 +213,7 @@ fn test_prism_lens_composition() {
     let not_updated_user = status_lens.modify(user_inactive.clone(), |status| {
         match prism.preview(&status) {
             Some(current_name) => {
-                let new_name = format!("{}-updated", current_name);
+                let new_name = format!("{current_name}-updated");
                 prism.review(&new_name)
             },
             None => {

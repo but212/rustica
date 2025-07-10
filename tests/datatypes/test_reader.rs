@@ -7,7 +7,7 @@ fn test_reader_new_and_run() {
     assert_eq!(reader1.run_reader(10), 11);
 
     // Reader that concatenates a string to the environment (String)
-    let reader2: Reader<String, String> = Reader::new(|env: String| format!("{}-extra", env));
+    let reader2: Reader<String, String> = Reader::new(|env: String| format!("{env}-extra"));
     assert_eq!(reader2.run_reader("hello".to_string()), "hello-extra");
 }
 
@@ -74,10 +74,10 @@ fn test_reader_local() {
 #[test]
 fn test_reader_combine() {
     let reader1: Reader<i32, i32> = Reader::new(|env| env + 10);
-    let reader2: Reader<i32, String> = Reader::new(|env| format!("value: {}", env));
+    let reader2: Reader<i32, String> = Reader::new(|env| format!("value: {env}"));
 
     // Combine the results of both readers
-    let combined = reader1.combine(&reader2, |a, b| format!("{} and {}", a, b));
+    let combined = reader1.combine(&reader2, |a, b| format!("{a} and {b}"));
 
     // First: 5 + 10 = 15
     // Second: "value: 5"

@@ -3,6 +3,9 @@ use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
 use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
+
+// Type alias to simplify complex types
+type BoxedIntFunction<'a> = Either<&'a str, Box<dyn Fn(&i32) -> i32>>;
 use rustica::traits::pure::Pure;
 
 #[test]
@@ -76,7 +79,7 @@ fn test_either_applicative() {
 
     // Test apply
     let value: Either<&str, i32> = Either::right(42);
-    let f: Either<&str, Box<dyn Fn(&i32) -> i32>> = Either::right(Box::new(|x| x + 1));
+    let f: BoxedIntFunction = Either::right(Box::new(|x| x + 1));
     let result = value.apply(&f);
     assert_eq!(result.unwrap_right(), 43);
 

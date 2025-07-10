@@ -7,7 +7,7 @@ use rustica::traits::composable::*;
 fn test_basic_compose() {
     fn property(x: i32) -> TestResult {
         // Discard values that would cause integer overflow
-        if x > i32::MAX / 2 || x < i32::MIN / 2 {
+        if !(i32::MIN / 2..=i32::MAX / 2).contains(&x) {
             return TestResult::discard();
         }
 
@@ -24,7 +24,7 @@ fn test_basic_compose() {
 fn test_compose_all() {
     fn property(x: i32) -> TestResult {
         // Discard values that would cause integer overflow
-        if x > i32::MAX / 2 || x < i32::MIN / 2 {
+        if !(i32::MIN / 2..=i32::MAX / 2).contains(&x) {
             return TestResult::discard();
         }
 

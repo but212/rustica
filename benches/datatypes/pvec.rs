@@ -136,7 +136,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
             // Alternate push and pop to trigger splits/merges
             for i in 0..10_000 {
                 vec = vec.push_back(i);
-                if i % 8 == 0 && vec.len() > 0 {
+                if i % 8 == 0 && !vec.is_empty() {
                     let _ = vec.pop_back();
                 }
             }

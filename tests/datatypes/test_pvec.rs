@@ -369,9 +369,7 @@ fn test_tree_structure_debugging() {
         assert_eq!(
             vec.get(i),
             Some(&(i as i32)),
-            "Element at index {} should be {}",
-            i,
-            i
+            "Element at index {i} should be {i}",
         );
     }
 

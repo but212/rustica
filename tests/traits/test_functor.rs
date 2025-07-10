@@ -50,6 +50,6 @@ fn functor_void_owned(x: TestFunctor<i32>) -> bool {
 #[quickcheck]
 fn functor_map_over_default(x: TestFunctor<i32>) -> bool {
     let f = |x: &i32| x.saturating_add(1);
-    let mapped = x.fmap(&f);
+    let mapped = x.fmap(f);
     mapped == TestFunctor::new(f(&x.0))
 }

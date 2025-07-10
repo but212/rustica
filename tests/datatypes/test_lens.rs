@@ -38,6 +38,7 @@ fn name_lens() -> Lens<Person, String, impl Fn(&Person) -> String, impl Fn(Perso
 }
 
 // Lens for Person.address (focuses on the Rc<Address>)
+// Note: Complex return type is necessary for Lens implementation
 fn address_rc_lens() -> Lens<
     Person,
     Rc<Address>,
@@ -270,7 +271,7 @@ fn test_lens_fmap() {
     assert_eq!(updated_point.y, 20.0); // Other fields unchanged
 
     // Modify using the string representation
-    let modified_point = x_string_lens.modify(point, |s| format!("{}0", s)); // "10" -> "100"
+    let modified_point = x_string_lens.modify(point, |s| format!("{s}0")); // "10" -> "100"
     assert_eq!(modified_point.x, 100.0);
     assert_eq!(modified_point.y, 20.0);
 }

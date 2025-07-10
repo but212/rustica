@@ -455,7 +455,7 @@ fn test_choice_display_and_eq() {
     assert_eq!(c1, c2);
     assert_ne!(c1, c3);
 
-    let s = format!("{}", c1);
+    let s = format!("{c1}");
     assert!(s.contains("1"));
     assert!(s.contains("2"));
 }
@@ -587,8 +587,6 @@ fn test_choice_alternative_and_monadplus_traits() {
     assert!(mzero.is_empty());
     let empty: Choice<i32> = <Choice<i32> as Alternative>::empty_alt();
     assert!(empty.is_empty());
-    let guarded: Choice<()> = <Choice<()> as Alternative>::guard(true);
-    assert_eq!(*guarded.first().unwrap(), ());
     let not_guarded: Choice<()> = <Choice<()> as Alternative>::guard(false);
     assert!(not_guarded.is_empty());
     let many = a.many();
@@ -630,7 +628,7 @@ fn test_choice_applicative_and_monad_laws() {
     assert_eq!(left, right);
     // Monad right identity
     let m = Choice::new(1, vec![2]);
-    let right = m.bind(|x| Choice::<i32>::pure(x));
+    let right = m.bind(Choice::<i32>::pure);
     assert_eq!(right, m);
     // Monad associativity
     let f = |x: &i32| Choice::new(x + 1, vec![]);

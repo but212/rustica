@@ -45,7 +45,7 @@ fn test_result_catch_owned() {
 fn test_result_map_error() {
     // Test mapping error type with reference-based method
     let error_result: Result<i32, String> = Err("not found".to_string());
-    let mapped = error_result.map_error_to(|e| format!("Error: {}", e));
+    let mapped = error_result.map_error_to(|e| format!("Error: {e}"));
     assert_eq!(mapped, Err("Error: not found".to_string()));
 
     // Test not mapping a success value's error
@@ -58,7 +58,7 @@ fn test_result_map_error() {
 fn test_result_map_error_owned() {
     // Test mapping error type with ownership-based method
     let error_result: Result<i32, String> = Err("not found".to_string());
-    let mapped = error_result.map_error_to_owned(|e| format!("Error: {}", e));
+    let mapped = error_result.map_error_to_owned(|e| format!("Error: {e}"));
     assert_eq!(mapped, Err("Error: not found".to_string()));
 
     // Test not mapping a success value's error
@@ -157,7 +157,7 @@ fn test_error_mapper_conversion() {
     assert_eq!(with_code, Err((404, "Not found".to_string())));
 
     // Chain error mappings
-    let as_string = with_code.map_error_to(|(code, msg)| format!("Error {}: {}", code, msg));
+    let as_string = with_code.map_error_to(|(code, msg)| format!("Error {code}: {msg}"));
     assert_eq!(as_string, Err("Error 404: Not found".to_string()));
 }
 

@@ -97,6 +97,8 @@
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and
 //! performance characteristics, please refer to the function-level documentation of the
 //! relevant methods such as `new`, `tell`, `run`, `value`, and others.
+//!
+//! ```
 //! let add_ten = |x: &i32| -> Writer<Log, i32> {
 //!     Writer::new(Log(vec![format!("Added 10 to {} to get {}", x, x + 10)]), x + 10)
 //! };

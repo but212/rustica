@@ -80,7 +80,7 @@ fn test_cont_error_handling() {
 fn test_cont_return_cont() {
     // Test Cont::return_cont
     let cont: cont::Cont<String, i32> = cont::Cont::return_cont(10);
-    let result = cont.run(|x| format!("Result: {}", x));
+    let result = cont.run(|x| format!("Result: {x}"));
     assert_eq!(result, "Result: 10");
 }
 
@@ -124,6 +124,6 @@ fn test_cont_identity_laws() {
 
     // bind(return_cont) == id
     let c2 = cont::Cont::<i32, i32>::return_cont(8);
-    let bound = c2.clone().bind(|x| cont::Cont::return_cont(x));
+    let bound = c2.clone().bind(cont::Cont::return_cont);
     assert_eq!(bound.run(|x| x), c2.run(|x| x));
 }
