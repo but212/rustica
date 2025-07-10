@@ -99,6 +99,38 @@
 //! relevant methods such as `new`, `tell`, `run`, `value`, and others.
 //!
 //! ```
+//! use rustica::datatypes::writer::Writer;
+//! use rustica::traits::semigroup::Semigroup;
+//! use rustica::traits::monoid::Monoid;
+//! use rustica::traits::monad::Monad;
+//!
+//! #[derive(Clone)]
+//! struct Log(Vec<String>);
+//!
+//! impl Semigroup for Log {
+//!     fn combine(&self, other: &Self) -> Self {
+//!         let mut combined = self.0.clone();
+//!         combined.extend(other.0.clone());
+//!         Log(combined)
+//!     }
+//!
+//!     fn combine_owned(self, other: Self) -> Self {
+//!         let mut combined = self.0.clone();
+//!         combined.extend(other.0.clone());
+//!         Log(combined)
+//!     }
+//! }
+//!
+//! impl Monoid for Log {
+//!     fn empty() -> Self {
+//!         Log(Vec::new())
+//!     }
+//! }
+//!
+//! let double = |x: &i32| -> Writer<Log, i32> {
+//!     Writer::new(Log(vec![format!("Doubled {} to {}", x, x * 2)]), x * 2)
+//! };
+//!
 //! let add_ten = |x: &i32| -> Writer<Log, i32> {
 //!     Writer::new(Log(vec![format!("Added 10 to {} to get {}", x, x + 10)]), x + 10)
 //! };
