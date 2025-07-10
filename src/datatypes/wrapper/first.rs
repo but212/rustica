@@ -9,58 +9,35 @@
 //! - As a `Functor`, it maps functions over the inner value if present
 //! - As a `Foldable`, it allows extraction and reduction of the inner value
 //!
-//! ## Basic Usage
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::first::First;
-//! use rustica::traits::semigroup::Semigroup;
-//! use rustica::traits::monoid::Monoid;
-//!
-//! let a = First(Some(5));
-//! let b = First(Some(10));
-//! let c = a.combine(&b);
-//! assert_eq!(c, First(Some(5))); // Takes the first value
-//!
-//! let x = First(None);
-//! let y = First(Some(7));
-//! let z = x.combine(&y);
-//! assert_eq!(z, First(Some(7))); // First value was None, so takes the second
-//!
-//! // Use the identity element from Monoid
-//! let empty = First::<i32>::empty();  // First(None)
-//! assert_eq!(empty.combine(&a), a);
-//! ```
-//!
 //! ## Type Class Laws
+//!
+//! ### Semigroup Laws
 //!
 //! `First<T>` satisfies the semigroup associativity law:
 //!
-//! ```rust
-//! use rustica::datatypes::wrapper::first::First;
-//! use rustica::traits::semigroup::Semigroup;
+//! - **Associativity**: `(a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)`
+//!   - For all values a, b, and c, combining a and b and then combining the result with c
+//!     yields the same result as combining a with the combination of b and c.
 //!
-//! // Verify associativity: (a combine b) combine c = a combine (b combine c)
-//! let a = First(Some(1));
-//! let b = First(Some(2));
-//! let c = First(Some(3));
-//! assert_eq!(a.clone().combine(&b).combine(&c),
-//!            a.combine(&b.combine(&c)));
-//! ```
+//! ### Monoid Laws
 //!
-//! `First<T>` also satisfies the monoid identity laws:
+//! `First<T>` satisfies the monoid identity laws:
 //!
-//! ```rust
-//! use rustica::datatypes::wrapper::first::First;
-//! use rustica::traits::semigroup::Semigroup;
-//! use rustica::traits::monoid::Monoid;
+//! - **Left Identity**: `empty() ⊕ a = a`
+//!   - Combining the identity element (`First(None)`) with any value gives the original value.
 //!
-//! let a = First(Some(42));
-//! let id = First::empty();  // First(None)
+//! - **Right Identity**: `a ⊕ empty() = a`
+//!   - Combining any value with the identity element gives the original value.
 //!
-//! // Identity laws: id combine x = x combine id = x
-//! assert_eq!(id.combine(&a), a);
-//! assert_eq!(a.combine(&id), a);
-//! ```
+//! ### Functor Laws
+//!
+//! `First<T>` satisfies the functor laws:
+//!
+//! - **Identity**: `fmap(id) = id`
+//!   - Mapping the identity function over a `First` value gives the same value.
+//!
+//! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
+//!   - Mapping a composed function is the same as mapping each function in sequence.
 //!
 //! ## Performance Characteristics
 //!
@@ -76,6 +53,12 @@
 //! - `Monoid`: For any `T` that implements `Clone`
 //! - `Functor`: For mapping operations over the inner value
 //! - `Foldable`: For extracting and processing the inner value
+//!
+//! ## Documentation Notes
+//!
+//! For detailed practical examples demonstrating the type class laws, usage patterns, and
+//! performance characteristics, please refer to the function-level documentation of the
+//! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;

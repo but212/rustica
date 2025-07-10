@@ -169,47 +169,25 @@
 //!
 //! ## Type Class Laws
 //!
-//! Prisms must satisfy the following laws to be considered well-behaved:
+//! Prisms must satisfy the following laws to be considered well-behaved. See the documentation for
+//! the specific functions (`preview`, `review`) for examples demonstrating these laws.
 //!
 //! ### First Law: Preview-Review
 //!
+//! For any prism `p`, structure `s`, and focus value `a` where `p.preview(s) = Some(a)`:
+//!
+//! `p.preview(s).map(|a| p.review(&a)) == p.preview(s).map(|_| s.clone())`
+//!
 //! If we successfully preview a value and then review it, we get back a value
-//! that would preview to the same result:
+//! that would preview to the same result.
 //!
-//! ## Second Law: Review-Preview
+//! ### Second Law: Review-Preview
 //!
-//! If we review a value and then successfully preview it, we get back the original value:
+//! For any prism `p` and focus value `a`:
 //!
-//! ## Verification Example
+//! `p.preview(&p.review(&a)) == Some(a)`
 //!
-//! ```rust
-//! use rustica::datatypes::prism::Prism;
-//!
-//! #[derive(Debug, PartialEq, Clone)]
-//! enum Shape {
-//!     Circle(f64),   // radius
-//!     Rectangle(f64, f64)  // width, height
-//! }
-//!
-//! // Create a prism for the Circle variant
-//! let circle_prism = Prism::new(
-//!     |s: &Shape| match s {
-//!         Shape::Circle(r) => Some(*r),
-//!         _ => None,
-//!     },
-//!     |r: &f64| Shape::Circle(*r)
-//! );
-//!
-//! // Verify Law 1: Preview-Review
-//! let circle = Shape::Circle(5.0);
-//! let previewed = circle_prism.preview(&circle);
-//! assert_eq!(previewed.map(|r| circle_prism.review(&r)), previewed.map(|_| circle.clone()));
-//!
-//! // Verify Law 2: Review-Preview
-//! let radius = 7.5;
-//! let shape = circle_prism.review(&radius);
-//! assert_eq!(circle_prism.preview(&shape), Some(radius));
-//! ```
+//! If we review a value and then successfully preview it, we get back the original value.
 //!
 //! # Examples
 //!

@@ -37,10 +37,31 @@
 //! - **Category**: IsoLens instances can be composed to form new lenses (through nested data structures)
 //! - **Strong Profunctor**: The IsoLens can be seen as an implementation of the Strong Profunctor pattern
 //!
-//! The optics implementation in Rustica follows the laws that ensure proper lens behavior:
-//! - Get-Set: Getting a value and setting it back results in the same structure
-//! - Set-Get: Setting a value and then getting it returns the value that was set
-//! - Set-Set: Setting twice is the same as setting once with the final value
+//! The optics implementation in Rustica follows the lens laws that ensure proper behavior. See the documentation for
+//! the specific functions for examples demonstrating these laws.
+//!
+//! ### GetSet Law
+//!
+//! For any `IsoLens` `l` and structure `s`:
+//!
+//! `l.set(s, l.get(s)) == s`
+//!
+//! Getting a value and setting it back results in the same structure.
+//!
+//! ### SetGet Law
+//!
+//! For any `IsoLens` `l`, structure `s`, and value `v`:
+//!
+//! `l.get(l.set(s, v)) == v`
+//! Setting a value and then getting it returns the value that was set.
+//!
+//! ### SetSet Law
+//!
+//! For any `IsoLens` `l`, structure `s`, and values `v1` and `v2`:
+//!
+//! `l.set(l.set(s, v1), v2) == l.set(s, v2)`
+//!
+//! Setting twice is the same as setting once with the final value.
 //!
 //! ## Use Cases
 //!

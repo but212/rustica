@@ -16,153 +16,84 @@
 //! - **Function Environment**: Reader can be understood as a generalization of curried functions,
 //!   allowing a more composable way to provide configuration to functions.
 //!
-//! This monad is equivalent to:
-//! - **Haskell**: `Control.Monad.Reader` and `(->) r` (the function arrow from `r`)
-//! - **Scala**: `cats.data.Reader` and `scalaz.Reader`
-//! - **PureScript**: `Control.Monad.Reader`
-//! - **Kotlin**: `arrow.mtl.Reader` from Arrow library
 //!
 //! ## Core Concepts
 //!
-//! - **Environment Dependency**: Reader allows functions to access a shared environment without
-//!   explicitly passing it around.
-//! - **Pure Computation**: Reader maintains purity by making the environment dependency explicit
-//!   in the type system.
-//! - **Composition**: Multiple Reader computations can be combined while sharing the same environment.
+//! - **Environment Access**: Functions can access a shared read-only environment
+//! - **Environment Modification**: Functions can run in a modified environment without affecting others
+//! - **Composition**: Sequential operations share the same environment
 //!
 //! ## Performance Characteristics
 //!
 //! ### Time Complexity
 //!
-//! - **Construction** (`new`, `ask`, `asks`): O(1) - Only wraps a function
-//! - **Execution** (`run_reader`): O(f) - Where f is the complexity of the wrapped function
-//! - **Transformation** (`fmap`): O(1) for construction, O(f + g) when executed where:
-//!   - f is the complexity of the original reader function
-//!   - g is the complexity of the mapping function
-//! - **Sequencing** (`bind`): O(1) for construction, O(f + g) when executed where:
-//!   - f is the complexity of the original reader function
-//!   - g is the complexity of the binding function
-//! - **Environment Modification** (`local`): O(1) for construction, O(f + g) when executed where:
-//!   - f is the complexity of the environment transformation
-//!   - g is the complexity of the original reader function
+//! - **Construction (new)**: O(1) - Constant time to create a Reader instance
+//! - **Environment Access (ask)**: O(1) - Constant time to capture the environment
+//! - **Function Application (run_reader)**: O(f) - Where f is the complexity of the wrapped function
+//! - **Composition (fmap/bind)**: O(f + g) - Where f and g are the complexities of the composed functions
 //!
 //! ### Memory Usage
 //!
-//! - **Reader**: Stores a single function pointer and any captured environment
-//! - **Transformation** (`fmap`, `bind`): Each transformation adds a layer of function composition
-//! - **Optimization**: Reader operations can be composed without immediate execution, allowing
-//!   for memory-efficient computations that only allocate when finally executed
+//! - **Structure**: Size of Reader<E, A> = size of a function pointer + any captured state
+//! - **Implementation Detail**: Uses a function closure as the internal representation
 //!
-//! ## Use Cases
+//! ## Functional Programming Context
 //!
-//! Reader is particularly useful in scenarios such as:
-//!
-//! - **Configuration Management**: When multiple functions need access to configuration settings
-//! - **Dependency Injection**: For providing dependencies to functions without global state
-//! - **Context-Aware Computations**: When operations need access to contextual information
-//! - **Testing**: Makes it easy to substitute different environments for testing purposes
+//! In functional programming, the Reader monad provides a way to pass a shared context
+//! or configuration to a group of functions without explicitly threading it through
+//! every function call. This creates cleaner, more composable code, particularly when
+//! dealing with deeply nested function calls that all need access to some shared data.
 //!
 //! ## Type Class Implementations
 //!
-//! Reader implements several functional programming type classes:
+//! The Reader monad implements several important functional programming type classes:
 //!
-//! - **Functor**: Via the `fmap` method, allowing transformation of the result
-//! - **Applicative**: Through the `combine` and `lift2` methods
-//! - **Monad**: With the `bind` method for sequencing operations that depend on previous results
+//! - **Functor**: Reader implements the Functor type class through its `fmap` method,
+//!   which transforms the result value of a Reader while preserving the environment.
+//!   - Implementation: `fmap :: (A -> B) -> Reader<E, A> -> Reader<E, B>`
+//!
+//! - **Applicative**: While not explicitly implemented with this name, Reader supports
+//!   applicative operations through its `pure` and `apply`/`lift` functions.
+//!   - `pure`: Creates a Reader that ignores the environment and returns a constant value
+//!     - Implementation: `pure :: A -> Reader<E, A>`
+//!   
+//!   - `apply`: Applies a function from one Reader to a value from another Reader
+//!     - Implementation: `apply :: Reader<E, A -> B> -> Reader<E, A> -> Reader<E, B>`
+//!
+//! - **Monad**: Reader implements the Monad type class through its `bind` method, which
+//!   allows chaining operations that depend on both the environment and previous results.
+//!   - Implementation: `bind :: Reader<E, A> -> (A -> Reader<E, B>) -> Reader<E, B>`
 //!
 //! ## Type Class Laws
 //!
 //! ### Functor Laws
 //!
-//! ```rust
-//! use rustica::datatypes::reader::Reader;
-//! use rustica::traits::functor::Functor;
-//!
-//! // Identity: fmap id = id
-//! let reader = Reader::new(|x: i32| x * 2);
-//! let id = |x: i32| x;
-//! let env = 10;
-//! assert_eq!(reader.fmap(id).run_reader(env), reader.run_reader(env));
-//!
-//! // Composition: fmap (f . g) = fmap f . fmap g
-//! let f = |x: i32| x + 5;
-//! let g = |x: i32| x * 3;
-//! let compose = move |x: i32| f(g(x));
-//! let reader = Reader::new(|x: i32| x + 1);
-//! assert_eq!(reader.fmap(compose).run_reader(env), reader.fmap(g).fmap(f).run_reader(env));
-//! ```
+//! 1. **Identity Law**: `fmap(id) = id`
+//! 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
 //!
 //! ### Monad Laws
 //!
-//! ```rust
-//! use rustica::datatypes::reader::Reader;
-//! use rustica::traits::monad::Monad;
+//! 1. **Left Identity**: `pure(a).bind(f) = f(a)`
+//! 2. **Right Identity**: `m.bind(pure) = m`
+//! 3. **Associativity**: `m.bind(f).bind(g) = m.bind(x => f(x).bind(g))`
 //!
-//! // Left identity: return a >>= f = f a
-//! let a = 42;
-//! let f = |x: i32| Reader::new(move |_: i32| x + 10);
-//! let return_a = Reader::new(move |_: i32| a);
-//! let env = 10;
-//! assert_eq!(return_a.bind(f).run_reader(env), f(a).run_reader(env));
+//! ## Use Cases
 //!
-//! // Right identity: m >>= return = m
-//! let m = Reader::new(|x: i32| x * 2);
-//! let return_fn = |x: i32| Reader::new(move |_: i32| x);
-//! assert_eq!(m.bind(return_fn).run_reader(env), m.run_reader(env));
+//! The Reader monad is particularly useful for:
 //!
-//! // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
-//! let m = Reader::new(|x: i32| x + 3);
-//! let f = |x: i32| Reader::new(move |_: i32| x * 2);
-//! let g = |x: i32| Reader::new(move |_: i32| x + 10);
-//! let left = m.bind(f).bind(g).run_reader(env);
-//! let right = m.bind(move |x| f(x).bind(g)).run_reader(env);
-//! assert_eq!(left, right);
-//! ```
+//! - **Configuration Management**: Providing access to application settings
+//! - **Dependency Injection**: Supplying dependencies to functions
+//! - **Environment Access**: Accessing shared read-only context
+//! - **Testing**: Making code more testable by parameterizing the environment
 //!
-//! ## Examples
+//! ## Function-Level Documentation
 //!
-//! ### Basic Usage
-//!
-//! ```rust
-//! use rustica::datatypes::reader::Reader;
-//!
-//! // Create a reader that depends on a numeric environment
-//! let reader = Reader::new(|config: i32| config * 2);
-//! assert_eq!(reader.run_reader(21), 42);
-//! ```
-//!
-//! ### Composing Readers
-//!
-//! ```rust
-//! use rustica::datatypes::reader::Reader;
-//!
-//! // Define a more complex environment
-//! #[derive(Clone)]
-//! struct AppConfig {
-//!     base_url: String,
-//!     timeout: u32,
-//! }
-//!
-//! // Create readers that extract different parts of the config
-//! let url_reader: Reader<AppConfig, String> = Reader::asks(|config: AppConfig| config.base_url.clone());
-//! let timeout_reader: Reader<AppConfig, u32> = Reader::asks(|config: AppConfig| config.timeout);
-//!
-//! // Combine them to create a formatted output
-//! let combined = url_reader.combine(&timeout_reader, |url, timeout| {
-//!     format!("URL: {} with timeout: {}ms", url, timeout)
-//! });
-//!
-//! // Run with a specific config
-//! let config = AppConfig {
-//!     base_url: "https://example.com".to_string(),
-//!     timeout: 5000,
-//! };
-//!
-//! assert_eq!(
-//!     combined.run_reader(config),
-//!     "URL: https://example.com with timeout: 5000ms"
-//! );
-//! ```
+//! Refer to the documentation for specific functions to see practical examples demonstrating:
+//! - Type class law compliance
+//! - Usage patterns
+//! - Environment access and modification
+//! - Composition of Reader operations
+//! - Integration with other monadic operations
 //!
 //! ### Modifying the Environment
 //!

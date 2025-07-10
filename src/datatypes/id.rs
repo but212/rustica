@@ -46,56 +46,47 @@
 //!
 //! ## Type Class Laws
 //!
+//! The `Id` type implements the following type class laws. See the documentation for
+//! the specific functions (`fmap`, `apply`, `bind`) for examples demonstrating these laws.
+//!
 //! ### Functor Laws
 //!
-//! ```rust
-//! use rustica::datatypes::id::Id;
-//! use rustica::traits::functor::Functor;
+//! The `Id` type satisfies the functor laws:
 //!
-//! // Identity: fmap(id) = id
-//! let x = Id::new(42);
-//! let id_fn = |x: &i32| *x;
-//! assert_eq!(x.fmap(id_fn), x);
+//! 1. **Identity Law**: `fmap(id) = id`
+//!    - Mapping the identity function over an `Id` returns the original `Id` unchanged.
 //!
-//! // Composition: fmap(f . g) = fmap(f) . fmap(g)
-//! let f = |x: &i32| x + 1;
-//! let g = |x: &i32| x * 2;
-//! let h = |x: &i32| f(&g(x));
+//! 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
+//!    - Mapping a composed function is the same as mapping each function in sequence.
 //!
-//! let left = x.fmap(h);
-//! let right = x.fmap(g).fmap(f);
-//! assert_eq!(left, right);
-//! ```
+//! ### Applicative Laws
+//!
+//! The `Id` type satisfies the applicative laws:
+//!
+//! 1. **Identity Law**: `pure(id) <*> v = v`
+//!    - Applying the pure identity function to any value returns the original value.
+//!
+//! 2. **Homomorphism Law**: `pure(f) <*> pure(x) = pure(f(x))`
+//!    - Applying a pure function to a pure value is the same as applying the function to the value and then wrapping in `pure`.
+//!
+//! 3. **Interchange Law**: `u <*> pure(y) = pure($ y) <*> u`
+//!    - Where `$ y` is a function that applies its argument to y.
+//!
+//! 4. **Composition Law**: `pure(.) <*> u <*> v <*> w = u <*> (v <*> w)`
+//!    - Composing applicative functions is associative.
 //!
 //! ### Monad Laws
 //!
-//! ```rust
-//! use rustica::datatypes::id::Id;
-//! use rustica::traits::monad::Monad;
-//! use rustica::traits::identity::Identity;
+//! The `Id` type satisfies the monad laws:
 //!
-//! // Left identity: pure(a).bind(f) = f(a)
-//! let a = 42;
-//! let f = |x: &i32| Id::new(x + 1);
-//! let left = Id::new(a).bind(f);
-//! let right = f(&a);
-//! assert_eq!(left, right);
+//! 1. **Left Identity**: `return a >>= f = f a`
+//!    - Binding a function to a pure value is the same as applying the function directly.
 //!
-//! // Right identity: m.bind(pure) = m
-//! let m = Id::new(42);
-//! let pure_fn = |x: &i32| Id::new(*x);
-//! let result = m.bind(pure_fn);
-//! assert_eq!(result, m);
+//! 2. **Right Identity**: `m >>= return = m`
+//!    - Binding the pure function to a monad returns the original monad.
 //!
-//! // Associativity: m.bind(f).bind(g) = m.bind(x -> f(x).bind(g))
-//! let m = Id::new(5);
-//! let f = |x: &i32| Id::new(x * 2);
-//! let g = |x: &i32| Id::new(x + 10);
-//!
-//! let left = m.bind(f).bind(g);
-//! let right = m.bind(|x| f(x).bind(g));
-//! assert_eq!(left, right);
-//! ```
+//! 3. **Associativity**: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
+//!    - Sequential binds can be nested in either direction with the same result.
 //!
 //! ## Basic Usage
 //!

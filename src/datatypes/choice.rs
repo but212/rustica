@@ -135,108 +135,24 @@
 //!
 //! ## Type Class Laws
 //!
-//! `Choice` adheres to standard functional programming laws.
+//! `Choice` adheres to standard functional programming laws:
 //!
 //! ### Functor Laws
-//!
-//! 1.  **Identity**: `choice.fmap(|x| x) == choice`
-//! 2.  **Composition**: `choice.fmap(f).fmap(g) == choice.fmap(|x| g(f(x)))`
-//!
-//! ```rust
-//! use rustica::prelude::*;
-//! use rustica::datatypes::choice::Choice;
-//!
-//! // Identity law
-//! let choice = Choice::new(1, vec![2, 3]);
-//! let mapped_identity = choice.clone().fmap(|x: &i32| *x);
-//! assert_eq!(choice, mapped_identity);
-//!
-//! // Composition law
-//! let f = |x: &i32| *x + 10;
-//! let g = |x: &i32| *x * 2;
-//!
-//! let composition1 = choice.clone().fmap(f).fmap(g);
-//! let composition2 = choice.clone().fmap(|x| g(&f(x)));
-//! assert_eq!(composition1, composition2);
-//! ```
+//! - Identity: `fmap id = id` (mapping identity function preserves the original value)
+//! - Composition: `fmap (f . g) = fmap f . fmap g` (mapping composed functions equals sequential mapping)
 //!
 //! ### Applicative Laws
-//!
-//! 1.  **Identity**: `choice.apply(&Choice::pure(|x| x)) == choice`
-//! 2.  **Homomorphism**: `Choice::pure(x).apply(&Choice::pure(f)) == Choice::pure(f(x))`
-//! 3.  **Interchange**: `Choice::pure(y).apply(&func_choice) == func_choice.fmap(|f| f(y))`
-//!     (Note: `apply` takes a reference to the argument for ergonomic borrowing)
-//! 4.  **Composition**: `Choice::pure(|g_val| |f_val| g_val(f_val)).apply(&u).apply(&v).apply(&w) == u.apply(&v.apply(&w))`
-//!     (This is a bit complex to show directly due to currying and types, simplified version often shown)
-//!
-//! ```rust
-//! use rustica::prelude::*;
-//! use rustica::datatypes::choice::Choice;
-//!
-//! // Identity law
-//! let choice = Choice::new(5, vec![10, 15]);
-//! let id_fn: fn(&i32) -> i32 = |x: &i32| *x;
-//! let id_fn_choice = Choice::<fn(&i32) -> i32>::pure(&id_fn);
-//! let applied = choice.clone().apply(&id_fn_choice);
-//! assert_eq!(choice, applied);
-//!
-//! // Homomorphism law
-//! let f = |x: &i32| *x * 2;
-//! let x = 7;
-//! let pure_f = Choice::<fn(&i32) -> i32>::pure(&f);
-//! let pure_x = Choice::<fn(&i32) -> i32>::pure(&x);
-//! let lhs = pure_x.apply(&pure_f);
-//! let result = f(&x);
-//! let rhs = Choice::new(result, vec![]);
-//! assert_eq!(lhs, rhs);
-//!
-//! // Interchange law
-//! let y = 3;
-//! // Using a type alias so both closures have the same type
-//! type IntFn = fn(&i32) -> i32;
-//! let f1: IntFn = |x: &i32| *x + 1;
-//! let f2: IntFn = |x: &i32| *x + 2;
-//! let func_choice = Choice::new(f1, vec![f2]);
-//! let pure_y = Choice::new(y, vec![]);
-//! let lhs = pure_y.apply(&func_choice);
-//! let apply_y = |f: &IntFn| f(&y);
-//! let apply_y_choice = Choice::new(apply_y, vec![]);
-//! let rhs = func_choice.fmap(|f| apply_y(f));
-//! assert_eq!(lhs, rhs);
-//! ```
+//! - Identity: `pure id <*> v = v` (applying pure identity function preserves the value)
+//! - Homomorphism: `pure f <*> pure x = pure (f x)` (applying pure function to pure value equals pure result)
+//! - Interchange: `u <*> pure y = pure ($ y) <*> u` (applying functions to pure values can be reordered)
+//! - Composition: `pure (.) <*> u <*> v <*> w = u <*> (v <*> w)` (composition of function application is associative)
 //!
 //! ### Monad Laws
+//! - Left Identity: `pure a >>= f = f a` (binding pure value with function equals direct function application)
+//! - Right Identity: `m >>= pure = m` (binding with pure preserves the original value)
+//! - Associativity: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)` (nested bindings can be flattened)
 //!
-//! 1.  **Left Identity**: `Choice::pure(a).bind(f) == f(a)`
-//! 2.  **Right Identity**: `m.bind(Choice::pure) == m`
-//! 3.  **Associativity**: `m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))`
-//!
-//! ```rust
-//! use rustica::prelude::*;
-//! use rustica::datatypes::choice::Choice;
-//!
-//! // Left Identity law
-//! let a = 5;
-//! let f = |x: &i32| Choice::new(*x * 2, vec![*x * 3]);
-//!
-//! let left = Choice::<i32>::pure(&a).bind(f);
-//! let right = f(&a);
-//! assert_eq!(left, right);
-//!
-//! // Right Identity law
-//! let m = Choice::new(10, vec![20, 30]);
-//! let bound = m.clone().bind(Choice::<i32>::pure);
-//! assert_eq!(m, bound);
-//!
-//! // Associativity law
-//! let m = Choice::new(5, vec![10]);
-//! let f = |x: &i32| Choice::new(*x + 1, vec![*x + 2]);
-//! let g = |x: &i32| Choice::new(*x * 2, vec![*x * 3]);
-//!
-//! let left = m.clone().bind(f).bind(g);
-//! let right = m.bind(|x| f(x).bind(g));
-//! assert_eq!(left, right);
-//! ```
+//! See individual function documentation (e.g., `fmap`, `apply`, `bind`) for specific examples demonstrating these laws.
 //! The `Choice` type provides several advanced operations such as:
 //! - Filtering alternatives based on predicates
 //! - Flattening nested choices
@@ -1650,6 +1566,43 @@ impl<T: Clone> Identity for Choice<T> {
 }
 
 impl<T: Clone> Functor for Choice<T> {
+    /// Maps a function over the `Choice` container, transforming each value.
+    ///
+    /// This is the implementation of the `Functor` typeclass's `fmap` method for `Choice<T>`.
+    /// It applies the function `f` to each value in the `Choice`, producing a new `Choice` containing
+    /// the results.
+    ///
+    /// # Functor Laws
+    ///
+    /// This implementation satisfies the functor laws:
+    ///
+    /// ## Identity Law
+    ///
+    /// `choice.fmap(|x| x) == choice`
+    ///
+    /// ```rust
+    /// # use rustica::prelude::*;
+    /// # use rustica::datatypes::choice::Choice;
+    /// let choice = Choice::new(1, vec![2, 3]);
+    /// let mapped = choice.clone().fmap(|x: &i32| *x); // Apply identity function
+    /// assert_eq!(choice, mapped);
+    /// ```
+    ///
+    /// ## Composition Law
+    ///
+    /// `choice.fmap(f).fmap(g) == choice.fmap(|x| g(f(x)))`
+    ///
+    /// ```rust
+    /// # use rustica::prelude::*;
+    /// # use rustica::datatypes::choice::Choice;
+    /// let choice = Choice::new(1, vec![2, 3]);
+    /// let f = |x: &i32| *x + 10;
+    /// let g = |x: &i32| *x * 2;
+    ///
+    /// let left = choice.clone().fmap(f).fmap(g);
+    /// let right = choice.fmap(|x| g(&f(x)));
+    /// assert_eq!(left, right);
+    /// ```
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
@@ -1695,6 +1648,58 @@ impl<T: Clone> Functor for Choice<T> {
 }
 
 impl<T: Clone> Monad for Choice<T> {
+    /// Chains computations that return `Choice`s.
+    ///
+    /// This is the implementation of the Monad typeclass's `bind` (or `>>=` in Haskell) method for `Choice<T>`.
+    /// It applies the function `f` to each value in the `Choice`, where `f` itself returns a `Choice`.
+    /// The results are then flattened into a single `Choice`.
+    ///
+    /// # Monad Laws
+    ///
+    /// This implementation satisfies the monad laws:
+    ///
+    /// ## Left Identity Law
+    ///
+    /// `Choice::pure(a).bind(f) == f(a)`
+    ///
+    /// ```rust
+    /// # use rustica::prelude::*;
+    /// # use rustica::datatypes::choice::Choice;
+    /// let a = 5;
+    /// let f = |x: &i32| Choice::new(*x * 2, vec![*x * 3]);
+    ///
+    /// let left = Choice::<i32>::pure(&a).bind(f);
+    /// let right = f(&a);
+    /// assert_eq!(left, right);
+    /// ```
+    ///
+    /// ## Right Identity Law
+    ///
+    /// `m.bind(Choice::pure) == m`
+    ///
+    /// ```rust
+    /// # use rustica::prelude::*;
+    /// # use rustica::datatypes::choice::Choice;
+    /// let m = Choice::new(10, vec![20, 30]);
+    /// let bound = m.clone().bind(Choice::<i32>::pure);
+    /// assert_eq!(m, bound);
+    /// ```
+    ///
+    /// ## Associativity Law
+    ///
+    /// `m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))`
+    ///
+    /// ```rust
+    /// # use rustica::prelude::*;
+    /// # use rustica::datatypes::choice::Choice;
+    /// let m = Choice::new(5, vec![10]);
+    /// let f = |x: &i32| Choice::new(*x + 1, vec![*x + 2]);
+    /// let g = |x: &i32| Choice::new(*x * 2, vec![*x * 3]);
+    ///
+    /// let left = m.clone().bind(f).bind(g);
+    /// let right = m.bind(|x| f(x).bind(g));
+    /// assert_eq!(left, right);
+    /// ```
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
     where
@@ -1955,6 +1960,63 @@ impl<T: Clone> Monoid for Choice<T> {
 }
 
 impl<T: Clone> Applicative for Choice<T> {
+    /// Applies a `Choice` of functions to a `Choice` of values.
+    ///
+    /// This is the implementation of the Applicative typeclass's `apply` (or `<*>` in Haskell) method for `Choice<T>`.
+    /// It applies functions contained in the `f` parameter to values in the current `Choice`, producing
+    /// a new `Choice` containing all results.
+    ///
+    /// # Applicative Laws
+    ///
+    /// This implementation satisfies the applicative laws:
+    ///
+    /// ## Identity Law
+    ///
+    /// `choice.apply(&Choice::pure(|x| x)) == choice`
+    ///
+    /// ```rust
+    /// # use rustica::prelude::*;
+    /// # use rustica::datatypes::choice::Choice;
+    /// let choice = Choice::new(5, vec![10, 15]);
+    /// let id_fn: fn(&i32) -> i32 = |x: &i32| *x;
+    /// let id_fn_choice = Choice::<fn(&i32) -> i32>::pure(&id_fn);
+    /// let applied = choice.clone().apply(&id_fn_choice);
+    /// assert_eq!(choice, applied);
+    /// ```
+    ///
+    /// ## Homomorphism Law
+    ///
+    /// `Choice::pure(x).apply(&Choice::pure(f)) == Choice::pure(f(x))`
+    ///
+    /// ```rust
+    /// # use rustica::prelude::*;
+    /// # use rustica::datatypes::choice::Choice;
+    /// let f = |x: &i32| *x * 2;
+    /// let x = 7;
+    /// let pure_x = Choice::<i32>::pure(&x);
+    /// let pure_f = Choice::<fn(&i32) -> i32>::pure(&f);
+    /// let left = pure_x.apply(&pure_f);
+    /// let right = Choice::<i32>::pure(&f(&x));
+    /// assert_eq!(left, right);
+    /// ```
+    ///
+    /// ## Interchange Law
+    ///
+    /// `Choice::pure(y).apply(&functions) == functions.fmap(|f| f(y))`
+    ///
+    /// ```rust
+    /// # use rustica::prelude::*;
+    /// # use rustica::datatypes::choice::Choice;
+    /// let y = 3;
+    /// type IntFn = fn(&i32) -> i32;
+    /// let f1: IntFn = |x: &i32| *x + 1;
+    /// let f2: IntFn = |x: &i32| *x * 2;
+    /// let functions = Choice::new(f1, vec![f2]);
+    /// let pure_y = Choice::<i32>::pure(&y);
+    /// let left = pure_y.apply(&functions);
+    /// let right = functions.fmap(|f| f(&y));
+    /// assert_eq!(left, right);
+    /// ```
     #[inline]
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
     where

@@ -136,191 +136,30 @@
 //! - **Functor**: Maps a function over a `Maybe` value
 //! - **Applicative**: Applies a function inside a `Maybe` to a value inside another `Maybe`
 //! - **Monad**: Allows sequencing of `Maybe` operations with dependencies
-//! - **MonadPlus**: Extends `Monad` with ability to combine or choose alternatives
-//! - **Alternative**: Provides choice between values and an empty value
-//! - **Foldable**: Allows folding over the contained value
-//!
-//! ## Type Class Laws
-//!
 //! ### Functor Laws
 //!
-//! The `Maybe` implementation satisfies the functor laws:
-//!
-//! 1. **Identity Law**: Mapping the identity function over a `Maybe` is the same as the original `Maybe`
-//!    - `fmap id = id`
-//!
-//! 2. **Composition Law**: Mapping a composition of functions is the same as composing the mapped functions
-//!    - `fmap (f . g) = fmap f . fmap g`
-//!
-//! ```rust
-//! use rustica::datatypes::maybe::Maybe;
-//! use rustica::traits::functor::Functor;
-//!
-//! // Identity Law: fmap id = id
-//! let m1 = Maybe::Just(42);
-//! let id = |x: &i32| *x;
-//! assert_eq!(m1.fmap(id), m1);
-//!
-//! // Composition Law: fmap (f . g) = fmap f . fmap g
-//! let f = |x: &i32| x + 1;
-//! let g = |x: &i32| x * 2;
-//! let compose = |x: &i32| f(&g(x));
-//!
-//! let m2 = Maybe::Just(10);
-//! assert_eq!(m2.fmap(compose), m2.fmap(g).fmap(f));
-//!
-//! // Nothing case should also satisfy both laws
-//! let m3: Maybe<i32> = Maybe::Nothing;
-//! assert_eq!(m3.fmap(id), m3);  // Identity law for Nothing
-//! assert_eq!(m3.fmap(compose), m3.fmap(g).fmap(f));  // Composition law for Nothing
-//! ```
-//!
-//! ### Applicative Laws
-//!
-//! The `Maybe` implementation satisfies the applicative functor laws:
-//!
-//! 1. **Identity Law**: Applying `pure id` to any applicative value gives back the same value
-//!    - `pure id <*> v = v`
-//!
-//! 2. **Homomorphism**: Applying a pure function to a pure value is the same as applying the function to the value and then using pure
-//!    - `pure f <*> pure x = pure (f x)`
-//!
-//! 3. **Interchange**: Applying an applicative function to a pure value is the same as applying the pure function application to the function
-//!    - `u <*> pure y = pure ($ y) <*> u`
-//!
-//! 4. **Composition**: Composing applicative functions is associative
-//!    - `pure (.) <*> u <*> v <*> w = u <*> (v <*> w)`
-//!
-//! ```rust
-//! use rustica::datatypes::maybe::Maybe;
-//! use rustica::traits::applicative::Applicative;
-//! use rustica::traits::pure::Pure;
-//!
-//! // Identity Law for Just
-//! let v = Maybe::Just(42);
-//! let id = |x: &i32| *x;
-//! let pure_id = Maybe::Just(id);
-//! assert_eq!(v.apply(&pure_id), v);
-//!
-//! // Identity Law for Nothing
-//! let v_nothing: Maybe<i32> = Maybe::Nothing;
-//! assert_eq!(v_nothing.apply(&pure_id), v_nothing);
-//!
-//! // Homomorphism Law
-//! let f = |x: &i32| x + 5;
-//! let x = 10;
-//! let pure_f = Maybe::Just(f);
-//! let pure_x = Maybe::Just(x);
-//! assert_eq!(pure_x.apply(&pure_f), Maybe::Just(f(&x)));
-//! ```
+//! 1. **Identity Law**: `fmap id = id`
+//! 2. **Composition Law**: `fmap (f . g) = fmap f . fmap g`
 //!
 //! ### Monad Laws
 //!
-//! The `Maybe` implementation satisfies the monad laws:
+//! 1. **Left Identity**: `return a >>= f = f a`
+//! 2. **Right Identity**: `m >>= return = m`
+//! 3. **Associativity**: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
 //!
-//! 1. **Left Identity**: Binding a function to a pure value is the same as applying the function
-//!    - `return a >>= f = f a`
+//! ### Alternative/MonadPlus Laws
 //!
-//! 2. **Right Identity**: Binding `return` to a monad gives the original monad
-//!    - `m >>= return = m`
-//!
-//! 3. **Associativity**: Sequential binds can be nested or flattened equivalently
-//!    - `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
-//!
-//! ```rust
-//! use rustica::datatypes::maybe::Maybe;
-//! use rustica::traits::monad::Monad;
-//! use rustica::traits::pure::Pure;
-//!
-//! // Left Identity: return a >>= f = f a
-//! let a = 42;
-//! let f = |x: &i32| Maybe::Just(x + 10);
-//! assert_eq!(Maybe::<i32>::pure(&a).bind(f), f(&a));
-//!
-//! // Right Identity: m >>= return = m
-//! let m = Maybe::Just(42);
-//! let return_fn = |x: &i32| Maybe::<i32>::pure(x);
-//! assert_eq!(m.bind(return_fn), m);
-//!
-//! // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
-//! let m = Maybe::Just(5);
-//! let f = |x: &i32| Maybe::Just(x * 2);
-//! let g = |x: &i32| Maybe::Just(x + 10);
-//!
-//! let left = m.bind(f).bind(g);
-//! let right = m.bind(|x| f(x).bind(g));
-//! assert_eq!(left, right);
-//!
-//! // All laws should hold for Nothing as well
-//! let nothing: Maybe<i32> = Maybe::Nothing;
-//! assert_eq!(nothing.bind(f), Maybe::Nothing);  // Nothing propagates
-//! assert_eq!(nothing.bind(return_fn), nothing);  // Right identity for Nothing
-//! ```
-//!
-//! ### MonadPlus/Alternative Laws
-//!
-//! The `Maybe` implementation satisfies these additional laws:
-//!
-//! 1. **Left Identity**: `mzero` is a left identity for `mplus`
-//!    - `mzero `mplus` m = m`
-//!
-//! 2. **Right Identity**: `mzero` is a right identity for `mplus`
-//!    - `m `mplus` mzero = m`
-//!
-//! 3. **Left Zero**: `mzero` is a left zero for `bind`
-//!    - `mzero >>= f = mzero`
-//!
-//! 4. **Distributivity**: `mplus` distributes over `bind`
-//!    - `(m `mplus` n) >>= f = (m >>= f) `mplus` (n >>= f)`
-//!
-//! ```rust
-//! use rustica::datatypes::maybe::Maybe;
-//! use rustica::traits::monad_plus::MonadPlus;
-//! use rustica::traits::monad::Monad;
-//!
-//! // Left and Right Identity
-//! let m = Maybe::Just(42);
-//! let mzero = Maybe::<i32>::mzero();
-//!
-//! assert_eq!(mzero.mplus(&m), m);  // Left identity
-//! assert_eq!(m.mplus(&mzero), m);  // Right identity
-//!
-//! // Left Zero
-//! let f = |x: &i32| Maybe::Just(x + 10);
-//! assert_eq!(mzero.bind(f), mzero);
-//!
-//! // Distributivity
-//! let n = Maybe::Just(7);
-//! let left = m.mplus(&n).bind(f);
-//! let right = m.bind(f).mplus(&n.bind(f));
-//! assert_eq!(left, right);
-//! ```
+//! 1. **Left Identity**: `mzero `mplus` m = m`
+//! 2. **Right Identity**: `m `mplus` mzero = m`
+//! 3. **Associativity**: `(m `mplus` n) >>= f = (m >>= f) `mplus` (n >>= f)`
 //!
 //! # Examples
 //!
-//! ```rust
-//! use rustica::datatypes::maybe::Maybe;
-//! use rustica::traits::functor::Functor;
-//! use rustica::traits::monad::Monad;
-//!
-//! // Creating Maybe values
-//! let just_value = Maybe::Just(42);
-//! let nothing_value: Maybe<i32> = Maybe::Nothing;
-//!
-//! // Using fmap to transform the value
-//! let doubled = just_value.fmap(|x| x * 2);  // Maybe::Just(84)
-//! let doubled_nothing = nothing_value.fmap(|x| x * 2);  // Maybe::Nothing
-//!
-//! // Chaining operations with bind
-//! let result = just_value.bind(|x| {
-//!     if *x > 0 {
-//!         Maybe::Just(x * 10)
-//!     } else {
-//!         Maybe::Nothing
-//!     }
-//! });  // Maybe::Just(420)
-//! ```
-
+//! Refer to the documentation for specific functions to see practical examples demonstrating:
+//! - Type class law compliance
+//! - Usage patterns
+//! - Performance considerations
+//! - Error handling approaches
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::comonad::Comonad;

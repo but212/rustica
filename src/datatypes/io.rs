@@ -50,82 +50,47 @@
 //!
 //! ## Type Class Laws
 //!
+//! The `IO` type implements the following type class laws. See the documentation for
+//! the specific functions (`fmap`, `apply`, `bind`) for examples demonstrating these laws.
+//!
 //! ### Functor Laws
 //!
-//! IO satisfies the Functor laws:
+//! The `IO` type satisfies the functor laws:
 //!
-//! ```rust
-//! use rustica::datatypes::io::IO;
+//! 1. **Identity Law**: `fmap(id) = id`
+//!    - Mapping the identity function over an `IO` returns an `IO` that produces the same result when run.
 //!
-//! // 1. Identity: fmap(id) == id
-//! let io = IO::pure(42);
-//! let id_mapped = io.clone().fmap(|x| x);
-//! assert_eq!(io.run(), id_mapped.run());
-//!
-//! // 2. Composition: fmap(f . g) == fmap(f) . fmap(g)
-//! let f = |x: i32| x + 1;
-//! let g = |x: i32| x * 2;
-//!
-//! let left = io.clone().fmap(move |x| f(g(x)));
-//! let right = io.clone().fmap(g).fmap(f);
-//! assert_eq!(left.run(), right.run());
-//! ```
+//! 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
+//!    - Mapping a composed function is the same as mapping each function in sequence.
 //!
 //! ### Applicative Laws
 //!
-//! IO satisfies the Applicative laws:
+//! The `IO` type satisfies the applicative laws:
 //!
-//! ```rust
-//! use rustica::datatypes::io::IO;
+//! 1. **Identity Law**: `pure(id) <*> v = v`
+//!    - Applying the pure identity function to any value returns the original value.
 //!
-//! // 1. Identity: pure(id) <*> v == v
-//! let v = IO::pure(42);
-//! let id_fn = |x| x;
-//! let id_io = IO::pure(id_fn);
+//! 2. **Homomorphism Law**: `pure(f) <*> pure(x) = pure(f(x))`
+//!    - Applying a pure function to a pure value is the same as applying the function to the value and then wrapping in `pure`.
 //!
-//! // Using apply to simulate <*>
-//! let result = v.clone().bind(move |x| id_io.clone().fmap(move |f| f(x)));
-//! assert_eq!(v.run(), result.run());
+//! 3. **Interchange Law**: `u <*> pure(y) = pure($ y) <*> u`
+//!    - Where `$ y` is a function that applies its argument to y.
 //!
-//! // 2. Homomorphism: pure(f) <*> pure(x) == pure(f(x))
-//! let f = |x: i32| x + 5;
-//! let x = 10;
-//!
-//! let left = IO::pure(f).bind(move |f| IO::pure(x).fmap(move |x| f(x)));
-//! let right = IO::pure(f(x));
-//! assert_eq!(left.run(), right.run());
-//! ```
+//! 4. **Composition Law**: `pure(.) <*> u <*> v <*> w = u <*> (v <*> w)`
+//!    - Composing applicative functions is associative.
 //!
 //! ### Monad Laws
 //!
-//! IO satisfies the Monad laws:
+//! The `IO` type satisfies the monad laws:
 //!
-//! ```rust
-//! use rustica::datatypes::io::IO;
+//! 1. **Left Identity**: `return a >>= f = f a`
+//!    - Binding a function to a pure value is the same as applying the function directly.
 //!
-//! // 1. Left Identity: return a >>= f == f a
-//! let a = 42;
-//! let f = |x: i32| IO::pure(x + 10);
+//! 2. **Right Identity**: `m >>= return = m`
+//!    - Binding the pure function to a monad returns the original monad.
 //!
-//! let left = IO::pure(a).bind(f);
-//! let right = f(a);
-//! assert_eq!(left.run(), right.run());
-//!
-//! // 2. Right Identity: m >>= return == m
-//! let m = IO::pure(42);
-//!
-//! let left = m.clone().bind(|x| IO::pure(x));
-//! assert_eq!(m.run(), left.run());
-//!
-//! // 3. Associativity: (m >>= f) >>= g == m >>= (\x -> f x >>= g)
-//! let m = IO::pure(42);
-//! let f = |x: i32| IO::pure(x + 10);
-//! let g = |x: i32| IO::pure(x * 2);
-//!
-//! let left = m.clone().bind(f).bind(g);
-//! let right = m.clone().bind(move |x| f(x).bind(g));
-//! assert_eq!(left.run(), right.run());
-//! ```
+//! 3. **Associativity**: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
+//!    - Sequential binds can be nested in either direction with the same result.
 //!
 //! ## Basic Usage
 //!

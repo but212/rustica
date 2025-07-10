@@ -10,52 +10,6 @@
 //! - Provides a consistent way to combine values via addition
 //! - Useful for aggregating collections of numeric values
 //!
-//! ## Performance Characteristics
-//!
-//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
-//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
-//! - Clone Cost: Depends on the cost of cloning the inner type `T`
-//!
-//! ## Basic Usage
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::sum::Sum;
-//! use rustica::traits::semigroup::Semigroup;
-//! use rustica::traits::monoid::Monoid;
-//! use rustica::traits::identity::Identity;
-//!
-//! // Create Sum values with explicit type annotation
-//! let a: Sum<i32> = Sum(5);
-//! let b: Sum<i32> = Sum(10);
-//!
-//! // Combine them using the Semigroup trait
-//! let c = a.combine(&b);
-//! assert_eq!(*c.value(), 15);
-//!
-//! // Use the identity element from Monoid
-//! let zero: Sum<i32> = Sum::empty();  // Sum(0)
-//! assert_eq!(*zero.value(), 0);
-//! assert_eq!(*a.combine(&zero).value(), 5);
-//! assert_eq!(*zero.combine(&a).value(), 5);
-//! ```
-//!
-//! ## With Collections
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::sum::Sum;
-//! use rustica::traits::semigroup::Semigroup;
-//! use rustica::traits::monoid::Monoid;
-//! use rustica::traits::identity::Identity;
-//!
-//! // Sum a collection of values
-//! let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-//! let sum: Sum<i32> = numbers.iter()
-//!     .map(|&n| Sum(n))
-//!     .fold(Sum::empty(), |acc, x| acc.combine(&x));
-//!
-//! assert_eq!(*sum.value(), 15); // 1 + 2 + 3 + 4 + 5 = 15
-//! ```
-//!
 //! ## Functional Programming Context
 //!
 //! The `Sum` wrapper is a fundamental building block for functional programming patterns:
@@ -65,16 +19,41 @@
 //! - **Folding**: Can be used with `Foldable` to reduce collections to a single value
 //! - **Composition**: Combines with other algebraic structures for complex operations
 //!
-//! ```rust
-//! use rustica::datatypes::wrapper::sum::Sum;
-//! use rustica::traits::functor::Functor;
-//! use rustica::traits::identity::Identity;
+//! ## Type Class Laws
 //!
-//! // Transform the inner value while preserving the wrapper
-//! let a = Sum(5);
-//! let b = a.fmap(|x| x * 2);
-//! assert_eq!(*b.value(), 10);
-//! ```
+//! ### Semigroup Laws
+//!
+//! `Sum<T>` satisfies the semigroup associativity law:
+//!
+//! - **Associativity**: `(a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)`
+//!   - For all values a, b, and c, combining a and b and then combining the result with c
+//!     yields the same result as combining a with the combination of b and c.
+//!
+//! ### Monoid Laws
+//!
+//! `Sum<T>` satisfies the monoid identity laws when the inner type has a zero value:
+//!
+//! - **Left Identity**: `empty() ⊕ a = a`
+//!   - Combining the identity element (typically zero) with any value gives the original value.
+//!
+//! - **Right Identity**: `a ⊕ empty() = a`
+//!   - Combining any value with the identity element gives the original value.
+//!
+//! ### Functor Laws
+//!
+//! `Sum<T>` satisfies the functor laws:
+//!
+//! - **Identity**: `fmap(id) = id`
+//!   - Mapping the identity function over a `Sum` value gives the same value.
+//!
+//! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
+//!   - Mapping a composed function is the same as mapping each function in sequence.
+//!
+//! ## Performance Characteristics
+//!
+//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
+//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
+//! - Clone Cost: Depends on the cost of cloning the inner type `T`
 //!
 //! ## Type Class Implementations
 //!
@@ -86,86 +65,6 @@
 //! - `Identity`: For accessing the wrapped value
 //! - `HKT`: For higher-kinded type operations
 //! - `Foldable`: For folding operations
-//!
-//! ## Type Class Laws
-//!
-//! ### Semigroup Laws
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::sum::Sum;
-//! use rustica::traits::semigroup::Semigroup;
-//!
-//! // Associativity: (a + b) + c = a + (b + c)
-//! fn verify_associativity<T>(a: T, b: T, c: T) -> bool
-//! where T: Clone + PartialEq + std::ops::Add<Output = T>
-//! {
-//!     let sum_a = Sum(a.clone());
-//!     let sum_b = Sum(b.clone());
-//!     let sum_c = Sum(c.clone());
-//!
-//!     let left = sum_a.clone().combine(&sum_b).combine(&sum_c.clone());
-//!     let right = sum_a.combine(&sum_b.combine(&sum_c));
-//!
-//!     left == right
-//! }
-//!
-//! assert!(verify_associativity(1, 2, 3));
-//! assert!(verify_associativity(1.5, 2.5, 3.5));
-//! ```
-//!
-//! ### Monoid Laws
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::sum::Sum;
-//! use rustica::traits::monoid::Monoid;
-//! use rustica::traits::semigroup::Semigroup;
-//!
-//! // Left identity: empty() + a = a
-//! // Right identity: a + empty() = a
-//! fn verify_identity<T>(a: T) -> bool
-//! where T: Clone + PartialEq + std::ops::Add<Output = T> + Default
-//! {
-//!     let sum_a = Sum(a.clone());
-//!     let empty = Sum::<T>::empty();
-//!
-//!     let left_id = empty.clone().combine(&sum_a.clone());
-//!     let right_id = sum_a.clone().combine(&empty);
-//!
-//!     left_id == sum_a.clone() && right_id == sum_a
-//! }
-//!
-//! assert!(verify_identity(42));
-//! assert!(verify_identity(3.14));
-//! ```
-//!
-//! ### Functor Laws
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::sum::Sum;
-//! use rustica::traits::functor::Functor;
-//!
-//! // Identity: fmap(id) = id
-//! // Composition: fmap(f . g) = fmap(f) . fmap(g)
-//! fn verify_functor_laws<T>(value: T)
-//! where T: Clone + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug
-//! {
-//!     let sum = Sum(value);
-//!     
-//!     // Identity law
-//!     let id_mapped = sum.clone().fmap(|x| x.clone());
-//!     assert_eq!(id_mapped, sum);
-//!     
-//!     // Composition law
-//!     let f = |x: &T| x.clone() + x.clone();
-//!     let g = |x: &T| x.clone() + x.clone() + x.clone();
-//!     
-//!     let left = sum.clone().fmap(|x| f(&g(x)));
-//!     let right = sum.fmap(g).fmap(f);
-//!     
-//!     assert_eq!(left, right);
-//! }
-//! ```
-
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;

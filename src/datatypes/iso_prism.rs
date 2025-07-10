@@ -185,59 +185,25 @@
 //!
 //! ## Type Class Laws
 //!
-//! IsoPrism follows the standard prism laws:
+//! The `IsoPrism` type follows the standard prism laws. See the documentation for
+//! the specific functions (`preview`, `review`) for examples demonstrating these laws.
 //!
-//! - **Review-Preview Law:** `prism.preview(&prism.review(&a)) == Some(a)`
-//!   - This law ensures that if you review a value and then preview the result, you get back the original value.
-//!   - Example:
-//!   ```rust
-//!   use rustica::datatypes::iso_prism::IsoPrism;
-//!   use rustica::traits::iso::Iso;
-//!   #[derive(Clone, Debug, PartialEq)]
-//!   enum MyEnum { Foo(i32), Bar(String) }
-//!   struct FooPrismIso;
-//!   impl Iso<MyEnum, Option<i32>> for FooPrismIso {
-//!       type From = MyEnum;
-//!       type To = Option<i32>;
-//!       fn forward(&self, from: &MyEnum) -> Option<i32> {
-//!           match from { MyEnum::Foo(x) => Some(*x), _ => None, }
-//!       }
-//!       fn backward(&self, to: &Option<i32>) -> MyEnum {
-//!           match to { Some(x) => MyEnum::Foo(*x), None => MyEnum::Bar("default".to_string()), }
-//!       }
-//!   }
-//!   let prism = IsoPrism::new(FooPrismIso);
-//!   let value = 42;
-//!   let reviewed = prism.review(&value);
-//!   assert_eq!(prism.preview(&reviewed), Some(value));
-//!   ```
+//! ### Review-Preview Law
 //!
-//! - **Preview-Review Law:** If `prism.preview(s) == Some(a)`, then `prism.review(&a)` should be equivalent to `s`.
-//!   - This law states that previewing a value and then reviewing the result gives you back something equivalent to the original.
-//!   - Example:
-//!   ```rust
-//!   use rustica::datatypes::iso_prism::IsoPrism;
-//!   use rustica::traits::iso::Iso;
-//!   #[derive(Clone, Debug, PartialEq)]
-//!   enum MyEnum { Foo(i32), Bar(String) }
-//!   struct FooPrismIso;
-//!   impl Iso<MyEnum, Option<i32>> for FooPrismIso {
-//!       type From = MyEnum;
-//!       type To = Option<i32>;
-//!       fn forward(&self, from: &MyEnum) -> Option<i32> {
-//!           match from { MyEnum::Foo(x) => Some(*x), _ => None, }
-//!       }
-//!       fn backward(&self, to: &Option<i32>) -> MyEnum {
-//!           match to { Some(x) => MyEnum::Foo(*x), None => MyEnum::Bar("default".to_string()), }
-//!       }
-//!   }
-//!   let prism = IsoPrism::new(FooPrismIso);
-//!   let original = MyEnum::Foo(42);
-//!   if let Some(value) = prism.preview(&original) {
-//!       let reconstructed = prism.review(&value);
-//!       assert_eq!(reconstructed, original);
-//!   }
-//!   ```
+//! For any prism `p` and focus value `a`:
+//!
+//! `p.preview(&p.review(&a)) == Some(a)`
+//!
+//! If you review a value and then preview the result, you get back the original value.
+//!
+//! ### Preview-Review Law
+//!
+//! For any prism `p`, structure `s`, and focus value `a` where `p.preview(s) = Some(a)`:
+//!
+//! `p.review(&a) == s  // or equivalent to s`
+//!
+//! If you can preview a value from a structure, then reviewing that value should give you back
+//! something equivalent to the original structure.
 //!
 //! See also: [`crate::datatypes::prism`], [`crate::traits::iso::Iso`]
 

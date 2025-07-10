@@ -1,28 +1,9 @@
+//! # Thunk
+//!
 //! A lightweight thunk that can be evaluated.
 //!
 //! This module provides the `Thunk` type, which is a statically-typed
 //! function wrapper that implements the `Evaluate` trait.
-//!
-//! # Examples
-//!
-//! ```rust
-//! use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-//! use rustica::datatypes::wrapper::thunk::Thunk;
-//!
-//! // Create a thunk that produces a value
-//! let computation = Thunk::new(|| 42);
-//!
-//! // Evaluate by reference
-//! assert_eq!(computation.evaluate(), 42);
-//!
-//! // Using extension methods
-//! let string_result: String = computation.fmap_evaluate(|x| x.to_string());
-//! assert_eq!(string_result, "42");
-//!
-//! // Evaluate by consuming the thunk
-//! let result: i32 = computation.evaluate_owned();
-//! assert_eq!(result, 42);
-//! ```
 //!
 //! ## Functional Programming Context
 //!
@@ -32,6 +13,23 @@
 //! - **Lazy evaluation**: Computations are only performed when their results are needed
 //! - **Separation of definition and execution**: Define what to compute separately from when to compute it
 //! - **Memoization potential**: Results can be cached after first evaluation (not implemented in this type)
+//!
+//! ## Type Class Laws
+//!
+//! ### Evaluate Laws
+//!
+//! Thunk satisfies the following laws:
+//!
+//! - **Idempotence**: For pure functions, multiple evaluations produce the same result
+//!   - `thunk.evaluate() == thunk.evaluate()` for any pure function thunk
+//!
+//! - **Referential Transparency**: A thunk can be replaced with its evaluated result without changing behavior
+//!   - For any pure function thunk and any function `f`, `f(thunk.evaluate())` is equivalent to `f(value)`
+//!     where `value` is the result of evaluating the thunk
+//!
+//! - **Composition**: Thunks compose with other higher-order operations in a predictable manner
+//!   - For any thunk `t` and functions `f` and `g`, applying `f` then `g` to the evaluated result is
+//!     equivalent to applying the composition of `f` and `g` to the evaluated result
 //!
 //! ## Performance Characteristics
 //!
@@ -46,32 +44,11 @@
 //! - **HKT**: Higher-kinded type support for working with generic type transformations
 //! - **Clone**: Allows duplicating the thunk with its wrapped function
 //!
-//! ## Basic Usage
+//! ## Documentation Notes
 //!
-//! ```rust
-//! use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-//! use rustica::datatypes::wrapper::thunk::Thunk;
-//!
-//! // Create a thunk with captured variables
-//! let base = 10;
-//! let computation = Thunk::new(move || base * 5);
-//!
-//! // Evaluate when needed
-//! let result = computation.evaluate();
-//! assert_eq!(result, 50);
-//!
-//! // Transform the result
-//! let formatted = computation.fmap_evaluate(|x| format!("Result: {}", x));
-//! assert_eq!(formatted, "Result: 50");
-//! ```
-//!
-//! ## Type Class Laws
-//!
-//! Thunk satisfies the following laws:
-//!
-//! - **Idempotence**: For pure functions, multiple evaluations produce the same result
-//! - **Referential Transparency**: A thunk can be replaced with its evaluated result without changing behavior
-//! - **Composition**: Thunks compose well with other monadic operations
+//! For detailed practical examples demonstrating the type class laws, usage patterns, and
+//! performance characteristics, please refer to the function-level documentation of the
+//! relevant methods such as `evaluate`, `evaluate_owned`, and others.
 
 use crate::traits::evaluate::Evaluate;
 use crate::traits::hkt::HKT;

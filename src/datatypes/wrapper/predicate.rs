@@ -1,4 +1,4 @@
-//! Module: predicate
+//! # Predicate
 //!
 //! This module provides the `Predicate` type, representing intensional sets as predicate functions.
 //!
@@ -25,6 +25,36 @@
 //!
 //! These implementations enable predicates to work seamlessly with other functional abstractions in Rustica.
 //!
+//! ## Type Class Laws
+//!
+//! ### Semigroup Laws
+//!
+//! - **Associativity**: `(a.combine(b)).combine(c) == a.combine(b.combine(c))`
+//!   - The order in which predicates are combined using logical OR doesn't matter.
+//!
+//! ### Monoid Laws
+//!
+//! - **Left Identity**: `empty().combine(a) == a`
+//!   - Combining a predicate with the empty predicate (always returns false) using OR
+//!     yields the original predicate.
+//!
+//! - **Right Identity**: `a.combine(empty()) == a`
+//!   - The identity property holds regardless of the order of combination.
+//!
+//! ### Set Operation Laws
+//!
+//! - **Commutativity of Union**: `a.union(b) == b.union(a)`
+//!   - The order of operands in a union operation doesn't matter.
+//!
+//! - **Associativity of Intersection**: `a.intersection(b).intersection(c) == a.intersection(b.intersection(c))`
+//!   - The order of operations for intersection doesn't affect the result.
+//!
+//! - **Distributivity**: `a.intersection(b.union(c)) == a.intersection(b).union(a.intersection(c))`
+//!   - Intersection distributes over union, similar to multiplication over addition.
+//!
+//! - **Complement Laws**: `a.negate().negate() == a`
+//!   - Double negation yields the original predicate.
+//!
 //! ## Performance Characteristics
 //!
 //! - **Creation**: O(1) - Creating a predicate only wraps a function in an Rc
@@ -40,64 +70,11 @@
 //! - **Monoid**: `empty` creates a predicate that always returns false
 //! - **HKT**: Higher-kinded type representation for advanced type-level operations
 //!
-//! ## Basic Usage
+//! ## Documentation Notes
 //!
-//! ```rust
-//! use rustica::datatypes::wrapper::predicate::Predicate;
-//!
-//! // Create a simple predicate that checks if a number is even
-//! let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
-//!
-//! // Test the predicate
-//! assert!(is_even.contains(&2));
-//! assert!(!is_even.contains(&3));
-//!
-//! // Create another predicate
-//! let is_positive = Predicate::new(|x: &i32| *x > 0);
-//!
-//! // Combine predicates using methods
-//! let even_and_positive = is_even.intersection(&is_positive);
-//! let even_or_positive = is_even.union(&is_positive);
-//!
-//! // Or use operator overloading
-//! let even_and_positive = is_even.clone() & is_positive.clone();
-//! let even_or_positive = is_even | is_positive;
-//! ```
-//!
-//! ## Type Class Laws
-//!
-//! ### Semigroup Laws
-//!
-//! - **Associativity**: `(a.combine(b)).combine(c) == a.combine(b.combine(c))`
-//!
-//! ### Monoid Laws
-//!
-//! - **Left Identity**: `empty().combine(a) == a`
-//! - **Right Identity**: `a.combine(empty()) == a`
-//!
-//! ## Examples
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::predicate::Predicate;
-//!
-//! // Create basic predicates
-//! let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
-//! let is_positive = Predicate::new(|x: &i32| *x > 0);
-//! let is_large = Predicate::new(|x: &i32| *x > 10);
-//!
-//! // Combine with operators
-//! let even_and_positive = is_even.clone() & is_positive.clone();
-//! let positive_or_large = is_positive.clone() | is_large.clone();
-//! let not_even = !is_even;
-//! let positive_but_not_large = is_positive - is_large;
-//!
-//! // Test the predicates
-//! assert!(even_and_positive.contains(&2));
-//! assert!(!even_and_positive.contains(&-2));
-//! assert!(positive_or_large.contains(&15));
-//! assert!(not_even.contains(&3));
-//! assert!(positive_but_not_large.contains(&5));
-//! ```
+//! For detailed practical examples demonstrating the type class laws, usage patterns, and
+//! performance characteristics, please refer to the function-level documentation of the
+//! relevant methods such as `new`, `contains`, `union`, `intersection`, and others.
 //!
 //! ## Usage
 //!

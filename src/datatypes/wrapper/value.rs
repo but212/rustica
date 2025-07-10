@@ -1,3 +1,5 @@
+//! # Value
+//!
 //! A simple value wrapper that can be evaluated.
 //!
 //! This module provides the `Value` type, which wraps a value
@@ -11,6 +13,32 @@
 //! - A minimal implementation of various type classes
 //! - A way to lift plain values into evaluatable contexts
 //! - A building block for more complex functional patterns
+//!
+//! ## Type Class Laws
+//!
+//! ### Evaluate Laws
+//!
+//! `Value<T>` satisfies these laws:
+//!
+//! - **Idempotence**: `value.evaluate() == value.evaluate()`
+//!   - Multiple evaluations of the same value produce the same result.
+//!
+//! - **Referential Transparency**: Replacing a `Value` with its evaluated result preserves behavior
+//!   - For any function `f` and value `v`, `f(value.evaluate())` is equivalent to `f(v)`
+//!     where `v` is the inner wrapped value.
+//!
+//! - **Identity**: `Value::new(x).evaluate() == x`
+//!   - Wrapping a value and then evaluating it returns the original value.
+//!
+//! ### Functor Laws
+//!
+//! `Value<T>` satisfies the functor laws:
+//!
+//! - **Identity**: `value.fmap(|x| x) == value`
+//!   - Mapping the identity function over a `Value` returns the original `Value`.
+//!
+//! - **Composition**: `value.fmap(f).fmap(g) == value.fmap(|x| g(f(x)))`
+//!   - Mapping two functions in sequence is equivalent to mapping their composition.
 //!
 //! ## Performance Characteristics
 //!
@@ -28,38 +56,11 @@
 //! - `Identity`: Provides identity operations
 //! - `HKT`: Higher-kinded type representation
 //!
-//! ## Basic Usage
+//! ## Documentation Notes
 //!
-//! ```rust
-//! use rustica::traits::evaluate::{Evaluate, EvaluateExt};
-//! use rustica::datatypes::wrapper::value::Value;
-//!
-//! // Create a wrapped value
-//! let value = Value::new(42);
-//!
-//! // Evaluate the value
-//! assert_eq!(value.evaluate(), 42);
-//!
-//! // Using extension methods
-//! let doubled: i32 = value.fmap_evaluate(|x| x * 2);
-//! assert_eq!(doubled, 84);
-//!
-//! // Chain evaluations
-//! let result: String = value.bind_evaluate(|x| {
-//!     Value::new(x.to_string())
-//! });
-//! assert_eq!(result, "42");
-//! ```
-//!
-//! ## Type Class Laws
-//!
-//! `Value<T>` satisfies these laws:
-//!
-//! - **Idempotence**: `value.evaluate() == value.evaluate()`
-//! - **Referential Transparency**: Replacing a `Value` with its evaluated result preserves behavior
-//! - **Identity**: `Value::new(x).evaluate() == x`
-//! - **Functor Identity**: `value.fmap(|x| x) == value`
-//! - **Functor Composition**: `value.fmap(f).fmap(g) == value.fmap(|x| g(f(x)))`
+//! For detailed practical examples demonstrating the type class laws, usage patterns, and
+//! performance characteristics, please refer to the function-level documentation of the
+//! relevant methods such as `evaluate`, `evaluate_owned`, `fmap`, and others.
 
 use crate::traits::evaluate::Evaluate;
 use crate::traits::functor::Functor;

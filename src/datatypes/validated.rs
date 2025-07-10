@@ -43,76 +43,6 @@
 //! - **Semigroup**: Combines error values when both Validated values are invalid
 //! - **Foldable**: Folds valid values (ignoring invalid ones)
 //!
-//! ## Examples
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! let valid: Validated<&str, i32> = Validated::valid(42);
-//! assert!(valid.is_valid());
-//!
-//! let invalid: Validated<&str, i32> = Validated::invalid("error");
-//! assert!(invalid.is_invalid());
-//! ```
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! let result: Result<i32, &str> = Ok(42);
-//! let validated = Validated::from_result(&result);
-//! assert_eq!(validated, Validated::valid(42));
-//!
-//! let error_result: Result<i32, &str> = Err("error");
-//! let validated = Validated::from_result(&error_result);
-//! assert_eq!(validated, Validated::invalid("error"));
-//! ```
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! let some_value: Option<i32> = Some(42);
-//! let validated: Validated<&str, i32> = Validated::from_option(&some_value, &"missing value");
-//! assert_eq!(validated, Validated::valid(42));
-//!
-//! let none_value: Option<i32> = None;
-//! let validated: Validated<&str, i32> = Validated::from_option(&none_value, &"missing value");
-//! assert_eq!(validated, Validated::invalid("missing value"));
-//! ```
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! // Collecting valid values into a Vec (which implements Clone)
-//! let values = vec![
-//!     Validated::<&str, i32>::valid(1),
-//!     Validated::<&str, i32>::valid(2),
-//!     Validated::<&str, i32>::valid(3),
-//! ];
-//!
-//! // Note: The collection type C must implement Clone
-//! let collected: Validated<&str, Vec<i32>> = Validated::collect(values.iter().cloned());
-//! assert_eq!(collected, Validated::valid(vec![1, 2, 3]));
-//!
-//! // Example with mixed valid/invalid values
-//! let mixed = vec![
-//!     Validated::<&str, i32>::valid(1),
-//!     Validated::<&str, i32>::invalid("error"),
-//!     Validated::<&str, i32>::valid(3),
-//! ];
-//!
-//! // For large collections, be aware that cloning may occur
-//! let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.iter().cloned());
-//! assert!(collected.is_invalid());
-//! ```
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! let invalid: Validated<&str, i32> = Validated::invalid("error");
-//! let mapped = invalid.fmap_invalid(|e| format!("Error: {}", e));
-//! assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
-//! ```
-//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, validation is often handled through types that can represent
@@ -128,237 +58,52 @@
 //!
 //! ## Type Class Laws
 //!
-//! `Validated<E, A>` implements several type classes with the following laws:
-//!
 //! ### Functor Laws
 //!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::functor::Functor;
-//!
-//! // Identity: fmap(id) == id
-//! let v: Validated<&str, i32> = Validated::valid(42);
-//! let identity = |x: &i32| *x;
-//! assert_eq!(v.fmap(identity), v);
-//!
-//! // Composition: fmap(f . g) == fmap(f) . fmap(g)
-//! let v: Validated<String, i32> = Validated::valid(5);
-//! let f = |x: &i32| x + 1;
-//! let g = |x: &i32| x * 2;
-//!
-//! let lhs = v.fmap(|x| f(&g(x)));
-//! let rhs = v.fmap(g).fmap(f);
-//! assert_eq!(lhs, rhs);
-//! ```
+//! 1. **Identity**: `fmap(id) == id`
+//! 2. **Composition**: `fmap(f . g) == fmap(f) . fmap(g)`
 //!
 //! ### Bifunctor Laws
 //!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::bifunctor::Bifunctor;
-//!
-//! // Bifunctor identity: bimap(id, id) == id
-//! let v_valid = Validated::valid(42);
-//! let v_invalid = Validated::invalid("error");
-//! let id_int = |x: &i32| *x;
-//! let id_str = |x: &&str| x.to_string();
-//!
-//! assert_eq!(v_valid.bimap(id_int, id_str), Validated::valid(42));
-//! assert_eq!(v_invalid.bimap(id_int, id_str), Validated::invalid("error".to_string()));
-//!
-//! // Bifunctor composition
-//! let f1 = |x: &i32| x + 1;
-//! let f2 = |x: &i32| x * 2;
-//! let g1 = |s: &String| format!("{}-a", s);
-//! let g2 = |s: &&str| s.to_string();
-//!
-//! let v_valid = Validated::valid(5);
-//! let v_invalid = Validated::invalid("error");
-//!
-//! // bimap(f1 . f2, g1 . g2) == bimap(f1, g1) . bimap(f2, g2)
-//! let comp_f = |x: &i32| f1(&f2(x));
-//! let comp_g = |x: &&str| g1(&g2(x));
-//!
-//! let left_valid = v_valid.clone().bimap(comp_f, comp_g);
-//! let right_valid = v_valid.bimap(f2, g2).bimap(f1, g1);
-//!
-//! let left_invalid = v_invalid.clone().bimap(comp_f, comp_g);
-//! let right_invalid = v_invalid.bimap(f2, g2).bimap(f1, g1);
-//!
-//! assert_eq!(left_valid, right_valid);
-//! assert_eq!(left_invalid, right_invalid);
-//! ```
+//! 1. **Identity**: `bimap(id, id) == id`
+//! 2. **Composition**: `bimap(f1 . f2, g1 . g2) == bimap(f1, g1) . bimap(f2, g2)`
 //!
 //! ### Applicative Laws
 //!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::applicative::Applicative;
-//!
-//! // Identity: pure(id) <*> v = v
-//! let v: Validated<&str, i32> = Validated::valid(42);
-//! let id_fn = Validated::valid(|x: &i32| *x);
-//! assert_eq!(v.apply(&id_fn), v);
-//!
-//! // Homomorphism: pure(f) <*> pure(x) = pure(f(x))
-//! let f = |x: &i32| x + 1;
-//! let x = 5;
-//! let left = Validated::<&str, _>::valid(x).apply(&Validated::<&str, _>::valid(f));
-//! let right = Validated::<&str, _>::valid(f(&x));
-//! assert_eq!(left, right);
-//! ```
+//! 1. **Identity**: `pure(id) <*> v = v`
+//! 2. **Homomorphism**: `pure(f) <*> pure(x) = pure(f(x))`
+//! 3. **Interchange**: `u <*> pure(y) = pure($ y) <*> u`
+//! 4. **Composition**: `pure(.) <*> u <*> v <*> w = u <*> (v <*> w)`
 //!
 //! ### Semigroup Laws
 //!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::semigroup::Semigroup;
-//!
-//! // Associativity: (a <> b) <> c = a <> (b <> c)
-//! let a: Validated<&str, i32> = Validated::invalid("a");
-//! let b: Validated<&str, i32> = Validated::invalid("b");
-//! let c: Validated<&str, i32> = Validated::invalid("c");
-//!
-//! let left = a.clone().combine(&b).combine(&c);
-//! let right = a.combine(&b.clone().combine(&c));
-//! assert_eq!(left, right);
-//! ```
+//! 1. **Associativity**: `(a <> b) <> c = a <> (b <> c)`
 //!
 //! ### Monoid Laws
 //!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::monoid::Monoid;
-//! use rustica::traits::semigroup::Semigroup;
+//! 1. **Left Identity**: `mempty <> a = a`
+//! 2. **Right Identity**: `a <> mempty = a`
 //!
-//! // Left identity: mempty <> a = a
-//! let a = Validated::invalid("a");
-//! let empty = Validated::<&str, i32>::empty();
-//! assert_eq!(empty.combine(&a), a);
+//! ## Use Cases
 //!
-//! // Right identity: a <> mempty = a
-//! assert_eq!(a.combine(&empty), a);
-//! ```
+//! The `Validated` datatype is particularly useful for:
 //!
-//! ## Basic Usage
+//! - **Form validation**: Collecting all validation errors at once
+//! - **Configuration validation**: Validating multiple configuration parameters
+//! - **Data parsing**: Accumulating parsing errors from different parts of a document
+//! - **API request validation**: Returning all validation errors to the client
 //!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::monoid::Monoid;
-//! use rustica::traits::semigroup::Semigroup;
-//! use rustica::traits::functor::Functor;
+//! ## Function-Level Documentation
 //!
-//! // Creating valid and invalid instances
-//! let valid: Validated<String, i32> = Validated::valid(42);
-//! let invalid_single: Validated<String, i32> = Validated::invalid("Invalid input".to_string());
-//! let invalid_multiple: Validated<String, i32> = Validated::invalid_many(
-//!     vec!["Error 1".to_string(), "Error 2".to_string()]
-//! );
+//! For detailed examples of how to use the `Validated` datatype, including:
+//! - Creating valid and invalid instances
+//! - Working with validation results
+//! - Accumulating errors
+//! - Transforming valid and invalid values
+//! - Converting between `Validated` and other types
+//! - Using applicative validation for form validation
 //!
-//! // Checking validity
-//! assert!(valid.is_valid());
-//! assert!(invalid_single.is_invalid());
-//!
-//! // Accessing values
-//! assert_eq!(valid.value(), Some(&42));
-//! assert_eq!(invalid_single.value(), None);
-//!
-//! // Accessing errors
-//! assert!(valid.errors().is_empty());
-//! assert_eq!(invalid_multiple.errors(), vec!["Error 1".to_string(), "Error 2".to_string()]);
-//!
-//! // Transforming valid values with map
-//! let mapped = valid.fmap(|x| x * 2);
-//! assert_eq!(mapped, Validated::valid(84));
-//!
-//! // Transforming error values with fmap_invalid
-//! let with_context = invalid_single.fmap_invalid(|e| format!("Context: {}", e));
-//! assert_eq!(with_context, Validated::invalid("Context: Invalid input".to_string()));
-//!
-//! // Converting from Result
-//! let ok_result: Result<i32, String> = Ok(42);
-//! let err_result: Result<i32, String> = Err("Error".to_string());
-//!
-//! let from_ok = Validated::from_result_owned(ok_result);
-//! let from_err = Validated::from_result_owned(err_result);
-//!
-//! assert_eq!(from_ok, Validated::valid(42));
-//! assert_eq!(from_err, Validated::invalid("Error".to_string()));
-//!
-//! // Converting to Result
-//! assert_eq!(valid.to_result(), Ok(42));
-//! assert_eq!(invalid_single.to_result(), Err("Invalid input".to_string()));
-//! ```
-//!
-//! ## Applicative Validation
-//! The `Applicative` instance for `Validated` is particularly powerful for accumulating errors from multiple independent validation steps. This is often used in scenarios like form validation.
-//!
-//! ### Example: User Registration Form Validation
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::applicative::Applicative;
-//!
-//! #[derive(Debug, PartialEq, Clone)]
-//! struct User {
-//!     username: String,
-//!     email: String,
-//!     age: u32,
-//! }
-//!
-//! fn validate_username(username: &str) -> Validated<String, String> {
-//!     if username.len() >= 3 {
-//!         Validated::valid(username.to_string())
-//!     } else {
-//!         Validated::invalid("Username must be at least 3 characters".to_string())
-//!     }
-//! }
-//!
-//! fn validate_email(email: &str) -> Validated<String, String> {
-//!     if email.contains('@') {
-//!         Validated::valid(email.to_string())
-//!     } else {
-//!         Validated::invalid("Email must contain @ symbol".to_string())
-//!     }
-//! }
-//!
-//! fn validate_age(age: u32) -> Validated<String, u32> {
-//!     if age >= 18 {
-//!         Validated::valid(age)
-//!     } else {
-//!         Validated::invalid("Must be at least 18 years old".to_string())
-//!     }
-//! }
-//!
-//! // Combine all validations
-//! let username_validation = validate_username("jo");
-//! let email_validation = validate_email("invalid-email");
-//! let age_validation = validate_age(16);
-//!
-//! let user_validation = username_validation
-//!     .lift2(&email_validation, |username, email| {
-//!         (username.clone(), email.clone())
-//!     })
-//!     .lift2(&age_validation, |(username, email), age| User {
-//!         username: username.clone(),
-//!         email: email.clone(),
-//!         age: *age,
-//!     });
-//!
-//! assert!(user_validation.is_invalid());
-//! let errors = user_validation.unwrap_invalid();
-//! assert_eq!(errors.len(), 3); // All three validation errors are collected
-//! ```
-//!
-//! One of the most powerful aspects of `Validated` is its applicative instance, which allows
-//! combining multiple validations while accumulating errors. This is particularly useful for
-//! form validation, configuration validation, or any scenario where you want to report all
-//! errors at once rather than one at a time.
-//!
-//! One of the most powerful aspects of `Validated` is its applicative instance, which allows
-//! combining multiple validations while accumulating errors. This is particularly useful for
-//! form validation, configuration validation, or any scenario where you want to report all
-//! errors at once rather than one at a time.
+//! Please refer to the documentation of individual functions in this module.
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;

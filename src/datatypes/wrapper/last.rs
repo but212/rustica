@@ -20,38 +20,47 @@
 //! - `Identity`: Provides access to the wrapped value
 //! - `HKT`: Higher-kinded type representation
 //!
-//! ## Basic Usage
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::last::Last;
-//! use rustica::traits::semigroup::Semigroup;
-//!
-//! let a = Last(Some(5));
-//! let b = Last(Some(10));
-//! let c = a.combine(&b);
-//! assert_eq!(c, Last(Some(10))); // Takes the last value
-//!
-//! let x = Last(None);
-//! let y = Last(Some(7));
-//! let z = x.combine(&y);
-//! assert_eq!(z, Last(Some(7))); // First value was None, so takes the second
-//! ```
-//!
 //! ## Type Class Laws
 //!
-//! The `Last` type satisfies the following laws:
+//! ### Semigroup Laws
 //!
-//! - **Semigroup Associativity**: `(a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)`
-//! - **Monoid Left Identity**: `empty() ⊕ a = a`
-//! - **Monoid Right Identity**: `a ⊕ empty() = a`
-//! - **Functor Identity**: `fmap(id) = id`
-//! - **Functor Composition**: `fmap(f ∘ g) = fmap(f) ∘ fmap(g)`
+//! `Last<T>` satisfies the semigroup associativity law:
+//!
+//! - **Associativity**: `(a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)`
+//!   - For all values a, b, and c, combining a and b and then combining the result with c
+//!     yields the same result as combining a with the combination of b and c.
+//!
+//! ### Monoid Laws
+//!
+//! `Last<T>` satisfies the monoid identity laws:
+//!
+//! - **Left Identity**: `empty() ⊕ a = a`
+//!   - Combining the identity element (`Last(None)`) with any value gives the original value.
+//!
+//! - **Right Identity**: `a ⊕ empty() = a`
+//!   - Combining any value with the identity element gives the original value.
+//!
+//! ### Functor Laws
+//!
+//! `Last<T>` satisfies the functor laws:
+//!
+//! - **Identity**: `fmap(id) = id`
+//!   - Mapping the identity function over a `Last` value gives the same value.
+//!
+//! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
+//!   - Mapping a composed function is the same as mapping each function in sequence.
 //!
 //! ## Performance Characteristics
 //!
 //! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
 //! - Memory Usage: Stores exactly one `Option<T>` value with no additional overhead
 //! - Clone Cost: Depends on the cost of cloning the inner type `T`
+//!
+//! ## Documentation Notes
+//!
+//! For detailed practical examples demonstrating the type class laws, usage patterns, and
+//! performance characteristics, please refer to the function-level documentation of the
+//! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;

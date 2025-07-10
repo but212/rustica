@@ -1,3 +1,5 @@
+//! # Memoizer
+//!
 //! Thread-safe memoization utility for pure functions.
 //!
 //! Provides a unified, ergonomic API for caching expensive computations with automatic concurrency support.
@@ -21,81 +23,49 @@
 //! - Supporting idempotent operations (repeated calls with same input return identical results)
 //! - Enabling transparent performance optimization without changing semantics
 //!
+//! ## Type Class Laws
+//!
+//! While `Memoizer` doesn't directly implement algebraic type classes like `Functor` or `Monad`,
+//! it follows these important laws:
+//!
+//! - **Idempotence Law**: `memo.get_or_compute(k, f) == memo.get_or_compute(k, f)` for all `k` and `f`
+//!   - Multiple calls with the same key and function will always yield the same result.
+//!
+//! - **Transparency Law**: `memo.get_or_compute(k, f) == f(k)` for the first call with key `k`
+//!   - The first computation is equivalent to directly applying the function to the key.
+//!
+//! - **Consistency Law**: Once computed, a value for key `k` remains the same until `clear()` is called
+//!   - The cached value is stable across multiple accesses until explicitly cleared.
+//!
+//! - **Commutativity Law**: For any two distinct keys `j` and `k`, the order of evaluation does not matter
+//!   - `memo.get_or_compute(j, f); memo.get_or_compute(k, g)` is equivalent to
+//!     `memo.get_or_compute(k, g); memo.get_or_compute(j, f)`
+//!
+//! ## Performance Characteristics
+//!
+//! - **Time Complexity**:
+//!   - Creation: O(1) - Constant time initialization
+//!   - Cache Hit: O(1) average case for hash lookup
+//!   - Cache Miss: O(f) where f is the complexity of the compute function
+//! - **Space Complexity**: O(n) where n is the number of cached key-value pairs
+//! - **Concurrency**:
+//!   - Multiple readers can access the cache simultaneously
+//!   - Writers get exclusive access, blocking all other operations
+//!   - Double-checked locking pattern prevents redundant computations
+//! - **Cache Lookups**: O(1) average case for hash lookups (amortized)
+//! - **Get or Compute**: O(f) where f is the complexity of the computation function
+//!
 //! ## Type Class Implementations
 //!
 //! `Memoizer<K, V>` implements:
 //!
 //! - `Default`: Creates an empty memoizer via `Memoizer::new()`
 //!
-//! ## Basic Usage
+//! ## Documentation Notes
 //!
-//! ```rust
-//! use rustica::datatypes::wrapper::memoizer::Memoizer;
-//!
-//! // Create a new memoizer for string keys and integer values
-//! let memo = Memoizer::<String, i32>::new();
-//!
-//! // Compute and cache a value
-//! let value = memo.get_or_compute("example".to_string(), |s| s.len() as i32);
-//! assert_eq!(value, 7);
-//!
-//! // Retrieve from cache on subsequent calls
-//! let cached = memo.get_or_compute("example".to_string(), |_| panic!("Not called"));
-//! assert_eq!(cached, 7);
-//!
-//! // Clear the cache when needed
-//! memo.clear();
-//! ```
-//!
-//! ## Type Class Laws
-//!
-//! While `Memoizer` doesn't directly implement algebraic type classes like `Functor` or `Monad`,
-//! it follows these important laws:
-//!
-//! - **Idempotence**: `memo.get_or_compute(k, f) == memo.get_or_compute(k, f)` for all `k` and `f`
-//! - **Transparency**: `memo.get_or_compute(k, f) == f(k)` for the first call with key `k`
-//! - **Consistency**: Once computed, a value for key `k` remains the same until `clear()` is called
-//!
-//! ## Example (Single-threaded)
-//!
-//! Basic usage with scalar types:
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::memoizer::Memoizer;
-//! use std::sync::Arc;
-//!
-//! let memo: Arc<Memoizer<u32, u32>> = Arc::new(Memoizer::new());
-//! let result = memo.get_or_compute(10, |x| x * x);
-//! assert_eq!(result, 100);
-//! // Cached value is reused
-//! let again = memo.get_or_compute(10, |x| unreachable!());
-//! assert_eq!(again, 100);
-//! ```
-//!
-//! ## Example (Multi-threaded)
-//!
-//! Concurrent access from multiple threads with automatic synchronization:
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::memoizer::Memoizer;
-//! use std::sync::Arc;
-//! use std::thread;
-//!
-//! let memo: Arc<Memoizer<u32, u32>> = Arc::new(Memoizer::new());
-//! let handles: Vec<_> = (0..4).map(|i| {
-//!     let memo = memo.clone();
-//!     thread::spawn(move || {
-//!         memo.get_or_compute(i % 2, |x| x * 10)
-//!     })
-//! }).collect();
-//! let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
-//! assert!(results.contains(&0));
-//! assert!(results.contains(&10));
-//! ```
-//!
-//! ## Advanced Example (Complex Types)
-//!
-//! Memoizing expensive operations with complex keys and values:
+//! For detailed practical examples demonstrating the type class laws, usage patterns, and
+//! performance characteristics, please refer to the function-level documentation of the
+//! relevant methods such as `new`, `get_or_compute`, and `clear`.
 //!
 //! ```rust
 //! use rustica::datatypes::wrapper::memoizer::Memoizer;

@@ -72,71 +72,21 @@
 //! `Cont<R, A>` adheres to the standard type class laws for Functor, Applicative, and Monad:
 //!
 //! ### Functor Laws
-//!
-//! ```rust
-//! use rustica::datatypes::cont::Cont;
-//!
-//! // Identity: fmap id == id
-//! let cont = Cont::return_cont(5);
-//! let mapped = cont.clone().fmap(|x| x);
-//! assert_eq!(cont.run(|x| x), mapped.run(|x| x));
-//!
-//! // Composition: fmap (f . g) == fmap f . fmap g
-//! let f = |x: i32| x * 2;
-//! let g = |x: i32| x + 3;
-//! let compose = move |x: i32| f(g(x));
-//!
-//! let cont = Cont::return_cont(5);
-//! let left = cont.clone().fmap(compose);
-//! let right = cont.clone().fmap(g).fmap(f);
-//! assert_eq!(left.run(|x| x), right.run(|x| x));
-//! ```
+//! - Identity: `fmap id == id`
+//! - Composition: `fmap (f . g) == fmap f . fmap g`
 //!
 //! ### Applicative Laws
-//!
-//! ```rust
-//! use rustica::datatypes::cont::Cont;
-//! use std::sync::Arc;
-//!
-//! // Identity: pure id <*> v = v
-//! let v = Cont::return_cont(5);
-//! let id_fn = Cont::return_cont(Arc::new(|x: i32| x.clone()) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
-//! let applied = v.clone().apply(id_fn);
-//! assert_eq!(v.run(|x| x), applied.run(|x| x));
-//!
-//! // Homomorphism: pure f <*> pure x = pure (f x)
-//! let f = |n: i32| n * 2;
-//! let pure_f = Cont::return_cont(Arc::new(f) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
-//! let pure_x = Cont::return_cont(5);
-//! let left = pure_x.apply(pure_f);
-//! let right = Cont::return_cont(f(5));
-//! assert_eq!(left.run(|x| x), right.run(|x| x));
-//! ```
+//! - Identity: `pure id <*> v = v`
+//! - Homomorphism: `pure f <*> pure x = pure (f x)`
+//! - Interchange: `u <*> pure y = pure ($ y) <*> u`
+//! - Composition: `pure (.) <*> u <*> v <*> w = u <*> (v <*> w)`
 //!
 //! ### Monad Laws
+//! - Left Identity: `return a >>= f = f a`
+//! - Right Identity: `m >>= return = m`
+//! - Associativity: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
 //!
-//! ```rust
-//! use rustica::datatypes::cont::Cont;
-//!
-//! // Left Identity: return a >>= f = f a
-//! let f = |n: i32| Cont::return_cont(n * 2);
-//! let left = Cont::return_cont(5).bind(f);
-//! let right = f(5);
-//! assert_eq!(left.run(|x| x), right.run(|x| x));
-//!
-//! // Right Identity: m >>= return = m
-//! let cont = Cont::return_cont(5);
-//! let with_bind = cont.clone().bind(|val| Cont::return_cont(val));
-//! assert_eq!(cont.run(|x| x), with_bind.run(|x| x));
-//!
-//! // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
-//! let m = Cont::return_cont(5);
-//! let f = |n: i32| Cont::return_cont(n * 2);
-//! let g = |n: i32| Cont::return_cont(n + 3);
-//! let left = m.clone().bind(f).bind(g);
-//! let right = m.clone().bind(move |val| f(val).bind(g));
-//! assert_eq!(left.run(|x| x), right.run(|x| x));
-//! ```
+//! See individual function documentation (e.g., `fmap`, `apply`, `bind`) for specific examples demonstrating these laws.
 //!
 //! ## Examples
 //!

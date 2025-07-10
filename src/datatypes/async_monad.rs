@@ -124,34 +124,24 @@
 //!
 //! ## Type Class Laws
 //!
-//! The `AsyncM` type abides by the standard Functor, Applicative, and Monad laws. For reference, here are the Monad laws illustrated using AsyncM (see also tests for more examples):
+//! The `AsyncM` type abides by the standard Functor, Applicative, and Monad laws:
 //!
-//! ```rust
-//! # use rustica::datatypes::async_monad::AsyncM;
-//! # use tokio;
-//! # #[tokio::main]
-//! # async fn main() {
-//! // Left identity: pure(a).bind(f) == f(a)
-//! let a = 42;
-//! let f = |x| async move { AsyncM::pure(x * 2) };
-//! let left = AsyncM::pure(a).bind(f.clone());
-//! let right = f(a).await;
-//! assert_eq!(left.try_get().await, right.try_get().await);
+//! ### Functor Laws
+//! - Identity: `fmap id = id`
+//! - Composition: `fmap (f . g) = fmap f . fmap g`
 //!
-//! // Right identity: m.bind(pure) == m
-//! let m = AsyncM::pure(42);
-//! let bound = m.clone().bind(|x| async move { AsyncM::pure(x) });
-//! assert_eq!(m.try_get().await, bound.try_get().await);
+//! ### Applicative Laws
+//! - Identity: `pure id <*> v = v`
+//! - Homomorphism: `pure f <*> pure x = pure (f x)`
+//! - Interchange: `u <*> pure y = pure ($ y) <*> u`
+//! - Composition: `pure (.) <*> u <*> v <*> w = u <*> (v <*> w)`
 //!
-//! // Associativity: (m.bind(f)).bind(g) == m.bind(|x| f(x).bind(g))
-//! let m = AsyncM::pure(10);
-//! let f = |x| async move { AsyncM::pure(x + 1) };
-//! let g = |x| async move { AsyncM::pure(x * 2) };
-//! let left = m.clone().bind(f.clone()).bind(g.clone());
-//! let right = m.bind(move |x| async move { f(x).await.bind(g.clone()) });
-//! assert_eq!(left.try_get().await, right.try_get().await);
-//! # }
-//! ```
+//! ### Monad Laws
+//! - Left Identity: `pure a >>= f = f a`
+//! - Right Identity: `m >>= pure = m`
+//! - Associativity: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
+//!
+//! See individual function documentation (e.g., `fmap`, `apply`, `bind`) for specific examples demonstrating these laws.
 //!
 //! ## Common Pitfalls and Solutions
 //!

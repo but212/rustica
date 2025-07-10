@@ -39,55 +39,48 @@
 //!
 //! ## Type Class Laws
 //!
+//! The `Either` type implements the following type class laws. See the documentation for
+//! the specific functions (`fmap`, `apply`, `bind`) for examples demonstrating these laws.
+//!
 //! ### Functor Laws
 //!
-//! ```rust
-//! use rustica::datatypes::either::Either;
-//! use rustica::traits::functor::Functor;
+//! The `Either` type satisfies the functor laws:
 //!
-//! // 1. Identity: fmap id = id
-//! let e: Either<i32, String> = Either::right("test".to_string());
-//! assert_eq!(e.fmap(|x| x.clone()), e);
+//! 1. **Identity Law**: `fmap(id) = id`
+//!    - Mapping the identity function over an `Either` returns the original `Either` unchanged.
 //!
-//! // 2. Composition: fmap (f . g) = fmap f . fmap g
-//! let e: Either<i32, i32> = Either::right(5);
+//! 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
+//!    - Mapping a composed function is the same as mapping each function in sequence.
+//!    - Note: The functor laws hold for both `Left` and `Right` values (trivially for `Left` values).
 //!
-//! let f = |x: &i32| x * 2;
-//! let g = |x: &i32| x + 3;
+//! ### Applicative Laws
 //!
-//! let composed = |x: &i32| f(&g(x));
+//! The `Either` type satisfies the applicative laws:
 //!
-//! assert_eq!(e.fmap(composed), e.fmap(g).fmap(f));
+//! 1. **Identity Law**: `pure(id) <*> v = v`
+//!    - Applying the pure identity function to any value returns the original value.
 //!
-//! // Laws hold for Left values too (trivially, since fmap doesn't affect Left)
-//! let e: Either<i32, String> = Either::left(10);
-//! let e_with_len = e.clone().fmap(|x: &String| x.len());
-//! assert_eq!(e_with_len, Either::left(10));
-//! ```
+//! 2. **Homomorphism Law**: `pure(f) <*> pure(x) = pure(f(x))`
+//!    - Applying a pure function to a pure value is the same as applying the function to the value and then wrapping in `pure`.
+//!
+//! 3. **Interchange Law**: `u <*> pure(y) = pure($ y) <*> u`
+//!    - Where `$ y` is a function that applies its argument to y.
+//!
+//! 4. **Composition Law**: `pure(.) <*> u <*> v <*> w = u <*> (v <*> w)`
+//!    - Composing applicative functions is associative.
 //!
 //! ### Monad Laws
 //!
-//! ```rust
-//! use rustica::datatypes::either::Either;
-//! use rustica::traits::pure::Pure;
-//! use rustica::traits::monad::Monad;
+//! The `Either` type satisfies the monad laws:
 //!
-//! // 1. Left Identity: return a >>= f = f a
-//! let a = 5;
-//! let f = |x: &i32| Either::<String, i32>::right(*x * 2);
-//! assert_eq!(Either::<String, i32>::pure(&a).bind(f), f(&a));
+//! 1. **Left Identity**: `return a >>= f = f a`
+//!    - Binding a function to a pure value is the same as applying the function directly.
 //!
-//! // 2. Right Identity: m >>= return = m
-//! let m: Either<String, i32> = Either::right(5);
-//! assert_eq!(m.bind(|x| Either::<String, i32>::pure(x)), m);
+//! 2. **Right Identity**: `m >>= return = m`
+//!    - Binding the pure function to a monad returns the original monad.
 //!
-//! // 3. Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
-//! let m: Either<String, i32> = Either::right(5);
-//! let f = |x: &i32| Either::<String, i32>::right(*x * 2);
-//! let g = |x: &i32| Either::<String, i32>::right(*x + 3);
-//!
-//! assert_eq!(m.bind(f).bind(g), m.bind(|x| f(x).bind(g)));
-//! ```
+//! 3. **Associativity**: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
+//!    - Sequential binds can be nested in either direction with the same result.
 //!
 //! ## Basic Usage
 //!

@@ -2,29 +2,6 @@
 //!
 //! This module provides the `Product` wrapper type which forms a semigroup under multiplication.
 //!
-//! ## Basic Usage
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::product::Product;
-//! use rustica::traits::semigroup::Semigroup;
-//! use rustica::traits::monoid::Monoid;
-//!
-//! let a = Product(5);
-//! let b = Product(10);
-//! let c = a.combine(&b);
-//! assert_eq!(c, Product(50));
-//!
-//! // Use the identity element from Monoid
-//! let one = Product::empty();  // Product(1)
-//! assert_eq!(a.combine(&one), Product(5));
-//! ```
-//!
-//! ## Performance Characteristics
-//!
-//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
-//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
-//! - Clone Cost: Depends on the cost of cloning the inner type `T`
-//!
 //! ## Functional Programming Context
 //!
 //! The `Product` wrapper is a fundamental building block for functional programming patterns:
@@ -33,15 +10,41 @@
 //! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
 //! - **Folding**: Can be used with `Foldable` to reduce collections to a single product
 //!
-//! ```rust
-//! use rustica::datatypes::wrapper::product::Product;
-//! use rustica::traits::functor::Functor;
+//! ## Type Class Laws
 //!
-//! // Transform the inner value while preserving the wrapper
-//! let a = Product(5);
-//! let b = a.fmap(|x| x * 2);
-//! assert_eq!(b, Product(10));
-//! ```
+//! ### Semigroup Laws
+//!
+//! `Product<T>` satisfies the semigroup associativity law:
+//!
+//! - **Associativity**: `(a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)`
+//!   - For all values a, b, and c, combining a and b and then combining the result with c
+//!     yields the same result as combining a with the combination of b and c.
+//!
+//! ### Monoid Laws
+//!
+//! `Product<T>` satisfies the monoid identity laws when the inner type has a multiplicative identity:
+//!
+//! - **Left Identity**: `empty() ⊕ a = a`
+//!   - Combining the identity element (typically 1) with any value gives the original value.
+//!
+//! - **Right Identity**: `a ⊕ empty() = a`
+//!   - Combining any value with the identity element gives the original value.
+//!
+//! ### Functor Laws
+//!
+//! `Product<T>` satisfies the functor laws:
+//!
+//! - **Identity**: `fmap(id) = id`
+//!   - Mapping the identity function over a `Product` value gives the same value.
+//!
+//! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
+//!   - Mapping a composed function is the same as mapping each function in sequence.
+//!
+//! ## Performance Characteristics
+//!
+//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
+//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
+//! - Clone Cost: Depends on the cost of cloning the inner type `T`
 //!
 //! ## Type Class Implementations
 //!
@@ -50,29 +53,15 @@
 //! - `Semigroup`: For any `T` that implements `Mul`
 //! - `Monoid`: For any `T` that implements `Mul` and `From<u8>` (for the identity element)
 //! - `Functor`: For mapping operations over the inner value
+//! - `Identity`: For accessing the wrapped value
+//! - `Foldable`: For folding operations over the single inner value
+//! - `HKT`: For higher-kinded type operations
 //!
-//! ## Type Class Laws
+//! ## Documentation Notes
 //!
-//! ### Semigroup Laws
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::product::Product;
-//! use rustica::traits::semigroup::Semigroup;
-//!
-//! // Associativity: (a * b) * c = a * (b * c)
-//! fn verify_associativity<T: Clone + std::ops::Mul<Output = T> + PartialEq>(a: T, b: T, c: T) -> bool {
-//!     let product_a = Product(a);
-//!     let product_b = Product(b);
-//!     let product_c = Product(c);
-//!     
-//!     let left = product_a.clone().combine(&product_b).combine(&product_c);
-//!     let right = product_a.combine(&product_b.combine(&product_c));
-//!     
-//!     left == right
-//! }
-//!
-//! assert!(verify_associativity(2, 3, 4));
-//! ```
+//! For detailed practical examples demonstrating the type class laws, usage patterns, and
+//! performance characteristics, please refer to the function-level documentation of the
+//! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;

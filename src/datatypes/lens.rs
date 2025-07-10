@@ -116,84 +116,32 @@
 //!
 //! ## Type Class Laws
 //!
-//! Lenses follow three fundamental laws that ensure their correct behavior:
+//! Lenses follow three fundamental laws that ensure their correct behavior. See the documentation
+//! for the specific functions (`get`, `set`) for examples demonstrating these laws.
 //!
 //! ### GetSet Law
 //!
-//! ```rust
-//! use rustica::datatypes::lens::Lens;
+//! For any lens `l` and structure `s`:
 //!
-//! // For any lens l and structure s:
-//! // l.set(s, l.get(s)) == s
-//! // "Setting a value to what it already is doesn't change anything"
+//! `l.set(s, l.get(s)) == s`
 //!
-//! #[derive(Clone, Debug, PartialEq)]
-//! struct Person { name: String, age: u32 }
-//!
-//! let name_lens = Lens::new(
-//!     |p: &Person| p.name.clone(),
-//!     |p: Person, name: String| Person { name, ..p },
-//! );
-//!
-//! let person = Person { name: "Alice".to_string(), age: 30 };
-//!
-//! // GetSet Law verification
-//! let value = name_lens.get(&person);
-//! let result = name_lens.set(person.clone(), value);
-//! assert_eq!(result, person);
-//! ```
+//! "Setting a value to what it already is doesn't change anything"
 //!
 //! ### SetGet Law
 //!
-//! ```rust
-//! use rustica::datatypes::lens::Lens;
+//! For any lens `l`, structure `s`, and value `v`:
 //!
-//! // For any lens l, structure s, and value v:
-//! // l.get(l.set(s, v)) == v
-//! // "If you set a value, that's what you get back"
+//! `l.get(l.set(s, v)) == v`
 //!
-//! #[derive(Clone, Debug, PartialEq)]
-//! struct Person { name: String, age: u32 }
-//!
-//! let name_lens = Lens::new(
-//!     |p: &Person| p.name.clone(),
-//!     |p: Person, name: String| Person { name, ..p },
-//! );
-//!
-//! let person = Person { name: "Alice".to_string(), age: 30 };
-//! let new_name = "Bob".to_string();
-//!
-//! // SetGet Law verification
-//! let updated = name_lens.set(person, new_name.clone());
-//! assert_eq!(name_lens.get(&updated), new_name);
-//! ```
+//! "If you set a value, that's what you get back"
 //!
 //! ### SetSet Law
 //!
-//! ```rust
-//! use rustica::datatypes::lens::Lens;
+//! For any lens `l`, structure `s`, and values `v1` and `v2`:
 //!
-//! // For any lens l, structure s, and values v1 and v2:
-//! // l.set(l.set(s, v1), v2) == l.set(s, v2)
-//! // "Setting a value and then immediately setting another value is the same as just setting the second value"
+//! `l.set(l.set(s, v1), v2) == l.set(s, v2)`
 //!
-//! #[derive(Clone, Debug, PartialEq)]
-//! struct Person { name: String, age: u32 }
-//!
-//! let name_lens = Lens::new(
-//!     |p: &Person| p.name.clone(),
-//!     |p: Person, name: String| Person { name, ..p },
-//! );
-//!
-//! let person = Person { name: "Alice".to_string(), age: 30 };
-//!
-//! // SetSet Law verification
-//! let first_set = name_lens.set(person.clone(), "Bob".to_string());
-//! let second_set = name_lens.set(first_set, "Charlie".to_string());
-//!
-//! let direct_set = name_lens.set(person, "Charlie".to_string());
-//! assert_eq!(second_set, direct_set);
-//! ```
+//! "Setting a value and then immediately setting another value is the same as just setting the second value"
 //!
 //! # Examples
 //!

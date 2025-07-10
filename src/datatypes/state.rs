@@ -84,67 +84,31 @@
 //!
 //! ## Type Class Laws
 //!
+//! The `State` type implements the following type class laws. See the documentation for
+//! the specific functions (`fmap`, `bind`) for examples demonstrating these laws.
+//!
 //! ### Functor Laws
 //!
+//! The `State` type satisfies the functor laws:
+//!
 //! 1. **Identity Law**: `fmap(id) = id`
-//!    ```rust
-//!    # use rustica::datatypes::state::State;
-//!    let state = State::new(|s: i32| (s * 2, s + 1));
-//!    let id = |x| x;
-//!    assert_eq!(state.clone().fmap(id).run_state(5), state.run_state(5));
-//!    ```
+//!    - Mapping the identity function over a `State` returns a `State` that produces the same result when run.
 //!
 //! 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
-//!    ```rust
-//!    # use rustica::datatypes::state::State;
-//!    let state = State::new(|s: i32| (s, s + 1));
-//!    let f = |x: i32| x * 3;
-//!    let g = |x: i32| x + 2;
-//!    
-//!    // fmap(f . g) - composing functions and mapping once
-//!    let composed = state.clone().fmap(move |x| f(g(x)));
-//!    
-//!    // fmap(f) . fmap(g) - mapping twice with individual functions
-//!    let chained = state.clone().fmap(g).fmap(f);
-//!    
-//!    assert_eq!(composed.run_state(10), chained.run_state(10));
-//!    ```
+//!    - Mapping a composed function is the same as mapping each function in sequence.
 //!
 //! ### Monad Laws
 //!
-//! 1. **Left Identity**: `pure(a).bind(f) = f(a)`
-//!    ```rust
-//!    # use rustica::datatypes::state::State;
-//!    let value = 10;
-//!    let f = |x: i32| State::new(move |s: i32| (x * 2, s + 1));
-//!    
-//!    let left_side = State::pure(value).bind(f.clone());
-//!    let right_side = f(value);
-//!    
-//!    assert_eq!(left_side.run_state(5), right_side.run_state(5));
-//!    ```
+//! The `State` type satisfies the monad laws:
 //!
-//! 2. **Right Identity**: `m.bind(pure) = m`
-//!    ```rust
-//!    # use rustica::datatypes::state::State;
-//!    let m = State::new(|s: i32| (s * 3, s + 2));
-//!    let right_side = m.clone().bind(State::pure);
-//!    
-//!    assert_eq!(m.run_state(5), right_side.run_state(5));
-//!    ```
+//! 1. **Left Identity**: `return a >>= f = f a`
+//!    - Binding a function to a pure value is the same as applying the function directly.
 //!
-//! 3. **Associativity**: `m.bind(f).bind(g) = m.bind(x => f(x).bind(g))`
-//!    ```rust
-//!    # use rustica::datatypes::state::State;
-//!    let m = State::new(|s: i32| (s, s + 1));
-//!    let f = |x: i32| State::new(move |s: i32| (x * 2, s + 5));
-//!    let g = |x: i32| State::new(move |s: i32| (x + 10, s * 2));
-//!    
-//!    let left_side = m.clone().bind(f.clone()).bind(g.clone());
-//!    let right_side = m.clone().bind(move |x| f(x).bind(g.clone()));
-//!    
-//!    assert_eq!(left_side.run_state(3), right_side.run_state(3));
-//!    ```
+//! 2. **Right Identity**: `m >>= return = m`
+//!    - Binding the pure function to a monad returns the original monad.
+//!
+//! 3. **Associativity**: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
+//!    - Sequential binds can be nested in either direction with the same result.
 //!
 //! ## Examples
 //!
@@ -578,15 +542,6 @@ where
     /// 2. Applying the function to the value
     /// 3. Returning the transformed value with the same new state
     ///
-    /// # Functor Laws
-    ///
-    /// The `fmap` operation must satisfy these laws for State to be a lawful Functor:
-    ///
-    /// 1. **Identity Law**: `fmap(id) = id`
-    ///    - Mapping the identity function over a State should produce an equivalent State
-    ///
-    /// 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
-    ///    - Mapping a composed function should be the same as mapping the functions in sequence
     ///
     /// # Type Parameters
     ///
@@ -601,9 +556,33 @@ where
     ///
     /// A new State computation that produces the transformed value.
     ///
-    /// # Examples
+    /// # Functor Laws
     ///
-    /// ## Basic Transformation
+    /// 1. **Identity Law**: `fmap(id) = id`
+    ///    ```rust
+    ///    # use rustica::datatypes::state::State;
+    ///    let state = State::new(|s: i32| (s * 2, s + 1));
+    ///    let id = |x| x;
+    ///    assert_eq!(state.clone().fmap(id).run_state(5), state.run_state(5));
+    ///    ```
+    ///
+    /// 2. **Composition Law**: `fmap(f . g) = fmap(f) . fmap(g)`
+    ///    ```rust
+    ///    # use rustica::datatypes::state::State;
+    ///    let state = State::new(|s: i32| (s, s + 1));
+    ///    let f = |x: i32| x * 3;
+    ///    let g = |x: i32| x + 2;
+    ///    
+    ///    // fmap(f . g) - composing functions and mapping once
+    ///    let composed = state.clone().fmap(move |x| f(g(x)));
+    ///    
+    ///    // fmap(f) . fmap(g) - mapping twice with individual functions
+    ///    let chained = state.clone().fmap(g).fmap(f);
+    ///    
+    ///    assert_eq!(composed.run_state(10), chained.run_state(10));
+    ///    ```
+    ///
+    /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::state::State;
@@ -614,71 +593,6 @@ where
     /// // Map a function over the value
     /// let doubled = counter.clone().fmap(|x| x * 2);
     /// assert_eq!(doubled.run_state(5), (10, 6));
-    /// ```
-    ///
-    /// ## Complex Transformations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// let counter = State::new(|s: i32| (s, s + 1));
-    ///
-    /// // Map a more complex transformation
-    /// let formatted = counter.clone().fmap(|x| format!("Value: {}", x));
-    /// assert_eq!(formatted.run_state(5), ("Value: 5".to_string(), 6));
-    ///
-    /// // Chain multiple transformations
-    /// let complex = counter
-    ///     .fmap(|x| x * 2)
-    ///     .fmap(|x| x + 1)
-    ///     .fmap(|x| format!("Result: {}", x));
-    ///
-    /// // When run with initial state 5:
-    /// // 1. counter returns (5, 6)
-    /// // 2. First fmap transforms 5 to 10
-    /// // 3. Second fmap transforms 10 to 11
-    /// // 4. Third fmap transforms 11 to "Result: 11"
-    /// assert_eq!(complex.run_state(5), ("Result: 11".to_string(), 6));
-    /// ```
-    ///
-    /// ## Verifying Functor Laws
-    ///
-    /// ### Identity Law: fmap(id) = id
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Define a state computation
-    /// let state = State::new(|s: i32| (s * 2, s + 1));
-    ///
-    /// // Apply the identity function
-    /// let identity_fn = |x: i32| x;
-    /// let mapped = state.clone().fmap(identity_fn);
-    ///
-    /// // Verify that applying the identity function preserves the state computation
-    /// assert_eq!(state.run_state(5), mapped.run_state(5));
-    /// ```
-    ///
-    /// ### Composition Law: fmap(f . g) = fmap(f) . fmap(g)
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Define a state computation
-    /// let state = State::new(|s: i32| (s, s + 1));
-    ///
-    /// // Define two functions to compose
-    /// let f = |x: i32| x * 3;
-    /// let g = |x: i32| x + 2;
-    ///
-    /// // Compose the functions first, then fmap
-    /// let composed = state.clone().fmap(move |x| f(g(x)));
-    ///
-    /// // Apply the functions in sequence with separate fmaps
-    /// let chained = state.clone().fmap(g).fmap(f);
-    ///
-    /// // Verify that both approaches yield the same result
-    /// assert_eq!(composed.run_state(10), chained.run_state(10));
     /// ```
     #[inline]
     pub fn fmap<B, F>(self, f: F) -> State<S, B>
@@ -728,6 +642,42 @@ where
     ///
     /// A new State computation representing the sequential composition of the two computations.
     ///
+    /// # Monad Laws
+    ///
+    /// 1. **Left Identity**: `pure(a).bind(f) = f(a)`
+    ///    ```rust
+    ///    # use rustica::datatypes::state::State;
+    ///    let value = 10;
+    ///    let f = |x: i32| State::new(move |s: i32| (x * 2, s + 1));
+    ///    
+    ///    let left_side = State::pure(value).bind(f.clone());
+    ///    let right_side = f(value);
+    ///    
+    ///    assert_eq!(left_side.run_state(5), right_side.run_state(5));
+    ///    ```
+    ///
+    /// 2. **Right Identity**: `m.bind(pure) = m`
+    ///    ```rust
+    ///    # use rustica::datatypes::state::State;
+    ///    let m = State::new(|s: i32| (s * 3, s + 2));
+    ///    let right_side = m.clone().bind(State::pure);
+    ///    
+    ///    assert_eq!(m.run_state(5), right_side.run_state(5));
+    ///    ```
+    ///
+    /// 3. **Associativity**: `m.bind(f).bind(g) = m.bind(x => f(x).bind(g))`
+    ///    ```rust
+    ///    # use rustica::datatypes::state::State;
+    ///    let m = State::new(|s: i32| (s, s + 1));
+    ///    let f = |x: i32| State::new(move |s: i32| (x * 2, s + 5));
+    ///    let g = |x: i32| State::new(move |s: i32| (x + 10, s * 2));
+    ///    
+    ///    let left_side = m.clone().bind(f.clone()).bind(g.clone());
+    ///    let right_side = m.clone().bind(move |x| f(x).bind(g.clone()));
+    ///    
+    ///    assert_eq!(left_side.run_state(3), right_side.run_state(3));
+    ///    ```
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -757,14 +707,6 @@ where
     /// // 1. counter returns (5, 6)
     /// // 2. Since 5 is odd, the second computation returns ("Odd: 5", 6 + 10) = ("Odd: 5", 16)
     /// assert_eq!(computation.run_state(5), ("Odd: 5".to_string(), 16));
-    ///
-    /// // Demonstrating the left identity law: pure(a).bind(f) = f(a)
-    /// let value = 42;
-    /// let pure_value = State::pure(value);
-    /// let f = |x: i32| State::new(move |s: i32| (x * 2, s + 1));
-    /// let left = pure_value.bind(f.clone());
-    /// let right = f(value);
-    /// assert_eq!(left.run_state(10), right.run_state(10));
     /// ```
     #[inline]
     pub fn bind<B, F>(self, f: F) -> State<S, B>
@@ -824,23 +766,6 @@ where
     /// // Use pure as part of a more complex computation
     /// let complex = State::new(|s: i32| (s * 2, s))
     ///     .bind(|_| State::pure("Calculation complete"));
-    ///
-    /// // The state transformation happens, but the final value is the pure value
-    /// assert_eq!(complex.run_state(21), ("Calculation complete", 21));
-    ///
-    /// // For the identity law example, we need to use a different approach
-    /// // since closures don't implement Clone
-    /// #[derive(Clone)]
-    /// struct IdentityFn;
-    /// impl IdentityFn {
-    ///     fn call<T: Clone>(&self, x: T) -> T { x }
-    /// }
-    ///
-    /// let identity = State::pure(IdentityFn);
-    /// let value = State::pure(42);
-    /// let applied = identity.bind(move |f| value.clone().fmap(move |x| f.call(x)));
-    ///
-    /// assert_eq!(applied.run_state(0), (42, 0));
     /// ```
     #[inline]
     pub fn pure(a: A) -> Self {
@@ -863,11 +788,6 @@ where
     /// 2. Running the second computation with that intermediate state to get a value
     /// 3. Applying the function to the value
     /// 4. Returning the result with the final state
-    ///
-    /// The `apply` operation satisfies important laws when used with `pure`:
-    /// - Identity: `pure(id) <*> v = v`
-    /// - Homomorphism: `pure(f) <*> pure(x) = pure(f(x))`
-    /// - Interchange: `u <*> pure(y) = pure(f => f(y)) <*> u`
     ///
     /// # Type Parameters
     ///
@@ -988,22 +908,6 @@ impl<S, A> HKT for State<S, A> {
 /// // Use get to access the state for a calculation
 /// let double_state = get::<i32>().bind(|s| State::pure(s * 2));
 /// assert_eq!(double_state.run_state(21), (42, 21));
-///
-/// // Combine get with other operations
-/// let complex = get::<i32>()
-///     .bind(|s| {
-///         // If state is even, double it; if odd, triple it
-///         if s % 2 == 0 {
-///             put(s * 2)
-///         } else {
-///             put(s * 3)
-///         }
-///     })
-///     .bind(|_| get())
-///     .bind(|s| State::pure(format!("New state: {}", s)));
-///
-/// assert_eq!(complex.run_state(4), ("New state: 8".to_string(), 8));
-/// assert_eq!(complex.run_state(5), ("New state: 15".to_string(), 15));
 /// ```
 #[inline]
 pub fn get<S>() -> State<S, S>
@@ -1048,26 +952,6 @@ where
 /// // Replace the state entirely
 /// let computation = put("new state");
 /// assert_eq!(computation.run_state("old state"), ((), "new state"));
-///
-/// // Use put in a sequence of operations
-/// let computation = get::<i32>()
-///     .bind(|x| put(x * 2))
-///     .bind(|_| get());
-///
-/// assert_eq!(computation.run_state(21), (42, 42));
-///
-/// // Combine put with other operations
-/// let original = 21;
-/// let computation =
-///     put(original * 2)
-///         .bind(move |_| State::pure(format!("Original: {}", original)))
-///         .bind(|msg| get::<i32>().bind(move |s| State::pure(format!("{}, New: {}", msg, s))));
-///
-/// // Starting with 0: 0 -> 42
-/// assert_eq!(
-///     computation.run_state(0),
-///     ("Original: 21, New: 42".to_string(), 42)
-/// );
 /// ```
 #[inline]
 pub fn put<S>(s: S) -> State<S, ()>
@@ -1109,38 +993,6 @@ where
 /// // Increment the state by 1
 /// let increment = modify(|x: i32| x + 1);
 /// assert_eq!(increment.run_state(41), ((), 42));
-///
-/// // Apply a more complex transformation
-/// let complex_transform = modify(|x: i32| {
-///     if x < 0 {
-///         -x  // Make negative numbers positive
-///     } else {
-///         x * 2  // Double positive numbers
-///     }
-/// });
-///
-/// assert_eq!(complex_transform.run_state(-5), ((), 5));
-/// assert_eq!(complex_transform.run_state(5), ((), 10));
-///
-/// // Chain multiple modifications
-/// let multi_step = modify(|x: i32| x + 10)
-///     .bind(|_| modify(|x| x * 2))
-///     .bind(|_| modify(|x| x - 5))
-///     .bind(|_| get());
-///
-/// // Starting with 0: 0 -> 10 -> 20 -> 15
-/// assert_eq!(multi_step.run_state(0), (15, 15));
-///
-/// // Equivalent to the following, but more concise
-/// let equivalent = get::<i32>()
-///     .bind(|s| put(s + 10))
-///     .bind(|_| get())
-///     .bind(|s| put(s * 2))
-///     .bind(|_| get())
-///     .bind(|s| put(s - 5))
-///     .bind(|_| get());
-///
-/// assert_eq!(equivalent.run_state(0), (15, 15));
 /// ```
 #[inline]
 pub fn modify<S, F>(f: F) -> State<S, ()>
