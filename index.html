@@ -44,9 +44,7 @@
     />
   </head>
   <body>
-    <a href="#main-content" class="skip-link"
-      >Skip to main content</a
-    >
+    <a href="#main-content" class="skip-link">Skip to main content</a>
 
     <header class="site-header" role="banner">
       <div class="container">
@@ -62,12 +60,18 @@
               </a>
             </li>
             <li>
-              <a href="https://docs.rs/rustica/latest/rustica/" class="badge docs">
+              <a
+                href="https://docs.rs/rustica/latest/rustica/"
+                class="badge docs"
+              >
                 <i class="fas fa-book" aria-hidden="true"></i> Documentation
               </a>
             </li>
             <li>
-              <a href="https://github.com/but212/rustica/blob/main/LICENSE" class="badge license">
+              <a
+                href="https://github.com/but212/rustica/blob/main/LICENSE"
+                class="badge license"
+              >
                 <i class="fas fa-balance-scale" aria-hidden="true"></i>
                 Apache-2.0
               </a>
@@ -84,18 +88,123 @@
 
     <main id="main-content" class="container">
       <article class="intro">
-        <h2><i class="fas fa-book-open" aria-hidden="true"></i>Introduction</h2>
+        <h2>
+          <i class="fas fa-lightbulb" aria-hidden="true"></i> Introduction
+        </h2>
         <p>
           Rustica brings powerful abstractions from category theory and
           functional programming to the Rust ecosystem, providing a rich set of
           type classes, data types, and utilities commonly found in functional
           programming languages.
         </p>
-      </article>
-      <article class="getting-started">
-        <h2><i class="fas fa-book-open" aria-hidden="true"></i>Getting Started</h2>
         <p>
+          Whether you're coming from Haskell, Scala, or other functional
+          languages, or just want to explore functional programming in Rust,
+          Rustica provides the tools you need for composable, type-safe code.
         </p>
+      </article>
+
+      <article class="getting-started">
+        <h2>
+          <i class="fas fa-rocket" aria-hidden="true"></i> Getting Started
+        </h2>
+        <p>Add Rustica to your <code>Cargo.toml</code>:</p>
+        <pre><code>[dependencies]
+rustica = "0.7.1"</code></pre>
+        <p>Import the prelude to get started:</p>
+        <pre><code>use rustica::prelude::*;</code></pre>
+        <p>
+          <strong>Quick Example:</strong> Transform data with functional style
+        </p>
+        <pre><code>let value = Maybe::just(42);
+let doubled = value.fmap(|x| x * 2);
+assert_eq!(doubled, Maybe::just(84));</code></pre>
+      </article>
+
+      <article class="features">
+        <h2><i class="fas fa-star" aria-hidden="true"></i> Key Features</h2>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3>
+              <i class="fas fa-puzzle-piece" aria-hidden="true"></i> Type
+              Classes
+            </h3>
+            <p>
+              Core abstractions like <code>Functor</code>,
+              <code>Applicative</code>, and <code>Monad</code>
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3>
+              <i class="fas fa-database" aria-hidden="true"></i> Data Types
+            </h3>
+            <p>
+              Functional data structures: <code>Maybe</code>,
+              <code>Either</code>, <code>Validated</code>, and more
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3><i class="fas fa-link" aria-hidden="true"></i> Transformers</h3>
+            <p>
+              Monad transformers: <code>StateT</code>, <code>ReaderT</code>,
+              <code>WriterT</code>
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3>
+              <i class="fas fa-shield-alt" aria-hidden="true"></i> Error
+              Handling
+            </h3>
+            <p>
+              Composable error handling with <code>Validated</code> and
+              <code>Either</code>
+            </p>
+          </div>
+          <div class="feature-card">
+            <h3>
+              <i class="fas fa-memory" aria-hidden="true"></i> Immutable Data
+            </h3>
+            <p>Persistent data structures with structural sharing</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="examples">
+        <h2><i class="fas fa-code" aria-hidden="true"></i> Examples</h2>
+
+        <div class="example">
+          <h3>Error Handling with Validated</h3>
+          <p>Collect multiple validation errors:</p>
+          <pre><code>let name = validate_name("A");           // Invalid
+let email = validate_email("invalid");   // Invalid
+
+let format_user = |n: &String, e: &String| {
+    format!("User: {}, Email: {}", n, e)
+};
+
+let result = Validated::lift2(&name, &email, format_user);
+assert!(result.is_invalid());
+assert_eq!(result.unwrap_invalid().len(), 2); // Both errors collected</code></pre>
+        </div>
+
+        <div class="example">
+          <h3>Composing Operations</h3>
+          <p>Chain operations with monadic bind:</p>
+          <pre><code>let result: Either&lt;&str, i32> = Either::right(5)
+    .bind(|x| Either::right(x + 1))
+    .bind(|x| Either::right(x * 2));
+
+assert_eq!(result, Either::right(12));</code></pre>
+        </div>
+      </article>
+
+      <article class="feature-flags">
+        <h2><i class="fas fa-flag" aria-hidden="true"></i> Feature Flags</h2>
+        <ul>
+          <li><code>full</code>: Enables all features</li>
+          <li><code>pvec</code>: Persistent vector implementation</li>
+          <li><code>async</code>: Async/await support</li>
+        </ul>
       </article>
     </main>
 

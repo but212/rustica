@@ -58,12 +58,12 @@ p {
   margin-top: 4rem;
   border-top: 1px solid var(--border);
   text-align: center;
-  color: var(--text-light);
+  color: white;
   font-size: 0.9rem;
 }
 
 footer a {
-  color: var(--secondary);
+  color: #edaa25;
   text-decoration: none;
 }
 
