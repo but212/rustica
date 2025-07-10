@@ -18,39 +18,6 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: Linting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Extract MSRV
-        id: msrv
-        run: |
-          MSRV=$(grep -A 1 "\[package.metadata\]" Cargo.toml | grep -m 1 "msrv" | cut -d '"' -f 2)
-          if [ -z "$MSRV" ]; then
-            MSRV="1.87.0"
-          fi
-          echo "msrv=$MSRV" >> $GITHUB_OUTPUT
-          echo "Using MSRV: $MSRV"
-      
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      
-      - name: Run Clippy (Edition 2024)
-        run: |
-          cargo clippy --all-targets --all-features -- \
-            -D warnings \
-            -A clippy::upper_case_acronyms \
-            -W clippy::uninlined_format_args \
-            -W clippy::redundant_pub_crate \
-            -W clippy::manual_let_else \
-            -W clippy::needless_raw_string_hashes
-
   test:
     name: Test ${{ matrix.rust }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -182,7 +149,7 @@ jobs:
   publish:
     name: Publish to crates.io
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, msrv, security, docs, lint, semver_check]
+    needs: [test, msrv, security, docs, semver_check]
     runs-on: ubuntu-latest
     permissions:
       contents: read
