@@ -14,7 +14,7 @@
 //! - **Foldable/Traversable**: Folding and traversing data structures
 //! - **Alternative/MonadPlus**: Choice and failure in computations
 //! - **Arrow/Category/NaturalTransformation**: Abstract computation and morphisms
-//! - 기타 다양한 함수형 패턴을 위한 트레잇 포함
+//! - **etc.**: Other Type Classes
 //!
 //! ## Usage Example
 //!
