@@ -54,17 +54,29 @@
 }
 
 .badge.crates {
-  background-color: rgba(77, 119, 174, 0.9);
+  background-color: rgba(77, 119, 174, 0.5);
+  &:hover {
+    background-color: rgba(77, 119, 174, 1);
+  }
 }
 
 .badge.docs {
-  background-color: rgba(111, 66, 193, 0.9);
+  background-color: rgba(111, 66, 193, 0.5);
+  &:hover {
+    background-color: rgba(111, 66, 193, 1);
+  }
 }
 
 .badge.license {
-  background-color: rgba(39, 174, 96, 0.9);
+  background-color: rgba(39, 174, 96, 0.5);
+  &:hover {
+    background-color: rgba(39, 174, 96, 1);
+  }
 }
 
 .badge.github {
-  background-color: rgba(36, 41, 46, 0.9);
+  background-color: rgba(36, 41, 46, 0.5);
+  &:hover {
+    background-color: rgba(36, 41, 46, 1);
+  }
 }
