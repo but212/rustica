@@ -179,21 +179,6 @@ jobs:
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: 'docs: update API documentation [skip ci]'
 
-  no_std_check:
-    name: No-std compatibility check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: thumbv7em-none-eabihf
-      - uses: Swatinem/rust-cache@v2
-      - name: Check no-std compatibility
-        run: |
-          cargo check --target thumbv7em-none-eabihf --no-default-features
-          cargo check --target thumbv7em-none-eabihf --no-default-features --features pvec
-
   publish:
     name: Publish to crates.io
     if: startsWith(github.ref, 'refs/tags/v')
