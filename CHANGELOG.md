@@ -12,20 +12,14 @@
     - `filter_value`: Applies the predicate to all values including primary
   - Updated documentation and tests to reflect this design decision
 
+### Removed - 0.8.0
+
+- removed `IdentityExt` trait from `traits/identity.rs`
+
 ### Fixed - 0.8.0
 
 - **`Choice::flatten()` Ordering Logic** (`src/datatypes/choice.rs`)
   - Corrected the implementation of `flatten` to match its documentation. The new alternatives now correctly consist of the remaining items from the primary iterator, followed by the items from the alternatives' iterators.
-
-- **`Memoizer` Enhancements** (`src/datatypes/wrapper/memoizer.rs`)
-
-  - Replaced `std::sync::RwLock` with `parking_lot::RwLock` for potentially better performance and to avoid poisoning.
-  - Integrated `lru::LruCache` to enforce a configurable capacity, preventing unbounded memory growth.
-  - Cached values are now wrapped in `Arc<V>` to avoid expensive cloning of `V` on cache hits.
-  - Added metrics: `hits()`, `misses()`, and `hit_rate()` methods to observe cache performance.
-  - Introduced `get_or_compute_fallible` for computations that can fail, caching only successful `Ok(Arc<V>)` results.
-  - Refined locking strategy in `get_or_compute` and `get_or_compute_fallible` to use a single write lock and `LruCache::get_mut` for improved correctness with LRU behavior and to resolve compiler errors.
-  - Updated documentation examples and tests to reflect these changes.
 
 - **`IsoLens` API and Constraint Refinements** (`src/datatypes/iso_lens.rs`)
 
