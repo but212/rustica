@@ -2,7 +2,7 @@ use super::TestFunctor;
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 use rustica::traits::functor::Functor;
-use rustica::traits::identity::{Identity, IdentityExt};
+use rustica::traits::identity::Identity;
 
 // Test basic Identity methods on TestFunctor
 #[test]
@@ -107,13 +107,6 @@ fn prop_option_map_or_else_none() -> bool {
     result == 0
 }
 
-#[quickcheck]
-fn prop_testfunctor_map_or_else(x: i32) -> bool {
-    let functor = TestFunctor::new(x);
-    let result = functor.map_or_else(|| 0, |x| x.saturating_mul(2));
-    result == x.saturating_mul(2)
-}
-
 // Test Vec implementation of Identity with quickcheck
 #[quickcheck]
 fn prop_vec_identity_with_elements(xs: Vec<i32>) -> TestResult {
@@ -137,23 +130,4 @@ fn prop_vec_identity_empty() -> bool {
 fn prop_vec_pure_identity(x: i32) -> bool {
     let created_vec = Vec::<i32>::pure_identity(x);
     created_vec == vec![x]
-}
-
-// Test IdentityExt methods
-
-// Test value_or method
-#[test]
-fn test_identity_ext_value_or() {
-    // For Some
-    let some_value: Option<i32> = Some(42);
-    let fallback = 10;
-    assert_eq!(some_value.value_or(&fallback), &42);
-
-    // For None
-    let none_value: Option<i32> = None;
-    assert_eq!(none_value.value_or(&fallback), &fallback);
-
-    // For TestFunctor (should always return the value)
-    let functor = TestFunctor::new(42);
-    assert_eq!(functor.value_or(&10), &42);
 }
