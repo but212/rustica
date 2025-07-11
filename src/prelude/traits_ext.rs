@@ -32,7 +32,6 @@ pub use crate::traits::contravariant_functor::ContravariantFunctorExt;
 pub use crate::traits::evaluate::EvaluateExt;
 pub use crate::traits::foldable::FoldableExt;
 pub use crate::traits::functor::FunctorExt;
-pub use crate::traits::identity::IdentityExt;
 pub use crate::traits::iso::IsoExt;
 pub use crate::traits::monoid::MonoidExt;
 pub use crate::traits::pure::PureExt;
