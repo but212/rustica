@@ -16,7 +16,7 @@ To get started with Rustica, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.7.1"
+rustica = "0.8.0"
 ```
 
 Then import the prelude to get access to the most commonly used types and traits:
@@ -37,8 +37,8 @@ A functor is a type that implements a mapping operation (`fmap`) which preserves
 use rustica::datatypes::maybe::Maybe;
 use rustica::traits::functor::Functor;
 
-let just_five = Maybe::just(5);
-let doubled = just_five.fmap(|x| x * 2);  // Maybe::Just(10)
+let just_five = Maybe::Just(5);
+let doubled = just_five.fmap(|x| x * 2); // Maybe::Just(10)
 ```
 
 ### Applicative
@@ -51,7 +51,7 @@ use rustica::traits::applicative::Applicative;
 
 let valid1: Validated<&str, i32> = Validated::valid(5);
 let valid2: Validated<&str, i32> = Validated::valid(10);
-let combined = valid1.lift2(&valid2, |a, b| a + b);  // Validated::Valid(15)
+let combined = valid1.lift2(&valid2, |a, b| a + b); // Validated::Valid(15)
 ```
 
 ### Monad
@@ -65,7 +65,7 @@ use rustica::traits::monad::Monad;
 let right: Either<&str, i32> = Either::right(5);
 let result = right
     .bind(|x| Either::right(x + 1))
-    .bind(|x| Either::right(x * 2));  // Either::Right(12)
+    .bind(|x| Either::right(x * 2)); // Either::Right(12)
 ```
 
 ## Core Data Types
@@ -79,8 +79,8 @@ Rustica provides several functional data types:
 ```rust
 use rustica::datatypes::maybe::Maybe;
 
-let just_value = Maybe::just(42);
-let nothing_value: Maybe<i32> = Maybe::nothing();
+let just_value = Maybe::Just(42);
+let nothing_value: Maybe<i32> = Maybe::Nothing;
 ```
 
 ### Either
@@ -90,8 +90,8 @@ let nothing_value: Maybe<i32> = Maybe::nothing();
 ```rust
 use rustica::datatypes::either::Either;
 
-let left: Either<i32, &str> = Either::left(42);
-let right: Either<i32, &str> = Either::right("hello");
+let left: Either<i32, &str> = Either::Left(42);
+let right: Either<i32, &str> = Either::Right("hello");
 ```
 
 ### Validated
@@ -110,13 +110,10 @@ let invalid: Validated<&str, i32> = Validated::invalid("validation error");
 `PersistentVector<T>` is an immutable vector implementation with memory optimization for small collections.
 
 ```rust
-use rustica::pvec::{pvec, PersistentVector};
+use rustica::pvec::{PersistentVector, pvec};
 
 // Create using macro
 let vec1 = pvec![1, 2, 3];
-
-// Create from slice
-let vec2 = PersistentVector::from_slice(&[4, 5, 6]);
 
 // Create new vector with additional element (original unchanged)
 let vec3 = vec1.push_back(4);
@@ -157,6 +154,8 @@ let even_only = choice.filter(|x| x % 2 == 0);
 
 // Swap the primary value with an alternative
 let swapped = choice.swap_with_alternative(1);
+assert_eq!(swapped.first(), Some(&3));
+assert!(swapped.alternatives().contains(&1));
 ```
 
 The `Choice` type provides an elegant way to work with collections where one element has special significance, while maintaining the functional programming principles of immutability and explicit transformations.

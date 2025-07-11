@@ -43,7 +43,7 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.7.1"
+rustica = "0.8.0"
 ```
 
 ### Basic Usage
@@ -65,7 +65,6 @@ Key monad operations:
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::maybe::Maybe;
 
 fn main() {
     // Create a monadic value
@@ -73,7 +72,7 @@ fn main() {
 
     // Chain operations with bind
     let result = value.bind(|x| {
-        if x > 0 {
+        if *x > 0 {
             Maybe::just(x * 2)
         } else {
             Maybe::nothing()
@@ -94,22 +93,23 @@ use rustica::datatypes::maybe::Maybe;
 
 fn main() {
     // Creating Maybe values
-    let just_value = Maybe::just(42);
-    let nothing_value = Maybe::nothing::<i32>();
+    let just_value = Maybe::Just(42);
+    let nothing_value = Maybe::Nothing;
+    let fallback_value = 0;
 
     // Transforming values
-    let doubled = just_value.map(|x| x * 2);
-    assert_eq!(doubled, Maybe::just(84));
+    let doubled = just_value.fmap(|x| x * 2);
+    assert_eq!(doubled, Maybe::Just(84));
 
     // Default values
-    let value_or_default = nothing_value.value_or(0);
-    assert_eq!(value_or_default, 0);
+    let unwrap_or_default = nothing_value.unwrap_or(&fallback_value);
+    assert_eq!(*unwrap_or_default, fallback_value);
 
     // Chaining operations
     let result = just_value
-        .bind(|x| Maybe::just(x.to_string()))
-        .bind(|s| Maybe::just(s + "!"));
-    assert_eq!(result, Maybe::just("42!".to_string()));
+        .bind(|x| Maybe::Just(x.to_string()))
+        .bind(|s| Maybe::Just(s.to_owned() + "!"));
+    assert_eq!(result, Maybe::Just("42!".to_string()));
 }
 ```
 
@@ -127,14 +127,15 @@ fn main() {
     let failure: Either<String, i32> = Either::left("Error occurred".to_string());
 
     // Transforming values
-    let doubled = success.map(|x| x * 2);
+    let doubled = success.fmap(|x| x * 2);
     assert_eq!(doubled, Either::right(84));
 
     // Handling errors
-    let result = doubled.value_or(0);
+    let default_value = 0;
+    let result = doubled.right_or(default_value);
     assert_eq!(result, 84);
 
-    let error_result = failure.value_or(0);
+    let error_result = failure.right_or(default_value);
     assert_eq!(error_result, 0);
 }
 ```
@@ -145,6 +146,7 @@ Rustica provides tools for composing functions in a point-free style:
 
 ```rust
 use rustica::prelude::*;
+use rustica::traits::composable::compose;
 
 fn main() {
     // Define simple functions
@@ -152,7 +154,7 @@ fn main() {
     let multiply_by_two = |x: i32| x * 2;
 
     // Compose functions
-    let add_then_multiply = compose(multiply_by_two, add_one);
+    let add_then_multiply = compose(add_one, multiply_by_two);
 
     // Use the composed function
     let result = add_then_multiply(5);
@@ -166,22 +168,24 @@ fn main() {
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::maybe::Maybe;
 
 // Validation functions
 fn validate_length(input: &str) -> Maybe<String> {
     if input.len() >= 3 {
-        Maybe::just(input.to_string())
+        Maybe::Just(input.to_string())
     } else {
-        Maybe::nothing()
+        Maybe::Nothing
     }
 }
 
-fn validate_no_special_chars(input: String) -> Maybe<String> {
-    if input.chars().all(|c| c.is_alphanumeric() || c.is_whitespace()) {
-        Maybe::just(input)
+fn validate_no_special_chars(input: &String) -> Maybe<String> {
+    if input
+        .chars()
+        .all(|c| c.is_alphanumeric() || c.is_whitespace())
+    {
+        Maybe::Just(input.clone())
     } else {
-        Maybe::nothing()
+        Maybe::Nothing
     }
 }
 
@@ -189,7 +193,7 @@ fn main() {
     let username = "John Doe";
 
     // Chain validations
-    let validation_result = Maybe::just(username.to_string())
+    let validation_result = Maybe::Just(username.to_string())
         .bind(|s| validate_length(&s))
         .bind(validate_no_special_chars);
 
@@ -206,19 +210,19 @@ fn main() {
 use rustica::prelude::*;
 use rustica::datatypes::either::Either;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 
 // Function that might fail
-fn read_file(path: &str) -> Either<io::Error, String> {
+fn read_file(path: &str) -> Either<String, String> {
     let mut file = match File::open(path) {
         Ok(file) => file,
-        Err(e) => return Either::left(e),
+        Err(e) => return Either::left(e.to_string()),
     };
 
     let mut contents = String::new();
     match file.read_to_string(&mut contents) {
         Ok(_) => Either::right(contents),
-        Err(e) => Either::left(e),
+        Err(e) => Either::left(e.to_string()),
     }
 }
 
@@ -227,9 +231,7 @@ fn main() {
     let file_contents = read_file("example.txt");
 
     // Transform the contents if reading succeeded
-    let processed = file_contents.map(|contents| {
-        contents.lines().count()
-    });
+    let processed = file_contents.fmap(|contents| contents.lines().count());
 
     // Handle the result
     match processed {
@@ -257,17 +259,19 @@ type Counter = i32;
 fn increment_and_get(amount: i32) -> StateT<Counter, Maybe<(Counter, i32)>, i32> {
     StateT::new(move |s: Counter| {
         let new_state = s + amount;
-        Maybe::just((new_state, new_state))
+        Maybe::Just((new_state, new_state))
     })
 }
 
 fn main() {
     // Create a stateful computation
-    let computation = increment_and_get(5)
-        .bind(|value| {
+    let computation = increment_and_get(5).bind_with(
+        |value| {
             // Use the value from the previous computation
             increment_and_get(value)
-        });
+        },
+        |m, f| m.bind(|v| f(*v)),
+    );
 
     // Run the computation with an initial state
     let result = computation.run_state(0);
@@ -288,7 +292,6 @@ Lenses provide a way to focus on a part of a larger data structure:
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::lens::Lens;
 
 // Define a data structure
 #[derive(Clone, Debug, PartialEq)]
@@ -298,25 +301,25 @@ struct Person {
 }
 
 // Define lenses for Person
-fn name_lens() -> Lens<Person, String> {
+fn name_lens() -> Lens<Person, String, fn(&Person) -> String, fn(Person, String) -> Person> {
     Lens::new(
         |person: &Person| person.name.clone(),
-        |person: &Person, new_name: String| {
-            let mut new_person = person.clone();
+        |person: Person, new_name: String| {
+            let mut new_person = person; // clone() 필요 없음
             new_person.name = new_name;
             new_person
-        }
+        },
     )
 }
 
-fn age_lens() -> Lens<Person, i32> {
+fn age_lens() -> Lens<Person, i32, fn(&Person) -> i32, fn(Person, i32) -> Person> {
     Lens::new(
         |person: &Person| person.age,
-        |person: &Person, new_age: i32| {
-            let mut new_person = person.clone();
+        |person: Person, new_age: i32| {
+            let mut new_person = person;
             new_person.age = new_age;
             new_person
-        }
+        },
     )
 }
 
@@ -331,11 +334,11 @@ fn main() {
     println!("Name: {}", name);
 
     // Update a value using a lens
-    let updated_person = age_lens().set(&person, 31);
+    let updated_person = age_lens().set(person.clone(), 31);
     println!("Updated age: {}", updated_person.age);
 
     // Modify a value using a lens
-    let older_person = age_lens().modify(&person, |age| age + 5);
+    let older_person = age_lens().modify(person, |age| age + 5);
     println!("Age after 5 years: {}", older_person.age);
 }
 ```

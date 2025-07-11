@@ -15,14 +15,47 @@ Rustica is a functional programming library for Rust. It provides a collection o
 
 ## 3. Installation
 
+### Requirements
+
+- **Rust 1.87.0 or later** (required for Rust 2024 edition support)
+- **Rust 2024 Edition** (projects must use `edition = "2024"` in Cargo.toml)
+
+### Adding Rustica to Your Project
+
 Add Rustica to your `Cargo.toml`:
 
 ```toml
+[package]
+name = "your-project"
+version = "0.1.0"
+edition = "2024"  # Required for Rustica 0.8.0+
+
 [dependencies]
-rustica = "0.7.1" # Check for the latest version on crates.io
+rustica = "0.8.0"  # Check for the latest version on crates.io
 ```
 
-And import the prelude in your Rust files to get access to common traits and types:
+If you want to use specific features, add them as needed:
+
+```toml
+[dependencies]
+# For async support
+rustica = { version = "0.8.0", features = ["async"] }
+
+# For persistent vector collections
+rustica = { version = "0.8.0", features = ["pvec"] }
+
+# For all features
+rustica = { version = "0.8.0", features = ["full"] }
+```
+
+### Available Features
+
+- `async`: Enables async monad support with tokio integration
+- `pvec`: Includes persistent vector implementation
+- `full`: Enables all features
+- `quickcheck`: Enables property-based testing support
+
+### Import the Prelude
 
 ```rust
 use rustica::prelude::*;
@@ -31,14 +64,13 @@ use rustica::prelude::*;
 ## 4. Core Concept: Immutability & Pure Functions
 
 Functional programming emphasizes **immutability** (data that doesn't change after creation) and **pure functions** (functions that always produce the same output for the same input, with no side effects).
-
 Rust's ownership system already encourages immutability by default. Rustica builds on this by providing immutable data structures and promoting pure functions for computations.
 
 ## 5. Core Concept: Functors (e.g., `map`)
 
 A Functor is something that can be mapped over. Think of it as a container or context, and `map` (or `fmap` in Rustica) lets you apply a function to the value(s) inside that context without changing the context itself.
 
-**Example with `Maybe` (similar to Rust's `Option`):**
+### Functor Example with `Maybe` (similar to Rust's `Option`)
 
 `Maybe<T>` represents an optional value: it can be `Just(value)` or `Nothing`.
 
@@ -47,15 +79,15 @@ use rustica::prelude::*;
 use rustica::datatypes::maybe::Maybe;
 
 fn main() {
-    let some_number: Maybe<i32> = Maybe::just(5);
-    let doubled_number: Maybe<i32> = some_number.map(|x| x * 2); // or .fmap(|x| x * 2)
+    let some_number: Maybe<i32> = Maybe::Just(5);
+    let doubled_number: Maybe<i32> = some_number.fmap(|x| x * 2);
 
-    assert_eq!(doubled_number, Maybe::just(10));
+    assert_eq!(doubled_number, Maybe::Just(10));
 
-    let no_number: Maybe<i32> = Maybe::nothing();
-    let still_nothing: Maybe<i32> = no_number.map(|x| x * 2);
+    let no_number: Maybe<i32> = Maybe::Nothing;
+    let still_nothing: Maybe<i32> = no_number.fmap(|x| x * 2);
 
-    assert_eq!(still_nothing, Maybe::nothing());
+    assert_eq!(still_nothing, Maybe::Nothing);
 }
 ```
 
@@ -63,139 +95,82 @@ If `some_number` was `Nothing`, `doubled_number` would also be `Nothing`. The `m
 
 ## 6. Core Concept: Applicative Functors (e.g., `apply`)
 
-An Applicative Functor builds on Functor. While `map` applies a regular function to a value in a context, `apply` applies a _function that is also in a context_ to a value in a context. This is useful for combining multiple values that are all in a context (like `Maybe`).
+An Applicative Functor builds on Functor. While `map` applies a regular function to a value in a context, `apply` applies a function that is also in a context to a value in a context. This is useful for combining multiple values that are all in a context (like `Maybe`).
 
-**Example with `Maybe`:**
-
-Let's say we have a function that takes two arguments, and we have two `Maybe` values we want to use with it.
+### Applicative Example with `Maybe`
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::maybe::Maybe;
-
-// A curried function for addition
-fn add(a: i32) -> impl Fn(i32) -> i32 {
-    move |b| a + b
-}
 
 fn main() {
-    let maybe_five: Maybe<i32> = Maybe::just(5);
-    let maybe_ten: Maybe<i32> = Maybe::just(10);
+    let maybe_x = Maybe::Just(5);
+    let maybe_y = Maybe::Just(3);
 
-    // First, we map `add` over the first Maybe.
-    // This gives us a function inside a Maybe: Maybe<impl Fn(i32) -> i32>
-    let maybe_add_five = maybe_five.map(add);
+    let result = maybe_x.lift2(&maybe_y, |x, y| *x + *y);
+    assert_eq!(result, Maybe::Just(8));
 
-    // Now, we use `apply` to apply the function inside `maybe_add_five`
-    // to the value inside `maybe_ten`.
-    let result: Maybe<i32> = maybe_ten.apply(&maybe_add_five);
+    // If any value is Nothing, the result is Nothing
+    let maybe_nothing = Maybe::<i32>::Nothing;
+    let nothing_result = maybe_x.lift2(&maybe_nothing, |x, y| *x + *y);
+    assert_eq!(nothing_result, Maybe::Nothing);
 
-    assert_eq!(result, Maybe::just(15));
+    // Example with apply
+    let maybe_add = Maybe::Just(|x: &i32| *x + 3);
+    let apply_result = maybe_x.apply(&maybe_add);
+    assert_eq!(apply_result, Maybe::Just(8));
 
-    // If either is Nothing, the result is Nothing.
-    let maybe_nothing: Maybe<i32> = Maybe::nothing();
-    let result_fail = maybe_nothing.apply(&maybe_add_five);
-
-    assert_eq!(result_fail, Maybe::nothing());
+    // Apply with Nothing
+    let nothing_fn = Maybe::<fn(&i32) -> i32>::Nothing;
+    let nothing_apply = maybe_x.apply(&nothing_fn);
+    assert_eq!(nothing_apply, Maybe::Nothing);
 }
 ```
-
-This might seem complex, but it's the foundation for powerful patterns, like collecting multiple validation errors, which we'll see later with the `Validated` type.
 
 ## 7. Core Concept: Monads (e.g., `bind`)
 
-A Monad allows you to sequence computations, especially when those computations themselves return a value in a context (like `Maybe` or `Either`). The key operation is `bind` (or `and_then` in some contexts).
+A Monad extends Applicative with the ability to chain operations where each operation can decide what to do based on the value from the previous operation. This is particularly useful for error handling and optional values.
 
-**Example with `Maybe`:**
-
-Imagine you have two functions that might fail (return `Nothing`):
+### Monad Example with `Maybe`
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::maybe::Maybe;
 
-fn try_parse(s: &str) -> Maybe<i32> {
-    s.parse().ok().into() // .into() converts Option<i32> to Maybe<i32>
-}
-
-fn check_positive(n: i32) -> Maybe<i32> {
-    if n > 0 { Maybe::just(n) } else { Maybe::nothing() }
+fn safe_divide(x: i32, y: i32) -> Maybe<i32> {
+    if y == 0 {
+        Maybe::Nothing
+    } else {
+        Maybe::Just(x / y)
+    }
 }
 
 fn main() {
-    let input_str = "10";
+    let result = Maybe::Just(20)
+        .bind(&|x: &i32| safe_divide(*x, 4))
+        .bind(&|x: &i32| safe_divide(*x, 2));
 
-    // Chain the operations using bind
-    let result: Maybe<i32> = try_parse(input_str)
-        .bind(|parsed_num| check_positive(parsed_num));
+    assert_eq!(result, Maybe::Just(2)); // 20 / 4 / 2 = 2
 
-    assert_eq!(result, Maybe::just(10));
+    // If any operation fails, the whole chain fails
+    let failed_result = Maybe::Just(20)
+        .bind(&|x: &i32| safe_divide(*x, 0)) // Division by zero
+        .bind(&|x: &i32| safe_divide(*x, 2));
 
-    let invalid_input_str = "-5";
-    let result_fail: Maybe<i32> = try_parse(invalid_input_str)
-        .bind(|parsed_num| check_positive(parsed_num));
-
-    // try_parse("-5") is Just(-5), then check_positive(-5) is Nothing
-    assert_eq!(result_fail, Maybe::nothing());
+    assert_eq!(failed_result, Maybe::Nothing);
 }
 ```
 
-If `try_parse` returns `Nothing`, `check_positive` is never called, and the whole chain results in `Nothing`. `bind` handles the 'short-circuiting'.
+## 8. Advanced: Validation with Error Accumulation
 
-## 8. A Glimpse into State Management: The `State` Monad
+The `Validated` type is great for form validation and other scenarios where you want to collect multiple errors instead of stopping at the first error.
 
-How do we handle state (like a counter or a game score) in a world of immutable data and pure functions? The `State` monad is the answer. A `State<S, A>` represents a computation that takes an initial state `S` and produces a result `A` along with a new state `S`.
-
-**Example: A Simple Counter**
-
-Let's build a sequence of operations that increments a counter and returns logs of the operations.
-
-```rust
-use rustica::prelude::*;
-use rustica::datatypes::state::State;
-
-fn main() {
-    // A computation that increments the state and returns the new state as its result.
-    let increment = State::modify(|s: &i32| s + 1).bind(|_| State::get());
-
-    // A computation that doubles the state and returns the new state.
-    let double = State::modify(|s: &i32| s * 2).bind(|_| State::get());
-
-    // Chain the operations together using bind
-    let program = increment
-        .bind(|_first_val| double)
-        .bind(|_second_val| increment);
-
-    // To run the computation, we provide an initial state.
-    // `run_state` returns both the final state and the final result.
-    let initial_state = 5;
-    let (final_state, final_result) = program.run_state(initial_state);
-
-    // Initial: 5
-    // 1. increment: 5 + 1 = 6. State is 6.
-    // 2. double: 6 * 2 = 12. State is 12.
-    // 3. increment: 12 + 1 = 13. State is 13.
-    assert_eq!(final_state, 13);
-    assert_eq!(final_result, 13); // The last operation's result was the state itself
-
-    println!("Final state: {}", final_state);
-}
-```
-
-This allows you to build complex stateful logic in a composable way without using mutable variables.
-
-## 9. Practical Example: Accumulating Errors with `Validated`
-
-While `Either` (or `Result`) is great for fail-fast validation, what if you want to show the user _all_ the errors at once? This is where `Validated<E, A>` and the Applicative Functor pattern shine.
-
-`Validated` can be `Valid(value)` or `Invalid(errors)`. When combining `Validated` instances using the Applicative `apply` method, it accumulates errors instead of short-circuiting.
+### Example with `Validated`
 
 ```rust
 use rustica::prelude::*;
 use rustica::datatypes::validated::Validated;
 
 // A curried function for creating a User
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct User { name: String, age: u32 }
 fn create_user(name: String) -> impl Fn(u32) -> User {
     move |age| User { name, age }
@@ -223,9 +198,10 @@ fn main() {
     let age_input = 30;
 
     let user: Validated<String, User> =
-        Validated::valid(create_user)
-            .apply(validate_name(name_input))
-            .apply(validate_age(age_input));
+        validate_name(name_input).lift2(&validate_age(age_input), |name, age| User {
+            name: name.clone(),
+            age: *age,
+        });
 
     assert!(matches!(user, Validated::Valid(_)));
     println!("Valid user created: {:?}", user.unwrap());
@@ -235,9 +211,10 @@ fn main() {
     let invalid_age = 17;
 
     let failed_user: Validated<String, User> =
-        Validated::valid(create_user)
-            .apply(validate_name(invalid_name))
-            .apply(validate_age(invalid_age));
+        validate_name(invalid_name).lift2(&validate_age(invalid_age), |name, age| User {
+            name: name.clone(),
+            age: *age,
+        });
 
     match failed_user {
         Validated::Invalid(errors) => {
@@ -245,8 +222,8 @@ fn main() {
             for err in errors {
                 println!("- {}", err);
             }
-        }
-        _ => ()
+        },
+        _ => (),
     }
     // Output:
     // Validation failed with 2 errors:
@@ -257,13 +234,25 @@ fn main() {
 
 Notice how we get both error messages. This is a much better user experience for things like form validation.
 
-## 10. Where to Go Next?
+## 9. Where to Go Next?
+
+Explore the rest of the library to discover more features and capabilities. Check out the [API documentation](https://docs.rs/rustica) for detailed information on all types and functions.
 
 This was a very brief introduction! To continue your journey with Rustica:
 
-- **Dive Deeper**: Read the more comprehensive [TUTORIAL.md](./TUTORIAL.md) for detailed explanations of `Maybe`, `Either`, `Validated`, `State`, function composition, monad transformers, lenses, and persistent data structures.
-- **Explore the API**: Check out the [API documentation](https://docs.rs/rustica/) (link to your actual API docs) for a full list of available modules, types, and functions.
-- **See More Examples**: Look into the `examples` directory in the Rustica repository (if available) or the `tests` and `benches` directories for more practical use cases.
-- **Learn about Type Classes**: Understand `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, and others in more detail.
+- Dive Deeper: Read the more comprehensive TUTORIAL.md for detailed explanations of Maybe, Either, Validated, State, function composition, monad transformers, lenses, and persistent data structures.
+- Explore the API: Check out the API documentation for a full list of available modules, types, and functions.
+- See More Examples: Look into the examples directory in the Rustica repository or the tests and benches directories for more practical use cases.
+- Learn about Type Classes: Understand Functor, Applicative, Monad, Semigroup, Monoid, and others in more detail.
+
+## Migration from 0.7.x
+
+If you're upgrading from a previous version:
+
+- Update your Cargo.toml to use edition = "2024"
+- Ensure you have Rust 1.87.0 or later
+- Review the CHANGELOG.md for breaking changes
+- Update any usage of Choice::filter vs Choice::filter_value based on your needs
+- Check for any IsoLens API changes if you're using lenses
 
 Happy functional programming with Rustica!

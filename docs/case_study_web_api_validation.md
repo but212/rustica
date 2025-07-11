@@ -97,7 +97,9 @@ To do this, we start with a `Validated` that contains a function (in this case, 
 
 ```rust
 /// Takes the raw input and runs all validations.
-fn validate_registration(input: &UserRegistration) -> Validated<ValidationError, UserRegistration> {
+fn validate_registration(
+    input: &UserRegistration,
+) -> Validated<ValidationError, UserRegistration> {
     let username_v = validate_username(&input.username);
     let email_v = validate_email(&input.email);
     let password_v = validate_password(&input.password);
@@ -106,10 +108,12 @@ fn validate_registration(input: &UserRegistration) -> Validated<ValidationError,
         .lift2(&email_v, |username, email| {
             (username.clone(), email.clone()) // Intermediate tuple
         })
-        .lift2(&password_v, |(username, email), password| UserRegistration {
-            username, // Cloned in the previous step
-            email,    // Cloned in the previous step
-            password: password.clone(),
+        .lift2(&password_v, |(username, email), password| {
+            UserRegistration {
+                username: username.to_string(), // Cloned in the previous step
+                email: email.to_string(),       // Cloned in the previous step
+                password: password.clone(),
+            }
         })
 }
 
@@ -178,14 +182,22 @@ fn handle_registration_request(input: &UserRegistration) -> ApiResponse {
             let error_messages = validation_errors
                 .iter()
                 .map(|e| match e {
-                    ValidationError::UsernameTooShort => "Username must be at least 3 characters long.".to_string(),
-                    ValidationError::InvalidEmailFormat => "Email is not in a valid format.".to_string(),
-                    ValidationError::PasswordTooWeak => "Password must be at least 8 characters long.".to_string(),
+                    ValidationError::UsernameTooShort => {
+                        "Username must be at least 3 characters long.".to_string()
+                    },
+                    ValidationError::InvalidEmailFormat => {
+                        "Email is not in a valid format.".to_string()
+                    },
+                    ValidationError::PasswordTooWeak => {
+                        "Password must be at least 8 characters long.".to_string()
+                    },
                 })
                 .collect();
 
-            ApiResponse::Error { errors: error_messages }
-        }
+            ApiResponse::Error {
+                errors: error_messages,
+            }
+        },
     }
 }
 

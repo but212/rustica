@@ -98,7 +98,7 @@ async fn main() {
     // Chain the operations. The result of the first (`id`) is passed to the second.
     let get_details = get_user_id.bind(|id| async move {
         // This block returns a new AsyncM
-        AsyncM::new(|| fetch_user_details(id))
+        AsyncM::new(move || fetch_user_details(id))
     });
 
     println!("Fetching user details...");
@@ -133,9 +133,9 @@ async fn fetch_activity(user_id: u32) -> String {
     format!("Activity for {}", user_id)
 }
 
-// A function to combine the results. Note the currying.
-fn combine_data(profile: String) -> impl Fn(String) -> (String, String) {
-    move |activity| (profile, activity)
+// A function to combine the results
+fn combine_data(profile: String, activity: String) -> (String, String) {
+    (profile, activity)
 }
 
 #[tokio::main]
@@ -143,17 +143,16 @@ async fn main() {
     let user_id = 101;
 
     // Create the two independent operations
-    let get_profile = AsyncM::new(|| fetch_profile(user_id));
-    let get_activity = AsyncM::new(|| fetch_activity(user_id));
-
-    // Use `apply` to run them concurrently
-    let combined_operation = AsyncM::pure(combine_data)
-        .apply(get_profile)
-        .apply(get_activity);
+    let get_profile = AsyncM::new(move || fetch_profile(user_id));
+    let get_activity = AsyncM::new(move || fetch_activity(user_id));
 
     println!("Fetching profile and activity concurrently...");
     let start = std::time::Instant::now();
+
+    // Use zip_with to run them concurrently and combine results
+    let combined_operation = get_profile.zip_with(get_activity, combine_data);
     let (profile, activity) = combined_operation.try_get().await;
+
     let duration = start.elapsed();
 
     println!("Profile: '{}'", profile);
@@ -168,28 +167,6 @@ async fn main() {
 By using `apply`, we execute both `fetch_profile` and `fetch_activity` at the same time. The `join!` inside `AsyncM::apply` handles the concurrent execution. This is a powerful pattern for optimizing I/O-bound applications.
 
 ## 5. Other Useful Patterns
-
-### Simple Transformations with `fmap`
-
-Sometimes you don't need to chain another async operation, but simply transform the result. For this, `fmap` (from the `Functor` pattern) is a lighter-weight and more direct tool than `bind`.
-
-```rust
-use rustica::datatypes::async_monad::AsyncM;
-
-#[tokio::main]
-async fn main() {
-    let get_user_id = AsyncM::pure(101);
-
-    // Use fmap to transform the result directly
-    let user_id_as_string = get_user_id.fmap(|id| async move {
-        format!("User ID: {}", id)
-    });
-
-    let result = user_id_as_string.try_get().await;
-    println!("{}", result);
-    assert_eq!(result, "User ID: 101");
-}
-```
 
 ### Handling Errors with `from_result_or_default`
 
