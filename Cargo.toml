@@ -8,7 +8,7 @@ license = "Apache-2.0"
 repository = "https://github.com/but212/rustica"
 readme = "README.md"
 keywords = ["functional", "immutable", "monad", "persistent", "data-structures"]
-categories = ["data-structures", "rust-patterns", "algorithms", "no-std"]
+categories = ["data-structures", "rust-patterns", "algorithms"]
 documentation = "https://docs.rs/rustica"
 
 [package.metadata]
