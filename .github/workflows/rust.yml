@@ -136,7 +136,7 @@ jobs:
   publish:
     name: Publish to crates.io
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, msrv, security, docs]
+    needs: [test, msrv, security, docs, semver_check]
     runs-on: ubuntu-latest
     permissions:
       contents: read
