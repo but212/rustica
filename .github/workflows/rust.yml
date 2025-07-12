@@ -224,10 +224,7 @@ jobs:
 
   benchmark:
     name: Performance Benchmarks
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'schedule'
     permissions:
       contents: write
@@ -243,13 +240,15 @@ jobs:
       
       - uses: Swatinem/rust-cache@v2
       
-      - name: Install criterion
-        run: cargo install cargo-criterion --locked
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
       
       - name: Run benchmarks
         run: |
-          cargo criterion --all-features --message-format=json > benchmark_raw_results.json || {
-            echo "::warning::Benchmark execution failed, creating empty results"
+          cargo bench --all-features -- --output-format json > benchmark_raw_results.json || {
+            echo "::warning::Benchmark execution failed with error code $?"
             echo "[]" > benchmark_raw_results.json
           }
           
@@ -261,7 +260,7 @@ jobs:
               "value": .median,
               "unit": "ns/iter"
             }' benchmark_raw_results.json > formatted_benchmark_results.json || {
-              echo "::warning::Failed to process benchmark results, creating empty results"
+              echo "::warning::Failed to process benchmark results with error code $?"
               echo "[]" > formatted_benchmark_results.json
             }
           else
@@ -270,7 +269,6 @@ jobs:
           fi
       
       - name: Upload benchmark results
-        if: matrix.os == 'ubuntu-latest'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmarks
@@ -281,4 +279,4 @@ jobs:
           comment-on-alert: true
           alert-threshold: '120%'
           fail-on-alert: false
-          alert-comment-cc-users: '@but212'
+          alert-comment-cc-users: '@${{ github.repository_owner }}'
