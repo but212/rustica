@@ -74,9 +74,9 @@ jobs:
         run: cargo +nightly udeps --all-targets --all-features
 
   semver_check:
-    name: Semantic Versioning Check
+    name: Semantic Versioning Check  
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -136,7 +136,7 @@ jobs:
   publish:
     name: Publish to crates.io
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, msrv, security, docs, semver_check]
+    needs: [test, msrv, security, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: read
