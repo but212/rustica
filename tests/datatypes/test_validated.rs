@@ -747,32 +747,70 @@ mod performance_tests {
 
     #[test]
     fn test_error_accumulation_performance() {
+        // First measure baseline operation to establish a reference point
+        // This measures the cost of simply creating a vector without validation
+        let start_baseline = Instant::now();
         let errors: Vec<String> = (0..1000).map(|i| format!("error_{i}")).collect();
-        let start = Instant::now();
+        let baseline_duration = start_baseline.elapsed();
 
+        // Now measure the actual validation operation
+        let start = Instant::now();
         let validated: Validated<String, i32> = Validated::invalid_many(errors.clone());
         assert_eq!(validated.errors().len(), 1000);
+        let operation_duration = start.elapsed();
 
-        let duration = start.elapsed();
-        println!("Error accumulation took: {duration:?}");
-        // Performance should be reasonable for 1000 errors
-        assert!(duration.as_millis() < 1000);
+        println!("Error accumulation baseline: {baseline_duration:?}");
+        println!("Error accumulation operation: {operation_duration:?}");
+        println!(
+            "Ratio: {:.2}x",
+            operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
+        );
+
+        // Instead of a fixed threshold, we expect the validation to be at most 10x slower
+        // than simply creating the vector. This relative threshold is much more robust
+        // across different hardware.
+        assert!(
+            operation_duration.as_secs_f64() < baseline_duration.as_secs_f64() * 10.0,
+            "Error accumulation is more than 10x slower than baseline: {:.2}x",
+            operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
+        );
     }
 
     #[test]
     fn test_nested_operation_performance() {
-        let start = Instant::now();
+        // Baseline: measure simple accumulation without Validated wrapper
+        let start_baseline = Instant::now();
+        let mut baseline_sum = 0;
+        for i in 1..=100 {
+            baseline_sum += i;
+        }
+        assert_eq!(baseline_sum, 5050); // Sum of 1..100 = 5050
+        let baseline_duration = start_baseline.elapsed();
 
+        // Actual test: nested operations with Validated
+        let start = Instant::now();
         let mut result = Validated::<String, i32>::valid(0);
         for i in 1..=100 {
             result = result.bind(|&x| Validated::valid(x + i));
         }
+        assert_eq!(result.value(), Some(&5050));
+        let operation_duration = start.elapsed();
 
-        assert_eq!(result.value(), Some(&5050)); // Sum of 1..100 = 5050
+        println!("Nested operations baseline: {baseline_duration:?}");
+        println!("Nested operations with Validated: {operation_duration:?}");
+        println!(
+            "Ratio: {:.2}x",
+            operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
+        );
 
-        let duration = start.elapsed();
-        println!("Nested operations took: {duration:?}");
-        assert!(duration.as_millis() < 100);
+        // The Validated nested operations should be at most 20x slower than simple addition
+        // This relative threshold accommodates hardware differences while still detecting
+        // severe performance regressions
+        assert!(
+            operation_duration.as_secs_f64() < baseline_duration.as_secs_f64() * 20.0,
+            "Nested operations are more than 20x slower than baseline: {:.2}x",
+            operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
+        );
     }
 }
 
