@@ -6,6 +6,7 @@ mod test_either;
 mod test_id;
 mod test_io;
 mod test_lens;
+mod test_maybe;
 mod test_prism;
 #[cfg(feature = "pvec")]
 mod test_pvec;

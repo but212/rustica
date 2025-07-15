@@ -580,6 +580,20 @@ impl<T> Pure for Maybe<T> {
 }
 
 impl<T> Functor for Maybe<T> {
+    /// Applies a function to the contained value (if any).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::functor::Functor;
+    ///
+    /// let just = Maybe::Just(5);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just.fmap(|x| x * 2), Maybe::Just(10));
+    /// assert_eq!(nothing.fmap(|x| x * 2), Maybe::Nothing);
+    /// ```
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
     where
@@ -591,6 +605,20 @@ impl<T> Functor for Maybe<T> {
         }
     }
 
+    /// Applies a function to the contained value (if any), taking ownership.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::functor::Functor;
+    ///
+    /// let just = Maybe::Just(String::from("hello"));
+    /// let nothing: Maybe<String> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just.fmap_owned(|s| s.len()), Maybe::Just(5));
+    /// assert_eq!(nothing.fmap_owned(|s| s.len()), Maybe::Nothing);
+    /// ```
     #[inline]
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
@@ -604,6 +632,21 @@ impl<T> Functor for Maybe<T> {
 }
 
 impl<T> Applicative for Maybe<T> {
+    /// Applies a function wrapped in a `Maybe` to a value wrapped in a `Maybe`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::applicative::Applicative;
+    ///
+    /// let just_fn = Maybe::Just(|x: &i32| x + 1);
+    /// let just_val = Maybe::Just(1);
+    /// let nothing_val: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just_val.apply(&just_fn), Maybe::Just(2));
+    /// assert_eq!(nothing_val.apply(&just_fn), Maybe::Nothing);
+    /// ```
     #[inline]
     fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
     where
@@ -615,6 +658,21 @@ impl<T> Applicative for Maybe<T> {
         }
     }
 
+    /// Lifts a binary function to work on two `Maybe` values.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::applicative::Applicative;
+    ///
+    /// let a = Maybe::Just(5);
+    /// let b = Maybe::Just(10);
+    /// let c: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(a.lift2(&b, |x, y| x + y), Maybe::Just(15));
+    /// assert_eq!(a.lift2(&c, |x, y| x + y), Maybe::Nothing);
+    /// ```
     #[inline]
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
     where
@@ -637,6 +695,19 @@ impl<T> Applicative for Maybe<T> {
         }
     }
 
+    /// Applies a function wrapped in a `Maybe` to a value wrapped in a `Maybe`, taking ownership.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::applicative::Applicative;
+    ///
+    /// let just_fn = Maybe::Just(|s: String| s.len());
+    /// let just_val = Maybe::Just(String::from("test"));
+    ///
+    /// assert_eq!(just_val.apply_owned(just_fn), Maybe::Just(4));
+    /// ```
     #[inline]
     fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
     where
@@ -649,6 +720,19 @@ impl<T> Applicative for Maybe<T> {
         }
     }
 
+    /// Lifts a binary function to work on two `Maybe` values, taking ownership.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::applicative::Applicative;
+    ///
+    /// let a = Maybe::Just(String::from("hello"));
+    /// let b = Maybe::Just(String::from(" world"));
+    ///
+    /// assert_eq!(a.lift2_owned(b, |s1, s2| s1 + &s2), Maybe::Just(String::from("hello world")));
+    /// ```
     #[inline]
     fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
     where
@@ -898,11 +982,38 @@ impl<T> Monad for Maybe<T> {
 }
 
 impl<T: Clone> MonadPlus for Maybe<T> {
+    /// Returns the identity of `mplus` (`Nothing`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::monad_plus::MonadPlus;
+    ///
+    /// assert_eq!(Maybe::<i32>::mzero::<i32>(), Maybe::Nothing);
+    /// ```
     #[inline]
     fn mzero<U: Clone>() -> Self::Output<U> {
         Maybe::Nothing
     }
 
+    /// Chooses the first `Just` value, or `Nothing` if both are `Nothing`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::monad_plus::MonadPlus;
+    ///
+    /// let just1 = Maybe::Just(1);
+    /// let just2 = Maybe::Just(2);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just1.mplus(&just2), Maybe::Just(1));
+    /// assert_eq!(just1.mplus(&nothing), Maybe::Just(1));
+    /// assert_eq!(nothing.mplus(&just2), Maybe::Just(2));
+    /// assert_eq!(nothing.mplus(&nothing), Maybe::Nothing);
+    /// ```
     fn mplus(&self, other: &Self) -> Self {
         match (self, other) {
             (Maybe::Just(_), _) => self.clone(),
@@ -924,11 +1035,38 @@ impl<T: Clone> MonadPlus for Maybe<T> {
 }
 
 impl<T: Clone> Alternative for Maybe<T> {
+    /// Returns the identity of `alt` (`Nothing`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::alternative::Alternative;
+    ///
+    /// assert_eq!(Maybe::<i32>::empty_alt::<i32>(), Maybe::Nothing);
+    /// ```
     #[inline]
     fn empty_alt<U>() -> Self::Output<U> {
         Maybe::Nothing
     }
 
+    /// Chooses the first `Just` value, or `Nothing` if both are `Nothing`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::alternative::Alternative;
+    ///
+    /// let just1 = Maybe::Just(1);
+    /// let just2 = Maybe::Just(2);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just1.alt(&just2), Maybe::Just(1));
+    /// assert_eq!(just1.alt(&nothing), Maybe::Just(1));
+    /// assert_eq!(nothing.alt(&just2), Maybe::Just(2));
+    /// assert_eq!(nothing.alt(&nothing), Maybe::Nothing);
+    /// ```
     #[inline]
     fn alt(&self, other: &Self) -> Self {
         match self {
@@ -937,6 +1075,17 @@ impl<T: Clone> Alternative for Maybe<T> {
         }
     }
 
+    /// Returns `Just(())` if the condition is true, otherwise `Nothing`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::alternative::Alternative;
+    ///
+    /// assert_eq!(Maybe::<i32>::guard(true), Maybe::Just(()));
+    /// assert_eq!(Maybe::<i32>::guard(false), Maybe::Nothing);
+    /// ```
     #[inline]
     fn guard(condition: bool) -> Self::Output<()> {
         if condition {
@@ -958,6 +1107,23 @@ impl<T: Clone> Alternative for Maybe<T> {
     }
 }
 
+/// Creates a `Maybe` from an iterator.
+///
+/// It will be `Just` with the first element if the iterator is not empty, otherwise `Nothing`.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::datatypes::maybe::Maybe;
+///
+/// let v1 = vec![1, 2, 3];
+/// let m1: Maybe<i32> = v1.into_iter().collect();
+/// assert_eq!(m1, Maybe::Just(1));
+///
+/// let v2: Vec<i32> = vec![];
+/// let m2: Maybe<i32> = v2.into_iter().collect();
+/// assert_eq!(m2, Maybe::Nothing);
+/// ```
 impl<T> FromIterator<T> for Maybe<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         iter.into_iter().next().map_or(Maybe::Nothing, Maybe::Just)
@@ -1049,6 +1215,21 @@ impl<T> MaybeExt<T> for Maybe<T> {
 }
 
 impl<T> Identity for Maybe<T> {
+    /// Gets a reference to the value, panicking if `Nothing`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called on a `Nothing` value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// let just = Maybe::Just(10);
+    /// assert_eq!(*just.value(), 10);
+    /// ```
     #[inline]
     fn value(&self) -> &Self::Source {
         match self {
@@ -1081,6 +1262,21 @@ impl<T> Default for Maybe<T> {
 }
 
 impl<T: Clone> Comonad for Maybe<T> {
+    /// Extracts the value out of a `Just`, panicking if it's `Nothing`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called on a `Nothing` value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    /// use rustica::traits::comonad::Comonad;
+    ///
+    /// let just = Maybe::Just(10);
+    /// assert_eq!(just.extract(), 10);
+    /// ```
     #[inline]
     fn extract(&self) -> T {
         match self {
@@ -1094,6 +1290,22 @@ impl<T: Clone> Comonad for Maybe<T> {
         self.clone()
     }
 
+    /// Extends a computation from a `Maybe` to a new `Maybe`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::{Maybe, Maybe::*};
+    /// use rustica::traits::comonad::Comonad;
+    ///
+    /// let just = Just(5);
+    /// let extended = just.extend(|m| m.extract() * 2);
+    /// assert_eq!(extended, Just(10));
+    ///
+    /// let nothing: Maybe<i32> = Nothing;
+    /// let extended_nothing = nothing.extend(|m| m.extract() * 2);
+    /// assert_eq!(extended_nothing, Nothing);
+    /// ```
     #[inline]
     fn extend<U, F>(&self, f: F) -> Self::Output<U>
     where
@@ -1108,6 +1320,23 @@ impl<T: Clone> Comonad for Maybe<T> {
 
 // Iterator and IntoIterator implementations for Maybe<T>
 
+/// Creates an iterator from a `Maybe`.
+///
+/// The iterator will yield one value if the `Maybe` is `Just`, and zero values if it is `Nothing`.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::datatypes::maybe::Maybe;
+///
+/// let just = Maybe::Just(1);
+/// let mut iter = just.into_iter();
+/// assert_eq!(iter.next(), Some(1));
+/// assert_eq!(iter.next(), None);
+///
+/// let nothing: Maybe<i32> = Maybe::Nothing;
+/// assert_eq!(nothing.into_iter().next(), None);
+/// ```
 impl<T> IntoIterator for Maybe<T> {
     type Item = T;
     type IntoIter = std::option::IntoIter<T>;
