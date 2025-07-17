@@ -3,9 +3,15 @@ use criterion::{criterion_group, criterion_main};
 // Import benchmark modules
 mod datatypes {
     pub mod choice;
+    pub mod cont;
     pub mod either;
     pub mod id;
+    pub mod io;
+    pub mod iso_lens;
+    pub mod iso_prism;
+    pub mod lens;
     pub mod maybe;
+    pub mod prism;
     #[cfg(feature = "pvec")]
     pub mod pvec;
     pub mod reader;
@@ -16,9 +22,15 @@ mod datatypes {
 
 // Re-export benchmark functions
 use datatypes::choice::choice_benchmarks;
+use datatypes::cont::cont_benchmarks;
 use datatypes::either::either_benchmarks;
 use datatypes::id::id_benchmarks;
+use datatypes::io::io_benchmarks;
+use datatypes::iso_lens::iso_lens_benchmarks;
+use datatypes::iso_prism::iso_prism_benchmarks;
+use datatypes::lens::lens_benchmarks;
 use datatypes::maybe::maybe_benchmarks;
+use datatypes::prism::prism_benchmarks;
 #[cfg(feature = "pvec")]
 use datatypes::pvec::pvec_benchmarks;
 use datatypes::reader::reader_benchmarks;
@@ -36,7 +48,13 @@ criterion_group!(
     reader_benchmarks,
     writer_benchmarks,
     either_benchmarks,
-    id_benchmarks
+    id_benchmarks,
+    cont_benchmarks,
+    io_benchmarks,
+    lens_benchmarks,
+    prism_benchmarks,
+    iso_lens_benchmarks,
+    iso_prism_benchmarks
 );
 
 #[cfg(feature = "pvec")]
@@ -48,6 +66,14 @@ criterion_group!(
     choice_benchmarks,
     reader_benchmarks,
     writer_benchmarks,
+    either_benchmarks,
+    id_benchmarks,
+    cont_benchmarks,
+    io_benchmarks,
+    lens_benchmarks,
+    prism_benchmarks,
+    iso_lens_benchmarks,
+    iso_prism_benchmarks,
     pvec_benchmarks,
     either_benchmarks,
     id_benchmarks
