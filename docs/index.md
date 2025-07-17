@@ -110,7 +110,7 @@ let invalid: Validated<&str, i32> = Validated::invalid("validation error");
 `PersistentVector<T>` is an immutable vector implementation with memory optimization for small collections.
 
 ```rust
-use rustica::pvec::{PersistentVector, pvec};
+use rustica::pvec::pvec;
 
 // Create using macro
 let vec1 = pvec![1, 2, 3];
@@ -138,6 +138,7 @@ Key features:
 
 ```rust
 use rustica::datatypes::choice::Choice;
+use rustica::traits::functor::Functor;
 
 // Create a choice with a primary value and alternatives
 let choice = Choice::new(1, vec![2, 3, 4]);
@@ -156,6 +157,7 @@ let even_only = choice.filter(|x| x % 2 == 0);
 let swapped = choice.swap_with_alternative(1);
 assert_eq!(swapped.first(), Some(&3));
 assert!(swapped.alternatives().contains(&1));
+assert_eq!(even_only.alternatives(), vec![2, 4]);
 ```
 
 The `Choice` type provides an elegant way to work with collections where one element has special significance, while maintaining the functional programming principles of immutability and explicit transformations.

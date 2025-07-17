@@ -34,7 +34,7 @@ async fn main() {
     let async_value: AsyncM<i32> = AsyncM::pure(42);
     let result = async_value.try_get().await;
 
-    println!("Pure value: {}", result);
+    println!("Pure value: {result}");
     assert_eq!(result, 42);
 }
 ```
@@ -52,7 +52,7 @@ use std::time::Duration;
 // A simulated async function to fetch a user's name
 async fn fetch_user_name(user_id: u32) -> String {
     tokio::time::sleep(Duration::from_millis(50)).await;
-    format!("User-{}", user_id)
+    format!("User-{user_id}")
 }
 
 #[tokio::main]
@@ -61,7 +61,7 @@ async fn main() {
 
     println!("Running fetch operation...");
     let user_name = fetch_operation.try_get().await;
-    println!("Fetched user: {}", user_name);
+    println!("Fetched user: {user_name}");
 
     assert_eq!(user_name, "User-101");
 }
@@ -88,7 +88,7 @@ async fn fetch_user_id(username: &str) -> u32 {
 // Simulate fetching user details using their ID
 async fn fetch_user_details(user_id: u32) -> String {
     tokio::time::sleep(Duration::from_millis(50)).await;
-    format!("Details for user {}", user_id)
+    format!("Details for user {user_id}")
 }
 
 #[tokio::main]
@@ -103,7 +103,7 @@ async fn main() {
 
     println!("Fetching user details...");
     let details = get_details.try_get().await;
-    println!("Result: {}", details);
+    println!("Result: {details}");
 
     assert_eq!(details, "Details for user 101");
 }
@@ -124,13 +124,13 @@ use std::time::Duration;
 // Simulate fetching user profile
 async fn fetch_profile(user_id: u32) -> String {
     tokio::time::sleep(Duration::from_millis(100)).await;
-    format!("Profile for {}", user_id)
+    format!("Profile for {user_id}")
 }
 
 // Simulate fetching user activity
 async fn fetch_activity(user_id: u32) -> String {
     tokio::time::sleep(Duration::from_millis(100)).await;
-    format!("Activity for {}", user_id)
+    format!("Activity for {user_id}")
 }
 
 // A function to combine the results
@@ -155,9 +155,9 @@ async fn main() {
 
     let duration = start.elapsed();
 
-    println!("Profile: '{}'", profile);
-    println!("Activity: '{}'", activity);
-    println!("Concurrent execution took: {:?}", duration);
+    println!("Profile: '{profile}'");
+    println!("Activity: '{activity}'");
+    println!("Concurrent execution took: {duration:?}");
 
     // The total time should be around 100ms, not 200ms, because they ran in parallel.
     assert!(duration < Duration::from_millis(150));
@@ -192,7 +192,7 @@ async fn main() {
         "Default Value".to_string()
     );
     let result1 = success_op.try_get().await;
-    println!("Success case: {}", result1);
+    println!("Success case: {result1}");
     assert_eq!(result1, "Success!");
 
     // Handle the failure case
@@ -201,7 +201,7 @@ async fn main() {
         "Default Value".to_string()
     );
     let result2 = failure_op.try_get().await;
-    println!("Failure case: {}", result2);
+    println!("Failure case: {result2}");
     assert_eq!(result2, "Default Value");
 }
 ```

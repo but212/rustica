@@ -68,18 +68,18 @@ use rustica::prelude::*;
 
 fn main() {
     // Create a monadic value
-    let value = Maybe::just(5);
+    let value = Maybe::Just(5);
 
     // Chain operations with bind
     let result = value.bind(|x| {
         if *x > 0 {
-            Maybe::just(x * 2)
+            Maybe::Just(x * 2)
         } else {
-            Maybe::nothing()
+            Maybe::Nothing
         }
     });
 
-    assert_eq!(result, Maybe::just(10));
+    assert_eq!(result, Maybe::Just(10));
 }
 ```
 
@@ -89,7 +89,6 @@ The `Maybe` type represents computations that might not return a value, similar 
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::maybe::Maybe;
 
 fn main() {
     // Creating Maybe values
@@ -119,7 +118,6 @@ The `Either` type represents computations that might fail with an error, similar
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::either::Either;
 
 fn main() {
     // Creating Either values
@@ -198,7 +196,7 @@ fn main() {
         .bind(validate_no_special_chars);
 
     match validation_result {
-        Maybe::Just(valid_name) => println!("Valid username: {}", valid_name),
+        Maybe::Just(valid_name) => println!("Valid username: {valid_name}"),
         Maybe::Nothing => println!("Invalid username"),
     }
 }
@@ -208,7 +206,6 @@ fn main() {
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::either::Either;
 use std::fs::File;
 use std::io::Read;
 
@@ -235,8 +232,8 @@ fn main() {
 
     // Handle the result
     match processed {
-        Either::Right(line_count) => println!("File has {} lines", line_count),
-        Either::Left(error) => println!("Error reading file: {}", error),
+        Either::Right(line_count) => println!("File has {line_count} lines"),
+        Either::Left(error) => println!("Error reading file: {error}"),
     }
 }
 ```
@@ -249,8 +246,6 @@ Monad transformers allow you to combine multiple monads. For example, `StateT` a
 
 ```rust
 use rustica::prelude::*;
-use rustica::transformers::StateT;
-use rustica::datatypes::maybe::Maybe;
 
 // Define a state
 type Counter = i32;
@@ -279,7 +274,7 @@ fn main() {
     // result is Maybe::Just((10, 10)) - our state went from 0 -> 5 -> 10
     match result {
         Maybe::Just((final_state, final_value)) => {
-            println!("Final state: {}, Final value: {}", final_state, final_value);
+            println!("Final state: {final_state}, Final value: {final_value}");
         },
         Maybe::Nothing => println!("Computation failed"),
     }
@@ -331,15 +326,15 @@ fn main() {
 
     // Get a value using a lens
     let name = name_lens().get(&person);
-    println!("Name: {}", name);
+    println!("Name: {name}");
 
     // Update a value using a lens
     let updated_person = age_lens().set(person.clone(), 31);
-    println!("Updated age: {}", updated_person.age);
+    println!("Updated age: {0}", updated_person.age);
 
     // Modify a value using a lens
     let older_person = age_lens().modify(person, |age| age + 5);
-    println!("Age after 5 years: {}", older_person.age);
+    println!("Age after 5 years: {0}", older_person.age);
 }
 ```
 

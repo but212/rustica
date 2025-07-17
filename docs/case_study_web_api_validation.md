@@ -38,7 +38,6 @@ First, let's define the data structure we're validating and the validation funct
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::validated::Validated;
 
 // Our simple error type
 #[derive(Debug, Clone, PartialEq)]
@@ -97,9 +96,7 @@ To do this, we start with a `Validated` that contains a function (in this case, 
 
 ```rust
 /// Takes the raw input and runs all validations.
-fn validate_registration(
-    input: &UserRegistration,
-) -> Validated<ValidationError, UserRegistration> {
+fn validate_registration(input: &UserRegistration) -> Validated<ValidationError, UserRegistration> {
     let username_v = validate_username(&input.username);
     let email_v = validate_email(&input.email);
     let password_v = validate_password(&input.password);
@@ -212,7 +209,7 @@ fn main() {
     let response = handle_registration_request(&invalid_input);
     println!("API Response for invalid data: {:?}", response);
 
-    assert!(matches!(response, ApiResponse::Error(_)));
+    assert!(matches!(response, ApiResponse::Error { errors: _ }));
 
     // --- Test the handler with valid data ---
     let valid_input = UserRegistration {
@@ -224,7 +221,7 @@ fn main() {
     let response = handle_registration_request(&valid_input);
     println!("API Response for valid data: {:?}", response);
 
-    assert!(matches!(response, ApiResponse::Success(_)));
+    assert!(matches!(response, ApiResponse::Success { username: _ }));
 }
 ```
 

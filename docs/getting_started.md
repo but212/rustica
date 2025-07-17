@@ -220,7 +220,7 @@ fn main() {
         Validated::Invalid(errors) => {
             println!("Validation failed with {} errors:", errors.len());
             for err in errors {
-                println!("- {}", err);
+                println!("- {err}");
             }
         },
         _ => (),
