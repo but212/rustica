@@ -732,4 +732,196 @@ where
     pub fn for_case<P, R>(match_case: PreviewFn, make_case: ReviewFn) -> Self {
         Prism::new(match_case, make_case)
     }
+
+    /// Modifies the focused value using a transformation function with structural sharing optimization.
+    ///
+    /// This method applies a transformation function to the focused value (if it exists) and
+    /// returns a new structure. If the transformation doesn't change the value, the original
+    /// structure is returned unchanged, providing structural sharing optimization.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Preview Success**: O(m + f + eq) - Where m is preview complexity, f is transformation
+    ///   function complexity, and eq is the equality comparison complexity
+    /// * **Preview Failure**: O(m) - Only the preview operation is performed
+    /// * **Value Unchanged**: O(m + f + eq) - But returns original structure (structural sharing)
+    /// * **Value Changed**: O(m + f + eq + c) - Additional cost c for constructing new structure
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Value Unchanged**: No additional allocation - original structure is returned
+    /// * **Value Changed**: Allocates memory for the new structure via review operation
+    /// * **Preview Failure**: Original structure returned, no additional allocation
+    ///
+    /// # Structural Sharing Benefits
+    ///
+    /// This method provides significant performance benefits when:
+    /// - The transformation function often returns the same value
+    /// - The structure S is large and expensive to clone/construct
+    /// - Memory pressure is a concern in your application
+    ///
+    /// # Design Notes
+    ///
+    /// * Requires `S: Clone` to enable returning the original structure
+    /// * Requires `A: PartialEq` to compare values for structural sharing
+    /// * If preview fails, the original structure is returned unchanged
+    /// * The transformation function is always called, even if preview fails
+    ///   (this ensures consistent behavior and side effects)
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source structure to modify
+    /// * `f` - A transformation function that takes the current value and returns a new value
+    ///
+    /// # Returns
+    ///
+    /// * The original structure if preview fails or the value is unchanged after transformation
+    /// * A new structure if the value was successfully transformed to a different value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::prism::Prism;
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Counter {
+    ///     Value(i32),
+    ///     Empty,
+    /// }
+    ///
+    /// let value_prism = Prism::new(
+    ///     |c: &Counter| match c {
+    ///         Counter::Value(v) => Some(*v),
+    ///         _ => None,
+    ///     },
+    ///     |v: &i32| Counter::Value(*v),
+    /// );
+    ///
+    /// let counter = Counter::Value(5);
+    ///
+    /// // Increment the value
+    /// let incremented = value_prism.modify(counter.clone(), |x| x + 1);
+    /// assert_eq!(incremented, Counter::Value(6));
+    ///
+    /// // No change - structural sharing applied
+    /// let unchanged = value_prism.modify(counter.clone(), |x| x);
+    /// // unchanged is the same instance as counter (structural sharing)
+    ///
+    /// // Preview fails - original structure returned
+    /// let empty = Counter::Empty;
+    /// let still_empty = value_prism.modify(empty, |x| x + 1);
+    /// assert_eq!(still_empty, Counter::Empty);
+    /// ```
+    pub fn modify<F>(&self, source: S, f: F) -> S
+    where
+        F: FnOnce(A) -> A,
+        A: PartialEq + Clone,
+    {
+        match self.preview(&source) {
+            Some(current_value) => {
+                let new_value = f(current_value.clone());
+                if new_value == current_value {
+                    source // Return original structure (structural sharing)
+                } else {
+                    self.review(&new_value) // Create new structure
+                }
+            },
+            None => source, // Preview failed, return original structure
+        }
+    }
+
+    /// Sets the focused value with structural sharing optimization.
+    ///
+    /// This method sets the focused value to a new value, but only creates a new structure
+    /// if the new value is different from the current value. If the values are equal,
+    /// the original structure is returned unchanged.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// ## Time Complexity
+    ///
+    /// * **Preview Success + Same Value**: O(m + eq) - Preview and equality comparison
+    /// * **Preview Success + Different Value**: O(m + eq + c) - Additional construction cost
+    /// * **Preview Failure**: O(m + c) - Preview fails, construct new structure
+    ///
+    /// ## Memory Usage
+    ///
+    /// * **Same Value**: No additional allocation - original structure returned
+    /// * **Different Value**: Allocates memory for new structure
+    /// * **Preview Failure**: Allocates memory for new structure
+    ///
+    /// # Structural Sharing Benefits
+    ///
+    /// This method is particularly useful when:
+    /// - You're setting values that might not actually change
+    /// - You want to avoid unnecessary allocations and copies
+    /// - You're working with large structures where construction is expensive
+    ///
+    /// # Design Notes
+    ///
+    /// * If preview fails, a new structure is created with the given value
+    /// * This behavior ensures that the method always succeeds in "setting" the value
+    /// * The method assumes that if preview fails, you want to create the variant
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source structure to potentially modify
+    /// * `new_value` - The new value to set
+    ///
+    /// # Returns
+    ///
+    /// * The original structure if the current value equals the new value
+    /// * A new structure with the new value if they differ or if preview fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::prism::Prism;
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Status {
+    ///     Active(String),
+    ///     Inactive,
+    /// }
+    ///
+    /// let active_prism = Prism::new(
+    ///     |s: &Status| match s {
+    ///         Status::Active(name) => Some(name.clone()),
+    ///         _ => None,
+    ///     },
+    ///     |name: &String| Status::Active(name.clone()),
+    /// );
+    ///
+    /// let status = Status::Active("Alice".to_string());
+    ///
+    /// // Set to same value - structural sharing
+    /// let same_status = active_prism.set_if_different(status.clone(), "Alice".to_string());
+    /// // same_status is the same instance as status
+    ///
+    /// // Set to different value - new structure created
+    /// let new_status = active_prism.set_if_different(status, "Bob".to_string());
+    /// assert_eq!(new_status, Status::Active("Bob".to_string()));
+    ///
+    /// // Preview fails - create new structure
+    /// let inactive = Status::Inactive;
+    /// let now_active = active_prism.set_if_different(inactive, "Charlie".to_string());
+    /// assert_eq!(now_active, Status::Active("Charlie".to_string()));
+    /// ```
+    pub fn set_if_different(&self, source: S, new_value: A) -> S
+    where
+        A: PartialEq,
+    {
+        match self.preview(&source) {
+            Some(current_value) => {
+                if new_value == current_value {
+                    source // Return original structure (structural sharing)
+                } else {
+                    self.review(&new_value) // Create new structure
+                }
+            },
+            None => self.review(&new_value), // Preview failed, create new structure with the value
+        }
+    }
 }
