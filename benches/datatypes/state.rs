@@ -4,45 +4,45 @@ use rustica::datatypes::state::{get, modify, put};
 use std::hint::black_box;
 
 pub fn state_benchmarks(c: &mut Criterion) {
-    // Basic operations
-    c.bench_function("state_create_and_run", |b| {
+    let mut group = c.benchmark_group("State");
+
+    group.bench_function("creation_and_run", |b| {
         b.iter(|| {
             let state = State::new(|s: i32| (s * 2, s + 1));
-            black_box(state.run_state(5))
+            black_box(state.run_state(5));
         });
     });
 
-    // Core operations
-    c.bench_function("state_get", |b| {
+    group.bench_function("get", |b| {
         b.iter(|| {
             let state = get::<i32>();
-            black_box(state.run_state(10))
+            black_box(state.run_state(10));
         });
     });
 
-    c.bench_function("state_put", |b| {
+    group.bench_function("put", |b| {
         b.iter(|| {
             let state = put(42);
-            black_box(state.run_state(10))
+            black_box(state.run_state(10));
         });
     });
 
-    c.bench_function("state_modify", |b| {
+    group.bench_function("modify", |b| {
         b.iter(|| {
             let state = modify(|s: i32| s * 2);
-            black_box(state.run_state(10))
+            black_box(state.run_state(10));
         });
     });
 
-    // Monad operations
-    c.bench_function("state_bind", |b| {
+    group.bench_function("bind_chain", |b| {
         b.iter(|| {
             let state: State<i32, i32> = State::pure(42);
-            black_box(
-                state
-                    .bind(|x: i32| State::pure(x * 2))
-                    .bind(|x: i32| State::pure(x + 10)),
-            )
+            let computation = state
+                .bind(|x| State::pure(x * 2))
+                .bind(|x| State::pure(x + 10));
+            black_box(computation.run_state(0));
         });
     });
+
+    group.finish();
 }
