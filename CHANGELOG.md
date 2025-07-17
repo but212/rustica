@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.8.1]
+
+### Added - 0.8.1
+
+### Change - 0.8.1
+
+### Removed - 0.8.1
+
+- remove quickcheck in full feature flag
+
 ## [0.8.0]
 
 ### Changed - 0.8.0

@@ -36,7 +36,7 @@ criterion = { version = "0.6", features = ["html_reports"] }
 default = []
 pvec = []
 async = ["futures", "tokio"]
-full = ["async", "pvec", "quickcheck"]
+full = ["async", "pvec"]
 develop = ["full"]
 quickcheck = ["dep:quickcheck"]
 
