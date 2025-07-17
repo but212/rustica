@@ -97,7 +97,7 @@
 //!     })
 //!     .bind(|name| {
 //!         // Add prefix to username
-//!         Choice::new(format!("verified_{}", name), vec![])
+//!         Choice::new(format!("verified_{name}", ), vec![])
 //!     });
 //!
 //! assert_eq!(*processed.first().unwrap(), "verified_user123");
