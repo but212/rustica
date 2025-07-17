@@ -4,6 +4,12 @@
 
 ### Added - 0.8.1
 
+- **Prism structural sharing optimization methods**
+  - Added `modify` method to `Prism` for structural sharing optimization: returns the original structure if the value is unchanged after transformation, avoiding unnecessary allocations and copies.
+  - Added `set_if_different` method to `Prism`: only creates a new structure if the new value differs from the current value.
+  - Both methods require `S: Clone` and `A: PartialEq` constraints for efficient comparison and sharing.
+  - Enhanced documentation with practical usage examples.
+
 ### Change - 0.8.1
 
 ### Removed - 0.8.1
