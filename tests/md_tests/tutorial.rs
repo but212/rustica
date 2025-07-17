@@ -222,6 +222,7 @@ fn lenses() {
     println!("Age after 5 years: {0}", older_person.age);
 }
 
+#[cfg(feature = "pvec")]
 #[test]
 fn persistent_data_structures() {
     use rustica::pvec::{PersistentVector, pvec};

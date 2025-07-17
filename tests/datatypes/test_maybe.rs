@@ -7,7 +7,6 @@ use rustica::traits::monad_plus::MonadPlus;
 use rustica::traits::pure::Pure;
 
 // Functor Laws
-
 #[test]
 fn test_functor_identity() {
     fn functor_identity(m: Maybe<i32>) -> TestResult {

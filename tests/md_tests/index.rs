@@ -61,6 +61,7 @@ fn core_data_types_validated() {
     assert_eq!(invalid, Validated::invalid("validation error"));
 }
 
+#[cfg(feature = "pvec")]
 #[test]
 fn core_data_types_persistent_vector() {
     use rustica::pvec::pvec;
