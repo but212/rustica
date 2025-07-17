@@ -181,7 +181,6 @@ use crate::traits::monad_plus::MonadPlus;
 use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
-#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use smallvec::{SmallVec, smallvec};
 
@@ -2661,7 +2660,6 @@ impl<E: Clone, A: Clone> Monoid for Validated<E, A> {
     }
 }
 
-#[cfg(feature = "full")]
 impl<E, A> Arbitrary for Validated<E, A>
 where
     E: Arbitrary,

@@ -24,7 +24,7 @@ parking_lot = "0.12.3"
 rayon = "1.10.0"
 smallvec = "1.14.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }
-quickcheck = { version = "1.0", optional = true }
+quickcheck = "1.0"
 lazy_static = "1.5.0"
 
 [dev-dependencies]
@@ -38,7 +38,6 @@ pvec = []
 async = ["futures", "tokio"]
 full = ["async", "pvec"]
 develop = ["full"]
-quickcheck = ["dep:quickcheck"]
 
 [[bench]]
 name = "datatypes_benchmarks"

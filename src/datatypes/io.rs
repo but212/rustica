@@ -282,7 +282,6 @@
 //! ```
 
 use crate::utils::error_utils::AppError;
-#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::sync::Arc;
 #[cfg(feature = "async")]
@@ -959,7 +958,6 @@ impl<A: Clone + 'static> crate::traits::evaluate::Evaluate for IO<A> {
     }
 }
 
-#[cfg(feature = "full")]
 impl<A: Send + Sync + Clone + Arbitrary> Arbitrary for IO<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);

@@ -187,7 +187,6 @@ use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
 use crate::transformers::StateT;
 use crate::utils::error_utils::AppError;
-#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 
 /// A monad that represents stateful computations.
@@ -1267,7 +1266,6 @@ where
     }
 }
 
-#[cfg(feature = "full")]
 impl<S, A> Arbitrary for State<S, A>
 where
     S: Arbitrary + Send + Sync + 'static,

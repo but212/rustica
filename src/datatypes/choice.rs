@@ -158,7 +158,6 @@
 //! - Flattening nested choices
 //! - Converting between collections and choices
 //! - Monadic operations for sequencing computations
-#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
@@ -500,6 +499,112 @@ impl<T> Choice<T> {
         P: Fn(&&'a T) -> bool,
     {
         self.iter().find(predicate)
+    }
+
+    /// Returns a new `Choice` with duplicate elements removed.
+    ///
+    /// This method preserves the order of elements, keeping the first occurrence of each value
+    /// while removing subsequent duplicates. Uniqueness is determined by the `Hash` and `Eq` traits.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice` with duplicate elements removed.
+    ///
+    /// # Performance
+    /// - Time complexity: O(n) where n is the number of elements in the `Choice`.
+    /// - Space complexity: O(n) for the hash set used to track seen items.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(10, vec![20, 10, 30, 20]);
+    /// let unique = choice.dedup();
+    /// assert_eq!(unique.to_vec(), vec![10, 20, 30]);
+    ///
+    /// // Empty choice remains empty
+    /// let empty: Choice<i32> = Choice::new_empty();
+    /// assert!(empty.dedup().is_empty());
+    /// ```
+    ///
+    /// # See Also
+    /// - [`dedup_by_key`](Self::dedup_by_key) - For deduplication using a key extraction function.
+    pub fn dedup(&self) -> Self
+    where
+        T: Hash + Eq + Clone,
+    {
+        if self.is_empty() {
+            return self.clone();
+        }
+
+        let mut result = SmallVec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        for value in self.iter() {
+            if seen.insert(value) {
+                result.push(value.clone());
+            }
+        }
+
+        Self {
+            values: result.into(),
+        }
+    }
+
+    /// Returns a new `Choice` with duplicate elements removed, using a key extraction function.
+    ///
+    /// This method preserves the order of elements, keeping the first occurrence of each unique key
+    /// while removing subsequent duplicates. Uniqueness is determined by the key derived from each element.
+    ///
+    /// # Arguments
+    ///
+    /// * `key_fn` - A function that extracts a hashable key from each element.
+    ///
+    /// # Returns
+    ///
+    /// A new `Choice` with duplicate elements removed based on their extracted keys.
+    ///
+    /// # Performance
+    /// - Time complexity: O(n) where n is the number of elements in the `Choice`.
+    /// - Space complexity: O(n) for the hash set used to track seen keys.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new((1, "a"), vec![(2, "b"), (3, "a"), (4, "c")]);
+    /// // Deduplicate based on the second component of each tuple
+    /// let unique = choice.dedup_by_key(|&(_, s)| s);
+    /// assert_eq!(unique.to_vec(), vec![(1, "a"), (2, "b"), (4, "c")]);
+    /// ```
+    ///
+    /// # See Also
+    /// - [`dedup`](Self::dedup) - For simple deduplication using element equality.
+    pub fn dedup_by_key<K, F>(&self, key_fn: F) -> Self
+    where
+        F: Fn(&T) -> K,
+        K: Hash + Eq,
+        T: Clone,
+    {
+        if self.is_empty() {
+            return self.clone();
+        }
+
+        let mut result = SmallVec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        for value in self.iter() {
+            let key = key_fn(value);
+            if seen.insert(key) {
+                result.push(value.clone());
+            }
+        }
+
+        Self {
+            values: result.into(),
+        }
     }
 
     /// Folds the values in the `Choice` into a single value.
@@ -2490,7 +2595,6 @@ impl<T: Clone + Default> std::iter::Sum for Choice<T> {
     }
 }
 
-#[cfg(feature = "full")]
 impl<T: Arbitrary + 'static> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         let items: Vec<T> = Arbitrary::arbitrary(g);

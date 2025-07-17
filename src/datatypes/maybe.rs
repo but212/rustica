@@ -171,7 +171,6 @@ use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use crate::utils::error_utils::{AppError, WithError};
-#[cfg(feature = "full")]
 use quickcheck::{Arbitrary, Gen};
 use std::marker::PhantomData;
 
@@ -1373,7 +1372,6 @@ impl<'a, T> IntoIterator for &'a mut Maybe<T> {
     }
 }
 
-#[cfg(feature = "full")]
 impl<T> Arbitrary for Maybe<T>
 where
     T: Arbitrary + Clone,
