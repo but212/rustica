@@ -168,6 +168,7 @@ use quickcheck::{Arbitrary, Gen};
 /// use rustica::prelude::*;
 /// use rustica::datatypes::id::Id;
 /// use rustica::traits::identity::Identity;
+/// use rustica::traits::applicative::Applicative;
 ///
 /// // Create Id values
 /// let x = Id::new(5);
@@ -193,19 +194,19 @@ use quickcheck::{Arbitrary, Gen};
 ///
 /// // 2. Combine two Id values with lift2
 /// let add = |a: &i32, b: &i32| a + b;
-/// let sum = x.lift2(&y, &add);
+/// let sum = Id::<i32>::lift2(&add, &x, &y);
 /// assert_eq!(*sum.value(), 8);
 ///
 /// // 3. Combine three Id values with lift3
 /// let multiply = |a: &i32, b: &i32, c: &i32| a * b * c;
-/// let product = x.lift3(&y, &z, &multiply);
+/// let product = Id::<i32>::lift3(&multiply, &x, &y, &z);
 /// assert_eq!(*product.value(), 30);
 ///
 /// // Working with different types
 /// let greeting = Id::new("Hello");
 /// let count = Id::new(3_usize);
 /// let repeat = |s: &&str, n: &usize| s.repeat(*n);
-/// let repeated = greeting.lift2(&count, &repeat);
+/// let repeated = Id::<&str>::lift2(&repeat, &greeting, &count);
 /// assert_eq!(*repeated.value(), "HelloHelloHello");
 ///
 /// // Chaining operations
@@ -390,48 +391,67 @@ impl<T: Clone> Applicative for Id<T> {
     }
 
     #[inline]
-    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
     where
-        F: Fn(&Self::Source, &B) -> C,
-    {
-        Id::new(f(&self.value, b.value()))
-    }
-
-    #[inline]
-    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
-    where
-        F: Fn(&Self::Source, &B, &C) -> D,
-    {
-        Id::new(f(&self.value, b.value(), c.value()))
-    }
-
-    #[inline]
-    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
+        F: Fn(&A, &B) -> C,
+        A: Clone,
+        B: Clone,
+        C: Clone,
         Self: Sized,
     {
-        Id::new(f.value()(self.value))
+        Id::new(f(fa.value(), fb.value()))
     }
 
     #[inline]
-    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
-    where
-        F: FnOnce(Self::Source, B) -> C,
-        Self: Sized,
-    {
-        Id::new(f(self.value, b.value))
-    }
-
-    #[inline]
-    fn lift3_owned<B, C, D, F>(
-        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
+    fn lift3<A, B, C, D, F>(
+        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
     ) -> Self::Output<D>
     where
-        F: FnOnce(Self::Source, B, C) -> D,
+        F: Fn(&A, &B, &C) -> D,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        D: Clone,
         Self: Sized,
     {
-        Id::new(f(self.value, b.value, c.value))
+        Id::new(f(fa.value(), fb.value(), fc.value()))
+    }
+
+    #[inline]
+    fn apply_owned<U, B>(self, value: Self::Output<U>) -> Self::Output<B>
+    where
+        Self::Source: Fn(U) -> B,
+        U: Clone,
+        B: Clone,
+    {
+        Id::new((self.value)(value.value))
+    }
+
+    #[inline]
+    fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
+    where
+        F: Fn(A, B) -> C,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        Self: Sized,
+    {
+        Id::new(f(fa.value, fb.value))
+    }
+
+    #[inline]
+    fn lift3_owned<A, B, C, D, F>(
+        f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
+    ) -> Self::Output<D>
+    where
+        F: Fn(A, B, C) -> D,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        D: Clone,
+        Self: Sized,
+    {
+        Id::new(f(fa.value, fb.value, fc.value))
     }
 }
 

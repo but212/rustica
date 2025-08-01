@@ -64,7 +64,7 @@ fn applicative_lift2_law(a: i32, b: i32) -> bool {
     let fa = TestFunctor::new(a);
     let fb = TestFunctor::new(b);
     let sum = |x: &i32, y: &i32| x.saturating_add(*y);
-    let result = fa.lift2(&fb, sum);
+    let result = TestFunctor::<i32>::lift2(sum, &fa, &fb);
     result == TestFunctor::new(a.saturating_add(b))
 }
 
@@ -75,7 +75,7 @@ fn applicative_lift3_law(a: i32, b: i32, c: i32) -> bool {
     let fb = TestFunctor::new(b);
     let fc = TestFunctor::new(c);
     let sum3 = |x: &i32, y: &i32, z: &i32| x.saturating_add(*y).saturating_add(*z);
-    let result = fa.lift3(&fb, &fc, sum3);
+    let result = TestFunctor::<i32>::lift3(sum3, &fa, &fb, &fc);
     result == TestFunctor::new(a.saturating_add(b).saturating_add(c))
 }
 
@@ -84,7 +84,7 @@ fn applicative_lift3_law(a: i32, b: i32, c: i32) -> bool {
 fn applicative_sequence_right_law(a: i32, b: i32) -> bool {
     let fa = TestFunctor::new(a);
     let fb = TestFunctor::new(b);
-    let result = fa.sequence_right(&fb);
+    let result = TestFunctor::<i32>::sequence_right(&fa, &fb);
     result == fb
 }
 
@@ -93,7 +93,7 @@ fn applicative_sequence_right_law(a: i32, b: i32) -> bool {
 fn applicative_sequence_left_law(a: i32, b: i32) -> bool {
     let fa = TestFunctor::new(a);
     let fb = TestFunctor::new(b);
-    let result = fa.sequence_left(&fb);
+    let result = TestFunctor::<i32>::sequence_left(&fa, &fb);
     result == fa
 }
 
@@ -103,7 +103,7 @@ fn applicative_apply_law(a: i32) -> bool {
     let f = |x: i32| x.saturating_sub(1);
     let ff = TestFunctor::new(f);
     let fa = TestFunctor::new(a);
-    let result = fa.clone().apply_owned(ff.clone());
+    let result = ff.clone().apply_owned(fa.clone());
     result == TestFunctor::new(f(a))
 }
 
@@ -113,7 +113,7 @@ fn applicative_lift2_owned_law(a: i32, b: i32) -> bool {
     let fa = TestFunctor::new(a);
     let fb = TestFunctor::new(b);
     let sum = |x: i32, y: i32| x.saturating_add(y);
-    let result = fa.clone().lift2_owned(fb.clone(), sum);
+    let result = TestFunctor::<i32>::lift2_owned(sum, fa.clone(), fb.clone());
     result == TestFunctor::new(a.saturating_add(b))
 }
 
@@ -124,6 +124,6 @@ fn applicative_lift3_owned_law(a: i32, b: i32, c: i32) -> bool {
     let fb = TestFunctor::new(b);
     let fc = TestFunctor::new(c);
     let sum3 = |x: i32, y: i32, z: i32| x.saturating_add(y).saturating_add(z);
-    let result = fa.clone().lift3_owned(fb.clone(), fc.clone(), sum3);
+    let result = TestFunctor::<i32>::lift3_owned(sum3, fa.clone(), fb.clone(), fc.clone());
     result == TestFunctor::new(a.saturating_add(b).saturating_add(c))
 }

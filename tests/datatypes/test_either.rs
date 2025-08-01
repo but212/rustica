@@ -86,33 +86,33 @@ fn test_either_applicative() {
     // Test apply_owned
     let value: Either<&str, i32> = Either::right(42);
     let f: Either<&str, fn(i32) -> i32> = Either::right(|x| x + 1);
-    let result = value.apply_owned(f);
+    let result = f.apply_owned(value);
     assert_eq!(result.unwrap_right(), 43);
 
     // Test lift2
     let a: Either<&str, i32> = Either::right(2);
     let b: Either<&str, i32> = Either::right(3);
-    let result = a.lift2(&b, |x, y| x * y);
+    let result = Either::<&str, i32>::lift2(|x, y| x * y, &a, &b);
     assert_eq!(result.unwrap_right(), 6);
 
     // Test lift2_owned
     let a: Either<&str, i32> = Either::right(2);
     let b: Either<&str, i32> = Either::right(3);
-    let result = a.lift2_owned(b, |x, y| x * y);
+    let result = Either::<&str, i32>::lift2_owned(|x, y| x * y, a, b);
     assert_eq!(result.unwrap_right(), 6);
 
     // Test lift3
     let a: Either<&str, i32> = Either::right(2);
     let b: Either<&str, i32> = Either::right(3);
     let c: Either<&str, i32> = Either::right(4);
-    let result = a.lift3(&b, &c, |x, y, z| x * y + z);
+    let result = Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a, &b, &c);
     assert_eq!(result.unwrap_right(), 10);
 
     // Test lift3_owned
     let a: Either<&str, i32> = Either::right(2);
     let b: Either<&str, i32> = Either::right(3);
     let c: Either<&str, i32> = Either::right(4);
-    let result = a.lift3_owned(b, c, |x, y, z| x * y + z);
+    let result = Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a, b, c);
     assert_eq!(result.unwrap_right(), 10);
 
     // Test apply short-circuiting behavior
@@ -139,23 +139,23 @@ fn test_either_applicative() {
 
     // Right <*> Right = Right
     assert_eq!(
-        value_right_owned.apply_owned(f_right_owned).unwrap_right(),
+        f_right_owned.apply_owned(value_right_owned).unwrap_right(),
         43
     );
     // Left <*> Right = Left
     assert_eq!(
-        value_left_owned.apply_owned(f_right_owned).unwrap_left(),
+        f_right_owned.apply_owned(value_left_owned).unwrap_left(),
         "value error owned"
     );
     // Right <*> Left = Left
     assert_eq!(
-        value_right_owned.apply_owned(f_left_owned).unwrap_left(),
+        f_left_owned.apply_owned(value_right_owned).unwrap_left(),
         "function error owned"
     );
-    // Left <*> Left = Left (first Left encountered)
+    // Left <*> Left = Left (function error takes precedence since function comes first)
     assert_eq!(
-        value_left_owned.apply_owned(f_left_owned).unwrap_left(),
-        "value error owned"
+        f_left_owned.apply_owned(value_left_owned).unwrap_left(),
+        "function error owned"
     );
 
     // Test lift2 short-circuiting behavior
@@ -165,36 +165,45 @@ fn test_either_applicative() {
     let b_left: Either<&str, i32> = Either::left("b error");
 
     // Right lift Right = Right
-    assert_eq!(a_right.lift2(&b_right, |x, y| x * y).unwrap_right(), 6);
+    assert_eq!(
+        Either::<&str, i32>::lift2(|x, y| x * y, &a_right, &b_right).unwrap_right(),
+        6
+    );
     // Left lift Right = Left
     assert_eq!(
-        a_left.lift2(&b_right, |x, y| x * y).unwrap_left(),
+        Either::<&str, i32>::lift2(|x, y| x * y, &a_left, &b_right).unwrap_left(),
         "a error"
     );
     // Right lift Left = Left
     assert_eq!(
-        a_right.lift2(&b_left, |x, y| x * y).unwrap_left(),
+        Either::<&str, i32>::lift2(|x, y| x * y, &a_right, &b_left).unwrap_left(),
         "b error"
     );
     // Left lift Left = Left (first Left encountered)
-    assert_eq!(a_left.lift2(&b_left, |x, y| x * y).unwrap_left(), "a error");
+    assert_eq!(
+        Either::<&str, i32>::lift2(|x, y| x * y, &a_left, &b_left).unwrap_left(),
+        "a error"
+    );
 
     // Test lift2_owned short-circuiting behavior
     // Right lift Right = Right
-    assert_eq!(a_right.lift2_owned(b_right, |x, y| x * y).unwrap_right(), 6);
+    assert_eq!(
+        Either::<&str, i32>::lift2_owned(|x, y| x * y, a_right, b_right).unwrap_right(),
+        6
+    );
     // Left lift Right = Left
     assert_eq!(
-        a_left.lift2_owned(b_right, |x, y| x * y).unwrap_left(),
+        Either::<&str, i32>::lift2_owned(|x, y| x * y, a_left, b_right).unwrap_left(),
         "a error"
     );
     // Right lift Left = Left
     assert_eq!(
-        a_right.lift2_owned(b_left, |x, y| x * y).unwrap_left(),
+        Either::<&str, i32>::lift2_owned(|x, y| x * y, a_right, b_left).unwrap_left(),
         "b error"
     );
     // Left lift Left = Left (first Left encountered)
     assert_eq!(
-        a_left.lift2_owned(b_left, |x, y| x * y).unwrap_left(),
+        Either::<&str, i32>::lift2_owned(|x, y| x * y, a_left, b_left).unwrap_left(),
         "a error"
     );
 
@@ -204,73 +213,59 @@ fn test_either_applicative() {
 
     // R lift R lift R = R
     assert_eq!(
-        a_right
-            .lift3(&b_right, &c_right, |x, y, z| x * y + z)
+        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_right, &b_right, &c_right)
             .unwrap_right(),
         10
     );
     // L lift R lift R = L (a)
     assert_eq!(
-        a_left
-            .lift3(&b_right, &c_right, |x, y, z| x * y + z)
-            .unwrap_left(),
+        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_left, &b_right, &c_right).unwrap_left(),
         "a error"
     );
     // R lift L lift R = L (b)
     assert_eq!(
-        a_right
-            .lift3(&b_left, &c_right, |x, y, z| x * y + z)
-            .unwrap_left(),
+        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_right, &b_left, &c_right).unwrap_left(),
         "b error"
     );
     // R lift R lift L = L (c)
     assert_eq!(
-        a_right
-            .lift3(&b_right, &c_left, |x, y, z| x * y + z)
-            .unwrap_left(),
+        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_right, &b_right, &c_left).unwrap_left(),
         "c error"
     );
     // L lift L lift R = L (a)
     assert_eq!(
-        a_left
-            .lift3(&b_left, &c_right, |x, y, z| x * y + z)
-            .unwrap_left(),
+        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_left, &b_left, &c_right).unwrap_left(),
         "a error"
     );
 
     // Test lift3_owned short-circuiting behavior
     // R lift R lift R = R
     assert_eq!(
-        a_right
-            .lift3_owned(b_right, c_right, |x, y, z| x * y + z)
+        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_right, b_right, c_right)
             .unwrap_right(),
         10
     );
     // L lift R lift R = L (a)
     assert_eq!(
-        a_left
-            .lift3_owned(b_right, c_right, |x, y, z| x * y + z)
+        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_left, b_right, c_right)
             .unwrap_left(),
         "a error"
     );
     // R lift L lift R = L (b)
     assert_eq!(
-        a_right
-            .lift3_owned(b_left, c_right, |x, y, z| x * y + z)
+        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_right, b_left, c_right)
             .unwrap_left(),
         "b error"
     );
     // R lift R lift L = L (c)
     assert_eq!(
-        a_right
-            .lift3_owned(b_right, c_left, |x, y, z| x * y + z)
+        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_right, b_right, c_left)
             .unwrap_left(),
         "c error"
     );
     // L lift L lift R = L (a)
     assert_eq!(
-        a_left
-            .lift3_owned(b_left, c_right, |x, y, z| x * y + z)
+        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_left, b_left, c_right)
             .unwrap_left(),
         "a error"
     );

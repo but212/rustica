@@ -52,17 +52,25 @@ fn validate_registration(input: &UserRegistration) -> Validated<ValidationError,
     let email_v = validate_email(&input.email);
     let password_v = validate_password(&input.password);
 
-    username_v
-        .lift2(&email_v, |username, email| {
+    let intermediate = Validated::<ValidationError, (String, String)>::lift2(
+        |username, email| {
             (username.clone(), email.clone()) // Intermediate tuple
-        })
-        .lift2(&password_v, |(username, email), password| {
+        },
+        &username_v,
+        &email_v,
+    );
+    
+    Validated::<ValidationError, UserRegistration>::lift2(
+        |(username, email), password| {
             UserRegistration {
                 username: username.to_string(), // Cloned in the previous step
                 email: email.to_string(),       // Cloned in the previous step
                 password: password.clone(),
             }
-        })
+        },
+        &intermediate,
+        &password_v,
+    )
 }
 
 #[test]

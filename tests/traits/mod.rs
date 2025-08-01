@@ -90,47 +90,63 @@ impl<T> Applicative for TestFunctor<T> {
         TestFunctor::new(self.0(&value.0))
     }
 
-    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
     where
-        F: Fn(&Self::Source, &B) -> C,
-    {
-        TestFunctor::new(f(&self.0, &b.0))
-    }
-
-    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
-    where
-        F: Fn(&Self::Source, &B, &C) -> D,
-    {
-        TestFunctor::new(f(&self.0, &b.0, &c.0))
-    }
-
-    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
-        Self: Sized,
-    {
-        TestFunctor::new(f.0(self.0))
-    }
-
-    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
-    where
-        F: Fn(Self::Source, B) -> C,
-        Self: Sized,
-        B: Clone,
-    {
-        TestFunctor::new(f(self.0, b.0))
-    }
-
-    fn lift3_owned<B, C, D, F>(
-        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
-    ) -> Self::Output<D>
-    where
-        F: Fn(Self::Source, B, C) -> D,
-        Self: Sized,
+        F: Fn(&A, &B) -> C,
+        A: Clone,
         B: Clone,
         C: Clone,
+        Self: Sized,
     {
-        TestFunctor::new(f(self.0, b.0, c.0))
+        TestFunctor::new(f(&fa.0, &fb.0))
+    }
+
+    fn lift3<A, B, C, D, F>(
+        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
+    ) -> Self::Output<D>
+    where
+        F: Fn(&A, &B, &C) -> D,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        D: Clone,
+        Self: Sized,
+    {
+        TestFunctor::new(f(&fa.0, &fb.0, &fc.0))
+    }
+
+    fn apply_owned<U, B>(self, value: Self::Output<U>) -> Self::Output<B>
+    where
+        Self::Source: Fn(U) -> B,
+        Self: Sized,
+    {
+        // For TestFunctor, self.0 is the function and value.0 is the input
+        TestFunctor::new((self.0)(value.0))
+    }
+
+    fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
+    where
+        F: Fn(A, B) -> C,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        Self: Sized,
+    {
+        TestFunctor::new(f(fa.0, fb.0))
+    }
+
+    fn lift3_owned<A, B, C, D, F>(
+        f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
+    ) -> Self::Output<D>
+    where
+        F: Fn(A, B, C) -> D,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        D: Clone,
+        Self: Sized,
+    {
+        TestFunctor::new(f(fa.0, fb.0, fc.0))
     }
 }
 

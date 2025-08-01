@@ -1981,7 +1981,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let v1: Validated<&str, i32> = Validated::valid(10);
 /// let v2: Validated<&str, i32> = Validated::valid(20);
-/// let result = v1.lift2(&v2, |a: &i32, b: &i32| a + b);
+/// let result = Validated::<&str, i32>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
 /// assert_eq!(result, Validated::valid(30));
 /// ```
 ///
@@ -1993,12 +1993,12 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let v1: Validated<&str, i32> = Validated::valid(10);
 /// let v2: Validated<&str, i32> = Validated::invalid("error_b");
-/// let result = v1.lift2(&v2, |a: &i32, b: &i32| a + b);
+/// let result = Validated::<&str, i32>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
 /// assert_eq!(result, Validated::Invalid(smallvec!["error_b"]));
 ///
 /// let v3: Validated<&str, i32> = Validated::invalid("error_a");
 /// let v4: Validated<&str, i32> = Validated::valid(20);
-/// let result2 = v3.lift2(&v4, |a: &i32, b: &i32| a + b);
+/// let result2 = Validated::<&str, i32>::lift2(|a: &i32, b: &i32| a + b, &v3, &v4);
 /// assert_eq!(result2, Validated::Invalid(smallvec!["error_a"]));
 /// ```
 ///
@@ -2010,7 +2010,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let v1: Validated<&str, i32> = Validated::invalid("error1");
 /// let v2: Validated<&str, i32> = Validated::invalid("error2");
-/// let result = v1.lift2(&v2, |a: &i32, b: &i32| a + b);
+/// let result = Validated::<&str, i32>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
 /// // The order of errors in lift2 is self's errors then rb's errors.
 /// assert_eq!(result, Validated::Invalid(smallvec!["error1", "error2"]));
 /// ```
@@ -2056,14 +2056,14 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         }
     }
 
-    fn apply_owned<B, F>(self, rf: Self::Output<F>) -> Self::Output<B>
+    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
-        Self: Sized,
-        F: FnOnce(Self::Source) -> B,
+        Self::Source: Fn(T) -> B,
+        T: Clone,
         B: Clone,
     {
-        match (self, rf) {
-            (Validated::Valid(a), Validated::Valid(f)) => Validated::Valid(f(a)),
+        match (self, value) {
+            (Validated::Valid(f), Validated::Valid(x)) => Validated::Valid(f(x)),
             (a, b) => {
                 let mut errors = SmallVec::<[E; 4]>::new();
 
@@ -2079,22 +2079,24 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         }
     }
 
-    fn lift2<B, C, F>(&self, rb: &Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2<T, U, C, F>(f: F, fa: &Self::Output<T>, fb: &Self::Output<U>) -> Self::Output<C>
     where
-        F: Fn(&Self::Source, &B) -> C,
-        B: Clone,
+        F: Fn(&T, &U) -> C,
+        T: Clone,
+        U: Clone,
         C: Clone,
+        Self: Sized,
     {
-        match (self, rb) {
+        match (fa, fb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
             _ => {
                 let mut errors = SmallVec::<[E; 4]>::new();
 
-                if let Validated::Invalid(es) = self {
+                if let Validated::Invalid(es) = fa {
                     errors.extend(es.iter().cloned());
                 }
 
-                if let Validated::Invalid(es) = rb {
+                if let Validated::Invalid(es) = fb {
                     errors.extend(es.iter().cloned());
                 }
 
@@ -2103,14 +2105,15 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         }
     }
 
-    fn lift2_owned<B, C, F>(self, rb: Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2_owned<T, U, C, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<C>
     where
-        Self: Sized,
-        F: FnOnce(Self::Source, B) -> C,
-        B: Clone,
+        F: Fn(T, U) -> C,
+        T: Clone,
+        U: Clone,
         C: Clone,
+        Self: Sized,
     {
-        match (self, rb) {
+        match (fa, fb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
             (a, b) => {
                 let mut errors = SmallVec::<[E; 4]>::new();
@@ -2128,27 +2131,31 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
     }
 
     #[inline]
-    fn lift3<B, C, D, F>(&self, rb: &Self::Output<B>, rc: &Self::Output<C>, f: F) -> Self::Output<D>
+    fn lift3<T, U, V, C, F>(
+        f: F, fa: &Self::Output<T>, fb: &Self::Output<U>, fc: &Self::Output<V>,
+    ) -> Self::Output<C>
     where
-        F: Fn(&Self::Source, &B, &C) -> D,
-        B: Clone,
+        F: Fn(&T, &U, &V) -> C,
+        T: Clone,
+        U: Clone,
+        V: Clone,
         C: Clone,
-        D: Clone,
+        Self: Sized,
     {
-        match (self, rb, rc) {
+        match (fa, fb, fc) {
             (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
                 Validated::Valid(f(a, b, c))
             },
             _ => {
                 let mut errors = SmallVec::<[E; 4]>::new();
 
-                if let Validated::Invalid(es) = self {
+                if let Validated::Invalid(es) = fa {
                     errors.extend(es.iter().cloned());
                 }
-                if let Validated::Invalid(es) = rb {
+                if let Validated::Invalid(es) = fb {
                     errors.extend(es.iter().cloned());
                 }
-                if let Validated::Invalid(es) = rc {
+                if let Validated::Invalid(es) = fc {
                     errors.extend(es.iter().cloned());
                 }
 
@@ -2157,17 +2164,18 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         }
     }
 
-    fn lift3_owned<B, C, D, F>(
-        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
-    ) -> Self::Output<D>
+    fn lift3_owned<T, U, V, C, F>(
+        f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
+    ) -> Self::Output<C>
     where
-        Self: Sized,
-        F: FnOnce(Self::Source, B, C) -> D,
-        B: Clone,
+        F: Fn(T, U, V) -> C,
+        T: Clone,
+        U: Clone,
+        V: Clone,
         C: Clone,
-        D: Clone,
+        Self: Sized,
     {
-        match (self, b, c) {
+        match (fa, fb, fc) {
             (Validated::Valid(a), Validated::Valid(b_val), Validated::Valid(c_val)) => {
                 Validated::Valid(f(a, b_val, c_val))
             },

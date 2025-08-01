@@ -80,12 +80,12 @@ fn test_id_applicative() {
 
     // Test lift2
     let add = |a: &i32, b: &i32| a + b;
-    let sum = x.lift2(&y, add);
+    let sum = Id::<i32>::lift2(add, &x, &y);
     assert_eq!(*sum.value(), 5);
 
     // Test lift3
     let multiply = |a: &i32, b: &i32, c: &i32| a * b * c;
-    let product = x.lift3(&y, &z, multiply);
+    let product = Id::<i32>::lift3(multiply, &x, &y, &z);
     assert_eq!(*product.value(), 24);
 }
 
@@ -98,17 +98,17 @@ fn test_id_owned_applicative() {
 
     // Test apply_owned
     let add_one: Id<fn(i32) -> i32> = Id::new(|x| x + 1);
-    let result = x.apply_owned(add_one);
+    let result = add_one.apply_owned(x);
     assert_eq!(*result.value(), 3);
 
     // Test lift2_owned
     let add = |a: i32, b: i32| a + b;
-    let sum = x.lift2_owned(y, add);
+    let sum = Id::<i32>::lift2_owned(add, x, y);
     assert_eq!(*sum.value(), 5);
 
     // Test lift3_owned
     let multiply = |a: i32, b: i32, c: i32| a * b * c;
-    let product = x.lift3_owned(y, z, multiply);
+    let product = Id::<i32>::lift3_owned(multiply, x, y, z);
     assert_eq!(*product.value(), 24);
 }
 

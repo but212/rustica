@@ -12,13 +12,16 @@
 
 ### Change - 0.9.0
 
-- **[Breaking] Applicative `apply` method refactored to forward direction**
-  - Changed signature from `value.apply(&function)` to `function.apply(&value)`
-  - Updated all Applicative implementations: Option, Result, Vec, Choice, Either, Id, Maybe, Validated, Writer
-  - Updated trait definition in `src/traits/applicative.rs`
-  - Fixed all test files to use new forward direction signature
-  - Updated error handling precedence: in forward direction, function errors take precedence over value errors
-  - This change aligns with mathematical convention where functions are applied to values
+#### BREAKING CHANGES - 0.9.0
+
+- **Complete redesign of `Applicative` trait** to align with mathematical definition from category theory
+- **Method signature changes**:
+  - `apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>` where `Self::Source: Fn(&T) -> B`
+    - Function is now IN the applicative context (F(A->B)), value is the parameter
+  - `lift2<B, C, F>(&self, f: F, fb: &Self::Output<B>) -> Self::Output<C>`
+    - Function parameter now comes FIRST (matches Haskell/Cats convention)
+  - `lift3<B, C, D, F>(&self, f: F, fb: &Self::Output<B>, fc: &Self::Output<C>) -> Self::Output<D>`
+    - Function parameter now comes FIRST
 
 ### Removed - 0.9.0
 

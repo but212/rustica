@@ -60,7 +60,7 @@ fn test_choice_applicative() {
 
     // Test apply_owned
     let f_owned = Choice::new(double_owned, vec![triple_owned]);
-    let result_owned = choice.apply_owned(f_owned);
+    let result_owned = f_owned.apply_owned(choice);
     assert_eq!(*result_owned.first().unwrap(), 4);
     assert_eq!(result_owned.alternatives(), &[6, 6, 9, 8, 12]);
 }
@@ -71,7 +71,7 @@ fn test_choice_lift2() {
     let b = Choice::new(5, vec![6, 7]);
 
     // Test lift2
-    let result = a.lift2(&b, |x, y| x + y);
+    let result = Choice::<i32>::lift2(|x, y| x + y, &a, &b);
     assert_eq!(*result.first().unwrap(), 7);
 
     // Check if the same elements are included regardless of order
@@ -86,7 +86,7 @@ fn test_choice_lift2() {
     assert_eq!(sorted_actual, sorted_expected);
 
     // Test lift2_owned
-    let owned_result = a.lift2_owned(b, |x, y| x + y);
+    let owned_result = Choice::<i32>::lift2_owned(|x, y| x + y, a, b);
     assert_eq!(*owned_result.first().unwrap(), 7);
 
     // Check owned version alternatives
@@ -103,7 +103,7 @@ fn test_choice_lift3() {
     let c = Choice::new(10, vec![20, 30]);
 
     // Test lift3
-    let result = a.lift3(&b, &c, |x, y, z| x + y + z);
+    let result = Choice::<i32>::lift3(|x, y, z| x + y + z, &a, &b, &c);
 
     assert_eq!(*result.first().unwrap(), 17);
 
@@ -122,7 +122,7 @@ fn test_choice_lift3() {
     assert_eq!(sorted_actual, sorted_expected);
 
     // Test lift3_owned
-    let owned_result = a.lift3_owned(b, c, |x, y, z| x + y + z);
+    let owned_result = Choice::<i32>::lift3_owned(|x, y, z| x + y + z, a, b, c);
     assert_eq!(*owned_result.first().unwrap(), 17);
 
     // Check owned version alternatives

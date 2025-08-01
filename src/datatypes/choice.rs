@@ -2151,122 +2151,90 @@ impl<T: Clone> Applicative for Choice<T> {
         Choice::new(primary, alternatives)
     }
 
-    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+    fn apply_owned<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
     where
-        F: Fn(T) -> B,
-        B: Clone,
+        Self::Source: Fn(A) -> B,
+        A: Clone,
     {
-        if self.values.is_empty() || f.values.is_empty() {
+        if self.values.is_empty() || value.values.is_empty() {
             return Choice::new_empty();
         }
 
-        let f_values = f.values;
+        let func_values = self.values;
+        let val_values = value.values;
 
-        match Arc::try_unwrap(self.values) {
-            Ok(mut self_values) => {
-                let f_first = &f_values.as_ref()[0];
-                let first_value = self_values[0].clone();
-                let primary = f_first(first_value);
+        let primary = func_values[0](val_values[0].clone());
 
-                // Apply functions to primary value
-                let primary_alternatives: SmallVec<[B; 8]> = f_values.as_ref()[1..]
-                    .iter()
-                    .map(|f_alt| f_alt(self_values[0].clone()))
-                    .collect();
+        let alternatives: SmallVec<[B; 8]> = val_values
+            .iter()
+            .enumerate()
+            .flat_map(|(i, val)| {
+                func_values.iter().enumerate().filter_map(move |(j, func)| {
+                    if i == 0 && j == 0 {
+                        None
+                    } else {
+                        Some(func(val.clone()))
+                    }
+                })
+            })
+            .collect();
 
-                // Apply all functions to all alternative values
-                let remaining_values = self_values.drain(1..).collect::<Vec<_>>();
-                let other_alternatives: SmallVec<[B; 8]> = remaining_values
-                    .into_iter()
-                    .flat_map(|self_alt| {
-                        std::iter::once(f_first(self_alt.clone())).chain(
-                            f_values.as_ref()[1..]
-                                .iter()
-                                .map(move |f_alt| f_alt(self_alt.clone())),
-                        )
-                    })
-                    .collect();
-
-                // Combine all alternatives
-                let all_alternatives: SmallVec<[B; 8]> = primary_alternatives
-                    .into_iter()
-                    .chain(other_alternatives)
-                    .collect();
-
-                Choice::new(primary, all_alternatives)
-            },
-            Err(arc) => {
-                let self_values = arc.as_ref();
-                let f_first = &f_values.as_ref()[0];
-                let primary = f_first(self_values[0].clone());
-
-                // Apply all functions to all values using iterators
-                let alternatives: SmallVec<[B; 8]> = f_values.as_ref()[1..]
-                    .iter()
-                    .map(|f_alt| f_alt(self_values[0].clone()))
-                    .chain(self_values[1..].iter().flat_map(|self_alt| {
-                        std::iter::once(f_first(self_alt.clone())).chain(
-                            f_values.as_ref()[1..]
-                                .iter()
-                                .map(move |f_alt| f_alt(self_alt.clone())),
-                        )
-                    }))
-                    .collect();
-
-                Choice::new(primary, alternatives)
-            },
-        }
+        Choice::new(primary, alternatives)
     }
 
-    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
     where
-        F: Fn(&T, &B) -> C,
+        F: Fn(&A, &B) -> C,
+        A: Clone,
         B: Clone,
         C: Clone,
+        Self: Sized,
     {
-        if self.values.is_empty() || b.values.is_empty() {
+        if fa.values.is_empty() || fb.values.is_empty() {
             return Choice::new_empty();
         }
 
-        let self_values = self.values.as_ref();
-        let b_values = b.values.as_ref();
+        let fa_values = fa.values.as_ref();
+        let fb_values = fb.values.as_ref();
 
-        let primary = f(&self_values[0], &b_values[0]);
+        let primary = f(&fa_values[0], &fb_values[0]);
 
         // Calculate capacity for alternatives vector
-        let capacity = self_values.len() * b_values.len() - 1;
+        let capacity = fa_values.len() * fb_values.len() - 1;
         let mut alternatives = SmallVec::<[C; 8]>::with_capacity(capacity);
 
-        for (i, self_val) in self_values.iter().enumerate() {
-            for (j, b_val) in b_values.iter().enumerate() {
+        for (i, fa_val) in fa_values.iter().enumerate() {
+            for (j, fb_val) in fb_values.iter().enumerate() {
                 if i == 0 && j == 0 {
                     continue; // Skip primary
                 }
-                alternatives.push(f(self_val, b_val));
+                alternatives.push(f(fa_val, fb_val));
             }
         }
 
         Choice::new(primary, alternatives)
     }
 
-    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
     where
-        F: Fn(T, B) -> C,
+        F: Fn(A, B) -> C,
+        A: Clone,
         B: Clone,
         C: Clone,
+        Self: Sized,
     {
-        if self.values.is_empty() || b.values.is_empty() {
+        if fa.values.is_empty() || fb.values.is_empty() {
             return Choice::new_empty();
         }
 
-        let primary = f(self.values[0].clone(), b.values[0].clone());
+        let primary = f(fa.values[0].clone(), fb.values[0].clone());
 
         // Calculate capacity for alternatives vector
-        let capacity = self.len() * b.len() - 1;
+        let capacity = fa.len() * fb.len() - 1;
         let mut alternatives = Vec::with_capacity(capacity);
 
-        for (i, a) in self.values.iter().enumerate() {
-            for (j, b_val) in b.values.iter().enumerate() {
+        for (i, a) in fa.values.iter().enumerate() {
+            for (j, b_val) in fb.values.iter().enumerate() {
                 if i == 0 && j == 0 {
                     continue; // Skip primary
                 }
@@ -2277,35 +2245,39 @@ impl<T: Clone> Applicative for Choice<T> {
         Choice::new(primary, alternatives)
     }
 
-    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    fn lift3<A, B, C, D, F>(
+        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
+    ) -> Self::Output<D>
     where
-        F: Fn(&T, &B, &C) -> D,
+        F: Fn(&A, &B, &C) -> D,
+        A: Clone,
         B: Clone,
         C: Clone,
         D: Clone,
+        Self: Sized,
     {
-        if self.values.is_empty() || b.values.is_empty() || c.values.is_empty() {
+        if fa.values.is_empty() || fb.values.is_empty() || fc.values.is_empty() {
             return Choice::new_empty();
         }
 
         // Get references to the values
-        let self_values = self.values.as_ref();
-        let b_values = b.values.as_ref();
-        let c_values = c.values.as_ref();
+        let fa_values = fa.values.as_ref();
+        let fb_values = fb.values.as_ref();
+        let fc_values = fc.values.as_ref();
 
-        let primary = f(&self_values[0], &b_values[0], &c_values[0]);
+        let primary = f(&fa_values[0], &fb_values[0], &fc_values[0]);
 
         // Calculate capacity for alternatives vector
-        let capacity = self_values.len() * b_values.len() * c_values.len() - 1;
+        let capacity = fa_values.len() * fb_values.len() * fc_values.len() - 1;
         let mut alternatives = SmallVec::<[D; 8]>::with_capacity(capacity);
 
-        for (i, self_val) in self_values.iter().enumerate() {
-            for (j, b_val) in b_values.iter().enumerate() {
-                for (k, c_val) in c_values.iter().enumerate() {
+        for (i, fa_val) in fa_values.iter().enumerate() {
+            for (j, fb_val) in fb_values.iter().enumerate() {
+                for (k, fc_val) in fc_values.iter().enumerate() {
                     if i == 0 && j == 0 && k == 0 {
                         continue; // Skip primary
                     }
-                    alternatives.push(f(self_val, b_val, c_val));
+                    alternatives.push(f(fa_val, fb_val, fc_val));
                 }
             }
         }
@@ -2313,31 +2285,33 @@ impl<T: Clone> Applicative for Choice<T> {
         Choice::new(primary, alternatives)
     }
 
-    fn lift3_owned<B, C, D, G>(
-        self, b: Self::Output<B>, c: Self::Output<C>, f: G,
+    fn lift3_owned<A, B, C, D, F>(
+        f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
     ) -> Self::Output<D>
     where
-        G: Fn(T, B, C) -> D,
+        F: Fn(A, B, C) -> D,
+        A: Clone,
         B: Clone,
         C: Clone,
         D: Clone,
+        Self: Sized,
     {
-        if self.values.is_empty() || b.values.is_empty() || c.values.is_empty() {
+        if fa.values.is_empty() || fb.values.is_empty() || fc.values.is_empty() {
             return Choice::new_empty();
         }
 
         let primary = f(
-            self.values[0].clone(),
-            b.values[0].clone(),
-            c.values[0].clone(),
+            fa.values[0].clone(),
+            fb.values[0].clone(),
+            fc.values[0].clone(),
         );
 
-        let capacity = self.len() * b.len() * c.len() - 1;
+        let capacity = fa.len() * fb.len() * fc.len() - 1;
         let mut alternatives = Vec::with_capacity(capacity);
 
-        for (i, a) in self.iter().enumerate() {
-            for (j, b_val) in b.iter().enumerate() {
-                for (k, c_val) in c.iter().enumerate() {
+        for (i, a) in fa.iter().enumerate() {
+            for (j, b_val) in fb.iter().enumerate() {
+                for (k, c_val) in fc.iter().enumerate() {
                     if i == 0 && j == 0 && k == 0 {
                         continue; // Skip primary
                     }

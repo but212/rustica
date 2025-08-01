@@ -85,7 +85,7 @@ fn test_writer_applicative() {
     let writer1 = Writer::new(Log(vec!["first value".to_string()]), 10);
     let writer2 = Writer::new(Log(vec!["second value".to_string()]), 32);
 
-    let result_lift = writer1.lift2(&writer2, add);
+    let result_lift = Writer::<Log, i32>::lift2(add, &writer1, &writer2);
     let (log_lift, value_lift) = result_lift.run();
 
     assert_eq!(value_lift, 42);

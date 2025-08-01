@@ -77,7 +77,7 @@
 //!
 //! // Combine validations and format the result only when both are valid
 //! let format_user = |n: &String, e: &String| format!("User: {n}, Email: {e}");
-//! let combined = Validated::lift2(&name, &email, format_user);
+//! let combined = Validated::<Vec<String>, String>::lift2(format_user, &name, &email);
 //! assert!(combined.is_invalid());
 //! assert_eq!(combined.unwrap_invalid().len(), 2); // Both errors are collected
 //! ```

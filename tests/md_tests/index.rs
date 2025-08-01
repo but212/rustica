@@ -15,7 +15,7 @@ fn core_type_classes_applicative() {
 
     let valid1: Validated<&str, i32> = Validated::valid(5);
     let valid2: Validated<&str, i32> = Validated::valid(10);
-    let combined = valid1.lift2(&valid2, |a, b| a + b); // Validated::Valid(15)
+    let combined = Validated::<&str, i32>::lift2(|a, b| a + b, &valid1, &valid2); // Validated::Valid(15)
     assert_eq!(combined, Validated::Valid(15));
 }
 

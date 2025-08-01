@@ -837,7 +837,7 @@ where
     E: Clone + 'static,
     M: Monad + Clone + 'static,
     A: Clone + 'static,
-    M: HKT<Source = A>,
+    M: HKT<Source = A, Output<A> = M>,
     M::Source: Clone,
 {
     /// Maps a function over the ReaderT value, producing a new ReaderT.
@@ -1045,7 +1045,7 @@ where
             let mb = other_fn(e.clone());
             let f_clone = f.clone();
 
-            M::lift2(&ma, &mb, move |a: &A, b: &B| f_clone(a.clone(), b.clone()))
+            M::lift2(move |a: &A, b: &B| f_clone(a.clone(), b.clone()), &ma, &mb)
         })
     }
 }

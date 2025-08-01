@@ -198,7 +198,7 @@ mod applicative_tests {
     fn test_lift2() {
         let a: Validated<String, i32> = Validated::valid(10);
         let b: Validated<String, i32> = Validated::valid(32);
-        let result = a.lift2(&b, |x, y| x + y);
+        let result = Validated::<String, i32>::lift2(|x, y| x + y, &a, &b);
         assert_eq!(result, Validated::valid(42));
     }
 
@@ -207,7 +207,7 @@ mod applicative_tests {
         let a: Validated<String, i32> = Validated::valid(10);
         let b: Validated<String, i32> = Validated::valid(20);
         let c: Validated<String, i32> = Validated::valid(12);
-        let result = a.lift3(&b, &c, |x, y, z| x + y + z);
+        let result = Validated::<String, i32>::lift3(|x, y, z| x + y + z, &a, &b, &c);
         assert_eq!(result, Validated::valid(42));
     }
 
@@ -216,7 +216,7 @@ mod applicative_tests {
         let a: Validated<String, i32> = Validated::invalid("error1".to_string());
         let b: Validated<String, i32> = Validated::invalid("error2".to_string());
         let c: Validated<String, i32> = Validated::invalid("error3".to_string());
-        let result = a.lift3(&b, &c, |x, y, z| x + y + z);
+        let result = Validated::<String, i32>::lift3(|x, y, z| x + y + z, &a, &b, &c);
         let errors = result.errors();
         assert_eq!(errors.len(), 3);
         assert_eq!(errors[0], "error1");
@@ -228,11 +228,11 @@ mod applicative_tests {
     fn test_apply_owned() {
         let value: Validated<String, i32> = Validated::valid(10);
         let f: Validated<String, fn(i32) -> i32> = Validated::valid(|x| x + 1);
-        let applied = value.clone().apply_owned(f.clone());
+        let applied = f.clone().apply_owned(value.clone());
         assert_eq!(applied, Validated::valid(11));
 
         let invalid: Validated<String, i32> = Validated::invalid("err".to_string());
-        let applied = invalid.clone().apply_owned(f.clone());
+        let applied = f.clone().apply_owned(invalid.clone());
         assert!(applied.is_invalid());
     }
 
@@ -656,11 +656,16 @@ mod real_world_tests {
         let valid_age = validate_age(25);
         let valid_email = validate_email("john@example.com");
 
-        let valid_user = valid_name.lift3(&valid_age, &valid_email, |name, age, email| User {
-            name: name.clone(),
-            email: email.clone(),
-            age: *age,
-        });
+        let valid_user = Validated::<String, User>::lift3(
+            |name, age, email| User {
+                name: name.clone(),
+                email: email.clone(),
+                age: *age,
+            },
+            &valid_name,
+            &valid_age,
+            &valid_email,
+        );
 
         assert!(valid_user.is_valid());
         let user = valid_user.value().unwrap();
@@ -675,12 +680,16 @@ mod real_world_tests {
         let invalid_age = validate_age(15);
         let invalid_email = validate_email("not-an-email");
 
-        let invalid_user =
-            invalid_name.lift3(&invalid_age, &invalid_email, |name, age, email| User {
+        let invalid_user = Validated::<String, User>::lift3(
+            |name, age, email| User {
                 name: name.clone(),
                 email: email.clone(),
                 age: *age,
-            });
+            },
+            &invalid_name,
+            &invalid_age,
+            &invalid_email,
+        );
 
         assert!(invalid_user.is_invalid());
         let errors = invalid_user.errors();
@@ -696,11 +705,16 @@ mod real_world_tests {
         let invalid_age = validate_age(-5);
         let valid_email = validate_email("jane@example.com");
 
-        let result = valid_name.lift3(&invalid_age, &valid_email, |name, age, email| User {
-            name: name.clone(),
-            email: email.clone(),
-            age: *age,
-        });
+        let result = Validated::<String, User>::lift3(
+            |name, age, email| User {
+                name: name.clone(),
+                email: email.clone(),
+                age: *age,
+            },
+            &valid_name,
+            &invalid_age,
+            &valid_email,
+        );
 
         assert!(result.is_invalid());
         let errors = result.errors();
@@ -715,13 +729,21 @@ mod real_world_tests {
             let email_validation = validate_email(email);
             let age_validation = validate_age(age);
 
-            name_validation
-                .lift2(&email_validation, |n, e| (n.clone(), e.clone()))
-                .lift2(&age_validation, |(n, e), a| User {
+            let name_email_pair = Validated::<String, (String, String)>::lift2(
+                |n, e| (n.clone(), e.clone()),
+                &name_validation,
+                &email_validation,
+            );
+            
+            Validated::<String, User>::lift2(
+                |(n, e), a| User {
                     name: n.clone(),
                     email: e.clone(),
                     age: *a,
-                })
+                },
+                &name_email_pair,
+                &age_validation,
+            )
         }
 
         // Test successful validation
@@ -906,7 +928,7 @@ mod combinator_tests {
             Validated::invalid_many(["error3".to_string(), "error4".to_string()]);
 
         // Using applicative to combine errors
-        let combined = errors1.lift2(&errors2, |a, b| a + b);
+        let combined = Validated::<String, i32>::lift2(|a, b| a + b, &errors1, &errors2);
         let all_errors = combined.errors();
         assert_eq!(all_errors.len(), 4);
         assert_eq!(all_errors[0], "error1");
@@ -957,7 +979,7 @@ mod combinator_tests {
         let pos = validate_positive(-5);
         let even = validate_even(3);
         let small = validate_small(150);
-        let all_result = pos.lift3(&even, &small, |a, b, c| a + b + c);
+        let all_result = Validated::<String, i32>::lift3(|a, b, c| a + b + c, &pos, &even, &small);
         let errors = all_result.errors();
         assert_eq!(errors.len(), 3);
     }
@@ -1039,15 +1061,21 @@ mod documentation_tests {
                 Validated::invalid("Invalid age".to_string())
             };
 
-            username_valid
-                .lift2(&email_valid, |username, email| {
-                    (username.clone(), email.clone())
-                })
-                .lift2(&age_valid, |(username, email), age| FormData {
+            let intermediate = Validated::<String, (String, String)>::lift2(
+                |username, email| (username.clone(), email.clone()),
+                &username_valid,
+                &email_valid,
+            );
+
+            Validated::<String, FormData>::lift2(
+                |(username, email), age| FormData {
                     username: username.clone(),
                     email: email.clone(),
                     age: *age,
-                })
+                },
+                &intermediate,
+                &age_valid,
+            )
         }
 
         // Test valid form
@@ -1245,7 +1273,7 @@ mod property_tests {
         let v1: Validated<String, i32> = Validated::invalid_many(errors1.clone());
         let v2: Validated<String, i32> = Validated::invalid_many(errors2.clone());
 
-        let combined = v1.lift2(&v2, |a, b| a + b);
+        let combined = Validated::<String, i32>::lift2(|a, b| a + b, &v1, &v2);
         let all_errors = combined.errors();
 
         let expected_count = errors1.len() + errors2.len();
@@ -1486,10 +1514,14 @@ mod test_helpers {
         validations
             .into_iter()
             .fold(Validated::valid(Vec::new()), |acc, validation| {
-                acc.lift2_owned(validation, |mut vec, item: T| {
-                    vec.push(item.clone());
-                    vec
-                })
+                Validated::<String, Vec<T>>::lift2_owned(
+                    |mut vec, item: T| {
+                        vec.push(item.clone());
+                        vec
+                    },
+                    acc,
+                    validation,
+                )
             })
     }
 
@@ -1651,23 +1683,29 @@ mod comprehensive_test {
             };
 
             // Use lift3_owned for applying a 3-argument function to Validated inputs
-            let user_builder: Validated<String, CompleteUser> = validate_id(id).lift3_owned(
-                validate_username(username),
-                validate_email(email),
-                create_user,
-            );
+            let user_builder: Validated<String, CompleteUser> =
+                Validated::<String, CompleteUser>::lift3_owned(
+                    create_user,
+                    validate_id(id),
+                    validate_username(username),
+                    validate_email(email),
+                );
 
             // Apply remaining validations
-            user_builder.lift2(&validate_age(age), |user, age| CompleteUser {
-                id: user.id,
-                username: user.username.clone(),
-                email: user.email.clone(),
-                age: *age,
-                preferences: UserPreferences {
-                    newsletter,
-                    theme: theme.to_string(),
+            Validated::<String, CompleteUser>::lift2(
+                |user, age| CompleteUser {
+                    id: user.id,
+                    username: user.username.clone(),
+                    email: user.email.clone(),
+                    age: *age,
+                    preferences: UserPreferences {
+                        newsletter,
+                        theme: theme.to_string(),
+                    },
                 },
-            })
+                &user_builder,
+                &validate_age(age),
+            )
         }
 
         // Test successful validation
@@ -1826,7 +1864,7 @@ mod test_summary {
         assert_eq!(mapped_valid, Validated::valid(20));
 
         // 3. Applicative operations
-        let combined = valid1.lift2(&valid2, |a, b| a + b);
+        let combined = Validated::<String, i32>::lift2(|a, b| a + b, &valid1, &valid2);
         assert_eq!(combined, Validated::valid(30));
 
         // 4. Monadic operations

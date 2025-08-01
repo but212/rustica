@@ -864,63 +864,80 @@ impl<L: Clone, R: Clone> Applicative for Either<L, R> {
         }
     }
 
-    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
     where
-        F: Fn(&Self::Source, &B) -> C,
+        F: Fn(&A, &B) -> C,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        Self: Sized,
     {
-        match (self, b) {
-            (Either::Right(r), Either::Right(b_val)) => Either::Right(f(r, b_val)),
+        match (fa, fb) {
+            (Either::Right(a), Either::Right(b)) => Either::Right(f(a, b)),
             (Either::Left(l), _) => Either::Left(l.clone()),
             (_, Either::Left(l)) => Either::Left(l.clone()),
         }
     }
 
-    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    fn lift3<A, B, C, D, F>(
+        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
+    ) -> Self::Output<D>
     where
-        F: Fn(&Self::Source, &B, &C) -> D,
+        F: Fn(&A, &B, &C) -> D,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        D: Clone,
+        Self: Sized,
     {
-        match (self, b, c) {
-            (Either::Right(r), Either::Right(b_val), Either::Right(c_val)) => {
-                Either::Right(f(r, b_val, c_val))
-            },
+        match (fa, fb, fc) {
+            (Either::Right(a), Either::Right(b), Either::Right(c)) => Either::Right(f(a, b, c)),
             (Either::Left(l), _, _) => Either::Left(l.clone()),
             (_, Either::Left(l), _) => Either::Left(l.clone()),
             (_, _, Either::Left(l)) => Either::Left(l.clone()),
         }
     }
 
-    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
-        F: FnOnce(Self::Source) -> B,
-        Self: Sized,
+        Self::Source: Fn(T) -> B,
+        T: Clone,
+        B: Clone,
     {
-        match (self, f) {
-            (Either::Right(x), Either::Right(f)) => Either::Right(f(x)),
+        match (self, value) {
+            (Either::Right(f), Either::Right(x)) => Either::Right(f(x)),
             (Either::Left(l), _) => Either::Left(l),
             (_, Either::Left(l)) => Either::Left(l),
         }
     }
 
-    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2_owned<T, U, V, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<V>
     where
-        F: FnOnce(Self::Source, B) -> C,
+        F: Fn(T, U) -> V,
+        T: Clone,
+        U: Clone,
+        V: Clone,
         Self: Sized,
     {
-        match (self, b) {
+        match (fa, fb) {
             (Either::Right(x), Either::Right(y)) => Either::Right(f(x, y)),
             (Either::Left(l), _) => Either::Left(l),
             (_, Either::Left(l)) => Either::Left(l),
         }
     }
 
-    fn lift3_owned<B, C, D, F>(
-        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
-    ) -> Self::Output<D>
+    fn lift3_owned<T, U, V, Q, F>(
+        f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
+    ) -> Self::Output<Q>
     where
-        F: FnOnce(Self::Source, B, C) -> D,
+        F: Fn(T, U, V) -> Q,
+        T: Clone,
+        U: Clone,
+        V: Clone,
+        Q: Clone,
         Self: Sized,
     {
-        match (self, b, c) {
+        match (fa, fb, fc) {
             (Either::Right(x), Either::Right(y), Either::Right(z)) => Either::Right(f(x, y, z)),
             (Either::Left(l), _, _) => Either::Left(l),
             (_, Either::Left(l), _) => Either::Left(l),

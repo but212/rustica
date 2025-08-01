@@ -243,12 +243,12 @@ use std::marker::PhantomData;
 /// let b = Maybe::Just(10);
 ///
 /// // Using lift2 from the Applicative trait to combine values
-/// let sum = a.lift2(&b, |x, y| *x + *y);
+/// let sum = Maybe::<i32>::lift2(|x, y| *x + *y, &a, &b);
 /// assert_eq!(sum, Maybe::Just(15));
 ///
 /// // If any value is Nothing, the result is Nothing
 /// let c: Maybe<i32> = Maybe::Nothing;
-/// let partial_sum = a.lift2(&c, |x, y| *x + *y);
+/// let partial_sum = Maybe::<i32>::lift2(|x, y| *x + *y, &a, &c);
 /// assert_eq!(partial_sum, Maybe::Nothing);
 /// ```
 #[derive(Copy, Clone, Eq, Debug, Hash, PartialEq, PartialOrd, Ord)]
@@ -669,26 +669,37 @@ impl<T> Applicative for Maybe<T> {
     /// let b = Maybe::Just(10);
     /// let c: Maybe<i32> = Maybe::Nothing;
     ///
-    /// assert_eq!(a.lift2(&b, |x, y| x + y), Maybe::Just(15));
-    /// assert_eq!(a.lift2(&c, |x, y| x + y), Maybe::Nothing);
+    /// assert_eq!(Maybe::<i32>::lift2(|x, y| x + y, &a, &b), Maybe::Just(15));
+    /// assert_eq!(Maybe::<i32>::lift2(|x, y| x + y, &a, &c), Maybe::Nothing);
     /// ```
     #[inline]
-    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
     where
-        F: Fn(&Self::Source, &B) -> C,
+        F: Fn(&A, &B) -> C,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        Self: Sized,
     {
-        match (self, b) {
+        match (fa, fb) {
             (Maybe::Just(a), Maybe::Just(b)) => Maybe::Just(f(a, b)),
             _ => Maybe::Nothing,
         }
     }
 
     #[inline]
-    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    fn lift3<A, B, C, D, F>(
+        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
+    ) -> Self::Output<D>
     where
-        F: Fn(&Self::Source, &B, &C) -> D,
+        F: Fn(&A, &B, &C) -> D,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        D: Clone,
+        Self: Sized,
     {
-        match (self, b, c) {
+        match (fa, fb, fc) {
             (Maybe::Just(a), Maybe::Just(b), Maybe::Just(c)) => Maybe::Just(f(a, b, c)),
             _ => Maybe::Nothing,
         }
@@ -705,16 +716,17 @@ impl<T> Applicative for Maybe<T> {
     /// let just_fn = Maybe::Just(|s: String| s.len());
     /// let just_val = Maybe::Just(String::from("test"));
     ///
-    /// assert_eq!(just_val.apply_owned(just_fn), Maybe::Just(4));
+    /// assert_eq!(Maybe::apply_owned(just_fn, just_val), Maybe::Just(4));
     /// ```
     #[inline]
-    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+    fn apply_owned<U, B>(self, value: Self::Output<U>) -> Self::Output<B>
     where
-        F: FnOnce(Self::Source) -> B,
-        Self: Sized,
+        Self::Source: Fn(U) -> B,
+        U: Clone,
+        B: Clone,
     {
-        match (self, f) {
-            (Maybe::Just(x), Maybe::Just(g)) => Maybe::Just(g(x)),
+        match (self, value) {
+            (Maybe::Just(f), Maybe::Just(x)) => Maybe::Just(f(x)),
             _ => Maybe::Nothing,
         }
     }
@@ -730,29 +742,36 @@ impl<T> Applicative for Maybe<T> {
     /// let a = Maybe::Just(String::from("hello"));
     /// let b = Maybe::Just(String::from(" world"));
     ///
-    /// assert_eq!(a.lift2_owned(b, |s1, s2| s1 + &s2), Maybe::Just(String::from("hello world")));
+    /// assert_eq!(Maybe::<String>::lift2_owned(|s1, s2| s1 + &s2, a, b), Maybe::Just(String::from("hello world")));
     /// ```
     #[inline]
-    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
     where
-        F: FnOnce(Self::Source, B) -> C,
+        F: Fn(A, B) -> C,
+        A: Clone,
+        B: Clone,
+        C: Clone,
         Self: Sized,
     {
-        match (self, b) {
+        match (fa, fb) {
             (Maybe::Just(a), Maybe::Just(b)) => Maybe::Just(f(a, b)),
             _ => Maybe::Nothing,
         }
     }
 
     #[inline]
-    fn lift3_owned<B, C, D, F>(
-        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
+    fn lift3_owned<A, B, C, D, F>(
+        f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
     ) -> Self::Output<D>
     where
-        F: FnOnce(Self::Source, B, C) -> D,
+        F: Fn(A, B, C) -> D,
+        A: Clone,
+        B: Clone,
+        C: Clone,
+        D: Clone,
         Self: Sized,
     {
-        match (self, b, c) {
+        match (fa, fb, fc) {
             (Maybe::Just(a), Maybe::Just(b), Maybe::Just(c)) => Maybe::Just(f(a, b, c)),
             _ => Maybe::Nothing,
         }

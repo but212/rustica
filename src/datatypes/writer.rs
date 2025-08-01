@@ -669,7 +669,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// let b = Writer::new(Log(vec!["Value b: 5".to_string()]), 5);
     ///
     /// // Combine them with a function that adds the values
-    /// let result = a.lift2(&b, |x, y| x + y);
+    /// let result = Writer::<Log, i32>::lift2(|x, y| x + y, &a, &b);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();
@@ -682,13 +682,17 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(log.0[1], "Value b: 5");
     /// ```
     #[inline]
-    fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2<T, U, C, F>(f: F, fa: &Self::Output<T>, fb: &Self::Output<U>) -> Self::Output<C>
     where
-        F: FnOnce(&Self::Source, &B) -> C,
+        F: Fn(&T, &U) -> C,
+        T: Clone,
+        U: Clone,
+        C: Clone,
+        Self: Sized,
     {
         Writer {
-            log: self.log.combine(&b.log),
-            value: f(&self.value, &b.value),
+            log: fa.log.combine(&fb.log),
+            value: f(&fa.value, &fb.value),
         }
     }
 
@@ -740,19 +744,26 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// let b = Writer::new(Log(vec!["Log B".to_string()]), 3);
     /// let c = Writer::new(Log(vec!["Log C".to_string()]), 4);
     ///
-    /// let result = a.lift3(&b, &c, |x, y, z| x * y * z);
+    /// let result = Writer::<Log, i32>::lift3(|x, y, z| x * y * z, &a, &b, &c);
     /// let (log, value) = result.run();
     /// assert_eq!(value, 24);
     /// assert_eq!(log.0, vec!["Log A", "Log B", "Log C"]);
     /// ```
     #[inline]
-    fn lift3<B, C, D, F>(&self, b: &Self::Output<B>, c: &Self::Output<C>, f: F) -> Self::Output<D>
+    fn lift3<T, U, V, Q, F>(
+        f: F, fa: &Self::Output<T>, fb: &Self::Output<U>, fc: &Self::Output<V>,
+    ) -> Self::Output<Q>
     where
-        F: FnOnce(&Self::Source, &B, &C) -> D,
+        F: Fn(&T, &U, &V) -> Q,
+        T: Clone,
+        U: Clone,
+        V: Clone,
+        Q: Clone,
+        Self: Sized,
     {
         Writer {
-            log: self.log.combine(&b.log).combine(&c.log),
-            value: f(&self.value, &b.value, &c.value),
+            log: fa.log.combine(&fb.log).combine(&fc.log),
+            value: f(&fa.value, &fb.value, &fc.value),
         }
     }
 
@@ -809,7 +820,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// );
     ///
     /// // Apply the function to the value, consuming both Writers
-    /// let result = value_writer.apply_owned(add_five_fn);
+    /// let result = add_five_fn.apply_owned(value_writer);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();
@@ -818,17 +829,19 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(value, 15);
     ///
     /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Value: 10");
-    /// assert_eq!(log.0[1], "Function: add 5");
+    /// assert_eq!(log.0[0], "Function: add 5");
+    /// assert_eq!(log.0[1], "Value: 10");
     /// ```
     #[inline]
-    fn apply_owned<B, F>(self, f: Self::Output<F>) -> Self::Output<B>
+    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
-        F: FnOnce(Self::Source) -> B,
+        Self::Source: Fn(T) -> B,
+        T: Clone,
+        B: Clone,
     {
         Writer {
-            log: self.log.combine_owned(f.log),
-            value: (f.value)(self.value),
+            log: self.log.combine_owned(value.log),
+            value: (self.value)(value.value),
         }
     }
 
@@ -880,7 +893,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// let b = Writer::new(Log(vec!["Value b: 5".to_string()]), 5);
     ///
     /// // Combine them with a function that adds the values, consuming both Writers
-    /// let result = a.lift2_owned(b, |x, y| x + y);
+    /// let result = Writer::<Log, i32>::lift2_owned(|x, y| x + y, a, b);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();
@@ -893,13 +906,17 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(log.0[1], "Value b: 5");
     /// ```
     #[inline]
-    fn lift2_owned<B, C, F>(self, b: Self::Output<B>, f: F) -> Self::Output<C>
+    fn lift2_owned<T, U, C, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<C>
     where
-        F: FnOnce(Self::Source, B) -> C,
+        F: Fn(T, U) -> C,
+        T: Clone,
+        U: Clone,
+        C: Clone,
+        Self: Sized,
     {
         Writer {
-            log: self.log.combine_owned(b.log),
-            value: f(self.value, b.value),
+            log: fa.log.combine_owned(fb.log),
+            value: f(fa.value, fb.value),
         }
     }
 
@@ -952,7 +969,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// let c = Writer::new(Log(vec!["Value c: 2".to_string()]), 2);
     ///
     /// // Combine them with a function, consuming all Writers
-    /// let result = a.lift3_owned(b, c, |x, y, z| x + y * z);
+    /// let result = Writer::<Log, i32>::lift3_owned(|x, y, z| x + y * z, a, b, c);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();
@@ -966,14 +983,19 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(log.0[2], "Value c: 2");
     /// ```
     #[inline]
-    fn lift3_owned<B, C, D, F>(
-        self, b: Self::Output<B>, c: Self::Output<C>, f: F,
-    ) -> Self::Output<D>
+    fn lift3_owned<T, U, V, Q, F>(
+        f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
+    ) -> Self::Output<Q>
     where
-        F: FnOnce(Self::Source, B, C) -> D,
+        F: Fn(T, U, V) -> Q,
+        T: Clone,
+        U: Clone,
+        V: Clone,
+        Q: Clone,
+        Self: Sized,
     {
-        let log = self.log.combine_owned(b.log).combine_owned(c.log);
-        let value = f(self.value, b.value, c.value);
+        let log = fa.log.combine_owned(fb.log).combine_owned(fc.log);
+        let value = f(fa.value, fb.value, fc.value);
         Writer { log, value }
     }
 }
