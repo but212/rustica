@@ -59,7 +59,7 @@ fn validate_registration(input: &UserRegistration) -> Validated<ValidationError,
         &username_v,
         &email_v,
     );
-    
+
     Validated::<ValidationError, UserRegistration>::lift2(
         |(username, email), password| {
             UserRegistration {
