@@ -26,6 +26,7 @@ smallvec = "1.14.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"], optional = true }
 quickcheck = "1.0"
 lazy_static = "1.5.0"
+serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 quickcheck = "1.0"
@@ -35,8 +36,9 @@ criterion = { version = "0.6", features = ["html_reports"] }
 [features]
 default = []
 pvec = []
+serde = ["dep:serde"]
 async = ["futures", "tokio"]
-full = ["async", "pvec"]
+full = ["async", "pvec", "serde"]
 develop = ["full"]
 
 [[bench]]
