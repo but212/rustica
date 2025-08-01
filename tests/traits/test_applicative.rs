@@ -45,9 +45,7 @@ fn applicative_interchange_law(y: i32) -> bool {
 #[quickcheck]
 fn applicative_composition_law(x: i32) -> bool {
     let f = |x: &i32| x.saturating_add(1);
-    let g = |x: &i32| x.saturating_mul(2);
     let u = TestFunctor::new(f);
-    let v = TestFunctor::new(g);
     let w = TestFunctor::new(x);
 
     // Composition law for forward direction: compose.apply(u).apply(v).apply(w) == u.apply(v.apply(w))
