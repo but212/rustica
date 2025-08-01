@@ -72,10 +72,10 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
         let func = Maybe::Just(|x: &i32| x * 2);
         bench.iter(|| {
             black_box(Maybe::<i32>::pure(&42));
-            black_box(a.apply(&func));
-            black_box(Maybe::Just(42).apply_owned(Maybe::Just(|x: i32| x * 2)));
-            black_box(a.lift2(&b, |x: &i32, y: &i32| x * y));
-            black_box(a.lift3(&b, &c, |x: &i32, y: &i32, z: &i32| x * y * z));
+            black_box(func.apply(&a));
+            black_box(Maybe::Just(|x: i32| x * 2).apply_owned(Maybe::Just(42)));
+            black_box(Maybe::<i32>::lift2(|x, y| x * y, &a, &b));
+            black_box(Maybe::<i32>::lift3(|x, y, z| x * y * z, &a, &b, &c));
         });
     });
 
@@ -196,9 +196,11 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
             black_box({
                 let valid_email = validate_email(email);
                 let valid_age = parse_age(age);
-                valid_email.lift2(&valid_age, |e: &String, a: &u32| {
-                    format!("Valid submission: {e} is {a} years old")
-                })
+                Maybe::<String>::lift2(
+                    |e: &String, a: &u32| format!("Valid submission: {e} is {a} years old"),
+                    &valid_email,
+                    &valid_age,
+                )
             });
 
             // Error handling

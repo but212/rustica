@@ -1,6 +1,7 @@
 use criterion::{BenchmarkId, Criterion};
 use rustica::datatypes::validated::Validated;
-use std::collections::HashMap;
+use rustica::traits::applicative::Applicative;
+use rustica::traits::functor::Functor;
 use std::hint::black_box;
 
 pub fn validated_benchmarks(c: &mut Criterion) {
@@ -146,9 +147,9 @@ pub fn validated_benchmarks(c: &mut Criterion) {
             let mapped_valid = valid.fmap(|x| x * 2);
             let mapped_invalid = invalid.fmap(|x| x * 2);
 
-            // Applicative operations
-            let add_fn = Validated::<String, fn(i32) -> fn(i32) -> i32>::valid(|x| move |y| x + y);
-            let applied = add_fn.apply(&valid).apply(&valid);
+            // Applicative operations with correct function signature
+            let add_fn = Validated::<String, fn(&i32) -> i32>::valid(|x| *x + 1);
+            let applied = add_fn.apply(&valid);
 
             black_box((mapped_valid, mapped_invalid, applied))
         });
@@ -191,16 +192,21 @@ pub fn validated_benchmarks(c: &mut Criterion) {
                 };
 
                 // Combine all validations using applicative style
-                username_validation.lift4(
-                    email_validation,
-                    age_validation,
-                    password_validation,
-                    |u, e, a, p| User {
-                        username: u,
-                        email: e,
-                        age: a,
-                        password: p,
+                let user_info = Validated::<String, (String, String, u32)>::lift3(
+                    |u, e, a| (u.clone(), e.clone(), *a),
+                    &username_validation,
+                    &email_validation,
+                    &age_validation,
+                );
+                Validated::<String, User>::lift2(
+                    |(u, e, a), p| User {
+                        username: u.clone(),
+                        email: e.clone(),
+                        age: *a,
+                        password: p.clone(),
                     },
+                    &user_info,
+                    &password_validation,
                 )
             };
 

@@ -32,8 +32,8 @@ pub fn choice_benchmarks(c: &mut Criterion) {
         let choice_f = Choice::new(func1, vec![func2]);
         b.iter(|| {
             black_box(Choice::<i32>::pure(&42));
-            black_box(choice_a.apply(&choice_f));
-            black_box(choice_a.lift2(&choice_b, |x: &i32, y: &i32| x * y));
+            black_box(choice_f.apply(&choice_a));
+            black_box(Choice::<i32>::lift2(|x, y| x * y, &choice_a, &choice_b));
         });
     });
 

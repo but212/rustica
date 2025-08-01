@@ -45,7 +45,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let either_val: Either<String, i32> = Either::right(black_box(10));
             let either_fn: Either<String, fn(&i32) -> i32> = Either::right(|x| x * 2);
-            let result = either_val.apply(&either_fn);
+            let result = either_fn.apply(&either_val);
             black_box(result)
         })
     });
@@ -54,7 +54,7 @@ pub fn either_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let either1: Either<String, i32> = Either::right(black_box(10));
             let either2: Either<String, i32> = Either::right(black_box(20));
-            let result = either1.lift2(&either2, |x, y| x + y);
+            let result = Either::<String, i32>::lift2(|x, y| x + y, &either1, &either2);
             black_box(result)
         })
     });

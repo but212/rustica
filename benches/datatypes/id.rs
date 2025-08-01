@@ -50,7 +50,7 @@ pub fn id_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let id_val = Id::new(black_box(10));
             let id_fn = Id::new(|x: &i32| x * 2);
-            let result = id_val.apply(&id_fn);
+            let result = id_fn.apply(&id_val);
             black_box(result)
         })
     });
@@ -59,7 +59,7 @@ pub fn id_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let id1 = Id::new(black_box(10));
             let id2 = Id::new(black_box(20));
-            let result = id1.lift2(&id2, |x, y| x + y);
+            let result = Id::<i32>::lift2(|x, y| x + y, &id1, &id2);
             black_box(result)
         })
     });
