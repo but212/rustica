@@ -25,8 +25,8 @@
 //! 2. Arrow Laws:
 //! ```text
 //! first (f >>> g) = first f >>> first g
-//! first (arrow f) = arrow (f × id)
-//! first f >>> arr (id × g) = arr (id × g) >>> first f
+//! first (arr f) = arr (f *** id)
+//! first f >>> arr (id *** g) = arr (id *** g) >>> first f
 //! first f >>> arr fst = arr fst >>> f
 //! first (first f) >>> arr assoc = arr assoc >>> first f
 //! ```
@@ -99,8 +99,8 @@ use crate::traits::category::Category;
 /// 2. Arrow Laws:
 ///    ```text
 ///    first (f >>> g) = first f >>> first g
-///    first (arrow f) = arrow (f × id)
-///    first f >>> arr (id × g) = arr (id × g) >>> first f
+///    first (arr f) = arr (f *** id)
+///    first f >>> arr (id *** g) = arr (id *** g) >>> first f
 ///    first f >>> arr fst = arr fst >>> f
 ///    first (first f) >>> arr assoc = arr assoc >>> first f
 ///    ```
