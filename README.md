@@ -211,24 +211,24 @@ assert_eq!(*pure_value.value(), 42);
 // Using Applicative to apply functions
 // 1. Apply a function wrapped in Id
 let add_one = Id::new(|x: &i32| x + 1);
-let result = x.apply(&add_one);
+let result = add_one.apply(&x);
 assert_eq!(*result.value(), 6);
 
 // 2. Combine two Id values with lift2
 let add = |a: &i32, b: &i32| a + b;
-let sum = x.lift2(&y, &add);
+let sum = Id::<i32>::lift2(add, &x, &y);
 assert_eq!(*sum.value(), 8);
 
 // 3. Combine three Id values with lift3
 let multiply = |a: &i32, b: &i32, c: &i32| a * b * c;
-let product = x.lift3(&y, &z, &multiply);
+let product = Id::<i32>::lift3(multiply, &x, &y, &z);
 assert_eq!(*product.value(), 30);
 
 // Working with different types
 let greeting = Id::new("Hello");
 let count = Id::new(3_usize);
 let repeat = |s: &&str, n: &usize| s.repeat(*n);
-let repeated = greeting.lift2(&count, &repeat);
+let repeated = Id::<&str>::lift2(repeat, &greeting, &count);
 assert_eq!(*repeated.value(), "HelloHelloHello");
 
 // Chaining operations

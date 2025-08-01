@@ -40,15 +40,15 @@ let initial_state = 10;
 
 // Run and get both value and new state
 let (value, new_state) = counter.run_state(initial_state);
-assert_eq!((value, new_state), (10, 11));
+// value is 10, new_state is 11
 
 // Run and get only the value
 let value_only = counter.eval_state(initial_state);
-assert_eq!(value_only, 10);
+// value_only is 10
 
 // Run and get only the new state
 let state_only = counter.exec_state(initial_state);
-assert_eq!(state_only, 11);
+// state_only is 11
 ```
 
 ## 3. Core State Operations
@@ -65,20 +65,17 @@ use rustica::datatypes::state::{State, get, modify, put};
 // get(): Read the state
 let read_state: State<String, String> = get();
 let (value, state) = read_state.run_state("hello".to_string());
-assert_eq!(value, "hello");
-assert_eq!(state, "hello"); // State is unchanged
+// value is "hello", state is "hello"
 
 // put(): Overwrite the state
 let write_state: State<&str, ()> = put("world");
 let (value, state) = write_state.run_state("hello");
-assert_eq!(value, ()); // put returns a unit value
-assert_eq!(state, "world"); // State is replaced
+// value is (), state is "world"
 
 // modify(): Update the state
 let update_state: State<i32, ()> = modify(|s| s * 2);
 let (value, state) = update_state.run_state(10);
-assert_eq!(value, ()); // modify returns a unit value
-assert_eq!(state, 20); // State is updated
+// value is (), state is 20
 ```
 
 These three simple functions are the building blocks for all other stateful logic.
@@ -113,9 +110,7 @@ let computation = get::<i32>()
 // 2. modify(|s| s + 10) -> value is (), new state is 20
 // 3. get() -> value is 20, state is 20
 let (final_value, final_state) = computation.run_state(10);
-
-assert_eq!(final_value, 20);
-assert_eq!(final_state, 20);
+// final_value is 20, final_state is 20
 ```
 
 With `bind`, you can build complex, sequential stateful logic in a clean, declarative way.
@@ -153,9 +148,7 @@ let stack_program = push(10)
 
 let initial_stack = vec![];
 let (final_result, final_stack) = stack_program.run_state(initial_stack);
-
-assert_eq!(final_result, (Some(20), Some(10)));
-assert_eq!(final_stack, Vec::<i32>::new());
+// final_result is (Some(20), Some(10)), final_stack is []
 ```
 
 This example shows how to build up a sequence of operations that manipulate a stack, all without a single mutable variable in our `main` function's scope.

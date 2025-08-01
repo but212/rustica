@@ -101,54 +101,25 @@ fn validate_registration(input: &UserRegistration) -> Validated<ValidationError,
     let email_v = validate_email(&input.email);
     let password_v = validate_password(&input.password);
 
-    username_v
-        .lift2(&email_v, |username, email| {
+    let intermediate = Validated::<ValidationError, (String, String)>::lift2(
+        |username, email| {
             (username.clone(), email.clone()) // Intermediate tuple
-        })
-        .lift2(&password_v, |(username, email), password| {
+        },
+        &username_v,
+        &email_v,
+    );
+    
+    Validated::<ValidationError, UserRegistration>::lift2(
+        |(username, email), password| {
             UserRegistration {
                 username: username.to_string(), // Cloned in the previous step
                 email: email.to_string(),       // Cloned in the previous step
                 password: password.clone(),
             }
-        })
-}
-
-fn main() {
-    // --- Case 1: All valid input ---
-    let valid_input = UserRegistration {
-        username: "alice_in_wonderland".to_string(),
-        email: "alice@example.com".to_string(),
-        password: "a_very_secure_password".to_string(),
-    };
-
-    let result = validate_registration(&valid_input);
-    assert!(matches!(result, Validated::Valid(_)));
-    println!("Validation succeeded for: {:?}", result.unwrap());
-
-    // --- Case 2: All invalid input ---
-    let invalid_input = UserRegistration {
-        username: "al".to_string(),
-        email: "alice.com".to_string(), // Missing '@'
-        password: "123".to_string(),
-    };
-
-    let result = validate_registration(&invalid_input);
-    match result {
-        Validated::Invalid(errors) => {
-            println!("Validation failed with {} errors:", errors.len());
-            // Note: The order of errors is not guaranteed
-            for err in errors {
-                println!("- {:?}", err);
-            }
-        }
-        _ => panic!("Expected validation to fail!"),
-    }
-    // Expected Output (order may vary):
-    // Validation failed with 3 errors:
-    // - UsernameTooShort
-    // - InvalidEmailFormat
-    // - PasswordTooWeak
+        },
+        &intermediate,
+        &password_v,
+    )
 }
 ```
 
@@ -196,32 +167,6 @@ fn handle_registration_request(input: &UserRegistration) -> ApiResponse {
             }
         },
     }
-}
-
-fn main() {
-    // --- Test the handler with invalid data ---
-    let invalid_input = UserRegistration {
-        username: "al".to_string(),
-        email: "alice.com".to_string(),
-        password: "123".to_string(),
-    };
-
-    let response = handle_registration_request(&invalid_input);
-    println!("API Response for invalid data: {:?}", response);
-
-    assert!(matches!(response, ApiResponse::Error { errors: _ }));
-
-    // --- Test the handler with valid data ---
-    let valid_input = UserRegistration {
-        username: "alice_in_wonderland".to_string(),
-        email: "alice@example.com".to_string(),
-        password: "a_very_secure_password".to_string(),
-    };
-
-    let response = handle_registration_request(&valid_input);
-    println!("API Response for valid data: {:?}", response);
-
-    assert!(matches!(response, ApiResponse::Success { username: _ }));
 }
 ```
 

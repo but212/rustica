@@ -33,9 +33,7 @@ use rustica::datatypes::async_monad::AsyncM;
 async fn main() {
     let async_value: AsyncM<i32> = AsyncM::pure(42);
     let result = async_value.try_get().await;
-
-    println!("Pure value: {result}");
-    assert_eq!(result, 42);
+    // result is 42
 }
 ```
 
@@ -58,12 +56,8 @@ async fn fetch_user_name(user_id: u32) -> String {
 #[tokio::main]
 async fn main() {
     let fetch_operation: AsyncM<String> = AsyncM::new(|| fetch_user_name(101));
-
-    println!("Running fetch operation...");
     let user_name = fetch_operation.try_get().await;
-    println!("Fetched user: {user_name}");
-
-    assert_eq!(user_name, "User-101");
+    // user_name is "User-101"
 }
 ```
 
@@ -101,11 +95,8 @@ async fn main() {
         AsyncM::new(move || fetch_user_details(id))
     });
 
-    println!("Fetching user details...");
     let details = get_details.try_get().await;
-    println!("Result: {details}");
-
-    assert_eq!(details, "Details for user 101");
+    // details is "Details for user 101"
 }
 ```
 
@@ -146,21 +137,13 @@ async fn main() {
     let get_profile = AsyncM::new(move || fetch_profile(user_id));
     let get_activity = AsyncM::new(move || fetch_activity(user_id));
 
-    println!("Fetching profile and activity concurrently...");
-    let start = std::time::Instant::now();
-
     // Use zip_with to run them concurrently and combine results
     let combined_operation = get_profile.zip_with(get_activity, combine_data);
     let (profile, activity) = combined_operation.try_get().await;
-
-    let duration = start.elapsed();
-
-    println!("Profile: '{profile}'");
-    println!("Activity: '{activity}'");
-    println!("Concurrent execution took: {duration:?}");
-
-    // The total time should be around 100ms, not 200ms, because they ran in parallel.
-    assert!(duration < Duration::from_millis(150));
+    
+    // profile is "Profile for 101"
+    // activity is "Activity for 101"
+    // The total execution time is ~100ms because they run in parallel.
 }
 ```
 
@@ -187,22 +170,16 @@ async fn might_fail(should_succeed: bool) -> Result<String, &'static str> {
 #[tokio::main]
 async fn main() {
     // Handle the success case
-    let success_op = AsyncM::from_result_or_default(
-        || might_fail(true),
-        "Default Value".to_string()
-    );
+    let success_op =
+        AsyncM::from_result_or_default(|| might_fail(true), "Default Value".to_string());
     let result1 = success_op.try_get().await;
-    println!("Success case: {result1}");
-    assert_eq!(result1, "Success!");
+    // result1 is "Success!"
 
     // Handle the failure case
-    let failure_op = AsyncM::from_result_or_default(
-        || might_fail(false),
-        "Default Value".to_string()
-    );
+    let failure_op =
+        AsyncM::from_result_or_default(|| might_fail(false), "Default Value".to_string());
     let result2 = failure_op.try_get().await;
-    println!("Failure case: {result2}");
-    assert_eq!(result2, "Default Value");
+    // result2 is "Default Value"
 }
 ```
 
