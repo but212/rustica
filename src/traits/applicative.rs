@@ -106,8 +106,8 @@ use crate::traits::pure::Pure;
 /// ## Mathematical Definition
 ///
 /// Applicative functors are functors with additional structure:
-/// - `pure`: A -> F[A] (provided by the `Pure` trait)
-/// - `apply`: F[A -> B] -> F[A] -> F[B] (the fundamental operation)
+/// - `pure`: A -> F\<A\> (provided by the `Pure` trait)
+/// - `apply`: F\<A -> B\> -> F\<A\> -> F\<B\> (the fundamental operation)
 ///
 /// ## Laws
 ///
@@ -189,7 +189,7 @@ pub trait Applicative: Functor + Pure {
     /// Applies a function wrapped in the applicative context to a value.
     ///
     /// This is the fundamental operation of Applicative functors, with signature:
-    /// `F[A -> B] -> F[A] -> F[B]`
+    /// `F\<A -> B\> -> F\<A\> -> F\<B\>`
     ///
     /// The function is contained within `self` (the applicative context), and is applied
     /// to the value contained within the `value` parameter.
@@ -484,7 +484,7 @@ pub trait Applicative: Functor + Pure {
     ///
     /// This is an ownership-based version of `apply` that avoids unnecessary cloning
     /// when the applicative values are no longer needed. The signature matches the
-    /// mathematical definition: F[A -> B] -> F[A] -> F[B].
+    /// mathematical definition: F\<A -> B\> -> F\<A\> -> F\<B\>.
     ///
     /// # Type Parameters
     ///
