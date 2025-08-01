@@ -132,11 +132,11 @@ pub trait Applicative: Functor + Pure {
     /// # Type Parameters
     ///
     /// * `B`: The result type after applying the function
-    /// * `F`: The function type that transforms a reference to `Source` into `B`
+    /// * `F`: The function type that transforms a reference to `A` into `B`
     ///
     /// # Arguments
     ///
-    /// * `f`: A reference to the applicative containing the function
+    /// * `value`: A reference to the applicative containing the value
     ///
     /// # Returns
     ///
@@ -151,12 +151,12 @@ pub trait Applicative: Functor + Pure {
     /// let x: Option<i32> = Some(5);
     /// let f: Option<fn(&i32) -> i32> = Some(|a: &i32| a + 1);
     ///
-    /// let result = x.apply(&f);
+    /// let result = f.apply(&x);
     /// assert_eq!(result, Some(6));
     /// ```
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&T) -> B,
         B: Clone;
 
     /// Lifts a binary function to work with two applicative values.
@@ -479,12 +479,12 @@ pub trait Applicative: Functor + Pure {
 // Implementation for Option
 impl<A> Applicative for Option<A> {
     #[inline]
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&T) -> B,
     {
-        match (self, f) {
-            (Some(a), Some(func)) => Some(func(a)),
+        match (self, value) {
+            (Some(func), Some(a)) => Some(func(a)),
             _ => None,
         }
     }
@@ -560,12 +560,12 @@ impl<A> Applicative for Option<A> {
 // Implementation for Result
 impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     #[inline]
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&T) -> B,
     {
-        match (self, f) {
-            (Ok(a), Ok(func)) => Ok(func(a)),
+        match (self, value) {
+            (Ok(func), Ok(a)) => Ok(func(a)),
             (Err(e), _) => Err(e.clone()),
             (_, Err(e)) => Err(e.clone()),
         }
@@ -642,15 +642,14 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
 // Implementation for Vec
 impl<A: Clone> Applicative for Vec<A> {
     #[inline]
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&T) -> B,
     {
-        let mut result = Vec::with_capacity(self.len() * f.len());
-        for func in f {
-            for x in self {
-                // We need to clone a since we're using it multiple times
-                result.push(func(x));
+        let mut result = Vec::new();
+        for func in self {
+            for val in value {
+                result.push(func(val));
             }
         }
         result

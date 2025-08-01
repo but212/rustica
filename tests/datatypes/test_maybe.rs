@@ -41,7 +41,7 @@ fn test_applicative_identity() {
         }
         let id_fn = |x: &i32| *x;
         let pure_id = Maybe::<fn(&i32) -> i32>::pure(&id_fn);
-        TestResult::from_bool(v.apply(&pure_id) == v)
+        TestResult::from_bool(pure_id.apply(&v) == v)
     }
     quickcheck(applicative_identity as fn(Maybe<i32>) -> TestResult);
 }
@@ -52,7 +52,7 @@ fn test_applicative_homomorphism() {
         let f = |val: &i32| val.saturating_add(1);
         let pure_f = Maybe::<fn(&i32) -> i32>::pure(&f);
         let pure_x = Maybe::<i32>::pure(&x);
-        pure_x.apply(&pure_f) == Maybe::<i32>::pure(&f(&x))
+        pure_f.apply(&pure_x) == Maybe::<i32>::pure(&f(&x))
     }
     quickcheck(applicative_homomorphism as fn(i32) -> bool);
 }
@@ -65,11 +65,11 @@ fn test_applicative_interchange() {
         }
         let u: Maybe<fn(&i32) -> i32> = Maybe::Just(f);
         let pure_y = Maybe::<i32>::pure(&y);
-        let left = pure_y.apply(&u);
+        let left = u.apply(&pure_y);
 
         let apply_to_y = |g: &fn(&i32) -> i32| g(&y);
         let pure_apply_to_y = Maybe::<fn(&fn(&i32) -> i32) -> i32>::pure(&apply_to_y);
-        let right = u.apply(&pure_apply_to_y);
+        let right = pure_apply_to_y.apply(&u);
 
         left == right
     }

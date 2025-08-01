@@ -82,11 +82,12 @@ impl<T> Functor for TestFunctor<T> {
 }
 
 impl<T> Applicative for TestFunctor<T> {
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&A) -> B,
+        B: Clone,
     {
-        TestFunctor::new(f.0(&self.0))
+        TestFunctor::new(self.0(&value.0))
     }
 
     fn lift2<B, C, F>(&self, b: &Self::Output<B>, f: F) -> Self::Output<C>

@@ -853,12 +853,12 @@ impl<L, R> Pure for Either<L, R> {
 }
 
 impl<L: Clone, R: Clone> Applicative for Either<L, R> {
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&A) -> B,
     {
-        match (self, f) {
-            (Either::Right(r), Either::Right(func)) => Either::Right(func(r)),
+        match (self, value) {
+            (Either::Right(func), Either::Right(a)) => Either::Right(func(a)),
             (Either::Left(l), _) => Either::Left(l.clone()),
             (_, Either::Left(l)) => Either::Left(l.clone()),
         }

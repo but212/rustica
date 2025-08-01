@@ -62,22 +62,21 @@ fn test_writer_functor() {
 
 #[test]
 fn test_writer_applicative() {
+    // Create a Writer with a function that takes a reference to i32
+    let writer_fn = Writer::new(Log(vec!["function created".to_string()]), |x: &i32| x * 2);
     // Create a Writer with a value
     let writer_val = Writer::new(Log(vec!["value created".to_string()]), 21);
 
-    // Create a Writer with a function that takes a reference to i32
-    let writer_fn = Writer::new(Log(vec!["function created".to_string()]), |x: &i32| x * 2);
-
-    // Apply the function to the value (note: writer_val.apply(&writer_fn) is the correct order)
-    let result = writer_val.apply(&writer_fn);
+    // Apply the function to the value (note: writer_fn.apply(&writer_val) is the correct order)
+    let result = writer_fn.apply(&writer_val);
     let (log, value) = result.run();
 
     assert_eq!(value, 42);
     assert_eq!(
         log,
         Log(vec![
+            "function created".to_string(),
             "value created".to_string(),
-            "function created".to_string()
         ])
     );
 

@@ -54,7 +54,7 @@ fn test_choice_applicative() {
 
     // Test apply
     let f = Choice::new(double, vec![triple]);
-    let result = choice.apply(&f);
+    let result = f.apply(&choice);
     assert_eq!(*result.first().unwrap(), 4);
     assert_eq!(result.alternatives(), &[6, 6, 9, 8, 12]);
 
@@ -618,7 +618,7 @@ fn test_choice_applicative_and_monad_laws() {
     let v = Choice::new(1, vec![2]);
     let id_fn = |x: &i32| *x;
     let id_choice = Choice::new(id_fn, vec![]);
-    let applied = v.apply(&id_choice);
+    let applied = id_choice.apply(&v);
     assert_eq!(applied, v);
     // Monad left identity
     let a = 42;

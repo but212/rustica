@@ -5,7 +5,7 @@ use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 
 // Type alias to simplify complex types
-type BoxedIntFunction<'a> = Either<&'a str, Box<dyn Fn(&i32) -> i32>>;
+type IntFunction<'a> = Either<&'a str, fn(&i32) -> i32>;
 use rustica::traits::pure::Pure;
 
 #[test]
@@ -79,8 +79,8 @@ fn test_either_applicative() {
 
     // Test apply
     let value: Either<&str, i32> = Either::right(42);
-    let f: BoxedIntFunction = Either::right(Box::new(|x| x + 1));
-    let result = value.apply(&f);
+    let f: IntFunction = Either::right(|x| x + 1);
+    let result = f.apply(&value);
     assert_eq!(result.unwrap_right(), 43);
 
     // Test apply_owned
@@ -118,18 +118,18 @@ fn test_either_applicative() {
     // Test apply short-circuiting behavior
     let value_right: Either<&str, i32> = Either::right(42);
     let value_left: Either<&str, i32> = Either::left("value error");
-    type EitherF<'a> = Either<&'a str, Box<dyn Fn(&i32) -> i32>>;
-    let f_right: EitherF = Either::right(Box::new(|x| x + 1));
+    type EitherF<'a> = Either<&'a str, fn(&i32) -> i32>;
+    let f_right: EitherF = Either::right(|x| x + 1);
     let f_left: EitherF = Either::left("function error");
 
     // Right <*> Right = Right
-    assert_eq!(value_right.apply(&f_right).unwrap_right(), 43);
+    assert_eq!(f_right.apply(&value_right).unwrap_right(), 43);
     // Left <*> Right = Left
-    assert_eq!(value_left.apply(&f_right).unwrap_left(), "value error");
+    assert_eq!(f_right.apply(&value_left).unwrap_left(), "value error");
     // Right <*> Left = Left
-    assert_eq!(value_right.apply(&f_left).unwrap_left(), "function error");
-    // Left <*> Left = Left (first Left encountered)
-    assert_eq!(value_left.apply(&f_left).unwrap_left(), "value error");
+    assert_eq!(f_left.apply(&value_right).unwrap_left(), "function error");
+    // Left <*> Left = Left (function error takes precedence in forward direction)
+    assert_eq!(f_left.apply(&value_left).unwrap_left(), "function error");
 
     // Test apply_owned short-circuiting behavior
     let value_right_owned: Either<&str, i32> = Either::right(42);

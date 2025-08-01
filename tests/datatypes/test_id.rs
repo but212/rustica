@@ -75,7 +75,7 @@ fn test_id_applicative() {
 
     // Test apply
     let add_one = Id::new(|x: &i32| x + 1);
-    let result = x.apply(&add_one);
+    let result = add_one.apply(&x);
     assert_eq!(*result.value(), 3);
 
     // Test lift2

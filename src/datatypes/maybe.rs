@@ -643,16 +643,16 @@ impl<T> Applicative for Maybe<T> {
     /// let just_val = Maybe::Just(1);
     /// let nothing_val: Maybe<i32> = Maybe::Nothing;
     ///
-    /// assert_eq!(just_val.apply(&just_fn), Maybe::Just(2));
-    /// assert_eq!(nothing_val.apply(&just_fn), Maybe::Nothing);
+    /// assert_eq!(just_fn.apply(&just_val), Maybe::Just(2));
+    /// assert_eq!(just_fn.apply(&nothing_val), Maybe::Nothing);
     /// ```
     #[inline]
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&A) -> B,
     {
-        match (self, f) {
-            (Maybe::Just(x), Maybe::Just(g)) => Maybe::Just(g(x)),
+        match (self, value) {
+            (Maybe::Just(g), Maybe::Just(x)) => Maybe::Just(g(x)),
             _ => Maybe::Nothing,
         }
     }

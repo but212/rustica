@@ -1,8 +1,8 @@
 # CHANGELOG
 
-## [0.8.1]
+## [0.9.0]
 
-### Added - 0.8.1
+### Added - 0.9.0
 
 - **Prism structural sharing optimization methods**
   - Added `modify` method to `Prism` for structural sharing optimization: returns the original structure if the value is unchanged after transformation, avoiding unnecessary allocations and copies.
@@ -10,9 +10,17 @@
   - Both methods require `S: Clone` and `A: PartialEq` constraints for efficient comparison and sharing.
   - Enhanced documentation with practical usage examples.
 
-### Change - 0.8.1
+### Change - 0.9.0
 
-### Removed - 0.8.1
+- **[Breaking] Applicative `apply` method refactored to forward direction**
+  - Changed signature from `value.apply(&function)` to `function.apply(&value)`
+  - Updated all Applicative implementations: Option, Result, Vec, Choice, Either, Id, Maybe, Validated, Writer
+  - Updated trait definition in `src/traits/applicative.rs`
+  - Fixed all test files to use new forward direction signature
+  - Updated error handling precedence: in forward direction, function errors take precedence over value errors
+  - This change aligns with mathematical convention where functions are applied to values
+
+### Removed - 0.9.0
 
 - remove quickcheck in full feature flag
 

@@ -21,7 +21,7 @@ fn readme_identity_monad() {
     // Using Applicative to apply functions
     // 1. Apply a function wrapped in Id
     let add_one = Id::new(|x: &i32| x + 1);
-    let result = x.apply(&add_one);
+    let result = add_one.apply(&x);
     assert_eq!(*result.value(), 6);
 
     // 2. Combine two Id values with lift2

@@ -160,7 +160,7 @@ mod applicative_tests {
     fn test_apply_valid_to_valid() {
         let value: Validated<String, i32> = Validated::valid(21);
         let f: Validated<String, fn(&i32) -> i32> = Validated::valid(|x| x * 2);
-        let result = value.apply(&f);
+        let result = f.apply(&value);
         assert_eq!(result, Validated::valid(42));
     }
 
@@ -168,20 +168,20 @@ mod applicative_tests {
     fn test_apply_with_errors() {
         let value: Validated<String, i32> = Validated::valid(21);
         let f: Validated<String, fn(&i32) -> i32> = Validated::invalid("error".to_string());
-        let result = value.apply(&f);
+        let result = f.apply(&value);
         assert_eq!(result, Validated::invalid("error".to_string()));
 
         let value: Validated<String, i32> = Validated::invalid("error".to_string());
         let f: Validated<String, fn(&i32) -> i32> = Validated::valid(|x| x * 2);
-        let result = value.apply(&f);
+        let result = f.apply(&value);
         assert_eq!(result, Validated::invalid("error".to_string()));
     }
 
     #[test]
     fn test_error_accumulation_in_apply() {
-        let value: Validated<String, i32> = Validated::invalid("error1".to_string());
-        let f: Validated<String, fn(&i32) -> i32> = Validated::invalid("error2".to_string());
-        let result = value.apply(&f);
+        let f: Validated<String, fn(&i32) -> i32> = Validated::invalid("error1".to_string());
+        let value: Validated<String, i32> = Validated::invalid("error2".to_string());
+        let result = f.apply(&value);
         let errors = result.errors();
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[0], "error1");
@@ -240,7 +240,7 @@ mod applicative_tests {
     fn test_applicative_identity_law() {
         let v: Validated<String, i32> = Validated::valid(7);
         let id_fn: Validated<String, fn(&i32) -> i32> = Validated::valid(|x| *x);
-        assert_eq!(v.apply(&id_fn), v);
+        assert_eq!(id_fn.apply(&v), v);
     }
 
     #[test]
@@ -249,7 +249,7 @@ mod applicative_tests {
         let a = 3;
         let pure_a: Validated<String, i32> = Validated::valid(a);
         let pure_f = Validated::valid(f);
-        assert_eq!(pure_a.apply(&pure_f), Validated::valid(f(&a)));
+        assert_eq!(pure_f.apply(&pure_a), Validated::valid(f(&a)));
     }
 }
 

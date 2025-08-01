@@ -188,7 +188,7 @@ use quickcheck::{Arbitrary, Gen};
 /// // Using Applicative to apply functions
 /// // 1. Apply a function wrapped in Id
 /// let add_one = Id::new(|x: &i32| x + 1);
-/// let result = x.apply(&add_one);
+/// let result = add_one.apply(&x);
 /// assert_eq!(*result.value(), 6);
 ///
 /// // 2. Combine two Id values with lift2
@@ -382,11 +382,11 @@ impl<T: Clone> Pure for Id<T> {
 
 impl<T: Clone> Applicative for Id<T> {
     #[inline]
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&A) -> B,
     {
-        Id::new(f.value()(&self.value))
+        Id::new(self.value()(value.value()))
     }
 
     #[inline]

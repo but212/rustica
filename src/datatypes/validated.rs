@@ -1923,7 +1923,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let valid_fn: Validated<&str, fn(&i32) -> i32> = Validated::valid(|x: &i32| x * 2);
 /// let valid_val: Validated<&str, i32> = Validated::valid(10);
-/// assert_eq!(valid_val.apply(&valid_fn), Validated::valid(20));
+/// assert_eq!(valid_fn.apply(&valid_val), Validated::valid(20));
 /// ```
 ///
 /// ### Invalid function, Valid value
@@ -1934,7 +1934,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let invalid_fn: Validated<&str, fn(&i32) -> i32> = Validated::invalid("fn_error");
 /// let valid_val: Validated<&str, i32> = Validated::valid(10);
-/// assert_eq!(valid_val.apply(&invalid_fn), Validated::invalid("fn_error"));
+/// assert_eq!(invalid_fn.apply(&valid_val), Validated::invalid("fn_error"));
 /// ```
 ///
 /// ### Valid function, Invalid value
@@ -1945,7 +1945,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let valid_fn: Validated<&str, fn(&i32) -> i32> = Validated::valid(|x: &i32| x * 2);
 /// let invalid_val: Validated<&str, i32> = Validated::invalid("val_error");
-/// assert_eq!(invalid_val.apply(&valid_fn), Validated::invalid("val_error"));
+/// assert_eq!(valid_fn.apply(&invalid_val), Validated::invalid("val_error"));
 /// ```
 ///
 /// ### Invalid function, Invalid value (error accumulation)
@@ -1958,9 +1958,9 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// let invalid_fn: Validated<String, fn(&i32) -> i32> = Validated::invalid("fn_error".to_string());
 /// let invalid_val: Validated<String, i32> = Validated::invalid("val_error".to_string());
 /// // The apply implementation accumulates errors in this order:
-/// // first the errors from the value (self), then the errors from the function (rf)
-/// let expected_errors = smallvec!["val_error".to_string(), "fn_error".to_string()];
-/// assert_eq!(invalid_val.apply(&invalid_fn), Validated::Invalid(expected_errors));
+/// // first the errors from the function (self), then the errors from the value (rf)
+/// let expected_errors = smallvec!["fn_error".to_string(), "val_error".to_string()];
+/// assert_eq!(invalid_fn.apply(&invalid_val), Validated::Invalid(expected_errors));
 /// ```
 ///
 /// # Performance
@@ -2029,7 +2029,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// // Left side: pure(f).apply(pure(x))
 /// let pure_f: Validated<String, fn(&i32) -> i32> = Validated::<String, fn(&i32) -> i32>::pure_owned(f);
 /// let pure_x: Validated<String, i32> = Validated::<String, i32>::pure_owned(x);
-/// let left_side = pure_x.apply(&pure_f); // This works because f is a Fn(&i32) -> i32
+/// let left_side = pure_f.apply(&pure_x); // This works because f is a Fn(&i32) -> i32
 ///
 /// // Right side: pure(f(x))
 /// let right_side = Validated::<String, i32>::pure_owned(f(&x));
@@ -2039,13 +2039,13 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// assert_eq!(left_side, Validated::valid(20));
 /// ```
 impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
-    fn apply<B, F>(&self, rf: &Self::Output<F>) -> Self::Output<B>
+    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&T) -> B,
         B: Clone,
     {
-        match (self, rf) {
-            (Validated::Valid(a), Validated::Valid(f)) => Validated::Valid(f(a)),
+        match (self, value) {
+            (Validated::Valid(f), Validated::Valid(a)) => Validated::Valid(f(a)),
             (Validated::Valid(_), Validated::Invalid(e)) => Validated::Invalid(e.clone()),
             (Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e.clone()),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {

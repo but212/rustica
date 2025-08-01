@@ -600,7 +600,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// );
     ///
     /// // Apply the function to the value, combining logs
-    /// let result = value_writer.apply(&add_five_fn);
+    /// let result = add_five_fn.apply(&value_writer);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();
@@ -609,17 +609,17 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// assert_eq!(value, 15);
     ///
     /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Value: 10");
-    /// assert_eq!(log.0[1], "Function: add 5");
+    /// assert_eq!(log.0[0], "Function: add 5");
+    /// assert_eq!(log.0[1], "Value: 10");
     /// ```
     #[inline]
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
+        Self::Source: Fn(&T) -> B,
     {
         Writer {
-            log: self.log.combine(&f.log),
-            value: (f.value)(&self.value),
+            log: self.log.combine(&value.log),
+            value: (self.value)(&value.value),
         }
     }
 

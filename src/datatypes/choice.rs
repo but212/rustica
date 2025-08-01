@@ -2085,29 +2085,29 @@ impl<T: Clone> Applicative for Choice<T> {
     /// let choice = Choice::new(5, vec![10, 15]);
     /// let id_fn: fn(&i32) -> i32 = |x: &i32| *x;
     /// let id_fn_choice = Choice::<fn(&i32) -> i32>::pure(&id_fn);
-    /// let applied = choice.clone().apply(&id_fn_choice);
+    /// let applied = id_fn_choice.apply(&choice);
     /// assert_eq!(choice, applied);
     /// ```
     ///
     /// ## Homomorphism Law
     ///
-    /// `Choice::pure(x).apply(&Choice::pure(f)) == Choice::pure(f(x))`
+    /// `Choice::pure(f).apply(&Choice::pure(x)) == Choice::pure(f(x))`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
     /// # use rustica::datatypes::choice::Choice;
     /// let f = |x: &i32| *x * 2;
     /// let x = 7;
-    /// let pure_x = Choice::<i32>::pure(&x);
     /// let pure_f = Choice::<fn(&i32) -> i32>::pure(&f);
-    /// let left = pure_x.apply(&pure_f);
+    /// let pure_x = Choice::<i32>::pure(&x);
+    /// let left = pure_f.apply(&pure_x);
     /// let right = Choice::<i32>::pure(&f(&x));
     /// assert_eq!(left, right);
     /// ```
     ///
     /// ## Interchange Law
     ///
-    /// `Choice::pure(y).apply(&functions) == functions.fmap(|f| f(y))`
+    /// `functions.apply(&Choice::pure(y)) == functions.fmap(|f| f(y))`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -2118,33 +2118,33 @@ impl<T: Clone> Applicative for Choice<T> {
     /// let f2: IntFn = |x: &i32| *x * 2;
     /// let functions = Choice::new(f1, vec![f2]);
     /// let pure_y = Choice::<i32>::pure(&y);
-    /// let left = pure_y.apply(&functions);
+    /// let left = functions.apply(&pure_y);
     /// let right = functions.fmap(|f| f(&y));
     /// assert_eq!(left, right);
     /// ```
     #[inline]
-    fn apply<B, F>(&self, f: &Self::Output<F>) -> Self::Output<B>
+    fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
     where
-        F: Fn(&T) -> B,
+        Self::Source: Fn(&A) -> B,
         B: Clone,
     {
-        if self.values.is_empty() || f.values.is_empty() {
+        if self.values.is_empty() || value.values.is_empty() {
             return Choice::new_empty();
         }
 
-        let self_values = self.values.as_ref();
-        let f_values = f.values.as_ref();
-        let f_first = &f_values[0];
+        let func_values = self.values.as_ref();
+        let val_values = value.values.as_ref();
+        let func_first = &func_values[0];
 
-        let primary = f_first(&self_values[0]);
+        let primary = func_first(&val_values[0]);
 
         // Apply additional functions to primary value + apply all functions to all alternatives
-        let alternatives: SmallVec<[B; 8]> = f_values[1..]
+        let alternatives: SmallVec<[B; 8]> = func_values[1..]
             .iter()
-            .map(|f_alt| f_alt(&self_values[0]))
-            .chain(self_values[1..].iter().flat_map(|self_alt| {
-                std::iter::once(f_first(self_alt))
-                    .chain(f_values[1..].iter().map(move |f_alt| f_alt(self_alt)))
+            .map(|f_alt| f_alt(&val_values[0]))
+            .chain(val_values[1..].iter().flat_map(|val_alt| {
+                std::iter::once(func_first(val_alt))
+                    .chain(func_values[1..].iter().map(move |f_alt| f_alt(val_alt)))
             }))
             .collect();
 
