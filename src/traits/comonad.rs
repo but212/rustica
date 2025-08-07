@@ -67,12 +67,15 @@
 //!   values from and duplicate contexts.
 //!
 
-use crate::traits::monad::Monad;
+use crate::traits::functor::Functor;
 
 /// A comonad is the categorical dual of a monad, providing operations to extract values from a context
 /// and extend computations that consume contexts. While monads represent computations that add context,
 /// comonads represent computations that can read from contexts.
-pub trait Comonad: Monad {
+///
+/// Note: Comonads are independent of monads in category theory. They both extend Functor,
+/// but a type can be a comonad without being a monad, and vice versa.
+pub trait Comonad: Functor {
     /// Extracts the value from a comonadic context.
     ///
     /// This is dual to the `pure` operation in monads - while `pure` wraps a value in a context,

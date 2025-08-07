@@ -7,10 +7,17 @@
 //! ## Mathematical Definition
 //!
 //! A category consists of:
-//! - A collection of objects (types in Rust)
-//! - A collection of morphisms (functions/arrows) between objects
-//! - A composition operation for morphisms
+//! - A collection of objects
+//! - A collection of morphisms (arrows) between objects
 //! - An identity morphism for each object
+//! - A composition operation for morphisms
+//!
+//! **Note on Rust Implementation Limitations:**
+//! In pure category theory, a category explicitly maintains a collection of objects.
+//! However, in Rust's type system, objects are represented implicitly through the
+//! type parameters of morphisms. This is a necessary compromise due to Rust's
+//! static typing and the difficulty of representing arbitrary object collections
+//! at the type level.
 //!
 //! ## Laws
 //!
@@ -114,34 +121,41 @@ use crate::traits::hkt::HKT;
 pub trait Category: HKT {
     type Morphism<S, T>;
 
-    /// Creates an identity morphism for the current type.
+    /// Creates an identity morphism for the given types.
     ///
     /// The identity morphism is a function that returns its input unchanged.
     /// It serves as the unit element for morphism composition.
+    /// Mathematical definition: id_A: A → A where id_A(a) = a
+    ///
+    /// # Type Parameters
+    /// * `A`: The type for which to create the identity morphism
     ///
     /// # Returns
     ///
-    /// A new instance of Self that represents the identity morphism
-    fn identity_morphism() -> Self::Morphism<Self::Source, Self::Output<Self::Source>>;
+    /// A morphism representing the identity function for type A
+    fn identity_morphism<A>() -> Self::Morphism<A, A>;
 
     /// Composes two morphisms in the category.
     ///
-    /// Given morphisms f: A → B and g: B → C, produces a new morphism f ∘ g: A → C.
+    /// Given morphisms f: A → B and g: B → C, produces a new morphism (g ∘ f): A → C.
+    /// Mathematical definition: (g ∘ f)(x) = g(f(x))
+    /// This means f is applied first, then g is applied to the result.
     ///
     /// # Type Parameters
     ///
-    /// * `B`: The intermediate type in the composition
-    /// * `C`: The result type of the composition
+    /// * `A`: The input type of the first morphism
+    /// * `B`: The intermediate type (output of f, input of g)
+    /// * `C`: The output type of the second morphism
     ///
     /// # Arguments
     ///
-    /// * `self`: The first morphism to compose (f)
-    /// * `g`: The second morphism to compose with (g)
+    /// * `f`: The first morphism to apply (A → B)
+    /// * `g`: The second morphism to apply (B → C)
     ///
     /// # Returns
     ///
-    /// A new morphism representing the composition of self and g
+    /// A new morphism representing the composition (g ∘ f): A → C
     fn compose_morphisms<A, B, C>(
-        g: &Self::Morphism<A, B>, f: &Self::Morphism<B, C>,
+        f: &Self::Morphism<A, B>, g: &Self::Morphism<B, C>,
     ) -> Self::Morphism<A, C>;
 }
