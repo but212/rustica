@@ -96,7 +96,6 @@ impl<T> Applicative for TestFunctor<T> {
         A: Clone,
         B: Clone,
         C: Clone,
-        Self: Sized,
     {
         TestFunctor::new(f(&fa.0, &fb.0))
     }
@@ -110,7 +109,6 @@ impl<T> Applicative for TestFunctor<T> {
         B: Clone,
         C: Clone,
         D: Clone,
-        Self: Sized,
     {
         TestFunctor::new(f(&fa.0, &fb.0, &fc.0))
     }
@@ -118,7 +116,6 @@ impl<T> Applicative for TestFunctor<T> {
     fn apply_owned<U, B>(self, value: Self::Output<U>) -> Self::Output<B>
     where
         Self::Source: Fn(U) -> B,
-        Self: Sized,
     {
         // For TestFunctor, self.0 is the function and value.0 is the input
         TestFunctor::new((self.0)(value.0))
@@ -130,7 +127,6 @@ impl<T> Applicative for TestFunctor<T> {
         A: Clone,
         B: Clone,
         C: Clone,
-        Self: Sized,
     {
         TestFunctor::new(f(fa.0, fb.0))
     }
@@ -144,7 +140,6 @@ impl<T> Applicative for TestFunctor<T> {
         B: Clone,
         C: Clone,
         D: Clone,
-        Self: Sized,
     {
         TestFunctor::new(f(fa.0, fb.0, fc.0))
     }

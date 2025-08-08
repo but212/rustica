@@ -284,8 +284,7 @@ pub trait Applicative: Functor + Pure {
         F: Fn(&A, &B) -> C,
         A: Clone,
         B: Clone,
-        C: Clone,
-        Self: Sized;
+        C: Clone;
 
     /// Lifts a ternary function to work with three applicative values.
     ///
@@ -337,8 +336,7 @@ pub trait Applicative: Functor + Pure {
         A: Clone,
         B: Clone,
         C: Clone,
-        D: Clone,
-        Self: Sized;
+        D: Clone;
 
     /// Sequences two applicative actions, discarding the left value and keeping the right.
     ///
@@ -381,7 +379,6 @@ pub trait Applicative: Functor + Pure {
     where
         A: Clone,
         B: Clone,
-        Self: Sized,
     {
         Self::lift2(|_, b| b.clone(), fa, fb)
     }
@@ -427,7 +424,6 @@ pub trait Applicative: Functor + Pure {
     where
         A: Clone,
         B: Clone,
-        Self: Sized,
     {
         Self::lift2(|a, _| a.clone(), fa, fb)
     }
@@ -474,7 +470,6 @@ pub trait Applicative: Functor + Pure {
         A: Clone,
         B: Clone,
         C: Clone,
-        Self: Sized,
     {
         Self::lift2(f, fa, fb)
     }
@@ -558,8 +553,7 @@ pub trait Applicative: Functor + Pure {
         F: Fn(A, B) -> C,
         A: Clone,
         B: Clone,
-        C: Clone,
-        Self: Sized;
+        C: Clone;
 
     /// Lifts a ternary function to work with three applicative values, taking
     /// ownership of all values.
@@ -608,8 +602,7 @@ pub trait Applicative: Functor + Pure {
         A: Clone,
         B: Clone,
         C: Clone,
-        D: Clone,
-        Self: Sized;
+        D: Clone;
 
     /// Sequences two applicative actions, keeping only the result of the right one
     /// (discarding the left result).
@@ -647,7 +640,6 @@ pub trait Applicative: Functor + Pure {
     where
         A: Clone,
         B: Clone,
-        Self: Sized,
     {
         Self::lift2_owned(|_, b| b, fa, fb)
     }
@@ -688,7 +680,6 @@ pub trait Applicative: Functor + Pure {
     where
         A: Clone,
         B: Clone,
-        Self: Sized,
     {
         Self::lift2_owned(|a, _| a, fa, fb)
     }

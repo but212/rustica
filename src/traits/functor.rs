@@ -18,7 +18,31 @@
 //! - Add comprehensive test cases for all implementations
 //! - Create benchmarks to evaluate performance of ownership-based vs reference-based approaches
 //!
-//! # Relationship to other traits
+//! ## Quick Start
+//!
+//! Transform values while preserving structure:
+//!
+//! ```rust
+//! use rustica::traits::functor::Functor;
+//! use rustica::datatypes::maybe::Maybe;
+//!
+//! // Transform values in context
+//! let numbers = vec![1, 2, 3, 4, 5];
+//! let doubled: Vec<i32> = numbers.fmap(|x| x * 2);
+//! assert_eq!(doubled, vec![2, 4, 6, 8, 10]);
+//!
+//! // Works with optional values
+//! let maybe_num = Maybe::Just(42);
+//! let maybe_string = maybe_num.fmap(|x| x.to_string());
+//! assert_eq!(maybe_string, Maybe::Just("42".to_string()));
+//!
+//! // Preserves structure - Nothing stays Nothing
+//! let nothing: Maybe<i32> = Maybe::Nothing;
+//! let still_nothing = nothing.fmap(|x| x.to_string());
+//! assert_eq!(still_nothing, Maybe::Nothing);
+//! ```
+//!
+//! ## Relationship to other traits
 //!
 //! Functors are the foundation of many higher-level abstractions in functional programming:
 //!
@@ -31,7 +55,7 @@
 //! - Applicatives: Applying functions in a context to values in a context (`apply`)
 //! - Monads: Sequencing operations that return values in a context (`bind`)
 //!
-//! # Components
+//! ## Components
 //!
 //! The module contains:
 //!
@@ -40,7 +64,7 @@
 //! - Implementations for standard Rust types like `Option`, `Result`, and `Vec`
 //! - Zero-cost implementations using `PhantomData`
 //!
-//! # Functor Laws
+//! ## Functor Laws
 //!
 //! A proper functor should satisfy the following laws:
 //!

@@ -734,7 +734,7 @@ mod real_world_tests {
                 &name_validation,
                 &email_validation,
             );
-            
+
             Validated::<String, User>::lift2(
                 |(n, e), a| User {
                     name: n.clone(),

@@ -4,6 +4,51 @@
 //! or invalid with a collection of errors. Unlike `Result`, which fails fast on the first error,
 //! `Validated` can accumulate multiple errors during validation.
 //!
+//! ## Quick Start
+//!
+//! Accumulate validation errors instead of failing fast:
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::applicative::Applicative;
+//! use rustica::traits::functor::Functor;
+//!
+//! // Create validation functions
+//! let validate_positive = |x: &i32| -> Validated<String, i32> {
+//!     if *x > 0 {
+//!         Validated::Valid(*x)
+//!     } else {
+//!         Validated::Invalid(vec!["Must be positive".to_string()].into())
+//!     }
+//! };
+//!
+//! let validate_even = |x: &i32| -> Validated<String, i32> {
+//!     if *x % 2 == 0 {
+//!         Validated::Valid(*x)
+//!     } else {
+//!         Validated::Invalid(vec!["Must be even".to_string()].into())
+//!     }
+//! };
+//!
+//! // Combine validations - accumulates ALL errors
+//! let combine_validations = |a: &i32, b: &i32| -> Validated<String, i32> {
+//!     Validated::<String, i32>::lift2(
+//!         |x, y| x + y,
+//!         &validate_positive(a),
+//!         &validate_even(b)
+//!     )
+//! };
+//!
+//! // Success case
+//! let success = combine_validations(&5, &4);
+//! assert_eq!(success, Validated::Valid(9));
+//!
+//! // Error accumulation - gets BOTH errors
+//! let errors = combine_validations(&-1, &3);
+//! assert!(errors.is_invalid());
+//! assert_eq!(errors.errors().len(), 2);
+//! ```
+//!
 //! ## Performance Characteristics
 //!
 //! ### Memory Usage
@@ -668,7 +713,12 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     where
         I: IntoIterator<Item = E>,
     {
-        Validated::Invalid(errors.into_iter().collect())
+        // Use size_hint to preallocate and avoid repeated reallocations for large iterators
+        let iter = errors.into_iter();
+        let (lower, _upper) = iter.size_hint();
+        let mut vec: SmallVec<[E; 4]> = SmallVec::with_capacity(lower);
+        vec.extend(iter);
+        Validated::Invalid(vec)
     }
 
     /// Creates a new invalid instance with multiple errors from a collection.
@@ -709,10 +759,13 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     where
         I: IntoIterator<Item = E>,
     {
-        let mut errors = errors.into_iter();
-        if let Some(first) = errors.next() {
-            let mut vec = smallvec![first];
-            vec.extend(errors);
+        let mut iter = errors.into_iter();
+        if let Some(first) = iter.next() {
+            // Preallocate: at least 1 element for `first`, plus the iterator's lower bound
+            let (lower, _upper) = iter.size_hint();
+            let mut vec: SmallVec<[E; 4]> = SmallVec::with_capacity(lower.saturating_add(1));
+            vec.push(first);
+            vec.extend(iter);
             Validated::Invalid(vec)
         } else {
             panic!("Validated::invalid_vec requires at least one error")

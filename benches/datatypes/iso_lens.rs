@@ -323,7 +323,7 @@ pub fn iso_lens_benchmarks(c: &mut Criterion) {
             black_box(city_data)
         })
     });
-    
+
     group.bench_function("iso_lens_city_set", |b| {
         b.iter(|| {
             let addr = black_box(address.clone());
@@ -332,7 +332,7 @@ pub fn iso_lens_benchmarks(c: &mut Criterion) {
             black_box(updated)
         })
     });
-    
+
     group.bench_function("iso_lens_city_modify", |b| {
         b.iter(|| {
             let addr = black_box(address.clone());

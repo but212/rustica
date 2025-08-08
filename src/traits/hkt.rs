@@ -7,6 +7,39 @@
 //! This module provides the `HKT` trait and related traits that form the
 //! foundation for higher-kinded polymorphism in the Rustica library.
 //!
+//! ## Limitations of HKT Simulation in Rust
+//!
+//! While this implementation provides a workable approximation of higher-kinded types,
+//! it has several important limitations compared to true HKT support:
+//!
+//! ### 1. **Associated Type Constraints**
+//! - Each HKT instance must explicitly implement the trait for every concrete type
+//! - Cannot express arbitrary type constructors at the type level
+//! - Limited composability compared to true HKT systems
+//!
+//! ### 2. **Inference Limitations**
+//! - Type inference often requires explicit type annotations
+//! - Complex generic bounds can become unwieldy
+//! - Some mathematically valid operations cannot be expressed
+//!
+//! ### 3. **Runtime Overhead**
+//! - Associated types may introduce additional indirection
+//! - Some operations require trait object boxing
+//! - Performance may be suboptimal compared to monomorphized code
+//!
+//! ### 4. **Expressiveness Gaps**
+//! - Cannot represent some category theory concepts directly
+//! - Limited support for type-level computation
+//! - Some functor laws cannot be verified at compile time
+//!
+//! ### 5. **Ergonomics Issues**
+//! - Verbose syntax for complex type relationships
+//! - Difficult to write generic code over multiple HKT instances
+//! - Error messages can be cryptic and hard to debug
+//!
+//! Despite these limitations, this HKT simulation provides a practical foundation
+//! for functional programming patterns in Rust while maintaining type safety.
+//!
 //! # Examples
 //!
 //! ```rust

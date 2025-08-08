@@ -7,7 +7,35 @@
 //! a computational context. Monads are particularly useful for handling effects like
 //! optional values, error handling, state management, or asynchronous operations.
 //!
-//! # Relationship to other traits
+//! ## Quick Start
+//!
+//! Chain computations that may fail using monadic operations:
+//!
+//! ```rust
+//! use rustica::traits::monad::Monad;
+//! use rustica::datatypes::maybe::Maybe;
+//!
+//! // Chain operations with bind - short-circuits on Nothing
+//! let safe_divide = |x: &i32, y: &i32| -> Maybe<i32> {
+//!     if *y == 0 { Maybe::Nothing } else { Maybe::Just(x / y) }
+//! };
+//!
+//! let result = Maybe::Just(20)
+//!     .bind(|x| safe_divide(x, &4))  // 20 / 4 = 5
+//!     .bind(|x| safe_divide(x, &2))  // 5 / 2 = 2
+//!     .bind(|x| Maybe::Just(x * 10)); // 2 * 10 = 20
+//!
+//! assert_eq!(result, Maybe::Just(20));
+//!
+//! // Automatic short-circuiting on failure
+//! let failed = Maybe::Just(10)
+//!     .bind(|x| safe_divide(x, &0))  // Division by zero!
+//!     .bind(|x| Maybe::Just(x * 100)); // This won't execute
+//!
+//! assert_eq!(failed, Maybe::Nothing);
+//! ```
+//!
+//! ## Relationship to other traits
 //!
 //! Monads are an extension of the Applicative functor concept, which itself extends Functors:
 //!
@@ -20,13 +48,13 @@
 //! - Applicatives: Applying functions in a context to values in a context (`apply`)
 //! - Monads: Sequencing operations that return values in a context (`bind`)
 //!
-//! # Mathematical Definition
+//! ## Mathematical Definition
 //!
 //! Monads are applicative functors with additional structure:
 //! - `bind`: M A -> (A -> M B) -> M B
 //! - `join`: M (M A) -> M A
 //!
-//! # Laws
+//! ## Laws
 //!
 //! For a valid Monad implementation, the following laws must hold:
 //!
@@ -48,7 +76,7 @@
 //!    ```
 //!    The order of binding operations should not matter.
 //!
-//! # Examples
+//! ## Examples
 //!
 //! ```rust
 //! use rustica::traits::monad::Monad;

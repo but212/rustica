@@ -118,7 +118,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
             level: *level,
         },
     );
-    
+
     let inactive_prism = Prism::for_case::<Status, (String, u64)>(
         |s: &Status| match s {
             Status::Inactive { name, since } => Some((name.clone(), *since)),
@@ -129,15 +129,13 @@ pub fn prism_benchmarks(c: &mut Criterion) {
             since: *since,
         },
     );
-    
+
     let pending_prism = Prism::for_case::<Status, String>(
         |s: &Status| match s {
             Status::Pending { name } => Some(name.clone()),
             _ => None,
         },
-        |name: &String| Status::Pending {
-            name: name.clone(),
-        },
+        |name: &String| Status::Pending { name: name.clone() },
     );
 
     // Creation benchmarks

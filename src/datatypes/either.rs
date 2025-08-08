@@ -4,6 +4,42 @@
 //! It is a fundamental functional programming construct that is similar to Rust's built-in `Result<T, E>` but without the
 //! semantic meaning of success/failure.
 //!
+//! ## Quick Start
+//!
+//! Handle success/failure cases with Either:
+//!
+//! ```rust
+//! use rustica::datatypes::either::Either;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create Either values - Left for errors, Right for success
+//! let success: Either<String, i32> = Either::Right(42);
+//! let error: Either<String, i32> = Either::Left("Something went wrong".to_string());
+//!
+//! // Transform successful values, preserve errors
+//! let doubled = success.fmap(|x| x * 2);
+//! assert_eq!(doubled, Either::Right(84));
+//!
+//! let still_error = error.fmap(|x| x * 2);
+//! assert_eq!(still_error, Either::Left("Something went wrong".to_string()));
+//!
+//! // Chain operations with bind
+//! let safe_sqrt = |x: &i32| -> Either<String, f64> {
+//!     if *x < 0 {
+//!         Either::Left("Cannot take square root of negative number".to_string())
+//!     } else {
+//!         Either::Right((*x as f64).sqrt())
+//!     }
+//! };
+//!
+//! let result = Either::Right(16)
+//!     .bind(safe_sqrt)
+//!     .fmap(|x| x * 2.0);
+//!
+//! assert_eq!(result, Either::Right(8.0));
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, the `Either` type is commonly used for:
