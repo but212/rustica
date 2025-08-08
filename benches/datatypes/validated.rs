@@ -157,14 +157,6 @@ pub fn validated_benchmarks(c: &mut Criterion) {
 
     // Real-world scenario: Complex form validation
     c.bench_function("validated_complex_form_validation", |b| {
-        #[derive(Debug, Clone)]
-        struct User {
-            username: String,
-            email: String,
-            age: u32,
-            password: String,
-        }
-
         let validate_user =
             |username: &str, email: &str, age: u32, password: &str| -> Validated<String, User> {
                 let username_validation = if username.len() >= 3 {
