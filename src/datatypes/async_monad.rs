@@ -183,7 +183,6 @@
 //! });
 //! ```
 
-use futures::join;
 use futures::{Future, FutureExt};
 use quickcheck::{Arbitrary, Gen};
 use std::{marker::PhantomData, panic, pin::Pin, sync::Arc};
@@ -722,6 +721,7 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
+    #[inline]
     pub fn apply<B, F>(&self, mf: AsyncM<F>) -> AsyncM<B>
     where
         B: Send + 'static,
@@ -738,7 +738,7 @@ impl<A: Send + 'static> AsyncM<A> {
 
                 async move {
                     // Run both futures concurrently for better performance
-                    let (value, func) = join!(self_run(), mf_run());
+                    let (value, func) = tokio::join!(self_run(), mf_run());
                     func(value)
                 }
                 .boxed()
@@ -945,6 +945,7 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
+    #[inline]
     pub fn apply_owned<B, F>(self, mf: AsyncM<F>) -> AsyncM<B>
     where
         F: FnOnce(A) -> B + Send + Sync + 'static,
@@ -957,7 +958,7 @@ impl<A: Send + 'static> AsyncM<A> {
 
                 async move {
                     // Use join to run both futures concurrently
-                    let (f, a) = join!(run_f(), run_a());
+                    let (f, a) = tokio::join!(run_f(), run_a());
                     f(a)
                 }
                 .boxed()

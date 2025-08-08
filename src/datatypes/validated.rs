@@ -713,7 +713,12 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     where
         I: IntoIterator<Item = E>,
     {
-        Validated::Invalid(errors.into_iter().collect())
+        // Use size_hint to preallocate and avoid repeated reallocations for large iterators
+        let iter = errors.into_iter();
+        let (lower, _upper) = iter.size_hint();
+        let mut vec: SmallVec<[E; 4]> = SmallVec::with_capacity(lower);
+        vec.extend(iter);
+        Validated::Invalid(vec)
     }
 
     /// Creates a new invalid instance with multiple errors from a collection.
@@ -754,10 +759,13 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     where
         I: IntoIterator<Item = E>,
     {
-        let mut errors = errors.into_iter();
-        if let Some(first) = errors.next() {
-            let mut vec = smallvec![first];
-            vec.extend(errors);
+        let mut iter = errors.into_iter();
+        if let Some(first) = iter.next() {
+            // Preallocate: at least 1 element for `first`, plus the iterator's lower bound
+            let (lower, _upper) = iter.size_hint();
+            let mut vec: SmallVec<[E; 4]> = SmallVec::with_capacity(lower.saturating_add(1));
+            vec.push(first);
+            vec.extend(iter);
             Validated::Invalid(vec)
         } else {
             panic!("Validated::invalid_vec requires at least one error")
