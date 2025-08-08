@@ -140,18 +140,14 @@ mod monad_join_consistency_law {
         let f = |x: &i32| Some(x * 2);
 
         // Test: join(fmap(f, m)) = bind(m, f)
-        // Note: This test requires proper join implementation for nested Options
-        let bind_result = some_value.bind(&f);
-        let _fmap_result = some_value.fmap(&f);
-
-        // For this test to work properly, we'd need join implementation
-        // that can handle Option<Option<T>> -> Option<T>
-        // Currently testing that bind and fmap produce consistent results
-        assert_eq!(bind_result, Some(84));
+        let bind_some = some_value.bind(&f);
+        let fmap_then_join_some = some_value.fmap(&f).join();
+        assert_eq!(fmap_then_join_some, bind_some);
 
         // Test with None
-        let bind_result_none = none_value.bind(&f);
-        assert_eq!(bind_result_none, None);
+        let bind_none = none_value.bind(&f);
+        let fmap_then_join_none = none_value.fmap(&f).join();
+        assert_eq!(fmap_then_join_none, bind_none);
     }
 
     #[test]
@@ -162,11 +158,13 @@ mod monad_join_consistency_law {
         let f = |x: &i32| -> Result<i32, &str> { Ok(x * 2) };
 
         // Test: join(fmap(f, m)) = bind(m, f)
-        let bind_result = ok_value.bind(&f);
-        assert_eq!(bind_result, Ok(84));
+        let bind_ok = ok_value.bind(&f);
+        let fmap_then_join_ok = ok_value.fmap(&f).join();
+        assert_eq!(fmap_then_join_ok, bind_ok);
 
         // Test with Err
-        let bind_result_err = err_value.bind(&f);
-        assert_eq!(bind_result_err, Err("error"));
+        let bind_err = err_value.bind(&f);
+        let fmap_then_join_err = err_value.fmap(&f).join();
+        assert_eq!(fmap_then_join_err, bind_err);
     }
 }

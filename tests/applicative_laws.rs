@@ -57,31 +57,29 @@ mod applicative_identity_law {
 /// Function composition should be associative in the applicative context.
 #[cfg(test)]
 mod applicative_composition_law {
+    use rustica::traits::applicative::Applicative;
+
     #[test]
     fn test_option_composition_law() {
-        let some_value = Some(5);
-        let f = Some(|x: &i32| x * 2);
-        let g = Some(|x: &i32| x + 1);
+        // u: F (B -> C), v: F (A -> B), w: F A
+        let u: Option<fn(&i32) -> i32> = Some(|x| x * 2);
+        let v: Option<fn(&i32) -> i32> = Some(|x| x + 1);
+        let w: Option<i32> = Some(5);
 
-        // Compose functions: (g ∘ f)(x) = g(f(x))
-        let composed_result = match (f.as_ref(), g.as_ref(), some_value.as_ref()) {
-            (Some(f_fn), Some(g_fn), Some(val)) => Some(g_fn(&f_fn(val))),
-            _ => None,
-        };
+        // Left: pure(compose) <*> u <*> v <*> w
+        // Use lift3 to express pure(compose) application directly
+        let left = Option::<i32>::lift3(
+            |f: &fn(&i32) -> i32, g: &fn(&i32) -> i32, x: &i32| f(&g(x)),
+            &u,
+            &v,
+            &w,
+        );
 
-        // Test composition through sequential application
-        let sequential_result = match (f.as_ref(), some_value.as_ref()) {
-            (Some(f_fn), Some(val)) => {
-                let intermediate = Some(f_fn(val));
-                match (g.as_ref(), intermediate.as_ref()) {
-                    (Some(g_fn), Some(inter_val)) => Some(g_fn(inter_val)),
-                    _ => None,
-                }
-            },
-            _ => None,
-        };
+        // Right: u <*> (v <*> w)
+        let vw = Applicative::apply(&v, &w);
+        let right = Applicative::apply(&u, &vw);
 
-        assert_eq!(composed_result, sequential_result);
+        assert_eq!(left, right);
     }
 }
 
@@ -151,20 +149,18 @@ mod applicative_interchange_law {
 
     #[test]
     fn test_option_interchange_law() {
-        // Simplified test to demonstrate the interchange law concept
-        // without getting into complex function type issues
-        let f = Some(|x: &i32| x * 2);
-        let value = 42;
-        
-        // Left side: u <*> pure(y)
-        let pure_y = <Option<i32> as Pure>::pure(&value);
-        let left_side = Applicative::apply(&f, &pure_y);
-        
-        // For the right side, we'll test the concept more directly
-        // The interchange law essentially says the order shouldn't matter
-        let expected_result = Some(84); // f applied to value
-        
-        assert_eq!(left_side, expected_result);
+        let f: Option<fn(&i32) -> i32> = Some(|x: &i32| x * 2);
+        let y = 42;
+
+        // Left: u <*> pure(y)
+        let pure_y = <Option<i32> as Pure>::pure(&y);
+        let left = Applicative::apply(&f, &pure_y);
+
+        // Right: pure(|f| f(y)) <*> u
+        // This closure needs to match Option's lift2: Fn(&A, &B) -> C
+        let right = Option::<i32>::lift2(|func: &fn(&i32) -> i32, _: &i32| func(&y), &f, &pure_y);
+
+        assert_eq!(left, right);
     }
 }
 
