@@ -6,6 +6,34 @@
 //! representing the absence of a value. This is similar to Rust's built-in `Option<T>` type,
 //! but with additional monadic operations.
 //!
+//! ## Quick Start
+//!
+//! Get started with Maybe in 30 seconds:
+//!
+//! ```rust
+//! use rustica::datatypes::maybe::Maybe;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a Maybe value
+//! let value = Maybe::Just(10);
+//!
+//! // Map over it
+//! let doubled = value.fmap(|x| x * 2);
+//!
+//! // Chain operations
+//! let result = value
+//!     .bind(|x| Maybe::Just(x + 5))
+//!     .bind(|x| Maybe::Just(x * 2));
+//!
+//! assert_eq!(result, Maybe::Just(30));
+//!
+//! // Handle None cases gracefully
+//! let none: Maybe<i32> = Maybe::Nothing;
+//! let result = none.fmap(|x| x * 2);
+//! assert_eq!(result, Maybe::Nothing);
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! The Maybe type (also known as Option in some languages) is a fundamental abstraction in functional

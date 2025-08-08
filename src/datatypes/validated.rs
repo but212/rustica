@@ -4,6 +4,51 @@
 //! or invalid with a collection of errors. Unlike `Result`, which fails fast on the first error,
 //! `Validated` can accumulate multiple errors during validation.
 //!
+//! ## Quick Start
+//!
+//! Accumulate validation errors instead of failing fast:
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::applicative::Applicative;
+//! use rustica::traits::functor::Functor;
+//!
+//! // Create validation functions
+//! let validate_positive = |x: &i32| -> Validated<String, i32> {
+//!     if *x > 0 {
+//!         Validated::Valid(*x)
+//!     } else {
+//!         Validated::Invalid(vec!["Must be positive".to_string()].into())
+//!     }
+//! };
+//!
+//! let validate_even = |x: &i32| -> Validated<String, i32> {
+//!     if *x % 2 == 0 {
+//!         Validated::Valid(*x)
+//!     } else {
+//!         Validated::Invalid(vec!["Must be even".to_string()].into())
+//!     }
+//! };
+//!
+//! // Combine validations - accumulates ALL errors
+//! let combine_validations = |a: &i32, b: &i32| -> Validated<String, i32> {
+//!     Validated::<String, i32>::lift2(
+//!         |x, y| x + y,
+//!         &validate_positive(a),
+//!         &validate_even(b)
+//!     )
+//! };
+//!
+//! // Success case
+//! let success = combine_validations(&5, &4);
+//! assert_eq!(success, Validated::Valid(9));
+//!
+//! // Error accumulation - gets BOTH errors
+//! let errors = combine_validations(&-1, &3);
+//! assert!(errors.is_invalid());
+//! assert_eq!(errors.errors().len(), 2);
+//! ```
+//!
 //! ## Performance Characteristics
 //!
 //! ### Memory Usage
