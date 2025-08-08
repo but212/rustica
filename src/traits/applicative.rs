@@ -680,7 +680,6 @@ pub trait Applicative: Functor + Pure {
     where
         A: Clone,
         B: Clone,
-        Self: Sized,
     {
         Self::lift2_owned(|a, _| a, fa, fb)
     }
