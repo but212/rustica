@@ -85,16 +85,13 @@ mod monad_associativity_law {
 
         // Test: (m >>= f) >>= g = m >>= (\x -> f(x) >>= g)
         let left_side = some_value.bind(&f).bind(&g);
-        // For the right side, we'll use a simpler approach to avoid lifetime issues
-        let intermediate = some_value.bind(&f);
-        let right_side = intermediate.bind(&g);
+        let right_side = some_value.bind(|x| f(x).bind(&g));
 
         assert_eq!(left_side, right_side);
 
         // Test with None
         let left_side_none = none_value.bind(&f).bind(&g);
-        let intermediate_none = none_value.bind(&f);
-        let right_side_none = intermediate_none.bind(&g);
+        let right_side_none = none_value.bind(|x| f(x).bind(&g));
 
         assert_eq!(left_side_none, right_side_none);
     }
@@ -109,15 +106,13 @@ mod monad_associativity_law {
 
         // Test: (m >>= f) >>= g = m >>= (\x -> f(x) >>= g)
         let left_side = ok_value.bind(&f).bind(&g);
-        let intermediate = ok_value.bind(&f);
-        let right_side = intermediate.bind(&g);
+        let right_side = ok_value.bind(|x| f(x).bind(&g));
 
         assert_eq!(left_side, right_side);
 
         // Test with Err
         let left_side_err = err_value.bind(&f).bind(&g);
-        let intermediate_err = err_value.bind(&f);
-        let right_side_err = intermediate_err.bind(&g);
+        let right_side_err = err_value.bind(|x| f(x).bind(&g));
 
         assert_eq!(left_side_err, right_side_err);
     }

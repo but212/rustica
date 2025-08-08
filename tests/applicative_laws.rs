@@ -156,9 +156,13 @@ mod applicative_interchange_law {
         let pure_y = <Option<i32> as Pure>::pure(&y);
         let left = Applicative::apply(&f, &pure_y);
 
-        // Right: pure(|f| f(y)) <*> u
-        // This closure needs to match Option's lift2: Fn(&A, &B) -> C
-        let right = Option::<i32>::lift2(|func: &fn(&i32) -> i32, _: &i32| func(&y), &f, &pure_y);
+        // Right: pure($) <*> u <*> pure(y)  ≡  lift2(|f, y| f(y), u, pure(y))
+        // Directly expresses applying the function to the value without ignoring params
+        let right = Option::<i32>::lift2(
+            |func: &fn(&i32) -> i32, y_ref: &i32| func(y_ref),
+            &f,
+            &pure_y,
+        );
 
         assert_eq!(left, right);
     }
