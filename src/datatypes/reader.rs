@@ -4,6 +4,42 @@
 //! It provides a way to thread an environment through a computation without explicitly passing
 //! it as a parameter to every function.
 //!
+//! ## Quick Start
+//!
+//! Access shared configuration without explicit parameter passing:
+//!
+//! ```rust
+//! use rustica::datatypes::reader::Reader;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Configuration type
+//! #[derive(Clone)]
+//! struct Config {
+//!     database_url: String,
+//!     timeout: u32,
+//! }
+//!
+//! // Reader that accesses database URL from config
+//! let db_reader = Reader::asks(|config: Config| config.database_url);
+//!
+//! // Reader that accesses timeout and doubles it
+//! let timeout_reader = Reader::asks(|config: Config| config.timeout * 2);
+//!
+//! // Combine readers
+//! let connection_reader = db_reader.combine(&timeout_reader, |url, timeout| {
+//!     format!("{}?timeout={}", url, timeout)
+//! });
+//!
+//! // Run with environment
+//! let config = Config {
+//!     database_url: "postgresql://localhost:5432/mydb".to_string(),
+//!     timeout: 30,
+//! };
+//! let connection_string = connection_reader.run_reader(config);
+//! assert_eq!(connection_string, "postgresql://localhost:5432/mydb?timeout=60");
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, the Reader monad is part of the core set of primitive monads

@@ -56,6 +56,28 @@
 //! - Memory Usage: Stores exactly one `Option<T>` value with no additional overhead
 //! - Clone Cost: Depends on the cost of cloning the inner type `T`
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::last::Last;
+//! use rustica::traits::{semigroup::Semigroup, monoid::Monoid};
+//!
+//! // Create Last wrappers
+//! let a = Last(Some(42));
+//! let b = Last(Some(10));
+//! let none = Last(None);
+//!
+//! // Last non-None value wins
+//! assert_eq!(a.combine(&b), Last(Some(10))); // Second value wins
+//! assert_eq!(none.combine(&b), Last(Some(10))); // Second value when first is None
+//! assert_eq!(a.combine(&none), Last(Some(42))); // First value when second is None
+//!
+//! // Identity element
+//! let empty = Last::empty();
+//! assert_eq!(empty.combine(&a), a);
+//! assert_eq!(a.combine(&empty), a);
+//! ```
+//!
 //! ## Documentation Notes
 //!
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and

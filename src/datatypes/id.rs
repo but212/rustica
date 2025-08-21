@@ -4,6 +4,46 @@
 //! without adding any additional context or effects. While it might seem trivial, it serves several important purposes
 //! in functional programming.
 //!
+//! ## Quick Start
+//!
+//! Simple wrapper with full monadic interface:
+//!
+//! ```rust
+//! use rustica::datatypes::id::Id;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//! use rustica::traits::identity::Identity;
+//!
+//! // Create identity values
+//! let id_number = Id::new(42);
+//! let id_string = Id::new("hello".to_string());
+//!
+//! // Access the wrapped value
+//! assert_eq!(*id_number.value(), 42);
+//! assert_eq!(id_number.into_value(), 42);
+//!
+//! // Transform with fmap
+//! let doubled = id_number.fmap(|x| x * 2);
+//! assert_eq!(*doubled.value(), 84);
+//!
+//! // Chain with bind
+//! let result = Id::new(10)
+//!     .bind(|x| Id::new(x + 5))
+//!     .bind(|x| Id::new(x * 2));
+//! assert_eq!(*result.value(), 30);
+//!
+//! // Perfect for testing monadic code
+//! fn monadic_computation<M: Monad>(m: M) -> M::Output<String>
+//! where
+//!     M::Source: std::fmt::Display,
+//! {
+//!     m.fmap(|x| format!("Result: {}", x))
+//! }
+//!
+//! let test_result = monadic_computation(Id::new(123));
+//! assert_eq!(*test_result.value(), "Result: 123");
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, the identity monad is often used as:

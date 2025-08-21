@@ -44,6 +44,31 @@
 //! - **HKT**: Higher-kinded type support for working with generic type transformations
 //! - **Clone**: Allows duplicating the thunk with its wrapped function
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::thunk::Thunk;
+//! use rustica::traits::evaluate::Evaluate;
+//!
+//! // Create a thunk with a lazy computation
+//! let thunk = Thunk::new(|| 2 + 3);
+//!
+//! // The computation isn't performed until evaluation
+//! assert_eq!(thunk.evaluate(), &5);
+//! assert_eq!(thunk.evaluate_owned(), 5);
+//!
+//! // Thunks can capture variables
+//! let base = 10;
+//! let complex_thunk = Thunk::new(move || base * base + 1);
+//! assert_eq!(complex_thunk.evaluate(), &101);
+//!
+//! // Useful for expensive computations that might not be needed
+//! let expensive_computation = Thunk::new(|| {
+//!     (1..=1000).sum::<i32>()
+//! });
+//! assert_eq!(expensive_computation.evaluate(), &500500);
+//! ```
+//!
 //! ## Documentation Notes
 //!
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and

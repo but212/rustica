@@ -4,6 +4,42 @@
 //! It provides a way to model effectful operations in a pure functional manner by
 //! encapsulating the effects within a monadic context.
 //!
+//! ## Quick Start
+//!
+//! Compose and sequence effectful operations safely:
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create pure IO values
+//! let io_name = IO::pure("Alice".to_string());
+//! let io_age = IO::pure(30);
+//!
+//! // Create IO with side effects
+//! let io_greeting = IO::new(|| {
+//!     println!("Computing greeting...");
+//!     "Hello"
+//! });
+//!
+//! // Compose IO operations with fmap and bind
+//! let result = io_greeting
+//!     .bind(|greeting| io_name
+//!         .bind(|name| io_age
+//!             .fmap(|age| format!("{}, {}! You are {} years old.", greeting, name, age))));
+//!
+//! // Execute the composed computation
+//! let message = result.run();
+//! assert_eq!(message, "Hello, Alice! You are 30 years old.");
+//!
+//! // Safe execution with error handling
+//! let safe_computation = IO::new(|| 42 / 2);
+//! let safe_result = safe_computation.try_get();
+//! assert!(safe_result.is_ok());
+//! assert_eq!(safe_result.unwrap(), 21);
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, the IO monad is used to:

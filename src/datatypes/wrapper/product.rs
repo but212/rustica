@@ -57,6 +57,30 @@
 //! - `Foldable`: For folding operations over the single inner value
 //! - `HKT`: For higher-kinded type operations
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::product::Product;
+//! use rustica::traits::{semigroup::Semigroup, monoid::Monoid};
+//!
+//! // Create Product wrappers
+//! let a = Product(3);
+//! let b = Product(4);
+//! let c = Product(5);
+//!
+//! // Values are combined by multiplication
+//! assert_eq!(a.combine(&b), Product(12)); // 3 * 4 = 12
+//! assert_eq!(b.combine(&c), Product(20)); // 4 * 5 = 20
+//!
+//! // Chaining multiplications
+//! let result = a.combine(&b).combine(&c);
+//! assert_eq!(result, Product(60)); // 3 * 4 * 5 = 60
+//!
+//! // Identity element (multiplicative identity: 1)
+//! let empty = Product::empty();
+//! assert_eq!(a.combine(&empty), a); // 3 * 1 = 3
+//! ```
+//!
 //! ## Documentation Notes
 //!
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and

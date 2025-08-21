@@ -7,6 +7,39 @@
 //! - Update that part while preserving the rest of the structure
 //! - Transform the focused part using functions
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::lens::Lens;
+//!
+//! #[derive(Clone, Debug, PartialEq)]
+//! struct Person { name: String, age: u32 }
+//!
+//! // Create lenses for accessing struct fields
+//! let name_lens = Lens::new(
+//!     |p: &Person| p.name.clone(),
+//!     |p: Person, name: String| Person { name, ..p },
+//! );
+//! let age_lens = Lens::new(
+//!     |p: &Person| p.age,
+//!     |p: Person, age: u32| Person { age, ..p },
+//! );
+//!
+//! let person = Person { name: "Alice".to_string(), age: 30 };
+//!
+//! // Get values through lenses
+//! assert_eq!(name_lens.get(&person), "Alice");
+//! assert_eq!(age_lens.get(&person), 30);
+//!
+//! // Set values immutably
+//! let renamed = name_lens.set(person.clone(), "Bob".to_string());
+//! assert_eq!(renamed, Person { name: "Bob".to_string(), age: 30 });
+//!
+//! // Transform values with modify
+//! let older = age_lens.modify(person, |age| age + 1);
+//! assert_eq!(older.age, 31);
+//! ```
+//!
 //! ## Core Concepts
 //!
 //! - **Immutable Updates**: All operations create new instances instead of modifying in place

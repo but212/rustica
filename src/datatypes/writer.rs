@@ -3,6 +3,40 @@
 //! The Writer monad represents computations that produce a value along with an accumulated log.
 //! It's a way to carry auxiliary data alongside the main computation result in a purely functional way.
 //!
+//! ## Quick Start
+//!
+//! Accumulate logs alongside computations:
+//!
+//! ```rust
+//! use rustica::datatypes::writer::Writer;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a Writer with a value and log
+//! let writer1 = Writer::new(42, vec!["Starting computation".to_string()]);
+//!
+//! // Transform the value while preserving the log
+//! let doubled = writer1.fmap(|x| x * 2);
+//! assert_eq!(doubled.value(), &84);
+//! assert_eq!(doubled.log(), &vec!["Starting computation".to_string()]);
+//!
+//! // Chain computations, combining logs
+//! let result = Writer::new(10, vec!["Step 1".to_string()])
+//!     .bind(|x| Writer::new(x + 5, vec!["Step 2".to_string()]))
+//!     .bind(|x| Writer::new(x * 2, vec!["Step 3".to_string()]));
+//!
+//! assert_eq!(result.value(), &30);
+//! assert_eq!(result.log(), &vec!["Step 1".to_string(), "Step 2".to_string(), "Step 3".to_string()]);
+//!
+//! // Add to log without changing the value
+//! let with_log = Writer::tell(vec!["Important note".to_string()])
+//!     .bind(|_| Writer::new(100, vec!["Final result".to_string()]));
+//!
+//! let (final_value, final_log) = with_log.run();
+//! assert_eq!(final_value, 100);
+//! assert_eq!(final_log, vec!["Important note".to_string(), "Final result".to_string()]);
+//! ```
+//!
 //! ## Core Concepts
 //!
 //! - **Value and Log**: Each Writer computation produces both a primary value and a log/output

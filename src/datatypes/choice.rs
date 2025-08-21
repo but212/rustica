@@ -5,6 +5,38 @@
 //! while keeping other possibilities available. `Choice` is particularly useful in contexts like
 //! configuration management, user preference handling, or any situation involving fallback mechanisms.
 //!
+//! ## Quick Start
+//!
+//! Manage preferences with fallback options:
+//!
+//! ```rust
+//! use rustica::datatypes::choice::Choice;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a choice with primary value and alternatives
+//! let servers = Choice::new("primary.example.com".to_string())
+//!     .add_alternative("backup1.example.com".to_string())
+//!     .add_alternative("backup2.example.com".to_string());
+//!
+//! // Access the primary value
+//! assert_eq!(servers.first(), &"primary.example.com".to_string());
+//!
+//! // Get all alternatives
+//! assert_eq!(servers.alternatives().len(), 2);
+//!
+//! // Transform all values with fmap
+//! let urls = servers.fmap(|host| format!("https://{}/api", host));
+//! assert_eq!(urls.first(), &"https://primary.example.com/api".to_string());
+//!
+//! // Use bind to chain dependent choices
+//! let ports = Choice::new(443).add_alternative(8443);
+//! let connections = servers.bind(|host| ports.fmap(|port| format!("{}:{}", host, port)));
+//!
+//! assert_eq!(connections.first(), &"primary.example.com:443".to_string());
+//! assert!(connections.alternatives().contains(&"primary.example.com:8443".to_string()));
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, `Choice<T>` represents a non-deterministic computation with a preferred result.

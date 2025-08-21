@@ -3,6 +3,35 @@
 //! The `AsyncM` datatype represents an asynchronous computation that will eventually produce a value of type `A`.
 //! It provides a monadic interface for working with asynchronous operations in a functional programming style.
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::async_monad::AsyncM;
+//! use tokio;
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     // Create async computations
+//!     let value = AsyncM::pure(42);
+//!     let delayed = AsyncM::new(|| async {
+//!         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+//!         100
+//!     });
+//!
+//!     // Chain computations with bind
+//!     let result = value
+//!         .bind(|x| async move { AsyncM::pure(x * 2) })
+//!         .bind(|x| async move { AsyncM::pure(x + 10) });
+//!
+//!     // Run parallel computations
+//!     let combined = value.zip(delayed).fmap(|(a, b)| async move { a + b });
+//!
+//!     // Execute and get results
+//!     assert_eq!(result.try_get().await, 94);
+//!     assert_eq!(combined.try_get().await, 142);
+//! }
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, asynchronous monads are used to:

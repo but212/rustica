@@ -56,6 +56,29 @@
 //! - `Identity`: Provides identity operations
 //! - `HKT`: Higher-kinded type representation
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::value::Value;
+//! use rustica::traits::{evaluate::Evaluate, functor::Functor};
+//!
+//! // Create a Value wrapper
+//! let value = Value::new(42);
+//!
+//! // Evaluate to get the wrapped value
+//! assert_eq!(value.evaluate(), &42);
+//! assert_eq!(value.evaluate_owned(), 42);
+//!
+//! // Transform the value using Functor
+//! let doubled = value.fmap(|x| x * 2);
+//! assert_eq!(doubled.evaluate(), &84);
+//!
+//! // Values preserve their wrapped content
+//! let text = Value::new("hello");
+//! let uppercased = text.fmap(|s| s.to_uppercase());
+//! assert_eq!(uppercased.evaluate(), "HELLO");
+//! ```
+//!
 //! ## Documentation Notes
 //!
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and

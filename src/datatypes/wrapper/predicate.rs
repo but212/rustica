@@ -76,6 +76,31 @@
 //! performance characteristics, please refer to the function-level documentation of the
 //! relevant methods such as `new`, `contains`, `union`, `intersection`, and others.
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::predicate::Predicate;
+//! use rustica::traits::{semigroup::Semigroup, monoid::Monoid};
+//!
+//! // Create predicates for different conditions
+//! let is_positive = Predicate::new(|&x: &i32| x > 0);
+//! let is_even = Predicate::new(|&x: &i32| x % 2 == 0);
+//!
+//! // Test values against predicates
+//! assert!(is_positive.contains(&5));
+//! assert!(!is_positive.contains(&-3));
+//! assert!(is_even.contains(&4));
+//! assert!(!is_even.contains(&3));
+//!
+//! // Combine predicates with logical operations
+//! let is_positive_or_even = is_positive.union(&is_even); // OR
+//! let is_positive_and_even = is_positive.intersection(&is_even); // AND
+//!
+//! assert!(is_positive_or_even.contains(&6)); // positive and even
+//! assert!(is_positive_and_even.contains(&6)); // both conditions
+//! assert!(!is_positive_and_even.contains(&3)); // positive but odd
+//! ```
+//!
 //! ## Usage
 //!
 //! This module is ideal for use cases where sets are defined by properties or conditions rather than explicit enumeration.

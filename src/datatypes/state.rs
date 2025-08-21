@@ -3,6 +3,44 @@
 //! The State monad represents computations that can read and modify state in a purely functional way.
 //! It encapsulates a function that takes a state and returns a value along with a new state.
 //!
+//! ## Quick Start
+//!
+//! Build a simple counter with state transformations:
+//!
+//! ```rust
+//! use rustica::datatypes::state::State;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a counter that returns current value and increments state
+//! let counter = State::new(|count: i32| (count, count + 1));
+//!
+//! // Chain multiple counter operations
+//! let triple_count = counter
+//!     .bind(|first| counter
+//!         .bind(|second| counter
+//!             .fmap(|third| (first, second, third))));
+//!
+//! // Run the computation starting from 0
+//! let (result, final_state) = triple_count.run_state(0);
+//! assert_eq!(result, (0, 1, 2)); // The three counter values
+//! assert_eq!(final_state, 3);    // Final state after 3 increments
+//!
+//! // Use state utilities: get current state and modify it
+//! use rustica::datatypes::state::{get, modify};
+//!
+//! let computation = get::<String>()
+//!     .bind(|current| modify(|s: String| s + " world")
+//!         .bind(|_| get::<String>()))
+//!     .fmap(|final_val| (current, final_val));
+//!
+//! let initial = "hello".to_string();
+//! let ((old, new), final_state) = computation.run_state(initial);
+//! assert_eq!(old, "hello");
+//! assert_eq!(new, "hello world");
+//! assert_eq!(final_state, "hello world");
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, the State monad provides a principled way to work with stateful computations

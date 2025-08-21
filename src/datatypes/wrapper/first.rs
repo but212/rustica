@@ -54,6 +54,28 @@
 //! - `Functor`: For mapping operations over the inner value
 //! - `Foldable`: For extracting and processing the inner value
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::first::First;
+//! use rustica::traits::{semigroup::Semigroup, monoid::Monoid};
+//!
+//! // Create First wrappers
+//! let a = First(Some(42));
+//! let b = First(Some(10));
+//! let none = First(None);
+//!
+//! // First non-None value wins
+//! assert_eq!(a.combine(&b), First(Some(42))); // First value wins
+//! assert_eq!(none.combine(&b), First(Some(10))); // Second value when first is None
+//! assert_eq!(a.combine(&none), First(Some(42))); // First value when second is None
+//!
+//! // Identity element
+//! let empty = First::empty();
+//! assert_eq!(empty.combine(&a), a);
+//! assert_eq!(a.combine(&empty), a);
+//! ```
+//!
 //! ## Documentation Notes
 //!
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and

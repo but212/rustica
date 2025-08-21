@@ -56,6 +56,26 @@
 //! - `Identity`: For accessing the inner value
 //! - `Foldable`: For folding operations over the single inner value
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::max::Max;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Create Max wrappers
+//! let a = Max(5);
+//! let b = Max(10);
+//! let c = Max(3);
+//!
+//! // Maximum value wins when combining
+//! assert_eq!(a.combine(&b), Max(10)); // Larger value wins
+//! assert_eq!(b.combine(&c), Max(10)); // Keeps maximum
+//!
+//! // Chaining multiple values
+//! let result = a.combine(&b).combine(&c);
+//! assert_eq!(result, Max(10)); // Overall maximum
+//! ```
+//!
 //! ## Documentation Notes
 //!
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and

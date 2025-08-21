@@ -4,6 +4,48 @@
 //! operations to be suspended and resumed. It provides a way to manipulate control flow
 //! in a purely functional manner.
 //!
+//! ## Quick Start
+//!
+//! Control program flow with continuations:
+//!
+//! ```rust
+//! use rustica::datatypes::cont::Cont;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a simple continuation that passes a value to its continuation
+//! let cont_value = Cont::return_cont(42);
+//!
+//! // Transform the value with fmap
+//! let doubled = cont_value.fmap(|x| x * 2);
+//!
+//! // Run the continuation with an identity function
+//! let result = doubled.run(|x| x);
+//! assert_eq!(result, 84);
+//!
+//! // Chain continuations with bind
+//! let chained = Cont::return_cont(10)
+//!     .bind(|x| Cont::return_cont(x + 5))
+//!     .bind(|x| Cont::return_cont(x * 2));
+//!
+//! let final_result = chained.run(|x| x);
+//! assert_eq!(final_result, 30); // ((10 + 5) * 2)
+//!
+//! // Use continuations for early exit patterns
+//! let early_exit = Cont::new(|k| {
+//!     // Simulate some computation that might want to exit early
+//!     let value = 100;
+//!     if value > 50 {
+//!         k(value) // Continue normally
+//!     } else {
+//!         0 // Early exit with different value
+//!     }
+//! });
+//!
+//! let exit_result = early_exit.run(|x| x + 1);
+//! assert_eq!(exit_result, 101);
+//! ```
+//!
 //! ## Core Concepts
 //!
 //! - **Continuation-Passing Style**: Functions receive an explicit continuation that represents "what to do next"
