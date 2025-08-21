@@ -13,6 +13,21 @@
 //!
 //! These utilities complement the traits in the `traits` module and provide ready-to-use
 //! implementations of common functional programming patterns.
+//!
+//! ## Performance Characteristics
+//!
+//! ### Collection Operations
+//! - **filter_map**: O(n) time complexity where n is the collection size
+//! - **zip_with**: O(min(n, m)) where n and m are the sizes of input collections
+//! - **Memory Usage**: Linear with output size, single-pass processing for efficiency
+//!
+//! ### Pipeline Operations
+//! - **pipeline_option/pipeline_result**: O(f1 + f2 + ... + fn) where fi is each function complexity
+//! - **Short-circuiting**: Early termination on None/Error for optimal performance
+//!
+//! ### Function Transformers
+//! - **curry/uncurry operations**: O(1) - Zero-cost function transformations
+//! - **compose**: O(f + g) where f and g are the composed function complexities
 
 // ===== Collection Operations =====
 

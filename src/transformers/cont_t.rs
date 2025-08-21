@@ -12,6 +12,32 @@
 //! - Composing advanced control flow with side effects (IO, state, etc.)
 //! - Implementing early exit, backtracking, coroutines within effectful computations
 //!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//! - **Construction (`new`)**: O(1) - Wraps function in Arc for shared ownership
+//! - **Continuation Execution (`run`)**: O(f + k) where f is the wrapped function complexity and k is the continuation complexity
+//! - **Bind Operations**: O(f + g) where f and g are the complexities of the chained computations
+//! - **CallCC (call-with-current-continuation)**: O(1) for setup, O(f) for execution where f is the escape function complexity
+//!
+//! ### Memory Usage
+//! - **Structure Size**: O(1) - Arc pointer + PhantomData (zero-sized)
+//! - **Function Storage**: O(1) - Arc provides efficient shared ownership
+//! - **Continuation Chain**: O(n) where n is the depth of nested continuations
+//! - **Stack Usage**: Generally more efficient than recursive approaches due to CPS transformation
+//!
+//! ### Concurrency
+//! - **Thread Safety**: ContT is Send + Sync when the wrapped function is Send + Sync
+//! - **Cloning**: O(1) - Arc cloning is constant time reference counting
+//! - **Continuation Capture**: Continuations can be safely captured and passed between threads
+//! - **Control Flow**: CPS enables complex control flow without traditional stack manipulation
+//!
+//! ### Performance Notes
+//! - ContT transforms recursive computations to iterative continuation-passing style
+//! - Arc indirection cost is minimal and enables safe sharing of continuations
+//! - CPS can improve performance for deeply nested computations by avoiding stack overflow
+//! - Continuation capture allows efficient implementation of advanced control flow patterns
+//!
 //! ## Examples
 //!
 //! ```rust

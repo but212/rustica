@@ -6,6 +6,33 @@
 //! The `ReaderT` transformer represents computations that can read from a shared environment
 //! while also supporting the effects of the base monad.
 //!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//! - **Construction (`new`)**: O(1) - Wraps function in Arc for shared ownership
+//! - **Environment Reading (`run_reader`)**: O(f) where f is the complexity of the reader function
+//! - **Local Environment Modification**: O(g + f) where g is the environment transformation and f is the reader function
+//! - **Bind Operations**: O(f + g) where f and g are the complexities of the chained functions
+//! - **Map Operations**: O(f) where f is the complexity of the mapping function
+//!
+//! ### Memory Usage
+//! - **Structure Size**: O(1) - Arc pointer + PhantomData (zero-sized)
+//! - **Environment Storage**: O(E) where E is the size of the environment type
+//! - **Function Storage**: O(1) - Arc provides shared ownership with reference counting
+//! - **Environment Passing**: O(1) per level - Environment is passed by reference when possible
+//!
+//! ### Concurrency
+//! - **Thread Safety**: ReaderT is Send + Sync when the wrapped function is Send + Sync
+//! - **Environment Sharing**: Environment can be safely shared across threads (immutable access)
+//! - **Cloning**: O(1) - Arc cloning is constant time reference counting operation
+//! - **No Mutation**: Environment is read-only, eliminating data races
+//!
+//! ### Performance Notes
+//! - ReaderT adds minimal overhead over the base monad for environment access
+//! - Arc indirection has negligible cost for most applications
+//! - Environment is shared efficiently across composed computations
+//! - Local environment transformations create new closures but preserve structure
+//!
 //! ## Basic Usage
 //!
 //! ```rust

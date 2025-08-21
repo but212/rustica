@@ -12,6 +12,24 @@
 //! - Lift a value into the functor context (`pure`)
 //! - Apply a function in a context to a value in a context (`apply`)
 //!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//! - **pure**: O(1) - Constant time to lift a value into context
+//! - **apply**: O(f) where f is the complexity of the function being applied
+//! - **lift2, lift3, etc.**: O(f) where f is the complexity of the multi-argument function
+//! - **sequence operations**: O(1) - Constant time sequencing (ignoring inner function complexity)
+//!
+//! ### Memory Usage
+//! - **Structure Overhead**: Minimal - typically just the cost of the context wrapper
+//! - **Function Storage**: Functions are applied immediately, no additional storage
+//! - **Composition**: Memory usage scales linearly with the depth of composed operations
+//!
+//! ### Implementation Notes
+//! - Applicative operations are generally implemented as zero-cost abstractions
+//! - Independent operations can potentially be parallelized (implementation-dependent)
+//! - Memory allocation patterns depend on the specific applicative implementation
+//!
 //! ## Mathematical Definition
 //!
 //! Applicative functors are functors with additional structure:

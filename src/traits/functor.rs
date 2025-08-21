@@ -6,6 +6,23 @@
 //! A functor is a type constructor that supports a mapping operation which preserves
 //! the structure of the functor while transforming its contents.
 //!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//! - **fmap**: O(f) where f is the complexity of the mapping function
+//! - **For container types**: Generally O(n * f) where n is the container size and f is the function complexity
+//! - **For single-value types**: O(f) where f is the function complexity
+//!
+//! ### Memory Usage
+//! - **Structure Preservation**: Functors maintain the same structural memory layout
+//! - **Transformation Cost**: Additional memory usage depends on the mapping function
+//! - **No Additional Overhead**: Pure functor operations add no structural overhead
+//!
+//! ### Implementation Notes
+//! - Functor implementations are typically zero-cost abstractions
+//! - Memory allocation patterns depend on the specific functor implementation
+//! - Most implementations use lazy evaluation where possible for optimal performance
+//!
 //! # TODO: Improvements
 //! - Add full set of ownership-aware methods to optimize performance
 //! - Add #\[inline\] attributes to all methods for better performance
