@@ -14,24 +14,24 @@
 //! use rustica::traits::monad::Monad;
 //!
 //! // Create pure IO values
-//! let io_name = IO::pure("Alice".to_string());
-//! let io_age = IO::pure(30);
+//! let io_value = IO::pure(42);
 //!
 //! // Create IO with side effects
-//! let io_greeting = IO::new(|| {
-//!     println!("Computing greeting...");
-//!     "Hello"
+//! let io_computation = IO::new(|| {
+//!     println!("Computing value...");
+//!     10
 //! });
 //!
-//! // Compose IO operations with fmap and bind
-//! let result = io_greeting
-//!     .bind(|greeting| io_name
-//!         .bind(|name| io_age
-//!             .fmap(|age| format!("{}, {}! You are {} years old.", greeting, name, age))));
+//! // Transform values with fmap
+//! let doubled = io_value.fmap(|x| x * 2);
+//! assert_eq!(doubled.run(), 84);
 //!
-//! // Execute the composed computation
-//! let message = result.run();
-//! assert_eq!(message, "Hello, Alice! You are 30 years old.");
+//! // Chain computations with bind
+//! let chained = io_value
+//!     .bind(|x| IO::pure(x + 10))
+//!     .bind(|x| IO::pure(x * 2));
+//!
+//! assert_eq!(chained.run(), 104); // (42 + 10) * 2
 //!
 //! // Safe execution with error handling
 //! let safe_computation = IO::new(|| 42 / 2);

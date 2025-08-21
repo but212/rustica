@@ -66,12 +66,12 @@
 //! let value = Value::new(42);
 //!
 //! // Evaluate to get the wrapped value
-//! assert_eq!(value.evaluate(), &42);
+//! assert_eq!(value.evaluate(), 42);
 //! assert_eq!(value.evaluate_owned(), 42);
 //!
 //! // Transform the value using Functor
 //! let doubled = value.fmap(|x| x * 2);
-//! assert_eq!(doubled.evaluate(), &84);
+//! assert_eq!(doubled.evaluate(), 84);
 //!
 //! // Values preserve their wrapped content
 //! let text = Value::new("hello");

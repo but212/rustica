@@ -31,8 +31,8 @@
 //!
 //! let computation = get::<String>()
 //!     .bind(|current| modify(|s: String| s + " world")
-//!         .bind(|_| get::<String>()))
-//!     .fmap(|final_val| (current, final_val));
+//!         .bind(|_| get::<String>()
+//!             .fmap(|final_val| (current, final_val))));
 //!
 //! let initial = "hello".to_string();
 //! let ((old, new), final_state) = computation.run_state(initial);

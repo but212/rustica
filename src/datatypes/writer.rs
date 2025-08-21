@@ -12,29 +12,29 @@
 //! use rustica::traits::functor::Functor;
 //! use rustica::traits::monad::Monad;
 //!
-//! // Create a Writer with a value and log
-//! let writer1 = Writer::new(42, vec!["Starting computation".to_string()]);
+//! // Create a Writer with a value and log (using String which implements Monoid)
+//! let writer1 = Writer::new("Starting computation".to_string(), 42);
 //!
 //! // Transform the value while preserving the log
 //! let doubled = writer1.fmap(|x| x * 2);
-//! assert_eq!(doubled.value(), &84);
-//! assert_eq!(doubled.log(), &vec!["Starting computation".to_string()]);
+//! assert_eq!(doubled.value(), 84);
+//! assert_eq!(doubled.log(), "Starting computation");
 //!
 //! // Chain computations, combining logs
-//! let result = Writer::new(10, vec!["Step 1".to_string()])
-//!     .bind(|x| Writer::new(x + 5, vec!["Step 2".to_string()]))
-//!     .bind(|x| Writer::new(x * 2, vec!["Step 3".to_string()]));
+//! let result = Writer::new("Step 1".to_string(), 10)
+//!     .bind(|x| Writer::new("Step 2".to_string(), x + 5))
+//!     .bind(|x| Writer::new("Step 3".to_string(), x * 2));
 //!
-//! assert_eq!(result.value(), &30);
-//! assert_eq!(result.log(), &vec!["Step 1".to_string(), "Step 2".to_string(), "Step 3".to_string()]);
+//! assert_eq!(result.value(), 30);
+//! assert_eq!(result.log(), "Step 1Step 2Step 3");
 //!
 //! // Add to log without changing the value
-//! let with_log = Writer::tell(vec!["Important note".to_string()])
-//!     .bind(|_| Writer::new(100, vec!["Final result".to_string()]));
+//! let with_log = Writer::tell("Important note".to_string())
+//!     .bind(|_| Writer::new("Final result".to_string(), 100));
 //!
-//! let (final_value, final_log) = with_log.run();
+//! let (final_log, final_value) = with_log.run();
 //! assert_eq!(final_value, 100);
-//! assert_eq!(final_log, vec!["Important note".to_string(), "Final result".to_string()]);
+//! assert_eq!(final_log, "Important noteFinal result");
 //! ```
 //!
 //! ## Core Concepts
