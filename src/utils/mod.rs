@@ -6,7 +6,17 @@
 //!
 //! ## Module Structure
 //!
-//! The utilities are organized into three main categories:
+//! The utilities are organized into four main categories:
+//!
+//! ### Categorical Utilities (`categorical_utils`)
+//!
+//! Category theory-inspired utilities designed for Rust's type system:
+//!
+//! - Functor-inspired mapping helpers (`map_option`, `map_result`, `bimap_result`)
+//! - Monad-inspired chaining helpers (`flat_map_option`, `flat_map_result`)
+//! - Function composition utilities (`compose`, `curry`, `uncurry`)
+//! - Collection sequencing operations (`sequence_options`, `sequence_results`)
+//! - Zero-cost abstractions following categorical laws
 //!
 //! ### Error Handling Utilities (`error_utils`)
 //!
@@ -65,3 +75,19 @@ pub mod hkt_utils;
 /// - Pipeline abstractions for chaining operations
 /// - Transformation utilities for collections
 pub mod transform_utils;
+
+/// Category theory-inspired utilities for functional programming.
+///
+/// This module provides utility functions based on category theory concepts,
+/// specifically designed for Rust's type system and ownership model. These
+/// utilities extend common operations on `Option`, `Result`, and other types
+/// while maintaining categorical correctness and type safety.
+///
+/// Key features include:
+///
+/// - Functor-inspired mapping helpers for structure-preserving transformations
+/// - Monad-inspired chaining helpers for sequencing computations with context
+/// - Function composition utilities for building complex operations
+/// - Collection utilities for working with sequences of optional/failable values
+/// - Zero-cost abstractions that leverage Rust's optimization capabilities
+pub mod categorical_utils;
