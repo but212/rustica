@@ -147,7 +147,8 @@ use crate::traits::pure::Pure;
 /// // Apply a function in context to a value in context
 /// let func: Option<fn(&i32) -> i32> = Some(|x| x * 2);
 /// let value: Option<i32> = Some(5);
-/// let result = func.apply(&value);
+///
+/// let result = Applicative::apply(&func, &value);
 /// assert_eq!(result, Some(10));
 /// ```
 ///
@@ -225,12 +226,12 @@ pub trait Applicative: Functor + Pure {
     /// let func: Option<fn(&i32) -> i32> = Some(|x| x * 2);
     /// let value: Option<i32> = Some(5);
     ///
-    /// let result = func.apply(&value);
+    /// let result = Applicative::apply(&func, &value);
     /// assert_eq!(result, Some(10));
     ///
     /// // If either is None, result is None
     /// let none_func: Option<fn(&i32) -> i32> = None;
-    /// let result2 = none_func.apply(&value);
+    /// let result2 = Applicative::apply(&none_func, &value);
     /// assert_eq!(result2, None);
     /// ```
     fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
@@ -503,7 +504,7 @@ pub trait Applicative: Functor + Pure {
     /// let func: Option<fn(i32) -> i32> = Some(|x| x * 2);
     /// let value: Option<i32> = Some(5);
     ///
-    /// let result = func.apply_owned(value);
+    /// let result = Applicative::apply_owned(func, value);
     /// assert_eq!(result, Some(10));
     /// ```
     fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>

@@ -313,7 +313,7 @@ impl<T> Choice<T> {
     /// let choice_with_one_alt = Choice::new(100, vec![200]);
     /// assert_eq!(choice_with_one_alt.alternatives(), &[200]);
     ///
-    /// let choice_no_alts = Choice::new(1000, Vec::<i32>::new());
+    /// let choice_no_alts = Choice::new(100, Vec::<i32>::new());
     /// assert_eq!(choice_no_alts.alternatives(), &[]);
     ///
     /// let empty_choice: Choice<i32> = Choice::new_empty();
@@ -933,7 +933,7 @@ impl<T> Choice<T> {
     /// # See Also
     /// - [`filter_values`](Self::filter_values) - Filters all values (primary and alternatives),
     ///   potentially changing the primary value.
-    /// - [`remove_alternative`](Self::remove_alternative) - To remove a single alternative by index.
+    /// - [`remove_alternative`](Self::remove_alternative) - To remove a specific alternative by index.
     ///
     #[inline]
     pub fn filter<P>(&self, predicate: P) -> Self
@@ -1792,7 +1792,7 @@ impl<T: Clone> Monad for Choice<T> {
     ///
     /// ## Associativity Law
     ///
-    /// `m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))`
+    /// `(m.bind(f)).bind(g) == m.bind(|x| f(x).bind(g))`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -2077,7 +2077,7 @@ impl<T: Clone> Applicative for Choice<T> {
     ///
     /// ## Identity Law
     ///
-    /// `choice.apply(&Choice::pure(|x| x)) == choice`
+    /// `Applicative::apply(&Choice::pure(|x| x), &choice) == choice`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -2085,13 +2085,13 @@ impl<T: Clone> Applicative for Choice<T> {
     /// let choice = Choice::new(5, vec![10, 15]);
     /// let id_fn: fn(&i32) -> i32 = |x: &i32| *x;
     /// let id_fn_choice = Choice::<fn(&i32) -> i32>::pure(&id_fn);
-    /// let applied = id_fn_choice.apply(&choice);
+    /// let applied = Applicative::apply(&id_fn_choice, &choice);
     /// assert_eq!(choice, applied);
     /// ```
     ///
     /// ## Homomorphism Law
     ///
-    /// `Choice::pure(f).apply(&Choice::pure(x)) == Choice::pure(f(x))`
+    /// `Applicative::apply(&Choice::pure(f), &Choice::pure(x)) == Choice::pure(f(x))`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -2100,14 +2100,14 @@ impl<T: Clone> Applicative for Choice<T> {
     /// let x = 7;
     /// let pure_f = Choice::<fn(&i32) -> i32>::pure(&f);
     /// let pure_x = Choice::<i32>::pure(&x);
-    /// let left = pure_f.apply(&pure_x);
+    /// let left = Applicative::apply(&pure_f, &pure_x);
     /// let right = Choice::<i32>::pure(&f(&x));
     /// assert_eq!(left, right);
     /// ```
     ///
     /// ## Interchange Law
     ///
-    /// `functions.apply(&Choice::pure(y)) == functions.fmap(|f| f(y))`
+    /// `Applicative::apply(&functions, &Choice::pure(y)) == functions.fmap(|f| f(y))`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -2118,7 +2118,7 @@ impl<T: Clone> Applicative for Choice<T> {
     /// let f2: IntFn = |x: &i32| *x * 2;
     /// let functions = Choice::new(f1, vec![f2]);
     /// let pure_y = Choice::<i32>::pure(&y);
-    /// let left = functions.apply(&pure_y);
+    /// let left = Applicative::apply(&functions, &pure_y);
     /// let right = functions.fmap(|f| f(&y));
     /// assert_eq!(left, right);
     /// ```
@@ -2309,9 +2309,9 @@ impl<T: Clone> Applicative for Choice<T> {
         let capacity = fa.len() * fb.len() * fc.len() - 1;
         let mut alternatives = Vec::with_capacity(capacity);
 
-        for (i, a) in fa.iter().enumerate() {
-            for (j, b_val) in fb.iter().enumerate() {
-                for (k, c_val) in fc.iter().enumerate() {
+        for (i, a) in fa.values.iter().enumerate() {
+            for (j, b_val) in fb.values.iter().enumerate() {
+                for (k, c_val) in fc.values.iter().enumerate() {
                     if i == 0 && j == 0 && k == 0 {
                         continue; // Skip primary
                     }
@@ -2381,9 +2381,9 @@ impl<T: Clone> MonadPlus for Choice<T> {
     }
 
     fn mplus(&self, other: &Self) -> Self {
-        if self.is_empty() {
+        if self.values.is_empty() {
             other.clone()
-        } else if other.is_empty() {
+        } else if other.values.is_empty() {
             self.clone()
         } else {
             self.combine(other)
@@ -2391,9 +2391,9 @@ impl<T: Clone> MonadPlus for Choice<T> {
     }
 
     fn mplus_owned(self, other: Self) -> Self {
-        if self.is_empty() {
+        if self.values.is_empty() {
             other
-        } else if other.is_empty() {
+        } else if other.values.is_empty() {
             self
         } else {
             self.combine_owned(other)

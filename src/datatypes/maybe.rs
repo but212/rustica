@@ -114,6 +114,7 @@
 //! ```rust
 //! use rustica::datatypes::maybe::Maybe;
 //! use rustica::traits::functor::Functor;
+//! use rustica::traits::applicative::Applicative;
 //! use rustica::traits::monad::Monad;
 //!
 //! // Creating Maybe values
@@ -671,8 +672,8 @@ impl<T> Applicative for Maybe<T> {
     /// let just_val = Maybe::Just(1);
     /// let nothing_val: Maybe<i32> = Maybe::Nothing;
     ///
-    /// assert_eq!(just_fn.apply(&just_val), Maybe::Just(2));
-    /// assert_eq!(just_fn.apply(&nothing_val), Maybe::Nothing);
+    /// assert_eq!(Applicative::apply(&just_fn, &just_val), Maybe::Just(2));
+    /// assert_eq!(Applicative::apply(&just_fn, &nothing_val), Maybe::Nothing);
     /// ```
     #[inline]
     fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
@@ -744,7 +745,7 @@ impl<T> Applicative for Maybe<T> {
     /// let just_fn = Maybe::Just(|s: String| s.len());
     /// let just_val = Maybe::Just(String::from("test"));
     ///
-    /// assert_eq!(Maybe::apply_owned(just_fn, just_val), Maybe::Just(4));
+    /// assert_eq!(Applicative::apply_owned(just_fn, just_val), Maybe::Just(4));
     /// ```
     #[inline]
     fn apply_owned<U, B>(self, value: Self::Output<U>) -> Self::Output<B>

@@ -189,7 +189,7 @@ use quickcheck::{Arbitrary, Gen};
 /// // Using Applicative to apply functions
 /// // 1. Apply a function wrapped in Id
 /// let add_one = Id::new(|x: &i32| x + 1);
-/// let result = add_one.apply(&x);
+/// let result = Applicative::apply(&add_one, &x);
 /// assert_eq!(*result.value(), 6);
 ///
 /// // 2. Combine two Id values with lift2

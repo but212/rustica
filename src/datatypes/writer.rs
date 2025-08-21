@@ -600,7 +600,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// );
     ///
     /// // Apply the function to the value, combining logs
-    /// let result = add_five_fn.apply(&value_writer);
+    /// let result = Applicative::apply(&add_five_fn, &value_writer);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();
@@ -820,7 +820,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// );
     ///
     /// // Apply the function to the value, consuming both Writers
-    /// let result = add_five_fn.apply_owned(value_writer);
+    /// let result = Applicative::apply_owned(add_five_fn, value_writer);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();
