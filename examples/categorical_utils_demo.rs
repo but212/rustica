@@ -156,10 +156,9 @@ fn main() {
     let process_data = |input: &str| -> Option<String> {
         // Parse as number
         flat_map_option(input.parse::<i32>().ok(), |num| {
-            // Ensure positive
-            flat_map_option(if num > 0 { Some(num) } else { None }, |positive_num| {
-                // Double and format
-                Some(format!("Processed: {}", positive_num * 2))
+            // Ensure positive, then map to the final string.
+            map_option((num > 0).then_some(num), |positive_num| {
+                format!("Processed: {}", positive_num * 2)
             })
         })
     };

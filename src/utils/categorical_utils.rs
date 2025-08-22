@@ -526,14 +526,7 @@ where
 /// assert_eq!(result, Some(vec![]));
 /// ```
 pub fn sequence_options<T>(options: Vec<Option<T>>) -> Option<Vec<T>> {
-    let mut result = Vec::with_capacity(options.len());
-    for opt in options {
-        match opt {
-            Some(value) => result.push(value),
-            None => return None,
-        }
-    }
-    Some(result)
+    options.into_iter().collect()
 }
 
 /// Sequences a vector of `Result` values into a `Result` of vector.
@@ -571,12 +564,5 @@ pub fn sequence_options<T>(options: Vec<Option<T>>) -> Option<Vec<T>> {
 /// assert_eq!(result, Err("error"));
 /// ```
 pub fn sequence_results<T, E>(results: Vec<Result<T, E>>) -> Result<Vec<T>, E> {
-    let mut result = Vec::with_capacity(results.len());
-    for res in results {
-        match res {
-            Ok(value) => result.push(value),
-            Err(error) => return Err(error),
-        }
-    }
-    Ok(result)
+    results.into_iter().collect()
 }
