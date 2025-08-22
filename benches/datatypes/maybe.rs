@@ -1,4 +1,4 @@
-use criterion::Criterion;
+use criterion::{BenchmarkId, Criterion, Throughput};
 use rustica::datatypes::maybe::Maybe;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
@@ -14,6 +14,50 @@ struct User {
     name: String,
     email: String,
     active: bool,
+}
+
+// Helpers for parameterized benchmarks
+fn gen_str(size: usize) -> String {
+    "a".repeat(size)
+}
+
+fn gen_maybe_vec_ratio(len: usize, percent_just: usize) -> Vec<Maybe<i32>> {
+    (0..len)
+        .map(|i| {
+            if (i % 100) < percent_just {
+                Maybe::Just(i as i32)
+            } else {
+                Maybe::Nothing
+            }
+        })
+        .collect()
+}
+
+fn gen_maybe_pairs_ratio(
+    len: usize, percent_just_a: usize, percent_just_b: usize,
+) -> (Vec<Maybe<i32>>, Vec<Maybe<i32>>) {
+    let a: Vec<Maybe<i32>> = (0..len)
+        .map(|i| {
+            if (i % 100) < percent_just_a {
+                Maybe::Just(i as i32)
+            } else {
+                Maybe::Nothing
+            }
+        })
+        .collect();
+
+    // Offset pattern for b to avoid perfect correlation
+    let b: Vec<Maybe<i32>> = (0..len)
+        .map(|i| {
+            if ((i * 37 + 13) % 100) < percent_just_b {
+                Maybe::Just(i as i32)
+            } else {
+                Maybe::Nothing
+            }
+        })
+        .collect();
+
+    (a, b)
 }
 
 pub fn maybe_benchmarks(c: &mut Criterion) {
@@ -124,6 +168,142 @@ pub fn maybe_benchmarks(c: &mut Criterion) {
             );
         });
     });
+
+    // New: Payload-size sensitivity (Strings)
+    for &size in &[0usize, 32, 1_024, 16_384, 262_144] {
+        group.throughput(Throughput::Bytes(size as u64));
+
+        group.bench_with_input(
+            BenchmarkId::new("fmap_owned_string", size),
+            &size,
+            |b, &s| {
+                let base = gen_str(s);
+                b.iter(|| {
+                    let m = Maybe::Just(base.clone());
+                    black_box(m.fmap_owned(|mut x| {
+                        x.push('!');
+                        x
+                    }))
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("apply_owned_string_len", size),
+            &size,
+            |b, &s| {
+                let base = gen_str(s);
+                b.iter(|| {
+                    let f = Maybe::Just(|x: String| x.len());
+                    black_box(f.apply_owned(Maybe::Just(base.clone())))
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("bind_owned_string_chain2", size),
+            &size,
+            |b, &s| {
+                let base = gen_str(s);
+                b.iter(|| {
+                    black_box(
+                        Maybe::Just(base.clone())
+                            .bind_owned(|mut x| {
+                                x.make_ascii_uppercase();
+                                Maybe::Just(x)
+                            })
+                            .bind_owned(|x| Maybe::Just(x.len())),
+                    )
+                });
+            },
+        );
+    }
+
+    // New: Distribution sensitivity — Just vs Nothing ratios
+    for &len in &[100usize, 10_000] {
+        for &p in &[0usize, 25, 50, 75, 100] {
+            group.throughput(Throughput::Elements(len as u64));
+
+            group.bench_with_input(
+                BenchmarkId::new("fmap_ratio", format!("p{p}_n{len}")),
+                &(len, p),
+                |b, &(len, p)| {
+                    b.iter_batched(
+                        || gen_maybe_vec_ratio(len, p),
+                        |v| {
+                            let mut acc = 0usize;
+                            for m in &v {
+                                let _ = black_box(m.fmap(|x: &i32| x + 1));
+                                acc += 1;
+                            }
+                            black_box(acc);
+                        },
+                        criterion::BatchSize::LargeInput,
+                    );
+                },
+            );
+
+            group.bench_with_input(
+                BenchmarkId::new("lift2_ratio", format!("p{p}_n{len}")),
+                &(len, p),
+                |b, &(len, p)| {
+                    b.iter_batched(
+                        || gen_maybe_pairs_ratio(len, p, p),
+                        |(a, b)| {
+                            let mut acc = 0usize;
+                            for i in 0..a.len() {
+                                let _ = black_box(Maybe::<i32>::lift2(|x, y| x + y, &a[i], &b[i]));
+                                acc += 1;
+                            }
+                            black_box(acc);
+                        },
+                        criterion::BatchSize::LargeInput,
+                    );
+                },
+            );
+        }
+    }
+
+    // New: Chain length sensitivity and short-circuit behavior
+    for &n in &[1usize, 4, 16, 64] {
+        group.throughput(Throughput::Elements(n as u64));
+
+        group.bench_with_input(BenchmarkId::new("bind_chain_len", n), &n, |b, &n| {
+            b.iter(|| {
+                let mut m = Maybe::Just(0);
+                for _ in 0..n {
+                    m = m.bind(|x: &i32| Maybe::Just(*x + 1));
+                }
+                black_box(m)
+            });
+        });
+
+        // Introduce a failure halfway to show early-exit cost
+        group.bench_with_input(
+            BenchmarkId::new("bind_chain_short_circuit", n),
+            &n,
+            |b, &n| {
+                let fail_at = n / 2;
+                b.iter(|| {
+                    let mut m = Maybe::Just(0);
+                    for i in 0..n {
+                        let step = i;
+                        m = m.bind(|x: &i32| {
+                            if step == fail_at {
+                                Maybe::Nothing
+                            } else {
+                                Maybe::Just(*x + 1)
+                            }
+                        });
+                        if m.is_nothing() {
+                            break;
+                        }
+                    }
+                    black_box(m)
+                });
+            },
+        );
+    }
 
     // Real-world use cases
     let users: HashMap<u64, User> = {
