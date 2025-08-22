@@ -15,11 +15,21 @@
 //! // Create a counter that returns current value and increments state
 //! let counter = State::new(|count: i32| (count, count + 1));
 //!
-//! // Chain multiple counter operations
-//! let triple_count = counter
-//!     .bind(|first| counter
-//!         .bind(|second| counter
-//!             .fmap(|third| (first, second, third))));
+//! // Chain multiple counter operations (avoid move errors by cloning as needed)
+//! let triple_count = counter.clone()
+//!     .bind({
+//!         let counter_clone = counter.clone();
+//!         move |first| counter_clone.clone()
+//!             .bind({
+//!                 let counter_clone2 = counter.clone();
+//!                 move |second| counter_clone2.clone()
+//!                     .fmap({
+//!                         let first = first.clone();
+//!                         let second = second.clone();
+//!                         move |third| (first, second, third)
+//!                     })
+//!             })
+//!     });
 //!
 //! // Run the computation starting from 0
 //! let (result, final_state) = triple_count.run_state(0);
@@ -30,9 +40,16 @@
 //! use rustica::datatypes::state::{get, modify};
 //!
 //! let computation = get::<String>()
-//!     .bind(|current| modify(|s: String| s + " world")
-//!         .bind(|_| get::<String>()
-//!             .fmap(|final_val| (current, final_val))));
+//!     .bind(|current| {
+//!         let current_clone = current.clone();
+//!         modify(|s: String| s + " world")
+//!             .bind(move |_| get::<String>()
+//!                 .fmap({
+//!                     let value = current_clone.clone();
+//!                     move |final_val| (value.clone(), final_val)
+//!                 })
+//!             )
+//!     });
 //!
 //! let initial = "hello".to_string();
 //! let ((old, new), final_state) = computation.run_state(initial);

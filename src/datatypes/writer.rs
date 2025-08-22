@@ -17,7 +17,7 @@
 //!
 //! // Transform the value while preserving the log
 //! let doubled = writer1.fmap(|x| x * 2);
-//! assert_eq!(doubled.value(), 84);
+//! assert_eq!(doubled.clone().value(), 84);
 //! assert_eq!(doubled.log(), "Starting computation");
 //!
 //! // Chain computations, combining logs
@@ -25,11 +25,11 @@
 //!     .bind(|x| Writer::new("Step 2".to_string(), x + 5))
 //!     .bind(|x| Writer::new("Step 3".to_string(), x * 2));
 //!
-//! assert_eq!(result.value(), 30);
+//! assert_eq!(result.clone().value(), 30);
 //! assert_eq!(result.log(), "Step 1Step 2Step 3");
 //!
 //! // Add to log without changing the value
-//! let with_log = Writer::tell("Important note".to_string())
+//! let with_log = Writer::<String, i32>::tell("Important note".to_string())
 //!     .bind(|_| Writer::new("Final result".to_string(), 100));
 //!
 //! let (final_log, final_value) = with_log.run();

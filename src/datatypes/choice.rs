@@ -202,13 +202,10 @@ use crate::prelude::traits::*;
 /// Adaptive memory management utilities for Choice operations
 mod memory {
     use super::*;
-    
+
+    #[allow(dead_code)]
     /// Estimates the capacity needed for bind operations based on sampling
-    pub(super) fn estimate_bind_capacity<T, U, F>(
-        values: &[T],
-        f: &F,
-        sample_size: usize
-    ) -> usize 
+    pub(super) fn estimate_bind_capacity<T, U, F>(values: &[T], f: &F, sample_size: usize) -> usize
     where
         F: Fn(&T) -> Choice<U>,
         U: Clone,
@@ -216,28 +213,28 @@ mod memory {
         if values.is_empty() {
             return 0;
         }
-        
+
         let sample_count = std::cmp::min(sample_size, values.len());
         if sample_count == 0 {
             return 8; // Default SmallVec capacity
         }
-        
+
         let mut total_size = 0;
-        for i in 0..sample_count {
-            let sample_choice = f(&values[i]);
+        for value in values.iter().take(sample_count) {
+            let sample_choice = f(value);
             total_size += sample_choice.values.len();
         }
-        
+
         let avg_size = total_size / sample_count;
         avg_size * values.len()
     }
-    
+
     /// Memory pool for frequently used SmallVec sizes (future optimization)
     #[allow(dead_code)]
     pub(super) struct ChoicePool {
         small_vecs: Vec<SmallVec<[u8; 64]>>,
     }
-    
+
     impl Default for ChoicePool {
         fn default() -> Self {
             Self {

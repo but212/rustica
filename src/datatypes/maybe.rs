@@ -724,7 +724,7 @@ impl<T> Maybe<T> {
     /// let nothing: Maybe<i32> = Maybe::Nothing;
     ///
     /// assert_eq!(just.iter().collect::<Vec<_>>(), vec![&42]);
-    /// assert_eq!(nothing.iter().collect::<Vec<_>>(), vec![]);
+    /// assert_eq!(nothing.iter().collect::<Vec<&i32>>(), Vec::<&i32>::new());
     /// ```
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &T> {
