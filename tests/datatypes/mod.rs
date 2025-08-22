@@ -5,6 +5,8 @@ mod test_cont;
 mod test_either;
 mod test_id;
 mod test_io;
+mod test_iso_lens;
+mod test_iso_prism;
 mod test_lens;
 mod test_maybe;
 mod test_prism;
