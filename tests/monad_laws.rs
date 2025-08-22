@@ -163,3 +163,56 @@ mod monad_join_consistency_law {
         assert_eq!(fmap_then_join_err, bind_err);
     }
 }
+
+#[cfg(test)]
+mod monad_quickcheck_laws {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+    use rustica::traits::functor::Functor;
+
+    // Join Consistency Law: join(fmap(f, m)) == bind(m, f) for Option
+    #[quickcheck]
+    fn qc_option_join_consistency(m: Option<i32>) -> bool {
+        let f = |x: &i32| Some(x.saturating_mul(2));
+        let left = m.fmap(&f).join();
+        let right = m.bind(&f);
+        left == right
+    }
+
+    // Join Consistency Law: join(fmap(f, m)) == bind(m, f) for Result
+    #[quickcheck]
+    fn qc_result_join_consistency(m: Result<i32, i8>) -> bool {
+        let f = |x: &i32| -> Result<i32, i8> { Ok(x.saturating_mul(2)) };
+        let left = m.fmap(&f).join();
+        let right = m.bind(&f);
+        left == right
+    }
+
+    // Left Identity Law: pure(a).bind(f) == f(a) for Result
+    #[quickcheck]
+    fn qc_result_left_identity(x: i32) -> bool {
+        let f = |x: &i32| -> Result<i32, i8> { Ok(x.saturating_mul(2)) };
+        let left: Result<i32, i8> = <Result<i32, i8> as Pure>::pure(&x).bind(&f);
+        let right = f(&x);
+        left == right
+    }
+
+    // Right Identity Law: m.bind(pure) == m for Result (covers Ok and Err)
+    #[quickcheck]
+    fn qc_result_right_identity(x: i32, e: i8, is_ok: bool) -> bool {
+        let m: Result<i32, i8> = if is_ok { Ok(x) } else { Err(e) };
+        let left = m.clone().bind(Result::<i32, i8>::pure);
+        left == m
+    }
+
+    // Associativity Law: (m.bind(f)).bind(g) == m.bind(|x| f(x).bind(g)) for Result
+    #[quickcheck]
+    fn qc_result_associativity(x: i32, e: i8, is_ok: bool) -> bool {
+        let m: Result<i32, i8> = if is_ok { Ok(x) } else { Err(e) };
+        let f = |x: &i32| -> Result<i32, i8> { Ok(x.saturating_mul(2)) };
+        let g = |x: &i32| -> Result<i32, i8> { Ok(x.saturating_add(10)) };
+        let left = m.clone().bind(&f).bind(&g);
+        let right = m.bind(|x| f(x).bind(&g));
+        left == right
+    }
+}
