@@ -1824,7 +1824,7 @@ impl<T> Choice<T> {
     ///
     /// # Arguments
     ///
-    /// * `f` - A function that takes a reference to T and returns Choice<U>
+    /// * `f` - A function that takes a reference to T and returns `Choice<U>`
     ///
     /// # Returns
     ///
