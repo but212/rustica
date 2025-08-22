@@ -213,6 +213,7 @@ use std::fmt;
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(transparent)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Last<T>(pub Option<T>);
 
 impl<T: Clone> Semigroup for Last<T> {

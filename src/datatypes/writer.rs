@@ -233,6 +233,7 @@ use quickcheck::{Arbitrary, Gen};
 /// - `W`: The log type, which must implement the Monoid trait
 /// - `A`: The value type
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Writer<W, A> {
     /// The log accumulated during computation
     log: W,

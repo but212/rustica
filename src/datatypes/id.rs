@@ -258,6 +258,7 @@ use quickcheck::{Arbitrary, Gen};
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[must_use = "This is a pure value wrapper which does nothing unless used"]
 pub struct Id<T> {
     value: T,

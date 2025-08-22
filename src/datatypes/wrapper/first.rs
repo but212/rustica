@@ -198,6 +198,7 @@ use std::fmt;
 /// assert!(verify_right_identity::<i32>(First::empty()));
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
 pub struct First<T>(pub Option<T>);
 

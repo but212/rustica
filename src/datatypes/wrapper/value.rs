@@ -137,6 +137,7 @@ use crate::traits::identity::Identity;
 ///    ```
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Value<T>(pub T);
 
 impl<T> Value<T> {

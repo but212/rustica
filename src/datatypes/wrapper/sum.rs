@@ -201,6 +201,8 @@ use std::ops::Add;
 /// assert_eq!(*v3.value(), Vector2D { x: 4.0, y: 6.0 });
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[repr(transparent)]
 pub struct Sum<T>(pub T);
 
 impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {

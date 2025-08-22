@@ -314,6 +314,7 @@ use smallvec::{SmallVec, smallvec};
 /// assert_eq!(error_messages, vec!["error"]);
 /// ```
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Validated<E, A> {
     /// Represents a valid value of type A.
     Valid(A),

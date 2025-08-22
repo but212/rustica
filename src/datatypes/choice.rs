@@ -258,6 +258,7 @@ mod memory {
 /// * `values`: An internal collection containing all the values of type `T`.
 ///   The first element represents the primary value, and the rest are alternatives.
 #[repr(transparent)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
     values: Arc<SmallVec<[T; 8]>>,

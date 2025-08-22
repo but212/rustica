@@ -160,6 +160,7 @@ use std::fmt;
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Min<T>(pub T);
 
 impl<T: Clone + Ord> Semigroup for Min<T> {
