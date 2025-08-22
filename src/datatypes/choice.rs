@@ -5,6 +5,37 @@
 //! while keeping other possibilities available. `Choice` is particularly useful in contexts like
 //! configuration management, user preference handling, or any situation involving fallback mechanisms.
 //!
+//! ## Quick Start
+//!
+//! Manage preferences with fallback options:
+//!
+//! ```rust
+//! use rustica::datatypes::choice::Choice;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a choice with primary value and alternatives
+//! let servers = Choice::new("primary.example.com".to_string(),
+//!     vec!["backup1.example.com".to_string(), "backup2.example.com".to_string()]);
+//!
+//! // Access the primary value
+//! assert_eq!(servers.first(), Some(&"primary.example.com".to_string()));
+//!
+//! // Get all alternatives
+//! assert_eq!(servers.alternatives().len(), 2);
+//!
+//! // Transform all values with fmap
+//! let urls = servers.fmap(|host| format!("https://{}/api", host));
+//! assert_eq!(urls.first(), Some(&"https://primary.example.com/api".to_string()));
+//!
+//! // Use bind to chain dependent choices
+//! let ports = Choice::new(443, vec![8443]);
+//! let connections = servers.bind(|host| ports.fmap(|port| format!("{}:{}", host, port)));
+//!
+//! assert_eq!(connections.first(), Some(&"primary.example.com:443".to_string()));
+//! assert!(connections.alternatives().contains(&"primary.example.com:8443".to_string()));
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, `Choice<T>` represents a non-deterministic computation with a preferred result.
@@ -168,6 +199,51 @@ use smallvec::SmallVec;
 
 use crate::prelude::traits::*;
 
+/// Adaptive memory management utilities for Choice operations
+mod memory {
+    use super::*;
+
+    #[allow(dead_code)]
+    /// Estimates the capacity needed for bind operations based on sampling
+    pub(super) fn estimate_bind_capacity<T, U, F>(values: &[T], f: &F, sample_size: usize) -> usize
+    where
+        F: Fn(&T) -> Choice<U>,
+        U: Clone,
+    {
+        if values.is_empty() {
+            return 0;
+        }
+
+        let sample_count = std::cmp::min(sample_size, values.len());
+        if sample_count == 0 {
+            return 8; // Default SmallVec capacity
+        }
+
+        let mut total_size = 0;
+        for value in values.iter().take(sample_count) {
+            let sample_choice = f(value);
+            total_size += sample_choice.values.len();
+        }
+
+        let avg_size = total_size / sample_count;
+        avg_size * values.len()
+    }
+
+    /// Memory pool for frequently used SmallVec sizes (future optimization)
+    #[allow(dead_code)]
+    pub(super) struct ChoicePool {
+        small_vecs: Vec<SmallVec<[u8; 64]>>,
+    }
+
+    impl Default for ChoicePool {
+        fn default() -> Self {
+            Self {
+                small_vecs: Vec::with_capacity(16),
+            }
+        }
+    }
+}
+
 /// A type representing a value with multiple alternatives.
 ///
 /// `Choice<T>` encapsulates a collection of values of type `T`. This structure is useful
@@ -182,6 +258,7 @@ use crate::prelude::traits::*;
 /// * `values`: An internal collection containing all the values of type `T`.
 ///   The first element represents the primary value, and the rest are alternatives.
 #[repr(transparent)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
     values: Arc<SmallVec<[T; 8]>>,
@@ -313,7 +390,7 @@ impl<T> Choice<T> {
     /// let choice_with_one_alt = Choice::new(100, vec![200]);
     /// assert_eq!(choice_with_one_alt.alternatives(), &[200]);
     ///
-    /// let choice_no_alts = Choice::new(1000, Vec::<i32>::new());
+    /// let choice_no_alts = Choice::new(100, Vec::<i32>::new());
     /// assert_eq!(choice_no_alts.alternatives(), &[]);
     ///
     /// let empty_choice: Choice<i32> = Choice::new_empty();
@@ -835,6 +912,7 @@ impl<T> Choice<T> {
     /// # See Also
     /// - [`filter()`](Self::filter) - To remove multiple alternatives based on a predicate.
     /// - [`add_alternatives()`](Self::add_alternatives) - To add new alternatives.
+    /// - [`try_remove_alternative()`](Self::try_remove_alternative) - Safe version that returns Result.
     pub fn remove_alternative(self, index: usize) -> Self
     where
         T: Clone,
@@ -863,6 +941,61 @@ impl<T> Choice<T> {
         };
 
         Self { values }
+    }
+
+    /// Safely removes an alternative at the specified index, returning a Result.
+    ///
+    /// This is the safe version of `remove_alternative` that returns an error instead of panicking.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The 0-based index of the alternative to remove.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Choice<T>)` - A new Choice with the alternative removed.
+    /// * `Err(&'static str)` - An error message if the operation cannot be performed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(10, vec![20, 30, 40]);
+    /// let result = choice.try_remove_alternative(1);
+    /// assert!(result.is_ok());
+    /// let new_choice = result.unwrap();
+    /// assert_eq!(new_choice.alternatives(), &[20, 40]);
+    ///
+    /// // Safe error handling
+    /// let single_choice = Choice::new(10, Vec::<i32>::new());
+    /// let result = single_choice.try_remove_alternative(0);
+    /// assert!(result.is_err());
+    /// ```
+    pub fn try_remove_alternative(self, index: usize) -> Result<Self, &'static str>
+    where
+        T: Clone,
+    {
+        if self.values.len() <= 1 {
+            return Err("Cannot remove alternative from Choice with no alternatives");
+        }
+        if index >= self.alternatives().len() {
+            return Err("Index out of bounds for alternatives");
+        }
+
+        let values = match Arc::try_unwrap(self.values) {
+            Ok(mut values) => {
+                values.remove(index + 1); // +1 because alternatives start at index 1
+                Arc::new(values)
+            },
+            Err(arc) => {
+                let mut new_values = Arc::clone(&arc);
+                Arc::make_mut(&mut new_values).remove(index + 1);
+                new_values
+            },
+        };
+
+        Ok(Self { values })
     }
 
     /// Filters the alternatives of the `Choice` based on a predicate, returning a new `Choice`.
@@ -933,7 +1066,7 @@ impl<T> Choice<T> {
     /// # See Also
     /// - [`filter_values`](Self::filter_values) - Filters all values (primary and alternatives),
     ///   potentially changing the primary value.
-    /// - [`remove_alternative`](Self::remove_alternative) - To remove a single alternative by index.
+    /// - [`remove_alternative`](Self::remove_alternative) - To remove a specific alternative by index.
     ///
     #[inline]
     pub fn filter<P>(&self, predicate: P) -> Self
@@ -1120,6 +1253,7 @@ impl<T> Choice<T> {
     /// - [`flatten_sorted`](Self::flatten_sorted) - Similar, but sorts the resulting alternatives.
     /// - [`join`](crate::traits::monad::Monad::join) - The Monad trait's equivalent operation for `Choice<Choice<T>>`.
     /// - [`bind`](crate::traits::monad::Monad::bind) - For more general monadic sequencing which can achieve flattening.
+    /// - [`try_flatten`](Self::try_flatten) - Safe version that returns Result.
     pub fn flatten<I>(&self) -> Choice<I>
     where
         T: IntoIterator<Item = I> + Clone,
@@ -1148,6 +1282,61 @@ impl<T> Choice<T> {
                 Choice::new(first_item, alternatives)
             },
             None => panic!("Primary value was an empty iterator in Choice::flatten"),
+        }
+    }
+
+    /// Safely flattens a `Choice` of iterable items into a `Choice` of individual items, returning a Result.
+    ///
+    /// This is the safe version of `flatten` that returns an error instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Choice<I>)` - A flattened Choice if successful.
+    /// * `Err(&'static str)` - An error message if the primary value is an empty iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let nested = Choice::new(vec![1, 2], vec![vec![3, 4]]);
+    /// let result = nested.try_flatten();
+    /// assert!(result.is_ok());
+    /// let flattened = result.unwrap();
+    /// assert_eq!(*flattened.first().unwrap(), 1);
+    /// assert_eq!(flattened.alternatives(), &[2, 3, 4]);
+    ///
+    /// // Safe error handling
+    /// let empty_primary = Choice::new(Vec::<i32>::new(), vec![vec![1, 2]]);
+    /// let result = empty_primary.try_flatten();
+    /// assert!(result.is_err());
+    /// ```
+    pub fn try_flatten<I>(&self) -> Result<Choice<I>, &'static str>
+    where
+        T: IntoIterator<Item = I> + Clone,
+        I: Clone,
+    {
+        if self.values.is_empty() {
+            return Ok(Choice::new_empty());
+        }
+
+        let primary = self.first().unwrap().clone();
+        let mut primary_iter = primary.into_iter();
+
+        match primary_iter.next() {
+            Some(first_item) => {
+                let alternatives = primary_iter
+                    .chain(
+                        self.values
+                            .iter()
+                            .skip(1)
+                            .flat_map(|val| val.clone().into_iter()),
+                    )
+                    .collect::<SmallVec<[I; 8]>>();
+
+                Ok(Choice::new(first_item, alternatives))
+            },
+            None => Err("Primary value was an empty iterator in Choice::try_flatten"),
         }
     }
 
@@ -1596,6 +1785,7 @@ impl<T> Choice<T> {
     /// - [`Choice::new()`](Self::new) - For creating a `Choice`.
     /// - [`Choice::remove_alternative()`](Self::remove_alternative) - To remove an alternative.
     /// - [`Choice::add_alternatives()`](Self::add_alternatives) - To add alternatives.
+    /// - [`try_swap_with_alternative()`](Self::try_swap_with_alternative) - Safe version that returns Result.
     pub fn swap_with_alternative(self, alt_index: usize) -> Self
     where
         T: Clone,
@@ -1626,6 +1816,101 @@ impl<T> Choice<T> {
         };
 
         Self { values }
+    }
+
+    /// Creates a lazy iterator that applies bind operation without immediate allocation.
+    ///
+    /// This provides a lazy evaluation version of bind that can be more memory-efficient
+    /// for large operations or when only some results are needed.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A function that takes a reference to T and returns `Choice<U>`
+    ///
+    /// # Returns
+    ///
+    /// An iterator that yields U values lazily
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3]);
+    /// let mut iter = choice.bind_lazy(|x| Choice::new(x * 10, vec![x * 20]));
+    ///
+    /// assert_eq!(iter.next(), Some(10)); // Primary result from f(1)
+    /// assert_eq!(iter.next(), Some(20)); // Alternative from f(1)
+    /// assert_eq!(iter.next(), Some(20)); // Primary from f(2)
+    /// assert_eq!(iter.next(), Some(40)); // Alternative from f(2)
+    /// ```
+    pub fn bind_lazy<U, F>(&self, f: F) -> impl Iterator<Item = U>
+    where
+        F: Fn(&T) -> Choice<U>,
+        U: Clone,
+    {
+        self.iter().flat_map(move |val| {
+            let choice = f(val);
+            choice.into_iter()
+        })
+    }
+
+    /// Safely swaps the primary value with the alternative at the specified index, returning a Result.
+    ///
+    /// This is the safe version of `swap_with_alternative` that returns an error instead of panicking.
+    ///
+    /// # Arguments
+    ///
+    /// * `alt_index` - The 0-based index of the alternative to swap with the primary value.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Choice<T>)` - A new Choice with the values swapped.
+    /// * `Err(&'static str)` - An error message if the operation cannot be performed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(10, vec![20, 30, 40]);
+    /// let result = choice.try_swap_with_alternative(1);
+    /// assert!(result.is_ok());
+    /// let swapped = result.unwrap();
+    /// assert_eq!(*swapped.first().unwrap(), 30);
+    /// assert_eq!(swapped.alternatives(), &[20, 10, 40]);
+    ///
+    /// // Safe error handling
+    /// let single_choice = Choice::new(10, Vec::<i32>::new());
+    /// let result = single_choice.try_swap_with_alternative(0);
+    /// assert!(result.is_err());
+    /// ```
+    pub fn try_swap_with_alternative(self, alt_index: usize) -> Result<Self, &'static str>
+    where
+        T: Clone,
+    {
+        if self.values.len() <= 1 {
+            return Err("Cannot swap with alternative from Choice with no alternatives");
+        }
+        if alt_index >= self.alternatives().len() {
+            return Err("Index out of bounds for alternatives");
+        }
+
+        let actual_alt_index = alt_index + 1;
+
+        let values = match Arc::try_unwrap(self.values) {
+            Ok(mut values) => {
+                values.swap(0, actual_alt_index);
+                Arc::new(values)
+            },
+            Err(arc) => {
+                let mut new_values = Arc::clone(&arc);
+                Arc::make_mut(&mut new_values).swap(0, actual_alt_index);
+                new_values
+            },
+        };
+
+        Ok(Self { values })
     }
 }
 
@@ -1792,7 +2077,7 @@ impl<T: Clone> Monad for Choice<T> {
     ///
     /// ## Associativity Law
     ///
-    /// `m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))`
+    /// `(m.bind(f)).bind(g) == m.bind(|x| f(x).bind(g))`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -1825,8 +2110,22 @@ impl<T: Clone> Monad for Choice<T> {
         let first_choice_values = first_choice.values.as_ref();
         let first = first_choice_values[0].clone();
 
-        let capacity = first_choice_values.len() - 1 + (self_values.len() - 1) * 2;
-        let mut alternatives = Vec::with_capacity(capacity);
+        // Calculate accurate capacity by sampling first few alternatives
+        let mut estimated_capacity = first_choice_values.len() - 1;
+
+        // Sample first 2 alternatives to get better size estimate
+        let sample_size = std::cmp::min(2, self_values.len() - 1);
+        if sample_size > 0 {
+            let mut avg_choice_size = 0;
+            for i in 1..=sample_size {
+                let sample_choice = f(&self_values[i]);
+                avg_choice_size += sample_choice.values.len();
+            }
+            avg_choice_size /= sample_size;
+            estimated_capacity += avg_choice_size * (self_values.len() - 1);
+        }
+
+        let mut alternatives = Vec::with_capacity(estimated_capacity);
 
         // Add alternatives from primary choice
         alternatives.extend_from_slice(&first_choice_values[1..]);
@@ -1860,8 +2159,20 @@ impl<T: Clone> Monad for Choice<T> {
                 let primary_choice_values = primary_choice.values.as_ref();
                 let first = primary_choice_values[0].clone();
 
-                let mut alternatives =
-                    Vec::with_capacity(primary_choice_values.len() - 1 + values.len() * 2);
+                // Calculate better capacity estimate for bind_owned
+                let mut estimated_capacity = primary_choice_values.len() - 1;
+                let sample_size = std::cmp::min(2, values.len());
+                if sample_size > 0 {
+                    let mut avg_choice_size = 0;
+                    for i in 0..sample_size {
+                        let sample_choice = f(values[i].clone());
+                        avg_choice_size += sample_choice.values.len();
+                    }
+                    avg_choice_size /= sample_size;
+                    estimated_capacity += avg_choice_size * values.len();
+                }
+
+                let mut alternatives = Vec::with_capacity(estimated_capacity);
 
                 alternatives.extend_from_slice(&primary_choice_values[1..]);
 
@@ -1882,8 +2193,20 @@ impl<T: Clone> Monad for Choice<T> {
 
                 let first = primary_choice.first().unwrap().clone();
 
-                let mut alternatives =
-                    Vec::with_capacity(primary_choice.alternatives().len() + values.len() * 2);
+                // Calculate better capacity estimate for shared Arc case
+                let mut estimated_capacity = primary_choice.alternatives().len();
+                let sample_size = std::cmp::min(2, values.len() - 1);
+                if sample_size > 0 {
+                    let mut avg_choice_size = 0;
+                    for i in 1..=sample_size {
+                        let sample_choice = f(values[i].clone());
+                        avg_choice_size += sample_choice.values.len();
+                    }
+                    avg_choice_size /= sample_size;
+                    estimated_capacity += avg_choice_size * (values.len() - 1);
+                }
+
+                let mut alternatives = Vec::with_capacity(estimated_capacity);
 
                 alternatives.extend_from_slice(primary_choice.alternatives());
 
@@ -2077,7 +2400,7 @@ impl<T: Clone> Applicative for Choice<T> {
     ///
     /// ## Identity Law
     ///
-    /// `choice.apply(&Choice::pure(|x| x)) == choice`
+    /// `Applicative::apply(&Choice::pure(|x| x), &choice) == choice`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -2085,13 +2408,13 @@ impl<T: Clone> Applicative for Choice<T> {
     /// let choice = Choice::new(5, vec![10, 15]);
     /// let id_fn: fn(&i32) -> i32 = |x: &i32| *x;
     /// let id_fn_choice = Choice::<fn(&i32) -> i32>::pure(&id_fn);
-    /// let applied = id_fn_choice.apply(&choice);
+    /// let applied = Applicative::apply(&id_fn_choice, &choice);
     /// assert_eq!(choice, applied);
     /// ```
     ///
     /// ## Homomorphism Law
     ///
-    /// `Choice::pure(f).apply(&Choice::pure(x)) == Choice::pure(f(x))`
+    /// `Applicative::apply(&Choice::pure(f), &Choice::pure(x)) == Choice::pure(f(x))`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -2100,14 +2423,14 @@ impl<T: Clone> Applicative for Choice<T> {
     /// let x = 7;
     /// let pure_f = Choice::<fn(&i32) -> i32>::pure(&f);
     /// let pure_x = Choice::<i32>::pure(&x);
-    /// let left = pure_f.apply(&pure_x);
+    /// let left = Applicative::apply(&pure_f, &pure_x);
     /// let right = Choice::<i32>::pure(&f(&x));
     /// assert_eq!(left, right);
     /// ```
     ///
     /// ## Interchange Law
     ///
-    /// `functions.apply(&Choice::pure(y)) == functions.fmap(|f| f(y))`
+    /// `Applicative::apply(&functions, &Choice::pure(y)) == functions.fmap(|f| f(y))`
     ///
     /// ```rust
     /// # use rustica::prelude::*;
@@ -2118,7 +2441,7 @@ impl<T: Clone> Applicative for Choice<T> {
     /// let f2: IntFn = |x: &i32| *x * 2;
     /// let functions = Choice::new(f1, vec![f2]);
     /// let pure_y = Choice::<i32>::pure(&y);
-    /// let left = functions.apply(&pure_y);
+    /// let left = Applicative::apply(&functions, &pure_y);
     /// let right = functions.fmap(|f| f(&y));
     /// assert_eq!(left, right);
     /// ```
@@ -2309,9 +2632,9 @@ impl<T: Clone> Applicative for Choice<T> {
         let capacity = fa.len() * fb.len() * fc.len() - 1;
         let mut alternatives = Vec::with_capacity(capacity);
 
-        for (i, a) in fa.iter().enumerate() {
-            for (j, b_val) in fb.iter().enumerate() {
-                for (k, c_val) in fc.iter().enumerate() {
+        for (i, a) in fa.values.iter().enumerate() {
+            for (j, b_val) in fb.values.iter().enumerate() {
+                for (k, c_val) in fc.values.iter().enumerate() {
                     if i == 0 && j == 0 && k == 0 {
                         continue; // Skip primary
                     }
@@ -2381,9 +2704,9 @@ impl<T: Clone> MonadPlus for Choice<T> {
     }
 
     fn mplus(&self, other: &Self) -> Self {
-        if self.is_empty() {
+        if self.values.is_empty() {
             other.clone()
-        } else if other.is_empty() {
+        } else if other.values.is_empty() {
             self.clone()
         } else {
             self.combine(other)
@@ -2391,9 +2714,9 @@ impl<T: Clone> MonadPlus for Choice<T> {
     }
 
     fn mplus_owned(self, other: Self) -> Self {
-        if self.is_empty() {
+        if self.values.is_empty() {
             other
-        } else if other.is_empty() {
+        } else if other.values.is_empty() {
             self
         } else {
             self.combine_owned(other)

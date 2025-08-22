@@ -13,6 +13,18 @@
 //! The utilities in this module work with any type that implements the `Functor` trait,
 //! including standard library types like `Option` and `Result`, and library types
 //! like `Either` and `Maybe`.
+//!
+//! ## Performance Characteristics
+//!
+//! ### Transformation Functions
+//! - **transform_all**: O(n * f) where n is collection size and f is transformation function complexity
+//! - **transform_option/transform_result**: O(f) where f is the transformation function complexity
+//! - **Memory Usage**: Linear with collection size for batch operations
+//!
+//! ### Pipeline Operations
+//! - **Pipeline Builder**: O(1) for construction, O(f1 + f2 + ... + fn) for execution
+//! - **Chaining**: Zero-cost abstraction - no additional overhead beyond function composition
+//! - **Memory Efficiency**: Minimal memory overhead, operations are applied lazily when possible
 
 use crate::prelude::Functor;
 

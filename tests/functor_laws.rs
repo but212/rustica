@@ -148,3 +148,53 @@ mod functor_structure_preservation {
         assert_eq!(empty_vec.fmap(&f).len(), empty_vec.len());
     }
 }
+
+#[cfg(test)]
+mod functor_quickcheck_laws {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+
+    // Identity Law: fmap(id) == id
+    #[quickcheck]
+    fn qc_option_identity(m: Option<i32>) -> bool {
+        let id: fn(&i32) -> i32 = |x| *x;
+        m.fmap(&id) == m
+    }
+
+    #[quickcheck]
+    fn qc_result_identity(x: i32, e: i8, is_ok: bool) -> bool {
+        let m: Result<i32, i8> = if is_ok { Ok(x) } else { Err(e) };
+        let id: fn(&i32) -> i32 = |t| *t;
+        m.clone().fmap(&id) == m
+    }
+
+    // Composition Law: fmap(g ∘ f) == fmap(g) ∘ fmap(f)
+    #[quickcheck]
+    fn qc_option_composition(m: Option<i32>) -> bool {
+        let f: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+        let g: fn(&i32) -> i32 = |x| x.saturating_add(1);
+        let composed = |x: &i32| g(&f(x));
+        m.fmap(&composed) == m.fmap(&f).fmap(&g)
+    }
+
+    #[quickcheck]
+    fn qc_result_composition(m: Result<i32, i8>) -> bool {
+        let f: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+        let g: fn(&i32) -> i32 = |x| x.saturating_add(1);
+        let composed = |x: &i32| g(&f(x));
+        m.clone().fmap(&composed) == m.fmap(&f).fmap(&g)
+    }
+
+    // Structure preservation: shape (Some/None, Ok/Err) is preserved
+    #[quickcheck]
+    fn qc_option_structure_preserved(m: Option<i32>) -> bool {
+        let f: fn(&i32) -> i64 = |x| (*x as i64).saturating_mul(3);
+        m.fmap(&f).is_some() == m.is_some()
+    }
+
+    #[quickcheck]
+    fn qc_result_structure_preserved(m: Result<i32, i8>) -> bool {
+        let f: fn(&i32) -> i64 = |x| (*x as i64).saturating_add(10);
+        m.fmap(&f).is_ok() == m.is_ok()
+    }
+}

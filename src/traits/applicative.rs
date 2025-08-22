@@ -12,6 +12,24 @@
 //! - Lift a value into the functor context (`pure`)
 //! - Apply a function in a context to a value in a context (`apply`)
 //!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//! - **pure**: O(1) - Constant time to lift a value into context
+//! - **apply**: O(f) where f is the complexity of the function being applied
+//! - **lift2, lift3, etc.**: O(f) where f is the complexity of the multi-argument function
+//! - **sequence operations**: O(1) - Constant time sequencing (ignoring inner function complexity)
+//!
+//! ### Memory Usage
+//! - **Structure Overhead**: Minimal - typically just the cost of the context wrapper
+//! - **Function Storage**: Functions are applied immediately, no additional storage
+//! - **Composition**: Memory usage scales linearly with the depth of composed operations
+//!
+//! ### Implementation Notes
+//! - Applicative operations are generally implemented as zero-cost abstractions
+//! - Independent operations can potentially be parallelized (implementation-dependent)
+//! - Memory allocation patterns depend on the specific applicative implementation
+//!
 //! ## Mathematical Definition
 //!
 //! Applicative functors are functors with additional structure:
@@ -147,7 +165,8 @@ use crate::traits::pure::Pure;
 /// // Apply a function in context to a value in context
 /// let func: Option<fn(&i32) -> i32> = Some(|x| x * 2);
 /// let value: Option<i32> = Some(5);
-/// let result = func.apply(&value);
+///
+/// let result = Applicative::apply(&func, &value);
 /// assert_eq!(result, Some(10));
 /// ```
 ///
@@ -225,12 +244,12 @@ pub trait Applicative: Functor + Pure {
     /// let func: Option<fn(&i32) -> i32> = Some(|x| x * 2);
     /// let value: Option<i32> = Some(5);
     ///
-    /// let result = func.apply(&value);
+    /// let result = Applicative::apply(&func, &value);
     /// assert_eq!(result, Some(10));
     ///
     /// // If either is None, result is None
     /// let none_func: Option<fn(&i32) -> i32> = None;
-    /// let result2 = none_func.apply(&value);
+    /// let result2 = Applicative::apply(&none_func, &value);
     /// assert_eq!(result2, None);
     /// ```
     fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
@@ -503,7 +522,7 @@ pub trait Applicative: Functor + Pure {
     /// let func: Option<fn(i32) -> i32> = Some(|x| x * 2);
     /// let value: Option<i32> = Some(5);
     ///
-    /// let result = func.apply_owned(value);
+    /// let result = Applicative::apply_owned(func, value);
     /// assert_eq!(result, Some(10));
     /// ```
     fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>

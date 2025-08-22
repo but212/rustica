@@ -114,6 +114,7 @@
 //! ```rust
 //! use rustica::datatypes::maybe::Maybe;
 //! use rustica::traits::functor::Functor;
+//! use rustica::traits::applicative::Applicative;
 //! use rustica::traits::monad::Monad;
 //!
 //! // Creating Maybe values
@@ -201,6 +202,7 @@ use crate::traits::pure::Pure;
 use crate::utils::error_utils::{AppError, WithError};
 use quickcheck::{Arbitrary, Gen};
 use std::marker::PhantomData;
+// use std::ops::{ControlFlow, FromResidual, Try};
 
 /// A type that represents an optional value, optimized with null pointer optimization.
 ///
@@ -280,6 +282,7 @@ use std::marker::PhantomData;
 /// assert_eq!(partial_sum, Maybe::Nothing);
 /// ```
 #[derive(Copy, Clone, Eq, Debug, Hash, PartialEq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Maybe<T> {
     /// Contains a value of type `T`
     Just(T),
@@ -308,6 +311,58 @@ impl std::fmt::Display for MaybeError {
 impl std::error::Error for MaybeError {}
 
 impl<T> Maybe<T> {
+    /// Creates a `Maybe` with a value (alias for `Just`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let value = Maybe::some(42);
+    /// assert_eq!(value, Maybe::Just(42));
+    /// ```
+    #[inline]
+    pub const fn some(value: T) -> Self {
+        Maybe::Just(value)
+    }
+
+    /// Creates a `Maybe` without a value (alias for `Nothing`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let value: Maybe<i32> = Maybe::none();
+    /// assert_eq!(value, Maybe::Nothing);
+    /// ```
+    #[inline]
+    pub const fn none() -> Self {
+        Maybe::Nothing
+    }
+
+    /// Creates a `Maybe` based on a condition.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let value = Maybe::when(true, 42);
+    /// assert_eq!(value, Maybe::Just(42));
+    ///
+    /// let empty = Maybe::when(false, 42);
+    /// assert_eq!(empty, Maybe::Nothing);
+    /// ```
+    #[inline]
+    pub fn when(condition: bool, value: T) -> Self {
+        if condition {
+            Maybe::Just(value)
+        } else {
+            Maybe::Nothing
+        }
+    }
+
     /// Returns `true` if the maybe value is a `Just` value.
     ///
     /// # Examples
@@ -584,6 +639,141 @@ impl<T> Maybe<T> {
             Maybe::Nothing => None,
         }
     }
+
+    /// Unwraps a maybe, yielding the content of a `Just` or computing a default.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just.unwrap_or_else(|| 10), 42);
+    /// assert_eq!(nothing.unwrap_or_else(|| 10), 10);
+    /// ```
+    #[inline]
+    pub fn unwrap_or_else<F>(self, f: F) -> T
+    where
+        F: FnOnce() -> T,
+    {
+        match self {
+            Maybe::Just(val) => val,
+            Maybe::Nothing => f(),
+        }
+    }
+
+    /// Returns `Nothing` if the value does not satisfy the predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let maybe_some = Maybe::Just(4);
+    /// let maybe_none: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(maybe_some.filter(|&x| x > 2), Maybe::Just(4));
+    /// assert_eq!(maybe_some.filter(|&x| x > 5), Maybe::Nothing);
+    /// assert_eq!(maybe_none.filter(|&x| x > 2), Maybe::Nothing);
+    /// ```
+    #[inline]
+    pub fn filter<P>(self, predicate: P) -> Self
+    where
+        P: FnOnce(&T) -> bool,
+    {
+        match self {
+            Maybe::Just(ref value) if predicate(value) => self,
+            _ => Maybe::Nothing,
+        }
+    }
+
+    /// Calls the provided closure with the contained value if `Just`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// just.tap(|x| println!("Got value: {}", x));
+    /// nothing.tap(|x| println!("Got value: {}", x)); // Does nothing
+    /// ```
+    #[inline]
+    pub fn tap<F>(self, f: F) -> Self
+    where
+        F: FnOnce(&T),
+    {
+        if let Maybe::Just(ref value) = self {
+            f(value);
+        }
+        self
+    }
+
+    /// Returns an iterator over the possibly contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just.iter().collect::<Vec<_>>(), vec![&42]);
+    /// assert_eq!(nothing.iter().collect::<Vec<&i32>>(), Vec::<&i32>::new());
+    /// ```
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.as_ref().into_iter()
+    }
+
+    /// Returns a mutable iterator over the possibly contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let mut just = Maybe::Just(42);
+    ///
+    /// for value in just.iter_mut() {
+    ///     *value += 10;
+    /// }
+    ///
+    /// assert_eq!(just, Maybe::Just(52));
+    /// ```
+    #[inline]
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        match self {
+            Maybe::Just(x) => Some(x).into_iter(),
+            Maybe::Nothing => None.into_iter(),
+        }
+    }
+
+    /// Converts this Maybe to a Vec containing 0 or 1 elements.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just.to_vec(), vec![42]);
+    /// assert_eq!(nothing.to_vec(), vec![]);
+    /// ```
+    #[inline]
+    pub fn to_vec(self) -> Vec<T> {
+        match self {
+            Maybe::Just(x) => vec![x],
+            Maybe::Nothing => vec![],
+        }
+    }
 }
 
 // Use a specialized empty struct to enable null pointer optimization
@@ -671,8 +861,8 @@ impl<T> Applicative for Maybe<T> {
     /// let just_val = Maybe::Just(1);
     /// let nothing_val: Maybe<i32> = Maybe::Nothing;
     ///
-    /// assert_eq!(just_fn.apply(&just_val), Maybe::Just(2));
-    /// assert_eq!(just_fn.apply(&nothing_val), Maybe::Nothing);
+    /// assert_eq!(Applicative::apply(&just_fn, &just_val), Maybe::Just(2));
+    /// assert_eq!(Applicative::apply(&just_fn, &nothing_val), Maybe::Nothing);
     /// ```
     #[inline]
     fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
@@ -704,9 +894,6 @@ impl<T> Applicative for Maybe<T> {
     fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
     where
         F: Fn(&A, &B) -> C,
-        A: Clone,
-        B: Clone,
-        C: Clone,
         Self: Sized,
     {
         match (fa, fb) {
@@ -721,10 +908,6 @@ impl<T> Applicative for Maybe<T> {
     ) -> Self::Output<D>
     where
         F: Fn(&A, &B, &C) -> D,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        D: Clone,
         Self: Sized,
     {
         match (fa, fb, fc) {
@@ -744,7 +927,7 @@ impl<T> Applicative for Maybe<T> {
     /// let just_fn = Maybe::Just(|s: String| s.len());
     /// let just_val = Maybe::Just(String::from("test"));
     ///
-    /// assert_eq!(Maybe::apply_owned(just_fn, just_val), Maybe::Just(4));
+    /// assert_eq!(Applicative::apply_owned(just_fn, just_val), Maybe::Just(4));
     /// ```
     #[inline]
     fn apply_owned<U, B>(self, value: Self::Output<U>) -> Self::Output<B>
@@ -1072,10 +1255,9 @@ impl<T: Clone> MonadPlus for Maybe<T> {
     where
         Self: Sized,
     {
-        match (self.clone(), other.clone()) {
-            (Maybe::Just(_), _) => self,
-            (Maybe::Nothing, Maybe::Just(_)) => other,
-            _ => Maybe::Nothing,
+        match &self {
+            Maybe::Just(_) => self,
+            Maybe::Nothing => other,
         }
     }
 }
@@ -1432,3 +1614,29 @@ where
         }
     }
 }
+
+// // Try trait implementation for ? operator support
+// impl<T> Try for Maybe<T> {
+//     type Output = T;
+//     type Residual = Maybe<std::convert::Infallible>;
+
+//     #[inline]
+//     fn from_output(output: Self::Output) -> Self {
+//         Maybe::Just(output)
+//     }
+
+//     #[inline]
+//     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+//         match self {
+//             Maybe::Just(value) => ControlFlow::Continue(value),
+//             Maybe::Nothing => ControlFlow::Break(Maybe::Nothing),
+//         }
+//     }
+// }
+
+// impl<T> FromResidual<Maybe<std::convert::Infallible>> for Maybe<T> {
+//     #[inline]
+//     fn from_residual(_: Maybe<std::convert::Infallible>) -> Self {
+//         Maybe::Nothing
+//     }
+// }

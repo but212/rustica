@@ -4,6 +4,30 @@
 //! For example, it can be combined with `Option` to create stateful computations that
 //! may fail, or with `Result` to create stateful computations that may produce errors.
 //!
+//! ## Performance Characteristics
+//!
+//! ### Time Complexity
+//! - **Construction (`new`)**: O(1) - Just wraps the function in an Arc
+//! - **State Execution (`run_state`)**: O(f) where f is the complexity of the state function
+//! - **Bind Operations**: O(f + g) where f and g are the complexities of the chained functions
+//! - **Map Operations**: O(f) where f is the complexity of the mapping function
+//!
+//! ### Memory Usage
+//! - **Structure Size**: O(1) - Arc pointer + PhantomData (zero-sized)
+//! - **State Storage**: O(S) where S is the size of the state type
+//! - **Function Storage**: O(1) - Arc provides shared ownership with minimal overhead
+//! - **Composition Overhead**: O(n) where n is the depth of nested StateT operations
+//!
+//! ### Concurrency
+//! - **Thread Safety**: StateT is Send + Sync when the wrapped function is Send + Sync
+//! - **Cloning**: O(1) - Arc cloning is constant time (reference counting)
+//! - **State Isolation**: Each execution maintains separate state, preventing race conditions
+//!
+//! ### Performance Notes
+//! - StateT adds minimal overhead over the base monad when used correctly
+//! - Arc usage enables efficient cloning but may add slight indirection cost
+//! - State passing is explicit, allowing for predictable memory usage patterns
+//!
 //! # Examples
 //!
 //! ```rust

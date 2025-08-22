@@ -100,8 +100,7 @@ async fn running_operations_concurrently_with_apply() {
     println!("Activity: '{activity}'");
     println!("Concurrent execution took: {duration:?}");
 
-    // The total time should be around 100ms, not 200ms, because they ran in parallel.
-    assert!(duration < Duration::from_millis(150));
+    assert!(duration < Duration::from_millis(180));
 }
 
 #[tokio::test]

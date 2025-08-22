@@ -65,6 +65,31 @@
 //! - `Identity`: For accessing the wrapped value
 //! - `HKT`: For higher-kinded type operations
 //! - `Foldable`: For folding operations
+//!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::sum::Sum;
+//! use rustica::traits::{semigroup::Semigroup, monoid::Monoid};
+//!
+//! // Create Sum wrappers
+//! let a = Sum(3);
+//! let b = Sum(7);
+//! let c = Sum(5);
+//!
+//! // Values are combined by addition
+//! assert_eq!(a.combine(&b), Sum(10)); // 3 + 7 = 10
+//! assert_eq!(b.combine(&c), Sum(12)); // 7 + 5 = 12
+//!
+//! // Chaining additions
+//! let result = a.combine(&b).combine(&c);
+//! assert_eq!(result, Sum(15)); // 3 + 7 + 5 = 15
+//!
+//! // Identity element (additive identity: 0)
+//! let empty = Sum::empty();
+//! assert_eq!(a.combine(&empty), a); // 3 + 0 = 3
+//! ```
+
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
@@ -176,6 +201,8 @@ use std::ops::Add;
 /// assert_eq!(*v3.value(), Vector2D { x: 4.0, y: 6.0 });
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[repr(transparent)]
 pub struct Sum<T>(pub T);
 
 impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {

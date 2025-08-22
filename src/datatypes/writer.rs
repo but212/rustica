@@ -3,6 +3,40 @@
 //! The Writer monad represents computations that produce a value along with an accumulated log.
 //! It's a way to carry auxiliary data alongside the main computation result in a purely functional way.
 //!
+//! ## Quick Start
+//!
+//! Accumulate logs alongside computations:
+//!
+//! ```rust
+//! use rustica::datatypes::writer::Writer;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::monad::Monad;
+//!
+//! // Create a Writer with a value and log (using String which implements Monoid)
+//! let writer1 = Writer::new("Starting computation".to_string(), 42);
+//!
+//! // Transform the value while preserving the log
+//! let doubled = writer1.fmap(|x| x * 2);
+//! assert_eq!(doubled.clone().value(), 84);
+//! assert_eq!(doubled.log(), "Starting computation");
+//!
+//! // Chain computations, combining logs
+//! let result = Writer::new("Step 1".to_string(), 10)
+//!     .bind(|x| Writer::new("Step 2".to_string(), x + 5))
+//!     .bind(|x| Writer::new("Step 3".to_string(), x * 2));
+//!
+//! assert_eq!(result.clone().value(), 30);
+//! assert_eq!(result.log(), "Step 1Step 2Step 3");
+//!
+//! // Add to log without changing the value
+//! let with_log = Writer::<String, i32>::tell("Important note".to_string())
+//!     .bind(|_| Writer::new("Final result".to_string(), 100));
+//!
+//! let (final_log, final_value) = with_log.run();
+//! assert_eq!(final_value, 100);
+//! assert_eq!(final_log, "Important noteFinal result");
+//! ```
+//!
 //! ## Core Concepts
 //!
 //! - **Value and Log**: Each Writer computation produces both a primary value and a log/output
@@ -199,6 +233,7 @@ use quickcheck::{Arbitrary, Gen};
 /// - `W`: The log type, which must implement the Monoid trait
 /// - `A`: The value type
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Writer<W, A> {
     /// The log accumulated during computation
     log: W,
@@ -600,7 +635,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// );
     ///
     /// // Apply the function to the value, combining logs
-    /// let result = add_five_fn.apply(&value_writer);
+    /// let result = Applicative::apply(&add_five_fn, &value_writer);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();
@@ -820,7 +855,7 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// );
     ///
     /// // Apply the function to the value, consuming both Writers
-    /// let result = add_five_fn.apply_owned(value_writer);
+    /// let result = Applicative::apply_owned(add_five_fn, value_writer);
     ///
     /// // Extract the result
     /// let (log, value) = result.run();

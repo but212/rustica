@@ -56,6 +56,26 @@
 //! - `Identity`: For accessing the inner value
 //! - `Foldable`: For folding operations over the single inner value
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::min::Min;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Create Min wrappers
+//! let a = Min(5);
+//! let b = Min(10);
+//! let c = Min(3);
+//!
+//! // Minimum value wins when combining
+//! assert_eq!(a.combine(&b), Min(5)); // Smaller value wins
+//! assert_eq!(b.combine(&c), Min(3)); // Keeps minimum
+//!
+//! // Chaining multiple values
+//! let result = a.combine(&b).combine(&c);
+//! assert_eq!(result, Min(3)); // Overall minimum
+//! ```
+//!
 //! ## Documentation Notes
 //!
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and
@@ -140,6 +160,7 @@ use std::fmt;
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Min<T>(pub T);
 
 impl<T: Clone + Ord> Semigroup for Min<T> {

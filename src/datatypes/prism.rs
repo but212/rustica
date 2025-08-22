@@ -6,6 +6,48 @@
 //! - Selectively view a specific variant of an enum (sum type)
 //! - Construct a value of the sum type from a value of the specific variant
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::prism::Prism;
+//!
+//! #[derive(Debug, Clone, PartialEq)]
+//! enum Status { Active(String), Inactive, Pending(u32) }
+//!
+//! // Create prisms for enum variants
+//! let active_prism = Prism::new(
+//!     |s: &Status| match s {
+//!         Status::Active(name) => Some(name.clone()),
+//!         _ => None,
+//!     },
+//!     |name: &String| Status::Active(name.clone()),
+//! );
+//!
+//! let pending_prism = Prism::new(
+//!     |s: &Status| match s {
+//!         Status::Pending(days) => Some(*days),
+//!         _ => None,
+//!     },
+//!     |days: &u32| Status::Pending(*days),
+//! );
+//!
+//! let active_user = Status::Active("Alice".to_string());
+//! let pending_user = Status::Pending(7);
+//!
+//! // Extract values from matching variants
+//! assert_eq!(active_prism.preview(&active_user), Some("Alice".to_string()));
+//! assert_eq!(active_prism.preview(&pending_user), None);
+//! assert_eq!(pending_prism.preview(&pending_user), Some(7));
+//!
+//! // Construct enum variants
+//! let new_active = active_prism.review(&"Bob".to_string());
+//! assert_eq!(new_active, Status::Active("Bob".to_string()));
+//!
+//! // Transform specific variants
+//! let updated = pending_prism.modify(pending_user, |days| days + 1);
+//! assert_eq!(updated, Status::Pending(8));
+//! ```
+//!
 //! ## Functional Programming Context
 //!
 //! Prisms represent a fundamental optic in functional programming, originating from the Haskell lens library.

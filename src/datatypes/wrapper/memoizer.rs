@@ -61,68 +61,40 @@
 //!
 //! - `Default`: Creates an empty memoizer via `Memoizer::new()`
 //!
+//! ## Quick Start
+//!
+//! ```rust
+//! use rustica::datatypes::wrapper::memoizer::Memoizer;
+//!
+//! // Create a memoizer for caching expensive computations
+//! let memo = Memoizer::new();
+//!
+//! // Define an expensive function (factorial)
+//! fn factorial(n: &u32) -> u64 {
+//!     match *n {
+//!         0 | 1 => 1,
+//!         _ => (*n as u64) * factorial(&(n - 1)),
+//!     }
+//! }
+//!
+//! // First call computes and caches result
+//! let result1 = memo.get_or_compute(5, factorial);
+//! assert_eq!(result1, 120);
+//!
+//! // Second call returns cached result instantly
+//! let result2 = memo.get_or_compute(5, factorial);
+//! assert_eq!(result2, 120); // Same result, no recomputation
+//!
+//! // Different inputs are computed and cached separately
+//! let result3 = memo.get_or_compute(4, factorial);
+//! assert_eq!(result3, 24);
+//! ```
+//!
 //! ## Documentation Notes
 //!
 //! For detailed practical examples demonstrating the type class laws, usage patterns, and
 //! performance characteristics, please refer to the function-level documentation of the
 //! relevant methods such as `new`, `get_or_compute`, and `clear`.
-//!
-//! ```rust
-//! use rustica::datatypes::wrapper::memoizer::Memoizer;
-//! use std::collections::HashMap;
-//!
-//! // Complex computation: Calculate word frequencies in a text
-//! let memo = Memoizer::new();
-//!
-//! // Define an expensive function we want to memoize
-//! fn calculate_word_frequencies(text: &String) -> HashMap<String, usize> {
-//!     let mut frequencies = HashMap::new();
-//!     for word in text.split_whitespace() {
-//!         *frequencies.entry(word.to_lowercase()).or_insert(0) += 1;
-//!     }
-//!     frequencies
-//! }
-//!
-//! // First call computes and caches the result
-//! let text = "to be or not to be".to_string();
-//! let frequencies = memo.get_or_compute(text.clone(), calculate_word_frequencies);
-//!
-//! assert_eq!(frequencies.get("to"), Some(&2));
-//! assert_eq!(frequencies.get("be"), Some(&2));
-//! assert_eq!(frequencies.get("or"), Some(&1));
-//! assert_eq!(frequencies.get("not"), Some(&1));
-//!
-//! // Second call uses the cached result
-//! let cached = memo.get_or_compute(text, |_| {
-//!     panic!("This should not be called")
-//! });
-//!
-//! assert_eq!(cached.get("to"), Some(&2));
-//! ```
-//!
-//! ## Performance Characteristics
-//!
-//! - **Memory Usage**: O(n) where n is the number of cached key-value pairs
-//! - **Thread Safety**: Uses `RwLock` for concurrent read access with exclusive write locking
-//!   - Multiple readers can access the cache simultaneously
-//!   - Writers get exclusive access, blocking all other operations
-//!   - Double-checked locking pattern prevents redundant computations
-//! - **Cache Lookups**: O(1) average case for hash lookups (amortized)
-//! - **Get or Compute**: O(f) where f is the complexity of the computation function
-//! - **Concurrency Overhead**:
-//!   - Reader Lock: Minimal contention for read-heavy workloads
-//!   - Writer Lock: Potential contention if many cache misses occur simultaneously
-//!   - Cache misses in parallel threads for the same key are efficiently handled
-//!     (only one thread performs computation, others wait and receive the result)
-//!
-//! ## Thread Safety Guarantees
-//!
-//! The `Memoizer` provides several guarantees for concurrent usage:
-//!
-//! 1. **Consistency**: A value for a key is computed exactly once, even if requested concurrently
-//! 2. **Cache Coherence**: All threads see the most up-to-date cached values
-//! 3. **Deadlock Prevention**: The lock hierarchy prevents potential deadlocks
-//! 4. **Atomicity**: Cache operations are atomic - readers see either the old or new state, never partial updates
 
 use std::collections::HashMap;
 use std::hash::Hash;

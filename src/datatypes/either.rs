@@ -272,6 +272,7 @@ use quickcheck::{Arbitrary, Gen};
 ///
 /// See the module-level documentation for examples and more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Either<L, R> {
     /// Contains a value of type `L`
     Left(L),

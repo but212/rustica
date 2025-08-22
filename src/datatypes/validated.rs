@@ -12,6 +12,7 @@
 //! use rustica::datatypes::validated::Validated;
 //! use rustica::traits::applicative::Applicative;
 //! use rustica::traits::functor::Functor;
+//! use rustica::traits::pure::Pure;
 //!
 //! // Create validation functions
 //! let validate_positive = |x: &i32| -> Validated<String, i32> {
@@ -33,7 +34,7 @@
 //! // Combine validations - accumulates ALL errors
 //! let combine_validations = |a: &i32, b: &i32| -> Validated<String, i32> {
 //!     Validated::<String, i32>::lift2(
-//!         |x, y| x + y,
+//!         |x: &i32, y: &i32| x + y,
 //!         &validate_positive(a),
 //!         &validate_even(b)
 //!     )
@@ -304,15 +305,16 @@ use smallvec::{SmallVec, smallvec};
 /// }
 /// assert_eq!(sum, 42);
 ///
-/// let invalid: Validated<&str, i32> = Validated::invalid_many(["error1", "error2"]);
+/// let invalid: Validated<&str, i32> = Validated::invalid("error");
 /// let mut error_messages: Vec<&str> = Vec::new();
 /// // Iterate over the error values
 /// for &error in invalid.iter_errors() {
 ///     error_messages.push(error);
 /// }
-/// assert_eq!(error_messages, vec!["error1", "error2"]);
+/// assert_eq!(error_messages, vec!["error"]);
 /// ```
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Validated<E, A> {
     /// Represents a valid value of type A.
     Valid(A),
@@ -595,11 +597,13 @@ impl<E, A> Validated<E, A> {
     /// use std::rc::Rc;
     /// use smallvec::smallvec;
     ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// assert_eq!(valid.into_error_payload(), Err(42));
+    /// let valid: Validated<String, i32> = Validated::valid(42);
+    /// let result = valid.into_error_payload();
+    /// assert_eq!(result, Err(42));
     ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid_many(vec!["err1", "err2"]);
-    /// assert_eq!(invalid.into_error_payload(), Ok(smallvec!["err1", "err2"]));
+    /// let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
+    /// let result = invalid.into_error_payload();
+    /// assert_eq!(result, Ok(smallvec!["error".to_string()]));
     ///
     /// // Example with truly non-Clone types
     /// struct TrulyNonClone {
@@ -1976,7 +1980,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let valid_fn: Validated<&str, fn(&i32) -> i32> = Validated::valid(|x: &i32| x * 2);
 /// let valid_val: Validated<&str, i32> = Validated::valid(10);
-/// assert_eq!(valid_fn.apply(&valid_val), Validated::valid(20));
+/// assert_eq!(Applicative::apply(&valid_fn, &valid_val), Validated::valid(20));
 /// ```
 ///
 /// ### Invalid function, Valid value
@@ -1987,7 +1991,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let invalid_fn: Validated<&str, fn(&i32) -> i32> = Validated::invalid("fn_error");
 /// let valid_val: Validated<&str, i32> = Validated::valid(10);
-/// assert_eq!(invalid_fn.apply(&valid_val), Validated::invalid("fn_error"));
+/// assert_eq!(Applicative::apply(&invalid_fn, &valid_val), Validated::invalid("fn_error"));
 /// ```
 ///
 /// ### Valid function, Invalid value
@@ -1998,7 +2002,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let valid_fn: Validated<&str, fn(&i32) -> i32> = Validated::valid(|x: &i32| x * 2);
 /// let invalid_val: Validated<&str, i32> = Validated::invalid("val_error");
-/// assert_eq!(valid_fn.apply(&invalid_val), Validated::invalid("val_error"));
+/// assert_eq!(Applicative::apply(&valid_fn, &invalid_val), Validated::invalid("val_error"));
 /// ```
 ///
 /// ### Invalid function, Invalid value (error accumulation)
@@ -2013,7 +2017,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// // The apply implementation accumulates errors in this order:
 /// // first the errors from the function (self), then the errors from the value (rf)
 /// let expected_errors = smallvec!["fn_error".to_string(), "val_error".to_string()];
-/// assert_eq!(invalid_fn.apply(&invalid_val), Validated::Invalid(expected_errors));
+/// assert_eq!(Applicative::apply(&invalid_fn, &invalid_val), Validated::Invalid(expected_errors));
 /// ```
 ///
 /// # Performance
@@ -2034,7 +2038,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let v1: Validated<&str, i32> = Validated::valid(10);
 /// let v2: Validated<&str, i32> = Validated::valid(20);
-/// let result = Validated::<&str, i32>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
+/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
 /// assert_eq!(result, Validated::valid(30));
 /// ```
 ///
@@ -2046,12 +2050,12 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let v1: Validated<&str, i32> = Validated::valid(10);
 /// let v2: Validated<&str, i32> = Validated::invalid("error_b");
-/// let result = Validated::<&str, i32>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
+/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
 /// assert_eq!(result, Validated::Invalid(smallvec!["error_b"]));
 ///
 /// let v3: Validated<&str, i32> = Validated::invalid("error_a");
 /// let v4: Validated<&str, i32> = Validated::valid(20);
-/// let result2 = Validated::<&str, i32>::lift2(|a: &i32, b: &i32| a + b, &v3, &v4);
+/// let result2 = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v3, &v4);
 /// assert_eq!(result2, Validated::Invalid(smallvec!["error_a"]));
 /// ```
 ///
@@ -2063,14 +2067,14 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let v1: Validated<&str, i32> = Validated::invalid("error1");
 /// let v2: Validated<&str, i32> = Validated::invalid("error2");
-/// let result = Validated::<&str, i32>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
+/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
 /// // The order of errors in lift2 is self's errors then rb's errors.
 /// assert_eq!(result, Validated::Invalid(smallvec!["error1", "error2"]));
 /// ```
 ///
 /// ## Applicative Laws
 ///
-/// ### Homomorphism: `pure(f).apply(pure(x)) == pure(f(x))`
+/// ### Homomorphism: `Applicative::apply(&Validated::pure(f), &Validated::pure(x)) == Validated::pure(f(x))`
 /// ```rust
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::applicative::Applicative;
@@ -2079,12 +2083,12 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// let f = |x: &i32| *x * 2; // Note: Using a reference parameter to match apply's expected Fn(&T) signature
 /// let x = 10;
 ///
-/// // Left side: pure(f).apply(pure(x))
+/// // Left side: Applicative::apply(&Validated::pure(f), &Validated::pure(x))
 /// let pure_f: Validated<String, fn(&i32) -> i32> = Validated::<String, fn(&i32) -> i32>::pure_owned(f);
 /// let pure_x: Validated<String, i32> = Validated::<String, i32>::pure_owned(x);
-/// let left_side = pure_f.apply(&pure_x); // This works because f is a Fn(&i32) -> i32
+/// let left_side = <Validated<String, fn(&i32) -> i32> as Applicative>::apply(&pure_f, &pure_x); // This works because f is a Fn(&i32) -> i32
 ///
-/// // Right side: pure(f(x))
+/// // Right side: Validated::pure(f(x))
 /// let right_side = Validated::<String, i32>::pure_owned(f(&x));
 ///
 /// // Both sides are equal

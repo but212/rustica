@@ -215,3 +215,120 @@ mod applicative_functor_relationship {
         assert_eq!(fmap_result_err, apply_result_err);
     }
 }
+
+#[cfg(test)]
+mod applicative_quickcheck_laws {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+
+    // Identity Law: pure(id) <*> v == v for Option
+    #[quickcheck]
+    fn qc_option_identity(v: Option<i32>) -> bool {
+        let id: fn(&i32) -> i32 = |x| *x;
+        let pure_id = <Option<fn(&i32) -> i32> as Pure>::pure(&id);
+        Applicative::apply(&pure_id, &v) == v
+    }
+
+    // Identity Law: pure(id) <*> v == v for Result
+    #[quickcheck]
+    fn qc_result_identity(x: i32, e: i8, is_ok: bool) -> bool {
+        let v: Result<i32, i8> = if is_ok { Ok(x) } else { Err(e) };
+        let id: fn(&i32) -> i32 = |t| *t;
+        let pure_id = <Result<fn(&i32) -> i32, i8> as Pure>::pure(&id);
+        Applicative::apply(&pure_id, &v) == v
+    }
+
+    // Homomorphism Law: pure(f) <*> pure(x) == pure(f(x)) for Option
+    #[quickcheck]
+    fn qc_option_homomorphism(x: i32) -> bool {
+        let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
+        let pure_f = <Option<fn(&i32) -> i32> as Pure>::pure(&f);
+        let pure_x = <Option<i32> as Pure>::pure(&x);
+        let left = Applicative::apply(&pure_f, &pure_x);
+        let right = <Option<i32> as Pure>::pure(&f(&x));
+        left == right
+    }
+
+    // Homomorphism Law: pure(f) <*> pure(x) == pure(f(x)) for Result
+    #[quickcheck]
+    fn qc_result_homomorphism(x: i32) -> bool {
+        let f: fn(&i32) -> i32 = |n| n.saturating_mul(2);
+        let pure_f = <Result<fn(&i32) -> i32, i8> as Pure>::pure(&f);
+        let pure_x = <Result<i32, i8> as Pure>::pure(&x);
+        let left = Applicative::apply(&pure_f, &pure_x);
+        let right = <Result<i32, i8> as Pure>::pure(&f(&x));
+        left == right
+    }
+
+    // Interchange Law: u <*> pure(y) == pure(|f| f(y)) <*> u for Option
+    #[quickcheck]
+    fn qc_option_interchange(y: i32, u_some: bool) -> bool {
+        let f: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+        let u: Option<fn(&i32) -> i32> = if u_some { Some(f) } else { None };
+        let pure_y = <Option<i32> as Pure>::pure(&y);
+
+        let left = Applicative::apply(&u, &pure_y);
+        let right = Option::<i32>::lift2(
+            |func: &fn(&i32) -> i32, y_ref: &i32| func(y_ref),
+            &u,
+            &pure_y,
+        );
+        left == right
+    }
+
+    // Interchange Law: u <*> pure(y) == pure(|f| f(y)) <*> u for Result
+    #[quickcheck]
+    fn qc_result_interchange(y: i32, is_ok: bool, e: i8) -> bool {
+        let f: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+        let u: Result<fn(&i32) -> i32, i8> = if is_ok { Ok(f) } else { Err(e) };
+        let pure_y = <Result<i32, i8> as Pure>::pure(&y);
+
+        let left = Applicative::apply(&u, &pure_y);
+        let right = Result::<i32, i8>::lift2(
+            |func: &fn(&i32) -> i32, y_ref: &i32| func(y_ref),
+            &u,
+            &pure_y,
+        );
+        left == right
+    }
+
+    // Composition Law: pure(compose) <*> u <*> v <*> w == u <*> (v <*> w) for Option
+    #[quickcheck]
+    fn qc_option_composition(w: Option<i32>, u_some: bool, v_some: bool) -> bool {
+        let f: fn(&i32) -> i32 = |x| x.saturating_add(1);
+        let g: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+        let u: Option<fn(&i32) -> i32> = if u_some { Some(f) } else { None };
+        let v: Option<fn(&i32) -> i32> = if v_some { Some(g) } else { None };
+
+        let left = Option::<i32>::lift3(
+            |f: &fn(&i32) -> i32, g: &fn(&i32) -> i32, x: &i32| f(&g(x)),
+            &u,
+            &v,
+            &w,
+        );
+        let vw = Applicative::apply(&v, &w);
+        let right = Applicative::apply(&u, &vw);
+        left == right
+    }
+
+    // Composition Law: pure(compose) <*> u <*> v <*> w == u <*> (v <*> w) for Result
+    #[quickcheck]
+    fn qc_result_composition(
+        w: Result<i32, i8>, u_ok: bool, u_err: i8, v_ok: bool, v_err: i8,
+    ) -> bool {
+        let f: fn(&i32) -> i32 = |x| x.saturating_add(1);
+        let g: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+        let u: Result<fn(&i32) -> i32, i8> = if u_ok { Ok(f) } else { Err(u_err) };
+        let v: Result<fn(&i32) -> i32, i8> = if v_ok { Ok(g) } else { Err(v_err) };
+
+        let left = Result::<i32, i8>::lift3(
+            |f: &fn(&i32) -> i32, g: &fn(&i32) -> i32, x: &i32| f(&g(x)),
+            &u,
+            &v,
+            &w,
+        );
+        let vw = Applicative::apply(&v, &w);
+        let right = Applicative::apply(&u, &vw);
+        left == right
+    }
+}
