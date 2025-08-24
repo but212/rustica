@@ -460,3 +460,32 @@ fn clear_cache() {
     let v = memo.get_or_compute(1, |_| 42);
     assert_eq!(v, 42);
 }
+
+#[test]
+fn test_memoizer_default() {
+    let counter = Arc::new(Mutex::new(0));
+    let counter_clone = counter.clone();
+    let memoizer: Memoizer<(), i32> = Memoizer::default();
+
+    // First call should compute the value
+    let v1 = memoizer.get_or_compute((), |_| {
+        let mut count = counter_clone.lock().unwrap();
+        *count += 1;
+        *count
+    });
+    assert_eq!(v1, 1);
+
+    // Second call should use cache
+    let v2 = memoizer.get_or_compute((), |_| unreachable!());
+    assert_eq!(v2, 1);
+    assert_eq!(*counter.lock().unwrap(), 1);
+
+    // Clear cache and recompute
+    memoizer.clear();
+    let v3 = memoizer.get_or_compute((), |_| {
+        let mut count = counter.lock().unwrap();
+        *count += 1;
+        *count
+    });
+    assert_eq!(v3, 2);
+}
