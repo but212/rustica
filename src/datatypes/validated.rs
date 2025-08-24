@@ -2107,7 +2107,7 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
             (Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e.clone()),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().cloned().chain(e2.iter().cloned()));
+                errors.extend(e1.iter().chain(e2.iter()).cloned());
                 Validated::Invalid(errors)
             },
         }
@@ -2667,8 +2667,7 @@ impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
             (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().cloned());
-                errors.extend(e2.iter().cloned());
+                errors.extend(e1.iter().chain(e2.iter()).cloned());
                 Validated::Invalid(errors)
             },
         }
@@ -2683,8 +2682,7 @@ impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
             (Validated::Invalid(_), Validated::Valid(_)) => other,
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().cloned());
-                errors.extend(e2.iter().cloned());
+                errors.extend(e1.iter().chain(e2.iter()).cloned());
                 Validated::Invalid(errors)
             },
         }
@@ -2698,21 +2696,19 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
             (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().cloned());
-                errors.extend(e2.iter().cloned());
+                errors.extend(e1.iter().chain(e2.iter()).cloned());
                 Validated::Invalid(errors)
             },
         }
     }
 
     fn combine_owned(self, other: Self) -> Self {
-        match (self.clone(), other.clone()) {
+        match (&self, &other) {
             (Validated::Valid(_), _) => self,
             (Validated::Invalid(_), Validated::Valid(_)) => other,
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().cloned());
-                errors.extend(e2.iter().cloned());
+                errors.extend(e1.iter().chain(e2.iter()).cloned());
                 Validated::Invalid(errors)
             },
         }
