@@ -2677,13 +2677,12 @@ impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
     where
         Self: Sized,
     {
-        match (&self, &other) {
-            (Validated::Valid(_), _) => self,
-            (Validated::Invalid(_), Validated::Valid(_)) => other,
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().chain(e2.iter()).cloned());
-                Validated::Invalid(errors)
+        match (self, other) {
+            (s @ Validated::Valid(_), _) => s,
+            (Validated::Invalid(_), o @ Validated::Valid(_)) => o,
+            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
+                e1.extend(e2);
+                Validated::Invalid(e1)
             },
         }
     }
@@ -2703,13 +2702,12 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
     }
 
     fn combine_owned(self, other: Self) -> Self {
-        match (&self, &other) {
-            (Validated::Valid(_), _) => self,
-            (Validated::Invalid(_), Validated::Valid(_)) => other,
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().chain(e2.iter()).cloned());
-                Validated::Invalid(errors)
+        match (self, other) {
+            (s @ Validated::Valid(_), _) => s,
+            (Validated::Invalid(_), o @ Validated::Valid(_)) => o,
+            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
+                e1.extend(e2);
+                Validated::Invalid(e1)
             },
         }
     }
