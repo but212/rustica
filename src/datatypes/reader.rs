@@ -309,7 +309,7 @@ where
     #[inline]
     pub fn run_reader(&self, env: E) -> A {
         let id_value = self.inner.run_reader(env);
-        id_value.value().clone()
+        id_value.into_inner()
     }
 
     /// Maps a function over the value produced by this Reader, implementing the Functor typeclass.
@@ -358,8 +358,8 @@ where
         Reader {
             inner: ReaderT::new(move |e: E| {
                 let id_a = inner_clone.run_reader(e);
-                let a = id_a.value();
-                Id::new(f(a.clone()))
+                let a = id_a.into_inner();
+                Id::new(f(a))
             }),
         }
     }
@@ -411,7 +411,7 @@ where
         Reader {
             inner: ReaderT::new(move |e: E| {
                 let id_a = inner_clone.run_reader(e.clone());
-                let a = id_a.value().clone();
+                let a = id_a.into_inner();
                 let reader_b = f(a);
                 reader_b.inner.run_reader(e)
             }),
@@ -691,8 +691,8 @@ where
 
         Reader {
             inner: ReaderT::new(move |e: E| {
-                let a = self_inner.run_reader(e.clone()).value().clone();
-                let b = other_inner.run_reader(e).value().clone();
+                let a = self_inner.run_reader(e.clone()).into_inner();
+                let b = other_inner.run_reader(e).into_inner();
                 Id::new(f(a, b))
             }),
         }
