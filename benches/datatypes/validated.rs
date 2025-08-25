@@ -67,7 +67,6 @@ pub fn validated_benchmarks(c: &mut Criterion) {
             error_rate,
             |b, &rate| {
                 let data = gen_validated_vec(1000, rate);
-                b.throughput(Throughput::Elements(1000));
                 b.iter(|| {
                     let count = data.iter().filter(|v| v.is_valid()).count();
                     black_box(count);
