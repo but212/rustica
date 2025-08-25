@@ -78,7 +78,20 @@ where
     P: Fn(&A) -> bool,
     F: Fn(A) -> B,
 {
-    collection.into_iter().filter(predicate).map(f).collect()
+    let iter = collection.into_iter();
+    let (lower, _) = iter.size_hint();
+
+    // Pre-allocate with estimated capacity (assume ~50% pass filter)
+    let estimated_capacity = std::cmp::max(lower / 2, 8);
+    let mut result = Vec::with_capacity(estimated_capacity);
+
+    for item in iter {
+        if predicate(&item) {
+            result.push(f(item));
+        }
+    }
+
+    result
 }
 
 /// Combines elements from two collections using a combining function.
@@ -126,7 +139,19 @@ pub fn zip_with<A, B, C, F>(xs: Vec<A>, ys: Vec<B>, f: F) -> Vec<C>
 where
     F: Fn(A, B) -> C,
 {
-    xs.into_iter().zip(ys).map(|(x, y)| f(x, y)).collect()
+    let min_len = std::cmp::min(xs.len(), ys.len());
+    let mut result = Vec::with_capacity(min_len);
+
+    let mut xs_iter = xs.into_iter();
+    let mut ys_iter = ys.into_iter();
+
+    for _ in 0..min_len {
+        if let (Some(x), Some(y)) = (xs_iter.next(), ys_iter.next()) {
+            result.push(f(x, y));
+        }
+    }
+
+    result
 }
 
 // ===== Pipeline Functions =====
@@ -480,7 +505,14 @@ pub fn fan_out<A: Clone, B, F>(input: A, operations: Vec<F>) -> Vec<B>
 where
     F: Fn(A) -> B,
 {
-    operations.into_iter().map(|op| op(input.clone())).collect()
+    let op_count = operations.len();
+    let mut results = Vec::with_capacity(op_count);
+
+    for op in operations {
+        results.push(op(input.clone()));
+    }
+
+    results
 }
 
 /// Composes multiple transformations into a single function.

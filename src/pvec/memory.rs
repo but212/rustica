@@ -184,11 +184,22 @@ impl<T> Chunk<T> {
 
 impl<T> FromIterator<T> for Chunk<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let chunk_size = DEFAULT_CHUNK_SIZE; // Could be parameterized if needed
-        let mut elements = Vec::with_capacity(chunk_size);
-        for item in iter.into_iter().take(chunk_size) {
+        let iter = iter.into_iter();
+        let chunk_size = DEFAULT_CHUNK_SIZE;
+
+        // Optimize capacity based on iterator size hints
+        let (lower, upper) = iter.size_hint();
+        let capacity = match upper {
+            Some(exact) if exact == lower => std::cmp::min(exact, chunk_size),
+            Some(upper_bound) => std::cmp::min(upper_bound, chunk_size),
+            None => std::cmp::min(lower, chunk_size),
+        };
+
+        let mut elements = Vec::with_capacity(capacity.max(8)); // Ensure minimum capacity
+        for item in iter.take(chunk_size) {
             elements.push(item);
         }
+
         Self {
             elements,
             chunk_size,

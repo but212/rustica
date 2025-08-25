@@ -482,7 +482,20 @@ where
     I: IntoIterator<Item = T>,
     F: Fn(T) -> Option<U>,
 {
-    iter.into_iter().filter_map(f).collect()
+    let iter = iter.into_iter();
+    let (lower, _) = iter.size_hint();
+
+    // Estimate capacity (assume ~50% items pass the filter)
+    let estimated_capacity = std::cmp::max(lower / 2, 8);
+    let mut result = Vec::with_capacity(estimated_capacity);
+
+    for item in iter {
+        if let Some(value) = f(item) {
+            result.push(value);
+        }
+    }
+
+    result
 }
 
 /// Sequences a vector of `Option` values into an `Option` of vector.

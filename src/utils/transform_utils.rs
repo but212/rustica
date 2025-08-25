@@ -102,7 +102,11 @@ where
     F: Fn(&T::Source) -> U + Copy,
     U: Clone,
 {
-    values.iter().map(|v| v.fmap(f)).collect()
+    let mut result = Vec::with_capacity(values.len());
+    for v in values {
+        result.push(v.fmap(f));
+    }
+    result
 }
 
 /// Applies a transformation to a single optional value.
