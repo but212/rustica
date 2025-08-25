@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion};
 use rustica::datatypes::validated::Validated;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
@@ -76,9 +76,20 @@ pub fn validated_benchmarks(c: &mut Criterion) {
     }
 
     group.bench_function("vs_result", |b| {
+        let valid_data = 42;
+        let error_msg = "error".to_string();
         b.iter(|| {
-            black_box(Validated::<String, i32>::invalid("error".to_string()));
-            black_box(Result::<i32, String>::Err("error".to_string()));
+            // Validated creation and operations
+            let validated = black_box(Validated::<String, i32>::valid(valid_data));
+            let validated_err = black_box(Validated::<String, i32>::invalid(error_msg.clone()));
+            black_box(validated.map(|x| x + 1));
+            black_box(validated_err.is_invalid());
+
+            // Result creation and operations
+            let result = black_box(Result::<i32, String>::Ok(valid_data));
+            let result_err = black_box(Result::<i32, String>::Err(error_msg.clone()));
+            black_box(result.map(|x| x + 1));
+            black_box(result_err.is_err());
         });
     });
 
