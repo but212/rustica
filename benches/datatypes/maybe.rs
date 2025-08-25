@@ -36,15 +36,7 @@ fn gen_maybe_vec_ratio(len: usize, percent_just: usize) -> Vec<Maybe<i32>> {
 fn gen_maybe_pairs_ratio(
     len: usize, percent_just_a: usize, percent_just_b: usize,
 ) -> (Vec<Maybe<i32>>, Vec<Maybe<i32>>) {
-    let a: Vec<Maybe<i32>> = (0..len)
-        .map(|i| {
-            if (i % 100) < percent_just_a {
-                Maybe::Just(i as i32)
-            } else {
-                Maybe::Nothing
-            }
-        })
-        .collect();
+    let a = gen_maybe_vec_ratio(len, percent_just_a);
 
     // Offset pattern for b to avoid perfect correlation
     let b: Vec<Maybe<i32>> = (0..len)
