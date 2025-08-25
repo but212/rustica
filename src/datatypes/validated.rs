@@ -717,12 +717,43 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     where
         I: IntoIterator<Item = E>,
     {
-        // Use size_hint to preallocate and avoid repeated reallocations for large iterators
         let iter = errors.into_iter();
-        let (lower, _upper) = iter.size_hint();
-        let mut vec: SmallVec<[E; 4]> = SmallVec::with_capacity(lower);
-        vec.extend(iter);
-        Validated::Invalid(vec)
+
+        // Get size hint once
+        let (lower, upper) = iter.size_hint();
+
+        match upper {
+            Some(exact) if exact == lower => {
+                // ExactSizeIterator case - most efficient
+                if exact <= 4 {
+                    Validated::Invalid(iter.collect())
+                } else {
+                    let mut vec = SmallVec::with_capacity(exact);
+                    vec.extend(iter);
+                    Validated::Invalid(vec)
+                }
+            },
+            Some(upper_bound) => {
+                // Upper bound available
+                if upper_bound <= 4 {
+                    Validated::Invalid(iter.collect())
+                } else {
+                    let mut vec = SmallVec::with_capacity(upper_bound);
+                    vec.extend(iter);
+                    Validated::Invalid(vec)
+                }
+            },
+            None => {
+                // No upper bound - use lower bound or default
+                if lower <= 4 {
+                    Validated::Invalid(iter.collect())
+                } else {
+                    let mut vec = SmallVec::with_capacity(lower);
+                    vec.extend(iter);
+                    Validated::Invalid(vec)
+                }
+            },
+        }
     }
 
     /// Creates a new invalid instance with multiple errors from a collection.
