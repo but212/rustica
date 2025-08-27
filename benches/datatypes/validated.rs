@@ -82,7 +82,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
             // Validated creation and operations
             let validated = black_box(Validated::<String, i32>::valid(valid_data));
             let validated_err = black_box(Validated::<String, i32>::invalid(error_msg.clone()));
-            black_box(validated.map(|x| x + 1));
+            black_box(validated.fmap(|x| x + 1));
             black_box(validated_err.is_invalid());
 
             // Result creation and operations
