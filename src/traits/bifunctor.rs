@@ -286,7 +286,7 @@ pub trait Bifunctor: BinaryHKT {
     ///
     /// let either: Either<i32, String> = Either::Right("hello".to_string());
     /// let mapped = either.first(|say| say.len());
-    /// assert_eq!(mapped, Either::Right(5));
+    /// assert_eq!(mapped, Either::Right(5usize));
     /// ```
     fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
     where
@@ -318,7 +318,7 @@ pub trait Bifunctor: BinaryHKT {
     ///
     /// let left: Either<String, i32> = Either::Left("hello".to_string());
     /// let mapped = left.second(|s| s.len());
-    /// assert_eq!(mapped, Either::Left(5));
+    /// assert_eq!(mapped, Either::Left(5usize));
     /// ```
     fn second<D, G>(&self, f: G) -> Self::BinaryOutput<Self::Source, D>
     where
