@@ -1,18 +1,18 @@
 #[macro_export]
 macro_rules! test_functor_laws {
-    ($type:ty) => {
+    ($type:ty, $inner_type:ty, $f:expr, $g:expr) => {
         #[quickcheck]
         fn functor_identity(x: $type) -> bool {
             // Law: fmap id = id
-            x.fmap(|a: &i32| *a) == x
+            x.fmap(|a: &$inner_type| a.clone()) == x
         }
 
         #[quickcheck]
         fn functor_composition(x: $type) -> bool {
-            let f = |a: &i32| a.saturating_add(1);
-            let g = |a: &i32| a.saturating_mul(2);
+            let f = $f;
+            let g = $g;
             // fmap (g . f) = fmap g . fmap f
-            let h = |a: &i32| g(&f(a));
+            let h = |a: &$inner_type| g(f(a));
             x.fmap(h) == x.fmap(f).fmap(g)
         }
     };

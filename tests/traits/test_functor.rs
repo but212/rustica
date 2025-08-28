@@ -2,7 +2,12 @@ use super::TestFunctor;
 use quickcheck_macros::quickcheck;
 use rustica::prelude::*;
 
-test_functor_laws!(TestFunctor<i32>);
+test_functor_laws!(
+    TestFunctor<i32>,
+    i32,
+    &|a: &i32| a.saturating_add(1),
+    &|a: &i32| a.saturating_mul(2)
+);
 
 #[quickcheck]
 fn functor_fmap_owned(x: TestFunctor<i32>) -> bool {

@@ -23,7 +23,8 @@ async fn test_async_monad_cancellation() {
     handle.abort();
 
     // The aborted task should result in an error.
-    let result = handle.await;
-    assert!(result.is_err());
-    assert!(result.unwrap_err().is_cancelled());
+    let join_error = handle
+        .await
+        .expect_err("Task was expected to be cancelled, but it completed successfully.");
+    assert!(join_error.is_cancelled());
 }
