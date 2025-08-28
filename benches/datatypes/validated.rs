@@ -79,17 +79,23 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         let valid_data = 42;
         let error_msg = "error".to_string();
         b.iter(|| {
-            // Validated creation and operations
-            let validated = black_box(Validated::<String, i32>::valid(valid_data));
-            let validated_err = black_box(Validated::<String, i32>::invalid(error_msg.clone()));
-            black_box(validated.fmap(|x| x + 1));
-            black_box(validated_err.is_invalid());
+            // Validated operations
+            let validated_result = {
+                let validated = Validated::<String, i32>::valid(valid_data);
+                let validated_err = Validated::<String, i32>::invalid(error_msg.clone());
+                let mapped = validated.fmap(|x| x + 1);
+                (mapped, validated_err.is_invalid())
+            };
 
-            // Result creation and operations
-            let result = black_box(Result::<i32, String>::Ok(valid_data));
-            let result_err = black_box(Result::<i32, String>::Err(error_msg.clone()));
-            black_box(result.map(|x| x + 1));
-            black_box(result_err.is_err());
+            // Result operations
+            let result_result = {
+                let result = Result::<i32, String>::Ok(valid_data);
+                let result_err = Result::<i32, String>::Err(error_msg.clone());
+                let mapped = result.map(|x| x + 1).unwrap_or_default();
+                (mapped, result_err.is_err())
+            };
+
+            black_box((validated_result, result_result));
         });
     });
 
