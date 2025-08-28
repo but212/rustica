@@ -281,69 +281,12 @@ pub trait Bifunctor: BinaryHKT {
     /// # Examples
     ///
     /// ```rust
+    /// use rustica::datatypes::either::Either;
     /// use rustica::traits::bifunctor::Bifunctor;
-    /// use rustica::traits::hkt::{HKT, BinaryHKT};
     ///
-    /// // A simple pair type
-    /// #[derive(Debug, PartialEq, Clone)]
-    /// struct Pair<A, B>(A, B);
-    ///
-    /// impl<A, B> HKT for Pair<A, B> {
-    ///     type Source = A;
-    ///     type Output<U> = Pair<U, B>;
-    /// }
-    ///
-    /// impl<A, B> BinaryHKT for Pair<A, B> {
-    ///     type Source2 = B;
-    ///     type BinaryOutput<U, V> = Pair<U, V>;
-    ///
-    ///     fn map_second<F, NewType2>(&self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
-    ///     where
-    ///         F: Fn(&Self::Source2) -> NewType2,
-    ///         Self::Source: Clone,
-    ///     {
-    ///         Pair(self.0.clone(), f(&self.1))
-    ///     }
-    ///
-    ///     fn map_second_owned<F, NewType2>(self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
-    ///     where
-    ///         F: Fn(Self::Source2) -> NewType2,
-    ///     {
-    ///         Pair(self.0, f(self.1))
-    ///     }
-    /// }
-    ///
-    /// impl<A, B> Bifunctor for Pair<A, B>
-    /// where
-    ///     A: Clone,
-    ///     B: Clone,
-    /// {
-    ///     fn first<C, F>(&self, f: F) -> Pair<C, B>
-    ///     where
-    ///         F: Fn(&A) -> C,
-    ///     {
-    ///         Pair(f(&self.0), self.1.clone())
-    ///     }
-    ///
-    ///     fn second<D, G>(&self, g: G) -> Pair<A, D>
-    ///     where
-    ///         G: Fn(&B) -> D,
-    ///     {
-    ///         Pair(self.0.clone(), g(&self.1))
-    ///     }
-    ///
-    ///     fn bimap<C, D, F, G>(&self, f: F, g: G) -> Pair<C, D>
-    ///     where
-    ///         F: Fn(&A) -> C,
-    ///         G: Fn(&B) -> D,
-    ///     {
-    ///         Pair(f(&self.0), g(&self.1))
-    ///     }
-    /// }
-    ///
-    /// let pair: Pair<i32, String> = Pair(5, "hello".to_string());
-    /// let mapped = pair.first(|x| x * 2);
-    /// assert_eq!(mapped, Pair(10, "hello".to_string()));
+    /// let either: Either<i32, String> = Either::Right("hello".to_string());
+    /// let mapped = either.first(|say| say.len());
+    /// assert_eq!(mapped, Either::Right(5usize));
     /// ```
     fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
     where
@@ -371,87 +314,11 @@ pub trait Bifunctor: BinaryHKT {
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::traits::bifunctor::Bifunctor;
-    /// use rustica::traits::hkt::{HKT, BinaryHKT};
+    /// use rustica::prelude::*;
     ///
-    /// // Using Either as an example bifunctor
-    /// #[derive(Debug, PartialEq, Clone)]
-    /// enum Either<L, R> {
-    ///     Left(L),
-    ///     Right(R),
-    /// }
-    ///
-    /// impl<L, R> HKT for Either<L, R> {
-    ///     type Source = L;
-    ///     type Output<U> = Either<U, R>;
-    /// }
-    ///
-    /// impl<L, R> BinaryHKT for Either<L, R> {
-    ///     type Source2 = R;
-    ///     type BinaryOutput<U, V> = Either<U, V>;
-    ///
-    ///     fn map_second<F, NewType2>(&self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
-    ///     where
-    ///         F: Fn(&Self::Source2) -> NewType2,
-    ///         Self::Source: Clone,
-    ///     {
-    ///         match self {
-    ///             Either::Left(l) => Either::Left(l.clone()),
-    ///             Either::Right(r) => Either::Right(f(r)),
-    ///         }
-    ///     }
-    ///
-    ///     fn map_second_owned<F, NewType2>(self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
-    ///     where
-    ///         F: Fn(Self::Source2) -> NewType2,
-    ///     {
-    ///         match self {
-    ///             Either::Left(l) => Either::Left(l),
-    ///             Either::Right(r) => Either::Right(f(r)),
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// impl<L, R> Bifunctor for Either<L, R>
-    /// where
-    ///     L: Clone,
-    ///     R: Clone,
-    /// {
-    ///     fn first<C, F>(&self, f: F) -> Either<C, R>
-    ///     where
-    ///         F: Fn(&L) -> C,
-    ///     {
-    ///         match self {
-    ///             Either::Left(l) => Either::Left(f(l)),
-    ///             Either::Right(r) => Either::Right(r.clone()),
-    ///         }
-    ///     }
-    ///
-    ///     fn second<D, G>(&self, g: G) -> Either<L, D>
-    ///     where
-    ///         G: Fn(&R) -> D,
-    ///     {
-    ///         match self {
-    ///             Either::Left(l) => Either::Left(l.clone()),
-    ///             Either::Right(r) => Either::Right(g(r)),
-    ///         }
-    ///     }
-    ///
-    ///     fn bimap<C, D, F, G>(&self, f: F, g: G) -> Either<C, D>
-    ///     where
-    ///         F: Fn(&L) -> C,
-    ///         G: Fn(&R) -> D,
-    ///     {
-    ///         match self {
-    ///             Either::Left(l) => Either::Left(f(l)),
-    ///             Either::Right(r) => Either::Right(g(r)),
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// let right: Either<i32, String> = Either::Right("hello".to_string());
-    /// let mapped = right.second(|s| s.len());
-    /// assert_eq!(mapped, Either::Right(5));
+    /// let left: Either<String, i32> = Either::Left("hello".to_string());
+    /// let mapped = left.second(|s| s.len());
+    /// assert_eq!(mapped, Either::Left(5usize));
     /// ```
     fn second<D, G>(&self, f: G) -> Self::BinaryOutput<Self::Source, D>
     where

@@ -192,24 +192,15 @@ where
 /// assert_eq!(result2, None);
 /// ```
 #[inline]
-pub fn pipeline_option<A, B, Func>(initial: A, operations: Vec<Func>) -> Option<B>
+pub fn pipeline_option<A, B, I, Func>(initial: A, operations: I) -> Option<B>
 where
     Func: Fn(B) -> Option<B>,
     A: Into<B>,
+    I: IntoIterator<Item = Func>,
 {
-    let mut iter = operations.into_iter();
-
-    // Handle the first operation or just use the initial value
-    let initial_result = match iter.next() {
-        Some(first_op) => first_op(initial.into()),
-        None => Some(initial.into()),
-    };
-
-    // Apply the remaining operations
-    iter.fold(initial_result, |acc, op| match acc {
-        Some(value) => op(value),
-        None => None,
-    })
+    operations
+        .into_iter()
+        .try_fold(initial.into(), |acc, op| op(acc))
 }
 
 /// Chains a sequence of operations that may return `Result<T, E>`.

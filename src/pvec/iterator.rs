@@ -18,7 +18,7 @@ use std::iter::FusedIterator;
 use crate::pvec::vector::PersistentVector;
 
 /// An iterator over the elements of a persistent vector.
-pub struct Iter<'a, T: Clone> {
+pub struct Iter<'a, T> {
     /// Reference to the vector being iterated
     vector: &'a PersistentVector<T>,
 
@@ -90,7 +90,7 @@ impl<T: Clone> ExactSizeIterator for Iter<'_, T> {}
 impl<T: Clone> FusedIterator for Iter<'_, T> {}
 
 /// An iterator that consumes a persistent vector and yields its elements.
-pub struct IntoIter<T: Clone> {
+pub struct IntoIter<T> {
     /// The vector being consumed
     vector: PersistentVector<T>,
 
@@ -164,7 +164,7 @@ impl<T: Clone> FusedIterator for IntoIter<T> {}
 /// An iterator over chunks of elements in a persistent vector.
 ///
 /// This is useful for efficiently processing large vectors in parallel.
-pub struct ChunksIter<'a, T: Clone> {
+pub struct ChunksIter<'a, T> {
     /// Reference to the vector being iterated
     vector: &'a PersistentVector<T>,
 
@@ -248,7 +248,7 @@ impl<T: Clone> Iterator for ChunksIter<'_, T> {
 /// This iterator creates a sorted view of the vector by tracking indices in sorted order
 /// rather than modifying the original data structure. This provides efficient iteration
 /// over elements in their natural ordering while preserving the original vector's structure.
-pub struct SortedIter<'a, T: Clone + Ord> {
+pub struct SortedIter<'a, T: Ord> {
     /// Reference to the vector being iterated
     vector: &'a PersistentVector<T>,
 
