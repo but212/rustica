@@ -714,3 +714,34 @@ fn test_to_map_with_key() {
     let empty_map = empty_choice.to_map_with_key(|s| s.chars().next().unwrap());
     assert!(empty_map.is_empty());
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_choice_serde() {
+    use rustica::datatypes::choice::Choice;
+    use serde_json;
+
+    // Test with a simple Choice
+    let choice = Choice::new(1, vec![2, 3, 4]);
+    let serialized = serde_json::to_string(&choice).unwrap();
+    let deserialized: Choice<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(choice, deserialized);
+
+    // Test with a Choice containing strings
+    let choice_str = Choice::new("hello".to_string(), vec!["world".to_string()]);
+    let serialized_str = serde_json::to_string(&choice_str).unwrap();
+    let deserialized_str: Choice<String> = serde_json::from_str(&serialized_str).unwrap();
+    assert_eq!(choice_str, deserialized_str);
+
+    // Test with an empty Choice
+    let empty_choice: Choice<i32> = Choice::new_empty();
+    let serialized_empty = serde_json::to_string(&empty_choice).unwrap();
+    let deserialized_empty: Choice<i32> = serde_json::from_str(&serialized_empty).unwrap();
+    assert_eq!(empty_choice, deserialized_empty);
+
+    // Test with a Choice with only a primary value
+    let single_choice = Choice::new(10, vec![]);
+    let serialized_single = serde_json::to_string(&single_choice).unwrap();
+    let deserialized_single: Choice<i32> = serde_json::from_str(&serialized_single).unwrap();
+    assert_eq!(single_choice, deserialized_single);
+}

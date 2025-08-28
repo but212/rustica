@@ -193,3 +193,34 @@ fn test_id_clone() {
     let y = x;
     assert_eq!(*x.value(), *y.value());
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_id_serde() {
+    use rustica::datatypes::id::Id;
+    use serde_json;
+
+    // Test with a simple Id
+    let id = Id::new(42);
+    let serialized = serde_json::to_string(&id).unwrap();
+    let deserialized: Id<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(id, deserialized);
+
+    // Test with a string
+    let id_str = Id::new("hello".to_string());
+    let serialized_str = serde_json::to_string(&id_str).unwrap();
+    let deserialized_str: Id<String> = serde_json::from_str(&serialized_str).unwrap();
+    assert_eq!(id_str, deserialized_str);
+
+    // Test with a struct
+    #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+    let point = Point { x: 1, y: 2 };
+    let id_point = Id::new(point.clone());
+    let serialized_point = serde_json::to_string(&id_point).unwrap();
+    let deserialized_point: Id<Point> = serde_json::from_str(&serialized_point).unwrap();
+    assert_eq!(id_point, deserialized_point);
+}

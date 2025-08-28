@@ -401,3 +401,35 @@ fn test_either_left_or_right_or() {
     assert_eq!(l.right_or(0), 0);
     assert_eq!(r.right_or(0), 42);
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_either_serde() {
+    use rustica::datatypes::either::Either;
+    use serde_json;
+
+    // Test with a Right value
+    let right: Either<String, i32> = Either::Right(42);
+    let serialized_right = serde_json::to_string(&right).unwrap();
+    let deserialized_right: Either<String, i32> = serde_json::from_str(&serialized_right).unwrap();
+    assert_eq!(right, deserialized_right);
+
+    // Test with a Left value
+    let left: Either<String, i32> = Either::Left("error".to_string());
+    let serialized_left = serde_json::to_string(&left).unwrap();
+    let deserialized_left: Either<String, i32> = serde_json::from_str(&serialized_left).unwrap();
+    assert_eq!(left, deserialized_left);
+
+    // Test with different types
+    let right_str: Either<i32, String> = Either::Right("hello".to_string());
+    let serialized_right_str = serde_json::to_string(&right_str).unwrap();
+    let deserialized_right_str: Either<i32, String> =
+        serde_json::from_str(&serialized_right_str).unwrap();
+    assert_eq!(right_str, deserialized_right_str);
+
+    let left_int: Either<i32, String> = Either::Left(123);
+    let serialized_left_int = serde_json::to_string(&left_int).unwrap();
+    let deserialized_left_int: Either<i32, String> =
+        serde_json::from_str(&serialized_left_int).unwrap();
+    assert_eq!(left_int, deserialized_left_int);
+}

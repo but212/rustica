@@ -414,3 +414,34 @@ fn test_immutability() {
     assert_eq!(orig, Just(5));
     assert_eq!(bound, Just(6));
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_maybe_serde() {
+    use rustica::datatypes::maybe::Maybe;
+    use serde_json;
+
+    // Test with a Just value
+    let just: Maybe<i32> = Maybe::Just(42);
+    let serialized_just = serde_json::to_string(&just).unwrap();
+    let deserialized_just: Maybe<i32> = serde_json::from_str(&serialized_just).unwrap();
+    assert_eq!(just, deserialized_just);
+
+    // Test with a Nothing value
+    let nothing: Maybe<i32> = Maybe::Nothing;
+    let serialized_nothing = serde_json::to_string(&nothing).unwrap();
+    let deserialized_nothing: Maybe<i32> = serde_json::from_str(&serialized_nothing).unwrap();
+    assert_eq!(nothing, deserialized_nothing);
+
+    // Test with a struct
+    #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+    let point = Point { x: 1, y: 2 };
+    let just_point = Maybe::Just(point.clone());
+    let serialized_point = serde_json::to_string(&just_point).unwrap();
+    let deserialized_point: Maybe<Point> = serde_json::from_str(&serialized_point).unwrap();
+    assert_eq!(just_point, deserialized_point);
+}
