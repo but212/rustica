@@ -202,7 +202,6 @@ impl<T: Clone> Tree<T> {
     }
 
     /// Get a reference to the element at the specified index, using the index cache if policy allows.
-    /// Get a reference to the element at the specified index, using the index cache if policy allows.
     pub fn get_with_cache(&mut self, index: usize) -> Option<&T> {
         if !(self.cache_policy.should_cache(index)) {
             return self.root.get(index, self.shift());
@@ -265,25 +264,40 @@ impl<T: Clone> Tree<T> {
 
     /// Update an element at the specified index, returning a new tree.
     ///
+    /// Uses structural sharing to avoid unnecessary clones when possible.
     /// Returns the original tree if the index is out of bounds.
     #[inline(always)]
     #[must_use]
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.size {
-            return self.clone();
+            // Out-of-bounds: return shared structure instead of clone
+            return self.share_structure();
         }
-        if let Some(new_root) = self.root.update(&self.manager, index, value, self.shift()) {
-            Self {
+
+        match self.root.update(&self.manager, index, value, self.shift()) {
+            Some(new_root) => Self {
                 root: new_root,
                 size: self.size,
                 height: self.height,
-                manager: self.manager.clone(),
-                cache: IndexCache::new(),
-                cache_policy: self.cache_policy.clone(),
+                manager: self.manager.share(), // Share memory manager
+                cache: IndexCache::new(),      // Fresh cache for new structure
+                cache_policy: self.cache_policy.clone_box(),
                 chunk_size: self.chunk_size,
-            }
-        } else {
-            self.clone()
+            },
+            None => self.share_structure(), // Update failed: share structure
+        }
+    }
+
+    /// Create a new tree that shares structure with the current one
+    fn share_structure(&self) -> Self {
+        Self {
+            root: self.root.clone(), // ManagedRef clone is efficient (Arc-based)
+            size: self.size,
+            height: self.height,
+            manager: self.manager.share(), // Share memory manager reference
+            cache: IndexCache::new(),      // Fresh cache for new instance
+            cache_policy: self.cache_policy.clone_box(),
+            chunk_size: self.chunk_size,
         }
     }
 

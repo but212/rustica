@@ -241,6 +241,7 @@ use crate::pvec::memory::BoxedCachePolicy;
 /// // Original vector is unchanged
 /// assert_eq!(vec1.len(), 3);
 /// assert_eq!(vec2.len(), 4);
+/// assert_eq!(vec2.get(0), Some(&1));
 /// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct PersistentVector<T> {
@@ -390,15 +391,26 @@ impl<T: Clone> SmallVec<T> {
     }
 
     /// Returns a new SmallVec with the element at the given index updated
+    /// Uses efficient copying when possible and avoids unnecessary clones
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.len {
-            // Out-of-bounds update is a no-op for persistent semantics
+            // Out-of-bounds update preserves immutability semantics
             return self.clone();
         }
         let mut new = self.clone();
         unsafe {
+            // Drop the existing value before overwriting
+            ptr::drop_in_place(new.elements[index].as_mut_ptr());
             ptr::write(new.elements[index].as_mut_ptr(), value);
         }
+        new
+    }
+
+    /// Create a new SmallVec with updated length using efficient copying
+    #[inline(always)]
+    pub fn with_updated_len(&self, new_len: usize) -> Self {
+        let mut new = self.clone();
+        new.len = new_len;
         new
     }
 
@@ -412,6 +424,22 @@ impl<T: Clone> SmallVec<T> {
             }
         }
         v
+    }
+
+    /// Batch copy from slice for efficient initialization
+    pub fn from_slice_batch(slice: &[T]) -> Self {
+        assert!(
+            slice.len() <= SMALL_VECTOR_SIZE,
+            "Slice too large for SmallVec"
+        );
+        let mut new = Self::new();
+        for (i, item) in slice.iter().enumerate() {
+            unsafe {
+                ptr::write(new.elements[i].as_mut_ptr(), item.clone());
+            }
+        }
+        new.len = slice.len();
+        new
     }
 }
 
@@ -440,13 +468,7 @@ impl<T: Clone> VectorImpl<T> {
     pub fn from_slice(slice: &[T]) -> Self {
         if slice.len() <= SMALL_VECTOR_SIZE {
             VectorImpl::Small {
-                elements: {
-                    let mut v = SmallVec::new();
-                    for x in slice {
-                        v = v.push_back(x.clone());
-                    }
-                    v
-                },
+                elements: SmallVec::from_slice_batch(slice),
             }
         } else {
             VectorImpl::Tree {

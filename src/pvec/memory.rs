@@ -240,8 +240,11 @@ pub(crate) const DEFAULT_POOL_CAPACITY: usize = 128;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AllocationStrategy {
+    /// Direct allocation strategy (no pooling)
     Direct,
+    /// Pooled allocation strategy (with pooling)
     Pooled,
+    /// Adaptive allocation strategy (dynamic pooling)
     Adaptive,
 }
 
@@ -261,13 +264,13 @@ pub struct MemoryManager<T> {
     allocation_strategy: AllocationStrategy,
     node_pool: Arc<Mutex<ObjectPool<Node<T>>>>,
     chunk_pool: Arc<Mutex<ObjectPool<Chunk<T>>>>,
-    node_allocations: AtomicUsize,
-    chunk_allocations: AtomicUsize,
-    node_pool_hits: AtomicUsize,
-    chunk_pool_hits: AtomicUsize,
+    node_allocations: Arc<AtomicUsize>,
+    chunk_allocations: Arc<AtomicUsize>,
+    node_pool_hits: Arc<AtomicUsize>,
+    chunk_pool_hits: Arc<AtomicUsize>,
 }
 
-impl<T: Clone> MemoryManager<T> {
+impl<T> MemoryManager<T> {
     #[inline(always)]
     /// Creates a new `MemoryManager` instance.
     pub fn new(strategy: AllocationStrategy) -> Self {
@@ -275,10 +278,10 @@ impl<T: Clone> MemoryManager<T> {
             allocation_strategy: strategy,
             node_pool: Arc::new(Mutex::new(ObjectPool::new(DEFAULT_POOL_CAPACITY))),
             chunk_pool: Arc::new(Mutex::new(ObjectPool::new(DEFAULT_POOL_CAPACITY))),
-            node_allocations: AtomicUsize::new(0),
-            chunk_allocations: AtomicUsize::new(0),
-            node_pool_hits: AtomicUsize::new(0),
-            chunk_pool_hits: AtomicUsize::new(0),
+            node_allocations: Arc::new(AtomicUsize::new(0)),
+            chunk_allocations: Arc::new(AtomicUsize::new(0)),
+            node_pool_hits: Arc::new(AtomicUsize::new(0)),
+            chunk_pool_hits: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -366,31 +369,57 @@ impl<T: Clone> MemoryManager<T> {
             chunk_pool_hits: self.chunk_pool_hits.load(Ordering::Relaxed),
         }
     }
-}
 
-impl<T: Clone> Clone for MemoryManager<T> {
-    #[inline(always)]
-    fn clone(&self) -> Self {
+    /// Prefill the chunk pool with empty chunks.
+    pub fn prefill_chunks(&self) {
+        match self.allocation_strategy {
+            AllocationStrategy::Pooled => {
+                let mut pool = self.chunk_pool.lock();
+                pool.prefill(|| Chunk::new_with_size(DEFAULT_CHUNK_SIZE));
+            },
+            AllocationStrategy::Direct | AllocationStrategy::Adaptive => {
+                // No pooling for Direct and Adaptive strategies
+            },
+        }
+    }
+
+    /// Create a shared reference to this memory manager for structural sharing
+    pub fn share(&self) -> Self {
         Self {
             allocation_strategy: self.allocation_strategy,
-            node_pool: self.node_pool.clone(),
-            chunk_pool: self.chunk_pool.clone(),
-            node_allocations: AtomicUsize::new(self.node_allocations.load(Ordering::Relaxed)),
-            chunk_allocations: AtomicUsize::new(self.chunk_allocations.load(Ordering::Relaxed)),
-            node_pool_hits: AtomicUsize::new(self.node_pool_hits.load(Ordering::Relaxed)),
-            chunk_pool_hits: AtomicUsize::new(self.chunk_pool_hits.load(Ordering::Relaxed)),
+            node_pool: Arc::clone(&self.node_pool),
+            chunk_pool: Arc::clone(&self.chunk_pool),
+            node_allocations: Arc::clone(&self.node_allocations),
+            chunk_allocations: Arc::clone(&self.chunk_allocations),
+            node_pool_hits: Arc::clone(&self.node_pool_hits),
+            chunk_pool_hits: Arc::clone(&self.chunk_pool_hits),
         }
     }
 }
 
-impl<T: Clone> Default for MemoryManager<T> {
+impl<T> Clone for MemoryManager<T> {
+    #[inline(always)]
+    fn clone(&self) -> Self {
+        Self {
+            allocation_strategy: self.allocation_strategy,
+            node_pool: Arc::clone(&self.node_pool),
+            chunk_pool: Arc::clone(&self.chunk_pool),
+            node_allocations: Arc::clone(&self.node_allocations),
+            chunk_allocations: Arc::clone(&self.chunk_allocations),
+            node_pool_hits: Arc::clone(&self.node_pool_hits),
+            chunk_pool_hits: Arc::clone(&self.chunk_pool_hits),
+        }
+    }
+}
+
+impl<T> Default for MemoryManager<T> {
     #[inline(always)]
     fn default() -> Self {
         Self::new(AllocationStrategy::Pooled)
     }
 }
 
-impl<T: Clone + StdDebug> StdDebug for MemoryManager<T> {
+impl<T> StdDebug for MemoryManager<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MemoryManager")
             .field("allocation_strategy", &self.allocation_strategy)
@@ -399,14 +428,14 @@ impl<T: Clone + StdDebug> StdDebug for MemoryManager<T> {
     }
 }
 
-impl<T: Clone> PartialEq for MemoryManager<T> {
+impl<T> PartialEq for MemoryManager<T> {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         self.allocation_strategy == other.allocation_strategy
     }
 }
 
-impl<T: Clone> Eq for MemoryManager<T> {}
+impl<T> Eq for MemoryManager<T> {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccessPattern {
@@ -425,7 +454,7 @@ impl std::fmt::Display for AccessPattern {
     }
 }
 
-impl<T: Clone> MemoryManager<T> {
+impl<T> MemoryManager<T> {
     /// Optimize the memory manager for a given size and access pattern.
     ///
     /// This method adjusts the allocation strategy and chunk pool based on the
