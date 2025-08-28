@@ -267,7 +267,7 @@ pub struct MemoryManager<T> {
     chunk_pool_hits: AtomicUsize,
 }
 
-impl<T: Clone> MemoryManager<T> {
+impl<T> MemoryManager<T> {
     #[inline(always)]
     /// Creates a new `MemoryManager` instance.
     pub fn new(strategy: AllocationStrategy) -> Self {
@@ -383,14 +383,14 @@ impl<T: Clone> Clone for MemoryManager<T> {
     }
 }
 
-impl<T: Clone> Default for MemoryManager<T> {
+impl<T> Default for MemoryManager<T> {
     #[inline(always)]
     fn default() -> Self {
         Self::new(AllocationStrategy::Pooled)
     }
 }
 
-impl<T: Clone + StdDebug> StdDebug for MemoryManager<T> {
+impl<T: StdDebug> StdDebug for MemoryManager<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MemoryManager")
             .field("allocation_strategy", &self.allocation_strategy)
@@ -399,14 +399,14 @@ impl<T: Clone + StdDebug> StdDebug for MemoryManager<T> {
     }
 }
 
-impl<T: Clone> PartialEq for MemoryManager<T> {
+impl<T> PartialEq for MemoryManager<T> {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         self.allocation_strategy == other.allocation_strategy
     }
 }
 
-impl<T: Clone> Eq for MemoryManager<T> {}
+impl<T> Eq for MemoryManager<T> {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccessPattern {
@@ -425,7 +425,7 @@ impl std::fmt::Display for AccessPattern {
     }
 }
 
-impl<T: Clone> MemoryManager<T> {
+impl<T> MemoryManager<T> {
     /// Optimize the memory manager for a given size and access pattern.
     ///
     /// This method adjusts the allocation strategy and chunk pool based on the
