@@ -217,6 +217,9 @@ use super::tree::Tree;
 use crate::datatypes::lens::Lens;
 use crate::pvec::memory::BoxedCachePolicy;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 /// A persistent vector implemented using a Relaxed Radix Balanced (RRB) tree.
 ///
 /// This immutable data structure provides efficient operations with structural sharing
@@ -1725,5 +1728,26 @@ impl<T: Clone> PersistentVector<T> {
             vec
         });
         Lens::new(get, set)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<T: Serialize + Clone> Serialize for PersistentVector<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.iter().collect::<Vec<_>>().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T: Deserialize<'de> + Clone> Deserialize<'de> for PersistentVector<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let vec: Vec<T> = Vec::deserialize(deserializer)?;
+        Ok(Self::from_iter(vec))
     }
 }
