@@ -240,8 +240,11 @@ pub(crate) const DEFAULT_POOL_CAPACITY: usize = 128;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AllocationStrategy {
+    /// Direct allocation strategy (no pooling)
     Direct,
+    /// Pooled allocation strategy (with pooling)
     Pooled,
+    /// Adaptive allocation strategy (dynamic pooling)
     Adaptive,
 }
 
@@ -366,9 +369,35 @@ impl<T> MemoryManager<T> {
             chunk_pool_hits: self.chunk_pool_hits.load(Ordering::Relaxed),
         }
     }
+
+    /// Prefill the chunk pool with empty chunks.
+    pub fn prefill_chunks(&self) {
+        match self.allocation_strategy {
+            AllocationStrategy::Pooled => {
+                let mut pool = self.chunk_pool.lock();
+                pool.prefill(|| Chunk::new_with_size(DEFAULT_CHUNK_SIZE));
+            },
+            AllocationStrategy::Direct | AllocationStrategy::Adaptive => {
+                // No pooling for Direct and Adaptive strategies
+            },
+        }
+    }
+
+    /// Create a shared reference to this memory manager for structural sharing
+    pub fn share(&self) -> Self {
+        Self {
+            allocation_strategy: self.allocation_strategy,
+            node_pool: Arc::clone(&self.node_pool),
+            chunk_pool: Arc::clone(&self.chunk_pool),
+            node_allocations: AtomicUsize::new(self.node_allocations.load(Ordering::Relaxed)),
+            chunk_allocations: AtomicUsize::new(self.chunk_allocations.load(Ordering::Relaxed)),
+            node_pool_hits: AtomicUsize::new(self.node_pool_hits.load(Ordering::Relaxed)),
+            chunk_pool_hits: AtomicUsize::new(self.chunk_pool_hits.load(Ordering::Relaxed)),
+        }
+    }
 }
 
-impl<T: Clone> Clone for MemoryManager<T> {
+impl<T> Clone for MemoryManager<T> {
     #[inline(always)]
     fn clone(&self) -> Self {
         Self {
