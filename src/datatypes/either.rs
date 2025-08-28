@@ -252,9 +252,10 @@
 
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
+use crate::traits::bifunctor::Bifunctor;
 use crate::traits::composable::Composable;
 use crate::traits::functor::Functor;
-use crate::traits::hkt::HKT;
+use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
@@ -1027,6 +1028,69 @@ impl<L: Clone, R: Clone> Monad for Either<L, R> {
         match self {
             Either::Left(l) => Either::Left(l),
             Either::Right(r) => r.into(),
+        }
+    }
+}
+
+impl<L, R> BinaryHKT for Either<L, R> {
+    type Source2 = L;
+    type BinaryOutput<NewR, NewL> = Either<NewL, NewR>;
+
+    fn map_second<F, NewL>(&self, f: F) -> Either<NewL, R>
+    where
+        F: Fn(&L) -> NewL,
+        R: Clone,
+    {
+        match self {
+            Either::Left(l) => Either::Left(f(l)),
+            Either::Right(r) => Either::Right(r.clone()),
+        }
+    }
+
+    fn map_second_owned<F, NewL>(self, f: F) -> Either<NewL, R>
+    where
+        F: Fn(L) -> NewL,
+    {
+        match self {
+            Either::Left(l) => Either::Left(f(l)),
+            Either::Right(r) => Either::Right(r),
+        }
+    }
+}
+
+impl<L: Clone, R: Clone> Bifunctor for Either<L, R> {
+    fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
+    where
+        F: Fn(&Self::Source) -> C,
+        C: Clone,
+    {
+        match self {
+            Either::Left(l) => Either::Left(l.clone()),
+            Either::Right(r) => Either::Right(f(r)),
+        }
+    }
+
+    fn second<D, G>(&self, g: G) -> Self::BinaryOutput<Self::Source, D>
+    where
+        G: Fn(&Self::Source2) -> D,
+        D: Clone,
+    {
+        match self {
+            Either::Left(l) => Either::Left(g(l)),
+            Either::Right(r) => Either::Right(r.clone()),
+        }
+    }
+
+    fn bimap<C, D, F, G>(&self, f: F, g: G) -> Self::BinaryOutput<C, D>
+    where
+        F: Fn(&Self::Source) -> C,
+        G: Fn(&Self::Source2) -> D,
+        C: Clone,
+        D: Clone,
+    {
+        match self {
+            Either::Left(l) => Either::Left(g(l)),
+            Either::Right(r) => Either::Right(f(r)),
         }
     }
 }
