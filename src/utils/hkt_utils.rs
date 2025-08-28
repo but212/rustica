@@ -139,19 +139,7 @@ pub fn zip_with<A, B, C, F>(xs: Vec<A>, ys: Vec<B>, f: F) -> Vec<C>
 where
     F: Fn(A, B) -> C,
 {
-    let min_len = std::cmp::min(xs.len(), ys.len());
-    let mut result = Vec::with_capacity(min_len);
-
-    let mut xs_iter = xs.into_iter();
-    let mut ys_iter = ys.into_iter();
-
-    for _ in 0..min_len {
-        if let (Some(x), Some(y)) = (xs_iter.next(), ys_iter.next()) {
-            result.push(f(x, y));
-        }
-    }
-
-    result
+    xs.into_iter().zip(ys).map(|(x, y)| f(x, y)).collect()
 }
 
 // ===== Pipeline Functions =====
@@ -505,14 +493,7 @@ pub fn fan_out<A: Clone, B, F>(input: A, operations: Vec<F>) -> Vec<B>
 where
     F: Fn(A) -> B,
 {
-    let op_count = operations.len();
-    let mut results = Vec::with_capacity(op_count);
-
-    for op in operations {
-        results.push(op(input.clone()));
-    }
-
-    results
+    operations.into_iter().map(|op| op(input.clone())).collect()
 }
 
 /// Composes multiple transformations into a single function.
