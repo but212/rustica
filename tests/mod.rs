@@ -1,3 +1,5 @@
+#[macro_use]
+pub mod laws;
 pub mod datatypes;
 pub mod integration;
 pub mod md_tests;

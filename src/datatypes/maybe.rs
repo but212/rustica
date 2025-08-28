@@ -1606,11 +1606,21 @@ where
     T: Arbitrary + Clone,
 {
     fn arbitrary(g: &mut Gen) -> Self {
-        let value = T::arbitrary(g);
         if bool::arbitrary(g) {
-            Maybe::Just(value)
-        } else {
             Maybe::Nothing
+        } else {
+            Maybe::Just(T::arbitrary(g))
+        }
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        match self {
+            Maybe::Just(a) => Box::new(
+                a.shrink()
+                    .map(Maybe::Just)
+                    .chain(std::iter::once(Maybe::Nothing)),
+            ),
+            Maybe::Nothing => Box::new(std::iter::empty()),
         }
     }
 }
