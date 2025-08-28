@@ -3,6 +3,7 @@ use quickcheck_macros::quickcheck;
 use rustica::prelude::*;
 
 test_functor_laws!(
+    functor_laws_for_test_functor,
     TestFunctor<i32>,
     i32,
     &|a: &i32| a.saturating_add(1),
