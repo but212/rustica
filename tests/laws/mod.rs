@@ -12,7 +12,7 @@ macro_rules! test_functor_laws {
             let f = $f;
             let g = $g;
             // fmap (g . f) = fmap g . fmap f
-            let h = |a: &$inner_type| g(f(a));
+            let h = |a: &$inner_type| g(&f(a));
             x.fmap(h) == x.fmap(f).fmap(g)
         }
     };

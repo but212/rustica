@@ -107,11 +107,10 @@ fn benchmark_choice_operations(c: &mut Criterion) {
 
     group.bench_function("choice_select", |b| {
         b.iter(|| {
-            let choice = Choice::new(vec![
+            let choice = Choice::new(
                 Box::new(|x: i32| x + 1),
-                Box::new(|x: i32| x * 2),
-                Box::new(|x: i32| x - 1),
-            ]);
+                vec![Box::new(|x: i32| x * 2), Box::new(|x: i32| x - 1)],
+            );
             black_box(choice.fmap(|f| f(42)))
         })
     });
