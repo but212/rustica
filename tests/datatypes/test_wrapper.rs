@@ -489,3 +489,51 @@ fn test_memoizer_default() {
     });
     assert_eq!(v3, 2);
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_wrapper_serde() {
+    use serde_json;
+
+    // Test First
+    let first = First(Some(42));
+    let serialized = serde_json::to_string(&first).unwrap();
+    let deserialized: First<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(first, deserialized);
+
+    // Test Last
+    let last = Last(Some(42));
+    let serialized = serde_json::to_string(&last).unwrap();
+    let deserialized: Last<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(last, deserialized);
+
+    // Test Max
+    let max = Max(42);
+    let serialized = serde_json::to_string(&max).unwrap();
+    let deserialized: Max<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(max, deserialized);
+
+    // Test Min
+    let min = Min(42);
+    let serialized = serde_json::to_string(&min).unwrap();
+    let deserialized: Min<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(min, deserialized);
+
+    // Test Product
+    let product = Product(42);
+    let serialized = serde_json::to_string(&product).unwrap();
+    let deserialized: Product<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(product, deserialized);
+
+    // Test Sum
+    let sum = Sum(42);
+    let serialized = serde_json::to_string(&sum).unwrap();
+    let deserialized: Sum<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(sum, deserialized);
+
+    // Test Value
+    let value = Value::new(42);
+    let serialized = serde_json::to_string(&value).unwrap();
+    let deserialized: Value<i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(value, deserialized);
+}

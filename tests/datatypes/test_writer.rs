@@ -6,6 +6,7 @@ use rustica::traits::monoid::Monoid;
 use rustica::traits::semigroup::Semigroup;
 
 #[derive(Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Log(Vec<String>);
 
 impl Semigroup for Log {
@@ -216,4 +217,29 @@ fn test_writer_semigroup() {
 
     assert_eq!(value_owned.0, 42); // 10 + 32
     assert_eq!(log_owned, Log(vec!["log3".to_string(), "log4".to_string()]));
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_writer_serde() {
+    use rustica::datatypes::writer::Writer;
+    use serde_json;
+
+    // Test with a simple Writer
+    let writer = Writer::new(Log(vec!["log1".to_string()]), 42);
+    let serialized = serde_json::to_string(&writer).unwrap();
+    let deserialized: Writer<Log, i32> = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(writer, deserialized);
+
+    // Test with a struct
+    #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+    let point = Point { x: 1, y: 2 };
+    let writer_point = Writer::new(Log(vec!["point log".to_string()]), point.clone());
+    let serialized_point = serde_json::to_string(&writer_point).unwrap();
+    let deserialized_point: Writer<Log, Point> = serde_json::from_str(&serialized_point).unwrap();
+    assert_eq!(writer_point, deserialized_point);
 }

@@ -316,8 +316,16 @@ impl<T> Choice<T> {
         I::IntoIter: Iterator,
     {
         let alternatives_iter = alternatives.into_iter();
-        let size = alternatives_iter.size_hint().0;
-        let mut values = SmallVec::<[T; 8]>::with_capacity(size + 1);
+        let (lower, upper) = alternatives_iter.size_hint();
+
+        // Optimize capacity based on size hints
+        let capacity = match upper {
+            Some(exact) if exact == lower => exact + 1, // Exact size known
+            Some(upper_bound) if upper_bound <= 8 => upper_bound + 1, // Fits in SmallVec inline
+            _ => std::cmp::max(lower + 1, 8),           // Use lower bound or SmallVec capacity
+        };
+
+        let mut values = SmallVec::<[T; 8]>::with_capacity(capacity);
         values.push(item);
         values.extend(alternatives_iter);
 
@@ -2239,8 +2247,21 @@ impl<T: Clone> Monad for Choice<T> {
 
         let first = primary_choice.first().unwrap().clone();
 
-        // Calculate capacity for alternatives
-        let capacity = primary_choice.alternatives().len() + self.alternatives().len() * 2;
+        // Calculate more accurate capacity for alternatives
+        let base_capacity = primary_choice.alternatives().len();
+        let alt_count = self.alternatives().len();
+
+        // Estimate total elements: alternatives from primary + (alternatives * avg size)
+        // Use primary choice length as size hint for alternative choices
+        let avg_choice_size = std::cmp::max(1, primary_choice.len());
+        let estimated_total = base_capacity + alt_count * avg_choice_size;
+
+        let capacity = if estimated_total <= 8 {
+            8 // Use SmallVec inline capacity
+        } else {
+            estimated_total
+        };
+
         let mut alternatives = Vec::with_capacity(capacity);
 
         // Add alternatives from primary choice

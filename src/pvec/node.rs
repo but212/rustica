@@ -424,10 +424,8 @@ impl<T: Clone> Node<T> {
     {
         match self {
             Node::Branch { children, sizes } => {
-                let mut new_children = Vec::with_capacity(children.len());
-                for child in children.iter() {
-                    new_children.push(child.clone());
-                }
+                // Clone children more efficiently
+                let mut new_children = children.clone();
                 let mut new_sizes = sizes.clone();
                 modifier(&mut new_children, &mut new_sizes);
                 Ok(ManagedRef::new(Arc::new(Node::Branch {
@@ -765,9 +763,7 @@ impl<T: Clone> Node<T> {
                 let (child_left, child_right) =
                     child.split(sub_index, shift - NODE_BITS, manager)?;
                 let mut left_children = Vec::with_capacity(child_index + 1);
-                for child in children.iter().take(child_index) {
-                    left_children.push(child.clone());
-                }
+                left_children.extend(children.iter().take(child_index).cloned());
                 left_children.push(Some(child_left.clone()));
                 let left_sizes = if let Some(sizes) = sizes {
                     let mut left_size_table = Vec::with_capacity(child_index + 1);
@@ -784,9 +780,7 @@ impl<T: Clone> Node<T> {
                 };
                 let mut right_children = Vec::with_capacity(children.len() - child_index);
                 right_children.push(Some(child_right.clone()));
-                for child in children.iter().skip(child_index + 1) {
-                    right_children.push(child.clone());
-                }
+                right_children.extend(children.iter().skip(child_index + 1).cloned());
                 let right_sizes = Some(Self::build_size_table(&right_children));
                 let left_node = manager.allocate_node(Node::Branch {
                     children: left_children,

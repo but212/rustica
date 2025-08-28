@@ -1900,3 +1900,38 @@ mod test_summary {
 // The test suite is organized into logical modules following Rust best practices,
 // with clear separation of concerns and comprehensive coverage of all functionality.
 // Each test is well-documented and demonstrates specific aspects of the Validated type.
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_validated_serde() {
+    use rustica::datatypes::validated::Validated;
+    use serde_json;
+
+    // Test with a Valid value
+    let valid: Validated<String, i32> = Validated::Valid(42);
+    let serialized_valid = serde_json::to_string(&valid).unwrap();
+    let deserialized_valid: Validated<String, i32> =
+        serde_json::from_str(&serialized_valid).unwrap();
+    assert_eq!(valid, deserialized_valid);
+
+    // Test with an Invalid value
+    let invalid: Validated<String, i32> =
+        Validated::Invalid(smallvec!["error1".to_string(), "error2".to_string()]);
+    let serialized_invalid = serde_json::to_string(&invalid).unwrap();
+    let deserialized_invalid: Validated<String, i32> =
+        serde_json::from_str(&serialized_invalid).unwrap();
+    assert_eq!(invalid, deserialized_invalid);
+
+    // Test with a struct
+    #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+    let point = Point { x: 1, y: 2 };
+    let valid_point: Validated<String, Point> = Validated::Valid(point.clone());
+    let serialized_point = serde_json::to_string(&valid_point).unwrap();
+    let deserialized_point: Validated<String, Point> =
+        serde_json::from_str(&serialized_point).unwrap();
+    assert_eq!(valid_point, deserialized_point);
+}

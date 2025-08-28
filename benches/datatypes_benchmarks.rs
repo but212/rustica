@@ -74,9 +74,7 @@ criterion_group!(
     prism_benchmarks,
     iso_lens_benchmarks,
     iso_prism_benchmarks,
-    pvec_benchmarks,
-    either_benchmarks,
-    id_benchmarks
+    pvec_benchmarks
 );
 
 criterion_main!(datatype_benches);
