@@ -2251,12 +2251,15 @@ impl<T: Clone> Monad for Choice<T> {
         let base_capacity = primary_choice.alternatives().len();
         let alt_count = self.alternatives().len();
 
-        // Use SmallVec inline capacity for small collections
-        let capacity = if base_capacity + alt_count <= 8 {
+        // Estimate total elements: alternatives from primary + (alternatives * avg size)
+        // Use primary choice length as size hint for alternative choices
+        let avg_choice_size = std::cmp::max(1, primary_choice.len());
+        let estimated_total = base_capacity + alt_count * avg_choice_size;
+
+        let capacity = if estimated_total <= 8 {
             8 // Use SmallVec inline capacity
         } else {
-            // Estimate based on primary choice size
-            base_capacity + alt_count * std::cmp::max(1, primary_choice.len() / 2)
+            estimated_total
         };
 
         let mut alternatives = Vec::with_capacity(capacity);
