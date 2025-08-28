@@ -209,6 +209,7 @@
 
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
+use std::marker::PhantomData;
 use std::ops::Index;
 use std::sync::Arc;
 
@@ -216,6 +217,8 @@ use super::iterator::{ChunksIter, Iter, SortedIter};
 use super::tree::Tree;
 use crate::datatypes::lens::Lens;
 use crate::pvec::memory::BoxedCachePolicy;
+use serde::de::{SeqAccess, Visitor};
+use serde::ser::SerializeSeq;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -1737,17 +1740,41 @@ impl<T: Serialize + Clone> Serialize for PersistentVector<T> {
     where
         S: Serializer,
     {
-        self.iter().collect::<Vec<_>>().serialize(serializer)
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+        for element in self.iter() {
+            seq.serialize_element(element)?;
+        }
+        seq.end()
     }
 }
 
+struct PersistentVectorVisitor<T>(PhantomData<T>);
+
 #[cfg(feature = "serde")]
+impl<'de, T: Deserialize<'de> + Clone> Visitor<'de> for PersistentVectorVisitor<T> {
+    type Value = PersistentVector<T>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a sequence")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut pvec = PersistentVector::new();
+        while let Some(value) = seq.next_element()? {
+            pvec = pvec.push_back(value);
+        }
+        Ok(pvec)
+    }
+}
+
 impl<'de, T: Deserialize<'de> + Clone> Deserialize<'de> for PersistentVector<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let vec: Vec<T> = Vec::deserialize(deserializer)?;
-        Ok(Self::from_iter(vec))
+        deserializer.deserialize_seq(PersistentVectorVisitor(PhantomData))
     }
 }
