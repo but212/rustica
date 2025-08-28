@@ -84,18 +84,18 @@ fn benchmark_applicative_apply(c: &mut Criterion) {
     // Maybe applicative
     group.bench_function("maybe", |b| {
         b.iter(|| {
-            let f = Maybe::Just(|x: i32| x * 2);
+            let f = Maybe::Just(|x: &i32| x * 2);
             let v = Maybe::Just(21);
-            black_box(Applicative::apply(f, v))
+            black_box(Applicative::apply(&f, &v))
         })
     });
 
     // Either applicative
     group.bench_function("either", |b| {
         b.iter(|| {
-            let f: Either<String, fn(i32) -> i32> = Either::Right(|x| x * 2);
+            let f: Either<String, fn(&i32) -> i32> = Either::Right(|x| x * 2);
             let v: Either<String, i32> = Either::Right(21);
-            black_box(Applicative::apply(f, v))
+            black_box(Applicative::apply(&f, &v))
         })
     });
 
@@ -107,11 +107,11 @@ fn benchmark_choice_operations(c: &mut Criterion) {
 
     group.bench_function("choice_select", |b| {
         b.iter(|| {
-            let choice = Choice::new(
-                Box::new(|x: i32| x + 1),
-                vec![Box::new(|x: i32| x * 2), Box::new(|x: i32| x - 1)],
-            );
-            black_box(choice.fmap(|f| f(42)))
+            let f1: fn(&i32) -> i32 = |x| x + 1;
+            let f2: fn(&i32) -> i32 = |x| x * 2;
+            let f3: fn(&i32) -> i32 = |x| x - 1;
+            let choice = Choice::new(f1, vec![f2, f3]);
+            black_box(choice.fmap(|f| f(&42)))
         })
     });
 
