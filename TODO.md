@@ -1,25 +1,5 @@
 # Rustica TODO
 
-## Priority: Critical (Target v0.9.0)
-
-### Documentation & Usability Improvements
-
-- [x] Improve API documentation quality
-  - [x] Add runnable examples to all public functions
-  - [x] Document performance characteristics (Big-O complexity, memory usage)
-  - [x] Include type class law verification methods and examples
-  - [x] Add quickstart examples to each module
-
-### Test Coverage Enhancement
-
-- [x] Expand property-based testing
-  - [x] Automated verification of all type class laws
-  - [x] Generate random test cases using QuickCheck
-  - [x] Automate performance regression tests
-- [x] Add integration tests
-  - [x] Tests based on real-world use cases
-  - [x] Edge case testing for async operations
-
 ## Priority: High (Target v0.10.0)
 
 ### Performance Optimization
