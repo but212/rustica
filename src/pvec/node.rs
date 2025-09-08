@@ -6,7 +6,9 @@ use std::fmt::{self, Debug};
 use std::sync::Arc;
 
 // Only import what is needed for node.rs, now that memory-related types are defined in memory.rs
-use crate::pvec::memory::{CHUNK_BITS, Chunk, DEFAULT_CHUNK_SIZE, ManagedRef, MemoryManager};
+use crate::pvec::memory::{
+    CHUNK_BITS, Chunk, ChunkSize, DEFAULT_CHUNK_SIZE, ManagedRef, MemoryManager,
+};
 use crate::utils::error_utils::{AppError, error_with_context};
 
 /// Standard error type for pvec node operations
@@ -591,7 +593,7 @@ impl<T: Clone> Node<T> {
                     });
                     (new_node, false, None)
                 } else {
-                    let mut new_chunk = Chunk::new_with_size(chunk_size);
+                    let mut new_chunk = Chunk::new_with_size(ChunkSize::optimal_for(chunk_size));
                     new_chunk.push_back(value);
                     let overflow = manager.allocate_node(Node::Leaf {
                         elements: manager.allocate_chunk(new_chunk),
@@ -604,7 +606,7 @@ impl<T: Clone> Node<T> {
             },
             Node::Branch { children, sizes: _ } => {
                 if children.is_empty() {
-                    let mut new_chunk = Chunk::new_with_size(chunk_size);
+                    let mut new_chunk = Chunk::new_with_size(ChunkSize::optimal_for(chunk_size));
                     new_chunk.push_back(value);
                     let new_node = manager.allocate_node(Node::Leaf {
                         elements: manager.allocate_chunk(new_chunk),
@@ -647,7 +649,8 @@ impl<T: Clone> Node<T> {
                             )
                         }
                     } else {
-                        let mut new_chunk = Chunk::new_with_size(chunk_size);
+                        let mut new_chunk =
+                            Chunk::new_with_size(ChunkSize::optimal_for(chunk_size));
                         new_chunk.push_back(value);
                         let leaf_node = manager.allocate_node(Node::Leaf {
                             elements: manager.allocate_chunk(new_chunk),
@@ -699,7 +702,8 @@ impl<T: Clone> Node<T> {
                 }
                 // Defensive: if splitting at 0 or at total, return empty and full accordingly
                 let left_chunk = manager.allocate_chunk({
-                    let mut c = Chunk::new_with_size(elements.inner().len());
+                    let mut c =
+                        Chunk::new_with_size(ChunkSize::optimal_for(elements.inner().len()));
                     for i in 0..index {
                         if let Some(val) = elements.inner().get(i) {
                             c.push_back(val.clone());
@@ -708,7 +712,8 @@ impl<T: Clone> Node<T> {
                     c
                 });
                 let right_chunk = manager.allocate_chunk({
-                    let mut c = Chunk::new_with_size(elements.inner().len());
+                    let mut c =
+                        Chunk::new_with_size(ChunkSize::optimal_for(elements.inner().len()));
                     for i in index..total {
                         if let Some(val) = elements.inner().get(i) {
                             c.push_back(val.clone());

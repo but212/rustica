@@ -13,8 +13,9 @@
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 
-use crate::pvec::memory::IndexCache;
-use crate::pvec::memory::{AllocationStrategy, BoxedCachePolicy, Chunk, ManagedRef, MemoryManager};
+use crate::pvec::memory::{
+    AllocationStrategy, BoxedCachePolicy, Chunk, ChunkSize, IndexCache, ManagedRef, MemoryManager,
+};
 use crate::pvec::node::{NODE_BITS, Node};
 
 /// A persistent vector implemented as a Relaxed Radix Balanced (RRB) tree.
@@ -71,7 +72,8 @@ impl<T: Clone> Tree<T> {
     #[must_use]
     pub fn new_with_chunk_size(chunk_size: usize) -> Self {
         let manager = MemoryManager::new(AllocationStrategy::Direct);
-        let chunk = manager.allocate_chunk(Chunk::new_with_size(chunk_size));
+        let chunk =
+            manager.allocate_chunk(Chunk::new_with_size(ChunkSize::optimal_for(chunk_size)));
         let root = manager.allocate_node(Node::leaf(chunk));
         Self {
             root,
@@ -107,7 +109,7 @@ impl<T: Clone> Tree<T> {
         let mut size = 0;
         let manager = MemoryManager::new(AllocationStrategy::Direct);
         for chunk in slice.chunks(chunk_size) {
-            let mut c = Chunk::new_with_size(chunk_size);
+            let mut c = Chunk::new_with_size(ChunkSize::optimal_for(chunk_size));
             for item in chunk {
                 c.push_back(item.clone());
             }
@@ -326,7 +328,9 @@ impl<T: Clone> Tree<T> {
                     panic!("Split index {index} out of bounds for leaf of size {total}");
                 }
                 let left_chunk = self.manager.allocate_chunk({
-                    let mut c = crate::pvec::memory::Chunk::new_with_size(chunk.len());
+                    let mut c = crate::pvec::memory::Chunk::new_with_size(
+                        crate::pvec::memory::ChunkSize::optimal_for(chunk.len()),
+                    );
                     for i in 0..index {
                         if let Some(val) = chunk.get(i) {
                             c.push_back(val.clone());
@@ -335,7 +339,9 @@ impl<T: Clone> Tree<T> {
                     c
                 });
                 let right_chunk = self.manager.allocate_chunk({
-                    let mut c = crate::pvec::memory::Chunk::new_with_size(chunk.len());
+                    let mut c = crate::pvec::memory::Chunk::new_with_size(
+                        crate::pvec::memory::ChunkSize::optimal_for(chunk.len()),
+                    );
                     for i in index..total {
                         if let Some(val) = chunk.get(i) {
                             c.push_back(val.clone());
@@ -443,7 +449,9 @@ impl<T: Clone> Tree<T> {
         if new_tree.size == 0 {
             let chunk = self
                 .manager
-                .allocate_chunk(crate::pvec::memory::Chunk::new_with_size(self.chunk_size));
+                .allocate_chunk(crate::pvec::memory::Chunk::new_with_size(
+                    ChunkSize::optimal_for(self.chunk_size),
+                ));
             let root = self
                 .manager
                 .allocate_node(crate::pvec::node::Node::leaf(chunk));
