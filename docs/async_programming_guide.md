@@ -9,7 +9,7 @@ This guide will walk you through the core patterns for using `AsyncM` to manage 
 ```toml
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-rustica = { version = "0.8.0" }
+rustica = { version = "0.9.0" }
 ```
 
 ## 1. What is `AsyncM`?

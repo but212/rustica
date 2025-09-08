@@ -31,7 +31,7 @@ version = "0.1.0"
 edition = "2024"  # Required for Rustica 0.8.0+
 
 [dependencies]
-rustica = "0.8.0"  # Check for the latest version on crates.io
+rustica = "0.9.0"  # Check for the latest version on crates.io
 ```
 
 If you want to use specific features, add them as needed:
@@ -39,13 +39,13 @@ If you want to use specific features, add them as needed:
 ```toml
 [dependencies]
 # For async support
-rustica = { version = "0.8.0", features = ["async"] }
+rustica = { version = "0.9.0", features = ["async"] }
 
 # For persistent vector collections
-rustica = { version = "0.8.0", features = ["pvec"] }
+rustica = { version = "0.9.0", features = ["pvec"] }
 
 # For all features
-rustica = { version = "0.8.0", features = ["full"] }
+rustica = { version = "0.9.0", features = ["full"] }
 ```
 
 ### Available Features

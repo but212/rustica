@@ -16,7 +16,7 @@ To get started with Rustica, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.8.0"
+rustica = "0.9.0"
 ```
 
 Then import the prelude to get access to the most commonly used types and traits:
