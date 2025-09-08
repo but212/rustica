@@ -9,7 +9,7 @@ This guide will walk you through the core patterns for using `AsyncM` to manage 
 ```toml
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-rustica = { version = "0.8.0" }
+rustica = { version = "0.9.0" }
 ```
 
 ## 1. What is `AsyncM`?
@@ -102,54 +102,7 @@ async fn main() {
 
 `bind` is the perfect tool for creating a sequential, step-by-step asynchronous workflow.
 
-## 4. Running Operations Concurrently with `apply`
-
-What if you have multiple asynchronous operations that _don't_ depend on each other? Running them sequentially with `bind` would be inefficient. This is where `apply` (from the Applicative pattern) shines. It allows you to run multiple `AsyncM` instances concurrently and combine their results.
-
-Let's say you need to fetch a user's profile and their recent activity from two different services. These can happen at the same time.
-
-```rust
-use rustica::datatypes::async_monad::AsyncM;
-use std::time::Duration;
-
-// Simulate fetching user profile
-async fn fetch_profile(user_id: u32) -> String {
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    format!("Profile for {user_id}")
-}
-
-// Simulate fetching user activity
-async fn fetch_activity(user_id: u32) -> String {
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    format!("Activity for {user_id}")
-}
-
-// A function to combine the results
-fn combine_data(profile: String, activity: String) -> (String, String) {
-    (profile, activity)
-}
-
-#[tokio::main]
-async fn main() {
-    let user_id = 101;
-
-    // Create the two independent operations
-    let get_profile = AsyncM::new(move || fetch_profile(user_id));
-    let get_activity = AsyncM::new(move || fetch_activity(user_id));
-
-    // Use zip_with to run them concurrently and combine results
-    let combined_operation = get_profile.zip_with(get_activity, combine_data);
-    let (profile, activity) = combined_operation.try_get().await;
-    
-    // profile is "Profile for 101"
-    // activity is "Activity for 101"
-    // The total execution time is ~100ms because they run in parallel.
-}
-```
-
-By using `apply`, we execute both `fetch_profile` and `fetch_activity` at the same time. The `join!` inside `AsyncM::apply` handles the concurrent execution. This is a powerful pattern for optimizing I/O-bound applications.
-
-## 5. Other Useful Patterns
+## 4. Other Useful Patterns
 
 ### Handling Errors with `from_result_or_default`
 

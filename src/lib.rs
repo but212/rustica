@@ -21,7 +21,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rustica = "0.8"
+//! rustica = "0.9"
 //! ```
 //!
 //! Import common traits and types through the prelude:

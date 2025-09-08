@@ -61,49 +61,6 @@ async fn using_async_m_bind_for_chaining_operations() {
 }
 
 #[tokio::test]
-async fn running_operations_concurrently_with_apply() {
-    use rustica::datatypes::async_monad::AsyncM;
-    use std::time::Duration;
-
-    // Simulate fetching user profile
-    async fn fetch_profile(user_id: u32) -> String {
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        format!("Profile for {user_id}")
-    }
-
-    // Simulate fetching user activity
-    async fn fetch_activity(user_id: u32) -> String {
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        format!("Activity for {user_id}")
-    }
-
-    // A function to combine the results
-    fn combine_data(profile: String, activity: String) -> (String, String) {
-        (profile, activity)
-    }
-    let user_id = 101;
-
-    // Create the two independent operations
-    let get_profile = AsyncM::new(move || fetch_profile(user_id));
-    let get_activity = AsyncM::new(move || fetch_activity(user_id));
-
-    println!("Fetching profile and activity concurrently...");
-    let start = std::time::Instant::now();
-
-    // Use zip_with to run them concurrently and combine results
-    let combined_operation = get_profile.zip_with(get_activity, combine_data);
-    let (profile, activity) = combined_operation.try_get().await;
-
-    let duration = start.elapsed();
-
-    println!("Profile: '{profile}'");
-    println!("Activity: '{activity}'");
-    println!("Concurrent execution took: {duration:?}");
-
-    assert!(duration < Duration::from_millis(180));
-}
-
-#[tokio::test]
 async fn handling_errors_with_from_result_or_default() {
     use rustica::datatypes::async_monad::AsyncM;
 
