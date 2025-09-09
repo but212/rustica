@@ -51,9 +51,6 @@
 //! - **Compositional Logic**: Enables clean composition of operations that might fail without
 //!   explicit conditional statements
 //!
-//! - **Short-Circuit Evaluation**: Automatically propagates failure states (`Nothing`) through
-//!   computation chains, similar to how Rust's `?` operator works
-//!
 //! Similar constructs in other functional languages include:
 //!
 //! - Haskell's `Maybe` type with `Just` and `Nothing` constructors
@@ -65,7 +62,6 @@
 //! # Key Features
 //!
 //! - **Failure Handling**: Represents computations that might not return a value
-//! - **Short-circuiting**: Operations on `Nothing` propagate the `Nothing` value
 //! - **Composition**: Chain operations together without explicit null checks
 //!
 //! # Common Use Cases
