@@ -86,7 +86,6 @@
 //! assert_eq!(result.map(|(s, v)| (s.value, s.increments, v)), Some((12, 2, 6)));
 //! ```
 
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::traits::monad::Monad;
@@ -121,20 +120,23 @@ pub type StateCombiner<S, A, B, C> = Box<dyn Fn((S, A), (S, B)) -> (S, C) + Send
 /// let result = count_chars.run_state(5);
 /// assert_eq!(result, Ok((6, 5)));
 /// ```
-pub struct StateT<S, M, A> {
-    run_fn: Arc<dyn Fn(S) -> M + Send + Sync>,
-    phantom: PhantomData<A>,
+pub enum StateT<S, M, A> {
+    Pure(A),
+    LiftM(M),
+    Effect(Arc<dyn Fn(S) -> M + Send + Sync>),
 }
 
 impl<S, M, A> Clone for StateT<S, M, A>
 where
     S: 'static,
-    M: 'static,
+    M: Clone + 'static,
+    A: Clone + 'static,
 {
     fn clone(&self) -> Self {
-        StateT {
-            run_fn: Arc::clone(&self.run_fn),
-            phantom: PhantomData,
+        match self {
+            StateT::Pure(a) => StateT::Pure(a.clone()),
+            StateT::LiftM(m) => StateT::LiftM(m.clone()),
+            StateT::Effect(f) => StateT::Effect(Arc::clone(f)),
         }
     }
 }
@@ -177,10 +179,7 @@ where
     where
         F: Fn(S) -> M + Send + Sync + 'static,
     {
-        StateT {
-            run_fn: Arc::new(f),
-            phantom: PhantomData,
-        }
+        StateT::Effect(Arc::new(f))
     }
 
     /// Runs the state transformer with a specific initial state.
@@ -222,8 +221,16 @@ where
     /// let result2 = count_word.run_state(new_state);
     /// assert_eq!(result2.map(|(_, c)| c), Some(2));
     /// ```
-    pub fn run_state(&self, state: S) -> M {
-        (self.run_fn)(state)
+    pub fn run_state(&self, state: S) -> M
+    where
+        M: Clone,
+        A: Clone,
+    {
+        match self {
+            StateT::Pure(_) => panic!("Cannot run Pure StateT without a base monad"),
+            StateT::LiftM(m) => m.clone(),
+            StateT::Effect(f) => f(state),
+        }
     }
 
     /// Creates a `StateT` that returns the current state without modifying it.
@@ -358,16 +365,27 @@ where
         F: Fn(A) -> B + Send + Sync + Clone + 'static,
         MapFn: Fn(M, StateValueMapper<S, A, B>) -> M + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
+        M: Clone + 'static,
+        A: Clone + 'static,
         B: 'static,
     {
-        let run_fn = Arc::clone(&self.run_fn);
+        match self {
+            StateT::Pure(a) => {
+                let b = f(a.clone());
+                StateT::Pure(b)
+            },
+            StateT::LiftM(m) => StateT::LiftM(m.clone()),
+            StateT::Effect(run_fn) => {
+                let run_fn = Arc::clone(run_fn);
+                StateT::new(move |s: S| {
+                    let f_clone = f.clone();
+                    let mapper: StateValueMapper<S, A, B> =
+                        Box::new(move |(state, a)| (state, f_clone(a)));
 
-        StateT::new(move |s: S| {
-            let f_clone = f.clone();
-            let mapper: StateValueMapper<S, A, B> = Box::new(move |(state, a)| (state, f_clone(a)));
-
-            map_fn((run_fn)(s), mapper)
-        })
+                    map_fn(run_fn(s), mapper)
+                })
+            },
+        }
     }
 
     /// Binds this StateT with a function that produces another StateT.
@@ -419,20 +437,28 @@ where
         F: Fn(A) -> StateT<S, N, B> + Send + Sync + Clone + 'static,
         BindFn: Fn(M, Box<dyn Fn((S, A)) -> N + Send + Sync>) -> N + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
-        N: 'static,
-        B: 'static,
+        M: Clone + 'static,
+        A: Clone + 'static,
+        N: Clone + 'static,
+        B: Clone + 'static,
     {
-        let run_fn = Arc::clone(&self.run_fn);
+        match self {
+            StateT::Pure(a) => f(a.clone()),
+            StateT::LiftM(_) => panic!("Cannot bind LiftM StateT without proper context"),
+            StateT::Effect(run_fn) => {
+                let run_fn = Arc::clone(run_fn);
+                StateT::new(move |s: S| {
+                    let f_clone = f.clone();
+                    let binder: Box<dyn Fn((S, A)) -> N + Send + Sync> =
+                        Box::new(move |(state, a)| {
+                            let next_state_t = f_clone(a);
+                            next_state_t.run_state(state)
+                        });
 
-        StateT::new(move |s: S| {
-            let f_clone = f.clone();
-            let binder: Box<dyn Fn((S, A)) -> N + Send + Sync> = Box::new(move |(state, a)| {
-                let next_state_t = f_clone(a);
-                next_state_t.run_state(state)
-            });
-
-            bind_fn((run_fn)(s), binder)
-        })
+                    bind_fn(run_fn(s), binder)
+                })
+            },
+        }
     }
 
     /// Combines this StateT with another using a binary function.
@@ -455,21 +481,34 @@ where
         F: Fn(A, B) -> C + Send + Sync + Clone + 'static,
         CombineFn: Fn(M, M, StateCombiner<S, A, B, C>) -> M + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
-        B: 'static,
+        M: Clone + 'static,
+        A: Clone + 'static,
+        B: Clone + 'static,
         C: 'static,
     {
-        let self_run_fn = Arc::clone(&self.run_fn);
-        let other_run_fn = Arc::clone(&other.run_fn);
+        match (self, other) {
+            (StateT::Pure(a), StateT::Pure(b)) => {
+                let c = f(a.clone(), b.clone());
+                StateT::Pure(c)
+            },
+            (StateT::LiftM(m1), StateT::LiftM(_m2)) => StateT::LiftM(m1.clone()),
+            (StateT::Effect(self_run_fn), StateT::Effect(other_run_fn)) => {
+                let self_run_fn = Arc::clone(self_run_fn);
+                let other_run_fn = Arc::clone(other_run_fn);
 
-        StateT::new(move |s: S| {
-            let f_clone = f.clone();
-            let combiner: StateCombiner<S, A, B, C> = Box::new(move |(_, a), (state, b)| {
-                let f_clone = f_clone.clone();
-                (state, f_clone(a, b))
-            });
+                StateT::new(move |s: S| {
+                    let f_clone = f.clone();
+                    let combiner: StateCombiner<S, A, B, C> =
+                        Box::new(move |(_, a), (state, b)| {
+                            let f_clone = f_clone.clone();
+                            (state, f_clone(a, b))
+                        });
 
-            combine_fn((self_run_fn)(s.clone()), (other_run_fn)(s), combiner)
-        })
+                    combine_fn(self_run_fn(s.clone()), other_run_fn(s), combiner)
+                })
+            },
+            _ => panic!("Cannot combine StateT variants of different types"),
+        }
     }
 
     /// Creates a new `StateT` transformer with a pure value.
@@ -533,6 +572,8 @@ where
     pub fn exec_state<F, B>(&self, s: S, extract_state_fn: F) -> B
     where
         F: FnOnce(M) -> B,
+        M: Clone,
+        A: Clone,
     {
         extract_state_fn(self.run_state(s))
     }
@@ -589,12 +630,24 @@ where
         B: Clone + Send + Sync + 'static,
         C: Clone + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
+        M: Clone + 'static,
         ApplyFn: Fn(M, M) -> M + Send + Sync + 'static,
     {
-        let self_run = Arc::clone(&self.run_fn);
-        let other_run = Arc::clone(&other.run_fn);
+        match (self, &other) {
+            (StateT::Pure(_), StateT::Pure(_)) => {
+                panic!("Cannot apply Pure StateT without proper context")
+            },
+            (StateT::LiftM(m1), StateT::LiftM(m2)) => {
+                StateT::LiftM(apply_fn(m1.clone(), m2.clone()))
+            },
+            (StateT::Effect(self_run), StateT::Effect(other_run)) => {
+                let self_run = Arc::clone(self_run);
+                let other_run = Arc::clone(other_run);
 
-        StateT::new(move |s: S| apply_fn(self_run(s.clone()), other_run(s)))
+                StateT::new(move |s: S| apply_fn(self_run(s.clone()), other_run(s)))
+            },
+            _ => panic!("Cannot apply StateT variants of different types"),
+        }
     }
 
     /// Joins a nested StateT structure, flattening it to a single level.
@@ -640,11 +693,18 @@ where
     pub fn join<JoinFn, OuterM>(&self, join_fn: JoinFn) -> StateT<S, OuterM, A>
     where
         A: Clone + Send + Sync + 'static,
+        M: Clone + 'static,
         JoinFn: Fn(M) -> OuterM + Send + Sync + 'static,
         OuterM: 'static,
     {
-        let run_fn = Arc::clone(&self.run_fn);
-        StateT::new(move |s: S| join_fn(run_fn(s)))
+        match self {
+            StateT::Pure(_) => panic!("Cannot join Pure StateT without proper context"),
+            StateT::LiftM(m) => StateT::LiftM(join_fn(m.clone())),
+            StateT::Effect(run_fn) => {
+                let run_fn = Arc::clone(run_fn);
+                StateT::new(move |s: S| join_fn(run_fn(s)))
+            },
+        }
     }
 }
 
@@ -707,8 +767,19 @@ where
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().message(), &"Division by zero");
     /// ```
-    pub fn try_run_state(&self, state: S) -> Result<(S, A), AppError<E>> {
-        (self.run_fn)(state).map_err(AppError::new)
+    pub fn try_run_state(&self, state: S) -> Result<(S, A), AppError<E>>
+    where
+        A: Clone,
+        E: Clone,
+    {
+        match self {
+            StateT::Pure(_) => panic!("Cannot run Pure StateT without proper context"),
+            StateT::LiftM(result) => match result.as_ref() {
+                Ok((s, a)) => Ok((s.clone(), a.clone())),
+                Err(e) => Err(AppError::new(e.clone())),
+            },
+            StateT::Effect(run_fn) => run_fn(state).map_err(AppError::new),
+        }
     }
 
     /// Runs the state transformer with context information for better error reporting.
@@ -757,8 +828,17 @@ where
     ) -> Result<(S, A), AppError<E, C>>
     where
         C: Clone + 'static,
+        A: Clone,
+        E: Clone,
     {
-        (self.run_fn)(state).map_err(|e| AppError::with_context(e, context))
+        match self {
+            StateT::Pure(_) => panic!("Cannot run Pure StateT without proper context"),
+            StateT::LiftM(result) => match result.as_ref() {
+                Ok((s, a)) => Ok((s.clone(), a.clone())),
+                Err(e) => Err(AppError::with_context(e.clone(), context)),
+            },
+            StateT::Effect(run_fn) => run_fn(state).map_err(|e| AppError::with_context(e, context)),
+        }
     }
 
     /// Maps a function over the error contained in this StateT.
@@ -799,10 +879,23 @@ where
     where
         F: Fn(E) -> E2 + Send + Sync + 'static,
         E2: 'static,
+        A: Clone,
+        E: Clone,
     {
-        // Clone the function before capturing it in the closure
-        let run_fn_clone = self.run_fn.clone();
-        StateT::new(move |s: S| run_fn_clone(s).map_err(&f))
+        match self {
+            StateT::Pure(a) => StateT::Pure(a.clone()),
+            StateT::LiftM(result) => {
+                let mapped_result = match result.as_ref() {
+                    Ok((s, a)) => Ok((s.clone(), a.clone())),
+                    Err(e) => Err(f(e.clone())),
+                };
+                StateT::LiftM(mapped_result)
+            },
+            StateT::Effect(run_fn) => {
+                let run_fn = Arc::clone(run_fn);
+                StateT::new(move |s: S| run_fn(s).map_err(&f))
+            },
+        }
     }
 
     /// Runs the state transformer and returns only the value as a Result with AppError.
@@ -839,7 +932,11 @@ where
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().message(), &"Division by zero");
     /// ```
-    pub fn try_eval_state(&self, state: S) -> Result<A, AppError<E>> {
+    pub fn try_eval_state(&self, state: S) -> Result<A, AppError<E>>
+    where
+        A: Clone,
+        E: Clone,
+    {
         self.try_run_state(state).map(|(_, a)| a)
     }
 
@@ -883,6 +980,8 @@ where
     pub fn try_eval_state_with_context<C>(&self, state: S, context: C) -> Result<A, AppError<E, C>>
     where
         C: Clone + 'static,
+        A: Clone,
+        E: Clone,
     {
         self.try_run_state_with_context(state, context)
             .map(|(_, a)| a)
@@ -922,7 +1021,11 @@ where
     /// assert!(result.is_err());
     /// assert_eq!(result.unwrap_err().message(), &"Division by zero");
     /// ```
-    pub fn try_exec_state(&self, state: S) -> Result<S, AppError<E>> {
+    pub fn try_exec_state(&self, state: S) -> Result<S, AppError<E>>
+    where
+        A: Clone,
+        E: Clone,
+    {
         self.try_run_state(state).map(|(s, _)| s)
     }
 }
