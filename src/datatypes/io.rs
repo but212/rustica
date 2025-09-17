@@ -583,6 +583,48 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
             .expect("Failed to run blocking task")
     }
 
+    /// Checks if this IO operation is pure (contains a value without side effects).
+    ///
+    /// Returns `true` if the IO contains a pure value that was created with `pure()`,
+    /// and `false` if it contains an effectful computation created with `new()`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let pure_io = IO::pure(42);
+    /// assert!(pure_io.is_pure());
+    ///
+    /// let effect_io = IO::new(|| 42);
+    /// assert!(!effect_io.is_pure());
+    /// ```
+    #[inline]
+    pub fn is_pure(&self) -> bool {
+        matches!(self, IO::Pure(_))
+    }
+
+    /// Checks if this IO operation is effectful (contains a computation with side effects).
+    ///
+    /// Returns `true` if the IO contains an effectful computation that was created with `new()`,
+    /// and `false` if it contains a pure value created with `pure()`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let pure_io = IO::pure(42);
+    /// assert!(!pure_io.is_effect());
+    ///
+    /// let effect_io = IO::new(|| 42);
+    /// assert!(effect_io.is_effect());
+    /// ```
+    #[inline]
+    pub fn is_effect(&self) -> bool {
+        matches!(self, IO::Effect(_))
+    }
+
     /// Creates a new `IO` from an `async` block.
     ///
     /// This method is available when the `async` feature is enabled.
@@ -726,7 +768,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     #[inline]
     pub fn pure(value: A) -> Self {
         // Only clone if the IO is run multiple times
-        IO::new(move || value.clone())
+        IO::Pure(value)
     }
 
     /// Chains this IO operation with another IO operation.
