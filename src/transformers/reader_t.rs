@@ -248,7 +248,6 @@ impl<E, M, A> Clone for ReaderT<E, M, A>
 where
     E: 'static,
     M: 'static,
-    A: Clone,
 {
     fn clone(&self) -> Self {
         ReaderT {
