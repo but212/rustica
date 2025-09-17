@@ -240,10 +240,8 @@ pub type ReaderCombineFn<Env, M1, A1, B1, C1> =
 /// assert_eq!(result, vec![5, 5]);
 /// ```
 pub struct ReaderT<E, M, A> {
-    /// Internal function that runs with an environment to produce a monadic value
     run_reader_fn: Arc<dyn Fn(E) -> M + Send + Sync>,
-    /// Phantom data to track the value type
-    phantom: PhantomData<A>,
+    _phantom: PhantomData<A>,
 }
 
 impl<E, M, A> Clone for ReaderT<E, M, A>
@@ -253,8 +251,8 @@ where
 {
     fn clone(&self) -> Self {
         ReaderT {
-            run_reader_fn: self.run_reader_fn.clone(),
-            phantom: PhantomData,
+            run_reader_fn: Arc::clone(&self.run_reader_fn),
+            _phantom: PhantomData,
         }
     }
 }
@@ -299,7 +297,7 @@ where
     {
         ReaderT {
             run_reader_fn: Arc::new(f),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -430,7 +428,7 @@ where
     where
         F: Fn(E) -> E + Send + Sync + 'static,
     {
-        let inner_fn = self.run_reader_fn.clone();
+        let inner_fn = Arc::clone(&self.run_reader_fn);
         ReaderT::new(move |e| inner_fn(f(e)))
     }
 
@@ -638,7 +636,7 @@ where
         B: 'static,
         M: 'static,
     {
-        let inner_fn = self.run_reader_fn.clone();
+        let inner_fn = Arc::clone(&self.run_reader_fn);
         let f_clone = f;
 
         ReaderT::new(move |e| {
@@ -700,7 +698,7 @@ where
         M: 'static,
         N: 'static,
     {
-        let inner_fn = self.run_reader_fn.clone();
+        let inner_fn = Arc::clone(&self.run_reader_fn);
         let f_clone = f.clone();
 
         ReaderT::new(move |e: E| {
@@ -739,8 +737,8 @@ where
         B: 'static,
         M: 'static,
     {
-        let self_fn = self.run_reader_fn.clone();
-        let f_fn = f.run_reader_fn.clone();
+        let self_fn = Arc::clone(&self.run_reader_fn);
+        let f_fn = Arc::clone(&f.run_reader_fn);
         let ap_fn_clone = ap_fn.clone();
 
         ReaderT::new(move |e: E| {
@@ -777,8 +775,8 @@ where
         let combine_fn_clone = combine_fn.clone();
         Box::new(
             move |reader1: &ReaderT<E, M, A>, reader2: &ReaderT<E, M, B>| {
-                let run1 = reader1.run_reader_fn.clone();
-                let run2 = reader2.run_reader_fn.clone();
+                let run1 = Arc::clone(&reader1.run_reader_fn);
+                let run2 = Arc::clone(&reader2.run_reader_fn);
                 let f_clone = f_clone.clone();
                 let combine_fn_inner = combine_fn_clone.clone();
                 ReaderT::new(move |e: E| {
@@ -819,8 +817,8 @@ where
         C: Clone + 'static,
         M: HKT<Output<C> = M>,
     {
-        let self_fn = self.run_reader_fn.clone();
-        let other_fn = other.run_reader_fn.clone();
+        let self_fn = Arc::clone(&self.run_reader_fn);
+        let other_fn = Arc::clone(&other.run_reader_fn);
         let f = Arc::new(f);
         let combine_fn = Arc::new(combine_fn);
 
@@ -908,7 +906,7 @@ where
         B: Clone + 'static,
         M: HKT<Output<B> = M>,
     {
-        let reader_fn = self.run_reader_fn.clone();
+        let reader_fn = Arc::clone(&self.run_reader_fn);
 
         ReaderT::new(move |e: E| {
             let ma = reader_fn(e);

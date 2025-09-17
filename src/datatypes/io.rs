@@ -319,6 +319,8 @@
 
 use crate::utils::error_utils::AppError;
 use quickcheck::{Arbitrary, Gen};
+#[cfg(feature = "async")]
+use std::future::Future;
 use std::sync::Arc;
 #[cfg(feature = "async")]
 use std::sync::{Mutex, OnceLock};
@@ -457,9 +459,9 @@ impl std::error::Error for IOError {}
 ///
 /// assert_eq!(risky_result, 0);
 /// ```
-#[derive(Clone)]
-pub struct IO<A> {
-    run: Arc<dyn Fn() -> A + Send + Sync + 'static>,
+pub enum IO<A> {
+    Pure(A),
+    Effect(Arc<dyn Fn() -> A + Send + Sync>),
 }
 
 #[cfg(feature = "async")]
@@ -505,7 +507,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     where
         F: Fn() -> A + Send + Sync + 'static,
     {
-        IO { run: Arc::new(f) }
+        IO::Effect(Arc::new(f))
     }
 
     /// Runs the IO operation and returns the result.
@@ -539,7 +541,10 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// ```
     #[inline]
     pub fn run(&self) -> A {
-        (self.run)()
+        match self {
+            IO::Pure(a) => a.clone(),
+            IO::Effect(f) => f(),
+        }
     }
 
     /// Runs the IO operation asynchronously.
@@ -570,10 +575,10 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     where
         A: Send + Sync,
     {
-        let f = self.run.clone();
+        let this = self.clone();
         let handle = tokio::runtime::Handle::current();
         handle
-            .spawn_blocking(move || f())
+            .spawn_blocking(move || this.run())
             .await
             .expect("Failed to run blocking task")
     }
@@ -672,16 +677,15 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// ```
     #[inline]
     pub fn fmap<B: Clone + 'static + Send + Sync>(
-        &self, f: impl Fn(A) -> B + 'static + Send + Sync,
+        &self, f: impl Fn(A) -> B + Send + Sync + 'static,
     ) -> IO<B> {
-        // Avoid unnecessary Arc::clone if not needed
-        let run = if Arc::strong_count(&self.run) == 1 {
-            // Only one reference, move it
-            Arc::clone(&self.run)
-        } else {
-            Arc::clone(&self.run)
-        };
-        IO::new(move || f(run()))
+        match self {
+            IO::Pure(a) => IO::Pure(f(a.clone())),
+            IO::Effect(effect) => {
+                let effect = Arc::clone(effect);
+                IO::Effect(Arc::new(move || f(effect())))
+            },
+        }
     }
 
     /// Creates a pure IO operation that just returns the given value.
@@ -770,11 +774,13 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     pub fn bind<B: Send + Sync + Clone + 'static>(
         &self, f: impl Fn(A) -> IO<B> + Send + Sync + 'static,
     ) -> IO<B> {
-        let run = Arc::clone(&self.run);
-        IO::new(move || {
-            let a = run();
-            (f(a).run)()
-        })
+        match self {
+            IO::Pure(a) => f(a.clone()),
+            IO::Effect(effect) => {
+                let effect = Arc::clone(effect);
+                IO::Effect(Arc::new(move || f(effect()).run()))
+            },
+        }
     }
 
     /// Tries to get the value from this IO operation.
@@ -980,6 +986,16 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     }
 }
 
+// Implement Clone for IO<A>
+impl<A: Send + Sync + Clone + 'static> Clone for IO<A> {
+    fn clone(&self) -> Self {
+        match self {
+            IO::Pure(a) => IO::Pure(a.clone()),
+            IO::Effect(f) => IO::Effect(Arc::clone(f)),
+        }
+    }
+}
+
 // Implement HKT for IO
 impl<A> crate::traits::hkt::HKT for IO<A> {
     type Source = A;
@@ -987,10 +1003,10 @@ impl<A> crate::traits::hkt::HKT for IO<A> {
 }
 
 // Implement Evaluate for IO
-impl<A: Clone + 'static> crate::traits::evaluate::Evaluate for IO<A> {
+impl<A: Send + Sync + Clone + 'static> crate::traits::evaluate::Evaluate for IO<A> {
     #[inline]
     fn evaluate(&self) -> Self::Source {
-        (self.run)()
+        self.run()
     }
 }
 

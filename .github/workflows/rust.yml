@@ -4,10 +4,10 @@ on:
   push:
     branches: [main, develop]
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
   schedule:
-    - cron: '0 0 * * 0'  # Weekly dependency check
+    - cron: "0 0 * * 0" # Weekly dependency check
 
 env:
   CARGO_TERM_COLOR: always
@@ -51,7 +51,7 @@ jobs:
           fi
           echo "msrv=$MSRV" >> $GITHUB_OUTPUT
           echo "Using MSRV: $MSRV"
-      
+
       - name: Install Rust ${{ steps.msrv.outputs.msrv }}
         uses: dtolnay/rust-toolchain@master
         with:
@@ -74,7 +74,7 @@ jobs:
         run: cargo +nightly udeps --all-targets --all-features
 
   semver_check:
-    name: Semantic Versioning Check  
+    name: Semantic Versioning Check
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -113,19 +113,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      
+
       - name: Install nightly toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-docs
-      
+
       - uses: Swatinem/rust-cache@v2
-      
+
       - name: Build documentation with broken link check
         run: |
           RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links --cfg docsrs" \
           cargo +nightly doc --all-features --no-deps
-      
+
       - name: Verify docs directory exists
         run: |
           if [ ! -d "./target/doc" ]; then
@@ -144,12 +144,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      
+
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
-      
+
       - uses: Swatinem/rust-cache@v2
-      
+
       - name: Check version match
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
@@ -158,16 +158,16 @@ jobs:
             echo "::error::Version mismatch: Tag version ($TAG_VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
             exit 1
           fi
-      
+
       - name: Check changelog update
         run: |
           CARGO_VERSION=$(grep -m 1 '^version =' Cargo.toml | cut -d'"' -f2)
           grep -q "$CARGO_VERSION" CHANGELOG.md || (echo "::error::No entry for version $CARGO_VERSION in CHANGELOG.md" && exit 1)
-      
+
       - name: Verify Edition 2024 in Cargo.toml
         run: |
           grep -q 'edition = "2024"' Cargo.toml || (echo "::error::Edition 2024 not found in Cargo.toml" && exit 1)
-      
+
       - name: Publish to crates.io
         uses: katyo/publish-crates@v2
         with:
@@ -187,11 +187,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      
+
       - name: Get version from tag
         id: get_version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-        
+
       - name: Extract version section from CHANGELOG.md
         id: extract_changelog
         run: |
@@ -210,7 +210,7 @@ jobs:
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-    
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -229,37 +229,39 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      pages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
           fetch-depth: 0
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - uses: Swatinem/rust-cache@v2
-      
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
-      
+
       - name: Run benchmarks
         run: |
-          cargo bench --all-features -- --output-format json > benchmark_raw_results.json || {
+          cargo bench --all-features -- --output-format json | tee benchmark_raw_results.json || {
             echo "::warning::Benchmark execution failed with error code $?"
             echo "[]" > benchmark_raw_results.json
           }
-          
+
       - name: Process benchmark results
         run: |
           if [ -f benchmark_raw_results.json ] && [ -s benchmark_raw_results.json ]; then
-            jq -r '.[] | select(.reason == "benchmark-complete") | {
+            jq -c '[.[] | select(.reason == "benchmark-complete") | {
               "name": .id,
               "value": .median,
               "unit": "ns/iter"
-            }' benchmark_raw_results.json > formatted_benchmark_results.json || {
+            }]' benchmark_raw_results.json > formatted_benchmark_results.json || {
               echo "::warning::Failed to process benchmark results with error code $?"
               echo "[]" > formatted_benchmark_results.json
             }
@@ -267,16 +269,54 @@ jobs:
             echo "::warning::No benchmark results found, creating empty results"
             echo "[]" > formatted_benchmark_results.json
           fi
-      
-      - name: Upload benchmark results
+
+          # Validate JSON format
+          jq empty formatted_benchmark_results.json || {
+            echo "::error::Invalid JSON in benchmark results"
+            echo "[]" > formatted_benchmark_results.json
+          }
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Setup gh-pages structure
+        run: |
+          mkdir -p gh-pages/benchmarks
+          if [ ! -f gh-pages/benchmarks/index.html ]; then
+            cat > gh-pages/benchmarks/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Benchmark Results</title>
+              <meta charset="utf-8">
+          </head>
+          <body>
+              <h1>Performance Benchmarks</h1>
+              <div id="benchmark-chart"></div>
+              <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+          </body>
+          </html>
+          EOF
+          fi
+
+      - name: Store benchmark results
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmarks
-          tool: 'customSmallerIsBetter'
+          tool: "customSmallerIsBetter"
           output-file-path: formatted_benchmark_results.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: false
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: benchmarks
+          auto-push: true
           comment-on-alert: true
-          alert-threshold: '120%'
+          alert-threshold: "120%"
           fail-on-alert: false
-          alert-comment-cc-users: '@${{ github.repository_owner }}'
+          alert-comment-cc-users: "@${{ github.repository_owner }}"
+          gh-repository: ${{ github.repository }}
+          skip-fetch-gh-pages: false
