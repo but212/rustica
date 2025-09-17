@@ -374,7 +374,12 @@ where
                 let b = f(a.clone());
                 StateT::Pure(b)
             },
-            StateT::LiftM(m) => StateT::LiftM(m.clone()),
+            StateT::LiftM(m) => StateT::LiftM(map_fn(m.clone(), {
+                let f_clone = f.clone();
+                let mapper: StateValueMapper<S, A, B> =
+                    Box::new(move |(state, a)| (state, f_clone(a)));
+                mapper
+            })),
             StateT::Effect(run_fn) => {
                 let run_fn = Arc::clone(run_fn);
                 StateT::new(move |s: S| {
@@ -437,21 +442,37 @@ where
         F: Fn(A) -> StateT<S, N, B> + Send + Sync + Clone + 'static,
         BindFn: Fn(M, Box<dyn Fn((S, A)) -> N + Send + Sync>) -> N + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
-        M: Clone + 'static,
+        M: Clone + Send + Sync + 'static,
         A: Clone + 'static,
         N: Clone + 'static,
         B: Clone + 'static,
     {
         match self {
             StateT::Pure(a) => f(a.clone()),
-            StateT::LiftM(_) => panic!("Cannot bind LiftM StateT without proper context"),
-            StateT::Effect(run_fn) => {
-                let run_fn = Arc::clone(run_fn);
-                StateT::new(move |s: S| {
-                    let f_clone = f.clone();
+            StateT::LiftM(m) => {
+                let m_clone = m.clone();
+                let f_clone = f.clone();
+
+                StateT::new(move |_: S| {
+                    let f_for_closure = f_clone.clone();
                     let binder: Box<dyn Fn((S, A)) -> N + Send + Sync> =
                         Box::new(move |(state, a)| {
-                            let next_state_t = f_clone(a);
+                            let next_state_t = f_for_closure(a);
+                            next_state_t.run_state(state)
+                        });
+
+                    bind_fn(m_clone.clone(), binder)
+                })
+            },
+            StateT::Effect(run_fn) => {
+                let run_fn = Arc::clone(run_fn);
+                let f_clone = f.clone();
+
+                StateT::new(move |s: S| {
+                    let f_for_closure = f_clone.clone();
+                    let binder: Box<dyn Fn((S, A)) -> N + Send + Sync> =
+                        Box::new(move |(state, a)| {
+                            let next_state_t = f_for_closure(a);
                             next_state_t.run_state(state)
                         });
 
@@ -491,7 +512,13 @@ where
                 let c = f(a.clone(), b.clone());
                 StateT::Pure(c)
             },
-            (StateT::LiftM(m1), StateT::LiftM(_m2)) => StateT::LiftM(m1.clone()),
+            (StateT::LiftM(m1), StateT::LiftM(m2)) => {
+                let combiner: StateCombiner<S, A, B, C> = Box::new(move |(s1, a), (_, b)| {
+                    let f_clone = f.clone();
+                    (s1, f_clone(a, b))
+                });
+                StateT::LiftM(combine_fn(m1.clone(), m2.clone(), combiner))
+            },
             (StateT::Effect(self_run_fn), StateT::Effect(other_run_fn)) => {
                 let self_run_fn = Arc::clone(self_run_fn);
                 let other_run_fn = Arc::clone(other_run_fn);
@@ -630,12 +657,20 @@ where
         B: Clone + Send + Sync + 'static,
         C: Clone + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
-        M: Clone + 'static,
+        M: Clone + Send + Sync + 'static,
         ApplyFn: Fn(M, M) -> M + Send + Sync + 'static,
     {
         match (self, &other) {
-            (StateT::Pure(_), StateT::Pure(_)) => {
-                panic!("Cannot apply Pure StateT without proper context")
+            (StateT::Pure(f), StateT::Pure(v)) => {
+                let f_clone = f.clone();
+                let v_clone = v.clone();
+                StateT::new(move |s: S| {
+                    let f_state = StateT::Pure(f_clone.clone());
+                    let v_state = StateT::Pure(v_clone.clone());
+                    let f_result = f_state.run_state(s.clone());
+                    let v_result = v_state.run_state(s);
+                    apply_fn(f_result, v_result)
+                })
             },
             (StateT::LiftM(m1), StateT::LiftM(m2)) => {
                 StateT::LiftM(apply_fn(m1.clone(), m2.clone()))
@@ -646,7 +681,27 @@ where
 
                 StateT::new(move |s: S| apply_fn(self_run(s.clone()), other_run(s)))
             },
-            _ => panic!("Cannot apply StateT variants of different types"),
+            _ => {
+                let self_run = match self {
+                    StateT::Pure(_) | StateT::LiftM(_) => {
+                        let self_clone = self.clone();
+                        Arc::new(move |s: S| self_clone.run_state(s))
+                            as Arc<dyn Fn(S) -> M + Send + Sync>
+                    },
+                    StateT::Effect(run) => Arc::clone(run),
+                };
+
+                let other_run = match &other {
+                    StateT::Pure(_) | StateT::LiftM(_) => {
+                        let other_clone = other.clone();
+                        Arc::new(move |s: S| other_clone.run_state(s))
+                            as Arc<dyn Fn(S) -> M + Send + Sync>
+                    },
+                    StateT::Effect(run) => Arc::clone(run),
+                };
+
+                StateT::new(move |s: S| apply_fn(self_run(s.clone()), other_run(s)))
+            },
         }
     }
 
@@ -698,7 +753,7 @@ where
         OuterM: 'static,
     {
         match self {
-            StateT::Pure(_) => panic!("Cannot join Pure StateT without proper context"),
+            StateT::Pure(inner_state_t) => StateT::Pure(inner_state_t.clone()),
             StateT::LiftM(m) => StateT::LiftM(join_fn(m.clone())),
             StateT::Effect(run_fn) => {
                 let run_fn = Arc::clone(run_fn);
