@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion};
+use criterion::Criterion;
 #[cfg(feature = "pvec")]
 use rustica::pvec::PersistentVector;
 use std::hint::black_box;
