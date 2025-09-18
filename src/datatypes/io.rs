@@ -22,6 +22,12 @@
 //!     10
 //! });
 //!
+//! // Or create directly
+//! let io_direct = IO::new(|| {
+//!     println!("Direct computation...");
+//!     20
+//! });
+//!
 //! // Transform values with fmap
 //! let doubled = io_value.fmap(|x| x * 2);
 //! assert_eq!(doubled.run(), 84);
@@ -32,6 +38,10 @@
 //!     .bind(|x| IO::pure(x * 2));
 //!
 //! assert_eq!(chained.run(), 104); // (42 + 10) * 2
+//!
+//! // Combine multiple IO operations
+//! let combined = IO::combine(&io_value, &io_computation);
+//! assert_eq!(combined.run(), (42, 10));
 //!
 //! // Safe execution with error handling
 //! let safe_computation = IO::new(|| 42 / 2);
@@ -326,6 +336,12 @@ use std::sync::Arc;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
+/// Type alias for IO morphisms with static lifetime bounds.
+///
+/// This alias encapsulates the common pattern of `Arc<dyn Fn() -> A + Send + Sync + 'static>`
+/// used throughout the IO implementation, making the code more readable and maintainable.
+pub type IOMorphism<A> = Arc<dyn Fn() -> A + Send + Sync + 'static>;
+
 /// A custom error type for IO operations
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IOError {
@@ -461,7 +477,7 @@ impl std::error::Error for IOError {}
 /// ```
 pub enum IO<A> {
     Pure(A),
-    Effect(Arc<dyn Fn() -> A + Send + Sync>),
+    Effect(IOMorphism<A>),
 }
 
 #[cfg(feature = "async")]
@@ -1025,6 +1041,89 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
             std::thread::sleep(duration);
             a.clone()
         })
+    }
+
+    /// Creates an IO operation that executes conditionally based on a predicate.
+    ///
+    /// If the predicate is false when evaluated, returns a default value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    /// use std::time::SystemTime;
+    ///
+    /// let conditional_io = IO::when(
+    ///     || true, // predicate
+    ///     || 42,   // computation if true
+    ///     || 0     // default if false
+    /// );
+    ///
+    /// assert_eq!(conditional_io.run(), 42);
+    /// ```
+    pub fn when<P, F, D>(predicate: P, computation: F, default: D) -> Self
+    where
+        P: Fn() -> bool + Send + Sync + 'static,
+        F: Fn() -> A + Send + Sync + 'static,
+        D: Fn() -> A + Send + Sync + 'static,
+    {
+        IO::new(move || {
+            if predicate() {
+                computation()
+            } else {
+                default()
+            }
+        })
+    }
+
+    /// Combines two IO operations, returning a tuple of their results.
+    ///
+    /// This is similar to FunctionCategory::split but for IO operations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let io1 = IO::pure(10);
+    /// let io2 = IO::pure(20);
+    /// let combined = IO::combine(&io1, &io2);
+    ///
+    /// assert_eq!(combined.run(), (10, 20));
+    /// ```
+    pub fn combine<B>(io1: &IO<A>, io2: &IO<B>) -> IO<(A, B)>
+    where
+        B: Send + Sync + Clone + 'static,
+    {
+        let io1_clone = io1.clone();
+        let io2_clone = io2.clone();
+        IO::new(move || (io1_clone.run(), io2_clone.run()))
+    }
+
+    /// Sequences multiple IO operations, collecting their results.
+    ///
+    /// This is useful for running multiple IO operations and collecting all results.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let ios = vec![
+    ///     IO::pure(1),
+    ///     IO::pure(2),
+    ///     IO::pure(3),
+    /// ];
+    ///
+    /// let sequenced = IO::sequence(ios);
+    /// assert_eq!(sequenced.run(), vec![1, 2, 3]);
+    /// ```
+    pub fn sequence<I>(ios: I) -> IO<Vec<A>>
+    where
+        I: IntoIterator<Item = IO<A>>,
+    {
+        let ios_vec: Vec<IO<A>> = ios.into_iter().collect();
+        IO::new(move || ios_vec.iter().map(|io| io.run()).collect())
     }
 }
 
