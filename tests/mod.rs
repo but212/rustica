@@ -22,3 +22,6 @@ pub mod transformers;
 
 // Utility function tests
 pub mod utils_test;
+
+// Category tests
+pub mod category;
