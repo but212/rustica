@@ -135,6 +135,7 @@ use crate::traits::identity::Identity;
 ///    let value = Value::new(original.clone());
 ///    assert_eq!(value.evaluate(), original);
 ///    ```
+#[deprecated(note = "Use Id instead")]
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
