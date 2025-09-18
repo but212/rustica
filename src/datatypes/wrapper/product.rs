@@ -561,3 +561,70 @@ impl<T: Clone + Mul<Output = T>> Foldable for Product<T> {
         f(&self.0, init)
     }
 }
+
+impl<T> From<T> for Product<T> {
+    /// Creates a new `Product` wrapper from a value.
+    ///
+    /// This is equivalent to `Product(value)` but provides better ergonomics
+    /// in generic contexts and follows Rust conventions for wrapper types.
+    /// This implementation enables seamless conversion from any value `T`
+    /// into a `Product<T>` wrapper.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Direct wrapper construction
+    /// - **Memory Usage**: Zero overhead - same as direct construction
+    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::product::Product;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Direct conversion using From trait
+    /// let prod1 = Product::from(42);
+    /// let prod2: Product<i32> = 42.into();
+    /// let prod3 = Product(42); // Equivalent direct construction
+    ///
+    /// assert_eq!(prod1, prod2);
+    /// assert_eq!(prod2, prod3);
+    ///
+    /// // Useful in generic contexts
+    /// fn create_wrapper<T, W: From<T>>(value: T) -> W {
+    ///     W::from(value)
+    /// }
+    ///
+    /// let product: Product<f64> = create_wrapper(3.14);
+    /// assert_eq!(*product.value(), 3.14);
+    ///
+    /// // Convenient for function parameters
+    /// fn process_product(p: Product<i32>) -> i32 {
+    ///     p.0 * p.0
+    /// }
+    ///
+    /// assert_eq!(process_product(5.into()), 25);
+    /// ```
+    ///
+    /// # Collection Transformations
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::product::Product;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Transform collections using From trait
+    /// let numbers = vec![2, 3, 4, 5];
+    /// let products: Vec<Product<i32>> = numbers.into_iter().map(Product::from).collect();
+    ///
+    /// // Or more concisely with Into trait
+    /// let numbers = vec![2, 3, 4, 5];
+    /// let products: Vec<Product<i32>> = numbers.into_iter().map(Into::into).collect();
+    ///
+    /// assert_eq!(products.len(), 4);
+    /// assert_eq!(*products[0].value(), 2);
+    /// ```
+    #[inline]
+    fn from(value: T) -> Self {
+        Product(value)
+    }
+}

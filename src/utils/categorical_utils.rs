@@ -69,6 +69,8 @@
 //! assert_eq!(flipped_subtract(3, 10), 7); // 10 - 3 = 7
 //! ```
 
+use crate::traits::monoid::Monoid;
+
 // ===== Functor-Inspired Mapping Helpers =====
 
 /// Maps a function over an `Option` value, preserving the structure.
@@ -578,4 +580,92 @@ pub fn sequence_options<T>(options: Vec<Option<T>>) -> Option<Vec<T>> {
 /// ```
 pub fn sequence_results<T, E>(results: Vec<Result<T, E>>) -> Result<Vec<T>, E> {
     results.into_iter().collect()
+}
+
+/// Folds an iterator using a monoid's combine operation with automatic wrapping.
+///
+/// This function converts each element to the monoid type `W` and combines them
+/// using the monoid's `combine` operation. If the iterator is empty, returns the
+/// monoid's identity element (`empty()`).
+///
+/// # Performance
+///
+/// - **Time Complexity**: O(n) where n is the iterator length
+/// - **Memory Usage**: Constant space beyond iterator storage
+/// - **Optimization**: Marked with `#[inline]` for compiler optimization
+///
+/// # Type Parameters
+///
+/// * `I` - Iterator type that yields items of type `T`
+/// * `T` - Item type that can be converted to the monoid wrapper `W`
+/// * `W` - Monoid wrapper type (Sum, Product, First, Last, Min, Max, etc.)
+///
+/// # Arguments
+///
+/// * `iter` - An iterator of items to fold
+///
+/// # Returns
+///
+/// The result of combining all elements, or the identity element if empty
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::utils::categorical_utils::fold_with;
+/// use rustica::datatypes::wrapper::{sum::Sum, product::Product, first::First, last::Last, min::Min, max::Max};
+/// use rustica::traits::identity::Identity;
+///
+/// // Sum operations
+/// let numbers = vec![1, 2, 3, 4, 5];
+/// let total: Sum<i32> = fold_with(numbers);
+/// assert_eq!(*total.value(), 15);
+///
+/// // Product operations
+/// let factors = vec![2, 3, 4];
+/// let product: Product<i32> = fold_with(factors);
+/// assert_eq!(*product.value(), 24);
+///
+/// // First operations
+/// let values = vec![Some(10), None, Some(20)];
+/// let first: First<i32> = fold_with(values.clone());
+/// assert_eq!(*first.value(), 10);
+///
+/// // First operations
+/// let direct_values = vec![42, 99, 7];
+/// let first_direct: First<i32> = fold_with(direct_values);
+/// assert_eq!(*first_direct.value(), 42);
+///
+/// // Last operations
+/// let last: Last<i32> = fold_with(values);
+/// assert_eq!(*last.value(), 20);
+///
+/// // Last operations
+/// let last_direct: Last<i32> = fold_with(vec![1, 2, 3]);
+/// assert_eq!(*last_direct.value(), 3);
+///
+/// // Min operations
+/// let unsorted = vec![5, 2, 8, 1, 9];
+/// let minimum: Min<i32> = fold_with(unsorted);
+/// assert_eq!(*minimum.value(), 1);
+///
+/// // Max operations
+/// let values = vec![3, 7, 2, 9, 4];
+/// let maximum: Max<i32> = fold_with(values);
+/// assert_eq!(*maximum.value(), 9);
+///
+/// // Empty iterator returns identity
+/// let empty: Vec<i32> = vec![];
+/// let zero: Sum<i32> = fold_with(empty);
+/// assert_eq!(*zero.value(), 0);
+/// ```
+#[inline]
+pub fn fold_with<I, T, W>(iter: I) -> W
+where
+    I: IntoIterator<Item = T>,
+    W: From<T> + Monoid,
+{
+    let mut iter = iter.into_iter();
+    iter.next()
+        .map(|first| iter.fold(W::from(first), |acc, x| acc.combine(&W::from(x))))
+        .unwrap_or_else(W::empty)
 }

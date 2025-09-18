@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [0.9.1]
+
+### Added - 0.9.1
+
+- **Wrapper From/Into trait implementation**
+  - Added `From<T>` and `Into<T>` implementations for wrapper types:
+    - `Sum<T>`: `From<T>` implementation for direct value wrapping
+    - `Product<T>`: `From<T>` implementation for direct value wrapping
+    - `First<T>`: `From<T>` and `From<Option<T>>` implementations for flexible initialization
+    - `Last<T>`: `From<T>` and `From<Option<T>>` implementations for flexible initialization
+    - `Min<T>`: `From<T>` implementation for direct value wrapping
+    - `Max<T>`: `From<T>` implementation for direct value wrapping
+    - `Value<T>`: `From<T>` implementation for seamless conversion from any value
+- **Monoid utility function**
+  - Added `fold_with` utility function for folding iterators into monoid wrappers using `From<T>` trait
+  - Provides efficient folding with automatic conversion from item type to wrapper type
+  - Uses the first element as initial value and `Monoid::empty()` for empty iterators
+
 ## [0.9.0]
 
 ### Added - 0.9.0

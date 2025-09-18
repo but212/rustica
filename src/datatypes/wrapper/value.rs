@@ -135,6 +135,7 @@ use crate::traits::identity::Identity;
 ///    let value = Value::new(original.clone());
 ///    assert_eq!(value.evaluate(), original);
 ///    ```
+#[deprecated(note = "Use Id instead")]
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -603,5 +604,86 @@ impl<T: Clone> Evaluate for Value<T> {
     #[inline]
     fn evaluate_owned(self) -> T {
         self.0
+    }
+}
+
+impl<T> From<T> for Value<T> {
+    /// Creates a new `Value` wrapper from a value.
+    ///
+    /// This is equivalent to `Value(value)` or `Value::new(value)` but provides
+    /// better ergonomics in generic contexts and follows Rust conventions for
+    /// wrapper types. This implementation enables seamless conversion from any
+    /// value `T` into a `Value<T>` wrapper.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Direct wrapper construction
+    /// - **Memory Usage**: Zero overhead - same as direct construction
+    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::value::Value;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Direct conversion using From trait
+    /// let val1 = Value::from(42);
+    /// let val2: Value<i32> = 42.into();
+    /// let val3 = Value::new(42); // Equivalent using new()
+    /// let val4 = Value(42); // Equivalent direct construction
+    ///
+    /// assert_eq!(val1, val2);
+    /// assert_eq!(val2, val3);
+    /// assert_eq!(val3, val4);
+    ///
+    /// // Useful in generic contexts
+    /// fn create_wrapper<T, W: From<T>>(value: T) -> W {
+    ///     W::from(value)
+    /// }
+    ///
+    /// let value: Value<String> = create_wrapper("hello".to_string());
+    /// assert_eq!(*value.value(), "hello");
+    ///
+    /// // Convenient for function parameters
+    /// fn process_value(v: Value<i32>) -> i32 {
+    ///     v.0 + 100
+    /// }
+    ///
+    /// assert_eq!(process_value(42.into()), 142);
+    /// ```
+    ///
+    /// # Collection Transformations
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::value::Value;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Transform collections using From trait
+    /// let numbers = vec![1, 2, 3, 4, 5];
+    /// let values: Vec<Value<i32>> = numbers.into_iter().map(Value::from).collect();
+    ///
+    /// // Or more concisely with Into trait
+    /// let numbers = vec![1, 2, 3, 4, 5];
+    /// let values: Vec<Value<i32>> = numbers.into_iter().map(Into::into).collect();
+    ///
+    /// assert_eq!(values.len(), 5);
+    /// assert_eq!(*values[0].value(), 1);
+    /// ```
+    ///
+    /// # Integration with Identity Pattern
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::value::Value;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Value implements Identity, so From works seamlessly
+    /// let value: Value<f64> = 3.14159.into();
+    /// assert_eq!(*value.value(), 3.14159);
+    /// assert_eq!(value.into_value(), 3.14159);
+    /// ```
+    #[inline]
+    fn from(value: T) -> Self {
+        Value(value)
     }
 }
