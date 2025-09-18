@@ -17,6 +17,15 @@
   - Added `fold_with` utility function for folding iterators into monoid wrappers using `From<T>` trait
   - Provides efficient folding with automatic conversion from item type to wrapper type
   - Uses the first element as initial value and `Monoid::empty()` for empty iterators
+- **Function Category implementation**
+  - Added `FunctionCategory` struct implementing both `Category` and `Arrow` traits
+  - Provides concrete implementation of category theory for Rust functions
+
+### Changed - 0.9.1
+
+- **Category trait inheritance removed from HKT**
+  - `Category` now focuses purely on morphism composition without HKT dependencies
+  - `HKT` remains independent for type constructor operations
 
 ## [0.9.0]
 

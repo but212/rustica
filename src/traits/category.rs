@@ -72,8 +72,6 @@
 //! - **Adjunctions**: Support adjoint functors between categories
 //! - **Yoneda Lemma**: Implement the Yoneda embedding and related constructions
 
-use crate::traits::hkt::HKT;
-
 /// A trait representing a category in category theory.
 ///
 /// # Mathematical Definition
@@ -118,8 +116,8 @@ use crate::traits::hkt::HKT;
 /// 3. **Abstract Algebra**
 ///    - Implementing mathematical structures
 ///    - Defining algebraic data types
-pub trait Category: HKT {
-    type Morphism<S, T>;
+pub trait Category {
+    type Morphism<A, B>;
 
     /// Creates an identity morphism for the given types.
     ///
@@ -157,5 +155,9 @@ pub trait Category: HKT {
     /// A new morphism representing the composition (g ∘ f): A → C
     fn compose_morphisms<A, B, C>(
         f: &Self::Morphism<A, B>, g: &Self::Morphism<B, C>,
-    ) -> Self::Morphism<A, C>;
+    ) -> Self::Morphism<A, C>
+    where
+        A: 'static,
+        B: 'static,
+        C: 'static;
 }
