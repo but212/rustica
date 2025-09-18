@@ -534,3 +534,119 @@ impl<T: Clone> Functor for First<T> {
         }
     }
 }
+
+impl<T> From<T> for First<T> {
+    /// Creates a new `First` wrapper from a value.
+    ///
+    /// This wraps the value in `Some` and then in `First`, making it equivalent
+    /// to `First(Some(value))`. This is the most common way to create a `First`
+    /// value when you have a concrete value to wrap.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Direct wrapper construction
+    /// - **Memory Usage**: Zero overhead - same as direct construction
+    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::first::First;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Direct conversion using From trait
+    /// let first1 = First::from(42);
+    /// let first2: First<i32> = 42.into();
+    /// let first3 = First(Some(42)); // Equivalent direct construction
+    ///
+    /// assert_eq!(first1, first2);
+    /// assert_eq!(first2, first3);
+    ///
+    /// // Useful in generic contexts
+    /// fn create_wrapper<T, W: From<T>>(value: T) -> W {
+    ///     W::from(value)
+    /// }
+    ///
+    /// let first: First<String> = create_wrapper("hello".to_string());
+    /// assert_eq!(first.0, Some("hello".to_string()));
+    /// ```
+    ///
+    /// # Collection Transformations
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::first::First;
+    /// use rustica::traits::identity::Identity;
+    ///
+    /// // Transform collections using From trait
+    /// let values = vec!["a", "b", "c"];
+    /// let firsts: Vec<First<&str>> = values.into_iter().map(First::from).collect();
+    ///
+    /// assert_eq!(firsts.len(), 3);
+    /// assert_eq!(firsts[0].0, Some("a"));
+    /// ```
+    #[inline]
+    fn from(value: T) -> Self {
+        First(Some(value))
+    }
+}
+
+impl<T> From<Option<T>> for First<T> {
+    /// Creates a new `First` wrapper from an `Option<T>`.
+    ///
+    /// This directly wraps the `Option<T>` in `First`, making it equivalent
+    /// to `First(option)`. This is useful when you already have an `Option<T>`
+    /// and want to give it `First` semantics for semigroup operations.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Direct wrapper construction
+    /// - **Memory Usage**: Zero overhead - same as direct construction
+    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::first::First;
+    ///
+    /// // Convert from Some value
+    /// let some_value = Some(42);
+    /// let first1 = First::from(some_value);
+    /// let first2: First<i32> = some_value.into();
+    /// let first3 = First(Some(42)); // Equivalent direct construction
+    ///
+    /// assert_eq!(first1, first2);
+    /// assert_eq!(first2, first3);
+    ///
+    /// // Convert from None
+    /// let none_value: Option<i32> = None;
+    /// let first_none = First::<i32>::from(none_value);
+    /// assert_eq!(first_none, First(None));
+    ///
+    /// // Useful for converting existing Option values
+    /// fn maybe_get_value() -> Option<String> {
+    ///     Some("result".to_string())
+    /// }
+    ///
+    /// let first: First<String> = maybe_get_value().into();
+    /// assert_eq!(first.0, Some("result".to_string()));
+    /// ```
+    ///
+    /// # Semigroup Behavior
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::first::First;
+    /// use rustica::traits::semigroup::Semigroup;
+    ///
+    /// // First takes the first non-None value
+    /// let first1: First<i32> = Some(1).into();
+    /// let first2: First<i32> = Some(2).into();
+    /// let first_none: First<i32> = None.into();
+    ///
+    /// assert_eq!(first1.combine(&first2), First(Some(1))); // First wins
+    /// assert_eq!(first_none.combine(&first2), First(Some(2))); // None loses
+    /// ```
+    #[inline]
+    fn from(option: Option<T>) -> Self {
+        First(option)
+    }
+}
