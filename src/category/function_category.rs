@@ -114,9 +114,16 @@ use std::sync::Arc;
 /// All methods are implemented as associated functions on the traits.
 pub struct FunctionCategory;
 
+/// Type alias for function morphisms with static lifetime bounds.
+///
+/// This alias encapsulates the common pattern of `Arc<dyn Fn(A) -> B + 'static>`
+/// used throughout the function category implementation, making the code more
+/// readable and maintainable.
+pub type FunctionMorphism<A, B> = Arc<dyn Fn(A) -> B + 'static>;
+
 impl Category for FunctionCategory {
     type Object = ();
-    type Morphism<A, B> = Arc<dyn Fn(A) -> B + 'static>;
+    type Morphism<A, B> = FunctionMorphism<A, B>;
 
     fn identity_morphism<A>() -> Self::Morphism<A, A> {
         Arc::new(|x| x)
@@ -164,6 +171,19 @@ impl Arrow for FunctionCategory {
         Arc::new(move |(d, b)| (d, f_clone(b)))
     }
 
+    fn split<B, C, D>(
+        f: &Self::Morphism<B, C>, g: &Self::Morphism<B, D>,
+    ) -> Self::Morphism<B, (C, D)>
+    where
+        B: 'static + Clone,
+        C: 'static,
+        D: 'static,
+    {
+        let f_clone = Arc::clone(f);
+        let g_clone = Arc::clone(g);
+        Arc::new(move |b: B| (f_clone(b.clone()), g_clone(b)))
+    }
+
     fn combine_morphisms<B, C, D, E>(
         f: &Self::Morphism<B, C>, g: &Self::Morphism<D, E>,
     ) -> Self::Morphism<(B, D), (C, E)>
@@ -178,3 +198,104 @@ impl Arrow for FunctionCategory {
         Arc::new(move |(b, d)| (f_clone(b), g_clone(d)))
     }
 }
+
+/// Convenience implementations for FunctionCategory
+impl FunctionCategory {
+    /// Creates a morphism from a regular function.
+    ///
+    /// This is a convenience method that's equivalent to `Arrow::arrow`
+    /// but provides a more direct API for function lifting.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double = FunctionCategory::lift(|x: i32| x * 2);
+    /// assert_eq!(double(21), 42);
+    /// ```
+    pub fn lift<A, B, F>(f: F) -> FunctionMorphism<A, B>
+    where
+        F: Fn(A) -> B + 'static,
+    {
+        Arc::new(f)
+    }
+
+    /// Creates a morphism that applies a function to both components of a pair.
+    ///
+    /// This is useful when you want to apply the same transformation to both
+    /// elements of a tuple.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double_both = FunctionCategory::both(|x: i32| x * 2);
+    /// assert_eq!(double_both((3, 5)), (6, 10));
+    /// ```
+    pub fn both<A, B, F>(f: F) -> FunctionMorphism<(A, A), (B, B)>
+    where
+        A: 'static,
+        F: Fn(A) -> B + 'static,
+    {
+        let f = Arc::new(f);
+        Arc::new(move |(a1, a2)| (f(a1), f(a2)))
+    }
+
+    /// Creates a morphism that applies a function only if a predicate is true.
+    ///
+    /// If the predicate is false, the original value is returned unchanged.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double_if_even = FunctionCategory::when(
+    ///     |x: &i32| x % 2 == 0,
+    ///     |x: i32| x * 2
+    /// );
+    ///
+    /// assert_eq!(double_if_even(4), 8);  // Even, so doubled
+    /// assert_eq!(double_if_even(3), 3);  // Odd, so unchanged
+    /// ```
+    pub fn when<A, P, F>(predicate: P, transform: F) -> FunctionMorphism<A, A>
+    where
+        A: 'static,
+        P: Fn(&A) -> bool + 'static,
+        F: Fn(A) -> A + 'static,
+    {
+        Arc::new(move |a| if predicate(&a) { transform(a) } else { a })
+    }
+}
+
+/// Macro for creating named function morphisms with type annotations.
+///
+/// This macro provides a convenient syntax for creating function morphisms
+/// with explicit type annotations, making the code more readable and self-documenting.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::category::function_category::{FunctionCategory, function};
+/// use rustica::traits::category::Category;
+///
+/// function!(double: i32 => i32 = |x: i32| x * 2);
+/// function!(to_string: i32 => String = |x: i32| x.to_string());
+///
+/// assert_eq!(double(21), 42);
+/// assert_eq!(to_string(42), "42");
+///
+/// let pipeline = FunctionCategory::compose_morphisms(&double, &to_string);
+/// assert_eq!(pipeline(5), "10");
+/// ```
+#[macro_export]
+macro_rules! function {
+    ($name:ident: $input:ty => $output:ty = $body:expr) => {
+        let $name: $crate::category::function_category::FunctionMorphism<$input, $output> =
+            $crate::category::function_category::FunctionCategory::lift($body);
+    };
+}
+
+pub use function;
