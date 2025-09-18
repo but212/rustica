@@ -157,5 +157,6 @@ pub mod datatypes {
 /// state to asynchronous operations.
 pub mod transformers;
 
+pub mod category;
 /// Convenient re-exports of commonly used items.
 pub mod prelude;

@@ -149,7 +149,7 @@ pub trait Arrow: Category {
     /// A morphism in the arrow category representing the lifted function
     fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
     where
-        F: Fn(B) -> C;
+        F: Fn(B) -> C + 'static;
 
     /// Processes the first component of a pair, leaving the second unchanged.
     ///
@@ -169,15 +169,11 @@ pub trait Arrow: Category {
     /// # Returns
     ///
     /// A new morphism that applies `f` to the first component of a pair
-    fn first<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)> {
-        let id = Self::arrow(|d: D| d);
-        let pair = Self::arrow(|(b, d): (B, D)| (b, d));
-        let unpair = Self::arrow(|(c, d): (C, D)| (c, d));
-        Self::compose_morphisms(
-            &Self::compose_morphisms(&pair, &Self::combine_morphisms(f, &id)),
-            &unpair,
-        )
-    }
+    fn first<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
+    where
+        B: 'static,
+        C: 'static,
+        D: 'static;
 
     /// Processes the second component of a pair, leaving the first unchanged.
     ///
@@ -197,14 +193,11 @@ pub trait Arrow: Category {
     /// # Returns
     ///
     /// A new morphism that applies `f` to the second component of a pair
-    fn second<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(D, B), (D, C)> {
-        let swap_in = Self::arrow(|(d, b): (D, B)| (b, d));
-        let swap_out = Self::arrow(|(c, d): (C, D)| (d, c));
-        Self::compose_morphisms(
-            &Self::compose_morphisms(&swap_in, &Self::first(f)),
-            &swap_out,
-        )
-    }
+    fn second<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(D, B), (D, C)>
+    where
+        B: 'static,
+        C: 'static,
+        D: 'static;
 
     /// Splits a computation into two parallel paths.
     ///
@@ -226,9 +219,14 @@ pub trait Arrow: Category {
     /// # Returns
     ///
     /// A morphism that applies both `f` and `g` to the input
-    fn split<B: Clone, C, D, E>(
+    fn split<B, C, D>(
         f: &Self::Morphism<B, C>, g: &Self::Morphism<B, D>,
-    ) -> Self::Morphism<B, (C, D)> {
+    ) -> Self::Morphism<B, (C, D)>
+    where
+        B: 'static + Clone,
+        C: 'static,
+        D: 'static,
+    {
         let duplicate = Self::arrow(|b: B| (b.clone(), b));
         Self::compose_morphisms(&duplicate, &Self::combine_morphisms(f, g))
     }
@@ -256,7 +254,10 @@ pub trait Arrow: Category {
     /// A morphism that processes both components of a pair independently
     fn combine_morphisms<B, C, D, E>(
         f: &Self::Morphism<B, C>, g: &Self::Morphism<D, E>,
-    ) -> Self::Morphism<(B, D), (C, E)> {
-        Self::compose_morphisms(&Self::first(f), &Self::second(g))
-    }
+    ) -> Self::Morphism<(B, D), (C, E)>
+    where
+        B: 'static,
+        C: 'static,
+        D: 'static,
+        E: 'static;
 }
