@@ -122,7 +122,6 @@ pub struct FunctionCategory;
 pub type FunctionMorphism<A, B> = Arc<dyn Fn(A) -> B + 'static>;
 
 impl Category for FunctionCategory {
-    type Object = ();
     type Morphism<A, B> = FunctionMorphism<A, B>;
 
     fn identity_morphism<A>() -> Self::Morphism<A, A> {
@@ -239,7 +238,6 @@ impl FunctionCategory {
         A: 'static,
         F: Fn(A) -> B + 'static,
     {
-        let f = Arc::new(f);
         Arc::new(move |(a1, a2)| (f(a1), f(a2)))
     }
 

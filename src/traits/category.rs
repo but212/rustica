@@ -117,7 +117,6 @@
 ///    - Implementing mathematical structures
 ///    - Defining algebraic data types
 pub trait Category {
-    type Object;
     type Morphism<A, B>;
 
     /// Creates an identity morphism for the given types.
