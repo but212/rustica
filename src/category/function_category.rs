@@ -200,26 +200,6 @@ impl Arrow for FunctionCategory {
 
 /// Convenience implementations for FunctionCategory
 impl FunctionCategory {
-    /// Creates a morphism from a regular function.
-    ///
-    /// This is a convenience method that's equivalent to `Arrow::arrow`
-    /// but provides a more direct API for function lifting.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::category::function_category::FunctionCategory;
-    ///
-    /// let double = FunctionCategory::lift(|x: i32| x * 2);
-    /// assert_eq!(double(21), 42);
-    /// ```
-    pub fn lift<A, B, F>(f: F) -> FunctionMorphism<A, B>
-    where
-        F: Fn(A) -> B + 'static,
-    {
-        Arc::new(f)
-    }
-
     /// Creates a morphism that applies a function to both components of a pair.
     ///
     /// This is useful when you want to apply the same transformation to both
@@ -278,6 +258,7 @@ impl FunctionCategory {
 /// ```rust
 /// use rustica::category::function_category::{FunctionCategory, function};
 /// use rustica::traits::category::Category;
+/// use rustica::traits::arrow::Arrow;
 ///
 /// function!(double: i32 => i32 = |x: i32| x * 2);
 /// function!(to_string: i32 => String = |x: i32| x.to_string());
@@ -292,7 +273,7 @@ impl FunctionCategory {
 macro_rules! function {
     ($name:ident: $input:ty => $output:ty = $body:expr) => {
         let $name: $crate::category::function_category::FunctionMorphism<$input, $output> =
-            $crate::category::function_category::FunctionCategory::lift($body);
+            $crate::category::function_category::FunctionCategory::arrow($body);
     };
 }
 

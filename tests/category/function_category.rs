@@ -26,8 +26,8 @@ mod category_tests {
 
     #[test]
     fn test_basic_composition() {
-        let double = FunctionCategory::lift(|x: i32| x * 2);
-        let add_one = FunctionCategory::lift(|x: i32| x + 1);
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
+        let add_one = FunctionCategory::arrow(|x: i32| x + 1);
 
         // Test composition: (add_one ∘ double)(x) = add_one(double(x))
         let composed = FunctionCategory::compose_morphisms(&double, &add_one);
@@ -40,7 +40,7 @@ mod category_tests {
     #[test]
     fn test_left_identity_law() {
         // Left identity: f ∘ id = f
-        let double = FunctionCategory::lift(|x: i32| x * 2);
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
         let id = FunctionCategory::identity_morphism::<i32>();
 
         let composed = FunctionCategory::compose_morphisms(&id, &double);
@@ -54,7 +54,7 @@ mod category_tests {
     #[test]
     fn test_right_identity_law() {
         // Right identity: id ∘ f = f
-        let double = FunctionCategory::lift(|x: i32| x * 2);
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
         let id = FunctionCategory::identity_morphism::<i32>();
 
         let composed = FunctionCategory::compose_morphisms(&double, &id);
@@ -68,9 +68,9 @@ mod category_tests {
     #[test]
     fn test_associativity_law() {
         // Associativity: (h ∘ g) ∘ f = h ∘ (g ∘ f)
-        let f = FunctionCategory::lift(|x: i32| x + 1);
-        let g = FunctionCategory::lift(|x: i32| x * 2);
-        let h = FunctionCategory::lift(|x: i32| x - 3);
+        let f = FunctionCategory::arrow(|x: i32| x + 1);
+        let g = FunctionCategory::arrow(|x: i32| x * 2);
+        let h = FunctionCategory::arrow(|x: i32| x - 3);
 
         // Left association: (h ∘ g) ∘ f
         let goh = FunctionCategory::compose_morphisms(&g, &h);
@@ -88,8 +88,8 @@ mod category_tests {
 
     #[test]
     fn test_different_types_composition() {
-        let int_to_string = FunctionCategory::lift(|x: i32| x.to_string());
-        let string_length = FunctionCategory::lift(|s: String| s.len());
+        let int_to_string = FunctionCategory::arrow(|x: i32| x.to_string());
+        let string_length = FunctionCategory::arrow(|s: String| s.len());
 
         let composed = FunctionCategory::compose_morphisms(&int_to_string, &string_length);
 
@@ -105,7 +105,7 @@ mod arrow_tests {
     use super::*;
 
     #[test]
-    fn test_arrow_lift() {
+    fn test_arrow_arrow() {
         let double = FunctionCategory::arrow(|x: i32| x * 2);
         let to_upper = FunctionCategory::arrow(|s: String| s.to_uppercase());
 
@@ -115,7 +115,7 @@ mod arrow_tests {
 
     #[test]
     fn test_first_operation() {
-        let double = FunctionCategory::lift(|x: i32| x * 2);
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
         let first_double = FunctionCategory::first(&double);
 
         assert_eq!(first_double((5, "hello")), (10, "hello"));
@@ -125,7 +125,7 @@ mod arrow_tests {
 
     #[test]
     fn test_second_operation() {
-        let double = FunctionCategory::lift(|x: i32| x * 2);
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
         let second_double = FunctionCategory::second(&double);
 
         assert_eq!(second_double(("hello", 5)), ("hello", 10));
@@ -135,8 +135,8 @@ mod arrow_tests {
 
     #[test]
     fn test_split_operation() {
-        let double = FunctionCategory::lift(|x: i32| x * 2);
-        let square = FunctionCategory::lift(|x: i32| x * x);
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
+        let square = FunctionCategory::arrow(|x: i32| x * x);
 
         let split_both = FunctionCategory::split(&double, &square);
 
@@ -147,8 +147,8 @@ mod arrow_tests {
 
     #[test]
     fn test_combine_morphisms() {
-        let double = FunctionCategory::lift(|x: i32| x * 2);
-        let length = FunctionCategory::lift(|s: String| s.len());
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
+        let length = FunctionCategory::arrow(|s: String| s.len());
 
         let combine_both = FunctionCategory::combine_morphisms(&double, &length);
 
@@ -159,8 +159,8 @@ mod arrow_tests {
 
     #[test]
     fn test_split_with_different_types() {
-        let to_string = FunctionCategory::lift(|x: i32| x.to_string());
-        let is_even = FunctionCategory::lift(|x: i32| x % 2 == 0);
+        let to_string = FunctionCategory::arrow(|x: i32| x.to_string());
+        let is_even = FunctionCategory::arrow(|x: i32| x % 2 == 0);
 
         let mixed_split = FunctionCategory::split(&to_string, &is_even);
 
@@ -174,15 +174,6 @@ mod arrow_tests {
 #[cfg(test)]
 mod convenience_tests {
     use super::*;
-
-    #[test]
-    fn test_lift_method() {
-        let triple = FunctionCategory::lift(|x: i32| x * 3);
-
-        assert_eq!(triple(5), 15);
-        assert_eq!(triple(-2), -6);
-        assert_eq!(triple(0), 0);
-    }
 
     #[test]
     fn test_both_method() {
@@ -246,10 +237,10 @@ mod integration_tests {
     #[test]
     fn test_complex_pipeline() {
         // Create a complex data processing pipeline
-        let parse_abs = FunctionCategory::lift(|x: i32| x.abs());
+        let parse_abs = FunctionCategory::arrow(|x: i32| x.abs());
         let validate_range = FunctionCategory::when(|x: &i32| *x <= 100, |x: i32| x);
-        let double = FunctionCategory::lift(|x: i32| x * 2);
-        let format_result = FunctionCategory::lift(|x: i32| format!("Result: {}", x));
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
+        let format_result = FunctionCategory::arrow(|x: i32| format!("Result: {}", x));
 
         // Compose the pipeline
         let step1 = FunctionCategory::compose_morphisms(&parse_abs, &validate_range);
@@ -283,8 +274,8 @@ mod integration_tests {
 
     #[test]
     fn test_nested_arrow_operations() {
-        let double = FunctionCategory::lift(|x: i32| x * 2);
-        let add_one = FunctionCategory::lift(|x: i32| x + 1);
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
+        let add_one = FunctionCategory::arrow(|x: i32| x + 1);
 
         // Test nested first operations
         let first_double = FunctionCategory::first(&double);
@@ -306,7 +297,7 @@ mod integration_tests {
     #[test]
     fn test_memory_safety_with_arc() {
         // Test that Arc sharing works correctly
-        let expensive_computation = FunctionCategory::lift(|x: i32| {
+        let expensive_computation = FunctionCategory::arrow(|x: i32| {
             // Simulate expensive computation
             std::thread::sleep(std::time::Duration::from_millis(1));
             x * x * x
@@ -330,9 +321,9 @@ mod integration_tests {
     fn test_error_handling_patterns() {
         // Test safe division with Option
         let safe_divide =
-            FunctionCategory::lift(|x: i32| if x != 0 { Some(100 / x) } else { None });
+            FunctionCategory::arrow(|x: i32| if x != 0 { Some(100 / x) } else { None });
 
-        let handle_option = FunctionCategory::lift(|opt: Option<i32>| opt.unwrap_or(0));
+        let handle_option = FunctionCategory::arrow(|opt: Option<i32>| opt.unwrap_or(0));
 
         let safe_division_pipeline =
             FunctionCategory::compose_morphisms(&safe_divide, &handle_option);
@@ -351,7 +342,7 @@ mod performance_tests {
     #[test]
     fn test_deep_composition() {
         // Test composition of many functions
-        let add_one = FunctionCategory::lift(|x: i32| x + 1);
+        let add_one = FunctionCategory::arrow(|x: i32| x + 1);
 
         let mut composed = add_one.clone();
         for _ in 0..100 {
@@ -365,14 +356,14 @@ mod performance_tests {
 
     #[test]
     fn test_large_data_processing() {
-        let process_vec = FunctionCategory::lift(|v: Vec<i32>| {
+        let process_vec = FunctionCategory::arrow(|v: Vec<i32>| {
             v.into_iter()
                 .map(|x| x * 2)
                 .filter(|x| *x > 0)
                 .collect::<Vec<_>>()
         });
 
-        let sum_vec = FunctionCategory::lift(|v: Vec<i32>| v.into_iter().sum::<i32>());
+        let sum_vec = FunctionCategory::arrow(|v: Vec<i32>| v.into_iter().sum::<i32>());
 
         let pipeline = FunctionCategory::compose_morphisms(&process_vec, &sum_vec);
 
