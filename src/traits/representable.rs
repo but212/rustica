@@ -40,12 +40,13 @@ pub trait Representable: Functor {
     ///
     /// # Arguments
     ///
+    /// * `fa` - The functor to extract from
     /// * `r` - The representation index to look up
     ///
     /// # Returns
     ///
     /// The value stored at the given index
-    fn index<A: Clone>(fa: &Self::Output<A>) -> impl Fn(&Self::Rep) -> A;
+    fn index<A: Clone>(fa: &Self::Output<A>, r: &Self::Rep) -> A;
 
     /// Create a representable functor by providing a function from indices to values.
     ///

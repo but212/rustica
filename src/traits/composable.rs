@@ -147,7 +147,7 @@ use std::pin::Pin;
 /// use rustica::traits::arrow::Arrow;
 /// let f_morph = FunctionCategory::arrow(f);
 /// let g_morph = FunctionCategory::arrow(g);
-/// FunctionCategory::compose_morphisms(&f_morph, &g_morph)
+/// FunctionCategory::compose_morphisms(&g_morph, &f_morph)
 /// ```
 #[deprecated(
     note = "Use FunctionCategory from rustica::category::function_category instead. This trait violates category theory principles."

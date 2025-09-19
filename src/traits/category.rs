@@ -139,22 +139,28 @@ pub trait Category {
     /// Mathematical definition: (g ∘ f)(x) = g(f(x))
     /// This means f is applied first, then g is applied to the result.
     ///
+    /// # Parameter Order Convention
+    ///
+    /// This function follows the mathematical convention where compose_morphisms(g, f)
+    /// produces g ∘ f, meaning f is applied first, then g. This matches the standard
+    /// functional programming convention used in Haskell and other languages.
+    ///
     /// # Type Parameters
     ///
-    /// * `A`: The input type of the first morphism
+    /// * `A`: The input type of the first morphism to be applied
     /// * `B`: The intermediate type (output of f, input of g)
-    /// * `C`: The output type of the second morphism
+    /// * `C`: The output type of the final result
     ///
     /// # Arguments
     ///
-    /// * `f`: The first morphism to apply (A → B)
     /// * `g`: The second morphism to apply (B → C)
+    /// * `f`: The first morphism to apply (A → B)
     ///
     /// # Returns
     ///
     /// A new morphism representing the composition (g ∘ f): A → C
     fn compose_morphisms<A, B, C>(
-        f: &Self::Morphism<A, B>, g: &Self::Morphism<B, C>,
+        g: &Self::Morphism<B, C>, f: &Self::Morphism<A, B>,
     ) -> Self::Morphism<A, C>
     where
         A: 'static,

@@ -30,7 +30,7 @@ mod category_tests {
         let add_one = FunctionCategory::arrow(|x: i32| x + 1);
 
         // Test composition: (add_one ∘ double)(x) = add_one(double(x))
-        let composed = FunctionCategory::compose_morphisms(&double, &add_one);
+        let composed = FunctionCategory::compose_morphisms(&add_one, &double);
 
         assert_eq!(composed(5), 11); // double(5) = 10, add_one(10) = 11
         assert_eq!(composed(0), 1); // double(0) = 0, add_one(0) = 1
@@ -43,7 +43,7 @@ mod category_tests {
         let double = FunctionCategory::arrow(|x: i32| x * 2);
         let id = FunctionCategory::identity_morphism::<i32>();
 
-        let composed = FunctionCategory::compose_morphisms(&id, &double);
+        let composed = FunctionCategory::compose_morphisms(&double, &id);
 
         // Should behave exactly like the original function
         for i in -10..10 {
@@ -57,7 +57,7 @@ mod category_tests {
         let double = FunctionCategory::arrow(|x: i32| x * 2);
         let id = FunctionCategory::identity_morphism::<i32>();
 
-        let composed = FunctionCategory::compose_morphisms(&double, &id);
+        let composed = FunctionCategory::compose_morphisms(&id, &double);
 
         // Should behave exactly like the original function
         for i in -10..10 {
@@ -73,12 +73,12 @@ mod category_tests {
         let h = FunctionCategory::arrow(|x: i32| x - 3);
 
         // Left association: (h ∘ g) ∘ f
-        let goh = FunctionCategory::compose_morphisms(&g, &h);
-        let left_assoc = FunctionCategory::compose_morphisms(&f, &goh);
+        let goh = FunctionCategory::compose_morphisms(&h, &g);
+        let left_assoc = FunctionCategory::compose_morphisms(&goh, &f);
 
         // Right association: h ∘ (g ∘ f)
-        let gof = FunctionCategory::compose_morphisms(&f, &g);
-        let right_assoc = FunctionCategory::compose_morphisms(&gof, &h);
+        let gof = FunctionCategory::compose_morphisms(&g, &f);
+        let right_assoc = FunctionCategory::compose_morphisms(&h, &gof);
 
         // Should produce the same results
         for i in -5..5 {
@@ -91,7 +91,7 @@ mod category_tests {
         let int_to_string = FunctionCategory::arrow(|x: i32| x.to_string());
         let string_length = FunctionCategory::arrow(|s: String| s.len());
 
-        let composed = FunctionCategory::compose_morphisms(&int_to_string, &string_length);
+        let composed = FunctionCategory::compose_morphisms(&string_length, &int_to_string);
 
         assert_eq!(composed(42), 2); // "42".len() = 2
         assert_eq!(composed(123), 3); // "123".len() = 3
@@ -220,8 +220,8 @@ mod macro_tests {
         function!(add_ten: i32 => i32 = |x: i32| x + 10);
         function!(to_string: i32 => String = |x: i32| x.to_string());
 
-        let step1 = FunctionCategory::compose_morphisms(&double, &add_ten);
-        let pipeline = FunctionCategory::compose_morphisms(&step1, &to_string);
+        let step1 = FunctionCategory::compose_morphisms(&add_ten, &double);
+        let pipeline = FunctionCategory::compose_morphisms(&to_string, &step1);
 
         assert_eq!(pipeline(5), "20"); // (5*2)+10 = 20 -> "20"
         assert_eq!(pipeline(0), "10"); // (0*2)+10 = 10 -> "10"
@@ -243,9 +243,9 @@ mod integration_tests {
         let format_result = FunctionCategory::arrow(|x: i32| format!("Result: {}", x));
 
         // Compose the pipeline
-        let step1 = FunctionCategory::compose_morphisms(&parse_abs, &validate_range);
-        let step2 = FunctionCategory::compose_morphisms(&step1, &double);
-        let pipeline = FunctionCategory::compose_morphisms(&step2, &format_result);
+        let step1 = FunctionCategory::compose_morphisms(&validate_range, &parse_abs);
+        let step2 = FunctionCategory::compose_morphisms(&double, &step1);
+        let pipeline = FunctionCategory::compose_morphisms(&format_result, &step2);
 
         assert_eq!(pipeline(-50), "Result: 100"); // abs(-50) = 50, 50 <= 100, 50*2 = 100
         assert_eq!(pipeline(25), "Result: 50"); // abs(25) = 25, 25 <= 100, 25*2 = 50
@@ -326,7 +326,7 @@ mod integration_tests {
         let handle_option = FunctionCategory::arrow(|opt: Option<i32>| opt.unwrap_or(0));
 
         let safe_division_pipeline =
-            FunctionCategory::compose_morphisms(&safe_divide, &handle_option);
+            FunctionCategory::compose_morphisms(&handle_option, &safe_divide);
 
         assert_eq!(safe_division_pipeline(5), 20); // 100/5 = 20
         assert_eq!(safe_division_pipeline(0), 0); // None -> 0
@@ -365,7 +365,7 @@ mod performance_tests {
 
         let sum_vec = FunctionCategory::arrow(|v: Vec<i32>| v.into_iter().sum::<i32>());
 
-        let pipeline = FunctionCategory::compose_morphisms(&process_vec, &sum_vec);
+        let pipeline = FunctionCategory::compose_morphisms(&sum_vec, &process_vec);
 
         let large_input: Vec<i32> = (-1000..1000).collect();
         let result = pipeline(large_input);

@@ -48,7 +48,7 @@
 //!
 //! // Composition (category-theoretic)
 //! let add_one = FunctionCategory::arrow(|x: i32| x + 1);
-//! let composed = FunctionCategory::compose_morphisms(&add_one, &double);
+//! let composed = FunctionCategory::compose_morphisms(&double, &add_one);
 //! assert_eq!(composed(5), 12); // double(add_one(5)) = double(6) = 12
 //! ```
 //!
@@ -95,8 +95,8 @@
 //! function!(to_string: i32 => String = |x: i32| x.to_string());
 //!
 //! // Category-theoretic composition
-//! let step1 = FunctionCategory::compose_morphisms(&double, &add_one);
-//! let pipeline = FunctionCategory::compose_morphisms(&step1, &to_string);
+//! let step1 = FunctionCategory::compose_morphisms(&add_one, &double);
+//! let pipeline = FunctionCategory::compose_morphisms(&to_string, &step1);
 //! assert_eq!(pipeline(5), "11");
 //!
 //! // Or using the compose! macro
@@ -147,7 +147,7 @@ impl Category for FunctionCategory {
     }
 
     fn compose_morphisms<A: 'static, B: 'static, C: 'static>(
-        f: &Self::Morphism<A, B>, g: &Self::Morphism<B, C>,
+        g: &Self::Morphism<B, C>, f: &Self::Morphism<A, B>,
     ) -> Self::Morphism<A, C> {
         // Clone the Arc references to share ownership
         let f_clone = Arc::clone(f);
@@ -376,7 +376,7 @@ impl FunctionCategory {
 /// assert_eq!(to_string(42), "42");
 ///
 /// // Example of composing the created morphisms
-/// let pipeline = FunctionCategory::compose_morphisms(&double, &to_string);
+/// let pipeline = FunctionCategory::compose_morphisms(&to_string, &double);
 /// assert_eq!(pipeline(5), "10");
 /// ```
 #[macro_export]
@@ -400,9 +400,9 @@ macro_rules! function {
 /// use rustica::category::function_category::compose;
 ///
 /// let pipeline = compose!(
-///     |x: i32| x + 1,
+///     |x: i32| x.to_string(),
 ///     |x: i32| x * 2,
-///     |x: i32| x.to_string()
+///     |x: i32| x + 1
 /// );
 /// assert_eq!(pipeline(5), "12");
 /// ```
@@ -411,7 +411,7 @@ macro_rules! compose {
     ($first:expr) => {
         $crate::category::function_category::FunctionCategory::arrow($first)
     };
-    ($first:expr, $($rest:expr),+) => {
+    ($first:expr, $($rest:expr),+ $(,)?) => {
         {
             use $crate::traits::arrow::Arrow;
             use $crate::traits::category::Category;
