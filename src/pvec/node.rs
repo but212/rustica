@@ -192,15 +192,15 @@ impl<T: Clone> Node<T> {
                     let end = start + width;
                     ranges.push(start..end);
                 }
-                if child_index < children.len() {
-                    if let Some(child) = &children[child_index] {
-                        return child.get_with_path(
-                            sub_index,
-                            shift.saturating_sub(NODE_BITS),
-                            path,
-                            ranges,
-                        );
-                    }
+                if child_index < children.len()
+                    && let Some(child) = &children[child_index]
+                {
+                    return child.get_with_path(
+                        sub_index,
+                        shift.saturating_sub(NODE_BITS),
+                        path,
+                        ranges,
+                    );
                 }
                 None
             },
@@ -494,10 +494,10 @@ impl<T: Clone> Node<T> {
             Node::Branch { children, sizes: _ } => {
                 let (child_index, sub_index) = self.find_child_index(index, shift).ok()?;
 
-                if child_index < children.len() {
-                    if let Some(child) = &children[child_index] {
-                        return child.get(sub_index, shift.saturating_sub(NODE_BITS));
-                    }
+                if child_index < children.len()
+                    && let Some(child) = &children[child_index]
+                {
+                    return child.get(sub_index, shift.saturating_sub(NODE_BITS));
                 }
 
                 None
