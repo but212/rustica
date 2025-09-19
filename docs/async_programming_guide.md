@@ -4,19 +4,31 @@ In modern applications, handling asynchronous operations like network requests, 
 
 This guide will walk you through the core patterns for using `AsyncM` to manage asynchronous code effectively.
 
-**Note:** The examples in this guide require the `tokio` runtime. Make sure you have it in your `Cargo.toml`:
+**Note:** The examples in this guide require the `tokio` runtime and the "async" feature to be enabled. Make sure you have it in your `Cargo.toml`:
 
 ```toml
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-rustica = { version = "0.9.0" }
+rustica = { version = "0.9.0", features = ["async"] }
 ```
+
+**Running the Examples:**
+
+To run the async programming guide example:
+
+```bash
+cargo run --example async_programming_guide --features async
+```
+
+If the async feature is not enabled, the example will display information about the async functionality without running the actual async code.
 
 ## 1. What is `AsyncM`?
 
 `AsyncM<A>` represents a computation that will produce a value of type `A` at some point in the future. It wraps an asynchronous operation, allowing you to treat it like a regular value. You can map over it, chain it with other operations, and combine multiple operations together, all without blocking or manually managing callbacks.
 
 It implements the standard `Functor`, `Applicative`, and `Monad` type classes, providing a familiar and powerful API for functional programmers.
+
+**Feature Requirement:** `AsyncM` is only available when the "async" feature is enabled. This is done to keep the core library lightweight for users who don't need async functionality.
 
 ## 2. Creating `AsyncM` Instances
 
@@ -27,13 +39,21 @@ There are two primary ways to create an `AsyncM` instance.
 If you already have a value and want to lift it into the asynchronous context, use `pure`. This is useful for starting a chain of operations.
 
 ```rust
+#[cfg(feature = "async")]
 use rustica::datatypes::async_monad::AsyncM;
 
+#[cfg(feature = "async")]
 #[tokio::main]
 async fn main() {
     let async_value: AsyncM<i32> = AsyncM::pure(42);
     let result = async_value.try_get().await;
     // result is 42
+}
+
+#[cfg(not(feature = "async"))]
+fn main() {
+    println!("This example requires the 'async' feature to be enabled.");
+    println!("Run with: cargo run --example async_programming_guide --features async");
 }
 ```
 
@@ -44,15 +64,19 @@ For actual asynchronous work, you use `AsyncM::new`. It takes a closure that ret
 Let's simulate fetching data from a remote service:
 
 ```rust
+#[cfg(feature = "async")]
 use rustica::datatypes::async_monad::AsyncM;
+#[cfg(feature = "async")]
 use std::time::Duration;
 
+#[cfg(feature = "async")]
 // A simulated async function to fetch a user's name
 async fn fetch_user_name(user_id: u32) -> String {
     tokio::time::sleep(Duration::from_millis(50)).await;
     format!("User-{user_id}")
 }
 
+#[cfg(feature = "async")]
 #[tokio::main]
 async fn main() {
     let fetch_operation: AsyncM<String> = AsyncM::new(|| fetch_user_name(101));
@@ -70,21 +94,26 @@ The `bind` method (the core of the Monad pattern) is used to sequence asynchrono
 Imagine you need to first fetch a user's ID and then use that ID to fetch their profile. The second operation depends on the first.
 
 ```rust
+#[cfg(feature = "async")]
 use rustica::datatypes::async_monad::AsyncM;
+#[cfg(feature = "async")]
 use std::time::Duration;
 
+#[cfg(feature = "async")]
 // Simulate fetching a user ID from an auth service
 async fn fetch_user_id(username: &str) -> u32 {
     tokio::time::sleep(Duration::from_millis(50)).await;
     if username == "alice" { 101 } else { 0 }
 }
 
+#[cfg(feature = "async")]
 // Simulate fetching user details using their ID
 async fn fetch_user_details(user_id: u32) -> String {
     tokio::time::sleep(Duration::from_millis(50)).await;
     format!("Details for user {user_id}")
 }
 
+#[cfg(feature = "async")]
 #[tokio::main]
 async fn main() {
     let get_user_id = AsyncM::new(|| fetch_user_id("alice"));
@@ -109,8 +138,10 @@ async fn main() {
 Asynchronous operations often involve `Result` types. `AsyncM` provides a convenient way to handle them. The `from_result_or_default` constructor will run an async operation that returns a `Result`, and if it's an `Err`, it will fall back to a default value you provide.
 
 ```rust
+#[cfg(feature = "async")]
 use rustica::datatypes::async_monad::AsyncM;
 
+#[cfg(feature = "async")]
 // An operation that might fail
 async fn might_fail(should_succeed: bool) -> Result<String, &'static str> {
     if should_succeed {
@@ -120,6 +151,7 @@ async fn might_fail(should_succeed: bool) -> Result<String, &'static str> {
     }
 }
 
+#[cfg(feature = "async")]
 #[tokio::main]
 async fn main() {
     // Handle the success case

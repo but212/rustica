@@ -4,6 +4,20 @@ This guide demonstrates a practical, real-world use case for Rustica: validating
 
 This is a common requirement in web development, and it's where the `Validated` data type and the Applicative Functor pattern truly shine.
 
+## Running the Example
+
+You can run the interactive example to see the validation in action:
+
+```bash
+cargo run --example case_study_web_api_validation
+```
+
+The example demonstrates:
+
+- **Interactive demonstration** with valid and invalid inputs
+- **Comprehensive test suite** showing different validation scenarios
+- **Real-world API response structure** with user-friendly error messages
+
 ## The Goal
 
 We want to validate a request body for a user registration endpoint. The request might look like this:
@@ -37,6 +51,37 @@ Let's get started.
 First, let's define the data structure we're validating and the validation functions for each field. We'll also need a simple `Error` enum to represent our validation errors.
 
 ```rust
+//! # Web API Validation Case Study
+//!
+//! This example demonstrates how to use Rustica's functional programming constructs
+//! to build a robust validation system for a web API. We'll create a user registration
+//! system that validates input data using composable validation functions.
+//!
+//! ## Key Features Demonstrated
+//!
+//! - **Validated Type**: Using `Validated<E, A>` for accumulating validation errors
+//! - **Composable Validation**: Individual validation functions that can be combined
+//! - **Functional Error Handling**: Clean separation of validation logic and error presentation
+//! - **Type Safety**: Compile-time guarantees about validation states
+//!
+//! ## Running the Example
+//!
+//! ```bash
+//! cargo run --example case_study_web_api_validation
+//! ```
+//!
+//! The example includes:
+//! - Interactive demonstration with valid and invalid inputs
+//! - Comprehensive test suite showing different validation scenarios
+//! - Real-world API response structure
+//!
+//! ## Changes Made
+//!
+//! - Added `main()` function for interactive demonstration
+//! - Enhanced error messages with user-friendly formatting
+//! - Added comprehensive test coverage for edge cases
+//! - Improved documentation with practical examples
+
 use rustica::prelude::*;
 
 // Our simple error type
@@ -172,6 +217,163 @@ fn handle_registration_request(input: &UserRegistration) -> ApiResponse {
 
 This completes the loop. We've taken raw input, validated it in a functional and composable way, and produced a clean, structured response that is perfect for a modern web API.
 
+## 4. Interactive Example
+
+The example includes a `main()` function that demonstrates the validation system in action:
+
+```rust
+fn main() {
+    println!("Web API Validation Case Study");
+    println!("This example demonstrates how to use Rustica's functional programming constructs");
+    println!("to build a robust validation system for a web API.");
+    println!();
+    println!("Key Features Demonstrated:");
+    println!("- Validated Type: Using Validated<E, A> for accumulating validation errors");
+    println!("- Composable Validation: Individual validation functions that can be combined");
+    println!("- Functional Error Handling: Clean separation of validation logic and error presentation");
+    println!("- Type Safety: Compile-time guarantees about validation states");
+
+    println!();
+    println!("Running validation examples...");
+    
+    // Test with valid input
+    let valid_input = UserRegistration {
+        username: "alice".to_string(),
+        email: "alice@example.com".to_string(),
+        password: "securepassword123".to_string(),
+    };
+
+    println!("\nValidating valid input:");
+    match handle_registration_request(&valid_input) {
+        ApiResponse::Success { username } => {
+            println!("✓ Registration successful for user: {}", username);
+        },
+        ApiResponse::Error { errors } => {
+            println!("✗ Validation failed: {:?}", errors);
+        },
+    }
+
+    // Test with invalid input
+    let invalid_input = UserRegistration {
+        username: "alice".to_string(),
+        email: "invalid-email".to_string(),
+        password: "short".to_string(),
+    };
+
+    println!("\nValidating invalid input:");
+    match handle_registration_request(&invalid_input) {
+        ApiResponse::Success { username } => {
+            println!("✓ Registration successful for user: {}", username);
+        },
+        ApiResponse::Error { errors } => {
+            println!("✗ Validation failed with {} errors:", errors.len());
+            for error in errors {
+                println!("  - {}", error);
+            }
+        },
+    }
+}
+```
+
+### Expected Output
+
+When you run the example, you'll see output like this:
+
+```text
+Web API Validation Case Study
+This example demonstrates how to use Rustica's functional programming constructs
+to build a robust validation system for a web API.
+
+Key Features Demonstrated:
+- Validated Type: Using Validated<E, A> for accumulating validation errors
+- Composable Validation: Individual validation functions that can be combined
+- Functional Error Handling: Clean separation of validation logic and error presentation
+- Type Safety: Compile-time guarantees about validation states
+
+Running validation examples...
+
+Validating valid input:
+✓ Registration successful for user: alice
+
+Validating invalid input:
+✗ Validation failed with 2 errors:
+  - Email is not in a valid format.
+  - Password must be at least 8 characters long.
+```
+
+## 5. Testing
+
+The example includes comprehensive tests that demonstrate different validation scenarios:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_registration() {
+        let input = UserRegistration {
+            username: "alice".to_string(),
+            email: "alice@example.com".to_string(),
+            password: "strongpassword".to_string(),
+        };
+
+        let response = handle_registration_request(&input);
+        assert_eq!(
+            response,
+            ApiResponse::Success {
+                username: "alice".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_invalid_registration_all_fields() {
+        let input = UserRegistration {
+            username: "al".to_string(),
+            email: "invalid-email".to_string(),
+            password: "123".to_string(),
+        };
+
+        let response = handle_registration_request(&input);
+        match response {
+            ApiResponse::Error { errors } => {
+                assert_eq!(errors.len(), 3);
+                assert!(errors.contains(&"Username must be at least 3 characters long.".to_string()));
+                assert!(errors.contains(&"Email is not in a valid format.".to_string()));
+                assert!(errors.contains(&"Password must be at least 8 characters long.".to_string()));
+            },
+            _ => panic!("Expected error response"),
+        }
+    }
+
+    #[test]
+    fn test_partial_validation_errors() {
+        let input = UserRegistration {
+            username: "alice".to_string(),
+            email: "invalid-email".to_string(),
+            password: "short".to_string(),
+        };
+
+        let response = handle_registration_request(&input);
+        match response {
+            ApiResponse::Error { errors } => {
+                assert_eq!(errors.len(), 2);
+                assert!(errors.contains(&"Email is not in a valid format.".to_string()));
+                assert!(errors.contains(&"Password must be at least 8 characters long.".to_string()));
+            },
+            _ => panic!("Expected error response"),
+        }
+    }
+}
+```
+
+Run the tests with:
+
+```bash
+cargo test --example case_study_web_api_validation
+```
+
 ## Conclusion
 
 This case study demonstrates how Rustica's `Validated` data type and the Applicative Functor pattern provide a robust and elegant solution for a common real-world problem. By using these tools, you can write validation logic that is:
@@ -180,3 +382,15 @@ This case study demonstrates how Rustica's `Validated` data type and the Applica
 - **Declarative**: The validation logic is clear and easy to read, without nested `if/else` statements.
 - **User-Friendly**: It can accumulate all errors, providing better feedback to the user.
 - **Robust**: The type system ensures you handle both success and failure cases.
+- **Testable**: Each validation function can be tested independently, and the overall system has comprehensive test coverage.
+
+### Key Features Demonstrated
+
+- **Validated Type**: Using `Validated<E, A>` for accumulating validation errors
+- **Composable Validation**: Individual validation functions that can be combined
+- **Functional Error Handling**: Clean separation of validation logic and error presentation
+- **Type Safety**: Compile-time guarantees about validation states
+- **Interactive Examples**: Real-world demonstration with both valid and invalid inputs
+- **Comprehensive Testing**: Full test coverage for different validation scenarios
+
+This pattern is particularly useful in web APIs, form validation, configuration parsing, and any scenario where you need to collect and report multiple errors rather than failing fast on the first error encountered.
