@@ -1,7 +1,10 @@
-//! # Composable Function Operations
+//! # Deprecated Composable Function Operations
 //!
-//! This module provides traits and utilities for function composition, enabling the creation of complex
-//! transformations from simpler ones through a type-safe API.
+//! **DEPRECATED**: This module is deprecated. Use `FunctionCategory` from
+//! `rustica::category::function_category` instead for category-theoretically sound function composition.
+//!
+//! This module previously provided traits and utilities for function composition, but has been
+//! replaced by the more mathematically rigorous `FunctionCategory` implementation.
 //!
 //! # TODO: Improvement Opportunities
 //!
@@ -54,72 +57,54 @@
 //!    - If f: A → B and g: B → C, then (g ∘ f): A → C
 //!    - Types must align at composition boundaries
 //!
-//! # Available Functions
+//! # Migration Guide
 //!
-//! This module provides various composition utilities:
+//! **All functions in this module are deprecated**. Use `FunctionCategory` instead:
 //!
-//! - **Basic Composition**:
-//!   - `compose`: Combines two functions into a single function
-//!   - `compose_all`: Composes multiple functions into a single function
+//! - **Basic Composition**: Use `FunctionCategory::compose_morphisms`
+//! - **Multiple Composition**: Use `FunctionCategory::compose_all` or `FunctionCategory::sequence`
+//! - **Conditional Composition**: Use `FunctionCategory::compose_when`
+//! - **Function Lifting**: Use `FunctionCategory::lift` or `FunctionCategory::arrow`
 //!
-//! - **Conditional Composition**:
-//!   - `compose_when`: Applies a second function only if a predicate is satisfied
+//! For specialized composition (async, fallible, parallel), combine `FunctionCategory`
+//! with appropriate libraries (tokio, rayon, etc.) rather than using the deprecated utilities.
 //!
-//! - **Asynchronous Composition**:
-//!   - `compose_async`: Composes two async functions and immediately executes them
-//!   - `compose_async_fn`: Creates a new async function by composing two async functions
+//! # Migration Example
 //!
-//! - **Fallible Composition**:
-//!   - `compose_fallible`: Composes two fallible functions that return Results
-//!   - `compose_option_result`: Composes a function returning Option with a function returning Result
-//!   - `compose_option`: Composes two functions that return Options
-//!
-//! - **Iterator Composition**:
-//!   - `compose_iter`: Composes a function with an iterator mapper
-//!   - `compose_filter`: Composes a function with a filter predicate
-//!   - `compose_iter_chain`: Chains multiple iterator-producing functions together
-//!
-//! - **Parallel Composition**:
-//!   - `compose_par`: Composes a function with a parallel mapping function using rayon
-//!   - `compose_par_filter`: Composes a function with a parallel filter predicate using rayon
-//!   - `compose_par_chain`: Chains multiple iterator-producing functions together and processes them in parallel using rayon
-//!   - `apply_par_all`: Applies multiple transformation functions to a single input in parallel and returns all the results
-//!
-//! # Examples
-//!
-//! ```rust
-//! use rustica::prelude::*;
+//! **Old (Deprecated)**:
+//! ```rust,ignore
 //! use rustica::traits::composable::Composable;
 //!
-//! // A simple implementation of function composition
 //! struct SimpleCompose<T>(T);
-//!
 //! impl<T> HKT for SimpleCompose<T> {
 //!     type Source = T;
 //!     type Output<U> = SimpleCompose<U>;
 //! }
-//!
 //! impl<T> Composable for SimpleCompose<T> {}
 //!
-//! // Basic numeric transformation
 //! let add_one = |x: i32| x + 1;
 //! let multiply_two = |x: i32| x * 2;
 //! let composed = SimpleCompose::<i32>::compose(&add_one, &multiply_two);
+//! ```
+//!
+//! **New (Recommended)**:
+//! ```rust
+//! use rustica::category::function_category::{FunctionCategory, function};
+//! use rustica::traits::category::Category;
+//!
+//! // Using the function! macro for clean syntax
+//! function!(add_one: i32 => i32 = |x: i32| x + 1);
+//! function!(multiply_two: i32 => i32 = |x: i32| x * 2);
+//! let composed = FunctionCategory::compose_morphisms(&add_one, &multiply_two);
 //! assert_eq!(composed(3), 8);  // (3 + 1) * 2 = 8
 //!
-//! // String processing
-//! let to_string = |x: i32| x.to_string();
-//! let add_exclamation = |s: String| s + "!";
-//! let excited = SimpleCompose::<i32>::compose(&to_string, &add_exclamation);
-//! assert_eq!(excited(42), "42!");
-//!
-//! // Option handling
-//! let safe_divide = |x: f64| if x == 0.0 { None } else { Some(1.0 / x) };
-//! let safe_sqrt = |x: f64| if x >= 0.0 { Some(x.sqrt()) } else { None };
-//! let option_and_then_safe_sqrt = |x: Option<f64>| x.and_then(safe_sqrt);
-//! let composed = SimpleCompose::<f64>::compose(&safe_divide, &option_and_then_safe_sqrt);
-//! assert_eq!(composed(4.0), Some(0.5));  // sqrt(1/4) = 0.5
-//! assert_eq!(composed(0.0), None);       // Division by zero
+//! // Or using the compose! macro
+//! use rustica::category::function_category::compose;
+//! let pipeline = compose!(
+//!     |x: i32| x + 1,
+//!     |x: i32| x * 2
+//! );
+//! assert_eq!(pipeline(3), 8);
 //! ```
 //!
 //! # Common Use Cases
@@ -145,6 +130,28 @@ use std::future::Future;
 use std::pin::Pin;
 
 /// A trait for composable functions that can be chained together in a type-safe manner.
+///
+/// **DEPRECATED**: This trait violates category theory principles. Use `FunctionCategory` instead.
+///
+/// # Migration Guide
+///
+/// Replace:
+/// ```rust,ignore
+/// use rustica::traits::composable::Composable;
+/// SimpleCompose::<i32>::compose(&f, &g)
+/// ```
+///
+/// With:
+/// ```rust,ignore
+/// use rustica::category::function_category::FunctionCategory;
+/// use rustica::traits::arrow::Arrow;
+/// let f_morph = FunctionCategory::arrow(f);
+/// let g_morph = FunctionCategory::arrow(g);
+/// FunctionCategory::compose_morphisms(&f_morph, &g_morph)
+/// ```
+#[deprecated(
+    note = "Use FunctionCategory from rustica::category::function_category instead. This trait violates category theory principles."
+)]
 pub trait Composable: HKT {
     /// Composes two functions into a single function.
     ///
@@ -211,35 +218,31 @@ pub trait Composable: HKT {
     }
 }
 
+/// **DEPRECATED**: Use `FunctionCategory::compose_morphisms` instead.
+///
 /// Composes two functions and returns a new function.
 ///
-/// # Type Parameters
+/// # Migration Guide
 ///
-/// * `T`: Input type of the first function
-/// * `U`: Output type of the first function and input type of the second function
-/// * `V`: Output type of the second function
-/// * `F`: Function of type `Fn(T) -> U`
-/// * `G`: Function of type `Fn(U) -> V`
-///
-/// # Arguments
-///
-/// * `f`: First function to compose
-/// * `g`: Second function to compose
-///
-/// # Returns
-///
-/// Returns a new function that is the composition of `f` and `g`.
-///
-/// # Examples
-///
-/// ```rust
+/// Replace:
+/// ```rust,ignore
 /// use rustica::traits::composable::compose;
-///
-/// let add_one = |x: i32| x + 1;
-/// let double = |x: i32| x * 2;
-/// let composed = compose(add_one, double);
-/// assert_eq!(composed(3), 8);  // (3 + 1) * 2 = 8
+/// let composed = compose(f, g);
 /// ```
+///
+/// With:
+/// ```rust,ignore
+/// use rustica::category::function_category::FunctionCategory;
+/// use rustica::traits::category::Category;
+/// use rustica::traits::arrow::Arrow;
+///
+/// let f_morph = FunctionCategory::arrow(f);
+/// let g_morph = FunctionCategory::arrow(g);
+/// let composed = FunctionCategory::compose_morphisms(&f_morph, &g_morph);
+/// ```
+#[deprecated(
+    note = "Use FunctionCategory::compose_morphisms instead for category-theoretic composition"
+)]
 #[inline]
 pub fn compose<T, U, V, F, G>(f: F, g: G) -> impl Fn(T) -> V
 where
@@ -249,39 +252,24 @@ where
     move |x| g(f(x))
 }
 
-/// Composes multiple functions into a single function.
+/// **DEPRECATED**: Use `FunctionCategory::compose_all` or `FunctionCategory::sequence` instead.
 ///
-/// This function takes a vector of functions and returns a new function that applies
-/// all the given functions in sequence, from left to right.
+/// # Migration Guide
 ///
-/// # Type Parameters
-///
-/// * `T`: The type of both input and output for all functions
-/// * `F`: The type of the functions to be composed
-///
-/// # Arguments
-///
-/// * `functions`: A vector of functions to compose
-///
-/// # Returns
-///
-/// A new function that represents the composition of all input functions
-///
-/// # Examples
-///
-/// ```rust
+/// Replace:
+/// ```rust,ignore
 /// use rustica::traits::composable::compose_all;
-///
-/// // Create functions with explicit type annotations
-/// let add_one = |x: i32| x + 1;
-/// let double = |x: i32| x * 2;
-///
-/// // Compose all functions into a single function
-/// let composed = compose_all(vec![add_one, double, add_one]);
-///
-/// // Test the composed function
-/// assert_eq!(composed(3), 9);  // ((3 + 1) * 2) + 1 = 9
+/// let composed = compose_all(vec![f1, f2, f3]);
 /// ```
+///
+/// With:
+/// ```rust,ignore
+/// use rustica::category::function_category::FunctionCategory;
+/// let composed = FunctionCategory::sequence(vec![f1, f2, f3]);
+/// ```
+#[deprecated(
+    note = "Use FunctionCategory::sequence for owned functions or FunctionCategory::compose_all for morphism references"
+)]
 #[inline]
 pub fn compose_all<T, F>(functions: Vec<F>) -> impl Fn(T) -> T
 where
@@ -406,48 +394,27 @@ where
     }
 }
 
-/// Composes two functions conditionally based on a predicate.
+/// **DEPRECATED**: Use `FunctionCategory::compose_when` instead.
 ///
-/// This function takes three functions:
-/// - `f`: The initial transformation function
-/// - `g`: The secondary transformation function
-/// - `predicate`: A function that decides whether to apply `g`
+/// # Migration Guide
 ///
-/// # Type Parameters
-///
-/// * `A`: Input type of the first function
-/// * `B`: Output type of both functions
-/// * `F`: Type of the first function
-/// * `G`: Type of the second function
-/// * `P`: Type of the predicate function
-///
-/// # Arguments
-///
-/// * `f`: Initial transformation function
-/// * `g`: Secondary transformation function
-/// * `predicate`: Function that decides whether to apply `g`
-///
-/// # Returns
-///
-/// A new function that applies `f`, then conditionally applies `g` based on the predicate.
-///
-/// # Example
-///
-/// ```rust
+/// Replace:
+/// ```rust,ignore
 /// use rustica::traits::composable::compose_when;
-///
-/// // Define functions with explicit type annotations
-/// let add_one = |x: i32| x + 1;
-/// let double = |x: i32| x * 2;
-/// let is_even = |&x: &i32| x % 2 == 0;
-///
-/// // Create conditional composition
-/// let conditional = compose_when(add_one, double, is_even);
-///
-/// // Test with different inputs
-/// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even, so double is applied)
-/// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd, so double is not applied)
+/// let conditional = compose_when(f, g, predicate);
 /// ```
+///
+/// With:
+/// ```rust,ignore
+/// use rustica::category::function_category::FunctionCategory;
+/// use rustica::traits::arrow::Arrow;
+/// let f_morph = FunctionCategory::arrow(f);
+/// let g_morph = FunctionCategory::arrow(g);
+/// let conditional = FunctionCategory::compose_when(&f_morph, &g_morph, predicate);
+/// ```
+#[deprecated(
+    note = "Use FunctionCategory::compose_when for category-theoretic conditional composition"
+)]
 pub fn compose_when<A, B, F, G, P>(f: F, g: G, predicate: P) -> impl Fn(A) -> B
 where
     F: Fn(A) -> B,
@@ -464,7 +431,7 @@ where
     }
 }
 
-/// Composes two fallible functions that return Results.
+/// **DEPRECATED**: Use monadic composition with `FunctionCategory` instead.
 ///
 /// This function composes two functions where both can return errors. If the first function
 /// returns an error, that error is propagated. Otherwise, the second function is applied
@@ -527,7 +494,7 @@ where
     compose(f, move |result: Result<B, E>| result.and_then(&g))
 }
 
-/// Composes a function returning Option with a function returning Result.
+/// **DEPRECATED**: Use monadic composition with `FunctionCategory` instead.
 ///
 /// If the first function returns None, that None is propagated. If it returns Some,
 /// the second function is applied, and its Result is converted to Option (Ok -> Some, Err -> None).
@@ -587,7 +554,7 @@ where
     compose(f, move |opt: Option<B>| opt.and_then(|b| g(b).ok()))
 }
 
-/// Composes two functions that return Options.
+/// **DEPRECATED**: Use monadic composition with `FunctionCategory` instead.
 ///
 /// This function is similar to using `and_then` on an Option. If the first function
 /// returns None, that None is propagated. Otherwise, the second function is applied
@@ -645,7 +612,7 @@ where
     compose(f, move |opt: Option<B>| opt.and_then(&g))
 }
 
-/// Composes a function with a filtering predicate function.
+/// **DEPRECATED**: Use `FunctionCategory` with iterator methods instead.
 ///
 /// # Type Parameters
 ///
@@ -699,7 +666,7 @@ where
     })
 }
 
-/// Chains multiple iterator-producing functions into a single function.
+/// **DEPRECATED**: Use `FunctionCategory` with iterator methods instead.
 ///
 /// # Type Parameters
 ///
@@ -754,7 +721,7 @@ where
     }
 }
 
-/// Composes a function with a parallel filtering predicate using rayon.
+/// **DEPRECATED**: Use `FunctionCategory` with rayon directly instead.
 ///
 /// This function requires the "rayon" feature to be enabled.
 ///
@@ -825,9 +792,11 @@ where
     })
 }
 
+// Note: Rayon-based parallel composition functions are deprecated.
+// For parallel processing, use rayon directly with FunctionCategory morphisms.
 use rayon::prelude::*;
 
-/// Composes a function with a parallel mapping function using rayon.
+/// **DEPRECATED**: Use `FunctionCategory` with rayon directly instead.
 ///
 /// This function requires the "rayon" feature to be enabled.
 ///
@@ -882,7 +851,7 @@ where
     })
 }
 
-/// Chains multiple functions together and processes their results in parallel.
+/// **DEPRECATED**: Use `FunctionCategory` with rayon directly instead.
 ///
 /// This function requires the "rayon" feature to be enabled.
 ///
@@ -940,7 +909,7 @@ where
     }
 }
 
-/// Applies multiple transformation functions to a single input value in parallel.
+/// **DEPRECATED**: Use `FunctionCategory` with rayon directly instead.
 ///
 /// This function requires the "rayon" feature to be enabled.
 ///

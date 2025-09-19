@@ -1,7 +1,10 @@
 //! Function Category Implementation
 //!
-//! This module provides a concrete implementation of the Category and Arrow traits for Rust functions.
+//! This module provides a concrete implementation of the Category and Arrow traits for functions.
 //! It represents the category of functions where objects are types and morphisms are functions between those types.
+//!
+//! **Note**: This module replaces the deprecated `Composable` trait with category-theoretically sound
+//! function composition operations.
 //!
 //! # Mathematical Foundation
 //!
@@ -39,11 +42,11 @@
 //! let id = FunctionCategory::identity_morphism::<i32>();
 //! assert_eq!(id(42), 42);
 //!
-//! // Function lifting
-//! let double = FunctionCategory::arrow(|x: i32| x * 2);
+//! // Function lifting (replaces deprecated Composable)
+//! let double = FunctionCategory::lift(|x: i32| x * 2);
 //! assert_eq!(double(21), 42);
 //!
-//! // Composition
+//! // Composition (category-theoretic)
 //! let add_one = FunctionCategory::arrow(|x: i32| x + 1);
 //! let composed = FunctionCategory::compose_morphisms(&add_one, &double);
 //! assert_eq!(composed(5), 12); // double(add_one(5)) = double(6) = 12
@@ -79,24 +82,39 @@
 //! assert_eq!(mixed_split(6), ("6".to_string(), true));
 //! ```
 //!
-//! ## Complex Pipelines
+//! ## Complex Pipelines (Replacing Deprecated Composable)
 //!
 //! ```rust
-//! use rustica::category::function_category::FunctionCategory;
+//! use rustica::category::function_category::{FunctionCategory, function, compose};
 //! use rustica::traits::category::Category;
 //! use rustica::traits::arrow::Arrow;
 //!
-//! // Multi-stage processing pipeline
-//! let pipeline = {
-//!     let double = FunctionCategory::arrow(|x: i32| x * 2);
-//!     let add_one = FunctionCategory::arrow(|x: i32| x + 1);
-//!     let to_string = FunctionCategory::arrow(|x: i32| x.to_string());
-//!     
-//!     let step1 = FunctionCategory::compose_morphisms(&double, &add_one);
-//!     FunctionCategory::compose_morphisms(&step1, &to_string)
-//! };
+//! // Using the function! macro for named morphisms
+//! function!(double: i32 => i32 = |x: i32| x * 2);
+//! function!(add_one: i32 => i32 = |x: i32| x + 1);
+//! function!(to_string: i32 => String = |x: i32| x.to_string());
 //!
+//! // Category-theoretic composition
+//! let step1 = FunctionCategory::compose_morphisms(&double, &add_one);
+//! let pipeline = FunctionCategory::compose_morphisms(&step1, &to_string);
 //! assert_eq!(pipeline(5), "11");
+//!
+//! // Or using the compose! macro
+//! let macro_pipeline = compose!(
+//!     |x: i32| x * 2,
+//!     |x: i32| x + 1,
+//!     |x: i32| x.to_string()
+//! );
+//! assert_eq!(macro_pipeline(5), "11");
+//!
+//! // Conditional composition
+//! let conditional = FunctionCategory::compose_when(
+//!     &add_one,
+//!     &double,
+//!     |x: &i32| x % 2 == 0
+//! );
+//! assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even)
+//! assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd)
 //! ```
 //!
 //! # Memory Management
@@ -199,6 +217,9 @@ impl Arrow for FunctionCategory {
 }
 
 /// Convenience implementations for FunctionCategory
+///
+/// These methods provide additional functionality beyond the basic Category and Arrow traits,
+/// following category theory principles while offering practical composition utilities.
 impl FunctionCategory {
     /// Creates a morphism that applies a function to both components of a pair.
     ///
@@ -224,6 +245,7 @@ impl FunctionCategory {
     /// Creates a morphism that applies a function only if a predicate is true.
     ///
     /// If the predicate is false, the original value is returned unchanged.
+    /// This is a category-theoretic conditional morphism.
     ///
     /// # Examples
     ///
@@ -246,35 +268,153 @@ impl FunctionCategory {
     {
         Arc::new(move |a| if predicate(&a) { transform(a) } else { a })
     }
+
+    /// Creates a morphism that lifts a regular function into the category.
+    ///
+    /// This is an alias for the Arrow::arrow method, provided for consistency
+    /// with the deprecated Composable trait.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double = FunctionCategory::lift(|x: i32| x * 2);
+    /// assert_eq!(double(21), 42);
+    /// ```
+    #[inline]
+    pub fn lift<A, B, F>(f: F) -> FunctionMorphism<A, B>
+    where
+        F: Fn(A) -> B + 'static,
+        A: 'static,
+        B: 'static,
+    {
+        Self::arrow(f)
+    }
+
+    /// Composes two morphisms conditionally based on a predicate.
+    ///
+    /// This applies the first morphism, then conditionally applies the second
+    /// based on the predicate result.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    /// use rustica::traits::arrow::Arrow;
+    ///
+    /// let add_one = FunctionCategory::arrow(|x: i32| x + 1);
+    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
+    /// let is_even = |x: &i32| x % 2 == 0;
+    ///
+    /// let conditional = FunctionCategory::compose_when(&add_one, &double, is_even);
+    /// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even)
+    /// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd)
+    /// ```
+    pub fn compose_when<A, P>(
+        first: &FunctionMorphism<A, A>, second: &FunctionMorphism<A, A>, predicate: P,
+    ) -> FunctionMorphism<A, A>
+    where
+        A: 'static,
+        P: Fn(&A) -> bool + 'static,
+    {
+        let first_clone = Arc::clone(first);
+        let second_clone = Arc::clone(second);
+
+        Arc::new(move |x| {
+            let result = first_clone(x);
+            if predicate(&result) {
+                second_clone(result)
+            } else {
+                result
+            }
+        })
+    }
+
+    /// Creates a morphism that applies multiple transformations in sequence.
+    ///
+    /// This is similar to compose_all but takes owned functions for better performance
+    /// when the functions don't need to be reused.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let pipeline = FunctionCategory::sequence(vec![
+    ///     |x: i32| x + 1,
+    ///     |x: i32| x * 2,
+    ///     |x: i32| x - 3,
+    /// ]);
+    /// assert_eq!(pipeline(5), 9); // ((5 + 1) * 2) - 3 = 9
+    /// ```
+    pub fn sequence<A, F>(functions: Vec<F>) -> FunctionMorphism<A, A>
+    where
+        A: 'static,
+        F: Fn(A) -> A + 'static,
+    {
+        Arc::new(move |initial| functions.iter().fold(initial, |acc, f| f(acc)))
+    }
 }
 
 /// Macro for creating named function morphisms with type annotations.
 ///
 /// This macro provides a convenient syntax for creating function morphisms
 /// with explicit type annotations, making the code more readable and self-documenting.
+/// This replaces the deprecated Composable trait functionality.
 ///
 /// # Examples
 ///
 /// ```rust
-/// use rustica::category::function_category::{FunctionCategory, function};
-/// use rustica::traits::category::Category;
-/// use rustica::traits::arrow::Arrow;
+/// use rustica::category::function_category::function;
 ///
 /// function!(double: i32 => i32 = |x: i32| x * 2);
 /// function!(to_string: i32 => String = |x: i32| x.to_string());
 ///
 /// assert_eq!(double(21), 42);
 /// assert_eq!(to_string(42), "42");
-///
-/// let pipeline = FunctionCategory::compose_morphisms(&double, &to_string);
-/// assert_eq!(pipeline(5), "10");
 /// ```
 #[macro_export]
 macro_rules! function {
     ($name:ident: $input:ty => $output:ty = $body:expr) => {
-        let $name: $crate::category::function_category::FunctionMorphism<$input, $output> =
-            $crate::category::function_category::FunctionCategory::arrow($body);
+        let $name = {
+            use $crate::traits::arrow::Arrow;
+            $crate::category::function_category::FunctionCategory::arrow($body)
+        };
     };
 }
 
-pub use function;
+/// Macro for composing multiple functions with type annotations.
+///
+/// This macro provides a convenient way to compose multiple functions,
+/// replacing the deprecated Composable::compose functionality.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::category::function_category::compose;
+///
+/// let pipeline = compose!(
+///     |x: i32| x + 1,
+///     |x: i32| x * 2,
+///     |x: i32| x.to_string()
+/// );
+/// assert_eq!(pipeline(5), "12");
+/// ```
+#[macro_export]
+macro_rules! compose {
+    ($first:expr) => {
+        $crate::category::function_category::FunctionCategory::arrow($first)
+    };
+    ($first:expr, $($rest:expr),+) => {
+        {
+            use $crate::traits::arrow::Arrow;
+            use $crate::traits::category::Category;
+            let first_morphism = $crate::category::function_category::FunctionCategory::arrow($first);
+            let rest_morphism = compose!($($rest),+);
+            $crate::category::function_category::FunctionCategory::compose_morphisms(&first_morphism, &rest_morphism)
+        }
+    };
+}
+
+pub use {compose, function};
