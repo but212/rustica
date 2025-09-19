@@ -13,7 +13,7 @@
 //! - Optics for data manipulation via `Lens` and `Prism`
 //! - Composable operations for error handling and data transformation
 //! - Zero-cost abstractions wherever possible
-//! - Advanced monad transformers: `StateT`, `ReaderT`, `WriterT`, `ContT`
+//! - Advanced monad transformers: `StateT`, `ReaderT`, `ContT`
 //!
 //! ## Getting Started
 //!
