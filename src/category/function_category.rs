@@ -101,9 +101,9 @@
 //!
 //! // Or using the compose! macro
 //! let macro_pipeline = compose!(
-//!     |x: i32| x * 2,
+//!     |x: i32| x.to_string(),
 //!     |x: i32| x + 1,
-//!     |x: i32| x.to_string()
+//!     |x: i32| x * 2,
 //! );
 //! assert_eq!(macro_pipeline(5), "11");
 //!
