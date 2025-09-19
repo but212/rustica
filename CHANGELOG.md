@@ -8,8 +8,8 @@
   - Added `From<T>` and `Into<T>` implementations for wrapper types:
     - `Sum<T>`: `From<T>` implementation for direct value wrapping
     - `Product<T>`: `From<T>` implementation for direct value wrapping
-    - `First<T>`: `From<T>` and `From<Option<T>>` implementations for flexible initialization
-    - `Last<T>`: `From<T>` and `From<Option<T>>` implementations for flexible initialization
+    - `First<T>`: `From<Option<T>>` implementations for optional initialization
+    - `Last<T>`: `From<Option<T>>` implementations for optional initialization
     - `Min<T>`: `From<T>` implementation for direct value wrapping
     - `Max<T>`: `From<T>` implementation for direct value wrapping
     - `Value<T>`: `From<T>` implementation for seamless conversion from any value
@@ -32,6 +32,10 @@
 - **Deprecation of `Value` wrapper**
   - Replaced with `Id` from `rustica::datatypes::id`
   - This wrapper is redundant with `Id`
+
+#### BREAKING CHANGES - 0.10.0
+
+- **remove `Foldable` trait impl in monoid wrappers**
 
 ## [0.9.0]
 

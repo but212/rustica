@@ -9,7 +9,6 @@ use rustica::datatypes::wrapper::thunk::Thunk;
 use rustica::datatypes::wrapper::value::Value;
 use rustica::prelude::*;
 use rustica::traits::evaluate::Evaluate;
-use rustica::traits::foldable::Foldable;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -32,13 +31,6 @@ fn test_first_wrapper() {
     // Test monoid empty
     let empty = First::<i32>::empty();
     assert_eq!(empty, First(None));
-
-    // Test fold operations
-    let folded_left = first_some.fold_left(&0, |acc, x| acc + x);
-    assert_eq!(folded_left, 42);
-
-    let folded_right = first_some.fold_right(&0, |x, acc| x + acc);
-    assert_eq!(folded_right, 42);
 }
 
 #[test]
@@ -60,13 +52,6 @@ fn test_last_wrapper() {
     // Test monoid empty
     let empty = Last::<i32>::empty();
     assert_eq!(empty, Last(None));
-
-    // Test fold operations
-    let folded_left = last_some.fold_left(&0, |acc, x| acc + x);
-    assert_eq!(folded_left, 42);
-
-    let folded_right = last_some.fold_right(&0, |x, acc| x + acc);
-    assert_eq!(folded_right, 42);
 }
 
 #[test]
@@ -87,13 +72,6 @@ fn test_min_wrapper() {
     // Test monoid empty for u32 (default is 0, which is the min)
     let empty = Min::<u32>::empty();
     assert_eq!(empty, Min(0));
-
-    // Test fold operations
-    let folded_left = min1.fold_left(&0, |acc, x| acc + x);
-    assert_eq!(folded_left, 10);
-
-    let folded_right = min1.fold_right(&0, |x, acc| x + acc);
-    assert_eq!(folded_right, 10);
 }
 
 #[test]
@@ -114,13 +92,6 @@ fn test_max_wrapper() {
     // Test monoid empty for u32 (default is 0)
     let empty = Max::<u32>::empty();
     assert_eq!(empty, Max(0));
-
-    // Test fold operations
-    let folded_left = max1.fold_left(&0, |acc, x| acc + x);
-    assert_eq!(folded_left, 10);
-
-    let folded_right = max1.fold_right(&0, |x, acc| x + acc);
-    assert_eq!(folded_right, 10);
 }
 
 #[test]
@@ -141,13 +112,6 @@ fn test_sum_wrapper() {
     // Test monoid empty
     let empty = Sum::<i32>::empty();
     assert_eq!(empty, Sum(0));
-
-    // Test fold operations
-    let folded_left = sum1.fold_left(&0, |acc, x| acc + x);
-    assert_eq!(folded_left, 10);
-
-    let folded_right = sum1.fold_right(&0, |x, acc| x + acc);
-    assert_eq!(folded_right, 10);
 }
 
 #[test]
@@ -168,13 +132,6 @@ fn test_product_wrapper() {
     // Test monoid empty
     let empty = Product::<i32>::empty();
     assert_eq!(empty, Product(1));
-
-    // Test fold operations
-    let folded_left = prod1.fold_left(&1, |acc, x| acc * x);
-    assert_eq!(folded_left, 10);
-
-    let folded_right = prod1.fold_right(&1, |x, acc| x * acc);
-    assert_eq!(folded_right, 10);
 }
 
 #[test]

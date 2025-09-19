@@ -16,7 +16,6 @@
 //!
 //! - **Aggregation**: Provides a principled way to combine values
 //! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
-//! - **Folding**: Can be used with `Foldable` to reduce collections to a single value
 //! - **Composition**: Combines with other algebraic structures for complex operations
 //!
 //! ## Type Class Laws
@@ -64,7 +63,6 @@
 //! - `Functor`: For mapping operations over the inner value
 //! - `Identity`: For accessing the wrapped value
 //! - `HKT`: For higher-kinded type operations
-//! - `Foldable`: For folding operations
 //!
 //! ## Quick Start
 //!
@@ -90,7 +88,6 @@
 //! assert_eq!(a.combine(&empty), a); // 3 + 0 = 3
 //! ```
 
-use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
@@ -600,24 +597,6 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
         Self::Source: Add<Output = Self::Source>,
     {
         Sum(f(self.0))
-    }
-}
-
-impl<T: Clone + Add<Output = T>> Foldable for Sum<T> {
-    fn fold_left<U, F>(&self, init: &U, f: F) -> U
-    where
-        F: Fn(&U, &Self::Source) -> U,
-        U: Clone,
-    {
-        f(init, &self.0)
-    }
-
-    fn fold_right<U, F>(&self, init: &U, f: F) -> U
-    where
-        F: Fn(&Self::Source, &U) -> U,
-        U: Clone,
-    {
-        f(&self.0, init)
     }
 }
 

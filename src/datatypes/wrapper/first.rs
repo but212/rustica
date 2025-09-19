@@ -7,7 +7,6 @@
 //! - As a `Semigroup`, it combines values by keeping the first non-None value
 //! - As a `Monoid`, it uses `None` as its identity element
 //! - As a `Functor`, it maps functions over the inner value if present
-//! - As a `Foldable`, it allows extraction and reduction of the inner value
 //!
 //! ## Type Class Laws
 //!
@@ -52,7 +51,6 @@
 //! - `Semigroup`: For any `T` that implements `Clone`
 //! - `Monoid`: For any `T` that implements `Clone`
 //! - `Functor`: For mapping operations over the inner value
-//! - `Foldable`: For extracting and processing the inner value
 //!
 //! ## Quick Start
 //!
@@ -82,7 +80,6 @@
 //! performance characteristics, please refer to the function-level documentation of the
 //! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
-use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
@@ -135,17 +132,6 @@ use std::fmt;
 /// let c = First(None);
 /// let d = c.fmap(|x: &i32| x * 2);
 /// assert_eq!(d, First(None));
-/// ```
-///
-/// Using with `Foldable` to extract and process values:
-///
-/// ```rust
-/// use rustica::datatypes::wrapper::first::First;
-/// use rustica::traits::foldable::Foldable;
-///
-/// let a = First(Some(5));
-/// let result = a.fold_left(&10, |acc, val| acc + val);
-/// assert_eq!(result, 15);
 /// ```
 ///
 /// # Semigroup Laws
@@ -371,24 +357,6 @@ impl<T> HKT for First<T> {
     type Output<U> = First<U>;
 }
 
-impl<T: Clone> Foldable for First<T> {
-    #[inline]
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
-    where
-        F: FnOnce(&U, &Self::Source) -> U,
-    {
-        f(init, self.0.as_ref().unwrap())
-    }
-
-    #[inline]
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
-    where
-        F: FnOnce(&Self::Source, &U) -> U,
-    {
-        f(self.0.as_ref().unwrap(), init)
-    }
-}
-
 impl<T: Clone> Identity for First<T> {
     fn value(&self) -> &Self::Source {
         self.0.as_ref().unwrap()
@@ -532,61 +500,6 @@ impl<T: Clone> Functor for First<T> {
             Some(value) => First(Some(f(value))),
             None => First(None),
         }
-    }
-}
-
-impl<T> From<T> for First<T> {
-    /// Creates a new `First` wrapper from a value.
-    ///
-    /// This wraps the value in `Some` and then in `First`, making it equivalent
-    /// to `First(Some(value))`. This is the most common way to create a `First`
-    /// value when you have a concrete value to wrap.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Direct wrapper construction
-    /// - **Memory Usage**: Zero overhead - same as direct construction
-    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // Direct conversion using From trait
-    /// let first1 = First::from(42);
-    /// let first2: First<i32> = 42.into();
-    /// let first3 = First(Some(42)); // Equivalent direct construction
-    ///
-    /// assert_eq!(first1, first2);
-    /// assert_eq!(first2, first3);
-    ///
-    /// // Useful in generic contexts
-    /// fn create_wrapper<T, W: From<T>>(value: T) -> W {
-    ///     W::from(value)
-    /// }
-    ///
-    /// let first: First<String> = create_wrapper("hello".to_string());
-    /// assert_eq!(first.0, Some("hello".to_string()));
-    /// ```
-    ///
-    /// # Collection Transformations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // Transform collections using From trait
-    /// let values = vec!["a", "b", "c"];
-    /// let firsts: Vec<First<&str>> = values.into_iter().map(First::from).collect();
-    ///
-    /// assert_eq!(firsts.len(), 3);
-    /// assert_eq!(firsts[0].0, Some("a"));
-    /// ```
-    #[inline]
-    fn from(value: T) -> Self {
-        First(Some(value))
     }
 }
 
