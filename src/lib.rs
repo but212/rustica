@@ -158,5 +158,13 @@ pub mod datatypes {
 pub mod transformers;
 
 pub mod category;
+
+/// Development and analysis tools.
+///
+/// This module contains utilities for performance analysis, benchmarking,
+/// and development workflow improvements.
+#[cfg(feature = "dev-tools")]
+pub mod tools;
+
 /// Convenient re-exports of commonly used items.
 pub mod prelude;

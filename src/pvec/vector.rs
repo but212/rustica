@@ -217,7 +217,9 @@ use super::iterator::{ChunksIter, Iter, SortedIter};
 use super::tree::Tree;
 use crate::datatypes::lens::Lens;
 use crate::pvec::memory::BoxedCachePolicy;
+#[cfg(feature = "serde")]
 use serde::de::{SeqAccess, Visitor};
+#[cfg(feature = "serde")]
 use serde::ser::SerializeSeq;
 
 #[cfg(feature = "serde")]
@@ -1770,6 +1772,7 @@ impl<'de, T: Deserialize<'de> + Clone> Visitor<'de> for PersistentVectorVisitor<
     }
 }
 
+#[cfg(feature = "serde")]
 impl<'de, T: Deserialize<'de> + Clone> Deserialize<'de> for PersistentVector<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

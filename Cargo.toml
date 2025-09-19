@@ -39,8 +39,9 @@ default = []
 pvec = []
 serde = ["dep:serde", "smallvec/serde", "serde/rc"]
 async = ["futures", "tokio"]
+dev-tools = []
 full = ["async", "pvec", "serde"]
-develop = ["full"]
+develop = ["full", "dev-tools"]
 
 [[bench]]
 name = "datatypes_benchmarks"
