@@ -51,37 +51,6 @@ Let's get started.
 First, let's define the data structure we're validating and the validation functions for each field. We'll also need a simple `Error` enum to represent our validation errors.
 
 ```rust
-//! # Web API Validation Case Study
-//!
-//! This example demonstrates how to use Rustica's functional programming constructs
-//! to build a robust validation system for a web API. We'll create a user registration
-//! system that validates input data using composable validation functions.
-//!
-//! ## Key Features Demonstrated
-//!
-//! - **Validated Type**: Using `Validated<E, A>` for accumulating validation errors
-//! - **Composable Validation**: Individual validation functions that can be combined
-//! - **Functional Error Handling**: Clean separation of validation logic and error presentation
-//! - **Type Safety**: Compile-time guarantees about validation states
-//!
-//! ## Running the Example
-//!
-//! ```bash
-//! cargo run --example case_study_web_api_validation
-//! ```
-//!
-//! The example includes:
-//! - Interactive demonstration with valid and invalid inputs
-//! - Comprehensive test suite showing different validation scenarios
-//! - Real-world API response structure
-//!
-//! ## Changes Made
-//!
-//! - Added `main()` function for interactive demonstration
-//! - Enhanced error messages with user-friendly formatting
-//! - Added comprehensive test coverage for edge cases
-//! - Improved documentation with practical examples
-
 use rustica::prelude::*;
 
 // Our simple error type
@@ -146,23 +115,14 @@ fn validate_registration(input: &UserRegistration) -> Validated<ValidationError,
     let email_v = validate_email(&input.email);
     let password_v = validate_password(&input.password);
 
-    let intermediate = Validated::<ValidationError, (String, String)>::lift2(
-        |username, email| {
-            (username.clone(), email.clone()) // Intermediate tuple
+    Validated::lift3(
+        |username, email, password| UserRegistration {
+            username,
+            email,
+            password,
         },
         &username_v,
         &email_v,
-    );
-    
-    Validated::<ValidationError, UserRegistration>::lift2(
-        |(username, email), password| {
-            UserRegistration {
-                username: username.to_string(), // Cloned in the previous step
-                email: email.to_string(),       // Cloned in the previous step
-                password: password.clone(),
-            }
-        },
-        &intermediate,
         &password_v,
     )
 }

@@ -52,23 +52,14 @@ fn validate_registration(input: &UserRegistration) -> Validated<ValidationError,
     let email_v = validate_email(&input.email);
     let password_v = validate_password(&input.password);
 
-    let intermediate = Validated::<ValidationError, (String, String)>::lift2(
-        |username, email| {
-            (username.clone(), email.clone()) // Intermediate tuple
+    Validated::lift3(
+        |username, email, password| UserRegistration {
+            username,
+            email,
+            password,
         },
         &username_v,
         &email_v,
-    );
-
-    Validated::<ValidationError, UserRegistration>::lift2(
-        |(username, email), password| {
-            UserRegistration {
-                username: username.to_string(), // Cloned in the previous step
-                email: email.to_string(),       // Cloned in the previous step
-                password: password.clone(),
-            }
-        },
-        &intermediate,
         &password_v,
     )
 }
@@ -185,12 +176,14 @@ fn main() {
     println!("Key Features Demonstrated:");
     println!("- Validated Type: Using Validated<E, A> for accumulating validation errors");
     println!("- Composable Validation: Individual validation functions that can be combined");
-    println!("- Functional Error Handling: Clean separation of validation logic and error presentation");
+    println!(
+        "- Functional Error Handling: Clean separation of validation logic and error presentation"
+    );
     println!("- Type Safety: Compile-time guarantees about validation states");
 
     println!();
     println!("Running validation examples...");
-    
+
     // Run some example validations
     let valid_input = UserRegistration {
         username: "alice".to_string(),
