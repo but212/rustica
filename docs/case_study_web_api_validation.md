@@ -115,11 +115,11 @@ fn validate_registration(input: &UserRegistration) -> Validated<ValidationError,
     let email_v = validate_email(&input.email);
     let password_v = validate_password(&input.password);
 
-    Validated::lift3(
+    Validated::<ValidationError, UserRegistration>::lift3(
         |username, email, password| UserRegistration {
-            username,
-            email,
-            password,
+            username: username.clone(),
+            email: email.clone(),
+            password: password.clone(),
         },
         &username_v,
         &email_v,
