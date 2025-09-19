@@ -182,7 +182,7 @@ impl<T: Clone> Monad for TestFunctor<T> {
 impl<T: Clone> MonadError<String> for TestFunctor<T> {
     /// Creates a new instance in an error state - for TestFunctor we'll
     /// store the error message as a special marker value
-    fn throw<U: Clone>(_error: String) -> Self::Output<U> {
+    fn throw<U>(_error: String) -> Self::Output<U> {
         // In a real implementation, we'd store the error somehow
         // For the test functor, we'll create a special "error" marker value
         // Since we can't create a proper U type, we'll use a dummy value approach
@@ -218,7 +218,6 @@ impl<T: Clone> ErrorMapper<String> for TestFunctor<T> {
     fn map_error_to<NewE, F>(&self, _f: F) -> Result<Self::Source, NewE>
     where
         F: Fn(&String) -> NewE,
-        NewE: Clone + std::fmt::Debug,
         Self::Source: Clone,
     {
         Ok(self.0.clone())
@@ -228,7 +227,6 @@ impl<T: Clone> ErrorMapper<String> for TestFunctor<T> {
     fn map_error_to_owned<NewE, F>(self, _f: F) -> Result<Self::Source, NewE>
     where
         F: Fn(String) -> NewE,
-        NewE: Clone + std::fmt::Debug,
         Self::Source: Clone,
         Self: Sized,
     {
