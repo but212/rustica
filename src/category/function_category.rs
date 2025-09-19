@@ -42,8 +42,8 @@
 //! let id = FunctionCategory::identity_morphism::<i32>();
 //! assert_eq!(id(42), 42);
 //!
-//! // Function lifting (replaces deprecated Composable)
-//! let double = FunctionCategory::lift(|x: i32| x * 2);
+//! // Function lifting
+//! let double = FunctionCategory::arrow(|x: i32| x * 2);
 //! assert_eq!(double(21), 42);
 //!
 //! // Composition (category-theoretic)
@@ -366,13 +366,18 @@ impl FunctionCategory {
 /// # Examples
 ///
 /// ```rust
-/// use rustica::category::function_category::function;
+/// use rustica::category::function_category::{function, FunctionCategory};
+/// use rustica::traits::category::Category;
 ///
 /// function!(double: i32 => i32 = |x: i32| x * 2);
 /// function!(to_string: i32 => String = |x: i32| x.to_string());
 ///
 /// assert_eq!(double(21), 42);
 /// assert_eq!(to_string(42), "42");
+///
+/// // Example of composing the created morphisms
+/// let pipeline = FunctionCategory::compose_morphisms(&double, &to_string);
+/// assert_eq!(pipeline(5), "10");
 /// ```
 #[macro_export]
 macro_rules! function {
