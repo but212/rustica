@@ -228,7 +228,7 @@ pub trait Arrow: Category {
         D: 'static,
     {
         let duplicate = Self::arrow(|b: B| (b.clone(), b));
-        Self::compose_morphisms(&duplicate, &Self::combine_morphisms(f, g))
+        Self::compose_morphisms(&Self::combine_morphisms(f, g), &duplicate)
     }
 
     /// Combines two arrows to process pairs in parallel.

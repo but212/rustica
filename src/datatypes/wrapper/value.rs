@@ -5,6 +5,10 @@
 //! This module provides the `Value` type, which wraps a value
 //! in a structure that implements the `Evaluate` trait.
 //!
+//! ## **Deprecated**
+//!
+//! Use `rustica::datatypes::id::Id` instead.
+//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, `Value<T>` represents the identity functor -

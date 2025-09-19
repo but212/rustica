@@ -4,36 +4,43 @@
 //! While monads wrap values in a context and sequence computations that produce values,
 //! comonads extract values from a context and sequence computations that consume contexts.
 //!
+//! # Category Theory
+//!
+//! In category theory, the `extract` operation must be total (always succeed). This means
+//! types like `Option` and `Result` are not valid comonads because `extract` cannot be
+//! safely implemented for `None` or `Err` cases.
+//!
 //! ## Examples
 //!
 //! The `Comonad` trait enables powerful patterns for working with contextualized values:
 //!
 //! ```rust
 //! use rustica::traits::comonad::Comonad;
+//! use rustica::datatypes::id::Id;
 //!
-//! // Using Option<T> as a comonad
-//! let value: Option<i32> = Some(42);
+//! // Using Id<T> as a comonad (always safe)
+//! let value: Id<i32> = Id::new(42);
 //!
-//! // Extract the value from the context
+//! // Extract the value from the context (always succeeds)
 //! assert_eq!(value.extract(), 42);
 //!
 //! // Extend a computation over the context
-//! let doubled = value.extend(|opt| opt.extract() * 2);
-//! assert_eq!(doubled, Some(84));
+//! let doubled = value.extend(|id| id.extract() * 2);
+//! assert_eq!(doubled.extract(), 84);
 //!
 //! // Using nested comonadic operations
 //! let result = value
-//!     .extend(|opt| opt.extract() * 3)  // multiply by 3
-//!     .extend(|opt| opt.extract() + 10); // add 10 to the result
-//! assert_eq!(result, Some(136));
+//!     .extend(|id| id.extract() * 3)  // multiply by 3
+//!     .extend(|id| id.extract() + 10); // add 10 to the result
+//! assert_eq!(result.extract(), 136);
 //! ```
 //!
 //! ## Mathematical Definition
 //!
 //! In category theory, a comonad on a category C consists of:
-//! - An endofunctor T: C → C
-//! - A natural transformation ε: T → Id (called `extract`)
-//! - A natural transformation δ: T → T² (called `duplicate`)
+//! - An endofunctor W: C → C
+//! - A natural transformation ε: W → Id (called `extract`) - **MUST BE TOTAL**
+//! - A natural transformation δ: W → W² (called `duplicate`)
 //!
 //! ## Laws
 //!
@@ -48,15 +55,37 @@
 //! 3. **Associativity**: `extend(f)(extend(g)(w)) = extend(|x| f(extend(g)(x)))(w)`  
 //!    The order of extending computations doesn't matter.
 //!
+//! ## Totality Requirement
+//!
+//! The `extract` operation must be total (never fail). This is a fundamental requirement
+//! of category theory. Types where extraction can fail (like `Option` or `Result`) are
+//! not valid comonads.
+//!
 //! ## Common Use Cases
 //!
 //! Comonads are particularly useful for:
 //!
 //! 1. **Data with Context** - When you need to process values while considering their surroundings
+//!    (e.g., cellular automata, image processing with neighborhoods)
 //!
 //! 2. **Stateful Transformations** - When transformations depend on the current state
+//!    (e.g., traced computations, store-based computations)
 //!
-//! 3. **Bidirectional Computations** - When you need to both inject and extract information
+//! 3. **Non-empty Structures** - When you need guaranteed extraction from collections
+//!    (e.g., non-empty lists, streams, zippers)
+//!
+//! 4. **UI Components** - When components need access to their environment/context
+//!    (e.g., React-like component trees with context)
+//!
+//! ## Safe Comonad Types
+//!
+//! Examples of types that can safely implement Comonad:
+//! - `Id<T>` (Identity)
+//! - `NonEmpty<Vec<T>>` (Non-empty vectors)
+//! - `Stream<T>` (Infinite streams)
+//! - `Zipper<T>` (List zippers with focus)
+//! - `Store<S, A>` (Store comonad)
+//! - `Traced<M, A>` where M is a monoid
 //!
 //! ## Relationship with Other Functional Traits
 //!
@@ -69,9 +98,34 @@
 
 use crate::traits::functor::Functor;
 
+/// A marker trait for types that can safely implement Comonad.
+///
+/// This trait serves as documentation and a compile-time check that a type
+/// can provide a total `extract` operation.
+pub trait SafeComonad {
+    /// Returns true if extract is guaranteed to never fail for this type.
+    /// This should always return true for valid implementations.
+    fn is_extract_total() -> bool {
+        true
+    }
+}
+
 /// A comonad is the categorical dual of a monad, providing operations to extract values from a context
 /// and extend computations that consume contexts. While monads represent computations that add context,
 /// comonads represent computations that can read from contexts.
+///
+/// # Category Theory Requirements
+///
+/// For a type to be a valid comonad, the `extract` operation must be total (always succeed).
+/// This means types like `Option<T>` and `Result<T, E>` are NOT valid comonads because
+/// `extract` cannot be safely implemented for `None` or `Err` cases.
+///
+/// Valid comonads include:
+/// - `Id<T>` (Identity)
+/// - Non-empty lists
+/// - Streams
+/// - Zippers
+/// - Store comonads
 ///
 /// Note: Comonads are independent of monads in category theory. They both extend Functor,
 /// but a type can be a comonad without being a monad, and vice versa.
@@ -81,9 +135,14 @@ pub trait Comonad: Functor {
     /// This is dual to the `pure` operation in monads - while `pure` wraps a value in a context,
     /// `extract` retrieves a value from a context.
     ///
+    /// # Category Theory
+    ///
+    /// This operation corresponds to the counit (ε: W A → A) of the comonad.
+    /// It must be total (always succeed) for the type to be a valid comonad.
+    ///
     /// # Returns
     ///
-    /// The value contained in the comonad
+    /// The value contained in the comonad (always succeeds)
     ///
     /// # Examples
     ///
@@ -92,15 +151,7 @@ pub trait Comonad: Functor {
     /// use rustica::datatypes::id::Id;
     ///
     /// let id: Id<i32> = Id::new(42);
-    /// assert_eq!(id.extract(), 42);
-    /// ```
-    ///
-    /// ```rust
-    /// use rustica::traits::comonad::Comonad;
-    /// use rustica::datatypes::maybe::Maybe;
-    ///
-    /// let maybe: Maybe<i32> = Maybe::Just(123);
-    /// assert_eq!(maybe.extract(), 123);
+    /// assert_eq!(id.extract(), 42); // Always safe
     /// ```
     fn extract(&self) -> Self::Source;
 
@@ -108,6 +159,11 @@ pub trait Comonad: Functor {
     ///
     /// While monadic bind (>>=) allows you to sequence computations that produce contexts,
     /// extend allows you to sequence computations that consume contexts.
+    ///
+    /// # Category Theory
+    ///
+    /// This operation is derived from duplicate and fmap:
+    /// `extend f = fmap f . duplicate`
     ///
     /// # Type Parameters
     ///
@@ -132,15 +188,6 @@ pub trait Comonad: Functor {
     /// let result = id.extend(|x| x.extract() * 2);
     /// assert_eq!(result.extract(), 20);
     /// ```
-    ///
-    /// ```rust
-    /// use rustica::traits::comonad::Comonad;
-    /// use rustica::datatypes::maybe::Maybe;
-    ///
-    /// let maybe: Maybe<i32> = Maybe::Just(5);
-    /// let result = maybe.extend(|x| x.extract() + 3);
-    /// assert_eq!(result.extract(), 8);
-    /// ```
     fn extend<U, F>(&self, f: F) -> Self::Output<U>
     where
         F: Fn(&Self) -> U;
@@ -149,6 +196,11 @@ pub trait Comonad: Functor {
     ///
     /// This operation creates a new layer of context, where each position in the
     /// result contains the sub-context focused at that position.
+    ///
+    /// # Category Theory
+    ///
+    /// This corresponds to the comultiplication (δ: W A → W (W A)) of the comonad.
+    /// It must satisfy the comonad laws together with extract.
     ///
     /// # Returns
     ///
@@ -162,59 +214,45 @@ pub trait Comonad: Functor {
     ///
     /// let id: Id<i32> = Id::new(42);
     /// // The duplicate method returns the original context wrapped in another context layer
-    /// let _duplicated = id.duplicate();
-    /// ```
-    ///
-    /// ```rust
-    /// use rustica::traits::comonad::Comonad;
-    /// use rustica::datatypes::maybe::Maybe;
-    ///
-    /// let maybe: Maybe<i32> = Maybe::Just(10);
-    /// // The duplicate method returns the original context wrapped in another context layer
-    /// let _duplicated = maybe.duplicate();
+    /// let duplicated = id.duplicate();
+    /// // For Id, duplicate is essentially the identity operation
+    /// assert_eq!(duplicated.extract(), 42);
     /// ```
     fn duplicate(&self) -> Self;
 }
 
-impl<A: Clone> Comonad for Option<A> {
-    fn extract(&self) -> A {
-        match self {
-            Some(a) => a.clone(),
-            None => panic!("Called `extract` on a `None` value"),
-        }
-    }
-
-    fn duplicate(&self) -> Self {
-        self.clone()
-    }
-
-    fn extend<U, F>(&self, f: F) -> Option<U>
-    where
-        F: Fn(&Self) -> U,
-    {
-        self.as_ref().map(|_| f(self))
-    }
-}
-
-impl<T: Clone, E: Clone + std::fmt::Debug> Comonad for Result<T, E> {
-    fn extract(&self) -> T {
-        match self {
-            Ok(t) => t.clone(),
-            Err(_) => panic!("Called `extract` on an `Err` value"),
-        }
-    }
-
-    fn duplicate(&self) -> Self {
-        self.clone()
-    }
-
-    fn extend<U, F>(&self, f: F) -> Result<U, E>
-    where
-        F: Fn(&Self) -> U,
-    {
-        match self {
-            Ok(_) => Ok(f(self)),
-            Err(e) => Err(e.clone()),
-        }
-    }
-}
+// Note: Option<T> and Result<T, E> are NOT valid comonads because extract cannot be total.
+// The previous implementations that used panic! violated category theory principles.
+//
+// For types that may fail, consider using:
+// - Partial comonads (separate trait)
+// - NonEmpty wrappers
+// - Validated types that guarantee success
+//
+// Valid comonad implementations should be added for types like:
+// - Id<T> (Identity comonad)
+// - NonEmpty<Vec<T>>
+// - Stream<T>
+// - Store<S, A>
+// - Traced<M, A> where M is a monoid
+//
+// Example safe implementation for a hypothetical NonEmpty type:
+//
+// impl<T: Clone> Comonad for NonEmpty<T> {
+//     fn extract(&self) -> T {
+//         self.head().clone() // Always safe - NonEmpty guarantees at least one element
+//     }
+//
+//     fn duplicate(&self) -> Self {
+//         // Implementation that maintains the NonEmpty invariant
+//         self.clone()
+//     }
+//
+//     fn extend<U, F>(&self, f: F) -> NonEmpty<U>
+//     where
+//         F: Fn(&Self) -> U,
+//     {
+//         // Safe implementation that preserves NonEmpty structure
+//         NonEmpty::new(f(self))
+//     }
+// }

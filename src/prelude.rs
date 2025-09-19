@@ -47,6 +47,7 @@
 //!
 //! See each submodule for more detailed documentation and examples.
 
+pub mod category;
 pub mod datatypes;
 pub mod traits;
 pub mod traits_ext;
@@ -54,6 +55,7 @@ pub mod transformers;
 pub mod utils;
 pub mod wrapper;
 
+pub use category::*;
 pub use datatypes::*;
 pub use traits::*;
 pub use traits_ext::*;

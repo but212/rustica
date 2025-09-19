@@ -1,8 +1,8 @@
 # CHANGELOG
 
-## [0.9.1]
+## [0.10.0]
 
-### Added - 0.9.1
+### Added - 0.10.0
 
 - **Wrapper From/Into trait implementation**
   - Added `From<T>` and `Into<T>` implementations for wrapper types:
@@ -21,11 +21,17 @@
   - Added `FunctionCategory` struct implementing both `Category` and `Arrow` traits
   - Provides concrete implementation of category theory for Rust functions
 
-### Changed - 0.9.1
+### Changed - 0.10.0
 
 - **Category trait inheritance removed from HKT**
   - `Category` now focuses purely on morphism composition without HKT dependencies
   - `HKT` remains independent for type constructor operations
+- **Deprecation of `Composable` trait**
+  - Replaced with `FunctionCategory` from `rustica::category::function_category`
+  - This trait violates category theory principles
+- **Deprecation of `Value` wrapper**
+  - Replaced with `Id` from `rustica::datatypes::id`
+  - This wrapper is redundant with `Id`
 
 ## [0.9.0]
 

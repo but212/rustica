@@ -82,7 +82,6 @@
 //! assert_eq!(string_error, Ok(42));
 //! ```
 use crate::traits::monad::Monad;
-use std::fmt::Debug;
 
 /// A trait for monads that can handle errors, extending the basic Monad trait.
 ///
@@ -91,7 +90,13 @@ use std::fmt::Debug;
 /// benefits of monadic computation chains.
 ///
 /// # Type Parameters
-/// * `E`: The error type that can be thrown and caught
+/// * `E`: The error type that can be thrown and caught (no additional constraints required)
+///
+/// # Category Theory
+///
+/// In category theory, MonadError represents a monad with additional structure for error handling.
+/// The error type `E` doesn't need to satisfy any particular constraints beyond what's required
+/// for the specific operations being performed.
 ///
 /// # Laws
 /// For a valid MonadError implementation, the following laws must hold:
@@ -107,13 +112,11 @@ use std::fmt::Debug;
 /// 3. Associativity Catch Law:
 ///    m.catch(h1).catch(h2) == m.catch(e -> h1(e).catch(h2))
 ///    Nested catches can be rewritten as a single catch with a composed handler.
-pub trait MonadError<E>: Monad
-where
-    E: Clone + Debug,
-{
+pub trait MonadError<E>: Monad {
     /// Creates a new instance in an error state.
     ///
     /// This is the equivalent of throwing an exception in languages with exceptions.
+    /// In category theory, this corresponds to the η (eta) transformation for the error case.
     ///
     /// # Type Parameters
     /// * `T`: The type of value that would be contained in a successful result
@@ -123,12 +126,15 @@ where
     ///
     /// # Returns
     /// A new monadic value in an error state
-    fn throw<T: Clone>(error: E) -> Self::Output<T>;
+    fn throw<T>(error: E) -> Self::Output<T>;
 
     /// Handles an error by applying a function that can recover from the error.
     ///
     /// If this monadic value is in an error state, applies the given function to
     /// recover. Otherwise, returns the current successful value.
+    ///
+    /// This operation is category-theoretically sound and doesn't require additional
+    /// constraints on the error type beyond what's needed for the specific implementation.
     ///
     /// # Type Parameters
     /// * `F`: The type of the error-handling function
@@ -149,6 +155,8 @@ where
     /// This variant of `catch` takes ownership of `self`, allowing for more efficient
     /// implementations when the original monad is no longer needed.
     ///
+    /// This is the ownership-based version that avoids cloning when possible.
+    ///
     /// # Type Parameters
     /// * `F`: The type of the error-handling function
     ///
@@ -168,32 +176,35 @@ where
 /// A trait for types that can map their error type to a different error type.
 ///
 /// This trait is separate from MonadError to allow for more flexible error handling
-/// where the error type can be transformed.
+/// where the error type can be transformed. It follows category-theoretic principles
+/// by not imposing unnecessary constraints on error types.
 ///
 /// # Type Parameters
-/// * `E`: The original error type
+/// * `E`: The original error type (no additional constraints required)
+///
+/// # Category Theory
+///
+/// This trait represents a natural transformation between error types, which is
+/// a fundamental concept in category theory. The transformation preserves the
+/// structure while changing the error type.
 ///
 /// # Examples
 ///
 /// ```rust
 /// use rustica::traits::monad_error::ErrorMapper;
 ///
-/// // Use a simple String as our error type, which implements Clone
-/// let result: Result<i32, String> = Ok(42);
+/// let result: Result<i32, &str> = Ok(42);
 /// let string_result = result.map_error_to::<String, _>(|e| format!("Error: {}", e));
 /// assert_eq!(string_result, Ok(42));
 /// ```
-pub trait ErrorMapper<E>
-where
-    E: Clone + Debug,
-{
+pub trait ErrorMapper<E> {
     /// The source type contained in the monad
     type Source;
 
     /// Transforms the error type using the given function.
     ///
     /// This allows for adapting between different error types while preserving
-    /// the successful value.
+    /// the successful value. This is a category-theoretic natural transformation.
     ///
     /// # Type Parameters
     /// * `NewE`: The new error type
@@ -207,13 +218,14 @@ where
     fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
     where
         F: Fn(&E) -> NewE,
-        NewE: Clone + Debug,
         Self::Source: Clone;
 
     /// Transforms the error type using the given function, consuming self.
     ///
     /// This variant of `map_error_to` takes ownership of `self`, allowing for more
     /// efficient implementations when the original monad is no longer needed.
+    ///
+    /// This is the ownership-based version for better performance.
     ///
     /// # Type Parameters
     /// * `NewE`: The new error type
@@ -227,15 +239,15 @@ where
     fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
     where
         F: Fn(E) -> NewE,
-        NewE: Clone + Debug,
         Self::Source: Clone,
         Self: Sized;
 }
 
 // Implementation for Result
-impl<T: Clone, E: Clone + Debug> MonadError<E> for Result<T, E> {
+// Note: We only require Clone for T and E where actually needed, not as blanket constraints
+impl<T: Clone, E: Clone + std::fmt::Debug> MonadError<E> for Result<T, E> {
     #[inline]
-    fn throw<U: Clone>(error: E) -> Self::Output<U> {
+    fn throw<U>(error: E) -> Self::Output<U> {
         Err(error)
     }
 
@@ -266,14 +278,14 @@ impl<T: Clone, E: Clone + Debug> MonadError<E> for Result<T, E> {
 }
 
 // Implementation of ErrorMapper for Result
-impl<T: Clone, E: Clone + Debug> ErrorMapper<E> for Result<T, E> {
+// Note: Only requiring Clone where actually needed for the operation
+impl<T: Clone, E> ErrorMapper<E> for Result<T, E> {
     type Source = T;
 
     #[inline]
     fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
     where
         F: Fn(&E) -> NewE,
-        NewE: Clone + Debug,
         Self::Source: Clone,
     {
         match self {
@@ -286,7 +298,6 @@ impl<T: Clone, E: Clone + Debug> ErrorMapper<E> for Result<T, E> {
     fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
     where
         F: Fn(E) -> NewE,
-        NewE: Clone + Debug,
         Self::Source: Clone,
         Self: Sized,
     {
@@ -301,7 +312,7 @@ impl<T: Clone, E: Clone + Debug> ErrorMapper<E> for Result<T, E> {
 // Option doesn't have an explicit error type, so we use () as a placeholder
 impl<T: Clone> MonadError<()> for Option<T> {
     #[inline]
-    fn throw<U: Clone>(_error: ()) -> Self::Output<U> {
+    fn throw<U>(_error: ()) -> Self::Output<U> {
         None
     }
 
@@ -339,7 +350,6 @@ impl<T: Clone> ErrorMapper<()> for Option<T> {
     fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
     where
         F: Fn(&()) -> NewE,
-        NewE: Clone + Debug,
         Self::Source: Clone,
     {
         match self {
@@ -352,7 +362,6 @@ impl<T: Clone> ErrorMapper<()> for Option<T> {
     fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
     where
         F: Fn(()) -> NewE,
-        NewE: Clone + Debug,
         Self::Source: Clone,
         Self: Sized,
     {
