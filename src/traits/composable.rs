@@ -95,14 +95,14 @@
 //! // Using the function! macro for clean syntax
 //! function!(add_one: i32 => i32 = |x: i32| x + 1);
 //! function!(multiply_two: i32 => i32 = |x: i32| x * 2);
-//! let composed = FunctionCategory::compose_morphisms(&add_one, &multiply_two);
+//! let composed = FunctionCategory::compose_morphisms(&multiply_two, &add_one);
 //! assert_eq!(composed(3), 8);  // (3 + 1) * 2 = 8
 //!
 //! // Or using the compose! macro
 //! use rustica::category::function_category::compose;
 //! let pipeline = compose!(
+//!     |x: i32| x * 2,
 //!     |x: i32| x + 1,
-//!     |x: i32| x * 2
 //! );
 //! assert_eq!(pipeline(3), 8);
 //! ```
