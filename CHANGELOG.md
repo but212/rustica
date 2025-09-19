@@ -26,6 +26,12 @@
 - **Category trait inheritance removed from HKT**
   - `Category` now focuses purely on morphism composition without HKT dependencies
   - `HKT` remains independent for type constructor operations
+- **Deprecation of `Composable` trait**
+  - Replaced with `FunctionCategory` from `rustica::category::function_category`
+  - This trait violates category theory principles
+- **Deprecation of `Value` wrapper**
+  - Replaced with `Id` from `rustica::datatypes::id`
+  - This wrapper is redundant with `Id`
 
 ## [0.9.0]
 
