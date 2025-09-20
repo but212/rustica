@@ -6,7 +6,6 @@ use rustica::datatypes::wrapper::min::Min;
 use rustica::datatypes::wrapper::product::Product;
 use rustica::datatypes::wrapper::sum::Sum;
 use rustica::datatypes::wrapper::thunk::Thunk;
-use rustica::datatypes::wrapper::value::Value;
 use rustica::prelude::*;
 use rustica::traits::evaluate::Evaluate;
 use std::sync::{Arc, Mutex};
@@ -132,16 +131,6 @@ fn test_product_wrapper() {
     // Test monoid empty
     let empty = Product::<i32>::empty();
     assert_eq!(empty, Product(1));
-}
-
-#[test]
-fn test_value_wrapper() {
-    // Test Value creation and access
-    let value = Value::new(42);
-
-    // Test evaluate
-    assert_eq!(value.evaluate(), 42);
-    assert_eq!(value.evaluate_owned(), 42);
 }
 
 #[test]
@@ -303,10 +292,6 @@ fn test_wrapper_hkt() {
     let last = Last(Some(42));
     let mapped_last = last.fmap(|x| x.to_string());
     assert_eq!(mapped_last, Last(Some("42".to_string())));
-
-    let value = Value::new(42);
-    let mapped_value = value.fmap(|x| x.to_string());
-    assert_eq!(mapped_value.evaluate(), "42".to_string());
 }
 
 #[test]
@@ -487,10 +472,4 @@ fn test_wrapper_serde() {
     let serialized = serde_json::to_string(&sum).unwrap();
     let deserialized: Sum<i32> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(sum, deserialized);
-
-    // Test Value
-    let value = Value::new(42);
-    let serialized = serde_json::to_string(&value).unwrap();
-    let deserialized: Value<i32> = serde_json::from_str(&serialized).unwrap();
-    assert_eq!(value, deserialized);
 }

@@ -46,8 +46,7 @@
 //! ```rust
 //! use rustica::datatypes::wrapper::sum::Sum;
 //! use rustica::datatypes::wrapper::product::Product;
-//! use rustica::datatypes::wrapper::value::Value;
-//! use rustica::traits::{semigroup::Semigroup, evaluate::Evaluate};
+//! use rustica::traits::semigroup::Semigroup;
 //!
 //! // 1. Arithmetic with Sum/Product wrappers
 //! let sum1: Sum<i32> = Sum(5);
@@ -62,10 +61,6 @@
 //!     .0;
 //! assert_eq!(sum, 6); // 1 + 2 + 3 = 6
 //!
-//! // 3. Using Value for evaluation contexts
-//! let value: Value<i32> = Value(42);
-//! let result: i32 = value.evaluate();
-//! assert_eq!(result, 42);
 //! ```
 //!
 //! ## When to Use Wrapper Types
