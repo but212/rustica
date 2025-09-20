@@ -10,7 +10,6 @@
 //! - [`Product`], [`Sum`]: Product/sum wrappers (numeric Monoids)
 //! - [`Memoizer`]: Memoization wrappers
 //! - [`Thunk`]: Lazy evaluation wrapper
-//! - [`Value`]: Simple value wrapper
 //!
 //! # Usage Examples
 //!
