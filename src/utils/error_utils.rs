@@ -308,7 +308,7 @@ where
     E: Clone,
 {
     let mut values = Vec::new();
-    let mut errors = SmallVec::<[E; 4]>::new();
+    let mut errors = SmallVec::<[E; 8]>::new();
     let mut had_error = false;
 
     for item in collection {
