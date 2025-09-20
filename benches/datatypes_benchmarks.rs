@@ -13,7 +13,6 @@ mod datatypes {
     pub mod maybe;
     pub mod prism;
     pub mod pvec;
-    pub mod pvec_memory;
     pub mod reader;
     pub mod state;
     pub mod validated;
