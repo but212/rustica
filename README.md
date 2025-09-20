@@ -55,12 +55,7 @@ If you want to use async features, add the `async` feature:
 rustica = { version = "0.10.0", features = ["async"] }
 ```
 
-If you want to use persistent vector collections, add the `pvec` feature:
-
-```toml
-[dependencies]
-rustica = { version = "0.10.0", features = ["pvec"] }
-```
+Persistent vector collections are now included by default in Rustica 0.10.0.
 
 You can combine multiple features as needed:
 
@@ -158,16 +153,9 @@ Rustica provides standardized error handling utilities that work across differen
   - `AppError<M, C>` - A structured error type that provides both a message and optional context
   - Helper functions like `error()` and `error_with_context()`
 
-### Persistent Vector (pvec feature)
+### Persistent Vector
 
-Rustica provides a high-performance, immutable persistent vector (RRB-Tree) for functional programming patterns.
-
-Enable the feature
-
-```toml
-[dependencies]
-rustica = { version = "0.9.0", features = ["pvec"] }
-```
+Rustica provides an immutable persistent vector (RRB-Tree) for functional programming patterns. This is included by default in Rustica 0.10.0.
 
 Example Usage
 

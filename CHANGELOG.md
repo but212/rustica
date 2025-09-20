@@ -40,6 +40,15 @@
 - [BREAKING CHANGE] **remove `Foldable` trait impl in monoid wrappers**
 - [BREAKING CHANGE] **remove `Composable` trait**
 - [BREAKING CHANGE] **remove `Value` wrapper**
+- [BREAKING CHANGE] **remove `to_arc()` method from PersistentVector**
+  - The `to_arc()` method has been removed as part of the PersistentVector API simplification
+  - Users should use standard Arc wrapping if needed: `Arc::new(vector)`
+- [BREAKING CHANGE] **remove WriterT monad transformer**
+  - WriterT transformer and all related code have been removed
+  - This was previously removed in 0.7.0 but not properly documented in 0.10.0 changes
+- [BREAKING CHANGE] **remove pvec feature flag**
+  - PersistentVector is now included by default and no longer requires a feature flag
+  - Remove `features = ["pvec"]` from your Cargo.toml dependencies
 
 ## [0.9.0]
 
