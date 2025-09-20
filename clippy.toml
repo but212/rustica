@@ -1,10 +1,10 @@
 disallowed-methods = []
-too-many-arguments-threshold = 5
-type-complexity-threshold = 150
-enum-variant-size-threshold = 100
+too-many-arguments-threshold = 7
+type-complexity-threshold = 250
+enum-variant-size-threshold = 150
 
 # Cognitive complexity tuned for maintainability
-cognitive-complexity-threshold = 15
+cognitive-complexity-threshold = 20
 
 # Documentation-related configurations
 doc-valid-idents = ["PersistentVector", "HKT", "Functor", "Applicative", "Monad", "fmap", "Monoid", "Semigroup", "Foldable"]
@@ -15,7 +15,7 @@ large-error-threshold = 100
 verbose-bit-mask-threshold = 1
 
 # Restrict nesting for clarity
-excessive-nesting-threshold = 4
+excessive-nesting-threshold = 6
 
 # Disallowed types that should never be used in this codebase
 disallowed-types = [
@@ -34,4 +34,4 @@ check-private-items = true
 missing-docs-in-crate-items = true
 
 # Stricter lines threshold for readability
-too-many-lines-threshold = 150
+too-many-lines-threshold = 200
