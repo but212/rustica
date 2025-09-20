@@ -122,7 +122,7 @@
 
 ## Version Roadmap (Realistic)
 
-- **v0.10.1**: Fix documentation, improve examples, stabilize API
+- **v0.10.0**: Fix documentation, improve examples, stabilize API
 - **v0.11.0**: Enhanced educational content, limited feature additions
 - **v1.0.0**: Stable educational/research library (no performance promises)
 
