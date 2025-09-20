@@ -76,7 +76,7 @@
 
 ## Explicitly Rejected Ideas
 
-### ❌ Not Pursuing (Performance Prohibitive)
+### Not Pursuing (Performance Prohibitive)
 
 - **High-performance persistent vectors**: 20-100x overhead makes this impractical
 - **Production web framework integration**: Performance overhead too high
@@ -84,7 +84,7 @@
 - **System programming applications**: Overhead unacceptable
 - **Massive ecosystem integration**: Limited by fundamental performance issues
 
-### ❌ Not Pursuing (Scope Creep)
+### Not Pursuing (Scope Creep)
 
 - **Library modularization**: Single crate is sufficient for current scope
 - **Comprehensive tokio integration**: Async overhead compounds existing issues

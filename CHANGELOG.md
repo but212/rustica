@@ -26,23 +26,20 @@
 - **Category trait inheritance removed from HKT**
   - `Category` now focuses purely on morphism composition without HKT dependencies
   - `HKT` remains independent for type constructor operations
-- **Deprecation of `Composable` trait**
-  - Replaced with `FunctionCategory` from `rustica::category::function_category`
-  - This trait violates category theory principles
-- **Deprecation of `Value` wrapper**
-  - Replaced with `Id` from `rustica::datatypes::id`
-  - This wrapper is redundant with `Id`
 - **Increased default stack size for `Validated` from 4 to 8 elements**
   - This change reduces heap allocations and improves performance
 - **Change and simplify `PersistentVector`**
   - removed `with_cache_policy` and `from_slice_with_cache_policy`
   - removed `with_chunk_size` and chunk size is now fixed at 64
   - removed `ChunkIter`
+  - removed `pvec` feature flag
   - Simplified `PersistentVector` API by removing cache policy and chunk size
 
 ### Removed - 0.10.0
 
 - [BREAKING CHANGE] **remove `Foldable` trait impl in monoid wrappers**
+- [BREAKING CHANGE] **remove `Composable` trait**
+- [BREAKING CHANGE] **remove `Value` wrapper**
 
 ## [0.9.0]
 
