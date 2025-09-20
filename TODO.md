@@ -110,9 +110,9 @@
 
 ### Educational Success
 
-- ✅ Correct implementation of category theory concepts
-- ✅ Clear learning path for functional programming in Rust
-- ✅ Good examples and documentation
+- Correct implementation of category theory concepts
+- Clear learning path for functional programming in Rust
+- Good examples and documentation
 
 ### Practical Success
 
