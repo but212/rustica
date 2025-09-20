@@ -8,7 +8,6 @@
 //!
 //! - **Aggregation**: Provides a principled way to find maximum values
 //! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
-//! - **Folding**: Can be used with `Foldable` to reduce collections to a single maximum value
 //!
 //! ## Type Class Laws
 //!
@@ -54,7 +53,6 @@
 //! - `Monoid`: For any `T` that implements `Ord` and has a minimum value
 //! - `Functor`: For mapping operations over the inner value
 //! - `Identity`: For accessing the inner value
-//! - `Foldable`: For folding operations over the single inner value
 //!
 //! ## Quick Start
 //!
@@ -82,7 +80,6 @@
 //! performance characteristics, please refer to the function-level documentation of the
 //! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
-use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
@@ -519,24 +516,6 @@ impl<T: Clone + Ord> Functor for Max<T> {
         Self::Source: Ord,
     {
         Max(f(self.0))
-    }
-}
-
-impl<T: Clone + Ord> Foldable for Max<T> {
-    #[inline]
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
-    where
-        F: FnOnce(&U, &Self::Source) -> U,
-    {
-        f(init, &self.0)
-    }
-
-    #[inline]
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
-    where
-        F: FnOnce(&Self::Source, &U) -> U,
-    {
-        f(&self.0, init)
     }
 }
 

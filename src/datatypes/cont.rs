@@ -184,6 +184,9 @@ use crate::datatypes::id::Id;
 /// Type alias for a continuation function
 pub type ContFn<R, A> = Arc<dyn Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Send + Sync + 'static>;
 
+/// Type alias for a function wrapped in Arc with Send + Sync bounds, commonly used in continuation operations
+pub type ContFn2<A, B> = Arc<dyn Fn(A) -> B + Send + Sync>;
+
 /// The `Cont` monad represents computations in continuation-passing style.
 ///
 /// It captures a computation that takes a continuation (a function) and
@@ -675,7 +678,7 @@ where
     /// assert_eq!(result, 10);
     /// ```
     #[inline]
-    pub fn apply<B>(self, cf: Cont<R, Arc<dyn Fn(A) -> B + Send + Sync>>) -> Cont<R, B>
+    pub fn apply<B>(self, cf: Cont<R, ContFn2<A, B>>) -> Cont<R, B>
     where
         B: Clone + Send + Sync + 'static,
     {

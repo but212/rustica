@@ -10,7 +10,7 @@ mod test_iso_prism;
 mod test_lens;
 mod test_maybe;
 mod test_prism;
-#[cfg(feature = "pvec")]
+
 mod test_pvec;
 mod test_reader;
 mod test_validated;

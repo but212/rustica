@@ -36,10 +36,9 @@ criterion = { version = "0.7", features = ["html_reports"] }
 
 [features]
 default = []
-pvec = []
 serde = ["dep:serde", "smallvec/serde", "serde/rc"]
 async = ["futures", "tokio"]
-full = ["async", "pvec", "serde"]
+full = ["async", "serde"]
 develop = ["full"]
 
 [[bench]]

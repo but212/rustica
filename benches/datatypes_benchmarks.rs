@@ -12,8 +12,8 @@ mod datatypes {
     pub mod lens;
     pub mod maybe;
     pub mod prism;
-    #[cfg(feature = "pvec")]
     pub mod pvec;
+    pub mod pvec_memory;
     pub mod reader;
     pub mod state;
     pub mod validated;
@@ -31,33 +31,13 @@ use datatypes::iso_prism::iso_prism_benchmarks;
 use datatypes::lens::lens_benchmarks;
 use datatypes::maybe::maybe_benchmarks;
 use datatypes::prism::prism_benchmarks;
-#[cfg(feature = "pvec")]
 use datatypes::pvec::pvec_benchmarks;
+use datatypes::pvec_memory::pvec_memory_benchmarks;
 use datatypes::reader::reader_benchmarks;
 use datatypes::state::state_benchmarks;
 use datatypes::validated::validated_benchmarks;
 use datatypes::writer::writer_benchmarks;
 
-#[cfg(not(feature = "pvec"))]
-criterion_group!(
-    datatype_benches,
-    maybe_benchmarks,
-    state_benchmarks,
-    validated_benchmarks,
-    choice_benchmarks,
-    reader_benchmarks,
-    writer_benchmarks,
-    either_benchmarks,
-    id_benchmarks,
-    cont_benchmarks,
-    io_benchmarks,
-    lens_benchmarks,
-    prism_benchmarks,
-    iso_lens_benchmarks,
-    iso_prism_benchmarks
-);
-
-#[cfg(feature = "pvec")]
 criterion_group!(
     datatype_benches,
     maybe_benchmarks,
@@ -74,7 +54,8 @@ criterion_group!(
     prism_benchmarks,
     iso_lens_benchmarks,
     iso_prism_benchmarks,
-    pvec_benchmarks
+    pvec_benchmarks,
+    pvec_memory_benchmarks,
 );
 
 criterion_main!(datatype_benches);

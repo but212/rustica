@@ -1,21 +1,21 @@
 disallowed-methods = []
 too-many-arguments-threshold = 7
 type-complexity-threshold = 250
-enum-variant-size-threshold = 200
+enum-variant-size-threshold = 150
 
-# Allow higher complexity in functional programming patterns
-cognitive-complexity-threshold = 30
+# Cognitive complexity tuned for maintainability
+cognitive-complexity-threshold = 20
 
 # Documentation-related configurations
 doc-valid-idents = ["PersistentVector", "HKT", "Functor", "Applicative", "Monad", "fmap", "Monoid", "Semigroup", "Foldable"]
 
-# Configure thresholds for complex types often used in functional programming
-array-size-threshold = 15
-large-error-threshold = 200
+# Reasonable defaults for type and array sizes
+array-size-threshold = 8
+large-error-threshold = 100
 verbose-bit-mask-threshold = 1
 
-# Maximum levels of nesting appropriate for monadic compositions
-excessive-nesting-threshold = 8
+# Restrict nesting for clarity
+excessive-nesting-threshold = 6
 
 # Disallowed types that should never be used in this codebase
 disallowed-types = [
@@ -33,5 +33,5 @@ check-private-items = true
 # Additional documentation enforcement
 missing-docs-in-crate-items = true
 
-# Set a stricter too-many-lines threshold for better readability
-too-many-lines-threshold = 300
+# Stricter lines threshold for readability
+too-many-lines-threshold = 200

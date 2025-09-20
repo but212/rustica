@@ -825,14 +825,27 @@ mod performance_tests {
             operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
         );
 
-        // The Validated nested operations should be at most 20x slower than simple addition
-        // This relative threshold accommodates hardware differences while still detecting
-        // severe performance regressions
-        assert!(
-            operation_duration.as_secs_f64() < baseline_duration.as_secs_f64() * 20.0,
-            "Nested operations are more than 20x slower than baseline: {:.2}x",
-            operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
-        );
+        // PERFORMANCE REALITY CHECK: 20x slower is NOT acceptable performance!
+        // This test demonstrates the severe performance penalty of our abstraction layers.
+        // 20x overhead indicates fundamental architectural performance problems.
+        //
+        // WARNING: This test accepts terrible performance as "normal"
+        // TODO: Either optimize implementation or document as experimental/educational only
+        let slowdown_factor = operation_duration.as_secs_f64() / baseline_duration.as_secs_f64();
+
+        if slowdown_factor > 20.0 {
+            panic!(
+                "Validated operations are catastrophically slow: {:.2}x slower than baseline. \
+                This indicates severe performance problems that make this unsuitable for production use.",
+                slowdown_factor
+            );
+        } else if slowdown_factor > 5.0 {
+            eprintln!(
+                "WARNING: Validated operations are {:.2}x slower than baseline. \
+                This is a significant performance penalty that limits practical usage.",
+                slowdown_factor
+            );
+        }
     }
 }
 
@@ -1130,7 +1143,7 @@ mod property_tests {
         if errors.is_empty() {
             return TestResult::discard();
         }
-        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
         if small_errors.is_empty() {
             return TestResult::discard();
         }
@@ -1142,7 +1155,7 @@ mod property_tests {
     // Property tests for unwrap_invalid_owned
     #[quickcheck]
     fn prop_unwrap_invalid_owned_on_invalid_returns_errors(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors.clone());
         v.unwrap_invalid_owned() == small_errors
     }
@@ -1166,7 +1179,7 @@ mod property_tests {
 
     #[quickcheck]
     fn prop_into_value_on_invalid_returns_err_errors(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors.clone());
         match v.into_value() {
             Ok(_) => false,
@@ -1177,7 +1190,7 @@ mod property_tests {
     // Property tests for into_error_payload
     #[quickcheck]
     fn prop_into_error_payload_on_invalid_returns_ok_errors(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors.clone());
         match v.into_error_payload() {
             Ok(errs) => errs == small_errors,
@@ -1203,7 +1216,7 @@ mod property_tests {
 
     #[quickcheck]
     fn prop_value_accessor_on_invalid_returns_none(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors);
         v.value().is_none()
     }
@@ -1211,7 +1224,7 @@ mod property_tests {
     // Property tests for error_payload accessor
     #[quickcheck]
     fn prop_error_payload_accessor_on_invalid_returns_some_ref_errors(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors.clone());
         v.error_payload() == Some(&small_errors)
     }

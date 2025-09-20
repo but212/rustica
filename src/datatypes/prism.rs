@@ -92,15 +92,21 @@
 //!   - Memory usage depends on the variant being constructed and any contained data
 //!   - Copy-on-write semantics - no data is shared between input and output
 //!
-//! ### Time Complexity
+//! ### Time Complexity - Hiding Major Performance Issues
 //!
-//! * **Construction**: O(1) - Creating a prism stores the functions but doesn't execute them
-//! * **Preview (get)**: O(m) where m is the complexity of the matcher function
-//!   - Typically O(1) for simple enum pattern matching
-//!   - May be higher for complex data structures requiring deep cloning
-//! * **Review (set)**: O(c) where c is the complexity of the constructor function
-//!   - Typically O(1) for simple enum construction
-//!   - Potentially higher for variants containing complex data structures
+//! **WARNING: These complexity measures ignore the massive cost of full structure cloning!**
+//!
+//! * **Construction**: O(1) - Creating a prism stores the functions (accurate)
+//! * **Preview (get)**: O(m) where m is the matcher complexity (mostly accurate)
+//! * **Review (set)**: O(ENTIRE_STRUCTURE_SIZE) - NOT O(c)! Every set creates a complete copy
+//! * **Modify operations**: O(ENTIRE_STRUCTURE_SIZE + f) - Full clone even for tiny changes
+//!
+//! ### Critical Reality: No True Structural Sharing
+//!
+//! * **"Structural Sharing"**: Only when PartialEq returns true (unchanged values)
+//! * **Every Modification**: Clones the complete outer structure regardless of change size
+//! * **Memory Explosion**: Complex nested structures become prohibitively expensive
+//! * **Performance Cliff**: Adding one field to a large struct makes all prism operations slow
 //!
 //! ### Concurrency
 //!

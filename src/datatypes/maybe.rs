@@ -90,7 +90,7 @@
 //! - **Transformations** (`fmap`, `bind`):
 //!   - O(1) for `Nothing` cases (short-circuits without evaluating function)
 //!   - O(f) for `Just` cases where `f` is the time complexity of the applied function
-//! - **Conversions** (to/from Option, Result): O(1) - Zero-cost due to identical memory layout
+//! - **Conversions** (to/from Option, Result): O(1) - Due to identical memory layout
 //! - **Unwrapping**: O(1) - Direct access to inner value with minimal overhead
 //!
 //! ### Concurrency
@@ -188,7 +188,6 @@
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::comonad::Comonad;
-use crate::traits::composable::Composable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
@@ -1475,8 +1474,6 @@ impl<T> Identity for Maybe<T> {
         Maybe::Just(value)
     }
 }
-
-impl<T> Composable for Maybe<T> {}
 
 impl<T> Default for Maybe<T> {
     #[inline]

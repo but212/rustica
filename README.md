@@ -6,6 +6,10 @@
 
 Rustica is a comprehensive functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem. It provides a rich set of type classes, data types, and utilities commonly found in functional programming languages.
 
+## IMPORTANT PERFORMANCE NOTICE
+
+**This library prioritizes correctness and learning over performance. Current implementations have 20-100x overhead compared to direct Rust code, making them unsuitable for production performance-critical applications.**
+
 ## Overview
 
 Rustica enables idiomatic functional programming in Rust by providing:
@@ -17,7 +21,23 @@ Rustica enables idiomatic functional programming in Rust by providing:
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
 - **Error Handling**: Functional error handling utilities that work across different types
 
-Whether you're coming from Haskell, Scala, or other functional languages, or just want to explore functional programming in Rust, Rustica provides the tools you need.
+### Recommended Use Cases
+
+**Excellent for:**
+
+- Learning functional programming concepts
+- Prototyping and research
+- Educational purposes
+- Small-scale applications
+
+**Avoid for:**
+
+- Performance-critical production code
+- Real-time systems
+- Game engines
+- High-throughput web servers
+
+Whether you're coming from Haskell, Scala, or other functional languages, or just want to explore functional programming in Rust, Rustica provides the tools you need for learning and experimentation.
 
 ## Getting Started
 
@@ -25,28 +45,23 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.9.0"
+rustica = "0.10.0"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.9.0", features = ["async"] }
+rustica = { version = "0.10.0", features = ["async"] }
 ```
 
-If you want to use persistent vector collections, add the `pvec` feature:
-
-```toml
-[dependencies]
-rustica = { version = "0.9.0", features = ["pvec"] }
-```
+Persistent vector collections are now included by default in Rustica 0.10.0.
 
 You can combine multiple features as needed:
 
 ```toml
 [dependencies]
-rustica = { version = "0.9.0", features = ["full"] }
+rustica = { version = "0.10.0", features = ["full"] }
 ```
 
 Then import the prelude to get started:
@@ -138,16 +153,9 @@ Rustica provides standardized error handling utilities that work across differen
   - `AppError<M, C>` - A structured error type that provides both a message and optional context
   - Helper functions like `error()` and `error_with_context()`
 
-### Persistent Vector (pvec feature)
+### Persistent Vector
 
-Rustica provides a high-performance, immutable persistent vector (RRB-Tree) for functional programming patterns.
-
-Enable the feature
-
-```toml
-[dependencies]
-rustica = { version = "0.9.0", features = ["pvec"] }
-```
+Rustica provides an immutable persistent vector (RRB-Tree) for functional programming patterns. This is included by default in Rustica 0.10.0.
 
 Example Usage
 

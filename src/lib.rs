@@ -12,8 +12,7 @@
 //! - Practical data types such as `Maybe`, `Either`, and `Validated`
 //! - Optics for data manipulation via `Lens` and `Prism`
 //! - Composable operations for error handling and data transformation
-//! - Zero-cost abstractions wherever possible
-//! - Advanced monad transformers: `StateT`, `ReaderT`, `WriterT`, `ContT`
+//! - Advanced monad transformers: `StateT`, `ReaderT`, `ContT`
 //!
 //! ## Getting Started
 //!
@@ -122,7 +121,6 @@ pub mod utils;
 ///
 /// A high-performance, immutable vector implementation that preserves
 /// previous versions through structural sharing.
-#[cfg(feature = "pvec")]
 pub mod pvec;
 
 /// Implementations of functional data types.
@@ -158,5 +156,6 @@ pub mod datatypes {
 pub mod transformers;
 
 pub mod category;
+
 /// Convenient re-exports of commonly used items.
 pub mod prelude;

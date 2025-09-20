@@ -8,8 +8,8 @@
   - Added `From<T>` and `Into<T>` implementations for wrapper types:
     - `Sum<T>`: `From<T>` implementation for direct value wrapping
     - `Product<T>`: `From<T>` implementation for direct value wrapping
-    - `First<T>`: `From<T>` and `From<Option<T>>` implementations for flexible initialization
-    - `Last<T>`: `From<T>` and `From<Option<T>>` implementations for flexible initialization
+    - `First<T>`: `From<Option<T>>` implementations for optional initialization
+    - `Last<T>`: `From<Option<T>>` implementations for optional initialization
     - `Min<T>`: `From<T>` implementation for direct value wrapping
     - `Max<T>`: `From<T>` implementation for direct value wrapping
     - `Value<T>`: `From<T>` implementation for seamless conversion from any value
@@ -26,12 +26,29 @@
 - **Category trait inheritance removed from HKT**
   - `Category` now focuses purely on morphism composition without HKT dependencies
   - `HKT` remains independent for type constructor operations
-- **Deprecation of `Composable` trait**
-  - Replaced with `FunctionCategory` from `rustica::category::function_category`
-  - This trait violates category theory principles
-- **Deprecation of `Value` wrapper**
-  - Replaced with `Id` from `rustica::datatypes::id`
-  - This wrapper is redundant with `Id`
+- **Increased default stack size for `Validated` from 4 to 8 elements**
+  - This change reduces heap allocations and improves performance
+- **Change and simplify `PersistentVector`**
+  - removed `with_cache_policy` and `from_slice_with_cache_policy`
+  - removed `with_chunk_size` and chunk size is now fixed at 64
+  - removed `ChunkIter`
+  - removed `pvec` feature flag
+  - Simplified `PersistentVector` API by removing cache policy and chunk size
+
+### Removed - 0.10.0
+
+- [BREAKING CHANGE] **remove `Foldable` trait impl in monoid wrappers**
+- [BREAKING CHANGE] **remove `Composable` trait**
+- [BREAKING CHANGE] **remove `Value` wrapper**
+- [BREAKING CHANGE] **remove `to_arc()` method from PersistentVector**
+  - The `to_arc()` method has been removed as part of the PersistentVector API simplification
+  - Users should use standard Arc wrapping if needed: `Arc::new(vector)`
+- [BREAKING CHANGE] **remove WriterT monad transformer**
+  - WriterT transformer and all related code have been removed
+  - This was previously removed in 0.7.0 but not properly documented in 0.10.0 changes
+- [BREAKING CHANGE] **remove pvec feature flag**
+  - PersistentVector is now included by default and no longer requires a feature flag
+  - Remove `features = ["pvec"]` from your Cargo.toml dependencies
 
 ## [0.9.0]
 

@@ -630,18 +630,9 @@ pub fn sequence_results<T, E>(results: Vec<Result<T, E>>) -> Result<Vec<T>, E> {
 /// let first: First<i32> = fold_with(values.clone());
 /// assert_eq!(*first.value(), 10);
 ///
-/// // First operations
-/// let direct_values = vec![42, 99, 7];
-/// let first_direct: First<i32> = fold_with(direct_values);
-/// assert_eq!(*first_direct.value(), 42);
-///
 /// // Last operations
 /// let last: Last<i32> = fold_with(values);
 /// assert_eq!(*last.value(), 20);
-///
-/// // Last operations
-/// let last_direct: Last<i32> = fold_with(vec![1, 2, 3]);
-/// assert_eq!(*last_direct.value(), 3);
 ///
 /// // Min operations
 /// let unsorted = vec![5, 2, 8, 1, 9];

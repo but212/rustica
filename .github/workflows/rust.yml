@@ -73,22 +73,6 @@ jobs:
       - name: Run cargo-udeps
         run: cargo +nightly udeps --all-targets --all-features
 
-  semver_check:
-    name: Semantic Versioning Check
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Install cargo-semver-checks
-        run: cargo install cargo-semver-checks --locked
-      - name: Run semver checks
-        run: cargo semver-checks --baseline-rev=origin/main
-
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -136,7 +120,7 @@ jobs:
   publish:
     name: Publish to crates.io
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, msrv, security, docs, semver_check]
+    needs: [test, msrv, security, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: read

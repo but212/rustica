@@ -8,7 +8,6 @@
 //!
 //! - **Aggregation**: Provides a principled way to combine values through multiplication
 //! - **Transformation**: Works with `Functor` to map inner values while preserving the wrapper
-//! - **Folding**: Can be used with `Foldable` to reduce collections to a single product
 //!
 //! ## Type Class Laws
 //!
@@ -54,7 +53,6 @@
 //! - `Monoid`: For any `T` that implements `Mul` and `From<u8>` (for the identity element)
 //! - `Functor`: For mapping operations over the inner value
 //! - `Identity`: For accessing the wrapped value
-//! - `Foldable`: For folding operations over the single inner value
 //! - `HKT`: For higher-kinded type operations
 //!
 //! ## Quick Start
@@ -87,7 +85,6 @@
 //! performance characteristics, please refer to the function-level documentation of the
 //! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
-use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
@@ -541,24 +538,6 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
         F: FnOnce(Self::Source) -> U,
     {
         Product(f(self.0))
-    }
-}
-
-impl<T: Clone + Mul<Output = T>> Foldable for Product<T> {
-    #[inline]
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
-    where
-        F: FnOnce(&U, &Self::Source) -> U,
-    {
-        f(init, &self.0)
-    }
-
-    #[inline]
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
-    where
-        F: FnOnce(&Self::Source, &U) -> U,
-    {
-        f(&self.0, init)
     }
 }
 

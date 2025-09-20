@@ -139,6 +139,10 @@ pub struct FunctionCategory;
 /// readable and maintainable.
 pub type FunctionMorphism<A, B> = Arc<dyn Fn(A) -> B + 'static>;
 
+/// Type alias for morphisms that operate on pairs, commonly used in arrow operations
+/// like `both` where the same transformation is applied to both elements of a tuple.
+pub type PairMorphism<A, B> = FunctionMorphism<(A, A), (B, B)>;
+
 impl Category for FunctionCategory {
     type Morphism<A, B> = FunctionMorphism<A, B>;
 
@@ -234,7 +238,7 @@ impl FunctionCategory {
     /// let double_both = FunctionCategory::both(|x: i32| x * 2);
     /// assert_eq!(double_both((3, 5)), (6, 10));
     /// ```
-    pub fn both<A, B, F>(f: F) -> FunctionMorphism<(A, A), (B, B)>
+    pub fn both<A, B, F>(f: F) -> PairMorphism<A, B>
     where
         A: 'static,
         F: Fn(A) -> B + 'static,

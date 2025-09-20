@@ -948,12 +948,12 @@ impl<A: Clone> Applicative for Vec<A> {
         Self: Sized,
     {
         let mut result = Vec::with_capacity(fa.len() * fb.len() * fc.len());
-        for a in fa {
-            for b in fb {
-                for c in fc {
-                    result.push(f(a, b, c));
-                }
-            }
+        for ((a, b), c) in fa
+            .iter()
+            .flat_map(|a| fb.iter().map(move |b| (a, b)))
+            .flat_map(|(a, b)| fc.iter().map(move |c| ((a, b), c)))
+        {
+            result.push(f(a, b, c));
         }
         result
     }
@@ -1006,10 +1006,10 @@ impl<A: Clone> Applicative for Vec<A> {
         Self: Sized,
     {
         let mut result = Vec::with_capacity(fa.len() * fb.len() * fc.len());
-        for a in fa {
+        for a in fa.into_iter() {
             for b in fb.clone() {
                 for c in fc.clone() {
-                    result.push(f(a.clone(), b.clone(), c));
+                    result.push(f(a.clone(), b.clone(), c.clone()));
                 }
             }
         }
