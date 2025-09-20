@@ -38,9 +38,8 @@ criterion = { version = "0.7", features = ["html_reports"] }
 default = []
 serde = ["dep:serde", "smallvec/serde", "serde/rc"]
 async = ["futures", "tokio"]
-dev-tools = []
 full = ["async", "serde"]
-develop = ["full", "dev-tools"]
+develop = ["full"]
 
 [[bench]]
 name = "datatypes_benchmarks"
