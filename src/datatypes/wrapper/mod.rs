@@ -97,4 +97,3 @@ pub mod predicate;
 pub mod product;
 pub mod sum;
 pub mod thunk;
-pub mod value;

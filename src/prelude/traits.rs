@@ -46,7 +46,6 @@ pub use crate::traits::applicative::Applicative;
 pub use crate::traits::arrow::Arrow;
 pub use crate::traits::bifunctor::Bifunctor;
 pub use crate::traits::category::Category;
-pub use crate::traits::composable::Composable;
 pub use crate::traits::contravariant_functor::ContravariantFunctor;
 pub use crate::traits::evaluate::{Evaluate, EvaluateExt};
 pub use crate::traits::foldable::Foldable;

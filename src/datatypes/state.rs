@@ -272,6 +272,9 @@ use crate::transformers::StateT;
 use crate::utils::error_utils::AppError;
 use quickcheck::{Arbitrary, Gen};
 
+/// Type alias for the inner state transformer used in State monad
+pub type StateInner<S, A> = StateT<S, Id<(A, S)>, A>;
+
 /// A monad that represents stateful computations.
 ///
 /// The State monad provides a way to handle state in a purely functional way.
@@ -368,7 +371,7 @@ use quickcheck::{Arbitrary, Gen};
 #[repr(transparent)]
 pub struct State<S, A> {
     /// The state transformation function
-    inner: StateT<S, Id<(A, S)>, A>,
+    inner: StateInner<S, A>,
 }
 
 impl<S: Clone + Send + Sync + 'static, A: Clone + Send + Sync + 'static> Clone for State<S, A> {

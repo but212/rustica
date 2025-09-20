@@ -253,7 +253,6 @@
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
-use crate::traits::composable::Composable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::identity::Identity;
@@ -1145,8 +1144,6 @@ impl<L: Clone, R: Clone> Identity for Either<L, R> {
         }
     }
 }
-
-impl<L, R> Composable for Either<L, R> {}
 
 /// Implementation of `MonadPlus` for `Either`, which provides zero and plus operations.
 ///

@@ -39,7 +39,6 @@ pub use crate::datatypes::wrapper::min::Min;
 pub use crate::datatypes::wrapper::product::Product;
 pub use crate::datatypes::wrapper::sum::Sum;
 pub use crate::datatypes::wrapper::thunk::Thunk;
-pub use crate::datatypes::wrapper::value::Value;
 
 // Also re-export commonly used traits
 pub use crate::traits::evaluate::Evaluate;

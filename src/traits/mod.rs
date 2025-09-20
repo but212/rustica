@@ -59,8 +59,6 @@ pub mod arrow;
 ///
 /// This module provides the Category trait which represents a category in the sense of category theory.
 pub mod category;
-/// Function composition utilities.
-pub mod composable;
 
 // ===== Data Structure Traits =====
 /// Reduction of data structures to a single value.

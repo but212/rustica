@@ -183,7 +183,6 @@
 //! assert_eq!(log.0.len(), 3);
 //! ```
 use crate::traits::applicative::Applicative;
-use crate::traits::composable::Composable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
@@ -1308,17 +1307,6 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
             log: self.log.combine_owned(inner.log),
             value: inner.value,
         }
-    }
-}
-
-impl<W: Monoid + Clone, A: Clone> Composable for Writer<W, A> {
-    #[inline]
-    fn compose<T, U, F, G>(f: F, g: G) -> impl Fn(Self::Source) -> U
-    where
-        F: Fn(Self::Source) -> T,
-        G: Fn(T) -> U,
-    {
-        move |x| g(f(x))
     }
 }
 

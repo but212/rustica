@@ -217,7 +217,6 @@
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
-use crate::traits::composable::Composable;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
@@ -2425,8 +2424,6 @@ impl<E, A> Identity for Validated<E, A> {
         }
     }
 }
-
-impl<E, A> Composable for Validated<E, A> {}
 
 /// # Examples for `Foldable` on `Validated`
 ///

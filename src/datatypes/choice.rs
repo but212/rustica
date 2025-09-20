@@ -1920,6 +1920,29 @@ impl<T> Choice<T> {
 
         Ok(Self { values })
     }
+
+    /// Helper function to generate alternatives for apply operation
+    fn generate_apply_alternatives<A, B>(
+        func_values: &SmallVec<[T; 8]>, val_values: &SmallVec<[A; 8]>,
+    ) -> SmallVec<[B; 8]>
+    where
+        T: Fn(A) -> B,
+        A: Clone,
+    {
+        val_values
+            .iter()
+            .enumerate()
+            .flat_map(|(i, val)| {
+                func_values.iter().enumerate().filter_map(move |(j, func)| {
+                    if i == 0 && j == 0 {
+                        None
+                    } else {
+                        Some(func(val.clone()))
+                    }
+                })
+            })
+            .collect()
+    }
 }
 
 impl<T> HKT for Choice<T> {
@@ -2147,9 +2170,9 @@ impl<T: Clone> Monad for Choice<T> {
         Choice::new(first, alternatives)
     }
 
-    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
+    fn bind_owned<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: Fn(Self::Source) -> Self::Output<U>,
+        F: FnMut(Self::Source) -> Self::Output<U>,
         U: Clone,
     {
         if self.values.is_empty() {
@@ -2508,20 +2531,7 @@ impl<T: Clone> Applicative for Choice<T> {
         let val_values = value.values;
 
         let primary = func_values[0](val_values[0].clone());
-
-        let alternatives: SmallVec<[B; 8]> = val_values
-            .iter()
-            .enumerate()
-            .flat_map(|(i, val)| {
-                func_values.iter().enumerate().filter_map(move |(j, func)| {
-                    if i == 0 && j == 0 {
-                        None
-                    } else {
-                        Some(func(val.clone()))
-                    }
-                })
-            })
-            .collect();
+        let alternatives = Self::generate_apply_alternatives(&func_values, &val_values);
 
         Choice::new(primary, alternatives)
     }

@@ -175,9 +175,8 @@
 //! assert_eq!(iter.next(), None);
 //! ```
 use crate::traits::{
-    applicative::Applicative, comonad::Comonad, composable::Composable, foldable::Foldable,
-    functor::Functor, hkt::HKT, identity::Identity, monad::Monad, monoid::Monoid, pure::Pure,
-    semigroup::Semigroup,
+    applicative::Applicative, comonad::Comonad, foldable::Foldable, functor::Functor, hkt::HKT,
+    identity::Identity, monad::Monad, monoid::Monoid, pure::Pure, semigroup::Semigroup,
 };
 use quickcheck::{Arbitrary, Gen};
 
@@ -412,8 +411,6 @@ impl<T> Functor for Id<T> {
         Id::new(f(self.value))
     }
 }
-
-impl<T> Composable for Id<T> {}
 
 impl<T: Clone> Pure for Id<T> {
     #[inline]
