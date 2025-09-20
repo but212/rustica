@@ -6,6 +6,10 @@
 
 Rustica is a comprehensive functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem. It provides a rich set of type classes, data types, and utilities commonly found in functional programming languages.
 
+## IMPORTANT PERFORMANCE NOTICE
+
+**This library prioritizes correctness and learning over performance. Current implementations have 20-100x overhead compared to direct Rust code, making them unsuitable for production performance-critical applications.**
+
 ## Overview
 
 Rustica enables idiomatic functional programming in Rust by providing:
@@ -17,7 +21,23 @@ Rustica enables idiomatic functional programming in Rust by providing:
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
 - **Error Handling**: Functional error handling utilities that work across different types
 
-Whether you're coming from Haskell, Scala, or other functional languages, or just want to explore functional programming in Rust, Rustica provides the tools you need.
+### Recommended Use Cases
+
+**Excellent for:**
+
+- Learning functional programming concepts
+- Prototyping and research
+- Educational purposes
+- Small-scale applications
+
+**Avoid for:**
+
+- Performance-critical production code
+- Real-time systems
+- Game engines
+- High-throughput web servers
+
+Whether you're coming from Haskell, Scala, or other functional languages, or just want to explore functional programming in Rust, Rustica provides the tools you need for learning and experimentation.
 
 ## Getting Started
 

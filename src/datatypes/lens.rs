@@ -133,13 +133,23 @@
 //! - **Optimization**: Structural sharing via equality check prevents unnecessary cloning
 //! - **Reference Types**: Using reference-counted types like `Rc` or `Arc` improves sharing efficiency
 //!
-//! ### Time Complexity
+//! ### MISLEADING Time Complexity - Real Performance Impact
 //!
-//! - **Construction**: O(1) - Creating a lens is a constant-time operation
-//! - **Get**: O(g) - Where g is the complexity of the getter function
-//! - **Set**: O(g + s) - Where g is the complexity of the getter and s is the complexity of the setter
-//! - **Modify**: O(g + f + s) - Where f is the additional cost of the modifier function
-//! - **Composition**: O(1) - Composing lenses has constant overhead
+//! **WARNING: The following complexities hide massive constant factors due to full structure cloning!**
+//!
+//! - **Construction**: O(1) - Creating a lens stores function pointers (truthful)
+//! - **Get**: O(g) - Where g is the getter complexity (truthful)
+//! - **Set**: O(ENTIRE_STRUCTURE_SIZE) - NOT O(g + s)! Every set operation clones the complete structure
+//! - **Modify**: O(ENTIRE_STRUCTURE_SIZE + f) - NOT O(g + f + s)! Full clone regardless of change size
+//! - **Composition**: O(1) - For storing composition, but each use multiplies the cloning overhead
+//!
+//! ### Memory Usage Reality Check
+//!
+//! **CRITICAL**: Lenses do NOT provide structural sharing! Every operation creates complete copies.
+//!
+//! - **Set Operations**: Always clone entire structure, even for single field changes
+//! - **"Structural Sharing"**: Only works when new value equals old value (PartialEq check)
+//! - **Memory Growth**: O(structure_size × number_of_operations) for operation chains
 //!
 //! ### Concurrency
 //!

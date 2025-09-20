@@ -1,114 +1,129 @@
 # Rustica TODO
 
-## Priority: High (Target v0.10.0)
+**PERFORMANCE NOTICE**: This library has 20-100x overhead compared to direct Rust code.
 
-### Performance Optimization
+## Priority: High (Target v0.10.0) - Immediate Fixes
 
-- [ ] Benchmark-driven optimizations
-  - [ ] Profile PersistentVector memory usage
-  - [ ] Identify and optimize hot paths (especially get, update operations)
-  - [ ] Performance analysis of caching policies
-- [ ] Improve memory management
-  - [ ] Optimize Arc usage (eliminate unnecessary clones)
-  - [ ] Review and improve memory pooling strategies
+### Critical Maintenance
 
-### Ecosystem Integration
+- [ ] Fix documentation inconsistencies
+  - [ ] Remove false "zero-cost" claims from docs
+  - [ ] Add performance warnings to all public APIs
+  - [ ] Update examples with realistic use case guidance
+- [ ] Code quality improvements
+  - [ ] Fix remaining clippy warnings
+  - [ ] Standardize error handling patterns
+  - [ ] Remove unused dependencies from Cargo.toml
+- [ ] Testing improvements
+  - [ ] Fix failing tests if any
+  - [ ] Add integration tests for common workflows
+  - [ ] Validate all documented examples work
 
-- [ ] Integrate with major crates
-  - [ ] Serde support (serialization/deserialization)
-  - [ ] Deeper tokio integration (timers, channels, etc.)
-  - [ ] Integrate rayon for parallel processing
-  - [ ] Support tracing/metrics
+### User Experience
 
-## Priority: Medium (Target v0.11.0)
+- [ ] Improve getting started experience
+  - [ ] Simplify README examples
+  - [ ] Add clear performance expectations to docs
+  - [ ] Create troubleshooting guide for common issues
 
-### New Features & Data Type Extensions
+## Priority: Medium (Target v0.11.0) - Incremental Improvements
 
-- [ ] Additional Lens types
-  - [ ] Implement Traversal
-  - [ ] Implement Fold
-  - [ ] Lens composition for nested data structures
-- [ ] Stream processing abstractions
-  - [ ] Lazy evaluation streams
-  - [ ] Infinite data structures support
-  - [ ] Stream combinators
+### Documentation & Learning Resources
 
-### Developer Experience Improvements
+- [ ] Educational content
+  - [ ] Write "When to Use Rustica" guide
+  - [ ] Create comparison with direct Rust implementations
+  - [ ] Add more practical examples to docs
+  - [ ] Write migration guide from Rustica to production code
+- [ ] API improvements
+  - [ ] Review and simplify public APIs
+  - [ ] Add convenience methods for common patterns
+  - [ ] Improve error messages for better developer experience
 
-- [ ] Enhanced macros
-  - [ ] monad! macro (do-notation style)
-  - [ ] Derive macros to reduce boilerplate
-- [ ] Improved error messages
-  - [ ] Clearer compile-time error messages using custom diagnostics
-  - [ ] Add context to runtime errors
-- [ ] IDE integration
-  - [ ] Optimize rust-analyzer support
-  - [ ] Better code completion hints
+### Limited Feature Additions
 
-## Priority: Low (Long-term Goals)
+- [ ] Serde support (already partially implemented)
+  - [ ] Complete serde integration for all data types
+  - [ ] Add serialization examples
+  - [ ] Test roundtrip serialization
+- [ ] Enhanced lens functionality (only if performance acceptable)
+  - [ ] Add lens composition utilities
+  - [ ] Improve lens error handling
 
-### Advanced Functional Patterns
+## Priority: Low (Long-term Research) - Academic/Research Goals
 
-- [ ] Refined type abstractions
-  - [ ] Newtype pattern automation
-  - [ ] Strengthen type safety with phantom types
-  - [ ] Tagged types for domain modeling
-- [ ] Practical category theory applications
-  - [ ] Profunctor optics
-  - [ ] Comonadic UI patterns
-  - [ ] Selective applicative functors
+### Performance Research
 
-### Community & Ecosystem
+- [ ] Investigate optimization opportunities
+  - [ ] Profile Arc allocation patterns
+  - [ ] Research zero-copy alternatives for specific use cases
+  - [ ] Experiment with compile-time optimization techniques
+- [ ] Alternative implementations
+  - [ ] Research stack-based closure alternatives
+  - [ ] Investigate partial specialization for performance paths
+  - [ ] Consider trait object alternatives
 
-- [ ] Create educational materials
-  - [ ] Blog series on functional programming concepts
-  - [ ] Case studies of practical applications
-  - [ ] Conference presentation materials
-  - [ ] Video tutorials
-- [ ] Library modularization
-  - [ ] rustica-core: core type classes
-  - [ ] rustica-collections: immutable data structures
-  - [ ] rustica-async: async abstractions
-  - [ ] rustica-optics: lens/prism/traversal
+### Advanced Features (Research Only)
 
-## Technical Debt & Maintenance
+- [ ] Category theory extensions
+  - [ ] Profunctor optics (research implementation)
+  - [ ] Comonadic patterns exploration
+  - [ ] Advanced transformer compositions
+- [ ] Educational tools
+  - [ ] Interactive learning materials
+  - [ ] Visualization tools for category theory concepts
+  - [ ] Performance comparison tools
 
-### Code Quality Improvements
+## Explicitly Rejected Ideas
 
-- [ ] Clean up dependencies
-  - [ ] Remove unused dependencies
-  - [ ] Automate security updates
-  - [ ] Optimize crate size
-- [ ] Internal API consistency
-  - [ ] Unify naming conventions
-  - [ ] Standardize error type system
-  - [ ] Optimize module structure
-- [ ] Documentation generation
-  - [ ] Create guidebook using mdBook
-  - [ ] Practical examples collection
+### ❌ Not Pursuing (Performance Prohibitive)
 
-### Platform Support Expansion
+- **High-performance persistent vectors**: 20-100x overhead makes this impractical
+- **Production web framework integration**: Performance overhead too high
+- **Game engine integration**: Real-time requirements incompatible
+- **System programming applications**: Overhead unacceptable
+- **Massive ecosystem integration**: Limited by fundamental performance issues
 
-- [ ] WASM support
-  - [ ] Verify functionality in browser environments
-  - [ ] Optimize bundle size
-  - [ ] Sample web applications
-- [ ] Enhanced no-std support
-  - [ ] Test in embedded environments
-  - [ ] Optimize for memory-constrained environments
-  - [ ] Support for environments without alloc
+### ❌ Not Pursuing (Scope Creep)
 
-## Project Metric Goals
+- **Library modularization**: Single crate is sufficient for current scope
+- **Comprehensive tokio integration**: Async overhead compounds existing issues
+- **Advanced macro systems**: Complexity not justified by educational benefits
 
-### Performance Goals
+## Realistic Project Metrics
 
-- [ ] PersistentVector: access speed within 2x of Vec
-- [ ] Memory usage: within 1.5x for functional data structures
-- [ ] Compile time: full build within 10 seconds
+### Achievable Goals
 
-### Quality Goals
+- [ ] Test coverage: maintain above 80% (currently high)
+- [ ] Documentation coverage: maintain 95%+ (currently good)
+- [ ] Build time: keep under 30 seconds for full build
+- [ ] Zero clippy warnings on default settings
 
-- [ ] Test coverage: above 90%
-- [ ] Documentation coverage: 100%
-- [ ] Clippy warnings: 0
-- [ ] Minimize unsafe code usage
+### Performance Reality Check
+
+- **Current state**: 20-100x slower than direct Rust
+- **Realistic target**: Maybe reduce to 10-50x slower with optimizations
+- **Fundamental limit**: Arc indirection will always have significant overhead
+- **Honest assessment**: Will never be suitable for performance-critical code
+
+## Success Criteria Redefinition
+
+### Educational Success
+
+- ✅ Correct implementation of category theory concepts
+- ✅ Clear learning path for functional programming in Rust
+- ✅ Good examples and documentation
+
+### Practical Success
+
+- Limited to prototyping and research use cases
+- Focus on correctness over performance
+- Maintain as reference implementation for categorical concepts
+
+## Version Roadmap (Realistic)
+
+- **v0.10.1**: Fix documentation, improve examples, stabilize API
+- **v0.11.0**: Enhanced educational content, limited feature additions
+- **v1.0.0**: Stable educational/research library (no performance promises)
+
+This TODO reflects the reality that Rustica is primarily an educational and research tool, not a production-ready high-performance library.
