@@ -1,20 +1,16 @@
 use criterion::{BenchmarkId, Criterion, Throughput};
-#[cfg(feature = "pvec")]
-use rustica::pvec::{AlwaysCache, EvenIndexCache, NeverCache, PersistentVector};
+
+use rustica::pvec::PersistentVector;
 use std::hint::black_box;
 use std::sync::Arc;
 use std::thread;
 
-#[cfg(feature = "pvec")]
 pub fn pvec_benchmarks(c: &mut Criterion) {
     // Basic operations benchmarks
     basic_operations_benchmarks(c);
 
     // Size-based performance benchmarks
     size_based_benchmarks(c);
-
-    // Cache policy comparison benchmarks
-    cache_policy_benchmarks(c);
 
     // Memory efficiency benchmarks
     memory_efficiency_benchmarks(c);
@@ -29,7 +25,6 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     structural_sharing_benchmarks(c);
 }
 
-#[cfg(feature = "pvec")]
 fn basic_operations_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_basic");
 
@@ -118,7 +113,6 @@ fn basic_operations_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "pvec")]
 fn size_based_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_size_based");
 
@@ -151,54 +145,6 @@ fn size_based_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "pvec")]
-fn cache_policy_benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("pvec_cache_policy");
-
-    let size = 10000;
-    let access_count = 1000;
-
-    // AlwaysCache policy
-    group.bench_function("always_cache", |b| {
-        let vec: PersistentVector<i32> = PersistentVector::with_cache_policy(Box::new(AlwaysCache));
-        let vec = (0..size).fold(vec, |v, i| v.push_back(i));
-        b.iter(|| {
-            for i in 0..access_count {
-                let idx = (i * 17) % size; // pseudo-random access
-                black_box(vec.get(black_box(idx.try_into().unwrap())));
-            }
-        })
-    });
-
-    // NeverCache policy
-    group.bench_function("never_cache", |b| {
-        let vec: PersistentVector<i32> = PersistentVector::with_cache_policy(Box::new(NeverCache));
-        let vec = (0..size).fold(vec, |v, i| v.push_back(i));
-        b.iter(|| {
-            for i in 0..access_count {
-                let idx = (i * 17) % size; // pseudo-random access
-                black_box(vec.get(black_box(idx.try_into().unwrap())));
-            }
-        })
-    });
-
-    // EvenIndexCache policy
-    group.bench_function("even_index_cache", |b| {
-        let vec: PersistentVector<i32> =
-            PersistentVector::with_cache_policy(Box::new(EvenIndexCache));
-        let vec = (0..size).fold(vec, |v, i| v.push_back(i));
-        b.iter(|| {
-            for i in 0..access_count {
-                let idx = (i * 17) % size; // pseudo-random access
-                black_box(vec.get(black_box(idx.try_into().unwrap())));
-            }
-        })
-    });
-
-    group.finish();
-}
-
-#[cfg(feature = "pvec")]
 fn memory_efficiency_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_memory");
 
@@ -237,7 +183,6 @@ fn memory_efficiency_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "pvec")]
 fn vec_comparison_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_vs_vec");
 
@@ -291,7 +236,6 @@ fn vec_comparison_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "pvec")]
 fn concurrency_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_concurrency");
 
@@ -347,7 +291,6 @@ fn concurrency_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "pvec")]
 fn structural_sharing_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_structural_sharing");
 

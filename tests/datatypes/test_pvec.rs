@@ -299,21 +299,6 @@ fn test_persistence() {
 }
 
 #[test]
-fn test_chunks() {
-    let vec = pvec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-    // Test getting chunks with default size
-    let chunks: Vec<Vec<i32>> = vec.chunks().collect();
-
-    // Verify we get chunks (exact size depends on implementation defaults)
-    assert!(!chunks.is_empty());
-
-    // Check that all elements are present when rejoined
-    let rejoined: Vec<i32> = chunks.into_iter().flatten().collect();
-    assert_eq!(rejoined, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-}
-
-#[test]
 fn test_first_last() {
     let vec = pvec![1, 2, 3, 4, 5];
 
@@ -345,10 +330,10 @@ fn test_to_vec() {
 #[test]
 fn test_to_arc() {
     let vec = pvec![1, 2, 3];
-    let arc_vec = vec.to_arc();
+    let std_vec = vec.to_vec();
 
-    assert_eq!(arc_vec.len(), 3);
-    assert_eq!(arc_vec.get(0), Some(&1));
+    assert_eq!(std_vec.len(), 3);
+    assert_eq!(std_vec.get(0), Some(&1));
 }
 
 #[test]
@@ -425,45 +410,6 @@ fn test_pvec_macro_variants() {
 }
 
 #[test]
-fn test_with_cache_policy_and_from_slice_with_cache_policy() {
-    use rustica::pvec::{AlwaysCache, EvenIndexCache, NeverCache, PersistentVector};
-    let vec: PersistentVector<i32> = PersistentVector::with_cache_policy(Box::new(AlwaysCache));
-    assert_eq!(vec.len(), 0);
-    let vec2 = PersistentVector::from_slice_with_cache_policy(&[1, 2, 3], Box::new(NeverCache));
-    assert_eq!(vec2.len(), 3);
-    let vec3 = PersistentVector::from_slice_with_cache_policy(&[1, 2, 3], Box::new(EvenIndexCache));
-    assert_eq!(vec3.get(1), Some(&2));
-}
-
-#[test]
-fn test_custom_cache_policy_trait() {
-    use rustica::pvec::{BoxedCachePolicy, CachePolicy, PersistentVector};
-    struct CustomPolicy;
-    impl CachePolicy for CustomPolicy {
-        fn should_cache(&self, idx: usize) -> bool {
-            idx % 2 == 0
-        }
-        fn clone_box(&self) -> BoxedCachePolicy {
-            Box::new(CustomPolicy)
-        }
-    }
-    let vec: PersistentVector<i32> = PersistentVector::with_cache_policy(Box::new(CustomPolicy));
-    assert_eq!(vec.len(), 0);
-}
-
-#[test]
-fn test_get_with_cache_and_update_with_cache_policy() {
-    use rustica::pvec::PersistentVector;
-    let mut vec: PersistentVector<i32> = PersistentVector::from_slice(&[10, 20, 30]);
-    let val = vec.get_with_cache(1);
-    assert_eq!(val, Some(&20));
-    let updated = vec.update_with_cache_policy(1, 99);
-    assert_eq!(updated.get(1), Some(&99));
-    // Original is unchanged
-    assert_eq!(vec.get(1), Some(&20));
-}
-
-#[test]
 fn test_misc_methods() {
     use rustica::pvec::PersistentVector;
     let vec = PersistentVector::from_slice(&[1, 2, 2, 3, 4, 4, 5]);
@@ -485,8 +431,8 @@ fn test_trait_impls_and_conversions() {
     assert_eq!(stdvec, vec![1, 2, 3]);
     let pv2: PersistentVector<_> = stdvec.clone().into();
     assert_eq!(pv2, vec);
-    let arc = vec.to_arc();
-    assert_eq!(arc.get(0), Some(&1));
+    let vec2 = vec.to_vec();
+    assert_eq!(vec2.get(0), Some(&1));
 }
 
 #[test]
@@ -498,44 +444,4 @@ fn test_edge_cases() {
     assert_eq!(updated.len(), 0);
     let popped = empty.pop_back();
     assert!(popped.is_none());
-}
-
-#[test]
-fn test_concat_chunk_size_consistency() {
-    use rustica::pvec::PersistentVector;
-    let vec1: PersistentVector<i32> = PersistentVector::with_chunk_size(4).extend([1, 2, 3]);
-    let vec2: PersistentVector<i32> = PersistentVector::with_chunk_size(8).extend([4, 5, 6]);
-    let combined = vec1.concat(&vec2);
-    assert_eq!(combined.to_vec(), vec![1, 2, 3, 4, 5, 6]);
-    assert_eq!(combined.chunk_size(), 4); // Inherits from vec1
-}
-
-#[test]
-fn test_extend_chunk_size_consistency() {
-    use rustica::pvec::PersistentVector;
-    let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(4).extend([1, 2, 3]);
-    let extended = vec.extend([4, 5, 6]);
-    assert_eq!(extended.to_vec(), vec![1, 2, 3, 4, 5, 6]);
-    assert_eq!(extended.chunk_size(), 4);
-}
-
-#[test]
-fn test_chunks_iter_respects_chunk_size() {
-    use rustica::pvec::PersistentVector;
-    let vec: PersistentVector<i32> = PersistentVector::with_chunk_size(3).extend(0..7);
-    let chunks: Vec<Vec<i32>> = vec.chunks().collect();
-    assert_eq!(chunks.len(), 3); // 3, 3, 1 elements
-    assert_eq!(chunks[0], vec![0, 1, 2]);
-    assert_eq!(chunks[1], vec![3, 4, 5]);
-    assert_eq!(chunks[2], vec![6]);
-}
-
-#[test]
-fn test_concat_with_different_chunk_sizes_behavior() {
-    use rustica::pvec::PersistentVector;
-    let a: PersistentVector<i32> = PersistentVector::with_chunk_size(2).extend([1, 2]);
-    let b: PersistentVector<i32> = PersistentVector::with_chunk_size(5).extend([3, 4, 5]);
-    let ab = a.concat(&b);
-    assert_eq!(ab.chunk_size(), 2); // Inherits from a
-    assert_eq!(ab.to_vec(), vec![1, 2, 3, 4, 5]);
 }

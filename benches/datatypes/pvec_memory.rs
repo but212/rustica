@@ -4,8 +4,8 @@
 //! allocation patterns, and structural sharing efficiency of PersistentVector.
 
 use criterion::{BenchmarkId, Criterion, Throughput};
-#[cfg(feature = "pvec")]
-use rustica::pvec::{AlwaysCache, NeverCache, PersistentVector};
+
+use rustica::pvec::PersistentVector;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::hint::black_box;
 use std::sync::Arc;
@@ -99,15 +99,12 @@ impl MemoryStats {
     }
 }
 
-#[cfg(feature = "pvec")]
 pub fn pvec_memory_benchmarks(c: &mut Criterion) {
     memory_usage_benchmarks(c);
     structural_sharing_memory_benchmarks(c);
-    cache_memory_impact_benchmarks(c);
     memory_fragmentation_benchmarks(c);
 }
 
-#[cfg(feature = "pvec")]
 fn memory_usage_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_memory_usage");
 
@@ -161,7 +158,6 @@ fn memory_usage_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "pvec")]
 fn structural_sharing_memory_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_structural_sharing_memory");
 
@@ -217,67 +213,6 @@ fn structural_sharing_memory_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "pvec")]
-fn cache_memory_impact_benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("pvec_cache_memory_impact");
-
-    let size = 10000;
-
-    // Memory usage with different cache policies
-    group.bench_function("always_cache_memory", |b| {
-        b.iter_custom(|iters| {
-            let start = std::time::Instant::now();
-
-            for _ in 0..iters {
-                let _stats_before = MemoryStats::capture();
-
-                let vec: PersistentVector<i32> =
-                    PersistentVector::with_cache_policy(Box::new(AlwaysCache));
-                let vec = (0..size).fold(vec, |v, i| v.push_back(i));
-
-                // Perform operations that would populate the cache
-                for i in 0..1000 {
-                    let idx = (i * 17) % size;
-                    black_box(vec.get(idx.try_into().unwrap()));
-                }
-
-                let _stats_after = MemoryStats::capture();
-                black_box(vec);
-            }
-
-            start.elapsed()
-        })
-    });
-
-    group.bench_function("never_cache_memory", |b| {
-        b.iter_custom(|iters| {
-            let start = std::time::Instant::now();
-
-            for _ in 0..iters {
-                let _stats_before = MemoryStats::capture();
-
-                let vec: PersistentVector<i32> =
-                    PersistentVector::with_cache_policy(Box::new(NeverCache));
-                let vec = (0..size).fold(vec, |v, i| v.push_back(i));
-
-                // Perform operations (no caching should occur)
-                for i in 0..1000 {
-                    let idx = (i * 17) % size;
-                    black_box(vec.get(idx.try_into().unwrap()));
-                }
-
-                let _stats_after = MemoryStats::capture();
-                black_box(vec);
-            }
-
-            start.elapsed()
-        })
-    });
-
-    group.finish();
-}
-
-#[cfg(feature = "pvec")]
 fn memory_fragmentation_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pvec_memory_fragmentation");
 
@@ -351,7 +286,7 @@ fn memory_fragmentation_benchmarks(c: &mut Criterion) {
 }
 
 /// Utility function to estimate memory usage of a PersistentVector
-#[cfg(feature = "pvec")]
+
 pub fn estimate_memory_usage<T>(vec: &PersistentVector<T>) -> usize
 where
     T: Clone,
@@ -364,7 +299,7 @@ where
 }
 
 /// Utility function to measure structural sharing efficiency
-#[cfg(feature = "pvec")]
+
 pub fn measure_sharing_efficiency<T: Clone>(
     original: &PersistentVector<T>, modified: &PersistentVector<T>,
 ) -> f64 {
@@ -385,7 +320,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(feature = "pvec")]
+
     fn test_memory_estimation() {
         let vec = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
         let estimated = estimate_memory_usage(&vec);
@@ -395,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "pvec")]
+
     fn test_sharing_efficiency() {
         let original = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
         let modified = original.update(500, 42);
