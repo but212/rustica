@@ -31,7 +31,6 @@ use datatypes::lens::lens_benchmarks;
 use datatypes::maybe::maybe_benchmarks;
 use datatypes::prism::prism_benchmarks;
 use datatypes::pvec::pvec_benchmarks;
-use datatypes::pvec_memory::pvec_memory_benchmarks;
 use datatypes::reader::reader_benchmarks;
 use datatypes::state::state_benchmarks;
 use datatypes::validated::validated_benchmarks;
@@ -54,7 +53,6 @@ criterion_group!(
     iso_lens_benchmarks,
     iso_prism_benchmarks,
     pvec_benchmarks,
-    pvec_memory_benchmarks,
 );
 
 criterion_main!(datatype_benches);
