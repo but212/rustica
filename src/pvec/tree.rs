@@ -1,15 +1,29 @@
+//! Internal RRB tree implementation.
+//!
+//! This module contains the RRB (Relaxed Radix Balanced) tree that provides
+//! the underlying data structure for efficient persistent vector operations.
+
 use super::node::{
     BRANCHING_FACTOR, LEAF_CAPACITY, RRBNode, SMALL_BRANCH_SIZE, SMALL_SIZE_TABLE_SIZE,
 };
 use smallvec::SmallVec;
 use std::sync::Arc;
 
+/// An RRB tree structure for efficient persistent vector operations.
+///
+/// The RRB tree combines the root tree structure with head and tail buffers
+/// for optimal performance on common operations like push_back and push_front.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RRBTree<T> {
+    /// The root node of the tree structure.
     pub root: Arc<RRBNode<T>>,
+    /// Tail buffer for efficient back insertions.
     pub tail: SmallVec<[T; LEAF_CAPACITY]>,
+    /// Head buffer for efficient front insertions.
     pub head: SmallVec<[T; LEAF_CAPACITY]>,
+    /// Height of the tree (0 for single leaf).
     pub height: usize,
+    /// Total number of elements in the tree.
     pub len: usize,
 }
 

@@ -1,3 +1,8 @@
+//! Trait implementations for persistent vectors.
+//!
+//! This module provides implementations of various functional programming traits
+//! for [`PersistentVector`], enabling use with the rustica categorical framework.
+
 use crate::traits::{
     foldable::Foldable, functor::Functor, hkt::HKT, identity::Identity, monoid::Monoid,
     semigroup::Semigroup,

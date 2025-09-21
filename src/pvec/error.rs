@@ -1,9 +1,28 @@
+//! Error types for persistent vector operations.
+
 use std::fmt::{self, Debug};
 
+/// Errors that can occur during persistent vector operations.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PVecError {
-    IndexOutOfBounds { index: usize, len: usize },
-    InvalidRange { start: usize, end: usize },
+    /// Index is out of bounds for the vector.
+    ///
+    /// Contains the invalid index and the actual length of the vector.
+    IndexOutOfBounds {
+        /// The invalid index that was accessed.
+        index: usize,
+        /// The actual length of the vector.
+        len: usize
+    },
+    /// Range is invalid (start > end).
+    ///
+    /// Contains the invalid start and end indices.
+    InvalidRange {
+        /// The start index of the range.
+        start: usize,
+        /// The end index of the range.
+        end: usize
+    },
 }
 
 impl fmt::Display for PVecError {
