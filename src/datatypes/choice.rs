@@ -150,11 +150,6 @@
 //!   - `fmap`, `bind`: O(n) where n is the number of elements
 //!   - Iteration: O(n) linear time, similar to `Vec`
 //!
-//! - **Concurrency:**
-//!   - Thread-safe due to immutable semantics and `Arc` for shared ownership
-//!   - No interior mutability or synchronization overhead
-//!   - Safe to share across thread boundaries when `T: Send + Sync`
-//!
 //! ## Type Class Implementations
 //!
 //! `Choice<T>` implements several important functional programming type classes:

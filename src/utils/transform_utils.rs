@@ -23,7 +23,7 @@
 //!
 //! ### Pipeline Operations
 //! - **Pipeline Builder**: O(1) for construction, O(f1 + f2 + ... + fn) for execution
-//! - **Chaining**: Zero-cost abstraction - no additional overhead beyond function composition
+//! - **Chaining**: No additional overhead beyond function composition
 //! - **Memory Efficiency**: Minimal memory overhead, operations are applied lazily when possible
 
 use crate::prelude::Functor;

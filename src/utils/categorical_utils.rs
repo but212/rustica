@@ -12,7 +12,6 @@
 //! - **Categorical Correctness**: All functions preserve the mathematical laws of
 //!   functors, applicatives, and monads
 //! - **Type Safety**: Leverages Rust's generics and ownership to ensure memory safety
-//! - **Performance**: Zero-cost abstractions with inline closures for minimal overhead
 //!
 //! ## Core Concepts
 //!
@@ -33,11 +32,9 @@
 //! ### Time Complexity
 //! - **Map operations**: O(f) where f is the complexity of the mapping function
 //! - **Flat map operations**: O(f) where f is the complexity of the chaining function
-//! - **Curry operations**: O(1) - Zero-cost function transformation
 //! - **Compose operations**: O(f + g) where f and g are the composed function complexities
 //!
 //! ### Memory Usage
-//! - **Zero-cost abstractions**: No additional heap allocation beyond what's needed
 //! - **Move semantics**: Leverages Rust's ownership to avoid unnecessary copies
 //! - **Iterator-based**: Uses lazy evaluation where possible for memory efficiency
 //!
@@ -60,7 +57,7 @@
 //! // Function composition
 //! let add_one = |x: i32| x + 1;
 //! let double = |x: i32| x * 2;
-//! let composed = compose(add_one, double);
+//! let composed = compose(double, add_one);
 //! assert_eq!(composed(5), 12); // (5 + 1) * 2
 //!
 //! // Argument flipping for different perspectives
@@ -84,7 +81,6 @@ use crate::traits::monoid::Monoid;
 ///
 /// - **Time Complexity**: O(f) where f is the complexity of the mapping function
 /// - **Memory Usage**: Zero additional allocation beyond the result
-/// - **Optimization**: Function is inlined for zero-cost abstraction
 ///
 /// # Arguments
 ///
@@ -342,8 +338,7 @@ where
 /// # Performance
 ///
 /// - **Time Complexity**: O(f + g) where f and g are the complexities of the composed functions
-/// - **Memory Usage**: Zero-cost abstraction - no additional allocation
-/// - **Optimization**: Functions are inlined for optimal performance
+/// - **Memory Usage**: No additional allocation
 ///
 /// # Arguments
 ///
@@ -363,17 +358,63 @@ where
 /// let double = |x: i32| x * 2;
 ///
 /// // Compose functions: first add one, then double
-/// let add_one_then_double = compose(add_one, double);
+/// let add_one_then_double = compose(double, add_one);
 /// assert_eq!(add_one_then_double(5), 12); // (5 + 1) * 2
 ///
 /// // Function composition is associative
 /// let triple = |x: i32| x * 3;
-/// let comp1 = compose(compose(add_one, double), triple);
-/// let comp2 = compose(add_one, compose(double, triple));
-/// assert_eq!(comp1(2), comp2(2)); // Both equal 18
+/// let comp1 = compose(triple, compose(double, add_one));
+/// let comp2 = compose(compose(triple, double), add_one);
+/// assert_eq!(comp1(2), comp2(2));
 /// ```
 #[inline]
-pub fn compose<A, B, C, F, G>(f: F, g: G) -> impl Fn(A) -> C
+pub fn compose<A, B, C, F, G>(g: G, f: F) -> impl Fn(A) -> C
+where
+    F: Fn(A) -> B,
+    G: Fn(B) -> C,
+{
+    move |x| g(f(x))
+}
+
+/// Pipes the output of one function into another, creating a pipeline.
+///
+/// This function implements function piping: `pipe(f, g)(x) = g(f(x))`.
+/// Unlike `compose`, which reads right-to-left, `pipe` reads left-to-right,
+/// making it more intuitive for sequential data transformations.
+///
+/// # Performance
+///
+/// - **Time Complexity**: O(f + g) where f and g are the complexities of the piped functions
+/// - **Memory Usage**: No additional allocation
+///
+/// # Arguments
+///
+/// * `f` - The first function to apply
+/// * `g` - The second function to apply to the result of the first
+///
+/// # Returns
+///
+/// A new function that represents the pipeline of `f` then `g`
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::utils::categorical_utils::pipe;
+///
+/// let add_one = |x: i32| x + 1;
+/// let double = |x: i32| x * 2;
+///
+/// // Pipe functions: first add one, then double
+/// let add_one_then_double = pipe(add_one, double);
+/// assert_eq!(add_one_then_double(5), 12); // (5 + 1) * 2
+///
+/// // Chain multiple transformations
+/// let to_string = |x: i32| x.to_string();
+/// let pipeline = pipe(pipe(add_one, double), to_string);
+/// assert_eq!(pipeline(3), "8"); // (3 + 1) * 2 = "8"
+/// ```
+#[inline]
+pub fn pipe<A, B, C, F, G>(f: F, g: G) -> impl Fn(A) -> C
 where
     F: Fn(A) -> B,
     G: Fn(B) -> C,
@@ -390,8 +431,7 @@ where
 /// # Performance
 ///
 /// - **Time Complexity**: O(f) where f is the complexity of the original function
-/// - **Memory Usage**: Zero-cost abstraction - no additional allocation
-/// - **Optimization**: Function is inlined for minimal overhead
+/// - **Memory Usage**: No additional allocation
 ///
 /// # Arguments
 ///

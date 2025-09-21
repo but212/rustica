@@ -16,24 +16,6 @@
 //! ### Memory Usage
 //! - **Structure Preservation**: Functors maintain the same structural memory layout
 //! - **Transformation Cost**: Additional memory usage depends on the mapping function
-//! - **No Additional Overhead**: Pure functor operations add no structural overhead
-//!
-//! ### Implementation Notes
-//! - Functor implementations are typically zero-cost abstractions
-//! - Memory allocation patterns depend on the specific functor implementation
-//! - Most implementations use lazy evaluation where possible for optimal performance
-//!
-//! # TODO: Improvements
-//! - Add full set of ownership-aware methods to optimize performance
-//! - Add #\[inline\] attributes to all methods for better performance
-//! - Improve documentation examples with explicit type annotations
-//! - Add PhantomData support for zero-cost abstractions
-//! - Add blanket implementations for relevant trait combinations
-//! - Ensure proper trait bounds on type parameters
-//! - Optimize trait bounds for better compile-time type inference
-//! - Update all FunctorExt methods to use owned values instead of references when appropriate
-//! - Add comprehensive test cases for all implementations
-//! - Create benchmarks to evaluate performance of ownership-based vs reference-based approaches
 //!
 //! ## Quick Start
 //!
@@ -79,7 +61,6 @@
 //! - The core `Functor` trait that defines mapping operations
 //! - Extension methods in `FunctorExt` for additional utility
 //! - Implementations for standard Rust types like `Option`, `Result`, and `Vec`
-//! - Zero-cost implementations using `PhantomData`
 //!
 //! ## Functor Laws
 //!

@@ -21,12 +21,6 @@
 //! - **Chain Depth**: Memory usage is generally constant regardless of bind chain depth
 //! - **Context Preservation**: Memory used to maintain computational context
 //!
-//! ### Implementation Notes
-//! - Monadic operations are designed as zero-cost abstractions where possible
-//! - Short-circuiting behavior can significantly improve performance for failure cases
-//! - Most implementations avoid stack overflow through careful tail-call optimization
-//! - Memory allocation patterns depend on the specific monad implementation
-//!
 //! ## Quick Start
 //!
 //! Chain computations that may fail using monadic operations:

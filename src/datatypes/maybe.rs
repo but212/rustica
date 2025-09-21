@@ -218,8 +218,7 @@ use std::marker::PhantomData;
 /// `String`, etc. that can never be null, the `Nothing` variant doesn't require any
 /// additional memory. The compiler optimizes it to use the null pointer representation.
 ///
-/// Memory layout is identical to `Option<T>` in Rust's standard library, making
-/// conversions between the two zero-cost.
+/// Memory layout is identical to `Option<T>` in Rust's standard library.
 ///
 /// # Type Parameters
 ///
@@ -397,7 +396,6 @@ impl<T> Maybe<T> {
     /// Converts from `Option<T>` to `Maybe<T>`.
     ///
     /// `Some(x)` is converted to `Just(x)`, and `None` is converted to `Nothing`.
-    /// This is a zero-cost conversion due to the same memory layout.
     ///
     /// # Examples
     ///
@@ -424,7 +422,6 @@ impl<T> Maybe<T> {
     /// Converts from `Maybe<T>` to `Option<T>`.
     ///
     /// `Just(x)` is converted to `Some(x)`, and `Nothing` is converted to `None`.
-    /// This is a zero-cost conversion due to the same memory layout.
     ///
     /// # Examples
     ///
