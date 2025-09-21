@@ -18,6 +18,84 @@ pub enum RRBNode<T> {
 }
 
 impl<T: Clone> RRBNode<T> {
+    pub fn make_relaxed(children: Vec<Arc<RRBNode<T>>>) -> Self {
+        let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = children
+            .iter()
+            .map(|child| child.calculate_size())
+            .collect();
+
+        RRBNode::Branch {
+            children: children.into(),
+            sizes: Some(sizes),
+        }
+    }
+
+    pub fn find_child_relaxed(&self, index: usize) -> Option<(usize, usize)> {
+        match self {
+            RRBNode::Branch {
+                sizes: Some(sizes), ..
+            } => {
+                let mut cumulative = 0;
+                for (i, &size) in sizes.iter().enumerate() {
+                    if index < cumulative + size {
+                        return Some((i, index - cumulative));
+                    }
+                    cumulative += size;
+                }
+                None
+            },
+            _ => self.find_child_regular(index, 1),
+        }
+    }
+
+    pub fn find_child_regular(&self, index: usize, height: usize) -> Option<(usize, usize)> {
+        match self {
+            RRBNode::Leaf { .. } => None,
+            RRBNode::Branch { children, .. } => {
+                let child_capacity = if height == 0 {
+                    LEAF_CAPACITY
+                } else {
+                    LEAF_CAPACITY * BRANCHING_FACTOR.pow(height as u32)
+                };
+
+                let child_index = index / child_capacity;
+                let sub_index = index % child_capacity;
+
+                if child_index < children.len() {
+                    Some((child_index, sub_index))
+                } else {
+                    None
+                }
+            },
+        }
+    }
+
+    pub fn is_relaxed(&self) -> bool {
+        matches!(self, RRBNode::Branch { sizes: Some(_), .. })
+    }
+
+    pub fn find_path_to_index(&self, index: usize) -> Vec<usize> {
+        let mut path = Vec::new();
+        let current_node = self;
+        let remaining_index = index;
+
+        match current_node {
+            RRBNode::Leaf { .. } => {},
+            RRBNode::Branch { children: _, sizes } => {
+                if let Some((child_idx, _)) = if sizes.is_some() {
+                    current_node.find_child_relaxed(remaining_index)
+                } else {
+                    current_node.find_child_regular(remaining_index, 1)
+                } {
+                    path.push(child_idx);
+                    // Note: In a full implementation, we would need to traverse deeper
+                    // but for now we only record the first level path
+                }
+            },
+        }
+        path
+    }
+
     pub fn update_size_table_after_removal(
         sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>, index: usize,
     ) -> Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>> {
@@ -71,32 +149,15 @@ impl<T: Clone> RRBNode<T> {
     pub fn get(&self, index: usize) -> Option<&T> {
         match self {
             RRBNode::Leaf { elements } => elements.get(index),
-            RRBNode::Branch { children, sizes } => {
-                if let Some(sizes) = sizes {
-                    self.get_relaxed(index, children, sizes)
+            RRBNode::Branch { children, .. } => {
+                let (child_idx, sub_index) = if self.is_relaxed() {
+                    self.find_child_relaxed(index)?
                 } else {
-                    let child_size = LEAF_CAPACITY;
-                    let child_index = index / child_size;
-                    let sub_index = index % child_size;
-                    children.get(child_index)?.get(sub_index)
-                }
+                    self.find_child_regular(index, 1)?
+                };
+                children.get(child_idx)?.get(sub_index)
             },
         }
-    }
-
-    fn get_relaxed<'a>(
-        &self, index: usize, children: &'a SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
-        sizes: &'a SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>,
-    ) -> Option<&'a T> {
-        let mut cumulative_size = 0;
-        for (i, &size) in sizes.iter().enumerate() {
-            if index < cumulative_size + size {
-                let sub_index = index - cumulative_size;
-                return children.get(i)?.get(sub_index);
-            }
-            cumulative_size += size;
-        }
-        None
     }
 
     pub fn find_child(
