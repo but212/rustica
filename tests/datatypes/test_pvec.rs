@@ -218,8 +218,8 @@ fn test_index_panic() {
 fn test_sorted() {
     let vec = pvec![3, 1, 4, 2];
 
-    let sorted: Vec<&i32> = vec.sorted().collect();
-    assert_eq!(sorted, vec![&1, &2, &3, &4]);
+    let sorted = vec.sorted();
+    assert_eq!(sorted.to_vec(), vec![1, 2, 3, 4]);
 }
 
 #[test]
