@@ -48,8 +48,17 @@ mod tests {
     fn test_compose() {
         let add_one = |x: i32| x + 1;
         let double = |x: i32| x * 2;
-        let composed = compose(add_one, double);
+        let composed = compose(double, add_one);
         assert_eq!(composed(5), 12); // (5 + 1) * 2
+    }
+
+    #[test]
+    fn test_pipe() {
+        let add_one = |x: i32| x + 1;
+        let double = |x: i32| x * 2;
+        let to_string = |x: i32| x.to_string();
+        let pipeline = pipe(pipe(add_one, double), to_string);
+        assert_eq!(pipeline(3), "8"); // (3 + 1) * 2 = "8"
     }
 
     #[test]
