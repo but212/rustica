@@ -47,12 +47,6 @@ enum RRBNode<T> {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct HeadTailChunk<T> {
-    elements: SmallVec<[T; LEAF_CAPACITY]>,
-    is_head: bool,
-}
-
 impl<T: Clone> PersistentVector<T> {
     pub fn new() -> Self {
         Self {
