@@ -664,13 +664,3 @@ impl<T: Clone + Debug> Debug for PersistentVector<T> {
         }
     }
 }
-
-#[macro_export]
-macro_rules! pvec {
-    () => { PersistentVector::new() };
-    ($($x:expr),+ $(,)?) => {
-        PersistentVector::from_iter([$($x),+])
-    };
-}
-
-pub use pvec;
