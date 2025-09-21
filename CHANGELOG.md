@@ -44,9 +44,6 @@
 - [BREAKING CHANGE] **remove `to_arc()` method from PersistentVector**
   - The `to_arc()` method has been removed as part of the PersistentVector API simplification
   - Users should use standard Arc wrapping if needed: `Arc::new(vector)`
-- [BREAKING CHANGE] **remove pvec feature flag**
-  - PersistentVector is now included by default and no longer requires a feature flag
-  - Remove `features = ["pvec"]` from your Cargo.toml dependencies
 
 ## [0.9.0]
 

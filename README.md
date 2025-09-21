@@ -21,6 +21,24 @@ Rustica enables idiomatic functional programming in Rust by providing:
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
 - **Error Handling**: Functional error handling utilities that work across different types
 
+### Recommended Use Cases
+
+**Excellent for:**
+
+- Learning functional programming concepts
+- Prototyping and research
+- Educational purposes
+- Small-scale applications
+
+**Avoid for:**
+
+- Performance-critical production code
+- Real-time systems
+- Game engines
+- High-throughput web servers
+
+Whether you're coming from Haskell, Scala, or other functional languages, or just want to explore functional programming in Rust, Rustica provides the tools you need for learning and experimentation.
+
 ## Getting Started
 
 Add Rustica to your `Cargo.toml`:
