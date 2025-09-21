@@ -154,14 +154,6 @@ assert_eq!(v2.get(5), Some(&6));
 assert_eq!(v3.get(0), Some(&10));
 ```
 
-Advanced: Chunk Size and Cache Policy
-
-```rust
-let vec = PersistentVector::with_chunk_size(16);
-let vec = vec.push_back(1).push_back(2);
-assert_eq!(vec.chunk_size(), 16);
-```
-
 ### CI/CD & Publishing
 
 Rustica uses GitHub Actions for continuous integration, formatting, linting, and automated publishing to crates.io on tagged releases.
@@ -250,7 +242,6 @@ assert_eq!(result2, 86);
 ### Control Flow Example
 
 ```rust
-use std::sync::Arc;
 use rustica::datatypes::cont::Cont;
 
 // A function that uses continuations to implement early return
