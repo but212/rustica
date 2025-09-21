@@ -475,7 +475,7 @@ pub struct AsyncM<A> {
     // Using a boxed function that returns a boxed future
     // This allows for type erasure and dynamic dispatch
     run: Arc<dyn Fn() -> BoxFuture<'static, A> + Send + Sync + 'static>,
-    phantom: PhantomData<A>,
+    _phantom: PhantomData<A>,
 }
 
 impl<A: Send + 'static> AsyncM<A> {
@@ -519,7 +519,7 @@ impl<A: Send + 'static> AsyncM<A> {
     {
         AsyncM {
             run: Arc::new(move || f().boxed()),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -560,7 +560,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 let value = Arc::clone(&value);
                 async move { (*value).clone() }.boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -649,7 +649,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -714,7 +714,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -772,7 +772,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -836,7 +836,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -886,7 +886,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -940,7 +940,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -992,7 +992,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -1050,7 +1050,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -1139,7 +1139,7 @@ impl<A: Send + 'static> AsyncM<A> {
                 }
                 .boxed()
             }),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }

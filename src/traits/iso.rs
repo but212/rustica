@@ -359,7 +359,7 @@ pub trait Iso<A, B> {
         ComposedIso {
             first: self.clone(),
             second: other,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -416,7 +416,7 @@ pub trait Iso<A, B> {
     {
         InverseIso {
             original: self.clone(),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
@@ -489,7 +489,7 @@ where
 {
     pub first: ISO1,
     pub second: ISO2,
-    pub phantom: PhantomData<(A, B, C)>,
+    pub _phantom: PhantomData<(A, B, C)>,
 }
 
 impl<ISO1, ISO2, A, B, C> Iso<A, C> for ComposedIso<ISO1, ISO2, A, B, C>
@@ -566,7 +566,7 @@ where
     ISO: Iso<A, B>,
 {
     original: ISO,
-    phantom: PhantomData<(A, B)>,
+    _phantom: PhantomData<(A, B)>,
 }
 
 impl<ISO, A, B> Iso<B, A> for InverseIso<ISO, A, B>

@@ -121,7 +121,7 @@ where
     F: Fn() -> T,
 {
     function: F,
-    phantom: PhantomData<T>,
+    _phantom: PhantomData<T>,
 }
 
 impl<F, T> Thunk<F, T>
@@ -168,7 +168,7 @@ where
     pub fn new(f: F) -> Self {
         Thunk {
             function: f,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }

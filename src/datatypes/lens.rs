@@ -330,7 +330,7 @@ where
 {
     get: GetFn,
     set: SetFn,
-    phantom: PhantomData<(S, A)>,
+    _phantom: PhantomData<(S, A)>,
 }
 
 impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn>
@@ -402,7 +402,7 @@ where
         Lens {
             get,
             set,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 

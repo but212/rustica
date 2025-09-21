@@ -293,7 +293,7 @@ use std::marker::PhantomData;
 #[derive(Clone, Debug, PartialEq)]
 pub struct IsoPrism<S, A, L: Iso<S, Option<A>, From = S, To = Option<A>>> {
     pub iso: L,
-    pub phantom: PhantomData<(S, A)>,
+    pub _phantom: PhantomData<(S, A)>,
 }
 
 impl<S, A, L> IsoPrism<S, A, L>
@@ -346,7 +346,7 @@ where
     pub fn new(iso: L) -> Self {
         Self {
             iso,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -496,12 +496,12 @@ where
     {
         let lifted = LiftedPrismIso {
             inner: other.iso,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         };
         let composed = ComposedIso {
             first: self.iso,
             second: lifted,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         };
         IsoPrism::new(composed)
     }
@@ -518,7 +518,7 @@ where
     L2: Iso<A, Option<B>, From = A, To = Option<B>>,
 {
     pub inner: L2,
-    pub phantom: PhantomData<(A, B)>,
+    pub _phantom: PhantomData<(A, B)>,
 }
 
 impl<L2, A, B> Iso<Option<A>, Option<B>> for LiftedPrismIso<L2, A, B>
