@@ -25,3 +25,5 @@ pub mod utils_test;
 
 // Category tests
 pub mod category;
+
+pub mod error;

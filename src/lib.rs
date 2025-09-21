@@ -157,5 +157,7 @@ pub mod transformers;
 
 pub mod category;
 
+pub mod error;
+
 /// Convenient re-exports of commonly used items.
 pub mod prelude;
