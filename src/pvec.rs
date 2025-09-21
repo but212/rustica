@@ -1,35 +1,17 @@
-//! Improved PersistentVector implementation based on im library strategies
-//!
-//! This module implements an optimized PersistentVector that addresses the performance
-//! issues identified in the current implementation by adopting strategies from the
-//! im library and proper RRB-Tree design principles.
-//!
-//! Key improvements:
-//! 1. Adaptive Small Vector: 64 elements inline optimization (vs current 8)
-//! 2. Head/Tail Chunking: O(1) amortized operations at both ends
-//! 3. Proper RRB-Tree structure: Separate branching factor and chunk size
-//! 4. Memory optimization: Remove ManagedRef wrapper, direct Arc usage
-//! 5. Lazy Tree Expansion: Start as single chunk, expand only when needed
-
 use smallvec::SmallVec;
 use std::fmt::{self, Debug};
 use std::sync::Arc;
 
-/// Adaptive inline size - im uses 128, we start with 64 for balance
 const ADAPTIVE_INLINE_SIZE: usize = 64;
 
-/// Proper RRB-Tree constants - separated concerns
 const BRANCHING_FACTOR: usize = 32; // Node children count
 const LEAF_CAPACITY: usize = 64; // Leaf node data capacity
 
-/// Optimized SmallVec sizes based on real-world usage patterns
 const SMALL_BRANCH_SIZE: usize = 8; // Most nodes are not full
 const SMALL_SIZE_TABLE_SIZE: usize = 8; // Corresponding size table
 
-/// Generation counter for maintaining categorical laws
 type Generation = u64;
 
-/// PersistentVector with adaptive small vector optimization
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PersistentVector<T> {
     inner: VectorImpl<T>,
@@ -37,52 +19,41 @@ pub struct PersistentVector<T> {
     generation: Generation,
 }
 
-/// Vector implementation that adapts based on size
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum VectorImpl<T> {
-    /// Small vectors (≤64 elements) use inline storage for Vec-like performance
     Inline {
         elements: SmallVec<[T; ADAPTIVE_INLINE_SIZE]>,
     },
-    /// Large vectors use proper RRB-Tree structure
-    Tree { tree: Arc<RRBTree<T>> },
+    Tree {
+        tree: Arc<RRBTree<T>>,
+    },
 }
 
-/// Proper RRB-Tree implementation with separated concerns
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct RRBTree<T> {
     root: Arc<RRBNode<T>>,
     height: usize,
-    len: usize, // Total length for O(1) access
-    head_chunk: Option<Arc<HeadTailChunk<T>>>,
-    tail_chunk: Option<Arc<HeadTailChunk<T>>>,
+    len: usize,
 }
 
-/// RRB-Tree node with proper structure
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum RRBNode<T> {
-    /// Branch node with optimized SmallVec sizes
     Branch {
         children: SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
-        /// Size table for relaxed nodes (None for regular nodes)
         sizes: Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
     },
-    /// Leaf node with up to LEAF_CAPACITY elements
     Leaf {
         elements: SmallVec<[T; LEAF_CAPACITY]>,
     },
 }
 
-/// Head/Tail chunk for O(1) amortized operations at ends
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct HeadTailChunk<T> {
     elements: SmallVec<[T; LEAF_CAPACITY]>,
-    /// Direction: true for head (prepend), false for tail (append)
     is_head: bool,
 }
 
 impl<T: Clone> PersistentVector<T> {
-    /// Create a new empty vector
     pub fn new() -> Self {
         Self {
             inner: VectorImpl::Inline {
@@ -93,12 +64,10 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Create vector from slice
     pub fn from_slice(slice: &[T]) -> Self {
         Self::from_iter(slice.iter().cloned())
     }
 
-    /// Create vector with a single element (unit)
     pub fn unit(value: T) -> Self {
         Self {
             inner: VectorImpl::Inline {
@@ -109,7 +78,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Map function over elements
     pub fn map<U: Clone, F>(&self, f: F) -> PersistentVector<U>
     where
         F: Fn(&T) -> U,
@@ -118,7 +86,6 @@ impl<T: Clone> PersistentVector<T> {
         PersistentVector::from_iter(mapped)
     }
 
-    /// Filter elements
     pub fn filter<F>(&self, predicate: F) -> Self
     where
         F: Fn(&T) -> bool,
@@ -127,7 +94,6 @@ impl<T: Clone> PersistentVector<T> {
         Self::from_iter(filtered)
     }
 
-    /// Filter and map elements
     pub fn filter_map<U: Clone, F>(&self, f: F) -> PersistentVector<U>
     where
         F: Fn(&T) -> Option<U>,
@@ -136,7 +102,6 @@ impl<T: Clone> PersistentVector<T> {
         PersistentVector::from_iter(filtered)
     }
 
-    /// Flat map over elements
     pub fn flat_map<U: Clone, F, I>(&self, f: F) -> PersistentVector<U>
     where
         F: Fn(&T) -> I,
@@ -146,7 +111,6 @@ impl<T: Clone> PersistentVector<T> {
         PersistentVector::from_iter(flattened)
     }
 
-    /// Remove consecutive duplicates
     pub fn dedup(&self) -> Self
     where
         T: PartialEq,
@@ -164,7 +128,6 @@ impl<T: Clone> PersistentVector<T> {
         Self::from_iter(result)
     }
 
-    /// Get sorted iterator (returns iterator over references)
     pub fn sorted(&self) -> std::vec::IntoIter<&T>
     where
         T: Ord,
@@ -174,27 +137,22 @@ impl<T: Clone> PersistentVector<T> {
         refs.into_iter()
     }
 
-    /// Create with cache policy (placeholder for compatibility)
     pub fn with_cache_policy<P>(_policy: P) -> Self {
         Self::new()
     }
 
-    /// Create from slice with cache policy (placeholder for compatibility)
     pub fn from_slice_with_cache_policy<P>(slice: &[T], _policy: P) -> Self {
         Self::from_slice(slice)
     }
 
-    /// Get the length of the vector
     pub fn len(&self) -> usize {
         self.len
     }
 
-    /// Check if the vector is empty
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
 
-    /// Push an element to the back - O(1) amortized
     pub fn push_back(&self, value: T) -> Self {
         match &self.inner {
             VectorImpl::Inline { elements } => {
@@ -221,7 +179,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Push an element to the front - O(1) amortized with head chunking
     pub fn push_front(&self, value: T) -> Self {
         match &self.inner {
             VectorImpl::Inline { elements } => {
@@ -249,7 +206,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Get an element by index - O(1) for inline, O(log n) for tree
     pub fn get(&self, index: usize) -> Option<&T> {
         if index >= self.len {
             return None;
@@ -261,7 +217,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Update an element at index - returns new vector
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.len {
             return self.clone();
@@ -292,7 +247,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Transition from inline to tree structure
     fn transition_to_tree(&self) -> Self {
         match &self.inner {
             VectorImpl::Inline { elements } => {
@@ -310,7 +264,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Tree-based push_back with tail chunking
     fn tree_push_back(&self, value: T) -> Self {
         match &self.inner {
             VectorImpl::Tree { tree } => {
@@ -327,7 +280,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Tree-based push_front with head chunking
     fn tree_push_front(&self, value: T) -> Self {
         match &self.inner {
             VectorImpl::Tree { tree } => {
@@ -344,7 +296,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Concatenate two vectors efficiently
     pub fn concat(&self, other: &Self) -> Self {
         match (&self.inner, &other.inner) {
             (VectorImpl::Inline { elements: left }, VectorImpl::Inline { elements: right }) => {
@@ -389,7 +340,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Ensure this vector is in tree form
     fn ensure_tree(&self) -> RRBTree<T> {
         match &self.inner {
             VectorImpl::Inline { elements } => RRBTree::from_elements(elements.iter().cloned()),
@@ -397,7 +347,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Pop from back, returning (new_vector, popped_element)
     pub fn pop_back(&self) -> Option<(Self, T)> {
         if self.is_empty() {
             return None;
@@ -437,7 +386,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Pop from front, returning (new_vector, popped_element)
     pub fn pop_front(&self) -> Option<(Self, T)> {
         if self.is_empty() {
             return None;
@@ -476,12 +424,10 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Get first element
     pub fn first(&self) -> Option<&T> {
         self.get(0)
     }
 
-    /// Get last element
     pub fn last(&self) -> Option<&T> {
         if self.len > 0 {
             self.get(self.len - 1)
@@ -490,7 +436,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Split at index, returning (left, right)
     pub fn split_at(&self, index: usize) -> (Self, Self) {
         if index >= self.len {
             return (self.clone(), Self::new());
@@ -538,7 +483,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Take first n elements
     pub fn take(&self, n: usize) -> Self {
         if n >= self.len {
             self.clone()
@@ -547,7 +491,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Skip first n elements
     pub fn skip(&self, n: usize) -> Self {
         if n >= self.len {
             Self::new()
@@ -556,7 +499,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Insert element at index
     pub fn insert(&self, index: usize, value: T) -> Self {
         if index >= self.len {
             return self.push_back(value);
@@ -569,7 +511,6 @@ impl<T: Clone> PersistentVector<T> {
         left.push_back(value).concat(&right)
     }
 
-    /// Remove element at index
     pub fn remove(&self, index: usize) -> Option<Self> {
         if index >= self.len {
             return None;
@@ -584,7 +525,6 @@ impl<T: Clone> PersistentVector<T> {
         Some(left.concat(&right_without_first))
     }
 
-    /// Iterate over elements
     pub fn iter(&self) -> PersistentVectorIter<'_, T> {
         PersistentVectorIter {
             vector: self,
@@ -592,14 +532,12 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Convert to Vec
     pub fn to_vec(&self) -> Vec<T> {
         self.iter().cloned().collect()
     }
 }
 
 impl<T: Clone> RRBTree<T> {
-    /// Create tree from elements
     fn from_elements<I: Iterator<Item = T>>(elements: I) -> Self {
         let elements: Vec<T> = elements.collect();
 
@@ -612,8 +550,6 @@ impl<T: Clone> RRBTree<T> {
                 root: Arc::new(leaf),
                 height: 0,
                 len: elements.len(),
-                head_chunk: None,
-                tail_chunk: None,
             }
         } else {
             // Build proper tree structure
@@ -621,7 +557,6 @@ impl<T: Clone> RRBTree<T> {
         }
     }
 
-    /// Build tree structure from elements
     fn build_tree(elements: Vec<T>) -> Self {
         let total_len = elements.len();
 
@@ -641,12 +576,9 @@ impl<T: Clone> RRBTree<T> {
             root,
             height,
             len: total_len,
-            head_chunk: None,
-            tail_chunk: None,
         }
     }
 
-    /// Recursively build tree structure
     fn build_tree_recursive(nodes: Vec<Arc<RRBNode<T>>>) -> (Arc<RRBNode<T>>, usize) {
         if nodes.len() == 1 {
             return (nodes.into_iter().next().unwrap(), 0);
@@ -667,24 +599,19 @@ impl<T: Clone> RRBTree<T> {
         (root, sub_height + 1)
     }
 
-    /// Get element by index
     fn get(&self, index: usize) -> Option<&T> {
         self.root.get(index)
     }
 
-    /// Update element at index
     fn update(&self, index: usize, value: T) -> Self {
         let new_root = self.root.update(index, value);
         Self {
             root: Arc::new(new_root),
             height: self.height,
             len: self.len, // Length unchanged for update
-            head_chunk: self.head_chunk.clone(),
-            tail_chunk: self.tail_chunk.clone(),
         }
     }
 
-    /// Push back with tail chunking
     fn push_back(&self, value: T) -> Self {
         // Implementation would use tail chunking for O(1) amortized
         // For now, simplified
@@ -693,12 +620,9 @@ impl<T: Clone> RRBTree<T> {
             root: Arc::new(new_root),
             height: self.height,
             len: self.len + 1, // Increment length for push_back
-            head_chunk: self.head_chunk.clone(),
-            tail_chunk: self.tail_chunk.clone(),
         }
     }
 
-    /// Push front with head chunking
     fn push_front(&self, value: T) -> Self {
         // Implementation would use head chunking for O(1) amortized
         // For now, simplified
@@ -707,12 +631,9 @@ impl<T: Clone> RRBTree<T> {
             root: Arc::new(new_root),
             height: self.height,
             len: self.len + 1, // Increment length for push_front
-            head_chunk: self.head_chunk.clone(),
-            tail_chunk: self.tail_chunk.clone(),
         }
     }
 
-    /// Concatenate two trees
     fn concat(&self, other: &Self) -> Self {
         // Implementation would use proper RRB-Tree concatenation
         // For now, simplified
@@ -720,12 +641,9 @@ impl<T: Clone> RRBTree<T> {
             root: self.root.clone(),
             height: self.height.max(other.height),
             len: self.len + other.len, // Combined length
-            head_chunk: self.head_chunk.clone(),
-            tail_chunk: other.tail_chunk.clone(),
         }
     }
 
-    /// Pop from back
     fn pop_back(&self) -> Option<(Self, T)> {
         if self.len == 0 {
             return None;
@@ -739,15 +657,12 @@ impl<T: Clone> RRBTree<T> {
                     root: self.root.clone(),
                     height: self.height,
                     len: self.len - 1,
-                    head_chunk: self.head_chunk.clone(),
-                    tail_chunk: self.tail_chunk.clone(),
                 },
                 last,
             )
         })
     }
 
-    /// Pop from front
     fn pop_front(&self) -> Option<(Self, T)> {
         if self.len == 0 {
             return None;
@@ -760,15 +675,12 @@ impl<T: Clone> RRBTree<T> {
                     root: self.root.clone(),
                     height: self.height,
                     len: self.len - 1,
-                    head_chunk: self.head_chunk.clone(),
-                    tail_chunk: self.tail_chunk.clone(),
                 },
                 first,
             )
         })
     }
 
-    /// Split at index
     fn split_at(&self, index: usize) -> (Self, Self) {
         // Simplified implementation
         (
@@ -776,22 +688,17 @@ impl<T: Clone> RRBTree<T> {
                 root: self.root.clone(),
                 height: self.height,
                 len: index,
-                head_chunk: self.head_chunk.clone(),
-                tail_chunk: None,
             },
             Self {
                 root: self.root.clone(),
                 height: self.height,
                 len: self.len - index,
-                head_chunk: None,
-                tail_chunk: self.tail_chunk.clone(),
             },
         )
     }
 }
 
 impl<T: Clone> RRBNode<T> {
-    /// Get element by index
     fn get(&self, index: usize) -> Option<&T> {
         match self {
             RRBNode::Leaf { elements } => elements.get(index),
@@ -810,7 +717,6 @@ impl<T: Clone> RRBNode<T> {
         }
     }
 
-    /// Navigate relaxed node using size table
     fn get_relaxed<'a>(
         &self, index: usize, children: &'a SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
         sizes: &'a SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>,
@@ -826,7 +732,6 @@ impl<T: Clone> RRBNode<T> {
         None
     }
 
-    /// Find child index and sub-index for given global index
     fn find_child(
         &self, index: usize, sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
     ) -> Option<(usize, usize)> {
@@ -852,7 +757,6 @@ impl<T: Clone> RRBNode<T> {
         }
     }
 
-    /// Update element at index
     fn update(&self, index: usize, value: T) -> Self {
         match self {
             RRBNode::Leaf { elements } => {
@@ -884,7 +788,6 @@ impl<T: Clone> RRBNode<T> {
         }
     }
 
-    /// Push back to node
     fn push_back(&self, value: T) -> Self {
         match self {
             RRBNode::Leaf { elements } => {
@@ -904,7 +807,6 @@ impl<T: Clone> RRBNode<T> {
         }
     }
 
-    /// Push front to node
     fn push_front(&self, value: T) -> Self {
         match self {
             RRBNode::Leaf { elements } => {
@@ -934,13 +836,11 @@ impl<T: Clone> Default for PersistentVector<T> {
     }
 }
 
-/// Iterator for PersistentVector
 pub struct PersistentVectorIter<'a, T> {
     vector: &'a PersistentVector<T>,
     position: usize,
 }
 
-/// IntoIterator for PersistentVector (by value)
 pub struct PersistentVectorIntoIter<T> {
     vector: PersistentVector<T>,
     position: usize,
