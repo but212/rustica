@@ -34,6 +34,7 @@
   - removed `ChunkIter`
   - removed `pvec` feature flag
   - Simplified `PersistentVector` API by removing cache policy and chunk size
+- **MSRV updated to 1.88.0**
 
 ### Removed - 0.10.0
 
