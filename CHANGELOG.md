@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [0.10.1]
+
+### Added - 0.10.1
+
+- **Documentation**
+  - Added documentation for `PersistentVector` methods and types
+- **pipe function**
+  - Added `pipe` function to `utils::transform_utils`
+
+### Fixed - 0.10.1
+
+- **compose function order**
+  - Fixed compose function order in tests
+
 ## [0.10.0]
 
 ### Added - 0.10.0
