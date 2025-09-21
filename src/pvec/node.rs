@@ -74,28 +74,6 @@ impl<T: Clone> RRBNode<T> {
         matches!(self, RRBNode::Branch { sizes: Some(_), .. })
     }
 
-    pub fn find_path_to_index(&self, index: usize) -> Vec<usize> {
-        let mut path = Vec::new();
-        let current_node = self;
-        let remaining_index = index;
-
-        match current_node {
-            RRBNode::Leaf { .. } => {},
-            RRBNode::Branch { children: _, sizes } => {
-                if let Some((child_idx, _)) = if sizes.is_some() {
-                    current_node.find_child_relaxed(remaining_index)
-                } else {
-                    current_node.find_child_regular(remaining_index, 1)
-                } {
-                    path.push(child_idx);
-                    // Note: In a full implementation, we would need to traverse deeper
-                    // but for now we only record the first level path
-                }
-            },
-        }
-        path
-    }
-
     pub fn update_size_table_after_removal(
         sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>, index: usize,
     ) -> Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>> {

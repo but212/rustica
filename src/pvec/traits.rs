@@ -57,11 +57,7 @@ impl<T: Clone> Functor for PersistentVector<T> {
         B: Clone,
         Self: Sized,
     {
-        let mut result = PersistentVector::new();
-        for item in self.into_iter() {
-            result = result.push_back(f(item));
-        }
-        result
+        PersistentVector::from_iter(self.into_iter().map(f))
     }
 }
 

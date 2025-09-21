@@ -564,7 +564,7 @@ impl<T: Clone> PersistentVector<T> {
     }
 }
 
-impl<T: Clone> Default for PersistentVector<T> {
+impl<T> Default for PersistentVector<T> {
     fn default() -> Self {
         Self::new()
     }
@@ -573,12 +573,13 @@ impl<T: Clone> Default for PersistentVector<T> {
 impl<T: Clone> FromIterator<T> for PersistentVector<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let elements: Vec<T> = iter.into_iter().collect();
-        if elements.len() <= ADAPTIVE_INLINE_SIZE {
+        let len = elements.len();
+        if len <= ADAPTIVE_INLINE_SIZE {
             Self {
                 inner: VectorImpl::Inline {
-                    elements: SmallVec::from_iter(elements.clone()),
+                    elements: SmallVec::from_vec(elements),
                 },
-                len: elements.len(),
+                len,
                 generation: 0,
             }
         } else {
@@ -587,7 +588,7 @@ impl<T: Clone> FromIterator<T> for PersistentVector<T> {
                 inner: VectorImpl::Tree {
                     tree: Arc::new(tree.clone()),
                 },
-                len: tree.len,
+                len,
                 generation: 0,
             }
         }

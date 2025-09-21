@@ -505,11 +505,9 @@ impl<T: Clone> RRBTree<T> {
     }
 
     fn pop_front_from_tree(&self) -> Option<(Self, T)> {
-        let first_element = self.get(0)?.clone();
-
         let tree_size = self.len - self.head.len() - self.tail.len();
         if tree_size > 0
-            && let Some((new_root, _)) = self.root.pop_front()
+            && let Some((new_root, popped_element)) = self.root.pop_front()
         {
             return Some((
                 Self {
@@ -519,7 +517,7 @@ impl<T: Clone> RRBTree<T> {
                     height: self.height,
                     len: self.len - 1,
                 },
-                first_element,
+                popped_element,
             ));
         }
 
