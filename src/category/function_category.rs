@@ -426,4 +426,34 @@ macro_rules! compose {
     };
 }
 
-pub use {compose, function};
+/// Macro for creating function pipelines using comma-separated syntax.
+///
+/// This macro provides a left-to-right composition syntax where functions
+/// are applied in the order they appear, separated by commas.
+/// Returns a composed function rather than executing immediately.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::category::function_category::pipe;
+///
+/// let pipeline = pipe!(|x: i32| x + 1, |x: i32| x * 2, |x: i32| x.to_string());
+/// assert_eq!(pipeline(5), "12");
+/// ```
+#[macro_export]
+macro_rules! pipe {
+    ($func:expr) => {
+        $crate::category::function_category::FunctionCategory::arrow($func)
+    };
+    ($first:expr, $($rest:expr),+ $(,)?) => {
+        {
+            use $crate::traits::arrow::Arrow;
+            use $crate::traits::category::Category;
+            let first_morphism = $crate::category::function_category::FunctionCategory::arrow($first);
+            let rest_morphism = pipe!($($rest),+);
+            $crate::category::function_category::FunctionCategory::compose_morphisms(&rest_morphism, &first_morphism)
+        }
+    };
+}
+
+pub use {compose, function, pipe};
