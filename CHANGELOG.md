@@ -29,10 +29,10 @@
 - **Increased default stack size for `Validated` from 4 to 8 elements**
   - This change reduces heap allocations and improves performance
 - **Change and simplify `PersistentVector`**
-  - removed `with_cache_policy` and `from_slice_with_cache_policy`
-  - removed `with_chunk_size` and chunk size is now fixed at 64
-  - removed `ChunkIter`
-  - removed `pvec` feature flag
+  - [BREAKING CHANGE] removed `with_cache_policy` and `from_slice_with_cache_policy`
+  - [BREAKING CHANGE] removed `with_chunk_size` and chunk size is now fixed at 64
+  - [BREAKING CHANGE] removed `ChunkIter`
+  - [BREAKING CHANGE] removed `pvec` feature flag
   - Simplified `PersistentVector` API by removing cache policy and chunk size
 - **MSRV updated to 1.88.0**
 
@@ -44,9 +44,6 @@
 - [BREAKING CHANGE] **remove `to_arc()` method from PersistentVector**
   - The `to_arc()` method has been removed as part of the PersistentVector API simplification
   - Users should use standard Arc wrapping if needed: `Arc::new(vector)`
-- [BREAKING CHANGE] **remove WriterT monad transformer**
-  - WriterT transformer and all related code have been removed
-  - This was previously removed in 0.7.0 but not properly documented in 0.10.0 changes
 - [BREAKING CHANGE] **remove pvec feature flag**
   - PersistentVector is now included by default and no longer requires a feature flag
   - Remove `features = ["pvec"]` from your Cargo.toml dependencies
