@@ -42,7 +42,7 @@ use smallvec::smallvec;
 /// let success = <Result<(), String> as ErrorCategory<String>>::lift(42);
 /// assert_eq!(success, Ok(42));
 ///
-/// let error = <Result<(), String> as ErrorCategory<String>>::handle_error("failed".to_string());
+/// let error: Result<i32, String> = <Result<(), String> as ErrorCategory<String>>::handle_error("failed".to_string());
 /// assert_eq!(error, Err("failed".to_string()));
 /// ```
 pub trait ErrorCategory<E> {
