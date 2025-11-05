@@ -167,7 +167,7 @@ impl<T: Clone> Min<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::min::Min;
-    /// let min = Min::new(42);
+    /// let min = Min(42);
     /// assert_eq!(min.unwrap(), 42);
     /// ```
     #[inline]
@@ -184,7 +184,7 @@ impl<T: Clone> Min<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::min::Min;
-    /// let min = Min::new(42);
+    /// let min = Min(42);
     /// assert_eq!(min.unwrap_or(0), 42);
     /// ```
     #[inline]
@@ -198,7 +198,7 @@ impl<T: Clone> Min<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::min::Min;
-    /// let min = Min::new(42);
+    /// let min = Min(42);
     /// assert_eq!(min.as_ref(), &42);
     /// ```
     #[inline]

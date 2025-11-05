@@ -253,7 +253,6 @@
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
-use crate::traits::comonad::Comonad;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::identity::Identity;
@@ -514,7 +513,7 @@ impl<L, R> Either<L, R> {
     /// ```rust
     /// use rustica::datatypes::either::Either;
     ///
-    /// let right = Either::Right(42);
+    /// let right: Either<String, i32> = Either::Right(42);
     /// let left: Either<String, i32> = Either::Left("error".to_string());
     ///
     /// assert_eq!(right.unwrap(), 42);
@@ -539,7 +538,7 @@ impl<L, R> Either<L, R> {
     /// ```rust
     /// use rustica::datatypes::either::Either;
     ///
-    /// let right = Either::Right(42);
+    /// let right: Either<String, i32> = Either::Right(42);
     /// let left: Either<String, i32> = Either::Left("error".to_string());
     ///
     /// assert_eq!(right.unwrap_or(0), 42);

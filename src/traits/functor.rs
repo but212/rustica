@@ -124,7 +124,7 @@ use crate::prelude::*;
 ///
 /// // Using replace to substitute values
 /// let replaced = maybe_int.replace(&String::from("hello"));
-/// assert_eq!(replaced.extract(), "hello");
+/// assert_eq!(replaced.unwrap(), "hello");
 ///
 /// // Using void to discard values
 /// let voided = maybe_int.void();

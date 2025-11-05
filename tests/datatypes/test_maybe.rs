@@ -2,7 +2,6 @@ use quickcheck::{TestResult, quickcheck};
 use rustica::datatypes::maybe::{Maybe, Maybe::*, MaybeError};
 use rustica::traits::alternative::Alternative;
 use rustica::traits::applicative::Applicative;
-use rustica::traits::comonad::Comonad;
 use rustica::traits::functor::Functor;
 use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
@@ -358,27 +357,10 @@ fn test_alternative_and_monadplus() {
 }
 
 #[test]
-fn test_comonad() {
-    let j = Just(10);
-    // Comonad
-    assert_eq!(j.extract(), 10);
-    assert_eq!(j.duplicate(), j);
-    let extended = j.extend(|m| m.extract() * 3);
-    assert_eq!(extended, Just(30));
-}
-
-#[test]
 #[should_panic(expected = "Identity::value()")]
 fn test_identity_value_panics_on_nothing() {
     let n: Maybe<i32> = Nothing;
     let _ = n.value();
-}
-
-#[test]
-#[should_panic(expected = "Comonad::extract()")]
-fn test_comonad_extract_panics_on_nothing() {
-    let n: Maybe<i32> = Nothing;
-    let _ = n.extract();
 }
 
 #[test]

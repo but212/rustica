@@ -209,7 +209,7 @@ impl<T: Clone> Sum<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::sum::Sum;
-    /// let sum = Sum::new(42);
+    /// let sum = Sum(42);
     /// assert_eq!(sum.unwrap(), 42);
     /// ```
     #[inline]
@@ -226,26 +226,12 @@ impl<T: Clone> Sum<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::sum::Sum;
-    /// let sum = Sum::new(42);
+    /// let sum = Sum(42);
     /// assert_eq!(sum.unwrap_or(0), 42);
     /// ```
     #[inline]
     pub fn unwrap_or(&self, _default: T) -> T {
         self.0.clone()
-    }
-
-    /// Returns a reference to the contained value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::sum::Sum;
-    /// let sum = Sum::new(42);
-    /// assert_eq!(sum.as_ref(), &42);
-    /// ```
-    #[inline]
-    pub fn as_ref(&self) -> &T {
-        &self.0
     }
 }
 
