@@ -14,7 +14,6 @@ fn pvec_example() {
 fn id_monad() {
     use rustica::datatypes::id::Id;
     use rustica::prelude::*;
-    use rustica::traits::identity::Identity;
 
     // Create Id values
     let x = Id::new(5);
@@ -62,6 +61,7 @@ fn id_monad() {
         .fmap(|n| n.to_string());
     assert_eq!(*result.value(), "12");
 }
+
 fn cont_example() {
     use rustica::datatypes::cont::Cont;
 

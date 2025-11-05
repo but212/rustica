@@ -10,7 +10,6 @@ use rustica::prelude::*;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::foldable::Foldable;
 use rustica::traits::functor::Functor;
-use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 use smallvec::{SmallVec, smallvec};
 
