@@ -502,11 +502,6 @@ impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
     fn into_value(self) -> Self::Source {
         self.value
     }
-
-    #[inline]
-    fn pure_identity<B>(value: B) -> Self::Output<B> {
-        Writer::new(W::empty(), value)
-    }
 }
 
 impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {

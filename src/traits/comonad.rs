@@ -190,7 +190,8 @@ pub trait Comonad: Functor {
     /// ```
     fn extend<U, F>(&self, f: F) -> Self::Output<U>
     where
-        F: Fn(&Self) -> U;
+        F: Fn(&Self) -> U,
+        U: Clone;
 
     /// Duplicates the context of a comonad.
     ///
@@ -220,39 +221,3 @@ pub trait Comonad: Functor {
     /// ```
     fn duplicate(&self) -> Self;
 }
-
-// Note: Option<T> and Result<T, E> are NOT valid comonads because extract cannot be total.
-// The previous implementations that used panic! violated category theory principles.
-//
-// For types that may fail, consider using:
-// - Partial comonads (separate trait)
-// - NonEmpty wrappers
-// - Validated types that guarantee success
-//
-// Valid comonad implementations should be added for types like:
-// - Id<T> (Identity comonad)
-// - NonEmpty<Vec<T>>
-// - Stream<T>
-// - Store<S, A>
-// - Traced<M, A> where M is a monoid
-//
-// Example safe implementation for a hypothetical NonEmpty type:
-//
-// impl<T: Clone> Comonad for NonEmpty<T> {
-//     fn extract(&self) -> T {
-//         self.head().clone() // Always safe - NonEmpty guarantees at least one element
-//     }
-//
-//     fn duplicate(&self) -> Self {
-//         // Implementation that maintains the NonEmpty invariant
-//         self.clone()
-//     }
-//
-//     fn extend<U, F>(&self, f: F) -> NonEmpty<U>
-//     where
-//         F: Fn(&Self) -> U,
-//     {
-//         // Safe implementation that preserves NonEmpty structure
-//         NonEmpty::new(f(self))
-//     }
-// }

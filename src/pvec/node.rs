@@ -1,18 +1,37 @@
+//! Internal RRB tree node implementation.
+//!
+//! This module contains the core node structure for the RRB (Relaxed Radix Balanced) tree
+//! that underlies the persistent vector implementation.
+
 use smallvec::SmallVec;
 use std::sync::Arc;
 
-pub const BRANCHING_FACTOR: usize = 32; // Node children count
-pub const LEAF_CAPACITY: usize = 64; // Leaf node data capacity
-pub const SMALL_BRANCH_SIZE: usize = 8; // Most nodes are not full
-pub const SMALL_SIZE_TABLE_SIZE: usize = 8; // Corresponding size table
+/// Maximum number of children per branch node.
+pub const BRANCHING_FACTOR: usize = 32;
+/// Maximum number of elements per leaf node.
+pub const LEAF_CAPACITY: usize = 64;
+/// Typical branch size for most nodes (optimization).
+pub const SMALL_BRANCH_SIZE: usize = 8;
+/// Corresponding size table for small branches.
+pub const SMALL_SIZE_TABLE_SIZE: usize = 8;
 
+/// A node in the RRB tree structure.
+///
+/// RRB nodes can be either branch nodes (containing child nodes) or leaf nodes
+/// (containing actual data elements). Branch nodes may have a size table for
+/// relaxed balancing when the tree becomes irregular.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RRBNode<T> {
+    /// A branch node containing child nodes.
     Branch {
+        /// Child nodes of this branch.
         children: SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
+        /// Optional size table for relaxed balancing. Present when the tree is irregular.
         sizes: Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
     },
+    /// A leaf node containing actual data elements.
     Leaf {
+        /// The elements stored in this leaf.
         elements: SmallVec<[T; LEAF_CAPACITY]>,
     },
 }

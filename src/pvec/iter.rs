@@ -1,10 +1,23 @@
+//! Iterators for persistent vectors.
+
 use super::core::PersistentVector;
 
+/// An iterator over references to elements in a persistent vector.
+///
+/// This iterator is created by the [`iter`] method on [`PersistentVector`].
+///
+/// [`iter`]: super::core::PersistentVector::iter
 pub struct PersistentVectorIter<'a, T> {
     pub(crate) vector: &'a PersistentVector<T>,
     pub(crate) position: usize,
 }
 
+/// An iterator that moves elements out of a persistent vector.
+///
+/// This iterator is created by the [`into_iter`] method on [`PersistentVector`]
+/// (provided by the [`IntoIterator`] trait).
+///
+/// [`into_iter`]: std::iter::IntoIterator::into_iter
 pub struct PersistentVectorIntoIter<T> {
     pub(crate) vector: PersistentVector<T>,
     pub(crate) position: usize,

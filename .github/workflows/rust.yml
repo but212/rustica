@@ -233,20 +233,38 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --all-features -- --output-format json | tee benchmark_raw_results.json || {
+          cargo bench --all-features 2>&1 | tee benchmark_output.txt || {
             echo "::warning::Benchmark execution failed with error code $?"
             echo "[]" > benchmark_raw_results.json
+            exit 0
           }
+          
+          # Simple parsing of criterion output to extract benchmark names and times
+          grep -E "time:\s+\[" benchmark_output.txt | sed -E 's/^([^[:space:]]+).*time:[[:space:]]+\[[^[:space:]]+ [^[:space:]]+ ([0-9.]+) ([^[:space:]]+) .*/{"name":"\1","value":\2,"unit":"\3"}/g' > temp_results.txt || echo "[]" > temp_results.txt
+          
+          # Convert to proper JSON array
+          echo "[" > benchmark_raw_results.json
+          sed '$!s/$/,/' temp_results.txt >> benchmark_raw_results.json
+          echo "]" >> benchmark_raw_results.json
+          
+          # Fallback to empty array if parsing failed
+          if ! jq empty benchmark_raw_results.json 2>/dev/null; then
+            echo "[]" > benchmark_raw_results.json
+          fi
 
       - name: Process benchmark results
         run: |
           if [ -f benchmark_raw_results.json ] && [ -s benchmark_raw_results.json ]; then
-            jq -c '[.[] | select(.reason == "benchmark-complete") | {
-              "name": .id,
-              "value": .median,
+            # Convert units to nanoseconds and format for benchmark action
+            jq '[.[] | {
+              "name": .name,
+              "value": (if .unit == "µs" or .unit == "us" then (.value * 1000)
+                       elif .unit == "ms" then (.value * 1000000)
+                       elif .unit == "s" then (.value * 1000000000)
+                       else .value end),
               "unit": "ns/iter"
             }]' benchmark_raw_results.json > formatted_benchmark_results.json || {
-              echo "::warning::Failed to process benchmark results with error code $?"
+              echo "::warning::Failed to process benchmark results"
               echo "[]" > formatted_benchmark_results.json
             }
           else

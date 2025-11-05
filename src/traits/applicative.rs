@@ -25,11 +25,6 @@
 //! - **Function Storage**: Functions are applied immediately, no additional storage
 //! - **Composition**: Memory usage scales linearly with the depth of composed operations
 //!
-//! ### Implementation Notes
-//! - Applicative operations are generally implemented as zero-cost abstractions
-//! - Independent operations can potentially be parallelized (implementation-dependent)
-//! - Memory allocation patterns depend on the specific applicative implementation
-//!
 //! ## Mathematical Definition
 //!
 //! Applicative functors are functors with additional structure:

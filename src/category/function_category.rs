@@ -296,6 +296,51 @@ impl FunctionCategory {
         Self::arrow(f)
     }
 
+    /// Conditionally composes two morphisms based on a predicate.
+    ///
+    /// Applies the first morphism, then conditionally applies the second
+    /// morphism if the predicate evaluates to true on the intermediate result.
+    ///
+    /// # Mathematical Definition
+    /// ```text
+    /// then_if(f, g, p) = λx. let y = f(x) in if p(y) then g(y) else y
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    /// use rustica::traits::arrow::Arrow;
+    ///
+    /// let add_one = FunctionCategory::arrow(|x: i32| x + 1);
+    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
+    /// let is_even = |x: &i32| x % 2 == 0;
+    ///
+    /// let conditional = FunctionCategory::then_if(&add_one, &double, is_even);
+    /// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even)
+    /// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd)
+    /// ```
+    pub fn then_if<A, P>(
+        first: &FunctionMorphism<A, A>, second: &FunctionMorphism<A, A>, predicate: P,
+    ) -> FunctionMorphism<A, A>
+    where
+        A: 'static,
+        P: Fn(&A) -> bool + 'static,
+    {
+        let first_clone = Arc::clone(first);
+        let second_clone = Arc::clone(second);
+
+        Arc::new(move |x| {
+            let result = first_clone(x);
+            if predicate(&result) {
+                second_clone(result)
+            } else {
+                result
+            }
+        })
+    }
+
+    /// **deprecated: rename to then_if**
     /// Composes two morphisms conditionally based on a predicate.
     ///
     /// This applies the first morphism, then conditionally applies the second
@@ -315,6 +360,7 @@ impl FunctionCategory {
     /// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even)
     /// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd)
     /// ```
+    #[deprecated(note = "Please use `then_if` instead. Its name more accurately describes the conditional execution flow.")]
     pub fn compose_when<A, P>(
         first: &FunctionMorphism<A, A>, second: &FunctionMorphism<A, A>, predicate: P,
     ) -> FunctionMorphism<A, A>
@@ -322,17 +368,7 @@ impl FunctionCategory {
         A: 'static,
         P: Fn(&A) -> bool + 'static,
     {
-        let first_clone = Arc::clone(first);
-        let second_clone = Arc::clone(second);
-
-        Arc::new(move |x| {
-            let result = first_clone(x);
-            if predicate(&result) {
-                second_clone(result)
-            } else {
-                result
-            }
-        })
+        Self::then_if(first, second, predicate)
     }
 
     /// Creates a morphism that applies multiple transformations in sequence.
@@ -426,4 +462,34 @@ macro_rules! compose {
     };
 }
 
-pub use {compose, function};
+/// Macro for creating function pipelines using comma-separated syntax.
+///
+/// This macro provides a left-to-right composition syntax where functions
+/// are applied in the order they appear, separated by commas.
+/// Returns a composed function rather than executing immediately.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::category::function_category::pipe;
+///
+/// let pipeline = pipe!(|x: i32| x + 1, |x: i32| x * 2, |x: i32| x.to_string());
+/// assert_eq!(pipeline(5), "12");
+/// ```
+#[macro_export]
+macro_rules! pipe {
+    ($func:expr) => {
+        $crate::category::function_category::FunctionCategory::arrow($func)
+    };
+    ($first:expr, $($rest:expr),+ $(,)?) => {
+        {
+            use $crate::traits::arrow::Arrow;
+            use $crate::traits::category::Category;
+            let first_morphism = $crate::category::function_category::FunctionCategory::arrow($first);
+            let rest_morphism = pipe!($($rest),+);
+            $crate::category::function_category::FunctionCategory::compose_morphisms(&rest_morphism, &first_morphism)
+        }
+    };
+}
+
+pub use {compose, function, pipe};

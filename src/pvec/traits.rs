@@ -1,3 +1,8 @@
+//! Trait implementations for persistent vectors.
+//!
+//! This module provides implementations of various functional programming traits
+//! for [`PersistentVector`], enabling use with the rustica categorical framework.
+
 use crate::traits::{
     foldable::Foldable, functor::Functor, hkt::HKT, identity::Identity, monoid::Monoid,
     semigroup::Semigroup,
@@ -29,14 +34,6 @@ impl<T: Clone> Identity for PersistentVector<T> {
     #[inline]
     fn try_into_value(self) -> Option<Self::Source> {
         self.into_iter().next()
-    }
-
-    #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        A: Clone,
-    {
-        PersistentVector::unit(value.clone())
     }
 }
 

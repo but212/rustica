@@ -20,7 +20,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rustica = "0.9"
+//! rustica = "0.10.1"
 //! ```
 //!
 //! Import common traits and types through the prelude:
@@ -128,25 +128,7 @@ pub mod pvec;
 /// This module contains concrete implementations of common functional
 /// programming data types and containers, each with appropriate trait
 /// implementations.
-pub mod datatypes {
-    #[cfg(feature = "async")]
-    pub mod async_monad;
-    pub mod choice;
-    pub mod cont;
-    pub mod either;
-    pub mod id;
-    pub mod io;
-    pub mod iso_lens;
-    pub mod iso_prism;
-    pub mod lens;
-    pub mod maybe;
-    pub mod prism;
-    pub mod reader;
-    pub mod state;
-    pub mod validated;
-    pub mod wrapper;
-    pub mod writer;
-}
+pub mod datatypes;
 
 /// Monad transformers and related utilities.
 ///
@@ -155,7 +137,11 @@ pub mod datatypes {
 /// state to asynchronous operations.
 pub mod transformers;
 
+/// Category theory abstractions.
 pub mod category;
+
+/// Error handling utilities.
+pub mod error;
 
 /// Convenient re-exports of commonly used items.
 pub mod prelude;

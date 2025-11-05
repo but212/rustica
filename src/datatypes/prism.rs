@@ -500,7 +500,7 @@ where
     preview: PreviewFn,
     /// Function that constructs a value of type S from A
     review: ReviewFn,
-    phantom: PhantomData<(S, A)>,
+    _phantom: PhantomData<(S, A)>,
 }
 
 impl<S, A, PreviewFn, ReviewFn> Prism<S, A, PreviewFn, ReviewFn>
@@ -575,7 +575,7 @@ where
         Prism {
             preview,
             review,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 

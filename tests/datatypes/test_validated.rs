@@ -10,7 +10,6 @@ use rustica::prelude::*;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::foldable::Foldable;
 use rustica::traits::functor::Functor;
-use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 use smallvec::{SmallVec, smallvec};
 
@@ -330,16 +329,6 @@ mod foldable_tests {
         let valid: Validated<String, i32> = Validated::valid(5);
         let prod = valid.fold_right(&1, |x, acc| x * acc);
         assert_eq!(prod, 5);
-    }
-
-    #[test]
-    fn test_identity_methods() {
-        let valid: Validated<String, i32> = Validated::valid(5);
-        assert_eq!(valid.value(), Some(&5));
-        assert_eq!(valid.clone().into_value(), Ok(5));
-
-        let pure: Validated<String, i32> = Validated::<String, i32>::pure_identity(42);
-        assert_eq!(pure, Validated::valid(42));
     }
 }
 

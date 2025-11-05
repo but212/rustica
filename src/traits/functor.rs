@@ -6,6 +6,12 @@
 //! A functor is a type constructor that supports a mapping operation which preserves
 //! the structure of the functor while transforming its contents.
 //!
+//! ## Breaking Change (v0.11.0)
+//!
+//! The `Functor` trait no longer extends `Identity`. This aligns with category theory
+//! where functors don't require value extraction capabilities. The `Identity` trait
+//! is deprecated - use standard methods (`unwrap`, `as_ref`) or `Comonad::extract()` instead.
+//!
 //! ## Performance Characteristics
 //!
 //! ### Time Complexity
@@ -16,24 +22,6 @@
 //! ### Memory Usage
 //! - **Structure Preservation**: Functors maintain the same structural memory layout
 //! - **Transformation Cost**: Additional memory usage depends on the mapping function
-//! - **No Additional Overhead**: Pure functor operations add no structural overhead
-//!
-//! ### Implementation Notes
-//! - Functor implementations are typically zero-cost abstractions
-//! - Memory allocation patterns depend on the specific functor implementation
-//! - Most implementations use lazy evaluation where possible for optimal performance
-//!
-//! # TODO: Improvements
-//! - Add full set of ownership-aware methods to optimize performance
-//! - Add #\[inline\] attributes to all methods for better performance
-//! - Improve documentation examples with explicit type annotations
-//! - Add PhantomData support for zero-cost abstractions
-//! - Add blanket implementations for relevant trait combinations
-//! - Ensure proper trait bounds on type parameters
-//! - Optimize trait bounds for better compile-time type inference
-//! - Update all FunctorExt methods to use owned values instead of references when appropriate
-//! - Add comprehensive test cases for all implementations
-//! - Create benchmarks to evaluate performance of ownership-based vs reference-based approaches
 //!
 //! ## Quick Start
 //!
@@ -79,7 +67,6 @@
 //! - The core `Functor` trait that defines mapping operations
 //! - Extension methods in `FunctorExt` for additional utility
 //! - Implementations for standard Rust types like `Option`, `Result`, and `Vec`
-//! - Zero-cost implementations using `PhantomData`
 //!
 //! ## Functor Laws
 //!
@@ -125,19 +112,19 @@ use crate::prelude::*;
 /// ```rust
 /// use rustica::traits::functor::Functor;
 /// use rustica::traits::hkt::HKT;
-/// use rustica::traits::identity::Identity;
 /// use rustica::datatypes::maybe::Maybe;
+/// use rustica::traits::comonad::Comonad;
 ///
 /// // Using the Functor implementation for Maybe
 /// let maybe_int = Maybe::Just(42);
 ///
 /// // Transform i32 to String
 /// let maybe_string = maybe_int.fmap(|x: &i32| x.to_string());
-/// assert_eq!(*maybe_string.value(), "42".to_string());
+/// assert_eq!(maybe_string, Maybe::Just("42".to_string()));
 ///
 /// // Using replace to substitute values
 /// let replaced = maybe_int.replace(&String::from("hello"));
-/// assert_eq!(*replaced.value(), "hello");
+/// assert_eq!(replaced.extract(), "hello");
 ///
 /// // Using void to discard values
 /// let voided = maybe_int.void();
@@ -148,7 +135,7 @@ use crate::prelude::*;
 /// let mapped_none = maybe_none.fmap(|x: &i32| x.to_string());
 /// assert!(mapped_none.is_nothing());
 /// ```
-pub trait Functor: Identity {
+pub trait Functor: HKT {
     /// Maps a function over the values in a functor without consuming it.
     ///
     /// This is a reference-based version of `fmap` that doesn't consume the functor.

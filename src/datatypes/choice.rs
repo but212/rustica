@@ -150,11 +150,6 @@
 //!   - `fmap`, `bind`: O(n) where n is the number of elements
 //!   - Iteration: O(n) linear time, similar to `Vec`
 //!
-//! - **Concurrency:**
-//!   - Thread-safe due to immutable semantics and `Arc` for shared ownership
-//!   - No interior mutability or synchronization overhead
-//!   - Safe to share across thread boundaries when `T: Send + Sync`
-//!
 //! ## Type Class Implementations
 //!
 //! `Choice<T>` implements several important functional programming type classes:
@@ -1964,11 +1959,6 @@ impl<T: Clone> Identity for Choice<T> {
     #[inline]
     fn value(&self) -> &Self::Source {
         self.first().expect("Cannot get value from an empty Choice")
-    }
-
-    #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A> {
-        Choice::new(value, vec![])
     }
 
     #[inline]

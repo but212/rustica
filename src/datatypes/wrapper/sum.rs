@@ -202,6 +202,60 @@ use std::ops::Add;
 #[repr(transparent)]
 pub struct Sum<T>(pub T);
 
+impl<T: Clone> Sum<T> {
+    /// Unwraps the sum value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::sum::Sum;
+    /// let sum = Sum::new(42);
+    /// assert_eq!(sum.unwrap(), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap(&self) -> T {
+        self.0.clone()
+    }
+
+    /// Unwraps the sum value or returns a default.
+    ///
+    /// Since `Sum` always contains a value, this method simply returns the contained value.
+    /// The `default` parameter is ignored.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::sum::Sum;
+    /// let sum = Sum::new(42);
+    /// assert_eq!(sum.unwrap_or(0), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap_or(&self, _default: T) -> T {
+        self.0.clone()
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::sum::Sum;
+    /// let sum = Sum::new(42);
+    /// assert_eq!(sum.as_ref(), &42);
+    /// ```
+    #[inline]
+    pub fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> AsRef<T> for Sum<T> {
+    #[inline]
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
 impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     /// Combines two `Sum` values through addition, consuming self.
     ///
@@ -416,14 +470,6 @@ impl<T: Clone + Add<Output = T>> Identity for Sum<T> {
 
     fn into_value(self) -> Self::Source {
         self.0
-    }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Sum(value)
     }
 }
 

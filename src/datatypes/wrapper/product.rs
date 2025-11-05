@@ -144,6 +144,60 @@ use std::ops::Mul;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Product<T>(pub T);
 
+impl<T: Clone> Product<T> {
+    /// Unwraps the product value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::product::Product;
+    /// let product = Product::new(42);
+    /// assert_eq!(product.unwrap(), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap(&self) -> T {
+        self.0.clone()
+    }
+
+    /// Unwraps the product value or returns a default.
+    ///
+    /// Since `Product` always contains a value, this method simply returns the contained value.
+    /// The `default` parameter is ignored.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::product::Product;
+    /// let product = Product::new(42);
+    /// assert_eq!(product.unwrap_or(0), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap_or(&self, _default: T) -> T {
+        self.0.clone()
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::product::Product;
+    /// let product = Product::new(42);
+    /// assert_eq!(product.as_ref(), &42);
+    /// ```
+    #[inline]
+    pub fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> AsRef<T> for Product<T> {
+    #[inline]
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
 impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
     /// Combines two `Product` values through multiplication, consuming self.
     ///
@@ -358,14 +412,6 @@ impl<T: Clone + Mul<Output = T>> Identity for Product<T> {
 
     fn into_value(self) -> Self::Source {
         self.0
-    }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Product(value)
     }
 }
 

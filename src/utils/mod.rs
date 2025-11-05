@@ -14,9 +14,9 @@
 //!
 //! - Functor-inspired mapping helpers (`map_option`, `map_result`, `bimap_result`)
 //! - Monad-inspired chaining helpers (`flat_map_option`, `flat_map_result`)
-//! - Function composition utilities (`compose`, `curry`, `uncurry`)
+//! - Function composition utilities (`compose`, `pipe`)
 //! - Collection sequencing operations (`sequence_options`, `sequence_results`)
-//! - Zero-cost abstractions following categorical laws
+//! - Following categorical laws
 //!
 //! ### Error Handling Utilities (`error_utils`)
 //!
@@ -89,5 +89,15 @@ pub mod transform_utils;
 /// - Monad-inspired chaining helpers for sequencing computations with context
 /// - Function composition utilities for building complex operations
 /// - Collection utilities for working with sequences of optional/failable values
-/// - Zero-cost abstractions that leverage Rust's optimization capabilities
 pub mod categorical_utils;
+
+/// Basic function combinators and utilities.
+///
+/// This module provides fundamental functional programming utilities including:
+///
+/// - `id`: The identity function (identity morphism)
+/// - `const_fn`: Create constant functions
+///
+/// These are the building blocks for functional composition and should be
+/// available throughout the codebase.
+pub mod functions;

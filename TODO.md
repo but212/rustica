@@ -7,15 +7,15 @@
 ### Critical Maintenance
 
 - [ ] Fix documentation inconsistencies
-  - [ ] Remove false "zero-cost" claims from docs
-  - [ ] Add performance warnings to all public APIs
+  - [x] Remove false "zero-cost" claims from docs
+  - [x] Add performance warnings to all public APIs
   - [ ] Update examples with realistic use case guidance
 - [ ] Code quality improvements
-  - [ ] Fix remaining clippy warnings
+  - [x] Fix remaining clippy warnings
   - [ ] Standardize error handling patterns
-  - [ ] Remove unused dependencies from Cargo.toml
+  - [x] Remove unused dependencies from Cargo.toml
 - [ ] Testing improvements
-  - [ ] Fix failing tests if any
+  - [x] Fix failing tests if any
   - [ ] Add integration tests for common workflows
   - [ ] Validate all documented examples work
 

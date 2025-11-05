@@ -1,5 +1,40 @@
 # CHANGELOG
 
+## [0.11.0]
+
+### Breaking Changes - 0.11.0
+
+- **Identity Trait Deprecation**
+  - Deprecated `Identity` trait due to design flaws
+  - Removed `Functor: Identity` dependency - now `Functor: HKT`
+  - Moved `id()` function from `Identity` trait to `utils::functions`
+  - Added comprehensive migration guide `MIGRATION_v0.11.0.md`
+
+### Added - 0.11.0
+
+- **Function Utilities**
+  - Added `utils::functions` module with fundamental FP utilities
+  - Added `id()` - identity function (category theory morphism)
+  - Added `const_fn()` - create constant functions
+- **Documentation**
+  - Added documentation for `PersistentVector` methods and types
+  - Added `pipe` function to `utils::transform_utils`
+  - Added comprehensive migration guide for breaking changes
+
+### Deprecated - 0.11.0
+
+- **Identity Trait**
+  - `Identity` trait is deprecated and will be removed in v0.12.0
+  - Use standard methods (`unwrap()`, `as_ref()`) or `Comonad::extract()` instead
+
+### Fixed - 0.11.0
+
+- **Category Theory Compliance**
+  - Fixed Functor to properly extend only HKT (not Identity)
+  - Improved separation of concerns between value extraction and functor operations
+- **compose function order**
+  - Fixed compose function order in tests
+
 ## [0.10.0]
 
 ### Added - 0.10.0

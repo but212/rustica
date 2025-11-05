@@ -358,12 +358,8 @@ fn test_alternative_and_monadplus() {
 }
 
 #[test]
-fn test_identity_and_comonad() {
+fn test_comonad() {
     let j = Just(10);
-    assert_eq!(*j.value(), 10);
-    assert_eq!(j.clone().into_value(), 10);
-    assert_eq!(Maybe::<i32>::pure_identity(7), Just(7));
-
     // Comonad
     assert_eq!(j.extract(), 10);
     assert_eq!(j.duplicate(), j);
@@ -376,13 +372,6 @@ fn test_identity_and_comonad() {
 fn test_identity_value_panics_on_nothing() {
     let n: Maybe<i32> = Nothing;
     let _ = n.value();
-}
-
-#[test]
-#[should_panic(expected = "Identity::into_value()")]
-fn test_identity_into_value_panics_on_nothing() {
-    let n: Maybe<i32> = Nothing;
-    let _ = n.into_value();
 }
 
 #[test]

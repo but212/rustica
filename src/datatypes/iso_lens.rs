@@ -466,7 +466,7 @@ where
     L: Iso<S, A, From = S, To = A>,
 {
     pub iso: L,
-    pub phantom: std::marker::PhantomData<(S, A)>,
+    pub _phantom: std::marker::PhantomData<(S, A)>,
 }
 
 impl<S, A, L> IsoLens<S, A, L>
@@ -519,7 +519,7 @@ where
     pub fn new(iso: L) -> Self {
         Self {
             iso,
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -722,12 +722,12 @@ where
     {
         let pair_iso = PairIso {
             inner: other.iso,
-            phantom: std::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         };
         let composed_iso = ComposedIso {
             first: self.iso,
             second: pair_iso,
-            phantom: std::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         };
         IsoLens::new(composed_iso)
     }
@@ -891,7 +891,7 @@ where
     L2: Iso<A, (B, S), From = A, To = (B, S)>,
 {
     pub inner: L2,
-    pub phantom: std::marker::PhantomData<(A, B, S)>,
+    pub _phantom: std::marker::PhantomData<(A, B, S)>,
 }
 
 impl<L2, A, B, S> Iso<A, (B, S)> for PairIso<L2, A, B, S>

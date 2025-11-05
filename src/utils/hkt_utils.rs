@@ -26,7 +26,6 @@
 //! - **Short-circuiting**: Early termination on None/Error for optimal performance
 //!
 //! ### Function Transformers
-//! - **curry/uncurry operations**: O(1) - Zero-cost function transformations
 //! - **compose**: O(f + g) where f and g are the composed function complexities
 
 // ===== Collection Operations =====

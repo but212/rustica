@@ -160,6 +160,60 @@ use std::fmt;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Min<T>(pub T);
 
+impl<T: Clone> Min<T> {
+    /// Unwraps the min value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::min::Min;
+    /// let min = Min::new(42);
+    /// assert_eq!(min.unwrap(), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap(&self) -> T {
+        self.0.clone()
+    }
+
+    /// Unwraps the min value or returns a default.
+    ///
+    /// Since `Min` always contains a value, this method simply returns the contained value.
+    /// The `default` parameter is ignored.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::min::Min;
+    /// let min = Min::new(42);
+    /// assert_eq!(min.unwrap_or(0), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap_or(&self, _default: T) -> T {
+        self.0.clone()
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::min::Min;
+    /// let min = Min::new(42);
+    /// assert_eq!(min.as_ref(), &42);
+    /// ```
+    #[inline]
+    pub fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> AsRef<T> for Min<T> {
+    #[inline]
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
 impl<T: Clone + Ord> Semigroup for Min<T> {
     /// Combines two `Min` values by taking the minimum, consuming self.
     ///
@@ -392,14 +446,6 @@ impl<T: Clone + Ord> Identity for Min<T> {
 
     fn into_value(self) -> Self::Source {
         self.0
-    }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Min(value)
     }
 }
 

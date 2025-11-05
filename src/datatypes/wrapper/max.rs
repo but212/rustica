@@ -163,6 +163,60 @@ use std::fmt;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Max<T>(pub T);
 
+impl<T: Clone> Max<T> {
+    /// Unwraps the max value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::max::Max;
+    /// let max = Max::new(42);
+    /// assert_eq!(max.unwrap(), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap(&self) -> T {
+        self.0.clone()
+    }
+
+    /// Unwraps the max value or returns a default.
+    ///
+    /// Since `Max` always contains a value, this method simply returns the contained value.
+    /// The `default` parameter is ignored.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::max::Max;
+    /// let max = Max::new(42);
+    /// assert_eq!(max.unwrap_or(0), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap_or(&self, _default: T) -> T {
+        self.0.clone()
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::max::Max;
+    /// let max = Max::new(42);
+    /// assert_eq!(max.as_ref(), &42);
+    /// ```
+    #[inline]
+    pub fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> AsRef<T> for Max<T> {
+    #[inline]
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
 impl<T: Clone + Ord> Semigroup for Max<T> {
     /// Combines two `Max` values by taking the maximum, consuming self.
     ///
@@ -382,14 +436,6 @@ impl<T: Clone + Ord> Identity for Max<T> {
 
     fn into_value(self) -> Self::Source {
         self.0
-    }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Max(value)
     }
 }
 

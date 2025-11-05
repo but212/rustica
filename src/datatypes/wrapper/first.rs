@@ -188,6 +188,69 @@ use std::fmt;
 #[repr(transparent)]
 pub struct First<T>(pub Option<T>);
 
+impl<T: Clone> First<T> {
+    /// Unwraps the first value, panicking if None.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::first::First;
+    /// let first = First::new(Some(42));
+    /// assert_eq!(first.unwrap(), 42);
+    ///
+    /// let empty = First::new(None);
+    /// // empty.unwrap() would panic
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the inner value is None.
+    pub fn unwrap(&self) -> T {
+        self.0.clone().unwrap()
+    }
+
+    /// Unwraps the first value or returns a default.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::first::First;
+    /// let first = First::new(Some(42));
+    /// let empty = First::new(None);
+    ///
+    /// assert_eq!(first.unwrap_or(0), 42);
+    /// assert_eq!(empty.unwrap_or(0), 0);
+    /// ```
+    pub fn unwrap_or(&self, default: T) -> T {
+        self.0.clone().unwrap_or(default)
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::first::First;
+    /// let first = First::new(Some(42));
+    /// assert_eq!(first.as_ref(), Some(&42));
+    ///
+    /// let empty = First::new(None);
+    /// assert_eq!(empty.as_ref(), None);
+    /// ```
+    #[inline]
+    pub fn as_ref(&self) -> Option<&T> {
+        self.0.as_ref()
+    }
+}
+
+impl<T> AsRef<T> for First<T> {
+    #[inline]
+    fn as_ref(&self) -> &T {
+        self.0.as_ref()
+            .expect("called `as_ref()` on an empty `First`")
+    }
+}
+
 impl<T: Clone> Semigroup for First<T> {
     /// Combines two `First` values by taking the first non-None value, consuming both values.
     ///
@@ -364,14 +427,6 @@ impl<T: Clone> Identity for First<T> {
 
     fn into_value(self) -> Self::Source {
         self.0.unwrap()
-    }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        First(Some(value))
     }
 }
 
