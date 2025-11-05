@@ -1,10 +1,10 @@
 # Migration Guide: v0.11.0
 
-## Breaking Changes: Identity Trait Removal from Functor
+## Breaking Changes: Identity Trait Removal & Unify to unwrap()
 
 ### Overview
 
-Version 0.11.0 removes the incorrect `Functor: Identity` dependency and deprecates the `Identity` trait entirely. This is a **breaking change** that aligns Rustica with proper category theory principles.
+Version 0.11.0 removes the incorrect `Functor: Identity` dependency and deprecates the `Identity` trait entirely. This is a **breaking change** that aligns Rustica with proper category theory principles **and unifies all value extraction to standard `unwrap()` methods**.
 
 ---
 
@@ -36,7 +36,7 @@ pub trait Identity: HKT {
 
 ## Why This Change?
 
-### Category Theory Violations
+### Category Theory Violations & Inconsistent API
 
 1. **Functor ≠ Value Extraction**
    - Functors map morphisms: `fmap: (A → B) → F(A) → F(B)`
@@ -48,7 +48,23 @@ pub trait Identity: HKT {
    - Rustica's `Identity` = value extraction utility
    - These are completely different concepts
 
-3. **Redundant Abstraction**
+3. **Inconsistent Value Extraction API**
+
+  ```rust
+   // BEFORE: Multiple different ways to extract values
+   option.value()              // Identity trait
+   maybe.get_value()           // Custom method
+   choice.primary_value()      // Custom method
+   either.right_value()        // Custom method
+   
+   // AFTER: Unified to standard unwrap()
+   option.unwrap()             // O Standard
+   maybe.unwrap()              // O Standard
+   choice.unwrap()             // O Standard
+   either.unwrap()             // O Standard
+   ```
+
+1. **Redundant Abstraction**
 
    ```rust
    // Identity methods just wrap standard Rust
@@ -58,7 +74,7 @@ pub trait Identity: HKT {
    option.try_into_value() // Same as option itself
    ```
 
-4. **Comonad Overlap**
+2. **Comonad Overlap**
 
    ```rust
    // Comonad already provides proper extraction
@@ -190,6 +206,46 @@ fn get_value(opt: Option<i32>) -> Result<i32, &'static str> {
 }
 ```
 
+### Scenario 1.1: Using Standard unwrap() Methods for All Types
+
+For consistency, use standard Rust `unwrap()` methods for all types:
+
+```rust
+// For Maybe<T>
+use rustica::datatypes::maybe::Maybe;
+
+let maybe = Maybe::Just(42);
+let value = maybe.unwrap();      // T (panics if Nothing)
+let safe = maybe.unwrap_or(&0);  // &T with default
+let option = maybe.as_option();  // Option<&T> for safe handling
+
+// For Choice<T>
+use rustica::datatypes::choice::Choice;
+
+let choice = Choice::new(1, vec![2, 3]);
+let value = choice.unwrap();           // T (panics if empty)
+let safe = choice.unwrap_or(&0);       // &T with default
+let first = choice.first();            // Option<&T>
+
+// For Either<L, R>
+use rustica::datatypes::either::Either;
+
+let either: Either<String, i32> = Either::Right(42);
+let value = either.unwrap();           // i32 (panics if Left)
+let safe = either.unwrap_or(&0);       // &i32 with default
+let right = either.right();            // Option<&i32>
+let left = either.left();              // Option<&String>
+
+// For types with Comonad (like Id<T>)
+use rustica::datatypes::id::Id;
+use rustica::traits::comonad::Comonad;
+
+let id = Id::new(42);
+let value = id.extract();  // Always succeeds - total extraction
+// OR use standard method:
+let value = id.unwrap();   // Also works - same as extract()
+```
+
 ### Scenario 2: Functor Operations
 
 ```rust
@@ -256,16 +312,18 @@ If you need time to migrate, you can temporarily allow deprecated warnings:
 ## Benefits of This Change
 
 O **Correct Category Theory**: Functor no longer requires value extraction  
+O **Unified API**: All types use `unwrap()` for value extraction  
 O **Simpler Code**: Use standard Rust methods instead of custom traits  
 O **Less Confusion**: "Identity" no longer conflicts with identity functor  
-O **Better Separation**: Comonad handles total extraction, standard methods handle partial  
+O **Better Separation**: Comonad handles total extraction, `unwrap()` handles partial  
 O **Vec Semantics**: `Vec<T>` no longer needs arbitrary `first()` implementation  
+O **Consistent Learning**: One method name to learn for all value extraction  
 
 ---
 
 ## Timeline
 
-- **v0.11.0**: `Identity` deprecated, `Functor: Identity` removed
+- **v0.11.0**: `Identity` deprecated, `Functor: Identity` removed, **All types unified to `unwrap()`**
 - **v0.12.0**: `Identity` trait will be completely removed
 - **Migration period**: 1-2 major versions
 
@@ -284,15 +342,33 @@ If you encounter issues during migration:
 
 ## Summary Table
 
-| Old (v0.10.x) | New (v0.11.0) | Reason |
-|---------------|---------------|--------|
-| `Functor: Identity` | `Functor: HKT` | Category theory correctness |
-| `value()` | `unwrap()` | Standard Rust method |
-| `try_value()` | `as_ref()` | Standard Rust method |
-| `into_value()` | `unwrap()` | Standard Rust method |
-| `try_into_value()` | `Some(x)` or `self` | Not needed |
-| `id.value()` | `id.extract()` | Comonad for total extraction |
+|   Old (v0.10.x)    |    New (v0.11.0)    |           Reason             |
+|--------------------|---------------------|------------------------------|
+| `Functor: Identity`| `Functor: HKT`      | Category theory correctness  |
+| `value()`          | `unwrap()`          | Standard Rust method         |
+| `try_value()`      | `as_ref()`          | Standard Rust method         |
+| `into_value()`     | `unwrap()`          | Standard Rust method         |
+| `try_into_value()` | `Some(x)` or `self` | Not needed                   |
+| `id.value()`       | `id.extract()`      | Comonad for total extraction |
+
+### Value Extraction Methods by Type
+
+|      Type      |      Standard Methods     |       Safe Methods      |     Comonad     |
+|----------------|---------------------------|-------------------------|-----------------|
+| `Option<T>`    | `unwrap()`, `unwrap_or()` | `as_ref()`, `ok_or()`   | N/A             |
+| `Result<T, E>` | `unwrap()`, `unwrap_or()` | `as_ref()`, `map_err()` | N/A             |
+| `Maybe<T>`     | `unwrap()`, `unwrap_or()` | `as_option()`           | N/A             |
+| `Choice<T>`    | `unwrap()`, `unwrap_or()` | `first()`               | N/A             |
+| `Either<L, R>` | `unwrap()`, `unwrap_or()` | `right()`, `left()`     | N/A             |
+| `Id<T>`        | `unwrap()`                | N/A                     | `extract()`     |
+| `Wrapper<T>`   | `unwrap()`                | N/A                     | N/A             |
+
+**Guideline**: Use `unwrap()` for all value extraction across all types, `unwrap_or()` for safe defaults, and `Comonad::extract()` only for types with guaranteed total extraction.
 
 ---
 
-**This is a breaking change, but it makes Rustica more correct and easier to use.**
+## Key Takeaway: One Method to Rule Them All
+
+**v0.11.0 unifies all value extraction to `unwrap()`** - whether you're working with `Option`, `Maybe`, `Choice`, `Either`, or any other Rustica type, `unwrap()` is your go-to method for value extraction.
+
+**This is a breaking change, but it makes Rustica more correct, consistent, and easier to use.**

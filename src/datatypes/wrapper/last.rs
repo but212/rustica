@@ -203,6 +203,69 @@ use std::fmt;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Last<T>(pub Option<T>);
 
+impl<T: Clone> Last<T> {
+    /// Unwraps the last value, panicking if None.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::last::Last;
+    /// let last = Last::new(Some(42));
+    /// assert_eq!(last.unwrap(), 42);
+    ///
+    /// let empty = Last::new(None);
+    /// // empty.unwrap() would panic
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the inner value is None.
+    pub fn unwrap(&self) -> T {
+        self.0.clone().unwrap()
+    }
+
+    /// Unwraps the last value or returns a default.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::last::Last;
+    /// let last = Last::new(Some(42));
+    /// let empty = Last::new(None);
+    ///
+    /// assert_eq!(last.unwrap_or(0), 42);
+    /// assert_eq!(empty.unwrap_or(0), 0);
+    /// ```
+    pub fn unwrap_or(&self, default: T) -> T {
+        self.0.clone().unwrap_or(default)
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::wrapper::last::Last;
+    /// let last = Last::new(Some(42));
+    /// assert_eq!(last.as_ref(), Some(&42));
+    ///
+    /// let empty = Last::new(None);
+    /// assert_eq!(empty.as_ref(), None);
+    /// ```
+    #[inline]
+    pub fn as_ref(&self) -> Option<&T> {
+        self.0.as_ref()
+    }
+}
+
+impl<T> AsRef<T> for Last<T> {
+    #[inline]
+    fn as_ref(&self) -> &T {
+        self.0.as_ref()
+            .expect("called `as_ref()` on an empty `Last`")
+    }
+}
+
 impl<T: Clone> Semigroup for Last<T> {
     /// Combines two `Last` values by taking the last non-None value, consuming both values.
     ///

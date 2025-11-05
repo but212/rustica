@@ -253,6 +253,7 @@
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
+use crate::traits::comonad::Comonad;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::identity::Identity;
@@ -503,6 +504,55 @@ impl<L, R> Either<L, R> {
         }
     }
 
+    /// Unwraps an either, yielding the content of a `Right` or panicking.
+    ///
+    /// This is the standard `unwrap()` method that extracts the `Right` value,
+    /// following Rust's convention where `unwrap()` extracts the "success" value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let right = Either::Right(42);
+    /// let left: Either<String, i32> = Either::Left("error".to_string());
+    ///
+    /// assert_eq!(right.unwrap(), 42);
+    /// // left.unwrap() would panic
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if called on a `Left` value.
+    #[inline]
+    pub fn unwrap(self) -> R {
+        match self {
+            Either::Right(r) => r,
+            Either::Left(_) => panic!("called `Either::unwrap()` on a `Left` value"),
+        }
+    }
+
+    /// Unwraps an either, yielding the content of a `Right` or a default value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    ///
+    /// let right = Either::Right(42);
+    /// let left: Either<String, i32> = Either::Left("error".to_string());
+    ///
+    /// assert_eq!(right.unwrap_or(0), 42);
+    /// assert_eq!(left.unwrap_or(0), 0);
+    /// ```
+    #[inline]
+    pub fn unwrap_or(self, default: R) -> R {
+        match self {
+            Either::Right(r) => r,
+            Either::Left(_) => default,
+        }
+    }
+
     /// Returns the contained `Left` value, consuming the `self` value.
     ///
     /// Because this function consumes the original `Either`, there is no need to clone
@@ -530,7 +580,7 @@ impl<L, R> Either<L, R> {
     {
         match self {
             Either::Left(l) => l,
-            Either::Right(_) => panic!("Called left_value on an Either::Right"),
+            Either::Right(_) => panic!("called left_value on Right value"),
         }
     }
 

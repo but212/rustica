@@ -318,6 +318,53 @@ impl<T> Id<T> {
         self.value
     }
 
+    /// Unwraps the Id, yielding the contained value.
+    ///
+    /// This is the standard `unwrap()` method that extracts the value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::id::Id;
+    /// let id = Id::new(42);
+    /// assert_eq!(id.unwrap(), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap(self) -> T {
+        self.value
+    }
+
+    /// Unwraps the Id or returns a default value.
+    ///
+    /// Since `Id` always contains a value, this method simply returns the contained value.
+    /// The `default` parameter is ignored.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::id::Id;
+    /// let id = Id::new(42);
+    /// assert_eq!(id.unwrap_or(0), 42);
+    /// ```
+    #[inline]
+    pub fn unwrap_or(self, _default: T) -> T {
+        self.value
+    }
+
+    /// Returns a reference to the inner value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::id::Id;
+    /// let id = Id::new(42);
+    /// assert_eq!(id.as_ref(), &42);
+    /// ```
+    #[inline]
+    pub fn as_ref(&self) -> &T {
+        &self.value
+    }
+
     /// Returns a mutable reference to the inner value.
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value

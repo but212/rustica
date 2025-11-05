@@ -187,7 +187,6 @@
 //! - Error handling approaches
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
-use crate::traits::comonad::Comonad;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
@@ -632,7 +631,11 @@ impl<T> Maybe<T> {
         }
     }
 
-    /// Unwraps a maybe, yielding the content of a `Just` or computing a default.
+    /// Unwraps a maybe, yielding the content of a `Just` or a computed default.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A closure that computes the default value
     ///
     /// # Examples
     ///
@@ -656,6 +659,29 @@ impl<T> Maybe<T> {
         }
     }
 
+    /// Converts the `Maybe` to a standard `Option`.
+    ///
+    /// This provides safe handling by converting to Rust's standard `Option` type.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::maybe::Maybe;
+    ///
+    /// let just = Maybe::Just(42);
+    /// let nothing: Maybe<i32> = Maybe::Nothing;
+    ///
+    /// assert_eq!(just.as_option(), Some(&42));
+    /// assert_eq!(nothing.as_option(), None);
+    /// ```
+    #[inline]
+    pub fn as_option(&self) -> Option<&T> {
+        match self {
+            Maybe::Just(val) => Some(val),
+            Maybe::Nothing => None,
+        }
+    }
+
     /// Returns `Nothing` if the value does not satisfy the predicate.
     ///
     /// # Examples
@@ -676,7 +702,7 @@ impl<T> Maybe<T> {
         P: FnOnce(&T) -> bool,
     {
         match self {
-            Maybe::Just(ref value) if predicate(value) => self,
+            Maybe::Just(value) if predicate(&value) => Maybe::Just(value),
             _ => Maybe::Nothing,
         }
     }
@@ -1468,63 +1494,6 @@ impl<T> Default for Maybe<T> {
     #[inline]
     fn default() -> Self {
         Maybe::Nothing
-    }
-}
-
-impl<T: Clone> Comonad for Maybe<T> {
-    /// Extracts the value out of a `Just`, panicking if it's `Nothing`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if called on a `Nothing` value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::comonad::Comonad;
-    ///
-    /// let just = Maybe::Just(10);
-    /// assert_eq!(just.extract(), 10);
-    /// ```
-    #[inline]
-    fn extract(&self) -> T {
-        match self {
-            Maybe::Just(v) => v.clone(),
-            Maybe::Nothing => panic!("Called `Comonad::extract()` on a `Nothing` value"),
-        }
-    }
-
-    #[inline]
-    fn duplicate(&self) -> Self {
-        self.clone()
-    }
-
-    /// Extends a computation from a `Maybe` to a new `Maybe`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::{Maybe, Maybe::*};
-    /// use rustica::traits::comonad::Comonad;
-    ///
-    /// let just = Just(5);
-    /// let extended = just.extend(|m| m.extract() * 2);
-    /// assert_eq!(extended, Just(10));
-    ///
-    /// let nothing: Maybe<i32> = Nothing;
-    /// let extended_nothing = nothing.extend(|m| m.extract() * 2);
-    /// assert_eq!(extended_nothing, Nothing);
-    /// ```
-    #[inline]
-    fn extend<U, F>(&self, f: F) -> Self::Output<U>
-    where
-        F: Fn(&Self) -> U,
-    {
-        match self {
-            Maybe::Just(_) => Maybe::Just(f(self)),
-            Maybe::Nothing => Maybe::Nothing,
-        }
     }
 }
 

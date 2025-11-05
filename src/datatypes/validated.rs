@@ -1281,6 +1281,27 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         }
     }
 
+    /// Returns a reference to the valid value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// assert_eq!(valid.as_ref(), Some(&42));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert_eq!(invalid.as_ref(), None);
+    /// ```
+    #[inline]
+    pub fn as_ref(&self) -> Option<&A> {
+        match self {
+            Validated::Valid(x) => Some(x),
+            _ => None,
+        }
+    }
+
     /// Unwraps a valid value or panics with a message.
     ///
     /// If this is valid, returns the valid value.
@@ -1652,6 +1673,16 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         match self {
             Validated::Invalid(es) => ErrorsIterMut::Multi(es.iter_mut()),
             _ => ErrorsIterMut::Empty,
+        }
+    }
+}
+
+impl<E, A> AsRef<A> for Validated<E, A> {
+    #[inline]
+    fn as_ref(&self) -> &A {
+        match self {
+            Validated::Valid(x) => x,
+            _ => panic!("called `as_ref()` on an invalid value"),
         }
     }
 }
