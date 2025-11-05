@@ -253,7 +253,6 @@
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
-use crate::traits::comonad::Comonad;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::identity::Identity;
