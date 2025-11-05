@@ -4,7 +4,6 @@ mod test_applicative;
 mod test_bifunctor;
 mod test_foldable;
 mod test_functor;
-mod test_identity;
 mod test_monad;
 mod test_monoid;
 mod test_semigroup;
@@ -46,10 +45,6 @@ impl<T> HKT for TestFunctor<T> {
 impl<T> Identity for TestFunctor<T> {
     fn value(&self) -> &Self::Source {
         &self.0
-    }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A> {
-        TestFunctor::new(value)
     }
 
     fn into_value(self) -> Self::Source {

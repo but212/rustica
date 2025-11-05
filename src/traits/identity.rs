@@ -101,39 +101,6 @@ use crate::traits::hkt::HKT;
     since = "0.11.0",
     note = "Identity trait is a design flaw. Use unwrap(), as_ref(), or Comonad::extract() instead"
 )]
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::hkt::HKT;
-/// use rustica::traits::identity::Identity;
-///
-/// // A simple wrapper type
-/// struct Wrapper<T>(T);
-///
-/// impl<T> HKT for Wrapper<T> {
-///     type Source = T;
-///     type Output<U> = Wrapper<U>;
-/// }
-///
-/// impl<T> Identity for Wrapper<T> {
-///     fn value(&self) -> &Self::Source {
-///         &self.0
-///     }
-///     
-///     fn into_value(self) -> Self::Source {
-///         self.0
-///     }
-/// }
-///
-/// // Using the Identity trait
-/// let wrapped: Wrapper<i32> = Wrapper(42);
-/// assert_eq!(*wrapped.value(), 42);
-///
-/// // Using the identity function
-/// let x: i32 = 5;
-/// assert_eq!(<Wrapper<i32> as Identity>::id(x), 5);
-/// ```
 pub trait Identity: HKT {
     /// Returns a reference to the contained value.
     ///

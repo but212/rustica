@@ -24,7 +24,7 @@
 /// ## Basic Usage
 ///
 /// ```rust
-/// use rustica::id;
+/// use rustica::utils::functions::id;
 ///
 /// assert_eq!(id(42), 42);
 /// assert_eq!(id("hello"), "hello");
@@ -34,7 +34,7 @@
 /// ## With Higher-Order Functions
 ///
 /// ```rust
-/// use rustica::id;
+/// use rustica::utils::functions::id;
 ///
 /// let numbers = vec![1, 2, 3, 4, 5];
 ///
@@ -51,19 +51,29 @@
 /// ## Verifying Functor Laws
 ///
 /// ```rust
-/// use rustica::id;
+/// use rustica::utils::functions::id;
 /// use rustica::traits::functor::Functor;
 ///
-/// // Identity law: fmap(id) = id
-/// let option = Some(42);
-/// let mapped = option.fmap(id);
-/// assert_eq!(mapped, option);
+/// // Identity law for owned values
+/// let option: Option<i32> = Some(42);
+/// let mapped: Option<i32> = option.fmap(|x| *x).clone();  // Explicit closure
+/// assert_eq!(mapped, Some(42));
+///
+/// // Using id for simple value transformation
+/// let value = id(42);
+/// assert_eq!(value, 42);
+///
+/// // Note: id() has lifetime limitations with fmap()
+/// // Use explicit closures for complex cases
+/// let numbers = vec![1, 2, 3];
+/// let same: Vec<i32> = numbers.into_iter().map(id).collect();
+/// assert_eq!(same, vec![1, 2, 3]);
 /// ```
 ///
 /// ## Type Inference Helper
 ///
 /// ```rust
-/// use rustica::id;
+/// use rustica::utils::functions::id;
 ///
 /// // Sometimes helps the compiler infer types
 /// let x = id(42_i32);  // Explicitly i32
@@ -77,6 +87,10 @@ pub const fn id<A>(a: A) -> A {
 ///
 /// Creates a function that ignores its input and always returns `value`.
 ///
+/// Note: In Rust, the returned function is monomorphic over its input type.
+/// That means each constructed function has a single input type. If you want to
+/// use it with different input types, construct separate functions.
+///
 /// # Category Theory
 ///
 /// In category theory, this represents a constant morphism.
@@ -86,10 +100,14 @@ pub const fn id<A>(a: A) -> A {
 /// ```rust
 /// use rustica::utils::functions::const_fn;
 ///
-/// let always_42 = const_fn(42);
-/// assert_eq!(always_42(1), 42);
-/// assert_eq!(always_42(999), 42);
-/// assert_eq!(always_42("anything"), 42);
+/// // For numeric inputs
+/// let always_42_num = const_fn(42);
+/// assert_eq!(always_42_num(1), 42);
+/// assert_eq!(always_42_num(999), 42);
+///
+/// // For string inputs (create a separate function instance)
+/// let always_42_str = const_fn(42);
+/// assert_eq!(always_42_str("anything"), 42);
 /// ```
 #[inline(always)]
 pub fn const_fn<A: Clone, B>(value: A) -> impl Fn(B) -> A {

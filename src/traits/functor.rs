@@ -113,6 +113,7 @@ use crate::prelude::*;
 /// use rustica::traits::functor::Functor;
 /// use rustica::traits::hkt::HKT;
 /// use rustica::datatypes::maybe::Maybe;
+/// use rustica::traits::comonad::Comonad;
 ///
 /// // Using the Functor implementation for Maybe
 /// let maybe_int = Maybe::Just(42);
@@ -123,7 +124,7 @@ use crate::prelude::*;
 ///
 /// // Using replace to substitute values
 /// let replaced = maybe_int.replace(&String::from("hello"));
-/// assert_eq!(*replaced.value(), "hello");
+/// assert_eq!(replaced.extract(), "hello");
 ///
 /// // Using void to discard values
 /// let voided = maybe_int.void();
