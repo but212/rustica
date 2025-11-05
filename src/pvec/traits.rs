@@ -35,14 +35,6 @@ impl<T: Clone> Identity for PersistentVector<T> {
     fn try_into_value(self) -> Option<Self::Source> {
         self.into_iter().next()
     }
-
-    #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        A: Clone,
-    {
-        PersistentVector::unit(value.clone())
-    }
 }
 
 impl<T: Clone> Functor for PersistentVector<T> {

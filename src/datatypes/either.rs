@@ -1121,14 +1121,6 @@ impl<L: Clone, R: Clone> Identity for Either<L, R> {
     }
 
     #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-    {
-        Either::Right(value)
-    }
-
-    #[inline]
     /// Consumes the `Either` and returns the contained `Right` value.
     ///
     /// # Panics

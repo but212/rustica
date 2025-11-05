@@ -393,14 +393,6 @@ impl<T: Clone + Ord> Identity for Min<T> {
     fn into_value(self) -> Self::Source {
         self.0
     }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Min(value)
-    }
 }
 
 impl<T: Clone + Ord> Functor for Min<T> {

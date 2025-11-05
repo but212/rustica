@@ -1962,11 +1962,6 @@ impl<T: Clone> Identity for Choice<T> {
     }
 
     #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A> {
-        Choice::new(value, vec![])
-    }
-
-    #[inline]
     fn into_value(self) -> Self::Source {
         match Arc::try_unwrap(self.values) {
             Ok(values) => values

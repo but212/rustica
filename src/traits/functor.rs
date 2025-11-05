@@ -6,6 +6,12 @@
 //! A functor is a type constructor that supports a mapping operation which preserves
 //! the structure of the functor while transforming its contents.
 //!
+//! ## Breaking Change (v0.11.0)
+//!
+//! The `Functor` trait no longer extends `Identity`. This aligns with category theory
+//! where functors don't require value extraction capabilities. The `Identity` trait
+//! is deprecated - use standard methods (`unwrap`, `as_ref`) or `Comonad::extract()` instead.
+//!
 //! ## Performance Characteristics
 //!
 //! ### Time Complexity
@@ -106,7 +112,6 @@ use crate::prelude::*;
 /// ```rust
 /// use rustica::traits::functor::Functor;
 /// use rustica::traits::hkt::HKT;
-/// use rustica::traits::identity::Identity;
 /// use rustica::datatypes::maybe::Maybe;
 ///
 /// // Using the Functor implementation for Maybe
@@ -114,7 +119,7 @@ use crate::prelude::*;
 ///
 /// // Transform i32 to String
 /// let maybe_string = maybe_int.fmap(|x: &i32| x.to_string());
-/// assert_eq!(*maybe_string.value(), "42".to_string());
+/// assert_eq!(maybe_string, Maybe::Just("42".to_string()));
 ///
 /// // Using replace to substitute values
 /// let replaced = maybe_int.replace(&String::from("hello"));
@@ -129,7 +134,7 @@ use crate::prelude::*;
 /// let mapped_none = maybe_none.fmap(|x: &i32| x.to_string());
 /// assert!(mapped_none.is_nothing());
 /// ```
-pub trait Functor: Identity {
+pub trait Functor: HKT {
     /// Maps a function over the values in a functor without consuming it.
     ///
     /// This is a reference-based version of `fmap` that doesn't consume the functor.

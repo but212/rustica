@@ -1460,15 +1460,7 @@ impl<T> Identity for Maybe<T> {
 
     #[inline]
     fn into_value(self) -> Self::Source {
-        match self {
-            Maybe::Just(v) => v,
-            Maybe::Nothing => panic!("Called `Identity::into_value()` on a `Nothing` value"),
-        }
-    }
-
-    #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A> {
-        Maybe::Just(value)
+        self.unwrap()
     }
 }
 

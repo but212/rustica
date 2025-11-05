@@ -383,14 +383,6 @@ impl<T: Clone + Ord> Identity for Max<T> {
     fn into_value(self) -> Self::Source {
         self.0
     }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Max(value)
-    }
 }
 
 impl<T: Clone + Ord> Functor for Max<T> {

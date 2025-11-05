@@ -1,21 +1,34 @@
-//! # Identity Trait
+//! # Identity Trait (Value Extraction Utility)
 //!
-//! This module provides the `Identity` trait, which represents identity functions in category theory
-//! and provides functionality for working with container types that can provide access to their
-//! contained values.
+//! ⚠️ **DEPRECATED: This trait is a design flaw and will be removed in a future version.**
 //!
-//! ## Category Theory Background
+//! ## Why is this deprecated?
 //!
-//! In category theory, an identity morphism (or identity function) is a morphism that
-//! leaves an object unchanged. The Identity trait provides functionality for working
-//! with identity functions and accessing values in a type-safe way.
+//! 1. **Wrong abstraction**: This trait mixes "value extraction" with the name "Identity" (identity functor)
+//! 2. **Unnecessary**: Standard Rust already provides `.unwrap()`, `.as_ref()`, etc.
+//! 3. **Comonad overlap**: `Comonad::extract()` already provides proper categorical value extraction
+//! 4. **Functor pollution**: Forces `Functor: Identity` dependency, which is categorically wrong
 //!
-//! ## Identity Laws
+//! ## Migration Guide
 //!
-//! Types implementing `Identity` should adhere to the following laws:
+//! **Instead of `Identity` methods, use:**
+//! - `value()` → `unwrap()` or `expect("message")`
+//! - `try_value()` → `as_ref()`
+//! - `into_value()` → `unwrap()` or the value itself
+//! - `try_into_value()` → `Some(self)` or the option itself
+//! - For comonads → Use `Comonad::extract()`
 //!
-//! 1. **Left identity**: `identity.pure_identity(a).map(f) == f(a)`
-//! 2. **Right identity**: `identity.map(Identity::id) == identity`
+//! ## When to Use
+//!
+//! - **Option<T>**: For optional values that may or may not be present
+//! - **Result<T, E>**: For computations that may fail
+//! - **Wrapper types**: Simple wrapper types that hold a single value
+//!
+//! ## When NOT to Use
+//!
+//! - **Collections** (Vec, List): These hold multiple values, not a single extractable value
+//! - **Identity functor**: Use `Id<T>` type with `Comonad` trait instead
+//! - **Types with total extraction**: Use `Comonad` trait for proper categorical semantics
 //!
 //! ## Examples
 //!
@@ -41,20 +54,15 @@
 //!     fn into_value(self) -> Self::Source {
 //!         self.0
 //!     }
-//!
-//!     #[inline]
-//!     fn pure_identity<A>(value: A) -> Self::Output<A> {
-//!         Wrapper(value)
-//!     }
 //! }
 //!
 //! // Using the Identity trait
 //! let wrapped: Wrapper<i32> = Wrapper(42);
 //! assert_eq!(*wrapped.value(), 42);
 //!
-//! // Using the identity function
-//! let x: i32 = 5;
-//! assert_eq!(<Wrapper<i32> as Identity>::id(x), 5);
+//! // The identity function is now in utils::functions::id
+//! // use rustica::id;
+//! // assert_eq!(id(5), 5);
 //! ```
 //!
 //! ## TODO: Future Improvements
@@ -67,18 +75,32 @@
 
 use crate::traits::hkt::HKT;
 
-/// A trait for types that represent identity functions in category theory.
+/// ⚠️ **DEPRECATED: Design flaw - will be removed**
 ///
-/// In category theory, an identity morphism (or identity function) is a morphism that
-/// leaves an object unchanged. The Identity trait provides functionality for working
-/// with identity functions and accessing values in a type-safe way.
+/// This trait is deprecated because:
+/// - It's an unnecessary abstraction over standard methods (unwrap, as_ref)
+/// - It conflicts with the "Identity functor" concept from category theory
+/// - It overlaps with `Comonad::extract()`
+/// - It forces a wrong dependency: `Functor: Identity`
 ///
-/// # Laws
+/// # Migration
 ///
-/// Types implementing `Identity` should adhere to the following laws:
+/// Use standard Rust methods or `Comonad::extract()`:
+/// ```rust,ignore
+/// // OLD (deprecated)
+/// container.value()           // ❌
+/// container.try_value()       // ❌
+/// container.into_value()      // ❌
 ///
-/// 1. **Left identity**: `identity.pure_identity(a).map(f) == f(a)`
-/// 2. **Right identity**: `identity.map(Identity::id) == identity`
+/// // NEW (correct)
+/// container.unwrap()          // ✅
+/// container.as_ref()          // ✅
+/// comonad.extract()           // ✅ for comonads
+/// ```
+#[deprecated(
+    since = "0.11.0",
+    note = "Identity trait is a design flaw. Use unwrap(), as_ref(), or Comonad::extract() instead"
+)]
 ///
 /// # Examples
 ///
@@ -101,10 +123,6 @@ use crate::traits::hkt::HKT;
 ///     
 ///     fn into_value(self) -> Self::Source {
 ///         self.0
-///     }
-///
-///     fn pure_identity<A>(value: A) -> Self::Output<A> {
-///         Wrapper(value)
 ///     }
 /// }
 ///
@@ -218,49 +236,14 @@ pub trait Identity: HKT {
         Some(self.into_value())
     }
 
-    /// The identity function, which returns its input unchanged.
-    ///
-    /// This function serves as the identity morphism in category theory.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the input value
-    ///
-    /// # Arguments
-    ///
-    /// * `a`: The value to return unchanged
-    #[inline]
-    fn id<A>(a: A) -> A {
-        a
-    }
-
-    /// Creates an identity instance containing the given value.
-    ///
-    /// This is a convenience method for creating a new instance of a type
-    /// that implements `Identity`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the value to wrap
-    ///
-    /// # Arguments
-    ///
-    /// * `value`: The value to wrap
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // For an Option:
-    /// let value: i32 = 42;
-    /// let option = <Option<i32> as Identity>::pure_identity(value);
-    /// assert_eq!(option, Some(42));
-    /// ```
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone;
+    // NOTE: The id() function has been moved to `rustica::utils::functions::id`
+    // It's now a standalone function available in the prelude:
+    //
+    //   use rustica::prelude::*;
+    //   let x = id(42);  //
+    //
+    // This is the correct location for the identity morphism, as it's not
+    // related to value extraction (the purpose of this deprecated trait).
 }
 
 // Standard Library Implementations
@@ -285,11 +268,6 @@ impl<T> Identity for Option<T> {
     fn try_into_value(self) -> Option<Self::Source> {
         self
     }
-
-    #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A> {
-        Some(value)
-    }
 }
 
 impl<T, E: Clone + std::fmt::Debug> Identity for Result<T, E> {
@@ -312,13 +290,20 @@ impl<T, E: Clone + std::fmt::Debug> Identity for Result<T, E> {
     fn try_into_value(self) -> Option<Self::Source> {
         self.ok()
     }
-
-    #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A> {
-        Ok(value)
-    }
 }
 
+// WARNING: Vec<T> Identity implementation is semantically questionable
+//
+// Vec<T> implements Identity for compatibility with the Functor trait hierarchy,
+// but this is conceptually problematic:
+// 1. Vec contains MULTIPLE values, not a single extractable value
+// 2. Choosing first() is arbitrary and misleading
+// 3. This only exists because Functor currently requires Identity (design flaw)
+//
+// DO NOT rely on this implementation. Prefer standard Vec methods:
+// - vec.first() / vec.last() for optional access
+// - vec[0] for direct indexing (may panic)
+// - vec.get(i) for safe indexed access
 impl<T> Identity for Vec<T> {
     #[inline]
     fn value(&self) -> &Self::Source {
@@ -338,10 +323,5 @@ impl<T> Identity for Vec<T> {
     #[inline]
     fn try_into_value(self) -> Option<Self::Source> {
         self.into_iter().next()
-    }
-
-    #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A> {
-        vec![value]
     }
 }

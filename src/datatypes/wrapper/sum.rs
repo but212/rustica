@@ -417,14 +417,6 @@ impl<T: Clone + Add<Output = T>> Identity for Sum<T> {
     fn into_value(self) -> Self::Source {
         self.0
     }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Sum(value)
-    }
 }
 
 impl<T: Clone + Add<Output = T>> Functor for Sum<T> {

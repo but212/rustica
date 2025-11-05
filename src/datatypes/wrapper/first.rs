@@ -365,14 +365,6 @@ impl<T: Clone> Identity for First<T> {
     fn into_value(self) -> Self::Source {
         self.0.unwrap()
     }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        First(Some(value))
-    }
 }
 
 impl<T: Clone> Functor for First<T> {

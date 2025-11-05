@@ -90,3 +90,14 @@ pub mod transform_utils;
 /// - Function composition utilities for building complex operations
 /// - Collection utilities for working with sequences of optional/failable values
 pub mod categorical_utils;
+
+/// Basic function combinators and utilities.
+///
+/// This module provides fundamental functional programming utilities including:
+///
+/// - `id`: The identity function (identity morphism)
+/// - `const_fn`: Create constant functions
+///
+/// These are the building blocks for functional composition and should be
+/// available throughout the codebase.
+pub mod functions;

@@ -2402,7 +2402,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     }
 }
 
-impl<E, A> Identity for Validated<E, A> {
+impl<E: Clone, A: Clone> Identity for Validated<E, A> {
     #[inline]
     fn value(&self) -> &Self::Source {
         match self {
@@ -2412,16 +2412,8 @@ impl<E, A> Identity for Validated<E, A> {
     }
 
     #[inline]
-    fn pure_identity<B>(value: B) -> Self::Output<B> {
-        Validated::Valid(value)
-    }
-
-    #[inline]
     fn into_value(self) -> Self::Source {
-        match self {
-            Validated::Valid(x) => x,
-            _ => panic!("Cannot extract value from invalid Validated"),
-        }
+        self.unwrap()
     }
 }
 

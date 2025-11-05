@@ -359,14 +359,6 @@ impl<T: Clone + Mul<Output = T>> Identity for Product<T> {
     fn into_value(self) -> Self::Source {
         self.0
     }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Product(value)
-    }
 }
 
 impl<T: Clone + Mul<Output = T>> Functor for Product<T> {

@@ -146,7 +146,8 @@ use std::fmt;
 /// assert_eq!(*a.value(), 42);
 /// assert_eq!(a.into_value(), 42);
 ///
-/// let b = Last::<i32>::pure_identity(100);
+/// // To create a Last value, use the constructor or Pure trait
+/// let b = Last(Some(100));
 /// assert_eq!(b, Last(Some(100)));
 /// ```
 ///
@@ -378,14 +379,6 @@ impl<T: Clone> Identity for Last<T> {
 
     fn into_value(self) -> Self::Source {
         self.0.unwrap()
-    }
-
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-        A: Clone,
-    {
-        Last(Some(value))
     }
 }
 

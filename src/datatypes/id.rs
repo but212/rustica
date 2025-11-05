@@ -1,8 +1,17 @@
-//! # Identity Monad
+//! # Identity Functor (Id)
 //!
-//! The `Id` datatype represents the identity monad, which is the simplest possible monad - it just wraps a value
-//! without adding any additional context or effects. While it might seem trivial, it serves several important purposes
-//! in functional programming.
+//! The `Id` datatype represents the **identity functor** from category theory - the simplest possible functor
+//! that wraps a value without adding any context or effects. This is the true categorical identity, distinct
+//! from the `Identity` trait which is a value extraction utility.
+//!
+//! ## Category Theory: Identity Functor
+//!
+//! In category theory, the identity functor Id: C → C is an endofunctor that:
+//! - Maps each object A to itself: Id(A) = A
+//! - Maps each morphism f to itself: Id(f) = f
+//! - Serves as the unit of functor composition
+//!
+//! While it might seem trivial, the identity functor serves several important purposes
 //!
 //! ## Quick Start
 //!
@@ -374,18 +383,14 @@ impl<T> HKT for Id<T> {
     type Output<U> = Id<U>;
 }
 
+// Note: Id<T> implements the Identity trait for convenience, but conceptually
+// it represents the identity functor, not a "value extraction utility".
+// For accessing the value, prefer using Comonad::extract() which has proper
+// categorical semantics, or the dedicated value() method from this impl.
 impl<T> Identity for Id<T> {
     #[inline(always)]
     fn value(&self) -> &Self::Source {
         &self.value
-    }
-
-    #[inline]
-    fn pure_identity<A>(value: A) -> Self::Output<A>
-    where
-        Self::Output<A>: Identity,
-    {
-        Id::new(value)
     }
 
     #[inline]
