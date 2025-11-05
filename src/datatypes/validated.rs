@@ -2444,7 +2444,10 @@ impl<E: Clone, A: Clone> Identity for Validated<E, A> {
 
     #[inline]
     fn into_value(self) -> Self::Source {
-        self.unwrap()
+        match self {
+            Validated::Valid(x) => x,
+            _ => panic!("Cannot extract value from invalid Validated"),
+        }
     }
 }
 

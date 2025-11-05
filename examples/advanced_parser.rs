@@ -245,16 +245,18 @@ fn word() -> Parser<char, String> {
 
 /// Parse a keyword (case-insensitive)
 fn keyword(kw: &'static str) -> Parser<char, String> {
-    let kw_chars: Vec<char> = kw.to_uppercase().chars().collect();
     Parser::new(move |input: &[char]| {
-        let input_upper: Vec<char> = input
-            .iter()
-            .take(kw_chars.len())
-            .map(|c| c.to_uppercase().next().unwrap_or(*c))
-            .collect();
+        if input.len() < kw.len() {
+            return Choice::new_empty();
+        }
 
-        if input_upper == kw_chars {
-            Choice::new((kw.to_string(), &input[kw_chars.len()..]), vec![])
+        let matches = kw
+            .chars()
+            .zip(input.iter())
+            .all(|(expected, actual)| expected.eq_ignore_ascii_case(actual));
+
+        if matches {
+            Choice::new((kw.to_string(), &input[kw.len()..]), vec![])
         } else {
             Choice::new_empty()
         }
@@ -263,20 +265,16 @@ fn keyword(kw: &'static str) -> Parser<char, String> {
 
 /// Parse SELECT clause
 fn select_parser() -> Parser<char, SelectClause> {
-    keyword("SELECT").and_then(|_| whitespace()).and_then(|_| {
-        word()
-            .and_then(|first_col| {
-                item(',')
-                    .and_then(|_| whitespace())
-                    .and_then(|_| word())
-                    .many()
-                    .map(move |rest_cols| {
-                        let mut columns = vec![first_col.clone()];
-                        columns.extend(rest_cols);
-                        SelectClause { columns }
-                    })
+    word().and_then(|first_col| {
+        item(',')
+            .and_then(|_| whitespace())
+            .and_then(|_| word())
+            .many()
+            .map(move |rest_cols| {
+                let mut columns = vec![first_col.clone()];
+                columns.extend(rest_cols);
+                SelectClause { columns }
             })
-            .or(word().map(|col| SelectClause { columns: vec![col] }))
     })
 }
 

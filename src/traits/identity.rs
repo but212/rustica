@@ -258,37 +258,3 @@ impl<T, E: Clone + std::fmt::Debug> Identity for Result<T, E> {
         self.ok()
     }
 }
-
-// WARNING: `Vec<T>` Identity implementation is semantically questionable
-//
-// `Vec<T>` implements Identity for compatibility with the Functor trait hierarchy,
-// but this is conceptually problematic:
-// 1. Vec contains MULTIPLE values, not a single extractable value
-// 2. Choosing first() is arbitrary and misleading
-// 3. This only exists because Functor currently requires Identity (design flaw)
-//
-// DO NOT rely on this implementation. Prefer standard Vec methods:
-// - vec.first() / vec.last() for optional access
-// - vec[0] for direct indexing (may panic)
-// - vec.get(i) for safe indexed access
-impl<T> Identity for Vec<T> {
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        self.first().expect("Vec is empty")
-    }
-
-    #[inline]
-    fn try_value(&self) -> Option<&Self::Source> {
-        self.first()
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.into_iter().next().expect("Vec is empty")
-    }
-
-    #[inline]
-    fn try_into_value(self) -> Option<Self::Source> {
-        self.into_iter().next()
-    }
-}
