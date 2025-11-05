@@ -633,66 +633,6 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
 }
 
 impl<T> From<T> for Sum<T> {
-    /// Creates a new `Sum` wrapper from a value.
-    ///
-    /// This is equivalent to `Sum(value)` but provides better ergonomics
-    /// in generic contexts and follows Rust conventions for wrapper types.
-    /// This implementation enables seamless conversion from any value `T`
-    /// into a `Sum<T>` wrapper.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Direct wrapper construction
-    /// - **Memory Usage**: Zero overhead - same as direct construction
-    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // Direct conversion using From trait
-    /// let sum1 = Sum::from(42);
-    /// let sum2: Sum<i32> = 42.into();
-    /// let sum3 = Sum(42); // Equivalent direct construction
-    ///
-    /// assert_eq!(sum1, sum2);
-    /// assert_eq!(sum2, sum3);
-    ///
-    /// // Useful in generic contexts
-    /// fn create_wrapper<T, W: From<T>>(value: T) -> W {
-    ///     W::from(value)
-    /// }
-    ///
-    /// let sum: Sum<f64> = create_wrapper(3.14);
-    /// assert_eq!(*sum.value(), 3.14);
-    ///
-    /// // Convenient for function parameters
-    /// fn process_sum(s: Sum<i32>) -> i32 {
-    ///     s.0 * 2
-    /// }
-    ///
-    /// assert_eq!(process_sum(10.into()), 20);
-    /// ```
-    ///
-    /// # Collection Transformations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // Transform collections using From trait
-    /// let numbers = vec![1, 2, 3, 4, 5];
-    /// let sums: Vec<Sum<i32>> = numbers.into_iter().map(Sum::from).collect();
-    ///
-    /// // Or more concisely with Into trait
-    /// let numbers = vec![1, 2, 3, 4, 5];
-    /// let sums: Vec<Sum<i32>> = numbers.into_iter().map(Into::into).collect();
-    ///
-    /// assert_eq!(sums.len(), 5);
-    /// assert_eq!(*sums[0].value(), 1);
-    /// ```
     #[inline]
     fn from(value: T) -> Self {
         Sum(value)

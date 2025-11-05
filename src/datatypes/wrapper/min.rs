@@ -191,20 +191,6 @@ impl<T: Clone> Min<T> {
     pub fn unwrap_or(&self, _default: T) -> T {
         self.0.clone()
     }
-
-    /// Returns a reference to the contained value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::min::Min;
-    /// let min = Min(42);
-    /// assert_eq!(min.as_ref(), &42);
-    /// ```
-    #[inline]
-    pub fn as_ref(&self) -> &T {
-        &self.0
-    }
 }
 
 impl<T> AsRef<T> for Min<T> {
@@ -573,66 +559,6 @@ impl<T: Clone + Ord> Functor for Min<T> {
 }
 
 impl<T> From<T> for Min<T> {
-    /// Creates a new `Min` wrapper from a value.
-    ///
-    /// This is equivalent to `Min(value)` but provides better ergonomics
-    /// in generic contexts and follows Rust conventions for wrapper types.
-    /// This implementation enables seamless conversion from any value `T`
-    /// into a `Min<T>` wrapper.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Direct wrapper construction
-    /// - **Memory Usage**: Zero overhead - same as direct construction
-    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // Direct conversion using From trait
-    /// let min1 = Min::from(42);
-    /// let min2: Min<i32> = 42.into();
-    /// let min3 = Min(42); // Equivalent direct construction
-    ///
-    /// assert_eq!(min1, min2);
-    /// assert_eq!(min2, min3);
-    ///
-    /// // Useful in generic contexts
-    /// fn create_wrapper<T, W: From<T>>(value: T) -> W {
-    ///     W::from(value)
-    /// }
-    ///
-    /// let min: Min<i32> = create_wrapper(314);
-    /// assert_eq!(*min.value(), 314);
-    ///
-    /// // Convenient for function parameters
-    /// fn process_min(m: Min<i32>) -> i32 {
-    ///     m.0 / 2
-    /// }
-    ///
-    /// assert_eq!(process_min(10.into()), 5);
-    /// ```
-    ///
-    /// # Collection Transformations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // Transform collections using From trait
-    /// let numbers = vec![5, 2, 8, 1, 9];
-    /// let mins: Vec<Min<i32>> = numbers.into_iter().map(Min::from).collect();
-    ///
-    /// // Or more concisely with Into trait
-    /// let numbers = vec![5, 2, 8, 1, 9];
-    /// let mins: Vec<Min<i32>> = numbers.into_iter().map(Into::into).collect();
-    ///
-    /// assert_eq!(mins.len(), 5);
-    /// assert_eq!(*mins[0].value(), 5);
-    /// ```
     #[inline]
     fn from(value: T) -> Self {
         Min(value)
