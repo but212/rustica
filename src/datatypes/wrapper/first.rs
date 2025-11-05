@@ -195,10 +195,10 @@ impl<T: Clone> First<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::first::First;
-    /// let first = First::new(Some(42));
+    /// let first = First(Some(42));
     /// assert_eq!(first.unwrap(), 42);
     ///
-    /// let empty = First::new(None);
+    /// let empty: First<i32> = First(None);
     /// // empty.unwrap() would panic
     /// ```
     ///
@@ -215,8 +215,8 @@ impl<T: Clone> First<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::first::First;
-    /// let first = First::new(Some(42));
-    /// let empty = First::new(None);
+    /// let first = First(Some(42));
+    /// let empty = First(None);
     ///
     /// assert_eq!(first.unwrap_or(0), 42);
     /// assert_eq!(empty.unwrap_or(0), 0);
@@ -224,29 +224,13 @@ impl<T: Clone> First<T> {
     pub fn unwrap_or(&self, default: T) -> T {
         self.0.clone().unwrap_or(default)
     }
-
-    /// Returns a reference to the contained value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::first::First;
-    /// let first = First::new(Some(42));
-    /// assert_eq!(first.as_ref(), Some(&42));
-    ///
-    /// let empty = First::new(None);
-    /// assert_eq!(empty.as_ref(), None);
-    /// ```
-    #[inline]
-    pub fn as_ref(&self) -> Option<&T> {
-        self.0.as_ref()
-    }
 }
 
 impl<T> AsRef<T> for First<T> {
     #[inline]
     fn as_ref(&self) -> &T {
-        self.0.as_ref()
+        self.0
+            .as_ref()
             .expect("called `as_ref()` on an empty `First`")
     }
 }

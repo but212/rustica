@@ -513,7 +513,7 @@ impl<L, R> Either<L, R> {
     /// ```rust
     /// use rustica::datatypes::either::Either;
     ///
-    /// let right = Either::Right(42);
+    /// let right: Either<String, i32> = Either::Right(42);
     /// let left: Either<String, i32> = Either::Left("error".to_string());
     ///
     /// assert_eq!(right.unwrap(), 42);
@@ -538,7 +538,7 @@ impl<L, R> Either<L, R> {
     /// ```rust
     /// use rustica::datatypes::either::Either;
     ///
-    /// let right = Either::Right(42);
+    /// let right: Either<String, i32> = Either::Right(42);
     /// let left: Either<String, i32> = Either::Left("error".to_string());
     ///
     /// assert_eq!(right.unwrap_or(0), 42);

@@ -151,7 +151,7 @@ impl<T: Clone> Product<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::product::Product;
-    /// let product = Product::new(42);
+    /// let product = Product(42);
     /// assert_eq!(product.unwrap(), 42);
     /// ```
     #[inline]
@@ -168,7 +168,7 @@ impl<T: Clone> Product<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::product::Product;
-    /// let product = Product::new(42);
+    /// let product = Product(42);
     /// assert_eq!(product.unwrap_or(0), 42);
     /// ```
     #[inline]
@@ -182,7 +182,7 @@ impl<T: Clone> Product<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::product::Product;
-    /// let product = Product::new(42);
+    /// let product = Product(42);
     /// assert_eq!(product.as_ref(), &42);
     /// ```
     #[inline]

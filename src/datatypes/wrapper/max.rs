@@ -170,7 +170,7 @@ impl<T: Clone> Max<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::max::Max;
-    /// let max = Max::new(42);
+    /// let max = Max(42);
     /// assert_eq!(max.unwrap(), 42);
     /// ```
     #[inline]
@@ -187,26 +187,12 @@ impl<T: Clone> Max<T> {
     ///
     /// ```rust
     /// # use rustica::datatypes::wrapper::max::Max;
-    /// let max = Max::new(42);
+    /// let max = Max(42);
     /// assert_eq!(max.unwrap_or(0), 42);
     /// ```
     #[inline]
     pub fn unwrap_or(&self, _default: T) -> T {
         self.0.clone()
-    }
-
-    /// Returns a reference to the contained value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::max::Max;
-    /// let max = Max::new(42);
-    /// assert_eq!(max.as_ref(), &42);
-    /// ```
-    #[inline]
-    pub fn as_ref(&self) -> &T {
-        &self.0
     }
 }
 
