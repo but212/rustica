@@ -22,7 +22,7 @@
 ### User Experience
 
 - [ ] Improve getting started experience
-  - [ ] Simplify README examples
+  - [x] Simplify README examples
   - [ ] Add clear performance expectations to docs
   - [ ] Create troubleshooting guide for common issues
 

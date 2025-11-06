@@ -185,117 +185,55 @@ See [CHANGELOG.md](CHANGELOG.md) for a complete list of recent changes and enhan
 
 ## Examples
 
-### Identity Monad (Id)
+### Basic Usage
 
 ```rust
 use rustica::prelude::*;
-use rustica::datatypes::id::Id;
-use rustica::traits::identity::Identity;
 
-// Create Id values
-let x = Id::new(5);
-let y = Id::new(3);
-let z = Id::new(2);
+// Working with Maybe (like Option)
+let maybe_value = Maybe::Just(42);
+let doubled = maybe_value.fmap(|x| x * 2);
+assert_eq!(doubled.unwrap(), 84);
 
-// Access the inner value using Identity trait's unwrap() method
-assert_eq!(x.unwrap(), 5);
+// Working with Either for error handling
+let result = Either::Right("success");
+let processed = result.fmap(|s| s.to_uppercase());
+assert_eq!(processed.unwrap(), "SUCCESS");
 
-// Using Functor to map over Id
-let doubled = x.fmap(|n| n * 2);
-assert_eq!(doubled.unwrap(), 10);
-
-// Using Pure to lift a value into Id context
-let pure_value = Id::<i32>::pure(&42);
-assert_eq!(pure_value.unwrap(), 42);
-
-// Using Applicative to apply functions
-// 1. Apply a function wrapped in Id
-let add_one = Id::new(|x: &i32| x + 1);
-let result = add_one.apply(&x);
-assert_eq!(result.unwrap(), 6);
-
-// 2. Combine two Id values with lift2
-let add = |a: &i32, b: &i32| a + b;
-let sum = Id::<i32>::lift2(add, &x, &y);
-assert_eq!(sum.unwrap(), 8);
-
-// 3. Combine three Id values with lift3
-let multiply = |a: &i32, b: &i32, c: &i32| a * b * c;
-let product = Id::<i32>::lift3(multiply, &x, &y, &z);
-assert_eq!(product.unwrap(), 30);
-
-// Working with different types
-let greeting = Id::new("Hello");
-let count = Id::new(3_usize);
-let repeat = |s: &&str, n: &usize| s.repeat(*n);
-let repeated = Id::<&str>::lift2(repeat, &greeting, &count);
-assert_eq!(repeated.unwrap(), "HelloHelloHello");
-
-// Chaining operations
-let result = x
-    .fmap(|n| n + 1)     // 5 -> 6
-    .fmap(|n| n * 2)     // 6 -> 12
-    .fmap(|n| n.to_string());
-assert_eq!(result.unwrap(), "12");
+// Using Choice for multiple alternatives
+let choices = choice![1, 2, 3];
+let results = choices.fmap(|x| x * 2);
 ```
 
-### Continuation Monad (Cont)
+### State Management
 
 ```rust
-use rustica::datatypes::cont::Cont;
+use rustica::datatypes::state::State;
 
-// Create a simple continuation
-let cont = Cont::return_cont(42);
+// A simple counter
+let counter = State::new(|count: i32| {
+    (count + 1, count)
+});
 
-// Run the continuation with a handler
-let result = cont.clone().run(|x| x * 2);
-assert_eq!(result, 84);
-
-// Chain continuations
-let cont2 = cont.bind(|x| Cont::return_cont(x + 1));
-let result2 = cont2.run(|x| x * 2);
-assert_eq!(result2, 86);
+// Run the state computation
+let (new_count, result) = counter.run(0);
+assert_eq!(new_count, 1);
+assert_eq!(result, 0);
 ```
 
-### Control Flow Example
+### IO Operations
 
 ```rust
-use rustica::datatypes::cont::Cont;
+use rustica::datatypes::io::IO;
 
-// A function that uses continuations to implement early return
-fn safe_divide(a: i32, b: i32) -> Cont<i32, i32> {
-    if b == 0 {
-        // Early return with a default value
-        Cont::new(|_| -1)
-    } else {
-        // Continue with the division
-        Cont::return_cont(a / b)
-    }
-}
+// Pure IO description
+let read_line = IO::new(|| {
+    "Hello from IO!".to_string()
+});
 
-// Run with different inputs
-let result1 = safe_divide(10, 2).run(|x| x);
-let result2 = safe_divide(10, 0).run(|x| x);
-
-assert_eq!(result1, 5);
-assert_eq!(result2, -1);
-```
-
-### Additional Examples from Cont
-
-```rust
-use rustica::datatypes::cont::Cont;
-
-// Create two continuations
-let cont1 = Cont::return_cont(5);
-let cont2 = Cont::return_cont(-1);
-
-// Run the continuations with an identity continuation
-let result1 = cont1.run(|x| x);
-let result2 = cont2.run(|x| x);
-
-assert_eq!(result1, 5);
-assert_eq!(result2, -1);
+// Execute the IO operation
+let result = read_line.run();
+assert_eq!(result, "Hello from IO!");
 ```
 
 ## Inspiration
