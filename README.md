@@ -196,13 +196,14 @@ let doubled = maybe_value.fmap(|x| x * 2);
 assert_eq!(doubled.unwrap(), 84);
 
 // Working with Either for error handling
-let result = Either::Right("success");
+let result: Either<String, &str> = Either::Right("success");
 let processed = result.fmap(|s| s.to_uppercase());
 assert_eq!(processed.unwrap(), "SUCCESS");
 
 // Using Choice for multiple alternatives
-let choices = choice![1, 2, 3];
+let choices = Choice::new(1, [2, 3]);
 let results = choices.fmap(|x| x * 2);
+assert_eq!(results.iter().collect::<Vec<_>>(), vec![&2, &4, &6]);
 ```
 
 ### State Management
@@ -211,12 +212,10 @@ let results = choices.fmap(|x| x * 2);
 use rustica::datatypes::state::State;
 
 // A simple counter
-let counter = State::new(|count: i32| {
-    (count + 1, count)
-});
+let counter = State::new(|count: i32| (count + 1, count));
 
 // Run the state computation
-let (new_count, result) = counter.run(0);
+let (new_count, result) = counter.run_state(0);
 assert_eq!(new_count, 1);
 assert_eq!(result, 0);
 ```
@@ -227,9 +226,7 @@ assert_eq!(result, 0);
 use rustica::datatypes::io::IO;
 
 // Pure IO description
-let read_line = IO::new(|| {
-    "Hello from IO!".to_string()
-});
+let read_line = IO::new(|| "Hello from IO!".to_string());
 
 // Execute the IO operation
 let result = read_line.run();

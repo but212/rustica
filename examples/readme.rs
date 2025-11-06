@@ -20,14 +20,14 @@ fn basic_usage() {
     assert_eq!(doubled.unwrap(), 84);
 
     // Working with Either for error handling
-    let result = Either::Right("success");
+    let result: Either<String, &str> = Either::Right("success");
     let processed = result.fmap(|s| s.to_uppercase());
     assert_eq!(processed.unwrap(), "SUCCESS");
 
     // Using Choice for multiple alternatives
-    let choices = choice![1, 2, 3];
+    let choices = Choice::new(1, [2, 3]);
     let results = choices.fmap(|x| x * 2);
-    assert_eq!(results.collect::<Vec<_>>(), vec![2, 4, 6]);
+    assert_eq!(results.iter().collect::<Vec<_>>(), vec![&2, &4, &6]);
 }
 
 fn state_management() {
@@ -37,7 +37,7 @@ fn state_management() {
     let counter = State::new(|count: i32| (count + 1, count));
 
     // Run the state computation
-    let (new_count, result) = counter.run(0);
+    let (new_count, result) = counter.run_state(0);
     assert_eq!(new_count, 1);
     assert_eq!(result, 0);
 }
