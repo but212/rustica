@@ -51,7 +51,6 @@ pub use crate::traits::evaluate::{Evaluate, EvaluateExt};
 pub use crate::traits::foldable::Foldable;
 pub use crate::traits::functor::Functor;
 pub use crate::traits::hkt::HKT;
-pub use crate::traits::identity::Identity;
 pub use crate::traits::iso::Iso;
 pub use crate::traits::monad::Monad;
 pub use crate::traits::monad_error::MonadError;

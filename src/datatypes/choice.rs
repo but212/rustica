@@ -193,6 +193,8 @@ use std::sync::Arc;
 use smallvec::SmallVec;
 
 use crate::prelude::traits::*;
+// TODO: remove this on version 0.12.0
+use crate::traits::identity::Identity;
 
 /// Adaptive memory management utilities for Choice operations
 mod memory {
