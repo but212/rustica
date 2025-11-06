@@ -1096,7 +1096,6 @@ where
 }
 
 use crate::datatypes::id::Id;
-use crate::traits::identity::Identity;
 
 impl<S, A> StateT<S, Id<(S, A)>, A>
 where
@@ -1130,7 +1129,7 @@ where
     pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
         crate::datatypes::state::State::new(move |s: S| {
             let result = self.run_state(s.clone());
-            let (new_state, value) = result.value().clone();
+            let (new_state, value) = result.unwrap().clone();
             (value, new_state)
         })
     }
@@ -1146,7 +1145,6 @@ where
     /// ```rust
     /// use rustica::datatypes::state::State;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     /// use rustica::transformers::StateT;
     ///
     /// // Create a State
