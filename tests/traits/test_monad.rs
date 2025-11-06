@@ -235,18 +235,18 @@ fn test_custom_monad() {
 
     // Test bind
     let result = functor.bind(|x| TestFunctor::new(x * 2));
-    assert_eq!(*result.value(), 84);
+    assert_eq!(result.unwrap(), 84);
 
     // Test bind_owned
     let result = functor.clone().bind_owned(|x| TestFunctor::new(x * 2));
-    assert_eq!(*result.value(), 84);
+    assert_eq!(result.unwrap(), 84);
 
     // Test join
     let nested = TestFunctor::new(TestFunctor::new(42));
     let result = nested.join::<i32>();
-    assert_eq!(*result.value(), 42);
+    assert_eq!(result.unwrap(), 42);
 
     // Test map_and_pure
     let result = functor.map_and_pure(|x| x * 2);
-    assert_eq!(*result.value(), 84);
+    assert_eq!(result.unwrap(), 84);
 }

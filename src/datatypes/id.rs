@@ -371,7 +371,7 @@ impl<T> Id<T> {
     /// let x = Id::new(42);
     /// let y = Id::new("hello");
     /// let result = x.then(y);
-    /// assert_eq!(*result.value(), "hello");
+    /// assert_eq!(result.unwrap(), "hello");
     /// ```
     #[inline(always)]
     pub fn then<U>(self, next: Id<U>) -> Id<U> {
@@ -463,7 +463,7 @@ impl<T: Clone> Applicative for Id<T> {
     where
         Self::Source: Fn(&A) -> B,
     {
-        Id::new(self.value()(value.value()))
+        Id::new(self.as_ref()(value.as_ref()))
     }
 
     #[inline]
@@ -475,7 +475,7 @@ impl<T: Clone> Applicative for Id<T> {
         C: Clone,
         Self: Sized,
     {
-        Id::new(f(fa.value(), fb.value()))
+        Id::new(f(fa.as_ref(), fb.as_ref()))
     }
 
     #[inline]
@@ -490,7 +490,7 @@ impl<T: Clone> Applicative for Id<T> {
         D: Clone,
         Self: Sized,
     {
-        Id::new(f(fa.value(), fb.value(), fc.value()))
+        Id::new(f(fa.as_ref(), fb.as_ref(), fc.as_ref()))
     }
 
     #[inline]
@@ -500,7 +500,7 @@ impl<T: Clone> Applicative for Id<T> {
         U: Clone,
         B: Clone,
     {
-        Id::new((self.value)(value.value))
+        Id::new((self.as_ref())(value.value))
     }
 
     #[inline]
@@ -873,7 +873,7 @@ impl<'a, T> IntoIterator for &'a Id<T> {
     type IntoIter = std::slice::Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        std::slice::from_ref(self.value()).iter()
+        std::slice::from_ref(&self.value).iter()
     }
 }
 

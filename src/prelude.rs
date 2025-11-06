@@ -36,7 +36,7 @@
 //! use rustica::prelude::wrapper::*;
 //! let a = Sum(3);
 //! let b = Sum(4);
-//! assert_eq!(*a.combine(&b).value(), 7);
+//! assert_eq!(a.combine(&b).unwrap(), 7);
 //!
 //! // Use error utilities
 //! use rustica::prelude::utils::*;

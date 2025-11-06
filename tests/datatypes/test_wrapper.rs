@@ -14,14 +14,14 @@ use std::thread;
 #[test]
 fn test_first_wrapper() {
     // Test First creation and access
-    let first_some = First(Some(42));
-    let first_none = First(None);
+    let first_some = First(Maybe::Just(42));
+    let first_none = First(Maybe::Nothing);
 
     // Test semigroup combine
-    let combined = first_some.combine(&First(Some(84)));
-    assert_eq!(combined, First(Some(42)));
+    let combined = first_some.combine(&First(Maybe::Just(84)));
+    assert_eq!(combined, First(Maybe::Just(42)));
 
-    // Test combining with None
+    // Test combining with Maybe::Nothing
     let combined_with_none = first_none.clone().combine(&first_some);
     assert_eq!(combined_with_none, first_some);
     let combined_with_none = first_some.combine(&first_none);
@@ -29,20 +29,20 @@ fn test_first_wrapper() {
 
     // Test monoid empty
     let empty = First::<i32>::empty();
-    assert_eq!(empty, First(None));
+    assert_eq!(empty, First(Maybe::Nothing));
 }
 
 #[test]
 fn test_last_wrapper() {
     // Test Last creation and access
-    let last_some = Last(Some(42));
-    let last_none = Last(None);
+    let last_some = Last(Maybe::Just(42));
+    let last_none = Last(Maybe::Nothing);
 
     // Test semigroup combine
-    let combined = last_some.combine(&Last(Some(84)));
-    assert_eq!(combined, Last(Some(84)));
+    let combined = last_some.combine(&Last(Maybe::Just(84)));
+    assert_eq!(combined, Last(Maybe::Just(84)));
 
-    // Test combining with None
+    // Test combining with Maybe::Nothing
     let combined_with_none = last_none.clone().combine(&last_some);
     assert_eq!(combined_with_none, last_some);
     let combined_with_none = last_some.combine(&last_none);
@@ -50,7 +50,7 @@ fn test_last_wrapper() {
 
     // Test monoid empty
     let empty = Last::<i32>::empty();
-    assert_eq!(empty, Last(None));
+    assert_eq!(empty, Last(Maybe::Nothing));
 }
 
 #[test]
@@ -256,12 +256,12 @@ fn test_combined_wrappers() {
     // First of products
     let prod1 = Product(5);
     let prod2 = Product(10);
-    let first_of_products = First(Some(prod1.0)).combine(&First(Some(prod2.0)));
-    assert_eq!(first_of_products, First(Some(5)));
+    let first_of_products = First(Maybe::Just(prod1.0)).combine(&First(Maybe::Just(prod2.0)));
+    assert_eq!(first_of_products, First(Maybe::Just(5)));
 
     // Product of firsts
-    let first1 = First(Some(5));
-    let first2 = First(Some(10));
+    let first1 = First(Maybe::Just(5));
+    let first2 = First(Maybe::Just(10));
     let product_of_firsts = Product(first1.0.unwrap()).combine(&Product(first2.0.unwrap()));
     assert_eq!(product_of_firsts, Product(50));
 }
@@ -285,13 +285,13 @@ fn test_wrapper_hkt() {
     let mapped_max = max.fmap(|x| x.to_string());
     assert_eq!(mapped_max, Max("42".to_string()));
 
-    let first = First(Some(42));
+    let first = First(Maybe::Just(42));
     let mapped_first = first.fmap(|x| x.to_string());
-    assert_eq!(mapped_first, First(Some("42".to_string())));
+    assert_eq!(mapped_first, First(Maybe::Just("42".to_string())));
 
-    let last = Last(Some(42));
+    let last = Last(Maybe::Just(42));
     let mapped_last = last.fmap(|x| x.to_string());
-    assert_eq!(mapped_last, Last(Some("42".to_string())));
+    assert_eq!(mapped_last, Last(Maybe::Just("42".to_string())));
 }
 
 #[test]
@@ -331,20 +331,30 @@ fn test_real_world_use_cases() {
     assert_eq!(maximum, Max(8));
 
     // 5. Using First to get the first non-None value
-    let values: Vec<Option<i32>> = vec![None, Some(42), Some(84), None];
+    let values: Vec<Maybe<i32>> = vec![
+        Maybe::Nothing,
+        Maybe::Just(42),
+        Maybe::Just(84),
+        Maybe::Nothing,
+    ];
     let first = values
         .iter()
         .map(|&x| First(x))
-        .fold(First(None), |acc, x| acc.combine(&x));
-    assert_eq!(first, First(Some(42)));
+        .fold(First(Maybe::Nothing), |acc, x| acc.combine(&x));
+    assert_eq!(first, First(Maybe::Just(42)));
 
     // 6. Using Last to get the last non-None value
-    let values: Vec<Option<i32>> = vec![None, Some(42), Some(84), None];
+    let values: Vec<Maybe<i32>> = vec![
+        Maybe::Nothing,
+        Maybe::Just(42),
+        Maybe::Just(84),
+        Maybe::Nothing,
+    ];
     let last = values
         .iter()
         .map(|&x| Last(x))
-        .fold(Last(None), |acc, x| acc.combine(&x));
-    assert_eq!(last, Last(Some(84)));
+        .fold(Last(Maybe::Nothing), |acc, x| acc.combine(&x));
+    assert_eq!(last, Last(Maybe::Just(84)));
 
     // 7. Using Memoizer for expensive computation
     let counter = Arc::new(Mutex::new(0));
@@ -438,13 +448,13 @@ fn test_wrapper_serde() {
     use serde_json;
 
     // Test First
-    let first = First(Some(42));
+    let first = First(Maybe::Just(42));
     let serialized = serde_json::to_string(&first).unwrap();
     let deserialized: First<i32> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(first, deserialized);
 
     // Test Last
-    let last = Last(Some(42));
+    let last = Last(Maybe::Just(42));
     let serialized = serde_json::to_string(&last).unwrap();
     let deserialized: Last<i32> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(last, deserialized);

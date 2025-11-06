@@ -18,11 +18,11 @@
 //!
 //! let a = Sum(3);
 //! let b = Sum(4);
-//! assert_eq!(*a.combine(&b).value(), 7);
+//! assert_eq!(a.combine(&b).unwrap(), 7);
 //!
 //! let m = Max(10);
 //! let n = Max(20);
-//! assert_eq!(*m.combine(&n).value(), 20);
+//! assert_eq!(m.combine(&n).unwrap(), 20);
 //! ```
 //!
 //! # Note

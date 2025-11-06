@@ -652,42 +652,42 @@ pub fn sequence_results<T, E>(results: Vec<Result<T, E>>) -> Result<Vec<T>, E> {
 ///
 /// ```rust
 /// use rustica::utils::categorical_utils::fold_with;
+/// use rustica::datatypes::maybe::Maybe;
 /// use rustica::datatypes::wrapper::{sum::Sum, product::Product, first::First, last::Last, min::Min, max::Max};
-/// use rustica::traits::identity::Identity;
 ///
 /// // Sum operations
 /// let numbers = vec![1, 2, 3, 4, 5];
 /// let total: Sum<i32> = fold_with(numbers);
-/// assert_eq!(*total.value(), 15);
+/// assert_eq!(total.unwrap(), 15);
 ///
 /// // Product operations
 /// let factors = vec![2, 3, 4];
 /// let product: Product<i32> = fold_with(factors);
-/// assert_eq!(*product.value(), 24);
+/// assert_eq!(product.unwrap(), 24);
 ///
 /// // First operations
-/// let values = vec![Some(10), None, Some(20)];
+/// let values = vec![10, 20, 30];
 /// let first: First<i32> = fold_with(values.clone());
-/// assert_eq!(*first.value(), 10);
+/// assert_eq!(first.unwrap(), 10);
 ///
 /// // Last operations
 /// let last: Last<i32> = fold_with(values);
-/// assert_eq!(*last.value(), 20);
+/// assert_eq!(last.unwrap(), 30);
 ///
 /// // Min operations
 /// let unsorted = vec![5, 2, 8, 1, 9];
 /// let minimum: Min<i32> = fold_with(unsorted);
-/// assert_eq!(*minimum.value(), 1);
+/// assert_eq!(minimum.unwrap(), 1);
 ///
 /// // Max operations
 /// let values = vec![3, 7, 2, 9, 4];
 /// let maximum: Max<i32> = fold_with(values);
-/// assert_eq!(*maximum.value(), 9);
+/// assert_eq!(maximum.unwrap(), 9);
 ///
 /// // Empty iterator returns identity
 /// let empty: Vec<i32> = vec![];
 /// let zero: Sum<i32> = fold_with(empty);
-/// assert_eq!(*zero.value(), 0);
+/// assert_eq!(zero.unwrap(), 0);
 /// ```
 #[inline]
 pub fn fold_with<I, T, W>(iter: I) -> W

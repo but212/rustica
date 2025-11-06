@@ -174,7 +174,6 @@
 //! assert_eq!(result1, 5);
 //! assert_eq!(result2, -1);
 //! ```
-use crate::traits::identity::Identity;
 use crate::transformers::cont_t::ContT;
 use quickcheck::{Arbitrary, Gen};
 use std::sync::Arc;
@@ -276,8 +275,7 @@ where
         F: Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Send + Sync + 'static,
     {
         Self::new_inner(move |k: Arc<dyn Fn(A) -> Id<R> + Send + Sync>| {
-            let k_arc =
-                Arc::new(move |a: A| (k)(a).value().clone()) as Arc<dyn Fn(A) -> R + Send + Sync>;
+            let k_arc = Arc::new(move |a: A| (k)(a).unwrap()) as Arc<dyn Fn(A) -> R + Send + Sync>;
             Id::new(f(k_arc))
         })
     }
@@ -338,7 +336,7 @@ where
     where
         FN: Fn(A) -> R + Send + Sync + 'static,
     {
-        self.inner.run(move |a: A| Id::new(k(a))).value().clone()
+        self.inner.run(move |a: A| Id::new(k(a))).unwrap()
     }
 
     /// Creates a continuation that immediately returns the given value.

@@ -1154,7 +1154,7 @@ where
     /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::from_state(state);
     ///
     /// // The behavior should be identical
-    /// assert_eq!(state_t.run_state(21).value(), &(22, 42));
+    /// assert_eq!(state_t.run_state(21).unwrap(), (22, 42));
     /// ```
     pub fn from_state(state: crate::datatypes::state::State<S, A>) -> Self {
         StateT::new(move |s: S| {

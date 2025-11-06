@@ -57,16 +57,17 @@
 //! ```rust
 //! use rustica::datatypes::wrapper::first::First;
 //! use rustica::traits::{semigroup::Semigroup, monoid::Monoid};
+//! use rustica::datatypes::maybe::Maybe;
 //!
 //! // Create First wrappers
 //! let a = First(Maybe::Just(42));
 //! let b = First(Maybe::Just(10));
-//! let Maybe::Nothing = First(Maybe::Nothing);
+//! let nothing = First(Maybe::Nothing);
 //!
 //! // First non-Maybe::Nothing value wins
 //! assert_eq!(a.combine(&b), First(Maybe::Just(42))); // First value wins
-//! assert_eq!(Maybe::Nothing.combine(&b), First(Maybe::Just(10))); // Second value when first is Maybe::Nothing
-//! assert_eq!(a.combine(&Maybe::Nothing), First(Maybe::Just(42))); // First value when second is Maybe::Nothing
+//! assert_eq!(nothing.combine(&b), First(Maybe::Just(10))); // Second value when first is Maybe::Nothing
+//! assert_eq!(a.combine(&nothing), First(Maybe::Just(42))); // First value when second is Maybe::Nothing
 //!
 //! // Identity element
 //! let empty = First::empty();
