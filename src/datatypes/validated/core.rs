@@ -1,4 +1,3 @@
-use quickcheck::{Arbitrary, Gen};
 use smallvec::{SmallVec, smallvec};
 
 /// A validation type that can accumulate multiple errors.
@@ -1398,22 +1397,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         match self {
             Validated::Valid(x) => f(x.clone()).await,
             Validated::Invalid(e) => Validated::Invalid(e.clone()),
-        }
-    }
-}
-
-impl<E, A> Arbitrary for Validated<E, A>
-where
-    E: Arbitrary,
-    A: Arbitrary,
-{
-    fn arbitrary(g: &mut Gen) -> Self {
-        let x = A::arbitrary(g);
-        let y = E::arbitrary(g);
-        if bool::arbitrary(g) {
-            Validated::valid(x)
-        } else {
-            Validated::invalid(y)
         }
     }
 }
