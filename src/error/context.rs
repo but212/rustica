@@ -553,5 +553,5 @@ where
 /// assert_eq!(contexts[1], "context 1");
 /// ```
 pub fn extract_context<E>(error: &ComposableError<E>) -> Vec<String> {
-    error.context().iter().cloned().collect()
+    error.context() // context() now returns Vec<String> directly
 }
