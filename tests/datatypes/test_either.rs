@@ -1,7 +1,6 @@
 use rustica::datatypes::either::Either;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
-use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 
 // Type alias to simplify complex types
