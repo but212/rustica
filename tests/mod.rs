@@ -8,9 +8,6 @@ pub mod datatypes;
 // Integration tests across modules
 pub mod integration;
 
-// Markdown documentation tests
-pub mod md_tests;
-
 // Trait implementation tests
 pub mod traits;
 

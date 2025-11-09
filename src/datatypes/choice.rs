@@ -326,8 +326,8 @@ impl<T> Choice<T> {
     ///
     /// # See Also
     /// - [`first`](Self::first) - To get the primary value.
-    /// - [`has_alternatives`](Self::has_alternatives) - To check if any alternatives exist.
-    /// - [`iter_alternatives`](Self::iter_alternatives) - For an iterator over alternatives.
+    /// - [`len`](Self::len) - To get the total count of items.
+    /// - [`is_empty`](Self::is_empty) - To check if the Choice is empty.
     #[inline]
     pub fn alternatives(&self) -> &[T] {
         // Return empty slice if no alternatives exist
@@ -339,33 +339,6 @@ impl<T> Choice<T> {
     }
 
     /// Checks if the `Choice` has any alternative values.
-    ///
-    /// This is true if the total number of items in the `Choice` is greater than one.
-    ///
-    /// # Returns
-    ///
-    /// - `true` if there is at least one alternative value.
-    /// - `false` if the `Choice` only contains a primary value or is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice_with_alts = Choice::new(1, vec![2, 3]);
-    /// assert!(choice_with_alts.has_alternatives());
-    ///
-    /// let choice_no_alts = Choice::new(1, Vec::<i32>::new());
-    /// assert!(!choice_no_alts.has_alternatives());
-    ///
-    /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// assert!(!empty_choice.has_alternatives());
-    /// ```
-    ///
-    /// # See Also
-    /// - [`alternatives`](Self::alternatives) - To get the actual alternative values.
-    /// - [`len`](Self::len) - To get the total count of items.
-    #[inline]
     #[deprecated(
         since = "0.11.0",
         note = "Use `alternatives().is_empty()` instead. Will be removed in v0.12.0"
@@ -439,23 +412,6 @@ impl<T> Choice<T> {
     }
 
     /// Converts the `Choice` into a `Vec<T>` containing all its values.
-    ///
-    /// The primary value will be the first element in the vector, followed by the alternatives.
-    /// This method clones the values.
-    ///
-    /// # Returns
-    ///
-    /// A `Vec<T>` with all values from the `Choice`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(10, vec![20, 30]);
-    /// let vec = choice.to_vec();
-    /// assert_eq!(vec, vec![10, 20, 30]);
-    /// ```
     #[inline]
     #[deprecated(
         since = "0.11.0",
@@ -469,22 +425,10 @@ impl<T> Choice<T> {
     }
 
     /// Finds the first value that satisfies a predicate.
-    ///
-    /// It iterates through the primary value and then the alternatives, returning the first
-    /// value for which the predicate returns `true`.
-    ///
-    /// # Arguments
-    ///
-    /// * `predicate` - A closure that takes a reference to a value and returns `true` if it matches.
-    ///
-    /// # Returns
-    ///
-    /// An `Option<&T>` containing a reference to the first matching value, or `None` if no value matches.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
+    #[deprecated(
+        since = "0.11.0",
+        note = "Use `iter().find()` instead. Will be removed in v0.12.0"
+    )]
     pub fn find_first<'a, P>(&'a self, predicate: P) -> Option<&'a T>
     where
         P: Fn(&&'a T) -> bool,
@@ -493,30 +437,6 @@ impl<T> Choice<T> {
     }
 
     /// Returns a new `Choice` with duplicate elements removed.
-    ///
-    /// This method preserves the order of elements, keeping the first occurrence of each value
-    /// while removing subsequent duplicates. Uniqueness is determined by the `Hash` and `Eq` traits.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice` with duplicate elements removed.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(10, vec![20, 10, 30, 20]);
-    /// let unique = choice.dedup();
-    /// assert_eq!(unique.to_vec(), vec![10, 20, 30]);
-    ///
-    /// // Empty choice remains empty
-    /// let empty: Choice<i32> = Choice::new_empty();
-    /// assert!(empty.dedup().is_empty());
-    /// ```
-    ///
-    /// # See Also
-    /// - [`dedup_by_key`](Self::dedup_by_key) - For deduplication using a key extraction function.
     #[deprecated(
         since = "0.11.0",
         note = "Deduplication is not a core categorical operation. Use external iteration patterns instead. Will be removed in v0.12.0"
@@ -541,32 +461,7 @@ impl<T> Choice<T> {
         Self { values: result }
     }
 
-    /// Returns a new `Choice` with duplicate elements removed, using a key extraction function.
-    ///
-    /// This method preserves the order of elements, keeping the first occurrence of each unique key
-    /// while removing subsequent duplicates. Uniqueness is determined by the key derived from each element.
-    ///
-    /// # Arguments
-    ///
-    /// * `key_fn` - A function that extracts a hashable key from each element.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice` with duplicate elements removed based on their extracted keys.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new((1, "a"), vec![(2, "b"), (3, "a"), (4, "c")]);
-    /// // Deduplicate based on the second component of each tuple
-    /// let unique = choice.dedup_by_key(|&(_, s)| s);
-    /// assert_eq!(unique.to_vec(), vec![(1, "a"), (2, "b"), (4, "c")]);
-    /// ```
-    ///
-    /// # See Also
-    /// - [`dedup`](Self::dedup) - For simple deduplication using element equality.
+    /// Returns a new `Choice` with duplicate elements removed based on a key extraction function.
     #[deprecated(
         since = "0.11.0",
         note = "Deduplication is not a core categorical operation. Use external iteration patterns instead. Will be removed in v0.12.0"
@@ -595,28 +490,6 @@ impl<T> Choice<T> {
     }
 
     /// Folds the values in the `Choice` into a single value.
-    ///
-    /// This method iterates over all values (primary and alternatives), applying a function
-    /// to accumulate a result, starting with an initial value.
-    ///
-    /// # Arguments
-    ///
-    /// * `initial` - The initial value of the accumulator.
-    /// * `f` - A closure that takes the accumulator and an item, and returns the new accumulator value.
-    ///
-    /// # Returns
-    ///
-    /// The final accumulated value.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// let sum = choice.fold(0, |acc, &x| acc + x);
-    /// assert_eq!(sum, 10);
-    /// ```
     #[deprecated(
         since = "0.11.0",
         note = "Use the Foldable trait's fold_left/fold_right instead. Will be removed in v0.12.0"
@@ -629,34 +502,6 @@ impl<T> Choice<T> {
     }
 
     /// Converts the `Choice` into a `HashMap` using a provided key-extraction function.
-    ///
-    /// This method iterates over all values, generates a key for each, and inserts the value into the map.
-    /// If multiple values produce the same key, only the first one encountered (primary before alternatives)
-    /// is kept in the map.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A closure that takes a reference to a value and returns a key `K`.
-    ///
-    /// # Returns
-    ///
-    /// A `HashMap<K, T>` containing the values from the `Choice`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    /// use std::collections::HashMap;
-    ///
-    /// let choice = Choice::new("apple".to_string(), vec!["banana".to_string(), "apricot".to_string()]);
-    /// let map = choice.to_map_with_key(|s| s.chars().next().unwrap());
-    ///
-    /// let mut expected = HashMap::new();
-    /// expected.insert('a', "apple".to_string());
-    /// expected.insert('b', "banana".to_string());
-    ///
-    /// assert_eq!(map, expected);
-    /// ```
     #[deprecated(
         since = "0.11.0",
         note = "Specialized conversion methods should be external. Use `iter().map().collect()` patterns instead. Will be removed in v0.12.0"
@@ -675,43 +520,6 @@ impl<T> Choice<T> {
     }
 
     /// Adds multiple new alternatives to the `Choice`, consuming the original.
-    ///
-    /// This method creates a new `Choice` instance by cloning the current values
-    /// and extending them with the new items. The original Choice is consumed.
-    ///
-    /// # Arguments
-    ///
-    /// * `items` - An iterator of values of type `T` to be added as new alternatives.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<T>` instance with the added alternatives.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3]);
-    /// let expanded = choice.add_alternatives(vec![4, 5, 6]);
-    ///
-    /// assert_eq!(*expanded.first().unwrap(), 1);
-    /// assert_eq!(expanded.alternatives(), &[2, 3, 4, 5, 6]);
-    /// assert_eq!(expanded.len(), 6);
-    ///
-    /// // Demonstrate chaining
-    /// let further_expanded = expanded.add_alternatives([7, 8]);
-    /// assert_eq!(*further_expanded.first().unwrap(), 1);
-    /// assert_eq!(further_expanded.alternatives(), &[2, 3, 4, 5, 6, 7, 8]);
-    /// assert_eq!(further_expanded.len(), 8);
-    ///
-    /// // Adding to an empty choice
-    /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// let from_empty_add = empty_choice.add_alternatives(vec![10, 20]);
-    /// assert_eq!(from_empty_add.len(), 2);
-    /// assert_eq!(*from_empty_add.first().unwrap(), 10); // The first item added becomes primary
-    /// assert_eq!(from_empty_add.alternatives(), &[20]);
-    /// ```
     #[inline]
     #[deprecated(
         since = "0.11.0",
@@ -824,34 +632,6 @@ impl<T> Choice<T> {
     }
 
     /// Safely removes an alternative at the specified index, returning a Result.
-    ///
-    /// This is the safe version of `remove_alternative` that returns an error instead of panicking.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The 0-based index of the alternative to remove.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Choice<T>)` - A new Choice with the alternative removed.
-    /// * `Err(&'static str)` - An error message if the operation cannot be performed.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(10, vec![20, 30, 40]);
-    /// let result = choice.try_remove_alternative(1);
-    /// assert!(result.is_ok());
-    /// let new_choice = result.unwrap();
-    /// assert_eq!(new_choice.alternatives(), &[20, 40]);
-    ///
-    /// // Safe error handling
-    /// let single_choice = Choice::new(10, Vec::<i32>::new());
-    /// let result = single_choice.try_remove_alternative(0);
-    /// assert!(result.is_err());
-    /// ```
     #[deprecated(
         since = "0.11.0",
         note = "Index-based manipulation is not a core categorical operation. Use filter_values() instead. Will be removed in v0.12.0"
@@ -872,65 +652,7 @@ impl<T> Choice<T> {
         Ok(Self { values: new_values })
     }
 
-    /// Filters the alternatives of the `Choice` based on a predicate, returning a new `Choice`.
-    ///
-    /// This method applies the `predicate` to each alternative value. The primary value
-    /// of the `Choice` remains unchanged and is always included in the new `Choice`,
-    /// regardless of whether it satisfies the predicate. Only alternatives are filtered.
-    ///
-    /// If the original `Choice` is empty, an empty `Choice` is returned.
-    /// If the original `Choice` has a primary value but no alternatives, the new `Choice`
-    /// will be identical (containing only the primary value).
-    ///
-    /// # Arguments
-    ///
-    /// * `predicate` - A closure `F: Fn(&T) -> bool` that takes a reference to an
-    ///   alternative value and returns `true` if the alternative should be kept,
-    ///   or `false` if it should be discarded.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<T>` instance containing the original primary value and only
-    /// the alternatives that satisfied the `predicate`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4, 5, 6]);
-    ///
-    /// // Filter alternatives for even numbers
-    /// let even_alternatives = choice.filter(|&x| x % 2 == 0);
-    ///
-    /// // Primary value (1) is always kept, even though it's odd
-    /// assert_eq!(even_alternatives.first(), Some(&1));
-    /// // Only even alternatives are kept
-    /// assert_eq!(even_alternatives.alternatives(), &[2, 4, 6]);
-    ///
-    /// // Primary value is kept even when it doesn't satisfy the predicate
-    /// let choice2 = Choice::new(7, vec![8, 9, 10]);
-    /// let filtered = choice2.filter(|&x| x % 2 == 0);
-    /// assert_eq!(filtered.first(), Some(&7)); // 7 is kept despite being odd
-    /// assert_eq!(filtered.alternatives(), &[8, 10]);
-    ///
-    /// // When there are no alternatives, the primary is still kept
-    /// let single = Choice::new(10, Vec::<i32>::new());
-    /// let filtered_single = single.filter(|&x| x > 100);
-    /// assert_eq!(filtered_single.first(), Some(&10));
-    /// assert!(filtered_single.alternatives().is_empty());
-    ///
-    /// // Empty Choice remains empty
-    /// let empty: Choice<i32> = Choice::new_empty();
-    /// let filtered_empty = empty.filter(|&x| x > 0);
-    /// assert!(filtered_empty.is_empty());
-    /// ```
-    ///
-    /// # See Also
-    /// - [`filter_values`](Self::filter_values) - Filters all values (primary and alternatives),
-    ///   potentially changing the primary value.
-    /// - [`remove_alternative`](Self::remove_alternative) - To remove a specific alternative by index.
-    ///
+    /// Filters the alternatives of the `Choice` based on a predicate.
     #[inline]
     #[deprecated(
         since = "0.11.0",
@@ -952,53 +674,7 @@ impl<T> Choice<T> {
         Self { values: filtered }
     }
 
-    /// Applies a function to each alternative value in the `Choice`, returning a new `Choice<T>`.
-    ///
-    /// This method transforms each alternative value using the provided function `f`.
-    /// The primary value of the `Choice` remains unchanged (it is cloned) and is the primary
-    /// value of the new `Choice`. The function `f` is not applied to the primary value.
-    ///
-    /// If the original `Choice` is empty, an empty `Choice<T>` is returned.
-    /// If the original `Choice` has a primary value but no alternatives, the new `Choice`
-    /// will be identical to the original (containing the cloned primary value and no alternatives).
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A closure `F: FnMut(&T) -> T` that takes a reference to an
-    ///   alternative value of type `T` and returns a new value of type `T`.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<T>` instance containing the original primary value (cloned)
-    /// and the transformed alternatives.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice_i32 = Choice::new(10, vec![20, 3, 45, 60, 7]);
-    ///
-    /// // Double only the alternatives
-    /// let choice_doubled_alts = choice_i32.fmap_alternatives(|&alt| alt * 2);
-    /// assert_eq!(*choice_doubled_alts.first().unwrap(), 10); // Primary is kept (cloned)
-    /// assert_eq!(choice_doubled_alts.alternatives(), &[40, 6, 90, 120, 14]);
-    ///
-    /// // On a choice with no alternatives
-    /// let primary_only_choice: Choice<i32> = Choice::new(100, Vec::<i32>::new());
-    /// let mapped_primary_only = primary_only_choice.fmap_alternatives(|&alt| alt * 2);
-    /// assert_eq!(*mapped_primary_only.first().unwrap(), 100); // Primary cloned
-    /// assert!(mapped_primary_only.alternatives().is_empty());
-    ///
-    /// // On an empty choice
-    /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// let mapped_empty = empty_choice.fmap_alternatives(|&alt| alt * 2);
-    /// assert!(mapped_empty.is_empty());
-    /// ```
-    ///
-    /// # See Also
-    /// - [`fmap`](crate::traits::functor::Functor::fmap) - To apply a function to all values (primary and alternatives), potentially changing type.
-    /// - [`filter`](Self::filter) - To filter alternatives based on a predicate.
+    /// Applies a function to each alternative value in the `Choice`.
     #[inline]
     #[deprecated(
         since = "0.11.0",
@@ -1181,40 +857,6 @@ impl<T> Choice<T> {
     }
 
     /// Flattens a `Choice` of iterable items into a sorted `Choice` of individual items.
-    ///
-    /// Similar to `flatten()`, but sorts the alternatives according to their natural order.
-    /// The first item of the primary value becomes the new primary value, and all other items
-    /// (including those from alternatives) are sorted and collected into the new alternatives.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `T`: The original type, which must be clonable and iterable.
-    /// * `I`: The item type of the iterable, which must be clonable and implement `Ord`.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<I>` with flattened and sorted alternatives.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the primary value is an empty iterator.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let nested = Choice::new(vec![3, 1], vec![vec![4, 2], vec![5]]);
-    /// let flattened = nested.flatten_sorted();
-    ///
-    /// assert_eq!(*flattened.first().unwrap(), 3);
-    /// assert_eq!(flattened.alternatives(), &[1, 2, 4, 5]);
-    /// ```
-    ///
-    /// # See Also
-    /// - [`flatten()`](Self::flatten) - For a version that flattens without sorting alternatives.
-    /// - [`Choice::new()`](Self::new) - For creating a `Choice`.
-    /// - [`Vec::sort()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.sort) - For the sorting mechanism used on alternatives.
     #[deprecated(
         since = "0.11.0",
         note = "Mixing categorical operations (flatten) with ordering breaks FP philosophy. Use flatten() then sort externally. Will be removed in v0.12.0"
@@ -1501,89 +1143,6 @@ impl<T> Choice<T> {
     }
 
     /// Swaps the primary value with the alternative at the specified `alt_index`.
-    ///
-    /// This method consumes the original `Choice` and returns a new `Choice`
-    /// with the primary value and the chosen alternative exchanged. The `alt_index`
-    /// is 0-based and relative to the list of alternatives (i.e., excluding the primary value).
-    ///
-    /// This operation involves creating a new `SmallVec` for the values.
-    ///
-    /// # Arguments
-    ///
-    /// * `alt_index` - The 0-based index of the alternative to swap with the primary value.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<T>` where the original primary value and the alternative at `alt_index`
-    /// have been swapped.
-    ///
-    /// # Panics
-    ///
-    /// Panics if:
-    /// - The `Choice` has no alternatives (i.e., it only contains a primary value or is empty).
-    /// - `alt_index` is out of bounds for the list of alternatives.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// // Basic swap
-    /// let choice1 = Choice::new(10, vec![20, 30, 40]); // primary: 10, alts: [20, 30, 40]
-    /// let swapped1 = choice1.swap_with_alternative(1); // Swap 10 with 30 (alt_index 1)
-    /// assert_eq!(*swapped1.first().unwrap(), 30);
-    /// assert_eq!(swapped1.alternatives(), &[20, 10, 40]);
-    ///
-    /// // Swap with the first alternative
-    /// let choice2 = Choice::new(5, vec![15, 25]); // primary: 5, alts: [15, 25]
-    /// let swapped2 = choice2.swap_with_alternative(0); // Swap 5 with 15 (alt_index 0)
-    /// assert_eq!(*swapped2.first().unwrap(), 15);
-    /// assert_eq!(swapped2.alternatives(), &[5, 25]);
-    ///
-    /// // Swap with the last alternative
-    /// let choice3 = Choice::new(100, vec![200, 300, 400]); // primary: 100, alts: [200, 300, 400]
-    /// let swapped3 = choice3.swap_with_alternative(2); // Swap 100 with 400 (alt_index 2)
-    /// assert_eq!(*swapped3.first().unwrap(), 400);
-    /// assert_eq!(swapped3.alternatives(), &[200, 300, 100]);
-    ///
-    /// // Swap with the last alternative
-    /// let choice3 = Choice::new(100, vec![200, 300, 400]); // primary: 100, alts: [200, 300, 400]
-    /// let swapped3 = choice3.swap_with_alternative(2); // Swap 100 with 400 (alt_index 2)
-    /// assert_eq!(*swapped3.first().unwrap(), 400);
-    /// assert_eq!(swapped3.alternatives(), &[200, 300, 100]);
-    /// ```
-    ///
-    /// ### Panics - Index out of bounds
-    /// ```should_panic
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
-    /// // Panics because alt_index 2 is out of bounds.
-    /// let _ = choice.swap_with_alternative(2);
-    /// ```
-    ///
-    /// ### Panics - No alternatives to swap with
-    /// ```should_panic
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
-    /// // Panics because there are no alternatives.
-    /// let _ = choice_only_primary.swap_with_alternative(0);
-    /// ```
-    ///
-    /// ### Panics - Empty Choice
-    /// ```should_panic
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// // Panics because an empty choice has no primary or alternatives.
-    /// let _ = empty_choice.swap_with_alternative(0);
-    /// ```
-    ///
-    /// # See Also
-    /// - [`Choice::new()`](Self::new) - For creating a `Choice`.
-    /// - [`Choice::remove_alternative()`](Self::remove_alternative) - To remove an alternative.
-    /// - [`Choice::add_alternatives()`](Self::add_alternatives) - To add alternatives.
-    /// - [`try_swap_with_alternative()`](Self::try_swap_with_alternative) - Safe version that returns Result.
     #[deprecated(
         since = "0.11.0",
         note = "Index-based swapping is not a core categorical operation. Use external patterns instead. Will be removed in v0.12.0"

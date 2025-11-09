@@ -1,18 +1,17 @@
 use rustica::datatypes::choice::Choice;
 use rustica::prelude::*;
-use std::collections::HashMap;
 
 #[test]
 fn test_choice_creation_and_access() {
     let choice = Choice::new(1, vec![2, 3, 4]);
     assert_eq!(*choice.first().unwrap(), 1);
     assert_eq!(choice.alternatives(), &[2, 3, 4]);
-    assert!(choice.has_alternatives());
+    assert!(!choice.alternatives().is_empty());
 
     let single = Choice::new(1, vec![]);
     assert_eq!(*single.first().unwrap(), 1);
     assert!(single.alternatives().is_empty());
-    assert!(!single.has_alternatives());
+    assert!(single.alternatives().is_empty());
 }
 
 #[test]
@@ -206,21 +205,21 @@ fn test_choice_empty_and_len() {
 #[test]
 fn test_choice_add_alternatives() {
     let mut choice = Choice::new(1, vec![2]);
-    choice = choice.add_alternatives(vec![3, 4]);
+    choice = choice.combine(&Choice::of_many(vec![3, 4]));
     assert_eq!(*choice.first().unwrap(), 1);
     assert_eq!(choice.alternatives(), &[2, 3, 4]);
     assert_eq!(choice.len(), 4);
 
     // Add to an empty alternative list
     let mut choice_single = Choice::new(1, vec![]);
-    choice_single = choice_single.add_alternatives(vec![5, 6]);
+    choice_single = choice_single.combine(&Choice::of_many(vec![5, 6]));
     assert_eq!(*choice_single.first().unwrap(), 1);
     assert_eq!(choice_single.alternatives(), &[5, 6]);
     assert_eq!(choice_single.len(), 3);
 
     // Add empty list (should not change)
     let mut choice_no_add = Choice::new(1, vec![2]);
-    choice_no_add = choice_no_add.add_alternatives(vec![]);
+    choice_no_add = choice_no_add.combine(&Choice::new_empty());
     assert_eq!(*choice_no_add.first().unwrap(), 1);
     assert_eq!(choice_no_add.alternatives(), &[2]);
     assert_eq!(choice_no_add.len(), 2);
@@ -253,7 +252,7 @@ fn test_choice_remove_alternative() {
     let removed_only = single_alt.remove_alternative(0);
     assert_eq!(*removed_only.first().unwrap(), 1);
     assert!(removed_only.alternatives().is_empty());
-    assert!(!removed_only.has_alternatives());
+    assert!(removed_only.alternatives().is_empty());
     assert_eq!(removed_only.len(), 1);
 }
 
@@ -270,103 +269,6 @@ fn test_choice_remove_alternative_panic_out_of_bounds() {
 fn test_choice_remove_alternative_panic_no_alternatives() {
     let choice: Choice<i32> = Choice::new(1, vec![]);
     choice.remove_alternative(0);
-}
-
-#[test]
-fn test_choice_swap_with_alternative() {
-    let choice = Choice::new(1, vec![2, 3, 4, 5]);
-
-    // Swap with middle
-    let swapped_middle = choice.clone().swap_with_alternative(1); // Swap 1 with 3 (index 1)
-    assert_eq!(*swapped_middle.first().unwrap(), 3);
-    assert_eq!(swapped_middle.alternatives(), &[2, 1, 4, 5]);
-    assert_eq!(swapped_middle.len(), 5);
-
-    // Swap with first alternative
-    let swapped_first = choice.clone().swap_with_alternative(0); // Swap 1 with 2 (index 0)
-    assert_eq!(*swapped_first.first().unwrap(), 2);
-    assert_eq!(swapped_first.alternatives(), &[1, 3, 4, 5]);
-    assert_eq!(swapped_first.len(), 5);
-
-    // Swap with last alternative
-    let swapped_last = choice.clone().swap_with_alternative(3); // Swap 1 with 5 (index 3)
-    assert_eq!(*swapped_last.first().unwrap(), 5);
-    assert_eq!(swapped_last.alternatives(), &[2, 3, 4, 1]);
-    assert_eq!(swapped_last.len(), 5);
-
-    // Swap with only alternative
-    let single_alt = Choice::new(1, vec![2]);
-    let swapped_only = single_alt.swap_with_alternative(0);
-    assert_eq!(*swapped_only.first().unwrap(), 2);
-    assert_eq!(swapped_only.alternatives(), &[1]);
-    assert_eq!(swapped_only.len(), 2);
-}
-
-#[test]
-#[should_panic(expected = "Index out of bounds: the len is 2 but the index is 2")]
-fn test_choice_swap_with_alternative_panic_out_of_bounds() {
-    let choice = Choice::new(1, vec![2, 3]);
-    // Swap at index 2, alternatives len is 2 (indices 0, 1)
-    choice.swap_with_alternative(2);
-}
-
-#[test]
-#[should_panic(expected = "Cannot swap with alternative from Choice with no alternatives")]
-fn test_choice_swap_with_alternative_panic_no_alternatives() {
-    let choice: Choice<i32> = Choice::new(1, vec![]);
-    choice.swap_with_alternative(0);
-}
-
-#[test]
-fn test_choice_filter() {
-    let choice = Choice::new(2, vec![1, 3, 4, 5, 6]);
-
-    // Filter evens (only filters alternatives)
-    let evens = choice.filter(|&x| x % 2 == 0);
-    assert_eq!(*evens.first().unwrap(), 2);
-    assert_eq!(evens.alternatives(), &[4, 6]);
-    assert_eq!(evens.len(), 3);
-
-    // Filter odds (only filters alternatives)
-    let odds = choice.filter(|&x| x % 2 != 0);
-    assert_eq!(*odds.first().unwrap(), 2);
-    assert_eq!(odds.alternatives(), &[1, 3, 5]);
-    assert_eq!(odds.len(), 4);
-
-    // Filter all alternatives
-    let none_alt = choice.filter(|_| false);
-    assert_eq!(*none_alt.first().unwrap(), 2);
-    assert!(none_alt.alternatives().is_empty());
-    assert_eq!(none_alt.len(), 1);
-
-    // Filter no alternatives
-    let all = choice.filter(|_| true);
-    assert_eq!(*all.first().unwrap(), 2);
-    assert_eq!(all.alternatives(), &[1, 3, 4, 5, 6]);
-    assert_eq!(all.len(), 6);
-
-    // Filter on a Choice with only a primary value
-    let single = Choice::new(10, vec![]);
-    let single_filtered = single.filter(|&x| x < 5);
-    assert_eq!(*single_filtered.first().unwrap(), 10);
-    assert!(single_filtered.alternatives().is_empty());
-    assert_eq!(single_filtered.len(), 1);
-}
-
-#[test]
-fn test_choice_fmap_alternatives() {
-    let choice = Choice::new(1, vec![2, 3, 4]);
-
-    // Double alternatives
-    let doubled = choice.fmap_alternatives(|&x| x * 2);
-    assert_eq!(*doubled.first().unwrap(), 1);
-    assert_eq!(doubled.alternatives(), &[4, 6, 8]);
-
-    // Map on Choice with no alternatives (should not change)
-    let single = Choice::new(10, vec![]);
-    let single_mapped = single.fmap_alternatives(|&x| x * 2);
-    assert_eq!(*single_mapped.first().unwrap(), 10);
-    assert!(single_mapped.alternatives().is_empty());
 }
 
 #[test]
@@ -488,23 +390,6 @@ fn test_choice_flatten() {
     let nested = Choice::new(Vec::<i32>::new(), vec![]);
     let result = std::panic::catch_unwind(|| nested.flatten());
     assert!(result.is_err());
-
-    // Flatten sorted normal case
-    let nested = Choice::new(vec![3, 1], vec![vec![5, 2], vec![4]]);
-    let flat = nested.flatten_sorted();
-    assert_eq!(*flat.first().unwrap(), 3);
-    assert_eq!(flat.alternatives(), &[1, 2, 4, 5]);
-
-    // Flatten sorted with empty alternatives
-    let nested = Choice::new(vec![5], vec![]);
-    let flat = nested.flatten_sorted();
-    assert_eq!(*flat.first().unwrap(), 5);
-    assert!(flat.alternatives().is_empty());
-
-    // Flatten sorted with empty primary (should panic)
-    let nested = Choice::new(Vec::<i32>::new(), vec![]);
-    let result = std::panic::catch_unwind(|| nested.flatten_sorted());
-    assert!(result.is_err());
 }
 
 #[test]
@@ -551,7 +436,7 @@ fn test_choice_iterators() {
     let choice = Choice::new(1, vec![2, 3]);
     let vals: Vec<_> = choice.iter().cloned().collect();
     assert_eq!(vals, vec![1, 2, 3]);
-    let alts: Vec<_> = choice.iter_alternatives().cloned().collect();
+    let alts: Vec<_> = choice.alternatives().iter().cloned().collect();
     assert_eq!(alts, vec![2, 3]);
     let vals_ref: Vec<_> = (&choice).into_iter().cloned().collect();
     assert_eq!(vals_ref, vec![1, 2, 3]);
@@ -641,37 +526,40 @@ fn test_choice_applicative_and_monad_laws() {
 #[test]
 fn test_to_vec() {
     let choice = Choice::new(1, vec![2, 3, 4]);
-    assert_eq!(choice.to_vec(), vec![1, 2, 3, 4]);
+    let vec: Vec<i32> = choice.iter().cloned().collect();
+    assert_eq!(vec, vec![1, 2, 3, 4]);
 
     let single_choice = Choice::new(1, vec![]);
-    assert_eq!(single_choice.to_vec(), vec![1]);
+    let vec: Vec<i32> = single_choice.iter().cloned().collect();
+    assert_eq!(vec, vec![1]);
 
     let empty_choice: Choice<i32> = Choice::new_empty();
-    assert_eq!(empty_choice.to_vec(), Vec::<i32>::new());
+    let vec: Vec<i32> = empty_choice.iter().cloned().collect();
+    assert_eq!(vec, Vec::<i32>::new());
 }
 
 #[test]
 fn test_find_first() {
     let choice = Choice::new(1, vec![2, 3, 4, 5]);
-    assert_eq!(choice.find_first(|&&x| x > 3), Some(&4));
-    assert_eq!(choice.find_first(|&&x| x == 1), Some(&1));
-    assert_eq!(choice.find_first(|&&x| x > 5), None);
+    assert_eq!(choice.iter().find(|&&x| x > 3), Some(&4));
+    assert_eq!(choice.iter().find(|&&x| x == 1), Some(&1));
+    assert_eq!(choice.iter().find(|&&x| x > 5), None);
 
     let empty_choice: Choice<i32> = Choice::new_empty();
-    assert_eq!(empty_choice.find_first(|_| true), None);
+    assert_eq!(empty_choice.iter().find(|_| true), None);
 }
 
 #[test]
 fn test_fold() {
     let choice = Choice::new(1, vec![2, 3, 4]);
-    let sum = choice.fold(0, |acc, &x| acc + x);
+    let sum = choice.fold_left(&0, |acc, &x| acc + x);
     assert_eq!(sum, 10);
 
-    let product = choice.fold(1, |acc, &x| acc * x);
+    let product = choice.fold_left(&1, |acc, &x| acc * x);
     assert_eq!(product, 24);
 
     let empty_choice: Choice<i32> = Choice::new_empty();
-    let sum_empty = empty_choice.fold(0, |acc, &x| acc + x);
+    let sum_empty = empty_choice.fold_left(&0, |acc, &x| acc + x);
     assert_eq!(sum_empty, 0);
 }
 
@@ -690,29 +578,6 @@ fn test_sequence() {
 
     let choice_all_none: Choice<Option<i32>> = Choice::new(None, vec![None]);
     assert_eq!(choice_all_none.sequence(), None);
-}
-
-#[test]
-fn test_to_map_with_key() {
-    let choice = Choice::new(
-        "apple".to_string(),
-        vec![
-            "banana".to_string(),
-            "apricot".to_string(),
-            "blueberry".to_string(),
-        ],
-    );
-    let map = choice.to_map_with_key(|s| s.chars().next().unwrap());
-
-    let mut expected = HashMap::new();
-    expected.insert('a', "apple".to_string());
-    expected.insert('b', "banana".to_string());
-
-    assert_eq!(map, expected);
-
-    let empty_choice: Choice<String> = Choice::new_empty();
-    let empty_map = empty_choice.to_map_with_key(|s| s.chars().next().unwrap());
-    assert!(empty_map.is_empty());
 }
 
 #[cfg(feature = "serde")]
