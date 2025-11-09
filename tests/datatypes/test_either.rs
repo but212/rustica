@@ -347,7 +347,7 @@ fn test_either_performance_pattern() {
 #[test]
 fn test_either_identity() {
     let right: Either<&str, i32> = Either::right(42);
-    assert_eq!(*right.value(), 42);
+    assert_eq!(right.unwrap(), 42);
 }
 
 #[test]
