@@ -58,9 +58,7 @@ enum VectorImpl<T> {
         elements: SmallVec<[T; ADAPTIVE_INLINE_SIZE]>,
     },
     /// Tree storage for larger vectors.
-    Tree {
-        tree: Arc<RRBTree<T>>,
-    },
+    Tree { tree: Arc<RRBTree<T>> },
 }
 
 impl<T> PersistentVector<T> {

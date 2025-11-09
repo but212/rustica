@@ -1,3 +1,5 @@
+mod categorical_laws;
+
 use rustica::datatypes::either::Either;
 use rustica::datatypes::validated::Validated;
 use rustica::error::ErrorCategory;

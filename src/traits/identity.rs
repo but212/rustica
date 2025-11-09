@@ -20,9 +20,9 @@
 //!
 //! ## When to Use
 //!
-//! - `**Option<T>**`: For optional values that may or may not be present
-//! - `**Result<T, E>**`: For computations that may fail
-//! - **Wrapper types*`*: Simple wrapper types that hold a single value
+//! - **`Option<T>`**: For optional values that may or may not be present
+//! - **`Result<T, E>`**: For computations that may fail
+//! - **Wrapper types**: Simple wrapper types that hold a single value
 //!
 //! ## When NOT to Use
 //!

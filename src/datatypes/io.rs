@@ -48,6 +48,25 @@
 //! let safe_result = safe_computation.try_get();
 //! assert!(safe_result.is_ok());
 //! assert_eq!(safe_result.unwrap(), 21);
+//!
+//! // Advanced error handling with ComposableError
+//! let io_with_context = IO::new(|| 42)
+//!     .bind(|x| IO::new(move || x * 2));
+//! let result = io_with_context.try_get_composable_with_context("processing data");
+//! assert!(result.is_ok());
+//!
+//! // Error recovery
+//! let io_risky: IO<i32> = IO::new(|| panic!("failed"));
+//! let io_safe = io_risky.recover(|_err| IO::pure(0));
+//! assert_eq!(io_safe.run(), 0);
+//!
+//! // Functional error pipeline
+//! use rustica::error::ErrorPipeline;
+//! let pipeline_result = IO::pure(100)
+//!     .into_error_pipeline()
+//!     .with_context("Step 1")
+//!     .finish();
+//! assert_eq!(pipeline_result.unwrap(), 100);
 //! ```
 //!
 //! ## Functional Programming Context
@@ -271,6 +290,117 @@
 //! // assert!(failing_chain.try_get().is_err());
 //! ```
 //!
+//! ## Error Handling with ComposableError
+//!
+//! The IO monad now integrates with Rustica's unified error handling system from `src/error`,
+//! providing rich error context and functional error composition:
+//!
+//! ### Basic Error Handling
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! // ComposableError provides rich error context
+//! let io_operation = IO::new(|| panic!("database error"));
+//! let result = io_operation.try_get_composable_with_context("fetching user");
+//!
+//! match result {
+//!     Ok(value) => println!("Success: {}", value),
+//!     Err(error) => {
+//!         // Error chain shows full context
+//!         println!("Error: {}", error.error_chain());
+//!         // Context stack is available
+//!         for ctx in error.context_iter() {
+//!             println!("  - {}", ctx);
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! ### Error Recovery Pattern
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! let primary_io: IO<i32> = IO::new(|| panic!("primary failed"));
+//! let fallback_io = primary_io.recover(|error| {
+//!     // Log error or perform cleanup
+//!     println!("Recovering from: {}", error.error_chain());
+//!     IO::pure(0) // Provide default value
+//! });
+//!
+//! assert_eq!(fallback_io.run(), 0);
+//! ```
+//!
+//! ### Functional Error Pipeline
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! let result = IO::pure(42)
+//!     .bind(|x| IO::new(move || x * 2))
+//!     .into_error_pipeline()
+//!     .with_context("Step 1: Double the value")
+//!     .map_error(|e| e.with_context("Step 2: Additional processing".to_string()))
+//!     .finish();
+//!
+//! assert_eq!(result.unwrap(), 84);
+//! ```
+//!
+//! ### Error Collection in Sequences
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! // Collect all errors instead of failing fast
+//! let ios = vec![
+//!     IO::pure(1),
+//!     IO::new(|| panic!("error 1")),
+//!     IO::pure(3),
+//!     IO::new(|| panic!("error 2")),
+//! ];
+//!
+//! let result = IO::sequence_composable(ios);
+//! match result {
+//!     Ok(values) => println!("All succeeded: {:?}", values),
+//!     Err(errors) => {
+//!         println!("Collected {} errors", errors.len());
+//!         for error in errors {
+//!             println!("  - {}", error.error_chain());
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! ### Best Practices
+//!
+//! 1. **Use `try_get_composable_with_context`** for operations that may fail with rich context
+//! 2. **Use `recover`** for complex error recovery with custom logic
+//! 3. **Use `recover_with`** for simple default values on failure
+//! 4. **Use `into_error_pipeline`** for building complex error handling chains
+//! 5. **Use `sequence_composable`** when you need to collect all errors (e.g., validation)
+//! 6. **Transform errors on Result** after calling `try_get_composable()` rather than inside IO
+//!
+//! ### Error Transformation Pattern
+//!
+//! ```rust
+//! use rustica::datatypes::io::IO;
+//!
+//! let io_operation = IO::new(|| panic!("database error"));
+//!
+//! // ✅ Good: Transform error after getting Result
+//! let result = io_operation
+//!     .try_get_composable()
+//!     .map_err(|e| e.with_context("User authentication failed".to_string()));
+//!
+//! // ✅ Good: Use ErrorPipeline for complex chains
+//! let pipeline_result = IO::new(|| 42)
+//!     .into_error_pipeline()
+//!     .with_context("Processing step")
+//!     .map_error(|e| e.set_code(500))
+//!     .finish();
+//! ```
+//!
 //! ## Common Pitfalls and Best Practices
 //!
 //! ```rust
@@ -307,8 +437,10 @@
 //! assert_eq!(good_io_fib.run(), 6765);
 //! ```
 
+use crate::error::{BoxedComposableResult, ComposableError, ErrorPipeline};
 use crate::utils::error_utils::AppError;
 use quickcheck::{Arbitrary, Gen};
+use std::fmt::Debug;
 #[cfg(feature = "async")]
 use std::future::Future;
 use std::sync::Arc;
@@ -321,6 +453,12 @@ use std::time::Duration;
 /// This alias encapsulates the common pattern of `Arc<dyn Fn() -> A + Send + Sync + 'static>`
 /// used throughout the IO implementation, making the code more readable and maintainable.
 pub type IOMorphism<A> = Arc<dyn Fn() -> A + Send + Sync + 'static>;
+
+/// Type alias for composable error collection results.
+///
+/// This alias encapsulates the complex type used for collecting multiple ComposableError
+/// instances in sequence operations, improving readability and maintainability.
+pub type ComposableErrorCollection<E> = smallvec::SmallVec<[Box<ComposableError<E>>; 4]>;
 
 /// A custom error type for IO operations
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -853,6 +991,237 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
                 };
                 Err(AppError::with_context(IOError::Other(msg), context))
             },
+        }
+    }
+
+    /// Tries to get the value using ComposableError for rich error context.
+    ///
+    /// This method leverages the `ComposableError` type from `src/error` to provide
+    /// a more powerful error handling mechanism with context accumulation and error chaining.
+    ///
+    /// # Returns
+    ///
+    /// A `ComposableResult<A, IOError>` containing either the value or a composable error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    /// use rustica::error::ComposableError;
+    ///
+    /// // Success case
+    /// let io_success = IO::pure(42);
+    /// let result = io_success.try_get_composable();
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap(), 42);
+    ///
+    /// // Error case with context
+    /// let io_fail: IO<i32> = IO::new(|| panic!("computation failed"));
+    /// let result = io_fail.try_get_composable();
+    /// assert!(result.is_err());
+    ///
+    /// let error = result.unwrap_err();
+    /// assert!(matches!(error.core_error(), &rustica::datatypes::io::IOError::Other(_)));
+    /// ```
+    pub fn try_get_composable(&self) -> BoxedComposableResult<A, IOError> {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
+            Ok(value) => Ok(value),
+            Err(e) => {
+                let msg = if let Some(s) = e.downcast_ref::<&str>() {
+                    (*s).to_string()
+                } else if let Some(s) = e.downcast_ref::<String>() {
+                    s.clone()
+                } else {
+                    "IO operation panicked with unknown error".to_string()
+                };
+                Err(Box::new(ComposableError::new(IOError::Other(msg))))
+            },
+        }
+    }
+
+    /// Tries to get the value with composable error context.
+    ///
+    /// This method combines the power of `ComposableError` with context information,
+    /// allowing for rich error reporting with contextual information stacked appropriately.
+    ///
+    /// # Arguments
+    ///
+    /// * `context` - Context information to add to the error if the operation fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let io_operation = IO::pure(42)
+    ///     .bind(|x| IO::new(move || {
+    ///         if x > 50 {
+    ///             panic!("Value too large")
+    ///         }
+    ///         x * 2
+    ///     }));
+    ///
+    /// let result = io_operation.try_get_composable_with_context("processing user input");
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap(), 84);
+    ///
+    /// // Failed operation preserves context
+    /// let io_fail: IO<i32> = IO::new(|| panic!("database error"));
+    /// let result_fail = io_fail.try_get_composable_with_context("fetching user data");
+    /// assert!(result_fail.is_err());
+    ///
+    /// let error = result_fail.unwrap_err();
+    /// assert_eq!(error.context().len(), 1);
+    /// assert!(error.context()[0].contains("fetching user data"));
+    /// ```
+    pub fn try_get_composable_with_context<S: Into<String>>(
+        &self, context: S,
+    ) -> BoxedComposableResult<A, IOError> {
+        self.try_get_composable()
+            .map_err(|e| Box::new(e.with_context(context.into())))
+    }
+
+    /// Creates an ErrorPipeline from this IO operation for functional error handling.
+    ///
+    /// This method enables composable, functional-style error handling using the
+    /// `ErrorPipeline` from `src/error/context.rs`. It's particularly useful for
+    /// building complex error handling chains.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let io_operation = IO::pure(42);
+    /// let result = io_operation
+    ///     .into_error_pipeline()
+    ///     .with_context("Step 1: Initial processing")
+    ///     .map_error(|e| e.with_context("Step 2: Additional context".to_string()))
+    ///     .finish();
+    ///
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap(), 42);
+    /// ```
+    pub fn into_error_pipeline(self) -> ErrorPipeline<A, Box<ComposableError<IOError>>> {
+        ErrorPipeline::new(self.try_get_composable())
+    }
+
+    /// Recovers from an error using a fallback IO operation.
+    ///
+    /// This method provides error recovery capabilities, catching panics that occur
+    /// during execution and providing an alternative computation. This is useful for
+    /// implementing fault-tolerant systems with fallback behaviors.
+    ///
+    /// # Arguments
+    ///
+    /// * `recovery` - Function that provides a fallback IO operation given the error
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::{IO, IOError};
+    ///
+    /// let io_risky: IO<i32> = IO::new(|| panic!("primary failed"));
+    /// let io_recovered = io_risky.recover(|_error| IO::pure(0));
+    ///
+    /// assert_eq!(io_recovered.run(), 0);
+    ///
+    /// // Success case passes through
+    /// let io_ok = IO::pure(42);
+    /// let io_still_ok = io_ok.recover(|_| IO::pure(0));
+    /// assert_eq!(io_still_ok.run(), 42);
+    /// ```
+    pub fn recover<F>(self, recovery: F) -> Self
+    where
+        F: Fn(Box<ComposableError<IOError>>) -> IO<A> + Send + Sync + 'static,
+    {
+        IO::new(move || match self.try_get_composable() {
+            Ok(value) => value,
+            Err(error) => recovery(error).run(),
+        })
+    }
+
+    /// Recovers from an error using a simple fallback value.
+    ///
+    /// This is a convenience method that provides a default value if the IO operation fails.
+    /// It's equivalent to `recover(|_| IO::pure(default_value))` but more concise.
+    ///
+    /// # Arguments
+    ///
+    /// * `default_value` - The value to use if the operation fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// let io_risky: IO<i32> = IO::new(|| panic!("failed"));
+    /// let io_safe = io_risky.recover_with(42);
+    ///
+    /// assert_eq!(io_safe.run(), 42);
+    ///
+    /// // Success case returns the original value
+    /// let io_ok = IO::pure(100);
+    /// let io_still_ok = io_ok.recover_with(42);
+    /// assert_eq!(io_still_ok.run(), 100);
+    /// ```
+    pub fn recover_with(self, default_value: A) -> Self {
+        IO::new(move || match self.try_get_composable() {
+            Ok(value) => value,
+            Err(_) => default_value.clone(),
+        })
+    }
+
+    /// Sequences multiple IO operations, collecting errors with ComposableError.
+    ///
+    /// Unlike `sequence`, this method collects all errors that occur during execution
+    /// rather than failing fast. This is useful for validation scenarios where you want
+    /// to report all problems at once. Errors are boxed to reduce stack usage.
+    ///
+    /// # Arguments
+    ///
+    /// * `ios` - Iterator of IO operations to sequence
+    ///
+    /// # Returns
+    ///
+    /// A Result containing either all successful values or all collected boxed errors
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::io::IO;
+    ///
+    /// // All succeed
+    /// let ios = vec![IO::pure(1), IO::pure(2), IO::pure(3)];
+    /// let result = IO::sequence_composable(ios);
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap(), vec![1, 2, 3]);
+    ///
+    /// // Some fail - collects all errors
+    /// let ios_mixed = vec![
+    ///     IO::pure(1),
+    ///     IO::new(|| panic!("error 1")),
+    ///     IO::pure(3),
+    ///     IO::new(|| panic!("error 2")),
+    /// ];
+    /// let result_mixed = IO::sequence_composable(ios_mixed);
+    /// assert!(result_mixed.is_err());
+    /// // Errors are collected in a SmallVec
+    /// ```
+    pub fn sequence_composable<I>(ios: I) -> Result<Vec<A>, ComposableErrorCollection<IOError>>
+    where
+        I: IntoIterator<Item = IO<A>>,
+        A: Debug,
+    {
+        let (successes, failures): (Vec<_>, Vec<_>) = ios
+            .into_iter()
+            .map(|io| io.try_get_composable())
+            .partition(Result::is_ok);
+
+        if failures.is_empty() {
+            Ok(successes.into_iter().map(Result::unwrap).collect())
+        } else {
+            Err(failures.into_iter().map(Result::unwrap_err).collect())
         }
     }
 

@@ -38,8 +38,9 @@ use std::fmt::{Debug, Display};
 pub struct ComposableError<E> {
     /// The core error that represents the root cause
     pub core_error: E,
-    /// A stack of context information, most recent first
-    pub context: SmallVec<[String; 4]>,
+    /// A stack of context information, stored in reverse order (oldest first)
+    /// Public API presents them with most recent first
+    context: SmallVec<[String; 4]>,
     /// Optional error code for programmatic error handling
     pub error_code: Option<u32>,
 }
@@ -96,9 +97,8 @@ impl<E> ComposableError<E> {
 
     /// Adds context information to the error.
     ///
-    /// Context is added to the front of the context stack, so the most recent
-    /// context appears first when iterating. This follows the pattern of
-    /// error propagation where higher-level context wraps lower-level errors.
+    /// This is an O(1) operation that appends context to the internal storage.
+    /// The public API presents contexts with most recent first.
     ///
     /// # Arguments
     ///
@@ -113,20 +113,20 @@ impl<E> ComposableError<E> {
     ///     .with_context("Failed to connect to database".to_string())
     ///     .with_context("User authentication failed".to_string());
     ///
-    /// let contexts: Vec<&String> = error.context().iter().collect();
+    /// let contexts = error.context();
     /// assert_eq!(contexts[0], "User authentication failed");
     /// assert_eq!(contexts[1], "Failed to connect to database");
     /// ```
     #[inline]
     pub fn with_context(mut self, ctx: String) -> Self {
-        self.context.insert(0, ctx);
+        self.context.push(ctx); // O(1) instead of O(n)
         self
     }
 
     /// Adds multiple context entries at once.
     ///
-    /// Context entries are added in reverse order so that the first entry
-    /// in the iterator becomes the most recent context.
+    /// Contexts are added in the order provided, with the first becoming
+    /// the oldest and the last becoming the most recent.
     ///
     /// # Arguments
     ///
@@ -148,11 +148,7 @@ impl<E> ComposableError<E> {
     where
         I: IntoIterator<Item = String>,
     {
-        let mut contexts: Vec<String> = contexts.into_iter().collect();
-        contexts.reverse(); // Reverse so first becomes most recent
-        for ctx in contexts {
-            self.context.insert(0, ctx);
-        }
+        self.context.extend(contexts); // O(1) per element
         self
     }
 
@@ -171,9 +167,7 @@ impl<E> ComposableError<E> {
         &self.core_error
     }
 
-    /// Returns a reference to the context stack.
-    ///
-    /// The context is ordered with the most recent context first.
+    /// Returns a vector of contexts with the most recent first.
     ///
     /// # Examples
     ///
@@ -184,12 +178,14 @@ impl<E> ComposableError<E> {
     ///     .with_context("Context 1".to_string())
     ///     .with_context("Context 2".to_string());
     ///
-    /// assert_eq!(error.context().len(), 2);
-    /// assert_eq!(error.context()[0], "Context 2"); // Most recent first
+    /// let contexts = error.context();
+    /// assert_eq!(contexts.len(), 2);
+    /// assert_eq!(contexts[0], "Context 2"); // Most recent first
+    /// assert_eq!(contexts[1], "Context 1");
     /// ```
     #[inline]
-    pub fn context(&self) -> &SmallVec<[String; 4]> {
-        &self.context
+    pub fn context(&self) -> Vec<String> {
+        self.context.iter().rev().cloned().collect()
     }
 
     /// Returns the error code if present.
@@ -283,8 +279,8 @@ impl<E> ComposableError<E> {
     /// assert_eq!(contexts, vec![&"Second".to_string(), &"First".to_string()]);
     /// ```
     #[inline]
-    pub fn context_iter(&self) -> std::slice::Iter<'_, String> {
-        self.context.iter()
+    pub fn context_iter(&self) -> std::iter::Rev<std::slice::Iter<'_, String>> {
+        self.context.iter().rev()
     }
 
     /// Returns the full error chain as a formatted string.
@@ -313,7 +309,8 @@ impl<E> ComposableError<E> {
     {
         let mut chain = String::new();
 
-        for (i, ctx) in self.context.iter().enumerate() {
+        // Iterate in reverse order (most recent first)
+        for (i, ctx) in self.context.iter().rev().enumerate() {
             if i > 0 {
                 chain.push_str(" -> ");
             }
