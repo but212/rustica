@@ -758,33 +758,113 @@ mod performance_tests {
 
     #[test]
     fn test_error_accumulation_performance() {
-        // First measure baseline operation to establish a reference point
-        // This measures the cost of simply creating a vector without validation
-        let start_baseline = Instant::now();
-        let errors: Vec<String> = (0..1000).map(|i| format!("error_{i}")).collect();
-        let baseline_duration = start_baseline.elapsed();
+        const ITERATIONS: usize = 20;
+        const ERROR_COUNT: usize = 1000;
 
-        // Now measure the actual validation operation
-        let start = Instant::now();
-        let validated: Validated<String, i32> = Validated::invalid_many(errors.clone());
-        assert_eq!(validated.errors().len(), 1000);
-        let operation_duration = start.elapsed();
+        // Pre-create strings to isolate invalid_many cost
+        let error_strings: Vec<String> = (0..ERROR_COUNT).map(|i| format!("error_{i}")).collect();
 
-        println!("Error accumulation baseline: {baseline_duration:?}");
-        println!("Error accumulation operation: {operation_duration:?}");
+        // Warmup: stabilize system cache and allocator
+        for _ in 0..5 {
+            let strings = error_strings.clone();
+            let _validated: Validated<String, i32> = Validated::invalid_many(strings);
+        }
+
+        // Baseline 1: Pure Vec clone (what invalid_many should beat)
+        let mut vec_clone_durations = Vec::with_capacity(ITERATIONS);
+        for _ in 0..ITERATIONS {
+            let start = Instant::now();
+            let strings = error_strings.clone();
+            let _cloned = strings.clone();
+            vec_clone_durations.push(start.elapsed());
+        }
+
+        // Baseline 2: SmallVec collection (optimal path without size_hint logic)
+        let mut smallvec_durations = Vec::with_capacity(ITERATIONS);
+        for _ in 0..ITERATIONS {
+            let start = Instant::now();
+            let strings = error_strings.clone();
+            let mut sv: smallvec::SmallVec<[String; 8]> =
+                smallvec::SmallVec::with_capacity(strings.len());
+            sv.extend(strings);
+            smallvec_durations.push(start.elapsed());
+        }
+
+        // Operation: Validated::invalid_many (with size_hint optimization)
+        let mut invalid_many_durations = Vec::with_capacity(ITERATIONS);
+        for _ in 0..ITERATIONS {
+            let start = Instant::now();
+            let strings = error_strings.clone();
+            let validated: Validated<String, i32> = Validated::invalid_many(strings);
+            assert_eq!(validated.errors().len(), ERROR_COUNT);
+            invalid_many_durations.push(start.elapsed());
+        }
+
+        // Use median for stability
+        vec_clone_durations.sort();
+        smallvec_durations.sort();
+        invalid_many_durations.sort();
+
+        let vec_clone_median = vec_clone_durations[ITERATIONS / 2];
+        let smallvec_median = smallvec_durations[ITERATIONS / 2];
+        let invalid_many_median = invalid_many_durations[ITERATIONS / 2];
+
+        println!("\n=== Error Accumulation Performance ({ERROR_COUNT} errors) ===");
         println!(
-            "Ratio: {:.2}x",
-            operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
+            "Vec clone baseline:                {:>12.2?}",
+            vec_clone_median
+        );
+        println!(
+            "SmallVec optimal path:             {:>12.2?}",
+            smallvec_median
+        );
+        println!(
+            "Validated::invalid_many():         {:>12.2?}",
+            invalid_many_median
         );
 
-        // Instead of a fixed threshold, we expect the validation to be at most 10x slower
-        // than simply creating the vector. This relative threshold is much more robust
-        // across different hardware.
-        assert!(
-            operation_duration.as_secs_f64() < baseline_duration.as_secs_f64() * 10.0,
-            "Error accumulation is more than 10x slower than baseline: {:.2}x",
-            operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
+        println!("\n=== Performance Analysis ===");
+        println!(
+            "invalid_many vs Vec clone:        {:.2}x",
+            invalid_many_median.as_secs_f64() / vec_clone_median.as_secs_f64()
         );
+        println!(
+            "invalid_many vs SmallVec optimal: {:.2}x",
+            invalid_many_median.as_secs_f64() / smallvec_median.as_secs_f64()
+        );
+
+        // Performance expectations:
+        // 1. invalid_many should be close to optimal SmallVec path (within 3x)
+        // 2. invalid_many should be competitive with Vec clone for large collections (within 2x)
+        // 3. Size hint optimization should provide reasonable benefits
+
+        let smallvec_overhead = invalid_many_median.as_secs_f64() / smallvec_median.as_secs_f64();
+        let vec_clone_ratio = invalid_many_median.as_secs_f64() / vec_clone_median.as_secs_f64();
+
+        // Check that invalid_many is reasonably close to optimal SmallVec path
+        // Allow up to 3x overhead for size_hint logic and enum wrapping
+        assert!(
+            smallvec_overhead < 3.0,
+            "invalid_many is {:.2}x slower than optimal SmallVec path!\n\
+            Expected: < 3.0x (reasonable overhead for size_hint logic + enum wrapping)\n\
+            This suggests the size_hint optimization is inefficient.",
+            smallvec_overhead
+        );
+
+        // For large collections, invalid_many should be competitive with Vec clone
+        // Allow up to 2x since we have enum overhead but better memory efficiency
+        if ERROR_COUNT > 100 {
+            assert!(
+                vec_clone_ratio < 2.0,
+                "invalid_many is {:.2}x slower than Vec clone for {} errors!\n\
+            Expected: < 2.0x (competitive with Vec clone despite enum overhead)\n\
+            This indicates a performance regression.",
+                vec_clone_ratio,
+                ERROR_COUNT
+            );
+        }
+
+        println!("✓ Performance test passed - invalid_many is reasonably efficient");
     }
 
     #[test]
