@@ -440,6 +440,7 @@
 use crate::error::{BoxedComposableResult, ComposableError, ErrorPipeline};
 use crate::utils::error_utils::AppError;
 use quickcheck::{Arbitrary, Gen};
+use std::fmt::Debug;
 #[cfg(feature = "async")]
 use std::future::Future;
 use std::sync::Arc;
@@ -1210,23 +1211,17 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     pub fn sequence_composable<I>(ios: I) -> Result<Vec<A>, ComposableErrorCollection<IOError>>
     where
         I: IntoIterator<Item = IO<A>>,
+        A: Debug,
     {
-        use smallvec::SmallVec;
-        let ios_vec: Vec<IO<A>> = ios.into_iter().collect();
-        let mut results = Vec::with_capacity(ios_vec.len());
-        let mut errors: ComposableErrorCollection<IOError> = SmallVec::new();
+        let (successes, failures): (Vec<_>, Vec<_>) = ios
+            .into_iter()
+            .map(|io| io.try_get_composable())
+            .partition(Result::is_ok);
 
-        for io in ios_vec {
-            match io.try_get_composable() {
-                Ok(value) => results.push(value),
-                Err(error) => errors.push(error),
-            }
-        }
-
-        if errors.is_empty() {
-            Ok(results)
+        if failures.is_empty() {
+            Ok(successes.into_iter().map(Result::unwrap).collect())
         } else {
-            Err(errors)
+            Err(failures.into_iter().map(Result::unwrap_err).collect())
         }
     }
 
