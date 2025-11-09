@@ -366,6 +366,10 @@ impl<T> Choice<T> {
     /// - [`alternatives`](Self::alternatives) - To get the actual alternative values.
     /// - [`len`](Self::len) - To get the total count of items.
     #[inline]
+    #[deprecated(
+        since = "0.11.0",
+        note = "Use `alternatives().is_empty()` instead. Will be removed in v0.12.0"
+    )]
     pub fn has_alternatives(&self) -> bool {
         self.values.len() > 1
     }
@@ -453,6 +457,10 @@ impl<T> Choice<T> {
     /// assert_eq!(vec, vec![10, 20, 30]);
     /// ```
     #[inline]
+    #[deprecated(
+        since = "0.11.0",
+        note = "Use `Into::<Vec<T>>::into()` or `.iter().cloned().collect()` instead. Will be removed in v0.12.0"
+    )]
     pub fn to_vec(&self) -> Vec<T>
     where
         T: Clone,
@@ -477,15 +485,6 @@ impl<T> Choice<T> {
     ///
     /// ```
     /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(10, vec![25, 30, 45]);
-    /// let found = choice.find_first(|&&x| x > 20);
-    /// assert_eq!(found, Some(&25));
-    ///
-    /// let not_found = choice.find_first(|&&x| x > 50);
-    /// assert_eq!(not_found, None);
-    /// ```
-    #[inline]
     pub fn find_first<'a, P>(&'a self, predicate: P) -> Option<&'a T>
     where
         P: Fn(&&'a T) -> bool,
@@ -518,6 +517,10 @@ impl<T> Choice<T> {
     ///
     /// # See Also
     /// - [`dedup_by_key`](Self::dedup_by_key) - For deduplication using a key extraction function.
+    #[deprecated(
+        since = "0.11.0",
+        note = "Deduplication is not a core categorical operation. Use external iteration patterns instead. Will be removed in v0.12.0"
+    )]
     pub fn dedup(&self) -> Self
     where
         T: Hash + Eq + Clone,
@@ -564,6 +567,10 @@ impl<T> Choice<T> {
     ///
     /// # See Also
     /// - [`dedup`](Self::dedup) - For simple deduplication using element equality.
+    #[deprecated(
+        since = "0.11.0",
+        note = "Deduplication is not a core categorical operation. Use external iteration patterns instead. Will be removed in v0.12.0"
+    )]
     pub fn dedup_by_key<K, F>(&self, key_fn: F) -> Self
     where
         F: Fn(&T) -> K,
@@ -610,6 +617,10 @@ impl<T> Choice<T> {
     /// let sum = choice.fold(0, |acc, &x| acc + x);
     /// assert_eq!(sum, 10);
     /// ```
+    #[deprecated(
+        since = "0.11.0",
+        note = "Use the Foldable trait's fold_left/fold_right instead. Will be removed in v0.12.0"
+    )]
     pub fn fold<B, F>(&self, initial: B, f: F) -> B
     where
         F: Fn(B, &T) -> B,
@@ -646,6 +657,10 @@ impl<T> Choice<T> {
     ///
     /// assert_eq!(map, expected);
     /// ```
+    #[deprecated(
+        since = "0.11.0",
+        note = "Specialized conversion methods should be external. Use `iter().map().collect()` patterns instead. Will be removed in v0.12.0"
+    )]
     pub fn to_map_with_key<K, F>(&self, mut f: F) -> std::collections::HashMap<K, T>
     where
         T: Clone,
@@ -698,6 +713,10 @@ impl<T> Choice<T> {
     /// assert_eq!(from_empty_add.alternatives(), &[20]);
     /// ```
     #[inline]
+    #[deprecated(
+        since = "0.11.0",
+        note = "Use Semigroup::combine() or Monoid operations instead. Will be removed in v0.12.0"
+    )]
     pub fn add_alternatives<I>(self, items: I) -> Self
     where
         T: Clone,
@@ -833,6 +852,10 @@ impl<T> Choice<T> {
     /// let result = single_choice.try_remove_alternative(0);
     /// assert!(result.is_err());
     /// ```
+    #[deprecated(
+        since = "0.11.0",
+        note = "Index-based manipulation is not a core categorical operation. Use filter_values() instead. Will be removed in v0.12.0"
+    )]
     pub fn try_remove_alternative(self, index: usize) -> Result<Self, &'static str>
     where
         T: Clone,
@@ -909,6 +932,10 @@ impl<T> Choice<T> {
     /// - [`remove_alternative`](Self::remove_alternative) - To remove a specific alternative by index.
     ///
     #[inline]
+    #[deprecated(
+        since = "0.11.0",
+        note = "Semantically unclear (preserves primary unconditionally). Use filter_values() instead. Will be removed in v0.12.0"
+    )]
     pub fn filter<P>(&self, predicate: P) -> Self
     where
         P: Fn(&T) -> bool,
@@ -973,6 +1000,10 @@ impl<T> Choice<T> {
     /// - [`fmap`](crate::traits::functor::Functor::fmap) - To apply a function to all values (primary and alternatives), potentially changing type.
     /// - [`filter`](Self::filter) - To filter alternatives based on a predicate.
     #[inline]
+    #[deprecated(
+        since = "0.11.0",
+        note = "Too specialized. Use fmap() with conditional logic or external iteration instead. Will be removed in v0.12.0"
+    )]
     pub fn fmap_alternatives<F>(&self, mut f: F) -> Choice<T>
     where
         F: FnMut(&T) -> T,
@@ -1184,6 +1215,10 @@ impl<T> Choice<T> {
     /// - [`flatten()`](Self::flatten) - For a version that flattens without sorting alternatives.
     /// - [`Choice::new()`](Self::new) - For creating a `Choice`.
     /// - [`Vec::sort()`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.sort) - For the sorting mechanism used on alternatives.
+    #[deprecated(
+        since = "0.11.0",
+        note = "Mixing categorical operations (flatten) with ordering breaks FP philosophy. Use flatten() then sort externally. Will be removed in v0.12.0"
+    )]
     pub fn flatten_sorted<I>(&self) -> Choice<I>
     where
         T: IntoIterator<Item = I> + Clone,
@@ -1540,7 +1575,6 @@ impl<T> Choice<T> {
     /// ```should_panic
     /// use rustica::datatypes::choice::Choice;
     ///
-    /// let empty_choice: Choice<i32> = Choice::new_empty();
     /// // Panics because an empty choice has no primary or alternatives.
     /// let _ = empty_choice.swap_with_alternative(0);
     /// ```
@@ -1550,6 +1584,10 @@ impl<T> Choice<T> {
     /// - [`Choice::remove_alternative()`](Self::remove_alternative) - To remove an alternative.
     /// - [`Choice::add_alternatives()`](Self::add_alternatives) - To add alternatives.
     /// - [`try_swap_with_alternative()`](Self::try_swap_with_alternative) - Safe version that returns Result.
+    #[deprecated(
+        since = "0.11.0",
+        note = "Index-based swapping is not a core categorical operation. Use external patterns instead. Will be removed in v0.12.0"
+    )]
     pub fn swap_with_alternative(self, alt_index: usize) -> Self
     where
         T: Clone,
@@ -1598,6 +1636,10 @@ impl<T> Choice<T> {
     /// assert_eq!(iter.next(), Some(20)); // Primary from f(2)
     /// assert_eq!(iter.next(), Some(40)); // Alternative from f(2)
     /// ```
+    #[deprecated(
+        since = "0.11.0",
+        note = "Too specialized. Use bind() with into_iter() or flat_map patterns instead. Will be removed in v0.12.0"
+    )]
     pub fn bind_lazy<U, F>(&self, f: F) -> impl Iterator<Item = U>
     where
         F: Fn(&T) -> Choice<U>,
@@ -1639,6 +1681,10 @@ impl<T> Choice<T> {
     /// let result = single_choice.try_swap_with_alternative(0);
     /// assert!(result.is_err());
     /// ```
+    #[deprecated(
+        since = "0.11.0",
+        note = "Index-based swapping is not a core categorical operation. Use external patterns instead. Will be removed in v0.12.0"
+    )]
     pub fn try_swap_with_alternative(self, alt_index: usize) -> Result<Self, &'static str>
     where
         T: Clone,
