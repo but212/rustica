@@ -1855,22 +1855,9 @@ impl<T: Clone> Monad for Choice<T> {
         let first_choice_values = &first_choice.values;
         let first = first_choice_values[0].clone();
 
-        // Calculate accurate capacity by sampling first few alternatives
-        let mut estimated_capacity = first_choice_values.len() - 1;
-
-        // Sample first 2 alternatives to get better size estimate
-        let sample_size = std::cmp::min(2, self_values.len() - 1);
-        if sample_size > 0 {
-            let mut avg_choice_size = 0;
-            for i in 1..=sample_size {
-                let sample_choice = f(&self_values[i]);
-                avg_choice_size += sample_choice.values.len();
-            }
-            avg_choice_size /= sample_size;
-            estimated_capacity += avg_choice_size * (self_values.len() - 1);
-        }
-
-        let mut alternatives = Vec::with_capacity(estimated_capacity);
+        // Simple capacity estimate
+        let mut alternatives =
+            Vec::with_capacity(first_choice_values.len() - 1 + self_values.len() - 1);
 
         // Add alternatives from primary choice
         alternatives.extend_from_slice(&first_choice_values[1..]);
@@ -1904,25 +1891,13 @@ impl<T: Clone> Monad for Choice<T> {
         let first = primary_choice_values[0].clone();
 
         // Calculate better capacity estimate for bind_owned
-        let mut estimated_capacity = primary_choice_values.len() - 1;
-        let sample_size = std::cmp::min(2, values.len());
-        if sample_size > 0 {
-            let mut avg_choice_size = 0;
-            for i in 0..sample_size {
-                let sample_choice = f(values[i].clone());
-                avg_choice_size += sample_choice.values.len();
-            }
-            avg_choice_size /= sample_size;
-            estimated_capacity += avg_choice_size * values.len();
-        }
-
-        let mut alternatives = Vec::with_capacity(estimated_capacity);
+        let mut alternatives = Vec::with_capacity(primary_choice_values.len() - 1 + values.len());
 
         alternatives.extend_from_slice(&primary_choice_values[1..]);
 
         for alt in values {
             let alt_choice = f(alt);
-            alternatives.extend(alt_choice.values.iter().cloned());
+            alternatives.extend(alt_choice.values);
         }
 
         Choice::new(first, alternatives)
@@ -1947,22 +1922,9 @@ impl<T: Clone> Monad for Choice<T> {
 
         let first = primary_choice.first().unwrap().clone();
 
-        // Calculate more accurate capacity for alternatives
-        let base_capacity = primary_choice.alternatives().len();
-        let alt_count = self.alternatives().len();
-
-        // Estimate total elements: alternatives from primary + (alternatives * avg size)
-        // Use primary choice length as size hint for alternative choices
-        let avg_choice_size = std::cmp::max(1, primary_choice.len());
-        let estimated_total = base_capacity + alt_count * avg_choice_size;
-
-        let capacity = if estimated_total <= 8 {
-            8 // Use SmallVec inline capacity
-        } else {
-            estimated_total
-        };
-
-        let mut alternatives = Vec::with_capacity(capacity);
+        // Simple capacity estimate
+        let mut alternatives =
+            Vec::with_capacity(primary_choice.alternatives().len() + self.alternatives().len());
 
         // Add alternatives from primary choice
         alternatives.extend_from_slice(primary_choice.alternatives());
@@ -1996,9 +1958,9 @@ impl<T: Clone> Monad for Choice<T> {
 
         let first = primary_choice.first().unwrap().clone();
 
-        // Calculate capacity for alternatives
-        let capacity = primary_choice.alternatives().len() + values.len() * 2;
-        let mut alternatives = Vec::with_capacity(capacity);
+        // Simple capacity estimate
+        let mut alternatives =
+            Vec::with_capacity(primary_choice.alternatives().len() + values.len());
 
         // Add alternatives from primary choice
         alternatives.extend_from_slice(primary_choice.alternatives());
@@ -2050,10 +2012,7 @@ impl<T: Clone> Semigroup for Choice<T> {
 
         let mut self_values = self.values;
         let primary = self_values.remove(0);
-        Choice::new(
-            primary,
-            self_values.into_iter().chain(other.values.iter().cloned()),
-        )
+        Choice::new(primary, self_values.into_iter().chain(other.values))
     }
 }
 
@@ -2293,7 +2252,7 @@ impl<T: Clone> Applicative for Choice<T> {
         );
 
         let capacity = fa.len() * fb.len() * fc.len() - 1;
-        let mut alternatives = Vec::with_capacity(capacity);
+        let mut alternatives = SmallVec::<[D; 8]>::with_capacity(capacity);
 
         for (i, a) in fa.values.iter().enumerate() {
             for (j, b_val) in fb.values.iter().enumerate() {
@@ -2484,13 +2443,7 @@ impl<T> FromIterator<T> for Choice<T> {
 
 impl<T: Clone> FromIterator<Choice<T>> for Choice<T> {
     fn from_iter<I: IntoIterator<Item = Choice<T>>>(iter: I) -> Self {
-        let values: SmallVec<[T; 8]> = iter
-            .into_iter()
-            .flat_map(|choice| {
-                let values = choice.values.to_vec();
-                values.into_iter()
-            })
-            .collect();
+        let values: SmallVec<[T; 8]> = iter.into_iter().flat_map(|choice| choice.values).collect();
 
         match values.len() {
             0 => Self::new_empty(),
