@@ -89,7 +89,7 @@ use crate::traits::hkt::HKT;
 /// comonad.extract()           // ✅ for comonads
 /// ```
 #[deprecated(
-    since = "0.11.0",
+    since = "0.10.1",
     note = "Identity trait is a design flaw. Use unwrap(), as_ref(), or Comonad::extract() instead"
 )]
 pub trait Identity: HKT {
