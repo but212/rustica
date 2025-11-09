@@ -356,13 +356,11 @@ pub fn iso_prism_benchmarks(c: &mut Criterion) {
     // IsoPrism composition and transformation benchmarks
     group.bench_function("iso_prism_composition", |b| {
         // Compose success prism with data transformation
-        let transformed_prism = success_prism.compose_prism(
-            iso_prism::IsoPrism::new(
-                |data: &SuccessData| data.clone(),
-                |data| data
-            )
-        );
-        
+        let transformed_prism = success_prism.compose_prism(iso_prism::IsoPrism::new(
+            |data: &SuccessData| data.clone(),
+            |data| data,
+        ));
+
         b.iter(|| {
             let result = transformed_prism.preview(&black_box(success_response.clone()));
             black_box(result)

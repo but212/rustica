@@ -263,13 +263,11 @@ pub fn prism_benchmarks(c: &mut Criterion) {
     // Prism composition benchmarks - showing prism advantages
     group.bench_function("prism_composition", |b| {
         // Compose text prism with length check
-        let long_text_prism = text_prism.compose_prism(
-            prism::Prism::new(
-                |s: &String| if s.len() > 10 { Some(s.len()) } else { None },
-                |len| format!("text of length {}", len)
-            )
-        );
-        
+        let long_text_prism = text_prism.compose_prism(prism::Prism::new(
+            |s: &String| if s.len() > 10 { Some(s.len()) } else { None },
+            |len| format!("text of length {}", len),
+        ));
+
         b.iter(|| {
             let result = long_text_prism.preview(&black_box(text_msg.clone()));
             black_box(result)
