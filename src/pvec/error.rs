@@ -12,7 +12,7 @@ pub enum PVecError {
         /// The invalid index that was accessed.
         index: usize,
         /// The actual length of the vector.
-        len: usize
+        len: usize,
     },
     /// Range is invalid (start > end).
     ///
@@ -21,7 +21,7 @@ pub enum PVecError {
         /// The start index of the range.
         start: usize,
         /// The end index of the range.
-        end: usize
+        end: usize,
     },
 }
 

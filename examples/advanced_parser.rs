@@ -468,11 +468,13 @@ fn condition_parser() -> Parser<char, Condition> {
             .and_then(move |operator| {
                 let field_clone2 = field_clone.clone();
                 let operator_clone = operator.clone();
-                whitespace().and_then(|_| word()).map(move |value| Condition {
-                    field: field_clone2.clone(),
-                    operator: operator_clone.clone(),
-                    value,
-                })
+                whitespace()
+                    .and_then(|_| word())
+                    .map(move |value| Condition {
+                        field: field_clone2.clone(),
+                        operator: operator_clone.clone(),
+                        value,
+                    })
             })
     })
 }

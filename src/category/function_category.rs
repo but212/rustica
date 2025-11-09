@@ -360,7 +360,9 @@ impl FunctionCategory {
     /// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even)
     /// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd)
     /// ```
-    #[deprecated(note = "Please use `then_if` instead. Its name more accurately describes the conditional execution flow.")]
+    #[deprecated(
+        note = "Please use `then_if` instead. Its name more accurately describes the conditional execution flow."
+    )]
     pub fn compose_when<A, P>(
         first: &FunctionMorphism<A, A>, second: &FunctionMorphism<A, A>, predicate: P,
     ) -> FunctionMorphism<A, A>

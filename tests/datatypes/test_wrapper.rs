@@ -334,7 +334,7 @@ fn test_real_world_use_cases() {
     let values: Vec<Option<i32>> = vec![None, Some(42), Some(84), None];
     let first: First<i32> = values
         .iter()
-        .filter_map(|&x| x)  // Filter out None, unwrap Some
+        .filter_map(|&x| x) // Filter out None, unwrap Some
         .map(|x| First(Some(x)))
         .fold(First(None), |acc, x| acc.combine(&x));
     assert_eq!(first, First(Some(42)));
@@ -343,7 +343,7 @@ fn test_real_world_use_cases() {
     let values: Vec<Option<i32>> = vec![None, Some(42), Some(84), None];
     let last: Last<i32> = values
         .iter()
-        .filter_map(|&x| x)  // Filter out None, unwrap Some
+        .filter_map(|&x| x) // Filter out None, unwrap Some
         .map(|x| Last(Some(x)))
         .fold(Last(None), |acc, x| acc.combine(&x));
     assert_eq!(last, Last(Some(84)));
