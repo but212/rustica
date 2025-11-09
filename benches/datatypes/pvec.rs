@@ -253,7 +253,7 @@ fn vec_comparison_benchmarks(c: &mut Criterion) {
             let mut versions = Vec::new();
             for i in 0..10 {
                 let mut copy = base.clone();
-                copy[i * 100] = i * 1000;
+                copy[i * 100] = (i * 1000) as i32;
                 versions.push(copy);
             }
             black_box(versions)

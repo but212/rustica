@@ -89,7 +89,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let result = Result::<i32, String>::Ok(valid_data);
             let mapped = result.map(|x| x + 1);
-            black_box(mapped);
+            let _ = black_box(mapped);
         });
     });
 
@@ -113,7 +113,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
                 accumulated_errors.push(error.clone());
             }
             let result: Result<i32, Vec<String>> = Err(accumulated_errors);
-            black_box(result);
+            let _ = black_box(result);
         });
     });
 
