@@ -21,7 +21,6 @@
 //! use rustica::datatypes::id::Id;
 //! use rustica::traits::functor::Functor;
 //! use rustica::traits::monad::Monad;
-//! use rustica::traits::identity::Identity;
 //!
 //! // Create identity values
 //! let id_number = Id::new(42);
@@ -131,7 +130,6 @@
 //! ```rust
 //! use rustica::prelude::*;
 //! use rustica::datatypes::id::Id;
-//! use rustica::traits::identity::Identity;
 //!
 //! // Create an Id value
 //! let x: Id<i32> = Id::new(42);

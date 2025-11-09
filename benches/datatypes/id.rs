@@ -3,7 +3,6 @@ use rustica::datatypes::id::Id;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::comonad::Comonad;
 use rustica::traits::functor::Functor;
-use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 use rustica::traits::monoid::Monoid;
 use rustica::traits::semigroup::Semigroup;

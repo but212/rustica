@@ -277,7 +277,6 @@ where
 /// ```rust
 /// use rustica::utils::error_utils::traverse_validated;
 /// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::identity::Identity;
 ///
 /// // Define a fallible parsing function
 /// let parse_int = |s: &str| -> Result<i32, String> {
