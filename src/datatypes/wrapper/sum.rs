@@ -120,7 +120,6 @@ use std::ops::Add;
 /// use rustica::datatypes::wrapper::sum::Sum;
 /// use rustica::traits::semigroup::Semigroup;
 /// use rustica::traits::monoid::Monoid;
-/// use rustica::traits::identity::Identity;
 ///
 /// // Create Sum values
 /// let a: Sum<i32> = Sum(5);
@@ -128,7 +127,7 @@ use std::ops::Add;
 ///
 /// // Combine them (addition)
 /// let c = a.combine(&b);
-/// assert_eq!(*c.value(), 12);
+/// assert_eq!(c.unwrap(), 12);
 ///
 /// // Addition is associative: (a + b) + c = a + (b + c)
 /// let x: Sum<i32> = Sum(1);
@@ -137,13 +136,13 @@ use std::ops::Add;
 ///
 /// let result1 = x.clone().combine(&y).combine(&z.clone());
 /// let result2 = x.combine(&y.combine(&z));
-/// assert_eq!(*result1.value(), *result2.value());
+/// assert_eq!(result1.unwrap(), result2.unwrap());
 ///
 /// // Identity element
 /// let id: Sum<i32> = Sum(0);
-/// assert_eq!(*id.value(), 0);
-/// assert_eq!(*Sum(42).combine(&id).value(), 42);
-/// assert_eq!(*id.combine(&Sum(42)).value(), 42);
+/// assert_eq!(id.unwrap(), 0);
+/// assert_eq!(Sum(42).combine(&id).unwrap(), 42);
+/// assert_eq!(id.combine(&Sum(42)).unwrap(), 42);
 /// ```
 ///
 /// Working with floating-point numbers:
@@ -151,12 +150,11 @@ use std::ops::Add;
 /// ```rust
 /// use rustica::datatypes::wrapper::sum::Sum;
 /// use rustica::traits::semigroup::Semigroup;
-/// use rustica::traits::identity::Identity;
 ///
 /// let a: Sum<f64> = Sum(2.5);
 /// let b: Sum<f64> = Sum(3.7);
 /// let c = a.combine(&b);
-/// assert_eq!(*c.value(), 6.2);
+/// assert_eq!(c.unwrap(), 6.2);
 /// ```
 ///
 /// Custom types that implement `Add`:
@@ -164,7 +162,6 @@ use std::ops::Add;
 /// ```rust
 /// use rustica::datatypes::wrapper::sum::Sum;
 /// use rustica::traits::semigroup::Semigroup;
-/// use rustica::traits::identity::Identity;
 /// use std::ops::Add;
 ///
 /// #[derive(Debug, Clone, PartialEq)]
@@ -189,7 +186,7 @@ use std::ops::Add;
 /// let v2: Sum<Vector2D> = Sum(Vector2D { x: 3.0, y: 4.0 });
 /// let v3 = v1.combine(&v2);
 ///
-/// assert_eq!(*v3.value(), Vector2D { x: 4.0, y: 6.0 });
+/// assert_eq!(v3.unwrap(), Vector2D { x: 4.0, y: 6.0 });
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -421,11 +418,10 @@ impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::monoid::Monoid;
     /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::identity::Identity;
     ///
     /// // Create the identity element (Sum(0))
     /// let identity: Sum<i32> = Sum::empty();
-    /// assert_eq!(*identity.value(), 0);
+    /// assert_eq!(identity.unwrap(), 0);
     ///
     /// // Identity property demonstration
     /// let a = Sum(42);

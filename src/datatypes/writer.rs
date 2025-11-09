@@ -17,7 +17,7 @@
 //!
 //! // Transform the value while preserving the log
 //! let doubled = writer1.fmap(|x| x * 2);
-//! assert_eq!(doubled.clone().value(), 84);
+//! assert_eq!(doubled.unwrap(), 84);
 //! assert_eq!(doubled.log(), "Starting computation");
 //!
 //! // Chain computations, combining logs
@@ -25,7 +25,7 @@
 //!     .bind(|x| Writer::new("Step 2".to_string(), x + 5))
 //!     .bind(|x| Writer::new("Step 3".to_string(), x * 2));
 //!
-//! assert_eq!(result.clone().value(), 30);
+//! assert_eq!(result.unwrap(), 30);
 //! assert_eq!(result.log(), "Step 1Step 2Step 3");
 //!
 //! // Add to log without changing the value
@@ -376,12 +376,15 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// let writer = Writer::new(Log(vec!["Log entry".to_string()]), 42);
     ///
     /// // Extract just the value, discarding the log
-    /// let value = writer.value();
+    /// let value = writer.unwrap();
     /// assert_eq!(value, 42);
     /// ```
     #[inline]
-    pub fn value(self) -> A {
-        self.value
+    pub fn unwrap(&self) -> A
+    where
+        A: Clone,
+    {
+        self.value.clone()
     }
 
     /// Creates a new Writer with the given value and an empty log.

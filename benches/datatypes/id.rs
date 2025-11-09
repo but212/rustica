@@ -102,7 +102,7 @@ pub fn id_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let id = Id::new(black_box(5));
             let result = id.extend(|ctx| {
-                let inner_value = *ctx.value();
+                let inner_value = ctx.unwrap();
                 inner_value * inner_value
             });
             black_box(result)
@@ -131,7 +131,7 @@ pub fn id_benchmarks(c: &mut Criterion) {
     group.bench_function("id_value", |b| {
         b.iter(|| {
             let id = Id::new(black_box(42));
-            let result = *id.value();
+            let result = id.unwrap();
             black_box(result)
         })
     });

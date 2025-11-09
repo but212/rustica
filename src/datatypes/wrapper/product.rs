@@ -356,11 +356,10 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::monoid::Monoid;
     /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::identity::Identity;
     ///
     /// // Create the identity element (Product(1))
     /// let identity: Product<i32> = Product::empty();
-    /// assert_eq!(*identity.value(), 1);
+    /// assert_eq!(identity.unwrap(), 1);
     ///
     /// // Identity property demonstration
     /// let a = Product(42);
