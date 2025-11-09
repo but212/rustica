@@ -1,7 +1,6 @@
 use super::TestFunctor;
 use quickcheck_macros::quickcheck;
 use rustica::traits::functor::Functor;
-use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 use rustica::traits::pure::Pure;
 

@@ -236,7 +236,6 @@
 //!
 use crate::datatypes::id::Id;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
 use crate::transformers::StateT;
 use crate::utils::error_utils::AppError;
 use quickcheck::{Arbitrary, Gen};
@@ -422,7 +421,7 @@ where
     #[inline]
     pub fn run_state(&self, s: S) -> (A, S) {
         // Direct mapping from Id monad's value
-        self.inner.run_state(s).value().clone()
+        self.inner.run_state(s).unwrap()
     }
 
     /// Runs the state computation and returns only the final value.
