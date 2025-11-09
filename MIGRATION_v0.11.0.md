@@ -596,7 +596,9 @@ let sorted = choice.flatten_sorted();
 
 // Separate concerns: categorical operation then external ordering
 let flattened = choice.flatten();
-let sorted = flattened.into_iter().sorted().collect();
+let mut sorted_vec: Vec<_> = flattened.into_iter().collect();
+sorted_vec.sort();
+let sorted = Choice::from_iter(sorted_vec);
 ```
 
 ---
@@ -768,7 +770,11 @@ let mapped = choice.fmap(|x| if x > 1 { x * 2 } else { x });  // Flexible
 
 // Separate categorical and ordering concerns
 let flattened = choice.flatten();  // Pure categorical
-let sorted_flat: Choice<i32> = flattened.into_iter().sorted().collect(); // External
+let sorted_flat: Choice<i32> = {
+    let mut sorted_vec: Vec<_> = flattened.into_iter().collect();
+    sorted_vec.sort();
+    Choice::from_iter(sorted_vec)
+}; // External
 
 // Use standard bind with iteration
 let eager: Choice<i32> = choice.bind(|x| Choice::new(x * 2, vec![x * 3])); // Standard
@@ -825,7 +831,11 @@ let result = choice.flatten_sorted();  // Mixes flatten + sort
 // AFTER - separate concerns
 let choice = Choice::new(vec![3, 1], vec![vec![4, 2], vec![5]]);
 let flattened = choice.flatten();  // Pure categorical
-let result: Choice<i32> = flattened.into_iter().sorted().collect();  // External ordering
+let result: Choice<i32> = {
+    let mut sorted_vec: Vec<_> = flattened.into_iter().collect();
+    sorted_vec.sort();
+    Choice::from_iter(sorted_vec)
+};  // External ordering
 ```
 
 ---
@@ -841,7 +851,11 @@ choice.flatten_sorted()     // O(n log n) with internal sort
 
 // AFTER - external patterns (preserves semantics correctly)
 { let mut s = HashSet::new(); choice.iter().filter(|&x| s.insert(x)).cloned().collect() }  // O(n), order-preserving
-choice.flatten().into_iter().sorted().collect()  // O(n log n) but clearer
+{
+    let mut sorted_vec: Vec<_> = choice.flatten().into_iter().collect();
+    sorted_vec.sort();
+    Choice::from_iter(sorted_vec)
+}  // O(n log n) but clearer
 ```
 
 **Note**: The external patterns may have slightly more allocation overhead, but they provide:
@@ -909,7 +923,7 @@ If you encounter issues during migration:
 | Remove duplicates    | `choice.dedup()`                | `{ let mut s = HashSet::new(); choice.iter().filter(\|&x\| s.insert(x)).cloned().collect() }` |
 | Fold/Reduce          | `choice.fold(init, f)`          | `choice.fold_left(&init, f)`                                        |
 | Add alternatives     | `choice.add_alternatives(iter)` | `choice.combine(&other_choice)`                                     |
-| Sort + flatten       | `choice.flatten_sorted()`       | `Choice::from_iter(choice.flatten().iter().cloned().sorted())`      |
+| Sort + flatten       | `choice.flatten_sorted()`       | `Choice::from_iter({ let mut v = choice.flatten().into_iter().collect::<Vec<_>>(); v.sort(); v })`      |
 
 **Get Started**: Run the complete example:
 
