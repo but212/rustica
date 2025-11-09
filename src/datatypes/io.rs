@@ -437,7 +437,7 @@
 //! assert_eq!(good_io_fib.run(), 6765);
 //! ```
 
-use crate::error::{BoxedComposableResult, ComposableError, ComposableResult, ErrorPipeline};
+use crate::error::{BoxedComposableResult, ComposableError, ErrorPipeline};
 use crate::utils::error_utils::AppError;
 use quickcheck::{Arbitrary, Gen};
 #[cfg(feature = "async")]
@@ -452,6 +452,12 @@ use std::time::Duration;
 /// This alias encapsulates the common pattern of `Arc<dyn Fn() -> A + Send + Sync + 'static>`
 /// used throughout the IO implementation, making the code more readable and maintainable.
 pub type IOMorphism<A> = Arc<dyn Fn() -> A + Send + Sync + 'static>;
+
+/// Type alias for composable error collection results.
+///
+/// This alias encapsulates the complex type used for collecting multiple ComposableError
+/// instances in sequence operations, improving readability and maintainability.
+pub type ComposableErrorCollection<E> = smallvec::SmallVec<[Box<ComposableError<E>>; 4]>;
 
 /// A custom error type for IO operations
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1016,7 +1022,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// let error = result.unwrap_err();
     /// assert!(matches!(error.core_error(), &rustica::datatypes::io::IOError::Other(_)));
     /// ```
-    pub fn try_get_composable(&self) -> ComposableResult<A, IOError> {
+    pub fn try_get_composable(&self) -> BoxedComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
@@ -1027,7 +1033,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
                 } else {
                     "IO operation panicked with unknown error".to_string()
                 };
-                Err(ComposableError::new(IOError::Other(msg)))
+                Err(Box::new(ComposableError::new(IOError::Other(msg))))
             },
         }
     }
@@ -1069,9 +1075,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// ```
     pub fn try_get_composable_with_context<S: Into<String>>(
         &self, context: S,
-    ) -> ComposableResult<A, IOError> {
+    ) -> BoxedComposableResult<A, IOError> {
         self.try_get_composable()
-            .map_err(|e| e.with_context(context.into()))
+            .map_err(|e| Box::new(e.with_context(context.into())))
     }
 
     /// Tries to get the value with boxed composable error for large error types.
@@ -1096,7 +1102,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         &self, context: S,
     ) -> BoxedComposableResult<A, IOError> {
         self.try_get_composable_with_context(context)
-            .map_err(Box::new)
     }
 
     /// Creates an ErrorPipeline from this IO operation for functional error handling.
@@ -1120,7 +1125,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// assert!(result.is_ok());
     /// assert_eq!(result.unwrap(), 42);
     /// ```
-    pub fn into_error_pipeline(self) -> ErrorPipeline<A, ComposableError<IOError>> {
+    pub fn into_error_pipeline(self) -> ErrorPipeline<A, Box<ComposableError<IOError>>> {
         ErrorPipeline::new(self.try_get_composable())
     }
 
@@ -1151,7 +1156,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// ```
     pub fn recover<F>(self, recovery: F) -> Self
     where
-        F: Fn(ComposableError<IOError>) -> IO<A> + Send + Sync + 'static,
+        F: Fn(Box<ComposableError<IOError>>) -> IO<A> + Send + Sync + 'static,
     {
         IO::new(move || match self.try_get_composable() {
             Ok(value) => value,
@@ -1194,7 +1199,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     ///
     /// Unlike `sequence`, this method collects all errors that occur during execution
     /// rather than failing fast. This is useful for validation scenarios where you want
-    /// to report all problems at once.
+    /// to report all problems at once. Errors are boxed to reduce stack usage.
     ///
     /// # Arguments
     ///
@@ -1202,7 +1207,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     ///
     /// # Returns
     ///
-    /// A Result containing either all successful values or all collected errors
+    /// A Result containing either all successful values or all collected boxed errors
     ///
     /// # Examples
     ///
@@ -1226,16 +1231,14 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// assert!(result_mixed.is_err());
     /// // Errors are collected in a SmallVec
     /// ```
-    pub fn sequence_composable<I>(
-        ios: I,
-    ) -> Result<Vec<A>, smallvec::SmallVec<[ComposableError<IOError>; 4]>>
+    pub fn sequence_composable<I>(ios: I) -> Result<Vec<A>, ComposableErrorCollection<IOError>>
     where
         I: IntoIterator<Item = IO<A>>,
     {
         use smallvec::SmallVec;
         let ios_vec: Vec<IO<A>> = ios.into_iter().collect();
         let mut results = Vec::with_capacity(ios_vec.len());
-        let mut errors: SmallVec<[ComposableError<IOError>; 4]> = SmallVec::new();
+        let mut errors: ComposableErrorCollection<IOError> = SmallVec::new();
 
         for io in ios_vec {
             match io.try_get_composable() {
