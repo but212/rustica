@@ -233,6 +233,33 @@ fn vec_comparison_benchmarks(c: &mut Criterion) {
         })
     });
 
+    // PersistentVector structural sharing test
+    group.bench_function("pvec_structural_sharing", |b| {
+        let base = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        b.iter(|| {
+            let mut versions = Vec::new();
+            for i in 0..10 {
+                let version = base.update(i * 100, black_box(i * 1000));
+                versions.push(version);
+            }
+            black_box(versions)
+        })
+    });
+
+    // std::Vec equivalent (full copy)
+    group.bench_function("std_vec_copy_sharing", |b| {
+        let base: Vec<i32> = (0..1000).collect();
+        b.iter(|| {
+            let mut versions = Vec::new();
+            for i in 0..10 {
+                let mut copy = base.clone();
+                copy[i * 100] = i * 1000;
+                versions.push(copy);
+            }
+            black_box(versions)
+        })
+    });
+
     group.finish();
 }
 

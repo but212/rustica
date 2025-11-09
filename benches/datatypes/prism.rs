@@ -260,24 +260,29 @@ pub fn prism_benchmarks(c: &mut Criterion) {
         })
     });
 
-    // Pattern matching comparison benchmarks
-    group.bench_function("prism_vs_pattern_match_preview", |b| {
+    // Prism composition benchmarks - showing prism advantages
+    group.bench_function("prism_composition", |b| {
+        // Compose text prism with length check
+        let long_text_prism = text_prism.compose_prism(
+            prism::Prism::new(
+                |s: &String| if s.len() > 10 { Some(s.len()) } else { None },
+                |len| format!("text of length {}", len)
+            )
+        );
+        
         b.iter(|| {
-            // Using prism
-            let result = text_prism.preview(&black_box(text_msg.clone()));
+            let result = long_text_prism.preview(&black_box(text_msg.clone()));
             black_box(result)
         })
     });
 
-    group.bench_function("direct_pattern_match", |b| {
+    group.bench_function("prism_multiple_operations", |b| {
         b.iter(|| {
-            // Direct pattern matching
+            // Multiple prism operations in sequence
             let msg = black_box(text_msg.clone());
-            let result = match msg {
-                Message::Text(t) => Some(t),
-                _ => None,
-            };
-            black_box(result)
+            let text_result = text_prism.preview(&msg);
+            let processed = text_result.map(|s| s.to_uppercase());
+            black_box(processed)
         })
     });
 

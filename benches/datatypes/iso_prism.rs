@@ -353,22 +353,30 @@ pub fn iso_prism_benchmarks(c: &mut Criterion) {
         })
     });
 
-    // Pattern matching comparison benchmarks
-    group.bench_function("iso_prism_vs_pattern_match", |b| {
+    // IsoPrism composition and transformation benchmarks
+    group.bench_function("iso_prism_composition", |b| {
+        // Compose success prism with data transformation
+        let transformed_prism = success_prism.compose_prism(
+            iso_prism::IsoPrism::new(
+                |data: &SuccessData| data.clone(),
+                |data| data
+            )
+        );
+        
         b.iter(|| {
-            let result = success_prism.preview(&black_box(success_response.clone()));
+            let result = transformed_prism.preview(&black_box(success_response.clone()));
             black_box(result)
         })
     });
 
-    group.bench_function("direct_pattern_match", |b| {
+    group.bench_function("iso_prism_round_trip", |b| {
         b.iter(|| {
+            // Test round-trip performance (preview + review)
             let response = black_box(success_response.clone());
-            let result = match response {
-                ApiResponse::Success(s) => Some(s),
-                _ => None,
-            };
-            black_box(result)
+            if let Some(extracted) = success_prism.preview(&response) {
+                let reconstructed = success_prism.review(&extracted);
+                black_box(reconstructed)
+            }
         })
     });
 
