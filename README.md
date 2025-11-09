@@ -242,10 +242,6 @@ Rustica is inspired by functional programming libraries in other languages:
 - Kotlin's Arrow
 - TypeScript's fp-ts
 
-## Contributing
-
-Contributions are welcome! Check the [TODO list](TODO.md) for areas that need work.
-
 ## License
 
 Rustica is licensed under the Apache License, version 2.0. See the [LICENSE](LICENSE) file for details.
