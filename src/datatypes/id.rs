@@ -21,25 +21,23 @@
 //! use rustica::datatypes::id::Id;
 //! use rustica::traits::functor::Functor;
 //! use rustica::traits::monad::Monad;
-//! use rustica::traits::identity::Identity;
 //!
 //! // Create identity values
 //! let id_number = Id::new(42);
 //! let id_string = Id::new("hello".to_string());
 //!
 //! // Access the wrapped value
-//! assert_eq!(*id_number.value(), 42);
-//! assert_eq!(id_number.into_value(), 42);
+//! assert_eq!(id_number.unwrap(), 42);
 //!
 //! // Transform with fmap
 //! let doubled = id_number.fmap(|x| x * 2);
-//! assert_eq!(*doubled.value(), 84);
+//! assert_eq!(doubled.unwrap(), 84);
 //!
 //! // Chain with bind
 //! let result = Id::new(10)
 //!     .bind(|x| Id::new(x + 5))
 //!     .bind(|x| Id::new(x * 2));
-//! assert_eq!(*result.value(), 30);
+//! assert_eq!(result.unwrap(), 30);
 //!
 //! // Perfect for testing monadic code
 //! fn monadic_computation<M: Monad>(m: M) -> M::Output<String>
@@ -50,7 +48,7 @@
 //! }
 //!
 //! let test_result = monadic_computation(Id::new(123));
-//! assert_eq!(*test_result.value(), "Result: 123");
+//! assert_eq!(test_result.unwrap(), "Result: 123");
 //! ```
 //!
 //! ## Functional Programming Context
@@ -132,21 +130,20 @@
 //! ```rust
 //! use rustica::prelude::*;
 //! use rustica::datatypes::id::Id;
-//! use rustica::traits::identity::Identity;
 //!
 //! // Create an Id value
 //! let x: Id<i32> = Id::new(42);
 //!
 //! // Access the inner value
-//! assert_eq!(*x.value(), 42);
+//! assert_eq!(x.unwrap(), 42);
 //!
 //! // Map a function over the value (Functor)
 //! let doubled = x.fmap(|n| n * 2);
-//! assert_eq!(*doubled.value(), 84);
+//! assert_eq!(doubled.unwrap(), 84);
 //!
 //! // Lift a value into Id context (Pure)
 //! let pure_value = Id::<i32>::pure(&100);
-//! assert_eq!(*pure_value.value(), 100);
+//! assert_eq!(pure_value.unwrap(), 100);
 //! ```
 //!
 //! ## Iterator Example
@@ -199,7 +196,6 @@ use quickcheck::{Arbitrary, Gen};
 /// ```rust
 /// use rustica::prelude::*;
 /// use rustica::datatypes::id::Id;
-/// use rustica::traits::identity::Identity;
 /// use rustica::traits::applicative::Applicative;
 ///
 /// // Create Id values
@@ -207,46 +203,45 @@ use quickcheck::{Arbitrary, Gen};
 /// let y = Id::new(3);
 /// let z = Id::new(2);
 ///
-/// // Access the inner value using Identity trait's value() method
-/// assert_eq!(*x.value(), 5);
+/// assert_eq!(x.unwrap(), 5);
 ///
 /// // Using Functor to map over Id
 /// let doubled = x.fmap(|n| n * 2);
-/// assert_eq!(*doubled.value(), 10);
+/// assert_eq!(doubled.unwrap(), 10);
 ///
 /// // Using Pure to lift a value into Id context
 /// let pure_value = Id::<i32>::pure(&42);
-/// assert_eq!(*pure_value.value(), 42);
+/// assert_eq!(pure_value.unwrap(), 42);
 ///
 /// // Using Applicative to apply functions
 /// // 1. Apply a function wrapped in Id
 /// let add_one = Id::new(|x: &i32| x + 1);
 /// let result = Applicative::apply(&add_one, &x);
-/// assert_eq!(*result.value(), 6);
+/// assert_eq!(result.unwrap(), 6);
 ///
 /// // 2. Combine two Id values with lift2
 /// let add = |a: &i32, b: &i32| a + b;
 /// let sum = Id::<i32>::lift2(&add, &x, &y);
-/// assert_eq!(*sum.value(), 8);
+/// assert_eq!(sum.unwrap(), 8);
 ///
 /// // 3. Combine three Id values with lift3
 /// let multiply = |a: &i32, b: &i32, c: &i32| a * b * c;
 /// let product = Id::<i32>::lift3(&multiply, &x, &y, &z);
-/// assert_eq!(*product.value(), 30);
+/// assert_eq!(product.unwrap(), 30);
 ///
 /// // Working with different types
 /// let greeting = Id::new("Hello");
 /// let count = Id::new(3_usize);
 /// let repeat = |s: &&str, n: &usize| s.repeat(*n);
 /// let repeated = Id::<&str>::lift2(&repeat, &greeting, &count);
-/// assert_eq!(*repeated.value(), "HelloHelloHello");
+/// assert_eq!(repeated.unwrap(), "HelloHelloHello");
 ///
 /// // Chaining operations
 /// let result = x
 ///     .fmap(|n| n + 1)     // 5 -> 6
 ///     .fmap(|n| n * 2)     // 6 -> 12
 ///     .fmap(|n| n.to_string());
-/// assert_eq!(*result.value(), "12");
+/// assert_eq!(result.unwrap(), "12");
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -270,14 +265,13 @@ impl<T> Id<T> {
     ///
     /// ```rust
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     ///
     /// let x = Id::new(42);
-    /// assert_eq!(*x.value(), 42);
+    /// assert_eq!(x.unwrap(), 42);
     ///
     /// // Create Id with different types
     /// let s: Id<String> = Id::new("hello".to_string());
-    /// assert_eq!(*s.value(), "hello");
+    /// assert_eq!(s.unwrap(), "hello");
     /// ```
     #[inline]
     pub const fn new(x: T) -> Self {
@@ -383,11 +377,10 @@ impl<T: Clone> Id<T> {
     ///
     /// ```rust
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     ///
     /// let value = 42;
     /// let x = Id::from_ref(&value);
-    /// assert_eq!(*x.value(), 42);
+    /// assert_eq!(x.unwrap(), 42);
     /// ```
     #[inline]
     pub fn from_ref(x: &T) -> Self {
@@ -537,19 +530,18 @@ impl<T: Clone> Monad for Id<T> {
     /// ```rust
     /// use rustica::datatypes::id::Id;
     /// use rustica::traits::monad::Monad;
-    /// use rustica::traits::identity::Identity;
     ///
     /// // Simple binding with a transformation
     /// let x = Id::new(5);
     /// let result = x.bind(|n| Id::new(n * 2));
-    /// assert_eq!(*result.value(), 10);
+    /// assert_eq!(result.unwrap(), 10);
     ///
     /// // Chaining multiple bind operations
     /// let result = Id::new(5)
     ///     .bind(|n| Id::new(n + 3))          // 5 -> 8
     ///     .bind(|n| Id::new(n * 2))          // 8 -> 16
     ///     .bind(|n| Id::new(format!("{}", n))); // 16 -> "16"
-    /// assert_eq!(*result.value(), "16");
+    /// assert_eq!(result.unwrap(), "16");
     ///
     /// // Conditional logic in bind
     /// let process = |n: &i32| {
@@ -561,10 +553,10 @@ impl<T: Clone> Monad for Id<T> {
     /// };
     ///
     /// let pos = Id::new(42).bind(process);
-    /// assert_eq!(*pos.value(), "Positive: 42");
+    /// assert_eq!(pos.unwrap(), "Positive: 42");
     ///
     /// let neg = Id::new(-10).bind(process);
-    /// assert_eq!(*neg.value(), "Non-positive: -10");
+    /// assert_eq!(neg.unwrap(), "Non-positive: -10");
     /// ```
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>
@@ -634,13 +626,12 @@ impl<T: Clone> Comonad for Id<T> {
     /// ```rust
     /// use rustica::datatypes::id::Id;
     /// use rustica::traits::comonad::Comonad;
-    /// use rustica::traits::identity::Identity;
     ///
     /// let id = Id::new(42);
     /// let duplicated = id.duplicate();
     ///
     /// // The result is equivalent to id.clone()
-    /// assert_eq!(*duplicated.value(), 42);
+    /// assert_eq!(duplicated.unwrap(), 42);
     /// ```
     #[inline]
     fn duplicate(&self) -> Self {
@@ -666,17 +657,16 @@ impl<T: Clone> Comonad for Id<T> {
     /// ```rust
     /// use rustica::datatypes::id::Id;
     /// use rustica::traits::comonad::Comonad;
-    /// use rustica::traits::identity::Identity;
     ///
     /// let id = Id::new(5);
     ///
     /// // Apply a function to the context, squaring the inner value
     /// let result = id.extend(|ctx| {
-    ///     let inner_value = *ctx.value();
+    ///     let inner_value = ctx.unwrap();
     ///     inner_value * inner_value  // Produces 25
     /// });
     ///
-    /// assert_eq!(*result.value(), 25);
+    /// assert_eq!(result.unwrap(), 25);
     /// ```
     #[inline]
     fn extend<U, F>(&self, f: F) -> Self::Output<U>
@@ -702,20 +692,19 @@ impl<T: Semigroup> Semigroup for Id<T> {
     /// ```rust
     /// use rustica::datatypes::id::Id;
     /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::identity::Identity;
     ///
     /// // Combining two Id<String> values
     /// let a = Id::new("Hello, ".to_string());
     /// let b = Id::new("world!".to_string());
     ///
     /// let combined = a.combine(&b);
-    /// assert_eq!(*combined.value(), "Hello, world!");
+    /// assert_eq!(combined.unwrap(), "Hello, world!");
     ///
     /// // Combining two Id<Vec<i32>> values
     /// let v1 = Id::new(vec![1, 2]);
     /// let v2 = Id::new(vec![3, 4]);
     /// let combined_vec = v1.combine(&v2);
-    /// assert_eq!(*combined_vec.value(), vec![1, 2, 3, 4]);
+    /// assert_eq!(combined_vec.unwrap(), vec![1, 2, 3, 4]);
     /// ```
     #[inline]
     fn combine(&self, other: &Self) -> Self {
@@ -736,14 +725,13 @@ impl<T: Semigroup> Semigroup for Id<T> {
     /// ```rust
     /// use rustica::datatypes::id::Id;
     /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::identity::Identity;
     ///
     /// // Combining two Id<Vec<i32>> values
     /// let a = Id::new(vec![1, 2, 3]);
     /// let b = Id::new(vec![4, 5, 6]);
     ///
     /// let combined = a.combine_owned(b);
-    /// assert_eq!(*combined.value(), vec![1, 2, 3, 4, 5, 6]);
+    /// assert_eq!(combined.unwrap(), vec![1, 2, 3, 4, 5, 6]);
     /// ```
     #[inline]
     fn combine_owned(self, other: Self) -> Self {
@@ -762,15 +750,14 @@ impl<T: Monoid> Monoid for Id<T> {
     /// ```rust
     /// use rustica::datatypes::id::Id;
     /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::identity::Identity;
     ///
     /// // Empty Id<String>
     /// let empty_string = Id::<String>::empty();
-    /// assert_eq!(*empty_string.value(), "");
+    /// assert_eq!(empty_string.unwrap(), "");
     ///
     /// // Empty Id<Vec<i32>>
     /// let empty_vec = Id::<Vec<i32>>::empty();
-    /// assert_eq!(*empty_vec.value(), vec![]);
+    /// assert_eq!(empty_vec.unwrap(), vec![]);
     /// ```
     #[inline]
     fn empty() -> Self {

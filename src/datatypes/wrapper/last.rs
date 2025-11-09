@@ -124,21 +124,6 @@ use std::fmt;
 /// assert_eq!(d, Last(None));
 /// ```
 ///
-/// Using with `Identity` to access the inner value:
-///
-/// ```rust
-/// use rustica::datatypes::wrapper::last::Last;
-/// use rustica::traits::identity::Identity;
-///
-/// let a = Last(Some(42));
-/// assert_eq!(*a.value(), 42);
-/// assert_eq!(a.into_value(), 42);
-///
-/// // To create a Last value, use the constructor or Pure trait
-/// let b = Last(Some(100));
-/// assert_eq!(b, Last(Some(100)));
-/// ```
-///
 /// # Semigroup Laws
 ///
 /// Last satisfies the semigroup associativity law:
