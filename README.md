@@ -17,7 +17,7 @@ Rustica enables idiomatic functional programming in Rust by providing:
 - **Type Classes**: Core abstractions like `Functor`, `Applicative`, and `Monad`
 - **Data Types**: Common functional data structures like `Maybe`, `Either`, `Choice`, and `IO`
 - **Monad Transformers**: Powerful composition with `StateT`, `ReaderT`, and more
-- **Composable APIs**: Tools for function composition and transformation
+- **Categorical Composition**: Category-theoretic function composition via Category and Arrow traits
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
 - **Error Handling**: Functional error handling utilities that work across different types
 
@@ -81,7 +81,6 @@ Rustica implements a wide range of type classes from category theory:
   - `Applicative` - For applying functions in a context
   - `Monad` - For sequential computations
   - `Pure` - For lifting values into a context
-  - `Identity` - For accessing values inside contexts
   - `Alternative` - For choice between computations
 
 - **Algebraic Structures**
@@ -126,7 +125,6 @@ Rustica provides a rich collection of functional data types:
 - **Transformers**
   - `StateT<S, M, A>` - State monad transformer for combining state with other effects
   - `ReaderT<E, M, A>` - Reader monad transformer for combining environment with other effects
-  - `WriterT<W, M, A>` - Writer monad transformer for combining logging with other effects
   - Bidirectional conversion between monads and their transformer versions
 
 - **Optics**
