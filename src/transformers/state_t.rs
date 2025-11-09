@@ -4,40 +4,6 @@
 //! For example, it can be combined with `Option` to create stateful computations that
 //! may fail, or with `Result` to create stateful computations that may produce errors.
 //!
-//! ## Performance Characteristics
-//!
-//! ### Performance Reality - StateT Transformer Overhead
-//!
-//! **StateT adds significant overhead through Arc indirection and function composition. Not suitable for performance-critical code.**
-//!
-//! ### Real Time Complexity Impact
-//! - **Construction (`new`)**: O(1) - But includes Arc allocation (16 bytes + heap allocation)
-//! - **State Execution (`run_state`)**: O(f × indirection_penalty) - Each Arc deref adds 20-50% overhead
-//! - **Bind Operations**: O(f + g + composition_overhead) - Multiple Arc layers compound performance cost
-//! - **Map Operations**: O(f + arc_overhead) - Simple operations become expensive due to indirection
-//!
-//! ### Memory Usage Reality
-//! - **Structure Size**: NOT O(1) - Arc (16 bytes) + PhantomData + heap allocation per instance
-//! - **State Storage**: O(S) - Accurate, but passed through expensive Arc layers
-//! - **Function Storage**: NOT "minimal overhead" - Each composition creates new Arc wrapper
-//! - **Composition Explosion**: O(n × arc_size) where n is composition depth, each layer adds significant memory
-//!
-//! ### Performance Comparison
-//! - **vs Direct State Management**: 10-30x slower for simple operations
-//! - **Memory Usage**: 2-4x higher than equivalent direct implementation
-//!
-//! ### When to Avoid
-//! **Critical to avoid for:**
-//! - Game state management
-//! - Real-time systems
-//! - High-frequency state updates
-//! - Memory-constrained environments
-//!
-//! **Acceptable for:**
-//! - Learning monad transformers
-//! - Prototyping complex state logic
-//! - Occasional state operations where clarity > performance
-//!
 //! # Examples
 //!
 //! ```rust

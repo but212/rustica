@@ -35,10 +35,6 @@ impl<E, A> HKT for Validated<E, A> {
 /// `Pure` provides a way to lift a simple value into the `Validated` context, always resulting
 /// in a `Valid` instance.
 ///
-/// # Performance
-///
-/// The `pure` operation is constant time, O(1).
-///
 /// ## `pure`
 ///
 /// ```rust
@@ -93,10 +89,6 @@ impl<E: Clone, A: Clone> Pure for Validated<E, A> {
 /// let mapped = invalid.fmap(|x: &i32| x * 2);
 /// assert_eq!(mapped, Validated::invalid("error"));
 /// ```
-///
-/// # Performance
-///
-/// The `fmap` operation is constant time, O(1), as it only affects the `Valid` variant.
 ///
 /// ## `fmap_owned`
 ///
@@ -315,24 +307,8 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// // first the errors from the function (self), then the errors from the value (rf)
 /// let expected_errors = smallvec!["fn_error".to_string(), "val_error".to_string()];
 /// assert_eq!(Applicative::apply(&invalid_fn, &invalid_val), Validated::Invalid(expected_errors));
-/// ```
 ///
-/// # Performance
-///
-/// The `apply` and `lift2` operations exhibit the following performance characteristics:
-/// - `Valid` + `Valid` -> `Valid`: Constant time, O(1).
-/// - `Valid` + `Invalid` -> `Invalid`: Constant time, O(1).
-/// - `Invalid` + `Valid` -> `Invalid`: Constant time, O(1).
-/// - `Invalid` + `Invalid` -> `Invalid`: Linear time, O(n + m), where `n` and `m` are the
-///   number of errors in the respective instances. This is due to the concatenation of error lists.
-///
-/// ## `lift2`
-///
-/// Combining two `Valid` values:
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::applicative::Applicative;
-///
+/// // lift2
 /// let v1: Validated<&str, i32> = Validated::valid(10);
 /// let v2: Validated<&str, i32> = Validated::valid(20);
 /// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
@@ -354,14 +330,8 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// let v4: Validated<&str, i32> = Validated::valid(20);
 /// let result2 = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v3, &v4);
 /// assert_eq!(result2, Validated::Invalid(smallvec!["error_a"]));
-/// ```
 ///
-/// Combining two `Invalid` values (error accumulation):
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::applicative::Applicative;
-/// use smallvec::smallvec;
-///
+/// // Combining two `Invalid` values (error accumulation)
 /// let v1: Validated<&str, i32> = Validated::invalid("error1");
 /// let v2: Validated<&str, i32> = Validated::invalid("error2");
 /// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
@@ -598,10 +568,6 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
 /// assert_eq!(result, Validated::invalid("original_error"));
 /// ```
 ///
-/// # Performance
-///
-/// The `bind` operation is constant time, O(1), as it only affects the `Valid` variant.
-///
 /// ## Monad Laws
 ///
 /// ### Left Identity: `Pure::pure_owned(a).bind_owned(f) == f(a)`
@@ -713,10 +679,6 @@ impl<E: Clone, A: Clone> Identity for Validated<E, A> {
 /// let result = invalid.fold_right(&100, |x, _| *x + 1);
 /// assert_eq!(result, 100);
 /// ```
-///
-/// # Performance
-///
-/// The `fold_left` and `fold_right` operations are constant time, O(1), as they only affect the `Valid` variant.
 impl<E, A> Foldable for Validated<E, A> {
     #[inline]
     fn fold_left<U, F>(&self, init: &U, f: F) -> U
@@ -781,10 +743,6 @@ impl<E, A> Foldable for Validated<E, A> {
 /// let v2: Validated<String, i32> = Validated::invalid("error2".to_string());
 /// assert_eq!(v1.alt(&v2), Validated::invalid("error2".to_string()));
 /// ```
-///
-/// # Performance
-///
-/// The `alt` operation is constant time, O(1), as it only checks the first variant.
 ///
 /// ## `empty_alt`
 ///
@@ -903,11 +861,6 @@ impl<E: Clone + Default, A: Clone> Alternative for Validated<E, A> {
 /// assert_eq!(zero.mplus(&valid), valid);
 /// assert_eq!(valid.mplus(&zero), valid);
 /// ```
-///
-/// # Performance
-///
-/// The `mplus` operation has the same performance characteristics as `Applicative::apply`.
-/// It is O(n + m) when combining two `Invalid` instances.
 ///
 /// ## `mplus`
 ///

@@ -70,27 +70,6 @@
 //! - JavaScript's CPS transformations in libraries like fantasy-land
 //! - Scheme and Racket's first-class continuations via `call/cc`
 //!
-//! ## Performance Characteristics
-//!
-//! - **Memory Usage:**
-//!   - Stores a single function wrapped in an `Arc`, with minimal overhead
-//!   - Deep continuation chains create nested function calls that could consume stack space
-//!   - No heap allocations beyond the initial `Arc` for the continuation function
-//!   - Additional stack space proportional to the depth of continuation chaining
-//!
-//! - **Time Complexity:**
-//!   - Construction (new/return_cont): O(1)
-//!   - Cloning: O(1) due to `Arc` reference counting
-//!   - Transformation operations (`fmap`, `bind`, `apply`): O(1) for the operation itself,
-//!     as they only compose functions without immediate evaluation
-//!   - Running a continuation: O(n) where n is the complexity of all composed operations
-//!   - Lazy evaluation means operations are only executed when `run` is called
-//!
-//! - **Concurrency:**
-//!   - Thread-safe when used with `Send + Sync` types due to `Arc` and immutable design
-//!   - No interior mutability or locking mechanisms
-//!   - Can be safely passed between threads when parameterized with thread-safe types
-//!
 //! ## Type Class Implementations
 //!
 //! `Cont<R, A>` implements several important functional programming type classes:
@@ -238,12 +217,6 @@ where
     /// The function parameter represents the computation to be performed, which will
     /// eventually call the provided continuation to produce the final result.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) for construction, O(f) for execution where f is the complexity of the provided function
-    /// - **Memory Usage**: O(f) where f is the size of the closure/function being wrapped
-    /// - **Allocation**: Allocates memory for storing the function
-    ///
     /// # Arguments
     ///
     /// * `f` - A function that takes a continuation and returns a result wrapped in `Id`
@@ -308,12 +281,6 @@ where
     /// effectively executing the continuation and producing the final result. It is the primary
     /// way to extract a value from a continuation.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(n) where n is the complexity of all continuation operations and the final continuation function
-    /// - **Memory Usage**: O(1) additional memory beyond what's already in the continuation
-    /// - **Execution Pattern**: Evaluates the entire continuation chain in a single pass
-    ///
     /// # Arguments
     ///
     /// * `k` - A function that takes a value of type `A` and returns a value of type `R`
@@ -344,12 +311,6 @@ where
     /// This is a convenience method that creates a continuation which, when run,
     /// simply passes the provided value to the continuation function. It serves as the
     /// implementation of `pure` for the `Applicative` type class and `return` for the `Monad` type class.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Constant time construction
-    /// - **Memory Usage**: O(1) - Minimal overhead beyond the size of the provided value
-    /// - **Allocation**: Single allocation for the continuation structure
     ///
     /// # Type Class Laws
     ///
@@ -402,13 +363,6 @@ where
     /// This is the `fmap` operation for the `Functor` type class, allowing
     /// transformation of the value inside the `Cont` context without
     /// changing the continuation structure.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) for the operation itself, plus the complexity of function f
-    /// - **Memory Usage**: O(1) additional memory for the function composition
-    /// - **Execution**: Deferred until the continuation is run
-    /// - **Composition**: Multiple fmap operations compose efficiently without immediate evaluation
     ///
     /// # Type Class Laws
     ///
@@ -488,13 +442,6 @@ where
     /// Allows sequencing of continuation computations by applying a function to the result
     /// of this continuation and returning a new continuation. This is the core operation that
     /// enables chaining complex control flow patterns in a composable manner.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) for the operation itself, with evaluation deferred until run time
-    /// - **Memory Usage**: O(1) additional memory for the function composition
-    /// - **Execution**: Lazy - only evaluated when the final continuation is run
-    /// - **Composition**: Multiple bind operations can be chained efficiently without immediate evaluation
     ///
     /// # Type Class Laws
     ///
@@ -605,13 +552,6 @@ where
     /// combining two independent continuations where one contains a function and the other contains
     /// a value to be applied to that function.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) for the operation itself, with evaluation deferred until run time
-    /// - **Memory Usage**: O(1) additional memory for the function composition
-    /// - **Execution**: Lazy - only evaluated when the final continuation is run
-    /// - **Composition**: Efficiently combines independent continuations
-    ///
     /// # Type Class Laws
     ///
     /// ## Identity Law (Applicative)
@@ -691,13 +631,6 @@ where
     /// This allows for complex control flow patterns like early returns, exceptions, backtracking,
     /// and other non-linear control flow structures. It's one of the most powerful features of the
     /// Continuation monad.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) for the operation itself, with the complexity of function f when executed
-    /// - **Memory Usage**: O(1) additional memory for the escape function
-    /// - **Execution Pattern**: Creates a reified continuation that can be invoked or ignored
-    /// - **Control Flow**: Enables non-local returns and complex branching patterns
     ///
     /// # Advanced Functional Concepts
     ///

@@ -68,16 +68,6 @@
 //! - `Identity` in fp-ts (TypeScript)
 //! - `Identity` in Haskell
 //!
-//! ## Performance Characteristics
-//!
-//! The `Id` monad has optimal performance characteristics as it adds minimal overhead:
-//!
-//! - **Time Complexity**: All operations are O(1) as they simply manipulate the wrapped value directly
-//! - **Memory Usage**: Uses only the memory required by the wrapped value plus a constant small overhead
-//! - **Stack Usage**: No additional stack frames beyond the function calls themselves
-//!
-//! This makes `Id` ideal for situations where you need monadic interfaces without performance penalties.
-//!
 //! ## Type Class Implementations
 //!
 //! The `Id` type implements several important type classes:
@@ -199,12 +189,6 @@ use quickcheck::{Arbitrary, Gen};
 /// 3. It's useful for testing and prototyping monadic code
 /// 4. It serves as a base case for monad transformers
 /// 5. It helps create a consistent API across different monadic types
-///
-/// # Performance Characteristics
-///
-/// * **Time Complexity**: O(1) for all operations
-/// * **Memory Usage**: O(1) overhead beyond the wrapped value
-/// * **Stack Usage**: No additional stack frames beyond the function calls themselves
 ///
 /// # Type Parameters
 ///
@@ -539,11 +523,6 @@ impl<T: Clone> Monad for Id<T> {
     /// Id computations where the second computation depends on the value produced
     /// by the first.
     ///
-    /// # Performance
-    ///
-    /// * Time Complexity: O(1) - Simply applies the function to the wrapped value
-    /// * Memory Usage: Depends only on the function `f` and its output
-    ///
     /// # Type Parameters
     ///
     /// * `U`: The type of the value produced by the second computation
@@ -630,11 +609,6 @@ impl<T: Clone> Comonad for Id<T> {
     /// The `extract` operation (also known as `counit`) is the dual to the `pure` operation
     /// in a Monad. It extracts the contained value from the `Id` context.
     ///
-    /// # Performance
-    ///
-    /// * Time Complexity: O(1) - Simple clone operation
-    /// * Memory Usage: Dependent on the size of the wrapped value
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -654,11 +628,6 @@ impl<T: Clone> Comonad for Id<T> {
     ///
     /// The `duplicate` operation is the dual of `join` in a Monad. For `Id`, it simply
     /// returns a clone of the current `Id` value, as there is no nested structure to create.
-    ///
-    /// # Performance
-    ///
-    /// * Time Complexity: O(1) - Simple clone operation
-    /// * Memory Usage: Slight overhead from cloning the value
     ///
     /// # Examples
     ///
@@ -682,11 +651,6 @@ impl<T: Clone> Comonad for Id<T> {
     ///
     /// The `extend` operation (also known as `cobind` or `=>>`) is the dual of `bind` in a Monad.
     /// It applies a function to the entire `Id` context, producing a new `Id` with the result.
-    ///
-    /// # Performance
-    ///
-    /// * Time Complexity: O(1) plus the complexity of function `f`
-    /// * Memory Usage: Depends on the return type of function `f`
     ///
     /// # Type Parameters
     ///
@@ -729,11 +693,6 @@ impl<T: Semigroup> Semigroup for Id<T> {
     /// This operation is available when the wrapped type `T` implements the `Semigroup` trait.
     /// It combines the inner values using their `combine` operation and wraps the result in a new `Id`.
     ///
-    /// # Performance
-    ///
-    /// * Time Complexity: O(1) plus the complexity of the inner type's `combine` operation
-    /// * Memory Usage: Depends on the memory usage of the inner type's `combine` operation
-    ///
     /// # Arguments
     ///
     /// * `other` - Another `Id` value to combine with this one
@@ -767,11 +726,6 @@ impl<T: Semigroup> Semigroup for Id<T> {
     ///
     /// This works the same as `combine` but takes ownership of both values, potentially
     /// avoiding unnecessary clones when the values are no longer needed separately.
-    ///
-    /// # Performance
-    ///
-    /// * Time Complexity: O(1) plus the complexity of the inner type's `combine_owned` operation
-    /// * Memory Usage: Potentially more efficient than `combine` as it can avoid clones
     ///
     /// # Arguments
     ///

@@ -12,17 +12,6 @@
 //! where functors don't require value extraction capabilities. The `Identity` trait
 //! is deprecated - use standard methods (`unwrap`, `as_ref`) or `Comonad::extract()` instead.
 //!
-//! ## Performance Characteristics
-//!
-//! ### Time Complexity
-//! - **fmap**: O(f) where f is the complexity of the mapping function
-//! - **For container types**: Generally O(n * f) where n is the container size and f is the function complexity
-//! - **For single-value types**: O(f) where f is the function complexity
-//!
-//! ### Memory Usage
-//! - **Structure Preservation**: Functors maintain the same structural memory layout
-//! - **Transformation Cost**: Additional memory usage depends on the mapping function
-//!
 //! ## Quick Start
 //!
 //! Transform values while preserving structure:

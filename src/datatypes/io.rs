@@ -74,40 +74,6 @@
 //! - `Applicative`: Enables applying functions wrapped in `IO` to values wrapped in `IO`
 //! - `Monad`: Provides sequencing of IO operations where each operation can depend on the result of previous ones
 //!
-//! ## Performance Characteristics - IMPORTANT NOTICE
-//!
-//! **This implementation prioritizes correctness over performance. For production use cases requiring high performance, consider direct implementation patterns.**
-//!
-//! ### Real Performance Impact
-//!
-//! * **Arc Indirection**: Every IO operation involves Arc allocation and dereferencing (16 bytes + heap allocation per instance)
-//! * **Composition Overhead**: Each composition creates new Arc-wrapped closures, leading to significant memory overhead
-//! * **Execution Cost**: 20-50% slower than direct function calls due to indirection layers
-//!
-//! ### Time Complexity (Misleading Without Constants)
-//!
-//! * **Construction**: O(1) - But involves Arc allocation (~20-50ns overhead per instance)
-//! * **Composition**: O(1) - But creates new heap allocations for each composition layer
-//! * **Execution**: O(f) - Plus significant constant factor from Arc dereferencing
-//!
-//! ### Memory Usage Reality
-//!
-//! * **Storage**: Each IO instance requires Arc wrapper (16 bytes) + closure size + heap allocation
-//! * **Composition**: Each layer multiplies memory usage, no sharing between compositions
-//! * **Lazy Evaluation**: Memory accumulates until execution, potentially causing memory pressure
-//!
-//! ### When to Use vs Avoid
-//!
-//! **Appropriate for:**
-//! - Prototyping and correctness validation
-//! - Complex composition patterns where clarity > performance
-//! - Educational and research purposes
-//!
-//! **Avoid for:**
-//! - Performance-critical paths
-//! - High-frequency operations
-//! - Resource-constrained environments
-//!
 //! ## Type Class Laws
 //!
 //! The `IO` type implements the following type class laws. See the documentation for
@@ -382,20 +348,6 @@ impl std::error::Error for IOError {}
 /// encapsulating the effects within a monadic context. This allows for composing and
 /// sequencing effectful operations while maintaining referential transparency.
 ///
-/// # Performance Characteristics
-///
-/// ## Time Complexity
-///
-/// * **Construction**: O(1) - Creating an IO instance is a constant-time operation
-/// * **Composition (fmap, bind)**: O(1) - Combining IOs adds only function composition overhead
-/// * **Execution (run)**: O(f) - Where f is the complexity of the underlying operation
-///
-/// ## Memory Usage
-///
-/// * **Storage**: Each IO instance stores a closure and maintains minimal overhead
-/// * **Lazy Evaluation**: No computation happens until `run()` is called, allowing for efficient composition
-/// * **Composition**: Each layer of composition (fmap, bind) adds constant overhead from closure creation
-///
 /// # Thread Safety
 ///
 /// `IO<A>` implements `Send` and `Sync` when `A` implements `Send` and `Sync`, making it safe to share between threads.
@@ -544,12 +496,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     ///
     /// This method executes the encapsulated function, performing any side effects
     /// and returning the resulting value.
-    ///
-    /// # Performance
-    ///
-    /// - Time Complexity: O(f) where f is the complexity of the encapsulated function
-    /// - Memory Usage: O(1) additional allocation beyond the function's requirements
-    /// - Thread Safety: Safe to call from multiple threads if the encapsulated function is thread-safe
     ///
     /// # Examples
     ///
@@ -717,20 +663,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// the IO operation. It enables function application to the eventual result
     /// of an IO computation while preserving the IO context.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creates a new IO with composed functions without execution
-    /// * **Execution**: O(f + g) - Where f is the complexity of this IO and g is the complexity of the mapping function
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a new IO that captures both the original operation and the mapping function
-    /// * Memory efficiency through lazy evaluation - no transformation is performed until `run()` is called
-    /// * Each fmap adds one layer of function composition overhead
-    /// * O(1) additional allocation beyond the function capture
-    ///
     /// # Arguments
     ///
     /// * `f` - A function that transforms `A` into `B`
@@ -767,19 +699,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// This is a fundamental operation that serves as the basis for introducing
     /// values into the IO monadic context.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creates a simple IO that captures the value
-    /// * **Execution**: O(1) - Simply returns the captured value
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a new IO that stores the given value
-    /// * Memory usage depends on the size of the wrapped value
-    /// * No additional memory allocation during execution
-    ///
     /// # Arguments
     ///
     /// * `value` - The value to wrap in an IO operation
@@ -808,19 +727,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// the result of the previous one. This is a fundamental operation that
     /// enables composing complex IO workflows where each step depends on the
     /// result of previous steps.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creates a new IO with composed functions without execution
-    /// * **Execution**: O(f + g) - Where f is the complexity of this IO and g is the complexity of the operation returned by function `f`
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a new IO that captures both this IO and the binding function
-    /// * Memory efficiency through lazy evaluation - no computation happens until `run()` is called
-    /// * Each bind adds one layer of function composition overhead
     ///
     /// # Arguments
     ///

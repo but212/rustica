@@ -48,12 +48,6 @@
 //! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
 //!   - Mapping a composed function is the same as mapping each function in sequence.
 //!
-//! ## Performance Characteristics
-//!
-//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
-//! - Memory Usage: Stores exactly one `Option<T>` value with no additional overhead
-//! - Clone Cost: Depends on the cost of cloning the inner type `T`
-//!
 //! ## Quick Start
 //!
 //! ```rust
@@ -75,12 +69,6 @@
 //! assert_eq!(empty.combine(&a), a);
 //! assert_eq!(a.combine(&empty), a);
 //! ```
-//!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;

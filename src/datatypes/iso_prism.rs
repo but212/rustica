@@ -39,25 +39,6 @@
 //! - **Optional Getter**: Safely extracts a value if it exists via the `preview` method
 //! - **Constructor**: Creates a value of the parent type from the focus type via `review`
 //!
-//! ## Performance Characteristics
-//!
-//! ### Time Complexity
-//!
-//! - **Construction**: O(1) - Minimal overhead for creating the IsoPrism wrapper
-//! - **preview (Get)**: O(m) - Where m is the complexity of the underlying Iso's forward function
-//!   - Typically O(1) for simple pattern matching on enum variants
-//! - **review (Set)**: O(n) - Where n is the complexity of the underlying Iso's backward function
-//!   - Typically O(1) for simple enum construction
-//! - **compose**: O(1) - Constant time to create a composition of prisms
-//!   - The composed operations will have the combined complexity of the constituent prisms
-//!
-//! ### Memory Usage
-//!
-//! - **Structure**: Minimal - Stores only the Iso implementation and PhantomData
-//! - **Operations**: Determined by the underlying Iso implementation
-//!   - Memory usage depends on whether the Iso's functions perform cloning or create new data structures
-//! - **Composition**: No immediate memory overhead for composition itself
-//!
 //! ## Examples
 //!
 //! ### Basic Usage
@@ -215,22 +196,6 @@ use std::marker::PhantomData;
 /// This struct represents a Prism built on top of an Iso abstraction.
 /// It allows safe and functional partial access to a variant of a sum type (e.g., enum variant),
 /// and the ability to construct the sum type from the focused value.
-///
-/// # Performance Characteristics
-///
-/// ## Time Complexity
-///
-/// * **Construction**: O(1) - Constant time to create the IsoPrism wrapper
-/// * **preview**: O(m) - Where m is the complexity of the underlying Iso's forward function
-/// * **review**: O(n) - Where n is the complexity of the underlying Iso's backward function
-/// * **compose**: O(1) - Constant time to create a composition of prisms
-///
-/// ## Memory Usage
-///
-/// * **Structure**: Minimal - Stores only the Iso implementation and PhantomData markers
-/// * **Thread Safety**: The IsoPrism is as thread-safe as its underlying Iso implementation
-/// * **Operations**: Memory usage depends on the underlying Iso implementation and whether
-///   it performs cloning or creates new data structures
 ///
 /// # Design Notes
 ///

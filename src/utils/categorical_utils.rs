@@ -27,17 +27,6 @@
 //! All functions avoid mutable state and side effects, promoting functional
 //! programming patterns that are safe and predictable.
 //!
-//! ## Performance Characteristics
-//!
-//! ### Time Complexity
-//! - **Map operations**: O(f) where f is the complexity of the mapping function
-//! - **Flat map operations**: O(f) where f is the complexity of the chaining function
-//! - **Compose operations**: O(f + g) where f and g are the composed function complexities
-//!
-//! ### Memory Usage
-//! - **Move semantics**: Leverages Rust's ownership to avoid unnecessary copies
-//! - **Iterator-based**: Uses lazy evaluation where possible for memory efficiency
-//!
 //! ## Quick Start
 //!
 //! ```rust
@@ -76,11 +65,6 @@ use crate::traits::monoid::Monoid;
 /// mathematical laws of functors:
 /// - Identity: `map_option(opt, |x| x) == opt`
 /// - Composition: `map_option(map_option(opt, f), g) == map_option(opt, |x| g(f(x)))`
-///
-/// # Performance
-///
-/// - **Time Complexity**: O(f) where f is the complexity of the mapping function
-/// - **Memory Usage**: Zero additional allocation beyond the result
 ///
 /// # Arguments
 ///
@@ -145,12 +129,6 @@ where
 /// This function applies the functor pattern to `Result` types, transforming
 /// the success value while leaving error cases unchanged.
 ///
-/// # Performance
-///
-/// - **Time Complexity**: O(f) for `Ok` cases, O(1) for `Err` cases
-/// - **Memory Usage**: Zero additional allocation beyond the result
-/// - **Short-circuiting**: `Err` values bypass the function completely
-///
 /// # Arguments
 ///
 /// * `result` - The `Result` value to map over
@@ -185,12 +163,6 @@ where
 ///
 /// This function provides bimap functionality for `Result` types, allowing
 /// transformation of both the success and error cases simultaneously.
-///
-/// # Performance
-///
-/// - **Time Complexity**: O(f) for `Ok` cases, O(g) for `Err` cases
-/// - **Memory Usage**: Zero additional allocation beyond the result
-/// - **Branch Optimization**: Compiler can optimize based on the result variant
 ///
 /// # Arguments
 ///
@@ -238,12 +210,6 @@ where
 /// - Right Identity: `flat_map_option(opt, Some) == opt`
 /// - Associativity: `flat_map_option(flat_map_option(opt, f), g) == flat_map_option(opt, |x| flat_map_option(f(x), g))`
 ///
-/// # Performance
-///
-/// - **Time Complexity**: O(f) where f is the complexity of the chaining function
-/// - **Memory Usage**: Zero additional allocation beyond the result
-/// - **Short-circuiting**: `None` values bypass the function completely
-///
 /// # Arguments
 ///
 /// * `opt` - The `Option` value to chain from
@@ -287,12 +253,6 @@ where
 /// This function applies the monad pattern to `Result` types, enabling
 /// sequencing of computations that may fail with error propagation.
 ///
-/// # Performance
-///
-/// - **Time Complexity**: O(f) for `Ok` cases, O(1) for `Err` cases
-/// - **Memory Usage**: Zero additional allocation beyond the result
-/// - **Error Propagation**: `Err` values are propagated without executing the function
-///
 /// # Arguments
 ///
 /// * `result` - The `Result` value to chain from
@@ -334,11 +294,6 @@ where
 /// This function implements mathematical function composition: `(g ∘ f)(x) = g(f(x))`.
 /// The composition follows the associativity law and provides a pure functional approach
 /// to combining operations.
-///
-/// # Performance
-///
-/// - **Time Complexity**: O(f + g) where f and g are the complexities of the composed functions
-/// - **Memory Usage**: No additional allocation
 ///
 /// # Arguments
 ///
@@ -382,11 +337,6 @@ where
 /// Unlike `compose`, which reads right-to-left, `pipe` reads left-to-right,
 /// making it more intuitive for sequential data transformations.
 ///
-/// # Performance
-///
-/// - **Time Complexity**: O(f + g) where f and g are the complexities of the piped functions
-/// - **Memory Usage**: No additional allocation
-///
 /// # Arguments
 ///
 /// * `f` - The first function to apply
@@ -427,11 +377,6 @@ where
 /// This function takes a function `f(a, b) -> c` and returns a function `f(b, a) -> c`,
 /// effectively swapping the order of arguments. This is useful for partial application
 /// and function composition.
-///
-/// # Performance
-///
-/// - **Time Complexity**: O(f) where f is the complexity of the original function
-/// - **Memory Usage**: No additional allocation
 ///
 /// # Arguments
 ///
@@ -479,12 +424,6 @@ where
 /// This function combines filtering with mapping and Option handling, applying a function
 /// that returns `Option<U>` and keeping only the `Some` results. This is equivalent to
 /// the Haskell `mapMaybe` function.
-///
-/// # Performance
-///
-/// - **Time Complexity**: O(n * f) where n is collection size and f is function complexity
-/// - **Memory Usage**: Linear with the number of successful transformations
-/// - **Single Pass**: Efficient iteration without intermediate collections
 ///
 /// # Arguments
 ///
@@ -546,12 +485,6 @@ where
 /// if all elements are `Some`. This is a common operation in functional programming
 /// for handling collections of optional values.
 ///
-/// # Performance
-///
-/// - **Time Complexity**: O(n) where n is the vector length
-/// - **Memory Usage**: Linear with vector size for successful case
-/// - **Short-circuiting**: Returns `None` immediately on first `None` encountered
-///
 /// # Arguments
 ///
 /// * `options` - A vector of `Option` values
@@ -589,12 +522,6 @@ pub fn sequence_options<T>(options: Vec<Option<T>>) -> Option<Vec<T>> {
 /// This function converts `Vec<Result<T, E>>` to `Result<Vec<T>, E>`, succeeding only
 /// if all elements are `Ok`. Returns the first error encountered if any exist.
 ///
-/// # Performance
-///
-/// - **Time Complexity**: O(n) where n is the vector length
-/// - **Memory Usage**: Linear with vector size for successful case
-/// - **Error Propagation**: Returns first error immediately without processing remaining elements
-///
 /// # Arguments
 ///
 /// * `results` - A vector of `Result` values
@@ -627,12 +554,6 @@ pub fn sequence_results<T, E>(results: Vec<Result<T, E>>) -> Result<Vec<T>, E> {
 /// This function converts each element to the monoid type `W` and combines them
 /// using the monoid's `combine` operation. If the iterator is empty, returns the
 /// monoid's identity element (`empty()`).
-///
-/// # Performance
-///
-/// - **Time Complexity**: O(n) where n is the iterator length
-/// - **Memory Usage**: Constant space beyond iterator storage
-/// - **Optimization**: Marked with `#[inline]` for compiler optimization
 ///
 /// # Type Parameters
 ///

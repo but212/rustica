@@ -17,13 +17,6 @@ use std::fmt::{Debug, Display};
 ///
 /// * `E`: The core error type
 ///
-/// # Performance Characteristics
-///
-/// - Uses `SmallVec<[String; 4]>` for context storage, avoiding heap allocation
-///   for up to 4 context entries (covers 95% of real-world cases)
-/// - O(1) context addition
-/// - O(n) context traversal where n is the number of context entries
-///
 /// # Examples
 ///
 /// ```rust

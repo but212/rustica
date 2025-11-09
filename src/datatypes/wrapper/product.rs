@@ -39,12 +39,6 @@
 //! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
 //!   - Mapping a composed function is the same as mapping each function in sequence.
 //!
-//! ## Performance Characteristics
-//!
-//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
-//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
-//! - Clone Cost: Depends on the cost of cloning the inner type `T`
-//!
 //! ## Type Class Implementations
 //!
 //! `Product<T>` implements the following type classes:
@@ -78,13 +72,6 @@
 //! let empty = Product::empty();
 //! assert_eq!(a.combine(&empty), a); // 3 * 1 = 3
 //! ```
-//!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `combine`, `empty`, `fmap`, and others.
-
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;

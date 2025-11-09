@@ -88,37 +88,6 @@
 //! - **Sequential Operations**: State operations can be chained together, with each operation
 //!   receiving the state produced by the previous operation.
 //!
-//! ## Performance Characteristics - CRITICAL PERFORMANCE WARNING
-//!
-//! **This State monad implementation has significant performance overhead. Avoid for production performance-critical code.**
-//!
-//! ### Real Performance Impact
-//!
-//! * **Arc Overhead**: Every State instance wraps functions in Arc, adding 16 bytes + heap allocation per operation
-//! * **Closure Composition**: Each bind/fmap creates new Arc-wrapped closures with compounding indirection
-//! * **No Compiler Optimization**: Arc indirection prevents most compiler optimizations and inlining
-//! * **Memory Pressure**: Long computation chains create deep Arc wrapper hierarchies
-//!
-//! ### Honest Time Complexity
-//!
-//! - **Construction (new/pure)**: O(1) - But includes ~20-50ns Arc allocation overhead per instance
-//! - **run_state**: O(n × indirection_factor) - Where indirection adds 20-50% overhead per composition layer
-//! - **bind operations**: O(m + n + composition_overhead) - Each bind adds measurable Arc dereferencing cost
-//! - **Deep compositions**: Performance degrades significantly with computation chain depth
-//!
-//! ### Memory Usage Reality
-//!
-//! - **Structure**: NOT minimal - Each State requires Arc (16 bytes) + function closure + heap allocation
-//! - **Composition Memory**: Each bind/fmap creates new Arc wrapper, memory usage compounds exponentially
-//! - **Lazy Accumulation**: Complex computations build large closure trees before execution
-//!
-//! ### Performance Comparison
-//!
-//! Compared to direct mutable state management:
-//! - **Simple operations**: 5-10x slower
-//! - **Complex compositions**: 20-50x slower
-//! - **Memory usage**: 3-5x higher
-//!
 //! ### Recommended Usage
 //!
 //! **Use for:**
@@ -281,21 +250,6 @@ pub type StateInner<S, A> = StateT<S, Id<(A, S)>, A>;
 /// It encapsulates a function that takes a state and returns a tuple
 /// containing a value and a new state.
 ///
-/// # Performance Characteristics
-///
-/// ## Time Complexity
-///
-/// * **Construction**: O(1) - Creating a State instance is a constant-time operation
-/// * **run_state**: O(n) - Where n is the complexity of the wrapped function
-/// * **fmap/bind**: O(1) for the operation itself, but the resulting State will have O(m+n) execution time
-///   where m is the complexity of the original function and n is the complexity of the mapped/bound function
-///
-/// ## Memory Usage
-///
-/// * **Structure**: Minimal - Uses a function pointer wrapped in Arc for thread safety
-/// * **Cloning**: O(1) - Internally uses Arc for efficient cloning with shared ownership
-/// * **Composition**: Each composition (fmap/bind) creates a new wrapper function but defers execution
-///
 /// # Functional Programming Context
 ///
 /// The `new` constructor is the primary way to create custom State computations.
@@ -394,19 +348,6 @@ where
     /// transformation function. The function takes a state and returns a tuple
     /// containing a value and a new state.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creating the State instance is a constant-time operation
-    /// * **Execution**: O(n) - Where n is the complexity of the wrapped function when run_state is called
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Structure**: Minimal - Stores only the function pointer wrapped in Arc
-    /// * **Thread Safety**: Safe to share across threads when the state and value types implement `Send + Sync`
-    /// * **Composition**: Zero overhead until executed - State monad is lazily evaluated
-    ///
     /// # State Monad Context
     ///
     /// The `new` constructor is the primary way to create custom State computations.
@@ -448,18 +389,6 @@ where
     /// This is the primary method for executing a State computation. It applies the
     /// state transformation function to the provided initial state and returns both
     /// the computed value and the final state.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Execution**: O(n) - Where n is the complexity of the wrapped function
-    /// * **For Composed States**: O(m + n + ...) - Sum of complexities of all composed functions
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Stack Usage**: Proportional to the depth of nested function calls in composed State monads
-    /// * **Heap Usage**: Depends on the state and value types and what transformations occur
     ///
     /// # State Monad Context
     ///
@@ -599,22 +528,6 @@ where
     /// This method implements the `fmap` operation from the Functor typeclass in
     /// functional programming. It transforms the value produced by a State computation
     /// without affecting the state transitions.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creating the mapped State is a constant-time operation
-    /// * **Execution**: O(m + n) - Where m is the complexity of the original state computation
-    ///   and n is the complexity of the mapping function
-    /// * **Multiple fmaps**: O(1) per fmap construction, but execution combines all transformations
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Lazy Evaluation**: No computation happens until `run_state` is called
-    /// * **Composition**: Each `fmap` creates a new function wrapper but defers execution
-    /// * **Closure Capture**: The mapping function may capture variables from its environment,
-    ///   potentially increasing memory usage
     ///
     /// # Functional Programming Context
     ///

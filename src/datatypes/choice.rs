@@ -134,22 +134,6 @@
 //! assert_eq!(*processed.first().unwrap(), "verified_user123");
 //! ```
 //!
-//! ## Performance Characteristics
-//!
-//! - **Memory Usage:**
-//!   - Uses `Arc<SmallVec<[T; 8]>>` for efficient memory management
-//!   - Small instances (up to 8 elements) avoid heap allocation via `SmallVec` optimization
-//!   - Cloning a `Choice<T>` is O(1) (a cheap reference count bump). Modifications to a shared `Choice`
-//!     trigger a copy-on-write, incurring an O(n) cost.
-//!
-//! - **Time Complexity:**
-//!   - Construction: O(n) where n is the number of alternatives
-//!   - Cloning: O(1) via `Arc`
-//!   - Access operations (`first()`, `alternatives()`): O(1)
-//!   - Modification operations (`add_alternatives`, `filter`, `filter_values`): O(n) in the worst case due to potential cloning
-//!   - `fmap`, `bind`: O(n) where n is the number of elements
-//!   - Iteration: O(n) linear time, similar to `Vec`
-//!
 //! ## Type Class Implementations
 //!
 //! `Choice<T>` implements several important functional programming type classes:
@@ -236,11 +220,6 @@ impl<T> Choice<T> {
 
     /// Creates a new `Choice` with a primary value and alternatives.
     ///
-    /// # Performance
-    /// - Time complexity: O(n) where n is the number of alternatives, due to extending the internal SmallVec.
-    /// - Space complexity: O(n) for storing alternatives.
-    /// - Memory efficiency: Uses `Arc<SmallVec<[T; 8]>>` for shared ownership. The initial allocation is for `size_hint().0 + 1`.
-    ///
     /// # Examples
     ///
     /// ```
@@ -297,10 +276,6 @@ impl<T> Choice<T> {
     /// - `Some(&T)` containing a reference to the primary value if the `Choice` is not empty.
     /// - `None` if the `Choice` is empty (e.g., created with `Choice::new_empty()`).
     ///
-    /// # Performance
-    /// - Time complexity: O(1) as it's a direct access to the first element of the internal collection.
-    /// - Space complexity: O(1).
-    ///
     /// # Examples
     ///
     /// ```
@@ -334,10 +309,6 @@ impl<T> Choice<T> {
     /// A slice `&[T]`:
     /// - Contains all alternative values if any exist.
     /// - An empty slice if the `Choice` has no alternatives (i.e., only a primary value) or is empty.
-    ///
-    /// # Performance
-    /// - Time complexity: O(1) as it involves slicing an existing collection.
-    /// - Space complexity: O(1) as it returns a reference.
     ///
     /// # Examples
     ///
@@ -380,10 +351,6 @@ impl<T> Choice<T> {
     /// - `true` if there is at least one alternative value.
     /// - `false` if the `Choice` only contains a primary value or is empty.
     ///
-    /// # Performance
-    /// - Time complexity: O(1) as it checks the length of the internal collection.
-    /// - Space complexity: O(1).
-    ///
     /// # Examples
     ///
     /// ```
@@ -413,10 +380,6 @@ impl<T> Choice<T> {
     ///
     /// The count of all values (primary + alternatives) as `usize`.
     /// Returns `0` for an empty `Choice`.
-    ///
-    /// # Performance
-    /// - Time complexity: O(1) as it returns the stored length of the internal collection.
-    /// - Space complexity: O(1).
     ///
     /// # Examples
     ///
@@ -450,10 +413,6 @@ impl<T> Choice<T> {
     /// # Returns
     ///
     /// `true` if the `Choice` contains no values, `false` otherwise.
-    ///
-    /// # Performance
-    /// - Time complexity: O(1) as it checks the length of the internal collection.
-    /// - Space complexity: O(1).
     ///
     /// # Examples
     ///
@@ -547,10 +506,6 @@ impl<T> Choice<T> {
     ///
     /// A new `Choice` with duplicate elements removed.
     ///
-    /// # Performance
-    /// - Time complexity: O(n) where n is the number of elements in the `Choice`.
-    /// - Space complexity: O(n) for the hash set used to track seen items.
-    ///
     /// # Examples
     ///
     /// ```
@@ -601,10 +556,6 @@ impl<T> Choice<T> {
     /// # Returns
     ///
     /// A new `Choice` with duplicate elements removed based on their extracted keys.
-    ///
-    /// # Performance
-    /// - Time complexity: O(n) where n is the number of elements in the `Choice`.
-    /// - Space complexity: O(n) for the hash set used to track seen keys.
     ///
     /// # Examples
     ///
@@ -722,14 +673,6 @@ impl<T> Choice<T> {
     /// has other references, the underlying `SmallVec` is cloned (copy-on-write).
     /// Otherwise, the existing `SmallVec` is mutated in place.
     ///
-    /// # Performance
-    /// - Time complexity: O(n + m) where n is the current number of values in the `Choice`
-    ///   and m is the number of alternatives being added. This is due to potentially cloning
-    ///   the existing `SmallVec` and then extending it.
-    /// - Space complexity: O(n + m) for the new `Choice` if a clone occurs, or O(m) additional
-    ///   space if mutation happens in place (amortized for `SmallVec` extension).
-    /// - Memory efficiency: Uses `Arc` for shared ownership. Cloning is copy-on-write.
-    ///
     /// # Arguments
     ///
     /// * `items` - An iterator of values of type `T` to be added as new alternatives.
@@ -804,12 +747,6 @@ impl<T> Choice<T> {
     /// # Returns
     ///
     /// A new `Choice<T>` with the alternative at the specified index removed.
-    ///
-    /// # Performance
-    /// - Time complexity: O(N) where N is the number of values in the `Choice`. This is due to
-    ///   `SmallVec::remove` which is O(N), and potentially cloning the `SmallVec` (also O(N)).
-    /// - Space complexity: O(N) for the new `Choice` if a clone occurs.
-    /// - Memory efficiency: Uses `Arc` for shared ownership. Cloning is copy-on-write.
     ///
     /// # Panics
     ///
@@ -983,13 +920,6 @@ impl<T> Choice<T> {
     /// A new `Choice<T>` instance containing the original primary value and only
     /// the alternatives that satisfied the `predicate`.
     ///
-    /// # Performance
-    /// - Time complexity: O(N) where N is the number of alternatives. The predicate is called
-    ///   for each alternative.
-    /// - Space complexity: O(M) for the new `Choice` where M is the number of items kept.
-    /// - Memory efficiency: Reuses existing allocation when possible (when Arc reference count is 1),
-    ///   otherwise allocates new memory.
-    ///
     /// # Examples
     ///
     /// ```
@@ -1083,12 +1013,6 @@ impl<T> Choice<T> {
     /// A new `Choice<T>` instance containing the original primary value (cloned)
     /// and the transformed alternatives.
     ///
-    /// # Performance
-    /// - Time complexity: O(N) where N is the number of alternatives. The function `f` is called
-    ///   for each alternative. Cloning the primary value and constructing the new `SmallVec`
-    ///   also contribute.
-    /// - Space complexity: O(M) for the new `Choice<T>`, where M is the total number of items.
-    ///
     /// # Examples
     ///
     /// ```
@@ -1156,13 +1080,6 @@ impl<T> Choice<T> {
     ///
     /// * `T`: The original type held by the `Choice`, which must be `Clone` and implement `IntoIterator`.
     /// * `I`: The item type produced by `T`'s iterator (i.e., `T::Item`), which must be `Clone`.
-    ///
-    /// # Performance
-    /// - Time complexity: O(N * M) where N is the total number of inner collections (primary + alternatives)
-    ///   and M is the average number of items in each inner collection. This is because each item
-    ///   is iterated over and potentially cloned.
-    /// - Space complexity: O(TotalItems) for storing all the flattened items in the new `Choice`.
-    /// - Memory efficiency: A new `Arc<SmallVec<[I; 8]>>` is allocated for the resulting `Choice`.
     ///
     /// # Panics
     ///
@@ -1331,15 +1248,6 @@ impl<T> Choice<T> {
     /// assert_eq!(flattened.alternatives(), &[1, 2, 4, 5]);
     /// ```
     ///
-    /// # Performance
-    /// - Time complexity: O(TotalItems + A log A), where `TotalItems` is the total number of
-    ///   individual items after flattening, and `A` is the number of these items that become
-    ///   alternatives. The `TotalItems` part comes from iterating and cloning all items,
-    ///   and `A log A` comes from sorting the alternatives.
-    /// - Space complexity: O(TotalItems) for storing all flattened items in the new `Choice`,
-    ///   plus temporary space for collecting alternatives before sorting.
-    /// - Memory efficiency: A new `Arc<SmallVec<[I; 8]>>` is allocated for the resulting `Choice`.
-    ///
     /// # See Also
     /// - [`flatten()`](Self::flatten) - For a version that flattens without sorting alternatives.
     /// - [`Choice::new()`](Self::new) - For creating a `Choice`.
@@ -1393,12 +1301,6 @@ impl<T> Choice<T> {
     /// # Returns
     ///
     /// A new `Choice<T>` instance. Returns an empty `Choice` if `many` is empty.
-    ///
-    /// # Performance
-    /// - Time complexity: O(N) where N is the number of items in the `many` iterator.
-    ///   This is due to iterating through all items and collecting them into a `SmallVec`.
-    /// - Space complexity: O(N) for storing the items in the new `Choice`.
-    /// - Memory efficiency: A new `Arc<SmallVec<[T; 8]>>` is allocated for the `Choice`.
     ///
     /// # Examples
     ///
@@ -1480,13 +1382,6 @@ impl<T> Choice<T> {
     ///
     /// A new `Choice<T>` containing only the values that satisfied the `predicate`.
     ///
-    /// # Performance
-    /// - Time complexity: O(N) where N is the total number of values in the `Choice`.
-    ///   The predicate is called for each value. Constructing the new `SmallVec` also
-    ///   contributes.
-    /// - Space complexity: O(N) in the worst case for the new `Choice` if all items are kept.
-    /// - Memory efficiency: Uses `Arc` for shared ownership.
-    ///
     /// # Examples
     ///
     /// ```
@@ -1561,10 +1456,6 @@ impl<T> Choice<T> {
     ///
     /// An iterator yielding references (`&T`) to all values in the `Choice`.
     ///
-    /// # Performance
-    /// - Time complexity: O(1) to create the iterator. Iterating through all N items is O(N).
-    /// - Space complexity: O(1) for the iterator itself.
-    ///
     /// # Examples
     ///
     /// ```
@@ -1608,10 +1499,6 @@ impl<T> Choice<T> {
     ///
     /// An iterator yielding references (`&T`) to the alternative values.
     /// If there are no alternatives, or if the `Choice` is empty, the iterator will be empty.
-    ///
-    /// # Performance
-    /// - Time complexity: O(1) to create the iterator. Iterating through all M alternatives is O(M).
-    /// - Space complexity: O(1) for the iterator itself.
     ///
     /// # Examples
     ///
@@ -1669,14 +1556,6 @@ impl<T> Choice<T> {
     ///
     /// A new `Choice<T>` where the original primary value and the alternative at `alt_index`
     /// have been swapped.
-    ///
-    /// # Performance
-    /// - Time complexity: O(N) if the underlying `SmallVec` needs to be cloned due to
-    ///   shared `Arc` references (where N is the total number of items). If the `SmallVec`
-    ///   can be mutated in place (unique `Arc`), the swap itself is O(1), plus the cost
-    ///   of cloning the two swapped elements.
-    /// - Space complexity: O(N) for the new `Choice` if a clone of the `SmallVec` occurs.
-    /// - Memory efficiency: Uses `Arc` for shared ownership, enabling copy-on-write.
     ///
     /// # Panics
     ///

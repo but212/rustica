@@ -70,35 +70,6 @@
 //! - Chaining operations that might fail
 //! - Transforming optional values without unwrapping
 //!
-//! ## Performance Characteristics
-//!
-//! ### Memory Usage
-//!
-//! - **Optimized Size**: Takes advantage of the [null pointer optimization](https://doc.rust-lang.org/std/option/index.html#representation)
-//!   for types like `Box<T>`, `Vec<T>`, `String`, etc., meaning `Maybe<T>` doesn't require any
-//!   additional memory beyond what's needed to store `T`
-//! - **Zero-Copy Design**: Memory layout is identical to `Option<T>` with the same optimizations
-//! - **Enum Representation**: For simple types, size is typically `size_of::<T>() + size_of::<u8>()`
-//!   for tag discrimination (possibly with padding)
-//! - **Cloning Impact**: Cloning a `Just` value costs as much as cloning the inner value
-//!   while cloning `Nothing` is free
-//!
-//! ### Time Complexity
-//!
-//! - **Construction**: O(1) - Both `Just` and `Nothing` constructors are constant time
-//! - **Predicates** (`is_just`, `is_nothing`): O(1) - Simple pattern matching operations
-//! - **Transformations** (`fmap`, `bind`):
-//!   - O(1) for `Nothing` cases (short-circuits without evaluating function)
-//!   - O(f) for `Just` cases where `f` is the time complexity of the applied function
-//! - **Conversions** (to/from Option, Result): O(1) - Due to identical memory layout
-//! - **Unwrapping**: O(1) - Direct access to inner value with minimal overhead
-//!
-//! ### Concurrency
-//!
-//! - **Thread Safety**: `Maybe<T>` is `Send` and `Sync` when `T` is `Send` and `Sync`
-//! - **Immutability**: Operations produce new instances rather than modifying existing ones
-//! - **Lock-Free**: No internal synchronization or locks are used
-//!
 //! # Relationship to Rust's Option
 //!
 //! `Maybe<T>` is functionally equivalent to Rust's `Option<T>`, but provides
@@ -202,22 +173,6 @@ use std::marker::PhantomData;
 ///
 /// `Maybe<T>` is an enum that can be either `Just(T)` containing a value, or `Nothing`
 /// representing the absence of a value. It has the same memory layout as `Option<T>`.
-///
-/// # Performance Characteristics
-///
-/// ## Time Complexity
-///
-/// * Construction: O(1) - Both variants are constant time to construct
-/// * Access: O(1) - Checking variant and accessing value is constant time
-/// * Pattern matching: O(1) - Direct enum discrimination
-///
-/// ## Memory Optimization
-///
-/// This type uses Rust's null pointer optimization. For types like `Box<T>`, `Vec<T>`,
-/// `String`, etc. that can never be null, the `Nothing` variant doesn't require any
-/// additional memory. The compiler optimizes it to use the null pointer representation.
-///
-/// Memory layout is identical to `Option<T>` in Rust's standard library.
 ///
 /// # Type Parameters
 ///
@@ -1013,12 +968,6 @@ impl<T> Monad for Maybe<T> {
     /// This is the core monadic operation (often called `flatMap` in other languages) that
     /// allows for sequencing computations that may fail.
     ///
-    /// # Performance
-    ///
-    /// - Time Complexity: O(1) for `Nothing` case, O(f) for `Just` case where `f` is the
-    ///   complexity of the provided function
-    /// - Memory: No additional allocation beyond what the function `f` requires
-    ///
     /// # Arguments
     ///
     /// * `f` - Function to apply to the value inside `Just`. This function must return another `Maybe`.
@@ -1067,13 +1016,6 @@ impl<T> Monad for Maybe<T> {
     ///
     /// This is similar to `bind` but consumes the `Maybe` and allows the function to consume the inner value.
     /// Useful when ownership of values needs to be transferred.
-    ///
-    /// # Performance
-    ///
-    /// - Time Complexity: O(1) for `Nothing` case, O(f) for `Just` case where `f` is the
-    ///   complexity of the provided function
-    /// - Memory: No additional allocation beyond what the function `f` requires
-    ///   Potentially more efficient than `bind` when dealing with non-copyable types
     ///
     /// # Arguments
     ///
@@ -1126,11 +1068,6 @@ impl<T> Monad for Maybe<T> {
     /// Takes a `Maybe<Maybe<T>>` and returns a `Maybe<T>`. This is useful when you have
     /// nested optional values and want to simplify the structure.
     ///
-    /// # Performance
-    ///
-    /// - Time Complexity: O(1) - Only requires pattern matching and a clone operation
-    /// - Memory: Requires cloning of the inner `Maybe` if `self` is `Just`
-    ///
     /// # Type Parameters
     ///
     /// * `U` - The type contained in the inner `Maybe`
@@ -1181,11 +1118,6 @@ impl<T> Monad for Maybe<T> {
     ///
     /// Takes a `Maybe<Maybe<T>>` and returns a `Maybe<T>`. This is the ownership-taking
     /// version of `join` that avoids cloning.
-    ///
-    /// # Performance
-    ///
-    /// - Time Complexity: O(1) - Only requires pattern matching and conversion
-    /// - Memory: More efficient than `join` as it avoids cloning the inner `Maybe`
     ///
     /// # Type Parameters
     ///

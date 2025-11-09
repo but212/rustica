@@ -78,42 +78,6 @@
 //! - Scala's `Prism` from the Monocle library
 //! - TypeScript's `Prism` from the monocle-ts library
 //!
-//! ## Performance Characteristics
-//!
-//! ### Memory Usage
-//!
-//! * **Instance Size**: Constant O(1) - Stores only two function pointers with minimal overhead
-//! * **Preview Operation**:
-//!   - No allocations when operation fails (returns `None`)
-//!   - When successful, allocates only what's necessary for the extracted value
-//!   - Cloning complexity depends on the implementation of the provided preview function
-//! * **Review Operation**:
-//!   - Creates a new instance of the sum type
-//!   - Memory usage depends on the variant being constructed and any contained data
-//!   - Copy-on-write semantics - no data is shared between input and output
-//!
-//! ### Time Complexity - Hiding Major Performance Issues
-//!
-//! **WARNING: These complexity measures ignore the massive cost of full structure cloning!**
-//!
-//! * **Construction**: O(1) - Creating a prism stores the functions (accurate)
-//! * **Preview (get)**: O(m) where m is the matcher complexity (mostly accurate)
-//! * **Review (set)**: O(ENTIRE_STRUCTURE_SIZE) - NOT O(c)! Every set creates a complete copy
-//! * **Modify operations**: O(ENTIRE_STRUCTURE_SIZE + f) - Full clone even for tiny changes
-//!
-//! ### Critical Reality: No True Structural Sharing
-//!
-//! * **"Structural Sharing"**: Only when PartialEq returns true (unchanged values)
-//! * **Every Modification**: Clones the complete outer structure regardless of change size
-//! * **Memory Explosion**: Complex nested structures become prohibitively expensive
-//! * **Performance Cliff**: Adding one field to a large struct makes all prism operations slow
-//!
-//! ### Concurrency
-//!
-//! * **Thread Safety**: `Prism` is `Send` and `Sync` when its function types are
-//! * **Immutability**: All operations create new data structures rather than modifying existing ones
-//! * **Side Effects**: Functions should be pure with no side effects for predictable behavior
-//!
 //! ## Type Class Implementations
 //!
 //! `Prism` implements several important type classes and functionality:
@@ -356,28 +320,6 @@ use std::marker::PhantomData;
 /// without having to write pattern matching code everywhere. They also enable
 /// composition with other optics for more complex data transformations.
 ///
-/// # Performance Characteristics
-///
-/// ## Time Complexity
-///
-/// * **Construction**: O(1) - Stores function references without executing them
-/// * **Preview Operation**: O(m) - Where m is the complexity of pattern matching
-///   - For simple enum variants, this is typically O(1)
-///   - For complex variants with deep data structures, this depends on the clone operations
-/// * **Review Operation**: O(c) - Where c is the complexity of constructing the variant
-///   - For simple enum variants, this is typically O(1)
-///   - May include the cost of cloning contained data structures
-///
-/// ## Memory Usage
-///
-/// * **Instance Size**: Small, constant size (two function pointers plus PhantomData)
-/// * **Preview**:
-///   - No allocations if matching fails
-///   - When successful, allocates memory needed for the extracted value
-///   - Clone operations in the extractor function may create additional allocations
-/// * **Review**: Creates a new instance of the sum type with any required internal allocations
-/// * **Thread Safety**: Safe to use across threads due to the lack of mutable state
-///
 /// # Type Class Laws
 ///
 /// A well-behaved Prism should satisfy these laws:
@@ -516,18 +458,6 @@ where
     ///
     /// The `review` function constructs a value of type `S` from a value of type `A`.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Operation**: O(1) - Constant time to create the Prism instance
-    /// * **Execution**: No code from the provided functions is executed during construction
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Allocation**: Minimal - Only stores function pointers and phantom data
-    /// * **Thread Safety**: Safe to share across threads
-    ///
     /// # Implementation Notes
     ///
     /// For a well-behaved prism, the provided functions should satisfy these conditions:
@@ -585,22 +515,6 @@ where
     /// a value of type `A` from `S`, returning `None` if the extraction fails
     /// (e.g., if `S` is not the variant we're interested in).
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Complexity**: O(m) - Where m is the complexity of the matcher function
-    /// * **Best Case**: O(1) - For simple enum pattern matching
-    /// * **Worst Case**: Depends on the complexity of pattern matching and any cloning operations
-    ///   in the user-provided preview function
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Success Case**: Memory is allocated for the extracted value if needed
-    /// * **Failure Case**: No additional memory is allocated when returning None
-    /// * **Clone Impact**: If the matcher function performs clones of complex data structures,
-    ///   those will create additional allocations
-    ///
     /// # Design Notes
     ///
     /// * This is a non-destructive operation - it doesn't modify the source value
@@ -655,21 +569,6 @@ where
     /// of type `S` from a value of type `A`. Unlike `preview`, this operation
     /// always succeeds.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Complexity**: O(c) - Where c is the complexity of the constructor function
-    /// * **Typical Case**: O(1) for simple enum construction, plus any additional
-    ///   complexity from cloning operations
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Allocation**: Creates a new instance of the sum type
-    /// * **Deep Copy**: If the constructor function performs deep copies of data structures,
-    ///   those will create additional allocations
-    /// * **Reuse**: No memory is shared between the input value and the constructed output
-    ///
     /// # Design Notes
     ///
     /// * This is a pure operation that doesn't modify the input value
@@ -720,11 +619,6 @@ where
     /// This method is provided as a more semantically clear alternative to `new`
     /// when working specifically with enum variants. It has identical performance
     /// characteristics to the `new` method.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// * **Time Complexity**: O(1) - Identical to the `new` method
-    /// * **Memory Usage**: Identical to the `new` method
     ///
     /// # Design Notes
     ///
@@ -786,22 +680,6 @@ where
     /// This method applies a transformation function to the focused value (if it exists) and
     /// returns a new structure. If the transformation doesn't change the value, the original
     /// structure is returned unchanged, providing structural sharing optimization.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Preview Success**: O(m + f + eq) - Where m is preview complexity, f is transformation
-    ///   function complexity, and eq is the equality comparison complexity
-    /// * **Preview Failure**: O(m) - Only the preview operation is performed
-    /// * **Value Unchanged**: O(m + f + eq) - But returns original structure (structural sharing)
-    /// * **Value Changed**: O(m + f + eq + c) - Additional cost c for constructing new structure
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Value Unchanged**: No additional allocation - original structure is returned
-    /// * **Value Changed**: Allocates memory for the new structure via review operation
-    /// * **Preview Failure**: Original structure returned, no additional allocation
     ///
     /// # Structural Sharing Benefits
     ///
@@ -885,27 +763,6 @@ where
     /// This method sets the focused value to a new value, but only creates a new structure
     /// if the new value is different from the current value. If the values are equal,
     /// the original structure is returned unchanged.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Preview Success + Same Value**: O(m + eq) - Preview and equality comparison
-    /// * **Preview Success + Different Value**: O(m + eq + c) - Additional construction cost
-    /// * **Preview Failure**: O(m + c) - Preview fails, construct new structure
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Same Value**: No additional allocation - original structure returned
-    /// * **Different Value**: Allocates memory for new structure
-    /// * **Preview Failure**: Allocates memory for new structure
-    ///
-    /// # Structural Sharing Benefits
-    ///
-    /// This method is particularly useful when:
-    /// - You're setting values that might not actually change
-    /// - You want to avoid unnecessary allocations and copies
-    /// - You're working with large structures where construction is expensive
     ///
     /// # Design Notes
     ///

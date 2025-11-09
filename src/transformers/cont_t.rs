@@ -12,35 +12,6 @@
 //! - Composing advanced control flow with side effects (IO, state, etc.)
 //! - Implementing early exit, backtracking, coroutines within effectful computations
 //!
-//! ## Performance Characteristics
-//!
-//! ### Performance Reality - ContT Has Massive Overhead
-//!
-//! **ContT transformer adds severe performance penalties through multiple Arc layers and CPS transformation overhead.**
-//!
-//! ### Real Time Complexity Impact
-//! - **Construction (`new`)**: O(1) - But Arc allocation + heap indirection adds significant constant cost
-//! - **Continuation Execution (`run`)**: O((f + k) × indirection_multiplier) - Arc dereferencing compounds at each level
-//! - **Bind Operations**: O(f + g + cps_transformation_cost) - CPS conversion adds major overhead
-//! - **CallCC**: O(1) setup is misleading - continuation capture involves expensive closure creation
-//!
-//! ### Memory Usage Explosion
-//! - **Structure Size**: NOT O(1) - Arc (16 bytes) + continuation closures + heap allocations per level
-//! - **Function Storage**: NOT "efficient" - Each continuation creates new Arc with full closure capture
-//! - **Continuation Chain**: O(n × continuation_size × arc_overhead) - Memory grows exponentially with depth
-//! - **Stack vs Heap**: CPS transformation moves computation from stack to heap, often increasing total memory usage
-//!
-//! ### Performance vs Alternatives
-//! - **vs Direct Control Flow**: 50-100x slower for simple operations
-//! - **vs Exception Handling**: 10-20x slower than Rust's Result-based error handling
-//! - **Memory Overhead**: 5-10x higher memory usage than equivalent direct code
-//!
-//! ### Performance Notes
-//! - ContT transforms recursive computations to iterative continuation-passing style
-//! - Arc indirection cost is minimal and enables safe sharing of continuations
-//! - CPS can improve performance for deeply nested computations by avoiding stack overflow
-//! - Continuation capture allows efficient implementation of advanced control flow patterns
-//!
 //! ## Examples
 //!
 //! ```rust
@@ -88,18 +59,17 @@ impl<R, M, A> ContT<R, M, A> {
     /// ```
     /// use rustica::transformers::cont_t::ContT;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     /// use std::sync::Arc;
     ///
     /// // Create a ContT that adds 1 to the continuation's result
     /// let cont = ContT::<i32, Id<i32>, i32>::new(|k| {
     ///     let result = k(42);
-    ///     Id::new(result.value() + 1)
+    ///     Id::new(result.unwrap() + 1)
     /// });
     ///
     /// // Run with a continuation that doubles its input
     /// let result = cont.run(|x| Id::new(x * 2));
-    /// assert_eq!(*result.value(), 85); // (42 * 2) + 1
+    /// assert_eq!(result.unwrap(), 85); // (42 * 2) + 1
     /// ```
     pub fn new<F>(f: F) -> Self
     where
@@ -129,11 +99,10 @@ impl<R, M, A> ContT<R, M, A> {
     /// ```
     /// use rustica::transformers::cont_t::ContT;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     ///
     /// let cont = ContT::<i32, Id<i32>, i32>::pure(42);
     /// let result = cont.run(|x| Id::new(x * 2));
-    /// assert_eq!(*result.value(), 84);
+    /// assert_eq!(result.unwrap(), 84);
     /// ```
     pub fn run<FN>(&self, k: FN) -> M
     where
@@ -194,12 +163,11 @@ impl<R, M, A> ContT<R, M, A> {
     /// ```rust
     /// use rustica::transformers::cont_t::ContT;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     ///
     /// let cont1 = ContT::<i32, Id<i32>, i32>::pure(5);
     /// let cont2 = cont1.bind(|x| ContT::pure(x * 2));
     /// let result = cont2.run(|x| Id::new(x));
-    /// assert_eq!(*result.value(), 10);
+    /// assert_eq!(result.unwrap(), 10);
     /// ```
     pub fn bind<B, F>(self, f: F) -> ContT<R, M, B>
     where
@@ -234,14 +202,13 @@ impl<R, M, A> ContT<R, M, A> {
     /// ```rust
     /// use rustica::transformers::cont_t::ContT;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     ///
     /// let computation = ContT::<i32, Id<i32>, i32>::pure(42);
     ///
     /// // Map a function over the continuation
     /// let doubled = computation.fmap(|x| x * 2);
     /// let result = doubled.run(|x| Id::new(x));
-    /// assert_eq!(*result.value(), 84);
+    /// assert_eq!(result.unwrap(), 84);
     /// ```
     pub fn fmap<B, F>(self, f: F) -> ContT<R, M, B>
     where
@@ -277,7 +244,6 @@ impl<R, M, A> ContT<R, M, A> {
     /// use std::sync::Arc;
     /// use rustica::transformers::cont_t::ContT;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     ///
     /// let cont_val = ContT::<String, Id<String>, i32>::pure(5);
     /// let cont_fn = ContT::<String, Id<String>, Arc<dyn Fn(i32) -> String + Send + Sync>>::pure(
@@ -285,7 +251,7 @@ impl<R, M, A> ContT<R, M, A> {
     /// );
     ///
     /// let result = cont_val.apply(cont_fn).run(|x| Id::new(x));
-    /// assert_eq!(*result.value(), "Value: 5");
+    /// assert_eq!(result.unwrap(), "Value: 5");
     /// ```
     pub fn apply<B>(self, cf: ContT<R, M, Arc<dyn Fn(A) -> B + Send + Sync>>) -> ContT<R, M, B>
     where
@@ -329,7 +295,6 @@ impl<R, M, A> ContT<R, M, A> {
     /// use std::sync::Arc;
     /// use rustica::transformers::cont_t::ContT;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     ///
     /// // Use call_cc to implement early return
     /// let computation = ContT::<i32, Id<i32>, i32>::pure(5).bind(|_| {
@@ -344,7 +309,7 @@ impl<R, M, A> ContT<R, M, A> {
     /// });
     ///
     /// let result = computation.run(|x| Id::new(x));
-    /// assert_eq!(*result.value(), 10);
+    /// assert_eq!(result.unwrap(), 10);
     /// ```
     pub fn call_cc<B, F>(f: F) -> ContT<R, M, A>
     where
@@ -388,7 +353,6 @@ impl<R, A> ContT<R, crate::datatypes::id::Id<R>, A> {
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     /// use rustica::transformers::cont_t::ContT;
     ///
     /// let cont_t = ContT::<i32, Id<i32>, i32>::pure(5);
@@ -407,13 +371,12 @@ impl<R, A> ContT<R, crate::datatypes::id::Id<R>, A> {
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     /// use rustica::transformers::cont_t::ContT;
     ///
     /// let cont = Cont::return_cont(5);
     /// let cont_t = ContT::<i32, Id<i32>, i32>::from_cont(cont);
     /// let result = cont_t.run(|x| Id::new(x + 1));
-    /// assert_eq!(*result.value(), 6);
+    /// assert_eq!(result.unwrap(), 6);
     /// ```
     pub fn from_cont(cont: crate::datatypes::cont::Cont<R, A>) -> Self {
         cont.inner

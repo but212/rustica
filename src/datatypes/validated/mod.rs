@@ -50,29 +50,6 @@
 //! assert_eq!(errors.errors().len(), 2);
 //! ```
 //!
-//! ## Performance Characteristics
-//!
-//! ### Memory Usage
-//!
-//! * **Instance Size**: O(1) for Valid variant, O(n) for Invalid variant where n is the number of errors
-//! * **Validated::Valid**: Stores a single value of type A
-//! * **Validated::Invalid**: Uses a SmallVec with inline capacity for up to 4 errors, avoiding heap allocations for common cases
-//! * **Clone Operations**:
-//!   - Cloning requires O(n) time and space when errors are present
-//!   - Performance depends on the Clone implementation of the contained types E and A
-//!
-//! ### Time Complexity
-//!
-//! * **Construction**: O(1) for valid, O(n) for invalid where n is the collection size
-//! * **Validation Operations**:
-//!   - map, ap: O(1) for valid case, O(n) when combining errors
-//!   - combine_errors: O(n+m) where n and m are the number of errors in each Validated
-//!   - fmap_invalid: O(n) where n is the number of errors
-//! * **Conversions**:
-//!   - from_result: O(1)
-//!   - from_option: O(1)
-//!   - to_result: O(1) for Valid, O(n) for Invalid (need to choose first error)
-//!
 //! ## Type Class Implementations
 //!
 //! `Validated<E, A>` implements several type classes that enable its core functionality:

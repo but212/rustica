@@ -141,16 +141,6 @@
 //! }
 //!```
 //!
-//! ## Performance Characteristics
-//!
-//! - **Memory Usage:** Each `AsyncM` instance carries an `Arc<dyn Fn>` overhead (16–24 bytes on 64-bit systems). Cloning an `AsyncM` is cheap (just increments an Arc reference count). There are `owned` variants that avoid one level of Arc wrapping for better performance.
-//! - **Time Complexity:**
-//!     - `pure`: O(1) — immediate value wrapping
-//!     - `fmap`/`bind`: O(1) — deferred computation composition
-//!     - `try_get`: O(n), where n is the chain length of operations
-//!     - `zip_with`/`apply`: Both computations are run in parallel, bounded by the slower one
-//! - **Concurrency:** `zip_with` and `apply` use `tokio::join!` for parallel execution. All operations are `Send + Sync` safe for cross-thread usage.
-//!
 //! ## Type Class Laws
 //!
 //! The `AsyncM` type abides by the standard Functor, Applicative, and Monad laws:
@@ -250,22 +240,6 @@ pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 /// }
 ///
 /// ```
-/// # Performance Characteristics
-///
-/// ## Memory Usage
-/// - Each `AsyncM` instance carries an `Arc<dyn Fn>` overhead (16-24 bytes on 64-bit systems)
-/// - Cloning is cheap (Arc reference count increment)
-/// - The `owned` variants avoid one level of Arc wrapping for better performance
-///
-/// ## Time Complexity
-/// - `pure`: O(1) - immediate value wrapping
-/// - `fmap`/`bind`: O(1) - deferred computation composition
-/// - `try_get`: O(n) where n is the chain length of operations
-/// - `zip_with`: Runs both computations in parallel, bounded by the slower one
-///
-/// ## Concurrency
-/// - `zip_with` and `apply` use `tokio::join!` for parallel execution
-/// - All operations are `Send + Sync` safe for cross-thread usage
 ///
 /// # Type Class Laws
 ///

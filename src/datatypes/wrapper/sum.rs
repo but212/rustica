@@ -48,12 +48,6 @@
 //! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
 //!   - Mapping a composed function is the same as mapping each function in sequence.
 //!
-//! ## Performance Characteristics
-//!
-//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
-//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
-//! - Clone Cost: Depends on the cost of cloning the inner type `T`
-//!
 //! ## Type Class Implementations
 //!
 //! `Sum<T>` implements the following type classes:

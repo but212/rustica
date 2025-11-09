@@ -31,13 +31,6 @@
 //!   - For any thunk `t` and functions `f` and `g`, applying `f` then `g` to the evaluated result is
 //!     equivalent to applying the composition of `f` and `g` to the evaluated result
 //!
-//! ## Performance Characteristics
-//!
-//! - **Time Complexity**: O(1) for creation, O(F) for evaluation where F is the complexity of the wrapped function
-//! - **Space Complexity**: O(1) for the wrapper itself, plus the size of the wrapped function
-//! - **Memory Usage**: Minimal overhead - only stores the function object and a zero-sized PhantomData
-//! - **Laziness**: Computation is deferred until explicitly evaluated
-//!
 //! ## Type Class Implementations
 //!
 //! - **Evaluate**: Core functionality for executing the wrapped function
@@ -68,13 +61,6 @@
 //! });
 //! assert_eq!(expensive_computation.evaluate(), 500500);
 //! ```
-//!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `evaluate`, `evaluate_owned`, and others.
-
 use crate::traits::evaluate::Evaluate;
 use crate::traits::hkt::HKT;
 use std::marker::PhantomData;

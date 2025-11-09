@@ -6,29 +6,7 @@ use smallvec::{SmallVec, smallvec};
 /// errors of type E. Unlike Result, which fails fast on the first error,
 /// Validated can collect multiple errors during validation.
 ///
-/// # Performance
-///
-/// The performance of `Validated` methods depends on the variant (`Valid` or `Invalid`)
-/// and the operation being performed.
-///
-/// - **`Functor` (`fmap`) and `Monad` (`bind`)**: These operations are constant time, O(1),
-///   as they only operate on the `Valid` variant and pass the `Invalid` variant through
-///   without modification. This makes them efficient for fail-fast validation pipelines.
-///
-/// - **`Applicative` (`apply`) and `Alternative` (`alt`)**: When combining two `Invalid`
-///   instances, these operations have a time complexity of O(n + m), where `n` and `m`
-///   are the number of errors in each instance. This is because they concatenate the
-///   underlying error collections (`SmallVec`). This is the trade-off for accumulating
-///   all errors.
-///
-/// - **`Bifunctor` (`bimap`, `fmap_invalid`)**: When operating on an `Invalid` variant,
-///   these methods are linear time, O(n), where `n` is the number of errors, as they
-///   must iterate over the error collection to apply the mapping function.
-///
-/// `Validated` uses `SmallVec<[E; 8]>` internally to store errors, which optimizes for
-/// the common case of having 1-8 validation errors by avoiding heap allocation.
-///
-/// ## Type Parameter Constraints
+/// # Type Parameter Constraints
 ///
 /// - **`E: Clone`**: The error type `E` often requires a `Clone` bound. This is because:
 ///   - Operations that accumulate errors from multiple `Validated` instances (e.g., in `Applicative::apply` when both are `Invalid`) may need to combine and thus clone error collections.
@@ -37,7 +15,7 @@ use smallvec::{SmallVec, smallvec};
 ///
 /// - **`A: Clone`**: The value type `A` also often requires a `Clone` bound for similar reasons, especially for methods that operate on `&self` but need to return an owned `Validated` or extract the value (e.g., `unwrap()`, `fmap_invalid` when `self` is `Valid`). Ownership-taking variants of methods (e.g., `fmap_owned`, `unwrap_owned` if it existed) can sometimes alleviate this requirement for `A`.
 ///
-/// ## Notes on Trait Implementations
+/// # Notes on Trait Implementations
 ///
 /// - **`Alternative` Implementation**: The `Alternative` trait implementation for `Validated<E, A>` requires `E: Clone + Default`:
 ///   - `empty_alt()` returns `Validated::Invalid` containing a default error (`E::default()`).
@@ -45,7 +23,7 @@ use smallvec::{SmallVec, smallvec};
 ///   - `many()` for an `Invalid` state discards original errors and uses `E::default()`.
 ///   - These methods use `Default` to ensure a consistent representation for the empty/failure case.
 ///
-/// ## Error Accumulation Behavior
+/// # Error Accumulation Behavior
 ///
 /// When combining multiple `Validated` instances with methods like `lift2` or `apply`, errors are accumulated
 /// in a specific order:
@@ -55,7 +33,7 @@ use smallvec::{SmallVec, smallvec};
 ///
 /// This ordering is important to maintain consistency and predictable behavior when chaining operations.
 ///
-/// ## Iterator Support
+/// # Iterator Support
 ///
 /// `Validated<E, A>` provides several iterator methods to work with its contents:
 ///
@@ -560,11 +538,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// If `Valid`, the original valid value `A` is cloned and returned in a new `Validated::Valid`.
     /// This method is suitable when you only have a reference (`&self`) to the `Validated` value.
     ///
-    /// # Performance
-    ///
-    /// When `self` is `Valid`, the contained value `A` is cloned. If `self` is `Invalid`, errors are iterated.
-    /// For an ownership-based version that avoids cloning `A` when `self` is `Valid`, see `fmap_invalid_owned`.
-    ///
     /// # Type Parameters
     ///
     /// * `G`: The result type of the mapping function
@@ -602,11 +575,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// If this `Validated` is `Invalid`, applies the function `f` to transform each error (errors `E` are moved into `f`).
     /// If `Valid`, the original valid value `A` is moved and returned in a new `Validated::Valid`.
     /// This method takes `self` by ownership, which can be more efficient as it avoids cloning the value `A` if it's `Valid`.
-    ///
-    /// # Performance
-    ///
-    /// When `self` is `Valid`, the contained value `A` is moved. If `self` is `Invalid`, errors are moved and iterated.
-    /// This is generally more efficient than `fmap_invalid` if you have ownership of the `Validated` instance.
     ///
     /// # Type Parameters
     ///
@@ -769,10 +737,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// # Arguments
     ///
     /// * `result` - The Result to convert and consume
-    ///
-    /// # Performance
-    ///
-    /// This method is more efficient than `from_result` as it moves the inner values rather than cloning them.
     ///
     /// # Examples
     ///
