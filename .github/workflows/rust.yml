@@ -238,45 +238,62 @@ jobs:
             echo "[]" > benchmark_raw_results.json
             exit 0
           }
+
+      - name: Parse Criterion JSON results
+        run: |
+          echo "[]" > benchmark_raw_results.json
           
-          # Simple parsing of criterion output to extract benchmark names and times
-          grep -E "time:\s+\[" benchmark_output.txt | sed -E 's/^([^[:space:]]+).*time:[[:space:]]+\[[^[:space:]]+ [^[:space:]]+ ([0-9.]+) ([^[:space:]]+) .*/{"name":"\1","value":\2,"unit":"\3"}/g' > temp_results.txt || echo "[]" > temp_results.txt
+          if [ -d "target/criterion" ]; then
+            find target/criterion -type f -name "estimates.json" -print0 | while IFS= read -r -d '' file; do
+              bench_name=$(echo "$file" | sed -E 's|target/criterion/(.+)/new/estimates.json|\1|' | tr '/' '_')
+              
+              jq --arg name "$bench_name" '{
+                name: $name,
+                value: .mean.point_estimate,
+                unit: "ns",
+                range: ((.mean.confidence_interval.upper_bound - .mean.confidence_interval.lower_bound) / 2)
+              }' "$file" 2>/dev/null >> temp_bench.jsonl || true
+            done
+            
+            if [ -f temp_bench.jsonl ] && [ -s temp_bench.jsonl ]; then
+              jq -s '[.[] | select(.value > 0)]' temp_bench.jsonl > benchmark_raw_results.json 2>/dev/null || echo "[]" > benchmark_raw_results.json
+              rm -f temp_bench.jsonl
+            else
+              echo "::warning::No valid benchmark results found"
+            fi
+          else
+            echo "::warning::No criterion output directory found"
+          fi
           
-          # Convert to proper JSON array
-          echo "[" > benchmark_raw_results.json
-          sed '$!s/$/,/' temp_results.txt >> benchmark_raw_results.json
-          echo "]" >> benchmark_raw_results.json
-          
-          # Fallback to empty array if parsing failed
-          if ! jq empty benchmark_raw_results.json 2>/dev/null; then
-            echo "[]" > benchmark_raw_results.json
+          bench_count=$(jq 'length' benchmark_raw_results.json 2>/dev/null || echo 0)
+          echo "Found $bench_count benchmark(s)"
+          if [ "$bench_count" -gt 0 ]; then
+            jq -r '.[] | "  - \(.name): \(.value) ns"' benchmark_raw_results.json || true
           fi
 
-      - name: Process benchmark results
+      - name: Format for benchmark-action
         run: |
           if [ -f benchmark_raw_results.json ] && [ -s benchmark_raw_results.json ]; then
-            # Convert units to nanoseconds and format for benchmark action
-            jq '[.[] | {
-              "name": .name,
-              "value": (if .unit == "µs" or .unit == "us" then (.value * 1000)
-                       elif .unit == "ms" then (.value * 1000000)
-                       elif .unit == "s" then (.value * 1000000000)
-                       else .value end),
-              "unit": "ns/iter"
-            }]' benchmark_raw_results.json > formatted_benchmark_results.json || {
-              echo "::warning::Failed to process benchmark results"
+            jq 'map({name: .name, value: .value, unit: "ns/iter"})' benchmark_raw_results.json > formatted_benchmark_results.json || {
+              echo "::warning::Failed to format benchmark results"
               echo "[]" > formatted_benchmark_results.json
             }
           else
-            echo "::warning::No benchmark results found, creating empty results"
+            echo "::warning::No benchmark results to format"
             echo "[]" > formatted_benchmark_results.json
           fi
-
-          # Validate JSON format
-          jq empty formatted_benchmark_results.json || {
-            echo "::error::Invalid JSON in benchmark results"
+          
+          if jq empty formatted_benchmark_results.json 2>/dev/null; then
+            result_count=$(jq 'length' formatted_benchmark_results.json)
+            if [ "$result_count" -gt 0 ]; then
+              echo "Successfully formatted $result_count benchmark(s) for gh-pages"
+            else
+              echo "No benchmarks to publish"
+            fi
+          else
+            echo "::error::Invalid JSON in formatted results"
             echo "[]" > formatted_benchmark_results.json
-          }
+          fi
 
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4

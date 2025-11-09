@@ -353,22 +353,14 @@ pub fn iso_prism_benchmarks(c: &mut Criterion) {
         })
     });
 
-    // Pattern matching comparison benchmarks
-    group.bench_function("iso_prism_vs_pattern_match", |b| {
+    // Composition benchmark
+    group.bench_function("iso_prism_composition_chain", |b| {
         b.iter(|| {
-            let result = success_prism.preview(&black_box(success_response.clone()));
-            black_box(result)
-        })
-    });
-
-    group.bench_function("direct_pattern_match", |b| {
-        b.iter(|| {
+            // Chain multiple preview operations
             let response = black_box(success_response.clone());
-            let result = match response {
-                ApiResponse::Success(s) => Some(s),
-                _ => None,
-            };
-            black_box(result)
+            let success_opt = success_prism.preview(&response);
+            let processed = success_opt.map(|s| s.to_uppercase());
+            black_box(processed)
         })
     });
 
