@@ -20,12 +20,30 @@
   - Added documentation for `PersistentVector` methods and types
   - Added `pipe` function to `utils::transform_utils`
   - Added comprehensive migration guide for breaking changes
+- **Enhanced IO Monad Error Handling**
+  - Integrated `src/error` module's unified error handling system with IO monad
+  - Added `try_get_composable()` - returns `ComposableResult<A, IOError>` with rich error context
+  - Added `try_get_composable_with_context()` - adds contextual information to errors
+  - Added `try_get_boxed_with_context()` - boxed error for large error contexts
+  - Added `into_error_pipeline()` - enables functional error handling chains
+  - Added `recover()` - provides error recovery with custom fallback logic
+  - Added `recover_with()` - simple default value fallback on failure
+  - Added `sequence_composable()` - collects all errors instead of failing fast
+- **Error Context Accumulation**
+  - IO errors now support context stacking with `ComposableError`
+  - Error chains provide full trace of operation context
+  - Context information is preserved through IO operations
+- **Functional Error Composition**
+  - ErrorPipeline integration for complex error handling chains
+  - Type-safe error transformations after Result extraction
+  - Backward compatibility with existing `try_get()` method
 
-### Deprecated - 0.10.1
+### Changed - 0.10.1
 
-- **Identity Trait**
-  - `Identity` trait is deprecated and will be removed in v0.12.0
-  - Use standard methods (`unwrap()`, `as_ref()`) or `Comonad::extract()` instead
+- **IO Error Semantics**
+  - Enhanced error documentation with ComposableError patterns
+  - Improved error recovery patterns and best practices
+  - Updated Quick Start examples with new error handling features
 
 ### Fixed - 0.10.1
 
@@ -34,6 +52,15 @@
   - Improved separation of concerns between value extraction and functor operations
 - **compose function order**
   - Fixed compose function order in tests
+- **Error Handling Doctests**
+  - Fixed doctest failures in `map_error` method by removing problematic methods
+  - Improved error handling examples and documentation
+
+### Deprecated - 0.10.1
+
+- **Identity Trait**
+  - `Identity` trait is deprecated and will be removed in v0.12.0
+  - Use standard methods (`unwrap()`, `as_ref()`) or `Comonad::extract()` instead
 
 ## [0.10.0]
 
