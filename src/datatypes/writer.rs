@@ -43,23 +43,6 @@
 //! - **Log Accumulation**: When Writer computations are chained, their logs are combined using the monoid operation
 //! - **Pure Functional Logging**: Allows for logging without side effects
 //!
-//! ## Performance Characteristics
-//!
-//! ### Time Complexity
-//!
-//! - **Construction (new/tell)**: O(1) - Constant time to create a Writer instance
-//! - **run/value/log**: O(1) - Constant time to extract values and logs
-//! - **fmap**: O(n) - Where n is the complexity of the mapping function
-//! - **bind**: O(m + n) - Where m is the log combination complexity (typically linear in log size)
-//!   and n is the complexity of the binding function
-//! - **apply/lift2/lift3**: O(m) - Where m is the log combination complexity
-//!
-//! ### Memory Usage
-//!
-//! - **Structure**: O(L + V) - Where L is the size of the log and V is the size of the value
-//! - **Composition**: Each composition (via fmap/bind) creates new Writer instances but shares existing structure where possible
-//! - **Implementation Detail**: Uses direct storage rather than functions to avoid stack issues with deeply nested structures
-//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, the Writer monad solves the problem of producing output while maintaining referential
@@ -126,12 +109,6 @@
 //! - An identity element (`empty`): The starting point for accumulation
 //! - A binary operation (`combine`): How to combine two logs
 //!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `new`, `tell`, `run`, `value`, and others.
-//!
 //! ```
 //! use rustica::datatypes::writer::Writer;
 //! use rustica::traits::semigroup::Semigroup;
@@ -194,21 +171,6 @@ use quickcheck::{Arbitrary, Gen};
 
 /// The Writer monad represents computations that produce a value along with an accumulated log.
 ///
-/// # Performance Characteristics
-///
-/// ## Time Complexity
-///
-/// - **Construction**: O(1) - Creating a Writer instance takes constant time
-/// - **Extraction (run/value)**: O(1) - Extracting values and logs takes constant time
-/// - **Composition**: O(m) - Where m is the complexity of combining logs (typically linear with log size)
-///
-/// ## Memory Usage
-///
-/// - **Storage**: O(L + V) - Linear based on the size of the log (L) and value (V)
-/// - **Thread Safety**: Safe to share between threads when `W` and `A` are `Send + Sync`
-/// - **Implementation Detail**: Uses direct storage rather than function closures, avoiding
-///   potential issues with deeply nested structures
-///
 /// # Type Class Instances
 ///
 /// The Writer monad implements several type classes:
@@ -242,12 +204,6 @@ pub struct Writer<W, A> {
 
 impl<W: Monoid + Clone, A> Writer<W, A> {
     /// Creates a new Writer with the given value and log.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Constant time operation
-    /// - **Memory Usage**: O(L + V) - Where L is the size of the log and V is the size of the value
-    /// - **Thread Safety**: Safe to use across threads when `W` and `A` implement `Send + Sync`
     ///
     /// # Examples
     ///
@@ -343,12 +299,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///
     /// This method consumes the Writer and returns a tuple containing the log and value. It's the
     /// primary way to finalize a Writer computation and access both components of the result.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Constant time operation
-    /// - **Memory Usage**: No additional memory is allocated beyond what's already in the Writer
-    /// - **Ownership**: Transfers ownership of both the log and value to the caller
     ///
     /// # Examples
     ///
@@ -580,12 +530,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// This method is the core of the Applicative interface. It combines the logs of both Writers
     /// and applies the function from one Writer to the value in another.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + V) - Where L1 and L2 are the sizes of the input logs, and V is the size of the result value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -657,12 +601,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// This method allows you to combine two independent Writer computations using a binary function.
     /// It's useful for operations that need values from multiple Writers while preserving their logs.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + V) - Where L1 and L2 are the sizes of the input logs, and V is the size of the result value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -731,12 +669,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// It's particularly useful for operations that need to gather values from multiple sources while
     /// preserving the logs from each computation.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + L3 + V) - Where L1, L2, and L3 are the sizes of the input logs, and V is the size of the result value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    ///
     /// # Examples
     ///
     /// ## Basic Three-way Combination
@@ -798,13 +730,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
 
     /// This method is similar to `apply` but it consumes the Writer instances, potentially allowing
     /// for more efficient memory usage in some cases.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + V) - Where L1 and L2 are the sizes of the input logs, and V is the size of the result value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    /// - **Ownership**: Consumes both Writer instances, which can be more efficient than cloning when used in a chain
     ///
     /// # Examples
     ///
@@ -880,13 +805,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// This method consumes both Writer instances, potentially allowing for more efficient memory usage
     /// in some cases compared to the borrowing version.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + V) - Where L1 and L2 are the sizes of the input logs, and V is the size of the result value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    /// - **Ownership**: Consumes both Writer instances, which can be more efficient than borrowing when used in a chain
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -954,13 +872,6 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
     /// Applies a ternary function to values from three Writer instances while combining their logs.
     /// This method consumes all Writer instances, potentially allowing for more efficient memory usage
     /// compared to the borrowing version.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + L3 + V) - Where L1, L2, and L3 are the sizes of the input logs, and V is the size of the result value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    /// - **Ownership**: Consumes all three Writer instances, which can be more efficient than borrowing when used in a chain
     ///
     /// # Examples
     ///
@@ -1035,13 +946,6 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     /// This method takes a Writer and a function that generates a new Writer based on the value of the first Writer.
     /// It runs both computations and combines their logs according to the Semigroup instance of the log type.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + V) - Where L1 is the size of the original log, L2 is the log from the function result,
-    ///   and V is the size of the final value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -1110,13 +1014,6 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     /// This method is similar to `bind` but it consumes the Writer instance, potentially allowing
     /// for more efficient memory usage in some cases.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L + f) - Where L is the complexity of combining logs and f is the complexity of the function
-    /// - **Memory Usage**: O(L1 + L2 + V) - Where L1 is the size of the original log, L2 is the log from the function result,
-    ///   and V is the size of the final value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -1174,13 +1071,6 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     ///
     /// This method is used when you have a Writer containing another Writer and want to flatten
     /// the structure into a single Writer, combining the logs from both layers.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L) - Where L is the complexity of combining logs
-    /// - **Memory Usage**: O(L1 + L2 + V) - Where L1 is the size of the outer log, L2 is the size of the inner log,
-    ///   and V is the size of the inner value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
     ///
     /// # Examples
     ///
@@ -1240,13 +1130,6 @@ impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
     ///
     /// This method is similar to `join` but it consumes the Writer instance, potentially allowing
     /// for more efficient memory usage in some cases.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(L) - Where L is the complexity of combining logs
-    /// - **Memory Usage**: O(L1 + L2 + V) - Where L1 is the size of the outer log, L2 is the size of the inner log,
-    ///   and V is the size of the inner value
-    /// - **Allocation**: Creates a new Writer instance with combined logs
     ///
     /// # Examples
     ///

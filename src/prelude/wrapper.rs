@@ -1,4 +1,3 @@
-//!
 //! Prelude: Wrapper Types
 //!
 //! This module re-exports various wrapper types from Rustica to make them available in a single import.
@@ -19,11 +18,11 @@
 //!
 //! let a = Sum(3);
 //! let b = Sum(4);
-//! assert_eq!(*a.combine(&b).value(), 7);
+//! assert_eq!(a.combine(&b).unwrap(), 7);
 //!
 //! let m = Max(10);
 //! let n = Max(20);
-//! assert_eq!(*m.combine(&n).value(), 20);
+//! assert_eq!(m.combine(&n).unwrap(), 20);
 //! ```
 //!
 //! # Note
@@ -42,6 +41,5 @@ pub use crate::datatypes::wrapper::thunk::Thunk;
 // Also re-export commonly used traits
 pub use crate::traits::evaluate::Evaluate;
 pub use crate::traits::functor::Functor;
-pub use crate::traits::identity::Identity;
 pub use crate::traits::monoid::Monoid;
 pub use crate::traits::semigroup::Semigroup;

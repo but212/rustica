@@ -39,12 +39,6 @@
 //! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
 //!   - Mapping a composed function is the same as mapping each function in sequence.
 //!
-//! ## Performance Characteristics
-//!
-//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
-//! - Memory Usage: Stores exactly one value of type `T` with no additional overhead
-//! - Clone Cost: Depends on the cost of cloning the inner type `T`
-//!
 //! ## Type Class Implementations
 //!
 //! `Max<T>` implements the following type classes:
@@ -73,12 +67,6 @@
 //! let result = a.combine(&b).combine(&c);
 //! assert_eq!(result, Max(10)); // Overall maximum
 //! ```
-//!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
@@ -552,67 +540,6 @@ impl<T: Clone + Ord> Functor for Max<T> {
 }
 
 impl<T> From<T> for Max<T> {
-    /// Creates a new `Max` wrapper from a value.
-    ///
-    /// This is equivalent to `Max(value)` but provides better ergonomics
-    /// in generic contexts and follows Rust conventions for wrapper types.
-    /// This implementation enables seamless conversion from any value `T`
-    /// into a `Max<T>` wrapper.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Direct wrapper construction
-    /// - **Memory Usage**: Zero overhead - same as direct construction
-    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // Direct conversion using From trait
-    /// let max1 = Max::from(42);
-    /// let max2: Max<i32> = 42.into();
-    /// let max3 = Max(42); // Equivalent direct construction
-    ///
-    /// assert_eq!(max1, max2);
-    /// assert_eq!(max2, max3);
-    ///
-    /// // Useful in generic contexts
-    /// fn create_wrapper<T, W: From<T>>(value: T) -> W {
-    ///     W::from(value)
-    /// }
-    ///
-    /// let max: Max<i32> = create_wrapper(314);
-    /// assert_eq!(*max.value(), 314);
-    ///
-    /// // Convenient for function parameters
-    /// fn process_max(m: Max<i32>) -> i32 {
-    ///     m.0 * 3
-    /// }
-    ///
-    /// assert_eq!(process_max(10.into()), 30);
-    /// ```
-    ///
-    /// # Collection Transformations
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// // Transform collections using From trait
-    /// let numbers = vec![5, 2, 8, 1, 9];
-    /// let maxs: Vec<Max<i32>> = numbers.into_iter().map(Max::from).collect();
-    ///
-    /// // Or more concisely with Into trait
-    /// let numbers = vec![5, 2, 8, 1, 9];
-    /// let maxs: Vec<Max<i32>> = numbers.into_iter().map(Into::into).collect();
-    ///
-    /// assert_eq!(maxs.len(), 5);
-    /// assert_eq!(*maxs[0].value(), 5);
-    /// ```
-    #[inline]
     fn from(value: T) -> Self {
         Max(value)
     }

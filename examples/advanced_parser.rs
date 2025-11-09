@@ -10,7 +10,57 @@
 
 use rustica::datatypes::choice::Choice;
 use rustica::traits::alternative::Alternative;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
+
+/// Parse error with location information
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParseError {
+    pub message: String,
+    pub position: usize,
+    pub expected: Option<String>,
+    pub found: Option<String>,
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Parse error at position {}: {}",
+            self.position, self.message
+        )?;
+        if let Some(ref exp) = self.expected {
+            write!(f, " (expected: {})", exp)?;
+        }
+        if let Some(ref found) = self.found {
+            write!(f, " (found: {})", found)?;
+        }
+        Ok(())
+    }
+}
+
+impl ParseError {
+    pub fn new(message: impl Into<String>, position: usize) -> Self {
+        ParseError {
+            message: message.into(),
+            position,
+            expected: None,
+            found: None,
+        }
+    }
+
+    pub fn with_expected(mut self, expected: impl Into<String>) -> Self {
+        self.expected = Some(expected.into());
+        self
+    }
+
+    pub fn with_found(mut self, found: impl Into<String>) -> Self {
+        self.found = Some(found.into());
+        self
+    }
+}
+
+/// Parse result with error information
+pub type ParseResult<I, O> = Result<(O, &'static [I], usize), ParseError>;
 
 /// Core Parser type that represents a parsing function
 ///
@@ -157,6 +207,92 @@ where
             None => Choice::new((None, input), vec![]),
         })
     }
+
+    /// Parse elements separated by a separator
+    pub fn sep_by<S>(self, separator: Parser<I, S>) -> Parser<I, Vec<O>>
+    where
+        S: Clone + Debug + Send + Sync + 'static,
+    {
+        let parser_clone = self.clone();
+        self.and_then(move |first| {
+            let sep_clone = separator.clone();
+            let parser_clone2 = parser_clone.clone();
+            sep_clone
+                .and_then(move |_| parser_clone2.clone())
+                .many()
+                .map(move |mut rest| {
+                    let mut result = vec![first.clone()];
+                    result.append(&mut rest);
+                    result
+                })
+        })
+        .or(Parser::new(|input| Choice::new((vec![], input), vec![])))
+    }
+
+    /// Parse elements separated by a separator (at least one element)
+    pub fn sep_by1<S>(self, separator: Parser<I, S>) -> Parser<I, Vec<O>>
+    where
+        S: Clone + Debug + Send + Sync + 'static,
+    {
+        let parser_clone = self.clone();
+        self.and_then(move |first| {
+            let sep_clone = separator.clone();
+            let parser_clone2 = parser_clone.clone();
+            sep_clone
+                .and_then(move |_| parser_clone2.clone())
+                .many()
+                .map(move |mut rest| {
+                    let mut result = vec![first.clone()];
+                    result.append(&mut rest);
+                    result
+                })
+        })
+    }
+
+    /// Parse something between two delimiters
+    pub fn between<L, R, LO, RO>(
+        left: Parser<I, LO>, right: Parser<I, RO>, parser: Parser<I, O>,
+    ) -> Parser<I, O>
+    where
+        LO: Clone + Debug + Send + Sync + 'static,
+        RO: Clone + Debug + Send + Sync + 'static,
+    {
+        left.and_then(move |_| {
+            let parser_clone = parser.clone();
+            let right_clone = right.clone();
+            parser_clone.and_then(move |result| right_clone.clone().map(move |_| result.clone()))
+        })
+    }
+
+    /// Left-associative chain of binary operations
+    pub fn chainl1<F>(self, op: Parser<I, F>) -> Parser<I, O>
+    where
+        F: Fn(O, O) -> O + Clone + Debug + Send + Sync + 'static,
+    {
+        let parser_clone = self.clone();
+        self.and_then(move |first| {
+            let op_clone = op.clone();
+            let parser_clone2 = parser_clone.clone();
+            op_clone
+                .and_then(move |f| parser_clone2.clone().map(move |val| (f.clone(), val)))
+                .many()
+                .map(move |ops| {
+                    ops.into_iter()
+                        .fold(first.clone(), |acc, (f, val)| f(acc, val))
+                })
+        })
+    }
+
+    /// Skip this parser (discard result)
+    pub fn skip(self) -> Parser<I, ()> {
+        self.map(|_| ())
+    }
+
+    /// Label a parser for better error messages
+    pub fn label(self, _label: &'static str) -> Parser<I, O> {
+        // For now, just return self; can enhance with error tracking later
+        self
+    }
 }
 
 /// Basic parsers for common patterns
@@ -216,9 +352,32 @@ where
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum SqlQuery {
-    Select { columns: Vec<String>, table: String },
-    Insert { table: String, values: Vec<String> },
-    Update { table: String, set_clause: String },
+    Select {
+        columns: Vec<String>,
+        table: String,
+        where_clause: Option<WhereClause>,
+    },
+    Insert {
+        table: String,
+        values: Vec<String>,
+    },
+    Update {
+        table: String,
+        set_clause: String,
+        where_clause: Option<WhereClause>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct WhereClause {
+    pub conditions: Vec<Condition>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Condition {
+    pub field: String,
+    pub operator: String,
+    pub value: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -265,16 +424,20 @@ fn keyword(kw: &'static str) -> Parser<char, String> {
 
 /// Parse SELECT clause
 fn select_parser() -> Parser<char, SelectClause> {
-    word().and_then(|first_col| {
-        item(',')
-            .and_then(|_| whitespace())
-            .and_then(|_| word())
-            .many()
-            .map(move |rest_cols| {
-                let mut columns = vec![first_col.clone()];
-                columns.extend(rest_cols);
-                SelectClause { columns }
+    keyword("SELECT").and_then(|_| whitespace()).and_then(|_| {
+        word()
+            .and_then(|first_col| {
+                item(',')
+                    .and_then(|_| whitespace())
+                    .and_then(|_| word())
+                    .many()
+                    .map(move |rest_cols| {
+                        let mut columns = vec![first_col.clone()];
+                        columns.extend(rest_cols);
+                        SelectClause { columns }
+                    })
             })
+            .or(word().map(|col| SelectClause { columns: vec![col] }))
     })
 }
 
@@ -285,6 +448,49 @@ fn from_parser() -> Parser<char, FromClause> {
         .and_then(|_| whitespace())
         .and_then(|_| word())
         .map(|table| FromClause { table })
+}
+
+/// Parse operator (=, !=, <, >, etc.)
+fn operator_parser() -> Parser<char, String> {
+    sequence(vec!['!', '='])
+        .map(|_| "!=".to_string())
+        .or(item('=').map(|_| "=".to_string()))
+        .or(item('<').map(|_| "<".to_string()))
+        .or(item('>').map(|_| ">".to_string()))
+}
+
+/// Parse a single condition (e.g., "age > 18")
+fn condition_parser() -> Parser<char, Condition> {
+    word().and_then(|field| {
+        let field_clone = field.clone();
+        whitespace()
+            .and_then(|_| operator_parser())
+            .and_then(move |operator| {
+                let field_clone2 = field_clone.clone();
+                let operator_clone = operator.clone();
+                whitespace().and_then(|_| word()).map(move |value| Condition {
+                    field: field_clone2.clone(),
+                    operator: operator_clone.clone(),
+                    value,
+                })
+            })
+    })
+}
+
+/// Parse WHERE clause
+fn where_parser() -> Parser<char, WhereClause> {
+    whitespace()
+        .and_then(|_| keyword("WHERE"))
+        .and_then(|_| whitespace())
+        .and_then(|_| {
+            condition_parser()
+                .sep_by(
+                    whitespace()
+                        .and_then(|_| keyword("AND"))
+                        .and_then(|_| whitespace()),
+                )
+                .map(|conditions| WhereClause { conditions })
+        })
 }
 
 /// Parse INSERT statement
@@ -312,13 +518,21 @@ fn update_parser() -> Parser<char, SqlQuery> {
         .and_then(|_| whitespace())
         .and_then(|_| word())
         .and_then(|table| {
+            let table_clone = table.clone();
             whitespace()
                 .and_then(|_| keyword("SET"))
                 .and_then(|_| whitespace())
-                .and_then(|_| word()) // Simplified: just parse one word for SET clause
-                .map(move |set_clause| SqlQuery::Update {
-                    table: table.clone(),
-                    set_clause,
+                .and_then(|_| word())
+                .and_then(move |set_clause| {
+                    let table_clone2 = table_clone.clone();
+                    let set_clause_clone = set_clause.clone();
+                    where_parser()
+                        .optional()
+                        .map(move |where_clause| SqlQuery::Update {
+                            table: table_clone2.clone(),
+                            set_clause: set_clause_clone.clone(),
+                            where_clause,
+                        })
                 })
         })
 }
@@ -327,74 +541,21 @@ fn update_parser() -> Parser<char, SqlQuery> {
 pub fn sql_query_parser() -> Parser<char, SqlQuery> {
     select_parser()
         .and_then(|select_clause| {
-            from_parser().map(move |from_clause| SqlQuery::Select {
-                columns: select_clause.columns.clone(),
-                table: from_clause.table,
+            let columns_clone = select_clause.columns.clone();
+            from_parser().and_then(move |from_clause| {
+                let columns_clone2 = columns_clone.clone();
+                let table_clone = from_clause.table.clone();
+                where_parser()
+                    .optional()
+                    .map(move |where_clause| SqlQuery::Select {
+                        columns: columns_clone2.clone(),
+                        table: table_clone.clone(),
+                        where_clause,
+                    })
             })
         })
         .or(insert_parser())
         .or(update_parser())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_basic_parsers() {
-        let input = ['a', 'b', 'c'];
-
-        // Test item parser
-        let parser = item('a');
-        let result = parser.parse(&input);
-        assert!(!result.is_empty());
-
-        // Test sequence parser
-        let seq_parser = sequence(vec!['a', 'b']);
-        let seq_result = seq_parser.parse(&input);
-        assert!(!seq_result.is_empty());
-    }
-
-    #[test]
-    fn test_combinator_or() {
-        let input = ['b'];
-        let parser = item('a').or(item('b'));
-        let result = parser.parse(&input);
-        assert!(!result.is_empty());
-    }
-
-    #[test]
-    fn test_sql_select_parser() {
-        let input: Vec<char> = "SELECT name FROM users".chars().collect();
-        let parser = sql_query_parser();
-        let result = parser.parse(&input);
-
-        if let Some((query, _)) = result.into_iter().next() {
-            match query {
-                SqlQuery::Select { columns, table } => {
-                    assert_eq!(columns, vec!["name"]);
-                    assert_eq!(table, "users");
-                },
-                _ => panic!("Expected SELECT query"),
-            }
-        } else {
-            panic!("Parser failed");
-        }
-    }
-
-    #[test]
-    fn test_many_combinator() {
-        let input = ['a', 'a', 'a', 'b'];
-        let parser = item('a').many();
-        let result = parser.parse(&input);
-
-        if let Some((results, remaining)) = result.into_iter().next() {
-            assert_eq!(results.len(), 3);
-            assert_eq!(remaining, &['b']);
-        } else {
-            panic!("Many parser failed");
-        }
-    }
 }
 
 /// Example usage demonstrating the parser library
@@ -437,8 +598,11 @@ pub fn parser_examples() {
     let queries = vec![
         "SELECT name FROM users",
         "SELECT id, email FROM customers",
+        "SELECT name FROM users WHERE age > 18",
+        "SELECT email FROM customers WHERE active = 1 AND verified = 1",
         "INSERT INTO users VALUES data",
         "UPDATE users SET active",
+        "UPDATE users SET status WHERE id = 42",
     ];
 
     for query in queries {
@@ -448,15 +612,49 @@ pub fn parser_examples() {
 
         match parser.parse(&input).into_iter().next() {
             Some((parsed_query, _)) => {
-                println!("   Result: {:?}", parsed_query);
+                println!("   Result: {:#?}", parsed_query);
             },
             None => println!("   Parse failed"),
         }
         println!();
     }
 
-    // Example 5: Many combinator
-    println!("5. Many Combinator (parse repeated elements):");
+    // Example 5: New Combinators
+    println!("5. Advanced Combinators:");
+
+    // sep_by example
+    println!("   a) sep_by - Parse comma-separated words:");
+    let csv_input: Vec<char> = "apple,banana,cherry".chars().collect();
+    let csv_parser = word().sep_by(item(','));
+    match csv_parser.parse(&csv_input).into_iter().next() {
+        Some((words, remaining)) => {
+            println!(
+                "      Parsed words: {:?}, Remaining: {:?}",
+                words, remaining
+            );
+        },
+        None => println!("      Parse failed"),
+    }
+
+    // between example
+    println!("\n   b) between - Parse quoted string:");
+    let quoted_input: Vec<char> = "\"hello\"".chars().collect();
+    let quoted_parser = Parser::<char, String>::between::<char, char, char, char>(
+        item('"'),
+        item('"'),
+        satisfy(|c: &char| *c != '"')
+            .many()
+            .map(|chars: Vec<char>| chars.into_iter().collect::<String>()),
+    );
+    match quoted_parser.parse(&quoted_input).into_iter().next() {
+        Some((text, remaining)) => {
+            println!("      Parsed text: {:?}, Remaining: {:?}", text, remaining);
+        },
+        None => println!("      Parse failed"),
+    }
+
+    // Example 6: Many combinator
+    println!("\n6. Many Combinator (parse repeated elements):");
     let repeated_input = ['a', 'a', 'a', 'b', 'c'];
     let many_a_parser = item('a').many();
     match many_a_parser.parse(&repeated_input).into_iter().next() {

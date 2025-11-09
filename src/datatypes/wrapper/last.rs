@@ -48,12 +48,6 @@
 //! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
 //!   - Mapping a composed function is the same as mapping each function in sequence.
 //!
-//! ## Performance Characteristics
-//!
-//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
-//! - Memory Usage: Stores exactly one `Option<T>` value with no additional overhead
-//! - Clone Cost: Depends on the cost of cloning the inner type `T`
-//!
 //! ## Quick Start
 //!
 //! ```rust
@@ -75,12 +69,6 @@
 //! assert_eq!(empty.combine(&a), a);
 //! assert_eq!(a.combine(&empty), a);
 //! ```
-//!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `combine`, `empty`, `fmap`, and others.
 
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
@@ -557,63 +545,9 @@ impl<T: Clone> Functor for Last<T> {
     }
 }
 
-impl<T> From<Option<T>> for Last<T> {
-    /// Creates a new `Last` wrapper from an `Option<T>`.
-    ///
-    /// This directly wraps the `Option<T>` in `Last`, making it equivalent
-    /// to `Last(option)`. This is useful when you already have an `Option<T>`
-    /// and want to give it `Last` semantics for semigroup operations.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Direct wrapper construction
-    /// - **Memory Usage**: Zero overhead - same as direct construction
-    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    ///
-    /// // Convert from Some value
-    /// let some_value = Some(42);
-    /// let last1 = Last::from(some_value);
-    /// let last2: Last<i32> = some_value.into();
-    /// let last3 = Last(Some(42)); // Equivalent direct construction
-    ///
-    /// assert_eq!(last1, last2);
-    /// assert_eq!(last2, last3);
-    ///
-    /// // Convert from None
-    /// let none_value: Option<i32> = None;
-    /// let last_none = Last::<i32>::from(none_value);
-    /// assert_eq!(last_none, Last(None));
-    ///
-    /// // Useful for converting existing Option values
-    /// fn maybe_get_value() -> Option<String> {
-    ///     Some("result".to_string())
-    /// }
-    ///
-    /// let last: Last<String> = maybe_get_value().into();
-    /// assert_eq!(last.0, Some("result".to_string()));
-    /// ```
-    ///
-    /// # Semigroup Behavior
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // Last takes the last non-None value
-    /// let last1: Last<i32> = Some(1).into();
-    /// let last2: Last<i32> = Some(2).into();
-    /// let last_none: Last<i32> = None.into();
-    ///
-    /// assert_eq!(last1.combine(&last2), Last(Some(2))); // Last wins
-    /// assert_eq!(last1.combine(&last_none), Last(Some(1))); // None loses
-    /// ```
+impl<T> From<T> for Last<T> {
     #[inline]
-    fn from(option: Option<T>) -> Self {
-        Last(option)
+    fn from(value: T) -> Self {
+        Last(Some(value))
     }
 }

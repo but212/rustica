@@ -26,7 +26,7 @@ mod creation_tests {
         let valid: Validated<String, i32> = Validated::valid(42);
         assert!(valid.is_valid());
         assert!(!valid.is_invalid());
-        assert_eq!(valid.value(), Some(&42));
+        assert_eq!(valid.iter().next(), Some(&42));
         assert!(valid.errors().is_empty());
     }
 
@@ -37,7 +37,7 @@ mod creation_tests {
         assert!(invalid.is_invalid());
         assert_eq!(invalid.errors().len(), 1);
         assert_eq!(invalid.errors()[0], "error");
-        assert_eq!(invalid.value(), None);
+        assert_eq!(invalid.iter().next(), None);
     }
 
     #[test]
@@ -54,11 +54,11 @@ mod creation_tests {
     #[test]
     fn test_value_and_error_payload_accessors() {
         let valid: Validated<&str, i32> = Validated::Valid(42);
-        assert_eq!(valid.value(), Some(&42));
+        assert_eq!(valid.iter().next(), Some(&42));
         assert_eq!(valid.error_payload(), None);
 
         let invalid: Validated<&str, i32> = Validated::Invalid(smallvec!["error1", "error2"]);
-        assert_eq!(invalid.value(), None);
+        assert_eq!(invalid.iter().next(), None);
         assert_eq!(
             invalid.error_payload(),
             Some(&smallvec!["error1", "error2"])
@@ -345,7 +345,7 @@ mod conversion_tests {
         let ok_result: Result<i32, &str> = Ok(42);
         let validated = Validated::from_result(&ok_result);
         assert!(validated.is_valid());
-        assert_eq!(validated.value(), Some(&42));
+        assert_eq!(validated.iter().next(), Some(&42));
 
         let err_result: Result<i32, &str> = Err("error");
         let validated = Validated::from_result(&err_result);
@@ -657,7 +657,7 @@ mod real_world_tests {
         );
 
         assert!(valid_user.is_valid());
-        let user = valid_user.value().unwrap();
+        let user = valid_user.unwrap();
         assert_eq!(user.name, "John Doe");
         assert_eq!(user.age, 25);
         assert_eq!(user.email, "john@example.com");
@@ -804,7 +804,7 @@ mod performance_tests {
         for i in 1..=100 {
             result = result.bind(|&x| Validated::valid(x + i));
         }
-        assert_eq!(result.value(), Some(&5050));
+        assert_eq!(result.iter().next(), Some(&5050));
         let operation_duration = start.elapsed();
 
         println!("Nested operations baseline: {baseline_duration:?}");
@@ -904,7 +904,7 @@ mod type_safety_tests {
 
         // Test operations that don't require Clone
         assert!(validated.is_valid());
-        assert_eq!(validated.value().unwrap().data, vec![1, 2, 3]);
+        assert_eq!(validated.unwrap().data, vec![1, 2, 3]);
 
         // into_value should move without cloning
         let consumed = validated.into_value();
@@ -1026,11 +1026,11 @@ mod documentation_tests {
 
         assert!(valid.is_valid());
         assert!(!valid.is_invalid());
-        assert_eq!(valid.value(), Some(&42));
+        assert_eq!(valid.iter().next(), Some(&42));
 
         assert!(!invalid.is_valid());
         assert!(invalid.is_invalid());
-        assert_eq!(invalid.value(), None);
+        assert_eq!(invalid.iter().next(), None);
         assert_eq!(invalid.errors().len(), 1);
     }
 
@@ -1200,14 +1200,17 @@ mod property_tests {
     #[quickcheck]
     fn prop_value_accessor_on_valid_returns_some_ref_value(value: i32) -> bool {
         let v: Validated<String, i32> = Validated::Valid(value);
-        v.value() == Some(&value)
+        v.unwrap() == value
     }
 
     #[quickcheck]
     fn prop_value_accessor_on_invalid_returns_none(errors: Vec<String>) -> bool {
         let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors);
-        v.value().is_none()
+        match v.into_value() {
+            Ok(_) => false, // Should not happen for invalid
+            Err(_) => true, // Expected for invalid
+        }
     }
 
     // Property tests for error_payload accessor
@@ -1350,7 +1353,7 @@ mod stress_tests {
 
         // Operations that should not clone the large vector
         assert!(validated.is_valid());
-        assert_eq!(validated.value().unwrap().len(), 10000);
+        assert_eq!(validated.unwrap().len(), 10000);
 
         // into_value should move without cloning
         let moved_value = validated.into_value();
@@ -1384,7 +1387,7 @@ mod stress_tests {
         // Test with unit type
         let unit_valid: Validated<String, ()> = Validated::valid(());
         assert!(unit_valid.is_valid());
-        assert_eq!(unit_valid.value(), Some(&()));
+        assert_eq!(unit_valid.unwrap(), ());
 
         // Test with zero-sized struct
         #[derive(Debug, PartialEq, Clone)]
@@ -1392,7 +1395,7 @@ mod stress_tests {
 
         let zst_valid: Validated<String, ZeroSized> = Validated::valid(ZeroSized);
         assert!(zst_valid.is_valid());
-        assert_eq!(zst_valid.value(), Some(&ZeroSized));
+        assert_eq!(zst_valid.unwrap(), ZeroSized);
     }
 }
 
@@ -1434,7 +1437,7 @@ mod integration_tests {
         let validated_from_result = Validated::from_result(&result_from_option);
 
         assert!(validated_from_result.is_valid());
-        assert_eq!(validated_from_result.value(), Some(&42));
+        assert_eq!(validated_from_result.unwrap(), 42);
 
         // Reverse chain: Validated -> Result -> Option
         let validated: Validated<&str, i32> = Validated::valid(42);
@@ -1566,7 +1569,7 @@ mod regression_tests {
 
         assert!(validated.is_invalid());
         assert!(validated.errors().is_empty());
-        assert_eq!(validated.value(), None);
+        assert_eq!(validated.iter().next(), None);
     }
 
     #[test]
@@ -1715,7 +1718,7 @@ mod comprehensive_test {
             validate_complete_user(1, "john_doe", "john@example.com", 25, true, "dark");
 
         assert!(valid_user.is_valid());
-        let user = valid_user.value().unwrap();
+        let user = valid_user.unwrap();
         assert_eq!(user.id, 1);
         assert_eq!(user.username, "john_doe");
         assert_eq!(user.email, "john@example.com");
@@ -1751,7 +1754,7 @@ mod comprehensive_test {
         );
 
         assert!(partial_user.is_valid());
-        let user = partial_user.value().unwrap();
+        let user = partial_user.unwrap();
         assert_eq!(user.id, 42);
         assert_eq!(user.username, "valid_username");
         assert_eq!(user.email, "valid@email.com");
@@ -1775,10 +1778,7 @@ mod comprehensive_test {
         });
 
         assert!(processed_user.is_valid());
-        assert_eq!(
-            processed_user.value(),
-            Some(&"Adult user: john_doe".to_string())
-        );
+        assert_eq!(processed_user.unwrap(), "Adult user: john_doe".to_string());
 
         // Test error mapping
         let mapped_errors =

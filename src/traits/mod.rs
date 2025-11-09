@@ -78,10 +78,7 @@ pub mod traversable;
 // ===== Advanced Abstractions =====
 /// Choice between alternative computations.
 pub mod alternative;
-/// Distribution of contexts over structures.
-pub mod distributive;
-/// Divisible contravariant functors.
-pub mod divisible;
+
 /// Isomorphism between types.
 ///
 /// This module provides the Iso trait which represents isomorphisms between types.

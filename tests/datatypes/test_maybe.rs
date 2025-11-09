@@ -3,7 +3,6 @@ use rustica::datatypes::maybe::{Maybe, Maybe::*, MaybeError};
 use rustica::traits::alternative::Alternative;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
-use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 use rustica::traits::monad_plus::MonadPlus;
 use rustica::traits::pure::Pure;
@@ -357,10 +356,10 @@ fn test_alternative_and_monadplus() {
 }
 
 #[test]
-#[should_panic(expected = "Identity::value()")]
+#[should_panic(expected = "called `Maybe::unwrap()` on a `Nothing` value")]
 fn test_identity_value_panics_on_nothing() {
     let n: Maybe<i32> = Nothing;
-    let _ = n.value();
+    let _ = n.unwrap();
 }
 
 #[test]

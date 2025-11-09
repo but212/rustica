@@ -7,20 +7,6 @@
 //! a computational context. Monads are particularly useful for handling effects like
 //! optional values, error handling, state management, or asynchronous operations.
 //!
-//! ## Performance Characteristics
-//!
-//! ### Time Complexity
-//! - **bind**: O(f) where f is the complexity of the bound function
-//! - **join**: O(1) for flattening nested monadic structures
-//! - **Chain operations**: O(f1 + f2 + ... + fn) where fi is the complexity of each bound function
-//! - **Short-circuiting**: O(1) for early termination (e.g., Nothing, Left, etc.)
-//!
-//! ### Memory Usage
-//! - **Structure Overhead**: Typically minimal - just the cost of the monadic wrapper
-//! - **Function Composition**: No additional memory for function storage (immediate application)
-//! - **Chain Depth**: Memory usage is generally constant regardless of bind chain depth
-//! - **Context Preservation**: Memory used to maintain computational context
-//!
 //! ## Quick Start
 //!
 //! Chain computations that may fail using monadic operations:

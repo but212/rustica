@@ -1,6 +1,6 @@
 //! # Identity Trait (Value Extraction Utility)
 //!
-//! ⚠️ **DEPRECATED: This trait is a design flaw and will be removed in a future version.**
+//! **DEPRECATED: This trait is a design flaw and will be removed in a future version. 0.12.0**
 //!
 //! ## Why is this deprecated?
 //!
@@ -64,18 +64,9 @@
 //! // use rustica::id;
 //! // assert_eq!(id(5), 5);
 //! ```
-//!
-//! ## TODO: Future Improvements
-//!
-//! - **Extended Examples**: Add more examples showing integration with other functional traits
-//! - **Performance Benchmarks**: Add documentation about performance characteristics
-//! - **Implementation Guidelines**: Add guidelines for correctly implementing the trait
-//! - **Type Safety**: Enhance documentation around type safety considerations
-//! - **Additional Extensions**: Consider adding more utility methods to the `IdentityExt` trait
-
 use crate::traits::hkt::HKT;
 
-/// ⚠️ **DEPRECATED: Design flaw - will be removed**
+/// **DEPRECATED: Design flaw - will be removed in 0.12.0**
 ///
 /// This trait is deprecated because:
 /// - It's an unnecessary abstraction over standard methods (unwrap, as_ref)

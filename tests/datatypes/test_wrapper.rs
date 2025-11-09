@@ -332,17 +332,19 @@ fn test_real_world_use_cases() {
 
     // 5. Using First to get the first non-None value
     let values: Vec<Option<i32>> = vec![None, Some(42), Some(84), None];
-    let first = values
+    let first: First<i32> = values
         .iter()
-        .map(|&x| First(x))
+        .filter_map(|&x| x)  // Filter out None, unwrap Some
+        .map(|x| First(Some(x)))
         .fold(First(None), |acc, x| acc.combine(&x));
     assert_eq!(first, First(Some(42)));
 
     // 6. Using Last to get the last non-None value
     let values: Vec<Option<i32>> = vec![None, Some(42), Some(84), None];
-    let last = values
+    let last: Last<i32> = values
         .iter()
-        .map(|&x| Last(x))
+        .filter_map(|&x| x)  // Filter out None, unwrap Some
+        .map(|x| Last(Some(x)))
         .fold(Last(None), |acc, x| acc.combine(&x));
     assert_eq!(last, Last(Some(84)));
 

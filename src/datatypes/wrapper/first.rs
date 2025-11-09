@@ -38,12 +38,6 @@
 //! - **Composition**: `fmap(f . g) = fmap(f) . fmap(g)`
 //!   - Mapping a composed function is the same as mapping each function in sequence.
 //!
-//! ## Performance Characteristics
-//!
-//! - Time Complexity: All operations (`combine`, `empty`, `fmap`, etc.) are O(1)
-//! - Memory Usage: Stores exactly one `Option<T>` value with no additional overhead
-//! - Clone Cost: Depends on the cost of cloning the inner type `T`
-//!
 //! ## Type Class Implementations
 //!
 //! `First<T>` implements the following type classes:
@@ -73,13 +67,6 @@
 //! assert_eq!(empty.combine(&a), a);
 //! assert_eq!(a.combine(&empty), a);
 //! ```
-//!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `combine`, `empty`, `fmap`, and others.
-
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
@@ -241,12 +228,6 @@ impl<T: Clone> Semigroup for First<T> {
     /// This is the owned version of the semigroup operation that takes ownership of both `self` and `other`.
     /// It returns the first value if it contains `Some`, otherwise it returns the second value.
     ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Simply checks if the first value is Some
-    /// - **Memory Usage**: No additional allocations, just pattern matching
-    /// - **Ownership**: Consumes both values, avoiding unnecessary clones
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -284,12 +265,6 @@ impl<T: Clone> Semigroup for First<T> {
     /// This method implements the semigroup operation for `First` by returning a new `First`
     /// containing the first non-None value from either `self` or `other`. If both contain `None`,
     /// the result will be `First(None)`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Simply checks if the first value is Some
-    /// - **Memory Usage**: Requires cloning the inner value when returning a result
-    /// - **Borrowing**: Takes references to both values, requiring `T: Clone`
     ///
     /// # Examples
     ///
@@ -346,12 +321,6 @@ impl<T: Clone> Monoid for First<T> {
     /// This method provides the identity element required by the `Monoid` type class.
     /// For `First`, this is represented as `None`, such that combining any value with
     /// `First(None)` returns the original value.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Creates a simple wrapper with None
-    /// - **Memory Usage**: Minimal, just the space for the Option type
-    /// - **Allocation**: No heap allocations required
     ///
     /// # Type Class Laws
     ///
@@ -542,63 +511,9 @@ impl<T: Clone> Functor for First<T> {
     }
 }
 
-impl<T> From<Option<T>> for First<T> {
-    /// Creates a new `First` wrapper from an `Option<T>`.
-    ///
-    /// This directly wraps the `Option<T>` in `First`, making it equivalent
-    /// to `First(option)`. This is useful when you already have an `Option<T>`
-    /// and want to give it `First` semantics for semigroup operations.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Direct wrapper construction
-    /// - **Memory Usage**: Zero overhead - same as direct construction
-    /// - **Optimization**: Marked with `#[inline]` for compiler optimization
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    ///
-    /// // Convert from Some value
-    /// let some_value = Some(42);
-    /// let first1 = First::from(some_value);
-    /// let first2: First<i32> = some_value.into();
-    /// let first3 = First(Some(42)); // Equivalent direct construction
-    ///
-    /// assert_eq!(first1, first2);
-    /// assert_eq!(first2, first3);
-    ///
-    /// // Convert from None
-    /// let none_value: Option<i32> = None;
-    /// let first_none = First::<i32>::from(none_value);
-    /// assert_eq!(first_none, First(None));
-    ///
-    /// // Useful for converting existing Option values
-    /// fn maybe_get_value() -> Option<String> {
-    ///     Some("result".to_string())
-    /// }
-    ///
-    /// let first: First<String> = maybe_get_value().into();
-    /// assert_eq!(first.0, Some("result".to_string()));
-    /// ```
-    ///
-    /// # Semigroup Behavior
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // First takes the first non-None value
-    /// let first1: First<i32> = Some(1).into();
-    /// let first2: First<i32> = Some(2).into();
-    /// let first_none: First<i32> = None.into();
-    ///
-    /// assert_eq!(first1.combine(&first2), First(Some(1))); // First wins
-    /// assert_eq!(first_none.combine(&first2), First(Some(2))); // None loses
-    /// ```
+impl<T> From<T> for First<T> {
     #[inline]
-    fn from(option: Option<T>) -> Self {
-        First(option)
+    fn from(value: T) -> Self {
+        First(Some(value))
     }
 }

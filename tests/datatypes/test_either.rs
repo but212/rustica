@@ -1,7 +1,6 @@
 use rustica::datatypes::either::Either;
 use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
-use rustica::traits::identity::Identity;
 use rustica::traits::monad::Monad;
 
 // Type alias to simplify complex types
@@ -347,7 +346,7 @@ fn test_either_performance_pattern() {
 #[test]
 fn test_either_identity() {
     let right: Either<&str, i32> = Either::right(42);
-    assert_eq!(*right.value(), 42);
+    assert_eq!(right.unwrap(), 42);
 }
 
 #[test]

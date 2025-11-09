@@ -25,6 +25,13 @@ impl<T> TestFunctor<T> {
     pub fn new(value: T) -> Self {
         TestFunctor(value, PhantomData)
     }
+
+    pub fn unwrap(&self) -> T
+    where
+        T: Clone,
+    {
+        self.0.clone()
+    }
 }
 
 impl<T: Arbitrary + 'static> Arbitrary for TestFunctor<T> {
@@ -40,16 +47,6 @@ impl<T: Arbitrary + 'static> Arbitrary for TestFunctor<T> {
 impl<T> HKT for TestFunctor<T> {
     type Source = T;
     type Output<U> = TestFunctor<U>;
-}
-
-impl<T> Identity for TestFunctor<T> {
-    fn value(&self) -> &Self::Source {
-        &self.0
-    }
-
-    fn into_value(self) -> Self::Source {
-        self.0
-    }
 }
 
 impl<T> Pure for TestFunctor<T> {

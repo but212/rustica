@@ -124,39 +124,6 @@
 //! assert_eq!(older.age, 35);
 //! ```
 //!
-//! ## Performance Characteristics
-//!
-//! ### Memory Usage
-//!
-//! - **Structure Size**: Each lens stores two closures (getter and setter)
-//! - **Cloning**: Operations that modify focused parts clone the affected portions of the structure
-//! - **Optimization**: Structural sharing via equality check prevents unnecessary cloning
-//! - **Reference Types**: Using reference-counted types like `Rc` or `Arc` improves sharing efficiency
-//!
-//! ### MISLEADING Time Complexity - Real Performance Impact
-//!
-//! **WARNING: The following complexities hide massive constant factors due to full structure cloning!**
-//!
-//! - **Construction**: O(1) - Creating a lens stores function pointers (truthful)
-//! - **Get**: O(g) - Where g is the getter complexity (truthful)
-//! - **Set**: O(ENTIRE_STRUCTURE_SIZE) - NOT O(g + s)! Every set operation clones the complete structure
-//! - **Modify**: O(ENTIRE_STRUCTURE_SIZE + f) - NOT O(g + f + s)! Full clone regardless of change size
-//! - **Composition**: O(1) - For storing composition, but each use multiplies the cloning overhead
-//!
-//! ### Memory Usage Reality Check
-//!
-//! **CRITICAL**: Lenses do NOT provide structural sharing! Every operation creates complete copies.
-//!
-//! - **Set Operations**: Always clone entire structure, even for single field changes
-//! - **"Structural Sharing"**: Only works when new value equals old value (PartialEq check)
-//! - **Memory Growth**: O(structure_size × number_of_operations) for operation chains
-//!
-//! ### Concurrency
-//!
-//! - **Thread Safety**: Lenses are `Send` and `Sync` when their getter and setter functions are
-//! - **Immutability**: All operations create new structures, making concurrent access safe
-//! - **No Locks**: No synchronization primitives needed due to the immutable design
-//!
 //! ## Type Class Laws
 //!
 //! Lenses follow three fundamental laws that ensure their correct behavior. See the documentation
@@ -253,27 +220,6 @@ use std::marker::PhantomData;
 /// Lenses follow a functional approach to accessing and modifying nested data
 /// structures, allowing for immutable updates that preserve the original structure.
 ///
-/// # Performance Characteristics
-///
-/// ## Time Complexity
-///
-/// * **Construction**: O(1) - Creating a lens only involves storing the getter and setter functions
-/// * **Get**: O(g) - Determined by the complexity of the getter function
-/// * **Set**: O(g + s) - Involves getting the current value and setting the new value
-/// * **Modify**: O(g + f + s) - Involves getting, applying a function, and setting
-/// * **Composition**: O(1) - Composing lenses is a constant-time operation
-///
-/// ## Memory Usage
-///
-/// * Each lens stores two closures, typically requiring minimal memory
-/// * Operations preserve structural sharing when possible (when values haven't changed)
-/// * Memory consumption for modifications depends on the portion of the structure that needs to be recreated
-///
-/// ## Thread Safety
-///
-/// * Lenses are `Send` and `Sync` when their getter and setter functions are
-/// * Can be safely shared between threads for concurrent access to different parts of a structure
-///
 /// # Type Parameters
 ///
 /// * `S` - The type of the whole structure
@@ -346,19 +292,6 @@ where
     /// 1. A getter function that extracts a focus from a structure
     /// 2. A setter function that updates the focus in a structure
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creating a lens only involves storing the functions
-    /// * **Memory Usage**: O(1) - Memory usage is constant regardless of structure size
-    ///
-    /// ## Implementation Notes
-    ///
-    /// * The getter and setter functions are stored directly, not as trait objects
-    /// * No allocation occurs during lens creation (beyond the lens itself)
-    /// * Both the structure and focused part must be `Clone`
-    ///
     /// # Arguments
     ///
     /// * `get` - A function that extracts a part from the whole structure
@@ -412,22 +345,6 @@ where
     /// It's the fundamental operation for viewing a portion of a data structure
     /// through a lens.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Complexity**: O(g + c) - Where g is the complexity of the getter function
-    ///   and c is the complexity of cloning the focused value
-    /// * **Best Case**: O(1) - For simple getters accessing a field directly
-    /// * **Worst Case**: Dependent on the complexity of the getter function and cloning
-    ///   the focused value, especially for large or deeply nested data structures
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Allocation**: Creates a new instance of the focused part via cloning
-    /// * **Overhead**: Memory usage depends on the size of the focused part
-    /// * **Optimization**: The original structure is not modified or copied
-    ///
     /// # Arguments
     ///
     /// * `source` - The whole structure to get the part from
@@ -473,25 +390,6 @@ where
     /// If the new value is equal to the current value, the original structure is
     /// returned to enable structural sharing, which is an important optimization for
     /// larger data structures.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Complexity**: O(g + eq + s) - Where:
-    ///   - g is the complexity of the getter function
-    ///   - eq is the complexity of equality comparison
-    ///   - s is the complexity of the setter function
-    /// * **Best Case**: O(g + eq) when the new value equals the current one (no setting needed)
-    /// * **Worst Case**: Dependent on the complexity of cloning and updating the structure,
-    ///   especially for large or deeply nested data structures
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Allocation**: Creates a new instance of the whole structure if the value changes
-    /// * **Optimization**: Returns the original structure when the value doesn't change
-    /// * **Structural Sharing**: Enables partial copying where only changed parts of a
-    ///   nested structure are recreated
     ///
     /// # Requirements
     ///
@@ -560,24 +458,6 @@ where
     /// you know the value will always be different. This method is also useful
     /// when working with types where equality comparison is expensive.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Complexity**: O(g + s) - Where:
-    ///   - g is the complexity of the getter function (needed only for some setter implementations)
-    ///   - s is the complexity of the setter function
-    /// * **Comparison to `set`**: Faster than `set` by avoiding equality check, but without the
-    ///   structural sharing optimization when values don't change
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Allocation**: Always creates a new instance of the whole structure
-    /// * **Trade-off**: Sacrifices the structural sharing optimization for potentially better
-    ///   performance when equality checks are expensive
-    /// * **Use Cases**: Ideal for large structures where equality checks are expensive but
-    ///   cloning is relatively cheap
-    ///
     /// # Arguments
     ///
     /// * `source` - The whole structure to update
@@ -631,26 +511,6 @@ where
     /// If the modification doesn't change the focused part (as determined by
     /// equality comparison), the original structure is returned to enable
     /// structural sharing.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Complexity**: O(g + f + eq + s) - Where:
-    ///   - g is the complexity of the getter function
-    ///   - f is the complexity of the transformation function
-    ///   - eq is the complexity of equality comparison
-    ///   - s is the complexity of the setter function (only if the value changes)
-    /// * **Best Case**: O(g + f + eq) when the function doesn't change the value
-    /// * **Optimization**: Avoids calling the setter function when the transformation
-    ///   doesn't change the value
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Allocation**: Creates a new instance of the whole structure only if the value changes
-    /// * **Structural Sharing**: Returns the original structure when the value doesn't change
-    /// * **Efficiency**: More efficient than separate `get`/`set` calls, especially when
-    ///   the transformation often results in no change
     ///
     /// # Requirements
     ///
@@ -716,27 +576,6 @@ where
     /// value doesn't change. Use this when A doesn't implement PartialEq
     /// or when you know the value will always change. This method is also useful
     /// when equality comparison is expensive compared to creating a new structure.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Complexity**: O(g + f + s) - Where:
-    ///   - g is the complexity of the getter function
-    ///   - f is the complexity of the transformation function
-    ///   - s is the complexity of the setter function
-    /// * **Comparison to `modify`**: Faster than `modify` by avoiding equality check, but without
-    ///   the structural sharing optimization when values don't change
-    /// * **Consistency**: Always follows the same code path regardless of the transformation result,
-    ///   making performance more predictable
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Allocation**: Always creates a new instance of the whole structure
-    /// * **Trade-off**: Sacrifices the potential memory optimization of structural sharing
-    ///   for simpler and sometimes faster code execution
-    /// * **Use Cases**: Ideal for types without `PartialEq` implementation or when
-    ///   the equality check is more expensive than recreation
     ///
     /// # Arguments
     ///
@@ -807,23 +646,6 @@ where
     /// the lens laws. The transformation must be bidirectional, meaning you need
     /// to provide both forward and backward transformations. This operation enables
     /// lens composition with type transformation.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creates a new lens that composes functions
-    /// * **Get Operation**: O(g + f) - Where g is the complexity of the original getter
-    ///   and f is the complexity of the forward transformation
-    /// * **Set Operation**: O(g + s + h) - Where g is the complexity of the original getter,
-    ///   s is the complexity of the original setter, and h is the complexity of the
-    ///   backward transformation
-    ///
-    /// ## Memory Usage
-    ///
-    /// * **Lens Creation**: O(1) - Creates a new lens with composed functions
-    /// * **Operations**: Memory usage depends on the original lens operations plus
-    ///   any additional memory used by the transformation functions
     ///
     /// # Implementation Notes
     ///

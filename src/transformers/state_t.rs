@@ -4,40 +4,6 @@
 //! For example, it can be combined with `Option` to create stateful computations that
 //! may fail, or with `Result` to create stateful computations that may produce errors.
 //!
-//! ## Performance Characteristics
-//!
-//! ### Performance Reality - StateT Transformer Overhead
-//!
-//! **StateT adds significant overhead through Arc indirection and function composition. Not suitable for performance-critical code.**
-//!
-//! ### Real Time Complexity Impact
-//! - **Construction (`new`)**: O(1) - But includes Arc allocation (16 bytes + heap allocation)
-//! - **State Execution (`run_state`)**: O(f × indirection_penalty) - Each Arc deref adds 20-50% overhead
-//! - **Bind Operations**: O(f + g + composition_overhead) - Multiple Arc layers compound performance cost
-//! - **Map Operations**: O(f + arc_overhead) - Simple operations become expensive due to indirection
-//!
-//! ### Memory Usage Reality
-//! - **Structure Size**: NOT O(1) - Arc (16 bytes) + PhantomData + heap allocation per instance
-//! - **State Storage**: O(S) - Accurate, but passed through expensive Arc layers
-//! - **Function Storage**: NOT "minimal overhead" - Each composition creates new Arc wrapper
-//! - **Composition Explosion**: O(n × arc_size) where n is composition depth, each layer adds significant memory
-//!
-//! ### Performance Comparison
-//! - **vs Direct State Management**: 10-30x slower for simple operations
-//! - **Memory Usage**: 2-4x higher than equivalent direct implementation
-//!
-//! ### When to Avoid
-//! **Critical to avoid for:**
-//! - Game state management
-//! - Real-time systems
-//! - High-frequency state updates
-//! - Memory-constrained environments
-//!
-//! **Acceptable for:**
-//! - Learning monad transformers
-//! - Prototyping complex state logic
-//! - Occasional state operations where clarity > performance
-//!
 //! # Examples
 //!
 //! ```rust
@@ -1096,7 +1062,6 @@ where
 }
 
 use crate::datatypes::id::Id;
-use crate::traits::identity::Identity;
 
 impl<S, A> StateT<S, Id<(S, A)>, A>
 where
@@ -1130,7 +1095,7 @@ where
     pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
         crate::datatypes::state::State::new(move |s: S| {
             let result = self.run_state(s.clone());
-            let (new_state, value) = result.value().clone();
+            let (new_state, value) = result.unwrap().clone();
             (value, new_state)
         })
     }
@@ -1146,7 +1111,6 @@ where
     /// ```rust
     /// use rustica::datatypes::state::State;
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::identity::Identity;
     /// use rustica::transformers::StateT;
     ///
     /// // Create a State
@@ -1156,7 +1120,7 @@ where
     /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::from_state(state);
     ///
     /// // The behavior should be identical
-    /// assert_eq!(state_t.run_state(21).value(), &(22, 42));
+    /// assert_eq!(state_t.run_state(21).unwrap(), (22, 42));
     /// ```
     pub fn from_state(state: crate::datatypes::state::State<S, A>) -> Self {
         StateT::new(move |s: S| {

@@ -17,18 +17,6 @@
 //! - **PureScript**: `Data.Lens.Lens` and `Data.Lens.Iso` from the purescript-profunctor-lenses package
 //! - **Kotlin**: `arrow.optics.Lens` and `arrow.optics.Iso` from the Arrow library
 //!
-//! ## Performance Characteristics
-//!
-//! - **Memory Usage**: An `IsoLens<S, A, L>` itself is lightweight, typically requiring only the size of `L` plus a marker.
-//!   However, lens operations generally involve cloning the structure and focused data.
-//! - **Construction**: O(1) time and space complexity.
-//! - **Get Operation**: Complexity is determined by the underlying `Iso::forward` implementation, typically O(1) for
-//!   direct field access, but may be O(n) if deep cloning is involved.
-//! - **Set/Modify Operations**: Complexity is determined by the underlying `Iso::backward` implementation, typically O(1)
-//!   for simple field updates but may be O(n) if deep structure reconstruction is required.
-//! - **Composition**: O(1) for the composition itself, but the composed lens operations will have the combined
-//!   complexity of both lenses.
-//!
 //! ## Type Class Implementations
 //!
 //! While the IsoLens itself does not directly implement traditional functional programming type classes like Functor or Monad,
@@ -512,9 +500,6 @@ where
     /// assert_eq!(updated.name, "Bob");
     /// assert_eq!(updated.age, 30); // Original value preserved
     /// ```
-    ///
-    /// # Performance
-    /// This method is O(1) as it only involves struct initialization.
     #[inline]
     pub fn new(iso: L) -> Self {
         Self {
@@ -556,10 +541,6 @@ where
     /// let p = Person { name: "Alice".into(), age: 30 };
     /// assert_eq!(lens.get(&p), ("Alice".to_string(), p.clone()));
     /// ```
-    ///
-    /// # Performance
-    /// Performance depends on the underlying `Iso::forward` implementation and the cost of cloning `A`.
-    /// Typically, this involves cloning the focused part and potentially the context.
     #[inline]
     pub fn get(&self, s: &S) -> A
     where
@@ -708,11 +689,6 @@ where
     /// let updated = composed.set(&(100, Outer { inner: Inner { value: 100 } }));
     /// assert_eq!(updated.inner.value, 100);
     /// ```
-    ///
-    /// # Performance
-    /// This method is O(1) as it only involves creating a new `IsoLens` struct with a composed `Iso`.
-    /// The performance of the *resulting* lens's methods (`get`, `set`, etc.) will depend on the
-    /// combined complexities of the composed `Iso`s.
     pub fn compose<B, L2>(self, other: IsoLens<A, (B, S), L2>) -> ComposedIsoLens<S, A, B, L, L2>
     where
         L2: Iso<A, (B, S), From = A, To = (B, S)>,
@@ -759,9 +735,6 @@ where
     /// let (name, _) = iso.forward(&p);
     /// assert_eq!(name, "Alice");
     /// ```
-    ///
-    /// # Performance
-    /// This method is O(1) as it simply returns a reference.
     #[inline]
     pub fn iso_ref(&self) -> &L {
         &self.iso

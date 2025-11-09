@@ -55,26 +55,11 @@
 //! - **Complement Laws**: `a.negate().negate() == a`
 //!   - Double negation yields the original predicate.
 //!
-//! ## Performance Characteristics
-//!
-//! - **Creation**: O(1) - Creating a predicate only wraps a function in an Rc
-//! - **Evaluation**: O(f) - Performance depends on the wrapped function's complexity
-//! - **Composition**: O(1) - Combining predicates has constant overhead but adds indirection
-//! - **Memory**: O(n) where n is the number of composed predicates in a chain
-//! - **Clone**: O(1) - Cloning only increments an Rc counter
-//! - **Short-circuit Evaluation**: Logical operations use short-circuiting for efficiency
-//!
 //! ## Type Class Implementations
 //!
 //! - **Semigroup**: `combine` creates a union of predicates (logical OR)
 //! - **Monoid**: `empty` creates a predicate that always returns false
 //! - **HKT**: Higher-kinded type representation for advanced type-level operations
-//!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `new`, `contains`, `union`, `intersection`, and others.
 //!
 //! ## Quick Start
 //!

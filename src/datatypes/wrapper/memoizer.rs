@@ -41,20 +41,6 @@
 //!   - `memo.get_or_compute(j, f); memo.get_or_compute(k, g)` is equivalent to
 //!     `memo.get_or_compute(k, g); memo.get_or_compute(j, f)`
 //!
-//! ## Performance Characteristics
-//!
-//! - **Time Complexity**:
-//!   - Creation: O(1) - Constant time initialization
-//!   - Cache Hit: O(1) average case for hash lookup
-//!   - Cache Miss: O(f) where f is the complexity of the compute function
-//! - **Space Complexity**: O(n) where n is the number of cached key-value pairs
-//! - **Concurrency**:
-//!   - Multiple readers can access the cache simultaneously
-//!   - Writers get exclusive access, blocking all other operations
-//!   - Double-checked locking pattern prevents redundant computations
-//! - **Cache Lookups**: O(1) average case for hash lookups (amortized)
-//! - **Get or Compute**: O(f) where f is the complexity of the computation function
-//!
 //! ## Type Class Implementations
 //!
 //! `Memoizer<K, V>` implements:
@@ -89,13 +75,6 @@
 //! let result3 = memo.get_or_compute(4, factorial);
 //! assert_eq!(result3, 24);
 //! ```
-//!
-//! ## Documentation Notes
-//!
-//! For detailed practical examples demonstrating the type class laws, usage patterns, and
-//! performance characteristics, please refer to the function-level documentation of the
-//! relevant methods such as `new`, `get_or_compute`, and `clear`.
-
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::RwLock;
@@ -123,21 +102,6 @@ use std::sync::RwLock;
 /// - Write operations (cache misses) obtain an exclusive lock
 /// - Double-checked locking pattern prevents redundant computations for the same key
 /// - Cache coherence ensures all threads see the most recent values
-///
-/// # Performance Characteristics
-///
-/// - **Space Complexity**: O(n) where n is the number of cached key-value pairs
-/// - **Time Complexity**:
-///   - Cache Hit: O(1) average case (hash lookup) + small locking overhead
-///   - Cache Miss: O(f) where f is the computation cost + locking overhead
-/// - **Concurrency**:
-///   - Multiple concurrent readers cause minimal contention
-///   - Writers block each other and all readers
-///   - Reader-biased for optimal performance with high hit rates
-/// - **Memory Usage**:
-///   - HashMap backing store with standard Rust hasher
-///   - Each entry stores both K and V (cloned)
-///   - Additional small overhead for the RwLock synchronization primitive
 pub struct Memoizer<K, V> {
     cache: RwLock<HashMap<K, V>>,
 }

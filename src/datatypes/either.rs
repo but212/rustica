@@ -49,18 +49,6 @@
 //! - Implementing error handling without the success/failure semantics of `Result`
 //! - Building more complex data structures and control flow mechanisms
 //!
-//! ## Performance Characteristics
-//!
-//! - **Memory Usage**: An `Either<L, R>` uses the same memory as the larger of `L` or `R`, plus a tag (usually 1 byte) to
-//!   distinguish between Left and Right variants.
-//! - **Construction**: O(1) time and space complexity.
-//! - **Pattern Matching**: O(1) time complexity for checking whether a value is Left or Right.
-//! - **Transformations**: Operations like `fmap`, `fmap_left`, and `bind` have O(1) complexity for the operation itself,
-//!   with the overall complexity determined by the provided function.
-//! - **Cloning**: O(n) where n is the size of the contained value (Left or Right).
-//! - **Iterator Operations**: O(1) for iterator creation, yields at most one item
-//! - **Left/Right Iterator Symmetry**: Both directions have identical performance characteristics
-//!
 //! ## Type Class Implementations
 //!
 //! The `Either` type implements several important functional programming abstractions:
@@ -285,11 +273,6 @@ impl<L, R> Either<L, R> {
     ///
     /// Left represents the first possibility of the Either type.
     ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
-    ///
     /// # Usage
     ///
     /// Use this constructor to create an `Either` instance holding a `Left` value.
@@ -308,11 +291,6 @@ impl<L, R> Either<L, R> {
     ///
     /// Right represents the second possibility of the Either type.
     ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
-    ///
     /// # Usage
     ///
     /// Use this constructor to create an `Either` instance holding a `Right` value.
@@ -328,11 +306,6 @@ impl<L, R> Either<L, R> {
     }
 
     /// Returns `true` if this is a `Left` value.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -352,11 +325,6 @@ impl<L, R> Either<L, R> {
     }
 
     /// Returns `true` if this is a `Right` value.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -378,11 +346,6 @@ impl<L, R> Either<L, R> {
     /// Maps a function over the left value, leaving a right value unchanged.
     ///
     /// This is similar to `Result::map_err` but for `Either`.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1), assuming the provided function `f` is O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -417,11 +380,6 @@ impl<L, R> Either<L, R> {
     /// way to transform the `Right` variant and is fundamental to `Either`'s
     /// role as a `Functor` (see `Functor::fmap_owned` for the general version).
     ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1), assuming the provided function `f` is O(1).
-    /// - Space complexity: O(1).
-    ///
     /// # Usage
     ///
     /// Use `fmap_right` to apply a transformation to the `Right` value without
@@ -451,11 +409,6 @@ impl<L, R> Either<L, R> {
 
     /// Extracts the left value, panicking if this is a `Right`.
     ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
-    ///
     /// # Usage
     ///
     /// Use this method when you are certain that the `Either` contains a `Left`
@@ -478,11 +431,6 @@ impl<L, R> Either<L, R> {
     /// Extracts the right value, panicking if this is a `Left`.
     ///
     /// This method delegates to `right_value`.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -559,11 +507,6 @@ impl<L, R> Either<L, R> {
     /// in such cases, though `unwrap_left` also consumes `self`.
     /// The main distinction is often stylistic or historical.
     ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
-    ///
     /// # Usage
     ///
     /// Similar to `unwrap_left`, use this when you expect a `Left` value and
@@ -589,11 +532,6 @@ impl<L, R> Either<L, R> {
     /// the content if `R` is not `Copy`. This can be more efficient than methods
     /// that might require cloning if `self` were borrowed.
     ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
-    ///
     /// # Usage
     ///
     /// Similar to `unwrap_right`, use this when you expect a `Right` value and
@@ -611,11 +549,6 @@ impl<L, R> Either<L, R> {
     }
 
     /// Returns a reference to the `Left` value.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -635,11 +568,6 @@ impl<L, R> Either<L, R> {
     }
 
     /// Returns a reference to the `Right` value.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -662,11 +590,6 @@ impl<L, R> Either<L, R> {
     /// Similar to `Result::unwrap_or` but for `Either`.
     /// Consumes `self` and returns the `Right` value if present, otherwise returns
     /// the provided `default`.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -691,11 +614,6 @@ impl<L, R> Either<L, R> {
     /// Similar to `Result::err().unwrap_or()` but for `Either`.
     /// Consumes `self` and returns the `Left` value if present, otherwise returns
     /// the provided `default`.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -723,11 +641,6 @@ impl<L, R> Either<L, R> {
     /// Returns `Some(R)` for `Right(R)` values and `None` for `Left(L)` values.
     /// Consumes `self`.
     ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
-    ///
     /// # Usage
     ///
     /// Convert an `Either` into an `Option<R>`, discarding the `Left` value.
@@ -752,11 +665,6 @@ impl<L, R> Either<L, R> {
     /// `Either::Left(L)` becomes `Result::Err(L)` and `Either::Right(R)` becomes `Result::Ok(R)`.
     /// Consumes `self`.
     ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
-    ///
     /// # Usage
     ///
     /// Use this to bridge `Either` with Rust's standard `Result` type, especially
@@ -780,11 +688,6 @@ impl<L, R> Either<L, R> {
     /// Creates an `Either` from a `Result`.
     ///
     /// `Result::Err(L)` becomes `Either::Left(L)` and `Result::Ok(R)` becomes `Either::Right(R)`.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -834,11 +737,6 @@ impl<L, R> Either<L, R> {
     ///
     /// Returns `Some(L)` for `Left(L)` values and `None` for `Right(R)` values.
     /// Consumes `self`.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     ///
     /// # Usage
     ///
@@ -1231,12 +1129,6 @@ impl<L: Default + Clone, R: Clone> MonadPlus for Either<L, R> {
 
     /// Combines two `Either` values, preferring `Right` values over `Left` values.
     /// If both are `Left`, the first value is kept.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1) for the operation, O(n) for cloning where n is the size
-    ///   of the contained value.
-    /// - Space complexity: O(1).
     fn mplus(&self, other: &Self) -> Self {
         match (self, other) {
             (Either::Right(_), _) => self.clone(),
@@ -1248,11 +1140,6 @@ impl<L: Default + Clone, R: Clone> MonadPlus for Either<L, R> {
     /// Owned version of `mplus` that consumes both inputs.
     /// Combines two `Either` values, preferring `Right` values over `Left` values.
     /// If both are `Left`, the first value is kept.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     fn mplus_owned(self, other: Self) -> Self
     where
         Self: Sized,
@@ -1310,12 +1197,6 @@ impl<L: Default + Clone, R: Clone> Alternative for Either<L, R> {
 
     /// Chooses between two `Either` values, preferring `Right` values over `Left` values.
     /// If `self` is `Right`, it is returned; otherwise, `other` is returned.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1) for the operation, O(n) for cloning where n is the size
-    ///   of the contained value.
-    /// - Space complexity: O(1).
     #[inline]
     fn alt(&self, other: &Self) -> Self {
         match self {
@@ -1330,11 +1211,6 @@ impl<L: Default + Clone, R: Clone> Alternative for Either<L, R> {
     /// # Requirements
     ///
     /// Requires `L: Default` to create the default value for the `Left` variant when the condition is false.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1).
     fn guard(condition: bool) -> Self::Output<()> {
         if condition {
             Either::Right(())
@@ -1351,11 +1227,6 @@ impl<L: Default + Clone, R: Clone> Alternative for Either<L, R> {
     ///
     /// Requires `L: Default` to create the default value for the `Left` variant.
     /// Requires `R: Clone` to clone the value for the vector.
-    ///
-    /// # Performance
-    ///
-    /// - Time complexity: O(1).
-    /// - Space complexity: O(1) plus the size of the cloned value.
     #[inline]
     fn many(&self) -> Self::Output<Vec<Self::Source>>
     where

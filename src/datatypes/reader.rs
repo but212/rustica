@@ -59,20 +59,6 @@
 //! - **Environment Modification**: Functions can run in a modified environment without affecting others
 //! - **Composition**: Sequential operations share the same environment
 //!
-//! ## Performance Characteristics
-//!
-//! ### Time Complexity
-//!
-//! - **Construction (new)**: O(1) - Constant time to create a Reader instance
-//! - **Environment Access (ask)**: O(1) - Constant time to capture the environment
-//! - **Function Application (run_reader)**: O(f) - Where f is the complexity of the wrapped function
-//! - **Composition (fmap/bind)**: O(f + g) - Where f and g are the complexities of the composed functions
-//!
-//! ### Memory Usage
-//!
-//! - **Structure**: Size of Reader<E, A> = size of a function pointer + any captured state
-//! - **Implementation Detail**: Uses a function closure as the internal representation
-//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, the Reader monad provides a way to pass a shared context
@@ -153,23 +139,6 @@ use quickcheck::{Arbitrary, Gen};
 
 /// The Reader monad represents computations that depend on some environment value.
 /// It enables functions to access a shared environment without passing it explicitly as a parameter.
-///
-/// # Performance Characteristics
-///
-/// ## Time Complexity
-///
-/// * **Construction**: O(1) - Only wraps a function reference
-/// * **Execution** (`run_reader`): O(f) - Where f is the complexity of the wrapped function
-/// * **Transformation** (`fmap`, `bind`): O(1) for construction, O(f + g) when executed where:
-///   - f is the complexity of the original reader function
-///   - g is the complexity of the applied function
-///
-/// ## Memory Usage
-///
-/// * **Storage**: Contains a single `ReaderT` transformer with an `Id` monad
-/// * **Lazy Evaluation**: Operations are composed without immediate execution
-/// * **Function Composition**: Each transformation adds a layer of function composition,
-///   but no intermediate results are stored until `run_reader` is called
 ///
 /// # When to Use
 ///
@@ -315,20 +284,6 @@ where
     /// Maps a function over the value produced by this Reader, implementing the Functor typeclass.
     /// This allows transforming the output of a Reader without affecting its environment dependency.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Only creates a new Reader with composed functions
-    /// * **Execution**: O(f + g) - Where f is the complexity of the original Reader's function and
-    ///   g is the complexity of the mapping function
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a new Reader with a closure that captures both the original Reader and the mapping function
-    /// * Memory efficiency through lazy evaluation - no transformation is performed until `run_reader` is called
-    /// * The mapping function is stored as part of the Reader's closure
-    ///
     /// # Parameters
     ///
     /// * `f` - Function to apply to the value produced by this Reader
@@ -368,21 +323,6 @@ where
     /// This is the core method that implements the Monad typeclass, allowing for chained
     /// operations where each operation can depend on the result of the previous one.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Only creates a new Reader with composed functions
-    /// * **Execution**: O(f + g) - Where f is the complexity of the original Reader's function and
-    ///   g is the complexity of the binding function
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a new Reader with a closure that captures both the original Reader and the binding function
-    /// * Memory efficiency is maintained by lazy evaluation - no intermediate results are stored until
-    ///   `run_reader` is called
-    /// * Each bind adds a layer of function composition to the call stack when executed
-    ///
     /// # Parameters
     ///
     /// * `f` - Function that takes the result of this Reader and returns a new Reader
@@ -420,19 +360,6 @@ where
 
     /// Creates a Reader that returns the environment itself. This is a fundamental operation
     /// for the Reader monad, allowing direct access to the environment.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creates a simple Reader that just returns the environment
-    /// * **Execution**: O(1) - Simply returns the environment without transformation
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a minimal Reader that just returns the environment value
-    /// * No additional memory allocation during execution beyond the environment itself
-    /// * If `E` (environment type) doesn't implement `Clone` efficiently, consider using `asks` instead
     ///
     /// # Type Requirements
     ///
@@ -493,20 +420,6 @@ where
     /// Creates a Reader that returns a value derived from the environment. This is a fundamental
     /// operation that allows for selective access to the environment, extracting or transforming
     /// only the parts needed.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Creates a Reader that wraps the selector function
-    /// * **Execution**: O(f) - Where f is the complexity of the selector function
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a Reader that stores the selector function
-    /// * More memory-efficient than `ask()` when only part of the environment is needed
-    /// * Avoids unnecessary cloning of the entire environment when only a subset is required
-    /// * Particularly useful when working with large environment structures
     ///
     /// # Use Cases
     ///
@@ -581,20 +494,6 @@ where
     /// without changing the underlying computation. This is a key operation that distinguishes
     /// the Reader monad from other monads.
     ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Only creates a new Reader with composed functions
-    /// * **Execution**: O(f + g) - Where f is the complexity of the environment transformation function and
-    ///   g is the complexity of the original Reader's function
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a new Reader with a closure that captures both the original Reader and the environment transformer
-    /// * Memory efficiency through lazy evaluation - no transformation is performed until `run_reader` is called
-    /// * No additional memory overhead beyond function composition
-    ///
     /// # Use Cases
     ///
     /// * When you need to adapt an existing Reader to work with a different environment
@@ -633,22 +532,6 @@ where
     /// Combines two Readers using a binary function, implementing Applicative functor functionality.
     /// This allows parallel composition of Readers that share the same environment type but
     /// may produce different result types.
-    ///
-    /// # Performance Characteristics
-    ///
-    /// ## Time Complexity
-    ///
-    /// * **Construction**: O(1) - Only creates a new Reader with composed functions
-    /// * **Execution**: O(f + g + h) - Where:
-    ///   - f is the complexity of the first Reader's function
-    ///   - g is the complexity of the second Reader's function
-    ///   - h is the complexity of the combining function
-    ///
-    /// ## Memory Usage
-    ///
-    /// * Creates a new Reader with a closure that captures both original Readers and the combining function
-    /// * Both Readers are evaluated with the same environment instance, but independently
-    /// * Memory efficiency through lazy evaluation - combining only happens when `run_reader` is called
     ///
     /// # Use Cases
     ///
