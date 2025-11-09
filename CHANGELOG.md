@@ -8,7 +8,7 @@
   - Deprecated `Identity` trait due to design flaws
   - Removed `Functor: Identity` dependency - now `Functor: HKT`
   - Moved `id()` function from `Identity` trait to `utils::functions`
-  - Added comprehensive migration guide `MIGRATION_v0.10.1.md`
+  - Added comprehensive migration guide `MIGRATION_v0.11.0.md`
 
 ### Added - 0.10.1
 
