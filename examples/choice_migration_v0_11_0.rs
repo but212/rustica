@@ -98,26 +98,27 @@ fn demonstrate_non_categorical_operations() {
     // let unique = choice.dedup();  // ❌ Deprecated
     // let unique_by_key = choice.dedup_by_key(|x| x % 2);  // ❌ Deprecated
 
-    // AFTER: Deduplication - external iteration
-    let unique: Choice<i32> = Choice::from_iter(
-        choice
-            .iter()
-            .cloned()
-            .collect::<HashSet<_>>() // Remove duplicates
-            .into_iter(),
-    ); // Convert back to Choice
-    println!("✓ Unique values: {:?}", unique.iter().collect::<Vec<_>>());
+    // AFTER: Deduplication - external iteration (preserves order, keeps first)
+    let unique: Choice<i32> = {
+        let mut seen = HashSet::new();
+        Choice::from_iter(
+            choice.iter()
+                .filter(|&x| seen.insert(x))  // Keep first occurrence
+                .cloned()
+        )
+    };
+    println!("✓ Unique values (order preserved): {:?}", unique.iter().collect::<Vec<_>>());
 
-    let unique_by_key: Choice<i32> = Choice::from_iter(
-        choice
-            .iter()
-            .cloned()
-            .map(|x| (x % 2, x))
-            .collect::<HashMap<_, _>>() // Group by key
-            .into_values(),
-    );
+    let unique_by_key: Choice<i32> = {
+        let mut seen = HashSet::new();
+        Choice::from_iter(
+            choice.iter()
+                .filter(|&x| seen.insert(x % 2))  // Keep first per key
+                .cloned()
+        )
+    };
     println!(
-        "✓ Unique by key (x % 2): {:?}",
+        "✓ Unique by key (x % 2, first kept): {:?}",
         unique_by_key.iter().collect::<Vec<_>>()
     );
 
@@ -131,12 +132,12 @@ fn demonstrate_non_categorical_operations() {
     // BEFORE: Map conversion
     // let map = choice.to_map_with_key(|x| x % 2);  // ❌ Deprecated
 
-    // AFTER: Map conversion - standard iterator pattern
-    let map: HashMap<i32, Vec<i32>> = choice.iter().cloned().fold(HashMap::new(), |mut acc, x| {
-        acc.entry(x % 2).or_insert_with(Vec::new).push(x);
+    // AFTER: Map conversion - keep first value per key
+    let map: HashMap<i32, i32> = choice.iter().fold(HashMap::new(), |mut acc, &x| {
+        acc.entry(x % 2).or_insert(x);  // Keep first value
         acc
     });
-    println!("✓ Map (x % 2 -> x): {:?}", map);
+    println!("✓ Map (x % 2 -> first x): {:?}", map);
 
     // BEFORE: Adding alternatives
     // let expanded = choice.add_alternatives(vec![5, 6]);  // ❌ Deprecated
@@ -269,8 +270,11 @@ fn demonstrate_common_patterns() {
     let even = choice.filter_values(|&x| x % 2 == 0); // Clear filtering
     println!("  Even numbers: {:?}", even.iter().collect::<Vec<_>>());
 
-    let unique = Choice::from_iter(choice.iter().cloned().collect::<HashSet<_>>().into_iter());
-    println!("  Unique numbers: {:?}", unique.iter().collect::<Vec<_>>());
+    let unique = {
+        let mut seen = HashSet::new();
+        Choice::from_iter(choice.iter().filter(|&x| seen.insert(x)).cloned())
+    };
+    println!("  Unique numbers (order preserved): {:?}", unique.iter().collect::<Vec<_>>());
 
     let sum = choice.fold_left(&0, |acc, &x| acc + x); // Categorical folding
     println!("  Sum: {}", sum);

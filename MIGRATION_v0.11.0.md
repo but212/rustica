@@ -675,27 +675,32 @@ use std::collections::HashMap;
 
 let choice = Choice::new(1, vec![2, 3, 2, 4]);
 
-// Deduplication - external iteration
-let unique: Choice<i32> = choice.iter()
-    .cloned()
-    .collect::<std::collections::HashSet<_>>() // Remove duplicates
-    .into_iter()
-    .collect(); // Convert back to Choice
+// Deduplication - external iteration (preserves order)
+let unique: Choice<i32> = {
+    let mut seen = std::collections::HashSet::new();
+    choice.iter()
+        .filter(|x| seen.insert(*x))  // Keep first occurrence
+        .cloned()
+        .collect()
+};
 
-let unique_by_key: Choice<i32> = choice.iter()
-    .cloned()
-    .collect::<std::collections::HashMap<_, _>>() // Group by key
-    .into_values()
-    .collect();
+let unique_by_key: Choice<i32> = {
+    let mut seen = std::collections::HashSet::new();
+    choice.iter()
+        .filter(|&x| seen.insert(x % 2))  // Keep first per key
+        .cloned()
+        .collect()
+};
 
 // Folding - use Foldable trait
 let sum = choice.fold_left(0, |acc, &x| acc + x);  // Categorical
 
-// Map conversion - standard iterator pattern
+// Map conversion - keep first value per key
 let map: HashMap<i32, i32> = choice.iter()
-    .cloned()
-    .map(|x| (x % 2, x))
-    .collect();
+    .fold(HashMap::new(), |mut acc, &x| {
+        acc.entry(x % 2).or_insert(x);  // Keep first
+        acc
+    });
 
 // Adding alternatives - use Semigroup
 use rustica::traits::semigroup::Semigroup;
@@ -789,7 +794,10 @@ let sum = choice.fold(0, |acc, &x| acc + x);
 // AFTER - using Choice as a categorical structure
 let choice = Choice::new(1, vec![2, 3, 4, 5]);
 let even = choice.filter_values(|&x| x % 2 == 0);  // Clear filtering
-let unique = choice.iter().cloned().collect::<HashSet<_>>().into_iter().collect();
+let unique = {
+    let mut seen = HashSet::new();
+    choice.iter().filter(|&x| seen.insert(x)).cloned().collect()
+};  // Order-preserving dedup
 let sum = choice.fold_left(0, |acc, &x| acc + x);  // Categorical folding
 ```
 
@@ -831,8 +839,8 @@ let result: Choice<i32> = flattened.into_iter().sorted().collect();  // External
 choice.dedup()              // O(n) with internal HashSet
 choice.flatten_sorted()     // O(n log n) with internal sort
 
-// AFTER - external patterns (may be slightly less efficient)
-choice.iter().cloned().collect::<HashSet<_>>().into_iter().collect()  // O(n) but more allocations
+// AFTER - external patterns (preserves semantics correctly)
+{ let mut s = HashSet::new(); choice.iter().filter(|&x| s.insert(x)).cloned().collect() }  // O(n), order-preserving
 choice.flatten().into_iter().sorted().collect()  // O(n log n) but clearer
 ```
 
@@ -890,17 +898,6 @@ If you encounter issues during migration:
 
 ---
 
-## Advantages of Refactoring
-
-**Categorical Clarity**: `Choice<T>` focuses on nondeterministic computation  
-**Smaller API**: Easier to learn and use  
-**FP Principles**: No mixing of categorical and utility operations  
-**Standard Patterns**: Uses familiar Rust iterator patterns  
-**Better Composability**: External patterns are more flexible  
-**Clear Semantics**: Each method has a clear, unambiguous purpose  
-
----
-
 ## Quick Reference
 
 |         Task         |       Before (Deprecated)       |                         After (Recommended)                         |
@@ -909,7 +906,7 @@ If you encounter issues during migration:
 | Convert to Vec       | `choice.to_vec()`               | `choice.iter().cloned().collect()`                                  |
 | Find first match     | `choice.find_first(pred)`       | `choice.iter().find(pred)`                                          |
 | Iterate alternatives | `choice.iter_alternatives()`    | `choice.alternatives().iter()`                                      |
-| Remove duplicates    | `choice.dedup()`                | `Choice::from_iter(choice.iter().cloned().collect::<HashSet<_>>())` |
+| Remove duplicates    | `choice.dedup()`                | `{ let mut s = HashSet::new(); choice.iter().filter(\|&x\| s.insert(x)).cloned().collect() }` |
 | Fold/Reduce          | `choice.fold(init, f)`          | `choice.fold_left(&init, f)`                                        |
 | Add alternatives     | `choice.add_alternatives(iter)` | `choice.combine(&other_choice)`                                     |
 | Sort + flatten       | `choice.flatten_sorted()`       | `Choice::from_iter(choice.flatten().iter().cloned().sorted())`      |

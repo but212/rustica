@@ -252,7 +252,6 @@ fn test_choice_remove_alternative() {
     let removed_only = single_alt.remove_alternative(0);
     assert_eq!(*removed_only.first().unwrap(), 1);
     assert!(removed_only.alternatives().is_empty());
-    assert!(removed_only.alternatives().is_empty());
     assert_eq!(removed_only.len(), 1);
 }
 
