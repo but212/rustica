@@ -24,7 +24,6 @@
   - Integrated `src/error` module's unified error handling system with IO monad
   - Added `try_get_composable()` - returns `ComposableResult<A, IOError>` with rich error context
   - Added `try_get_composable_with_context()` - adds contextual information to errors
-  - Added `try_get_boxed_with_context()` - boxed error for large error contexts
   - Added `into_error_pipeline()` - enables functional error handling chains
   - Added `recover()` - provides error recovery with custom fallback logic
   - Added `recover_with()` - simple default value fallback on failure

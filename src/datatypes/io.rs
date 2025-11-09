@@ -1080,30 +1080,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
             .map_err(|e| Box::new(e.with_context(context.into())))
     }
 
-    /// Tries to get the value with boxed composable error for large error types.
-    ///
-    /// This method is useful when dealing with large error contexts to avoid clippy warnings
-    /// about large error types. The error is boxed to reduce stack usage.
-    ///
-    /// # Arguments
-    ///
-    /// * `context` - Context information to add to the error if the operation fails
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::io::IO;
-    ///
-    /// let io_operation = IO::pure(100);
-    /// let result = io_operation.try_get_boxed_with_context("processing data");
-    /// assert!(result.is_ok());
-    /// ```
-    pub fn try_get_boxed_with_context<S: Into<String>>(
-        &self, context: S,
-    ) -> BoxedComposableResult<A, IOError> {
-        self.try_get_composable_with_context(context)
-    }
-
     /// Creates an ErrorPipeline from this IO operation for functional error handling.
     ///
     /// This method enables composable, functional-style error handling using the
