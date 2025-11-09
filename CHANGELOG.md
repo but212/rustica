@@ -1,9 +1,37 @@
 # CHANGELOG
 
-## [0.10.2]
+## [0.11.0]
 
-### Changed - 0.10.2
+### Deprecated - 0.11.0
 
+- **`Choice<T>` Utility Methods**
+  - Deprecated numerous utility methods that are not core categorical operations
+  - All deprecated methods will be removed in v0.12.0
+  - **Deprecated methods:**
+    - `has_alternatives()` - Use `!alternatives().is_empty()` instead
+    - `to_vec()` - Use `Into::<Vec<T>>::into()` or `.iter().cloned().collect()` instead
+    - `find_first()` - Use `iter().find()` directly instead
+    - `dedup()` - Use external iteration patterns instead
+    - `dedup_by_key()` - Use external iteration patterns instead
+    - `fold()` - Use the Foldable trait's `fold_left`/`fold_right` instead
+    - `to_map_with_key()` - Use `iter().map().collect()` patterns instead
+    - `add_alternatives()` - Use `Semigroup::combine()` or Monoid operations instead
+    - `remove_alternative()` - Use `filter_values()` instead
+    - `try_remove_alternative()` - Use `filter_values()` instead
+    - `filter()` - Semantically unclear, use `filter_values()` instead
+    - `fmap_alternatives()` - Use `fmap()` with conditional logic or external iteration instead
+    - `flatten_sorted()` - Use `flatten()` then sort externally instead
+    - `iter_alternatives()` - Use `alternatives().iter()` instead
+    - `swap_with_alternative()` - Use external patterns instead
+    - `try_swap_with_alternative()` - Use external patterns instead
+    - `bind_lazy()` - Use `bind()` with `into_iter()` or flat_map patterns instead
+
+### Changed - 0.11.0
+
+- **`Choice<T>` Refocused on Core Categorical Operations**
+  - Simplified API to focus on essential Functor/Applicative/Monad/MonadPlus operations
+  - Core operations retained: `new`, `new_empty`, `first`, `alternatives`, `len`, `is_empty`, `filter_values`, `flatten`, `try_flatten`, `of_many`, `iter`, and all trait implementations
+  - Utility methods deprecated to reduce API surface and improve categorical clarity
 - **`Choice<T>` Memory Management Optimization**
   - Removed `Arc` wrapper from `Choice<T>` internal structure
   - Changed from `Arc<SmallVec<[T; 8]>>` to `SmallVec<[T; 8]>` for direct ownership

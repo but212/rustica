@@ -11,6 +11,7 @@
 use rustica::datatypes::choice::Choice;
 use rustica::traits::alternative::Alternative;
 use std::fmt::{Debug, Display};
+use std::rc::Rc;
 
 /// Parse error with location information
 #[derive(Clone, Debug, PartialEq)]
@@ -71,7 +72,7 @@ where
     I: Clone + Debug,
     O: Clone + Debug,
 {
-    parse_fn: std::rc::Rc<dyn Fn(&[I]) -> Choice<(O, &[I])>>,
+    parse_fn: Rc<dyn Fn(&[I]) -> Choice<(O, &[I])>>,
 }
 
 impl<I, O> Clone for Parser<I, O>
@@ -97,7 +98,7 @@ where
         F: Fn(&[I]) -> Choice<(O, &[I])> + 'static,
     {
         Parser {
-            parse_fn: std::rc::Rc::new(f),
+            parse_fn: Rc::new(f),
         }
     }
 
