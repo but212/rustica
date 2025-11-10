@@ -3,60 +3,113 @@ use rustica::error::{
     wrap_in_composable_result_boxed,
 };
 
-// Large-scale pipeline: Error handling and context accumulation per business logic unit
 fn parse_config(content: &str) -> Result<i32, &'static str> {
-    content.parse::<i32>().map_err(|_| "Parse config error")
+    content.parse::<i32>().map_err(|_| "Invalid number format")
 }
-fn connect_db() -> Result<(), &'static str> {
-    Err("DB connection error")
-}
-fn process_data(val: i32) -> Result<(), &'static str> {
-    if val % 2 == 0 {
-        Ok(())
+
+fn connect_db(timeout_ms: i32) -> Result<String, &'static str> {
+    if timeout_ms < 100 {
+        Err("Connection timeout too short")
     } else {
-        Err("Odd number error")
+        Ok("db_connection_handle".to_string())
+    }
+}
+
+fn process_data(connection: String, value: i32) -> Result<String, &'static str> {
+    if value % 2 == 0 {
+        Ok(format!("Processed {} rows via {}", value, connection))
+    } else {
+        Err("Value must be even number")
     }
 }
 
 fn main() {
+    println!("=== Example 1: Correct Context Accumulation ===\n");
+
     let config_str = "not_a_number";
 
-    // Pipeline declaration: Context accumulation on failure at each step
-    let final_result =
-        ErrorPipeline::new(wrap_in_composable_result_boxed(parse_config(config_str)))
-            .with_context("Failed to parse loaded config")
-            .and_then(|cfg| {
-                with_context_result(connect_db(), "DB connection attempt failed").map(|_| cfg)
+    let result = ErrorPipeline::new(wrap_in_composable_result_boxed(parse_config(config_str)))
+        .with_context("Failed to parse configuration file")
+        .and_then(|cfg| {
+            with_context_result(connect_db(cfg), "DB connection attempt failed")
+                .map_err(|mut e| {
+                    *e = e.with_context("Error occurred during DB connection".to_string());
+                    e
+                })
+                .map(|conn| (conn, cfg))
+        })
+        .and_then(|(connection, cfg)| {
+            with_context_result(
+                process_data(connection, cfg),
+                "Error during data processing",
+            )
+            .map_err(|mut e| {
+                *e = e.with_context("Failed to complete data processing pipeline".to_string());
+                e
             })
-            .with_context("Error occurred during DB connection")
-            .and_then(|cfg| {
-                with_context_result(process_data(cfg), "Error during data processing").map(|_| cfg)
-            })
-            .recover(|mut boxed_e| {
-                // Final recovery path with context
-                *boxed_e = boxed_e
-                    .with_context("Final automatic recovery attempt".to_string())
-                    .with_context("Notice: Automatic error handling".to_string());
-                Err(boxed_e)
-            })
-            .finish();
+        })
+        .recover(|mut boxed_e| {
+            *boxed_e = boxed_e.with_context("Recovery attempt initiated".to_string());
+            Err(boxed_e)
+        })
+        .finish();
 
-    // Error tracking and analysis/documentation
-    match final_result {
-        Ok(_) => println!("Data processing successful"),
+    match result {
+        Ok(message) => println!("Success: {}", message),
         Err(err) => {
-            println!("Deep error tracking:");
-            println!("{}", format_error_chain(&err)); // Display error chain + all contexts at a glance
+            println!("Error occurred:\n{}\n", format_error_chain(&err));
         },
     }
 
-    // Example of bulk error accumulation/analysis
-    let errors = vec![
-        ("first", "step 1 failed"),
-        ("second", "step 2 failed"),
-        ("final", "final error occurred"),
+    println!("=== Example 2: Successful Pipeline ===\n");
+
+    let config_str = "200";
+
+    let result = ErrorPipeline::new(wrap_in_composable_result_boxed(parse_config(config_str)))
+        .with_context("Failed to parse configuration file")
+        .and_then(|cfg| {
+            with_context_result(connect_db(cfg), "DB connection attempt failed")
+                .map_err(|mut e| {
+                    *e = e.with_context("Error occurred during DB connection".to_string());
+                    e
+                })
+                .map(|conn| (conn, cfg))
+        })
+        .and_then(|(connection, cfg)| {
+            with_context_result(
+                process_data(connection, cfg),
+                "Error during data processing",
+            )
+            .map_err(|mut e| {
+                *e = e.with_context("Failed to complete data processing pipeline".to_string());
+                e
+            })
+        })
+        .finish();
+
+    match result {
+        Ok(message) => println!("Success: {}\n", message),
+        Err(err) => {
+            println!("Error occurred:\n{}\n", format_error_chain(&err));
+        },
+    }
+
+    println!("=== Example 3: Bulk Context Accumulation ===\n");
+
+    let operation_contexts = vec![
+        "Loading user preferences",
+        "Validating authentication token",
+        "Establishing secure connection",
+        "Executing transaction",
     ];
-    let chained_error = accumulate_context("base error", errors.iter().map(|e| e.1));
-    println!("Bulk accumulated error chain analysis:");
-    println!("{}", format_error_chain(&chained_error));
+
+    let chained_error = accumulate_context(
+        "Transaction failed: insufficient permissions",
+        operation_contexts.into_iter(),
+    );
+
+    println!(
+        "Bulk accumulated error analysis:\n{}",
+        format_error_chain(&chained_error)
+    );
 }
