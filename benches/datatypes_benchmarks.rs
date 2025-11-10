@@ -5,6 +5,7 @@ mod datatypes {
     #[cfg(feature = "async")]
     pub mod async_monad;
     pub mod choice;
+    pub mod composable_error;
     pub mod cont;
     pub mod either;
     pub mod id;
@@ -25,6 +26,7 @@ mod datatypes {
 #[cfg(feature = "async")]
 use datatypes::async_monad::asyncm_benchmarks;
 use datatypes::choice::choice_benchmarks;
+use datatypes::composable_error::composable_error_benchmarks;
 use datatypes::cont::cont_benchmarks;
 use datatypes::either::either_benchmarks;
 use datatypes::id::id_benchmarks;
@@ -58,6 +60,7 @@ criterion_group!(
     iso_lens_benchmarks,
     iso_prism_benchmarks,
     pvec_benchmarks,
+    composable_error_benchmarks,
 );
 
 #[cfg(feature = "async")]
@@ -78,6 +81,7 @@ criterion_group!(
     iso_lens_benchmarks,
     iso_prism_benchmarks,
     pvec_benchmarks,
+    composable_error_benchmarks,
     asyncm_benchmarks,
 );
 
