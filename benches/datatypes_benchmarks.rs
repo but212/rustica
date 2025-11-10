@@ -2,6 +2,8 @@ use criterion::{criterion_group, criterion_main};
 
 // Import benchmark modules
 mod datatypes {
+    #[cfg(feature = "async")]
+    pub mod async_monad;
     pub mod choice;
     pub mod cont;
     pub mod either;
@@ -20,6 +22,8 @@ mod datatypes {
 }
 
 // Re-export benchmark functions
+#[cfg(feature = "async")]
+use datatypes::async_monad::asyncm_benchmarks;
 use datatypes::choice::choice_benchmarks;
 use datatypes::cont::cont_benchmarks;
 use datatypes::either::either_benchmarks;
@@ -36,6 +40,7 @@ use datatypes::state::state_benchmarks;
 use datatypes::validated::validated_benchmarks;
 use datatypes::writer::writer_benchmarks;
 
+#[cfg(not(feature = "async"))]
 criterion_group!(
     datatype_benches,
     maybe_benchmarks,
@@ -53,6 +58,27 @@ criterion_group!(
     iso_lens_benchmarks,
     iso_prism_benchmarks,
     pvec_benchmarks,
+);
+
+#[cfg(feature = "async")]
+criterion_group!(
+    datatype_benches,
+    maybe_benchmarks,
+    state_benchmarks,
+    validated_benchmarks,
+    choice_benchmarks,
+    reader_benchmarks,
+    writer_benchmarks,
+    either_benchmarks,
+    id_benchmarks,
+    cont_benchmarks,
+    io_benchmarks,
+    lens_benchmarks,
+    prism_benchmarks,
+    iso_lens_benchmarks,
+    iso_prism_benchmarks,
+    pvec_benchmarks,
+    asyncm_benchmarks,
 );
 
 criterion_main!(datatype_benches);
