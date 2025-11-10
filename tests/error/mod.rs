@@ -139,3 +139,111 @@ fn test_error_chain_formatting() {
     assert!(chain.contains("failed to load config"));
     assert!(chain.contains("file not found"));
 }
+
+#[test]
+fn test_from_trait_conversion() {
+    // Test From<E> for ComposableError<E>
+    let simple_error = "file not found";
+    let composable: ComposableError<&str> = simple_error.into();
+
+    assert_eq!(composable.core_error(), &"file not found");
+    assert!(composable.context().is_empty());
+
+    // Test with different error types
+    let num_error = 404;
+    let composable_num: ComposableError<i32> = num_error.into();
+    assert_eq!(composable_num.core_error(), &404);
+}
+
+#[test]
+fn test_core_to_composable_uses_from() {
+    use rustica::error::convert::core_to_composable;
+
+    // core_to_composable should use From trait internally
+    let error = "test error";
+    let composable = core_to_composable(error);
+
+    assert_eq!(composable.core_error(), &"test error");
+    assert!(composable.context().is_empty());
+}
+
+#[test]
+fn test_error_pipeline_finish_unboxed() {
+    use rustica::error::types::ComposableResult;
+
+    // Test finish_unboxed returns unboxed ComposableError
+    let result: Result<i32, i32> = Err(404);
+    let final_result: ComposableResult<i32, i32> = error_pipeline(result)
+        .with_context("Request failed")
+        .with_context("Server error")
+        .finish_without_box();
+
+    match final_result {
+        Ok(_) => panic!("Expected error"),
+        Err(composable) => {
+            assert_eq!(composable.core_error(), &404);
+            assert_eq!(composable.context().len(), 2);
+            assert_eq!(composable.context()[0], "Server error");
+            assert_eq!(composable.context()[1], "Request failed");
+        },
+    }
+}
+
+#[test]
+fn test_error_pipeline_finish_vs_finish_unboxed() {
+    use rustica::error::types::{BoxedComposableResult, ComposableResult};
+
+    let result1: Result<i32, &str> = Err("error");
+    let result2: Result<i32, &str> = Err("error");
+
+    // finish() returns BoxedComposableResult
+    let boxed: BoxedComposableResult<i32, &str> =
+        error_pipeline(result1).with_context("context").finish();
+
+    // finish_unboxed() returns ComposableResult
+    let unboxed: ComposableResult<i32, &str> = error_pipeline(result2)
+        .with_context("context")
+        .finish_without_box();
+
+    // Both should have the same error and context
+    match (boxed, unboxed) {
+        (Err(boxed_err), Err(unboxed_err)) => {
+            assert_eq!(boxed_err.core_error(), unboxed_err.core_error());
+            assert_eq!(boxed_err.context(), unboxed_err.context());
+        },
+        _ => panic!("Both should be errors"),
+    }
+}
+
+#[test]
+fn test_validated_error_ops_lossy_conversion() {
+    use rustica::error::ErrorOps;
+
+    // Test that Validated recover uses only first error
+    let validated: Validated<String, i32> = Validated::invalid_many(vec![
+        "error1".to_string(),
+        "error2".to_string(),
+        "error3".to_string(),
+    ]);
+
+    let recovered = validated.recover(|first_err| {
+        assert_eq!(first_err, "error1"); // Should receive only first error
+        Validated::Valid(42)
+    });
+
+    assert_eq!(recovered, Validated::Valid(42));
+}
+
+#[test]
+fn test_validated_bimap_result_lossy_conversion() {
+    use rustica::error::ErrorOps;
+
+    // Test that Validated bimap_result uses only first error
+    let validated: Validated<i32, String> = Validated::invalid_many(vec![404, 500, 503]);
+
+    let result: Result<usize, String> =
+        validated.bimap_result(|s| s.len(), |code| format!("HTTP Error: {}", code));
+
+    // Should only use the first error (404)
+    assert_eq!(result, Err("HTTP Error: 404".to_string()));
+}

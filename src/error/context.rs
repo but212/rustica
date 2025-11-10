@@ -4,7 +4,10 @@
 //! functional error handling pipelines. It includes context accumulation,
 //! error transformation chains, and composable error handling patterns.
 
-use crate::error::types::{BoxedComposableResult, ComposableError, IntoErrorContext};
+use crate::error::{
+    ComposableResult,
+    types::{BoxedComposableResult, ComposableError, IntoErrorContext},
+};
 use smallvec::SmallVec;
 use std::fmt::Display;
 
@@ -344,7 +347,11 @@ impl<T, E> ErrorPipeline<T, E> {
     /// Finishes the pipeline and returns the final result with applied contexts.
     ///
     /// This is the terminal operation of the pipeline that applies
-    /// all buffered contexts to any error and returns the final Result.
+    /// all buffered contexts to any error and returns a **boxed** `ComposableError`.
+    /// This avoids clippy warnings about large error types and is recommended
+    /// for most use cases.
+    ///
+    /// If you want to avoid boxing (e.g., when `E` is small), use [`finish_without_box()`](Self::finish_without_box).
     ///
     /// # Examples
     ///
@@ -366,6 +373,43 @@ impl<T, E> ErrorPipeline<T, E> {
             Err(e) => {
                 let composable = ComposableError::new(e).with_contexts(self.pending_contexts);
                 Err(Box::new(composable))
+            },
+        }
+    }
+
+    /// Finishes the pipeline and returns the final result without boxing.
+    ///
+    /// This is an alternative to [`finish()`](Self::finish) that returns an
+    /// **unboxed** `ComposableError`. Use this when:
+    /// - The error type `E` is small (e.g., `i32`, `&str`)
+    /// - You want to avoid heap allocation
+    /// - You're okay with clippy warnings about large error types
+    ///
+    /// For most use cases, prefer [`finish()`](Self::finish) to avoid clippy warnings.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::error::{ErrorPipeline, ComposableResult};
+    ///
+    /// let result: Result<i32, i32> = Err(404);
+    /// let final_result: ComposableResult<i32, i32> = ErrorPipeline::new(result)
+    ///     .with_context("Request failed")
+    ///     .finish_without_box();
+    ///
+    /// match final_result {
+    ///     Ok(_) => panic!("Expected error"),
+    ///     Err(e) => assert_eq!(e.core_error(), &404),
+    /// }
+    /// ```
+    #[inline]
+    #[allow(clippy::result_large_err)]
+    pub fn finish_without_box(self) -> ComposableResult<T, E> {
+        match self.result {
+            Ok(v) => Ok(v),
+            Err(e) => {
+                let composable = ComposableError::new(e).with_contexts(self.pending_contexts);
+                Err(composable)
             },
         }
     }
