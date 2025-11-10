@@ -10,8 +10,6 @@
 //!
 //! ```rust
 //! use rustica::datatypes::cont::Cont;
-//! use rustica::traits::functor::Functor;
-//! use rustica::traits::monad::Monad;
 //!
 //! // Create a simple continuation that passes a value to its continuation
 //! let cont_value = Cont::return_cont(42);
@@ -70,13 +68,17 @@
 //! - JavaScript's CPS transformations in libraries like fantasy-land
 //! - Scheme and Racket's first-class continuations via `call/cc`
 //!
-//! ## Type Class Implementations
+//! ## Functional Programming Methods
 //!
-//! `Cont<R, A>` implements several important functional programming type classes:
+//! `Cont<R, A>` provides inherent methods that follow functional programming patterns:
 //!
-//! - **Functor**: Transforms values inside the continuation
-//! - **Applicative**: Applies functions wrapped in continuations to values in continuations
-//! - **Monad**: Sequences continuation operations
+//! - **Functor-like**: `fmap` transforms values inside the continuation
+//! - **Applicative-like**: `apply` applies functions wrapped in continuations to values in continuations
+//! - **Monad-like**: `bind` sequences continuation operations
+//!
+//! **Note**: These are inherent methods, not trait implementations. `Cont` does not implement
+//! the `Functor`, `Applicative`, or `Monad` traits, but provides equivalent functionality
+//! through its own methods optimized for continuation-passing style.
 //!
 //! ## Use Cases
 //!
@@ -88,9 +90,9 @@
 //! - **Backtracking Algorithms**: Implementing algorithms that need to explore multiple paths
 //! - **Coroutines**: Building cooperative multitasking systems
 //!
-//! ## Type Class Laws
+//! ## Functional Programming Laws
 //!
-//! `Cont<R, A>` adheres to the standard type class laws for Functor, Applicative, and Monad:
+//! The inherent methods of `Cont<R, A>` satisfy the functional programming laws:
 //!
 //! ### Functor Laws
 //! - Identity: `fmap id == id`
@@ -107,7 +109,7 @@
 //! - Right Identity: `m >>= return = m`
 //! - Associativity: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
 //!
-//! See individual function documentation (e.g., `fmap`, `apply`, `bind`) for specific examples demonstrating these laws.
+//! See individual method documentation (e.g., `fmap`, `apply`, `bind`) for specific examples demonstrating these laws.
 //!
 //! ## Examples
 //!
@@ -309,10 +311,10 @@ where
     /// Creates a continuation that immediately returns the given value.
     ///
     /// This is a convenience method that creates a continuation which, when run,
-    /// simply passes the provided value to the continuation function. It serves as the
-    /// implementation of `pure` for the `Applicative` type class and `return` for the `Monad` type class.
+    /// simply passes the provided value to the continuation function. It is analogous
+    /// to `pure` in applicative style and `return` in monadic style.
     ///
-    /// # Type Class Laws
+    /// # Functional Programming Laws
     ///
     /// ## Identity Law (Monad)
     ///
@@ -360,11 +362,10 @@ where
 
     /// Maps a function over the value inside this continuation.
     ///
-    /// This is the `fmap` operation for the `Functor` type class, allowing
-    /// transformation of the value inside the `Cont` context without
-    /// changing the continuation structure.
+    /// This operation allows transformation of the value inside the `Cont` context
+    /// without changing the continuation structure.
     ///
-    /// # Type Class Laws
+    /// # Functional Programming Laws
     ///
     /// ## Functor Identity Law
     ///
@@ -443,7 +444,7 @@ where
     /// of this continuation and returning a new continuation. This is the core operation that
     /// enables chaining complex control flow patterns in a composable manner.
     ///
-    /// # Type Class Laws
+    /// # Functional Programming Laws
     ///
     /// ## Left Identity Law
     ///
@@ -552,7 +553,7 @@ where
     /// combining two independent continuations where one contains a function and the other contains
     /// a value to be applied to that function.
     ///
-    /// # Type Class Laws
+    /// # Functional Programming Laws
     ///
     /// ## Identity Law (Applicative)
     ///
@@ -682,7 +683,8 @@ where
 
     /// Lifts a value into the continuation monad context.
     ///
-    /// This is an alias for `return_cont` that aligns with the `Pure` trait.
+    /// This is an alias for `return_cont` that provides a convenient interface
+    /// for creating pure continuation values.
     ///
     /// # Arguments
     ///

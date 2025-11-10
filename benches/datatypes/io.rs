@@ -41,8 +41,8 @@ pub fn io_benchmarks(c: &mut Criterion) {
         })
     });
 
-    // Functor benchmarks
-    group.bench_function("io_fmap", |b| {
+    // Functor benchmarks - Pure vs Effect comparison
+    group.bench_function("io_fmap_pure", |b| {
         b.iter(|| {
             let io = IO::pure(black_box(10));
             let result = io.fmap(|x| x * 2);
@@ -50,7 +50,7 @@ pub fn io_benchmarks(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("io_fmap_and_run", |b| {
+    group.bench_function("io_fmap_pure_run", |b| {
         b.iter(|| {
             let io = IO::pure(black_box(10));
             let result = io.fmap(|x| x * 2).run();
@@ -58,8 +58,24 @@ pub fn io_benchmarks(c: &mut Criterion) {
         })
     });
 
-    // Monad benchmarks
-    group.bench_function("io_bind", |b| {
+    group.bench_function("io_fmap_effect", |b| {
+        b.iter(|| {
+            let io = IO::new(|| black_box(10));
+            let result = io.fmap(|x| x * 2);
+            black_box(result)
+        })
+    });
+
+    group.bench_function("io_fmap_effect_run", |b| {
+        b.iter(|| {
+            let io = IO::new(|| black_box(10));
+            let result = io.fmap(|x| x * 2).run();
+            black_box(result)
+        })
+    });
+
+    // Monad benchmarks - Pure vs Effect comparison
+    group.bench_function("io_bind_pure_pure", |b| {
         b.iter(|| {
             let io = IO::pure(black_box(10));
             let result = io.bind(|x| IO::pure(x * 2));
@@ -67,7 +83,7 @@ pub fn io_benchmarks(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("io_bind_and_run", |b| {
+    group.bench_function("io_bind_pure_pure_run", |b| {
         b.iter(|| {
             let io = IO::pure(black_box(10));
             let result = io.bind(|x| IO::pure(x * 2)).run();
@@ -75,11 +91,64 @@ pub fn io_benchmarks(c: &mut Criterion) {
         })
     });
 
-    // Apply benchmarks
-    group.bench_function("io_apply", |b| {
+    group.bench_function("io_bind_pure_effect", |b| {
         b.iter(|| {
             let io = IO::pure(black_box(10));
-            let result = io.apply(|x| IO::pure(x + 5));
+            let result = io.bind(|x| IO::new(move || x * 2));
+            black_box(result)
+        })
+    });
+
+    group.bench_function("io_bind_effect_pure", |b| {
+        b.iter(|| {
+            let io = IO::new(|| black_box(10));
+            let result = io.bind(|x| IO::pure(x * 2));
+            black_box(result)
+        })
+    });
+
+    // Apply benchmarks - Testing Applicative pattern with different combinations
+    group.bench_function("io_apply_pure_pure", |b| {
+        b.iter(|| {
+            let io_value = IO::pure(black_box(10));
+            let io_func = IO::pure(|x: i32| x * 2);
+            let result = io_value.apply(io_func);
+            black_box(result)
+        })
+    });
+
+    group.bench_function("io_apply_pure_pure_run", |b| {
+        b.iter(|| {
+            let io_value = IO::pure(black_box(10));
+            let io_func = IO::pure(|x: i32| x * 2);
+            let result = io_value.apply(io_func).run();
+            black_box(result)
+        })
+    });
+
+    group.bench_function("io_apply_pure_effect", |b| {
+        b.iter(|| {
+            let io_value = IO::pure(black_box(10));
+            let io_func = IO::new(|| |x: i32| x * 2);
+            let result = io_value.apply(io_func);
+            black_box(result)
+        })
+    });
+
+    group.bench_function("io_apply_effect_pure", |b| {
+        b.iter(|| {
+            let io_value = IO::new(|| black_box(10));
+            let io_func = IO::pure(|x: i32| x * 2);
+            let result = io_value.apply(io_func);
+            black_box(result)
+        })
+    });
+
+    group.bench_function("io_apply_effect_effect", |b| {
+        b.iter(|| {
+            let io_value = IO::new(|| black_box(10));
+            let io_func = IO::new(|| |x: i32| x * 2);
+            let result = io_value.apply(io_func);
             black_box(result)
         })
     });
@@ -117,8 +186,8 @@ pub fn io_benchmarks(c: &mut Criterion) {
         })
     });
 
-    // Chaining benchmarks
-    group.bench_function("io_chain_operations", |b| {
+    // Chaining benchmarks - Testing optimization impact
+    group.bench_function("io_chain_pure_operations", |b| {
         b.iter(|| {
             let io = IO::pure(black_box(1))
                 .fmap(|x| x + 1)
@@ -128,9 +197,21 @@ pub fn io_benchmarks(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("io_chain_and_run", |b| {
+    group.bench_function("io_chain_pure_run", |b| {
         b.iter(|| {
             let io = IO::pure(black_box(1))
+                .fmap(|x| x + 1)
+                .bind(|x| IO::pure(x * 2))
+                .fmap(|x| x + 3);
+            let result = io.run();
+            black_box(result)
+        })
+    });
+
+    // Mixed Pure/Effect chains to test optimization paths
+    group.bench_function("io_chain_mixed_operations", |b| {
+        b.iter(|| {
+            let io = IO::new(|| black_box(1))
                 .fmap(|x| x + 1)
                 .bind(|x| IO::pure(x * 2))
                 .fmap(|x| x + 3);
@@ -151,12 +232,25 @@ pub fn io_benchmarks(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("io_nested_bind", |b| {
+    // Test Pure fast path optimization (all Pure values)
+    group.bench_function("io_nested_bind_pure_only", |b| {
         b.iter(|| {
             let io = IO::pure(black_box(5))
                 .bind(|x| IO::pure(x + 1))
                 .bind(|x| IO::pure(x * 2))
                 .bind(|x| IO::pure(x - 3));
+            let result = io.run();
+            black_box(result)
+        })
+    });
+
+    // Compare with Effect chain
+    group.bench_function("io_nested_bind_effect_chain", |b| {
+        b.iter(|| {
+            let io = IO::new(|| black_box(5))
+                .bind(|x| IO::new(move || x + 1))
+                .bind(|x| IO::new(move || x * 2))
+                .bind(|x| IO::new(move || x - 3));
             let result = io.run();
             black_box(result)
         })

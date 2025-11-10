@@ -1,9 +1,9 @@
 use criterion::{BenchmarkId, Criterion};
-use rustica::error::{error_pipeline, with_context, ComposableError};
+use rustica::error::{ComposableError, error_pipeline, with_context};
 use std::hint::black_box;
 
 pub fn composable_error_benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("composable_error");
+    let mut group = c.benchmark_group("ComposableError");
 
     // Context accumulation - O(1) push optimization verification
     for count in [1, 10, 50, 100].iter() {

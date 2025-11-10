@@ -48,13 +48,17 @@
 //! - `Task` in fp-ts (TypeScript)
 //! - `IO` in Haskell libraries like `async`
 //!
-//! ## Type Class Implementations
+//! ## Functional Programming Methods
 //!
-//! The `AsyncM` type implements several important functional programming abstractions:
+//! The `AsyncM` type provides inherent methods that follow functional programming patterns:
 //!
-//! - `Functor`: Allows mapping functions over the eventual result
-//! - `Applicative`: Enables applying functions wrapped in `AsyncM` to values wrapped in `AsyncM`
-//! - `Monad`: Provides sequencing of asynchronous operations
+//! - **Functor-like**: `fmap` allows mapping functions over the eventual result
+//! - **Applicative-like**: `apply` enables applying functions wrapped in `AsyncM` to values wrapped in `AsyncM`
+//! - **Monad-like**: `bind` provides sequencing of asynchronous operations
+//!
+//! **Note**: These are inherent methods, not trait implementations. `AsyncM` does not implement
+//! the `Functor`, `Applicative`, or `Monad` traits, but provides equivalent functionality
+//! through its own methods optimized for async operations
 //!
 //! ## Basic Usage
 //!
@@ -208,6 +212,15 @@ use std::{marker::PhantomData, panic, pin::Pin, sync::Arc};
 
 /// A type alias for an asynchronous computation that can be sent between threads.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+/// Internal representation of AsyncM, optimized for pure values.
+#[derive(Clone)]
+enum AsyncMInner<A> {
+    /// A pure value with zero Arc overhead
+    Pure(Arc<A>),
+    /// A lazy computation
+    Effect(Arc<dyn Fn() -> BoxFuture<'static, A> + Send + Sync + 'static>),
+}
 
 /// The asynchronous monad, which represents a computation that will eventually produce a value.
 ///
@@ -446,13 +459,11 @@ pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 /// ```
 #[derive(Clone)]
 pub struct AsyncM<A> {
-    // Using a boxed function that returns a boxed future
-    // This allows for type erasure and dynamic dispatch
-    run: Arc<dyn Fn() -> BoxFuture<'static, A> + Send + Sync + 'static>,
+    inner: AsyncMInner<A>,
     _phantom: PhantomData<A>,
 }
 
-impl<A: Send + 'static> AsyncM<A> {
+impl<A: Send + Sync + 'static> AsyncM<A> {
     /// Creates a new async computation from a future-producing function.
     ///
     /// This constructor allows you to create an `AsyncM` from any function that
@@ -485,22 +496,22 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(delayed.try_get().await, 42);
     /// }
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn new<G, F>(f: G) -> Self
     where
         G: Fn() -> F + Send + Sync + 'static,
         F: Future<Output = A> + Send + 'static,
     {
         AsyncM {
-            run: Arc::new(move || f().boxed()),
+            inner: AsyncMInner::Effect(Arc::new(move || f().boxed())),
             _phantom: PhantomData,
         }
     }
 
     /// Creates a pure async computation that just returns the given value.
     ///
-    /// This is the `pure` operation for the `Applicative` type class, lifting
-    /// a pure value into the `AsyncM` context.
+    /// This operation lifts a pure value into the `AsyncM` context without any
+    /// asynchronous computation, following the pure value lifting pattern.
     ///
     /// # Arguments
     ///
@@ -523,17 +534,13 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(async_string.try_get().await, "hello");
     /// }
     /// ```
+    #[inline(always)]
     pub fn pure(value: A) -> Self
     where
         A: Clone + Send + Sync + 'static,
     {
-        // Create a static reference to avoid cloning the value for each call
-        let value = Arc::new(value);
         AsyncM {
-            run: Arc::new(move || {
-                let value = Arc::clone(&value);
-                async move { (*value).clone() }.boxed()
-            }),
+            inner: AsyncMInner::Pure(Arc::new(value)),
             _phantom: PhantomData,
         }
     }
@@ -562,15 +569,21 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result, 42);
     /// }
     /// ```
-    #[inline]
-    pub async fn try_get(&self) -> A {
-        (self.run)().await
+    #[inline(always)]
+    pub async fn try_get(&self) -> A
+    where
+        A: Clone,
+    {
+        match &self.inner {
+            AsyncMInner::Pure(value) => (**value).clone(),
+            AsyncMInner::Effect(run) => run().await,
+        }
     }
 
     /// Maps a function over the result of this async computation.
     ///
-    /// This is the `fmap` operation for the `Functor` type class, allowing
-    /// transformation of the value inside the `AsyncM` context.
+    /// This operation allows transformation of the value inside the `AsyncM` context
+    /// while preserving the asynchronous computation structure.
     ///
     /// # Arguments
     ///
@@ -603,6 +616,7 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, "52");
     /// }
     /// ```
+    #[inline(always)]
     pub fn fmap<B, F, Fut>(&self, f: F) -> AsyncM<B>
     where
         B: Send + 'static,
@@ -610,28 +624,43 @@ impl<A: Send + 'static> AsyncM<A> {
         Fut: Future<Output = B> + Send + 'static,
         A: Clone,
     {
-        let run_clone = Arc::clone(&self.run);
+        // Fast path: Pure → Lazy (avoid double wrapping)
+        if let AsyncMInner::Pure(value) = &self.inner {
+            let value = Arc::clone(value);
+            return AsyncM {
+                inner: AsyncMInner::Effect(Arc::new(move || {
+                    let f = f.clone();
+                    let value = Arc::clone(&value);
+                    async move { f((*value).clone()).await }.boxed()
+                })),
+                _phantom: PhantomData,
+            };
+        }
 
+        // General path: Lazy → Lazy
+        let inner = self.inner.clone();
         AsyncM {
-            run: Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
-                let run = run_clone.clone();
-
+                let inner = inner.clone();
                 async move {
-                    let a = run().await;
+                    let a = if let AsyncMInner::Effect(run) = &inner {
+                        run().await
+                    } else {
+                        unreachable!()
+                    };
                     f(a).await
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }
 
     /// Chains this computation with another async computation.
     ///
-    /// This is the `bind` operation for the `Monad` type class, allowing
-    /// sequencing of async operations where each operation can depend on
-    /// the result of the previous one.
+    /// This is a fundamental sequencing operation that allows
+    /// async operations to depend on the results of previous operations.
     ///
     /// # Arguments
     ///
@@ -667,35 +696,63 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 104);
     /// }
     /// ```
+    #[inline(always)]
     pub fn bind<B, F, Fut>(&self, f: F) -> AsyncM<B>
     where
-        B: Send + Sync + 'static,
+        B: Send + Sync + Clone + 'static,
         F: Fn(A) -> Fut + Send + Sync + Clone + 'static,
         Fut: Future<Output = AsyncM<B>> + Send + 'static,
         A: Clone,
     {
-        let run_clone = Arc::clone(&self.run);
+        // Fast path: Pure → direct call
+        if let AsyncMInner::Pure(value) = &self.inner {
+            let value = Arc::clone(value);
+            return AsyncM {
+                inner: AsyncMInner::Effect(Arc::new(move || {
+                    let f = f.clone();
+                    let value = Arc::clone(&value);
+                    async move {
+                        let next = f((*value).clone()).await;
+                        // Inline next monad execution
+                        match &next.inner {
+                            AsyncMInner::Pure(v) => (**v).clone(),
+                            AsyncMInner::Effect(run) => run().await,
+                        }
+                    }
+                    .boxed()
+                })),
+                _phantom: PhantomData,
+            };
+        }
 
+        // General path: Lazy → Lazy
+        let inner = self.inner.clone();
         AsyncM {
-            run: Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
-                let run = run_clone.clone();
-
+                let inner = inner.clone();
                 async move {
-                    let a = run().await;
-                    let next_monad = f(a).await;
-                    next_monad.try_get().await
+                    let a = if let AsyncMInner::Effect(run) = &inner {
+                        run().await
+                    } else {
+                        unreachable!()
+                    };
+                    let next = f(a).await;
+                    match &next.inner {
+                        AsyncMInner::Pure(v) => (**v).clone(),
+                        AsyncMInner::Effect(run) => run().await,
+                    }
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }
 
     /// Applies a wrapped function to this async computation.
     ///
-    /// This is the `apply` operation for the `Applicative` type class, allowing
-    /// application of a function wrapped in `AsyncM` to a value wrapped in `AsyncM`.
+    /// This operation allows application of a function wrapped in `AsyncM` to a value wrapped in `AsyncM`,
+    /// following the applicative pattern.
     ///
     /// # Arguments
     ///
@@ -724,28 +781,47 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn apply<B, F>(&self, mf: AsyncM<F>) -> AsyncM<B>
     where
-        B: Send + 'static,
+        B: Send + Sync + Clone + 'static,
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
         A: Clone,
     {
-        let self_run = Arc::clone(&self.run);
-        let mf_run = Arc::clone(&mf.run);
+        // Ultra-fast path: Pure + Pure → direct apply
+        if let (AsyncMInner::Pure(v), AsyncMInner::Pure(f)) = (&self.inner, &mf.inner) {
+            let result = (**f).clone()((**v).clone());
+            return AsyncM::pure(result);
+        }
+
+        let self_inner = self.inner.clone();
+        let mf_inner = mf.inner.clone();
 
         AsyncM {
-            run: Arc::new(move || {
-                let self_run = self_run.clone();
-                let mf_run = mf_run.clone();
+            inner: AsyncMInner::Effect(Arc::new(move || {
+                let self_inner = self_inner.clone();
+                let mf_inner = mf_inner.clone();
 
                 async move {
-                    // Run both futures concurrently for better performance
-                    let (value, func) = tokio::join!(self_run(), mf_run());
+                    // Optimized concurrent execution
+                    let (value, func) = tokio::join!(
+                        async {
+                            match &self_inner {
+                                AsyncMInner::Pure(v) => (**v).clone(),
+                                AsyncMInner::Effect(run) => run().await,
+                            }
+                        },
+                        async {
+                            match &mf_inner {
+                                AsyncMInner::Pure(f) => (**f).clone(),
+                                AsyncMInner::Effect(run) => run().await,
+                            }
+                        }
+                    );
                     func(value)
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }
@@ -787,6 +863,7 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(failure.try_get().await, 0);
     /// }
     /// ```
+    #[inline]
     pub fn from_result_or_default<F, Fut, E>(f: F, default_value: A) -> AsyncM<A>
     where
         F: Fn() -> Fut + Send + Sync + Clone + 'static,
@@ -798,7 +875,7 @@ impl<A: Send + 'static> AsyncM<A> {
         let default_value = Arc::new(default_value);
 
         AsyncM {
-            run: Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
                 let default_value = Arc::clone(&default_value);
 
@@ -809,7 +886,7 @@ impl<A: Send + 'static> AsyncM<A> {
                     }
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }
@@ -843,23 +920,28 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
+    #[inline]
     pub fn fmap_owned<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
-        F: FnOnce(A) -> Fut + Clone + Send + Sync + 'static,
+        F: Fn(A) -> Fut + Clone + Send + Sync + 'static,
         Fut: Future<Output = B> + Send + 'static,
         B: Send + 'static,
+        A: Clone,
     {
         AsyncM {
-            run: Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
-                let run = Arc::clone(&self.run);
+                let inner = self.inner.clone();
 
                 async move {
-                    let a = run().await;
+                    let a = match &inner {
+                        AsyncMInner::Pure(value) => (**value).clone(),
+                        AsyncMInner::Effect(run) => run().await,
+                    };
                     f(a).await
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }
@@ -896,24 +978,32 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 52);
     /// }
     /// ```
+    #[inline]
     pub fn bind_owned<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
-        F: FnOnce(A) -> Fut + Clone + Send + Sync + 'static,
+        F: Fn(A) -> Fut + Clone + Send + Sync + 'static,
         Fut: Future<Output = AsyncM<B>> + Send + 'static,
-        B: Send + Sync + 'static,
+        B: Send + Sync + Clone + 'static,
+        A: Clone,
     {
         AsyncM {
-            run: Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
-                let run = Arc::clone(&self.run);
+                let inner = self.inner.clone();
 
                 async move {
-                    let a = run().await;
+                    let a = match &inner {
+                        AsyncMInner::Pure(value) => (**value).clone(),
+                        AsyncMInner::Effect(run) => run().await,
+                    };
                     let mb = f(a).await;
-                    mb.try_get().await
+                    match &mb.inner {
+                        AsyncMInner::Pure(value) => (**value).clone(),
+                        AsyncMInner::Effect(run) => run().await,
+                    }
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }
@@ -951,21 +1041,34 @@ impl<A: Send + 'static> AsyncM<A> {
     #[inline]
     pub fn apply_owned<B, F>(self, mf: AsyncM<F>) -> AsyncM<B>
     where
-        F: FnOnce(A) -> B + Send + Sync + 'static,
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
         B: Send + Sync + 'static,
+        A: Clone,
     {
         AsyncM {
-            run: Arc::new(move || {
-                let run_f = Arc::clone(&mf.run);
-                let run_a = Arc::clone(&self.run);
+            inner: AsyncMInner::Effect(Arc::new(move || {
+                let self_inner = self.inner.clone();
+                let mf_inner = mf.inner.clone();
 
                 async move {
                     // Use join to run both futures concurrently
-                    let (f, a) = tokio::join!(run_f(), run_a());
+                    let a_fut = async {
+                        match &self_inner {
+                            AsyncMInner::Pure(v) => (**v).clone(),
+                            AsyncMInner::Effect(run) => run().await,
+                        }
+                    };
+                    let f_fut = async {
+                        match &mf_inner {
+                            AsyncMInner::Pure(f) => (**f).clone(),
+                            AsyncMInner::Effect(run) => run().await,
+                        }
+                    };
+                    let (a, f) = tokio::join!(a_fut, f_fut);
                     f(a)
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }
@@ -1005,25 +1108,45 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, "hello 42");
     /// }
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn zip_with<B, C, F>(self, other: AsyncM<B>, f: F) -> AsyncM<C>
     where
-        F: FnOnce(A, B) -> C + Send + Sync + Clone + 'static,
-        B: Send + 'static,
-        C: Send + 'static,
+        F: Fn(A, B) -> C + Send + Sync + Clone + 'static,
+        B: Send + Sync + Clone + 'static,
+        C: Send + Sync + Clone + 'static,
+        A: Clone,
     {
+        // Ultra-fast path: Pure + Pure → direct combine
+        if let (AsyncMInner::Pure(a), AsyncMInner::Pure(b)) = (&self.inner, &other.inner) {
+            let result = f.clone()((**a).clone(), (**b).clone());
+            return AsyncM::pure(result);
+        }
+
         AsyncM {
-            run: Arc::new(move || {
-                let run_a = self.run.clone();
-                let run_b = other.run.clone();
+            inner: AsyncMInner::Effect(Arc::new(move || {
+                let self_inner = self.inner.clone();
+                let other_inner = other.inner.clone();
                 let f = f.clone();
 
                 async move {
-                    let (a, b) = tokio::join!(run_a(), run_b());
+                    let (a, b) = tokio::join!(
+                        async {
+                            match &self_inner {
+                                AsyncMInner::Pure(v) => (**v).clone(),
+                                AsyncMInner::Effect(run) => run().await,
+                            }
+                        },
+                        async {
+                            match &other_inner {
+                                AsyncMInner::Pure(v) => (**v).clone(),
+                                AsyncMInner::Effect(run) => run().await,
+                            }
+                        }
+                    );
                     f(a, b)
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }
@@ -1053,7 +1176,8 @@ impl<A: Send + 'static> AsyncM<A> {
     #[inline]
     pub fn zip<B>(self, other: AsyncM<B>) -> AsyncM<(A, B)>
     where
-        B: Send + 'static,
+        B: Send + Sync + Clone + 'static,
+        A: Clone,
     {
         self.zip_with(other, |a, b| (a, b))
     }
@@ -1093,18 +1217,26 @@ impl<A: Send + 'static> AsyncM<A> {
     ///     assert_eq!(result, 42);
     /// }
     /// ```
+    #[inline]
     pub fn recover_with(self, default: A) -> AsyncM<A>
     where
         A: Send + Sync + Clone,
     {
         AsyncM {
-            run: Arc::new(move || {
-                let run = Arc::clone(&self.run);
+            inner: AsyncMInner::Effect(Arc::new(move || {
+                let inner = self.inner.clone();
                 let default = default.clone();
 
                 async move {
                     // Use std::panic::catch_unwind to handle panics
-                    let result = panic::AssertUnwindSafe(run()).catch_unwind().await;
+                    let result = panic::AssertUnwindSafe(async {
+                        match &inner {
+                            AsyncMInner::Pure(value) => (**value).clone(),
+                            AsyncMInner::Effect(run) => run().await,
+                        }
+                    })
+                    .catch_unwind()
+                    .await;
 
                     match result {
                         Ok(value) => value,
@@ -1112,7 +1244,7 @@ impl<A: Send + 'static> AsyncM<A> {
                     }
                 }
                 .boxed()
-            }),
+            })),
             _phantom: PhantomData,
         }
     }

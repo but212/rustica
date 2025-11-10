@@ -132,6 +132,6 @@ fn test_io_try_get() {
 #[test]
 fn test_io_apply() {
     let computation = IO::new(|| 42);
-    let result = computation.apply(|x| IO::new(move || x * 2));
+    let result = computation.apply(IO::new(move || |x| x * 2));
     assert_eq!(result.run(), 84);
 }

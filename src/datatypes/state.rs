@@ -9,8 +9,6 @@
 //!
 //! ```rust
 //! use rustica::datatypes::state::State;
-//! use rustica::traits::functor::Functor;
-//! use rustica::traits::monad::Monad;
 //!
 //! // Create a counter that returns current value and increments state
 //! let counter = State::new(|count: i32| (count, count + 1));
@@ -111,30 +109,32 @@
 //! - **Parsing**: Building parsers that consume input and maintain parsing state
 //! - **Simulations**: Modeling step-by-step simulations with changing state
 //!
-//! ## Type Class Implementations
+//! ## Functional Programming Methods
 //!
-//! The State monad implements several important functional programming type classes:
+//! The State monad provides inherent methods that follow functional programming patterns:
 //!
-//! - **Functor**: State implements the Functor type class through its `fmap` method, which allows
-//!   transforming the values inside the State context while preserving the state transitions.
+//! - **Functor-like**: `fmap` allows transforming the values inside the State context while preserving the state transitions.
 //!   - Implementation: `fmap :: (A -> B) -> State<S, A> -> State<S, B>`
 //!
-//! - **Applicative**: State implements the Applicative type class through its `pure` and `apply` methods:
+//! - **Applicative-like**: State supports applicative operations through its `pure` and `apply` methods:
 //!   - `pure`: Creates a State that returns the provided value without modifying the state
 //!     - Implementation: `pure :: A -> State<S, A>`
 //!   - `apply`: Applies a function inside a State to a value inside another State
 //!     - Implementation: `apply :: State<S, (A -> B)> -> State<S, A> -> State<S, B>`
 //!
-//! - **Monad**: State implements the Monad type class through its `bind` method, enabling sequential
-//!   composition of stateful computations where each computation can depend on the result of the previous.
+//! - **Monad-like**: `bind` enables sequential composition of stateful computations where each computation can depend on the result of the previous.
 //!   - Implementation: `bind :: State<S, A> -> (A -> State<S, B>) -> State<S, B>`
 //!
-//! - **MonadState**: State implements the MonadState type class through the utility functions:
+//! - **State Operations**: Utility functions for state manipulation:
 //!   - `get`: Retrieves the current state without modification
 //!   - `put`: Replaces the current state and returns unit
 //!   - `modify`: Updates the state using a provided function
 //!
-//! ## Type Class Laws
+//! **Note**: These are inherent methods, not trait implementations. `State` does not implement
+//! the `Functor`, `Applicative`, or `Monad` traits, but provides equivalent functionality
+//! through its own methods optimized for stateful computations.
+//!
+//! ## Functional Programming Laws
 //!
 //! The `State` type implements the following type class laws. See the documentation for
 //! the specific functions (`fmap`, `bind`) for examples demonstrating these laws.
@@ -524,9 +524,8 @@ where
 
     /// Maps a function over the value produced by a state computation.
     ///
-    /// This method implements the `fmap` operation from the Functor typeclass in
-    /// functional programming. It transforms the value produced by a State computation
-    /// without affecting the state transitions.
+    /// This method transforms the value produced by a State computation
+    /// without affecting the state transitions, following the functor pattern.
     ///
     /// # Functional Programming Context
     ///
@@ -605,10 +604,8 @@ where
 
     /// Chains two state computations together.
     ///
-    /// This method implements the `bind` operation (also known as `flatMap` or `>>=`)
-    /// from the Monad typeclass in functional programming. It allows you to sequence
-    /// state computations where the second computation depends on the value produced
-    /// by the first.
+    /// This method sequences state computations where the second computation depends on the value produced
+    /// by the first, following the monadic bind pattern (also known as `flatMap` or `>>=`).
     ///
     /// # Functional Programming Context
     ///
@@ -720,8 +717,7 @@ where
     /// Lifts a value into the State monad.
     ///
     /// This method creates a State computation that returns the provided value
-    /// and leaves the state unchanged. This is the `pure` operation from the
-    /// Applicative typeclass in functional programming.
+    /// and leaves the state unchanged, following the pure value lifting pattern.
     ///
     /// # Functional Programming Context
     ///
@@ -771,9 +767,9 @@ where
 
     /// Applies a state computation containing a function to another state computation.
     ///
-    /// This method implements the `apply` operation from the Applicative typeclass in
-    /// functional programming. It allows you to apply a function wrapped in a State context
-    /// to a value wrapped in a State context, resulting in a new State computation.
+    /// This method applies a function wrapped in a State context
+    /// to a value wrapped in a State context, resulting in a new State computation,
+    /// following the applicative pattern.
     ///
     /// # Functional Programming Context
     ///

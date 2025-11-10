@@ -6,10 +6,6 @@
 
 Rustica is a comprehensive functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem. It provides a rich set of type classes, data types, and utilities commonly found in functional programming languages.
 
-## IMPORTANT PERFORMANCE NOTICE
-
-**This library prioritizes correctness and learning over performance. Current implementations have 20-100x overhead compared to direct Rust code, making them unsuitable for production performance-critical applications.**
-
 ## Overview
 
 Rustica enables idiomatic functional programming in Rust by providing:
@@ -17,7 +13,7 @@ Rustica enables idiomatic functional programming in Rust by providing:
 - **Type Classes**: Core abstractions like `Functor`, `Applicative`, and `Monad`
 - **Data Types**: Common functional data structures like `Maybe`, `Either`, `Choice`, and `IO`
 - **Monad Transformers**: Powerful composition with `StateT`, `ReaderT`, and more
-- **Composable APIs**: Tools for function composition and transformation
+- **Categorical Composition**: Category-theoretic function composition via Category and Arrow traits
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
 - **Error Handling**: Functional error handling utilities that work across different types
 
@@ -45,14 +41,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.10.0"
+rustica = "0.11.0"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.10.0", features = ["async"] }
+rustica = { version = "0.11.0", features = ["async"] }
 ```
 
 Persistent vector collections are now included by default in Rustica 0.10.0.
@@ -61,7 +57,7 @@ You can combine multiple features as needed:
 
 ```toml
 [dependencies]
-rustica = { version = "0.10.0", features = ["full"] }
+rustica = { version = "0.11.0", features = ["full"] }
 ```
 
 Then import the prelude to get started:
@@ -81,7 +77,6 @@ Rustica implements a wide range of type classes from category theory:
   - `Applicative` - For applying functions in a context
   - `Monad` - For sequential computations
   - `Pure` - For lifting values into a context
-  - `Identity` - For accessing values inside contexts
   - `Alternative` - For choice between computations
 
 - **Algebraic Structures**
@@ -126,7 +121,6 @@ Rustica provides a rich collection of functional data types:
 - **Transformers**
   - `StateT<S, M, A>` - State monad transformer for combining state with other effects
   - `ReaderT<E, M, A>` - Reader monad transformer for combining environment with other effects
-  - `WriterT<W, M, A>` - Writer monad transformer for combining logging with other effects
   - Bidirectional conversion between monads and their transformer versions
 
 - **Optics**
@@ -177,7 +171,7 @@ assert_eq!(v3.get(0), Some(&10));
 Rustica uses GitHub Actions for continuous integration, formatting, linting, and automated publishing to crates.io on tagged releases.
 
 - Tests and formatting are run on every push and pull request.
-- When a tag (e.g. `v0.10.0`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
+- When a tag (e.g. `v0.11.0`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
 
 ### Changelog
 
