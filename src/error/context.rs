@@ -364,10 +364,7 @@ impl<T, E> ErrorPipeline<T, E> {
         match self.result {
             Ok(v) => Ok(v),
             Err(e) => {
-                let mut composable = ComposableError::new(e);
-                if !self.pending_contexts.is_empty() {
-                    composable = composable.with_contexts(self.pending_contexts);
-                }
+                let composable = ComposableError::new(e).with_contexts(self.pending_contexts);
                 Err(Box::new(composable))
             },
         }
@@ -551,5 +548,5 @@ where
 /// assert_eq!(contexts[1], "context 1");
 /// ```
 pub fn extract_context<E>(error: &ComposableError<E>) -> Vec<String> {
-    error.context().to_vec()
+    error.context()
 }
