@@ -215,7 +215,7 @@ enum AsyncMInner<A> {
     /// A pure value with zero Arc overhead
     Pure(Arc<A>),
     /// A lazy computation
-    Lazy(Arc<dyn Fn() -> BoxFuture<'static, A> + Send + Sync + 'static>),
+    Effect(Arc<dyn Fn() -> BoxFuture<'static, A> + Send + Sync + 'static>),
 }
 
 /// The asynchronous monad, which represents a computation that will eventually produce a value.
@@ -499,7 +499,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         F: Future<Output = A> + Send + 'static,
     {
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || f().boxed())),
+            inner: AsyncMInner::Effect(Arc::new(move || f().boxed())),
             _phantom: PhantomData,
         }
     }
@@ -572,7 +572,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     {
         match &self.inner {
             AsyncMInner::Pure(value) => (**value).clone(),
-            AsyncMInner::Lazy(run) => run().await,
+            AsyncMInner::Effect(run) => run().await,
         }
     }
 
@@ -624,7 +624,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         if let AsyncMInner::Pure(value) = &self.inner {
             let value = Arc::clone(value);
             return AsyncM {
-                inner: AsyncMInner::Lazy(Arc::new(move || {
+                inner: AsyncMInner::Effect(Arc::new(move || {
                     let f = f.clone();
                     let value = Arc::clone(&value);
                     async move { f((*value).clone()).await }.boxed()
@@ -636,11 +636,11 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         // General path: Lazy → Lazy
         let inner = self.inner.clone();
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
                 let inner = inner.clone();
                 async move {
-                    let a = if let AsyncMInner::Lazy(run) = &inner {
+                    let a = if let AsyncMInner::Effect(run) = &inner {
                         run().await
                     } else {
                         unreachable!()
@@ -705,7 +705,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         if let AsyncMInner::Pure(value) = &self.inner {
             let value = Arc::clone(value);
             return AsyncM {
-                inner: AsyncMInner::Lazy(Arc::new(move || {
+                inner: AsyncMInner::Effect(Arc::new(move || {
                     let f = f.clone();
                     let value = Arc::clone(&value);
                     async move {
@@ -713,7 +713,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                         // Inline next monad execution
                         match &next.inner {
                             AsyncMInner::Pure(v) => (**v).clone(),
-                            AsyncMInner::Lazy(run) => run().await,
+                            AsyncMInner::Effect(run) => run().await,
                         }
                     }
                     .boxed()
@@ -725,11 +725,11 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         // General path: Lazy → Lazy
         let inner = self.inner.clone();
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
                 let inner = inner.clone();
                 async move {
-                    let a = if let AsyncMInner::Lazy(run) = &inner {
+                    let a = if let AsyncMInner::Effect(run) = &inner {
                         run().await
                     } else {
                         unreachable!()
@@ -737,7 +737,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                     let next = f(a).await;
                     match &next.inner {
                         AsyncMInner::Pure(v) => (**v).clone(),
-                        AsyncMInner::Lazy(run) => run().await,
+                        AsyncMInner::Effect(run) => run().await,
                     }
                 }
                 .boxed()
@@ -795,7 +795,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         let mf_inner = mf.inner.clone();
 
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let self_inner = self_inner.clone();
                 let mf_inner = mf_inner.clone();
 
@@ -805,13 +805,13 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                         async {
                             match &self_inner {
                                 AsyncMInner::Pure(v) => (**v).clone(),
-                                AsyncMInner::Lazy(run) => run().await,
+                                AsyncMInner::Effect(run) => run().await,
                             }
                         },
                         async {
                             match &mf_inner {
                                 AsyncMInner::Pure(f) => (**f).clone(),
-                                AsyncMInner::Lazy(run) => run().await,
+                                AsyncMInner::Effect(run) => run().await,
                             }
                         }
                     );
@@ -872,7 +872,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         let default_value = Arc::new(default_value);
 
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
                 let default_value = Arc::clone(&default_value);
 
@@ -926,14 +926,14 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         A: Clone,
     {
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
                 let inner = self.inner.clone();
 
                 async move {
                     let a = match &inner {
                         AsyncMInner::Pure(value) => (**value).clone(),
-                        AsyncMInner::Lazy(run) => run().await,
+                        AsyncMInner::Effect(run) => run().await,
                     };
                     f(a).await
                 }
@@ -984,19 +984,19 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         A: Clone,
     {
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
                 let inner = self.inner.clone();
 
                 async move {
                     let a = match &inner {
                         AsyncMInner::Pure(value) => (**value).clone(),
-                        AsyncMInner::Lazy(run) => run().await,
+                        AsyncMInner::Effect(run) => run().await,
                     };
                     let mb = f(a).await;
                     match &mb.inner {
                         AsyncMInner::Pure(value) => (**value).clone(),
-                        AsyncMInner::Lazy(run) => run().await,
+                        AsyncMInner::Effect(run) => run().await,
                     }
                 }
                 .boxed()
@@ -1043,7 +1043,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         A: Clone,
     {
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let self_inner = self.inner.clone();
                 let mf_inner = mf.inner.clone();
 
@@ -1052,13 +1052,13 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                     let a_fut = async {
                         match &self_inner {
                             AsyncMInner::Pure(v) => (**v).clone(),
-                            AsyncMInner::Lazy(run) => run().await,
+                            AsyncMInner::Effect(run) => run().await,
                         }
                     };
                     let f_fut = async {
                         match &mf_inner {
                             AsyncMInner::Pure(f) => (**f).clone(),
-                            AsyncMInner::Lazy(run) => run().await,
+                            AsyncMInner::Effect(run) => run().await,
                         }
                     };
                     let (a, f) = tokio::join!(a_fut, f_fut);
@@ -1120,7 +1120,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         }
 
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let self_inner = self.inner.clone();
                 let other_inner = other.inner.clone();
                 let f = f.clone();
@@ -1130,13 +1130,13 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                         async {
                             match &self_inner {
                                 AsyncMInner::Pure(v) => (**v).clone(),
-                                AsyncMInner::Lazy(run) => run().await,
+                                AsyncMInner::Effect(run) => run().await,
                             }
                         },
                         async {
                             match &other_inner {
                                 AsyncMInner::Pure(v) => (**v).clone(),
-                                AsyncMInner::Lazy(run) => run().await,
+                                AsyncMInner::Effect(run) => run().await,
                             }
                         }
                     );
@@ -1220,7 +1220,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         A: Send + Sync + Clone,
     {
         AsyncM {
-            inner: AsyncMInner::Lazy(Arc::new(move || {
+            inner: AsyncMInner::Effect(Arc::new(move || {
                 let inner = self.inner.clone();
                 let default = default.clone();
 
@@ -1229,7 +1229,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                     let result = panic::AssertUnwindSafe(async {
                         match &inner {
                             AsyncMInner::Pure(value) => (**value).clone(),
-                            AsyncMInner::Lazy(run) => run().await,
+                            AsyncMInner::Effect(run) => run().await,
                         }
                     })
                     .catch_unwind()
