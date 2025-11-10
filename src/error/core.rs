@@ -111,16 +111,16 @@ impl<E: Clone> ErrorCategory<E> for Result<(), E> {
 /// Either provides a more general two-possibility type without the
 /// semantic baggage of success/failure, making it suitable for
 /// representing alternative computations.
-impl<E> ErrorCategory<E> for Either<E, ()> {
+impl<E: Clone> ErrorCategory<E> for Either<E, ()> {
     type ErrorFunctor<T: Clone> = Either<E, T>;
 
     #[inline]
-    fn lift<T>(value: T) -> Either<E, T> {
+    fn lift<T: Clone>(value: T) -> Either<E, T> {
         Either::Right(value)
     }
 
     #[inline]
-    fn handle_error<T>(error: E) -> Either<E, T> {
+    fn handle_error<T: Clone>(error: E) -> Either<E, T> {
         Either::Left(error)
     }
 }
@@ -134,7 +134,7 @@ impl<E: Clone> ErrorCategory<E> for Validated<E, ()> {
     type ErrorFunctor<T: Clone> = Validated<E, T>;
 
     #[inline]
-    fn lift<T>(value: T) -> Validated<E, T> {
+    fn lift<T: Clone>(value: T) -> Validated<E, T> {
         Validated::Valid(value)
     }
 

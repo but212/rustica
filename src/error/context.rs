@@ -36,9 +36,9 @@ use std::fmt::Display;
 #[inline]
 pub fn with_context<E, C>(error: E, context: C) -> ComposableError<E>
 where
-    C: IntoErrorContext,
+    C: Into<String>,
 {
-    ComposableError::new(error).with_context(context.into_error_context().message().to_string())
+    ComposableError::new(error).with_context(context.into())
 }
 
 /// Adds context to a Result, converting errors to ComposableError.
@@ -81,32 +81,7 @@ where
 #[inline]
 pub fn with_context_result<T, E, C>(result: Result<T, E>, context: C) -> BoxedComposableResult<T, E>
 where
-    C: IntoErrorContext,
-{
-    result.map_err(|e| Box::new(with_context(e, context)))
-}
-
-/// Adds context to a Result, converting errors to boxed ComposableError.
-///
-/// This function is similar to `with_context_result` but returns a boxed
-/// ComposableError to avoid clippy warnings about large error types.
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The original error type
-/// * `C`: The context type (must implement IntoErrorContext)
-///
-/// # Arguments
-///
-/// * `result`: The Result to add context to
-/// * `context`: The context information to add
-#[inline]
-pub fn with_context_result_boxed<T, E, C>(
-    result: Result<T, E>, context: C,
-) -> BoxedComposableResult<T, E>
-where
-    C: IntoErrorContext,
+    C: Into<String>,
 {
     result.map_err(|e| Box::new(with_context(e, context)))
 }
@@ -141,7 +116,7 @@ where
 #[inline]
 pub fn context_fn<E, C>(context: C) -> impl Fn(E) -> ComposableError<E>
 where
-    C: IntoErrorContext + Clone,
+    C: Into<String> + Clone,
 {
     move |error| with_context(error, context.clone())
 }
@@ -218,10 +193,13 @@ impl<T, E> ErrorPipeline<T, E> {
     #[inline]
     pub fn with_context<C>(self, context: C) -> ErrorPipeline<T, ComposableError<E>>
     where
-        C: IntoErrorContext,
+        C: Into<String>,
     {
         ErrorPipeline {
-            result: self.result.map_err(|e| with_context(e, context)),
+            result: match self.result {
+                Ok(v) => Ok(v),
+                Err(e) => Err(ComposableError::new(e).with_context(context.into())),
+            },
         }
     }
 
@@ -553,5 +531,5 @@ where
 /// assert_eq!(contexts[1], "context 1");
 /// ```
 pub fn extract_context<E>(error: &ComposableError<E>) -> Vec<String> {
-    error.context() // context() now returns Vec<String> directly
+    error.context().to_vec()
 }
