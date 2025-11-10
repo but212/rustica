@@ -19,10 +19,10 @@
 //! - `context`: Error context management and accumulation
 //! - `pipeline`: Functional error handling pipelines
 
-pub mod context;
+pub mod context; // Error context management and accumulation
 pub mod convert; // Error type conversions
 pub mod core; // Extended WithError trait and ErrorCategory
-pub mod types; // ComposableError and error context structures // Error context management and accumulation
+pub mod types; // ComposableError and error context structures
 
 // Re-export commonly used items
 pub use context::{

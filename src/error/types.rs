@@ -339,6 +339,28 @@ impl<E: Display> Display for ComposableError<E> {
 
 impl<E: Debug + Display> std::error::Error for ComposableError<E> {}
 
+/// Implements `From<E>` for idiomatic error conversion.
+///
+/// This allows any error type `E` to be converted into a `ComposableError<E>`
+/// using the standard `into()` method, making error handling more ergonomic.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::error::ComposableError;
+///
+/// let simple_error = "file not found";
+/// let composable: ComposableError<&str> = simple_error.into();
+/// assert_eq!(composable.core_error(), &"file not found");
+/// assert!(composable.context().is_empty());
+/// ```
+impl<E> From<E> for ComposableError<E> {
+    #[inline]
+    fn from(error: E) -> Self {
+        Self::new(error)
+    }
+}
+
 /// A lightweight error context that can be attached to any error type.
 ///
 /// `ErrorContext` provides a minimal way to add contextual information

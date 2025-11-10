@@ -278,6 +278,14 @@ pub fn composable_to_core<E>(composable: ComposableError<E>) -> E {
 /// This wraps a simple error in a ComposableError structure, allowing
 /// for future context addition and error composition.
 ///
+/// # Note
+///
+/// For more idiomatic Rust code, consider using `.into()` instead:
+/// ```rust
+/// use rustica::error::ComposableError;
+/// let composable: ComposableError<_> = "error".into();
+/// ```
+///
 /// # Type Parameters
 ///
 /// * `E`: The core error type
@@ -299,7 +307,7 @@ pub fn composable_to_core<E>(composable: ComposableError<E>) -> E {
 /// ```
 #[inline]
 pub fn core_to_composable<E>(error: E) -> ComposableError<E> {
-    ComposableError::new(error)
+    error.into() // Use From trait for idiomatic conversion
 }
 
 /// Converts a `Result<T, ComposableError<E>>` to a `Result<T, E>`.

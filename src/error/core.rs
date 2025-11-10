@@ -267,7 +267,24 @@ impl<E: Clone, T: Clone> ErrorOps<E> for Either<E, T> {
 }
 
 /// Implementation of ErrorOps for Validated<E, T>
+///
+/// # Note on Error Accumulation
+///
+/// `Validated` is designed to accumulate multiple errors, but the `ErrorOps` trait
+/// requires conversion to single-error types (`Result`, `Either`). Therefore:
+///
+/// - `recover()`: Uses only the **first error** for recovery. Other accumulated errors are discarded.
+/// - `bimap_result()`: Converts to `Result<B, F>`, using only the **first error**.
+///
+/// If you need to preserve all accumulated errors, consider using:
+/// - `Validated::errors()` to access all errors before conversion
+/// - `split_validated_errors()` from the `convert` module to split into multiple Results
+/// - Direct pattern matching on `Validated::Invalid(errors)` to handle all errors
 impl<E: Clone, T: Clone> ErrorOps<E> for Validated<E, T> {
+    /// Applies a recovery function to the first error if this is invalid.
+    ///
+    /// **Important**: This only uses the **first error** from the accumulated errors.
+    /// Other errors are discarded. This is a lossy operation when multiple errors exist.
     #[inline]
     fn recover<F>(self, recovery: F) -> Self
     where
@@ -277,7 +294,7 @@ impl<E: Clone, T: Clone> ErrorOps<E> for Validated<E, T> {
             Validated::Valid(value) => Validated::Valid(value),
             Validated::Invalid(errors) => {
                 // For Validated, we recover from the first error
-                // This maintains the error accumulation semantics
+                // This is a lossy conversion when multiple errors are present
                 if let Some(first_error) = errors.into_iter().next() {
                     recovery(first_error)
                 } else {
@@ -288,6 +305,11 @@ impl<E: Clone, T: Clone> ErrorOps<E> for Validated<E, T> {
         }
     }
 
+    /// Maps over both success and error cases, converting to Result.
+    ///
+    /// **Important**: This only uses the **first error** from the accumulated errors.
+    /// This is a lossy conversion from `Validated` (which can hold multiple errors)
+    /// to `Result` (which can only hold one error).
     fn bimap_result<B, F, SuccessF, ErrorF>(
         self, success_f: SuccessF, error_f: ErrorF,
     ) -> Result<B, F>
@@ -299,6 +321,7 @@ impl<E: Clone, T: Clone> ErrorOps<E> for Validated<E, T> {
         match self {
             Validated::Valid(value) => Ok(success_f(value)),
             Validated::Invalid(errors) => {
+                // Convert to Result by taking the first error (lossy conversion)
                 let first_error = errors
                     .into_iter()
                     .next()
