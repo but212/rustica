@@ -920,7 +920,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     #[inline]
     pub fn fmap_owned<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
-        F: FnOnce(A) -> Fut + Clone + Send + Sync + 'static,
+        F: Fn(A) -> Fut + Clone + Send + Sync + 'static,
         Fut: Future<Output = B> + Send + 'static,
         B: Send + 'static,
         A: Clone,
@@ -978,7 +978,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     #[inline]
     pub fn bind_owned<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
-        F: FnOnce(A) -> Fut + Clone + Send + Sync + 'static,
+        F: Fn(A) -> Fut + Clone + Send + Sync + 'static,
         Fut: Future<Output = AsyncM<B>> + Send + 'static,
         B: Send + Sync + Clone + 'static,
         A: Clone,
@@ -1108,7 +1108,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     #[inline(always)]
     pub fn zip_with<B, C, F>(self, other: AsyncM<B>, f: F) -> AsyncM<C>
     where
-        F: FnOnce(A, B) -> C + Send + Sync + Clone + 'static,
+        F: Fn(A, B) -> C + Send + Sync + Clone + 'static,
         B: Send + Sync + Clone + 'static,
         C: Send + Sync + Clone + 'static,
         A: Clone,
