@@ -622,7 +622,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     ///     ()
     /// });
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn new<F>(f: F) -> Self
     where
         F: Fn() -> A + Send + Sync + 'static,
@@ -653,7 +653,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// assert_eq!(result, 499500);
     /// println!("Execution took: {:?}", duration);
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn run(&self) -> A {
         match self {
             IO::Pure(a) => a.clone(),
@@ -713,7 +713,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// let effect_io = IO::new(|| 42);
     /// assert!(!effect_io.is_pure());
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn is_pure(&self) -> bool {
         matches!(self, IO::Pure(_))
     }
@@ -734,7 +734,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// let effect_io = IO::new(|| 42);
     /// assert!(effect_io.is_effect());
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn is_effect(&self) -> bool {
         matches!(self, IO::Effect(_))
     }
@@ -817,7 +817,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     ///
     /// assert_eq!(io_string.run(), "The answer is 42");
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn fmap<B: Clone + 'static + Send + Sync>(
         &self, f: impl Fn(A) -> B + Send + Sync + 'static,
     ) -> IO<B> {
@@ -852,7 +852,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// let io_int = IO::pure(42);
     /// assert_eq!(io_int.run(), 42);
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn pure(value: A) -> Self {
         // Only clone if the IO is run multiple times
         IO::Pure(value)
@@ -886,7 +886,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// });
     /// assert_eq!(result.run(), 52);
     /// ```
-    #[inline]
+    #[inline(always)]
     pub fn bind<B: Send + Sync + Clone + 'static>(
         &self, f: impl Fn(A) -> IO<B> + Send + Sync + 'static,
     ) -> IO<B> {
@@ -1225,44 +1225,102 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         }
     }
 
-    /// Applies a function that returns an IO to this IO operation.
+    /// Applies a wrapped function to this IO operation.
     ///
-    /// This is similar to `bind` but with a different signature to support
-    /// the `Applicative` pattern in certain contexts.
+    /// This is the `apply` operation for the `Applicative` type class, allowing
+    /// application of a function wrapped in `IO` to a value wrapped in `IO`.
+    /// This implements the correct Applicative pattern: `IO<A>.apply(IO<Fn(A) -> B>) -> IO<B>`.
+    ///
+    /// **Performance optimization**: Pure+Pure combinations are executed immediately
+    /// without creating additional closures, similar to AsyncM optimizations.
     ///
     /// # Arguments
     ///
-    /// * `mf` - A function that takes the result of this operation and returns a new IO operation
+    /// * `mf` - An IO operation that produces a function from `A` to `B`
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B` - The type of the result after applying the function
+    /// * `F` - The type of the function contained in the IO
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::io::IO;
     ///
-    /// // Basic apply usage
-    /// let io_value: IO<i32> = IO::pure(10);
-    /// let result_basic = io_value.apply(|x: i32| IO::pure(x * 3));
-    /// assert_eq!(result_basic.run(), 30);
+    /// // Basic apply usage with Pure values (ultra-fast path)
+    /// let io_value = IO::pure(10);
+    /// let io_func = IO::pure(|x: i32| x * 2);
+    /// let result = io_value.apply(io_func);
+    /// assert_eq!(result.run(), 20);
+    ///
+    /// // Apply with effectful function
+    /// let io_value = IO::pure(5);
+    /// let io_func = IO::new(|| {
+    ///     let multiplier = 3;
+    ///     move |x: i32| x * multiplier
+    /// });
+    /// let result = io_value.apply(io_func);
+    /// assert_eq!(result.run(), 15);
     ///
     /// // Chaining apply operations
-    /// let complex_result = IO::pure(5)
-    ///     .apply(|x: i32| IO::new(move || {
-    ///         // println!("Processing: {}", x); // Avoid println in doctests unless verifying output
-    ///         x + 10
-    ///     }))
-    ///     .apply(|x: i32| IO::pure(x * 2));
-    /// assert_eq!(complex_result.run(), 30);
-    ///
-    /// // Error propagation with apply
-    /// let io_fail: IO<i32> = IO::new(|| panic!("failed"));
-    /// let result_fail = io_fail.apply(|x: i32| IO::pure(x + 1));
-    /// assert!(result_fail.try_get().is_err());
+    /// let result = IO::pure(10)
+    ///     .apply(IO::pure(|x: i32| x + 5))
+    ///     .apply(IO::pure(|x: i32| x * 2));
+    /// assert_eq!(result.run(), 30); // (10 + 5) * 2
     /// ```
-    #[inline]
-    pub fn apply<B: Send + Sync + Clone + 'static>(
-        &self, mf: impl Fn(A) -> IO<B> + Send + Sync + 'static,
-    ) -> IO<B> {
-        self.bind(mf)
+    ///
+    /// # Applicative Laws
+    ///
+    /// This implementation satisfies the Applicative laws:
+    ///
+    /// ```rust
+    /// # use rustica::datatypes::io::IO;
+    /// // Identity: pure(id) <*> v = v
+    /// let v = IO::pure(42);
+    /// let id_func = IO::pure(|x: i32| x);
+    /// assert_eq!(v.clone().apply(id_func).run(), v.run());
+    ///
+    /// // Homomorphism: pure(f) <*> pure(x) = pure(f(x))
+    /// let f = |x: i32| x * 2;
+    /// let x = 21;
+    /// let left = IO::pure(x).apply(IO::pure(f));
+    /// let right = IO::pure(f(x));
+    /// assert_eq!(left.run(), right.run());
+    /// ```
+    #[inline(always)]
+    pub fn apply<B, F>(&self, mf: IO<F>) -> IO<B>
+    where
+        B: Send + Sync + Clone + 'static,
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
+    {
+        // Ultra-fast path: Pure + Pure → Pure
+        // Inspired by AsyncM optimization - avoid any Arc overhead
+        if let (IO::Pure(v), IO::Pure(f)) = (self, &mf) {
+            return IO::Pure(f(v.clone()));
+        }
+
+        // Fast path optimizations for mixed cases
+        match (self, mf) {
+            // Pure value + Effect function
+            (IO::Pure(a), IO::Effect(mf)) => {
+                let a = a.clone();
+                IO::Effect(Arc::new(move || mf()(a.clone())))
+            },
+            // Effect value + Pure function
+            (IO::Effect(ma), IO::Pure(f)) => {
+                let ma = Arc::clone(ma);
+                let f = f.clone();
+                IO::Effect(Arc::new(move || f(ma())))
+            },
+            // Effect value + Effect function
+            (IO::Effect(ma), IO::Effect(mf)) => {
+                let ma = Arc::clone(ma);
+                IO::Effect(Arc::new(move || mf()(ma())))
+            },
+            // Pure + Pure case already handled above
+            _ => unreachable!("All IO enum cases covered"),
+        }
     }
 
     /// Creates an IO operation that completes after a specified duration.

@@ -53,6 +53,14 @@
     - `chain_allocation/5`: **-22%** (2.17µs → 1.29µs) - Short pure chains
   - Optimized methods: `fmap`, `bind`, `apply`, `zip_with` with specialized paths
   - Eliminated redundant pattern matching in Lazy-only execution paths
+- **`IO` Changes**
+  - **Breaking Change**: Fixed `apply` method to follow correct Applicative pattern: `IO<A>.apply(IO<Fn(A) -> B>) -> IO<B>`
+  - Previously incorrect: `IO<A>.apply(Fn(A) -> IO<B>)` (was just an alias for `bind`)
+  - Implemented **Pure+Pure Ultra-Fast Path** optimization inspired by AsyncM
+  - Applied aggressive inlining (`#[inline(always)]`) to all hot path methods
+  - Added specialized fast paths for mixed Pure/Effect combinations
+  - Optimized methods: `new`, `run`, `pure`, `fmap`, `bind`, `apply`, `is_pure`, `is_effect`
+  - Added comprehensive benchmarks for Pure vs Effect performance comparison
 
 ## [0.10.1]
 
