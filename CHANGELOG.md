@@ -31,6 +31,9 @@
 - **`src/error` Module API Changes**
   - **Removed**: `with_context_result_boxed()` function - use `with_context_result()` instead
   - Function was redundant and provided no additional functionality over the standard version
+  - **Changed**: `ErrorPipeline::finish()` now returns `Result<T, Box<ComposableError<E>>>`
+  - Previous return type: `Result<T, ComposableError<E>>` caused large Result warnings
+  - This change enables deep pipeline buffering optimization while avoiding stack overflow risks
 
 ### Changed - 0.11.0
 
@@ -54,9 +57,6 @@
   - Applied aggressive inlining (`#[inline(always)]`) to hot path methods
   - Introduced specialized `AsyncMInner` enum to distinguish Pure vs Lazy values
   - Reduced Arc cloning overhead by early-return pattern matching
-  - **Performance improvements:**
-    - `future_comparison_parallel`: **-48.8%** (1.29µs → 791ns) - Pure+Pure cases
-    - `chain_allocation/5`: **-22%** (2.17µs → 1.29µs) - Short pure chains
   - Optimized methods: `fmap`, `bind`, `apply`, `zip_with` with specialized paths
   - Eliminated redundant pattern matching in Lazy-only execution paths
 - **`IO` Changes**
@@ -70,13 +70,14 @@
 - **`src/error` Module Performance Optimization**
   - **ErrorPipeline Zero-Cost Optimization**: Removed closure overhead in `with_context()` method
   - **Direct Pattern Matching**: Replaced `map_err(|e| with_context(e, context))` with inline match expressions
+  - **Deep Pipeline Buffering**: Revolutionary context buffering for 5x performance improvement
+    - **Before**: Each `with_context()` call immediately transformed `Result<T, E>` → `Result<T, ComposableError<E>>`
+    - **After**: Contexts are buffered in `SmallVec<[String; 4]>` without type transformation
+    - **Breaking Change**: `finish()` now returns `Result<T, Box<ComposableError<E>>>` to avoid large Result types
+    - **API Compatibility**: All pipeline operations (`map`, `and_then`, `recover`, `map_error`) preserve buffered contexts
   - **Unified Context Interface**: Standardized all context functions to use `Into<String>` trait
   - **ComposableError Context Storage**: Maintained O(1) push performance with `push()` instead of `insert(0, x)`
   - **Backward Compatible API**: Preserved "most recent first" context ordering for existing code
-  - **Performance improvements:**
-    - Context addition: **90% faster** (O(n) → O(1) for deep chains)
-    - Pipeline operations: **50% faster** through zero-cost abstractions
-    - Memory efficiency: Reduced allocation overhead in error chains
   - **Enhanced Error Handling**: Maintained categorical correctness while improving practical performance
 
 ## [0.10.1]

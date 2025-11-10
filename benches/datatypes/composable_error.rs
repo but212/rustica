@@ -122,7 +122,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
                 .with_context("step 7 failed".to_string())
                 .with_context("step 8 failed".to_string())
                 .with_context("step 9 failed".to_string())
-                .map_error(|e| format!("Error: {}", e.error_chain()))
+                .map_error(|e| format!("Error: {}", e))
                 .recover(|_| Ok(100))
                 .finish();
 

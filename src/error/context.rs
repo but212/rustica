@@ -5,6 +5,7 @@
 //! error transformation chains, and composable error handling patterns.
 
 use crate::error::types::{BoxedComposableResult, ComposableError, IntoErrorContext};
+use smallvec::SmallVec;
 use std::fmt::Display;
 
 /// Adds context to any error type, creating a ComposableError.
@@ -142,7 +143,7 @@ where
 ///
 /// let processed = ErrorPipeline::new(result)
 ///     .with_context("Failed to process input")
-///     .map_error(|e| format!("Error: {}", e.core_error()))
+///     .map_error(|e| format!("Error: {}", e))
 ///     .recover(|_| Ok(42))
 ///     .finish();
 ///
@@ -150,6 +151,7 @@ where
 /// ```
 pub struct ErrorPipeline<T, E> {
     result: Result<T, E>,
+    pending_contexts: SmallVec<[String; 4]>,
 }
 
 impl<T, E> ErrorPipeline<T, E> {
@@ -169,13 +171,17 @@ impl<T, E> ErrorPipeline<T, E> {
     /// ```
     #[inline]
     pub fn new(result: Result<T, E>) -> Self {
-        Self { result }
+        Self {
+            result,
+            pending_contexts: SmallVec::new(),
+        }
     }
 
     /// Adds context to errors in the pipeline.
     ///
-    /// This transforms the error type to `ComposableError<E>` and adds
-    /// the specified context information.
+    /// This buffers the context without transforming the error type,
+    /// enabling efficient deep pipeline operations. Contexts are only
+    /// applied when the pipeline is finished.
     ///
     /// # Arguments
     ///
@@ -188,19 +194,16 @@ impl<T, E> ErrorPipeline<T, E> {
     ///
     /// let result: Result<i32, &str> = Err("failed");
     /// let pipeline = ErrorPipeline::new(result)
-    ///     .with_context("Operation failed");
+    ///     .with_context("Operation failed")
+    ///     .with_context("Database error");
     /// ```
     #[inline]
-    pub fn with_context<C>(self, context: C) -> ErrorPipeline<T, ComposableError<E>>
+    pub fn with_context<C>(mut self, context: C) -> Self
     where
         C: Into<String>,
     {
-        ErrorPipeline {
-            result: match self.result {
-                Ok(v) => Ok(v),
-                Err(e) => Err(ComposableError::new(e).with_context(context.into())),
-            },
-        }
+        self.pending_contexts.push(context.into());
+        self
     }
 
     /// Maps the error type to a new type.
@@ -233,6 +236,7 @@ impl<T, E> ErrorPipeline<T, E> {
     {
         ErrorPipeline {
             result: self.result.map_err(f),
+            pending_contexts: self.pending_contexts,
         }
     }
 
@@ -265,6 +269,7 @@ impl<T, E> ErrorPipeline<T, E> {
     {
         ErrorPipeline {
             result: self.result.or_else(recovery),
+            pending_contexts: self.pending_contexts,
         }
     }
 
@@ -298,6 +303,7 @@ impl<T, E> ErrorPipeline<T, E> {
     {
         ErrorPipeline {
             result: self.result.and_then(f),
+            pending_contexts: self.pending_contexts,
         }
     }
 
@@ -331,10 +337,14 @@ impl<T, E> ErrorPipeline<T, E> {
     {
         ErrorPipeline {
             result: self.result.map(f),
+            pending_contexts: self.pending_contexts,
         }
     }
 
-    /// Finishes the pipeline and returns the final Result.
+    /// Finishes the pipeline and returns the final result with applied contexts.
+    ///
+    /// This is the terminal operation of the pipeline that applies
+    /// all buffered contexts to any error and returns the final Result.
     ///
     /// # Examples
     ///
@@ -344,13 +354,23 @@ impl<T, E> ErrorPipeline<T, E> {
     /// let result: Result<i32, &str> = Ok(42);
     /// let final_result = ErrorPipeline::new(result)
     ///     .map(|x| x * 2)
+    ///     .with_context("Processing data")
     ///     .finish();
     ///
     /// assert_eq!(final_result, Ok(84));
     /// ```
     #[inline]
-    pub fn finish(self) -> Result<T, E> {
-        self.result
+    pub fn finish(self) -> BoxedComposableResult<T, E> {
+        match self.result {
+            Ok(v) => Ok(v),
+            Err(e) => {
+                let mut composable = ComposableError::new(e);
+                if !self.pending_contexts.is_empty() {
+                    composable = composable.with_contexts(self.pending_contexts);
+                }
+                Err(Box::new(composable))
+            },
+        }
     }
 }
 
