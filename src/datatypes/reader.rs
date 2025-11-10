@@ -10,8 +10,6 @@
 //!
 //! ```rust
 //! use rustica::datatypes::reader::Reader;
-//! use rustica::traits::functor::Functor;
-//! use rustica::traits::monad::Monad;
 //!
 //! // Configuration type
 //! #[derive(Clone)]
@@ -66,27 +64,28 @@
 //! every function call. This creates cleaner, more composable code, particularly when
 //! dealing with deeply nested function calls that all need access to some shared data.
 //!
-//! ## Type Class Implementations
+//! ## Functional Programming Methods
 //!
-//! The Reader monad implements several important functional programming type classes:
+//! The Reader monad provides inherent methods that follow functional programming patterns:
 //!
-//! - **Functor**: Reader implements the Functor type class through its `fmap` method,
-//!   which transforms the result value of a Reader while preserving the environment.
+//! - **Functor-like**: `fmap` transforms the result value of a Reader while preserving the environment.
 //!   - Implementation: `fmap :: (A -> B) -> Reader<E, A> -> Reader<E, B>`
 //!
-//! - **Applicative**: While not explicitly implemented with this name, Reader supports
-//!   applicative operations through its `pure` and `apply`/`lift` functions.
+//! - **Applicative-like**: Reader supports applicative operations through its `pure` and `apply` methods.
 //!   - `pure`: Creates a Reader that ignores the environment and returns a constant value
 //!     - Implementation: `pure :: A -> Reader<E, A>`
 //!   
 //!   - `apply`: Applies a function from one Reader to a value from another Reader
 //!     - Implementation: `apply :: Reader<E, A -> B> -> Reader<E, A> -> Reader<E, B>`
 //!
-//! - **Monad**: Reader implements the Monad type class through its `bind` method, which
-//!   allows chaining operations that depend on both the environment and previous results.
+//! - **Monad-like**: `bind` allows chaining operations that depend on both the environment and previous results.
 //!   - Implementation: `bind :: Reader<E, A> -> (A -> Reader<E, B>) -> Reader<E, B>`
 //!
-//! ## Type Class Laws
+//! **Note**: These are inherent methods, not trait implementations. `Reader` does not implement
+//! the `Functor`, `Applicative`, or `Monad` traits, but provides equivalent functionality
+//! through its own methods optimized for environment-based computations.
+//!
+//! ## Functional Programming Laws
 //!
 //! ### Functor Laws
 //!
@@ -281,7 +280,7 @@ where
         id_value.into_inner()
     }
 
-    /// Maps a function over the value produced by this Reader, implementing the Functor typeclass.
+    /// Maps a function over the value produced by this Reader.
     /// This allows transforming the output of a Reader without affecting its environment dependency.
     ///
     /// # Parameters
@@ -320,8 +319,8 @@ where
     }
 
     /// Sequences two Reader computations, passing the result of the first to the second.
-    /// This is the core method that implements the Monad typeclass, allowing for chained
-    /// operations where each operation can depend on the result of the previous one.
+    /// This is the core method that enables chained operations where each operation can depend
+    /// on the result of the previous one, following the monadic bind pattern.
     ///
     /// # Parameters
     ///

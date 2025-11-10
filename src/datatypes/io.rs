@@ -10,8 +10,6 @@
 //!
 //! ```rust
 //! use rustica::datatypes::io::IO;
-//! use rustica::traits::functor::Functor;
-//! use rustica::traits::monad::Monad;
 //!
 //! // Create pure IO values
 //! let io_value = IO::pure(42);
@@ -85,18 +83,22 @@
 //! - `IO` in fp-ts (TypeScript)
 //! - `IO` in Arrow (Kotlin)
 //!
-//! ## Type Class Implementations
+//! ## Functional Programming Methods
 //!
-//! The `IO` type implements several important functional programming abstractions:
+//! The `IO` type provides inherent methods that follow functional programming patterns:
 //!
-//! - `Functor`: Allows mapping functions over the result of an IO operation
-//! - `Applicative`: Enables applying functions wrapped in `IO` to values wrapped in `IO`
-//! - `Monad`: Provides sequencing of IO operations where each operation can depend on the result of previous ones
+//! - **Functor-like**: `fmap` allows mapping functions over the result of an IO operation
+//! - **Applicative-like**: `apply` enables applying functions wrapped in `IO` to values wrapped in `IO`
+//! - **Monad-like**: `bind` provides sequencing of IO operations where each operation can depend on the result of previous ones
 //!
-//! ## Type Class Laws
+//! **Note**: These are inherent methods, not trait implementations. `IO` does not implement
+//! the `Functor`, `Applicative`, or `Monad` traits, but provides equivalent functionality
+//! through its own methods.
 //!
-//! The `IO` type implements the following type class laws. See the documentation for
-//! the specific functions (`fmap`, `apply`, `bind`) for examples demonstrating these laws.
+//! ## Functional Programming Laws
+//!
+//! The `IO` type's methods satisfy the following laws. See the documentation for
+//! the specific methods (`fmap`, `apply`, `bind`) for examples demonstrating these laws.
 //!
 //! ### Functor Laws
 //!
@@ -796,10 +798,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
 
     /// Maps a function over the result of this IO operation.
     ///
-    /// This is the `fmap` operation for the `Functor` type class, allowing
-    /// transformation of the value inside the `IO` context without executing
+    /// This operation allows transformation of the value inside the `IO` context without executing
     /// the IO operation. It enables function application to the eventual result
-    /// of an IO computation while preserving the IO context.
+    /// of an IO computation while preserving the IO context, following the functor pattern.
     ///
     /// # Arguments
     ///
@@ -832,10 +833,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
 
     /// Creates a pure IO operation that just returns the given value.
     ///
-    /// This is the `pure` operation for the `Applicative` type class, lifting
-    /// a pure value into the `IO` context without performing any side effects.
-    /// This is a fundamental operation that serves as the basis for introducing
-    /// values into the IO monadic context.
+    /// This is a fundamental operation that lifts a pure value into the `IO` context
+    /// without performing any side effects. It serves as the basis for introducing
+    /// values into the IO context.
     ///
     /// # Arguments
     ///
@@ -860,10 +860,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
 
     /// Chains this IO operation with another IO operation.
     ///
-    /// This is the `bind` operation for the `Monad` type class, allowing
-    /// sequencing of IO operations where each operation can depend on
-    /// the result of the previous one. This is a fundamental operation that
-    /// enables composing complex IO workflows where each step depends on the
+    /// This is a fundamental sequencing operation that allows
+    /// IO operations to depend on the results of previous operations.
+    /// It enables composing complex IO workflows where each step depends on the
     /// result of previous steps.
     ///
     /// # Arguments
@@ -1227,9 +1226,8 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
 
     /// Applies a wrapped function to this IO operation.
     ///
-    /// This is the `apply` operation for the `Applicative` type class, allowing
-    /// application of a function wrapped in `IO` to a value wrapped in `IO`.
-    /// This implements the correct Applicative pattern: `IO<A>.apply(IO<Fn(A) -> B>) -> IO<B>`.
+    /// This operation allows application of a function wrapped in `IO` to a value wrapped in `IO`,
+    /// following the applicative pattern: `IO<A>.apply(IO<Fn(A) -> B>) -> IO<B>`.
     ///
     /// **Performance optimization**: Pure+Pure combinations are executed immediately
     /// without creating additional closures, similar to AsyncM optimizations.
@@ -1270,9 +1268,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// assert_eq!(result.run(), 30); // (10 + 5) * 2
     /// ```
     ///
-    /// # Applicative Laws
+    /// # Functional Programming Laws
     ///
-    /// This implementation satisfies the Applicative laws:
+    /// This method satisfies the applicative functor laws:
     ///
     /// ```rust
     /// # use rustica::datatypes::io::IO;

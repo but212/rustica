@@ -48,13 +48,17 @@
 //! - `Task` in fp-ts (TypeScript)
 //! - `IO` in Haskell libraries like `async`
 //!
-//! ## Type Class Implementations
+//! ## Functional Programming Methods
 //!
-//! The `AsyncM` type implements several important functional programming abstractions:
+//! The `AsyncM` type provides inherent methods that follow functional programming patterns:
 //!
-//! - `Functor`: Allows mapping functions over the eventual result
-//! - `Applicative`: Enables applying functions wrapped in `AsyncM` to values wrapped in `AsyncM`
-//! - `Monad`: Provides sequencing of asynchronous operations
+//! - **Functor-like**: `fmap` allows mapping functions over the eventual result
+//! - **Applicative-like**: `apply` enables applying functions wrapped in `AsyncM` to values wrapped in `AsyncM`
+//! - **Monad-like**: `bind` provides sequencing of asynchronous operations
+//!
+//! **Note**: These are inherent methods, not trait implementations. `AsyncM` does not implement
+//! the `Functor`, `Applicative`, or `Monad` traits, but provides equivalent functionality
+//! through its own methods optimized for async operations
 //!
 //! ## Basic Usage
 //!
@@ -506,8 +510,8 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
 
     /// Creates a pure async computation that just returns the given value.
     ///
-    /// This is the `pure` operation for the `Applicative` type class, lifting
-    /// a pure value into the `AsyncM` context.
+    /// This operation lifts a pure value into the `AsyncM` context without any
+    /// asynchronous computation, following the pure value lifting pattern.
     ///
     /// # Arguments
     ///
@@ -578,8 +582,8 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
 
     /// Maps a function over the result of this async computation.
     ///
-    /// This is the `fmap` operation for the `Functor` type class, allowing
-    /// transformation of the value inside the `AsyncM` context.
+    /// This operation allows transformation of the value inside the `AsyncM` context
+    /// while preserving the asynchronous computation structure.
     ///
     /// # Arguments
     ///
@@ -655,9 +659,8 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
 
     /// Chains this computation with another async computation.
     ///
-    /// This is the `bind` operation for the `Monad` type class, allowing
-    /// sequencing of async operations where each operation can depend on
-    /// the result of the previous one.
+    /// This is a fundamental sequencing operation that allows
+    /// async operations to depend on the results of previous operations.
     ///
     /// # Arguments
     ///
@@ -748,8 +751,8 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
 
     /// Applies a wrapped function to this async computation.
     ///
-    /// This is the `apply` operation for the `Applicative` type class, allowing
-    /// application of a function wrapped in `AsyncM` to a value wrapped in `AsyncM`.
+    /// This operation allows application of a function wrapped in `AsyncM` to a value wrapped in `AsyncM`,
+    /// following the applicative pattern.
     ///
     /// # Arguments
     ///
