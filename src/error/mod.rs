@@ -28,7 +28,6 @@ pub mod types; // ComposableError and error context structures // Error context 
 pub use context::{
     ErrorPipeline, accumulate_context, context_accumulator, context_fn, error_pipeline,
     extract_context, format_error_chain, with_context, with_context_result,
-    with_context_result_boxed,
 };
 pub use convert::{
     collect_errors, composable_to_core, core_to_composable, either_to_result, either_to_validated,

@@ -188,6 +188,25 @@ impl<E> ComposableError<E> {
         self.context.iter().rev().cloned().collect()
     }
 
+    /// Returns an iterator over the context entries, most recent first.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::error::ComposableError;
+    ///
+    /// let error = ComposableError::new("Error")
+    ///     .with_context("First".to_string())
+    ///     .with_context("Second".to_string());
+    ///
+    /// let contexts: Vec<&String> = error.context_iter().collect();
+    /// assert_eq!(contexts, vec![&"Second".to_string(), &"First".to_string()]);
+    /// ```
+    #[inline]
+    pub fn context_iter(&self) -> std::iter::Rev<std::slice::Iter<'_, String>> {
+        self.context.iter().rev()
+    }
+
     /// Returns the error code if present.
     ///
     /// # Examples
@@ -262,25 +281,6 @@ impl<E> ComposableError<E> {
             context: self.context,
             error_code: self.error_code,
         }
-    }
-
-    /// Returns an iterator over the context entries, most recent first.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ComposableError;
-    ///
-    /// let error = ComposableError::new("Error")
-    ///     .with_context("First".to_string())
-    ///     .with_context("Second".to_string());
-    ///
-    /// let contexts: Vec<&String> = error.context_iter().collect();
-    /// assert_eq!(contexts, vec![&"Second".to_string(), &"First".to_string()]);
-    /// ```
-    #[inline]
-    pub fn context_iter(&self) -> std::iter::Rev<std::slice::Iter<'_, String>> {
-        self.context.iter().rev()
     }
 
     /// Returns the full error chain as a formatted string.

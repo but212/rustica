@@ -369,7 +369,7 @@ pub fn wrap_in_composable_result<T, E>(result: Result<T, E>) -> Result<T, Compos
     result.map_err(core_to_composable)
 }
 
-/// Converts a `Result<T, E>` to a `Result<T, Box<ComposableError<E>>>`.
+/// Converts a `Result<T, E>` to a `BoxedComposableResult<T, E>`.
 ///
 /// This is similar to `wrap_in_composable_result` but returns a boxed
 /// ComposableError to avoid clippy warnings about large error types.
