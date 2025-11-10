@@ -103,7 +103,56 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("structural_sharing", |b| {
+    // Comparison with std::Vec
+    let size = 10000;
+    let access_count = 1000;
+
+    // PersistentVector access
+    group.bench_function("pvec_access", |b| {
+        let vec = (0..size).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        b.iter(|| {
+            for i in 0..access_count {
+                let idx = (i * 17) % size;
+                black_box(vec.get(black_box(idx)));
+            }
+        });
+    });
+
+    // std::Vec access
+    group.bench_function("std_vec_access", |b| {
+        let vec: Vec<usize> = (0..size).collect();
+        b.iter(|| {
+            for i in 0..access_count {
+                let idx = (i * 17) % size;
+                black_box(vec.get(black_box(idx)));
+            }
+        });
+    });
+
+    // PersistentVector build
+    group.bench_function("pvec_build", |b| {
+        b.iter(|| {
+            let mut vec = PersistentVector::new();
+            for i in 0..size {
+                vec = vec.push_back(black_box(i));
+            }
+            black_box(vec)
+        });
+    });
+
+    // std::Vec build
+    group.bench_function("std_vec_build", |b| {
+        b.iter(|| {
+            let mut vec = Vec::new();
+            for i in 0..size {
+                vec.push(black_box(i));
+            }
+            black_box(vec)
+        });
+    });
+
+    // PersistentVector structural sharing vs std::Vec copying
+    group.bench_function("pvec_sharing", |b| {
         let base = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
         b.iter(|| {
             let mut versions = Vec::new();
@@ -115,27 +164,16 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Comparison with std::Vec
-    let size = 10000;
-    let access_count = 1000;
-
-    group.bench_function("vs_std_vec_access", |b| {
-        let vec = (0..size).fold(PersistentVector::new(), |v, i| v.push_back(i));
+    group.bench_function("std_vec_copying", |b| {
+        let base: Vec<usize> = (0..1000).collect();
         b.iter(|| {
-            for i in 0..access_count {
-                let idx = (i * 17) % size;
-                black_box(vec.get(black_box(idx)));
+            let mut versions = Vec::new();
+            for i in 0..10 {
+                let mut copy = base.clone();
+                copy[i * 100] = i * 1000;
+                versions.push(copy);
             }
-        });
-    });
-
-    group.bench_function("vs_std_vec_build", |b| {
-        b.iter(|| {
-            let mut vec = PersistentVector::new();
-            for i in 0..size {
-                vec = vec.push_back(black_box(i));
-            }
-            black_box(vec)
+            black_box(versions)
         });
     });
 
