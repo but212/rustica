@@ -1,10 +1,83 @@
 use smallvec::{SmallVec, smallvec};
 
+type ErrorVec<E> = SmallVec<[E; 8]>;
+
+struct ErrorAccumulator<E> {
+    buffer: ErrorVec<E>,
+}
+
+impl<E> ErrorAccumulator<E> {
+    #[inline]
+    fn new() -> Self {
+        Self {
+            buffer: ErrorVec::new(),
+        }
+    }
+
+    #[inline]
+    fn with_capacity(capacity: usize) -> Self {
+        Self {
+            buffer: ErrorVec::with_capacity(capacity),
+        }
+    }
+
+    #[inline]
+    fn into_inner(self) -> ErrorVec<E> {
+        self.buffer
+    }
+
+    #[inline]
+    fn extend_owned(&mut self, mut errors: ErrorVec<E>) {
+        self.buffer.extend(errors.drain(..));
+    }
+}
+
+impl<E: Clone> ErrorAccumulator<E> {
+    #[inline]
+    fn extend_cloned(&mut self, errors: &ErrorVec<E>) {
+        if errors.is_empty() {
+            return;
+        }
+        self.buffer.reserve(errors.len());
+        self.buffer.extend(errors.iter().cloned());
+    }
+}
+
 /// A validation type that can accumulate multiple errors.
 ///
 /// Validated<E, A> represents either a valid value of type A or a collection of
 /// errors of type E. Unlike Result, which fails fast on the first error,
 /// Validated can collect multiple errors during validation.
+///
+/// # Performance: Owned vs Borrowed API
+///
+/// This type provides both borrowed and owned variants of key methods to enable
+/// zero-copy optimizations when ownership is available:
+///
+/// ## Borrowed Methods (Reference-based)
+/// - `combine_errors(&self, other: &Self)` - Takes references, clones errors
+/// - `sequence(&[&Validated<E, A>], fn)` - Works with references, clones errors
+/// - `collect<I>(iter: I)` - Takes iterator, may clone depending on context
+///
+/// ## Owned Methods (Ownership-taking)
+/// - `combine_errors_owned(self, other: Self)` - Takes ownership, moves errors
+/// - `sequence_owned(Vec<Self>, fn)` - Takes owned values, moves errors
+/// - `collect_owned<I>(iter: I)` - Takes owned iterator, moves errors
+///
+/// **Use owned methods when:** You can consume the `Validated` instances and want
+/// maximum performance by avoiding error cloning.
+///
+/// **Use borrowed methods when:** You need to preserve the original instances
+/// or are working with references.
+///
+/// # Zero-Copy Error Access
+///
+/// For read-only access to errors without cloning:
+/// - `error_slice()` - Returns `&[E]` slice view
+/// - `iter_errors()` - Returns iterator over error references
+///
+/// For mutable access to the internal error buffer:
+/// - `error_buffer_mut()` - Returns `Option<&mut SmallVec<[E; 8]>>`
 ///
 /// # Type Parameter Constraints
 ///
@@ -110,6 +183,9 @@ impl<E, A> Validated<E, A> {
 
     /// Returns all errors if this is invalid, or an empty collection if valid.
     ///
+    /// This method clones the underlying errors into an owned `Vec`. For zero-copy
+    /// views, prefer [`error_slice`](#method.error_slice) or [`error_payload`](#method.error_payload).
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -132,6 +208,54 @@ impl<E, A> Validated<E, A> {
         self.iter_errors().cloned().collect()
     }
 
+    /// Returns a slice view over the accumulated errors without cloning.
+    ///
+    /// When this `Validated` is `Valid`, an empty slice is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert_eq!(invalid.error_slice(), &["error"]);
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(1);
+    /// assert!(valid.error_slice().is_empty());
+    /// ```
+    #[inline]
+    pub fn error_slice(&self) -> &[E] {
+        match self {
+            Validated::Valid(_) => &[],
+            Validated::Invalid(es) => es.as_slice(),
+        }
+    }
+
+    /// Returns a mutable reference to the internal error buffer when invalid.
+    ///
+    /// This enables in-place modifications without reallocating. Mutating the
+    /// returned buffer is only safe when you can preserve the semantic meaning
+    /// of accumulated errors.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let mut invalid: Validated<String, ()> = Validated::invalid("oops".to_string());
+    /// if let Some(errors) = invalid.error_buffer_mut() {
+    ///     errors.push("more".to_string());
+    /// }
+    /// assert_eq!(invalid.error_slice(), &["oops", "more"]);
+    /// ```
+    #[inline]
+    pub fn error_buffer_mut(&mut self) -> Option<&mut SmallVec<[E; 8]>> {
+        match self {
+            Validated::Valid(_) => None,
+            Validated::Invalid(es) => Some(es),
+        }
+    }
+
     /// Returns an iterator over all errors if this is invalid, or an empty iterator if valid.
     ///
     /// # Examples
@@ -150,10 +274,7 @@ impl<E, A> Validated<E, A> {
     /// ```
     #[inline]
     pub fn iter_errors(&self) -> std::slice::Iter<'_, E> {
-        match self {
-            Validated::Valid(_) => [].iter(),
-            Validated::Invalid(es) => es.iter(),
-        }
+        self.error_slice().iter()
     }
 
     /// Returns a reference to the internal `SmallVec` of errors if this is `Invalid`, otherwise `None`.
@@ -666,13 +787,44 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             (Validated::Valid(_), Validated::Valid(_)) => unreachable!(),
             (Validated::Valid(_), invalid) => invalid.clone(),
             (invalid, Validated::Valid(_)) => invalid.clone(),
-            (Validated::Invalid(_), Validated::Invalid(_)) => {
-                let errors = self
-                    .iter_errors()
-                    .chain(other.iter_errors())
-                    .cloned()
-                    .collect();
-                Validated::Invalid(errors)
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
+                let mut acc = ErrorAccumulator::with_capacity(e1.len() + e2.len());
+                acc.extend_cloned(e1);
+                acc.extend_cloned(e2);
+                Validated::Invalid(acc.into_inner())
+            },
+        }
+    }
+
+    /// Combines errors from two `Validated` instances, taking ownership of both.
+    ///
+    /// This method is more efficient than `combine_errors` when you can consume
+    /// both `Validated` instances, as it avoids cloning the error collections.
+    ///
+    /// # Panics
+    ///
+    /// Panics if both `Validated` instances are `Valid`. This is a programmer error
+    /// as there are no errors to combine.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let invalid1: Validated<&str, i32> = Validated::invalid("error1");
+    /// let invalid2: Validated<&str, i32> = Validated::invalid("error2");
+    /// let combined = invalid1.combine_errors_owned(invalid2);
+    /// assert_eq!(combined.error_slice(), &["error1", "error2"]);
+    /// ```
+    #[inline]
+    pub fn combine_errors_owned(self, other: Self) -> Self {
+        match (self, other) {
+            (Validated::Valid(_), Validated::Valid(_)) => unreachable!(),
+            (Validated::Valid(_), invalid) => invalid,
+            (invalid, Validated::Valid(_)) => invalid,
+            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
+                e1.extend(e2);
+                Validated::Invalid(e1)
             },
         }
     }
@@ -1119,16 +1271,75 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         }
 
         // Collect all errors using iterator methods
-        let errors = values
-            .iter()
-            .filter_map(|v| match v {
-                Validated::Invalid(es) => Some(es.iter().cloned()),
-                _ => None,
-            })
-            .flatten()
-            .collect::<SmallVec<[E; 8]>>();
+        let mut acc = ErrorAccumulator::new();
+        for value in values {
+            if let Validated::Invalid(es) = value {
+                acc.extend_cloned(es);
+            }
+        }
 
-        Validated::Invalid(errors)
+        Validated::Invalid(acc.into_inner())
+    }
+
+    /// Sequences owned Validated values into a single Validated value.
+    ///
+    /// This method is more efficient than `sequence` when you can consume the
+    /// Validated instances, as it avoids cloning error collections.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B`: The output value type (must implement `Clone`)
+    /// * `F`: The function type to transform collected valid values
+    ///
+    /// # Arguments
+    ///
+    /// * `values`: A vector of owned `Validated` values to sequence
+    /// * `f`: A function to transform the collected valid values
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let values = vec![
+    ///     Validated::<&str, i32>::valid(1),
+    ///     Validated::<&str, i32>::valid(2),
+    /// ];
+    /// let result = Validated::sequence_owned(values, |vals| vals.len());
+    /// assert_eq!(result, Validated::valid(2));
+    /// ```
+    #[inline]
+    pub fn sequence_owned<B, F>(values: Vec<Self>, f: F) -> Validated<E, B>
+    where
+        F: Fn(Vec<A>) -> B,
+        B: Clone,
+    {
+        // Early check for empty vec
+        if values.is_empty() {
+            return Validated::Valid(f(Vec::new()));
+        }
+
+        // First pass to check if all are valid (fast path)
+        if values.iter().all(|v| matches!(v, Validated::Valid(_))) {
+            let valid_values: Vec<A> = values
+                .into_iter()
+                .filter_map(|v| match v {
+                    Validated::Valid(x) => Some(x),
+                    _ => None,
+                })
+                .collect();
+            return Validated::Valid(f(valid_values));
+        }
+
+        // Collect all errors using extend_owned for efficiency
+        let mut acc = ErrorAccumulator::new();
+        for value in values {
+            if let Validated::Invalid(es) = value {
+                acc.extend_owned(es);
+            }
+        }
+
+        Validated::Invalid(acc.into_inner())
     }
 
     /// Collects an iterator of Validated values into a single Validated value.
@@ -1216,6 +1427,51 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             Validated::Valid(C::from_iter(values))
         } else {
             Validated::Invalid(errors)
+        }
+    }
+
+    /// Collects owned Validated values from an iterator into a single Validated value.
+    ///
+    /// This method is more efficient than `collect` when working with owned Validated
+    /// instances, as it can move errors instead of cloning them.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `I`: The iterator type yielding `Validated<E, A>` items
+    /// * `C`: The collection type to collect valid values into (must implement `FromIterator<A>`)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let values = vec![
+    ///     Validated::<&str, i32>::valid(1),
+    ///     Validated::<&str, i32>::valid(2),
+    /// ];
+    /// let result: Validated<&str, Vec<i32>> = Validated::collect_owned(values.into_iter());
+    /// assert_eq!(result, Validated::valid(vec![1, 2]));
+    /// ```
+    #[inline]
+    pub fn collect_owned<I, C>(iter: I) -> Validated<E, C>
+    where
+        I: Iterator<Item = Validated<E, A>>,
+        C: FromIterator<A> + Clone,
+    {
+        let mut acc = ErrorAccumulator::new();
+        let mut values = Vec::new();
+
+        for item in iter {
+            match item {
+                Validated::Valid(a) => values.push(a),
+                Validated::Invalid(es) => acc.extend_owned(es),
+            }
+        }
+
+        if acc.buffer.is_empty() {
+            Validated::Valid(C::from_iter(values))
+        } else {
+            Validated::Invalid(acc.into_inner())
         }
     }
 

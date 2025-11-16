@@ -70,7 +70,7 @@
 - **`src/error` Module Performance Optimization**
   - **ErrorPipeline Zero-Cost Optimization**: Removed closure overhead in `with_context()` method
   - **Direct Pattern Matching**: Replaced `map_err(|e| with_context(e, context))` with inline match expressions
-  - **Deep Pipeline Buffering**: Revolutionary context buffering for 5x performance improvement
+  - **Deep Pipeline Buffering**: Revolutionary context buffering for performance improvement
     - **Before**: Each `with_context()` call immediately transformed `Result<T, E>` → `Result<T, ComposableError<E>>`
     - **After**: Contexts are buffered in `SmallVec<[String; 4]>` without type transformation
     - **Breaking Change**: `finish()` now returns `Result<T, Box<ComposableError<E>>>` to avoid large Result types
@@ -79,6 +79,11 @@
   - **ComposableError Context Storage**: Maintained O(1) push performance with `push()` instead of `insert(0, x)`
   - **Backward Compatible API**: Preserved "most recent first" context ordering for existing code
   - **Enhanced Error Handling**: Maintained categorical correctness while improving practical performance
+- **`Validated` Error Accumulation Optimizations**
+  - Introduced reusable `ErrorAccumulator` helper backed by `SmallVec<[E; 8]>` for predictable, inline buffering
+  - Added owned variants of the hottest APIs (`combine_errors_owned`, `sequence_owned`, `collect_owned`) to eliminate redundant cloning when ownership is available
+  - Exposed zero-copy accessors (`error_slice`, `error_buffer_mut`) and iterator improvements for ergonomics without `Clone` bounds
+  - Expanded documentation to describe the new borrowed vs owned API split and added regression tests covering the new helpers
 
 ## [0.10.1]
 

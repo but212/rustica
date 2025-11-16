@@ -84,7 +84,7 @@ impl<A> Iterator for IntoIter<A> {
     }
 }
 
-impl<'a, E: Clone, A: Clone> IntoIterator for &'a Validated<E, A> {
+impl<'a, E, A> IntoIterator for &'a Validated<E, A> {
     type Item = &'a A;
     type IntoIter = Iter<'a, A>;
 
@@ -93,7 +93,7 @@ impl<'a, E: Clone, A: Clone> IntoIterator for &'a Validated<E, A> {
     }
 }
 
-impl<'a, E: Clone, A: Clone> IntoIterator for &'a mut Validated<E, A> {
+impl<'a, E, A> IntoIterator for &'a mut Validated<E, A> {
     type Item = &'a mut A;
     type IntoIter = IterMut<'a, A>;
 
@@ -102,7 +102,7 @@ impl<'a, E: Clone, A: Clone> IntoIterator for &'a mut Validated<E, A> {
     }
 }
 
-impl<E: Clone, A: Clone> Validated<E, A> {
+impl<E, A> Validated<E, A> {
     /// Returns an iterator over the valid value (0 or 1 item).
     pub fn iter(&self) -> Iter<'_, A> {
         match self {
