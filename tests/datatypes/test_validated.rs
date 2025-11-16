@@ -404,6 +404,50 @@ mod conversion_tests {
     }
 
     #[test]
+    fn test_owned_optimizations() {
+        // Test combine_errors_owned
+        let invalid1: Validated<&str, i32> = Validated::invalid("error1");
+        let invalid2: Validated<&str, i32> = Validated::invalid("error2");
+        let combined = invalid1.combine_errors_owned(invalid2);
+        assert_eq!(combined.error_slice(), &["error1", "error2"]);
+
+        // Test sequence_owned
+        let values = vec![
+            Validated::<&str, i32>::valid(1),
+            Validated::<&str, i32>::valid(2),
+            Validated::<&str, i32>::valid(3),
+        ];
+        let result = Validated::sequence_owned(values, |vals| vals.len());
+        assert_eq!(result, Validated::valid(3));
+
+        // Test sequence_owned with errors
+        let values = vec![
+            Validated::<&str, i32>::valid(1),
+            Validated::<&str, i32>::invalid("error1"),
+            Validated::<&str, i32>::invalid("error2"),
+        ];
+        let result = Validated::sequence_owned(values, |vals| vals.len());
+        assert_eq!(result.error_slice(), &["error1", "error2"]);
+
+        // Test collect_owned
+        let values = vec![
+            Validated::<&str, i32>::valid(1),
+            Validated::<&str, i32>::valid(2),
+        ];
+        let result: Validated<&str, Vec<i32>> = Validated::collect_owned(values.into_iter());
+        assert_eq!(result, Validated::valid(vec![1, 2]));
+
+        // Test collect_owned with errors
+        let values = vec![
+            Validated::<&str, i32>::valid(1),
+            Validated::<&str, i32>::invalid("error1"),
+            Validated::<&str, i32>::invalid("error2"),
+        ];
+        let result: Validated<&str, Vec<i32>> = Validated::collect_owned(values.into_iter());
+        assert_eq!(result.error_slice(), &["error1", "error2"]);
+    }
+
+    #[test]
     fn test_into_error_payload() {
         let valid: Validated<&str, i32> = Validated::Valid(42);
         assert_eq!(valid.into_error_payload(), Err(42));
@@ -894,24 +938,27 @@ mod performance_tests {
             operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
         );
 
-        // PERFORMANCE REALITY CHECK: 20x slower is NOT acceptable performance!
-        // This test demonstrates the severe performance penalty of our abstraction layers.
-        // 20x overhead indicates fundamental architectural performance problems.
-        //
-        // WARNING: This test accepts terrible performance as "normal"
-        // TODO: Either optimize implementation or document as experimental/educational only
+        const PANIC_THRESHOLD: f64 = 10.0;
+        const WARNING_THRESHOLD: f64 = 4.0;
+        const NOTICE_THRESHOLD: f64 = 2.0;
         let slowdown_factor = operation_duration.as_secs_f64() / baseline_duration.as_secs_f64();
 
-        if slowdown_factor > 20.0 {
+        if slowdown_factor > PANIC_THRESHOLD {
             panic!(
-                "Validated operations are catastrophically slow: {:.2}x slower than baseline. \
-                This indicates severe performance problems that make this unsuitable for production use.",
-                slowdown_factor
+                "Validated operations are {:.2}x slower than baseline (>{}x cap). \
+                This indicates a regression that must be investigated before release.",
+                slowdown_factor, PANIC_THRESHOLD
             );
-        } else if slowdown_factor > 5.0 {
+        } else if slowdown_factor > WARNING_THRESHOLD {
             eprintln!(
-                "WARNING: Validated operations are {:.2}x slower than baseline. \
-                This is a significant performance penalty that limits practical usage.",
+                "WARNING: Validated operations are {:.2}x slower than baseline (>{}x target). \
+                Investigate allocations/cloning in recent changes.",
+                slowdown_factor, WARNING_THRESHOLD
+            );
+        } else if slowdown_factor > NOTICE_THRESHOLD {
+            eprintln!(
+                "NOTICE: Validated operations are {:.2}x slower than baseline. \
+                This is acceptable for now but keep monitoring performance benchmarks.",
                 slowdown_factor
             );
         }
