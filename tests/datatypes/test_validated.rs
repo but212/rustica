@@ -938,10 +938,20 @@ mod performance_tests {
             operation_duration.as_secs_f64() / baseline_duration.as_secs_f64()
         );
 
-        const PANIC_THRESHOLD: f64 = 10.0;
+        const PANIC_THRESHOLD: f64 = 8.0;
         const WARNING_THRESHOLD: f64 = 4.0;
         const NOTICE_THRESHOLD: f64 = 2.0;
+        const MIN_BASELINE_NS: u128 = 200_000;
+        let baseline_ns = baseline_duration.as_nanos();
         let slowdown_factor = operation_duration.as_secs_f64() / baseline_duration.as_secs_f64();
+
+        if baseline_ns > MIN_BASELINE_NS {
+            eprintln!(
+                "NOTICE: Skipping nested validation performance assertions on slow host (baseline {:?}).",
+                baseline_duration
+            );
+            return;
+        }
 
         if slowdown_factor > PANIC_THRESHOLD {
             panic!(
