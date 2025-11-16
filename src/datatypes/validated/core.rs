@@ -822,11 +822,9 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             (Validated::Valid(_), Validated::Valid(_)) => unreachable!(),
             (Validated::Valid(_), invalid) => invalid,
             (invalid, Validated::Valid(_)) => invalid,
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut acc = ErrorAccumulator::with_capacity(e1.len() + e2.len());
-                acc.extend_owned(e1);
-                acc.extend_owned(e2);
-                Validated::Invalid(acc.into_inner())
+            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
+                e1.extend(e2);
+                Validated::Invalid(e1)
             },
         }
     }
