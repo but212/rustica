@@ -205,7 +205,9 @@ impl<T, E> ErrorPipeline<T, E> {
     where
         C: IntoErrorContext,
     {
-        self.pending_contexts.push(context.into_error_context().message().to_string());
+        if self.result.is_err() {
+            self.pending_contexts.push(context.into_error_context().message().to_string());
+        }
         self
     }
 
