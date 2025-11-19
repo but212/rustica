@@ -100,7 +100,7 @@ fn test_state_t_standardized_error_handling() {
     // Test try_run_state with error case
     let result = safe_div.try_run_state(0);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    assert_eq!(result.unwrap_err().core_error(), "Division by zero");
 
     // Test try_run_state_with_context with success case
     let result = safe_div.try_run_state_with_context(4, "processing user input");
@@ -111,8 +111,8 @@ fn test_state_t_standardized_error_handling() {
     let result = safe_div.try_run_state_with_context(0, "processing user input");
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert_eq!(error.message(), &"Division by zero");
-    assert_eq!(error.context(), Some(&"processing user input"));
+    assert_eq!(error.core_error(), "Division by zero");
+    assert_eq!(error.context(), vec!["processing user input".to_string()]);
 
     // Test try_eval_state (only returns the value)
     let result = safe_div.try_eval_state(4);
@@ -120,7 +120,7 @@ fn test_state_t_standardized_error_handling() {
 
     let result = safe_div.try_eval_state(0);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    assert_eq!(result.unwrap_err().core_error(), &"Division by zero");
 
     // Test try_eval_state_with_context
     let result = safe_div.try_eval_state_with_context(4, "evaluating result");
@@ -129,8 +129,8 @@ fn test_state_t_standardized_error_handling() {
     let result = safe_div.try_eval_state_with_context(0, "evaluating result");
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert_eq!(error.message(), &"Division by zero");
-    assert_eq!(error.context(), Some(&"evaluating result"));
+    assert_eq!(error.core_error(), "Division by zero");
+    assert_eq!(error.context(), vec!["evaluating result".to_string()]);
 
     // Create a StateT that modifies the state and may fail
     let modify_and_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
@@ -147,7 +147,7 @@ fn test_state_t_standardized_error_handling() {
 
     let result = modify_and_div.try_exec_state(0);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    assert_eq!(result.unwrap_err().core_error(), &"Division by zero");
 
     // Test map_error to transform error types
     let mapped = safe_div.map_error(|e: String| e.len() as i32);
@@ -221,5 +221,5 @@ fn test_state_t_with_complex_error_handling() {
     };
     let result = double_if_even.try_run_state(odd_counter);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().message(), &"Cannot double an odd value");
+    assert_eq!(result.unwrap_err().core_error(), &"Cannot double an odd value");
 }

@@ -1,8 +1,8 @@
 # CHANGELOG
 
-## [0.11.0]
+## [0.10.2]
 
-### Deprecated - 0.11.0
+### Deprecated - 0.10.2
 
 - **`Choice<T>` Utility Methods**
   - Deprecated numerous utility methods that are not core categorical operations
@@ -25,9 +25,24 @@
     - `swap_with_alternative()` - Use external patterns instead
     - `try_swap_with_alternative()` - Use external patterns instead
     - `bind_lazy()` - Use `bind()` with `into_iter()` or flat_map patterns instead
+- **Legacy Error Utilities (`utils::error_utils`)**
+  - Deprecated legacy error conversion helpers in favor of the unified `src/error` module:
+    - `result_to_either()` -> `crate::error::result_to_either()`
+    - `either_to_result()` -> `crate::error::either_to_result()`
+  - Deprecated `ResultExt` helper methods in favor of composable error operations:
+    - `ResultExt::to_validated()` -> `crate::error::result_to_validated()`
+    - `ResultExt::to_either()` -> `crate::error::result_to_either()`
+    - `ResultExt::bimap()` -> `crate::error::ErrorOps::bimap_result()`
+  - Deprecated `AppError` and its constructors in favor of `ComposableError` and the `src/error` context utilities:
+    - `AppError<M, C>` -> `crate::error::ComposableError<E>` and context helpers
+    - `error()` / `error_with_context()` -> `ComposableError::new(...).with_context(...)`
 
-### Breaking Changes - 0.11.0
+### Breaking Changes - 0.10.2
 
+- **Composable Error Helpers Replace `AppError` in Core Datatypes/Transformers**
+  - `State`, `Maybe`, `IO`, `ReaderT`, and `StateT` `try_*` helpers now return `ComposableResult` and emit `ComposableError`
+  - Legacy `AppError` return types, constructor usages, and docs/examples were removed; context stacks now compare as `Vec<String>`
+  - Tests and doctests referencing the helpers were updated to the new API, so downstream crates must migrate to `ComposableError` accessors (`core_error()`, `context()`)
 - **`src/error` Module API Changes**
   - **Removed**: `with_context_result_boxed()` function - use `with_context_result()` instead
   - Function was redundant and provided no additional functionality over the standard version
@@ -35,7 +50,7 @@
   - Previous return type: `Result<T, ComposableError<E>>` caused large Result warnings
   - This change enables deep pipeline buffering optimization while avoiding stack overflow risks
 
-### Changed - 0.11.0
+### Changed - 0.10.2
 
 - **`Choice<T>` Refocused on Core Categorical Operations**
   - Simplified API to focus on essential Functor/Applicative/Monad/MonadPlus operations

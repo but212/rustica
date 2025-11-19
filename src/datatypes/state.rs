@@ -235,12 +235,11 @@
 //! ```
 //!
 use crate::datatypes::id::Id;
+use crate::error::{ComposableError, ComposableResult, IntoErrorContext};
 use crate::traits::hkt::HKT;
 use crate::transformers::StateT;
-use crate::utils::error_utils::AppError;
-// Migration note: As of rustica 0.11.0, AppError has been replaced by
-// `crate::error::ComposableError` in the primary error API. The AppError-based
-// helpers in this module are kept for compatibility.
+// Migration note: AppError-based helpers were replaced by
+// `crate::error::ComposableError` in rustica 0.10.2 for unified error handling.
 use quickcheck::{Arbitrary, Gen};
 
 /// Type alias for the inner state transformer used in State monad
@@ -1005,16 +1004,15 @@ impl<
     Err: Clone + Send + Sync + 'static,
 > State<S, Result<A, Err>>
 {
-    /// Runs the state computation and converts the result to a Result with AppError.
+    /// Runs the state computation and converts the result to a `ComposableResult`.
     ///
     /// This method runs the state computation and returns a tuple containing the result
-    /// wrapped in a Result with AppError and the final state.
+    /// wrapped in a [`ComposableResult`] and the final state.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::state::State;
-    /// use rustica::utils::error_utils::AppError;
     ///
     /// // Create a state computation that might fail
     /// let state = State::new(|s: i32| {
@@ -1031,19 +1029,16 @@ impl<
     ///
     /// let (result, final_state) = state.try_run_state(-1);
     /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().message(), &"Value must be positive");
+    /// assert_eq!(result.unwrap_err().core_error(), &"Value must be positive");
     /// assert_eq!(final_state, -1);
     /// ```
-    pub fn try_run_state(&self, s: S) -> (Result<A, AppError<Err>>, S) {
+    pub fn try_run_state(&self, s: S) -> (ComposableResult<A, Err>, S) {
         let (result, final_state) = self.run_state(s);
-        let transformed_result = match result {
-            Ok(value) => Ok(value),
-            Err(error) => Err(AppError::new(error)),
-        };
+        let transformed_result = result.map_err(ComposableError::new);
         (transformed_result, final_state)
     }
 
-    /// Runs the state computation with context and returns a Result with AppError.
+    /// Runs the state computation with context and returns a `ComposableResult`.
     ///
     /// This method is similar to `try_run_state` but allows for adding context to the error.
     ///
@@ -1073,24 +1068,29 @@ impl<
     /// let (result, final_state) = state.try_run_state_with_context(-1, "processing user input");
     /// assert!(result.is_err());
     /// let error = result.unwrap_err();
-    /// assert_eq!(error.message(), &"Value must be positive");
-    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// assert_eq!(error.core_error(), &"Value must be positive");
+    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// assert_eq!(final_state, -1);
     /// ```
-    pub fn try_run_state_with_context<C: Clone + Send + Sync + 'static>(
-        &self, s: S, context: C,
-    ) -> (Result<A, AppError<Err, C>>, S) {
+    pub fn try_run_state_with_context<C>(
+        &self,
+        s: S,
+        context: C,
+    ) -> (ComposableResult<A, Err>, S)
+    where
+        C: IntoErrorContext,
+    {
         let (result, final_state) = self.run_state(s);
-        let transformed_result = match result {
-            Ok(value) => Ok(value),
-            Err(error) => Err(AppError::with_context(error, context)),
-        };
+        let context = context.into_error_context();
+        let transformed_result = result.map_err(|error| {
+            ComposableError::new(error).with_context(context.clone())
+        });
         (transformed_result, final_state)
     }
 
-    /// Runs the state computation and returns only the value as a Result with AppError.
+    /// Runs the state computation and returns only the value as a `ComposableResult`.
     ///
-    /// This method is similar to `eval_state` but converts errors to AppError.
+    /// This method is similar to `eval_state` but converts errors to [`ComposableError`].
     ///
     /// # Examples
     ///
@@ -1111,14 +1111,14 @@ impl<
     ///
     /// let result = state.try_eval_state(-1);
     /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().message(), &"Value must be positive");
+    /// assert_eq!(result.unwrap_err().core_error(), &"Value must be positive");
     /// ```
-    pub fn try_eval_state(&self, s: S) -> Result<A, AppError<Err>> {
+    pub fn try_eval_state(&self, s: S) -> ComposableResult<A, Err> {
         let (result, _) = self.try_run_state(s);
         result
     }
 
-    /// Runs the state computation with context and returns only the value as a Result with AppError.
+    /// Runs the state computation with context and returns only the value as a `ComposableResult`.
     ///
     /// This method is similar to `try_eval_state` but allows for adding context to the error.
     ///
@@ -1147,17 +1147,22 @@ impl<
     /// let result = state.try_eval_state_with_context(-1, "processing user input");
     /// assert!(result.is_err());
     /// let error = result.unwrap_err();
-    /// assert_eq!(error.message(), &"Value must be positive");
-    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// assert_eq!(error.core_error(), &"Value must be positive");
+    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
-    pub fn try_eval_state_with_context<C: Clone + Send + Sync + 'static>(
-        &self, s: S, context: C,
-    ) -> Result<A, AppError<Err, C>> {
+    pub fn try_eval_state_with_context<C>(
+        &self,
+        s: S,
+        context: C,
+    ) -> ComposableResult<A, Err>
+    where
+        C: IntoErrorContext,
+    {
         let (result, _) = self.try_run_state_with_context(s, context);
         result
     }
 
-    /// Runs the state computation and returns only the final state.
+    /// Runs the state computation and returns only the final state as a `ComposableResult`.
     ///
     /// This method is similar to `exec_state` but returns a Result in case of error.
     ///
@@ -1180,9 +1185,9 @@ impl<
     ///
     /// let final_state = state.try_exec_state(-1);
     /// assert!(final_state.is_err());
-    /// assert_eq!(final_state.unwrap_err().message(), &"Value must be positive");
+    /// assert_eq!(final_state.unwrap_err().core_error(), &"Value must be positive");
     /// ```
-    pub fn try_exec_state(&self, s: S) -> Result<S, AppError<Err>> {
+    pub fn try_exec_state(&self, s: S) -> ComposableResult<S, Err> {
         let (result, final_state) = self.try_run_state(s);
         match result {
             Ok(_) => Ok(final_state),
@@ -1190,7 +1195,7 @@ impl<
         }
     }
 
-    /// Runs the state computation with context and returns only the final state.
+    /// Runs the state computation with context and returns only the final state as a `ComposableResult`.
     ///
     /// This method is similar to `try_exec_state` but allows for adding context to the error.
     ///
@@ -1219,12 +1224,17 @@ impl<
     /// let final_state = state.try_exec_state_with_context(-1, "processing user input");
     /// assert!(final_state.is_err());
     /// let error = final_state.unwrap_err();
-    /// assert_eq!(error.message(), &"Value must be positive");
-    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// assert_eq!(error.core_error(), &"Value must be positive");
+    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
-    pub fn try_exec_state_with_context<C: Clone + Send + Sync + 'static>(
-        &self, s: S, context: C,
-    ) -> Result<S, AppError<Err, C>> {
+    pub fn try_exec_state_with_context<C>(
+        &self,
+        s: S,
+        context: C,
+    ) -> ComposableResult<S, Err>
+    where
+        C: IntoErrorContext,
+    {
         let (result, final_state) = self.try_run_state_with_context(s, context);
         match result {
             Ok(_) => Ok(final_state),
