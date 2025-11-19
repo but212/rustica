@@ -40,9 +40,9 @@ use std::fmt::Display;
 #[inline]
 pub fn with_context<E, C>(error: E, context: C) -> ComposableError<E>
 where
-    C: Into<String>,
+    C: IntoErrorContext,
 {
-    ComposableError::new(error).with_context(context.into())
+    ComposableError::new(error).with_context(context)
 }
 
 /// Adds context to a Result, converting errors to ComposableError.
@@ -85,7 +85,7 @@ where
 #[inline]
 pub fn with_context_result<T, E, C>(result: Result<T, E>, context: C) -> BoxedComposableResult<T, E>
 where
-    C: Into<String>,
+    C: IntoErrorContext,
 {
     result.map_err(|e| Box::new(with_context(e, context)))
 }
@@ -120,7 +120,7 @@ where
 #[inline]
 pub fn context_fn<E, C>(context: C) -> impl Fn(E) -> ComposableError<E>
 where
-    C: Into<String> + Clone,
+    C: IntoErrorContext + Clone,
 {
     move |error| with_context(error, context.clone())
 }

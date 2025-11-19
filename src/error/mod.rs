@@ -22,6 +22,7 @@
 pub mod context; // Error context management and accumulation
 pub mod convert; // Error type conversions
 pub mod core; // Extended WithError trait and ErrorCategory
+pub mod macros; // Error handling macros
 pub mod types; // ComposableError and error context structures
 
 // Re-export commonly used items
@@ -38,7 +39,7 @@ pub use convert::{
 pub use core::{ErrorCategory, ErrorOps};
 pub use types::{
     BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorContext,
-    IntoErrorContext,
+    IntoErrorContext, LazyContext,
 };
 
 // Re-export existing error utilities for compatibility (avoiding conflicts)
@@ -46,3 +47,49 @@ pub use crate::utils::error_utils::{
     AppError, ResultExt, WithError, error, error_with_context, sequence, sequence_with_error,
     traverse, traverse_validated,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::context;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    #[test]
+    fn test_lazy_context_evaluation() {
+        let was_evaluated = Arc::new(AtomicBool::new(false));
+        let was_evaluated_clone = was_evaluated.clone();
+
+        let result: Result<i32, &str> = Ok(42);
+        
+        // This should NOT evaluate the context because the result is Ok
+        let _ = with_context_result(
+            result,
+            context!("This should not be evaluated: {}", {
+                was_evaluated_clone.store(true, Ordering::SeqCst);
+                "failed"
+            })
+        );
+
+        assert!(!was_evaluated.load(Ordering::SeqCst), "Context was evaluated despite success!");
+    }
+
+    #[test]
+    fn test_lazy_context_evaluation_on_error() {
+        let was_evaluated = Arc::new(AtomicBool::new(false));
+        let was_evaluated_clone = was_evaluated.clone();
+
+        let result: Result<i32, &str> = Err("oops");
+        
+        // This SHOULD evaluate the context because the result is Err
+        let _ = with_context_result(
+            result,
+            context!("Context evaluated: {}", {
+                was_evaluated_clone.store(true, Ordering::SeqCst);
+                "yes"
+            })
+        );
+
+        assert!(was_evaluated.load(Ordering::SeqCst), "Context was NOT evaluated on error!");
+    }
+}
