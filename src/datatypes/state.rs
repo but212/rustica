@@ -238,6 +238,9 @@ use crate::datatypes::id::Id;
 use crate::traits::hkt::HKT;
 use crate::transformers::StateT;
 use crate::utils::error_utils::AppError;
+// Migration note: As of rustica 0.11.0, AppError has been replaced by
+// `crate::error::ComposableError` in the primary error API. The AppError-based
+// helpers in this module are kept for compatibility.
 use quickcheck::{Arbitrary, Gen};
 
 /// Type alias for the inner state transformer used in State monad

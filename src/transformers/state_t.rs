@@ -67,6 +67,9 @@ use std::sync::Arc;
 use crate::traits::monad::Monad;
 use crate::transformers::MonadTransformer;
 use crate::utils::error_utils::AppError;
+// Migration note: In rustica 0.11.0, AppError was replaced by
+// `crate::error::ComposableError` as the primary error type. AppError-based
+// helpers remain for compatibility.
 
 /// Type alias for a function that transforms a state-value pair to another state-value pair
 pub type StateValueMapper<S, A, B> = Box<dyn Fn((S, A)) -> (S, B) + Send + Sync>;

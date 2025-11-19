@@ -441,6 +441,9 @@
 
 use crate::error::{BoxedComposableResult, ComposableError, ErrorPipeline};
 use crate::utils::error_utils::AppError;
+// Migration note: In rustica 0.11.0, AppError was replaced by
+// `crate::error::ComposableError` as the primary error type. AppError-based
+// helpers remain for compatibility.
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::Debug;
 #[cfg(feature = "async")]

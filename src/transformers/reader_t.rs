@@ -178,6 +178,9 @@ use super::MonadTransformer;
 use crate::prelude::HKT;
 use crate::traits::monad::Monad;
 use crate::utils::error_utils::AppError;
+// Migration note: In rustica 0.11.0, AppError was replaced by
+// `crate::error::ComposableError` as the primary error type. AppError-based
+// helpers remain for compatibility.
 use std::marker::PhantomData;
 use std::sync::Arc;
 

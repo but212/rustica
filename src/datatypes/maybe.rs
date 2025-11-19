@@ -165,6 +165,9 @@ use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use crate::utils::error_utils::{AppError, WithError};
+// Migration note: In rustica 0.11.0, AppError was replaced by
+// `crate::error::ComposableError` as the primary error type. AppError-based
+// helpers remain for compatibility.
 use quickcheck::{Arbitrary, Gen};
 use std::marker::PhantomData;
 // use std::ops::{ControlFlow, FromResidual, Try};
