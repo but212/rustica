@@ -22,6 +22,7 @@
 pub mod context; // Error context management and accumulation
 pub mod convert; // Error type conversions
 pub mod core; // Extended WithError trait and ErrorCategory
+pub mod macros; // Error handling macros
 pub mod types; // ComposableError and error context structures
 
 // Re-export commonly used items
@@ -38,7 +39,7 @@ pub use convert::{
 pub use core::{ErrorCategory, ErrorOps};
 pub use types::{
     BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorContext,
-    IntoErrorContext,
+    IntoErrorContext, LazyContext,
 };
 
 // Re-export existing error utilities for compatibility (avoiding conflicts)

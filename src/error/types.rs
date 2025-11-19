@@ -102,7 +102,7 @@ impl<E> ComposableError<E> {
     ///
     /// # Arguments
     ///
-    /// * `ctx`: The context string to add
+    /// * `ctx`: The context to add (can be String, &str, or LazyContext)
     ///
     /// # Examples
     ///
@@ -110,7 +110,7 @@ impl<E> ComposableError<E> {
     /// use rustica::error::ComposableError;
     ///
     /// let error = ComposableError::new("Connection refused")
-    ///     .with_context("Failed to connect to database".to_string())
+    ///     .with_context("Failed to connect to database")
     ///     .with_context("User authentication failed".to_string());
     ///
     /// let contexts = error.context();
@@ -118,8 +118,11 @@ impl<E> ComposableError<E> {
     /// assert_eq!(contexts[1], "Failed to connect to database");
     /// ```
     #[inline]
-    pub fn with_context(mut self, ctx: String) -> Self {
-        self.context.push(ctx); // O(1) instead of O(n)
+    pub fn with_context<C>(mut self, ctx: C) -> Self 
+    where
+        C: IntoErrorContext,
+    {
+        self.context.push(ctx.into_error_context().message().to_string());
         self
     }
 
@@ -453,6 +456,32 @@ impl IntoErrorContext for ErrorContext {
     #[inline]
     fn into_error_context(self) -> ErrorContext {
         self
+    }
+}
+
+/// A lazy error context that is evaluated only when needed.
+///
+/// This is used by the `context!` macro to avoid formatting costs
+/// when the error path is not taken.
+pub struct LazyContext<F> {
+    generator: F,
+}
+
+impl<F> LazyContext<F> {
+    /// Creates a new lazy context with the given generator function.
+    #[inline]
+    pub fn new(generator: F) -> Self {
+        Self { generator }
+    }
+}
+
+impl<F> IntoErrorContext for LazyContext<F>
+where
+    F: FnOnce() -> String,
+{
+    #[inline]
+    fn into_error_context(self) -> ErrorContext {
+        ErrorContext::new((self.generator)())
     }
 }
 

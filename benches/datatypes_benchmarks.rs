@@ -12,6 +12,7 @@ mod datatypes {
     pub mod io;
     pub mod iso_lens;
     pub mod iso_prism;
+    pub mod lazy_error;
     pub mod lens;
     pub mod maybe;
     pub mod prism;
@@ -33,6 +34,7 @@ use datatypes::id::id_benchmarks;
 use datatypes::io::io_benchmarks;
 use datatypes::iso_lens::iso_lens_benchmarks;
 use datatypes::iso_prism::iso_prism_benchmarks;
+use datatypes::lazy_error::lazy_error_benchmarks;
 use datatypes::lens::lens_benchmarks;
 use datatypes::maybe::maybe_benchmarks;
 use datatypes::prism::prism_benchmarks;
@@ -61,6 +63,7 @@ criterion_group!(
     iso_prism_benchmarks,
     pvec_benchmarks,
     composable_error_benchmarks,
+    lazy_error_benchmarks,
 );
 
 #[cfg(feature = "async")]
@@ -82,6 +85,7 @@ criterion_group!(
     iso_prism_benchmarks,
     pvec_benchmarks,
     composable_error_benchmarks,
+    lazy_error_benchmarks,
     asyncm_benchmarks,
 );
 
