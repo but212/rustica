@@ -1,4 +1,5 @@
 mod categorical_laws;
+mod lazy_context;
 
 use rustica::datatypes::either::Either;
 use rustica::datatypes::validated::Validated;
