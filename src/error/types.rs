@@ -122,7 +122,7 @@ impl<E> ComposableError<E> {
     where
         C: IntoErrorContext,
     {
-        self.context.push(ctx.into_error_context().message);
+        self.context.push(ctx.into_error_context().message().to_string());
         self
     }
 

@@ -1,4 +1,5 @@
 use criterion::{BenchmarkId, Criterion};
+use rustica::context;
 use rustica::error::{ComposableError, error_pipeline, with_context};
 use std::hint::black_box;
 
@@ -99,8 +100,8 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let result: Result<i32, &str> = Err("initial error");
             let processed = error_pipeline(result)
-                .with_context("step 1 failed".to_string())
-                .with_context("step 2 failed".to_string())
+                .with_context("step 1 failed")
+                .with_context("step 2 failed")
                 .recover(|_| Ok(42))
                 .finish();
             black_box(processed)
@@ -112,16 +113,16 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
             let result: Result<i32, &str> = Err("initial error");
 
             let processed = error_pipeline(result)
-                .with_context("step 0 failed".to_string())
-                .with_context("step 1 failed".to_string())
-                .with_context("step 2 failed".to_string())
-                .with_context("step 3 failed".to_string())
-                .with_context("step 4 failed".to_string())
-                .with_context("step 5 failed".to_string())
-                .with_context("step 6 failed".to_string())
-                .with_context("step 7 failed".to_string())
-                .with_context("step 8 failed".to_string())
-                .with_context("step 9 failed".to_string())
+                .with_context(context!("step {} failed", 0))
+                .with_context(context!("step {} failed", 1))
+                .with_context(context!("step {} failed", 2))
+                .with_context(context!("step {} failed", 3))
+                .with_context(context!("step {} failed", 4))
+                .with_context(context!("step {} failed", 5))
+                .with_context(context!("step {} failed", 6))
+                .with_context(context!("step {} failed", 7))
+                .with_context(context!("step {} failed", 8))
+                .with_context(context!("step {} failed", 9))
                 .map_error(|e| format!("Error: {}", e))
                 .recover(|_| Ok(100))
                 .finish();
@@ -143,8 +144,8 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let error = "io error";
             let contextual = with_context(error, "failed to read file")
-                .with_context("configuration load failed".to_string())
-                .with_context("application startup failed".to_string());
+                .with_context("configuration load failed")
+                .with_context("application startup failed");
             black_box(contextual)
         });
     });
@@ -163,8 +164,8 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
             let result: Result<i32, &str> = Err("error");
             let composable = result.map_err(|e| {
                 ComposableError::new(e)
-                    .with_context("operation failed".to_string())
-                    .with_context("request processing failed".to_string())
+                    .with_context("operation failed")
+                    .with_context("request processing failed")
             });
             black_box(composable)
         });
@@ -193,10 +194,10 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
     group.bench_function("inline_storage", |b| {
         b.iter(|| {
             let error = ComposableError::new("error")
-                .with_context("ctx1".to_string())
-                .with_context("ctx2".to_string())
-                .with_context("ctx3".to_string())
-                .with_context("ctx4".to_string());
+                .with_context("ctx1")
+                .with_context("ctx2")
+                .with_context("ctx3")
+                .with_context("ctx4");
             black_box(error)
         });
     });

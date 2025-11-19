@@ -203,9 +203,9 @@ impl<T, E> ErrorPipeline<T, E> {
     #[inline]
     pub fn with_context<C>(mut self, context: C) -> Self
     where
-        C: Into<String>,
+        C: IntoErrorContext,
     {
-        self.pending_contexts.push(context.into());
+        self.pending_contexts.push(context.into_error_context().message().to_string());
         self
     }
 
