@@ -30,12 +30,12 @@ MIT OR Apache-2.0
 - crossbeam-utils
 - either
 - getrandom
-- itoa
-- lazy_static
+- itoa (copyright notice X)
+- lazy_static (copyright notice X)
 - libc
 - log
-- proc-macro2
-- quote
+- proc-macro2 (copyright notice X)
+- quote (copyright notice X)
 - rand
 - rand_core
 - rayon
@@ -43,13 +43,13 @@ MIT OR Apache-2.0
 - regex
 - regex-automata
 - regex-syntax
-- serde
-- serde_core
-- serde_derive
-- serde_json
+- serde (copyright notice X)
+- serde_core (copyright notice X)
+- serde_derive (copyright notice X)
+- serde_json (copyright notice X)
 - smallvec
-- syn
-- unicode-ident (code generation component)
+- syn (copyright notice X)
+- unicode-ident (copyright notice X)
 
 MIT/Apache-2.0 (historical slash separator)
 
@@ -72,16 +72,85 @@ Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
 
 - wasi (transitive via getrandom)
 
-Unicode License v3.0 (data tables)
+Unicode License v3.0
 
-- unicode-ident (Unicode character database)
+- unicode-ident
 
 For convenience, the MIT license text is reproduced below. The Apache-2.0
 terms covering these crates are already provided in the LICENSE file.
 
-Copyright (c) Serde Developers and respective authors
-Copyright (c) The Rust Project Developers and respective authors
-Copyright (c) Unicode, Inc.
+rayon:
+Copyright (c) 2010 The Rust Project Developers
+
+rayon-core:
+Copyright (c) 2010 The Rust Project Developers
+
+regex:
+Copyright (c) 2014 The Rust Project Developers
+
+regex-automata:
+Copyright (c) 2014 The Rust Project Developers
+
+regex-syntax:
+Copyright (c) 2014 The Rust Project Developers
+
+quickcheck:
+Copyright (c) 2015 Andrew Gallant
+
+aho-corasick:
+Copyright (c) 2015 Andrew Gallant
+
+memchr:
+Copyright (c) 2015 Andrew Gallant
+
+std:
+Copyright (c) The Rust Project Contributors
+
+cfg-if:
+Copyright (c) 2014 Alex Crichton
+
+crossbeam-deque:
+Copyright (c) 2019 The Crossbeam Project Developers
+
+crossbeam-epoch:
+Copyright (c) 2019 The Crossbeam Project Developers
+
+crossbeam-utils:
+Copyright (c) 2019 The Crossbeam Project Developers
+
+log:
+Copyright (c) 2014 The Rust Project Developers
+
+either:
+Copyright (c) 2015
+
+env_logger:
+Copyright (c) Individual contributors
+
+getrandom:
+Copyright (c) 2018-2025 The rust-random Project Developers
+Copyright (c) 2014 The Rust Project Developers
+
+futures:
+Copyright (c) 2016 Alex Crichton
+Copyright (c) 2017 The Tokio Authors
+
+tokio:
+Copyright (c) Tokio Contributors
+
+rand:
+Copyright 2018 Developers of the Rand project
+Copyright (c) 2014 The Rust Project Developers
+
+rand_core:
+Copyright 2018 Developers of the Rand project
+Copyright (c) 2014 The Rust Project Developers
+
+smallvec:
+Copyright (c) 2018 The Servo Project Developers
+
+libc:
+Copyright (c) 2014-2020 The Rust Project Developers
 
 MIT License
 
