@@ -845,7 +845,7 @@ where
     /// assert_eq!(result.unwrap(), (4, 25)); // 100/4 = 25
     ///
     /// // With error and context
-    /// let result = safe_div.try_eval_state_with_context(0, "processing user input");
+    /// let result = safe_div.try_run_state_with_context(0, "processing user input");
     /// assert!(result.is_err());
     /// let error = result.unwrap_err();
     /// assert_eq!(error.core_error(), &"Division by zero");
