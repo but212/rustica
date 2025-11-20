@@ -463,6 +463,7 @@ impl IntoErrorContext for ErrorContext {
 ///
 /// This is used by the `context!` macro to avoid formatting costs
 /// when the error path is not taken.
+#[repr(transparent)]
 pub struct LazyContext<F> {
     generator: F,
 }
