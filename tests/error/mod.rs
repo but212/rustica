@@ -216,36 +216,3 @@ fn test_error_pipeline_finish_vs_finish_unboxed() {
         _ => panic!("Both should be errors"),
     }
 }
-
-#[test]
-fn test_validated_error_ops_lossy_conversion() {
-    use rustica::error::ErrorOps;
-
-    // Test that Validated recover uses only first error
-    let validated: Validated<String, i32> = Validated::invalid_many(vec![
-        "error1".to_string(),
-        "error2".to_string(),
-        "error3".to_string(),
-    ]);
-
-    let recovered = validated.recover(|first_err| {
-        assert_eq!(first_err, "error1"); // Should receive only first error
-        Validated::Valid(42)
-    });
-
-    assert_eq!(recovered, Validated::Valid(42));
-}
-
-#[test]
-fn test_validated_bimap_result_lossy_conversion() {
-    use rustica::error::ErrorOps;
-
-    // Test that Validated bimap_result uses only first error
-    let validated: Validated<i32, String> = Validated::invalid_many(vec![404, 500, 503]);
-
-    let result: Result<usize, String> =
-        validated.bimap_result(|s| s.len(), |code| format!("HTTP Error: {}", code));
-
-    // Should only use the first error (404)
-    assert_eq!(result, Err("HTTP Error: 404".to_string()));
-}

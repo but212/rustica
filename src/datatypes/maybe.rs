@@ -161,10 +161,11 @@ use crate::traits::applicative::Applicative;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::identity::Identity;
+use crate::error::{ComposableError, ComposableResult};
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
-use crate::utils::error_utils::{AppError, WithError};
+use crate::utils::error_utils::WithError;
 use quickcheck::{Arbitrary, Gen};
 use std::marker::PhantomData;
 // use std::ops::{ControlFlow, FromResidual, Try};
@@ -465,7 +466,6 @@ impl<T> Maybe<T> {
     ///
     /// ```rust
     /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::utils::error_utils::ResultExt;
     ///
     /// let x = Maybe::Just("air");
     /// let result = x.try_unwrap().unwrap_or_default();
@@ -476,13 +476,13 @@ impl<T> Maybe<T> {
     /// assert!(result.is_err());
     /// ```
     #[inline]
-    pub fn try_unwrap(self) -> Result<T, AppError<&'static str, &'static str>> {
+    pub fn try_unwrap(self) -> ComposableResult<T, &'static str> {
         match self {
             Maybe::Just(val) => Ok(val),
-            Maybe::Nothing => Err(AppError::with_context(
-                "Cannot unwrap Nothing value",
-                "Called `try_unwrap()` on a `Nothing` value",
-            )),
+            Maybe::Nothing => Err(
+                ComposableError::new("Cannot unwrap Nothing value")
+                    .with_context("Called `try_unwrap()` on a `Nothing` value"),
+            ),
         }
     }
 
@@ -1368,7 +1368,7 @@ pub trait MaybeExt<T> {
     fn to_result<E>(self, err: E) -> Result<T, E>;
 
     /// Provides a safe unwrapping mechanism that returns a Result
-    fn try_unwrap(self) -> Result<T, AppError<&'static str, &'static str>>;
+    fn try_unwrap(self) -> ComposableResult<T, &'static str>;
 }
 
 impl<T> MaybeExt<T> for Maybe<T> {
@@ -1381,13 +1381,13 @@ impl<T> MaybeExt<T> for Maybe<T> {
     }
 
     #[inline]
-    fn try_unwrap(self) -> Result<T, AppError<&'static str, &'static str>> {
+    fn try_unwrap(self) -> ComposableResult<T, &'static str> {
         match self {
             Maybe::Just(val) => Ok(val),
-            Maybe::Nothing => Err(AppError::with_context(
-                "Cannot unwrap Nothing value",
-                "Called `try_unwrap()` on a `Nothing` value",
-            )),
+            Maybe::Nothing => Err(
+                ComposableError::new("Cannot unwrap Nothing value")
+                    .with_context("Called `try_unwrap()` on a `Nothing` value"),
+            ),
         }
     }
 }

@@ -52,7 +52,7 @@ fn test_reader_t_standardized_error_handling() {
     // Test try_run_reader with error case
     let result = safe_div.try_run_reader(0);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    assert_eq!(result.unwrap_err().core_error(), "Division by zero");
 
     // Test try_run_reader_with_context with success case
     let result = safe_div.try_run_reader_with_context(4, "processing user input");
@@ -63,8 +63,8 @@ fn test_reader_t_standardized_error_handling() {
     let result = safe_div.try_run_reader_with_context(0, "processing user input");
     assert!(result.is_err());
     let error = result.unwrap_err();
-    assert_eq!(error.message(), &"Division by zero");
-    assert_eq!(error.context(), Some(&"processing user input"));
+    assert_eq!(error.core_error(), "Division by zero");
+    assert_eq!(error.context(), vec!["processing user input".to_string()]);
 
     // Test map_error to transform error types
     let mapped = safe_div.map_error(|e: String| e.len() as i32);
@@ -125,7 +125,7 @@ fn test_reader_t_with_complex_error_handling() {
     };
     let result = validate_config.try_run_reader(invalid_config.clone());
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().message(), &"Max value must be positive");
+    assert_eq!(result.unwrap_err().core_error(), "Max value must be positive");
 
     // Test processing with a valid config (even max_value)
     let result = process_value.try_run_reader(valid_config.clone());
@@ -139,10 +139,7 @@ fn test_reader_t_with_complex_error_handling() {
     };
     let result = process_value.try_run_reader(odd_config);
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err().message(),
-        &"Cannot process odd max values"
-    );
+    assert_eq!(result.unwrap_err().core_error(), "Cannot process odd max values");
 
     // Test with context for better error reporting
     let result =

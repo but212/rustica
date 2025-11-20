@@ -379,6 +379,7 @@ impl<E> From<E> for ComposableError<E> {
 /// assert_eq!(context.message(), "Failed during startup");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[repr(transparent)]
 pub struct ErrorContext {
     message: String,
 }
@@ -463,6 +464,7 @@ impl IntoErrorContext for ErrorContext {
 ///
 /// This is used by the `context!` macro to avoid formatting costs
 /// when the error path is not taken.
+#[repr(transparent)]
 pub struct LazyContext<F> {
     generator: F,
 }

@@ -440,7 +440,6 @@
 //! ```
 
 use crate::error::{BoxedComposableResult, ComposableError, ErrorPipeline};
-use crate::utils::error_utils::AppError;
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::Debug;
 #[cfg(feature = "async")]
@@ -900,8 +899,8 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
 
     /// Tries to get the value from this IO operation.
     ///
-    /// This method runs the IO operation and wraps the result in a `Result`.
-    /// The result contains either the computed value or an `AppError<IOError>`,
+    /// This method runs the IO operation and wraps the result in a `ComposableResult`.
+    /// The result contains either the computed value or a `ComposableError<IOError>`,
     /// providing a standardized error handling approach.
     ///
     /// # Returns
@@ -920,7 +919,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// assert_eq!(result.is_ok(), true);
     /// assert_eq!(result.unwrap(), 42);
     /// ```
-    pub fn try_get(&self) -> Result<A, AppError<IOError>> {
+    pub fn try_get(&self) -> Result<A, ComposableError<IOError>> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
@@ -931,7 +930,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
                 } else {
                     "IO operation panicked with unknown error".to_string()
                 };
-                Err(AppError::new(IOError::Other(msg)))
+                Err(ComposableError::new(IOError::Other(msg)))
             },
         }
     }
@@ -947,13 +946,12 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     ///
     /// # Returns
     ///
-    /// A `Result` containing the computed value of type `A` or an `AppError<IOError, C>`
+    /// A `Result` containing the computed value of type `A` or a `ComposableError<IOError>`
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::io::{IO, IOError};
-    /// use rustica::utils::error_utils::AppError;
     /// use std::panic;
     ///
     /// // Successful operation with context
@@ -969,15 +967,16 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     ///
     /// let error = result_fail.unwrap_err();
     /// // Context is preserved in the error
-    /// assert_eq!(error.context().unwrap(), &"critical calculation");
-    /// match error.message() {
+    /// assert_eq!(error.context(), vec!["critical calculation".to_string()]);
+    /// match error.core_error() {
     ///     IOError::Other(msg) => assert!(msg.contains("computation failed")),
     ///     _ => panic!("Unexpected error type"),
     /// }
     /// ```
-    pub fn try_get_with_context<C: Clone + 'static>(
-        &self, context: C,
-    ) -> Result<A, AppError<IOError, C>> {
+    pub fn try_get_with_context<C: Into<String>>(
+        &self,
+        context: C,
+    ) -> Result<A, ComposableError<IOError>> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
@@ -988,7 +987,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
                 } else {
                     "IO operation panicked with unknown error".to_string()
                 };
-                Err(AppError::with_context(IOError::Other(msg), context))
+                Err(
+                    ComposableError::new(IOError::Other(msg)).with_context(context.into()),
+                )
             },
         }
     }

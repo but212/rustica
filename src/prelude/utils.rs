@@ -13,24 +13,6 @@
 //! ```rust
 //! use rustica::prelude::utils::*;
 //!
-//! // --- Error Utilities ---
-//! let results = vec![Ok(1), Ok(2), Ok(3)];
-//! let ok: Result<Vec<i32>, &str> = sequence(results);
-//! assert_eq!(ok, Ok(vec![1, 2, 3]));
-//!
-//! use rustica::datatypes::validated::Validated;
-//! let inputs = vec!["1", "not_a_number", "3"];
-//! let parsed: Validated<String, Vec<i32>> =
-//!     traverse_validated(inputs, |s| s.parse::<i32>().map_err(|_| format!("bad: {}", s)));
-//! assert!(parsed.is_invalid());
-//! assert_eq!(parsed.errors().len(), 1);
-//! assert!(parsed.errors()[0].contains("bad: not_a_number"));
-//!
-//! use rustica::datatypes::either::Either;
-//! let ok_result: Result<i32, &str> = Ok(42);
-//! let either: Either<&str, i32> = result_to_either(ok_result);
-//! assert_eq!(either, Either::right(42));
-//!
 //! // --- HKT Utilities ---
 //! let numbers = vec![1, 2, 3, 4, 5, 6];
 //! let evens_squared = filter_map(numbers, |&n| n % 2 == 0, |n| n * n);
@@ -63,6 +45,5 @@
 //!
 //! These utilities form powerful combinations when used with Rustica's datatypes, traits, and transformers.
 
-pub use crate::utils::error_utils::*;
 pub use crate::utils::hkt_utils::*;
 pub use crate::utils::transform_utils::*;

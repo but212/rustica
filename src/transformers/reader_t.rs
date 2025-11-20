@@ -175,9 +175,12 @@
 //! assert_eq!(modified_reader.run_reader(42), Some("Value: 42 (length: 9)".to_string()));
 //! ```
 use super::MonadTransformer;
+use crate::error::{ComposableError, ComposableResult, IntoErrorContext};
 use crate::prelude::HKT;
 use crate::traits::monad::Monad;
-use crate::utils::error_utils::AppError;
+// Migration note: In rustica 0.11.0, AppError was replaced by
+// `crate::error::ComposableError` as the primary error type. AppError-based
+// helpers remain for compatibility.
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -1054,7 +1057,7 @@ where
     Err: 'static,
     A: Clone + 'static,
 {
-    /// Runs the reader transformer and converts errors to AppError for standardized error handling.
+    /// Runs the reader transformer and converts errors to [`ComposableError`] for standardized error handling.
     ///
     /// This method executes the reader transformer with the given environment and converts
     /// any errors to the standardized AppError type, providing consistent error handling
@@ -1066,13 +1069,12 @@ where
     ///
     /// # Returns
     ///
-    /// Result containing either the value or an AppError
+    /// Result containing either the value or a [`ComposableError`]
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::transformers::ReaderT;
-    /// use rustica::utils::error_utils::AppError;
     ///
     /// // Create a ReaderT that may fail with division
     /// let safe_div: ReaderT<i32, Result<i32, String>, i32> = ReaderT::new(|n: i32| {
@@ -1091,10 +1093,10 @@ where
     /// // With error
     /// let result = safe_div.try_run_reader(0);
     /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().message(), &"Division by zero");
+    /// assert_eq!(result.unwrap_err().core_error(), "Division by zero");
     /// ```
-    pub fn try_run_reader(&self, env: E) -> Result<A, AppError<Err>> {
-        self.run_reader(env).map_err(AppError::new)
+    pub fn try_run_reader(&self, env: E) -> ComposableResult<A, Err> {
+        self.run_reader(env).map_err(ComposableError::new)
     }
 
     /// Runs the reader transformer with context information for better error reporting.
@@ -1109,13 +1111,12 @@ where
     ///
     /// # Returns
     ///
-    /// Result containing either the value or an AppError with context
+    /// Result containing either the value or a [`ComposableError`] with context
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::transformers::ReaderT;
-    /// use rustica::utils::error_utils::AppError;
     ///
     /// // Create a ReaderT that may fail with division
     /// let safe_div: ReaderT<i32, Result<i32, String>, i32> = ReaderT::new(|n: i32| {
@@ -1135,15 +1136,20 @@ where
     /// let result = safe_div.try_run_reader_with_context(0, "processing user input");
     /// assert!(result.is_err());
     /// let error = result.unwrap_err();
-    /// assert_eq!(error.message(), &"Division by zero");
-    /// assert_eq!(error.context(), Some(&"processing user input"));
+    /// assert_eq!(error.core_error(), "Division by zero");
+    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
-    pub fn try_run_reader_with_context<C>(&self, env: E, context: C) -> Result<A, AppError<Err, C>>
+    pub fn try_run_reader_with_context<C>(
+        &self,
+        env: E,
+        context: C,
+    ) -> ComposableResult<A, Err>
     where
-        C: Clone + 'static,
+        C: IntoErrorContext,
     {
+        let context = context.into_error_context();
         self.run_reader(env)
-            .map_err(|e| AppError::with_context(e, context))
+            .map_err(|e| ComposableError::new(e).with_context(context.clone()))
     }
 
     /// Maps a function over the error contained in this ReaderT.

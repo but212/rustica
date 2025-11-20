@@ -15,7 +15,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
                 b.iter(|| {
                     let mut error = ComposableError::new("core error");
                     for i in 0..count {
-                        error = error.with_context(format!("context {}", i));
+                        error = error.with_context(context!("context {}", i));
                     }
                     black_box(error)
                 });
@@ -47,7 +47,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
             |b, &count| {
                 let mut error = ComposableError::new("core error");
                 for i in 0..count {
-                    error = error.with_context(format!("context {}", i));
+                    error = error.with_context(context!("context {}", i));
                 }
 
                 b.iter(|| {
@@ -62,7 +62,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
     group.bench_function("context_copy", |b| {
         let mut error = ComposableError::new("core error");
         for i in 0..50 {
-            error = error.with_context(format!("context {}", i));
+            error = error.with_context(context!("context {}", i));
         }
 
         b.iter(|| {
@@ -74,7 +74,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
     group.bench_function("context_iter", |b| {
         let mut error = ComposableError::new("core error");
         for i in 0..50 {
-            error = error.with_context(format!("context {}", i));
+            error = error.with_context(context!("context {}", i));
         }
 
         b.iter(|| {
@@ -86,7 +86,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
     group.bench_function("context_iter_collect", |b| {
         let mut error = ComposableError::new("core error");
         for i in 0..50 {
-            error = error.with_context(format!("context {}", i));
+            error = error.with_context(context!("context {}", i));
         }
 
         b.iter(|| {
@@ -100,8 +100,8 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let result: Result<i32, &str> = Err("initial error");
             let processed = error_pipeline(result)
-                .with_context("step 1 failed")
-                .with_context("step 2 failed")
+                .with_context(context!("step 1 failed"))
+                .with_context(context!("step 2 failed"))
                 .recover(|_| Ok(42))
                 .finish();
             black_box(processed)
@@ -123,7 +123,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
                 .with_context(context!("step {} failed", 7))
                 .with_context(context!("step {} failed", 8))
                 .with_context(context!("step {} failed", 9))
-                .map_error(|e| format!("Error: {}", e))
+                .map_error(|e| context!("Error: {}", e))
                 .recover(|_| Ok(100))
                 .finish();
 
@@ -180,7 +180,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
                 b.iter(|| {
                     let mut error = ComposableError::new("core error");
                     for i in 0..count {
-                        error = error.with_context(format!("ctx {}", i));
+                        error = error.with_context(context!("ctx {}", i));
                     }
                     // Access contexts to ensure proper storage
                     let _ = error.context_iter().count();
@@ -206,7 +206,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let mut error = ComposableError::new("error");
             for i in 0..8 {
-                error = error.with_context(format!("ctx{}", i));
+                error = error.with_context(context!("ctx{}", i));
             }
             black_box(error)
         });

@@ -39,12 +39,12 @@ fn test_maybe_try_unwrap() {
     let result = nothing.try_unwrap();
     assert!(result.is_err());
     assert_eq!(
-        result.clone().unwrap_err().message(),
+        result.clone().unwrap_err().core_error(),
         &"Cannot unwrap Nothing value"
     );
     assert_eq!(
-        result.unwrap_err().context().unwrap(),
-        &"Called `try_unwrap()` on a `Nothing` value"
+        result.unwrap_err().context(),
+        vec!["Called `try_unwrap()` on a `Nothing` value".to_string()]
     );
 }
 

@@ -28,6 +28,12 @@
 //! - `traverse`: Apply a fallible function to every element in a collection
 //! - `traverse_validated`: Apply a fallible function and collect all errors
 //! - `error_with_context`: Create contextualized error messages
+//!
+//! ## Deprecation Notice
+//!
+//! Error conversion helpers are now provided by [`crate::error`] for better
+//! discoverability. The legacy helpers in this module forward to the new
+//! implementations and are marked as deprecated.
 
 use crate::datatypes::either::Either;
 use crate::datatypes::validated::Validated;
@@ -383,7 +389,7 @@ where
 
 /// Transforms a Result into an Either.
 ///
-/// This is a convenience function for converting between error handling types.
+/// This is a legacy convenience function. Prefer [`crate::error::result_to_either`].
 ///
 /// # Type Parameters
 ///
@@ -393,30 +399,22 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use rustica::utils::error_utils::result_to_either;
+/// use rustica::error;
 /// use rustica::datatypes::either::Either;
 ///
-/// // Convert a successful Result to Either
 /// let ok_result: Result<i32, &str> = Ok(42);
-/// let either_right: Either<&str, i32> = result_to_either(ok_result);
+/// let either_right: Either<&str, i32> = error::result_to_either(ok_result);
 /// assert_eq!(either_right, Either::right(42));
-///
-/// // Convert an error Result to Either
-/// let err_result: Result<i32, &str> = Err("error");
-/// let either_left: Either<&str, i32> = result_to_either(err_result);
-/// assert_eq!(either_left, Either::left("error"));
 /// ```
+#[deprecated(note = "Use `crate::error::result_to_either` instead")]
 #[inline]
 pub fn result_to_either<T, E>(result: Result<T, E>) -> Either<E, T> {
-    match result {
-        Ok(value) => Either::Right(value),
-        Err(error) => Either::Left(error),
-    }
+    crate::error::result_to_either(result)
 }
 
 /// Transforms an Either into a Result.
 ///
-/// This is a convenience function for converting between error handling types.
+/// This is a legacy convenience function. Prefer [`crate::error::either_to_result`].
 ///
 /// # Type Parameters
 ///
@@ -426,25 +424,17 @@ pub fn result_to_either<T, E>(result: Result<T, E>) -> Either<E, T> {
 /// # Examples
 ///
 /// ```rust
-/// use rustica::utils::error_utils::either_to_result;
+/// use rustica::error;
 /// use rustica::datatypes::either::Either;
 ///
-/// // Convert a right Either to Result
 /// let right: Either<&str, i32> = Either::right(42);
-/// let ok_result: Result<i32, &str> = either_to_result(right);
+/// let ok_result: Result<i32, &str> = error::either_to_result(right);
 /// assert_eq!(ok_result, Ok(42));
-///
-/// // Convert a left Either to Result
-/// let left: Either<&str, i32> = Either::left("error");
-/// let err_result: Result<i32, &str> = either_to_result(left);
-/// assert_eq!(err_result, Err("error"));
 /// ```
+#[deprecated(note = "Use `crate::error::either_to_result` instead")]
 #[inline]
 pub fn either_to_result<T, E>(either: Either<E, T>) -> Result<T, E> {
-    match either {
-        Either::Left(error) => Err(error),
-        Either::Right(value) => Ok(value),
-    }
+    crate::error::either_to_result(either)
 }
 
 // ===== Chainable Error Handling =====
@@ -481,9 +471,11 @@ pub fn either_to_result<T, E>(either: Either<E, T>) -> Result<T, E> {
 /// ```
 pub trait ResultExt<T, E> {
     /// Converts a Result to a Validated.
+    #[deprecated(note = "Use `crate::error::result_to_validated` instead")]
     fn to_validated(self) -> Validated<E, T>;
 
     /// Converts a Result to an Either.
+    #[deprecated(note = "Use `crate::error::result_to_either` instead")]
     fn to_either(self) -> Either<E, T>;
 
     /// Returns the contained value or the default for type T.
@@ -492,6 +484,7 @@ pub trait ResultExt<T, E> {
         T: Default;
 
     /// Maps both the success and error types.
+    #[deprecated(note = "Use `crate::error::ErrorOps::bimap_result` instead")]
     fn bimap<F, G, U, E2>(self, success_map: F, error_map: G) -> Result<U, E2>
     where
         F: FnOnce(T) -> U,
@@ -559,6 +552,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 /// assert!(error_display.contains("config.json"));
 /// ```
 #[derive(Debug, Clone)]
+#[deprecated(note = "Use `crate::error::ComposableError` and related context utilities instead")]
 pub struct AppError<M, C = ()> {
     message: M,
     context: Option<C>,
@@ -680,6 +674,7 @@ impl<M: Debug + Clone, C: Debug + Clone> std::error::Error for AppError<M, C> {}
 /// let error_display = format!("{}", error);
 /// assert!(error_display.contains("File not found"));
 /// ```
+#[deprecated(note = "Use `crate::error::ComposableError::new` instead")]
 #[inline]
 pub fn error<M>(message: M) -> AppError<M> {
     AppError::new(message)
@@ -708,6 +703,7 @@ pub fn error<M>(message: M) -> AppError<M> {
 /// let mapped = error.map(|msg| format!("Error: {}", msg));
 /// assert_eq!(mapped.message(), &"Error: File not found");
 /// ```
+#[deprecated(note = "Use `crate::error::ComposableError::new(message).with_context(context)` instead")]
 #[inline]
 pub fn error_with_context<M, C>(message: M, context: C) -> AppError<M, C> {
     AppError::with_context(message, context)
