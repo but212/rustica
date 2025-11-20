@@ -103,9 +103,6 @@ Copyright (c) 2015 Andrew Gallant
 memchr:
 Copyright (c) 2015 Andrew Gallant
 
-std:
-Copyright (c) The Rust Project Contributors
-
 cfg-if:
 Copyright (c) 2014 Alex Crichton
 
