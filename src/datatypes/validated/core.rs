@@ -1003,8 +1003,8 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         A: Clone,
         E: Clone,
     {
-        use crate::utils::error_utils::ResultExt;
-        result.clone().to_validated()
+        use crate::error::result_to_validated;
+        result_to_validated(result.clone())
     }
 
     /// Converts from `Result<A, E>` to `Validated<E, A>`, taking ownership of the Result.
@@ -1042,8 +1042,8 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// ```
     #[inline]
     pub fn from_result_owned(result: Result<A, E>) -> Validated<E, A> {
-        use crate::utils::error_utils::ResultExt;
-        result.to_validated()
+        use crate::error::result_to_validated;
+        result_to_validated(result)
     }
 
     /// Converts this `Validated` into a `Result`.
