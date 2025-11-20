@@ -30,12 +30,12 @@ MIT OR Apache-2.0
 - crossbeam-utils
 - either
 - getrandom
-- itoa (copyright notice X)
-- lazy_static (copyright notice X)
+- itoa
+- lazy_static
 - libc
 - log
-- proc-macro2 (copyright notice X)
-- quote (copyright notice X)
+- proc-macro2
+- quote
 - rand
 - rand_core
 - rayon
@@ -43,13 +43,13 @@ MIT OR Apache-2.0
 - regex
 - regex-automata
 - regex-syntax
-- serde (copyright notice X)
-- serde_core (copyright notice X)
-- serde_derive (copyright notice X)
-- serde_json (copyright notice X)
+- serde
+- serde_core
+- serde_derive
+- serde_json
 - smallvec
-- syn (copyright notice X)
-- unicode-ident (copyright notice X)
+- syn
+- unicode-ident
 
 MIT/Apache-2.0 (historical slash separator)
 
@@ -102,9 +102,6 @@ Copyright (c) 2015 Andrew Gallant
 
 memchr:
 Copyright (c) 2015 Andrew Gallant
-
-std:
-Copyright (c) The Rust Project Contributors
 
 cfg-if:
 Copyright (c) 2014 Alex Crichton
