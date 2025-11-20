@@ -49,6 +49,10 @@
   - **Changed**: `ErrorPipeline::finish()` now returns `Result<T, Box<ComposableError<E>>>`
   - Previous return type: `Result<T, ComposableError<E>>` caused large Result warnings
   - This change enables deep pipeline buffering optimization while avoiding stack overflow risks
+- **`Validated` Error Handling API Changes**
+  - **Removed**: `ErrorOps` implementation for `Validated` in `src/error/core.rs`
+  - **Reason**: `ErrorOps::recover` is incompatible with error accumulation semantics
+  - **Replacement**: Use `recover_all` or `recover_all_at_once` in `src/datatypes/validated/core.rs`
 
 ### Changed - 0.10.2
 
@@ -239,7 +243,7 @@
 
 - Upgraded to Rust 2024 edition with minimum supported version 1.87.0
 
-- **`Choice` Filter Methods Clarification** (`src/datatypes/choice.rs`)  
+- **`Choice` Filter Methods Clarification** (`src/datatypes/choice.rs`)
   - Established clear division of responsibilities between filter methods:
     - `filter`: Only applies the predicate to alternative values, always preserves the primary value
     - `filter_value`: Applies the predicate to all values including primary
@@ -252,6 +256,7 @@
 ### Fixed - 0.8.0
 
 - **`Choice::flatten()` Ordering Logic** (`src/datatypes/choice.rs`)
+
   - Corrected the implementation of `flatten` to match its documentation. The new alternatives now correctly consist of the remaining items from the primary iterator, followed by the items from the alternatives' iterators.
 
 - **`IsoLens` API and Constraint Refinements** (`src/datatypes/iso_lens.rs`)

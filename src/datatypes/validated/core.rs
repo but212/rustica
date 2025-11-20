@@ -181,6 +181,44 @@ impl<E, A> Validated<E, A> {
         !self.is_valid()
     }
 
+    /// Recovers from all errors, not just the first.
+    /// 
+    /// This is the correct recovery function for Validated,
+    /// which preserves error accumulation semantics.
+    pub fn recover_all<F>(self, mut recovery: F) -> Self
+    where
+        F: FnMut(E) -> Self,
+    {
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(errors) => {
+                let mut accumulated = Vec::new();
+                
+                for error in errors {
+                    match recovery(error) {
+                        Validated::Valid(v) => return Validated::Valid(v),
+                        Validated::Invalid(more) => {
+                            accumulated.extend(more.into_vec());
+                        }
+                    }
+                }
+                
+                Validated::Invalid(SmallVec::from_vec(accumulated))
+            }
+        }
+    }
+    
+    /// Recovers with a function that receives ALL errors at once.
+    pub fn recover_all_at_once<F>(self, recovery: F) -> Self
+    where
+        F: FnOnce(Vec<E>) -> Self,
+    {
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(errors) => recovery(errors.into_vec()),
+        }
+    }
+
     /// Returns all errors if this is invalid, or an empty collection if valid.
     ///
     /// This method clones the underlying errors into an owned `Vec`. For zero-copy

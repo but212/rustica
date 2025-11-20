@@ -7,7 +7,6 @@
 use crate::datatypes::either::Either;
 use crate::datatypes::validated::Validated;
 use crate::utils::error_utils::WithError;
-use smallvec::smallvec;
 
 /// A category-theoretic abstraction for error handling types.
 ///
@@ -262,72 +261,6 @@ impl<E: Clone, T: Clone> ErrorOps<E> for Either<E, T> {
         match self {
             Either::Right(value) => Ok(success_f(value)),
             Either::Left(error) => Err(error_f(error)),
-        }
-    }
-}
-
-/// Implementation of ErrorOps for Validated<E, T>
-///
-/// # Note on Error Accumulation
-///
-/// `Validated` is designed to accumulate multiple errors, but the `ErrorOps` trait
-/// requires conversion to single-error types (`Result`, `Either`). Therefore:
-///
-/// - `recover()`: Uses only the **first error** for recovery. Other accumulated errors are discarded.
-/// - `bimap_result()`: Converts to `Result<B, F>`, using only the **first error**.
-///
-/// If you need to preserve all accumulated errors, consider using:
-/// - `Validated::errors()` to access all errors before conversion
-/// - `split_validated_errors()` from the `convert` module to split into multiple Results
-/// - Direct pattern matching on `Validated::Invalid(errors)` to handle all errors
-impl<E: Clone, T: Clone> ErrorOps<E> for Validated<E, T> {
-    /// Applies a recovery function to the first error if this is invalid.
-    ///
-    /// **Important**: This only uses the **first error** from the accumulated errors.
-    /// Other errors are discarded. This is a lossy operation when multiple errors exist.
-    #[inline]
-    fn recover<F>(self, recovery: F) -> Self
-    where
-        F: FnOnce(E) -> Self,
-    {
-        match self {
-            Validated::Valid(value) => Validated::Valid(value),
-            Validated::Invalid(errors) => {
-                // For Validated, we recover from the first error
-                // This is a lossy conversion when multiple errors are present
-                if let Some(first_error) = errors.into_iter().next() {
-                    recovery(first_error)
-                } else {
-                    // Empty error case - should not happen in well-formed Validated
-                    Validated::Invalid(smallvec![])
-                }
-            },
-        }
-    }
-
-    /// Maps over both success and error cases, converting to Result.
-    ///
-    /// **Important**: This only uses the **first error** from the accumulated errors.
-    /// This is a lossy conversion from `Validated` (which can hold multiple errors)
-    /// to `Result` (which can only hold one error).
-    fn bimap_result<B, F, SuccessF, ErrorF>(
-        self, success_f: SuccessF, error_f: ErrorF,
-    ) -> Result<B, F>
-    where
-        SuccessF: FnOnce(Self::Success) -> B,
-        ErrorF: FnOnce(E) -> F,
-        Self: Sized,
-    {
-        match self {
-            Validated::Valid(value) => Ok(success_f(value)),
-            Validated::Invalid(errors) => {
-                // Convert to Result by taking the first error (lossy conversion)
-                let first_error = errors
-                    .into_iter()
-                    .next()
-                    .expect("Validated::Invalid should contain at least one error");
-                Err(error_f(first_error))
-            },
         }
     }
 }
