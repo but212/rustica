@@ -63,7 +63,5 @@
 //!
 //! These utilities form powerful combinations when used with Rustica's datatypes, traits, and transformers.
 
-// it is not ready
-// pub use crate::utils::error_utils::*;
 pub use crate::utils::hkt_utils::*;
 pub use crate::utils::transform_utils::*;
