@@ -379,6 +379,7 @@ impl<E> From<E> for ComposableError<E> {
 /// assert_eq!(context.message(), "Failed during startup");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[repr(transparent)]
 pub struct ErrorContext {
     message: String,
 }
