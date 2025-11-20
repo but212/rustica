@@ -181,10 +181,46 @@ impl<E, A> Validated<E, A> {
         !self.is_valid()
     }
 
-    /// Recovers from all errors, not just the first.
-    /// 
-    /// This is the correct recovery function for Validated,
-    /// which preserves error accumulation semantics.
+    /// Recovers from each error individually, preserving error accumulation.
+    ///
+    /// Unlike `ErrorOps::recover` which only uses the first error, this method
+    /// applies the recovery function to **every accumulated error**, maintaining
+    /// Validated's core semantics of error collection.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `F`: Recovery function type
+    ///
+    /// # Arguments
+    ///
+    /// * `recovery`: Function applied to each error
+    ///
+    /// # Returns
+    ///
+    /// - If all recoveries succeed with Valid, returns the first Valid
+    /// - If any recovery fails, accumulates all new errors
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let errors = Validated::<String, i32>::invalid_many(vec![
+    ///     "error1".to_string(),
+    ///     "error2".to_string(),
+    ///     "error3".to_string(),
+    /// ]);
+    ///
+    /// let mut seen = Vec::new();
+    /// let result = errors.recover_all(|e| {
+    ///     seen.push(e.clone());
+    ///     Validated::invalid(format!("recovered: {}", e))
+    /// });
+    ///
+    /// // All three errors were processed
+    /// assert_eq!(seen.len(), 3);
+    /// assert!(result.is_invalid());
+    /// ```
     pub fn recover_all<F>(self, mut recovery: F) -> Self
     where
         F: FnMut(E) -> Self,
@@ -196,19 +232,54 @@ impl<E, A> Validated<E, A> {
                 
                 for error in errors {
                     match recovery(error) {
-                        Validated::Valid(v) => return Validated::Valid(v),
-                        Validated::Invalid(more) => {
-                            accumulated.extend(more.into_vec());
+                        Validated::Valid(v) => {
+                            // First successful recovery wins
+                            return Validated::Valid(v);
+                        }
+                        Validated::Invalid(more_errors) => {
+                            accumulated.extend(more_errors.into_vec());
                         }
                     }
                 }
                 
-                Validated::Invalid(SmallVec::from_vec(accumulated))
+                Validated::Invalid(smallvec::SmallVec::from_vec(accumulated))
             }
         }
     }
     
     /// Recovers with a function that receives ALL errors at once.
+    ///
+    /// This variant is useful when you need to analyze all errors together
+    /// to make a recovery decision, rather than processing them individually.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `F`: Recovery function type
+    ///
+    /// # Arguments
+    ///
+    /// * `recovery`: Function that receives all errors as a Vec
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let errors = Validated::<String, i32>::invalid_many(vec![
+    ///     "Missing name".to_string(),
+    ///     "Invalid email".to_string(),
+    /// ]);
+    ///
+    /// let result = errors.recover_all_at_once(|all_errors| {
+    ///     if all_errors.len() > 5 {
+    ///         // Too many errors, give up
+    ///         Validated::invalid("Too many validation errors".to_string())
+    ///     } else {
+    ///         // Provide default value
+    ///         Validated::valid(Default::default())
+    ///     }
+    /// });
+    /// ```
     pub fn recover_all_at_once<F>(self, recovery: F) -> Self
     where
         F: FnOnce(Vec<E>) -> Self,
@@ -216,6 +287,32 @@ impl<E, A> Validated<E, A> {
         match self {
             Validated::Valid(v) => Validated::Valid(v),
             Validated::Invalid(errors) => recovery(errors.into_vec()),
+        }
+    }
+    
+    /// Attempts to recover from errors with a fallback value.
+    ///
+    /// This is a convenience method for the common case of providing
+    /// a default value when validation fails.
+    ///
+    /// # Arguments
+    ///
+    /// * `default`: The fallback value to use
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let error: Validated<String, i32> = Validated::invalid("failed".to_string());
+    /// let recovered = error.recover_with(42);
+    /// assert_eq!(recovered, Validated::valid(42));
+    /// ```
+    #[inline]
+    pub fn recover_with(self, default: A) -> Self {
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(_) => Validated::Valid(default),
         }
     }
 
