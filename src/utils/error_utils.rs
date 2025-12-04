@@ -39,7 +39,6 @@ use crate::datatypes::either::Either;
 use crate::datatypes::validated::Validated;
 use crate::prelude::HKT;
 use smallvec::SmallVec;
-use std::fmt::Debug;
 
 // ===== Core Error Traits =====
 
@@ -385,58 +384,6 @@ where
     Ok(values)
 }
 
-// ===== Error Type Conversions =====
-
-/// Transforms a Result into an Either.
-///
-/// This is a legacy convenience function. Prefer [`crate::error::result_to_either`].
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The error type
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error;
-/// use rustica::datatypes::either::Either;
-///
-/// let ok_result: Result<i32, &str> = Ok(42);
-/// let either_right: Either<&str, i32> = error::result_to_either(ok_result);
-/// assert_eq!(either_right, Either::right(42));
-/// ```
-#[deprecated(note = "Use `crate::error::result_to_either` instead")]
-#[inline]
-pub fn result_to_either<T, E>(result: Result<T, E>) -> Either<E, T> {
-    crate::error::result_to_either(result)
-}
-
-/// Transforms an Either into a Result.
-///
-/// This is a legacy convenience function. Prefer [`crate::error::either_to_result`].
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The error type
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error;
-/// use rustica::datatypes::either::Either;
-///
-/// let right: Either<&str, i32> = Either::right(42);
-/// let ok_result: Result<i32, &str> = error::either_to_result(right);
-/// assert_eq!(ok_result, Ok(42));
-/// ```
-#[deprecated(note = "Use `crate::error::either_to_result` instead")]
-#[inline]
-pub fn either_to_result<T, E>(either: Either<E, T>) -> Result<T, E> {
-    crate::error::either_to_result(either)
-}
-
 // ===== Chainable Error Handling =====
 
 /// A chainable error handling extension trait.
@@ -501,7 +448,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
     }
 
     fn to_either(self) -> Either<E, T> {
-        result_to_either(self)
+        crate::error::result_to_either(self)
     }
 
     fn unwrap_or_default(self) -> T
@@ -521,192 +468,6 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
             Err(error) => Err(error_map(error)),
         }
     }
-}
-
-// ===== Custom Error Types =====
-
-/// A custom error type with optional context.
-///
-/// This is useful for creating specialized error types that carry
-/// additional context. The error has a main message and optional
-/// contextual information to help with debugging.
-///
-/// # Type Parameters
-///
-/// * `M`: The type of the error message
-/// * `C`: The type of the context information
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::utils::error_utils::{AppError, error_with_context};
-///
-/// // Create an error with context
-/// let error: AppError<&str, &str> = error_with_context("File not found", "trying to open config.json");
-/// assert_eq!(error.message(), &"File not found");
-/// assert_eq!(error.context(), Some(&"trying to open config.json"));
-///
-/// // Get a formatted display of the error
-/// let error_display = format!("{}", error);
-/// assert!(error_display.contains("File not found"));
-/// assert!(error_display.contains("config.json"));
-/// ```
-#[derive(Debug, Clone)]
-#[deprecated(note = "Use `crate::error::ComposableError` and related context utilities instead")]
-pub struct AppError<M, C = ()> {
-    message: M,
-    context: Option<C>,
-}
-
-impl<M: PartialEq, C: PartialEq> PartialEq for AppError<M, C> {
-    fn eq(&self, other: &Self) -> bool {
-        self.message == other.message && self.context == other.context
-    }
-}
-
-impl<M: Eq + PartialEq, C: Eq + PartialEq> Eq for AppError<M, C> {}
-
-impl<M, C> AppError<M, C> {
-    /// Creates a new error with just a message.
-    ///
-    /// # Arguments
-    ///
-    /// * `message`: The error message
-    #[inline]
-    pub fn new(message: M) -> Self {
-        AppError {
-            message,
-            context: None,
-        }
-    }
-
-    /// Creates a new error with a message and context.
-    ///
-    /// # Arguments
-    ///
-    /// * `message`: The error message
-    /// * `context`: The contextual information about the error
-    #[inline]
-    pub fn with_context(message: M, context: C) -> Self {
-        AppError {
-            message,
-            context: Some(context),
-        }
-    }
-
-    /// Returns a reference to the error message.
-    #[inline]
-    pub fn message(&self) -> &M {
-        &self.message
-    }
-
-    /// Returns a reference to the error context, if any.
-    #[inline]
-    pub fn context(&self) -> Option<&C> {
-        self.context.as_ref()
-    }
-
-    /// Maps the error message to a new type.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F`: The function type
-    /// * `N`: The new message type
-    #[inline]
-    pub fn map<F, N>(self, f: F) -> AppError<N, C>
-    where
-        F: FnOnce(M) -> N,
-    {
-        AppError {
-            message: f(self.message),
-            context: self.context,
-        }
-    }
-
-    /// Maps the error context to a new type.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F`: The function type
-    /// * `D`: The new context type
-    #[inline]
-    pub fn map_context<F, D>(self, f: F) -> AppError<M, D>
-    where
-        F: FnOnce(Option<C>) -> Option<D>,
-    {
-        AppError {
-            message: self.message,
-            context: f(self.context),
-        }
-    }
-}
-
-impl<M: Debug, C: Debug> std::fmt::Display for AppError<M, C> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.context {
-            Some(context) => write!(f, "{:?} (Context: {:?})", self.message, context),
-            None => write!(f, "{:?}", self.message),
-        }
-    }
-}
-
-impl<M: Debug + Clone, C: Debug + Clone> std::error::Error for AppError<M, C> {}
-
-/// Creates an error with a message.
-///
-/// This is a convenience function for creating an `AppError`.
-///
-/// # Type Parameters
-///
-/// * `M`: The type of the error message
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::utils::error_utils::error;
-///
-/// // Create a simple error with just a message
-/// let error = error("File not found");
-/// assert_eq!(*error.message(), "File not found");
-/// assert_eq!(error.context(), None::<&()>);
-///
-/// // The error implements Display and Error traits
-/// let error_display = format!("{}", error);
-/// assert!(error_display.contains("File not found"));
-/// ```
-#[deprecated(note = "Use `crate::error::ComposableError::new` instead")]
-#[inline]
-pub fn error<M>(message: M) -> AppError<M> {
-    AppError::new(message)
-}
-
-/// Creates an error with a message and context.
-///
-/// This is a convenience function for creating an `AppError` with context.
-///
-/// # Type Parameters
-///
-/// * `M`: The type of the error message
-/// * `C`: The type of the context information
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::utils::error_utils::error_with_context;
-///
-/// // Create an error with context
-/// let error = error_with_context("File not found", "trying to open config.json");
-/// assert_eq!(error.message(), &"File not found");
-/// assert_eq!(error.context(), Some(&"trying to open config.json"));
-///
-/// // Map the message to a new type
-/// let mapped = error.map(|msg| format!("Error: {}", msg));
-/// assert_eq!(mapped.message(), &"Error: File not found");
-/// ```
-#[deprecated(note = "Use `crate::error::ComposableError::new(message).with_context(context)` instead")]
-#[inline]
-pub fn error_with_context<M, C>(message: M, context: C) -> AppError<M, C> {
-    AppError::with_context(message, context)
 }
 
 // ===== Private Implementation Functions =====

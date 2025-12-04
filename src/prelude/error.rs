@@ -1,4 +1,4 @@
-//! 
+//!
 //! Prelude: Unified Error Handling
 //!
 //! This module re-exports the primary interfaces from `crate::error`, making it easy to
@@ -20,44 +20,12 @@
 //! ```
 
 pub use crate::error::{
-    accumulate_context,
-    collect_errors,
-    composable_to_core,
-    context_accumulator,
-    context_fn,
-    core_to_composable,
-    either_to_result,
-    either_to_validated,
-    error,
-    error_pipeline,
-    error_with_context,
-    extract_context,
-    flatten_composable_result,
-    format_error_chain,
-    result_to_either,
-    result_to_validated,
-    sequence,
-    sequence_with_error,
-    split_validated_errors,
-    traverse,
-    traverse_validated,
-    validated_to_either,
-    validated_to_result,
-    with_context,
-    with_context_result,
-    wrap_in_composable_result,
+    BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorCategory,
+    ErrorContext, ErrorOps, ErrorPipeline, IntoErrorContext, LazyContext, ResultExt, WithError,
+    accumulate_context, collect_errors, composable_to_core, context_accumulator, context_fn,
+    core_to_composable, either_to_result, either_to_validated, error_pipeline, extract_context,
+    flatten_composable_result, format_error_chain, result_to_either, result_to_validated, sequence,
+    sequence_with_error, split_validated_errors, traverse, traverse_validated, validated_to_either,
+    validated_to_result, with_context, with_context_result, wrap_in_composable_result,
     wrap_in_composable_result_boxed,
-    AppError,
-    BoxedComposableError,
-    BoxedComposableResult,
-    ComposableError,
-    ComposableResult,
-    ErrorCategory,
-    ErrorContext,
-    ErrorOps,
-    ErrorPipeline,
-    IntoErrorContext,
-    LazyContext,
-    ResultExt,
-    WithError,
 };

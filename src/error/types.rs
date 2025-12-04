@@ -40,7 +40,7 @@ pub struct ComposableError<E> {
     pub core_error: E,
     /// A stack of context information, stored in reverse order (oldest first)
     /// Public API presents them with most recent first
-    context: SmallVec<[String; 4]>,
+    context: SmallVec<[String; 2]>,
     /// Optional error code for programmatic error handling
     pub error_code: Option<u32>,
 }
@@ -118,11 +118,12 @@ impl<E> ComposableError<E> {
     /// assert_eq!(contexts[1], "Failed to connect to database");
     /// ```
     #[inline]
-    pub fn with_context<C>(mut self, ctx: C) -> Self 
+    pub fn with_context<C>(mut self, ctx: C) -> Self
     where
         C: IntoErrorContext,
     {
-        self.context.push(ctx.into_error_context().message().to_string());
+        self.context
+            .push(ctx.into_error_context().message().to_string());
         self
     }
 
@@ -506,6 +507,7 @@ where
 ///     Err(ComposableError::new("Something went wrong"))
 /// }
 /// ```
+#[allow(clippy::result_large_err)]
 pub type ComposableResult<T, E> = Result<T, ComposableError<E>>;
 
 /// Convenience type alias for a boxed ComposableError to reduce size.

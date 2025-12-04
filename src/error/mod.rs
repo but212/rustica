@@ -44,6 +44,5 @@ pub use types::{
 
 // Re-export existing error utilities for compatibility (avoiding conflicts)
 pub use crate::utils::error_utils::{
-    AppError, ResultExt, WithError, error, error_with_context, sequence, sequence_with_error,
-    traverse, traverse_validated,
+    ResultExt, WithError, sequence, sequence_with_error, traverse, traverse_validated,
 };

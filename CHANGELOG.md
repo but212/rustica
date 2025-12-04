@@ -10,12 +10,17 @@
 - **`Validated` Typeclass Simplification**
   - Removed `Monad`, `MonadPlus`, and `Alternative` implementations for `Validated` to avoid mixing fail-fast monadic semantics with error accumulation
   - Encourages explicit use of `Validated`-specific helpers such as `recover_all`, `recover_all_at_once`, and `sequence_owned` for validation workflows
+- **Error Prelude Consolidation**
+  - `prelude::error` now re-exports `ComposableError`, `ComposableResult`, boxed variants, context utilities, and `WithError`/`ResultExt` directly from the unified `crate::error` module
 
 ### Removed - 0.11.0
 
 - **Identity Trait and Implementations**
   - Fully removed the deprecated `Identity` trait and its module (`traits::identity`)
   - Deleted all `Identity` implementations on core datatypes and wrappers (`Id`, `Maybe`, `Either`, `Validated`, `Choice`, `PersistentVector`, `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, `Writer`)
+- **Legacy `AppError` Utilities**
+  - Removed `utils::error_utils::AppError`, `error()`, and `error_with_context()` after a deprecation cycle
+  - All public error construction is now routed through `crate::error::ComposableError` and its context helpers
 
 ## [0.10.2]
 
