@@ -16,7 +16,6 @@
 - **Identity Trait and Implementations**
   - Fully removed the deprecated `Identity` trait and its module (`traits::identity`)
   - Deleted all `Identity` implementations on core datatypes and wrappers (`Id`, `Maybe`, `Either`, `Validated`, `Choice`, `PersistentVector`, `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, `Writer`)
-  - Migration path: use standard Rust APIs (`unwrap`, `as_ref`, pattern matching) or `Comonad::extract()` where appropriate
 
 ## [0.10.2]
 
