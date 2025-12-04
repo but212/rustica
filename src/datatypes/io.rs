@@ -439,7 +439,7 @@
 //! assert_eq!(good_io_fib.run(), 6765);
 //! ```
 
-use crate::error::{BoxedComposableResult, ComposableError, ErrorPipeline};
+use crate::error::{BoxedComposableResult, ComposableError, ComposableResult, ErrorPipeline};
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::Debug;
 #[cfg(feature = "async")]
@@ -919,7 +919,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// assert_eq!(result.is_ok(), true);
     /// assert_eq!(result.unwrap(), 42);
     /// ```
-    pub fn try_get(&self) -> Result<A, ComposableError<IOError>> {
+    pub fn try_get(&self) -> ComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
@@ -974,9 +974,8 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// }
     /// ```
     pub fn try_get_with_context<C: Into<String>>(
-        &self,
-        context: C,
-    ) -> Result<A, ComposableError<IOError>> {
+        &self, context: C,
+    ) -> ComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
@@ -987,9 +986,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
                 } else {
                     "IO operation panicked with unknown error".to_string()
                 };
-                Err(
-                    ComposableError::new(IOError::Other(msg)).with_context(context.into()),
-                )
+                Err(ComposableError::new(IOError::Other(msg)).with_context(context.into()))
             },
         }
     }

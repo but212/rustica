@@ -172,7 +172,7 @@
 //! ```
 use crate::traits::{
     applicative::Applicative, comonad::Comonad, foldable::Foldable, functor::Functor, hkt::HKT,
-    identity::Identity, monad::Monad, monoid::Monoid, pure::Pure, semigroup::Semigroup,
+    monad::Monad, monoid::Monoid, pure::Pure, semigroup::Semigroup,
 };
 use quickcheck::{Arbitrary, Gen};
 
@@ -391,22 +391,6 @@ impl<T: Clone> Id<T> {
 impl<T> HKT for Id<T> {
     type Source = T;
     type Output<U> = Id<U>;
-}
-
-// Note: Id<T> implements the Identity trait for convenience, but conceptually
-// it represents the identity functor, not a "value extraction utility".
-// For accessing the value, prefer using Comonad::extract() which has proper
-// categorical semantics, or the dedicated value() method from this impl.
-impl<T> Identity for Id<T> {
-    #[inline(always)]
-    fn value(&self) -> &Self::Source {
-        &self.value
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.value
-    }
 }
 
 impl<T> Functor for Id<T> {

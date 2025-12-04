@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [0.11.0]
+
+### Changed - 0.11.0
+
+- **Core Error Helper Cleanup**
+  - `Either::to_result` / `from_result` now delegate to `crate::error::{either_to_result, result_to_either}` instead of legacy `utils::error_utils`
+  - `IO::try_get`, `IO::try_get_with_context`, and `Maybe::try_unwrap` now use the `ComposableResult` alias for consistency with the unified error module
+- **`Validated` Typeclass Simplification**
+  - Removed `Monad`, `MonadPlus`, and `Alternative` implementations for `Validated` to avoid mixing fail-fast monadic semantics with error accumulation
+  - Encourages explicit use of `Validated`-specific helpers such as `recover_all`, `recover_all_at_once`, and `sequence_owned` for validation workflows
+
+### Removed - 0.11.0
+
+- **Identity Trait and Implementations**
+  - Fully removed the deprecated `Identity` trait and its module (`traits::identity`)
+  - Deleted all `Identity` implementations on core datatypes and wrappers (`Id`, `Maybe`, `Either`, `Validated`, `Choice`, `PersistentVector`, `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, `Writer`)
+  - Migration path: use standard Rust APIs (`unwrap`, `as_ref`, pattern matching) or `Comonad::extract()` where appropriate
+
 ## [0.10.2]
 
 ### Deprecated - 0.10.2

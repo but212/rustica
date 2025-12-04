@@ -156,12 +156,11 @@
 //! - Usage patterns
 //! - Performance considerations
 //! - Error handling approaches
+use crate::error::{ComposableError, ComposableResult};
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
-use crate::error::{ComposableError, ComposableResult};
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
@@ -479,10 +478,8 @@ impl<T> Maybe<T> {
     pub fn try_unwrap(self) -> ComposableResult<T, &'static str> {
         match self {
             Maybe::Just(val) => Ok(val),
-            Maybe::Nothing => Err(
-                ComposableError::new("Cannot unwrap Nothing value")
-                    .with_context("Called `try_unwrap()` on a `Nothing` value"),
-            ),
+            Maybe::Nothing => Err(ComposableError::new("Cannot unwrap Nothing value")
+                .with_context("Called `try_unwrap()` on a `Nothing` value")),
         }
     }
 
@@ -1384,41 +1381,9 @@ impl<T> MaybeExt<T> for Maybe<T> {
     fn try_unwrap(self) -> ComposableResult<T, &'static str> {
         match self {
             Maybe::Just(val) => Ok(val),
-            Maybe::Nothing => Err(
-                ComposableError::new("Cannot unwrap Nothing value")
-                    .with_context("Called `try_unwrap()` on a `Nothing` value"),
-            ),
+            Maybe::Nothing => Err(ComposableError::new("Cannot unwrap Nothing value")
+                .with_context("Called `try_unwrap()` on a `Nothing` value")),
         }
-    }
-}
-
-impl<T> Identity for Maybe<T> {
-    /// Gets a reference to the value, panicking if `Nothing`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if called on a `Nothing` value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// let just = Maybe::Just(10);
-    /// assert_eq!(*just.value(), 10);
-    /// ```
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        match self {
-            Maybe::Just(v) => v,
-            Maybe::Nothing => panic!("Called `Identity::value()` on a `Nothing` value"),
-        }
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.unwrap()
     }
 }
 

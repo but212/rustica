@@ -1,12 +1,41 @@
+//! Core implementation of the `Validated` data type.
+//!
+//! This module provides the fundamental `Validated<E, A>` type for accumulating
+//! validation errors, along with its associated methods and helper types.
+
 use smallvec::{SmallVec, smallvec};
 
+/// Type alias for the internal error collection.
+///
+/// Uses `SmallVec` with inline capacity of 8 to optimize for the common case
+/// of few errors while still supporting larger error collections efficiently.
 type ErrorVec<E> = SmallVec<[E; 8]>;
 
+/// Internal helper for efficiently accumulating validation errors.
+///
+/// `ErrorAccumulator` provides a unified interface for collecting errors from
+/// multiple `Validated` instances, with optimized paths for both owned and
+/// borrowed error collections.
+///
+/// # Performance Characteristics
+///
+/// - Stack-allocated for up to 8 errors (via `SmallVec`)
+/// - Heap allocation only when exceeding inline capacity
+/// - Zero-copy error transfer via `extend_owned` when consuming `Validated` instances
+/// - Efficient cloning path via `extend_cloned` for borrowed references
+///
+/// # Type Parameters
+///
+/// * `E` - The error type being accumulated
 struct ErrorAccumulator<E> {
+    /// Internal buffer storing accumulated errors.
     buffer: ErrorVec<E>,
 }
 
 impl<E> ErrorAccumulator<E> {
+    /// Creates a new empty error accumulator.
+    ///
+    /// The accumulator starts with inline storage for up to 8 errors.
     #[inline]
     fn new() -> Self {
         Self {
@@ -14,6 +43,14 @@ impl<E> ErrorAccumulator<E> {
         }
     }
 
+    /// Creates a new error accumulator with pre-allocated capacity.
+    ///
+    /// Use this when you know approximately how many errors to expect,
+    /// to avoid reallocation during accumulation.
+    ///
+    /// # Arguments
+    ///
+    /// * `capacity` - The number of errors to pre-allocate space for
     #[inline]
     fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -21,11 +58,22 @@ impl<E> ErrorAccumulator<E> {
         }
     }
 
+    /// Consumes the accumulator and returns the collected errors.
+    ///
+    /// This transfers ownership of the error collection without cloning.
     #[inline]
     fn into_inner(self) -> ErrorVec<E> {
         self.buffer
     }
 
+    /// Extends the accumulator with owned errors, avoiding clones.
+    ///
+    /// This method is optimized for consuming `Validated::Invalid` instances
+    /// by draining their error collections directly into the accumulator.
+    ///
+    /// # Arguments
+    ///
+    /// * `errors` - The error collection to drain and append
     #[inline]
     fn extend_owned(&mut self, mut errors: ErrorVec<E>) {
         self.buffer.extend(errors.drain(..));
@@ -33,6 +81,15 @@ impl<E> ErrorAccumulator<E> {
 }
 
 impl<E: Clone> ErrorAccumulator<E> {
+    /// Extends the accumulator by cloning errors from a borrowed collection.
+    ///
+    /// This method is used when working with `&Validated` references where
+    /// the original error collection cannot be consumed. It pre-reserves
+    /// capacity to minimize reallocations.
+    ///
+    /// # Arguments
+    ///
+    /// * `errors` - The error collection to clone from
     #[inline]
     fn extend_cloned(&mut self, errors: &ErrorVec<E>) {
         if errors.is_empty() {
@@ -57,7 +114,7 @@ impl<E: Clone> ErrorAccumulator<E> {
 /// ## Borrowed Methods (Reference-based)
 /// - `combine_errors(&self, other: &Self)` - Takes references, clones errors
 /// - `sequence(&[&Validated<E, A>], fn)` - Works with references, clones errors
-/// - `collect<I>(iter: I)` - Takes iterator, may clone depending on context
+/// - `collect<I>(iter: I)` - Takes an iterator of `Validated` values; in practice often used with cloned values (e.g. `values.iter().cloned()`), and may clone depending on context
 ///
 /// ## Owned Methods (Ownership-taking)
 /// - `combine_errors_owned(self, other: Self)` - Takes ownership, moves errors
@@ -86,7 +143,7 @@ impl<E: Clone> ErrorAccumulator<E> {
 ///   - Methods providing access to errors (e.g., `errors()`, which returns `Vec<E>`) typically clone the internal errors to avoid lifetime issues or to provide owned data.
 ///   - If your error type `E` is expensive to clone, consider wrapping it in an `Arc<E>` or ensure that operations that trigger cloning are used judiciously.
 ///
-/// - **`A: Clone`**: The value type `A` also often requires a `Clone` bound for similar reasons, especially for methods that operate on `&self` but need to return an owned `Validated` or extract the value (e.g., `unwrap()`, `fmap_invalid` when `self` is `Valid`). Ownership-taking variants of methods (e.g., `fmap_owned`, `unwrap_owned` if it existed) can sometimes alleviate this requirement for `A`.
+/// - **`A: Clone`**: The value type `A` also often requires a `Clone` bound for similar reasons, especially for methods that operate on `&self` but need to return an owned `Validated` or extract the value (e.g., `unwrap()`, `fmap_invalid` when `self` is `Valid`). Ownership-taking variants of methods (e.g., `fmap_owned`, `unwrap_owned`) can sometimes alleviate this requirement for `A`.
 ///
 /// # Notes on Trait Implementations
 ///
@@ -229,24 +286,24 @@ impl<E, A> Validated<E, A> {
             Validated::Valid(v) => Validated::Valid(v),
             Validated::Invalid(errors) => {
                 let mut accumulated = Vec::new();
-                
+
                 for error in errors {
                     match recovery(error) {
                         Validated::Valid(v) => {
                             // First successful recovery wins
                             return Validated::Valid(v);
-                        }
+                        },
                         Validated::Invalid(more_errors) => {
                             accumulated.extend(more_errors.into_vec());
-                        }
+                        },
                     }
                 }
-                
+
                 Validated::Invalid(smallvec::SmallVec::from_vec(accumulated))
-            }
+            },
         }
     }
-    
+
     /// Recovers with a function that receives ALL errors at once.
     ///
     /// This variant is useful when you need to analyze all errors together
@@ -289,7 +346,7 @@ impl<E, A> Validated<E, A> {
             Validated::Invalid(errors) => recovery(errors.into_vec()),
         }
     }
-    
+
     /// Attempts to recover from errors with a fallback value.
     ///
     /// This is a convenience method for the common case of providing
@@ -1293,6 +1350,11 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
     /// assert_eq!(invalid.as_ref(), None);
     /// ```
+    ///
+    /// Note: This is a method on `Validated` that returns `Option<&A>`, and is distinct
+    /// from the `std::convert::AsRef` trait implementation provided in
+    /// `validated::traits`. To use the trait-based `AsRef<A>` implementation,
+    /// reference it through the trait (e.g. `<Validated<E, A> as AsRef<A>>::as_ref(&v)`).
     #[inline]
     pub fn as_ref(&self) -> Option<&A> {
         match self {

@@ -175,8 +175,6 @@ use std::iter::FromIterator;
 use smallvec::SmallVec;
 
 use crate::prelude::traits::*;
-// TODO: remove this on version 0.12.0
-use crate::traits::identity::Identity;
 
 /// A type representing a value with multiple alternatives.
 ///
@@ -1298,21 +1296,6 @@ impl<T> Pure for Choice<T> {
 
     fn pure_owned<A: Clone>(value: A) -> Self::Output<A> {
         Choice::from_iter([value])
-    }
-}
-
-impl<T: Clone> Identity for Choice<T> {
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        self.first().expect("Cannot get value from an empty Choice")
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.values
-            .into_iter()
-            .next()
-            .expect("Cannot get value from an empty Choice")
     }
 }
 

@@ -69,7 +69,6 @@
 //! ```
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::cmp::Ordering;
@@ -410,16 +409,6 @@ impl<T: fmt::Display> fmt::Display for Min<T> {
 impl<T> HKT for Min<T> {
     type Source = T;
     type Output<U> = Min<U>;
-}
-
-impl<T: Clone + Ord> Identity for Min<T> {
-    fn value(&self) -> &Self::Source {
-        &self.0
-    }
-
-    fn into_value(self) -> Self::Source {
-        self.0
-    }
 }
 
 impl<T: Clone + Ord> Functor for Min<T> {

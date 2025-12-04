@@ -70,7 +70,6 @@
 
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::cmp::Ordering;
@@ -401,16 +400,6 @@ impl<T: fmt::Display> fmt::Display for Max<T> {
 impl<T> HKT for Max<T> {
     type Source = T;
     type Output<U> = Max<U>;
-}
-
-impl<T: Clone + Ord> Identity for Max<T> {
-    fn value(&self) -> &Self::Source {
-        &self.0
-    }
-
-    fn into_value(self) -> Self::Source {
-        self.0
-    }
 }
 
 impl<T: Clone + Ord> Functor for Max<T> {

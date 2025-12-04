@@ -162,7 +162,6 @@
 use crate::traits::applicative::Applicative;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
@@ -443,18 +442,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
 impl<W, A> HKT for Writer<W, A> {
     type Source = A;
     type Output<T> = Writer<W, T>;
-}
-
-impl<W: Monoid + Clone, A> Identity for Writer<W, A> {
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        &self.value
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.value
-    }
 }
 
 impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {

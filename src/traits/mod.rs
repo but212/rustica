@@ -23,8 +23,6 @@
 pub mod evaluate;
 /// Higher-kinded type abstractions for generic programming.
 pub mod hkt;
-/// Identity and value extraction traits.
-pub mod identity;
 /// Creation of values in a computational context.
 pub mod pure;
 

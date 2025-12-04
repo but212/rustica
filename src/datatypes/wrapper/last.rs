@@ -72,7 +72,6 @@
 
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::fmt;
@@ -390,16 +389,6 @@ impl<T: Clone> Monoid for Last<T> {
 impl<T> HKT for Last<T> {
     type Source = T;
     type Output<U> = Last<U>;
-}
-
-impl<T: Clone> Identity for Last<T> {
-    fn value(&self) -> &Self::Source {
-        self.0.as_ref().unwrap()
-    }
-
-    fn into_value(self) -> Self::Source {
-        self.0.unwrap()
-    }
 }
 
 impl<T: Clone> Functor for Last<T> {

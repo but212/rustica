@@ -243,11 +243,9 @@ use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
-use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
-use crate::utils::error_utils;
 use quickcheck::{Arbitrary, Gen};
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
@@ -682,7 +680,7 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn to_result(self) -> Result<R, L> {
-        error_utils::either_to_result(self)
+        crate::error::either_to_result(self)
     }
 
     /// Creates an `Either` from a `Result`.
@@ -706,7 +704,7 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn from_result(result: Result<R, L>) -> Self {
-        error_utils::result_to_either(result)
+        crate::error::result_to_either(result)
     }
 
     /// Returns an iterator over the left value, consuming self.
@@ -1037,49 +1035,6 @@ impl<L: Clone, R: Clone> Bifunctor for Either<L, R> {
         match self {
             Either::Left(l) => Either::Left(g(l)),
             Either::Right(r) => Either::Right(f(r)),
-        }
-    }
-}
-
-/// WARNING: The `Identity` trait implementation for `Either` is logically unsound and should be used with caution.
-/// `Either<L, R>` can contain either a value of type `L` or `R`, but the `Identity` trait treats `R` as the
-/// primary type, which is arbitrary and potentially confusing. This implementation can easily lead to runtime panics
-/// when used with `Either::Left` values.
-///
-/// # Recommended Alternative
-///
-/// Instead of using the `Identity` trait methods, prefer the explicit methods `is_right()`, `right_value()`,
-/// `right_ref()`, and `right_option()` which make the behavior more obvious and provide safer alternatives
-/// that don't panic unexpectedly.
-impl<L: Clone, R: Clone> Identity for Either<L, R> {
-    #[inline]
-    /// Returns a reference to the contained `Right` value.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if called on an `Either::Left` variant. This makes the `Identity` implementation
-    /// for `Either` inherently unsound, as it can only safely operate on half of the possible values.
-    /// Consider using `right_ref()` in combination with `is_right()` for a safer alternative.
-    fn value(&self) -> &Self::Source {
-        match self {
-            Either::Left(_) => panic!("Cannot get value from Left variant"),
-            Either::Right(r) => r,
-        }
-    }
-
-    #[inline]
-    /// Consumes the `Either` and returns the contained `Right` value.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if called on an `Either::Left` variant. This makes the `Identity` implementation
-    /// for `Either` inherently unsound, as it can only safely operate on half of the possible values.
-    /// Consider using `right_value()` in combination with `is_right()` for a safer alternative, or use
-    /// pattern matching which handles both variants safely.
-    fn into_value(self) -> Self::Source {
-        match self {
-            Either::Left(_) => panic!("Called into_value on an Either::Left"),
-            Either::Right(r) => r,
         }
     }
 }

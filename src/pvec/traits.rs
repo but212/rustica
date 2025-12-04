@@ -4,8 +4,7 @@
 //! for [`PersistentVector`], enabling use with the rustica categorical framework.
 
 use crate::traits::{
-    foldable::Foldable, functor::Functor, hkt::HKT, identity::Identity, monoid::Monoid,
-    semigroup::Semigroup,
+    foldable::Foldable, functor::Functor, hkt::HKT, monoid::Monoid, semigroup::Semigroup,
 };
 
 use super::core::PersistentVector;
@@ -13,28 +12,6 @@ use super::core::PersistentVector;
 impl<T> HKT for PersistentVector<T> {
     type Source = T;
     type Output<U> = PersistentVector<U>;
-}
-
-impl<T: Clone> Identity for PersistentVector<T> {
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        self.first().expect("PersistentVector is empty")
-    }
-
-    #[inline]
-    fn try_value(&self) -> Option<&Self::Source> {
-        self.first()
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.into_iter().next().expect("PersistentVector is empty")
-    }
-
-    #[inline]
-    fn try_into_value(self) -> Option<Self::Source> {
-        self.into_iter().next()
-    }
 }
 
 impl<T: Clone> Functor for PersistentVector<T> {
