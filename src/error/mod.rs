@@ -42,7 +42,5 @@ pub use types::{
     IntoErrorContext, LazyContext,
 };
 
-// Re-export existing error utilities for compatibility (avoiding conflicts)
-pub use crate::utils::error_utils::{
-    ResultExt, WithError, sequence, sequence_with_error, traverse, traverse_validated,
-};
+// Re-export error utility traits directly from the unified error module.
+pub use core::{ResultExt, WithError, sequence, sequence_with_error, traverse, traverse_validated};

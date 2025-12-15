@@ -2,6 +2,30 @@
 
 ## [0.11.0]
 
+### Breaking Changes - 0.11.0
+
+- **Remove `Monoid` implementation for `Validated<E, A>`**
+  - `Validated` no longer implements `Monoid` because there is no lawful or semantically clear identity element for error-accumulating validation.
+  - If you relied on `Monoid::empty()` for a validation "zero", use a domain-specific initializer (e.g., `Validated::valid(...)` for a neutral value) or model your error collection separately.
+
+- **Remove `AsRef<A>` implementation for `Validated<E, A>`**
+  - The previous `std::convert::AsRef` impl would panic when called on `Invalid`, which violates the expectation that `AsRef` is a total, non-failing conversion.
+  - Use `Validated::as_ref()` (returns `Option<&A>`) or pattern matching instead.
+
+- **Remove `MonadPlus` implementation for `Either<L, R>`**
+  - `Either` no longer implements `MonadPlus`. Use `Alternative` if you need left-biased/right-biased choice semantics.
+
+- **Remove `MonadPlus` implementation for `Choice<T>`**
+  - `Choice` no longer implements `MonadPlus` because it duplicated `Alternative` (`mzero`/`mplus`).
+  - Replace:
+    - `<Choice<T> as MonadPlus>::mzero()` -> `<Choice<T> as Alternative>::empty_alt()`
+    - `a.mplus(&b)` -> `a.alt(&b)`
+
+- **Remove `utils::error_utils` module**
+  - Error utilities (`WithError`, `ResultExt`, `sequence`, `traverse`, etc.) are now provided directly under `crate::error`.
+  - Update imports:
+    - `rustica::utils::error_utils::*` -> `rustica::error::*` (or `rustica::prelude::error::*`)
+
 ### Changed - 0.11.0
 
 - **Core Error Helper Cleanup**
@@ -12,6 +36,12 @@
   - Encourages explicit use of `Validated`-specific helpers such as `recover_all`, `recover_all_at_once`, and `sequence_owned` for validation workflows
 - **Error Prelude Consolidation**
   - `prelude::error` now re-exports `ComposableError`, `ComposableResult`, boxed variants, context utilities, and `WithError`/`ResultExt` directly from the unified `crate::error` module
+
+- **`Choice<T>` Typeclass Cleanup**
+  - `Foldable` for `Choice<T>` no longer requires `T: Clone`
+  - Documentation clarifies:
+    - `Semigroup::combine` and `Alternative::alt` share the same “merge alternatives” behavior for `Choice<T>`
+    - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
 
 ### Removed - 0.11.0
 

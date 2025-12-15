@@ -298,7 +298,7 @@ fn extract_value(id: &Id<i32>) -> i32 {
 
 ---
 
-## Compatibility Shim (Temporary)
+## Compatibility Shim (Temporary, Identity)
 
 If you need time to migrate, you can temporarily allow deprecated warnings:
 
@@ -470,7 +470,9 @@ for value in choice.iter() {
 
 ### `Choice<T>` Deprecation Overview
 
-Version 0.11.0 deprecates numerous utility methods in `Choice<T>` that are not core categorical operations. This is a **breaking change** that simplifies the `Choice<T>` API to focus on essential Functor/Applicative/Monad/MonadPlus operations. All deprecated methods will be removed in v0.12.0.
+Version 0.11.0 deprecates numerous utility methods in `Choice<T>` that are not core categorical operations. This is a **breaking change** that simplifies the `Choice<T>` API to focus on essential Functor/Applicative/Monad/Alternative operations. All deprecated methods will be removed in v0.12.0.
+
+**Note**: MonadPlus has been removed from `Choice<T>` as it was a duplicate of Alternative. Use Alternative instead.
 
 **Complete Working Example**: See `examples/choice_migration_v0_11_0.rs` for a comprehensive, runnable demonstration of all migration patterns with detailed explanations and test cases.
 
@@ -869,7 +871,7 @@ If performance is critical, you can implement custom optimized functions for you
 
 ---
 
-## Compatibility Shim (Temporary)
+## Compatibility Shim (Temporary, Deprecated Choice Methods)
 
 If you need time to migrate, you can temporarily allow deprecated warnings:
 
@@ -959,7 +961,7 @@ cargo run --example choice_migration_v0_11_0
 
 ## Key Takeaway: Focus on Categorical Core
 
-**v0.11.0 refocuses `Choice<T>` on its categorical purpose** - representing nondeterministic computation with clear Functor/Applicative/Monad/MonadPlus semantics.
+**v0.11.0 refocuses `Choice<T>` on its categorical purpose** - representing nondeterministic computation with clear Functor/Applicative/Monad/Alternative semantics.
 
 **Utility operations should use standard Rust patterns**, while `Choice<T>` provides the categorical structure and operations.
 
