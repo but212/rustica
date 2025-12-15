@@ -12,7 +12,10 @@ pub struct PersistentVectorIter<'a, T> {
     pub(crate) position: usize,
 }
 
-/// An iterator that moves elements out of a persistent vector.
+/// An iterator that yields cloned elements from a persistent vector.
+///
+/// Although this iterator consumes the vector, it still requires `T: Clone` and produces
+/// items by cloning them.
 ///
 /// This iterator is created by the [`into_iter`] method on [`PersistentVector`]
 /// (provided by the [`IntoIterator`] trait).

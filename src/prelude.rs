@@ -12,7 +12,8 @@
 //! - **Traits**: Functor, Applicative, Monad, Monoid, and many more
 //! - **Trait Extensions**: Ergonomic extension traits for functional operations
 //! - **Wrappers**: Newtype wrappers for monoidal/semigroup operations
-//! - **Utilities**: Error handling, higher-kinded type tools, transformation utilities
+//! - **Error handling**: Composable errors and helpers (see `prelude::error`)
+//! - **Utilities**: Higher-kinded type tools and transformation utilities (see `prelude::utils`)
 //! - **Transformers**: Monad transformers (StateT, ReaderT, etc.)
 //!
 //! ## Usage Example
@@ -39,7 +40,7 @@
 //! assert_eq!(a.combine(&b).unwrap(), 7);
 //!
 //! // Use error utilities
-//! use rustica::prelude::utils::*;
+//! use rustica::prelude::error::*;
 //! let results = vec![Ok(1), Ok(2), Ok(3)];
 //! let ok: Result<Vec<i32>, &str> = sequence(results);
 //! assert_eq!(ok, Ok(vec![1, 2, 3]));

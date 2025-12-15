@@ -136,6 +136,8 @@ impl<T> PersistentVector<T> {
 
     /// Returns an iterator over the vector elements.
     ///
+    /// Note: the returned iterator implements `Iterator` only when `T: Clone`.
+    ///
     /// # Examples
     ///
     /// ```

@@ -16,11 +16,11 @@
 //!
 //! ```rust
 //! use rustica::prelude::transformers::*;
-//! use rustica::transformers::state_t::StateT;
 //!
 //! // StateT example: increment state and return the old value
-//! let st: StateT<i32, (i32, i32), i32> = StateT::new(|s: i32| (s, s + 1));
-//! let (old, new_state) = st.run_state(41);
+//! // Convention: the underlying pair is (state, value)
+//! let st: StateT<i32, (i32, i32), i32> = StateT::new(|s: i32| (s + 1, s));
+//! let (new_state, old) = st.run_state(41);
 //! assert_eq!(old, 41);
 //! assert_eq!(new_state, 42);
 //! ```
