@@ -46,7 +46,6 @@
 //! - `Semigroup`: For any `T` that implements `Mul`
 //! - `Monoid`: For any `T` that implements `Mul` and `From<u8>` (for the identity element)
 //! - `Functor`: For mapping operations over the inner value
-//! - `Identity`: For accessing the wrapped value
 //! - `HKT`: For higher-kinded type operations
 //!
 //! ## Quick Start

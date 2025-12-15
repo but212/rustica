@@ -851,11 +851,7 @@ where
     /// assert_eq!(error.core_error(), &"Division by zero");
     /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
-    pub fn try_run_state_with_context<C>(
-        &self,
-        state: S,
-        context: C,
-    ) -> ComposableResult<(S, A), E>
+    pub fn try_run_state_with_context<C>(&self, state: S, context: C) -> ComposableResult<(S, A), E>
     where
         C: IntoErrorContext,
         A: Clone,
@@ -868,8 +864,9 @@ where
                 Ok((s, a)) => Ok((s.clone(), a.clone())),
                 Err(e) => Err(ComposableError::new(e.clone()).with_context(context.clone())),
             },
-            StateT::Effect(run_fn) => run_fn(state)
-                .map_err(|e| ComposableError::new(e).with_context(context.clone())),
+            StateT::Effect(run_fn) => {
+                run_fn(state).map_err(|e| ComposableError::new(e).with_context(context.clone()))
+            },
         }
     }
 
@@ -1007,17 +1004,14 @@ where
     /// assert_eq!(error.core_error(), &"Division by zero");
     /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
-    pub fn try_eval_state_with_context<C>(
-        &self,
-        state: S,
-        context: C,
-    ) -> ComposableResult<A, E>
+    pub fn try_eval_state_with_context<C>(&self, state: S, context: C) -> ComposableResult<A, E>
     where
         C: IntoErrorContext,
         A: Clone,
         E: Clone,
     {
-        self.try_run_state_with_context(state, context).map(|(_, a)| a)
+        self.try_run_state_with_context(state, context)
+            .map(|(_, a)| a)
     }
 
     /// Runs the state transformer and returns only the final state as a [`ComposableResult`].

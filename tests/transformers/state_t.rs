@@ -221,5 +221,8 @@ fn test_state_t_with_complex_error_handling() {
     };
     let result = double_if_even.try_run_state(odd_counter);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().core_error(), &"Cannot double an odd value");
+    assert_eq!(
+        result.unwrap_err().core_error(),
+        &"Cannot double an odd value"
+    );
 }

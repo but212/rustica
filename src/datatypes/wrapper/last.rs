@@ -15,7 +15,6 @@
 //! - `Semigroup`: Combines by keeping the rightmost `Some` value
 //! - `Monoid`: Uses `None` as identity element
 //! - `Functor`: Maps functions over the contained value
-//! - `Identity`: Provides access to the wrapped value
 //! - `HKT`: Higher-kinded type representation
 //!
 //! ## Type Class Laws

@@ -50,19 +50,11 @@
 //! - **Function Environment**: Reader can be understood as a generalization of curried functions,
 //!   allowing a more composable way to provide configuration to functions.
 //!
-//!
 //! ## Core Concepts
 //!
 //! - **Environment Access**: Functions can access a shared read-only environment
 //! - **Environment Modification**: Functions can run in a modified environment without affecting others
 //! - **Composition**: Sequential operations share the same environment
-//!
-//! ## Functional Programming Context
-//!
-//! In functional programming, the Reader monad provides a way to pass a shared context
-//! or configuration to a group of functions without explicitly threading it through
-//! every function call. This creates cleaner, more composable code, particularly when
-//! dealing with deeply nested function calls that all need access to some shared data.
 //!
 //! ## Functional Programming Methods
 //!
@@ -71,15 +63,14 @@
 //! - **Functor-like**: `fmap` transforms the result value of a Reader while preserving the environment.
 //!   - Implementation: `fmap :: (A -> B) -> Reader<E, A> -> Reader<E, B>`
 //!
-//! - **Applicative-like**: Reader supports applicative operations through its `pure` and `apply` methods.
-//!   - `pure`: Creates a Reader that ignores the environment and returns a constant value
-//!     - Implementation: `pure :: A -> Reader<E, A>`
-//!   
-//!   - `apply`: Applies a function from one Reader to a value from another Reader
-//!     - Implementation: `apply :: Reader<E, A -> B> -> Reader<E, A> -> Reader<E, B>`
+//! - **Applicative-like**: `combine` allows you to combine results from two Readers that share the same
+//!   environment (similar to `lift2`).
+//!   - Implementation: `combine :: Reader<E, A> -> Reader<E, B> -> (A, B -> C) -> Reader<E, C>`
 //!
 //! - **Monad-like**: `bind` allows chaining operations that depend on both the environment and previous results.
 //!   - Implementation: `bind :: Reader<E, A> -> (A -> Reader<E, B>) -> Reader<E, B>`
+//!
+//! A "pure" Reader value can be expressed with `Reader::new(|_env| value)`.
 //!
 //! **Note**: These are inherent methods, not trait implementations. `Reader` does not implement
 //! the `Functor`, `Applicative`, or `Monad` traits, but provides equivalent functionality
@@ -529,7 +520,7 @@ where
     }
 
     /// Combines two Readers using a binary function, implementing Applicative functor functionality.
-    /// This allows parallel composition of Readers that share the same environment type but
+    /// This allows independent composition of Readers that share the same environment type but
     /// may produce different result types.
     ///
     /// # Use Cases

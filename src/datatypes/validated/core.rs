@@ -230,11 +230,17 @@ impl<E, A> Validated<E, A> {
         !self.is_valid()
     }
 
-    /// Recovers from each error individually, preserving error accumulation.
+    /// Attempts recovery for accumulated errors, in order.
     ///
-    /// Unlike `ErrorOps::recover` which only uses the first error, this method
-    /// applies the recovery function to **every accumulated error**, maintaining
-    /// Validated's core semantics of error collection.
+    /// This is a `Validated`-specific variant of recovery for the case where there may be
+    /// multiple accumulated errors.
+    ///
+    /// Unlike `ErrorOps::recover` (which recovers from a single error in fail-fast types like
+    /// `Result`), this method feeds each accumulated error to the recovery function.
+    ///
+    /// **Important**: errors are processed left-to-right, and if any recovery returns
+    /// `Validated::Valid(v)`, evaluation stops early and that `Valid(v)` is returned.
+    /// If no recovery returns `Valid`, all errors produced by recoveries are accumulated.
     ///
     /// # Type Parameters
     ///
@@ -246,8 +252,8 @@ impl<E, A> Validated<E, A> {
     ///
     /// # Returns
     ///
-    /// - If all recoveries succeed with Valid, returns the first Valid
-    /// - If any recovery fails, accumulates all new errors
+    /// - If any recovery yields `Valid(v)`, returns the first such `Valid(v)` (early exit)
+    /// - Otherwise, returns `Invalid` with all errors produced by the recovery function
     ///
     /// # Examples
     ///

@@ -55,7 +55,6 @@
 //! - `Semigroup`: For any `T` that implements `Add`
 //! - `Monoid`: For any `T` that implements `Add` and `Default`
 //! - `Functor`: For mapping operations over the inner value
-//! - `Identity`: For accessing the wrapped value
 //! - `HKT`: For higher-kinded type operations
 //!
 //! ## Quick Start

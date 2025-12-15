@@ -32,22 +32,30 @@
 //!
 //! For any `IsoLens` `l` and structure `s`:
 //!
-//! `l.set(s, l.get(s)) == s`
+//! `l.set(&l.get(&s)) == s`
+//!
+//! For the common "lens-like" specialization where `A = (FocusType, S)` (and you use `set_focus`):
+//!
+//! `l.set_focus(&s, &l.get(&s).0) == s`
 //!
 //! Getting a value and setting it back results in the same structure.
 //!
 //! ### SetGet Law
 //!
-//! For any `IsoLens` `l`, structure `s`, and value `v`:
+//! For any `IsoLens` `l` and target value `a: A`:
 //!
-//! `l.get(l.set(s, v)) == v`
+//! `l.get(&l.set(&a)) == a`
+//!
+//! For the `set_focus` convenience method (where `A = (FocusType, S)`), for any structure `s` and focus value `v`:
+//!
+//! `l.get(&l.set_focus(&s, &v)).0 == v`
 //! Setting a value and then getting it returns the value that was set.
 //!
 //! ### SetSet Law
 //!
-//! For any `IsoLens` `l`, structure `s`, and values `v1` and `v2`:
+//! For the `set_focus` convenience method (where `A = (FocusType, S)`), for any structure `s` and values `v1` and `v2`:
 //!
-//! `l.set(l.set(s, v1), v2) == l.set(s, v2)`
+//! `l.set_focus(&l.set_focus(&s, &v1), &v2) == l.set_focus(&s, &v2)`
 //!
 //! Setting twice is the same as setting once with the final value.
 //!
@@ -325,8 +333,9 @@ pub type ComposedIsoLens<S, A, B, L, L2> =
 ///
 /// 3.  **Set-Set Law**: If you set a value `a1` into `s` (producing `s'`), and then set `a2` into `s'`,
 ///     the result is the same as just setting `a2` into the original `s`.
-///     `lens.set(&lens.set(&a1), &a2) == lens.set(&a2)`
-///     (The `set` operation is idempotent in its effect on the focused part based on the new value `a`.)
+///     For the `set_focus` convenience method (where `A` is `(FocusType, S)`):
+///     `lens.set_focus(&lens.set_focus(s, a1), a2) == lens.set_focus(s, a2)`
+///     (Setting twice is the same as setting once with the final focused value.)
 ///
 /// These laws ensure that the lens behaves predictably and doesn't cause unexpected side effects
 /// or loss of information, assuming the underlying `Iso` is correctly implemented.

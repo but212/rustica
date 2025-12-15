@@ -125,7 +125,10 @@ fn test_reader_t_with_complex_error_handling() {
     };
     let result = validate_config.try_run_reader(invalid_config.clone());
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().core_error(), "Max value must be positive");
+    assert_eq!(
+        result.unwrap_err().core_error(),
+        "Max value must be positive"
+    );
 
     // Test processing with a valid config (even max_value)
     let result = process_value.try_run_reader(valid_config.clone());
@@ -139,7 +142,10 @@ fn test_reader_t_with_complex_error_handling() {
     };
     let result = process_value.try_run_reader(odd_config);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().core_error(), "Cannot process odd max values");
+    assert_eq!(
+        result.unwrap_err().core_error(),
+        "Cannot process odd max values"
+    );
 
     // Test with context for better error reporting
     let result =

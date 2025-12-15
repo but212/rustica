@@ -59,7 +59,8 @@
 //! ## Functional Programming Context
 //!
 //! In functional programming, the State monad provides a principled way to work with stateful computations
-//! while maintaining referential transparency. It is a foundational abstraction for handling state in
+//! while enabling referentially-transparent composition when your transition functions are pure
+//! (free of observable side effects). It is a foundational abstraction for handling state in
 //! pure functional programming languages and libraries.
 //!
 //! The State monad can be understood as:
@@ -282,9 +283,8 @@ pub type StateInner<S, A> = StateT<S, Id<(A, S)>, A>;
 ///
 /// # Thread Safety
 ///
-/// The State monad is thread-safe and can be safely shared across threads when the state
-/// and value types implement `Send + Sync`. The implementation uses Arc internally to enable
-/// safe sharing.
+/// `State` can be safely shared across threads when the state and value types implement
+/// `Send + Sync`. Internally, the state transition function is stored behind an `Arc`.
 ///
 /// # Type Parameters
 ///
@@ -840,7 +840,9 @@ where
     /// Executes the state computation with a pure value.
     ///
     /// This method runs the state computation and returns only the final state,
-    /// discarding the computed value. It is the State equivalent of `StateT::exec_pure`.
+    /// discarding the computed value.
+    ///
+    /// This is an alias for [`State::exec_state`].
     ///
     /// # Parameters
     ///
@@ -1042,6 +1044,9 @@ impl<
     ///
     /// This method is similar to `try_run_state` but allows for adding context to the error.
     ///
+    /// It returns a tuple of the (possibly transformed) result and the final state.
+    /// The provided context is only attached when the underlying `Result` is `Err`.
+    ///
     /// # Arguments
     ///
     /// * `s` - The initial state
@@ -1072,19 +1077,14 @@ impl<
     /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// assert_eq!(final_state, -1);
     /// ```
-    pub fn try_run_state_with_context<C>(
-        &self,
-        s: S,
-        context: C,
-    ) -> (ComposableResult<A, Err>, S)
+    pub fn try_run_state_with_context<C>(&self, s: S, context: C) -> (ComposableResult<A, Err>, S)
     where
         C: IntoErrorContext,
     {
         let (result, final_state) = self.run_state(s);
         let context = context.into_error_context();
-        let transformed_result = result.map_err(|error| {
-            ComposableError::new(error).with_context(context.clone())
-        });
+        let transformed_result =
+            result.map_err(|error| ComposableError::new(error).with_context(context.clone()));
         (transformed_result, final_state)
     }
 
@@ -1150,11 +1150,7 @@ impl<
     /// assert_eq!(error.core_error(), &"Value must be positive");
     /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
-    pub fn try_eval_state_with_context<C>(
-        &self,
-        s: S,
-        context: C,
-    ) -> ComposableResult<A, Err>
+    pub fn try_eval_state_with_context<C>(&self, s: S, context: C) -> ComposableResult<A, Err>
     where
         C: IntoErrorContext,
     {
@@ -1227,11 +1223,7 @@ impl<
     /// assert_eq!(error.core_error(), &"Value must be positive");
     /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
-    pub fn try_exec_state_with_context<C>(
-        &self,
-        s: S,
-        context: C,
-    ) -> ComposableResult<S, Err>
+    pub fn try_exec_state_with_context<C>(&self, s: S, context: C) -> ComposableResult<S, Err>
     where
         C: IntoErrorContext,
     {

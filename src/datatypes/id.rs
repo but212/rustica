@@ -2,7 +2,7 @@
 //!
 //! The `Id` datatype represents the **identity functor** from category theory - the simplest possible functor
 //! that wraps a value without adding any context or effects. This is the true categorical identity, distinct
-//! from the `Identity` trait which is a value extraction utility.
+//! from the (deprecated) `Identity` trait which was a value extraction utility.
 //!
 //! ## Category Theory: Identity Functor
 //!
@@ -167,8 +167,11 @@
 //! // Mutable reference iterator
 //! let mut id = Id::new(42);
 //! let mut iter = (&mut id).into_iter();
-//! assert_eq!(iter.next(), Some(&mut 42));
+//! let value = iter.next().unwrap();
+//! *value += 1;
 //! assert_eq!(iter.next(), None);
+//! drop(iter);
+//! assert_eq!(id.unwrap(), 43);
 //! ```
 use crate::traits::{
     applicative::Applicative, comonad::Comonad, foldable::Foldable, functor::Functor, hkt::HKT,

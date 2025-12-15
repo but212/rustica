@@ -21,7 +21,6 @@
 //!
 //! - **Semigroup**: Predicates can be combined using logical OR via `combine`
 //! - **Monoid**: Provides an identity element (`empty`) that always returns false
-//! - **Functor**: Allows mapping over the input type while preserving the predicate behavior
 //!
 //! These implementations enable predicates to work seamlessly with other functional abstractions in Rustica.
 //!

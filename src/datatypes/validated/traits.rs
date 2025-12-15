@@ -173,7 +173,8 @@ impl<E, A> BinaryHKT for Validated<E, A> {
 
 /// # Examples for `Bifunctor` on `Validated`
 ///
-/// `Bifunctor` allows mapping over either the `Invalid` (left) or `Valid` (right) side.
+/// `Bifunctor` allows mapping over either the valid value (`Valid(A)`) or the accumulated errors
+/// (`Invalid(E, ...)`) of `Validated`.
 ///
 /// ## `bimap`
 ///

@@ -121,13 +121,14 @@
 //!         if name.len() >= 5 {
 //!             Choice::new(name.clone(), vec![])
 //!         } else {
-//!             // If primary fails, alternatives will be tried
+//!             // Note: if this returns Choice::new_empty() for the primary value,
+//!             // the whole bind result becomes empty (alternatives are not tried).
 //!             Choice::new_empty()
 //!         }
 //!     })
 //!     .bind(|name| {
 //!         // Add prefix to username
-//!         Choice::new(format!("verified_{name}", ), vec![])
+//!         Choice::new(format!("verified_{name}"), vec![])
 //!     });
 //!
 //! assert_eq!(*processed.first().unwrap(), "verified_user123");
@@ -754,7 +755,7 @@ impl<T> Choice<T> {
     /// let single_nested_list: Choice<Vec<i32>> = Choice::new(vec![10, 20, 30], vec![Vec::<i32>::new(), vec![40]]);
     /// let flat_from_single_list: Choice<i32> = single_nested_list.flatten();
     /// assert_eq!(*flat_from_single_list.first().unwrap(), 10);
-    /// // Order: items from alternatives (empty, then [40]), then rest of primary ([20, 30])
+    /// // Order: rest of primary ([20, 30]), then items from alternatives (empty, then [40])
     /// assert_eq!(flat_from_single_list.alternatives(), &[20, 30, 40]);
     ///
     /// // Flattening an empty Choice
@@ -949,8 +950,7 @@ impl<T> Choice<T> {
     /// # See Also
     /// - [`Choice::new()`](Self::new) - For creating a `Choice` with an explicit primary value and a separate collection of alternatives.
     /// - [`Choice::new_empty()`](Self::new_empty) - For creating an empty `Choice`.
-    /// - [`FromIterator`] - While `Choice` doesn't directly implement `FromIterator`
-    ///   due to the special role of the first element, `of_many` provides similar ergonomics.
+    /// - [`FromIterator`] - `Choice` implements `FromIterator<T>`; the first collected element becomes the primary value.
     #[inline]
     pub fn of_many<I>(many: I) -> Self
     where
@@ -981,7 +981,7 @@ impl<T> Choice<T> {
     /// - If no values in the `Choice` satisfy the predicate, or if the original `Choice`
     ///   is empty, an empty `Choice` (via [`Choice::new_empty()`]) is returned.
     ///
-    /// This method uses copy-on-write semantics for the underlying `SmallVec`.
+    /// This method constructs a new `Choice` containing only the kept values.
     ///
     /// # Arguments
     ///

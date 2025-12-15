@@ -69,13 +69,8 @@
 //!   and logs are combined.
 //!   - Implementation: `bind :: Writer<W, A> -> (A -> Writer<W, B>) -> Writer<W, B>`
 //!
-//! - **MonadWriter**: Writer implements the MonadWriter type class through the utility functions:
-//!   - `tell`: Creates a Writer with the given log and unit value
-//!     - Implementation: `tell :: W -> Writer<W, ()>`
-//!   - `listen`: Executes a Writer computation and returns both the original result and the accumulated log
-//!     - Implementation: `listen :: Writer<W, A> -> Writer<W, (A, W)>`
-//!   - `pass`: Executes a Writer computation that produces a value and a function to transform the log
-//!     - Implementation: `pass :: Writer<W, (A, W -> W)> -> Writer<W, A>`
+//! - **Logging helpers**: This module provides [`Writer::tell`] for adding log output without producing a
+//!   meaningful value.
 //!
 //! - **Monoid**: When the value type is a Monoid, the Writer itself forms a Monoid
 //!   - Implementation: `empty :: () -> Writer<W, A>` and `combine :: Writer<W, A> -> Writer<W, A> -> Writer<W, A>`
@@ -343,6 +338,8 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
 
     /// Extracts just the value from the Writer, discarding the log.
     ///
+    /// This method does not consume the Writer. It returns a clone of the contained value.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -396,6 +393,8 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     }
 
     /// Extracts just the log from the Writer, discarding the value.
+    ///
+    /// This method consumes the Writer.
     ///
     /// # Examples
     ///

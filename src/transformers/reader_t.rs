@@ -1139,11 +1139,7 @@ where
     /// assert_eq!(error.core_error(), "Division by zero");
     /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
-    pub fn try_run_reader_with_context<C>(
-        &self,
-        env: E,
-        context: C,
-    ) -> ComposableResult<A, Err>
+    pub fn try_run_reader_with_context<C>(&self, env: E, context: C) -> ComposableResult<A, Err>
     where
         C: IntoErrorContext,
     {

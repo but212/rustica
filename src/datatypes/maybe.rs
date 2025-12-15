@@ -457,8 +457,8 @@ impl<T> Maybe<T> {
     ///
     /// # Errors
     ///
-    /// If the value is a `Nothing`, this function generates and returns an error
-    /// with a detailed message.
+    /// If the value is `Nothing`, this function returns an `Err` containing a
+    /// [`ComposableError<&'static str>`] with additional context.
     ///
     /// # Examples
     ///
@@ -1328,7 +1328,10 @@ impl<T> WithError<MaybeError> for Maybe<T> {
     type Success = T;
     type ErrorOutput<G> = Maybe<G>;
 
-    /// maybe does not store errors, so this function does nothing
+    /// `Maybe` does not store an error value.
+    ///
+    /// This implementation preserves `Nothing` as `Nothing`. For `Just(_)`, it fabricates a
+    /// `MaybeError::ValueNotPresent` and applies `f` to it, returning `Just(f(...))`.
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
     where
         F: Fn(MaybeError) -> G,
@@ -1363,7 +1366,10 @@ pub trait MaybeExt<T> {
     /// Converts a Maybe to a Result with the specified error
     fn to_result<E>(self, err: E) -> Result<T, E>;
 
-    /// Provides a safe unwrapping mechanism that returns a Result
+    /// Provides a safe unwrapping mechanism that returns a Result.
+    ///
+    /// On `Nothing`, this returns an `Err` containing a [`ComposableError<&'static str>`]
+    /// with context explaining the failure.
     fn try_unwrap(self) -> ComposableResult<T, &'static str>;
 }
 

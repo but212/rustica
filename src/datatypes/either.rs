@@ -6,14 +6,15 @@
 //!
 //! ## Quick Start
 //!
-//! Handle success/failure cases with Either:
+//! Model a computation that can produce one of two values:
 //!
 //! ```rust
 //! use rustica::datatypes::either::Either;
 //! use rustica::traits::functor::Functor;
 //! use rustica::traits::monad::Monad;
 //!
-//! // Create Either values - Left for errors, Right for success
+//! // `Either` itself does not encode success/failure, but it is commonly used in an error-like way:
+//! // `Left` as the "error"/alternative branch and `Right` as the "success"/preferred branch.
 //! let success: Either<String, i32> = Either::Right(42);
 //! let error: Either<String, i32> = Either::Left("Something went wrong".to_string());
 //!
@@ -57,9 +58,10 @@
 //! - `Applicative`: Applies functions wrapped in `Either` to values wrapped in `Either`
 //! - `Monad`: Chains computations that may produce either left or right values
 //! - `Alternative`: Provides choice between alternatives (requires `L: Default + Clone`)
-//! - `Identity`: **WARNING**: Logically unsound implementation that only works with `Right` values and panics on `Left`
 //!
-//! **Note**: The `Identity` implementation should be avoided. Use explicit methods like `right_value()`, `is_right()` instead.
+//! **Note**: This crate previously provided an `Identity` trait for value extraction, but it is deprecated.
+//! Prefer explicit methods like `right_option()`, `left_option()`, pattern matching, or `unwrap()` when you
+//! intentionally want the `Right` value.
 //!
 //! ## Type Class Laws
 //!
@@ -234,7 +236,6 @@
 //! - `unwrap_left()`, `unwrap_right()`: Panic if called on wrong variant
 //! - `left_value()`, `right_value()`: Panic if called on wrong variant  
 //! - `left_ref()`, `right_ref()`: Panic if called on wrong variant
-//! - `Identity` trait methods: Panic if called on `Left` variant
 //!
 //! **Recommended alternatives**: Use pattern matching, `left_option()`, `right_option()`, or the safe `*_or()` methods.
 
