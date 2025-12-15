@@ -58,7 +58,6 @@
 //! - **Bifunctor**: Maps functions over both the error and valid values
 //! - **Applicative**: Allows applying functions wrapped in `Validated` contexts
 //! - **Semigroup**: Combines error values when both `Validated` values are invalid
-//! - **Monoid**: Uses `Invalid` with an empty error collection as the identity element
 //! - **Foldable**: Folds valid values (ignoring invalid ones)
 //!
 //! ## Examples

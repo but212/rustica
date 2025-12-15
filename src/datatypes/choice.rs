@@ -713,6 +713,11 @@ impl<T> Choice<T> {
     /// followed by all items from all alternatives' iterators (in their original order),
     /// become the new alternatives.
     ///
+    /// # Safety Note
+    ///
+    /// This method will panic if the primary value is an empty iterator. Use `try_flatten()`
+    /// for a safe version that returns a `Result` instead of panicking.
+    ///
     /// # Type Parameters
     ///
     /// * `T`: The original type held by the `Choice`, which must be `Clone` and implement `IntoIterator`.
@@ -1564,6 +1569,12 @@ impl<T: Clone> Monad for Choice<T> {
 }
 
 impl<T: Clone> Semigroup for Choice<T> {
+    /// Combines two Choice values by merging their alternatives.
+    ///
+    /// For Choice<T>, this has the same behavior as Alternative::alt because both
+    /// represent non-deterministic computation where we want to collect all possible
+    /// outcomes. The primary value from the first Choice is preserved, and all
+    /// alternatives from both Choices are merged.
     fn combine(&self, other: &Self) -> Self {
         if self.values.is_empty() {
             return other.clone();
@@ -1908,32 +1919,6 @@ impl<T: Clone> Alternative for Choice<T> {
     }
 }
 
-impl<T: Clone> MonadPlus for Choice<T> {
-    fn mzero<U>() -> Self::Output<U> {
-        Choice::new_empty()
-    }
-
-    fn mplus(&self, other: &Self) -> Self {
-        if self.values.is_empty() {
-            other.clone()
-        } else if other.values.is_empty() {
-            self.clone()
-        } else {
-            self.combine(other)
-        }
-    }
-
-    fn mplus_owned(self, other: Self) -> Self {
-        if self.values.is_empty() {
-            other
-        } else if other.values.is_empty() {
-            self
-        } else {
-            self.combine_owned(other)
-        }
-    }
-}
-
 impl<T: Clone> Choice<Option<T>> {
     /// Sequences a `Choice` of `Option`s into an `Option` of a `Choice`.
     ///
@@ -1997,7 +1982,7 @@ impl<T: Clone + Display> Display for Choice<T> {
     }
 }
 
-impl<T: Clone> Foldable for Choice<T> {
+impl<T> Foldable for Choice<T> {
     fn fold_left<B, F>(&self, initial: &B, f: F) -> B
     where
         F: Fn(&B, &Self::Source) -> B,
@@ -2079,9 +2064,12 @@ impl<T: Clone + Default> Default for Choice<T> {
     }
 }
 
-impl<T: Clone + Default> std::iter::Sum for Choice<T> {
+impl<T: Clone> std::iter::Sum for Choice<T> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self::empty(), |a, b| a.mplus(&b))
+        iter.fold(Self::new_empty(), |acc, choice| {
+            let combined: SmallVec<[T; 8]> = acc.values.into_iter().chain(choice.values).collect();
+            Choice { values: combined }
+        })
     }
 }
 

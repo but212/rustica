@@ -12,7 +12,7 @@
 //! - **Monad**: Chaining computations in a context
 //! - **Monoid/Semigroup**: Algebraic structures for combination and identity
 //! - **Foldable/Traversable**: Folding and traversing data structures
-//! - **Alternative/MonadPlus**: Choice and failure in computations
+//! - **Alternative**: Choice and failure in computations
 //! - **Arrow/Category/NaturalTransformation**: Abstract computation and morphisms
 //! - **etc.**: Other Type Classes
 //!

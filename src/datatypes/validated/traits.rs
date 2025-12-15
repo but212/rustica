@@ -6,20 +6,9 @@ use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
-use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
 use quickcheck::{Arbitrary, Gen};
-
-impl<E, A> AsRef<A> for Validated<E, A> {
-    #[inline]
-    fn as_ref(&self) -> &A {
-        match self {
-            Validated::Valid(x) => x,
-            _ => panic!("called `as_ref()` on an invalid value"),
-        }
-    }
-}
 
 impl<E, A> HKT for Validated<E, A> {
     type Source = A;
@@ -599,12 +588,6 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
                 Validated::Invalid(e1)
             },
         }
-    }
-}
-
-impl<E: Clone, A: Clone> Monoid for Validated<E, A> {
-    fn empty() -> Self {
-        Validated::Invalid(SmallVec::new())
     }
 }
 

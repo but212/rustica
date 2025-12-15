@@ -156,7 +156,7 @@
 //! - Usage patterns
 //! - Performance considerations
 //! - Error handling approaches
-use crate::error::{ComposableError, ComposableResult};
+use crate::error::{ComposableError, ComposableResult, WithError};
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::functor::Functor;
@@ -164,7 +164,6 @@ use crate::traits::hkt::HKT;
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
-use crate::utils::error_utils::WithError;
 use quickcheck::{Arbitrary, Gen};
 use std::marker::PhantomData;
 // use std::ops::{ControlFlow, FromResidual, Try};

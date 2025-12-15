@@ -145,14 +145,6 @@ impl<E: Clone> ErrorAccumulator<E> {
 ///
 /// - **`A: Clone`**: The value type `A` also often requires a `Clone` bound for similar reasons, especially for methods that operate on `&self` but need to return an owned `Validated` or extract the value (e.g., `unwrap()`, `fmap_invalid` when `self` is `Valid`). Ownership-taking variants of methods (e.g., `fmap_owned`, `unwrap_owned`) can sometimes alleviate this requirement for `A`.
 ///
-/// # Notes on Trait Implementations
-///
-/// - **`Alternative` Implementation**: The `Alternative` trait implementation for `Validated<E, A>` requires `E: Clone + Default`:
-///   - `empty_alt()` returns `Validated::Invalid` containing a default error (`E::default()`).
-///   - `guard(false)` also uses `E::default()` to create an `Invalid` state.
-///   - `many()` for an `Invalid` state discards original errors and uses `E::default()`.
-///   - These methods use `Default` to ensure a consistent representation for the empty/failure case.
-///
 /// # Error Accumulation Behavior
 ///
 /// When combining multiple `Validated` instances with methods like `lift2` or `apply`, errors are accumulated
@@ -1123,7 +1115,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         A: Clone,
         E: Clone,
     {
-        use crate::utils::error_utils::WithError;
+        use crate::error::WithError;
         self.clone().to_result()
     }
 
@@ -1143,7 +1135,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// ```
     #[inline]
     pub fn to_result_owned(self) -> Result<A, E> {
-        use crate::utils::error_utils::WithError;
+        use crate::error::WithError;
         self.to_result()
     }
 
@@ -1350,11 +1342,6 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
     /// assert_eq!(invalid.as_ref(), None);
     /// ```
-    ///
-    /// Note: This is a method on `Validated` that returns `Option<&A>`, and is distinct
-    /// from the `std::convert::AsRef` trait implementation provided in
-    /// `validated::traits`. To use the trait-based `AsRef<A>` implementation,
-    /// reference it through the trait (e.g. `<Validated<E, A> as AsRef<A>>::as_ref(&v)`).
     #[inline]
     pub fn as_ref(&self) -> Option<&A> {
         match self {

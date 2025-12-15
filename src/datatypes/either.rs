@@ -56,7 +56,7 @@
 //! - `Functor`: Maps over the right value with `fmap`
 //! - `Applicative`: Applies functions wrapped in `Either` to values wrapped in `Either`
 //! - `Monad`: Chains computations that may produce either left or right values
-//! - `Alternative`/`MonadPlus`: Provides choice between alternatives (requires `L: Default + Clone`)
+//! - `Alternative`: Provides choice between alternatives (requires `L: Default + Clone`)
 //! - `Identity`: **WARNING**: Logically unsound implementation that only works with `Right` values and panics on `Left`
 //!
 //! **Note**: The `Identity` implementation should be avoided. Use explicit methods like `right_value()`, `is_right()` instead.
@@ -244,7 +244,6 @@ use crate::traits::bifunctor::Bifunctor;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::monad::Monad;
-use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
 use quickcheck::{Arbitrary, Gen};
 
@@ -1035,74 +1034,6 @@ impl<L: Clone, R: Clone> Bifunctor for Either<L, R> {
         match self {
             Either::Left(l) => Either::Left(g(l)),
             Either::Right(r) => Either::Right(f(r)),
-        }
-    }
-}
-
-/// Implementation of `MonadPlus` for `Either`, which provides zero and plus operations.
-///
-/// # Type Parameters
-///
-/// * `L`: The left type, which must implement `Default + Clone`. The `Default` requirement is needed
-///   to create the zero element (`mzero`) by producing a `Left(L::default())` value.
-/// * `R`: The right type, which must implement `Clone` for all operations.
-///
-/// # Implementation Notes
-///
-/// - `mzero<U>()` returns `Either::Left(L::default())`, representing a failure or empty value.
-/// - `mplus` combines two `Either` values, preferring `Right` values over `Left` values.
-///   If both are `Left`, the first value is kept.
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::either::Either;
-/// use rustica::traits::monad_plus::MonadPlus;
-///
-/// // Zero produces a Left with the default value
-/// let zero = Either::<String, i32>::mzero::<i32>(); // Either::Left(String::default())
-///
-/// // Plus prefers Right values
-/// let a: Either<String, i32> = Either::right(42);
-/// let b: Either<String, i32> = Either::left("error".to_string());
-/// assert_eq!(a.mplus(&b), Either::right(42)); // Right preferred over Left
-/// assert_eq!(b.mplus(&a), Either::right(42)); // Right preferred over Left
-/// ```
-impl<L: Default + Clone, R: Clone> MonadPlus for Either<L, R> {
-    /// Returns a zero element of the `MonadPlus` instance as `Either::Left(L::default())`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The right type of the resulting `Either` (can differ from `R`)
-    ///
-    /// # Requirements
-    ///
-    /// Requires `L: Default` to create the default value for the `Left` variant.
-    fn mzero<U: Clone>() -> Self::Output<U> {
-        Either::Left(L::default().clone())
-    }
-
-    /// Combines two `Either` values, preferring `Right` values over `Left` values.
-    /// If both are `Left`, the first value is kept.
-    fn mplus(&self, other: &Self) -> Self {
-        match (self, other) {
-            (Either::Right(_), _) => self.clone(),
-            (Either::Left(_), Either::Right(_)) => other.clone(),
-            (Either::Left(_), Either::Left(_)) => self.clone(),
-        }
-    }
-
-    /// Owned version of `mplus` that consumes both inputs.
-    /// Combines two `Either` values, preferring `Right` values over `Left` values.
-    /// If both are `Left`, the first value is kept.
-    fn mplus_owned(self, other: Self) -> Self
-    where
-        Self: Sized,
-    {
-        match (&self, &other) {
-            (Either::Right(_), _) => self,
-            (Either::Left(_), Either::Right(_)) => other,
-            (Either::Left(_), Either::Left(_)) => self,
         }
     }
 }
