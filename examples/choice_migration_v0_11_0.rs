@@ -102,19 +102,24 @@ fn demonstrate_non_categorical_operations() {
     let unique: Choice<i32> = {
         let mut seen = HashSet::new();
         Choice::from_iter(
-            choice.iter()
-                .filter(|&x| seen.insert(x))  // Keep first occurrence
-                .cloned()
+            choice
+                .iter()
+                .filter(|&x| seen.insert(x)) // Keep first occurrence
+                .cloned(),
         )
     };
-    println!("✓ Unique values (order preserved): {:?}", unique.iter().collect::<Vec<_>>());
+    println!(
+        "✓ Unique values (order preserved): {:?}",
+        unique.iter().collect::<Vec<_>>()
+    );
 
     let unique_by_key: Choice<i32> = {
         let mut seen = HashSet::new();
         Choice::from_iter(
-            choice.iter()
-                .filter(|&x| seen.insert(x % 2))  // Keep first per key
-                .cloned()
+            choice
+                .iter()
+                .filter(|&x| seen.insert(x % 2)) // Keep first per key
+                .cloned(),
         )
     };
     println!(
@@ -134,7 +139,7 @@ fn demonstrate_non_categorical_operations() {
 
     // AFTER: Map conversion - keep first value per key
     let map: HashMap<i32, i32> = choice.iter().fold(HashMap::new(), |mut acc, &x| {
-        acc.entry(x % 2).or_insert(x);  // Keep first value
+        acc.entry(x % 2).or_insert(x); // Keep first value
         acc
     });
     println!("✓ Map (x % 2 -> first x): {:?}", map);
@@ -274,7 +279,10 @@ fn demonstrate_common_patterns() {
         let mut seen = HashSet::new();
         Choice::from_iter(choice.iter().filter(|&x| seen.insert(x)).cloned())
     };
-    println!("  Unique numbers (order preserved): {:?}", unique.iter().collect::<Vec<_>>());
+    println!(
+        "  Unique numbers (order preserved): {:?}",
+        unique.iter().collect::<Vec<_>>()
+    );
 
     let sum = choice.fold_left(&0, |acc, &x| acc + x); // Categorical folding
     println!("  Sum: {}", sum);

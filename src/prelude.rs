@@ -49,18 +49,18 @@
 
 pub mod category;
 pub mod datatypes;
+pub mod error;
 pub mod traits;
 pub mod traits_ext;
 pub mod transformers;
 pub mod utils;
 pub mod wrapper;
-pub mod error;
 
 pub use category::*;
 pub use datatypes::*;
+pub use error::*;
 pub use traits::*;
 pub use traits_ext::*;
 pub use transformers::*;
 pub use utils::*;
 pub use wrapper::*;
-pub use error::*;

@@ -1,9 +1,9 @@
 use criterion::{BenchmarkId, Criterion};
 use rustica::context;
-use rustica::error::{with_context_result, error_pipeline};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use rustica::error::{error_pipeline, with_context_result};
 use std::hint::black_box;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn lazy_error_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("LazyError");
@@ -12,10 +12,7 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
     group.bench_function("happy_path_lazy_context", |b| {
         b.iter(|| {
             let result: Result<i32, &str> = Ok(42);
-            let processed = with_context_result(
-                result,
-                context!("Failed at step {}", 1)
-            );
+            let processed = with_context_result(result, context!("Failed at step {}", 1));
             black_box(processed)
         });
     });
@@ -24,10 +21,7 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
     group.bench_function("happy_path_eager_context", |b| {
         b.iter(|| {
             let result: Result<i32, &str> = Ok(42);
-            let processed = with_context_result(
-                result,
-                format!("Failed at step {}", 1)
-            );
+            let processed = with_context_result(result, format!("Failed at step {}", 1));
             black_box(processed)
         });
     });
@@ -36,10 +30,7 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
     group.bench_function("error_path_lazy_context", |b| {
         b.iter(|| {
             let result: Result<i32, &str> = Err("failed");
-            let processed = with_context_result(
-                result,
-                context!("Failed at step {}", 1)
-            );
+            let processed = with_context_result(result, context!("Failed at step {}", 1));
             black_box(processed)
         });
     });
@@ -47,10 +38,7 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
     group.bench_function("error_path_eager_context", |b| {
         b.iter(|| {
             let result: Result<i32, &str> = Err("failed");
-            let processed = with_context_result(
-                result,
-                format!("Failed at step {}", 1)
-            );
+            let processed = with_context_result(result, format!("Failed at step {}", 1));
             black_box(processed)
         });
     });
@@ -123,9 +111,11 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
                     let result: Result<i32, &str> = Ok(42);
                     let mut pipeline = error_pipeline(result);
                     for i in 0..count {
-                        pipeline = pipeline.with_context(
-                            context!("Error at iteration {} with value {}", i, i * 100)
-                        );
+                        pipeline = pipeline.with_context(context!(
+                            "Error at iteration {} with value {}",
+                            i,
+                            i * 100
+                        ));
                     }
                     black_box(pipeline.finish())
                 });
@@ -140,9 +130,11 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
                     let result: Result<i32, &str> = Ok(42);
                     let mut pipeline = error_pipeline(result);
                     for i in 0..count {
-                        pipeline = pipeline.with_context(
-                            format!("Error at iteration {} with value {}", i, i * 100)
-                        );
+                        pipeline = pipeline.with_context(format!(
+                            "Error at iteration {} with value {}",
+                            i,
+                            i * 100
+                        ));
                     }
                     black_box(pipeline.finish())
                 });
@@ -153,19 +145,19 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
     // Verification test: ensure lazy evaluation actually happens lazily
     group.bench_function("verify_lazy_evaluation", |b| {
         let counter = Arc::new(AtomicUsize::new(0));
-        
+
         b.iter(|| {
             let c = counter.clone();
             let result: Result<i32, &str> = Ok(42);
-            
+
             let _processed = with_context_result(
                 result,
                 context!("Evaluation count: {}", {
                     c.fetch_add(1, Ordering::Relaxed);
                     "should not run"
-                })
+                }),
             );
-            
+
             // Counter should remain 0 because result is Ok
             black_box(counter.load(Ordering::Relaxed))
         });
