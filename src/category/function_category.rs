@@ -14,7 +14,7 @@
 //! ## Category Structure
 //!
 //! - **Objects**: Rust types (`A`, `B`, `C`, etc.)
-//! - **Morphisms**: Functions `A → B` represented as `Arc<dyn Fn(A) -> B>`
+//! - **Morphisms**: Functions `A → B` represented as `Arc<dyn Fn(A) -> B + 'static>`
 //! - **Identity**: Identity function `id_A(x) = x`
 //! - **Composition**: Function composition `(g ∘ f)(x) = g(f(x))`
 //!
@@ -119,8 +119,9 @@
 //!
 //! # Memory Management
 //!
-//! All morphisms are wrapped in `Arc` for thread-safe reference counting and efficient cloning.
-//! Memory is automatically managed through Rust's ownership system.
+//! All morphisms are wrapped in `Arc` for cheap cloning via shared ownership.
+//! Note that `Arc`'s reference counting is thread-safe, but the morphism type itself does not
+//! require `Send`/`Sync` bounds.
 
 pub use crate::traits::arrow::Arrow;
 pub use crate::traits::category::Category;
