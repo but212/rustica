@@ -45,8 +45,6 @@ pub mod bifunctor;
 ///
 /// This module provides the Comonad trait which represents the categorical dual of a monad.
 pub mod comonad;
-/// Function mapping in opposite direction.
-pub mod contravariant_functor;
 
 // ===== Composition Traits =====
 /// Arrow-based computation abstractions.
@@ -81,9 +79,3 @@ pub mod alternative;
 ///
 /// This module provides the Iso trait which represents isomorphisms between types.
 pub mod iso;
-/// Transformations between functors.
-pub mod natural_transformation;
-/// Profunctorial abstractions.
-pub mod profunctor;
-/// Representable functors.
-pub mod representable;

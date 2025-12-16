@@ -98,18 +98,6 @@
 
 use crate::traits::functor::Functor;
 
-/// A marker trait for types that can safely implement Comonad.
-///
-/// This trait serves as documentation and a compile-time check that a type
-/// can provide a total `extract` operation.
-pub trait SafeComonad {
-    /// Returns true if extract is guaranteed to never fail for this type.
-    /// This should always return true for valid implementations.
-    fn is_extract_total() -> bool {
-        true
-    }
-}
-
 /// A comonad is the categorical dual of a monad, providing operations to extract values from a context
 /// and extend computations that consume contexts. While monads represent computations that add context,
 /// comonads represent computations that can read from contexts.

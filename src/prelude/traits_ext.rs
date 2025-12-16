@@ -28,7 +28,6 @@
 //! assert_eq!(total.0, 6);
 //! ```
 
-pub use crate::traits::contravariant_functor::ContravariantFunctorExt;
 pub use crate::traits::evaluate::EvaluateExt;
 pub use crate::traits::foldable::FoldableExt;
 pub use crate::traits::functor::FunctorExt;

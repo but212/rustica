@@ -5,7 +5,6 @@
 
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
-use rustica::datatypes::validated::ErrorsIter;
 use rustica::datatypes::validated::Validated;
 use rustica::prelude::*;
 use rustica::traits::applicative::Applicative;

@@ -47,6 +47,13 @@
   - `Semigroup::combine` and `Alternative::alt` share the same "merge alternatives" behavior for `Choice<T>`
   - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
 
+- **Unused Trait Modules Removed**
+  - Removed `contravariant_functor` - Unused contravariant functor implementation
+  - Removed `natural_transformation` - Unused natural transformation trait
+  - Removed `profunctor` - Unused profunctorial abstractions
+  - Removed `representable` - Unused representable functor trait
+  - These modules were placeholder implementations without actual use in the codebase
+
 - **`Validated<E, A>` Performance and API Improvements**
   - **Iterator Type Consistency**: `iter_errors()` now returns `ErrorsIter` type, matching `iter_errors_mut()`
   - **Removed Unnecessary Clone Bounds**:
