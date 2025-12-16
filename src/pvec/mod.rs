@@ -5,6 +5,23 @@
 //! uses RRB trees which maintain logarithmic performance characteristics while
 //! supporting efficient concatenation and splitting operations.
 //!
+//! # Key Features
+//!
+//! - **Persistence**: All operations return new vectors, leaving the original unchanged
+//! - **Structural Sharing**: Modified vectors share structure with originals, minimizing memory usage
+//! - **Adaptive Storage**: Small vectors (≤64 elements) use inline storage for optimal performance
+//! - **Efficient Operations**: O(log n) for most operations including random access, update, and split
+//!
+//! # When to Use
+//!
+//! Use `PersistentVector` when you need:
+//! - Immutable data structures with efficient updates
+//! - Version history or undo/redo functionality
+//! - Safe sharing across threads without locks
+//! - Functional programming patterns
+//!
+//! For mutable use cases where persistence isn't needed, prefer `Vec<T>`.
+//!
 //! # Examples
 //!
 //! ```

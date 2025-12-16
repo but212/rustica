@@ -2,6 +2,17 @@
 //!
 //! This module contains the RRB (Relaxed Radix Balanced) tree that provides
 //! the underlying data structure for efficient persistent vector operations.
+//!
+//! # Architecture
+//!
+//! The `RRBTree` structure uses a three-part design:
+//!
+//! ```text
+//! ┌──────────┬─────────────────────────┬──────────┐
+//! │   Head   │      Tree (root)        │   Tail   │
+//! │  Buffer  │    (RRB structure)      │  Buffer  │
+//! └──────────┴─────────────────────────┴──────────┘
+//! ```
 
 use super::node::{
     BRANCHING_FACTOR, LEAF_CAPACITY, RRBNode, SMALL_BRANCH_SIZE, SMALL_SIZE_TABLE_SIZE,
@@ -12,22 +23,61 @@ use std::sync::Arc;
 /// An RRB tree structure for efficient persistent vector operations.
 ///
 /// The RRB tree combines the root tree structure with head and tail buffers
-/// for optimal performance on common operations like push_back and push_front.
+/// for optimal performance on common operations like `push_back` and `push_front`.
+///
+/// # Structure
+///
+/// - **Head buffer**: Stores up to `LEAF_CAPACITY` (64) elements at the front
+/// - **Root**: The main tree structure containing the bulk of elements
+/// - **Tail buffer**: Stores up to `LEAF_CAPACITY` (64) elements at the back
+///
+/// # Invariants
+///
+/// - `len` equals `head.len() + tree_size + tail.len()`
+/// - `height` reflects the depth of the tree (0 for leaf-only)
+/// - Buffers are flushed to the tree when they reach capacity
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RRBTree<T> {
     /// The root node of the tree structure.
+    ///
+    /// May be an empty leaf if all elements are in head/tail buffers.
     pub root: Arc<RRBNode<T>>,
     /// Tail buffer for efficient back insertions.
+    ///
+    /// Elements are accumulated here until the buffer is full,
+    /// then flushed to the tree as a new leaf node.
     pub tail: SmallVec<[T; LEAF_CAPACITY]>,
     /// Head buffer for efficient front insertions.
+    ///
+    /// Elements are accumulated here until the buffer is full,
+    /// then flushed to the tree as a new leaf node.
     pub head: SmallVec<[T; LEAF_CAPACITY]>,
     /// Height of the tree (0 for single leaf).
+    ///
+    /// The height determines how many levels of branch nodes exist
+    /// between the root and the leaf nodes.
     pub height: usize,
     /// Total number of elements in the tree.
+    ///
+    /// This is the sum of elements in head, tree, and tail.
     pub len: usize,
 }
 
 impl<T: Clone> RRBTree<T> {
+    /// Creates a new RRB tree from an iterator of elements.
+    ///
+    /// This is the primary constructor for building an RRB tree from existing data.
+    /// For small collections (up to `LEAF_CAPACITY` elements), creates a single leaf node.
+    /// For larger collections, builds a proper tree structure with elements distributed
+    /// across multiple leaf nodes.
+    ///
+    /// # Arguments
+    ///
+    /// * `elements` - An iterator yielding elements to store in the tree
+    ///
+    /// # Returns
+    ///
+    /// A new `RRBTree` containing all elements from the iterator.
     pub fn from_elements<I: Iterator<Item = T>>(elements: I) -> Self {
         let elements: Vec<T> = elements.collect();
 

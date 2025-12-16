@@ -948,6 +948,29 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
+    /// Inserts an element at the specified index, shifting all elements after it.
+    ///
+    /// If the index is greater than or equal to the length, the element is appended to the end.
+    /// If the index is 0, the element is prepended to the beginning.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 4]);
+    /// let vec = vec.insert(2, 3);
+    /// assert_eq!(vec.to_vec(), vec![1, 2, 3, 4]);
+    ///
+    /// // Insert at the beginning
+    /// let vec = vec.insert(0, 0);
+    /// assert_eq!(vec.to_vec(), vec![0, 1, 2, 3, 4]);
+    ///
+    /// // Insert beyond the end appends
+    /// let vec = PersistentVector::from_slice(&[1, 2]);
+    /// let vec = vec.insert(100, 3);
+    /// assert_eq!(vec.to_vec(), vec![1, 2, 3]);
+    /// ```
     pub fn insert(&self, index: usize, value: T) -> Self {
         if index >= self.len {
             return self.push_back(value);
@@ -960,6 +983,23 @@ impl<T: Clone> PersistentVector<T> {
         left.push_back(value).concat(&right)
     }
 
+    /// Removes the element at the specified index, returning a new vector without that element.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4]);
+    /// let vec = vec.remove(1).unwrap();
+    /// assert_eq!(vec.to_vec(), vec![1, 3, 4]);
+    ///
+    /// // Out of bounds returns None
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
+    /// assert!(vec.remove(10).is_none());
+    /// ```
     pub fn remove(&self, index: usize) -> Option<Self> {
         if index >= self.len {
             return None;
@@ -974,6 +1014,19 @@ impl<T: Clone> PersistentVector<T> {
         Some(left.concat(&right_without_first))
     }
 
+    /// Converts the persistent vector to a standard `Vec<T>`.
+    ///
+    /// This creates a new `Vec` containing clones of all elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let pvec = PersistentVector::from_slice(&[1, 2, 3]);
+    /// let vec: Vec<i32> = pvec.to_vec();
+    /// assert_eq!(vec, vec![1, 2, 3]);
+    /// ```
     pub fn to_vec(&self) -> Vec<T> {
         self.iter().cloned().collect()
     }
