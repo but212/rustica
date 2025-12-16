@@ -246,10 +246,11 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 ///
 /// ## Identity Law
 /// ```text
-/// lift(x).handle_error() == lift(x)
+/// lift(x) is always a success value (never an error)
+/// handle_error(e) is always an error value (never a success)
 /// ```
 ///
-/// ## Composition Law  
+/// ## Composition Law (Functor Law)
 /// ```text
 /// fmap_error(f . g) == fmap_error(f) . fmap_error(g)
 /// ```
@@ -416,12 +417,6 @@ pub trait ErrorOps<E>: WithError<E> {
     ///
     /// * `success_f`: Function to apply to success values
     /// * `error_f`: Function to apply to error values
-    ///
-    /// Maps over both success and error cases simultaneously.
-    ///
-    /// This provides a way to transform both the success value and error
-    /// in a single operation, which is useful for type conversions and
-    /// context transformations.
     fn bimap_result<B, F, SuccessF, ErrorF>(
         self, success_f: SuccessF, error_f: ErrorF,
     ) -> Result<B, F>
