@@ -463,8 +463,12 @@ impl<E, A> Validated<E, A> {
     /// assert!(errors.next().is_none());
     /// ```
     #[inline]
-    pub fn iter_errors(&self) -> std::slice::Iter<'_, E> {
-        self.error_slice().iter()
+    pub fn iter_errors(&self) -> crate::datatypes::validated::iter::ErrorsIter<'_, E> {
+        use crate::datatypes::validated::iter::ErrorsIter;
+        match self {
+            Validated::Invalid(es) => ErrorsIter::Multi(es.iter()),
+            _ => ErrorsIter::Empty,
+        }
     }
 
     /// Returns a reference to the internal `SmallVec` of errors if this is `Invalid`, otherwise `None`.
@@ -672,6 +676,52 @@ impl<E, A> Validated<E, A> {
         match self {
             Validated::Valid(a) => Err(a),
             Validated::Invalid(es) => Ok(es),
+        }
+    }
+
+    /// Returns a reference to the valid value as an Option, without cloning.
+    ///
+    /// This is a zero-copy alternative to `to_option()` when you only need a reference.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::Valid(42);
+    /// assert_eq!(valid.as_option(), Some(&42));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::Invalid(vec!["error"].into());
+    /// assert_eq!(invalid.as_option(), None);
+    /// ```
+    #[inline]
+    pub fn as_option(&self) -> Option<&A> {
+        match self {
+            Validated::Valid(x) => Some(x),
+            Validated::Invalid(_) => None,
+        }
+    }
+
+    /// Converts to Option by consuming self, without cloning.
+    ///
+    /// This is more efficient than `to_option()` when you can consume the Validated.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::Valid(42);
+    /// assert_eq!(valid.into_option(), Some(42));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::Invalid(vec!["error"].into());
+    /// assert_eq!(invalid.into_option(), None);
+    /// ```
+    #[inline]
+    pub fn into_option(self) -> Option<A> {
+        match self {
+            Validated::Valid(x) => Some(x),
+            Validated::Invalid(_) => None,
         }
     }
 }
@@ -1598,9 +1648,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     pub fn collect<I, C>(iter: I) -> Validated<E, C>
     where
         I: Iterator<Item = Validated<E, A>>,
-        C: FromIterator<A> + Clone,
-        A: Clone,
-        E: Clone,
+        C: FromIterator<A>,
     {
         let (values, errors): (Vec<_>, SmallVec<[E; 8]>) = iter.fold(
             (Vec::new(), SmallVec::<[E; 8]>::new()),
@@ -1646,7 +1694,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     pub fn collect_owned<I, C>(iter: I) -> Validated<E, C>
     where
         I: Iterator<Item = Validated<E, A>>,
-        C: FromIterator<A> + Clone,
+        C: FromIterator<A>,
     {
         let mut acc = ErrorAccumulator::new();
         let mut values = Vec::new();
@@ -1807,6 +1855,108 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         match self {
             Validated::Valid(x) => f(x.clone()).await,
             Validated::Invalid(e) => Validated::Invalid(e.clone()),
+        }
+    }
+
+    #[cfg(feature = "async")]
+    /// Maps an async function over the valid value, taking ownership.
+    ///
+    /// This is more efficient than `fmap_valid_async` as it avoids cloning.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() {
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// let mapped = valid.fmap_valid_async_owned(|x| async move { x * 2 }).await;
+    /// assert_eq!(mapped, Validated::valid(84));
+    /// # }
+    /// ```
+    pub async fn fmap_valid_async_owned<B, F, Fut>(self, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(A) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = B> + Send,
+        B: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => {
+                let result = f(x).await;
+                Validated::Valid(result)
+            },
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
+    }
+
+    #[cfg(feature = "async")]
+    /// Maps an async function over the error values, taking ownership.
+    ///
+    /// This is more efficient than `fmap_invalid_async` as it avoids cloning.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() {
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// let mapped = invalid.fmap_invalid_async_owned(|e| async move { format!("Error: {}", e) }).await;
+    /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
+    /// # }
+    /// ```
+    pub async fn fmap_invalid_async_owned<G, F, Fut>(self, f: F) -> Validated<G, A>
+    where
+        F: Fn(E) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = G> + Send,
+        G: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(x),
+            Validated::Invalid(es) => {
+                let futures = es.into_iter().map(|e| f(e));
+                let results = futures::future::join_all(futures).await;
+                let transformed: SmallVec<[G; 8]> = results.into_iter().collect();
+                Validated::Invalid(transformed)
+            },
+        }
+    }
+
+    #[cfg(feature = "async")]
+    /// Chains an async validation operation, taking ownership.
+    ///
+    /// This is more efficient than `and_then_async` as it avoids cloning.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() {
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// let chained = valid.and_then_async_owned(|x| async move {
+    ///     if x > 50 {
+    ///         Validated::<&str, String>::valid(x.to_string())
+    ///     } else {
+    ///         Validated::<&str, String>::invalid("Value too small")
+    ///     }
+    /// }).await;
+    ///
+    /// assert_eq!(chained, Validated::<&str, String>::invalid("Value too small"));
+    /// # }
+    /// ```
+    pub async fn and_then_async_owned<B, F, Fut>(self, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(A) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = Validated<E, B>> + Send,
+        B: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => f(x).await,
+            Validated::Invalid(e) => Validated::Invalid(e),
         }
     }
 }

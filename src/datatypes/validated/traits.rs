@@ -381,7 +381,8 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
             (Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e.clone()),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 8]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().chain(e2.iter()).cloned());
+                errors.extend(e1.iter().cloned());
+                errors.extend(e2.iter().cloned());
                 Validated::Invalid(errors)
             },
         }
@@ -708,7 +709,8 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
             (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 8]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().chain(e2.iter()).cloned());
+                errors.extend(e1.iter().cloned());
+                errors.extend(e2.iter().cloned());
                 Validated::Invalid(errors)
             },
         }

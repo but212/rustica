@@ -47,6 +47,24 @@
   - `Semigroup::combine` and `Alternative::alt` share the same "merge alternatives" behavior for `Choice<T>`
   - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
 
+- **`Validated<E, A>` Performance and API Improvements**
+  - **Iterator Type Consistency**: `iter_errors()` now returns `ErrorsIter` type, matching `iter_errors_mut()`
+  - **Removed Unnecessary Clone Bounds**:
+    - `collect()` and `collect_owned()` no longer require `C: Clone` - only `C: FromIterator<A>`
+    - Improves flexibility when collecting into types that don't need Clone
+  - **Performance Optimizations**:
+    - `Semigroup::combine` and `Applicative::apply` optimized by removing `chain().cloned()` overhead
+    - Direct `extend()` calls reduce iterator object creation
+  - **New Option Conversion Methods**:
+    - `as_option()` - Returns `Option<&A>` without cloning (zero-copy reference access)
+    - `into_option()` - Consumes `self` and returns `Option<A>` without cloning
+    - Existing `to_option()` preserved for backward compatibility (requires `A: Clone`)
+  - **Async Owned Methods Added** (more efficient alternatives to reference-based async methods):
+    - `fmap_valid_async_owned()` - Maps async function over valid value, consuming `self`
+    - `fmap_invalid_async_owned()` - Maps async function over errors, consuming `self`
+    - `and_then_async_owned()` - Chains async validation, consuming `self`
+    - All owned versions avoid unnecessary cloning and use `FnOnce` bounds
+
 ## [0.10.2]
 
 ### Deprecated - 0.10.2
