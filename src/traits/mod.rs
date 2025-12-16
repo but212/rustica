@@ -41,7 +41,7 @@ pub mod monad_plus;
 // ===== Related Abstractions =====
 /// Mapping over two-type data structures.
 pub mod bifunctor;
-/// Extracting values from computational contexts.
+/// Extracting values from comonadic contexts.
 ///
 /// This module provides the Comonad trait which represents the categorical dual of a monad.
 pub mod comonad;

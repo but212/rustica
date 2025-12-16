@@ -36,15 +36,14 @@
 //!
 //! Some common bifunctors in Rust include:
 //!
-//! - `Result<T, E>`: Functor in both the success type `T` and error type `E`
-//! - `Either<L, R>`: Functor in both left type `L` and right type `R`
+//! - `Either<L, R>`: Can be mapped over both branches (Left/Right)
 //! - `Tuple2<A, B>`: Functor in both tuple components `A` and `B`
 //!
 //! ## Use Cases
 //!
 //! Bifunctors are particularly useful for:
 //!
-//! 1. **Error Handling**: Transform both success and error types in `Result`
+//! 1. **Error Handling**: Transform both branches of sum types (e.g., Left/Right)
 //! 2. **Data Transformation**: Process pairs of values independently
 //! 3. **Type Conversion**: Convert between different type combinations while preserving structure
 //!
@@ -126,8 +125,27 @@
 
 use crate::traits::hkt::BinaryHKT;
 
-/// A bifunctor is a type constructor that takes two type arguments and is a functor in both arguments.
+/// A bifunctor is a type constructor that takes two type arguments and can be mapped over both sides.
 /// This means it provides a way to map functions over both type parameters independently or simultaneously.
+///
+/// Note: in this crate, `Bifunctor` is defined in terms of `BinaryHKT`:
+///
+/// - `first` maps over `Self::Source`
+/// - `second` maps over `Self::Source2`
+///
+/// # Important: Type Parameter Mapping
+///
+/// For some types, the associated types may not correspond to the lexical order of type parameters.
+/// This is particularly important for `Either<L, R>`:
+///
+/// | Type | `Source` | `Source2` | Rationale |
+/// |------|----------|-----------|-----------|
+/// | `Either<L, R>` | `R` (Right) | `L` (Left) | Right is the "success" path, consistent with Functor |
+/// | `Result<T, E>` | `T` (Ok) | `E` (Err) | Ok is the "success" path |
+/// | `(A, B)` | `A` | `B` | Lexical order |
+///
+/// This convention follows the functional programming tradition where the "right" or "success"
+/// value is the one that gets mapped by default (via Functor's `fmap`).
 ///
 /// # Laws
 ///
@@ -145,7 +163,7 @@ use crate::traits::hkt::BinaryHKT;
 ///
 /// # Examples
 ///
-/// Here's an example implementation for Result:
+/// Here's an example implementation for a wrapper around `Result`:
 /// ```rust
 /// use std::fmt::Debug;
 /// use rustica::traits::hkt::{HKT, BinaryHKT};
@@ -260,23 +278,22 @@ use crate::traits::hkt::BinaryHKT;
 ///    - Convert between different error types in error handling
 ///    - Transform data structures that contain two type parameters
 pub trait Bifunctor: BinaryHKT {
-    /// Maps a function over the first type parameter.
+    /// Maps a function over `Self::Source`.
     ///
-    /// This is similar to `fmap` for regular functors, but it operates on the first
-    /// type parameter while leaving the second unchanged.
+    /// Maps a function over `Self::Source`, leaving `Self::Source2` unchanged.
     ///
     /// # Type Parameters
     ///
-    /// * `C`: The new type for the first parameter after transformation
-    /// * `F`: The function type to apply to the first parameter
+    /// * `C`: The new type for `Self::Source` after transformation
+    /// * `F`: The function type to apply
     ///
     /// # Arguments
     ///
-    /// * `f`: Function to apply to the first type parameter
+    /// * `f`: Function to apply to `Self::Source`
     ///
     /// # Returns
     ///
-    /// A new bifunctor with the first type parameter transformed
+    /// A new bifunctor with `Self::Source` transformed
     ///
     /// # Examples
     ///
@@ -284,38 +301,40 @@ pub trait Bifunctor: BinaryHKT {
     /// use rustica::datatypes::either::Either;
     /// use rustica::traits::bifunctor::Bifunctor;
     ///
-    /// let either: Either<i32, String> = Either::Right("hello".to_string());
-    /// let mapped = either.first(|say| say.len());
-    /// assert_eq!(mapped, Either::Right(5usize));
+    /// // For Either<L, R>, `Self::Source` is the Right value (R)
+    /// let either: Either<String, i32> = Either::Right(10);
+    /// let mapped = either.first(|n| n * 2);
+    /// assert_eq!(mapped, Either::Right(20));
     /// ```
     fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
     where
         F: Fn(&Self::Source) -> C,
         C: Clone;
 
-    /// Maps a function over the second type parameter.
+    /// Maps a function over `Self::Source2`.
     ///
-    /// This is the counterpart to `first` that operates on the second type parameter
-    /// while leaving the first unchanged.
+    /// Maps a function over `Self::Source2`, leaving `Self::Source` unchanged.
     ///
     /// # Type Parameters
     ///
-    /// * `D`: The new type for the second parameter after transformation
-    /// * `G`: The function type to apply to the second parameter
+    /// * `D`: The new type for `Self::Source2` after transformation
+    /// * `G`: The function type to apply
     ///
     /// # Arguments
     ///
-    /// * `f`: Function to apply to the second type parameter
+    /// * `f`: Function to apply to `Self::Source2`
     ///
     /// # Returns
     ///
-    /// A new bifunctor with the second type parameter transformed
+    /// A new bifunctor with `Self::Source2` transformed
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::prelude::*;
+    /// use rustica::datatypes::either::Either;
+    /// use rustica::traits::bifunctor::Bifunctor;
     ///
+    /// // For Either<L, R>, `Self::Source2` is the Left value (L)
     /// let left: Either<String, i32> = Either::Left("hello".to_string());
     /// let mapped = left.second(|s| s.len());
     /// assert_eq!(mapped, Either::Left(5usize));

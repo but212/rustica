@@ -17,7 +17,7 @@
 //!
 //! // Chain operations with bind - short-circuits on Nothing
 //! let safe_divide = |x: &i32, y: &i32| -> Maybe<i32> {
-//!     if *y == 0 { Maybe::Nothing } else { Maybe::Just(x / y) }
+//!     if *y == 0 { Maybe::Nothing } else { Maybe::Just(*x / *y) }
 //! };
 //!
 //! let result = Maybe::Just(20)
@@ -91,7 +91,7 @@
 //! // Using bind to sequence operations
 //! let result: Validated<&str, i32> = valid.bind(|x| {
 //!     if *x > 0 {
-//!         Validated::valid(x * 2)
+//!         Validated::valid(*x * 2)
 //!     } else {
 //!         Validated::invalid("Value must be positive")
 //!     }
@@ -176,7 +176,6 @@ pub trait Monad: Applicative {
     /// Applies a function that returns a monadic value to the contents of this monad, consuming the original.
     ///
     /// This variant of `bind` takes ownership of `self`, allowing for more efficient implementations
-    /// when the original monad is no longer needed.
     /// when the original monad is no longer needed.
     ///
     /// # Type Parameters

@@ -58,7 +58,7 @@
 //! let v2: Validated<String, i32> = Validated::valid(10);
 //!
 //! // Combine them with a function
-//! let result = Validated::<String, i32>::lift2(|a, b| a + b, &v1, &v2);
+//! let result = Validated::<String, i32>::lift2(|a: &i32, b: &i32| *a + *b, &v1, &v2);
 //! ```
 //!
 //! ### 2. Sequencing Operations
@@ -145,7 +145,7 @@ use crate::traits::pure::Pure;
 /// use rustica::traits::pure::Pure;
 ///
 /// // Apply a function in context to a value in context
-/// let func: Option<fn(&i32) -> i32> = Some(|x| x * 2);
+/// let func: Option<fn(&i32) -> i32> = Some(|x: &i32| *x * 2);
 /// let value: Option<i32> = Some(5);
 ///
 /// let result = Applicative::apply(&func, &value);
@@ -162,10 +162,10 @@ use crate::traits::pure::Pure;
 /// let z: Option<i32> = Some(4);
 ///
 /// // Function-first style (mathematical convention)
-/// let result = Option::<i32>::lift2(|a, b| a + b, &x, &y);
+/// let result = Option::<i32>::lift2(|a: &i32, b: &i32| *a + *b, &x, &y);
 /// assert_eq!(result, Some(5));
 ///
-/// let result3 = Option::<i32>::lift3(|a, b, c| a + b + c, &x, &y, &z);
+/// let result3 = Option::<i32>::lift3(|a: &i32, b: &i32, c: &i32| *a + *b + *c, &x, &y, &z);
 /// assert_eq!(result3, Some(9));
 /// ```
 ///
@@ -223,7 +223,7 @@ pub trait Applicative: Functor + Pure {
     /// use rustica::traits::pure::Pure;
     ///
     /// // Function wrapped in Option
-    /// let func: Option<fn(&i32) -> i32> = Some(|x| x * 2);
+    /// let func: Option<fn(&i32) -> i32> = Some(|x: &i32| *x * 2);
     /// let value: Option<i32> = Some(5);
     ///
     /// let result = Applicative::apply(&func, &value);
@@ -272,12 +272,12 @@ pub trait Applicative: Functor + Pure {
     /// let y: Option<i32> = Some(3);
     ///
     /// // Function-first style (mathematical convention)
-    /// let result: Option<i32> = Option::<i32>::lift2(|a: &i32, b: &i32| a + b, &x, &y);
+    /// let result: Option<i32> = Option::<i32>::lift2(|a: &i32, b: &i32| *a + *b, &x, &y);
     /// assert_eq!(result, Some(8));
     ///
     /// // If any value is None, the result is None
     /// let none_x: Option<i32> = None;
-    /// let result2: Option<i32> = Option::<i32>::lift2(|a: &i32, b: &i32| a + b, &none_x, &y);
+    /// let result2: Option<i32> = Option::<i32>::lift2(|a: &i32, b: &i32| *a + *b, &none_x, &y);
     /// assert_eq!(result2, None);
     /// ```
     fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
@@ -324,7 +324,7 @@ pub trait Applicative: Functor + Pure {
     ///
     /// // Function-first style (mathematical convention)
     /// let result: Option<i32> = Option::<i32>::lift3(
-    ///     |a: &i32, b: &i32, c: &i32| a + b + c,
+    ///     |a: &i32, b: &i32, c: &i32| *a + *b + *c,
     ///     &x, &y, &z
     /// );
     /// assert_eq!(result, Some(10));
@@ -461,7 +461,7 @@ pub trait Applicative: Functor + Pure {
     /// let v1: Validated<String, i32> = Validated::valid(5);
     /// let v2: Validated<String, i32> = Validated::valid(3);
     ///
-    /// let result: Validated<String, i32> = Validated::<String, i32>::ap2(|a: &i32, b: &i32| a * b, &v1, &v2);
+    /// let result: Validated<String, i32> = Validated::<String, i32>::ap2(|a: &i32, b: &i32| *a * *b, &v1, &v2);
     /// assert!(matches!(result, Validated::Valid(15)));
     /// ```
     #[inline]

@@ -12,30 +12,14 @@
 //!
 //! For a valid `Foldable` implementation, the following laws must hold:
 //!
-//! 1. Identity:
-//! ```text
-//! t.fold_left(|x| x) = t.fold_right(|x| x)
-//! ```
-//! Left and right folds with the identity function should yield the same result.
+//! The precise equational laws depend on the chosen fold direction and the algebraic
+//! properties of the combining function.
 //!
-//! 2. Composition:
-//! ```text
-//! t.fold_left(f).fold_left(g) = t.fold_left(|acc, x| g(f(acc, x)))
-//! ```
-//! Folding with f and then g should be equivalent to folding with their composition.
-//!
-//! 3. Naturality:
-//! ```text
-//! η(t.fold_left(f)) = η(t).fold_left(f)
-//! ```
-//! Where η is a natural transformation.
-//!
-//! 4. Monoid Consistency:
-//! ```text
-//! t.fold_left(M::combine)(M::empty()) = t.fold_right(M::combine)(M::empty())
-//! ```
-//! Folding with a monoid's combine operation should give the same result regardless
-//! of association.
+//! In particular:
+//! - `fold_left` must traverse elements from left to right.
+//! - `fold_right` must traverse elements from right to left.
+//! - For associative operations with an identity element (i.e., a monoid), left and right
+//!   folds should agree on the final result.
 //!
 //! ## Common Use Cases
 //!
