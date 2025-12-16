@@ -4,6 +4,12 @@
 
 ### Breaking Changes - 0.11.0
 
+- **`utils::hkt_utils::map_result` Consolidated**
+  - `map_result` function in `hkt_utils` module has been removed and consolidated into `categorical_utils`
+  - `hkt_utils::map_result` now re-exports from `categorical_utils::map_result` for backward compatibility
+  - Migration: No changes needed if importing from `hkt_utils`; for direct use, prefer `categorical_utils::map_result`
+  - Note: `categorical_utils::map_result` uses `FnOnce` (more flexible) instead of `Fn`
+
 - **`Validated<E, A>` Typeclass Cleanup**
   - **Removed `Monoid` implementation**: No lawful identity element exists for error-accumulating validation
     - Migration: Use `Validated::valid(...)` for domain-specific neutral values, or model error collections separately
