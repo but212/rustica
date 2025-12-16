@@ -4,53 +4,48 @@
 
 ### Breaking Changes - 0.11.0
 
-- **Remove `Monoid` implementation for `Validated<E, A>`**
-  - `Validated` no longer implements `Monoid` because there is no lawful or semantically clear identity element for error-accumulating validation.
-  - If you relied on `Monoid::empty()` for a validation "zero", use a domain-specific initializer (e.g., `Validated::valid(...)` for a neutral value) or model your error collection separately.
+- **`Validated<E, A>` Typeclass Cleanup**
+  - **Removed `Monoid` implementation**: No lawful identity element exists for error-accumulating validation
+    - Migration: Use `Validated::valid(...)` for domain-specific neutral values, or model error collections separately
+  - **Removed `AsRef<A>` implementation**: Previous impl panicked on `Invalid`, violating `AsRef`'s total conversion contract
+    - Migration: Use `Validated::as_ref()` (returns `Option<&A>`) or pattern matching
+  - Removed `MonadPlus` and `Alternative` to avoid mixing fail-fast monadic semantics with error accumulation
+    - Recommended helpers: `recover_all`, `recover_all_at_once`, `sequence_owned`
 
-- **Remove `AsRef<A>` implementation for `Validated<E, A>`**
-  - The previous `std::convert::AsRef` impl would panic when called on `Invalid`, which violates the expectation that `AsRef` is a total, non-failing conversion.
-  - Use `Validated::as_ref()` (returns `Option<&A>`) or pattern matching instead.
-
-- **Remove `MonadPlus` implementation for `Either<L, R>`**
-  - `Either` no longer implements `MonadPlus`. Use `Alternative` if you need left-biased/right-biased choice semantics.
-
-- **Remove `MonadPlus` implementation for `Choice<T>`**
-  - `Choice` no longer implements `MonadPlus` because it duplicated `Alternative` (`mzero`/`mplus`).
-  - Replace:
-    - `<Choice<T> as MonadPlus>::mzero()` -> `<Choice<T> as Alternative>::empty_alt()`
-    - `a.mplus(&b)` -> `a.alt(&b)`
-
-- **Remove `utils::error_utils` module**
-  - Error utilities (`WithError`, `ResultExt`, `sequence`, `traverse`, etc.) are now provided directly under `crate::error`.
-  - Update imports:
-    - `rustica::utils::error_utils::*` -> `rustica::error::*` (or `rustica::prelude::error::*`)
-
-### Changed - 0.11.0
-
-- **Core Error Helper Cleanup**
-  - `Either::to_result` / `from_result` now delegate to `crate::error::{either_to_result, result_to_either}` instead of legacy `utils::error_utils`
-  - `IO::try_get`, `IO::try_get_with_context`, and `Maybe::try_unwrap` now use the `ComposableResult` alias for consistency with the unified error module
-- **`Validated` Typeclass Simplification**
-  - Removed `Monad`, `MonadPlus`, and `Alternative` implementations for `Validated` to avoid mixing fail-fast monadic semantics with error accumulation
-  - Encourages explicit use of `Validated`-specific helpers such as `recover_all`, `recover_all_at_once`, and `sequence_owned` for validation workflows
-- **Error Prelude Consolidation**
-  - `prelude::error` now re-exports `ComposableError`, `ComposableResult`, boxed variants, context utilities, and `WithError`/`ResultExt` directly from the unified `crate::error` module
+- **`Either<L, R>` Typeclass Cleanup**
+  - **Removed `MonadPlus` implementation**: Use `Alternative` for left-biased/right-biased choice semantics
 
 - **`Choice<T>` Typeclass Cleanup**
+  - **Removed `MonadPlus` implementation**: Duplicated `Alternative` semantics (`mzero`/`mplus`)
+    - Migration:
+      - `<Choice<T> as MonadPlus>::mzero()` → `<Choice<T> as Alternative>::empty_alt()`
+      - `a.mplus(&b)` → `a.alt(&b)`
   - `Foldable` for `Choice<T>` no longer requires `T: Clone`
-  - Documentation clarifies:
-    - `Semigroup::combine` and `Alternative::alt` share the same “merge alternatives” behavior for `Choice<T>`
-    - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
 
-### Removed - 0.11.0
+- **`utils::error_utils` Module Removed**
+  - All error utilities (`WithError`, `ResultExt`, `sequence`, `traverse`, etc.) moved to `crate::error`
+  - Migration: `rustica::utils::error_utils::*` → `rustica::error::*` (or `rustica::prelude::error::*`)
 
 - **Identity Trait and Implementations**
   - Fully removed the deprecated `Identity` trait and its module (`traits::identity`)
   - Deleted all `Identity` implementations on core datatypes and wrappers (`Id`, `Maybe`, `Either`, `Validated`, `Choice`, `PersistentVector`, `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, `Writer`)
+
 - **Legacy `AppError` Utilities**
   - Removed `utils::error_utils::AppError`, `error()`, and `error_with_context()` after a deprecation cycle
   - All public error construction is now routed through `crate::error::ComposableError` and its context helpers
+
+### Changed - 0.11.0
+
+- **Core Error Helper Cleanup**
+  - `Either::to_result` / `from_result` now delegate to `crate::error::{either_to_result, result_to_either}`
+  - `IO::try_get`, `IO::try_get_with_context`, and `Maybe::try_unwrap` now return `ComposableResult` for consistency
+
+- **Error Prelude Consolidation**
+  - `prelude::error` re-exports unified error module: `ComposableError`, `ComposableResult`, boxed variants, context utilities, `WithError`, `ResultExt`
+
+- **`Choice<T>` Documentation Clarification**
+  - `Semigroup::combine` and `Alternative::alt` share the same "merge alternatives" behavior for `Choice<T>`
+  - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
 
 ## [0.10.2]
 
