@@ -85,7 +85,8 @@ impl<T: Clone> Functor for PersistentVector<T> {
 /// Foldable implementation for `PersistentVector`.
 ///
 /// Provides left and right folds for reducing vector elements to a single value.
-impl<T: Clone> Foldable for PersistentVector<T> {
+/// Note: This implementation does not require `T: Clone`.
+impl<T> Foldable for PersistentVector<T> {
     /// Folds elements from left to right.
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
@@ -100,18 +101,16 @@ impl<T: Clone> Foldable for PersistentVector<T> {
     }
 
     /// Folds elements from right to left.
+    ///
+    /// Uses `DoubleEndedIterator` for efficient reverse traversal.
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
         F: Fn(&Self::Source, &U) -> U,
     {
-        let mut acc = init.clone();
-        for i in (0..self.len()).rev() {
-            if let Some(item) = self.get(i) {
-                acc = f(item, &acc);
-            }
-        }
-        acc
+        self.iter()
+            .rev()
+            .fold(init.clone(), |acc, item| f(item, &acc))
     }
 
     #[inline]

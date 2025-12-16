@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion, Throughput};
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput};
 use rustica::pvec::PersistentVector;
 use std::hint::black_box;
 use std::sync::Arc;
@@ -28,9 +28,63 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         });
     }
 
-    // Access operations
+    // Iterator traversal performance - O(n) vs O(n log n)
+    for size in [1000, 10000, 100000].iter() {
+        group.throughput(Throughput::Elements(*size as u64));
+
+        // Forward iteration using new O(n) iterator
+        group.bench_with_input(BenchmarkId::new("iter_forward", size), size, |b, &size| {
+            b.iter_batched_ref(
+                || (0..size).collect::<PersistentVector<usize>>(),
+                |vec| {
+                    let mut sum = 0usize;
+                    for item in vec.iter() {
+                        sum += black_box(item);
+                    }
+                    black_box(sum)
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // Reverse iteration using DoubleEndedIterator
+        group.bench_with_input(BenchmarkId::new("iter_reverse", size), size, |b, &size| {
+            b.iter_batched_ref(
+                || (0..size).collect::<PersistentVector<usize>>(),
+                |vec| {
+                    let mut sum = 0usize;
+                    for item in vec.iter().rev() {
+                        sum += black_box(item);
+                    }
+                    black_box(sum)
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // Old-style indexed access (O(n log n))
+        group.bench_with_input(
+            BenchmarkId::new("indexed_access", size),
+            size,
+            |b, &size| {
+                b.iter_batched_ref(
+                    || (0..size).collect::<PersistentVector<usize>>(),
+                    |vec| {
+                        let mut sum = 0usize;
+                        for i in 0..size {
+                            sum += black_box(vec.get(i).unwrap());
+                        }
+                        black_box(sum)
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
+    }
+
+    // Access operations with proper setup
     group.bench_function("random_access", |b| {
-        let vec = (0..10000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..10000).collect();
         b.iter(|| {
             for i in 0..1000 {
                 let idx = (i * 17) % 10000;
@@ -40,7 +94,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("sequential_access", |b| {
-        let vec = (0..10000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..10000).collect();
         b.iter(|| {
             for i in 0..1000 {
                 black_box(vec.get(black_box(i)));
@@ -48,9 +102,9 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Update operations
+    // Update operations with proper setup
     group.bench_function("update_random", |b| {
-        let vec = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..1000).collect();
         b.iter(|| {
             let mut v = vec.clone();
             for i in 0..100 {
@@ -62,7 +116,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("update_sequential", |b| {
-        let vec = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..1000).collect();
         b.iter(|| {
             let mut v = vec.clone();
             for i in 0..100 {
@@ -72,9 +126,9 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Pop operations
+    // Pop operations with proper setup
     group.bench_function("pop_back", |b| {
-        let vec = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..1000).collect();
         b.iter(|| {
             let mut v = vec.clone();
             for _ in 0..100 {
@@ -88,14 +142,14 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
 
     // Memory efficiency (structural sharing)
     group.bench_function("clone_large", |b| {
-        let vec = (0..10000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..10000).collect();
         b.iter(|| {
             black_box(vec.clone());
         });
     });
 
     group.bench_function("update_after_clone", |b| {
-        let vec = (0..10000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..10000).collect();
         b.iter(|| {
             let mut cloned = vec.clone();
             cloned = cloned.update(5000, black_box(42));
@@ -109,7 +163,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
 
     // PersistentVector access
     group.bench_function("pvec_access", |b| {
-        let vec = (0..size).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..size).collect();
         b.iter(|| {
             for i in 0..access_count {
                 let idx = (i * 17) % size;
@@ -132,10 +186,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     // PersistentVector build
     group.bench_function("pvec_build", |b| {
         b.iter(|| {
-            let mut vec = PersistentVector::new();
-            for i in 0..size {
-                vec = vec.push_back(black_box(i));
-            }
+            let vec: PersistentVector<usize> = (0..size).collect();
             black_box(vec)
         });
     });
@@ -153,7 +204,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
 
     // PersistentVector structural sharing vs std::Vec copying
     group.bench_function("pvec_sharing", |b| {
-        let base = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let base: PersistentVector<usize> = (0..1000).collect();
         b.iter(|| {
             let mut versions = Vec::new();
             for i in 0..10 {
@@ -177,9 +228,9 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Concurrency
+    // Concurrency with proper setup
     group.bench_function("concurrent_read", |b| {
-        let vec = (0..10000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..10000).collect();
         let arc_vec = Arc::new(vec);
 
         b.iter(|| {
@@ -202,7 +253,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     });
 
     group.bench_function("concurrent_modifications", |b| {
-        let vec = (0..1000).fold(PersistentVector::new(), |v, i| v.push_back(i));
+        let vec: PersistentVector<usize> = (0..1000).collect();
         let arc_vec = Arc::new(vec);
 
         b.iter(|| {

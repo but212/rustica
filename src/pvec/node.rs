@@ -93,19 +93,9 @@ pub enum RRBNode<T> {
     },
 }
 
-impl<T: Clone> RRBNode<T> {
-    pub fn make_relaxed(children: Vec<Arc<RRBNode<T>>>) -> Self {
-        let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = children
-            .iter()
-            .map(|child| child.calculate_size())
-            .collect();
-
-        RRBNode::Branch {
-            children: children.into(),
-            sizes: Some(sizes),
-        }
-    }
-
+/// Read-only methods that don't require Clone
+impl<T> RRBNode<T> {
+    /// Finds the child index and sub-index for a relaxed (irregular) tree.
     pub fn find_child_relaxed(&self, index: usize) -> Option<(usize, usize)> {
         match self {
             RRBNode::Branch {
@@ -124,6 +114,7 @@ impl<T: Clone> RRBNode<T> {
         }
     }
 
+    /// Finds the child index and sub-index for a regular (balanced) tree.
     pub fn find_child_regular(&self, index: usize, height: usize) -> Option<(usize, usize)> {
         match self {
             RRBNode::Leaf { .. } => None,
@@ -146,8 +137,77 @@ impl<T: Clone> RRBNode<T> {
         }
     }
 
+    /// Returns true if this node has a size table (is relaxed/irregular).
     pub fn is_relaxed(&self) -> bool {
         matches!(self, RRBNode::Branch { sizes: Some(_), .. })
+    }
+
+    /// Gets a reference to the element at the specified index.
+    pub fn get(&self, index: usize) -> Option<&T> {
+        match self {
+            RRBNode::Leaf { elements } => elements.get(index),
+            RRBNode::Branch { children, .. } => {
+                let (child_idx, sub_index) = if self.is_relaxed() {
+                    self.find_child_relaxed(index)?
+                } else {
+                    self.find_child_regular(index, 1)?
+                };
+                children.get(child_idx)?.get(sub_index)
+            },
+        }
+    }
+
+    /// Finds the child index and sub-index using the provided size table.
+    pub fn find_child(
+        &self, index: usize, sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
+    ) -> Option<(usize, usize)> {
+        if let Some(sizes) = sizes {
+            let mut i = 0;
+            let mut cumulative_size = 0;
+            while i < sizes.len() {
+                let size = sizes[i];
+                if index < cumulative_size + size {
+                    return Some((i, index - cumulative_size));
+                }
+                cumulative_size += size;
+                i += 1;
+            }
+            None
+        } else {
+            let child_size = LEAF_CAPACITY;
+            let child_index = index / child_size;
+            let sub_index = index % child_size;
+            Some((child_index, sub_index))
+        }
+    }
+
+    /// Calculates the total size (number of elements) in this subtree.
+    pub fn calculate_size(&self) -> usize {
+        match self {
+            RRBNode::Leaf { elements } => elements.len(),
+            RRBNode::Branch { children, sizes } => {
+                if let Some(sizes) = sizes {
+                    sizes.iter().sum()
+                } else {
+                    children.iter().map(|child| child.calculate_size()).sum()
+                }
+            },
+        }
+    }
+}
+
+/// Methods that require Clone for structural modifications
+impl<T: Clone> RRBNode<T> {
+    pub fn make_relaxed(children: Vec<Arc<RRBNode<T>>>) -> Self {
+        let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = children
+            .iter()
+            .map(|child| child.calculate_size())
+            .collect();
+
+        RRBNode::Branch {
+            children: children.into(),
+            sizes: Some(sizes),
+        }
     }
 
     pub fn update_size_table_after_removal(
@@ -198,43 +258,6 @@ impl<T: Clone> RRBNode<T> {
         sizes: Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>, popped: T,
     ) -> Option<(Self, T)> {
         Some((RRBNode::Branch { children, sizes }, popped))
-    }
-
-    pub fn get(&self, index: usize) -> Option<&T> {
-        match self {
-            RRBNode::Leaf { elements } => elements.get(index),
-            RRBNode::Branch { children, .. } => {
-                let (child_idx, sub_index) = if self.is_relaxed() {
-                    self.find_child_relaxed(index)?
-                } else {
-                    self.find_child_regular(index, 1)?
-                };
-                children.get(child_idx)?.get(sub_index)
-            },
-        }
-    }
-
-    pub fn find_child(
-        &self, index: usize, sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
-    ) -> Option<(usize, usize)> {
-        if let Some(sizes) = sizes {
-            let mut i = 0;
-            let mut cumulative_size = 0;
-            while i < sizes.len() {
-                let size = sizes[i];
-                if index < cumulative_size + size {
-                    return Some((i, index - cumulative_size));
-                }
-                cumulative_size += size;
-                i += 1;
-            }
-            None
-        } else {
-            let child_size = LEAF_CAPACITY;
-            let child_index = index / child_size;
-            let sub_index = index % child_size;
-            Some((child_index, sub_index))
-        }
     }
 
     pub fn update(&self, index: usize, value: T) -> Self {
@@ -308,19 +331,6 @@ impl<T: Clone> RRBNode<T> {
                         children: SmallVec::from_iter([Arc::new(self.clone()), leaf]),
                         sizes: Some(sizes),
                     }
-                }
-            },
-        }
-    }
-
-    pub fn calculate_size(&self) -> usize {
-        match self {
-            RRBNode::Leaf { elements } => elements.len(),
-            RRBNode::Branch { children, sizes } => {
-                if let Some(sizes) = sizes {
-                    sizes.iter().sum()
-                } else {
-                    children.iter().map(|child| child.calculate_size()).sum()
                 }
             },
         }

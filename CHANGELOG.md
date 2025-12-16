@@ -78,6 +78,16 @@
     - `and_then_async_owned()` - Chains async validation, consuming `self`
     - All owned versions avoid unnecessary cloning and use `FnOnce` bounds
 
+- **`PersistentVector<T>` Performance and API Improvements**
+  - **Iterator O(n) optimization**: Rewrote `PersistentVectorIter` with stack-based tree traversal, reducing full iteration complexity from O(n log n) to O(n)
+  - **`fold_right` optimization**: Now uses `DoubleEndedIterator` instead of reverse index loop
+  - **Relaxed Clone bounds**: The following operations no longer require `T: Clone`:
+    - `get()`
+    - `Index<usize>` trait
+    - `iter()` / `IntoIterator for &PersistentVector<T>`
+    - `Foldable` trait implementation
+  - **DoubleEndedIterator**: Full bidirectional iteration support with independent front/back cursors for efficient `.rev()` chains
+
 ## [0.10.2]
 
 ### Deprecated - 0.10.2

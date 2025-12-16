@@ -22,6 +22,22 @@
 //!
 //! For mutable use cases where persistence isn't needed, prefer `Vec<T>`.
 //!
+//! # Error Handling Policy
+//!
+//! This module follows a dual approach to error handling:
+//!
+//! - **Total functions** (e.g., `update`, `get`): Return a default value or `Option`
+//!   when operations cannot complete. This supports functional programming patterns
+//!   where operations should always succeed.
+//!
+//! - **Fallible functions** (e.g., `try_update`, `try_get`): Return `Result` with
+//!   detailed error information via [`PVecError`].
+//!
+//! | Operation | Total Version | Fallible Version |
+//! |-----------|---------------|------------------|
+//! | Get element | `get()` → `Option<&T>` | `try_get()` → `Result<&T, PVecError>` |
+//! | Update element | `update()` → `Self` (clone on error) | `try_update()` → `Result<Self, PVecError>` |
+//!
 //! # Examples
 //!
 //! ```

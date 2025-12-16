@@ -63,6 +63,57 @@ pub struct RRBTree<T> {
     pub len: usize,
 }
 
+/// Read-only methods that don't require Clone
+impl<T> RRBTree<T> {
+    /// Gets a reference to the element at the specified index.
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index >= self.len {
+            return None;
+        }
+
+        if index < self.head.len() {
+            return self.head.get(index);
+        }
+
+        let adjusted_index = index - self.head.len();
+        let tree_size = self.len - self.head.len() - self.tail.len();
+
+        if adjusted_index < tree_size {
+            self.get_from_tree(adjusted_index)
+        } else {
+            let tail_index = adjusted_index - tree_size;
+            self.tail.get(tail_index)
+        }
+    }
+
+    fn get_from_tree(&self, index: usize) -> Option<&T> {
+        let mut current_node = &self.root;
+        let mut remaining_index = index;
+        let mut current_height = self.height;
+
+        loop {
+            match current_node.as_ref() {
+                RRBNode::Leaf { elements } => {
+                    return elements.get(remaining_index);
+                },
+                RRBNode::Branch { children, sizes } => {
+                    let (child_idx, sub_index) = if sizes.is_some() {
+                        current_node.find_child_relaxed(remaining_index)?
+                    } else {
+                        let child_height = current_height.saturating_sub(1);
+                        current_node.find_child_regular(remaining_index, child_height)?
+                    };
+
+                    current_node = children.get(child_idx)?;
+                    remaining_index = sub_index;
+                    current_height = current_height.saturating_sub(1);
+                },
+            }
+        }
+    }
+}
+
+/// Methods that require Clone for structural modifications
 impl<T: Clone> RRBTree<T> {
     /// Creates a new RRB tree from an iterator of elements.
     ///
@@ -159,52 +210,6 @@ impl<T: Clone> RRBTree<T> {
 
         let (root, sub_height) = Self::build_tree_recursive(next_level);
         (root, sub_height + 1)
-    }
-
-    pub fn get(&self, index: usize) -> Option<&T> {
-        if index >= self.len {
-            return None;
-        }
-
-        if index < self.head.len() {
-            return self.head.get(index);
-        }
-
-        let adjusted_index = index - self.head.len();
-        let tree_size = self.len - self.head.len() - self.tail.len();
-
-        if adjusted_index < tree_size {
-            self.get_from_tree(adjusted_index)
-        } else {
-            let tail_index = adjusted_index - tree_size;
-            self.tail.get(tail_index)
-        }
-    }
-
-    fn get_from_tree(&self, index: usize) -> Option<&T> {
-        let mut current_node = &self.root;
-        let mut remaining_index = index;
-        let mut current_height = self.height;
-
-        loop {
-            match current_node.as_ref() {
-                RRBNode::Leaf { elements } => {
-                    return elements.get(remaining_index);
-                },
-                RRBNode::Branch { children, sizes } => {
-                    let (child_idx, sub_index) = if sizes.is_some() {
-                        current_node.find_child_relaxed(remaining_index)?
-                    } else {
-                        let child_height = current_height.saturating_sub(1);
-                        current_node.find_child_regular(remaining_index, child_height)?
-                    };
-
-                    current_node = children.get(child_idx)?;
-                    remaining_index = sub_index;
-                    current_height = current_height.saturating_sub(1);
-                },
-            }
-        }
     }
 
     pub fn update(&self, index: usize, value: T) -> Self {
