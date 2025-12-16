@@ -31,7 +31,7 @@
 //!   where operations should always succeed.
 //!
 //! - **Fallible functions** (e.g., `try_update`, `try_get`): Return `Result` with
-//!   detailed error information via [`PVecError`].
+//!   detailed error information via `PVecError`.
 //!
 //! | Operation | Total Version | Fallible Version |
 //! |-----------|---------------|------------------|

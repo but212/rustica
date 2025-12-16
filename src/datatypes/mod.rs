@@ -14,34 +14,34 @@
 //!
 //! ## Core Monadic Types
 //!
-//! - [`maybe`] - Optional values with `Just(T)` and `Nothing` variants
-//! - [`either`] - Sum type representing one of two possible values (`Left` or `Right`)
-//! - [`id`] - Identity functor/monad, the simplest container
-//! - [`validated`] - Accumulating error handling (unlike `Either` which fails fast)
+//! - `maybe` - Optional values with `Just(T)` and `Nothing` variants
+//! - `either` - Sum type representing one of two possible values (`Left` or `Right`)
+//! - `id` - Identity functor/monad, the simplest container
+//! - `validated` - Accumulating error handling (unlike `Either` which fails fast)
 //!
 //! ## Effect Types
 //!
-//! - [`io`] - Encapsulates side effects for deferred execution
-//! - [`reader`] - Computations that read from a shared environment
-//! - [`writer`] - Computations that produce a log alongside a value
-//! - [`state`] - Stateful computations with get/put operations
-//! - [`cont`] - Continuation-passing style computations
+//! - `io` - Encapsulates side effects for deferred execution
+//! - `reader` - Computations that read from a shared environment
+//! - `writer` - Computations that produce a log alongside a value
+//! - `state` - Stateful computations with get/put operations
+//! - `cont` - Continuation-passing style computations
 //!
 //! ## Optics
 //!
-//! - [`lens`] - Bidirectional accessors for product types (structs)
-//! - [`prism`] - Bidirectional accessors for sum types (enums)
-//! - [`iso_lens`] - Isomorphism combined with lens functionality
-//! - [`iso_prism`] - Isomorphism combined with prism functionality
+//! - `lens` - Bidirectional accessors for product types (structs)
+//! - `prism` - Bidirectional accessors for sum types (enums)
+//! - `iso_lens` - Isomorphism combined with lens functionality
+//! - `iso_prism` - Isomorphism combined with prism functionality
 //!
 //! ## Utility Types
 //!
-//! - [`choice`] - N-ary sum type for multiple alternatives
-//! - [`wrapper`] - Newtype wrapper for deriving trait implementations
+//! - `choice` - N-ary sum type for multiple alternatives
+//! - `wrapper` - Newtype wrapper for deriving trait implementations
 //!
 //! ## Async Support
 //!
-//! - [`async_monad`] - Async-aware monadic operations (requires `async` feature)
+//! - `async_monad` - Async-aware monadic operations (requires `async` feature)
 //!
 //! # Example
 //!

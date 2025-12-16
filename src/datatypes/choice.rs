@@ -1571,7 +1571,7 @@ impl<T: Clone> Monad for Choice<T> {
 impl<T: Clone> Semigroup for Choice<T> {
     /// Combines two Choice values by merging their alternatives.
     ///
-    /// For Choice<T>, this has the same behavior as Alternative::alt because both
+    /// For `Choice<T>`, this has the same behavior as `Alternative::alt` because both
     /// represent non-deterministic computation where we want to collect all possible
     /// outcomes. The primary value from the first Choice is preserved, and all
     /// alternatives from both Choices are merged.
