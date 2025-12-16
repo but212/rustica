@@ -53,13 +53,13 @@ use crate::traits::semigroup::Semigroup;
 ///
 /// For any value `x` of type implementing Monoid:
 /// ```text
-/// x.combine(Monoid::empty()) = x           // Right identity
-/// Monoid::empty().combine(x) = x           // Left identity
+/// x.combine(&Self::empty()) = x           // Right identity
+/// Self::empty().combine(&x) = x           // Left identity
 /// ```
 ///
 /// Additionally, since Monoid extends `Semigroup`, the associativity law must hold:
 /// ```text
-/// (a.combine(b)).combine(c) = a.combine(b.combine(c))
+/// (a.combine(&b)).combine(&c) = a.combine(&b.combine(&c))
 /// ```
 ///
 /// # Examples

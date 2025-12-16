@@ -6,14 +6,15 @@
 //!
 //! ## Quick Start
 //!
-//! Handle success/failure cases with Either:
+//! Model a computation that can produce one of two values:
 //!
 //! ```rust
 //! use rustica::datatypes::either::Either;
 //! use rustica::traits::functor::Functor;
 //! use rustica::traits::monad::Monad;
 //!
-//! // Create Either values - Left for errors, Right for success
+//! // `Either` itself does not encode success/failure, but it is commonly used in an error-like way:
+//! // `Left` as the "error"/alternative branch and `Right` as the "success"/preferred branch.
 //! let success: Either<String, i32> = Either::Right(42);
 //! let error: Either<String, i32> = Either::Left("Something went wrong".to_string());
 //!
@@ -56,10 +57,11 @@
 //! - `Functor`: Maps over the right value with `fmap`
 //! - `Applicative`: Applies functions wrapped in `Either` to values wrapped in `Either`
 //! - `Monad`: Chains computations that may produce either left or right values
-//! - `Alternative`/`MonadPlus`: Provides choice between alternatives (requires `L: Default + Clone`)
-//! - `Identity`: **WARNING**: Logically unsound implementation that only works with `Right` values and panics on `Left`
+//! - `Alternative`: Provides choice between alternatives (requires `L: Default + Clone`)
 //!
-//! **Note**: The `Identity` implementation should be avoided. Use explicit methods like `right_value()`, `is_right()` instead.
+//! **Note**: This crate previously provided an `Identity` trait for value extraction, but it is deprecated.
+//! Prefer explicit methods like `right_option()`, `left_option()`, pattern matching, or `unwrap()` when you
+//! intentionally want the `Right` value.
 //!
 //! ## Type Class Laws
 //!
@@ -234,7 +236,6 @@
 //! - `unwrap_left()`, `unwrap_right()`: Panic if called on wrong variant
 //! - `left_value()`, `right_value()`: Panic if called on wrong variant  
 //! - `left_ref()`, `right_ref()`: Panic if called on wrong variant
-//! - `Identity` trait methods: Panic if called on `Left` variant
 //!
 //! **Recommended alternatives**: Use pattern matching, `left_option()`, `right_option()`, or the safe `*_or()` methods.
 
@@ -243,11 +244,8 @@ use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
-use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
-use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
-use crate::utils::error_utils;
 use quickcheck::{Arbitrary, Gen};
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
@@ -682,7 +680,7 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn to_result(self) -> Result<R, L> {
-        error_utils::either_to_result(self)
+        crate::error::either_to_result(self)
     }
 
     /// Creates an `Either` from a `Result`.
@@ -706,7 +704,7 @@ impl<L, R> Either<L, R> {
     /// ```
     #[inline]
     pub fn from_result(result: Result<R, L>) -> Self {
-        error_utils::result_to_either(result)
+        crate::error::result_to_either(result)
     }
 
     /// Returns an iterator over the left value, consuming self.
@@ -1037,117 +1035,6 @@ impl<L: Clone, R: Clone> Bifunctor for Either<L, R> {
         match self {
             Either::Left(l) => Either::Left(g(l)),
             Either::Right(r) => Either::Right(f(r)),
-        }
-    }
-}
-
-/// WARNING: The `Identity` trait implementation for `Either` is logically unsound and should be used with caution.
-/// `Either<L, R>` can contain either a value of type `L` or `R`, but the `Identity` trait treats `R` as the
-/// primary type, which is arbitrary and potentially confusing. This implementation can easily lead to runtime panics
-/// when used with `Either::Left` values.
-///
-/// # Recommended Alternative
-///
-/// Instead of using the `Identity` trait methods, prefer the explicit methods `is_right()`, `right_value()`,
-/// `right_ref()`, and `right_option()` which make the behavior more obvious and provide safer alternatives
-/// that don't panic unexpectedly.
-impl<L: Clone, R: Clone> Identity for Either<L, R> {
-    #[inline]
-    /// Returns a reference to the contained `Right` value.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if called on an `Either::Left` variant. This makes the `Identity` implementation
-    /// for `Either` inherently unsound, as it can only safely operate on half of the possible values.
-    /// Consider using `right_ref()` in combination with `is_right()` for a safer alternative.
-    fn value(&self) -> &Self::Source {
-        match self {
-            Either::Left(_) => panic!("Cannot get value from Left variant"),
-            Either::Right(r) => r,
-        }
-    }
-
-    #[inline]
-    /// Consumes the `Either` and returns the contained `Right` value.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if called on an `Either::Left` variant. This makes the `Identity` implementation
-    /// for `Either` inherently unsound, as it can only safely operate on half of the possible values.
-    /// Consider using `right_value()` in combination with `is_right()` for a safer alternative, or use
-    /// pattern matching which handles both variants safely.
-    fn into_value(self) -> Self::Source {
-        match self {
-            Either::Left(_) => panic!("Called into_value on an Either::Left"),
-            Either::Right(r) => r,
-        }
-    }
-}
-
-/// Implementation of `MonadPlus` for `Either`, which provides zero and plus operations.
-///
-/// # Type Parameters
-///
-/// * `L`: The left type, which must implement `Default + Clone`. The `Default` requirement is needed
-///   to create the zero element (`mzero`) by producing a `Left(L::default())` value.
-/// * `R`: The right type, which must implement `Clone` for all operations.
-///
-/// # Implementation Notes
-///
-/// - `mzero<U>()` returns `Either::Left(L::default())`, representing a failure or empty value.
-/// - `mplus` combines two `Either` values, preferring `Right` values over `Left` values.
-///   If both are `Left`, the first value is kept.
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::either::Either;
-/// use rustica::traits::monad_plus::MonadPlus;
-///
-/// // Zero produces a Left with the default value
-/// let zero = Either::<String, i32>::mzero::<i32>(); // Either::Left(String::default())
-///
-/// // Plus prefers Right values
-/// let a: Either<String, i32> = Either::right(42);
-/// let b: Either<String, i32> = Either::left("error".to_string());
-/// assert_eq!(a.mplus(&b), Either::right(42)); // Right preferred over Left
-/// assert_eq!(b.mplus(&a), Either::right(42)); // Right preferred over Left
-/// ```
-impl<L: Default + Clone, R: Clone> MonadPlus for Either<L, R> {
-    /// Returns a zero element of the `MonadPlus` instance as `Either::Left(L::default())`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The right type of the resulting `Either` (can differ from `R`)
-    ///
-    /// # Requirements
-    ///
-    /// Requires `L: Default` to create the default value for the `Left` variant.
-    fn mzero<U: Clone>() -> Self::Output<U> {
-        Either::Left(L::default().clone())
-    }
-
-    /// Combines two `Either` values, preferring `Right` values over `Left` values.
-    /// If both are `Left`, the first value is kept.
-    fn mplus(&self, other: &Self) -> Self {
-        match (self, other) {
-            (Either::Right(_), _) => self.clone(),
-            (Either::Left(_), Either::Right(_)) => other.clone(),
-            (Either::Left(_), Either::Left(_)) => self.clone(),
-        }
-    }
-
-    /// Owned version of `mplus` that consumes both inputs.
-    /// Combines two `Either` values, preferring `Right` values over `Left` values.
-    /// If both are `Left`, the first value is kept.
-    fn mplus_owned(self, other: Self) -> Self
-    where
-        Self: Sized,
-    {
-        match (&self, &other) {
-            (Either::Right(_), _) => self,
-            (Either::Left(_), Either::Right(_)) => other,
-            (Either::Left(_), Either::Left(_)) => self,
         }
     }
 }

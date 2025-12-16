@@ -62,19 +62,19 @@
 //! A proper functor should satisfy the following laws:
 //!
 //! ```rust
-//! // 1. Identity: mapping with the identity function should return an identical value
-//! // f.map(x => x) ≡ f
-//! let x: Option<i32> = Some(42);
-//! assert_eq!(x.clone().map(|x: i32| x), x);
+//! use rustica::traits::functor::Functor;
 //!
-//! // 2. Composition: mapping with f and then g should be the same as mapping with g(f(x))
-//! // f.map(g).map(h) ≡ f.map(x => h(g(x)))
-//! let f = |x: i32| x + 1;
-//! let g = |x: i32| x * 2;
+//! // 1. Identity
+//! let x: Option<i32> = Some(42);
+//! assert_eq!(x.fmap(|v| v.clone()), x);
+//!
+//! // 2. Composition
+//! let f = |x: &i32| x + 1;
+//! let g = |x: &i32| x * 2;
 //! let x: Option<i32> = Some(1);
 //!
-//! let result1: Option<i32> = x.clone().map(|x| g(f(x)));
-//! let result2: Option<i32> = x.clone().map(|x| g(f(x)));
+//! let result1: Option<i32> = x.fmap(|v| g(&f(v)));
+//! let result2: Option<i32> = x.fmap(f).fmap(g);
 //! assert_eq!(result1, result2);
 //! ```
 
@@ -100,9 +100,7 @@ use crate::prelude::*;
 ///
 /// ```rust
 /// use rustica::traits::functor::Functor;
-/// use rustica::traits::hkt::HKT;
 /// use rustica::datatypes::maybe::Maybe;
-/// use rustica::traits::comonad::Comonad;
 ///
 /// // Using the Functor implementation for Maybe
 /// let maybe_int = Maybe::Just(42);

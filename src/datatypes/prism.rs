@@ -188,10 +188,11 @@
 //!
 //! For any prism `p`, structure `s`, and focus value `a` where `p.preview(s) = Some(a)`:
 //!
-//! `p.preview(s).map(|a| p.review(&a)) == p.preview(s).map(|_| s.clone())`
+//! `p.review(&a)` constructs a value that, when previewed, yields the same focus:
+//! `p.preview(&p.review(&a)) == Some(a)`
 //!
-//! If we successfully preview a value and then review it, we get back a value
-//! that would preview to the same result.
+//! If the focus type `A` contains exactly the information needed to reconstruct the matched case,
+//! this typically implies `p.review(&a) == s`.
 //!
 //! ### Second Law: Review-Preview
 //!
@@ -690,11 +691,9 @@ where
     ///
     /// # Design Notes
     ///
-    /// * Requires `S: Clone` to enable returning the original structure
     /// * Requires `A: PartialEq` to compare values for structural sharing
     /// * If preview fails, the original structure is returned unchanged
-    /// * The transformation function is always called, even if preview fails
-    ///   (this ensures consistent behavior and side effects)
+    /// * The transformation function is called only when preview succeeds
     ///
     /// # Arguments
     ///
@@ -733,7 +732,7 @@ where
     ///
     /// // No change - structural sharing applied
     /// let unchanged = value_prism.modify(counter.clone(), |x| x);
-    /// // unchanged is the same instance as counter (structural sharing)
+    /// // unchanged is the original structure returned without reconstruction
     ///
     /// // Preview fails - original structure returned
     /// let empty = Counter::Empty;
@@ -803,7 +802,7 @@ where
     ///
     /// // Set to same value - structural sharing
     /// let same_status = active_prism.set_if_different(status.clone(), "Alice".to_string());
-    /// // same_status is the same instance as status
+    /// // same_status is the original structure returned without reconstruction
     ///
     /// // Set to different value - new structure created
     /// let new_status = active_prism.set_if_different(status, "Bob".to_string());

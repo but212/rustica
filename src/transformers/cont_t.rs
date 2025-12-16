@@ -340,6 +340,12 @@ impl<R, M: Monad + Clone + Send + Sync + 'static, A: Send + Sync + 'static> Mona
 {
     type BaseMonad = M;
 
+    /// Lifts a base monad value into the continuation transformer.
+    ///
+    /// Note: This implementation ignores the continuation and returns the base monad directly.
+    /// This is a simplified lift that works when the base monad's result type matches
+    /// the continuation's expected return type. For more complex scenarios, consider
+    /// using `ContT::new` directly with proper continuation handling.
     fn lift(base: Self::BaseMonad) -> Self {
         ContT::new(move |_k| base.clone())
     }

@@ -455,22 +455,23 @@ fn test_choice_foldable_trait() {
 }
 
 #[test]
-fn test_choice_alternative_and_monadplus_traits() {
+fn test_choice_alt_trait() {
     use rustica::datatypes::choice::Choice;
     use rustica::traits::alternative::Alternative;
-    use rustica::traits::monad_plus::MonadPlus;
+
     let a = Choice::new(1, vec![2]);
     let b = Choice::new(3, vec![4]);
+
+    // Test alt
     let alt = a.alt(&b);
     assert_eq!(*alt.first().unwrap(), 1);
     assert_eq!(alt.alternatives(), &[2, 3, 4]);
-    let mplus = a.mplus(&b);
-    assert_eq!(*mplus.first().unwrap(), 1);
-    assert_eq!(mplus.alternatives(), &[2, 3, 4]);
-    let mzero: Choice<i32> = <Choice<i32> as MonadPlus>::mzero();
-    assert!(mzero.is_empty());
+
+    // Test empty_alt (equivalent to mzero)
     let empty: Choice<i32> = <Choice<i32> as Alternative>::empty_alt();
     assert!(empty.is_empty());
+
+    // Test guard
     let not_guarded: Choice<()> = <Choice<()> as Alternative>::guard(false);
     assert!(not_guarded.is_empty());
     let many = a.many();

@@ -1,5 +1,93 @@
 # CHANGELOG
 
+## [0.11.0]
+
+### Breaking Changes - 0.11.0
+
+- **`utils::hkt_utils::map_result` Consolidated**
+  - `map_result` function in `hkt_utils` module has been removed and consolidated into `categorical_utils`
+  - `hkt_utils::map_result` now re-exports from `categorical_utils::map_result` for backward compatibility
+  - Migration: No changes needed if importing from `hkt_utils`; for direct use, prefer `categorical_utils::map_result`
+  - Note: `categorical_utils::map_result` uses `FnOnce` (more flexible) instead of `Fn`
+
+- **`Validated<E, A>` Typeclass Cleanup**
+  - **Removed `Monoid` implementation**: No lawful identity element exists for error-accumulating validation
+    - Migration: Use `Validated::valid(...)` for domain-specific neutral values, or model error collections separately
+  - **Removed `AsRef<A>` implementation**: Previous impl panicked on `Invalid`, violating `AsRef`'s total conversion contract
+    - Migration: Use `Validated::as_ref()` (returns `Option<&A>`) or pattern matching
+  - Removed `MonadPlus` and `Alternative` to avoid mixing fail-fast monadic semantics with error accumulation
+    - Recommended helpers: `recover_all`, `recover_all_at_once`, `sequence_owned`
+
+- **`Either<L, R>` Typeclass Cleanup**
+  - **Removed `MonadPlus` implementation**: Use `Alternative` for left-biased/right-biased choice semantics
+
+- **`Choice<T>` Typeclass Cleanup**
+  - **Removed `MonadPlus` implementation**: Duplicated `Alternative` semantics (`mzero`/`mplus`)
+    - Migration:
+      - `<Choice<T> as MonadPlus>::mzero()` → `<Choice<T> as Alternative>::empty_alt()`
+      - `a.mplus(&b)` → `a.alt(&b)`
+  - `Foldable` for `Choice<T>` no longer requires `T: Clone`
+
+- **`utils::error_utils` Module Removed**
+  - All error utilities (`WithError`, `ResultExt`, `sequence`, `traverse`, etc.) moved to `crate::error`
+  - Migration: `rustica::utils::error_utils::*` → `rustica::error::*` (or `rustica::prelude::error::*`)
+
+- **Identity Trait and Implementations**
+  - Fully removed the deprecated `Identity` trait and its module (`traits::identity`)
+  - Deleted all `Identity` implementations on core datatypes and wrappers (`Id`, `Maybe`, `Either`, `Validated`, `Choice`, `PersistentVector`, `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, `Writer`)
+
+- **Legacy `AppError` Utilities**
+  - Removed `utils::error_utils::AppError`, `error()`, and `error_with_context()` after a deprecation cycle
+  - All public error construction is now routed through `crate::error::ComposableError` and its context helpers
+
+### Changed - 0.11.0
+
+- **Core Error Helper Cleanup**
+  - `Either::to_result` / `from_result` now delegate to `crate::error::{either_to_result, result_to_either}`
+  - `IO::try_get`, `IO::try_get_with_context`, and `Maybe::try_unwrap` now return `ComposableResult` for consistency
+
+- **Error Prelude Consolidation**
+  - `prelude::error` re-exports unified error module: `ComposableError`, `ComposableResult`, boxed variants, context utilities, `WithError`, `ResultExt`
+
+- **`Choice<T>` Documentation Clarification**
+  - `Semigroup::combine` and `Alternative::alt` share the same "merge alternatives" behavior for `Choice<T>`
+  - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
+
+- **Unused Trait Modules Removed**
+  - Removed `contravariant_functor` - Unused contravariant functor implementation
+  - Removed `natural_transformation` - Unused natural transformation trait
+  - Removed `profunctor` - Unused profunctorial abstractions
+  - Removed `representable` - Unused representable functor trait
+  - These modules were placeholder implementations without actual use in the codebase
+
+- **`Validated<E, A>` Performance and API Improvements**
+  - **Iterator Type Consistency**: `iter_errors()` now returns `ErrorsIter` type, matching `iter_errors_mut()`
+  - **Removed Unnecessary Clone Bounds**:
+    - `collect()` and `collect_owned()` no longer require `C: Clone` - only `C: FromIterator<A>`
+    - Improves flexibility when collecting into types that don't need Clone
+  - **Performance Optimizations**:
+    - `Semigroup::combine` and `Applicative::apply` optimized by removing `chain().cloned()` overhead
+    - Direct `extend()` calls reduce iterator object creation
+  - **New Option Conversion Methods**:
+    - `as_option()` - Returns `Option<&A>` without cloning (zero-copy reference access)
+    - `into_option()` - Consumes `self` and returns `Option<A>` without cloning
+    - Existing `to_option()` preserved for backward compatibility (requires `A: Clone`)
+  - **Async Owned Methods Added** (more efficient alternatives to reference-based async methods):
+    - `fmap_valid_async_owned()` - Maps async function over valid value, consuming `self`
+    - `fmap_invalid_async_owned()` - Maps async function over errors, consuming `self`
+    - `and_then_async_owned()` - Chains async validation, consuming `self`
+    - All owned versions avoid unnecessary cloning and use `FnOnce` bounds
+
+- **`PersistentVector<T>` Performance and API Improvements**
+  - **Iterator O(n) optimization**: Rewrote `PersistentVectorIter` with stack-based tree traversal, reducing full iteration complexity from O(n log n) to O(n)
+  - **`fold_right` optimization**: Now uses `DoubleEndedIterator` instead of reverse index loop
+  - **Relaxed Clone bounds**: The following operations no longer require `T: Clone`:
+    - `get()`
+    - `Index<usize>` trait
+    - `iter()` / `IntoIterator for &PersistentVector<T>`
+    - `Foldable` trait implementation
+  - **DoubleEndedIterator**: Full bidirectional iteration support with independent front/back cursors for efficient `.rev()` chains
+
 ## [0.10.2]
 
 ### Deprecated - 0.10.2

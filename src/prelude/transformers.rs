@@ -16,13 +16,12 @@
 //!
 //! ```rust
 //! use rustica::prelude::transformers::*;
-//! use rustica::transformers::state_t::StateT;
 //!
 //! // StateT example: increment state and return the old value
-//! let st: StateT<i32, (i32, i32), i32> = StateT::new(|s: i32| (s, s + 1));
-//! let (old, new_state) = st.run_state(41);
-//! assert_eq!(old, 41);
-//! assert_eq!(new_state, 42);
+//! // StateT<S, M, A> where M is the base monad wrapping (new_state, value)
+//! let st: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| Some((s + 1, s)));
+//! let result = st.run_state(41);
+//! assert_eq!(result, Some((42, 41))); // (new_state, old_value)
 //! ```
 //!
 //! See each transformer module for more advanced patterns and combinators.

@@ -2074,3 +2074,172 @@ fn test_validated_serde() {
         serde_json::from_str(&serialized_point).unwrap();
     assert_eq!(valid_point, deserialized_point);
 }
+
+/// Test that iter_errors returns consistent ErrorsIter type
+#[test]
+fn test_iter_errors_type_consistency() {
+    let valid: Validated<&str, i32> = Validated::valid(42);
+    let invalid: Validated<&str, i32> = Validated::invalid_many(["e1", "e2", "e3"]);
+
+    // iter_errors should return ErrorsIter, matching iter_errors_mut pattern
+    let valid_errors: Vec<_> = valid.iter_errors().collect();
+    assert!(valid_errors.is_empty());
+
+    let invalid_errors: Vec<_> = invalid.iter_errors().collect();
+    assert_eq!(invalid_errors, vec![&"e1", &"e2", &"e3"]);
+}
+
+/// Test that iter_errors_mut is symmetric with iter_errors
+#[test]
+fn test_iter_errors_symmetry() {
+    let mut invalid: Validated<String, i32> =
+        Validated::invalid_many(["a".to_string(), "b".to_string()]);
+
+    // Both should behave similarly
+    let immut_count = invalid.iter_errors().count();
+    let mut_count = invalid.iter_errors_mut().count();
+    assert_eq!(immut_count, mut_count);
+    assert_eq!(immut_count, 2);
+}
+
+/// Test as_option (zero-copy reference access)
+#[test]
+fn test_as_option() {
+    let valid: Validated<&str, i32> = Validated::Valid(42);
+    assert_eq!(valid.as_option(), Some(&42));
+
+    let invalid: Validated<&str, i32> = Validated::invalid("error");
+    assert_eq!(invalid.as_option(), None);
+
+    // Verify it's truly zero-copy by checking reference equality
+    let valid2: Validated<&str, String> = Validated::Valid("hello".to_string());
+    if let Some(s) = valid2.as_option() {
+        assert_eq!(s, "hello");
+    }
+}
+
+/// Test into_option (ownership transfer without Clone)
+#[test]
+fn test_into_option() {
+    let valid: Validated<&str, i32> = Validated::Valid(42);
+    assert_eq!(valid.into_option(), Some(42));
+
+    let invalid: Validated<&str, i32> = Validated::invalid("error");
+    assert_eq!(invalid.into_option(), None);
+
+    // Test with non-Clone type to verify no Clone bound needed
+    #[derive(Debug, PartialEq)]
+    struct NonClone(i32);
+
+    let valid_nc: Validated<&str, NonClone> = Validated::Valid(NonClone(100));
+    assert_eq!(valid_nc.into_option(), Some(NonClone(100)));
+
+    let invalid_nc: Validated<&str, NonClone> = Validated::Invalid(smallvec!["err"]);
+    assert_eq!(invalid_nc.into_option(), None);
+}
+
+/// Test collect without Clone bound on C
+#[test]
+fn test_collect_no_clone_bound() {
+    // This should compile without C: Clone
+    let values = vec![
+        Validated::<&str, i32>::valid(1),
+        Validated::<&str, i32>::valid(2),
+        Validated::<&str, i32>::valid(3),
+    ];
+
+    // Vec doesn't need Clone for FromIterator
+    let collected: Validated<&str, Vec<i32>> = Validated::collect(values.into_iter());
+    assert_eq!(collected, Validated::valid(vec![1, 2, 3]));
+
+    // Test with errors
+    let mixed = vec![
+        Validated::<&str, i32>::valid(1),
+        Validated::<&str, i32>::invalid("e1"),
+        Validated::<&str, i32>::invalid("e2"),
+    ];
+    let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.into_iter());
+    assert!(collected.is_invalid());
+    assert_eq!(collected.error_slice(), &["e1", "e2"]);
+}
+
+/// Test collect_owned without Clone bound on C
+#[test]
+fn test_collect_owned_no_clone_bound() {
+    let values = vec![
+        Validated::<&str, i32>::valid(10),
+        Validated::<&str, i32>::valid(20),
+    ];
+
+    let collected: Validated<&str, Vec<i32>> = Validated::collect_owned(values.into_iter());
+    assert_eq!(collected, Validated::valid(vec![10, 20]));
+}
+
+/// Test Semigroup::combine optimization (chain removal)
+#[test]
+fn test_semigroup_combine_correctness() {
+    use rustica::traits::semigroup::Semigroup;
+
+    let i1: Validated<&str, i32> = Validated::invalid_many(["a", "b"]);
+    let i2: Validated<&str, i32> = Validated::invalid_many(["c", "d", "e"]);
+
+    let combined = i1.combine(&i2);
+    assert_eq!(combined.error_slice(), &["a", "b", "c", "d", "e"]);
+
+    // Test combine_owned
+    let i3: Validated<&str, i32> = Validated::invalid_many(["x", "y"]);
+    let i4: Validated<&str, i32> = Validated::invalid("z");
+    let combined_owned = i3.combine_owned(i4);
+    assert_eq!(combined_owned.error_slice(), &["x", "y", "z"]);
+}
+
+/// Test Applicative::apply optimization (chain removal)
+#[test]
+fn test_applicative_apply_correctness() {
+    let f: Validated<&str, fn(&i32) -> i32> = Validated::invalid_many(["f1", "f2"]);
+    let v: Validated<&str, i32> = Validated::invalid_many(["v1", "v2", "v3"]);
+
+    let result = f.apply(&v);
+    assert!(result.is_invalid());
+    // Errors should be accumulated in order: f errors first, then v errors
+    assert_eq!(result.error_slice(), &["f1", "f2", "v1", "v2", "v3"]);
+}
+
+/// Test to_option vs as_option vs into_option API completeness
+#[test]
+fn test_option_api_completeness() {
+    let valid: Validated<&str, i32> = Validated::valid(42);
+
+    // to_option: clones, requires Clone
+    assert_eq!(valid.to_option(), Some(42));
+
+    // as_option: returns reference, no Clone needed
+    assert_eq!(valid.as_option(), Some(&42));
+
+    // into_option: consumes, no Clone needed
+    let valid2: Validated<&str, i32> = Validated::valid(42);
+    assert_eq!(valid2.into_option(), Some(42));
+}
+
+/// Test that ErrorsIter implements Iterator correctly
+#[test]
+fn test_errors_iter_iterator_impl() {
+    let invalid: Validated<String, i32> =
+        Validated::invalid_many(["one".to_string(), "two".to_string(), "three".to_string()]);
+
+    // Test Iterator methods
+    let mut iter = invalid.iter_errors();
+
+    assert_eq!(iter.next(), Some(&"one".to_string()));
+    assert_eq!(iter.next(), Some(&"two".to_string()));
+    assert_eq!(iter.next(), Some(&"three".to_string()));
+    assert_eq!(iter.next(), None);
+}
+
+/// Test empty ErrorsIter for Valid case
+#[test]
+fn test_errors_iter_empty() {
+    let valid: Validated<&str, i32> = Validated::valid(100);
+    let mut iter = valid.iter_errors();
+    assert_eq!(iter.next(), None);
+}

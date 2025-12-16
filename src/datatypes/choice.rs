@@ -121,13 +121,14 @@
 //!         if name.len() >= 5 {
 //!             Choice::new(name.clone(), vec![])
 //!         } else {
-//!             // If primary fails, alternatives will be tried
+//!             // Note: if this returns Choice::new_empty() for the primary value,
+//!             // the whole bind result becomes empty (alternatives are not tried).
 //!             Choice::new_empty()
 //!         }
 //!     })
 //!     .bind(|name| {
 //!         // Add prefix to username
-//!         Choice::new(format!("verified_{name}", ), vec![])
+//!         Choice::new(format!("verified_{name}"), vec![])
 //!     });
 //!
 //! assert_eq!(*processed.first().unwrap(), "verified_user123");
@@ -175,8 +176,6 @@ use std::iter::FromIterator;
 use smallvec::SmallVec;
 
 use crate::prelude::traits::*;
-// TODO: remove this on version 0.12.0
-use crate::traits::identity::Identity;
 
 /// A type representing a value with multiple alternatives.
 ///
@@ -715,6 +714,11 @@ impl<T> Choice<T> {
     /// followed by all items from all alternatives' iterators (in their original order),
     /// become the new alternatives.
     ///
+    /// # Safety Note
+    ///
+    /// This method will panic if the primary value is an empty iterator. Use `try_flatten()`
+    /// for a safe version that returns a `Result` instead of panicking.
+    ///
     /// # Type Parameters
     ///
     /// * `T`: The original type held by the `Choice`, which must be `Clone` and implement `IntoIterator`.
@@ -751,7 +755,7 @@ impl<T> Choice<T> {
     /// let single_nested_list: Choice<Vec<i32>> = Choice::new(vec![10, 20, 30], vec![Vec::<i32>::new(), vec![40]]);
     /// let flat_from_single_list: Choice<i32> = single_nested_list.flatten();
     /// assert_eq!(*flat_from_single_list.first().unwrap(), 10);
-    /// // Order: items from alternatives (empty, then [40]), then rest of primary ([20, 30])
+    /// // Order: rest of primary ([20, 30]), then items from alternatives (empty, then [40])
     /// assert_eq!(flat_from_single_list.alternatives(), &[20, 30, 40]);
     ///
     /// // Flattening an empty Choice
@@ -946,8 +950,7 @@ impl<T> Choice<T> {
     /// # See Also
     /// - [`Choice::new()`](Self::new) - For creating a `Choice` with an explicit primary value and a separate collection of alternatives.
     /// - [`Choice::new_empty()`](Self::new_empty) - For creating an empty `Choice`.
-    /// - [`FromIterator`] - While `Choice` doesn't directly implement `FromIterator`
-    ///   due to the special role of the first element, `of_many` provides similar ergonomics.
+    /// - [`FromIterator`] - `Choice` implements `FromIterator<T>`; the first collected element becomes the primary value.
     #[inline]
     pub fn of_many<I>(many: I) -> Self
     where
@@ -978,7 +981,7 @@ impl<T> Choice<T> {
     /// - If no values in the `Choice` satisfy the predicate, or if the original `Choice`
     ///   is empty, an empty `Choice` (via [`Choice::new_empty()`]) is returned.
     ///
-    /// This method uses copy-on-write semantics for the underlying `SmallVec`.
+    /// This method constructs a new `Choice` containing only the kept values.
     ///
     /// # Arguments
     ///
@@ -1301,21 +1304,6 @@ impl<T> Pure for Choice<T> {
     }
 }
 
-impl<T: Clone> Identity for Choice<T> {
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        self.first().expect("Cannot get value from an empty Choice")
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.values
-            .into_iter()
-            .next()
-            .expect("Cannot get value from an empty Choice")
-    }
-}
-
 impl<T: Clone> Functor for Choice<T> {
     /// Maps a function over the `Choice` container, transforming each value.
     ///
@@ -1581,6 +1569,12 @@ impl<T: Clone> Monad for Choice<T> {
 }
 
 impl<T: Clone> Semigroup for Choice<T> {
+    /// Combines two Choice values by merging their alternatives.
+    ///
+    /// For Choice<T>, this has the same behavior as Alternative::alt because both
+    /// represent non-deterministic computation where we want to collect all possible
+    /// outcomes. The primary value from the first Choice is preserved, and all
+    /// alternatives from both Choices are merged.
     fn combine(&self, other: &Self) -> Self {
         if self.values.is_empty() {
             return other.clone();
@@ -1925,32 +1919,6 @@ impl<T: Clone> Alternative for Choice<T> {
     }
 }
 
-impl<T: Clone> MonadPlus for Choice<T> {
-    fn mzero<U>() -> Self::Output<U> {
-        Choice::new_empty()
-    }
-
-    fn mplus(&self, other: &Self) -> Self {
-        if self.values.is_empty() {
-            other.clone()
-        } else if other.values.is_empty() {
-            self.clone()
-        } else {
-            self.combine(other)
-        }
-    }
-
-    fn mplus_owned(self, other: Self) -> Self {
-        if self.values.is_empty() {
-            other
-        } else if other.values.is_empty() {
-            self
-        } else {
-            self.combine_owned(other)
-        }
-    }
-}
-
 impl<T: Clone> Choice<Option<T>> {
     /// Sequences a `Choice` of `Option`s into an `Option` of a `Choice`.
     ///
@@ -2014,7 +1982,7 @@ impl<T: Clone + Display> Display for Choice<T> {
     }
 }
 
-impl<T: Clone> Foldable for Choice<T> {
+impl<T> Foldable for Choice<T> {
     fn fold_left<B, F>(&self, initial: &B, f: F) -> B
     where
         F: Fn(&B, &Self::Source) -> B,
@@ -2096,9 +2064,12 @@ impl<T: Clone + Default> Default for Choice<T> {
     }
 }
 
-impl<T: Clone + Default> std::iter::Sum for Choice<T> {
+impl<T: Clone> std::iter::Sum for Choice<T> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self::empty(), |a, b| a.mplus(&b))
+        iter.fold(Self::new_empty(), |acc, choice| {
+            let combined: SmallVec<[T; 8]> = acc.values.into_iter().chain(choice.values).collect();
+            Choice { values: combined }
+        })
     }
 }
 

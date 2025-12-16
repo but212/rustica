@@ -46,14 +46,11 @@
 //!
 //! A valid comonad must satisfy these laws:
 //!
-//! 1. **Left Identity**: `extend(extract)(w) = w`  
-//!    Extending a comonad with extract returns the original comonad.
-//!
-//! 2. **Right Identity**: `extract(extend(f)(w)) = f(w)`  
+//! 1. **Counit Law**: `extract(w.extend(f)) = f(w)`  
 //!    Extracting from an extended comonad equals applying the function directly.
 //!
-//! 3. **Associativity**: `extend(f)(extend(g)(w)) = extend(|x| f(extend(g)(x)))(w)`  
-//!    The order of extending computations doesn't matter.
+//! 2. **Identity (observational)**: `extract(w.extend(|x| x.extract())) = extract(w)`  
+//!    Extending with a function that extracts should not change the extracted value.
 //!
 //! ## Totality Requirement
 //!
@@ -97,18 +94,6 @@
 //!
 
 use crate::traits::functor::Functor;
-
-/// A marker trait for types that can safely implement Comonad.
-///
-/// This trait serves as documentation and a compile-time check that a type
-/// can provide a total `extract` operation.
-pub trait SafeComonad {
-    /// Returns true if extract is guaranteed to never fail for this type.
-    /// This should always return true for valid implementations.
-    fn is_extract_total() -> bool {
-        true
-    }
-}
 
 /// A comonad is the categorical dual of a monad, providing operations to extract values from a context
 /// and extend computations that consume contexts. While monads represent computations that add context,
@@ -162,8 +147,9 @@ pub trait Comonad: Functor {
     ///
     /// # Category Theory
     ///
-    /// This operation is derived from duplicate and fmap:
-    /// `extend f = fmap f . duplicate`
+    /// In the standard categorical definition, `extend` is related to `duplicate` and `fmap`.
+    /// This trait exposes `extend` directly because its function takes `&Self` (the whole
+    /// context) rather than just `&Self::Source`.
     ///
     /// # Type Parameters
     ///
@@ -195,13 +181,14 @@ pub trait Comonad: Functor {
 
     /// Duplicates the context of a comonad.
     ///
-    /// This operation creates a new layer of context, where each position in the
-    /// result contains the sub-context focused at that position.
+    /// In the standard categorical definition, `duplicate` has type `W A -> W (W A)`.
+    /// In this crate's `Comonad` trait, `duplicate` returns `Self` and is intended as a
+    /// practical, structure-preserving duplication (often implemented as cloning the context).
     ///
     /// # Category Theory
     ///
-    /// This corresponds to the comultiplication (δ: W A → W (W A)) of the comonad.
-    /// It must satisfy the comonad laws together with extract.
+    /// This corresponds conceptually to the comultiplication (δ: W A → W (W A)) of the comonad.
+    /// Implementations should ensure `duplicate` and `extend` are consistent with `extract`.
     ///
     /// # Returns
     ///

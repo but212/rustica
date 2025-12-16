@@ -10,7 +10,7 @@
 //! - [`Maybe`]: Optional values (like Option)
 //! - [`Either`]: Sum type for error handling or branching
 //! - [`Validated`]: Error accumulation and validation
-//! - [`Choice`]: Generalized sum type
+//! - [`Choice`]: Non-deterministic computation with multiple alternatives
 //! - [`State`]: Composable stateful computations
 //! - [`Reader`]: Dependency injection/context passing
 //! - [`Writer`]: Output accumulation (logging, etc.)

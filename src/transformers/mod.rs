@@ -46,9 +46,9 @@
 //!   - Allows passing and modifying state through a computation
 //!   - Useful for tracking changing values without mutation
 //!
-//! - `WriterT`: Adds logging capabilities
-//!   - Accumulates a log or other appendable data alongside computation
-//!   - Useful for collecting messages, traces, or other output
+//! - `ContT`: Adds continuation-passing style capabilities
+//!   - Enables advanced control flow patterns like early exit and backtracking
+//!   - Useful for implementing coroutines and complex control structures
 //!
 //! ## Implementation Pattern
 //!

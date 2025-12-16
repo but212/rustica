@@ -13,7 +13,7 @@
 //! it has several important limitations compared to true HKT support:
 //!
 //! ### 1. **Associated Type Constraints**
-//! - Each HKT instance must explicitly implement the trait for every concrete type
+//! - Each type constructor must explicitly implement the trait (typically once per wrapper type)
 //! - Cannot express arbitrary type constructors at the type level
 //! - Limited composability compared to true HKT systems
 //!
@@ -23,9 +23,10 @@
 //! - Some mathematically valid operations cannot be expressed
 //!
 //! ### 3. **Runtime Overhead**
-//! - Associated types may introduce additional indirection
-//! - Some operations require trait object boxing
-//! - Performance may be suboptimal compared to monomorphized code
+//! - HKT emulation can lead to more complex bounds and less ergonomic APIs
+//! - Some patterns may require trait objects or boxing (depending on the abstraction)
+//! - Performance is typically still monomorphized, but designs built on HKT-style traits can
+//!   encourage more abstraction layers
 //!
 //! ### 4. **Expressiveness Gaps**
 //! - Cannot represent some category theory concepts directly
@@ -143,6 +144,21 @@ pub trait HKT {
 ///
 /// This trait extends the `HKT` trait to allow for types that have a second type
 /// parameter, such as `Result<T, E>` or `Either<L, R>`.
+///
+/// # Important: Type Parameter Mapping Convention
+///
+/// The mapping between lexical type parameters and `Source`/`Source2` follows
+/// the functional programming convention where the "success" or "right" value
+/// is the primary content (mapped by `Functor::fmap`):
+///
+/// | Type | `Source` (primary) | `Source2` (secondary) |
+/// |------|--------------------|-----------------------|
+/// | `Result<T, E>` | `T` (Ok value) | `E` (Err value) |
+/// | `Either<L, R>` | `R` (Right value) | `L` (Left value) |
+///
+/// This means for `Either<L, R>`, the lexical order (`L`, `R`) is **reversed**
+/// in the HKT mapping. This is intentional and consistent with how `Either` is
+/// used in functional programming (Right = success path).
 ///
 /// # Examples
 ///

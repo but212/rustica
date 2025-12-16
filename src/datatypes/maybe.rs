@@ -156,16 +156,14 @@
 //! - Usage patterns
 //! - Performance considerations
 //! - Error handling approaches
+use crate::error::{ComposableError, ComposableResult, WithError};
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
-use crate::error::{ComposableError, ComposableResult};
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
-use crate::utils::error_utils::WithError;
 use quickcheck::{Arbitrary, Gen};
 use std::marker::PhantomData;
 // use std::ops::{ControlFlow, FromResidual, Try};
@@ -459,8 +457,8 @@ impl<T> Maybe<T> {
     ///
     /// # Errors
     ///
-    /// If the value is a `Nothing`, this function generates and returns an error
-    /// with a detailed message.
+    /// If the value is `Nothing`, this function returns an `Err` containing a
+    /// [`ComposableError<&'static str>`] with additional context.
     ///
     /// # Examples
     ///
@@ -479,10 +477,8 @@ impl<T> Maybe<T> {
     pub fn try_unwrap(self) -> ComposableResult<T, &'static str> {
         match self {
             Maybe::Just(val) => Ok(val),
-            Maybe::Nothing => Err(
-                ComposableError::new("Cannot unwrap Nothing value")
-                    .with_context("Called `try_unwrap()` on a `Nothing` value"),
-            ),
+            Maybe::Nothing => Err(ComposableError::new("Cannot unwrap Nothing value")
+                .with_context("Called `try_unwrap()` on a `Nothing` value")),
         }
     }
 
@@ -1332,7 +1328,10 @@ impl<T> WithError<MaybeError> for Maybe<T> {
     type Success = T;
     type ErrorOutput<G> = Maybe<G>;
 
-    /// maybe does not store errors, so this function does nothing
+    /// `Maybe` does not store an error value.
+    ///
+    /// This implementation preserves `Nothing` as `Nothing`. For `Just(_)`, it fabricates a
+    /// `MaybeError::ValueNotPresent` and applies `f` to it, returning `Just(f(...))`.
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
     where
         F: Fn(MaybeError) -> G,
@@ -1367,7 +1366,10 @@ pub trait MaybeExt<T> {
     /// Converts a Maybe to a Result with the specified error
     fn to_result<E>(self, err: E) -> Result<T, E>;
 
-    /// Provides a safe unwrapping mechanism that returns a Result
+    /// Provides a safe unwrapping mechanism that returns a Result.
+    ///
+    /// On `Nothing`, this returns an `Err` containing a [`ComposableError<&'static str>`]
+    /// with context explaining the failure.
     fn try_unwrap(self) -> ComposableResult<T, &'static str>;
 }
 
@@ -1384,41 +1386,9 @@ impl<T> MaybeExt<T> for Maybe<T> {
     fn try_unwrap(self) -> ComposableResult<T, &'static str> {
         match self {
             Maybe::Just(val) => Ok(val),
-            Maybe::Nothing => Err(
-                ComposableError::new("Cannot unwrap Nothing value")
-                    .with_context("Called `try_unwrap()` on a `Nothing` value"),
-            ),
+            Maybe::Nothing => Err(ComposableError::new("Cannot unwrap Nothing value")
+                .with_context("Called `try_unwrap()` on a `Nothing` value")),
         }
-    }
-}
-
-impl<T> Identity for Maybe<T> {
-    /// Gets a reference to the value, panicking if `Nothing`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if called on a `Nothing` value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::maybe::Maybe;
-    /// use rustica::traits::identity::Identity;
-    ///
-    /// let just = Maybe::Just(10);
-    /// assert_eq!(*just.value(), 10);
-    /// ```
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        match self {
-            Maybe::Just(v) => v,
-            Maybe::Nothing => panic!("Called `Identity::value()` on a `Nothing` value"),
-        }
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.unwrap()
     }
 }
 

@@ -43,16 +43,16 @@
 //! });
 //! assert_eq!(result, Ok(20));
 //!
-//! // Function composition
+//! // Function composition: compose(g, f) means "g after f"
 //! let add_one = |x: i32| x + 1;
 //! let double = |x: i32| x * 2;
 //! let composed = compose(double, add_one);
-//! assert_eq!(composed(5), 12); // (5 + 1) * 2
+//! assert_eq!(composed(5), 12); // double(add_one(5)) = (5 + 1) * 2
 //!
-//! // Argument flipping for different perspectives
+//! // Argument flipping: flip(f)(a, b) = f(b, a)
 //! let subtract = |x: i32, y: i32| x - y;
 //! let flipped_subtract = flip(subtract);
-//! assert_eq!(flipped_subtract(3, 10), 7); // 10 - 3 = 7
+//! assert_eq!(flipped_subtract(3, 10), 7); // subtract(10, 3) = 10 - 3 = 7
 //! ```
 
 use crate::traits::monoid::Monoid;
@@ -289,20 +289,23 @@ where
 
 // ===== Function Composition Utilities =====
 
-/// Composes two functions, creating a new function that applies the first then the second.
+/// Composes two functions, creating a new function that applies `f` first, then `g`.
 ///
 /// This function implements mathematical function composition: `(g ∘ f)(x) = g(f(x))`.
+/// Note that the argument order follows mathematical convention where `compose(g, f)`
+/// means "g after f", so `f` is applied first and `g` is applied to its result.
+///
 /// The composition follows the associativity law and provides a pure functional approach
 /// to combining operations.
 ///
 /// # Arguments
 ///
-/// * `f` - The first function to apply
-/// * `g` - The second function to apply to the result of the first
+/// * `g` - The outer function, applied second to the result of `f`
+/// * `f` - The inner function, applied first to the input
 ///
 /// # Returns
 ///
-/// A new function that represents the composition of `f` and `g`
+/// A new function that represents the composition `g ∘ f`
 ///
 /// # Examples
 ///
@@ -312,9 +315,10 @@ where
 /// let add_one = |x: i32| x + 1;
 /// let double = |x: i32| x * 2;
 ///
-/// // Compose functions: first add one, then double
+/// // Compose functions: compose(double, add_one) means "double after add_one"
+/// // So add_one is applied first, then double
 /// let add_one_then_double = compose(double, add_one);
-/// assert_eq!(add_one_then_double(5), 12); // (5 + 1) * 2
+/// assert_eq!(add_one_then_double(5), 12); // double(add_one(5)) = (5 + 1) * 2
 ///
 /// // Function composition is associative
 /// let triple = |x: i32| x * 3;
@@ -397,8 +401,8 @@ where
 /// // Flip the arguments
 /// let flipped_subtract = flip(subtract);
 ///
-/// assert_eq!(subtract(10, 3), 7);  // 10 - 3 = 7
-/// assert_eq!(flipped_subtract(10, 3), -7);  // 3 - 10 = -7
+/// assert_eq!(subtract(10, 3), 7);       // 10 - 3 = 7
+/// assert_eq!(flipped_subtract(10, 3), -7); // flip swaps args: subtract(3, 10) = 3 - 10 = -7
 ///
 /// // Useful for creating different partial applications
 /// let divide = |x: f64, y: f64| x / y;

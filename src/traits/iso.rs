@@ -63,6 +63,10 @@ use std::marker::PhantomData;
 /// * `A`: The first type in the isomorphism
 /// * `B`: The second type in the isomorphism
 ///
+/// Note: this trait also defines associated types `From` and `To` which are the types actually
+/// used by `forward` and `backward`. Implementations in this crate typically set `From = A` and
+/// `To = B`.
+///
 /// # Examples
 ///
 /// Creating an isomorphism between a newtype and its inner value:

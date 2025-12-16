@@ -6,9 +6,16 @@
 //!
 //! ## Core Idea
 //!
-//! - A Prism can be generalized as an Iso of the form S <-> `Option<A>`
-//! - preview/review functions are wrapped as Iso's forward/backward operations
-//! - This abstraction builds on Iso to provide lawful prism behavior
+//! - A Prism can be represented as a pair of functions:
+//!   - `preview: S -> Option<A>`
+//!   - `review: A -> S`
+//! - `IsoPrism` encodes this pair using an [`Iso`] with `To = Option<A>`:
+//!   - `Iso::forward` is used as `preview`
+//!   - `Iso::backward` is used as `review` by always passing `Some(a)`
+//!
+//! Note: In general, `S <-> Option<A>` is *not* a true isomorphism for sum types (many `S` values map to `None`).
+//! `IsoPrism` can still be useful as a convenient encoding of `preview/review`, but the usual prism laws only hold
+//! to the extent that the provided [`Iso`] behaves lawfully for the cases you care about.
 //!
 //! ## Functional Programming Context
 //!
@@ -181,10 +188,10 @@
 //!
 //! For any prism `p`, structure `s`, and focus value `a` where `p.preview(s) = Some(a)`:
 //!
-//! `p.review(&a) == s  // or equivalent to s`
+//! `p.review(&a) == s`
 //!
 //! If you can preview a value from a structure, then reviewing that value should give you back
-//! something equivalent to the original structure.
+//! the original structure.
 //!
 //! See also: [`crate::datatypes::prism`], [`crate::traits::iso::Iso`]
 

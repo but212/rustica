@@ -35,6 +35,11 @@
 //! ```
 //! The order of composition doesn't matter.
 //!
+//! ## Note on Composition Order
+//!
+//! In this crate, `compose_morphisms(g, f)` represents the mathematical composition `g ∘ f`.
+//! That is, `f` is applied first, then `g`.
+//!
 //! ## Common Use Cases
 //!
 //! The Category trait is commonly used in scenarios where:

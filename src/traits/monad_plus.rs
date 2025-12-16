@@ -47,9 +47,9 @@
 //! // MonadPlus with bind (>>=)
 //! let result = opt1.bind(|x| {
 //!     if *x > 40 {
-//!         Option::<i32>::mzero()
+//!         Option::<i32>::mzero::<i32>()
 //!     } else {
-//!         Some(x * 2)
+//!         Some(*x * 2)
 //!     }
 //! });
 //! assert_eq!(result, None);

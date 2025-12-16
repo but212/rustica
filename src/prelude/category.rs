@@ -2,7 +2,7 @@
 ///
 /// This module provides access to the core function category implementation,
 /// including the main `FunctionCategory` type, morphism type aliases, and
-/// convenient macros for function composition and pipelining.
+/// convenient macros for creating morphisms and pipelining.
 ///
 /// # Exports
 ///

@@ -1,13 +1,16 @@
 //! # Asynchronous Monad
 //!
-//! The `AsyncM` datatype represents an asynchronous computation that will eventually produce a value of type `A`.
-//! It provides a monadic interface for working with asynchronous operations in a functional programming style.
+//! The `AsyncM` datatype represents a *lazy* asynchronous computation that will eventually produce a value of
+//! type `A`.
+//! It provides a monadic-style interface for composing asynchronous operations in a functional programming style.
+//!
+//! **Important**: `AsyncM` is a *cold* computation. If it was created with [`AsyncM::new`], the provided
+//! closure is invoked each time you call [`AsyncM::try_get`]. The result is not memoized.
 //!
 //! ## Quick Start
 //!
 //! ```rust
 //! use rustica::datatypes::async_monad::AsyncM;
-//! use tokio;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -58,14 +61,15 @@
 //!
 //! **Note**: These are inherent methods, not trait implementations. `AsyncM` does not implement
 //! the `Functor`, `Applicative`, or `Monad` traits, but provides equivalent functionality
-//! through its own methods optimized for async operations
+//! through its own methods optimized for async operations.
+//!
+//! **Execution model**: most combinators (`fmap`, `bind`, `zip`, ...) build a new `AsyncM` without running
+//! anything immediately. Actual execution happens when you call [`AsyncM::try_get`].
 //!
 //! ## Basic Usage
 //!
 //! ```rust
 //! use rustica::datatypes::async_monad::AsyncM;
-//! use tokio;
-//! use std::future::Future;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -147,7 +151,12 @@
 //!
 //! ## Type Class Laws
 //!
-//! The `AsyncM` type abides by the standard Functor, Applicative, and Monad laws:
+//! For computations whose provided closures are pure (no observable side effects) and do not
+//! panic, the `AsyncM` combinators behave according to the standard Functor, Applicative, and
+//! Monad laws.
+//!
+//! Note that combinators like `apply`/`zip` may run computations concurrently, which can affect
+//! the *ordering* of side effects if your closures perform them.
 //!
 //! ### Functor Laws
 //! - Identity: `fmap id = id`
@@ -226,7 +235,8 @@ enum AsyncMInner<A> {
 ///
 /// `AsyncM` provides a way to work with asynchronous operations in a functional style,
 /// allowing composition and sequencing of async computations while maintaining
-/// referential transparency.
+/// referentially-transparent composition when the provided closures are pure (free of observable
+/// side effects).
 ///
 /// # Type Parameters
 ///
@@ -256,7 +266,8 @@ enum AsyncMInner<A> {
 ///
 /// # Type Class Laws
 ///
-/// `AsyncM` satisfies the following laws:
+/// For computations whose provided closures are pure (no observable side effects) and do not
+/// panic, `AsyncM` satisfies the following laws:
 ///
 /// ## Functor Laws
 /// ```rust
@@ -545,10 +556,15 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         }
     }
 
-    /// Tries to get the value from this async computation.
+    /// Executes this async computation and returns its value.
     ///
-    /// This method runs the async computation and waits for it to complete,
-    /// returning the final result.
+    /// This method runs the async computation and waits for it to complete.
+    ///
+    /// Note that this method does not return a `Result`: it will propagate panics from the underlying
+    /// future. To convert panics into a default value, use [`AsyncM::recover_with`].
+    ///
+    /// If this `AsyncM` was created with [`AsyncM::new`], calling `try_get` multiple times will run the
+    /// underlying computation multiple times.
     ///
     /// # Returns
     ///
@@ -767,7 +783,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// ```rust
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
-    /// use std::sync::Arc;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -826,7 +841,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         }
     }
 
-    /// Converts an asynchronous Result into an AsyncM.
+    /// Executes an async `Result` and maps errors to a default value.
+    ///
+    /// This is a lazy operation: the provided function `f` is invoked each time you call
+    /// [`AsyncM::try_get`].
     ///
     /// # Arguments
     ///
@@ -835,7 +853,9 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///
     /// # Returns
     ///
-    /// An AsyncM that contains the Ok value of the Result, or defaults to the provided value on Error
+    /// An `AsyncM` that yields the `Ok` value, or yields `default_value` if `f()` returns `Err`.
+    ///
+    /// The error value is discarded.
     ///
     /// # Examples
     ///
@@ -1182,21 +1202,23 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         self.zip_with(other, |a, b| (a, b))
     }
 
-    /// Recovers from errors in the computation with a default value.
+    /// Recovers from panics in the computation with a default value.
     ///
-    /// This method attempts to run the async computation and, if it panics
-    /// or encounters an error, returns the provided default value instead.
+    /// This method attempts to run the async computation and, if it panics,
+    /// returns the provided default value instead.
+    ///
+    /// This only handles unwind panics (via `catch_unwind`). It does not turn `Result::Err` into
+    /// a default value; use [`AsyncM::from_result_or_default`] for that.
     ///
     /// # Arguments
     ///
-    /// * `default` - The default value to return if the computation fails
+    /// * `default` - The default value to return if the computation panics
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
-    /// use std::panic;
     ///
     /// #[tokio::main]
     /// async fn main() {

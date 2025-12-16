@@ -1,29 +1,21 @@
+//! Trait implementations for `Validated`.
+//!
+//! `Validated<E, A>` represents either a `Valid(A)` or an `Invalid(SmallVec<[E; 8]>)`.
+//! In other words, an invalid value carries a *collection* of errors (often used to
+//! accumulate multiple validation failures).
+
 use smallvec::SmallVec;
 
 use crate::datatypes::validated::core::Validated;
-use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
-use crate::traits::identity::Identity;
 use crate::traits::monad::Monad;
-use crate::traits::monad_plus::MonadPlus;
-use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
 use quickcheck::{Arbitrary, Gen};
-
-impl<E, A> AsRef<A> for Validated<E, A> {
-    #[inline]
-    fn as_ref(&self) -> &A {
-        match self {
-            Validated::Valid(x) => x,
-            _ => panic!("called `as_ref()` on an invalid value"),
-        }
-    }
-}
 
 impl<E, A> HKT for Validated<E, A> {
     type Source = A;
@@ -188,28 +180,39 @@ impl<E, A> BinaryHKT for Validated<E, A> {
 
 /// # Examples for `Bifunctor` on `Validated`
 ///
-/// `Bifunctor` allows mapping over either the `Invalid` (left) or `Valid` (right) side.
+/// `Validated<E, A>` is a two-parameter type, but its `Invalid` case stores a *collection*
+/// of errors (`SmallVec<[E; 8]>`), not a single `E`.
+///
+/// In Rustica's `BinaryHKT` encoding for `Validated<E, A>`:
+///
+/// - `Source` is the valid value type `A` (so `first` maps the `Valid` value)
+/// - `Source2` is the error element type `E` (so `second` maps *each* error)
+///
+/// `bimap(f, g)` therefore means:
+///
+/// - Apply `f` to the `Valid(A)` value
+/// - Apply `g` to each error element inside `Invalid(errors)`
 ///
 /// ## `bimap`
 ///
-/// ### Mapping over a `Valid` value (applies the first function)
+/// ### Mapping over a `Valid` value (applies `f`)
 /// ```rust
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::bifunctor::Bifunctor;
 ///
 /// let valid: Validated<&str, i32> = Validated::valid(10);
-/// // The first function `|v| v * 2` is applied to the `Valid` value.
+/// // `f` is applied to the `Valid` value.
 /// let result = valid.bimap(|v: &i32| v * 2, |e: &&str| format!("Error: {}", e));
 /// assert_eq!(result, Validated::valid(20));
 /// ```
 ///
-/// ### Mapping over an `Invalid` value (applies the second function)
+/// ### Mapping over an `Invalid` value (applies `g` to each error)
 /// ```rust
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::bifunctor::Bifunctor;
 ///
 /// let invalid: Validated<&str, i32> = Validated::invalid_many(vec!["e1", "e2"]);
-/// // The second function `|e| format!("New-{}", e)` is applied to the `Invalid` errors.
+/// // `g` is applied to each error element inside `Invalid(errors)`.
 /// let result = invalid.bimap(|v: &i32| v * 2, |e: &&str| format!("New-{}", e));
 /// assert_eq!(result, Validated::invalid_many(vec!["New-e1".to_string(), "New-e2".to_string()]));
 impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
@@ -259,6 +262,10 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// `Validated`'s `Applicative` instance accumulates errors.
 ///
+/// Concretely, this implementation accumulates errors by **concatenating** the two error
+/// collections (left-to-right): errors from the function side (`self`) come first, then
+/// errors from the value side (`value`).
+///
 /// ## `apply`
 ///
 /// ### Valid function, Valid value
@@ -304,7 +311,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// let invalid_fn: Validated<String, fn(&i32) -> i32> = Validated::invalid("fn_error".to_string());
 /// let invalid_val: Validated<String, i32> = Validated::invalid("val_error".to_string());
 /// // The apply implementation accumulates errors in this order:
-/// // first the errors from the function (self), then the errors from the value (rf)
+/// // first the errors from the function (self), then the errors from the value (value)
 /// let expected_errors = smallvec!["fn_error".to_string(), "val_error".to_string()];
 /// assert_eq!(Applicative::apply(&invalid_fn, &invalid_val), Validated::Invalid(expected_errors));
 ///
@@ -335,7 +342,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// let v1: Validated<&str, i32> = Validated::invalid("error1");
 /// let v2: Validated<&str, i32> = Validated::invalid("error2");
 /// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
-/// // The order of errors in lift2 is self's errors then rb's errors.
+/// // The order of errors in lift2 is left argument's errors then right argument's errors.
 /// assert_eq!(result, Validated::Invalid(smallvec!["error1", "error2"]));
 /// ```
 ///
@@ -374,7 +381,8 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
             (Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e.clone()),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 8]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().chain(e2.iter()).cloned());
+                errors.extend(e1.iter().cloned());
+                errors.extend(e2.iter().cloned());
                 Validated::Invalid(errors)
             },
         }
@@ -635,24 +643,6 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     }
 }
 
-impl<E: Clone, A: Clone> Identity for Validated<E, A> {
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        match self {
-            Validated::Valid(a) => a,
-            _ => panic!("Cannot extract value from invalid Validated"),
-        }
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        match self {
-            Validated::Valid(x) => x,
-            _ => panic!("Cannot extract value from invalid Validated"),
-        }
-    }
-}
-
 /// # Examples for `Foldable` on `Validated`
 ///
 /// ```rust
@@ -705,232 +695,13 @@ impl<E, A> Foldable for Validated<E, A> {
     }
 }
 
-/// # Examples for `Alternative` on `Validated`
+/// # Semigroup for `Validated`
 ///
-/// `Alternative` provides a way to express choice and failure. For `Validated`, it
-/// provides a fallback mechanism. The error type `E` must implement `Default`.
+/// This `Semigroup` instance matches the behavior of `Alternative::alt` for `Validated`:
 ///
-/// ## `alt`
-///
-/// `alt` returns the first `Valid` instance, otherwise it returns the second argument.
-///
-/// ### First value is `Valid`
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::alternative::Alternative;
-///
-/// let v1: Validated<String, i32> = Validated::valid(1);
-/// let v2: Validated<String, i32> = Validated::valid(2);
-/// assert_eq!(v1.alt(&v2), Validated::valid(1));
-/// ```
-///
-/// ### First value is `Invalid`, second is `Valid`
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::alternative::Alternative;
-///
-/// let v1: Validated<String, i32> = Validated::invalid("error".to_string());
-/// let v2: Validated<String, i32> = Validated::valid(2);
-/// assert_eq!(v1.alt(&v2), Validated::valid(2));
-/// ```
-///
-/// ### Both values are `Invalid`
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::alternative::Alternative;
-///
-/// let v1: Validated<String, i32> = Validated::invalid("error1".to_string());
-/// let v2: Validated<String, i32> = Validated::invalid("error2".to_string());
-/// assert_eq!(v1.alt(&v2), Validated::invalid("error2".to_string()));
-/// ```
-///
-/// ## `empty_alt`
-///
-/// `empty_alt` creates an `Invalid` instance with a default error value.
-///
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::alternative::Alternative;
-///
-/// let empty: Validated<String, i32> = <Validated<String, i32> as Alternative>::empty_alt();
-/// assert!(empty.is_invalid());
-/// // It contains a single default error
-/// assert_eq!(empty.errors(), vec![String::default()]);
-/// ```
-///
-/// ## `guard`
-///
-/// `guard` creates a `Valid(())` if the condition is true, otherwise an `Invalid`
-/// instance with a default error.
-///
-/// ### Condition is true
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::alternative::Alternative;
-///
-/// let result: Validated<String, ()> = <Validated<String, ()> as Alternative>::guard(true);
-/// assert_eq!(result, Validated::valid(()));
-/// ```
-///
-/// ### Condition is false
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::alternative::Alternative;
-///
-/// let result: Validated<String, ()> = <Validated<String, ()> as Alternative>::guard(false);
-/// assert!(result.is_invalid());
-/// assert_eq!(result.errors().as_slice(), &[String::default()]);
-/// ```
-///
-/// ## `many`
-///
-/// `many` collects one or more occurrences. For `Validated`, this means if the value is
-/// `Valid`, it returns a `Valid` `Vec` with one element. If it's `Invalid`, it
-/// returns an `Invalid` with a default error, discarding original errors.
-///
-/// ### On a `Valid` value
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::alternative::Alternative;
-///
-/// let v: Validated<String, i32> = Validated::valid(42);
-/// assert_eq!(v.many(), Validated::valid(vec![42]));
-/// ```
-///
-/// ### On an `Invalid` value
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::alternative::Alternative;
-///
-/// let v: Validated<String, i32> = Validated::invalid("original error".to_string());
-/// let result = v.many();
-/// assert!(result.is_invalid());
-/// // Note: original errors are discarded.
-/// assert_eq!(result.errors().as_slice(), &[String::default()]);
-/// ```
-impl<E: Clone + Default, A: Clone> Alternative for Validated<E, A> {
-    fn empty_alt<B: Clone>() -> Self::Output<B> {
-        Validated::invalid(E::default())
-    }
-
-    fn alt(&self, other: &Self) -> Self {
-        match self {
-            Validated::Valid(_) => self.clone(),
-            Validated::Invalid(_) => other.clone(),
-        }
-    }
-
-    fn guard(condition: bool) -> Self::Output<()> {
-        if condition {
-            Validated::valid(())
-        } else {
-            Validated::invalid(E::default())
-        }
-    }
-
-    fn many(&self) -> Self::Output<Vec<Self::Source>>
-    where
-        Self::Source: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Validated::valid(vec![x.clone()]),
-            Validated::Invalid(_) => Validated::invalid(E::default()),
-        }
-    }
-}
-
-/// # Examples for `MonadPlus` on `Validated`
-///
-/// `MonadPlus` extends `Monad` with additional operations for combining values.
-///
-/// ## `mzero`
-///
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::monad_plus::MonadPlus;
-///
-/// // Create a zero value using mzero
-/// let zero: Validated<&str, i32> = Validated::<&str, i32>::mzero();
-/// assert!(zero.is_invalid());
-///
-/// // Check that it's invalid with empty errors
-/// assert_eq!(zero.errors().len(), 0);
-///
-/// // mzero is the identity element for mplus
-/// let valid = Validated::valid(42);
-/// assert_eq!(zero.mplus(&valid), valid);
-/// assert_eq!(valid.mplus(&zero), valid);
-/// ```
-///
-/// ## `mplus`
-///
-/// `mplus` returns the first `Valid` instance, or combines errors if both are `Invalid`.
-///
-/// ### Combining with first value valid
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::monad_plus::MonadPlus;
-///
-/// let a: Validated<&str, i32> = Validated::valid(42);
-/// let b: Validated<&str, i32> = Validated::invalid("error");
-/// let result = a.mplus(&b);
-/// assert_eq!(result, Validated::valid(42));
-/// ```
-///
-/// ### Combining with second value valid
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::monad_plus::MonadPlus;
-///
-/// let a: Validated<&str, i32> = Validated::invalid("error1");
-/// let b: Validated<&str, i32> = Validated::valid(42);
-/// let result = a.mplus(&b);
-/// assert_eq!(result, Validated::valid(42));
-/// ```
-///
-/// ### Combining with both values invalid
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::monad_plus::MonadPlus;
-///
-/// let a: Validated<&str, i32> = Validated::invalid("error1");
-/// let b: Validated<&str, i32> = Validated::invalid("error2");
-/// let result = a.mplus(&b);
-/// assert!(result.is_invalid());
-/// assert_eq!(result.iter_errors().collect::<Vec<_>>(), vec![&"error1", &"error2"]);
-/// ```
-impl<E: Clone, A: Clone> MonadPlus for Validated<E, A> {
-    fn mzero<U: Clone>() -> Self::Output<U> {
-        Monoid::empty()
-    }
-
-    fn mplus(&self, other: &Self) -> Self {
-        match (self, other) {
-            (Validated::Valid(_), _) => self.clone(),
-            (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut errors = SmallVec::<[E; 8]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().chain(e2.iter()).cloned());
-                Validated::Invalid(errors)
-            },
-        }
-    }
-
-    fn mplus_owned(self, other: Self) -> Self
-    where
-        Self: Sized,
-    {
-        match (self, other) {
-            (s @ Validated::Valid(_), _) => s,
-            (Validated::Invalid(_), o @ Validated::Valid(_)) => o,
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Validated::Invalid(e1)
-            },
-        }
-    }
-}
-
+/// - If `self` is `Valid`, it is returned.
+/// - If `self` is `Invalid` and `other` is `Valid`, `other` is returned.
+/// - If both are `Invalid`, their error collections are concatenated (left-to-right).
 impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
     fn combine(&self, other: &Self) -> Self {
         match (self, other) {
@@ -938,7 +709,8 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
             (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = SmallVec::<[E; 8]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().chain(e2.iter()).cloned());
+                errors.extend(e1.iter().cloned());
+                errors.extend(e2.iter().cloned());
                 Validated::Invalid(errors)
             },
         }
@@ -953,12 +725,6 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
                 Validated::Invalid(e1)
             },
         }
-    }
-}
-
-impl<E: Clone, A: Clone> Monoid for Validated<E, A> {
-    fn empty() -> Self {
-        Validated::Invalid(SmallVec::new())
     }
 }
 

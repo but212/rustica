@@ -133,7 +133,7 @@
 //!
 //! For any lens `l` and structure `s`:
 //!
-//! `l.set(s, l.get(s)) == s`
+//! `l.set(s.clone(), l.get(&s)) == s`
 //!
 //! "Setting a value to what it already is doesn't change anything"
 //!
@@ -141,7 +141,7 @@
 //!
 //! For any lens `l`, structure `s`, and value `v`:
 //!
-//! `l.get(l.set(s, v)) == v`
+//! `l.get(&l.set(s.clone(), v)) == v`
 //!
 //! "If you set a value, that's what you get back"
 //!
@@ -149,7 +149,7 @@
 //!
 //! For any lens `l`, structure `s`, and values `v1` and `v2`:
 //!
-//! `l.set(l.set(s, v1), v2) == l.set(s, v2)`
+//! `l.set(l.set(s.clone(), v1), v2) == l.set(s, v2)`
 //!
 //! "Setting a value and then immediately setting another value is the same as just setting the second value"
 //!

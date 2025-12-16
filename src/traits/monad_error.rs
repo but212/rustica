@@ -21,21 +21,23 @@
 //! - `throw`: E -> M A
 //! - `catch`: M A -> (E -> M A) -> M A
 //!
+//! Note: in this crate, `catch` receives `&E`.
+//!
 //! # Laws
 //!
 //! For a valid MonadError implementation, the following laws must hold:
 //!
 //! 1. Left Catch Law:
 //!    ```text
-//!    throw(e).catch(h) == h(e)
+//!    throw(e).catch(h) == h(&e)
 //!    ```
 //!    Catching an error that was just thrown should be equivalent to just handling that error.
 //!
 //! 2. Right Catch Law:
 //!    ```text
-//!    m.catch(throw) == m
+//!    m.catch(|e| throw(e)) == m
 //!    ```
-//!    Catching with throw as the handler should be a no-op.
+//!    Catching with re-throw as the handler should be a no-op.
 //!
 //! 3. Associativity Catch Law:
 //!    ```text
@@ -60,7 +62,7 @@
 //!
 //! // Using Result as a MonadError to handle errors
 //! let success_result: Result<i32, AppError> = Result::<i32, AppError>::pure(&42);
-//! let error_result: Result<i32, AppError> = Result::<i32, AppError>::throw(AppError {
+//! let error_result: Result<i32, AppError> = Result::<i32, AppError>::throw::<i32>(AppError {
 //!     message: "Item not found".to_string(),
 //!     code: 404,
 //! });
@@ -102,12 +104,12 @@ use crate::traits::monad::Monad;
 /// For a valid MonadError implementation, the following laws must hold:
 ///
 /// 1. Left Catch Law:
-///    throw(e).catch(h) == h(e)
+///    throw(e).catch(h) == h(&e)
 ///    Catching an error that was just thrown should be equivalent to just handling that error.
 ///
 /// 2. Right Catch Law:
-///    m.catch(throw) == m
-///    Catching with throw as the handler should be a no-op.
+///    m.catch(|e| throw(e)) == m
+///    Catching with re-throw as the handler should be a no-op.
 ///
 /// 3. Associativity Catch Law:
 ///    m.catch(h1).catch(h2) == m.catch(e -> h1(e).catch(h2))

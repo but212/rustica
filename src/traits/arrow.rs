@@ -1,8 +1,8 @@
 //! # Arrow
 //!
 //! This module provides the `Arrow` trait which represents a generalized notion of computation
-//! beyond ordinary functions. Arrows combine the expressiveness of monads with additional
-//! abstractions for structuring computations, especially those involving pairs and parallelism.
+//! beyond ordinary functions. Arrows provide abstractions for structuring computations,
+//! especially those involving pairs and independent composition.
 //!
 //! ## Mathematical Definition
 //!
@@ -10,19 +10,39 @@
 //! - Lifting pure functions into the arrow type (`arrow`)
 //! - Processing pairs of values (`first`, `second`)
 //! - Splitting computations (`split`)
-//! - Running computations in parallel (`combine_morphisms`)
+//! - Combining computations over pairs (`combine_morphisms`)
 //!
 //! ## Laws
 //!
 //! A valid arrow must satisfy these laws:
 //!
-//! 1. Category Laws:
+//! ### Haskell to Rustica Mapping
+//!
+//! | Haskell | Rustica | Description |
+//! |---------|---------|-------------|
+//! | `arr f` | `Arrow::arrow(f)` | Lift a pure function into an arrow |
+//! | `f >>> g` | `Category::compose_morphisms(&g, &f)` | Compose arrows (f first, then g) |
+//! | `f *** g` | `Arrow::combine_morphisms(&f, &g)` | Apply f and g to pair components |
+//! | `first f` | `Arrow::first(&f)` | Apply f to first component of pair |
+//! | `second f` | `Arrow::second(&f)` | Apply f to second component of pair |
+//! | `f &&& g` | `Arrow::split(&f, &g)` | Fanout: apply both f and g to input |
+//!
+//! ### 1. Category Laws
+//!
 //! ```text
-//! arrow id >>> f = f = f >>> arrow id
+//! Arrow::arrow(id) >>> f = f = f >>> Arrow::arrow(id)
 //! (f >>> g) >>> h = f >>> (g >>> h)
 //! ```
 //!
-//! 2. Arrow Laws:
+//! In Rustica terms:
+//! ```text
+//! compose_morphisms(&f, &arrow(|x| x)) == f
+//! compose_morphisms(&arrow(|x| x), &f) == f
+//! compose_morphisms(&h, &compose_morphisms(&g, &f)) == compose_morphisms(&compose_morphisms(&h, &g), &f)
+//! ```
+//!
+//! ### 2. Arrow Laws
+//!
 //! ```text
 //! first (f >>> g) = first f >>> first g
 //! first (arr f) = arr (f *** id)
@@ -209,7 +229,6 @@ pub trait Arrow: Category {
     /// * `B`: Input type
     /// * `C`: Output type of the first morphism
     /// * `D`: Output type of the second morphism
-    /// * `E`: Additional type parameter for future extensions
     ///
     /// # Arguments
     ///

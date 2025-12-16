@@ -1,12 +1,41 @@
+//! Core implementation of the `Validated` data type.
+//!
+//! This module provides the fundamental `Validated<E, A>` type for accumulating
+//! validation errors, along with its associated methods and helper types.
+
 use smallvec::{SmallVec, smallvec};
 
+/// Type alias for the internal error collection.
+///
+/// Uses `SmallVec` with inline capacity of 8 to optimize for the common case
+/// of few errors while still supporting larger error collections efficiently.
 type ErrorVec<E> = SmallVec<[E; 8]>;
 
+/// Internal helper for efficiently accumulating validation errors.
+///
+/// `ErrorAccumulator` provides a unified interface for collecting errors from
+/// multiple `Validated` instances, with optimized paths for both owned and
+/// borrowed error collections.
+///
+/// # Performance Characteristics
+///
+/// - Stack-allocated for up to 8 errors (via `SmallVec`)
+/// - Heap allocation only when exceeding inline capacity
+/// - Zero-copy error transfer via `extend_owned` when consuming `Validated` instances
+/// - Efficient cloning path via `extend_cloned` for borrowed references
+///
+/// # Type Parameters
+///
+/// * `E` - The error type being accumulated
 struct ErrorAccumulator<E> {
+    /// Internal buffer storing accumulated errors.
     buffer: ErrorVec<E>,
 }
 
 impl<E> ErrorAccumulator<E> {
+    /// Creates a new empty error accumulator.
+    ///
+    /// The accumulator starts with inline storage for up to 8 errors.
     #[inline]
     fn new() -> Self {
         Self {
@@ -14,6 +43,14 @@ impl<E> ErrorAccumulator<E> {
         }
     }
 
+    /// Creates a new error accumulator with pre-allocated capacity.
+    ///
+    /// Use this when you know approximately how many errors to expect,
+    /// to avoid reallocation during accumulation.
+    ///
+    /// # Arguments
+    ///
+    /// * `capacity` - The number of errors to pre-allocate space for
     #[inline]
     fn with_capacity(capacity: usize) -> Self {
         Self {
@@ -21,11 +58,22 @@ impl<E> ErrorAccumulator<E> {
         }
     }
 
+    /// Consumes the accumulator and returns the collected errors.
+    ///
+    /// This transfers ownership of the error collection without cloning.
     #[inline]
     fn into_inner(self) -> ErrorVec<E> {
         self.buffer
     }
 
+    /// Extends the accumulator with owned errors, avoiding clones.
+    ///
+    /// This method is optimized for consuming `Validated::Invalid` instances
+    /// by draining their error collections directly into the accumulator.
+    ///
+    /// # Arguments
+    ///
+    /// * `errors` - The error collection to drain and append
     #[inline]
     fn extend_owned(&mut self, mut errors: ErrorVec<E>) {
         self.buffer.extend(errors.drain(..));
@@ -33,6 +81,15 @@ impl<E> ErrorAccumulator<E> {
 }
 
 impl<E: Clone> ErrorAccumulator<E> {
+    /// Extends the accumulator by cloning errors from a borrowed collection.
+    ///
+    /// This method is used when working with `&Validated` references where
+    /// the original error collection cannot be consumed. It pre-reserves
+    /// capacity to minimize reallocations.
+    ///
+    /// # Arguments
+    ///
+    /// * `errors` - The error collection to clone from
     #[inline]
     fn extend_cloned(&mut self, errors: &ErrorVec<E>) {
         if errors.is_empty() {
@@ -57,7 +114,7 @@ impl<E: Clone> ErrorAccumulator<E> {
 /// ## Borrowed Methods (Reference-based)
 /// - `combine_errors(&self, other: &Self)` - Takes references, clones errors
 /// - `sequence(&[&Validated<E, A>], fn)` - Works with references, clones errors
-/// - `collect<I>(iter: I)` - Takes iterator, may clone depending on context
+/// - `collect<I>(iter: I)` - Takes an iterator of `Validated` values; in practice often used with cloned values (e.g. `values.iter().cloned()`), and may clone depending on context
 ///
 /// ## Owned Methods (Ownership-taking)
 /// - `combine_errors_owned(self, other: Self)` - Takes ownership, moves errors
@@ -86,15 +143,7 @@ impl<E: Clone> ErrorAccumulator<E> {
 ///   - Methods providing access to errors (e.g., `errors()`, which returns `Vec<E>`) typically clone the internal errors to avoid lifetime issues or to provide owned data.
 ///   - If your error type `E` is expensive to clone, consider wrapping it in an `Arc<E>` or ensure that operations that trigger cloning are used judiciously.
 ///
-/// - **`A: Clone`**: The value type `A` also often requires a `Clone` bound for similar reasons, especially for methods that operate on `&self` but need to return an owned `Validated` or extract the value (e.g., `unwrap()`, `fmap_invalid` when `self` is `Valid`). Ownership-taking variants of methods (e.g., `fmap_owned`, `unwrap_owned` if it existed) can sometimes alleviate this requirement for `A`.
-///
-/// # Notes on Trait Implementations
-///
-/// - **`Alternative` Implementation**: The `Alternative` trait implementation for `Validated<E, A>` requires `E: Clone + Default`:
-///   - `empty_alt()` returns `Validated::Invalid` containing a default error (`E::default()`).
-///   - `guard(false)` also uses `E::default()` to create an `Invalid` state.
-///   - `many()` for an `Invalid` state discards original errors and uses `E::default()`.
-///   - These methods use `Default` to ensure a consistent representation for the empty/failure case.
+/// - **`A: Clone`**: The value type `A` also often requires a `Clone` bound for similar reasons, especially for methods that operate on `&self` but need to return an owned `Validated` or extract the value (e.g., `unwrap()`, `fmap_invalid` when `self` is `Valid`). Ownership-taking variants of methods (e.g., `fmap_owned`, `unwrap_owned`) can sometimes alleviate this requirement for `A`.
 ///
 /// # Error Accumulation Behavior
 ///
@@ -181,11 +230,17 @@ impl<E, A> Validated<E, A> {
         !self.is_valid()
     }
 
-    /// Recovers from each error individually, preserving error accumulation.
+    /// Attempts recovery for accumulated errors, in order.
     ///
-    /// Unlike `ErrorOps::recover` which only uses the first error, this method
-    /// applies the recovery function to **every accumulated error**, maintaining
-    /// Validated's core semantics of error collection.
+    /// This is a `Validated`-specific variant of recovery for the case where there may be
+    /// multiple accumulated errors.
+    ///
+    /// Unlike `ErrorOps::recover` (which recovers from a single error in fail-fast types like
+    /// `Result`), this method feeds each accumulated error to the recovery function.
+    ///
+    /// **Important**: errors are processed left-to-right, and if any recovery returns
+    /// `Validated::Valid(v)`, evaluation stops early and that `Valid(v)` is returned.
+    /// If no recovery returns `Valid`, all errors produced by recoveries are accumulated.
     ///
     /// # Type Parameters
     ///
@@ -197,8 +252,8 @@ impl<E, A> Validated<E, A> {
     ///
     /// # Returns
     ///
-    /// - If all recoveries succeed with Valid, returns the first Valid
-    /// - If any recovery fails, accumulates all new errors
+    /// - If any recovery yields `Valid(v)`, returns the first such `Valid(v)` (early exit)
+    /// - Otherwise, returns `Invalid` with all errors produced by the recovery function
     ///
     /// # Examples
     ///
@@ -229,24 +284,24 @@ impl<E, A> Validated<E, A> {
             Validated::Valid(v) => Validated::Valid(v),
             Validated::Invalid(errors) => {
                 let mut accumulated = Vec::new();
-                
+
                 for error in errors {
                     match recovery(error) {
                         Validated::Valid(v) => {
                             // First successful recovery wins
                             return Validated::Valid(v);
-                        }
+                        },
                         Validated::Invalid(more_errors) => {
                             accumulated.extend(more_errors.into_vec());
-                        }
+                        },
                     }
                 }
-                
+
                 Validated::Invalid(smallvec::SmallVec::from_vec(accumulated))
-            }
+            },
         }
     }
-    
+
     /// Recovers with a function that receives ALL errors at once.
     ///
     /// This variant is useful when you need to analyze all errors together
@@ -289,7 +344,7 @@ impl<E, A> Validated<E, A> {
             Validated::Invalid(errors) => recovery(errors.into_vec()),
         }
     }
-    
+
     /// Attempts to recover from errors with a fallback value.
     ///
     /// This is a convenience method for the common case of providing
@@ -408,8 +463,12 @@ impl<E, A> Validated<E, A> {
     /// assert!(errors.next().is_none());
     /// ```
     #[inline]
-    pub fn iter_errors(&self) -> std::slice::Iter<'_, E> {
-        self.error_slice().iter()
+    pub fn iter_errors(&self) -> crate::datatypes::validated::iter::ErrorsIter<'_, E> {
+        use crate::datatypes::validated::iter::ErrorsIter;
+        match self {
+            Validated::Invalid(es) => ErrorsIter::Multi(es.iter()),
+            _ => ErrorsIter::Empty,
+        }
     }
 
     /// Returns a reference to the internal `SmallVec` of errors if this is `Invalid`, otherwise `None`.
@@ -617,6 +676,52 @@ impl<E, A> Validated<E, A> {
         match self {
             Validated::Valid(a) => Err(a),
             Validated::Invalid(es) => Ok(es),
+        }
+    }
+
+    /// Returns a reference to the valid value as an Option, without cloning.
+    ///
+    /// This is a zero-copy alternative to `to_option()` when you only need a reference.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::Valid(42);
+    /// assert_eq!(valid.as_option(), Some(&42));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::Invalid(vec!["error"].into());
+    /// assert_eq!(invalid.as_option(), None);
+    /// ```
+    #[inline]
+    pub fn as_option(&self) -> Option<&A> {
+        match self {
+            Validated::Valid(x) => Some(x),
+            Validated::Invalid(_) => None,
+        }
+    }
+
+    /// Converts to Option by consuming self, without cloning.
+    ///
+    /// This is more efficient than `to_option()` when you can consume the Validated.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::Valid(42);
+    /// assert_eq!(valid.into_option(), Some(42));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::Invalid(vec!["error"].into());
+    /// assert_eq!(invalid.into_option(), None);
+    /// ```
+    #[inline]
+    pub fn into_option(self) -> Option<A> {
+        match self {
+            Validated::Valid(x) => Some(x),
+            Validated::Invalid(_) => None,
         }
     }
 }
@@ -1066,7 +1171,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         A: Clone,
         E: Clone,
     {
-        use crate::utils::error_utils::WithError;
+        use crate::error::WithError;
         self.clone().to_result()
     }
 
@@ -1086,7 +1191,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     /// ```
     #[inline]
     pub fn to_result_owned(self) -> Result<A, E> {
-        use crate::utils::error_utils::WithError;
+        use crate::error::WithError;
         self.to_result()
     }
 
@@ -1543,9 +1648,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     pub fn collect<I, C>(iter: I) -> Validated<E, C>
     where
         I: Iterator<Item = Validated<E, A>>,
-        C: FromIterator<A> + Clone,
-        A: Clone,
-        E: Clone,
+        C: FromIterator<A>,
     {
         let (values, errors): (Vec<_>, SmallVec<[E; 8]>) = iter.fold(
             (Vec::new(), SmallVec::<[E; 8]>::new()),
@@ -1591,7 +1694,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
     pub fn collect_owned<I, C>(iter: I) -> Validated<E, C>
     where
         I: Iterator<Item = Validated<E, A>>,
-        C: FromIterator<A> + Clone,
+        C: FromIterator<A>,
     {
         let mut acc = ErrorAccumulator::new();
         let mut values = Vec::new();
@@ -1752,6 +1855,108 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         match self {
             Validated::Valid(x) => f(x.clone()).await,
             Validated::Invalid(e) => Validated::Invalid(e.clone()),
+        }
+    }
+
+    #[cfg(feature = "async")]
+    /// Maps an async function over the valid value, taking ownership.
+    ///
+    /// This is more efficient than `fmap_valid_async` as it avoids cloning.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() {
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// let mapped = valid.fmap_valid_async_owned(|x| async move { x * 2 }).await;
+    /// assert_eq!(mapped, Validated::valid(84));
+    /// # }
+    /// ```
+    pub async fn fmap_valid_async_owned<B, F, Fut>(self, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(A) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = B> + Send,
+        B: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => {
+                let result = f(x).await;
+                Validated::Valid(result)
+            },
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
+    }
+
+    #[cfg(feature = "async")]
+    /// Maps an async function over the error values, taking ownership.
+    ///
+    /// This is more efficient than `fmap_invalid_async` as it avoids cloning.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() {
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// let mapped = invalid.fmap_invalid_async_owned(|e| async move { format!("Error: {}", e) }).await;
+    /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
+    /// # }
+    /// ```
+    pub async fn fmap_invalid_async_owned<G, F, Fut>(self, f: F) -> Validated<G, A>
+    where
+        F: Fn(E) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = G> + Send,
+        G: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(x),
+            Validated::Invalid(es) => {
+                let futures = es.into_iter().map(|e| f(e));
+                let results = futures::future::join_all(futures).await;
+                let transformed: SmallVec<[G; 8]> = results.into_iter().collect();
+                Validated::Invalid(transformed)
+            },
+        }
+    }
+
+    #[cfg(feature = "async")]
+    /// Chains an async validation operation, taking ownership.
+    ///
+    /// This is more efficient than `and_then_async` as it avoids cloning.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() {
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(42);
+    /// let chained = valid.and_then_async_owned(|x| async move {
+    ///     if x > 50 {
+    ///         Validated::<&str, String>::valid(x.to_string())
+    ///     } else {
+    ///         Validated::<&str, String>::invalid("Value too small")
+    ///     }
+    /// }).await;
+    ///
+    /// assert_eq!(chained, Validated::<&str, String>::invalid("Value too small"));
+    /// # }
+    /// ```
+    pub async fn and_then_async_owned<B, F, Fut>(self, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(A) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = Validated<E, B>> + Send,
+        B: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => f(x).await,
+            Validated::Invalid(e) => Validated::Invalid(e),
         }
     }
 }

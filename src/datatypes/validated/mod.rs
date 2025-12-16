@@ -56,8 +56,8 @@
 //!
 //! - **Functor**: Maps functions over the valid value
 //! - **Bifunctor**: Maps functions over both the error and valid values
-//! - **Applicative**: Allows applying functions wrapped in Validated contexts
-//! - **Semigroup**: Combines error values when both Validated values are invalid
+//! - **Applicative**: Allows applying functions wrapped in `Validated` contexts
+//! - **Semigroup**: Combines error values when both `Validated` values are invalid
 //! - **Foldable**: Folds valid values (ignoring invalid ones)
 //!
 //! ## Examples
@@ -73,7 +73,7 @@
 //! let invalid: Validated<&str, i32> = Validated::invalid("error");
 //! assert!(invalid.is_invalid());
 //!
-//! /// Converting From Result
+//! // Converting From Result
 //!
 //! let result: Result<i32, &str> = Ok(42);
 //! let validated = Validated::from_result(&result);
@@ -83,7 +83,7 @@
 //! let validated = Validated::from_result(&error_result);
 //! assert_eq!(validated, Validated::invalid("error"));
 //!
-//! /// Converting From Option
+//! // Converting From Option
 //!
 //! let some_value: Option<i32> = Some(42);
 //! let validated: Validated<&str, i32> = Validated::from_option(&some_value, &"missing value");
@@ -159,11 +159,6 @@
 //! ### Semigroup Laws
 //!
 //! 1. **Associativity**: `(a <> b) <> c = a <> (b <> c)`
-//!
-//! ### Monoid Laws
-//!
-//! 1. **Left Identity**: `mempty <> a = a`
-//! 2. **Right Identity**: `a <> mempty = a`
 //!
 //! ## Use Cases
 //!

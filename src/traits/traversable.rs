@@ -11,16 +11,40 @@
 //!
 //! where `F` is an applicative functor.
 //!
-//! # TODO
+//! # Laws
 //!
-//! - Add benchmarks for traversal operations
-//! - Implement the Traversable trait for common types (Option, Result, Vec)
-//! - Implement TraversableExt with additional utility methods such as:
-//!   - for_each: Apply function for side effects only
-//!   - flat_map: Map and flatten in one operation
-//!   - traverse_map: Combine traverse and map
-//!   - filter_a: Filter with applicative effects
-//!   - zip_with: Combine two traversables
+//! For a valid Traversable implementation, the following laws must hold:
+//!
+//! 1. **Identity**:
+//!    ```text
+//!    traverse(pure) == pure
+//!    ```
+//!    Traversing with `pure` is the same as lifting the structure into the applicative.
+//!
+//! 2. **Composition**:
+//!    ```text
+//!    traverse(Compose . fmap(g) . f) == Compose . fmap(traverse(g)) . traverse(f)
+//!    ```
+//!    Traversing with a composed function is the same as composing traversals.
+//!
+//! 3. **Naturality**:
+//!    ```text
+//!    t . traverse(f) == traverse(t . f)
+//!    ```
+//!    For any applicative transformation `t`, traversing then transforming equals
+//!    transforming then traversing.
+//!
+//! # Caveats
+//!
+//! ## `traverse_owned` and `FnOnce`
+//!
+//! The `traverse_owned` method uses `FnOnce` for its function parameter. This means:
+//! - It works naturally for single-element containers (Option, Result)
+//! - For multi-element containers (Vec), the function can only be called once,
+//!   which limits its usefulness
+//!
+//! If you need to traverse a multi-element container with ownership semantics,
+//! consider using `traverse` with explicit cloning or a different approach.
 
 use crate::traits::applicative::Applicative;
 
@@ -81,6 +105,9 @@ pub trait Traversable: Applicative {
     /// Similar to `traverse`, but takes ownership of the traversable structure, which can avoid unnecessary clones
     /// in certain situations.
     ///
+    /// Note: with the current signature (`Func: FnOnce(Self::Source) -> ...`), this method is most
+    /// naturally implementable for traversables that contain at most one element.
+    ///
     /// # Type Parameters
     ///
     /// * `F`: The applicative functor representing the effect
@@ -102,7 +129,7 @@ pub trait Traversable: Applicative {
 
     /// Sequences a structure of effects with ownership, into an effect of structure.
     ///
-    /// Similar to `sequence_ref`, but takes ownership of the traversable structure, which can avoid
+    /// Similar to `sequence`, but takes ownership of the traversable structure, which can avoid
     /// unnecessary clones in certain situations.
     ///
     /// # Type Parameters
