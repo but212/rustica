@@ -1060,7 +1060,7 @@ where
     /// Runs the reader transformer and converts errors to [`ComposableError`] for standardized error handling.
     ///
     /// This method executes the reader transformer with the given environment and converts
-    /// any errors to the standardized AppError type, providing consistent error handling
+    /// any errors to the standardized [`ComposableError`] type, providing consistent error handling
     /// across the library.
     ///
     /// # Parameters
@@ -1085,7 +1085,7 @@ where
     ///     }
     /// });
     ///
-    /// // Convert regular errors to AppError
+    /// // Convert regular errors to ComposableError
     /// let result = safe_div.try_run_reader(4);
     /// assert!(result.is_ok());
     /// assert_eq!(result.unwrap(), 25); // 100/4 = 25

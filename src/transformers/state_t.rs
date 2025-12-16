@@ -581,7 +581,6 @@ where
     }
 
     /// Applies a function inside a StateT to a value inside another StateT.
-    /// Applies a function inside a StateT to a value inside another StateT.
     ///
     /// This is the applicative apply operation for StateT, allowing you to
     /// apply a function in a stateful context to a value in a stateful context.
@@ -794,7 +793,7 @@ where
     /// // With error
     /// let result = safe_div.try_run_state(0);
     /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().core_error(), &"Division by zero");
+    /// assert_eq!(result.unwrap_err().core_error(), "Division by zero");
     /// ```
     pub fn try_run_state(&self, state: S) -> ComposableResult<(S, A), E>
     where
@@ -848,7 +847,7 @@ where
     /// let result = safe_div.try_run_state_with_context(0, "processing user input");
     /// assert!(result.is_err());
     /// let error = result.unwrap_err();
-    /// assert_eq!(error.core_error(), &"Division by zero");
+    /// assert_eq!(error.core_error(), "Division by zero");
     /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
     pub fn try_run_state_with_context<C>(&self, state: S, context: C) -> ComposableResult<(S, A), E>
@@ -958,7 +957,7 @@ where
     ///
     /// let result = safe_div.try_eval_state(0);
     /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().core_error(), &"Division by zero");
+    /// assert_eq!(result.unwrap_err().core_error(), "Division by zero");
     /// ```
     pub fn try_eval_state(&self, state: S) -> ComposableResult<A, E>
     where
@@ -1001,7 +1000,7 @@ where
     /// let result = safe_div.try_eval_state_with_context(0, "processing user input");
     /// assert!(result.is_err());
     /// let error = result.unwrap_err();
-    /// assert_eq!(error.core_error(), &"Division by zero");
+    /// assert_eq!(error.core_error(), "Division by zero");
     /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
     /// ```
     pub fn try_eval_state_with_context<C>(&self, state: S, context: C) -> ComposableResult<A, E>
@@ -1045,7 +1044,7 @@ where
     ///
     /// let result = safe_div.try_exec_state(0);
     /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().core_error(), &"Division by zero");
+    /// assert_eq!(result.unwrap_err().core_error(), "Division by zero");
     /// ```
     pub fn try_exec_state(&self, state: S) -> ComposableResult<S, E>
     where
