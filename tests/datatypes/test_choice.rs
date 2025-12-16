@@ -455,7 +455,7 @@ fn test_choice_foldable_trait() {
 }
 
 #[test]
-fn test_choice_alternative_trait() {
+fn test_choice_alt_trait() {
     use rustica::datatypes::choice::Choice;
     use rustica::traits::alternative::Alternative;
 
