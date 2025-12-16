@@ -72,8 +72,12 @@
 //!
 //! let invalid: Validated<&str, i32> = Validated::invalid("error");
 //! assert!(invalid.is_invalid());
+//! ```
 //!
-//! // Converting From Result
+//! ### Converting From Result
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
 //!
 //! let result: Result<i32, &str> = Ok(42);
 //! let validated = Validated::from_result(&result);
@@ -82,8 +86,12 @@
 //! let error_result: Result<i32, &str> = Err("error");
 //! let validated = Validated::from_result(&error_result);
 //! assert_eq!(validated, Validated::invalid("error"));
+//! ```
 //!
-//! // Converting From Option
+//! ### Converting From Option
+//!
+//! ```rust
+//! use rustica::datatypes::validated::Validated;
 //!
 //! let some_value: Option<i32> = Some(42);
 //! let validated: Validated<&str, i32> = Validated::from_option(&some_value, &"missing value");
