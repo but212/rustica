@@ -213,6 +213,7 @@
 //! ```
 
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 /// A lens is a first-class reference to a subpart of some data type.
 /// It provides a way to view, modify and transform a part of a larger structure.
@@ -709,5 +710,162 @@ where
     {
         // Use self's get and set directly without attempting to clone
         Lens::new(move |s| f((self.get)(s)), move |s, b| (self.set)(s, g(b)))
+    }
+
+    /// Composes two lenses to create a new lens that focuses on a nested structure.
+    ///
+    /// Given a lens from `S` to `A` and a lens from `A` to `B`, this creates a new
+    /// lens from `S` to `B`. This is essential for accessing deeply nested data
+    /// structures in a type-safe and composable way.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B` - The type of the deeply nested focus
+    /// * `GetFn2` - The type of the inner lens getter
+    /// * `SetFn2` - The type of the inner lens setter
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The inner lens that focuses from `A` to `B`
+    ///
+    /// # Returns
+    ///
+    /// A new lens that focuses from `S` directly to `B`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Address { street: String, city: String }
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Person { name: String, address: Address }
+    ///
+    /// let address_lens = Lens::new(
+    ///     |p: &Person| p.address.clone(),
+    ///     |p: Person, addr: Address| Person { address: addr, ..p },
+    /// );
+    ///
+    /// let street_lens = Lens::new(
+    ///     |a: &Address| a.street.clone(),
+    ///     |a: Address, street: String| Address { street, ..a },
+    /// );
+    ///
+    /// // Compose to create a lens from Person to street
+    /// let person_street_lens = address_lens.compose(street_lens);
+    ///
+    /// let person = Person {
+    ///     name: "Alice".to_string(),
+    ///     address: Address {
+    ///         street: "123 Main St".to_string(),
+    ///         city: "Springfield".to_string(),
+    ///     },
+    /// };
+    ///
+    /// // Get nested value directly
+    /// assert_eq!(person_street_lens.get(&person), "123 Main St");
+    ///
+    /// // Set nested value directly
+    /// let updated = person_street_lens.set(person, "456 Oak Ave".to_string());
+    /// assert_eq!(updated.address.street, "456 Oak Ave");
+    /// assert_eq!(updated.address.city, "Springfield"); // Other fields preserved
+    /// ```
+    #[inline]
+    pub fn compose<B, GetFn2, SetFn2>(
+        self, other: Lens<A, B, GetFn2, SetFn2>,
+    ) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    where
+        B: Clone,
+        GetFn2: Fn(&A) -> B,
+        SetFn2: Fn(A, B) -> A,
+    {
+        let get1 = Arc::new(self.get);
+        let set1 = self.set;
+        let get2 = other.get;
+        let set2 = other.set;
+
+        let get1_for_set = get1.clone();
+
+        Lens::new(
+            move |s: &S| get2(&get1(s)),
+            move |s: S, b: B| {
+                let a = get1_for_set(&s);
+                let new_a = set2(a, b);
+                set1(s, new_a)
+            },
+        )
+    }
+
+    /// Alias for `compose` - chains two lenses together.
+    ///
+    /// This method is provided as a more fluent alternative to `compose`,
+    /// allowing for a natural left-to-right reading order when chaining
+    /// multiple lenses.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B` - The type of the deeply nested focus
+    /// * `GetFn2` - The type of the inner lens getter
+    /// * `SetFn2` - The type of the inner lens setter
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The inner lens that focuses from `A` to `B`
+    ///
+    /// # Returns
+    ///
+    /// A new lens that focuses from `S` directly to `B`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Inner { value: i32 }
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Middle { inner: Inner }
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Outer { middle: Middle }
+    ///
+    /// let outer_middle = Lens::new(
+    ///     |o: &Outer| o.middle.clone(),
+    ///     |o: Outer, m: Middle| Outer { middle: m },
+    /// );
+    ///
+    /// let middle_inner = Lens::new(
+    ///     |m: &Middle| m.inner.clone(),
+    ///     |m: Middle, i: Inner| Middle { inner: i },
+    /// );
+    ///
+    /// let inner_value = Lens::new(
+    ///     |i: &Inner| i.value,
+    ///     |i: Inner, v: i32| Inner { value: v },
+    /// );
+    ///
+    /// // Chain multiple lenses with `then` for readable composition
+    /// let deep_lens = outer_middle.then(middle_inner).then(inner_value);
+    ///
+    /// let data = Outer { middle: Middle { inner: Inner { value: 42 } } };
+    ///
+    /// assert_eq!(deep_lens.get(&data), 42);
+    ///
+    /// let updated = deep_lens.set(data, 100);
+    /// assert_eq!(updated.middle.inner.value, 100);
+    /// ```
+    #[inline]
+    pub fn then<B, GetFn2, SetFn2>(
+        self, other: Lens<A, B, GetFn2, SetFn2>,
+    ) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    where
+        B: Clone,
+        GetFn2: Fn(&A) -> B,
+        SetFn2: Fn(A, B) -> A,
+    {
+        self.compose(other)
     }
 }

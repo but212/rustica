@@ -757,6 +757,151 @@ where
         }
     }
 
+    /// Composes two prisms to create a new prism that focuses on nested sum types.
+    ///
+    /// Given a prism from `S` to `A` and a prism from `A` to `B`, this creates a new
+    /// prism from `S` to `B`. This is essential for accessing deeply nested enum
+    /// variants in a type-safe and composable way.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B` - The type of the deeply nested focus
+    /// * `PreviewFn2` - The type of the inner prism preview function
+    /// * `ReviewFn2` - The type of the inner prism review function
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The inner prism that focuses from `A` to `B`
+    ///
+    /// # Returns
+    ///
+    /// A new prism that focuses from `S` directly to `B`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::prism::Prism;
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Inner { Value(i32), Empty }
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Outer { Nested(Inner), Other(String) }
+    ///
+    /// let nested_prism = Prism::new(
+    ///     |o: &Outer| match o {
+    ///         Outer::Nested(inner) => Some(inner.clone()),
+    ///         _ => None,
+    ///     },
+    ///     |i: &Inner| Outer::Nested(i.clone()),
+    /// );
+    ///
+    /// let value_prism = Prism::new(
+    ///     |i: &Inner| match i {
+    ///         Inner::Value(v) => Some(*v),
+    ///         _ => None,
+    ///     },
+    ///     |v: &i32| Inner::Value(*v),
+    /// );
+    ///
+    /// // Compose to create a prism from Outer to i32
+    /// let deep_prism = nested_prism.compose(value_prism);
+    ///
+    /// let data = Outer::Nested(Inner::Value(42));
+    /// assert_eq!(deep_prism.preview(&data), Some(42));
+    ///
+    /// let constructed = deep_prism.review(&100);
+    /// assert_eq!(constructed, Outer::Nested(Inner::Value(100)));
+    /// ```
+    #[inline]
+    pub fn compose<B, PreviewFn2, ReviewFn2>(
+        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
+    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
+    where
+        A: Clone,
+        B: Clone,
+        PreviewFn2: Fn(&A) -> Option<B>,
+        ReviewFn2: Fn(&B) -> A,
+    {
+        let preview1 = self.preview;
+        let review1 = self.review;
+        let preview2 = other.preview;
+        let review2 = other.review;
+
+        Prism::new(
+            move |s: &S| preview1(s).and_then(|a| preview2(&a)),
+            move |b: &B| review1(&review2(b)),
+        )
+    }
+
+    /// Alias for `compose` - chains two prisms together.
+    ///
+    /// This method is provided as a more fluent alternative to `compose`,
+    /// allowing for a natural left-to-right reading order when chaining
+    /// multiple prisms.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `B` - The type of the deeply nested focus
+    /// * `PreviewFn2` - The type of the inner prism preview function
+    /// * `ReviewFn2` - The type of the inner prism review function
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The inner prism that focuses from `A` to `B`
+    ///
+    /// # Returns
+    ///
+    /// A new prism that focuses from `S` directly to `B`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::prism::Prism;
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Level3 { Data(String) }
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Level2 { Inner(Level3), None2 }
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Level1 { Outer(Level2), None1 }
+    ///
+    /// let l1_l2 = Prism::new(
+    ///     |l: &Level1| match l { Level1::Outer(l2) => Some(l2.clone()), _ => None },
+    ///     |l2: &Level2| Level1::Outer(l2.clone()),
+    /// );
+    ///
+    /// let l2_l3 = Prism::new(
+    ///     |l: &Level2| match l { Level2::Inner(l3) => Some(l3.clone()), _ => None },
+    ///     |l3: &Level3| Level2::Inner(l3.clone()),
+    /// );
+    ///
+    /// let l3_data = Prism::new(
+    ///     |l: &Level3| match l { Level3::Data(s) => Some(s.clone()) },
+    ///     |s: &String| Level3::Data(s.clone()),
+    /// );
+    ///
+    /// // Chain multiple prisms
+    /// let deep = l1_l2.then(l2_l3).then(l3_data);
+    ///
+    /// let data = Level1::Outer(Level2::Inner(Level3::Data("hello".to_string())));
+    /// assert_eq!(deep.preview(&data), Some("hello".to_string()));
+    /// ```
+    #[inline]
+    pub fn then<B, PreviewFn2, ReviewFn2>(
+        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
+    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
+    where
+        A: Clone,
+        B: Clone,
+        PreviewFn2: Fn(&A) -> Option<B>,
+        ReviewFn2: Fn(&B) -> A,
+    {
+        self.compose(other)
+    }
+
     /// Sets the focused value with structural sharing optimization.
     ///
     /// This method sets the focused value to a new value, but only creates a new structure

@@ -2,6 +2,20 @@
 
 ## [0.11.1]
 
+### Added - 0.11.1
+
+- **`Lens<S, A>` Composition Methods**
+  - Added `compose()` method for composing two lenses to access nested structures
+  - Added `then()` method as a fluent alias for `compose()`
+  - Enables type-safe, composable access to deeply nested data structures
+  - Example: `address_lens.compose(street_lens)` creates a lens from Person to street
+
+- **`Prism<S, A>` Composition Methods**
+  - Added `compose()` method for composing two prisms to access nested sum types
+  - Added `then()` method as a fluent alias for `compose()`
+  - Enables type-safe, composable access to deeply nested enum variants
+  - Example: `outer_prism.compose(inner_prism)` creates a prism from Outer to inner value
+
 ### Performance Optimizations
 
 - **`Validated<E, A>` SmallVec Capacity Reduced**

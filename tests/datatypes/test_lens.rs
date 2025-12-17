@@ -323,3 +323,137 @@ fn test_lens_composition() {
     assert!(Rc::ptr_eq(&not_updated_person.address, &person.address)); // Pointers should be equal
     assert_eq!(not_updated_person.address.street, "123 Main St");
 }
+
+// --- Lens Laws Tests ---
+
+#[test]
+fn test_lens_get_set_law() {
+    // GetSet Law: set(s, get(s)) == s
+    // "Setting a value to what it already is doesn't change anything"
+    let point = Point { x: 10.0, y: 20.0 };
+    let lens = x_lens();
+
+    let value = lens.get(&point);
+    let result = lens.set(point.clone(), value);
+    assert_eq!(result, point, "GetSet law violated");
+}
+
+#[test]
+fn test_lens_set_get_law() {
+    // SetGet Law: get(set(s, v)) == v
+    // "If you set a value, that's what you get back"
+    let point = Point { x: 10.0, y: 20.0 };
+    let lens = x_lens();
+    let new_value = 42.0;
+
+    let updated = lens.set(point, new_value);
+    assert_eq!(lens.get(&updated), new_value, "SetGet law violated");
+}
+
+#[test]
+fn test_lens_set_set_law() {
+    // SetSet Law: set(set(s, v1), v2) == set(s, v2)
+    // "Setting twice is the same as setting once with the final value"
+    let point = Point { x: 10.0, y: 20.0 };
+    let lens = x_lens();
+
+    let set_twice = lens.set(lens.set(point.clone(), 15.0), 25.0);
+    let set_once = lens.set(point, 25.0);
+    assert_eq!(set_twice, set_once, "SetSet law violated");
+}
+
+// --- Lens Composition Tests ---
+
+#[test]
+fn test_lens_compose() {
+    // Test the compose method for lens composition
+    let person = Person {
+        name: "Alice".to_string(),
+        address: Rc::new(Address {
+            street: "123 Main St".to_string(),
+            city: "Springfield".to_string(),
+        }),
+    };
+
+    let person_addr_lens = address_val_lens();
+    let addr_street_lens = street_lens();
+
+    // Compose lenses using the new compose method
+    let composed_lens = person_addr_lens.compose(addr_street_lens);
+
+    // Test get through composed lens
+    assert_eq!(composed_lens.get(&person), "123 Main St");
+
+    // Test set through composed lens
+    let updated = composed_lens.set(person.clone(), "456 Oak Ave".to_string());
+    assert_eq!(updated.address.street, "456 Oak Ave");
+    assert_eq!(updated.address.city, "Springfield"); // Other fields preserved
+    assert_eq!(updated.name, "Alice"); // Other fields preserved
+}
+
+#[test]
+fn test_lens_then_chaining() {
+    // Test the then method for multiple lens chaining
+    #[derive(Clone, Debug, PartialEq)]
+    struct Inner {
+        value: i32,
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct Middle {
+        inner: Inner,
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct Outer {
+        middle: Middle,
+    }
+
+    let outer_middle = Lens::new(
+        |o: &Outer| o.middle.clone(),
+        |_o: Outer, m: Middle| Outer { middle: m },
+    );
+
+    let middle_inner = Lens::new(
+        |m: &Middle| m.inner.clone(),
+        |_m: Middle, i: Inner| Middle { inner: i },
+    );
+
+    let inner_value = Lens::new(|i: &Inner| i.value, |_i: Inner, v: i32| Inner { value: v });
+
+    // Chain multiple lenses
+    let deep_lens = outer_middle.then(middle_inner).then(inner_value);
+
+    let data = Outer {
+        middle: Middle {
+            inner: Inner { value: 42 },
+        },
+    };
+
+    // Test get
+    assert_eq!(deep_lens.get(&data), 42);
+
+    // Test set
+    let updated = deep_lens.set(data, 100);
+    assert_eq!(updated.middle.inner.value, 100);
+}
+
+#[test]
+fn test_lens_compose_structural_sharing() {
+    // Test that composed lenses preserve structural sharing
+    let person = Person {
+        name: "Alice".to_string(),
+        address: Rc::new(Address {
+            street: "123 Main St".to_string(),
+            city: "Springfield".to_string(),
+        }),
+    };
+
+    let person_addr_lens = address_val_lens();
+    let addr_street_lens = street_lens();
+    let composed_lens = person_addr_lens.compose(addr_street_lens);
+
+    // Set to the same value - should preserve structure
+    let unchanged = composed_lens.set(person.clone(), "123 Main St".to_string());
+    assert!(Rc::ptr_eq(&unchanged.address, &person.address));
+}
