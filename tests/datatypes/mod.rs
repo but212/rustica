@@ -11,6 +11,7 @@ mod test_lens;
 mod test_maybe;
 mod test_prism;
 
+mod test_error;
 mod test_pvec;
 mod test_reader;
 mod test_validated;

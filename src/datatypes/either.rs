@@ -239,6 +239,7 @@
 //!
 //! **Recommended alternatives**: Use pattern matching, `left_option()`, `right_option()`, or the safe `*_or()` methods.
 
+use crate::datatypes::error::EitherError;
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
@@ -759,6 +760,126 @@ impl<L, R> Either<L, R> {
         self.left_iter_mut()
             .next()
             .expect("Called left_mut() on a Right value")
+    }
+
+    /// Safely extracts the left value.
+    ///
+    /// This is the safe alternative to `unwrap_left()` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(L)` - The left value if this is `Either::Left`
+    /// * `Err(EitherError::ExpectedLeft)` - If this is `Either::Right`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    /// use rustica::datatypes::error::EitherError;
+    ///
+    /// let left: Either<i32, &str> = Either::Left(42);
+    /// assert_eq!(left.try_unwrap_left(), Ok(42));
+    ///
+    /// let right: Either<i32, &str> = Either::Right("hello");
+    /// assert_eq!(right.try_unwrap_left(), Err(EitherError::ExpectedLeft));
+    /// ```
+    #[inline]
+    pub fn try_unwrap_left(self) -> Result<L, EitherError> {
+        match self {
+            Either::Left(l) => Ok(l),
+            Either::Right(_) => Err(EitherError::ExpectedLeft),
+        }
+    }
+
+    /// Safely extracts the right value.
+    ///
+    /// This is the safe alternative to `unwrap_right()` and `unwrap()` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(R)` - The right value if this is `Either::Right`
+    /// * `Err(EitherError::ExpectedRight)` - If this is `Either::Left`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    /// use rustica::datatypes::error::EitherError;
+    ///
+    /// let right: Either<&str, i32> = Either::Right(42);
+    /// assert_eq!(right.try_unwrap_right(), Ok(42));
+    ///
+    /// let left: Either<&str, i32> = Either::Left("error");
+    /// assert_eq!(left.try_unwrap_right(), Err(EitherError::ExpectedRight));
+    /// ```
+    #[inline]
+    pub fn try_unwrap_right(self) -> Result<R, EitherError> {
+        match self {
+            Either::Right(r) => Ok(r),
+            Either::Left(_) => Err(EitherError::ExpectedRight),
+        }
+    }
+
+    /// Safely gets a reference to the left value.
+    ///
+    /// This is the safe alternative to `left_ref()` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(&L)` - A reference to the left value if this is `Either::Left`
+    /// * `Err(EitherError::ExpectedLeft)` - If this is `Either::Right`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    /// use rustica::datatypes::error::EitherError;
+    ///
+    /// let left: Either<i32, &str> = Either::Left(42);
+    /// assert_eq!(left.try_left_ref(), Ok(&42));
+    ///
+    /// let right: Either<i32, &str> = Either::Right("hello");
+    /// assert_eq!(right.try_left_ref(), Err(EitherError::ExpectedLeft));
+    /// ```
+    #[inline]
+    pub fn try_left_ref(&self) -> Result<&L, EitherError> {
+        match self {
+            Either::Left(l) => Ok(l),
+            Either::Right(_) => Err(EitherError::ExpectedLeft),
+        }
+    }
+
+    /// Safely gets a reference to the right value.
+    ///
+    /// This is the safe alternative to `right_ref()` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(&R)` - A reference to the right value if this is `Either::Right`
+    /// * `Err(EitherError::ExpectedRight)` - If this is `Either::Left`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::either::Either;
+    /// use rustica::datatypes::error::EitherError;
+    ///
+    /// let right: Either<&str, i32> = Either::Right(42);
+    /// assert_eq!(right.try_right_ref(), Ok(&42));
+    ///
+    /// let left: Either<&str, i32> = Either::Left("error");
+    /// assert_eq!(left.try_right_ref(), Err(EitherError::ExpectedRight));
+    /// ```
+    #[inline]
+    pub fn try_right_ref(&self) -> Result<&R, EitherError> {
+        match self {
+            Either::Right(r) => Ok(r),
+            Either::Left(_) => Err(EitherError::ExpectedRight),
+        }
     }
 }
 

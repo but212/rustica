@@ -3,6 +3,7 @@
 //! This module provides the fundamental `Validated<E, A>` type for accumulating
 //! validation errors, along with its associated methods and helper types.
 
+use crate::datatypes::error::ValidatedError;
 use smallvec::{SmallVec, smallvec};
 
 /// Type alias for the internal error collection.
@@ -722,6 +723,98 @@ impl<E, A> Validated<E, A> {
         match self {
             Validated::Valid(x) => Some(x),
             Validated::Invalid(_) => None,
+        }
+    }
+
+    /// Safely extracts the valid value.
+    ///
+    /// This is the safe alternative to `unwrap_owned()` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(A)` - The valid value if this is `Validated::Valid`
+    /// * `Err(ValidatedError::ExpectedValid)` - If this is `Validated::Invalid`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::datatypes::error::ValidatedError;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::Valid(42);
+    /// assert_eq!(valid.try_unwrap(), Ok(42));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert_eq!(invalid.try_unwrap(), Err(ValidatedError::ExpectedValid));
+    /// ```
+    #[inline]
+    pub fn try_unwrap(self) -> Result<A, ValidatedError> {
+        match self {
+            Validated::Valid(a) => Ok(a),
+            Validated::Invalid(_) => Err(ValidatedError::ExpectedValid),
+        }
+    }
+
+    /// Safely extracts the error collection.
+    ///
+    /// This is the safe alternative to `unwrap_invalid_owned()` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(SmallVec<[E; 8]>)` - The errors if this is `Validated::Invalid`
+    /// * `Err(ValidatedError::ExpectedInvalid)` - If this is `Validated::Valid`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::datatypes::error::ValidatedError;
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// let result = invalid.try_unwrap_invalid();
+    /// assert!(result.is_ok());
+    /// assert_eq!(result.unwrap().len(), 1);
+    ///
+    /// let valid: Validated<&str, i32> = Validated::Valid(42);
+    /// assert_eq!(valid.try_unwrap_invalid(), Err(ValidatedError::ExpectedInvalid));
+    /// ```
+    #[inline]
+    pub fn try_unwrap_invalid(self) -> Result<SmallVec<[E; 8]>, ValidatedError> {
+        match self {
+            Validated::Invalid(es) => Ok(es),
+            Validated::Valid(_) => Err(ValidatedError::ExpectedInvalid),
+        }
+    }
+
+    /// Safely gets a reference to the valid value.
+    ///
+    /// This is the safe alternative that returns a proper error type
+    /// instead of returning Option.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(&A)` - A reference to the valid value
+    /// * `Err(ValidatedError::ExpectedValid)` - If this is `Validated::Invalid`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    /// use rustica::datatypes::error::ValidatedError;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::Valid(42);
+    /// assert_eq!(valid.try_valid_ref(), Ok(&42));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert_eq!(invalid.try_valid_ref(), Err(ValidatedError::ExpectedValid));
+    /// ```
+    #[inline]
+    pub fn try_valid_ref(&self) -> Result<&A, ValidatedError> {
+        match self {
+            Validated::Valid(a) => Ok(a),
+            Validated::Invalid(_) => Err(ValidatedError::ExpectedValid),
         }
     }
 }

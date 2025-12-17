@@ -66,6 +66,7 @@ pub mod async_monad;
 pub mod choice;
 pub mod cont;
 pub mod either;
+pub mod error;
 pub mod id;
 pub mod io;
 pub mod iso_lens;

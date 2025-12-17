@@ -175,6 +175,7 @@ use std::iter::FromIterator;
 
 use smallvec::SmallVec;
 
+use crate::datatypes::error::ChoiceError;
 use crate::prelude::traits::*;
 
 /// A type representing a value with multiple alternatives.
@@ -630,27 +631,6 @@ impl<T> Choice<T> {
         Self { values: new_values }
     }
 
-    /// Safely removes an alternative at the specified index, returning a Result.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Index-based manipulation is not a core categorical operation. Use filter_values() instead. Will be removed in v0.12.0"
-    )]
-    pub fn try_remove_alternative(self, index: usize) -> Result<Self, &'static str>
-    where
-        T: Clone,
-    {
-        if self.values.len() <= 1 {
-            return Err("Cannot remove alternative from Choice with no alternatives");
-        }
-        if index >= self.alternatives().len() {
-            return Err("Index out of bounds for alternatives");
-        }
-
-        let mut new_values = self.values;
-        new_values.remove(index + 1); // +1 because alternatives start at index 1
-        Ok(Self { values: new_values })
-    }
-
     /// Filters the alternatives of the `Choice` based on a predicate.
     #[inline]
     #[deprecated(
@@ -802,61 +782,6 @@ impl<T> Choice<T> {
                 Choice::new(first_item, alternatives)
             },
             None => panic!("Primary value was an empty iterator in Choice::flatten"),
-        }
-    }
-
-    /// Safely flattens a `Choice` of iterable items into a `Choice` of individual items, returning a Result.
-    ///
-    /// This is the safe version of `flatten` that returns an error instead of panicking.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Choice<I>)` - A flattened Choice if successful.
-    /// * `Err(&'static str)` - An error message if the primary value is an empty iterator.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let nested = Choice::new(vec![1, 2], vec![vec![3, 4]]);
-    /// let result = nested.try_flatten();
-    /// assert!(result.is_ok());
-    /// let flattened = result.unwrap();
-    /// assert_eq!(*flattened.first().unwrap(), 1);
-    /// assert_eq!(flattened.alternatives(), &[2, 3, 4]);
-    ///
-    /// // Safe error handling
-    /// let empty_primary = Choice::new(Vec::<i32>::new(), vec![vec![1, 2]]);
-    /// let result = empty_primary.try_flatten();
-    /// assert!(result.is_err());
-    /// ```
-    pub fn try_flatten<I>(&self) -> Result<Choice<I>, &'static str>
-    where
-        T: IntoIterator<Item = I> + Clone,
-        I: Clone,
-    {
-        if self.values.is_empty() {
-            return Ok(Choice::new_empty());
-        }
-
-        let primary = self.first().unwrap().clone();
-        let mut primary_iter = primary.into_iter();
-
-        match primary_iter.next() {
-            Some(first_item) => {
-                let alternatives = primary_iter
-                    .chain(
-                        self.values
-                            .iter()
-                            .skip(1)
-                            .flat_map(|val| val.clone().into_iter()),
-                    )
-                    .collect::<SmallVec<[I; 8]>>();
-
-                Ok(Choice::new(first_item, alternatives))
-            },
-            None => Err("Primary value was an empty iterator in Choice::try_flatten"),
         }
     }
 
@@ -1213,58 +1138,6 @@ impl<T> Choice<T> {
         })
     }
 
-    /// Safely swaps the primary value with the alternative at the specified index, returning a Result.
-    ///
-    /// This is the safe version of `swap_with_alternative` that returns an error instead of panicking.
-    ///
-    /// # Arguments
-    ///
-    /// * `alt_index` - The 0-based index of the alternative to swap with the primary value.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Choice<T>)` - A new Choice with the values swapped.
-    /// * `Err(&'static str)` - An error message if the operation cannot be performed.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(10, vec![20, 30, 40]);
-    /// let result = choice.try_swap_with_alternative(1);
-    /// assert!(result.is_ok());
-    /// let swapped = result.unwrap();
-    /// assert_eq!(*swapped.first().unwrap(), 30);
-    /// assert_eq!(swapped.alternatives(), &[20, 10, 40]);
-    ///
-    /// // Safe error handling
-    /// let single_choice = Choice::new(10, Vec::<i32>::new());
-    /// let result = single_choice.try_swap_with_alternative(0);
-    /// assert!(result.is_err());
-    /// ```
-    #[deprecated(
-        since = "0.11.0",
-        note = "Index-based swapping is not a core categorical operation. Use external patterns instead. Will be removed in v0.12.0"
-    )]
-    pub fn try_swap_with_alternative(self, alt_index: usize) -> Result<Self, &'static str>
-    where
-        T: Clone,
-    {
-        if self.values.len() <= 1 {
-            return Err("Cannot swap with alternative from Choice with no alternatives");
-        }
-        if alt_index >= self.alternatives().len() {
-            return Err("Index out of bounds for alternatives");
-        }
-
-        let actual_alt_index = alt_index + 1;
-
-        let mut new_values = self.values;
-        new_values.swap(0, actual_alt_index);
-        Ok(Self { values: new_values })
-    }
-
     /// Helper function to generate alternatives for apply operation
     fn generate_apply_alternatives<A, B>(
         func_values: &SmallVec<[T; 8]>, val_values: &SmallVec<[A; 8]>,
@@ -1286,6 +1159,200 @@ impl<T> Choice<T> {
                 })
             })
             .collect()
+    }
+
+    /// Safely returns a reference to the primary value.
+    ///
+    /// This is the safe alternative to `first().unwrap()` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(&T)` - A reference to the primary value
+    /// * `Err(ChoiceError::EmptyChoice)` - If the Choice is empty
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::choice::Choice;
+    /// use rustica::datatypes::error::ChoiceError;
+    ///
+    /// let choice = Choice::new(42, vec![1, 2, 3]);
+    /// assert_eq!(choice.try_first(), Ok(&42));
+    ///
+    /// let empty: Choice<i32> = Choice::new_empty();
+    /// assert_eq!(empty.try_first(), Err(ChoiceError::EmptyChoice));
+    /// ```
+    #[inline]
+    pub fn try_first(&self) -> Result<&T, ChoiceError> {
+        self.first().ok_or(ChoiceError::EmptyChoice)
+    }
+
+    /// Safely removes an alternative at the specified index.
+    ///
+    /// This is the safe alternative to `remove_alternative` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The 0-based index of the alternative to remove.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Choice<T>)` - A new Choice with the alternative removed
+    /// * `Err(ChoiceError)` - An error if the operation cannot be performed
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::choice::Choice;
+    /// use rustica::datatypes::error::ChoiceError;
+    ///
+    /// let choice = Choice::new(1, vec![2, 3, 4]);
+    /// let result = choice.try_remove_alternative(1);
+    /// assert!(result.is_ok());
+    /// let new_choice = result.unwrap();
+    /// assert_eq!(new_choice.alternatives(), &[2, 4]);
+    ///
+    /// // Error cases
+    /// let single: Choice<i32> = Choice::new(1, vec![]);
+    /// assert_eq!(
+    ///     single.try_remove_alternative(0),
+    ///     Err(ChoiceError::NoAlternatives)
+    /// );
+    ///
+    /// let choice2 = Choice::new(1, vec![2, 3]);
+    /// assert!(matches!(
+    ///     choice2.try_remove_alternative(10),
+    ///     Err(ChoiceError::IndexOutOfBounds { .. })
+    /// ));
+    /// ```
+    pub fn try_remove_alternative(self, index: usize) -> Result<Self, ChoiceError>
+    where
+        T: Clone,
+    {
+        if self.values.len() <= 1 {
+            return Err(ChoiceError::NoAlternatives);
+        }
+
+        let alt_len = self.alternatives().len();
+        if index >= alt_len {
+            return Err(ChoiceError::index_out_of_bounds(index, alt_len));
+        }
+
+        let mut new_values = self.values;
+        new_values.remove(index + 1);
+        Ok(Self { values: new_values })
+    }
+
+    /// Safely flattens a `Choice` of iterable items.
+    ///
+    /// This is the safe alternative to `flatten` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Choice<I>)` - A flattened Choice
+    /// * `Err(ChoiceError::EmptyPrimaryIterator)` - If the primary value is empty
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::choice::Choice;
+    /// use rustica::datatypes::error::ChoiceError;
+    ///
+    /// let nested = Choice::new(vec![1, 2], vec![vec![3, 4]]);
+    /// let result = nested.try_flatten();
+    /// assert!(result.is_ok());
+    /// let flat = result.unwrap();
+    /// assert_eq!(flat.try_first(), Ok(&1));
+    ///
+    /// // Error case: empty primary iterator
+    /// let empty_primary = Choice::new(Vec::<i32>::new(), vec![vec![1, 2]]);
+    /// assert_eq!(
+    ///     empty_primary.try_flatten(),
+    ///     Err(ChoiceError::EmptyPrimaryIterator)
+    /// );
+    /// ```
+    pub fn try_flatten<I>(&self) -> Result<Choice<I>, ChoiceError>
+    where
+        T: IntoIterator<Item = I> + Clone,
+        I: Clone,
+    {
+        if self.values.is_empty() {
+            return Ok(Choice::new_empty());
+        }
+
+        let primary = self.first().unwrap().clone();
+        let mut primary_iter = primary.into_iter();
+
+        match primary_iter.next() {
+            Some(first_item) => {
+                let alternatives = primary_iter
+                    .chain(
+                        self.values
+                            .iter()
+                            .skip(1)
+                            .flat_map(|val| val.clone().into_iter()),
+                    )
+                    .collect::<SmallVec<[I; 8]>>();
+
+                Ok(Choice::new(first_item, alternatives))
+            },
+            None => Err(ChoiceError::EmptyPrimaryIterator),
+        }
+    }
+
+    /// Safely swaps the primary value with an alternative.
+    ///
+    /// This is the safe alternative to `swap_with_alternative` that returns
+    /// a proper error type instead of panicking.
+    ///
+    /// # Arguments
+    ///
+    /// * `alt_index` - The 0-based index of the alternative to swap with.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Choice<T>)` - A new Choice with values swapped
+    /// * `Err(ChoiceError)` - An error if the operation cannot be performed
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::choice::Choice;
+    /// use rustica::datatypes::error::ChoiceError;
+    ///
+    /// let choice = Choice::new(10, vec![20, 30]);
+    /// let result = choice.try_swap_with_alternative(0);
+    /// assert!(result.is_ok());
+    /// let swapped = result.unwrap();
+    /// assert_eq!(swapped.try_first(), Ok(&20));
+    ///
+    /// // Error cases
+    /// let single: Choice<i32> = Choice::new(1, vec![]);
+    /// assert_eq!(
+    ///     single.try_swap_with_alternative(0),
+    ///     Err(ChoiceError::NoAlternatives)
+    /// );
+    /// ```
+    pub fn try_swap_with_alternative(self, alt_index: usize) -> Result<Self, ChoiceError>
+    where
+        T: Clone,
+    {
+        if self.values.len() <= 1 {
+            return Err(ChoiceError::NoAlternatives);
+        }
+
+        let alt_len = self.alternatives().len();
+        if alt_index >= alt_len {
+            return Err(ChoiceError::index_out_of_bounds(alt_index, alt_len));
+        }
+
+        let actual_alt_index = alt_index + 1;
+        let mut new_values = self.values;
+        new_values.swap(0, actual_alt_index);
+        Ok(Self { values: new_values })
     }
 }
 

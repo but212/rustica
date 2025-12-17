@@ -53,6 +53,29 @@
   - `Semigroup::combine` and `Alternative::alt` share the same "merge alternatives" behavior for `Choice<T>`
   - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
 
+- **`Choice<T>` Safe Methods Signature Changes**
+  - `try_remove_alternative()` now returns `Result<Self, ChoiceError>` instead of `Result<Self, &'static str>`
+  - `try_flatten()` now returns `Result<Choice<I>, ChoiceError>` instead of `Result<Choice<I>, &'static str>`
+  - `try_swap_with_alternative()` now returns `Result<Self, ChoiceError>` instead of `Result<Self, &'static str>`
+  - New safe method `try_first()` returns `Result<&T, ChoiceError>` instead of panicking
+  - Migration: Update error handling to use `ChoiceError` enum variants
+
+- **`Either<L, R>` Safe Methods Added**
+  - `try_unwrap_left()` returns `Result<L, EitherError>` - safe alternative to `unwrap_left()`
+  - `try_unwrap_right()` returns `Result<R, EitherError>` - safe alternative to `unwrap_right()`
+  - `try_left_ref()` returns `Result<&L, EitherError>` - safe alternative to `left_ref()`
+  - `try_right_ref()` returns `Result<&R, EitherError>` - safe alternative to `right_ref()`
+
+- **`Validated<E, A>` Safe Methods Added**
+  - `try_unwrap()` returns `Result<A, ValidatedError>` - safe alternative to `unwrap_owned()`
+  - `try_unwrap_invalid()` returns `Result<SmallVec<[E; 8]>, ValidatedError>` - safe alternative to `unwrap_invalid_owned()`
+  - `try_valid_ref()` returns `Result<&A, ValidatedError>` - safe reference access
+
+- **New Error Types in `datatypes::error`**
+  - `ChoiceError` - Structured errors for Choice operations (NoAlternatives, IndexOutOfBounds, EmptyPrimaryIterator, EmptyChoice)
+  - `EitherError` - Structured errors for Either operations (ExpectedLeft, ExpectedRight)
+  - `ValidatedError` - Structured errors for Validated operations (ExpectedValid, ExpectedInvalid)
+
 - **Unused Trait Modules Removed**
   - Removed `contravariant_functor` - Unused contravariant functor implementation
   - Removed `natural_transformation` - Unused natural transformation trait

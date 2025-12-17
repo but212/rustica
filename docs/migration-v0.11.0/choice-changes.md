@@ -103,7 +103,7 @@ These methods are deprecated and will be removed in v0.12.0:
 
 ## Migration Examples
 
-### Convenience Methods
+### Convenience Methods Migration
 
 ```rust
 // BEFORE
@@ -166,12 +166,68 @@ choice.iter()
 // Categorical
 choice.filter_values(pred)  // Clear semantics
 choice.flatten()            // Monadic
-choice.try_flatten()        // Safe variant
+choice.try_flatten()        // Safe variant (returns Result<Choice<I>, ChoiceError>)
 choice.fmap(f)              // Functor
 choice.apply(other)         // Applicative
 choice.bind(f)              // Monad
 choice.combine(other)       // Semigroup
 choice.alt(other)           // Alternative
+
+// Safe Methods (v0.11.0)
+choice.try_first()                    // Result<&T, ChoiceError>
+choice.try_remove_alternative(i)      // Result<Self, ChoiceError>
+choice.try_flatten()                  // Result<Choice<I>, ChoiceError>
+choice.try_swap_with_alternative(i)   // Result<Self, ChoiceError>
+```
+
+---
+
+## Safe Methods Signature Changes (v0.11.0)
+
+The following methods now return structured `ChoiceError` instead of `&'static str`:
+
+| Method | Old Signature | New Signature |
+|--------|---------------|---------------|
+| `try_remove_alternative(i)` | `Result<Self, &'static str>` | `Result<Self, ChoiceError>` |
+| `try_flatten()` | `Result<Choice<I>, &'static str>` | `Result<Choice<I>, ChoiceError>` |
+| `try_swap_with_alternative(i)` | `Result<Self, &'static str>` | `Result<Self, ChoiceError>` |
+
+New safe method added:
+
+- `try_first()` - Returns `Result<&T, ChoiceError>` instead of panicking
+
+### ChoiceError Variants
+
+```rust
+use rustica::datatypes::error::ChoiceError;
+
+pub enum ChoiceError {
+    NoAlternatives,
+    IndexOutOfBounds { index: usize, len: usize },
+    EmptyPrimaryIterator,
+    EmptyChoice,
+}
+```
+
+### Migration Example
+
+```rust
+// OLD (v0.10.x)
+match choice.try_remove_alternative(0) {
+    Ok(new_choice) => { /* ... */ },
+    Err(msg) => println!("Error: {}", msg),  // &'static str
+}
+
+// NEW (v0.11.0)
+use rustica::datatypes::error::ChoiceError;
+match choice.try_remove_alternative(0) {
+    Ok(new_choice) => { /* ... */ },
+    Err(ChoiceError::NoAlternatives) => println!("No alternatives"),
+    Err(ChoiceError::IndexOutOfBounds { index, len }) => {
+        println!("Index {} out of bounds (len={})", index, len);
+    },
+    _ => {},
+}
 ```
 
 ---
