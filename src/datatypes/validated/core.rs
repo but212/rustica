@@ -8,9 +8,9 @@ use smallvec::{SmallVec, smallvec};
 
 /// Type alias for the internal error collection.
 ///
-/// Uses `SmallVec` with inline capacity of 8 to optimize for the common case
+/// Uses `SmallVec` with inline capacity of 4 to optimize for the common case
 /// of few errors while still supporting larger error collections efficiently.
-type ErrorVec<E> = SmallVec<[E; 8]>;
+type ErrorVec<E> = SmallVec<[E; 4]>;
 
 /// Internal helper for efficiently accumulating validation errors.
 ///
@@ -20,7 +20,7 @@ type ErrorVec<E> = SmallVec<[E; 8]>;
 ///
 /// # Performance Characteristics
 ///
-/// - Stack-allocated for up to 8 errors (via `SmallVec`)
+/// - Stack-allocated for up to 4 errors (via `SmallVec`)
 /// - Heap allocation only when exceeding inline capacity
 /// - Zero-copy error transfer via `extend_owned` when consuming `Validated` instances
 /// - Efficient cloning path via `extend_cloned` for borrowed references
@@ -36,7 +36,7 @@ struct ErrorAccumulator<E> {
 impl<E> ErrorAccumulator<E> {
     /// Creates a new empty error accumulator.
     ///
-    /// The accumulator starts with inline storage for up to 8 errors.
+    /// The accumulator starts with inline storage for up to 4 errors.
     #[inline]
     fn new() -> Self {
         Self {
@@ -135,7 +135,7 @@ impl<E: Clone> ErrorAccumulator<E> {
 /// - `iter_errors()` - Returns iterator over error references
 ///
 /// For mutable access to the internal error buffer:
-/// - `error_buffer_mut()` - Returns `Option<&mut SmallVec<[E; 8]>>`
+/// - `error_buffer_mut()` - Returns `Option<&mut ErrorVec<E>>`
 ///
 /// # Type Parameter Constraints
 ///
@@ -191,7 +191,7 @@ pub enum Validated<E, A> {
     Valid(A),
     /// Represents an invalid state with multiple errors of type E.
     /// Uses SmallVec for better performance with small error counts.
-    Invalid(SmallVec<[E; 8]>),
+    Invalid(ErrorVec<E>),
 }
 
 impl<E, A> Validated<E, A> {
@@ -440,7 +440,7 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(invalid.error_slice(), &["oops", "more"]);
     /// ```
     #[inline]
-    pub fn error_buffer_mut(&mut self) -> Option<&mut SmallVec<[E; 8]>> {
+    pub fn error_buffer_mut(&mut self) -> Option<&mut ErrorVec<E>> {
         match self {
             Validated::Valid(_) => None,
             Validated::Invalid(es) => Some(es),
@@ -499,7 +499,7 @@ impl<E, A> Validated<E, A> {
     /// }
     /// ```
     #[inline]
-    pub fn error_payload(&self) -> Option<&SmallVec<[E; 8]>> {
+    pub fn error_payload(&self) -> Option<&ErrorVec<E>> {
         match self {
             Validated::Valid(_) => None,
             Validated::Invalid(es) => Some(es),
@@ -560,7 +560,7 @@ impl<E, A> Validated<E, A> {
     /// use smallvec::SmallVec;
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// let expected: SmallVec<[&str; 8]> = SmallVec::from_slice(&["error"]);
+    /// let expected: SmallVec<[&str; 4]> = SmallVec::from_slice(&["error"]);
     /// assert_eq!(invalid.unwrap_invalid_owned(), expected);
     /// ```
     ///
@@ -572,7 +572,7 @@ impl<E, A> Validated<E, A> {
     /// valid.unwrap_invalid_owned();
     /// ```
     #[inline]
-    pub fn unwrap_invalid_owned(self) -> SmallVec<[E; 8]>
+    pub fn unwrap_invalid_owned(self) -> ErrorVec<E>
     where
         A: std::fmt::Debug,
     {
@@ -584,7 +584,7 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-    /// Consumes `self` and returns `Ok(A)` if `Valid(A)`, or `Err(SmallVec<[E; 8]>)` if `Invalid(errors)`.
+    /// Consumes `self` and returns `Ok(A)` if `Valid(A)`, or `Err(ErrorVec<E>)` if `Invalid(errors)`.
     ///
     /// This method is useful for safely extracting the valid value or the complete collection of errors,
     /// transferring ownership without cloning the contained value or errors.
@@ -619,14 +619,14 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(Rc::strong_count(&data), 2); // No additional clones created
     /// ```
     #[inline]
-    pub fn into_value(self) -> Result<A, SmallVec<[E; 8]>> {
+    pub fn into_value(self) -> Result<A, ErrorVec<E>> {
         match self {
             Validated::Valid(a) => Ok(a),
             Validated::Invalid(es) => Err(es),
         }
     }
 
-    /// Consumes `self` and returns `Ok(SmallVec<[E; 8]>)` if `Invalid(errors)`, or `Err(A)` if `Valid(A)`.
+    /// Consumes `self` and returns `Ok(ErrorVec<E>)` if `Invalid(errors)`, or `Err(A)` if `Valid(A)`.
     ///
     /// This method is useful for safely extracting the complete error collection or the valid value,
     /// transferring ownership without cloning the contained value or errors.
@@ -673,7 +673,7 @@ impl<E, A> Validated<E, A> {
     /// assert!(matches!(result, Ok(_)));
     /// ```
     #[inline]
-    pub fn into_error_payload(self) -> Result<SmallVec<[E; 8]>, A> {
+    pub fn into_error_payload(self) -> Result<ErrorVec<E>, A> {
         match self {
             Validated::Valid(a) => Err(a),
             Validated::Invalid(es) => Ok(es),
@@ -763,7 +763,7 @@ impl<E, A> Validated<E, A> {
     ///
     /// # Returns
     ///
-    /// * `Ok(SmallVec<[E; 8]>)` - The errors if this is `Validated::Invalid`
+    /// * `Ok(ErrorVec<E>)` - The errors if this is `Validated::Invalid`
     /// * `Err(ValidatedError::ExpectedInvalid)` - If this is `Validated::Valid`
     ///
     /// # Examples
@@ -781,7 +781,7 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(valid.try_unwrap_invalid(), Err(ValidatedError::ExpectedInvalid));
     /// ```
     #[inline]
-    pub fn try_unwrap_invalid(self) -> Result<SmallVec<[E; 8]>, ValidatedError> {
+    pub fn try_unwrap_invalid(self) -> Result<ErrorVec<E>, ValidatedError> {
         match self {
             Validated::Invalid(es) => Ok(es),
             Validated::Valid(_) => Err(ValidatedError::ExpectedInvalid),
@@ -977,7 +977,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         if let Some(first) = iter.next() {
             // Preallocate: at least 1 element for `first`, plus the iterator's lower bound
             let (lower, _upper) = iter.size_hint();
-            let mut vec: SmallVec<[E; 8]> = SmallVec::with_capacity(lower.saturating_add(1));
+            let mut vec: ErrorVec<E> = SmallVec::with_capacity(lower.saturating_add(1));
             vec.push(first);
             vec.extend(iter);
             Validated::Invalid(vec)
@@ -1056,7 +1056,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
             Validated::Invalid(es) => {
-                let transformed: SmallVec<[G; 8]> = es.into_iter().map(f).collect();
+                let transformed: SmallVec<[G; 4]> = es.into_iter().map(f).collect();
                 Validated::Invalid(transformed)
             },
         }
@@ -1743,8 +1743,8 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         I: Iterator<Item = Validated<E, A>>,
         C: FromIterator<A>,
     {
-        let (values, errors): (Vec<_>, SmallVec<[E; 8]>) = iter.fold(
-            (Vec::new(), SmallVec::<[E; 8]>::new()),
+        let (values, errors): (Vec<_>, ErrorVec<E>) = iter.fold(
+            (Vec::new(), SmallVec::<[E; 4]>::new()),
             |(mut values, mut errors), item| {
                 match item {
                     Validated::Valid(a) => values.push(a),
@@ -1897,7 +1897,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
                 // Using futures::future::join_all to run all futures concurrently
                 let futures = es.iter().map(|e| f(e.clone()));
                 let results = futures::future::join_all(futures).await;
-                let transformed: SmallVec<[G; 8]> = results.into_iter().collect();
+                let transformed: SmallVec<[G; 4]> = results.into_iter().collect();
 
                 Validated::Invalid(transformed)
             },
@@ -2011,7 +2011,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
             Validated::Invalid(es) => {
                 let futures = es.into_iter().map(|e| f(e));
                 let results = futures::future::join_all(futures).await;
-                let transformed: SmallVec<[G; 8]> = results.into_iter().collect();
+                let transformed: ErrorVec<G> = results.into_iter().collect();
                 Validated::Invalid(transformed)
             },
         }

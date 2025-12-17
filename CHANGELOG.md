@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.11.1]
+
+### Performance Optimizations
+
+- **`Validated<E, A>` SmallVec Capacity Reduced**
+  - Reduced inline capacity from `SmallVec<[E; 8]>` to `SmallVec<[E; 4]>` for better memory efficiency
+  - Change affects error storage in `Validated::Invalid` variant
+  - Maintains performance for common validation scenarios with fewer errors
+  - Reduces stack memory usage by 50% for error collections
+
 ## [0.11.0]
 
 ### Breaking Changes - 0.11.0
