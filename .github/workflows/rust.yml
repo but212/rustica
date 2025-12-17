@@ -5,6 +5,8 @@ on:
     branches: [main, develop]
     tags:
       - "v*"
+  pull_request:
+    branches: [main, develop]
   schedule:
     - cron: "0 0 * * 0" # Weekly dependency check
 
@@ -17,6 +19,31 @@ permissions:
   contents: read
 
 jobs:
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
   test:
     name: Test ${{ matrix.rust }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -68,7 +95,9 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-udeps
-        run: cargo install cargo-udeps --locked
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-udeps
       - name: Run cargo-udeps
         run: cargo +nightly udeps --all-targets --all-features
 
@@ -81,11 +110,15 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
       - name: Run security audit
         run: cargo audit
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
       - name: Run cargo-deny
         run: cargo deny check
 
@@ -119,7 +152,7 @@ jobs:
   publish:
     name: Publish to crates.io
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, msrv, security, docs]
+    needs: [fmt, clippy, test, msrv, security, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: read
