@@ -14,6 +14,7 @@ mod test_prism;
 mod test_error;
 mod test_pvec;
 mod test_reader;
+mod test_state;
 mod test_validated;
 mod test_wrapper;
 mod test_writer;

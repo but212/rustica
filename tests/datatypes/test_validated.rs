@@ -2243,3 +2243,161 @@ fn test_errors_iter_empty() {
     let mut iter = valid.iter_errors();
     assert_eq!(iter.next(), None);
 }
+
+// ============================================================================
+// Recovery Methods Tests for Coverage
+// ============================================================================
+
+mod recovery_tests {
+    use super::*;
+
+    #[test]
+    fn test_recover_all_with_invalid() {
+        let errors = Validated::<String, i32>::invalid_many(vec![
+            "error1".to_string(),
+            "error2".to_string(),
+            "error3".to_string(),
+        ]);
+
+        let mut seen = Vec::new();
+        let result = errors.recover_all(|e| {
+            seen.push(e.clone());
+            Validated::invalid(format!("recovered: {}", e))
+        });
+
+        assert_eq!(seen.len(), 3);
+        assert!(result.is_invalid());
+    }
+
+    #[test]
+    fn test_recover_all_early_success() {
+        let errors = Validated::<String, i32>::invalid_many(vec![
+            "error1".to_string(),
+            "error2".to_string(),
+            "error3".to_string(),
+        ]);
+
+        let mut seen = Vec::new();
+        let result = errors.recover_all(|e| {
+            seen.push(e.clone());
+            if e == "error2" {
+                Validated::valid(42)
+            } else {
+                Validated::invalid(format!("recovered: {}", e))
+            }
+        });
+
+        assert_eq!(seen.len(), 2);
+        assert!(result.is_valid());
+        assert_eq!(result.to_option(), Some(42));
+    }
+
+    #[test]
+    fn test_recover_all_on_valid() {
+        let valid: Validated<String, i32> = Validated::valid(42);
+        let result = valid.recover_all(|_| Validated::valid(0));
+        assert!(result.is_valid());
+        assert_eq!(result.to_option(), Some(42));
+    }
+
+    #[test]
+    fn test_recover_all_at_once() {
+        let errors = Validated::<String, i32>::invalid_many(vec![
+            "Missing name".to_string(),
+            "Invalid email".to_string(),
+        ]);
+
+        let result = errors.recover_all_at_once(|all_errors| {
+            if all_errors.len() > 5 {
+                Validated::invalid("Too many validation errors".to_string())
+            } else {
+                Validated::valid(0)
+            }
+        });
+
+        assert!(result.is_valid());
+        assert_eq!(result.to_option(), Some(0));
+    }
+
+    #[test]
+    fn test_recover_all_at_once_too_many_errors() {
+        let errors = Validated::<String, i32>::invalid_many(vec![
+            "e1".to_string(),
+            "e2".to_string(),
+            "e3".to_string(),
+            "e4".to_string(),
+            "e5".to_string(),
+            "e6".to_string(),
+        ]);
+
+        let result = errors.recover_all_at_once(|all_errors| {
+            if all_errors.len() > 5 {
+                Validated::invalid("Too many validation errors".to_string())
+            } else {
+                Validated::valid(0)
+            }
+        });
+
+        assert!(result.is_invalid());
+    }
+
+    #[test]
+    fn test_recover_all_at_once_on_valid() {
+        let valid: Validated<String, i32> = Validated::valid(42);
+        let result = valid.recover_all_at_once(|_| Validated::valid(0));
+        assert!(result.is_valid());
+        assert_eq!(result.to_option(), Some(42));
+    }
+
+    #[test]
+    fn test_recover_with_on_invalid() {
+        let error: Validated<String, i32> = Validated::invalid("failed".to_string());
+        let recovered = error.recover_with(42);
+        assert_eq!(recovered, Validated::valid(42));
+    }
+
+    #[test]
+    fn test_recover_with_on_valid() {
+        let valid: Validated<String, i32> = Validated::valid(100);
+        let recovered = valid.recover_with(42);
+        assert_eq!(recovered, Validated::valid(100));
+    }
+}
+
+// ============================================================================
+// Additional Result Conversion Tests for Coverage
+// ============================================================================
+
+mod additional_result_tests {
+    use super::*;
+
+    #[test]
+    fn test_to_result_valid() {
+        let valid: Validated<String, i32> = Validated::valid(42);
+        let result = valid.to_result();
+        assert_eq!(result, Ok(42));
+    }
+
+    #[test]
+    fn test_to_result_invalid() {
+        let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
+        let result = invalid.to_result();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_result_ok() {
+        let ok_result: Result<i32, String> = Ok(42);
+        let validated = Validated::from_result(&ok_result);
+        assert!(validated.is_valid());
+        assert_eq!(validated.to_option(), Some(42));
+    }
+
+    #[test]
+    fn test_from_result_err() {
+        let err_result: Result<i32, String> = Err("error".to_string());
+        let validated = Validated::from_result(&err_result);
+        assert!(validated.is_invalid());
+        assert_eq!(validated.errors(), vec!["error".to_string()]);
+    }
+}

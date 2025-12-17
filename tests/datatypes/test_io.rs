@@ -135,3 +135,227 @@ fn test_io_apply() {
     let result = computation.apply(IO::new(move || |x| x * 2));
     assert_eq!(result.run(), 84);
 }
+
+#[test]
+fn test_io_is_pure() {
+    let pure_io = IO::pure(42);
+    assert!(pure_io.is_pure());
+    assert!(!pure_io.is_effect());
+
+    let effect_io = IO::new(|| 42);
+    assert!(!effect_io.is_pure());
+    assert!(effect_io.is_effect());
+}
+
+#[test]
+fn test_io_try_get_with_context_success() {
+    let io_success: IO<i32> = IO::pure(42);
+    let result = io_success.try_get_with_context("calculating answer");
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), 42);
+}
+
+#[test]
+fn test_io_try_get_with_context_failure() {
+    let io_fail: IO<i32> = IO::new(|| panic!("computation failed"));
+    let result = io_fail.try_get_with_context("critical calculation");
+    assert!(result.is_err());
+
+    let error = result.unwrap_err();
+    assert_eq!(error.context(), vec!["critical calculation".to_string()]);
+}
+
+#[test]
+fn test_io_try_get_composable() {
+    let io_success = IO::pure(42);
+    let result = io_success.try_get_composable();
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), 42);
+}
+
+#[test]
+fn test_io_try_get_composable_failure() {
+    let io_fail: IO<i32> = IO::new(|| panic!("computation failed"));
+    let result = io_fail.try_get_composable();
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_io_try_get_composable_with_context() {
+    let io_operation = IO::pure(42).bind(|x| IO::new(move || x * 2));
+    let result = io_operation.try_get_composable_with_context("processing data");
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), 84);
+}
+
+#[test]
+fn test_io_try_get_composable_with_context_failure() {
+    let io_fail: IO<i32> = IO::new(|| panic!("database error"));
+    let result = io_fail.try_get_composable_with_context("fetching user data");
+    assert!(result.is_err());
+
+    let error = result.unwrap_err();
+    assert_eq!(error.context().len(), 1);
+    assert!(error.context()[0].contains("fetching user data"));
+}
+
+#[test]
+fn test_io_into_error_pipeline() {
+    let io_operation = IO::pure(42);
+    let result = io_operation.into_error_pipeline().finish();
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), 42);
+}
+
+#[test]
+fn test_io_recover() {
+    let io_risky: IO<i32> = IO::new(|| panic!("primary failed"));
+    let io_recovered = io_risky.recover(|_error| IO::pure(0));
+    assert_eq!(io_recovered.run(), 0);
+
+    let io_ok = IO::pure(42);
+    let io_still_ok = io_ok.recover(|_| IO::pure(0));
+    assert_eq!(io_still_ok.run(), 42);
+}
+
+#[test]
+fn test_io_recover_with() {
+    let io_risky: IO<i32> = IO::new(|| panic!("failed"));
+    let io_safe = io_risky.recover_with(42);
+    assert_eq!(io_safe.run(), 42);
+
+    let io_ok = IO::pure(100);
+    let io_still_ok = io_ok.recover_with(42);
+    assert_eq!(io_still_ok.run(), 100);
+}
+
+#[test]
+fn test_io_sequence_composable_success() {
+    let ios = vec![IO::pure(1), IO::pure(2), IO::pure(3)];
+    let result = IO::sequence_composable(ios);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), vec![1, 2, 3]);
+}
+
+#[test]
+fn test_io_sequence_composable_with_failures() {
+    let ios_mixed = vec![
+        IO::pure(1),
+        IO::new(|| panic!("error 1")),
+        IO::pure(3),
+        IO::new(|| panic!("error 2")),
+    ];
+    let result = IO::sequence_composable(ios_mixed);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_io_when() {
+    let conditional_true = IO::when(|| true, || 42, || 0);
+    assert_eq!(conditional_true.run(), 42);
+
+    let conditional_false = IO::when(|| false, || 42, || 0);
+    assert_eq!(conditional_false.run(), 0);
+}
+
+#[test]
+fn test_io_delay_sync() {
+    use std::time::{Duration, Instant};
+
+    let start = Instant::now();
+    let delayed_io = IO::delay_sync(Duration::from_millis(10), 123);
+    let result = delayed_io.run();
+
+    assert_eq!(result, 123);
+    assert!(start.elapsed() >= Duration::from_millis(10));
+}
+
+#[test]
+fn test_io_combine() {
+    let io1 = IO::pure(10);
+    let io2 = IO::pure(20);
+    let combined = IO::combine(&io1, &io2);
+
+    assert_eq!(combined.run(), (10, 20));
+}
+
+#[test]
+fn test_io_sequence() {
+    let ios = vec![IO::pure(1), IO::pure(2), IO::pure(3)];
+    let sequenced = IO::sequence(ios);
+    assert_eq!(sequenced.run(), vec![1, 2, 3]);
+}
+
+#[test]
+fn test_io_clone() {
+    let io = IO::pure(42);
+    let cloned = io.clone();
+    assert_eq!(io.run(), cloned.run());
+
+    let effect_io = IO::new(|| 100);
+    let cloned_effect = effect_io.clone();
+    assert_eq!(effect_io.run(), cloned_effect.run());
+}
+
+#[test]
+fn test_io_apply_pure_pure() {
+    let io_value = IO::pure(10);
+    let io_func = IO::pure(|x: i32| x * 2);
+    let result = io_value.apply(io_func);
+    assert_eq!(result.run(), 20);
+}
+
+#[test]
+fn test_io_apply_pure_effect() {
+    let io_value = IO::pure(5);
+    let io_func = IO::new(|| {
+        let multiplier = 3;
+        move |x: i32| x * multiplier
+    });
+    let result = io_value.apply(io_func);
+    assert_eq!(result.run(), 15);
+}
+
+#[test]
+fn test_io_apply_effect_pure() {
+    let io_value = IO::new(|| 5);
+    let io_func = IO::pure(|x: i32| x * 3);
+    let result = io_value.apply(io_func);
+    assert_eq!(result.run(), 15);
+}
+
+#[test]
+fn test_io_apply_effect_effect() {
+    let io_value = IO::new(|| 5);
+    let io_func = IO::new(|| |x: i32| x * 3);
+    let result = io_value.apply(io_func);
+    assert_eq!(result.run(), 15);
+}
+
+#[test]
+fn test_io_fmap_pure() {
+    let io = IO::pure(42);
+    let mapped = io.fmap(|x| x * 2);
+    assert_eq!(mapped.run(), 84);
+}
+
+#[test]
+fn test_io_fmap_effect() {
+    let io = IO::new(|| 42);
+    let mapped = io.fmap(|x| x * 2);
+    assert_eq!(mapped.run(), 84);
+}
+
+#[test]
+fn test_io_bind_pure() {
+    let io = IO::pure(42);
+    let bound = io.bind(|x| IO::pure(x + 1));
+    assert_eq!(bound.run(), 43);
+}
+
+#[test]
+fn test_io_bind_effect() {
+    let io = IO::new(|| 42);
+    let bound = io.bind(|x| IO::pure(x + 1));
+    assert_eq!(bound.run(), 43);
+}
