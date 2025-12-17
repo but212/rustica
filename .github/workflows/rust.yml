@@ -336,5 +336,3 @@ jobs:
           alert-threshold: "120%"
           fail-on-alert: false
           alert-comment-cc-users: "@${{ github.repository_owner }}"
-          gh-repository: ${{ github.repository }}
-          skip-fetch-gh-pages: false
