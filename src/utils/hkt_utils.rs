@@ -373,51 +373,8 @@ where
     move |opt| opt.map(&f)
 }
 
-/// Maps a function over a `Result` value.
-///
-/// This function applies a transformation to the success value of a `Result`,
-/// leaving any error value unchanged.
-///
-/// # Type Parameters
-///
-/// * `A`: The success type of the input `Result`
-/// * `B`: The success type of the output `Result`
-/// * `E`: The error type of both input and output `Result`
-/// * `F`: The type of the mapping function
-///
-/// # Arguments
-///
-/// * `result`: The input `Result` value
-/// * `f`: The function to apply to the success value
-///
-/// # Returns
-///
-/// A new `Result` with the success value transformed
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::utils::hkt_utils::map_result;
-///
-/// // Example Result values
-/// let ok_value: Result<i32, &str> = Ok(5);
-/// let err_value: Result<i32, &str> = Err("error occurred");
-///
-/// // Transform the success value
-/// let mapped_ok = map_result(ok_value, |n| n * 2);
-/// assert_eq!(mapped_ok, Ok(10));
-///
-/// // Error values pass through unchanged
-/// let mapped_err = map_result(err_value, |n| n * 2);
-/// assert_eq!(mapped_err, Err("error occurred"));
-/// ```
-#[inline]
-pub fn map_result<A, B, E, F>(result: Result<A, E>, f: F) -> Result<B, E>
-where
-    F: Fn(A) -> B,
-{
-    result.map(f)
-}
+// Re-export map_result from categorical_utils for backward compatibility
+pub use crate::utils::categorical_utils::map_result;
 
 // ===== Multi-Operation Utilities =====
 

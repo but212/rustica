@@ -2,6 +2,17 @@
 //!
 //! This module contains the RRB (Relaxed Radix Balanced) tree that provides
 //! the underlying data structure for efficient persistent vector operations.
+//!
+//! # Architecture
+//!
+//! The `RRBTree` structure uses a three-part design:
+//!
+//! ```text
+//! ┌──────────┬─────────────────────────┬──────────┐
+//! │   Head   │      Tree (root)        │   Tail   │
+//! │  Buffer  │    (RRB structure)      │  Buffer  │
+//! └──────────┴─────────────────────────┴──────────┘
+//! ```
 
 use super::node::{
     BRANCHING_FACTOR, LEAF_CAPACITY, RRBNode, SMALL_BRANCH_SIZE, SMALL_SIZE_TABLE_SIZE,
@@ -12,22 +23,112 @@ use std::sync::Arc;
 /// An RRB tree structure for efficient persistent vector operations.
 ///
 /// The RRB tree combines the root tree structure with head and tail buffers
-/// for optimal performance on common operations like push_back and push_front.
+/// for optimal performance on common operations like `push_back` and `push_front`.
+///
+/// # Structure
+///
+/// - **Head buffer**: Stores up to `LEAF_CAPACITY` (64) elements at the front
+/// - **Root**: The main tree structure containing the bulk of elements
+/// - **Tail buffer**: Stores up to `LEAF_CAPACITY` (64) elements at the back
+///
+/// # Invariants
+///
+/// - `len` equals `head.len() + tree_size + tail.len()`
+/// - `height` reflects the depth of the tree (0 for leaf-only)
+/// - Buffers are flushed to the tree when they reach capacity
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RRBTree<T> {
     /// The root node of the tree structure.
+    ///
+    /// May be an empty leaf if all elements are in head/tail buffers.
     pub root: Arc<RRBNode<T>>,
     /// Tail buffer for efficient back insertions.
+    ///
+    /// Elements are accumulated here until the buffer is full,
+    /// then flushed to the tree as a new leaf node.
     pub tail: SmallVec<[T; LEAF_CAPACITY]>,
     /// Head buffer for efficient front insertions.
+    ///
+    /// Elements are accumulated here until the buffer is full,
+    /// then flushed to the tree as a new leaf node.
     pub head: SmallVec<[T; LEAF_CAPACITY]>,
     /// Height of the tree (0 for single leaf).
+    ///
+    /// The height determines how many levels of branch nodes exist
+    /// between the root and the leaf nodes.
     pub height: usize,
     /// Total number of elements in the tree.
+    ///
+    /// This is the sum of elements in head, tree, and tail.
     pub len: usize,
 }
 
+/// Read-only methods that don't require Clone
+impl<T> RRBTree<T> {
+    /// Gets a reference to the element at the specified index.
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index >= self.len {
+            return None;
+        }
+
+        if index < self.head.len() {
+            return self.head.get(index);
+        }
+
+        let adjusted_index = index - self.head.len();
+        let tree_size = self.len - self.head.len() - self.tail.len();
+
+        if adjusted_index < tree_size {
+            self.get_from_tree(adjusted_index)
+        } else {
+            let tail_index = adjusted_index - tree_size;
+            self.tail.get(tail_index)
+        }
+    }
+
+    fn get_from_tree(&self, index: usize) -> Option<&T> {
+        let mut current_node = &self.root;
+        let mut remaining_index = index;
+        let mut current_height = self.height;
+
+        loop {
+            match current_node.as_ref() {
+                RRBNode::Leaf { elements } => {
+                    return elements.get(remaining_index);
+                },
+                RRBNode::Branch { children, sizes } => {
+                    let (child_idx, sub_index) = if sizes.is_some() {
+                        current_node.find_child_relaxed(remaining_index)?
+                    } else {
+                        let child_height = current_height.saturating_sub(1);
+                        current_node.find_child_regular(remaining_index, child_height)?
+                    };
+
+                    current_node = children.get(child_idx)?;
+                    remaining_index = sub_index;
+                    current_height = current_height.saturating_sub(1);
+                },
+            }
+        }
+    }
+}
+
+/// Methods that require Clone for structural modifications
 impl<T: Clone> RRBTree<T> {
+    /// Creates a new RRB tree from an iterator of elements.
+    ///
+    /// This is the primary constructor for building an RRB tree from existing data.
+    /// For small collections (up to `LEAF_CAPACITY` elements), creates a single leaf node.
+    /// For larger collections, builds a proper tree structure with elements distributed
+    /// across multiple leaf nodes.
+    ///
+    /// # Arguments
+    ///
+    /// * `elements` - An iterator yielding elements to store in the tree
+    ///
+    /// # Returns
+    ///
+    /// A new `RRBTree` containing all elements from the iterator.
     pub fn from_elements<I: Iterator<Item = T>>(elements: I) -> Self {
         let elements: Vec<T> = elements.collect();
 
@@ -109,52 +210,6 @@ impl<T: Clone> RRBTree<T> {
 
         let (root, sub_height) = Self::build_tree_recursive(next_level);
         (root, sub_height + 1)
-    }
-
-    pub fn get(&self, index: usize) -> Option<&T> {
-        if index >= self.len {
-            return None;
-        }
-
-        if index < self.head.len() {
-            return self.head.get(index);
-        }
-
-        let adjusted_index = index - self.head.len();
-        let tree_size = self.len - self.head.len() - self.tail.len();
-
-        if adjusted_index < tree_size {
-            self.get_from_tree(adjusted_index)
-        } else {
-            let tail_index = adjusted_index - tree_size;
-            self.tail.get(tail_index)
-        }
-    }
-
-    fn get_from_tree(&self, index: usize) -> Option<&T> {
-        let mut current_node = &self.root;
-        let mut remaining_index = index;
-        let mut current_height = self.height;
-
-        loop {
-            match current_node.as_ref() {
-                RRBNode::Leaf { elements } => {
-                    return elements.get(remaining_index);
-                },
-                RRBNode::Branch { children, sizes } => {
-                    let (child_idx, sub_index) = if sizes.is_some() {
-                        current_node.find_child_relaxed(remaining_index)?
-                    } else {
-                        let child_height = current_height.saturating_sub(1);
-                        current_node.find_child_regular(remaining_index, child_height)?
-                    };
-
-                    current_node = children.get(child_idx)?;
-                    remaining_index = sub_index;
-                    current_height = current_height.saturating_sub(1);
-                },
-            }
-        }
     }
 
     pub fn update(&self, index: usize, value: T) -> Self {

@@ -1,5 +1,148 @@
 # CHANGELOG
 
+## [0.11.0]
+
+### Breaking Changes - 0.11.0
+
+- **`utils::hkt_utils::map_result` Consolidated**
+  - `map_result` function in `hkt_utils` module has been removed and consolidated into `categorical_utils`
+  - `hkt_utils::map_result` now re-exports from `categorical_utils::map_result` for backward compatibility
+  - Migration: No changes needed if importing from `hkt_utils`; for direct use, prefer `categorical_utils::map_result`
+  - Note: `categorical_utils::map_result` uses `FnOnce` (more flexible) instead of `Fn`
+
+- **`Validated<E, A>` Typeclass Cleanup**
+  - **Removed `Monoid` implementation**: No lawful identity element exists for error-accumulating validation
+    - Migration: Use `Validated::valid(...)` for domain-specific neutral values, or model error collections separately
+  - **Removed `AsRef<A>` implementation**: Previous impl panicked on `Invalid`, violating `AsRef`'s total conversion contract
+    - Migration: Use `Validated::as_ref()` (returns `Option<&A>`) or pattern matching
+  - Removed `MonadPlus` and `Alternative` to avoid mixing fail-fast monadic semantics with error accumulation
+    - Recommended helpers: `recover_all`, `recover_all_at_once`, `sequence_owned`
+
+- **`Either<L, R>` Typeclass Cleanup**
+  - **Removed `MonadPlus` implementation**: Use `Alternative` for left-biased/right-biased choice semantics
+
+- **`Choice<T>` Typeclass Cleanup**
+  - **Removed `MonadPlus` implementation**: Duplicated `Alternative` semantics (`mzero`/`mplus`)
+    - Migration:
+      - `<Choice<T> as MonadPlus>::mzero()` → `<Choice<T> as Alternative>::empty_alt()`
+      - `a.mplus(&b)` → `a.alt(&b)`
+  - `Foldable` for `Choice<T>` no longer requires `T: Clone`
+
+- **`utils::error_utils` Module Removed**
+  - All error utilities (`WithError`, `ResultExt`, `sequence`, `traverse`, etc.) moved to `crate::error`
+  - Migration: `rustica::utils::error_utils::*` → `rustica::error::*` (or `rustica::prelude::error::*`)
+
+- **Identity Trait and Implementations**
+  - Fully removed the deprecated `Identity` trait and its module (`traits::identity`)
+  - Deleted all `Identity` implementations on core datatypes and wrappers (`Id`, `Maybe`, `Either`, `Validated`, `Choice`, `PersistentVector`, `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, `Writer`)
+
+- **Legacy `AppError` Utilities**
+  - Removed `utils::error_utils::AppError`, `error()`, and `error_with_context()` after a deprecation cycle
+  - All public error construction is now routed through `crate::error::ComposableError` and its context helpers
+
+### Changed - 0.11.0
+
+- **Core Error Helper Cleanup**
+  - `Either::to_result` / `from_result` now delegate to `crate::error::{either_to_result, result_to_either}`
+  - `IO::try_get`, `IO::try_get_with_context`, and `Maybe::try_unwrap` now return `ComposableResult` for consistency
+
+- **Error Prelude Consolidation**
+  - `prelude::error` re-exports unified error module: `ComposableError`, `ComposableResult`, boxed variants, context utilities, `WithError`, `ResultExt`
+
+- **`Choice<T>` Documentation Clarification**
+  - `Semigroup::combine` and `Alternative::alt` share the same "merge alternatives" behavior for `Choice<T>`
+  - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
+
+- **`Choice<T>` Safe Methods Signature Changes**
+  - `try_remove_alternative()` now returns `Result<Self, ChoiceError>` instead of `Result<Self, &'static str>`
+  - `try_flatten()` now returns `Result<Choice<I>, ChoiceError>` instead of `Result<Choice<I>, &'static str>`
+  - `try_swap_with_alternative()` now returns `Result<Self, ChoiceError>` instead of `Result<Self, &'static str>`
+  - New safe method `try_first()` returns `Result<&T, ChoiceError>` instead of panicking
+  - Migration: Update error handling to use `ChoiceError` enum variants
+
+- **`Either<L, R>` Safe Methods Added**
+  - `try_unwrap_left()` returns `Result<L, EitherError>` - safe alternative to `unwrap_left()`
+  - `try_unwrap_right()` returns `Result<R, EitherError>` - safe alternative to `unwrap_right()`
+  - `try_left_ref()` returns `Result<&L, EitherError>` - safe alternative to `left_ref()`
+  - `try_right_ref()` returns `Result<&R, EitherError>` - safe alternative to `right_ref()`
+
+- **`Validated<E, A>` Safe Methods Added**
+  - `try_unwrap()` returns `Result<A, ValidatedError>` - safe alternative to `unwrap_owned()`
+  - `try_unwrap_invalid()` returns `Result<SmallVec<[E; 8]>, ValidatedError>` - safe alternative to `unwrap_invalid_owned()`
+  - `try_valid_ref()` returns `Result<&A, ValidatedError>` - safe reference access
+
+- **New Error Types in `datatypes::error`**
+  - `ChoiceError` - Structured errors for Choice operations (NoAlternatives, IndexOutOfBounds, EmptyPrimaryIterator, EmptyChoice)
+  - `EitherError` - Structured errors for Either operations (ExpectedLeft, ExpectedRight)
+  - `ValidatedError` - Structured errors for Validated operations (ExpectedValid, ExpectedInvalid)
+
+- **Unused Trait Modules Removed**
+  - Removed `contravariant_functor` - Unused contravariant functor implementation
+  - Removed `natural_transformation` - Unused natural transformation trait
+  - Removed `profunctor` - Unused profunctorial abstractions
+  - Removed `representable` - Unused representable functor trait
+  - These modules were placeholder implementations without actual use in the codebase
+
+- **`Validated<E, A>` Performance and API Improvements**
+  - **Iterator Type Consistency**: `iter_errors()` now returns `ErrorsIter` type, matching `iter_errors_mut()`
+  - **Removed Unnecessary Clone Bounds**:
+    - `collect()` and `collect_owned()` no longer require `C: Clone` - only `C: FromIterator<A>`
+    - Improves flexibility when collecting into types that don't need Clone
+  - **Performance Optimizations**:
+    - `Semigroup::combine` and `Applicative::apply` optimized by removing `chain().cloned()` overhead
+    - Direct `extend()` calls reduce iterator object creation
+  - **New Option Conversion Methods**:
+    - `as_option()` - Returns `Option<&A>` without cloning (zero-copy reference access)
+    - `into_option()` - Consumes `self` and returns `Option<A>` without cloning
+    - Existing `to_option()` preserved for backward compatibility (requires `A: Clone`)
+  - **Async Owned Methods Added** (more efficient alternatives to reference-based async methods):
+    - `fmap_valid_async_owned()` - Maps async function over valid value, consuming `self`
+    - `fmap_invalid_async_owned()` - Maps async function over errors, consuming `self`
+    - `and_then_async_owned()` - Chains async validation, consuming `self`
+    - All owned versions avoid unnecessary cloning and use `FnOnce` bounds
+
+- **`PersistentVector<T>` Performance and API Improvements**
+  - **Iterator O(n) optimization**: Rewrote `PersistentVectorIter` with stack-based tree traversal, reducing full iteration complexity from O(n log n) to O(n)
+  - **`fold_right` optimization**: Now uses `DoubleEndedIterator` instead of reverse index loop
+  - **Relaxed Clone bounds**: The following operations no longer require `T: Clone`:
+    - `get()`
+    - `Index<usize>` trait
+    - `iter()` / `IntoIterator for &PersistentVector<T>`
+    - `Foldable` trait implementation
+  - **DoubleEndedIterator**: Full bidirectional iteration support with independent front/back cursors for efficient `.rev()` chains
+
+- **`Memoizer` Improvements**
+  - **LRU (Least Recently Used) Eviction Policy**: Added bounded cache support with automatic eviction
+    - `with_capacity(max)` - Creates a bounded LRU cache
+    - Automatic eviction of least recently used entries when capacity is reached
+    - O(1) access and eviction time complexity
+  - **Cache Statistics**: Added performance monitoring
+    - `stats()` - Returns `CacheStats` with hits, misses, evictions count
+    - `hit_rate()` - Calculates cache hit ratio
+    - `reset_stats()` - Resets statistics counters
+    - `max_capacity()` - Returns configured maximum capacity
+  - **Extended Functionality**:
+    - `insert()` / `try_insert()` - Manual cache insertion without computation
+    - `get_or_try_compute()` - Fallible computation support with error propagation
+    - `touch()` / `try_touch()` - Update LRU position without retrieving value
+  - **Safe Error Handling**: Added `MemoizerError` type and `try_*` methods that return `Result<V, MemoizerError>` instead of panicking on lock poisoning
+  - **New Utility Methods**: Added comprehensive cache management methods:
+    - `len()` / `try_len()` - Returns number of cached entries
+    - `is_empty()` / `try_is_empty()` - Checks if cache is empty
+    - `contains_key()` / `try_contains_key()` - Tests for key presence
+    - `remove()` / `try_remove()` - Removes specific entry
+    - `get()` / `try_get()` - Lookup without computation (does not update LRU)
+    - `reserve()` / `try_reserve()` - Pre-allocates capacity
+    - `shrink_to_fit()` / `try_shrink_to_fit()` - Optimizes memory usage
+    - `keys()` / `try_keys()` - Returns all cached keys
+    - `values()` / `try_values()` - Returns all cached values
+    - `capacity()` / `try_capacity()` - Returns HashMap capacity
+    - `clear()` / `try_clear()` - Clears all cached entries
+  - **Bug Fixes**:
+    - Fixed `get_or_compute_optimistic` to properly return cached value when another thread inserts during computation (previously returned computed value even if different from cached value)
+    - Fixed capacity 0 behavior to properly disable cache (previously allowed first entry)
+    - Improved documentation clarity for `get()` vs `peek()` semantics to avoid confusion about LRU updates
+
 ## [0.10.2]
 
 ### Deprecated - 0.10.2

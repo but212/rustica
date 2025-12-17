@@ -71,8 +71,10 @@ use crate::traits::hkt::HKT;
 ///
 /// # Type Parameters
 /// The trait is implemented on types that implement `HKT`, where:
-/// * `Source` is the type of the computation
-/// * `Output<T>` represents the result type after evaluation
+/// * `Source` is the evaluated result type
+///
+/// Note: `Output<T>` (from `HKT`) is not used directly by `Evaluate`; it is present to keep
+/// `Evaluate` consistent with other higher-kinded traits in this crate.
 ///
 /// # Ownership-Aware API
 /// This trait provides both ownership-based and reference-based methods:
@@ -107,7 +109,10 @@ where
     /// The concrete value resulting from the evaluation
     ///
     /// # Default Implementation
-    /// By default, this calls `evaluate` and clones the result.
+    /// By default, this delegates to `evaluate()`.
+    ///
+    /// Note: this method requires `Self::Source: Clone` for API consistency across implementers,
+    /// even though the default implementation does not necessarily clone.
     /// For types where taking ownership enables optimization, consider overriding this.
     fn evaluate_owned(self) -> Self::Source
     where
@@ -122,7 +127,9 @@ where
 /// This trait adds convenience methods for working with evaluatable computations,
 /// such as mapping over the result of evaluation or combining multiple evaluations.
 pub trait EvaluateExt: Evaluate {
-    /// Maps a function over the result of evaluating this computation by reference.
+    /// Maps a function over the result of evaluating this computation.
+    ///
+    /// This is a convenience alias for `map_evaluate`.
     ///
     /// # Type Parameters
     /// * `F` - The mapping function type
@@ -141,7 +148,7 @@ pub trait EvaluateExt: Evaluate {
         f(self.evaluate())
     }
 
-    /// Maps a function over the result of evaluating this computation by reference.
+    /// Maps a function over the result of evaluating this computation.
     ///
     /// This method evaluates the computation first, then applies the function to the result.
     ///
@@ -173,7 +180,11 @@ pub trait EvaluateExt: Evaluate {
         f(self.evaluate())
     }
 
-    /// Maps a function over the result of evaluating this computation by consuming it.
+    /// Maps a function over the result of evaluating this computation, consuming `self`.
+    ///
+    /// Note: this method currently evaluates via `evaluate()` (by borrowing) rather than
+    /// `evaluate_owned()`. If you specifically want to force an ownership-based evaluation,
+    /// use `map_evaluate_owned`.
     ///
     /// # Type Parameters
     /// * `F` - The mapping function type
@@ -193,7 +204,7 @@ pub trait EvaluateExt: Evaluate {
         f(self.evaluate())
     }
 
-    /// Maps a function over the result of evaluating this computation by consuming it.
+    /// Maps a function over the result of evaluating this computation, consuming `self`.
     ///
     /// This method consumes the computation, evaluates it, and applies the function to the result.
     /// It may be more efficient than `map_evaluate` for types where taking ownership

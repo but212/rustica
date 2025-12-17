@@ -35,9 +35,8 @@
 //!
 //! These wrappers provide different ways to handle computations:
 //!
-//! - `Thunk<T>`: A lazy computation wrapper that evaluates only when needed
-//! - `Value<T>`: A simple wrapper implementing `Evaluate` for immediate values
-//! - `Memoizer<F>`: Caches the result of a function for repeated calls
+//! - `Thunk`: A lazy computation wrapper that evaluates only when needed
+//! - `Memoizer`: Caches the result of a function for repeated calls
 //!
 //! ## Usage Patterns
 //!
@@ -69,7 +68,6 @@
 //! - Use `Min`/`Max` for finding extremes in collections
 //! - Use `First`/`Last` when dealing with optional values that need to be combined with precedence rules
 //! - Use `Thunk` when you need lazy evaluation
-//! - Use `Value` when you need a simple evaluable container
 //! - Use `Memoizer` when you want to cache function results
 //!
 //! ## Implementation Note

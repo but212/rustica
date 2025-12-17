@@ -46,7 +46,6 @@
 //! - `Semigroup`: For any `T` that implements `Mul`
 //! - `Monoid`: For any `T` that implements `Mul` and `From<u8>` (for the identity element)
 //! - `Functor`: For mapping operations over the inner value
-//! - `Identity`: For accessing the wrapped value
 //! - `HKT`: For higher-kinded type operations
 //!
 //! ## Quick Start
@@ -74,7 +73,6 @@
 //! ```
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::fmt;
@@ -375,16 +373,6 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
 impl<T> HKT for Product<T> {
     type Source = T;
     type Output<U> = Product<U>;
-}
-
-impl<T: Clone + Mul<Output = T>> Identity for Product<T> {
-    fn value(&self) -> &Self::Source {
-        &self.0
-    }
-
-    fn into_value(self) -> Self::Source {
-        self.0
-    }
 }
 
 impl<T: Clone + Mul<Output = T>> Functor for Product<T> {

@@ -1,15 +1,14 @@
+use std::sync::{Arc, Mutex};
+
 use rustica::datatypes::wrapper::first::First;
 use rustica::datatypes::wrapper::last::Last;
 use rustica::datatypes::wrapper::max::Max;
-use rustica::datatypes::wrapper::memoizer::Memoizer;
 use rustica::datatypes::wrapper::min::Min;
 use rustica::datatypes::wrapper::product::Product;
 use rustica::datatypes::wrapper::sum::Sum;
 use rustica::datatypes::wrapper::thunk::Thunk;
 use rustica::prelude::*;
 use rustica::traits::evaluate::Evaluate;
-use std::sync::{Arc, Mutex};
-use std::thread;
 
 #[test]
 fn test_first_wrapper() {
@@ -165,67 +164,6 @@ fn test_thunk_wrapper() {
 }
 
 #[test]
-fn test_memoizer_basic() {
-    let counter = Arc::new(Mutex::new(0));
-    let counter_clone = counter.clone();
-    let memoizer = Memoizer::new();
-    // First call should compute the value
-    let v1 = memoizer.get_or_compute((), |_| {
-        let mut count = counter_clone.lock().unwrap();
-        *count += 1;
-        *count
-    });
-    assert_eq!(v1, 1);
-    // Second call should use cache
-    let v2 = memoizer.get_or_compute((), |_| unreachable!());
-    assert_eq!(v2, 1);
-    assert_eq!(*counter.lock().unwrap(), 1);
-    // Clear cache and recompute
-    memoizer.clear();
-    let v3 = memoizer.get_or_compute((), |_| {
-        let mut count = counter.lock().unwrap();
-        *count += 1;
-        *count
-    });
-    assert_eq!(v3, 2);
-}
-
-#[test]
-fn test_memoizer_fn() {
-    let counter = Arc::new(Mutex::new(0));
-    let counter_clone = counter.clone();
-    let memoizer = Memoizer::new();
-    // First call with value
-    let v1 = memoizer.get_or_compute(5, |_| {
-        let mut count = counter_clone.lock().unwrap();
-        *count += 1;
-        10
-    });
-    assert_eq!(v1, 10);
-    // Second call with same value uses cache
-    let v2 = memoizer.get_or_compute(5, |_| unreachable!());
-    assert_eq!(v2, 10);
-    assert_eq!(*counter.lock().unwrap(), 1);
-    // Call with new value
-    let v3 = memoizer.get_or_compute(10, |_| {
-        let mut count = counter.lock().unwrap();
-        *count += 1;
-        20
-    });
-    assert_eq!(v3, 20);
-    assert_eq!(*counter.lock().unwrap(), 2);
-    // Clear cache and recompute for same value
-    memoizer.clear();
-    let v4 = memoizer.get_or_compute(10, |_| {
-        let mut count = counter.lock().unwrap();
-        *count += 1;
-        20
-    });
-    assert_eq!(v4, 20);
-    assert_eq!(*counter.lock().unwrap(), 3);
-}
-
-#[test]
 fn test_combined_wrappers() {
     // Test combining different wrappers
 
@@ -347,91 +285,6 @@ fn test_real_world_use_cases() {
         .map(|x| Last(Some(x)))
         .fold(Last(None), |acc, x| acc.combine(&x));
     assert_eq!(last, Last(Some(84)));
-
-    // 7. Using Memoizer for expensive computation
-    let counter = Arc::new(Mutex::new(0));
-    let counter_clone = counter.clone();
-
-    // Define an "expensive" function
-    let memoizer = Memoizer::new();
-
-    // Call multiple times
-    for _ in 0..10 {
-        assert_eq!(
-            memoizer.get_or_compute((), |_| {
-                let mut count = counter_clone.lock().unwrap();
-                *count += 1;
-                499500
-            }),
-            499500
-        );
-    }
-
-    // Should only have computed once
-    assert_eq!(*counter.lock().unwrap(), 1);
-}
-
-#[test]
-fn single_thread_memoization() {
-    let memo: Memoizer<u32, u32> = Memoizer::new();
-    let result = memo.get_or_compute(5, |x| x * 2);
-    assert_eq!(result, 10);
-    // Should hit cache
-    let again = memo.get_or_compute(5, |_| 999);
-    assert_eq!(again, 10);
-}
-
-#[test]
-fn multi_threaded_memoization() {
-    let memo = Arc::new(Memoizer::new());
-    let handles: Vec<_> = (0..8)
-        .map(|i| {
-            let memo = memo.clone();
-            thread::spawn(move || memo.get_or_compute(i % 3, |x| x * 10))
-        })
-        .collect();
-    let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
-    for &v in &[0, 10, 20] {
-        assert!(results.contains(&v));
-    }
-}
-
-#[test]
-fn clear_cache() {
-    let memo: Memoizer<u32, u32> = Memoizer::new();
-    memo.get_or_compute(1, |x| x + 1);
-    memo.clear();
-    let v = memo.get_or_compute(1, |_| 42);
-    assert_eq!(v, 42);
-}
-
-#[test]
-fn test_memoizer_default() {
-    let counter = Arc::new(Mutex::new(0));
-    let counter_clone = counter.clone();
-    let memoizer: Memoizer<(), i32> = Memoizer::default();
-
-    // First call should compute the value
-    let v1 = memoizer.get_or_compute((), |_| {
-        let mut count = counter_clone.lock().unwrap();
-        *count += 1;
-        *count
-    });
-    assert_eq!(v1, 1);
-
-    // Second call should use cache
-    let v2 = memoizer.get_or_compute((), |_| unreachable!());
-    assert_eq!(v2, 1);
-    assert_eq!(*counter.lock().unwrap(), 1);
-
-    // Clear cache and recompute
-    memoizer.clear();
-    let v3 = memoizer.get_or_compute((), |_| {
-        let mut count = counter.lock().unwrap();
-        *count += 1;
-        *count
-    });
-    assert_eq!(v3, 2);
 }
 
 #[cfg(feature = "serde")]
@@ -474,4 +327,290 @@ fn test_wrapper_serde() {
     let serialized = serde_json::to_string(&sum).unwrap();
     let deserialized: Sum<i32> = serde_json::from_str(&serialized).unwrap();
     assert_eq!(sum, deserialized);
+}
+
+// ============================================================================
+// Predicate Tests
+// ============================================================================
+
+mod predicate_tests {
+    use rustica::datatypes::wrapper::predicate::Predicate;
+    use rustica::traits::monoid::Monoid;
+    use rustica::traits::semigroup::Semigroup;
+
+    mod basic_operations {
+        use super::*;
+
+        #[test]
+        fn test_new_and_contains() {
+            let is_positive = Predicate::new(|&x: &i32| x > 0);
+            assert!(is_positive.contains(&5));
+            assert!(!is_positive.contains(&-3));
+            assert!(!is_positive.contains(&0));
+        }
+
+        #[test]
+        fn test_even_predicate() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            assert!(is_even.contains(&2));
+            assert!(is_even.contains(&-4));
+            assert!(!is_even.contains(&3));
+        }
+
+        #[test]
+        fn test_string_predicate() {
+            let is_long = Predicate::new(|s: &String| s.len() > 5);
+            assert!(is_long.contains(&"hello world".to_string()));
+            assert!(!is_long.contains(&"hi".to_string()));
+        }
+    }
+
+    mod set_operations {
+        use super::*;
+
+        #[test]
+        fn test_union() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let even_or_positive = is_even.union(&is_positive);
+
+            assert!(even_or_positive.contains(&2)); // Even and positive
+            assert!(even_or_positive.contains(&-4)); // Even but not positive
+            assert!(even_or_positive.contains(&3)); // Positive but not even
+            assert!(!even_or_positive.contains(&-5)); // Neither
+        }
+
+        #[test]
+        fn test_intersection() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let even_and_positive = is_even.intersection(&is_positive);
+
+            assert!(even_and_positive.contains(&2)); // Even and positive
+            assert!(!even_and_positive.contains(&-4)); // Even but not positive
+            assert!(!even_and_positive.contains(&3)); // Positive but not even
+            assert!(!even_and_positive.contains(&-5)); // Neither
+        }
+
+        #[test]
+        fn test_diff() {
+            let is_integer = Predicate::new(|x: &f64| x.fract() == 0.0);
+            let is_negative = Predicate::new(|x: &f64| *x < 0.0);
+            let positive_integers = is_integer.diff(&is_negative);
+
+            assert!(positive_integers.contains(&2.0)); // Integer and not negative
+            assert!(!positive_integers.contains(&-3.0)); // Integer but negative
+            assert!(!positive_integers.contains(&1.5)); // Not an integer
+        }
+
+        #[test]
+        fn test_negate() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_odd = is_even.negate();
+
+            assert!(!is_odd.contains(&2));
+            assert!(is_odd.contains(&3));
+            assert!(!is_odd.contains(&0));
+        }
+
+        #[test]
+        fn test_double_negate() {
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let double_negated = is_positive.negate().negate();
+
+            // Double negation should be equivalent to original
+            for x in [-5, -1, 0, 1, 5] {
+                assert_eq!(is_positive.contains(&x), double_negated.contains(&x));
+            }
+        }
+    }
+
+    mod operator_overloading {
+        use super::*;
+
+        #[test]
+        fn test_bitor_operator() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let combined = is_even | is_positive;
+
+            assert!(combined.contains(&2)); // Both
+            assert!(combined.contains(&-4)); // Even only
+            assert!(combined.contains(&3)); // Positive only
+            assert!(!combined.contains(&-3)); // Neither
+        }
+
+        #[test]
+        fn test_bitand_operator() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let combined = is_even & is_positive;
+
+            assert!(combined.contains(&2));
+            assert!(!combined.contains(&-4));
+            assert!(!combined.contains(&3));
+        }
+
+        #[test]
+        fn test_sub_operator() {
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let positive_odd = is_positive - is_even;
+
+            assert!(positive_odd.contains(&3));
+            assert!(positive_odd.contains(&5));
+            assert!(!positive_odd.contains(&2));
+            assert!(!positive_odd.contains(&-3));
+        }
+
+        #[test]
+        fn test_not_operator() {
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let not_positive = !is_positive;
+
+            assert!(not_positive.contains(&-5));
+            assert!(not_positive.contains(&0));
+            assert!(!not_positive.contains(&5));
+        }
+    }
+
+    mod semigroup_impl {
+        use super::*;
+
+        #[test]
+        fn test_combine() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_large = Predicate::new(|x: &i32| *x > 100);
+            let is_even_or_large = is_even.combine(&is_large);
+
+            assert!(is_even_or_large.contains(&2)); // Even but not large
+            assert!(is_even_or_large.contains(&200)); // Both
+            assert!(is_even_or_large.contains(&101)); // Large but not even
+            assert!(!is_even_or_large.contains(&51)); // Neither
+        }
+
+        #[test]
+        fn test_combine_owned() {
+            let is_divisible_by_2 = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_divisible_by_3 = Predicate::new(|x: &i32| *x % 3 == 0);
+            let is_divisible_by_2_or_3 = is_divisible_by_2.combine_owned(is_divisible_by_3);
+
+            assert!(is_divisible_by_2_or_3.contains(&6)); // Both
+            assert!(is_divisible_by_2_or_3.contains(&4)); // 2 only
+            assert!(is_divisible_by_2_or_3.contains(&9)); // 3 only
+            assert!(!is_divisible_by_2_or_3.contains(&5)); // Neither
+        }
+
+        #[test]
+        fn test_associativity_law() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let is_multiple_of_3 = Predicate::new(|x: &i32| *x % 3 == 0);
+
+            let test_values = [-6, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 9, 12];
+
+            for &val in test_values.iter() {
+                let left = is_even.combine(&is_positive).combine(&is_multiple_of_3);
+                let right = is_even.combine(&is_positive.combine(&is_multiple_of_3));
+                assert_eq!(left.contains(&val), right.contains(&val));
+            }
+        }
+    }
+
+    mod monoid_impl {
+        use super::*;
+
+        #[test]
+        fn test_empty() {
+            let empty_pred = Predicate::<i32>::empty();
+
+            // Empty predicate always returns false
+            assert!(!empty_pred.contains(&42));
+            assert!(!empty_pred.contains(&-7));
+            assert!(!empty_pred.contains(&0));
+        }
+
+        #[test]
+        fn test_left_identity_law() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let test_values = [-10, -5, -2, -1, 0, 1, 2, 5, 10];
+
+            for &val in test_values.iter() {
+                let empty = Predicate::<i32>::empty();
+                assert_eq!(
+                    empty.combine(&is_even).contains(&val),
+                    is_even.contains(&val)
+                );
+            }
+        }
+
+        #[test]
+        fn test_right_identity_law() {
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let test_values = [-10, -5, -2, -1, 0, 1, 2, 5, 10];
+
+            for &val in test_values.iter() {
+                let empty = Predicate::<i32>::empty();
+                assert_eq!(
+                    is_positive.combine(&empty).contains(&val),
+                    is_positive.contains(&val)
+                );
+            }
+        }
+
+        #[test]
+        fn test_combine_with_empty() {
+            let empty_pred = Predicate::<i32>::empty();
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let combined = empty_pred.combine(&is_positive);
+
+            assert!(combined.contains(&5));
+            assert!(!combined.contains(&-5));
+        }
+    }
+
+    mod complex_scenarios {
+        use super::*;
+
+        #[test]
+        fn test_complex_predicate_composition() {
+            let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let is_small = Predicate::new(|x: &i32| *x < 10);
+
+            // Positive and (even or small)
+            let complex = is_positive.intersection(&is_even.union(&is_small));
+
+            assert!(complex.contains(&2)); // Positive, even, small
+            assert!(complex.contains(&3)); // Positive, not even, small
+            assert!(complex.contains(&12)); // Positive, even, not small
+            assert!(!complex.contains(&-2)); // Not positive
+            assert!(!complex.contains(&15)); // Positive but not even and not small
+        }
+
+        #[test]
+        fn test_clone() {
+            let is_positive = Predicate::new(|x: &i32| *x > 0);
+            let cloned = is_positive.clone();
+
+            for x in [-5, 0, 5] {
+                assert_eq!(is_positive.contains(&x), cloned.contains(&x));
+            }
+        }
+
+        #[test]
+        fn test_distributivity() {
+            let a = Predicate::new(|x: &i32| *x > 0);
+            let b = Predicate::new(|x: &i32| *x % 2 == 0);
+            let c = Predicate::new(|x: &i32| *x < 10);
+
+            let test_values = [-5, -2, 0, 1, 2, 5, 8, 10, 15, 20];
+
+            for &val in test_values.iter() {
+                let left = a.intersection(&b.union(&c));
+                let right = a.intersection(&b).union(&a.intersection(&c));
+                assert_eq!(left.contains(&val), right.contains(&val));
+            }
+        }
+    }
 }

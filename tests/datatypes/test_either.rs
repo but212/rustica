@@ -432,3 +432,145 @@ fn test_either_serde() {
         serde_json::from_str(&serialized_left_int).unwrap();
     assert_eq!(left_int, deserialized_left_int);
 }
+
+// ============================================================================
+// Additional Either Tests for Coverage
+// ============================================================================
+
+mod either_option_conversions {
+    use super::*;
+
+    #[test]
+    fn test_left_option() {
+        let left: Either<i32, String> = Either::Left(42);
+        assert_eq!(left.left_option(), Some(42));
+
+        let right: Either<i32, String> = Either::Right("ok".to_string());
+        assert_eq!(right.left_option(), None);
+    }
+
+    #[test]
+    fn test_right_option() {
+        let right: Either<String, i32> = Either::Right(10);
+        assert_eq!(right.right_option(), Some(10));
+
+        let left: Either<String, i32> = Either::Left("error".to_string());
+        assert_eq!(left.right_option(), None);
+    }
+}
+
+mod either_result_conversions {
+    use super::*;
+
+    #[test]
+    fn test_to_result() {
+        let right: Either<String, i32> = Either::Right(100);
+        assert_eq!(right.to_result(), Ok(100));
+
+        let left: Either<String, i32> = Either::Left("failed".to_string());
+        assert_eq!(left.to_result(), Err("failed".to_string()));
+    }
+
+    #[test]
+    fn test_from_result() {
+        let ok_result: Result<i32, String> = Ok(100);
+        assert_eq!(Either::from_result(ok_result), Either::Right(100));
+
+        let err_result: Result<i32, String> = Err("oops".to_string());
+        assert_eq!(
+            Either::from_result(err_result),
+            Either::Left("oops".to_string())
+        );
+    }
+}
+
+mod either_iterators {
+    use super::*;
+
+    #[test]
+    fn test_left_iter() {
+        let left: Either<i32, String> = Either::Left(42);
+        let values: Vec<i32> = left.left_iter().collect();
+        assert_eq!(values, vec![42]);
+
+        let right: Either<i32, String> = Either::Right("ok".to_string());
+        let values: Vec<i32> = right.left_iter().collect();
+        assert!(values.is_empty());
+    }
+
+    #[test]
+    fn test_left_iter_ref() {
+        let left: Either<i32, String> = Either::Left(42);
+        let values: Vec<&i32> = left.left_iter_ref().collect();
+        assert_eq!(values, vec![&42]);
+
+        let right: Either<i32, String> = Either::Right("ok".to_string());
+        let values: Vec<&i32> = right.left_iter_ref().collect();
+        assert!(values.is_empty());
+    }
+
+    #[test]
+    fn test_left_iter_mut() {
+        let mut left: Either<i32, String> = Either::Left(42);
+        for val in left.left_iter_mut() {
+            *val = 100;
+        }
+        assert_eq!(left.unwrap_left(), 100);
+
+        let mut right: Either<i32, String> = Either::Right("ok".to_string());
+        let count = right.left_iter_mut().count();
+        assert_eq!(count, 0);
+    }
+}
+
+mod either_try_methods {
+    use super::*;
+    use rustica::datatypes::error::EitherError;
+
+    #[test]
+    fn test_try_unwrap_left() {
+        let left: Either<i32, &str> = Either::Left(42);
+        assert_eq!(left.try_unwrap_left(), Ok(42));
+
+        let right: Either<i32, &str> = Either::Right("hello");
+        assert_eq!(right.try_unwrap_left(), Err(EitherError::ExpectedLeft));
+    }
+
+    #[test]
+    fn test_try_unwrap_right() {
+        let right: Either<&str, i32> = Either::Right(42);
+        assert_eq!(right.try_unwrap_right(), Ok(42));
+
+        let left: Either<&str, i32> = Either::Left("error");
+        assert_eq!(left.try_unwrap_right(), Err(EitherError::ExpectedRight));
+    }
+
+    #[test]
+    fn test_try_left_ref() {
+        let left: Either<i32, &str> = Either::Left(42);
+        assert_eq!(left.try_left_ref(), Ok(&42));
+
+        let right: Either<i32, &str> = Either::Right("hello");
+        assert_eq!(right.try_left_ref(), Err(EitherError::ExpectedLeft));
+    }
+
+    #[test]
+    fn test_try_right_ref() {
+        let right: Either<&str, i32> = Either::Right(42);
+        assert_eq!(right.try_right_ref(), Ok(&42));
+
+        let left: Either<&str, i32> = Either::Left("error");
+        assert_eq!(left.try_right_ref(), Err(EitherError::ExpectedRight));
+    }
+}
+
+mod either_mut_methods {
+    use super::*;
+
+    #[test]
+    fn test_left_mut() {
+        let mut left: Either<i32, String> = Either::Left(42);
+        *left.left_mut() = 100;
+        assert_eq!(left.unwrap_left(), 100);
+    }
+}

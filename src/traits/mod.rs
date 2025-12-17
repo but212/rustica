@@ -23,8 +23,6 @@
 pub mod evaluate;
 /// Higher-kinded type abstractions for generic programming.
 pub mod hkt;
-/// Identity and value extraction traits.
-pub mod identity;
 /// Creation of values in a computational context.
 pub mod pure;
 
@@ -43,12 +41,10 @@ pub mod monad_plus;
 // ===== Related Abstractions =====
 /// Mapping over two-type data structures.
 pub mod bifunctor;
-/// Extracting values from computational contexts.
+/// Extracting values from comonadic contexts.
 ///
 /// This module provides the Comonad trait which represents the categorical dual of a monad.
 pub mod comonad;
-/// Function mapping in opposite direction.
-pub mod contravariant_functor;
 
 // ===== Composition Traits =====
 /// Arrow-based computation abstractions.
@@ -83,9 +79,3 @@ pub mod alternative;
 ///
 /// This module provides the Iso trait which represents isomorphisms between types.
 pub mod iso;
-/// Transformations between functors.
-pub mod natural_transformation;
-/// Profunctorial abstractions.
-pub mod profunctor;
-/// Representable functors.
-pub mod representable;

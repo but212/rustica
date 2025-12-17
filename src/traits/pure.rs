@@ -7,12 +7,10 @@
 //! # Mathematical Definition
 //!
 //! In category theory, `pure` corresponds to the η (eta) natural transformation that
-//! maps values from a category to a Monad. The following laws should hold:
+//! maps values into a context.
 //!
-//! - Left identity: `pure(x).bind(f) == f(x)`
-//! - Right identity: `m.bind(pure) == m`
-//!
-//! where `bind` is the bind operation from the Monad trait.
+//! Note: laws involving `bind` (Monad) or `apply` (Applicative) only apply once `Pure` is used
+//! together with those additional structures.
 //!
 //! # Core Concepts
 //!
@@ -87,6 +85,9 @@ use std::marker::PhantomData;
 /// # Laws
 /// For a valid Pure implementation, the following laws must hold:
 ///
+/// Note: the laws below are stated in terms of `fmap` and `apply`, so they apply when the
+/// implementing type also forms a lawful `Functor`/`Applicative`.
+///
 /// 1. Identity Preservation:
 ///    ```text
 ///    pure(x).fmap(id) == pure(x)
@@ -121,7 +122,7 @@ use std::marker::PhantomData;
 ///     }
 ///
 ///     // We can provide a more efficient implementation for pure_owned
-///     fn pure_owned<U>(value: U) -> Self::Output<U> {
+///     fn pure_owned<U: Clone>(value: U) -> Self::Output<U> {
 ///         MyWrapper(value)
 ///     }
 /// }
@@ -268,7 +269,7 @@ impl<T> Pure for Box<T> {
 ///
 /// // Lift into Validated context and transform
 /// let validated: Validated<&str, i32> = value.to_pure::<Validated<&str, i32>>();
-/// let doubled: Validated<&str, i32> = validated.fmap(|x: &i32| x * 2);
+/// let doubled: Validated<&str, i32> = validated.fmap(|x: &i32| *x * 2);
 ///
 /// assert!(matches!(doubled, Validated::Valid(84)));
 /// ```
@@ -462,7 +463,7 @@ pub trait PureExt: Sized {
     /// let b: i32 = 10;
     ///
     /// // Combine values with a function
-    /// let result: Option<i32> = a.combine_with::<Option<i32>, i32, i32>(&b, |x, y| x * y);
+    /// let result: Option<i32> = a.combine_with::<Option<i32>, i32, i32>(&b, |x, y| *x * *y);
     /// assert_eq!(result, Some(420));
     /// ```
     #[inline]

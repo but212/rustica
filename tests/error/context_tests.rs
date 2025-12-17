@@ -1,4 +1,3 @@
-
 use rustica::error::ErrorPipeline;
 
 #[test]
@@ -7,19 +6,23 @@ fn test_context_dropped_on_success() {
         .with_context("context 1") // Should be dropped
         .and_then(|_| Err::<(), &str>("error"))
         .finish();
-    
+
     match result {
         Ok(_) => panic!("Expected error"),
         Err(e) => {
             let contexts = e.context();
-            assert_eq!(contexts.len(), 0, "Context should be dropped if pipeline was Ok when added");
-        }
+            assert_eq!(
+                contexts.len(),
+                0,
+                "Context should be dropped if pipeline was Ok when added"
+            );
+        },
     }
 }
 
 #[test]
 fn test_context_preserved_on_failure() {
-        let result = ErrorPipeline::new(Err::<(), &str>("original error"))
+    let result = ErrorPipeline::new(Err::<(), &str>("original error"))
         .with_context("context 1")
         .finish();
 
@@ -29,7 +32,7 @@ fn test_context_preserved_on_failure() {
             let contexts = e.context();
             assert_eq!(contexts.len(), 1);
             assert_eq!(contexts[0], "context 1");
-        }
+        },
     }
 }
 
@@ -42,13 +45,13 @@ fn test_context_accumulation_logic() {
         .and_then(|_| Err::<(), &str>("error"))
         .with_context("context B")
         .finish();
-    
+
     match result {
         Ok(_) => panic!("Expected error"),
         Err(e) => {
             let contexts = e.context();
             assert_eq!(contexts.len(), 1);
             assert_eq!(contexts[0], "context B");
-        }
+        },
     }
 }

@@ -1,42 +1,66 @@
 //! Trait implementations for persistent vectors.
 //!
 //! This module provides implementations of various functional programming traits
-//! for [`PersistentVector`], enabling use with the rustica categorical framework.
+//! for [`PersistentVector`], enabling use with the Rustica categorical framework.
+//!
+//! # Implemented Traits
+//!
+//! ## Category Theory Traits
+//!
+//! - [`HKT`]: Higher-kinded type support for generic programming
+//! - [`Functor`]: Structure-preserving mapping via `fmap`
+//! - [`Foldable`]: Left and right folds over elements
+//!
+//! ## Algebraic Traits
+//!
+//! - [`Semigroup`]: Concatenation via `combine`
+//! - [`Monoid`]: Empty vector as identity element
+//!
+//! # Examples
+//!
+//! ```
+//! use rustica::pvec::PersistentVector;
+//! use rustica::traits::functor::Functor;
+//! use rustica::traits::foldable::Foldable;
+//! use rustica::traits::monoid::Monoid;
+//! use rustica::traits::semigroup::Semigroup;
+//!
+//! // Functor: map over elements
+//! let vec = PersistentVector::from_slice(&[1, 2, 3]);
+//! let doubled: PersistentVector<i32> = vec.fmap(|x| x * 2);
+//! assert_eq!(doubled.to_vec(), vec![2, 4, 6]);
+//!
+//! // Foldable: reduce elements
+//! let sum = vec.fold_left(&0, |acc, x| acc + x);
+//! assert_eq!(sum, 6);
+//!
+//! // Monoid: empty and combine
+//! let empty: PersistentVector<i32> = PersistentVector::empty();
+//! let combined = vec.combine(&PersistentVector::from_slice(&[4, 5]));
+//! assert_eq!(combined.to_vec(), vec![1, 2, 3, 4, 5]);
+//! ```
 
 use crate::traits::{
-    foldable::Foldable, functor::Functor, hkt::HKT, identity::Identity, monoid::Monoid,
-    semigroup::Semigroup,
+    foldable::Foldable, functor::Functor, hkt::HKT, monoid::Monoid, semigroup::Semigroup,
 };
 
 use super::core::PersistentVector;
 
+/// Higher-kinded type implementation for `PersistentVector`.
+///
+/// This enables `PersistentVector` to be used with generic functions that
+/// operate on type constructors (e.g., `F<A>` -> `F<B>`).
 impl<T> HKT for PersistentVector<T> {
     type Source = T;
     type Output<U> = PersistentVector<U>;
 }
 
-impl<T: Clone> Identity for PersistentVector<T> {
-    #[inline]
-    fn value(&self) -> &Self::Source {
-        self.first().expect("PersistentVector is empty")
-    }
-
-    #[inline]
-    fn try_value(&self) -> Option<&Self::Source> {
-        self.first()
-    }
-
-    #[inline]
-    fn into_value(self) -> Self::Source {
-        self.into_iter().next().expect("PersistentVector is empty")
-    }
-
-    #[inline]
-    fn try_into_value(self) -> Option<Self::Source> {
-        self.into_iter().next()
-    }
-}
-
+/// Functor implementation for `PersistentVector`.
+///
+/// Enables structure-preserving transformations over vector elements.
+/// The functor laws are satisfied:
+/// - Identity: `vec.fmap(|x| x) == vec`
+/// - Composition: `vec.fmap(f).fmap(g) == vec.fmap(|x| g(f(x)))`
 impl<T: Clone> Functor for PersistentVector<T> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
@@ -58,7 +82,12 @@ impl<T: Clone> Functor for PersistentVector<T> {
     }
 }
 
-impl<T: Clone> Foldable for PersistentVector<T> {
+/// Foldable implementation for `PersistentVector`.
+///
+/// Provides left and right folds for reducing vector elements to a single value.
+/// Note: This implementation does not require `T: Clone`.
+impl<T> Foldable for PersistentVector<T> {
+    /// Folds elements from left to right.
     #[inline]
     fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
     where
@@ -71,18 +100,17 @@ impl<T: Clone> Foldable for PersistentVector<T> {
         acc
     }
 
+    /// Folds elements from right to left.
+    ///
+    /// Uses `DoubleEndedIterator` for efficient reverse traversal.
     #[inline]
     fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
     where
         F: Fn(&Self::Source, &U) -> U,
     {
-        let mut acc = init.clone();
-        for i in (0..self.len()).rev() {
-            if let Some(item) = self.get(i) {
-                acc = f(item, &acc);
-            }
-        }
-        acc
+        self.iter()
+            .rev()
+            .fold(init.clone(), |acc, item| f(item, &acc))
     }
 
     #[inline]
@@ -91,7 +119,12 @@ impl<T: Clone> Foldable for PersistentVector<T> {
     }
 }
 
+/// Semigroup implementation for `PersistentVector`.
+///
+/// Concatenation is the associative binary operation:
+/// `(a.combine(b)).combine(c) == a.combine(b.combine(c))`
 impl<T: Clone> Semigroup for PersistentVector<T> {
+    /// Concatenates two vectors.
     #[inline]
     fn combine(&self, other: &Self) -> Self {
         self.concat(other)
@@ -103,6 +136,11 @@ impl<T: Clone> Semigroup for PersistentVector<T> {
     }
 }
 
+/// Monoid implementation for `PersistentVector`.
+///
+/// The empty vector serves as the identity element:
+/// - `empty().combine(x) == x`
+/// - `x.combine(empty()) == x`
 impl<T: Clone> Monoid for PersistentVector<T> {
     #[inline]
     fn empty() -> Self {

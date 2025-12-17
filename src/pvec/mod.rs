@@ -5,6 +5,39 @@
 //! uses RRB trees which maintain logarithmic performance characteristics while
 //! supporting efficient concatenation and splitting operations.
 //!
+//! # Key Features
+//!
+//! - **Persistence**: All operations return new vectors, leaving the original unchanged
+//! - **Structural Sharing**: Modified vectors share structure with originals, minimizing memory usage
+//! - **Adaptive Storage**: Small vectors (≤64 elements) use inline storage for optimal performance
+//! - **Efficient Operations**: O(log n) for most operations including random access, update, and split
+//!
+//! # When to Use
+//!
+//! Use `PersistentVector` when you need:
+//! - Immutable data structures with efficient updates
+//! - Version history or undo/redo functionality
+//! - Safe sharing across threads without locks
+//! - Functional programming patterns
+//!
+//! For mutable use cases where persistence isn't needed, prefer `Vec<T>`.
+//!
+//! # Error Handling Policy
+//!
+//! This module follows a dual approach to error handling:
+//!
+//! - **Total functions** (e.g., `update`, `get`): Return a default value or `Option`
+//!   when operations cannot complete. This supports functional programming patterns
+//!   where operations should always succeed.
+//!
+//! - **Fallible functions** (e.g., `try_update`, `try_get`): Return `Result` with
+//!   detailed error information via `PVecError`.
+//!
+//! | Operation | Total Version | Fallible Version |
+//! |-----------|---------------|------------------|
+//! | Get element | `get()` → `Option<&T>` | `try_get()` → `Result<&T, PVecError>` |
+//! | Update element | `update()` → `Self` (clone on error) | `try_update()` → `Result<Self, PVecError>` |
+//!
 //! # Examples
 //!
 //! ```

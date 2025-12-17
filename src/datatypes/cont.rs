@@ -1,8 +1,8 @@
 //! # Continuation Monad
 //!
 //! The Continuation monad represents computations with explicit control flow, allowing
-//! operations to be suspended and resumed. It provides a way to manipulate control flow
-//! in a purely functional manner.
+//! control flow to be expressed and composed via explicit continuations. It provides a way to
+//! manipulate control flow in a purely functional manner.
 //!
 //! ## Quick Start
 //!
@@ -36,7 +36,8 @@
 //!     if value > 50 {
 //!         k(value) // Continue normally
 //!     } else {
-//!         0 // Early exit with different value
+//!         // By not calling `k`, we bypass the rest of the continuation chain.
+//!         0
 //!     }
 //! });
 //!
@@ -221,7 +222,7 @@ where
     ///
     /// # Arguments
     ///
-    /// * `f` - A function that takes a continuation and returns a result wrapped in `Id`
+    /// * `f` - A function that takes a continuation and returns a result of type `R`
     ///
     /// # Returns
     ///
@@ -320,7 +321,6 @@ where
     ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
-    /// use rustica::traits::monad::Monad;
     ///
     /// // For any continuation cont, binding with return_cont should return the original continuation
     /// // m >>= return = m
@@ -450,7 +450,6 @@ where
     ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
-    /// use rustica::traits::monad::Monad;
     ///
     /// // For any function f and value x, return x >>= f should be equivalent to f(x)
     /// // return a >>= f = f a
@@ -471,7 +470,6 @@ where
     ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
-    /// use rustica::traits::monad::Monad;
     ///
     /// // For any continuation m, m >>= return should be equivalent to m
     /// // m >>= return = m
@@ -491,7 +489,6 @@ where
     ///
     /// ```rust
     /// use rustica::datatypes::cont::Cont;
-    /// use rustica::traits::monad::Monad;
     ///
     /// // For any continuation m and functions f and g:
     /// // (m >>= f) >>= g = m >>= (\x -> f x >>= g)
@@ -637,8 +634,8 @@ where
     ///
     /// `call_cc` (call-with-current-continuation) is a powerful control operator that reifies the
     /// current continuation as a first-class value, allowing for advanced control flow patterns.
-    /// When invoked, the escape function immediately returns its argument as the result of the
-    /// entire `call_cc` expression, effectively "jumping out" of the current context.
+    /// When invoked, the escape function calls the captured continuation, effectively "jumping out"
+    /// of the current context.
     ///
     /// # Arguments
     ///

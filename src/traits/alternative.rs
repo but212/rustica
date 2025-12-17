@@ -15,8 +15,8 @@
 //! 1. Left identity: `empty_alt().alt(x) == x`
 //! 2. Right identity: `x.alt(empty_alt()) == x`
 //! 3. Associativity: `a.alt(b).alt(c) == a.alt(b.alt(c))`
-//! 4. Distributivity: `f.ap(a.alt(b)) == f.ap(a).alt(f.ap(b))`
-//! 5. Annihilation: `empty_alt().ap(a) == empty_alt()`
+//! 4. Distributivity (applicative): applying a function in context should distribute over choice.
+//! 5. Annihilation (applicative): applying a failed function context should yield failure.
 //!
 //! ## Common Use Cases
 //!
@@ -126,12 +126,17 @@ pub trait Alternative: Applicative {
     /// ```
     fn guard(condition: bool) -> Self::Output<()>;
 
-    /// Repeats the structure zero or more times, collecting the results.
+    /// Returns a collected result when this alternative is successful.
+    ///
+    /// Note: in this crate's default implementations, this is a lightweight helper:
+    ///
+    /// - For `Option<T>`: `Some(x).many() == Some(vec![x])`, `None.many() == None`
+    /// - For `Vec<T>`: non-empty `xs.many() == vec![xs]`, empty `Vec::new().many() == Vec::new()`
     ///
     /// # Laws
     ///
-    /// - many(empty) == empty
-    /// - many(x) for non-empty x yields a collection containing x
+    /// - If `self` is empty, the result is empty.
+    /// - If `self` is non-empty, the result is non-empty.
     ///
     /// # Examples
     /// ```rust

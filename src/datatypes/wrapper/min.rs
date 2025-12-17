@@ -21,7 +21,9 @@
 //!
 //! ### Monoid Laws
 //!
-//! When `T` has a maximum value, `Min<T>` also satisfies the monoid identity laws:
+//! `Min<T>` has a `Monoid` instance when `T: Default`, using `Min(T::default())` as the identity.
+//! Note that `T::default()` is not necessarily the *true* identity for the minimum operation unless
+//! it is greater than or equal to all other values of `T`.
 //!
 //! - **Left Identity**: `empty() ⊕ a = a`
 //!   - Combining the identity element (typically the maximum value of `T`) with any value gives the original value.
@@ -44,9 +46,8 @@
 //! `Min<T>` implements the following type classes:
 //!
 //! - `Semigroup`: For any `T` that implements `Ord`
-//! - `Monoid`: For any `T` that implements `Ord` and has a maximum value
+//! - `Monoid`: For any `T` that implements `Ord` and `Default` (identity is `Min(T::default())`)
 //! - `Functor`: For mapping operations over the inner value
-//! - `Identity`: For accessing the inner value
 //!
 //! ## Quick Start
 //!
@@ -69,7 +70,6 @@
 //! ```
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::cmp::Ordering;
@@ -410,16 +410,6 @@ impl<T: fmt::Display> fmt::Display for Min<T> {
 impl<T> HKT for Min<T> {
     type Source = T;
     type Output<U> = Min<U>;
-}
-
-impl<T: Clone + Ord> Identity for Min<T> {
-    fn value(&self) -> &Self::Source {
-        &self.0
-    }
-
-    fn into_value(self) -> Self::Source {
-        self.0
-    }
 }
 
 impl<T: Clone + Ord> Functor for Min<T> {

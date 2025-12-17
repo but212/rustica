@@ -16,8 +16,8 @@
 //! - `core`: Extended WithError trait and ErrorCategory
 //! - `types`: ComposableError and error context structures
 //! - `convert`: Type conversion utilities between error types
-//! - `context`: Error context management and accumulation
-//! - `pipeline`: Functional error handling pipelines
+//! - `context`: Error context management, accumulation, and functional pipelines
+//! - `macros`: Error handling macros for lazy context evaluation
 
 pub mod context; // Error context management and accumulation
 pub mod convert; // Error type conversions
@@ -42,8 +42,5 @@ pub use types::{
     IntoErrorContext, LazyContext,
 };
 
-// Re-export existing error utilities for compatibility (avoiding conflicts)
-pub use crate::utils::error_utils::{
-    AppError, ResultExt, WithError, error, error_with_context, sequence, sequence_with_error,
-    traverse, traverse_validated,
-};
+// Re-export error utility traits directly from the unified error module.
+pub use core::{ResultExt, WithError, sequence, sequence_with_error, traverse, traverse_validated};

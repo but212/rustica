@@ -1,10 +1,9 @@
-//! Prelude: Utilities & Extension Traits
+//! Prelude: Utilities
 //!
-//! This module re-exports various utility functions and extension traits from Rustica to make them available in a single import.
+//! This module re-exports various utility functions from Rustica to make them available in a single import.
 //!
 //! # Key Utilities
 //!
-//! - `error_utils`: Error handling and conversion helpers (e.g., `collect_results`, `flatten_errors`)
 //! - `hkt_utils`: Higher-kinded type utilities (e.g., HKT conversions, type witnesses)
 //! - `transform_utils`: Function composition, transformation, and chaining utilities
 //!

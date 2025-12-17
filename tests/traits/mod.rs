@@ -1,7 +1,9 @@
 mod monad_error;
 mod monad_plus;
+mod test_alternative;
 mod test_applicative;
 mod test_bifunctor;
+mod test_evaluate;
 mod test_foldable;
 mod test_functor;
 mod test_monad;

@@ -4,6 +4,10 @@
 //! It provides a way to model effectful operations in a pure functional manner by
 //! encapsulating the effects within a monadic context.
 //!
+//! **Execution model**: `IO` is a *cold* (lazy) computation. Creating an `IO` does not perform effects.
+//! Effects happen when you call [`IO::run`], [`IO::try_get`], or other methods that evaluate the
+//! computation. If you evaluate the same `IO` multiple times, its effects will run multiple times.
+//!
 //! ## Quick Start
 //!
 //! Compose and sequence effectful operations safely:
@@ -439,7 +443,7 @@
 //! assert_eq!(good_io_fib.run(), 6765);
 //! ```
 
-use crate::error::{BoxedComposableResult, ComposableError, ErrorPipeline};
+use crate::error::{BoxedComposableResult, ComposableError, ComposableResult, ErrorPipeline};
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::Debug;
 #[cfg(feature = "async")]
@@ -772,6 +776,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         F: Future<Output = A> + Send + 'static,
         A: Send + Sync,
     {
+        // Note: This implementation evaluates the future at most once and caches the result.
         let future_once = Arc::new(Mutex::new(Some(fut)));
         let result_cache = Arc::new(OnceLock::<A>::new());
 
@@ -900,12 +905,14 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// Tries to get the value from this IO operation.
     ///
     /// This method runs the IO operation and wraps the result in a `ComposableResult`.
+    /// It catches panics from the underlying computation (via `catch_unwind`) and converts them
+    /// into a [`ComposableError<IOError>`].
     /// The result contains either the computed value or a `ComposableError<IOError>`,
     /// providing a standardized error handling approach.
     ///
     /// # Returns
     ///
-    /// A `Result` containing the computed value of type `A` or an `AppError<IOError>`
+    /// A `ComposableResult<A, IOError>` (i.e., `Result<A, ComposableError<IOError>>`)
     ///
     /// # Examples
     ///
@@ -919,7 +926,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// assert_eq!(result.is_ok(), true);
     /// assert_eq!(result.unwrap(), 42);
     /// ```
-    pub fn try_get(&self) -> Result<A, ComposableError<IOError>> {
+    pub fn try_get(&self) -> ComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
@@ -974,9 +981,8 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// }
     /// ```
     pub fn try_get_with_context<C: Into<String>>(
-        &self,
-        context: C,
-    ) -> Result<A, ComposableError<IOError>> {
+        &self, context: C,
+    ) -> ComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
@@ -987,9 +993,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
                 } else {
                     "IO operation panicked with unknown error".to_string()
                 };
-                Err(
-                    ComposableError::new(IOError::Other(msg)).with_context(context.into()),
-                )
+                Err(ComposableError::new(IOError::Other(msg)).with_context(context.into()))
             },
         }
     }

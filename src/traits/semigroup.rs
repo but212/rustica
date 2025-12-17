@@ -45,14 +45,14 @@ use std::hash::Hash;
 /// of the set to yield a third element of the set, and the operation must be associative.
 ///
 /// The associative property means that for any elements a, b, and c:
-/// `(a combine b) combine c = a combine (b combine c)`
+/// `(a ⋄ b) ⋄ c = a ⋄ (b ⋄ c)`
 ///
 /// # Laws
 ///
 /// If `a`, `b`, and `c` are values of a type that implements `Semigroup`, then:
 ///
 /// ```text
-/// (a.combine(b)).combine(c) == a.combine(b.combine(c))  // Associativity
+/// (a.combine(&b)).combine(&c) == a.combine(&b.combine(&c))  // Associativity
 /// ```
 ///
 /// This allows chaining of operations without concern for the order of operations.
@@ -63,10 +63,8 @@ use std::hash::Hash;
 ///
 /// - `combine`: Combines two values by reference
 /// - `combine_owned`: Combines two values by consuming them
-/// - `combine_n`: Combines a value with itself n times (by reference)
-/// - `combine_n_owned`: Combines a value with itself n times (by consuming the value)
 ///
-/// Additionally, there are default implementations of other useful methods for working with semigroups.
+/// Additional helper methods like `combine_n` / `combine_n_owned` are provided by `SemigroupExt`.
 ///
 /// # Example: Custom implementation
 ///

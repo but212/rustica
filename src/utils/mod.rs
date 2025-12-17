@@ -18,15 +18,10 @@
 //! - Collection sequencing operations (`sequence_options`, `sequence_results`)
 //! - Following categorical laws
 //!
-//! ### Error Handling Utilities (`error_utils`)
+//! ### Error Handling Utilities (`crate::error`)
 //!
-//! Standardized error handling functions and types that work with functional
-//! programming abstractions:
-//!
-//! - Type-class `WithError` for error transformation
-//! - Conversion functions between different error handling types (`Result`, `Either`, `Validated`)
-//! - Collection operations like `sequence` and `traverse` for error handling
-//! - `AppError` for contextual error reporting
+//! Error handling utilities have been consolidated under the top-level `crate::error` module.
+//! Prefer importing from `rustica::error` or `rustica::prelude::error`.
 //!
 //! ### Higher-Kinded Type Utilities (`hkt_utils`)
 //!
@@ -43,17 +38,6 @@
 //! - `transform_all` for applying transformations to collections
 //! - `transform_chain` for optional transformations
 //! - `Pipeline` type for fluent transformation chaining
-
-/// Error handling utilities for working with functional programming patterns.
-///
-/// This module provides standardized error handling functions that work with
-/// the functional programming abstractions in Rustica, including:
-///
-/// - Error mapping and transformation
-/// - Conversion between error types
-/// - Collection operations for error handling
-/// - Structured error types with context
-pub mod error_utils;
 
 /// Higher-kinded type utilities for generic programming.
 ///

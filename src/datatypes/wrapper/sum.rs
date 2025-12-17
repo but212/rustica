@@ -55,7 +55,6 @@
 //! - `Semigroup`: For any `T` that implements `Add`
 //! - `Monoid`: For any `T` that implements `Add` and `Default`
 //! - `Functor`: For mapping operations over the inner value
-//! - `Identity`: For accessing the wrapped value
 //! - `HKT`: For higher-kinded type operations
 //!
 //! ## Quick Start
@@ -84,7 +83,6 @@
 
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::identity::Identity;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::fmt;
@@ -437,16 +435,6 @@ impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
 impl<T> HKT for Sum<T> {
     type Source = T;
     type Output<U> = Sum<U>;
-}
-
-impl<T: Clone + Add<Output = T>> Identity for Sum<T> {
-    fn value(&self) -> &Self::Source {
-        &self.0
-    }
-
-    fn into_value(self) -> Self::Source {
-        self.0
-    }
 }
 
 impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
