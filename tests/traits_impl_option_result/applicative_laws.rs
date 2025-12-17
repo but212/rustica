@@ -184,8 +184,8 @@ mod applicative_functor_relationship {
         let f = |x: &i32| x * 2;
 
         // Left side: fmap(f, x)
-        let fmap_result_some = some_value.fmap(&f);
-        let fmap_result_none = none_value.fmap(&f);
+        let fmap_result_some = some_value.fmap(f);
+        let fmap_result_none = none_value.fmap(f);
 
         // Right side: pure(f) <*> x
         let pure_f = <Option<fn(&i32) -> i32> as Pure>::pure(&f);
@@ -203,8 +203,8 @@ mod applicative_functor_relationship {
         let f = |x: &i32| x * 2;
 
         // Left side: fmap(f, x)
-        let fmap_result_ok = ok_value.fmap(&f);
-        let fmap_result_err = err_value.fmap(&f);
+        let fmap_result_ok = ok_value.fmap(f);
+        let fmap_result_err = err_value.fmap(f);
 
         // Right side: pure(f) <*> x
         let pure_f = <Result<fn(&i32) -> i32, &str> as Pure>::pure(&f);

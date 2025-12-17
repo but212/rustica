@@ -31,7 +31,7 @@ mod tests {
         let safe_divide = |x, y| if y != 0 { Some(x / y) } else { None };
         assert_eq!(flat_map_option(Some(20), |x| safe_divide(x, 4)), Some(5));
         assert_eq!(flat_map_option(Some(10), |x| safe_divide(x, 0)), None);
-        assert_eq!(flat_map_option(None::<i32>, |x| Some(x)), None);
+        assert_eq!(flat_map_option(None::<i32>, Some), None);
     }
 
     #[test]
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_filter_map_collect() {
-        let numbers = vec!["1", "not_a_number", "3", "4"];
+        let numbers = ["1", "not_a_number", "3", "4"];
         let parsed = filter_map_collect(numbers.iter(), |s| s.parse::<i32>().ok());
         assert_eq!(parsed, vec![1, 3, 4]);
     }
@@ -123,7 +123,7 @@ mod tests {
         // Left identity law for flat_map_option
         let f = |x: i32| if x > 0 { Some(x * 2) } else { None };
         let x = 5;
-        assert_eq!(flat_map_option(Some(x), &f), f(x));
+        assert_eq!(flat_map_option(Some(x), f), f(x));
 
         // Right identity law for flat_map_option
         let option = Some(42);

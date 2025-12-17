@@ -209,9 +209,9 @@ mod macro_tests {
 
         assert_eq!(double(21), 42);
         assert_eq!(to_string(42), "42");
-        assert_eq!(is_positive(5), true);
-        assert_eq!(is_positive(-3), false);
-        assert_eq!(is_positive(0), false);
+        assert!(is_positive(5));
+        assert!(!is_positive(-3));
+        assert!(!is_positive(0));
     }
 
     #[test]

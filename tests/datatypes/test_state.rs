@@ -397,7 +397,7 @@ mod complex_scenarios {
         let mut state = (0, 1);
 
         for _ in 0..10 {
-            let value = fibonacci.eval_state(state.clone());
+            let value = fibonacci.eval_state(state);
             results.push(value);
             state = fibonacci.exec_state(state);
         }
