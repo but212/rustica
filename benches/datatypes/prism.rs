@@ -41,7 +41,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
     config_dict.insert("age".to_string(), ConfigValue::Integer(30));
     let dict_config = ConfigValue::Dictionary(config_dict);
 
-    let float_config = ConfigValue::Float(3.14);
+    let float_config = ConfigValue::Float(std::f64::consts::PI);
     let array_config = ConfigValue::Array(vec![ConfigValue::Integer(1), ConfigValue::Integer(2)]);
     let inactive_status = Status::Inactive {
         name: "Charlie".to_string(),

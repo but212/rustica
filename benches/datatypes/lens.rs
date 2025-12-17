@@ -179,8 +179,8 @@ pub fn lens_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let result = data_lens.modify(black_box(large_struct.clone()), |mut data| {
                 // Perform some computation on the data
-                for i in 0..data.len() {
-                    data[i] = data[i] * 2 + 1;
+                for item in &mut data {
+                    *item = *item * 2 + 1;
                 }
                 data
             });

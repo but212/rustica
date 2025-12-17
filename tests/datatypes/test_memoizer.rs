@@ -503,7 +503,7 @@ fn test_concurrent_access() {
     }
 
     // Verify cache has some entries
-    assert!(memo.len() > 0);
+    assert!(!memo.is_empty());
     assert!(memo.len() <= 10); // Should not exceed capacity
 }
 

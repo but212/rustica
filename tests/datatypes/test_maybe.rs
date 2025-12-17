@@ -351,8 +351,8 @@ fn test_alternative_and_monadplus() {
     assert_eq!(n.mplus(&n), n);
 
     // mplus_owned
-    assert_eq!(a.clone().mplus_owned(b.clone()), a);
-    assert_eq!(n.clone().mplus_owned(b.clone()), b);
+    assert_eq!(a.mplus_owned(b), a);
+    assert_eq!(n.mplus_owned(b), b);
 }
 
 #[test]

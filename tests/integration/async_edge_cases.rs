@@ -1,4 +1,4 @@
-#![cfg(feature = "async")]
+// Note: cfg(feature = "async") is already applied by mod.rs
 
 use rustica::datatypes::async_monad::AsyncM;
 use std::time::Duration;

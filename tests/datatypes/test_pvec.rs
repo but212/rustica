@@ -333,7 +333,7 @@ fn test_to_arc() {
     let std_vec = vec.to_vec();
 
     assert_eq!(std_vec.len(), 3);
-    assert_eq!(std_vec.get(0), Some(&1));
+    assert_eq!(std_vec.first(), Some(&1));
 }
 
 #[test]
@@ -432,7 +432,7 @@ fn test_trait_impls_and_conversions() {
     let pv2: PersistentVector<_> = stdvec.clone().into();
     assert_eq!(pv2, vec);
     let vec2 = vec.to_vec();
-    assert_eq!(vec2.get(0), Some(&1));
+    assert_eq!(vec2.first(), Some(&1));
 }
 
 #[test]

@@ -435,7 +435,7 @@ fn test_choice_iterators() {
     let choice = Choice::new(1, vec![2, 3]);
     let vals: Vec<_> = choice.iter().cloned().collect();
     assert_eq!(vals, vec![1, 2, 3]);
-    let alts: Vec<_> = choice.alternatives().iter().cloned().collect();
+    let alts: Vec<_> = choice.alternatives().to_vec();
     assert_eq!(alts, vec![2, 3]);
     let vals_ref: Vec<_> = (&choice).into_iter().cloned().collect();
     assert_eq!(vals_ref, vec![1, 2, 3]);

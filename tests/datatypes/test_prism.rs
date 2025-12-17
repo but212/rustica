@@ -44,6 +44,7 @@ fn inactive_prism() -> Prism<Status, (), impl Fn(&Status) -> Option<()>, impl Fn
 // Prism for Status::Error { code, message }
 // Focuses on a tuple (u32, String)
 // Note: Complex return type is necessary for Prism implementation
+#[allow(clippy::type_complexity)]
 fn error_prism() -> Prism<
     Status,
     (u32, String),

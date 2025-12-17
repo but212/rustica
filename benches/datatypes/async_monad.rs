@@ -93,7 +93,7 @@ pub fn asyncm_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             // Future creation
             let future = async { simple_computation(black_box(42)).await };
-            let _ = black_box(future);
+            drop(black_box(future));
             // AsyncM creation
             let asyncm = AsyncM::new(|| async { simple_computation(black_box(42)).await });
             black_box(asyncm);

@@ -95,7 +95,7 @@ mod monad_operations {
         let value = 10;
         let f = |x: i32| State::new(move |s: i32| (x * 2, s + 1));
 
-        let left_side = State::pure(value).bind(f.clone());
+        let left_side = State::pure(value).bind(f);
         let right_side = f(value);
 
         assert_eq!(left_side.run_state(5), right_side.run_state(5));
@@ -115,8 +115,8 @@ mod monad_operations {
         let f = |x: i32| State::new(move |s: i32| (x * 2, s + 5));
         let g = |x: i32| State::new(move |s: i32| (x + 10, s * 2));
 
-        let left_side = m.clone().bind(f.clone()).bind(g.clone());
-        let right_side = m.clone().bind(move |x| f(x).bind(g.clone()));
+        let left_side = m.clone().bind(f).bind(g);
+        let right_side = m.clone().bind(move |x| f(x).bind(g));
 
         assert_eq!(left_side.run_state(3), right_side.run_state(3));
     }

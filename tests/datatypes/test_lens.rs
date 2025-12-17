@@ -39,6 +39,7 @@ fn name_lens() -> Lens<Person, String, impl Fn(&Person) -> String, impl Fn(Perso
 
 // Lens for Person.address (focuses on the Rc<Address>)
 // Note: Complex return type is necessary for Lens implementation
+#[allow(clippy::type_complexity)]
 fn address_rc_lens() -> Lens<
     Person,
     Rc<Address>,

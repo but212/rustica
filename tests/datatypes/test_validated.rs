@@ -1344,10 +1344,7 @@ mod property_tests {
     fn prop_value_accessor_on_invalid_returns_none(errors: Vec<String>) -> bool {
         let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors);
-        match v.into_value() {
-            Ok(_) => false, // Should not happen for invalid
-            Err(_) => true, // Expected for invalid
-        }
+        v.into_value().is_err()
     }
 
     // Property tests for error_payload accessor
@@ -1524,7 +1521,7 @@ mod stress_tests {
         // Test with unit type
         let unit_valid: Validated<String, ()> = Validated::valid(());
         assert!(unit_valid.is_valid());
-        assert_eq!(unit_valid.unwrap(), ());
+        unit_valid.unwrap(); // Just verify it doesn't panic
 
         // Test with zero-sized struct
         #[derive(Debug, PartialEq, Clone)]
