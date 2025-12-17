@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["async_monad","choice","cont","either","id","io","iso_lens","iso_prism","lens","maybe","prism","reader","state","validated","wrapper","writer"]};

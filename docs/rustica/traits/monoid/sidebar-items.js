@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["combine_all","mconcat","power","repeat"],"trait":["Monoid","MonoidExt"]};

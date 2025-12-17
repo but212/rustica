@@ -3,6 +3,8 @@
 /dist/
 /build/
 
+Cargo.lock
+
 # Documentation builds
 /docs/_site/
 /docs/.jekyll-cache/

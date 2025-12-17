@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["lift"],"mod":["cont_t","reader_t","state_t"],"trait":["MonadTransformer"]};

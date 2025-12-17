@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["combine_all_values","combine_values"],"struct":["SemigroupExtAdapter"],"trait":["Semigroup","SemigroupExt"]};
