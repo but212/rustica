@@ -181,6 +181,7 @@ pub fn asyncm_benchmarks(c: &mut Criterion) {
     });
 
     // Memory allocation benchmarks
+    #[allow(clippy::excessive_nesting)]
     for chain_len in [5, 10, 20].iter() {
         group.bench_with_input(
             BenchmarkId::new("chain_allocation", chain_len),
