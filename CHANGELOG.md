@@ -24,6 +24,12 @@
   - Maintains performance for common validation scenarios with fewer errors
   - Reduces stack memory usage by 50% for error collections
 
+### Fixed - 0.11.1
+
+- **Memoizer::with_capacity(0) Behavior**
+  - Fixed to match documentation: zero capacity now creates a disabled cache
+  - Previously incorrectly created an unbounded cache
+
 ## [0.11.0]
 
 ### Breaking Changes - 0.11.0

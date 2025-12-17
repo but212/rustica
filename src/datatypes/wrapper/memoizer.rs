@@ -556,11 +556,7 @@ where
     /// ```
     pub fn with_capacity(max_capacity: usize) -> Self {
         Memoizer {
-            cache: RwLock::new(LruCache::new(if max_capacity == 0 {
-                None
-            } else {
-                Some(max_capacity)
-            })),
+            cache: RwLock::new(LruCache::new(Some(max_capacity))),
             hits: AtomicU64::new(0),
             misses: AtomicU64::new(0),
             evictions: AtomicU64::new(0),
