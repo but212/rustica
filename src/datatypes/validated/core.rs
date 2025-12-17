@@ -2009,7 +2009,7 @@ impl<E: Clone, A: Clone> Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
             Validated::Invalid(es) => {
-                let futures = es.into_iter().map(|e| f(e));
+                let futures = es.into_iter().map(f);
                 let results = futures::future::join_all(futures).await;
                 let transformed: ErrorVec<G> = results.into_iter().collect();
                 Validated::Invalid(transformed)
