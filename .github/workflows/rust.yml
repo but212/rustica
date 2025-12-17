@@ -12,7 +12,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings --allow deprecated"
+  RUSTFLAGS: "-D warnings -A deprecated"
   CARGO_INCREMENTAL: 0
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           components: rustfmt
@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           components: clippy
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust ${{ matrix.rust }}
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@v2
@@ -81,7 +81,7 @@ jobs:
           echo "Using MSRV: $MSRV"
 
       - name: Install Rust MSRV (${{ steps.msrv.outputs.msrv }})
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ steps.msrv.outputs.msrv }}
       - uses: Swatinem/rust-cache@v2
@@ -94,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
       - uses: Swatinem/rust-cache@v2
@@ -111,7 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
@@ -137,7 +137,7 @@ jobs:
           persist-credentials: false
 
       - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           components: rust-docs
@@ -169,7 +169,7 @@ jobs:
           persist-credentials: false
 
       - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
@@ -263,7 +263,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
 
