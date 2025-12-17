@@ -3,8 +3,9 @@
 //! This benchmark compares the performance of AsyncM monad against standard Rust Future
 //! for various async operations including creation, chaining, parallel execution, and error handling.
 
-use criterion::{BenchmarkId, Criterion, black_box};
+use criterion::{BenchmarkId, Criterion};
 use rustica::datatypes::async_monad::AsyncM;
+use std::hint::black_box;
 use std::time::Duration;
 
 // Simple async function for testing

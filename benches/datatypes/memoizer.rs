@@ -3,8 +3,9 @@
 //! These benchmarks show how memoization can provide 10x-1000x+ speedups
 //! for expensive computations by caching results.
 
-use criterion::{BenchmarkId, Criterion, black_box};
+use criterion::{BenchmarkId, Criterion};
 use rustica::datatypes::wrapper::memoizer::Memoizer;
+use std::hint::black_box;
 use std::sync::Arc;
 use std::thread;
 
