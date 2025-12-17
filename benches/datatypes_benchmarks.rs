@@ -15,6 +15,7 @@ mod datatypes {
     pub mod lazy_error;
     pub mod lens;
     pub mod maybe;
+    pub mod memoizer;
     pub mod prism;
     pub mod pvec;
     pub mod reader;
@@ -37,6 +38,7 @@ use datatypes::iso_prism::iso_prism_benchmarks;
 use datatypes::lazy_error::lazy_error_benchmarks;
 use datatypes::lens::lens_benchmarks;
 use datatypes::maybe::maybe_benchmarks;
+use datatypes::memoizer::memoizer_benchmarks;
 use datatypes::prism::prism_benchmarks;
 use datatypes::pvec::pvec_benchmarks;
 use datatypes::reader::reader_benchmarks;
@@ -64,6 +66,7 @@ criterion_group!(
     pvec_benchmarks,
     composable_error_benchmarks,
     lazy_error_benchmarks,
+    memoizer_benchmarks,
 );
 
 #[cfg(feature = "async")]
@@ -86,6 +89,7 @@ criterion_group!(
     pvec_benchmarks,
     composable_error_benchmarks,
     lazy_error_benchmarks,
+    memoizer_benchmarks,
     asyncm_benchmarks,
 );
 
