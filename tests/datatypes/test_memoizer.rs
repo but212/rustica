@@ -286,7 +286,7 @@ fn test_memoizer_max_capacity() {
     assert_eq!(bounded.max_capacity(), Some(100));
 
     let zero_capacity: Memoizer<i32, i32> = Memoizer::with_capacity(0);
-    assert_eq!(zero_capacity.max_capacity(), None); // 0 means unlimited
+    assert_eq!(zero_capacity.max_capacity(), Some(0)); // 0 means disabled cache
 }
 
 #[test]
