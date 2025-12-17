@@ -105,7 +105,7 @@ fn main() {
 
     let chained_error = accumulate_context(
         "Transaction failed: insufficient permissions",
-        operation_contexts.into_iter(),
+        operation_contexts,
     );
 
     println!(

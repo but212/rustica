@@ -207,7 +207,7 @@ pub fn iso_prism_benchmarks(c: &mut Criterion) {
     let connection_error_prism = IsoPrism::new(ConnectionErrorIso::<String>::new());
 
     // Additional test data for unused variants
-    let float_data = DataValue::Float(3.14);
+    let float_data = DataValue::Float(std::f64::consts::PI);
     let object_data = {
         let mut map = HashMap::new();
         map.insert("key".to_string(), DataValue::Integer(42));
@@ -430,7 +430,7 @@ pub fn iso_prism_benchmarks(c: &mut Criterion) {
 
     // Error handling benchmarks
     group.bench_function("iso_prism_error_handling", |b| {
-        let responses = vec![
+        let responses = [
             success_response.clone(),
             error_response.clone(),
             loading_response.clone(),

@@ -117,7 +117,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
         });
     });
 
-    for error_count in [1, 4, 8, 16, 32].iter() {
+    for error_count in [1, 2, 4, 8, 16].iter() {
         group.bench_with_input(
             BenchmarkId::new("invalid_many", error_count),
             error_count,

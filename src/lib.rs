@@ -20,7 +20,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rustica = "0.11.0"
+//! rustica = "0.11.1"
 //! ```
 //!
 //! Import common traits and types through the prelude:
@@ -54,19 +54,19 @@
 //! use rustica::traits::applicative::Applicative;
 //! use rustica::traits::functor::Functor;
 //!
-//! fn validate_name(name: &str) -> Validated<Vec<String>, String> {
+//! fn validate_name(name: &str) -> Validated<String, String> {
 //!     if name.len() >= 2 {
 //!         Validated::valid(name.to_string())
 //!     } else {
-//!         Validated::invalid(vec!["Name too short".to_string()])
+//!         Validated::invalid("Name too short".to_string())
 //!     }
 //! }
 //!
-//! fn validate_email(email: &str) -> Validated<Vec<String>, String> {
+//! fn validate_email(email: &str) -> Validated<String, String> {
 //!     if email.contains('@') {
 //!         Validated::valid(email.to_string())
 //!     } else {
-//!         Validated::invalid(vec!["Invalid email format".to_string()])
+//!         Validated::invalid("Invalid email format".to_string())
 //!     }
 //! }
 //!
@@ -76,7 +76,7 @@
 //!
 //! // Combine validations and format the result only when both are valid
 //! let format_user = |n: &String, e: &String| format!("User: {n}, Email: {e}");
-//! let combined = Validated::<Vec<String>, String>::lift2(format_user, &name, &email);
+//! let combined = Validated::<String, String>::lift2(format_user, &name, &email);
 //! assert!(combined.is_invalid());
 //! assert_eq!(combined.unwrap_invalid().len(), 2); // Both errors are collected
 //! ```
@@ -85,9 +85,9 @@
 //!
 //! Rustica provides several feature flags to customize the library for your needs:
 //!
-//! - `full`: Enables all features below
-//! - `pvec`: Includes persistent vector implementation
-//! - `async`: Includes async monad implementation
+//! - `full`: Enables all optional features (`async` + `serde`)
+//! - `async`: Enables async monad implementation (`AsyncM`)
+//! - `serde`: Enables serialization/deserialization support
 //!
 //! ## Structure
 //!
@@ -96,9 +96,11 @@
 //! - `traits`: Fundamental traits for functional programming concepts
 //! - `datatypes`: Implementations of various functional data types
 //! - `transformers`: Monad transformers and related utilities
+//! - `category`: Category theory abstractions
+//! - `error`: Composable error handling utilities
+//! - `pvec`: Persistent vector implementation with structural sharing
 //! - `utils`: Utility functions and helpers for common operations
 //! - `prelude`: A convenient module that re-exports commonly used items
-//! - `pvec`: Persistent vector implementation (feature-gated)
 
 /// Core traits for functional programming abstractions.
 ///
@@ -108,7 +110,7 @@
 /// - `Functor`: Types that can be mapped over
 /// - `Applicative`: Functors with application capabilities
 /// - `Monad`: Monadic types with binding operations
-/// - Monoid: Types that can be combined with an identity element
+/// - `Monoid`: Types that can be combined with an identity element
 pub mod traits;
 
 /// Utility functions and helpers for common operations.

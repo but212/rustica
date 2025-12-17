@@ -828,7 +828,7 @@ mod performance_tests {
         for _ in 0..ITERATIONS {
             let start = Instant::now();
             let strings = error_strings.clone();
-            let mut sv: smallvec::SmallVec<[String; 8]> =
+            let mut sv: smallvec::SmallVec<[String; 4]> =
                 smallvec::SmallVec::with_capacity(strings.len());
             sv.extend(strings);
             smallvec_durations.push(start.elapsed());
@@ -1269,7 +1269,7 @@ mod property_tests {
         if errors.is_empty() {
             return TestResult::discard();
         }
-        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
         if small_errors.is_empty() {
             return TestResult::discard();
         }
@@ -1281,7 +1281,7 @@ mod property_tests {
     // Property tests for unwrap_invalid_owned
     #[quickcheck]
     fn prop_unwrap_invalid_owned_on_invalid_returns_errors(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors.clone());
         v.unwrap_invalid_owned() == small_errors
     }
@@ -1305,7 +1305,7 @@ mod property_tests {
 
     #[quickcheck]
     fn prop_into_value_on_invalid_returns_err_errors(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors.clone());
         match v.into_value() {
             Ok(_) => false,
@@ -1316,7 +1316,7 @@ mod property_tests {
     // Property tests for into_error_payload
     #[quickcheck]
     fn prop_into_error_payload_on_invalid_returns_ok_errors(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors.clone());
         match v.into_error_payload() {
             Ok(errs) => errs == small_errors,
@@ -1342,18 +1342,15 @@ mod property_tests {
 
     #[quickcheck]
     fn prop_value_accessor_on_invalid_returns_none(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors);
-        match v.into_value() {
-            Ok(_) => false, // Should not happen for invalid
-            Err(_) => true, // Expected for invalid
-        }
+        v.into_value().is_err()
     }
 
     // Property tests for error_payload accessor
     #[quickcheck]
     fn prop_error_payload_accessor_on_invalid_returns_some_ref_errors(errors: Vec<String>) -> bool {
-        let small_errors: SmallVec<[String; 8]> = errors.into_iter().collect();
+        let small_errors: SmallVec<[String; 4]> = errors.into_iter().collect();
         let v: Validated<String, i32> = Validated::Invalid(small_errors.clone());
         v.error_payload() == Some(&small_errors)
     }
@@ -1524,7 +1521,7 @@ mod stress_tests {
         // Test with unit type
         let unit_valid: Validated<String, ()> = Validated::valid(());
         assert!(unit_valid.is_valid());
-        assert_eq!(unit_valid.unwrap(), ());
+        unit_valid.unwrap(); // Just verify it doesn't panic
 
         // Test with zero-sized struct
         #[derive(Debug, PartialEq, Clone)]

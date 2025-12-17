@@ -5,79 +5,76 @@ on:
   release:
     types: [created, published]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
       digests: ${{ steps.hash.outputs.hashes }}
+      crate_name: ${{ steps.package.outputs.crate_name }}
     
     steps:
       - uses: actions/checkout@v4
       
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: Swatinem/rust-cache@v2
       
-      # Build the actual Rust artifacts
-      - name: Build artifacts
+      - name: Create .crate package
+        id: package
         run: |
-          cargo build --release --all-features
+          set -euo pipefail
           
-          # Create a directory for release artifacts
+          # Package the crate (same artifact that goes to crates.io)
+          cargo package --all-features
+          
+          # Find the generated .crate file
+          CRATE_FILE=$(find target/package -name "*.crate" -type f | head -1)
+          
+          if [ -z "$CRATE_FILE" ]; then
+            echo "::error::No .crate file found after cargo package"
+            exit 1
+          fi
+          
+          CRATE_NAME=$(basename "$CRATE_FILE")
+          echo "crate_name=$CRATE_NAME" >> $GITHUB_OUTPUT
+          
+          # Create artifacts directory
           mkdir -p release-artifacts
+          cp "$CRATE_FILE" release-artifacts/
           
-          # Copy the library file to the artifacts directory
-          cp target/release/librustica.so release-artifacts/ || true
-          cp target/release/librustica.a release-artifacts/ || true
-          cp target/release/librustica.dylib release-artifacts/ || true
-          cp target/release/rustica.lib release-artifacts/ || true
-          cp target/release/rustica.dll release-artifacts/ || true
-          
-          # Create an archive of the artifacts
-          cd release-artifacts
-          tar -czf rustica-artifacts.tar.gz *
-          cd ..
+          echo "Created package: $CRATE_NAME"
+          ls -la release-artifacts/
 
-      # Compute digests for SLSA provenance
       - name: Generate subject for provenance
         id: hash
         run: |
           set -euo pipefail
           
           cd release-artifacts
-          # List the artifacts the provenance will refer to
-          files=$(find . -type f -name "*.tar.gz")
           
-          if [ -z "$files" ]; then
-            echo "No artifacts found. Aborting."
+          # Find .crate file (the actual distributable for Rust libraries)
+          CRATE_FILE=$(find . -name "*.crate" -type f | head -1)
+          
+          if [ -z "$CRATE_FILE" ]; then
+            echo "::error::No .crate artifact found"
             exit 1
           fi
           
-          # Generate the subjects (base64 encoded)
-          echo "hashes=$(sha256sum $files | base64 -w0)" >> $GITHUB_OUTPUT
+          # Generate SHA256 hash (base64 encoded for SLSA)
+          echo "hashes=$(sha256sum $CRATE_FILE | base64 -w0)" >> $GITHUB_OUTPUT
           
-          # Print checksums for verification
-          echo "Generated the following artifact checksums:"
-          sha256sum $files
+          echo "Generated checksum for SLSA provenance:"
+          sha256sum $CRATE_FILE
 
-      # Upload artifacts for use in other workflows or for debugging
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rustica-slsa-artifacts
-          path: release-artifacts/*.tar.gz
+          path: release-artifacts/*.crate
           retention-days: 5
 
   # The SLSA provenance generator job
@@ -108,7 +105,7 @@ jobs:
           ./slsa-verifier --version
       
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: rustica-slsa-artifacts
           path: ./artifacts
@@ -122,11 +119,11 @@ jobs:
       
       - name: Verify provenance
         run: |
-          for artifact in ./artifacts/*.tar.gz; do
+          for artifact in ./artifacts/*.crate; do
             echo "Verifying provenance for $artifact"
             ./slsa-verifier verify-artifact \
               --provenance-path="./provenance/*.intoto.jsonl" \
               --source-uri="github.com/${{ github.repository }}" \
               --source-tag=${{ github.ref_name }} \
-              $artifact
+              "$artifact"
           done

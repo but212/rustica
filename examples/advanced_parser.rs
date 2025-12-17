@@ -67,12 +67,15 @@ pub type ParseResult<I, O> = Result<(O, &'static [I], usize), ParseError>;
 ///
 /// A parser takes an input slice and returns a Choice of successful parses,
 /// where each parse contains the result and remaining input.
+/// Type alias for parser function to reduce type complexity
+type ParseFn<I, O> = Rc<dyn Fn(&[I]) -> Choice<(O, &[I])>>;
+
 pub struct Parser<I, O>
 where
     I: Clone + Debug,
     O: Clone + Debug,
 {
-    parse_fn: Rc<dyn Fn(&[I]) -> Choice<(O, &[I])>>,
+    parse_fn: ParseFn<I, O>,
 }
 
 impl<I, O> Clone for Parser<I, O>
@@ -175,14 +178,9 @@ where
             let mut results = Vec::new();
             let mut current_input = input;
 
-            loop {
-                match self.parse(current_input).into_iter().next() {
-                    Some((result, remaining)) => {
-                        results.push(result);
-                        current_input = remaining;
-                    },
-                    None => break,
-                }
+            while let Some((result, remaining)) = self.parse(current_input).into_iter().next() {
+                results.push(result);
+                current_input = remaining;
             }
 
             Choice::new((results, current_input), vec![])
@@ -297,7 +295,7 @@ where
 }
 
 /// Basic parsers for common patterns
-
+///
 /// Parse a specific item
 pub fn item<I>(expected: I) -> Parser<I, I>
 where

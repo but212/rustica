@@ -3,8 +3,9 @@
 //! This benchmark compares the performance of AsyncM monad against standard Rust Future
 //! for various async operations including creation, chaining, parallel execution, and error handling.
 
-use criterion::{BenchmarkId, Criterion, black_box};
+use criterion::{BenchmarkId, Criterion};
 use rustica::datatypes::async_monad::AsyncM;
+use std::hint::black_box;
 use std::time::Duration;
 
 // Simple async function for testing
@@ -92,7 +93,7 @@ pub fn asyncm_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             // Future creation
             let future = async { simple_computation(black_box(42)).await };
-            let _ = black_box(future);
+            drop(black_box(future));
             // AsyncM creation
             let asyncm = AsyncM::new(|| async { simple_computation(black_box(42)).await });
             black_box(asyncm);
@@ -180,6 +181,7 @@ pub fn asyncm_benchmarks(c: &mut Criterion) {
     });
 
     // Memory allocation benchmarks
+    #[allow(clippy::excessive_nesting)]
     for chain_len in [5, 10, 20].iter() {
         group.bench_with_input(
             BenchmarkId::new("chain_allocation", chain_len),

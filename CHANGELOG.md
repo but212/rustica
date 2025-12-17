@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## [0.11.1]
+
+### Added - 0.11.1
+
+- **`Lens<S, A>` Composition Methods**
+  - Added `compose()` method for composing two lenses to access nested structures
+  - Added `then()` method as a fluent alias for `compose()`
+  - Enables type-safe, composable access to deeply nested data structures
+  - Example: `address_lens.compose(street_lens)` creates a lens from Person to street
+
+- **`Prism<S, A>` Composition Methods**
+  - Added `compose()` method for composing two prisms to access nested sum types
+  - Added `then()` method as a fluent alias for `compose()`
+  - Enables type-safe, composable access to deeply nested enum variants
+  - Example: `outer_prism.compose(inner_prism)` creates a prism from Outer to inner value
+
+### Performance Optimizations
+
+- **`Validated<E, A>` SmallVec Capacity Reduced**
+  - Reduced inline capacity from `SmallVec<[E; 8]>` to `SmallVec<[E; 4]>` for better memory efficiency
+  - Change affects error storage in `Validated::Invalid` variant
+  - Maintains performance for common validation scenarios with fewer errors
+  - Reduces stack memory usage by 50% for error collections
+
+### Fixed - 0.11.1
+
+- **Memoizer::with_capacity(0) Behavior**
+  - Fixed to match documentation: zero capacity now creates a disabled cache
+  - Previously incorrectly created an unbounded cache
+
 ## [0.11.0]
 
 ### Breaking Changes - 0.11.0

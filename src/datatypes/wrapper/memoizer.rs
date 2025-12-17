@@ -537,6 +537,14 @@ where
     ///
     /// * `max_capacity` - Maximum number of entries the cache can hold
     ///
+    /// # Capacity Semantics
+    ///
+    /// | Value | `max_capacity()` | Behavior |
+    /// |-------|------------------|----------|
+    /// | `with_capacity(n)` where n > 0 | `Some(n)` | Bounded LRU cache with n entries |
+    /// | `with_capacity(0)` | `Some(0)` | Disabled cache (stores nothing) |
+    /// | `new()` | `None` | Unbounded cache (no eviction) |
+    ///
     /// # Performance
     ///
     /// - **Time Complexity**: O(1) - Constant time initialization
@@ -551,16 +559,13 @@ where
     /// // Create a bounded cache that holds at most 1000 entries
     /// let memo: Memoizer<String, i32> = Memoizer::with_capacity(1000);
     ///
-    /// // Zero capacity creates an effectively disabled cache
+    /// // Zero capacity creates a disabled cache (stores nothing)
     /// let disabled: Memoizer<String, i32> = Memoizer::with_capacity(0);
+    /// assert_eq!(disabled.max_capacity(), Some(0));
     /// ```
     pub fn with_capacity(max_capacity: usize) -> Self {
         Memoizer {
-            cache: RwLock::new(LruCache::new(if max_capacity == 0 {
-                None
-            } else {
-                Some(max_capacity)
-            })),
+            cache: RwLock::new(LruCache::new(Some(max_capacity))),
             hits: AtomicU64::new(0),
             misses: AtomicU64::new(0),
             evictions: AtomicU64::new(0),
@@ -624,7 +629,13 @@ where
 
     /// Returns the maximum capacity of the cache, if set.
     ///
-    /// Returns `None` for unlimited caches created with `new()`.
+    /// # Return Values
+    ///
+    /// | Return Value | Meaning |
+    /// |--------------|---------|
+    /// | `None` | Unbounded cache (created with `new()`) |
+    /// | `Some(0)` | Disabled cache (stores nothing) |
+    /// | `Some(n)` | Bounded LRU cache with capacity n |
     ///
     /// # Examples
     ///
@@ -636,6 +647,9 @@ where
     ///
     /// let bounded: Memoizer<i32, i32> = Memoizer::with_capacity(100);
     /// assert_eq!(bounded.max_capacity(), Some(100));
+    ///
+    /// let disabled: Memoizer<i32, i32> = Memoizer::with_capacity(0);
+    /// assert_eq!(disabled.max_capacity(), Some(0));
     /// ```
     pub fn max_capacity(&self) -> Option<usize> {
         self.cache.read().unwrap().max_capacity

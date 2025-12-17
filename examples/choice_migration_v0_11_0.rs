@@ -359,7 +359,7 @@ fn demonstrate_performance_considerations() {
     println!("If you need time to migrate, you can temporarily allow deprecated warnings:");
     println!("```rust");
     println!("#![allow(deprecated)]");
-    println!("");
+    println!();
     println!("// Your existing code will still compile with warnings");
     println!("// but you'll want to migrate before v0.12.0");
     println!("```");

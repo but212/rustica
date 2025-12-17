@@ -37,11 +37,13 @@ fn main() {
 }
 
 /// Demonstrate Option-like patterns (though Option doesn't implement Identity)
+#[allow(clippy::unnecessary_literal_unwrap)]
 fn demonstrate_option_migration() {
     println!("1. Option-like Patterns (Standard Rust)");
     println!("---------------------------------------\n");
 
     // Standard Option patterns (these have always been the right way)
+    // Note: Using literal Some() here for demonstration purposes
     let option = Some(42);
 
     // Extract value
@@ -49,7 +51,8 @@ fn demonstrate_option_migration() {
     println!("✓ unwrap(): {}", value);
 
     // Safe extraction
-    let safe_value = option.unwrap_or(0);
+    let option2 = Some(42);
+    let safe_value = option2.unwrap_or(0);
     println!("✓ unwrap_or(): {}", safe_value);
 
     // Reference access
@@ -213,7 +216,7 @@ fn demonstrate_comonad_usage() {
 
     // unwrap_or() for safe partial extraction
     let nothing = Maybe::<&str>::Nothing;
-    let safe = nothing.unwrap_or(&"default");
+    let safe = nothing.unwrap_or("default");
     println!("  Maybe::unwrap_or() = '{}' (safe default)", safe);
 
     println!();

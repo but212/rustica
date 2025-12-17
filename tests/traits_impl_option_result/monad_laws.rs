@@ -136,12 +136,12 @@ mod monad_join_consistency_law {
 
         // Test: join(fmap(f, m)) = bind(m, f)
         let bind_some = some_value.bind(&f);
-        let fmap_then_join_some = some_value.fmap(&f).join();
+        let fmap_then_join_some = some_value.fmap(f).join();
         assert_eq!(fmap_then_join_some, bind_some);
 
         // Test with None
         let bind_none = none_value.bind(&f);
-        let fmap_then_join_none = none_value.fmap(&f).join();
+        let fmap_then_join_none = none_value.fmap(f).join();
         assert_eq!(fmap_then_join_none, bind_none);
     }
 
@@ -154,12 +154,12 @@ mod monad_join_consistency_law {
 
         // Test: join(fmap(f, m)) = bind(m, f)
         let bind_ok = ok_value.bind(&f);
-        let fmap_then_join_ok = ok_value.fmap(&f).join();
+        let fmap_then_join_ok = ok_value.fmap(f).join();
         assert_eq!(fmap_then_join_ok, bind_ok);
 
         // Test with Err
         let bind_err = err_value.bind(&f);
-        let fmap_then_join_err = err_value.fmap(&f).join();
+        let fmap_then_join_err = err_value.fmap(f).join();
         assert_eq!(fmap_then_join_err, bind_err);
     }
 }
@@ -174,7 +174,7 @@ mod monad_quickcheck_laws {
     #[quickcheck]
     fn qc_option_join_consistency(m: Option<i32>) -> bool {
         let f = |x: &i32| Some(x.saturating_mul(2));
-        let left = m.fmap(&f).join();
+        let left = m.fmap(f).join();
         let right = m.bind(&f);
         left == right
     }
@@ -183,7 +183,7 @@ mod monad_quickcheck_laws {
     #[quickcheck]
     fn qc_result_join_consistency(m: Result<i32, i8>) -> bool {
         let f = |x: &i32| -> Result<i32, i8> { Ok(x.saturating_mul(2)) };
-        let left = m.fmap(&f).join();
+        let left = m.fmap(f).join();
         let right = m.bind(&f);
         left == right
     }

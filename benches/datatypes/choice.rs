@@ -60,7 +60,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
         );
         b.iter(|| {
             black_box(choice.alternatives());
-            black_box(choice.filter(|x: &i32| *x % 2 == 0));
+            black_box(choice.filter_values(|x: &i32| *x % 2 == 0));
             black_box(nested.clone().bind(|x| x.clone()));
         });
     });
