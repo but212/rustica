@@ -111,6 +111,38 @@
     - `Foldable` trait implementation
   - **DoubleEndedIterator**: Full bidirectional iteration support with independent front/back cursors for efficient `.rev()` chains
 
+- **`Memoizer` Improvements**
+  - **LRU (Least Recently Used) Eviction Policy**: Added bounded cache support with automatic eviction
+    - `with_capacity(max)` - Creates a bounded LRU cache
+    - Automatic eviction of least recently used entries when capacity is reached
+    - O(1) access and eviction time complexity
+  - **Cache Statistics**: Added performance monitoring
+    - `stats()` - Returns `CacheStats` with hits, misses, evictions count
+    - `hit_rate()` - Calculates cache hit ratio
+    - `reset_stats()` - Resets statistics counters
+    - `max_capacity()` - Returns configured maximum capacity
+  - **Extended Functionality**:
+    - `insert()` / `try_insert()` - Manual cache insertion without computation
+    - `get_or_try_compute()` - Fallible computation support with error propagation
+    - `touch()` / `try_touch()` - Update LRU position without retrieving value
+  - **Safe Error Handling**: Added `MemoizerError` type and `try_*` methods that return `Result<V, MemoizerError>` instead of panicking on lock poisoning
+  - **New Utility Methods**: Added comprehensive cache management methods:
+    - `len()` / `try_len()` - Returns number of cached entries
+    - `is_empty()` / `try_is_empty()` - Checks if cache is empty
+    - `contains_key()` / `try_contains_key()` - Tests for key presence
+    - `remove()` / `try_remove()` - Removes specific entry
+    - `get()` / `try_get()` - Lookup without computation (does not update LRU)
+    - `reserve()` / `try_reserve()` - Pre-allocates capacity
+    - `shrink_to_fit()` / `try_shrink_to_fit()` - Optimizes memory usage
+    - `keys()` / `try_keys()` - Returns all cached keys
+    - `values()` / `try_values()` - Returns all cached values
+    - `capacity()` / `try_capacity()` - Returns HashMap capacity
+    - `clear()` / `try_clear()` - Clears all cached entries
+  - **Bug Fixes**:
+    - Fixed `get_or_compute_optimistic` to properly return cached value when another thread inserts during computation (previously returned computed value even if different from cached value)
+    - Fixed capacity 0 behavior to properly disable cache (previously allowed first entry)
+    - Improved documentation clarity for `get()` vs `peek()` semantics to avoid confusion about LRU updates
+
 ## [0.10.2]
 
 ### Deprecated - 0.10.2
