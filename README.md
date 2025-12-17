@@ -41,23 +41,23 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.10.2"
+rustica = "0.11.0"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.10.2", features = ["async"] }
+rustica = { version = "0.11.0", features = ["async"] }
 ```
 
-Persistent vector collections are now included by default in Rustica 0.10.0.
+Persistent vector collections are included by default. The `full` feature enables `async` and `serde` support.
 
 You can combine multiple features as needed:
 
 ```toml
 [dependencies]
-rustica = { version = "0.10.2", features = ["full"] }
+rustica = { version = "0.11.0", features = ["full"] }
 ```
 
 Then import the prelude to get started:
@@ -110,7 +110,7 @@ Rustica provides a rich collection of functional data types:
   - `Reader<E, A>` - For environment-based computations
   - `Writer<W, A>` - For logging operations
   - `Cont<R, A>` - For continuation-based programming
-  - `AsyncMonad<A>` - For asynchronous operations
+  - `AsyncM<A>` - For asynchronous operations (requires `async` feature)
 
 - **Special Purpose**
   - Various wrapper types (`First`, `Last`, `Min`, `Max`, etc.)
@@ -144,12 +144,13 @@ Rustica provides standardized error handling utilities that work across differen
   - Conversion functions between `Result`, `Either`, and `Validated`
 
 - **Error Types**
-  - `AppError<M, C>` - A structured error type that provides both a message and optional context
-  - Helper functions like `error()` and `error_with_context()`
+  - `ComposableError<E>` - A structured error type that accumulates context
+  - `ErrorPipeline` - Functional error handling pipelines
+  - Helper functions like `with_context()` and `format_error_chain()`
 
 ### Persistent Vector
 
-Rustica provides an immutable persistent vector (RRB-Tree) for functional programming patterns. This is included by default in Rustica 0.10.0.
+Rustica provides an immutable persistent vector (RRB-Tree) for functional programming patterns.
 
 Example Usage
 
@@ -171,7 +172,7 @@ assert_eq!(v3.get(0), Some(&10));
 Rustica uses GitHub Actions for continuous integration, formatting, linting, and automated publishing to crates.io on tagged releases.
 
 - Tests and formatting are run on every push and pull request.
-- When a tag (e.g. `v0.10.2`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
+- When a tag (e.g. `v0.11.0`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
 
 ### Changelog
 
