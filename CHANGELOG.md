@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [0.12.0]
+
+### Breaking Changes - 0.12.0
+
+- **`Choice<T>` Typeclass Cleanup**
+  - Removed deprecated methods and functions
+
 ## [0.11.1]
 
 ### Added - 0.11.1

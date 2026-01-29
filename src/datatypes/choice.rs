@@ -338,15 +338,6 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Checks if the `Choice` has any alternative values.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Use `alternatives().is_empty()` instead. Will be removed in v0.12.0"
-    )]
-    pub fn has_alternatives(&self) -> bool {
-        self.values.len() > 1
-    }
-
     /// Returns the total number of values in the `Choice`, including the primary value and all alternatives.
     ///
     /// # Returns
@@ -409,130 +400,6 @@ impl<T> Choice<T> {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
-    }
-
-    /// Converts the `Choice` into a `Vec<T>` containing all its values.
-    #[inline]
-    #[deprecated(
-        since = "0.11.0",
-        note = "Use `Into::<Vec<T>>::into()` or `.iter().cloned().collect()` instead. Will be removed in v0.12.0"
-    )]
-    pub fn to_vec(&self) -> Vec<T>
-    where
-        T: Clone,
-    {
-        self.values.to_vec()
-    }
-
-    /// Finds the first value that satisfies a predicate.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Use `iter().find()` instead. Will be removed in v0.12.0"
-    )]
-    pub fn find_first<'a, P>(&'a self, predicate: P) -> Option<&'a T>
-    where
-        P: Fn(&&'a T) -> bool,
-    {
-        self.iter().find(predicate)
-    }
-
-    /// Returns a new `Choice` with duplicate elements removed.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Deduplication is not a core categorical operation. Use external iteration patterns instead. Will be removed in v0.12.0"
-    )]
-    pub fn dedup(&self) -> Self
-    where
-        T: Hash + Eq + Clone,
-    {
-        if self.is_empty() {
-            return self.clone();
-        }
-
-        let mut result = SmallVec::new();
-        let mut seen = std::collections::HashSet::new();
-
-        for value in self.iter() {
-            if seen.insert(value) {
-                result.push(value.clone());
-            }
-        }
-
-        Self { values: result }
-    }
-
-    /// Returns a new `Choice` with duplicate elements removed based on a key extraction function.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Deduplication is not a core categorical operation. Use external iteration patterns instead. Will be removed in v0.12.0"
-    )]
-    pub fn dedup_by_key<K, F>(&self, key_fn: F) -> Self
-    where
-        F: Fn(&T) -> K,
-        K: Hash + Eq,
-        T: Clone,
-    {
-        if self.is_empty() {
-            return self.clone();
-        }
-
-        let mut result = SmallVec::new();
-        let mut seen = std::collections::HashSet::new();
-
-        for value in self.iter() {
-            let key = key_fn(value);
-            if seen.insert(key) {
-                result.push(value.clone());
-            }
-        }
-
-        Self { values: result }
-    }
-
-    /// Folds the values in the `Choice` into a single value.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Use the Foldable trait's fold_left/fold_right instead. Will be removed in v0.12.0"
-    )]
-    pub fn fold<B, F>(&self, initial: B, f: F) -> B
-    where
-        F: Fn(B, &T) -> B,
-    {
-        self.values.iter().fold(initial, f)
-    }
-
-    /// Converts the `Choice` into a `HashMap` using a provided key-extraction function.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Specialized conversion methods should be external. Use `iter().map().collect()` patterns instead. Will be removed in v0.12.0"
-    )]
-    pub fn to_map_with_key<K, F>(&self, mut f: F) -> std::collections::HashMap<K, T>
-    where
-        T: Clone,
-        K: std::hash::Hash + Eq,
-        F: FnMut(&T) -> K,
-    {
-        let mut map = std::collections::HashMap::with_capacity(self.len());
-        for value in self.iter() {
-            map.entry(f(value)).or_insert_with(|| value.clone());
-        }
-        map
-    }
-
-    /// Adds multiple new alternatives to the `Choice`, consuming the original.
-    #[inline]
-    #[deprecated(
-        since = "0.11.0",
-        note = "Use Semigroup::combine() or Monoid operations instead. Will be removed in v0.12.0"
-    )]
-    pub fn add_alternatives<I>(self, items: I) -> Self
-    where
-        T: Clone,
-        I: IntoIterator<Item = T>,
-    {
-        let mut new_values = self.values;
-        new_values.extend(items);
-        Self { values: new_values }
     }
 
     /// Removes an alternative at the specified index and returns a new `Choice`.
@@ -631,61 +498,6 @@ impl<T> Choice<T> {
         Self { values: new_values }
     }
 
-    /// Filters the alternatives of the `Choice` based on a predicate.
-    #[inline]
-    #[deprecated(
-        since = "0.11.0",
-        note = "Semantically unclear (preserves primary unconditionally). Use filter_values() instead. Will be removed in v0.12.0"
-    )]
-    pub fn filter<P>(&self, predicate: P) -> Self
-    where
-        P: Fn(&T) -> bool,
-        T: Clone,
-    {
-        if self.is_empty() {
-            return Self::new_empty();
-        }
-
-        let mut filtered = SmallVec::<[T; 8]>::with_capacity(self.values.len());
-        filtered.push(self.values[0].clone());
-        filtered.extend(self.values.iter().skip(1).filter(|v| predicate(v)).cloned());
-
-        Self { values: filtered }
-    }
-
-    /// Applies a function to each alternative value in the `Choice`.
-    #[inline]
-    #[deprecated(
-        since = "0.11.0",
-        note = "Too specialized. Use fmap() with conditional logic or external iteration instead. Will be removed in v0.12.0"
-    )]
-    pub fn fmap_alternatives<F>(&self, mut f: F) -> Choice<T>
-    where
-        F: FnMut(&T) -> T,
-        T: Clone,
-    {
-        if self.is_empty() {
-            return Self::new_empty();
-        }
-
-        let primary_value = self.values[0].clone();
-
-        let mut new_alternatives = SmallVec::<[T; 8]>::new();
-        if self.values.len() > 1 {
-            for alt_value in &self.values[1..] {
-                new_alternatives.push(f(alt_value));
-            }
-        }
-
-        let mut final_values = SmallVec::with_capacity(1 + new_alternatives.len());
-        final_values.push(primary_value);
-        final_values.extend(new_alternatives);
-
-        Self {
-            values: final_values,
-        }
-    }
-
     /// Flattens a `Choice` of iterable items into a `Choice` of individual items.
     ///
     /// This method transforms a `Choice<T>` where `T` implements `IntoIterator` into a
@@ -782,43 +594,6 @@ impl<T> Choice<T> {
                 Choice::new(first_item, alternatives)
             },
             None => panic!("Primary value was an empty iterator in Choice::flatten"),
-        }
-    }
-
-    /// Flattens a `Choice` of iterable items into a sorted `Choice` of individual items.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Mixing categorical operations (flatten) with ordering breaks FP philosophy. Use flatten() then sort externally. Will be removed in v0.12.0"
-    )]
-    pub fn flatten_sorted<I>(&self) -> Choice<I>
-    where
-        T: IntoIterator<Item = I> + Clone,
-        I: Clone + Ord,
-    {
-        if self.values.is_empty() {
-            return Choice::new_empty();
-        }
-
-        let primary = self.first().unwrap().clone();
-        let mut primary_iter = primary.into_iter();
-
-        match primary_iter.next() {
-            Some(first_item) => {
-                // Collect all remaining items from primary and all alternatives
-                let mut alternatives = self
-                    .values
-                    .iter()
-                    .skip(1) // Skip the primary value
-                    .flat_map(|val| val.clone().into_iter())
-                    .chain(primary_iter) // Add remaining items from primary
-                    .collect::<SmallVec<[I; 8]>>();
-
-                // Sort the alternatives
-                alternatives.sort();
-
-                Choice::new(first_item, alternatives)
-            },
-            None => panic!("Primary value was an empty iterator in Choice::flatten_sorted"),
         }
     }
 
@@ -1068,74 +843,6 @@ impl<T> Choice<T> {
     #[inline]
     pub fn iter_alternatives(&self) -> impl Iterator<Item = &T> {
         self.values.iter().skip(1)
-    }
-
-    /// Swaps the primary value with the alternative at the specified `alt_index`.
-    #[deprecated(
-        since = "0.11.0",
-        note = "Index-based swapping is not a core categorical operation. Use external patterns instead. Will be removed in v0.12.0"
-    )]
-    pub fn swap_with_alternative(self, alt_index: usize) -> Self
-    where
-        T: Clone,
-    {
-        if self.values.len() <= 1 {
-            panic!("Cannot swap with alternative from Choice with no alternatives");
-        }
-        if alt_index >= self.alternatives().len() {
-            panic!(
-                "Index out of bounds: the len is {} but the index is {}",
-                self.alternatives().len(),
-                alt_index
-            );
-        }
-
-        let actual_alt_index = alt_index + 1;
-
-        let mut new_values = self.values;
-        new_values.swap(0, actual_alt_index);
-        Self { values: new_values }
-    }
-
-    /// Creates a lazy iterator that applies bind operation without immediate allocation.
-    ///
-    /// This provides a lazy evaluation version of bind that can be more memory-efficient
-    /// for large operations or when only some results are needed.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that takes a reference to T and returns `Choice<U>`
-    ///
-    /// # Returns
-    ///
-    /// An iterator that yields U values lazily
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3]);
-    /// let mut iter = choice.bind_lazy(|x| Choice::new(x * 10, vec![x * 20]));
-    ///
-    /// assert_eq!(iter.next(), Some(10)); // Primary result from f(1)
-    /// assert_eq!(iter.next(), Some(20)); // Alternative from f(1)
-    /// assert_eq!(iter.next(), Some(20)); // Primary from f(2)
-    /// assert_eq!(iter.next(), Some(40)); // Alternative from f(2)
-    /// ```
-    #[deprecated(
-        since = "0.11.0",
-        note = "Too specialized. Use bind() with into_iter() or flat_map patterns instead. Will be removed in v0.12.0"
-    )]
-    pub fn bind_lazy<U, F>(&self, f: F) -> impl Iterator<Item = U>
-    where
-        F: Fn(&T) -> Choice<U>,
-        U: Clone,
-    {
-        self.iter().flat_map(move |val| {
-            let choice = f(val);
-            choice.into_iter()
-        })
     }
 
     /// Helper function to generate alternatives for apply operation
