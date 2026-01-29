@@ -80,19 +80,6 @@
 //!   Every monad gives rise to a Kleisli arrow, but not every arrow comes from a monad.
 //!
 //! - **Applicative**: Arrows can express applicative computations but with a different interface.
-//!
-//! ## TODO: Future Improvements
-//!
-//! - **Function Implementation**: Implement Arrow for Rust functions with appropriate signature
-//! - **Law Testing**: Add property-based tests to verify that implementations satisfy arrow laws
-//! - **Additional Combinators**: Add more combinators like `loop`, `fanout`, and `merge`
-//! - **Arrow Choice**: Implement ArrowChoice extension for handling conditionals
-//! - **ArrowApply**: Implement ArrowApply for handling higher-order arrows
-//! - **Doctest Examples**: Add comprehensive examples that demonstrate arrow usage
-//! - **Kleisli Arrows**: Implement Kleisli arrows for working with monadic computations
-//! - **Arrow Transformers**: Create arrow transformers to add capabilities to existing arrows
-//! - **Parallel Execution**: Optimize arrow operations for true parallel execution
-//! - **Parser Combinators**: Build parser combinators using the Arrow abstraction
 
 use crate::traits::category::Category;
 

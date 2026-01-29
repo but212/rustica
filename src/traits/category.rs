@@ -63,19 +63,6 @@
 //!
 //! - **Monad**: Monads are a specific kind of functor with additional operations that
 //!   follow certain laws. They can be seen as structures within a category.
-//!
-//! ## TODO: Future Improvements
-//!
-//! - **Additional Implementations**: Implement Category for common types (e.g., functions, transformations)
-//! - **Law Testing**: Add property-based tests to verify that implementations satisfy category laws
-//! - **Monoidal Category**: Extend to support monoidal categories with tensor products and unit objects
-//! - **Doctest Examples**: Add comprehensive examples that demonstrate category usage in practical scenarios
-//! - **Kleisli Category**: Implement the Kleisli category for monads
-//! - **Arrow Implementation**: Connect with the Arrow abstraction for more powerful composition
-//! - **Bifunctor Support**: Add support for bifunctors that map from pairs of categories
-//! - **Natural Transformations**: Implement natural transformations between functors
-//! - **Adjunctions**: Support adjoint functors between categories
-//! - **Yoneda Lemma**: Implement the Yoneda embedding and related constructions
 
 /// A trait representing a category in category theory.
 ///

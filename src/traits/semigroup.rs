@@ -25,17 +25,6 @@
 //! let multiplied = x.combine(&y);
 //! assert_eq!(multiplied, Product(6));
 //! ```
-//!
-//! ## TODO: Future Improvements
-//!
-//! - **Additional Implementations**: Add implementations for more numeric types and custom containers
-//! - **Performance Optimization**: Add benchmarks for combine operations and optimize hot paths
-//! - **Composition Operations**: Add tools for composing and transforming semigroups
-//! - **Generic Operators**: Support operator overloading for more ergonomic usage
-//! - **SemigroupExt Enhancements**: Add more utility methods to the extension trait
-//! - **Advanced Examples**: Add comprehensive examples showing practical applications
-//! - **Property Testing**: Implement property-based tests for semigroup laws
-//! - **Concurrent Combining**: Support combining values concurrently for large collections
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
