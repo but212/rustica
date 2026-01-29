@@ -12,7 +12,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings --allow deprecated"
+  RUSTFLAGS: "-D warnings -A deprecated"
   CARGO_INCREMENTAL: 0
 
 permissions:
@@ -27,6 +27,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: stable
           components: rustfmt
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -39,6 +40,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: stable
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Run Clippy
@@ -92,7 +94,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-udeps
         uses: taiki-e/install-action@v2
@@ -108,6 +112,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-audit
         uses: taiki-e/install-action@v2
@@ -131,8 +137,9 @@ jobs:
           persist-credentials: false
 
       - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: nightly
           components: rust-docs
 
       - uses: Swatinem/rust-cache@v2
@@ -163,6 +170,8 @@ jobs:
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - uses: Swatinem/rust-cache@v2
 
@@ -255,6 +264,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - uses: Swatinem/rust-cache@v2
 

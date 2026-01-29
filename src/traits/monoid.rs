@@ -27,16 +27,6 @@
 //! ## Extension Trait
 //!
 //! The `MonoidExt` trait adds extension methods to all types implementing Monoid.
-//!
-//! ## TODO: Future Improvements
-//!
-//! - **Common Implementations**: Add implementations for more standard types (e.g., Option, Result)
-//! - **Performance Optimization**: Add benchmarks and optimize performance critical operations
-//! - **Parallel Combine**: Implement parallel combination for large collections
-//! - **Monoid Product Types**: Support for product and sum types of monoids
-//! - **Foldable Integration**: Enhance integration with Foldable trait
-//! - **Documentation Examples**: Add more comprehensive examples showing practical use cases
-//! - **Laws Testing**: Add property-based testing for monoid laws
 
 use crate::traits::semigroup::Semigroup;
 
