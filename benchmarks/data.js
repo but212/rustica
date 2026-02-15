@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770514300372,
+  "lastUpdate": 1771118780474,
   "repoUrl": "https://github.com/but212/rustica",
   "entries": {
     "Rust Benchmarks": [
@@ -28009,6 +28009,3118 @@ window.BENCHMARK_DATA = {
           {
             "name": "target_criterion_Choice_monad_ops_base_estimates.json",
             "value": 106.48665437291838,
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Jeong-il Suk",
+            "username": "but212",
+            "email": "wjddlf211@naver.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "8118405f37648b7bfcb587e1b5bbf105d9992568",
+          "message": "Merge pull request #40 from but212/develop\n\nDevelop",
+          "timestamp": "2026-01-29T06:34:54Z",
+          "url": "https://github.com/but212/rustica/commit/8118405f37648b7bfcb587e1b5bbf105d9992568"
+        },
+        "date": 1771118780026,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "memoizer_scaling_populate_10",
+            "value": 922.772776759836,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_scaling_populate_10_base_estimates.json",
+            "value": 922.772776759836,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_scaling_populate_100",
+            "value": 9295.327592964162,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_scaling_populate_100_base_estimates.json",
+            "value": 9295.327592964162,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_scaling_populate_1000",
+            "value": 103256.15358645657,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_scaling_populate_1000_base_estimates.json",
+            "value": 103256.15358645657,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_concurrent_4_threads",
+            "value": 361695.74097669945,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_concurrent_4_threads_base_estimates.json",
+            "value": 361695.74097669945,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_fib_memoized_n25_cold",
+            "value": 3152.380915896888,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_fib_memoized_n25_cold_base_estimates.json",
+            "value": 3152.380915896888,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_fib_naive_n25",
+            "value": 213601.55917420355,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_fib_naive_n25_base_estimates.json",
+            "value": 213601.55917420355,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_expensive_no_memo_100x",
+            "value": 846459.2728550668,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_expensive_no_memo_100x_base_estimates.json",
+            "value": 846459.2728550668,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_prime_with_memo_10x",
+            "value": 9376.558848745013,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_prime_with_memo_10x_base_estimates.json",
+            "value": 9376.558848745013,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_lru_bounded_cache",
+            "value": 63507.388454750144,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_lru_bounded_cache_base_estimates.json",
+            "value": 63507.388454750144,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_access_sequential",
+            "value": 52860.688969607305,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_access_sequential_base_estimates.json",
+            "value": 52860.688969607305,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_stats_overhead",
+            "value": 0.6259448556419968,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_stats_overhead_base_estimates.json",
+            "value": 0.6259448556419968,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_fib_memoized_n25_warm",
+            "value": 20.33596519577267,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_fib_memoized_n25_warm_base_estimates.json",
+            "value": 20.33596519577267,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_expensive_with_memo_100x",
+            "value": 6010.48413808112,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_expensive_with_memo_100x_base_estimates.json",
+            "value": 6010.48413808112,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_cache_miss_1000_computes",
+            "value": 8794692.91833333,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_cache_miss_1000_computes_base_estimates.json",
+            "value": 8794692.91833333,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_concurrent_read_heavy",
+            "value": 257377.38909713196,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_concurrent_read_heavy_base_estimates.json",
+            "value": 257377.38909713196,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_prime_no_memo_10x",
+            "value": 17489.05626935727,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_prime_no_memo_10x_base_estimates.json",
+            "value": 17489.05626935727,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_lru_unbounded_cache",
+            "value": 101983.34308017345,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_lru_unbounded_cache_base_estimates.json",
+            "value": 101983.34308017345,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_scaling_lookup_10",
+            "value": 174.42696181663695,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_scaling_lookup_10_base_estimates.json",
+            "value": 174.42696181663695,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_scaling_lookup_100",
+            "value": 1747.878957150486,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_scaling_lookup_100_base_estimates.json",
+            "value": 1747.878957150486,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_scaling_lookup_1000",
+            "value": 18227.261584539137,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_scaling_lookup_1000_base_estimates.json",
+            "value": 18227.261584539137,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_access_repeated",
+            "value": 50295.75545087467,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_access_repeated_base_estimates.json",
+            "value": 50295.75545087467,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_clear_and_reuse",
+            "value": 905961.9921613928,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_clear_and_reuse_base_estimates.json",
+            "value": 905961.9921613928,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memoizer_cache_hit_1000_lookups",
+            "value": 46919.43810269127,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_memoizer_cache_hit_1000_lookups_base_estimates.json",
+            "value": 46919.43810269127,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_review_complex",
+            "value": 144.73275935952807,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_review_complex_base_estimates.json",
+            "value": 144.73275935952807,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_array_preview",
+            "value": 59.219296732056534,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_array_preview_base_estimates.json",
+            "value": 59.219296732056534,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_review_simple",
+            "value": 36.73187490984131,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_review_simple_base_estimates.json",
+            "value": 36.73187490984131,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_preview_success_binary",
+            "value": 32.729461731963404,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_preview_success_binary_base_estimates.json",
+            "value": 32.729461731963404,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_preview_failure",
+            "value": 18.388558074069753,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_preview_failure_base_estimates.json",
+            "value": 18.388558074069753,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_roundtrip_complex",
+            "value": 340.632709686017,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_roundtrip_complex_base_estimates.json",
+            "value": 340.632709686017,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_preview_failure_empty",
+            "value": 3.4258235215830872,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_preview_failure_empty_base_estimates.json",
+            "value": 3.4258235215830872,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_preview_success_complex",
+            "value": 187.17655476141078,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_preview_success_complex_base_estimates.json",
+            "value": 187.17655476141078,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_multiple_previews",
+            "value": 35.84534132739622,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_multiple_previews_base_estimates.json",
+            "value": 35.84534132739622,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_review_tuple",
+            "value": 36.9675028518703,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_review_tuple_base_estimates.json",
+            "value": 36.9675028518703,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_large_binary_preview",
+            "value": 362.78369857909814,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_large_binary_preview_base_estimates.json",
+            "value": 362.78369857909814,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_new",
+            "value": 0.3114011928104695,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_new_base_estimates.json",
+            "value": 0.3114011928104695,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_json_preview",
+            "value": 34.44445796679577,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_json_preview_base_estimates.json",
+            "value": 34.44445796679577,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_float_preview",
+            "value": 5.698095927429937,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_float_preview_base_estimates.json",
+            "value": 5.698095927429937,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_nested_config",
+            "value": 248.54164195208497,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_nested_config_base_estimates.json",
+            "value": 248.54164195208497,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_multiple_operations",
+            "value": 59.10143392868196,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_multiple_operations_base_estimates.json",
+            "value": 59.10143392868196,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_int_usage",
+            "value": 3.1100943774453027,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_int_usage_base_estimates.json",
+            "value": 3.1100943774453027,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_review_binary",
+            "value": 30.028629800975374,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_review_binary_base_estimates.json",
+            "value": 30.028629800975374,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_pending_preview",
+            "value": 37.43434439119207,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_pending_preview_base_estimates.json",
+            "value": 37.43434439119207,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_roundtrip_success",
+            "value": 56.186078079819296,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_roundtrip_success_base_estimates.json",
+            "value": 56.186078079819296,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_large_binary_review",
+            "value": 362.66992529527414,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_large_binary_review_base_estimates.json",
+            "value": 362.66992529527414,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_inactive_preview",
+            "value": 36.72463869940489,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_inactive_preview_base_estimates.json",
+            "value": 36.72463869940489,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_preview_success_simple",
+            "value": 34.63561958912944,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_preview_success_simple_base_estimates.json",
+            "value": 34.63561958912944,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Prism_prism_for_case",
+            "value": 0.31201186325268365,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Prism_prism_for_case_base_estimates.json",
+            "value": 0.31201186325268365,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_chain_allocation_10",
+            "value": 745.0750834226087,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_chain_allocation_10_base_estimates.json",
+            "value": 745.0750834226087,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_chain_allocation_5",
+            "value": 388.27019025253105,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_chain_allocation_5_base_estimates.json",
+            "value": 388.27019025253105,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_chain_allocation_20",
+            "value": 1526.5629502727256,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_chain_allocation_20_base_estimates.json",
+            "value": 1526.5629502727256,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_delayed_execution",
+            "value": 1080017.575868628,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_delayed_execution_base_estimates.json",
+            "value": 1080017.575868628,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_creation",
+            "value": 25.943992724631894,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_creation_base_estimates.json",
+            "value": 25.943992724631894,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_future_comparison_execution",
+            "value": 99.6876392912005,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_future_comparison_execution_base_estimates.json",
+            "value": 99.6876392912005,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_chaining",
+            "value": 260.7601839509831,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_chaining_base_estimates.json",
+            "value": 260.7601839509831,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_delayed_parallel",
+            "value": 1083756.1985466972,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_delayed_parallel_base_estimates.json",
+            "value": 1083756.1985466972,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_error_handling",
+            "value": 174.77524644973346,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_error_handling_base_estimates.json",
+            "value": 174.77524644973346,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_simple_execution",
+            "value": 98.50009216932807,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_simple_execution_base_estimates.json",
+            "value": 98.50009216932807,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_future_comparison_creation",
+            "value": 13.498043179447485,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_future_comparison_creation_base_estimates.json",
+            "value": 13.498043179447485,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_future_comparison_chaining",
+            "value": 261.0540307328786,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_future_comparison_chaining_base_estimates.json",
+            "value": 261.0540307328786,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_parallel_execution",
+            "value": 196.68164260820177,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_parallel_execution_base_estimates.json",
+            "value": 196.68164260820177,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AsyncM_future_comparison_parallel",
+            "value": 203.83227859745392,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_AsyncM_future_comparison_parallel_base_estimates.json",
+            "value": 203.83227859745392,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_direct_field_access",
+            "value": 50.20681225692115,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_direct_field_access_base_estimates.json",
+            "value": 50.20681225692115,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_set_get_law",
+            "value": 251.67212309821846,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_set_get_law_base_estimates.json",
+            "value": 251.67212309821846,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_modify_focus",
+            "value": 209.53021070403403,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_modify_focus_base_estimates.json",
+            "value": 209.53021070403403,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_get_simple",
+            "value": 88.09824864329113,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_get_simple_base_estimates.json",
+            "value": 88.09824864329113,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_city_modify",
+            "value": 298.413687303023,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_city_modify_base_estimates.json",
+            "value": 298.413687303023,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_lens_field_access",
+            "value": 270.6210741246916,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_lens_field_access_base_estimates.json",
+            "value": 270.6210741246916,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_city_set",
+            "value": 235.68411046891194,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_city_set_base_estimates.json",
+            "value": 235.68411046891194,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_get_primitive",
+            "value": 84.50580095916322,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_get_primitive_base_estimates.json",
+            "value": 84.50580095916322,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_set_simple",
+            "value": 103.3882216139983,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_set_simple_base_estimates.json",
+            "value": 103.3882216139983,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_large_structure",
+            "value": 386.4268728897364,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_large_structure_base_estimates.json",
+            "value": 386.4268728897364,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_chained_operations",
+            "value": 271.1985344889149,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_chained_operations_base_estimates.json",
+            "value": 271.1985344889149,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_set_primitive",
+            "value": 78.48513150363455,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_set_primitive_base_estimates.json",
+            "value": 78.48513150363455,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_get_complex",
+            "value": 263.47193092117845,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_get_complex_base_estimates.json",
+            "value": 263.47193092117845,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_complex_modify",
+            "value": 471.9672727385597,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_complex_modify_base_estimates.json",
+            "value": 471.9672727385597,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_iso_ref",
+            "value": 88.46914077923152,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_iso_ref_base_estimates.json",
+            "value": 88.46914077923152,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_set_focus",
+            "value": 199.66854235559637,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_set_focus_base_estimates.json",
+            "value": 199.66854235559637,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_get_set_law",
+            "value": 188.52239343739726,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_get_set_law_base_estimates.json",
+            "value": 188.52239343739726,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_city_get",
+            "value": 124.82462052265639,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_city_get_base_estimates.json",
+            "value": 124.82462052265639,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_modify",
+            "value": 197.02706904157694,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_modify_base_estimates.json",
+            "value": 197.02706904157694,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_set_complex",
+            "value": 314.4515585289009,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_set_complex_base_estimates.json",
+            "value": 314.4515585289009,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_new",
+            "value": 0.3115772961196716,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_new_base_estimates.json",
+            "value": 0.3115772961196716,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_set_focus_primitive",
+            "value": 106.273311803656,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_set_focus_primitive_base_estimates.json",
+            "value": 106.273311803656,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoLens_iso_lens_modify_primitive",
+            "value": 105.90677162530338,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoLens_iso_lens_modify_primitive_base_estimates.json",
+            "value": 105.90677162530338,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_creation",
+            "value": 14.323157591224971,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_creation_base_estimates.json",
+            "value": 14.323157591224971,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_invalid_many_1",
+            "value": 44.21172673176657,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_invalid_many_1_base_estimates.json",
+            "value": 44.21172673176657,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_invalid_many_2",
+            "value": 61.96403210909686,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_invalid_many_2_base_estimates.json",
+            "value": 61.96403210909686,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_invalid_many_8",
+            "value": 249.1680382197775,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_invalid_many_8_base_estimates.json",
+            "value": 249.1680382197775,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_invalid_many_16",
+            "value": 463.20039761727696,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_invalid_many_16_base_estimates.json",
+            "value": 463.20039761727696,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_invalid_many_4",
+            "value": 97.18561953489987,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_invalid_many_4_base_estimates.json",
+            "value": 97.18561953489987,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_bulk_validation_10",
+            "value": 720.411287476856,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_bulk_validation_10_base_estimates.json",
+            "value": 720.411287476856,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_bulk_validation_50",
+            "value": 720.1186956991355,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_bulk_validation_50_base_estimates.json",
+            "value": 720.1186956991355,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_bulk_validation_90",
+            "value": 720.638239288543,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_bulk_validation_90_base_estimates.json",
+            "value": 720.638239288543,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_validated_success",
+            "value": 0.623114423948749,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_validated_success_base_estimates.json",
+            "value": 0.623114423948749,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_error_accumulation",
+            "value": 51.76459566663645,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_error_accumulation_base_estimates.json",
+            "value": 51.76459566663645,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_result_success",
+            "value": 0.6221443765222032,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_result_success_base_estimates.json",
+            "value": 0.6221443765222032,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_mixed_operations",
+            "value": 70.1464108920686,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_mixed_operations_base_estimates.json",
+            "value": 70.1464108920686,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_applicative_ops",
+            "value": 33.54160095093106,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_applicative_ops_base_estimates.json",
+            "value": 33.54160095093106,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_result_error_accumulation",
+            "value": 344.77664239981584,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_result_error_accumulation_base_estimates.json",
+            "value": 344.77664239981584,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_functor_ops",
+            "value": 38.390074073012606,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_functor_ops_base_estimates.json",
+            "value": 38.390074073012606,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Validated_validated_error_accumulation",
+            "value": 1854.6944163566995,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Validated_validated_error_accumulation_base_estimates.json",
+            "value": 1854.6944163566995,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_happy_path_eager_context",
+            "value": 1.8668547623019598,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_happy_path_eager_context_base_estimates.json",
+            "value": 1.8668547623019598,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_complex_format_happy_eager_1",
+            "value": 76.3945104921981,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_complex_format_happy_eager_1_base_estimates.json",
+            "value": 76.3945104921981,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_complex_format_happy_eager_10",
+            "value": 714.0384392575132,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_complex_format_happy_eager_10_base_estimates.json",
+            "value": 714.0384392575132,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_complex_format_happy_eager_5",
+            "value": 361.00597711189585,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_complex_format_happy_eager_5_base_estimates.json",
+            "value": 361.00597711189585,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_deep_pipeline_error_eager",
+            "value": 236.05593419427336,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_deep_pipeline_error_eager_base_estimates.json",
+            "value": 236.05593419427336,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_happy_path_lazy_context",
+            "value": 0.9359675691559403,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_happy_path_lazy_context_base_estimates.json",
+            "value": 0.9359675691559403,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_deep_pipeline_happy_lazy",
+            "value": 27.89165897344334,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_deep_pipeline_happy_lazy_base_estimates.json",
+            "value": 27.89165897344334,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_error_path_eager_context",
+            "value": 39.63310830881636,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_error_path_eager_context_base_estimates.json",
+            "value": 39.63310830881636,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_verify_lazy_evaluation",
+            "value": 4.410606488993737,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_verify_lazy_evaluation_base_estimates.json",
+            "value": 4.410606488993737,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_deep_pipeline_happy_eager",
+            "value": 77.95935504179279,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_deep_pipeline_happy_eager_base_estimates.json",
+            "value": 77.95935504179279,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_deep_pipeline_error_lazy",
+            "value": 225.72595019094243,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_deep_pipeline_error_lazy_base_estimates.json",
+            "value": 225.72595019094243,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_error_path_lazy_context",
+            "value": 38.36014742510747,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_error_path_lazy_context_base_estimates.json",
+            "value": 38.36014742510747,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_complex_format_happy_lazy_1",
+            "value": 10.86979422957237,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_complex_format_happy_lazy_1_base_estimates.json",
+            "value": 10.86979422957237,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_complex_format_happy_lazy_10",
+            "value": 10.869644754412969,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_complex_format_happy_lazy_10_base_estimates.json",
+            "value": 10.869644754412969,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LazyError_complex_format_happy_lazy_5",
+            "value": 10.878412369336093,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_LazyError_complex_format_happy_lazy_5_base_estimates.json",
+            "value": 10.878412369336093,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_std_vec_build",
+            "value": 12976.386915742198,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_std_vec_build_base_estimates.json",
+            "value": 12976.386915742198,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_std_vec_copying",
+            "value": 4351.141025982201,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_std_vec_copying_base_estimates.json",
+            "value": 4351.141025982201,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_update_random",
+            "value": 38765.57655496428,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_update_random_base_estimates.json",
+            "value": 38765.57655496428,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_creation",
+            "value": 0.9358767542815357,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_creation_base_estimates.json",
+            "value": 0.9358767542815357,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_iter_reverse_10000",
+            "value": 38719.448914337656,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_iter_reverse_10000_base_estimates.json",
+            "value": 38719.448914337656,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_iter_reverse_100000",
+            "value": 393710.78300425754,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_iter_reverse_100000_base_estimates.json",
+            "value": 393710.78300425754,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_iter_reverse_1000",
+            "value": 3926.472089964728,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_iter_reverse_1000_base_estimates.json",
+            "value": 3926.472089964728,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_update_sequential",
+            "value": 38482.60896143306,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_update_sequential_base_estimates.json",
+            "value": 38482.60896143306,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_sequential_access",
+            "value": 10789.917916679035,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_sequential_access_base_estimates.json",
+            "value": 10789.917916679035,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_pvec_sharing",
+            "value": 5144.233433806297,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_pvec_sharing_base_estimates.json",
+            "value": 5144.233433806297,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_random_access",
+            "value": 18539.172526978255,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_random_access_base_estimates.json",
+            "value": 18539.172526978255,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_pvec_access",
+            "value": 19618.371651817983,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_pvec_access_base_estimates.json",
+            "value": 19618.371651817983,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_iter_forward_10000",
+            "value": 41426.97122276412,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_iter_forward_10000_base_estimates.json",
+            "value": 41426.97122276412,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_iter_forward_100000",
+            "value": 410771.06053508987,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_iter_forward_100000_base_estimates.json",
+            "value": 410771.06053508987,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_iter_forward_1000",
+            "value": 4196.376386179462,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_iter_forward_1000_base_estimates.json",
+            "value": 4196.376386179462,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_update_after_clone",
+            "value": 652.6294709335696,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_update_after_clone_base_estimates.json",
+            "value": 652.6294709335696,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_concurrent_read",
+            "value": 164024.76488662415,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_concurrent_read_base_estimates.json",
+            "value": 164024.76488662415,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_pop_back",
+            "value": 32207.061968450234,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_pop_back_base_estimates.json",
+            "value": 32207.061968450234,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_std_vec_access",
+            "value": 1865.462921625313,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_std_vec_access_base_estimates.json",
+            "value": 1865.462921625313,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_push_back_10000",
+            "value": 1061924.7771166258,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_push_back_10000_base_estimates.json",
+            "value": 1061924.7771166258,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_push_back_10",
+            "value": 442.8021131672883,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_push_back_10_base_estimates.json",
+            "value": 442.8021131672883,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_push_back_100",
+            "value": 6780.719920562436,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_push_back_100_base_estimates.json",
+            "value": 6780.719920562436,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_push_back_1000",
+            "value": 100705.03199361695,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_push_back_1000_base_estimates.json",
+            "value": 100705.03199361695,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_concurrent_modifications",
+            "value": 170301.09694139846,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_concurrent_modifications_base_estimates.json",
+            "value": 170301.09694139846,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_clone_large",
+            "value": 4.406424505882461,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_clone_large_base_estimates.json",
+            "value": 4.406424505882461,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_indexed_access_10000",
+            "value": 156360.64477488783,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_indexed_access_10000_base_estimates.json",
+            "value": 156360.64477488783,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_indexed_access_100000",
+            "value": 2373593.193333333,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_indexed_access_100000_base_estimates.json",
+            "value": 2373593.193333333,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_indexed_access_1000",
+            "value": 8752.202679915885,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_indexed_access_1000_base_estimates.json",
+            "value": 8752.202679915885,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "PersistentVector_pvec_build",
+            "value": 14804.673708193337,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_PersistentVector_pvec_build_base_estimates.json",
+            "value": 14804.673708193337,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_modify_always",
+            "value": 54.19948056101485,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_modify_always_base_estimates.json",
+            "value": 54.19948056101485,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_complex_modification",
+            "value": 553.1809424427955,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_complex_modification_base_estimates.json",
+            "value": 553.1809424427955,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_modify_no_change",
+            "value": 41.43772108354963,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_modify_no_change_base_estimates.json",
+            "value": 41.43772108354963,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_set_different_value",
+            "value": 66.87466854357444,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_set_different_value_base_estimates.json",
+            "value": 66.87466854357444,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_structural_sharing_benefit",
+            "value": 70.13542809690513,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_structural_sharing_benefit_base_estimates.json",
+            "value": 70.13542809690513,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_get_large_data",
+            "value": 228.18964312969513,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_get_large_data_base_estimates.json",
+            "value": 228.18964312969513,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_metadata_modify",
+            "value": 379.7033180683986,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_metadata_modify_base_estimates.json",
+            "value": 379.7033180683986,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_set_always",
+            "value": 54.39238678162065,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_set_always_base_estimates.json",
+            "value": 54.39238678162065,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_modify_large_data",
+            "value": 483.2126458482712,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_modify_large_data_base_estimates.json",
+            "value": 483.2126458482712,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_chained_operations",
+            "value": 91.72878445995212,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_chained_operations_base_estimates.json",
+            "value": 91.72878445995212,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_no_structural_sharing",
+            "value": 54.10931260967099,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_no_structural_sharing_base_estimates.json",
+            "value": 54.10931260967099,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_modify_with_change",
+            "value": 54.293484076193806,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_modify_with_change_base_estimates.json",
+            "value": 54.293484076193806,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_set_large_struct",
+            "value": 120.6842061644475,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_set_large_struct_base_estimates.json",
+            "value": 120.6842061644475,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_get_simple",
+            "value": 52.83579114731908,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_get_simple_base_estimates.json",
+            "value": 52.83579114731908,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_modify_string",
+            "value": 139.10123257629328,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_modify_string_base_estimates.json",
+            "value": 139.10123257629328,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_set_same_value",
+            "value": 69.9671070795007,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_set_same_value_base_estimates.json",
+            "value": 69.9671070795007,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_set_primitive",
+            "value": 52.75804115746014,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_set_primitive_base_estimates.json",
+            "value": 52.75804115746014,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_metadata_set",
+            "value": 164.8618536986022,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_metadata_set_base_estimates.json",
+            "value": 164.8618536986022,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_get_primitive",
+            "value": 36.41546415799581,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_get_primitive_base_estimates.json",
+            "value": 36.41546415799581,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_metadata_get",
+            "value": 181.58565057883845,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_metadata_get_base_estimates.json",
+            "value": 181.58565057883845,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Lens_lens_new",
+            "value": 0.31142446471787855,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Lens_lens_new_base_estimates.json",
+            "value": 0.31142446471787855,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_preview_failure",
+            "value": 20.936712585719377,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_preview_failure_base_estimates.json",
+            "value": 20.936712585719377,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_object_data",
+            "value": 63.14526922545428,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_object_data_base_estimates.json",
+            "value": 63.14526922545428,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_new_generic",
+            "value": 0.3116930148061385,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_new_generic_base_estimates.json",
+            "value": 0.3116930148061385,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_review_simple",
+            "value": 46.898043123409934,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_review_simple_base_estimates.json",
+            "value": 46.898043123409934,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_preview_success_complex",
+            "value": 34.89294359284334,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_preview_success_complex_base_estimates.json",
+            "value": 34.89294359284334,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_preview_success_primitive",
+            "value": 14.562484308866114,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_preview_success_primitive_base_estimates.json",
+            "value": 14.562484308866114,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_large_text_review",
+            "value": 1539.0965600254974,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_large_text_review_base_estimates.json",
+            "value": 1539.0965600254974,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_preview_failure_generic",
+            "value": 3.4294050437633734,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_preview_failure_generic_base_estimates.json",
+            "value": 3.4294050437633734,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_composition_chain",
+            "value": 56.64640551015143,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_composition_chain_base_estimates.json",
+            "value": 56.64640551015143,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_preview_success_generic",
+            "value": 35.60896130197092,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_preview_success_generic_base_estimates.json",
+            "value": 35.60896130197092,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_large_text_preview",
+            "value": 799.1224431126844,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_large_text_preview_base_estimates.json",
+            "value": 799.1224431126844,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_error_handling",
+            "value": 83.29852054563588,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_error_handling_base_estimates.json",
+            "value": 83.29852054563588,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_preview_failure_wrong_variant",
+            "value": 30.25277635390428,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_preview_failure_wrong_variant_base_estimates.json",
+            "value": 30.25277635390428,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_roundtrip_complex",
+            "value": 80.8769439495862,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_roundtrip_complex_base_estimates.json",
+            "value": 80.8769439495862,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_new",
+            "value": 0.31156129489515144,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_new_base_estimates.json",
+            "value": 0.31156129489515144,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_nested_enum",
+            "value": 128.05708621685073,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_nested_enum_base_estimates.json",
+            "value": 128.05708621685073,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_multiple_previews",
+            "value": 40.79929427173926,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_multiple_previews_base_estimates.json",
+            "value": 40.79929427173926,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_roundtrip_generic",
+            "value": 70.87079449660087,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_roundtrip_generic_base_estimates.json",
+            "value": 70.87079449660087,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_review_primitive",
+            "value": 4.677394135133954,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_review_primitive_base_estimates.json",
+            "value": 4.677394135133954,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_float_data",
+            "value": 12.007730926438494,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_float_data_base_estimates.json",
+            "value": 12.007730926438494,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_composition_setup",
+            "value": 0.3118997966790141,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_composition_setup_base_estimates.json",
+            "value": 0.3118997966790141,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_preview_success_simple",
+            "value": 39.59787527624734,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_preview_success_simple_base_estimates.json",
+            "value": 39.59787527624734,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_parse_error",
+            "value": 2.5123634830186266,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_parse_error_base_estimates.json",
+            "value": 2.5123634830186266,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_roundtrip_success",
+            "value": 70.20264328137019,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_roundtrip_success_base_estimates.json",
+            "value": 70.20264328137019,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_review_complex",
+            "value": 50.25565401835492,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_review_complex_base_estimates.json",
+            "value": 50.25565401835492,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_connection_error",
+            "value": 42.27488279304027,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_connection_error_base_estimates.json",
+            "value": 42.27488279304027,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IsoPrism_iso_prism_review_generic",
+            "value": 47.73659477267159,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IsoPrism_iso_prism_review_generic_base_estimates.json",
+            "value": 47.73659477267159,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "State_put",
+            "value": 13.71388766337818,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_State_put_base_estimates.json",
+            "value": 13.71388766337818,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "State_modify",
+            "value": 13.72132314456047,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_State_modify_base_estimates.json",
+            "value": 13.72132314456047,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "State_creation_and_run",
+            "value": 13.70063553692757,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_State_creation_and_run_base_estimates.json",
+            "value": 13.70063553692757,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "State_get",
+            "value": 13.697276825402485,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_State_get_base_estimates.json",
+            "value": 13.697276825402485,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "State_bind_chain",
+            "value": 85.31472241090133,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_State_bind_chain_base_estimates.json",
+            "value": 85.31472241090133,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_fmap",
+            "value": 6.529187684408491,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_fmap_base_estimates.json",
+            "value": 6.529187684408491,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_to_result",
+            "value": 6.530440580430235,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_to_result_base_estimates.json",
+            "value": 6.530440580430235,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_right_or",
+            "value": 12.771680003047706,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_right_or_base_estimates.json",
+            "value": 12.771680003047706,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_left_creation",
+            "value": 6.531880810479552,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_left_creation_base_estimates.json",
+            "value": 6.531880810479552,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_is_right",
+            "value": 12.759051286568903,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_is_right_base_estimates.json",
+            "value": 12.759051286568903,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_fmap_left",
+            "value": 6.531284027287184,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_fmap_left_base_estimates.json",
+            "value": 6.531284027287184,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_is_left",
+            "value": 0.9338746906500055,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_is_left_base_estimates.json",
+            "value": 0.9338746906500055,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_lift2",
+            "value": 6.841510693220065,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_lift2_base_estimates.json",
+            "value": 6.841510693220065,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_apply",
+            "value": 6.5321336339607114,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_apply_base_estimates.json",
+            "value": 6.5321336339607114,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_bind",
+            "value": 6.532518843661292,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_bind_base_estimates.json",
+            "value": 6.532518843661292,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Either_either_right_creation",
+            "value": 13.410063756338428,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Either_either_right_creation_base_estimates.json",
+            "value": 13.410063756338428,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_empty",
+            "value": 1.8670008098363224,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_empty_base_estimates.json",
+            "value": 1.8670008098363224,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_fmap",
+            "value": 0.9334162788230097,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_fmap_base_estimates.json",
+            "value": 0.9334162788230097,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_lift2",
+            "value": 1.2448752539477297,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_lift2_base_estimates.json",
+            "value": 1.2448752539477297,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_bind",
+            "value": 0.9341712080422728,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_bind_base_estimates.json",
+            "value": 0.9341712080422728,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_fmap_owned",
+            "value": 0.9332232748926554,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_fmap_owned_base_estimates.json",
+            "value": 0.9332232748926554,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_combine",
+            "value": 54.77480405301744,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_combine_base_estimates.json",
+            "value": 54.77480405301744,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_extract",
+            "value": 0.9329175274956747,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_extract_base_estimates.json",
+            "value": 0.9329175274956747,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_apply",
+            "value": 0.9335174612261241,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_apply_base_estimates.json",
+            "value": 0.9335174612261241,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_into_inner",
+            "value": 0.9329555832964616,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_into_inner_base_estimates.json",
+            "value": 0.9329555832964616,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_extend",
+            "value": 0.9328952545739049,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_extend_base_estimates.json",
+            "value": 0.9328952545739049,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_new",
+            "value": 0.9328349171991033,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_new_base_estimates.json",
+            "value": 0.9328349171991033,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_from_ref",
+            "value": 0.936641733832793,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_from_ref_base_estimates.json",
+            "value": 0.936641733832793,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_join",
+            "value": 0.9331948708374767,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_join_base_estimates.json",
+            "value": 0.9331948708374767,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_then",
+            "value": 13.076214531465698,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_then_base_estimates.json",
+            "value": 13.076214531465698,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_value",
+            "value": 0.9327339676096257,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_value_base_estimates.json",
+            "value": 0.9327339676096257,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Id_id_duplicate",
+            "value": 0.9328200439524132,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Id_id_duplicate_base_estimates.json",
+            "value": 0.9328200439524132,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Reader_special_ops",
+            "value": 129.65270380932523,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Reader_special_ops_base_estimates.json",
+            "value": 129.65270380932523,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Reader_creation",
+            "value": 13.63161251054652,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Reader_creation_base_estimates.json",
+            "value": 13.63161251054652,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Reader_monad_ops",
+            "value": 133.90679429183163,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Reader_monad_ops_base_estimates.json",
+            "value": 133.90679429183163,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Reader_applicative_ops",
+            "value": 125.84100580678833,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Reader_applicative_ops_base_estimates.json",
+            "value": 125.84100580678833,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Reader_functor_ops",
+            "value": 46.292654484232905,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Reader_functor_ops_base_estimates.json",
+            "value": 46.292654484232905,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_deep_pipeline",
+            "value": 426.5554246531617,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_deep_pipeline_base_estimates.json",
+            "value": 426.5554246531617,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_result_to_composable",
+            "value": 8.71129281862714,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_result_to_composable_base_estimates.json",
+            "value": 8.71129281862714,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_simple_pipeline",
+            "value": 56.37446064956939,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_simple_pipeline_base_estimates.json",
+            "value": 56.37446064956939,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_with_context_chained",
+            "value": 93.24928917644438,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_with_context_chained_base_estimates.json",
+            "value": 93.24928917644438,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_bulk_context_addition_10",
+            "value": 282.5212887186011,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_bulk_context_addition_10_base_estimates.json",
+            "value": 282.5212887186011,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_bulk_context_addition_50",
+            "value": 1796.5304388495947,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_bulk_context_addition_50_base_estimates.json",
+            "value": 1796.5304388495947,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_bulk_context_addition_100",
+            "value": 4433.078875950549,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_bulk_context_addition_100_base_estimates.json",
+            "value": 4433.078875950549,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_with_context_single",
+            "value": 28.111032215400545,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_with_context_single_base_estimates.json",
+            "value": 28.111032215400545,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_context_copy",
+            "value": 1673.8210646566574,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_context_copy_base_estimates.json",
+            "value": 1673.8210646566574,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_inline_storage",
+            "value": 106.95689672526917,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_inline_storage_base_estimates.json",
+            "value": 106.95689672526917,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_context_accumulation_1",
+            "value": 64.25961019746552,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_context_accumulation_1_base_estimates.json",
+            "value": 64.25961019746552,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_context_accumulation_10",
+            "value": 771.3544576077828,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_context_accumulation_10_base_estimates.json",
+            "value": 771.3544576077828,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_context_accumulation_50",
+            "value": 3600.924413779707,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_context_accumulation_50_base_estimates.json",
+            "value": 3600.924413779707,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_context_accumulation_100",
+            "value": 7756.431510239679,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_context_accumulation_100_base_estimates.json",
+            "value": 7756.431510239679,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_error_chain_formatting_1",
+            "value": 102.33247605156103,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_error_chain_formatting_1_base_estimates.json",
+            "value": 102.33247605156103,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_error_chain_formatting_10",
+            "value": 206.9615183566252,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_error_chain_formatting_10_base_estimates.json",
+            "value": 206.9615183566252,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_error_chain_formatting_50",
+            "value": 588.3424535930575,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_error_chain_formatting_50_base_estimates.json",
+            "value": 588.3424535930575,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_context_iter",
+            "value": 0.6225328656996646,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_context_iter_base_estimates.json",
+            "value": 0.6225328656996646,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_context_iter_collect",
+            "value": 21.239177732436744,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_context_iter_collect_base_estimates.json",
+            "value": 21.239177732436744,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_composable_with_context",
+            "value": 45.78029747113322,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_composable_with_context_base_estimates.json",
+            "value": 45.78029747113322,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_heap_storage",
+            "value": 624.8175449430897,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_heap_storage_base_estimates.json",
+            "value": 624.8175449430897,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_deep_context_chain_500",
+            "value": 40651.68063155535,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_deep_context_chain_500_base_estimates.json",
+            "value": 40651.68063155535,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_deep_context_chain_100",
+            "value": 7780.678760206995,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_deep_context_chain_100_base_estimates.json",
+            "value": 7780.678760206995,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ComposableError_deep_context_chain_1000",
+            "value": 70022.68508594978,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_ComposableError_deep_context_chain_1000_base_estimates.json",
+            "value": 70022.68508594978,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Choice_special_ops",
+            "value": 170.714590082967,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Choice_special_ops_base_estimates.json",
+            "value": 170.714590082967,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Choice_creation",
+            "value": 22.171856637610517,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Choice_creation_base_estimates.json",
+            "value": 22.171856637610517,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Choice_alternative_ops",
+            "value": 15.408933226003148,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Choice_alternative_ops_base_estimates.json",
+            "value": 15.408933226003148,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Choice_monad_ops",
+            "value": 106.02307751625185,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Choice_monad_ops_base_estimates.json",
+            "value": 106.02307751625185,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Choice_applicative_ops",
+            "value": 159.92634647517363,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Choice_applicative_ops_base_estimates.json",
+            "value": 159.92634647517363,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Choice_functor_ops",
+            "value": 44.427717170374656,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Choice_functor_ops_base_estimates.json",
+            "value": 44.427717170374656,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_chain_operations",
+            "value": 113.3761573116943,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_chain_operations_base_estimates.json",
+            "value": 113.3761573116943,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_run_complex",
+            "value": 157.82652291694046,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_run_complex_base_estimates.json",
+            "value": 157.82652291694046,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_run",
+            "value": 28.00545544888951,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_run_base_estimates.json",
+            "value": 28.00545544888951,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_return_cont",
+            "value": 24.15383892330933,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_return_cont_base_estimates.json",
+            "value": 24.15383892330933,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_new",
+            "value": 24.003076704555806,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_new_base_estimates.json",
+            "value": 24.003076704555806,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_bind",
+            "value": 57.47542034923153,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_bind_base_estimates.json",
+            "value": 57.47542034923153,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_call_cc_run",
+            "value": 108.20211602866469,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_call_cc_run_base_estimates.json",
+            "value": 108.20211602866469,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_fmap",
+            "value": 57.52320470788765,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_fmap_base_estimates.json",
+            "value": 57.52320470788765,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_pure",
+            "value": 24.162570853384118,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_pure_base_estimates.json",
+            "value": 24.162570853384118,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_chain_and_run",
+            "value": 234.81943951118978,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_chain_and_run_base_estimates.json",
+            "value": 234.81943951118978,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_apply",
+            "value": 72.99948604458669,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_apply_base_estimates.json",
+            "value": 72.99948604458669,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cont_cont_call_cc",
+            "value": 60.00885595355634,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Cont_cont_call_cc_base_estimates.json",
+            "value": 60.00885595355634,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_apply_pure_effect",
+            "value": 30.686408032939234,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_apply_pure_effect_base_estimates.json",
+            "value": 30.686408032939234,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_fmap_pure_run",
+            "value": 0.9328943877632898,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_fmap_pure_run_base_estimates.json",
+            "value": 0.9328943877632898,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_apply_pure_pure_run",
+            "value": 0.9333970041266986,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_apply_pure_pure_run_base_estimates.json",
+            "value": 0.9333970041266986,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_new",
+            "value": 14.056959095862675,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_new_base_estimates.json",
+            "value": 14.056959095862675,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_run",
+            "value": 0.9341397487140086,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_run_base_estimates.json",
+            "value": 0.9341397487140086,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_delay_sync",
+            "value": 14.506928695325833,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_delay_sync_base_estimates.json",
+            "value": 14.506928695325833,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_nested_bind_effect_chain",
+            "value": 118.9938457830414,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_nested_bind_effect_chain_base_estimates.json",
+            "value": 118.9938457830414,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_apply_pure_pure",
+            "value": 6.530345200888423,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_apply_pure_pure_base_estimates.json",
+            "value": 6.530345200888423,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_bind_effect_pure",
+            "value": 32.43518470178978,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_bind_effect_pure_base_estimates.json",
+            "value": 32.43518470178978,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_try_get_with_context",
+            "value": 13.738809704420467,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_try_get_with_context_base_estimates.json",
+            "value": 13.738809704420467,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_chain_pure_run",
+            "value": 1.5545452857754731,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_chain_pure_run_base_estimates.json",
+            "value": 1.5545452857754731,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_fmap_pure",
+            "value": 6.626618467158377,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_fmap_pure_base_estimates.json",
+            "value": 6.626618467158377,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_apply_effect_pure",
+            "value": 32.219605681184056,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_apply_effect_pure_base_estimates.json",
+            "value": 32.219605681184056,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_bind_pure_pure",
+            "value": 6.5351599218756,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_bind_pure_pure_base_estimates.json",
+            "value": 6.5351599218756,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_apply_effect_effect",
+            "value": 43.273956530578815,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_apply_effect_effect_base_estimates.json",
+            "value": 43.273956530578815,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_delay_sync_run",
+            "value": 61062.87006362876,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_delay_sync_run_base_estimates.json",
+            "value": 61062.87006362876,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_complex_computation",
+            "value": 14.76124673577746,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_complex_computation_base_estimates.json",
+            "value": 14.76124673577746,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_bind_pure_pure_run",
+            "value": 0.9325655274893455,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_bind_pure_pure_run_base_estimates.json",
+            "value": 0.9325655274893455,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_chain_pure_operations",
+            "value": 6.526338413412714,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_chain_pure_operations_base_estimates.json",
+            "value": 6.526338413412714,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_fmap_effect",
+            "value": 32.410188399238564,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_fmap_effect_base_estimates.json",
+            "value": 32.410188399238564,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_chain_mixed_operations",
+            "value": 77.24820221150848,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_chain_mixed_operations_base_estimates.json",
+            "value": 77.24820221150848,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_pure",
+            "value": 6.527936371330029,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_pure_base_estimates.json",
+            "value": 6.527936371330029,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_run_with_computation",
+            "value": 14.00726291403469,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_run_with_computation_base_estimates.json",
+            "value": 14.00726291403469,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_nested_bind_pure_only",
+            "value": 1.5539683234872856,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_nested_bind_pure_only_base_estimates.json",
+            "value": 1.5539683234872856,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_fmap_effect_run",
+            "value": 34.763963476769234,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_fmap_effect_run_base_estimates.json",
+            "value": 34.763963476769234,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_bind_pure_effect",
+            "value": 14.469105468874812,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_bind_pure_effect_base_estimates.json",
+            "value": 14.469105468874812,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "IO_io_try_get_success",
+            "value": 13.73345427966494,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_IO_io_try_get_success_base_estimates.json",
+            "value": 13.73345427966494,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Writer_special_ops",
+            "value": 12.996264421237793,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Writer_special_ops_base_estimates.json",
+            "value": 12.996264421237793,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Writer_creation",
+            "value": 13.513538911525043,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Writer_creation_base_estimates.json",
+            "value": 13.513538911525043,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Writer_monad_ops",
+            "value": 166.72793590737805,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Writer_monad_ops_base_estimates.json",
+            "value": 166.72793590737805,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Writer_functor_ops",
+            "value": 35.21403063334168,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_Writer_functor_ops_base_estimates.json",
+            "value": 35.21403063334168,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "maybe_memory_layout",
+            "value": 0.4671552389152715,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_maybe_memory_layout_base_estimates.json",
+            "value": 0.4671552389152715,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "maybe_monad",
+            "value": 1.090715481381196,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_maybe_monad_base_estimates.json",
+            "value": 1.090715481381196,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "maybe_pipeline",
+            "value": 43.04111455686534,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_maybe_pipeline_base_estimates.json",
+            "value": 43.04111455686534,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "maybe_functor",
+            "value": 1.0891910835830416,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_maybe_functor_base_estimates.json",
+            "value": 1.0891910835830416,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "maybe_basic_ops",
+            "value": 0.9349355302976008,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_maybe_basic_ops_base_estimates.json",
+            "value": 0.9349355302976008,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "maybe_applicative",
+            "value": 1.3534978086953569,
+            "unit": "ns/iter"
+          },
+          {
+            "name": "target_criterion_maybe_applicative_base_estimates.json",
+            "value": 1.3534978086953569,
             "unit": "ns/iter"
           }
         ]
