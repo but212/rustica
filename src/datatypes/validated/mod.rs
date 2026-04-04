@@ -188,9 +188,15 @@
 //! - Using applicative validation for form validation
 //!
 //! Please refer to the documentation of individual functions in this module.
+pub mod accessors;
+pub mod async_ops;
+pub mod combinators;
+pub mod conversions;
 pub mod core;
 pub mod iter;
+pub mod recovery;
 pub mod traits;
 
-pub use core::*;
+pub use core::Validated;
+pub use core::ErrorVec;
 pub use iter::*;
