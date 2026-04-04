@@ -46,12 +46,8 @@ fn address_rc_lens() -> PersonAddressRcLens {
     )
 }
 
-type AddressStreetLens = Lens<
-    Address,
-    String,
-    Box<dyn Fn(&Address) -> String>,
-    Box<dyn Fn(Address, String) -> Address>,
->;
+type AddressStreetLens =
+    Lens<Address, String, Box<dyn Fn(&Address) -> String>, Box<dyn Fn(Address, String) -> Address>>;
 
 fn street_lens() -> AddressStreetLens {
     Lens::new(
@@ -60,12 +56,8 @@ fn street_lens() -> AddressStreetLens {
     )
 }
 
-type PersonAddressValLens = Lens<
-    Person,
-    Address,
-    Box<dyn Fn(&Person) -> Address>,
-    Box<dyn Fn(Person, Address) -> Person>,
->;
+type PersonAddressValLens =
+    Lens<Person, Address, Box<dyn Fn(&Person) -> Address>, Box<dyn Fn(Person, Address) -> Person>>;
 
 fn address_val_lens() -> PersonAddressValLens {
     Lens::new(
