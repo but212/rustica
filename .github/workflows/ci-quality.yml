@@ -1,0 +1,66 @@
+name: CI Quality
+
+on:
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings -A deprecated"
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  quality:
+    name: Code Quality and Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. formatting check
+      - name: Install Rust stable (fmt, clippy)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      # 2. cache setting
+      - uses: Swatinem/rust-cache@v2
+
+      # 3. Clippy lint
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      # 4. MSRV check
+      - name: Extract and Check MSRV
+        run: |
+          MSRV=$(grep -A 1 "\[package.metadata\]" Cargo.toml | grep -m 1 "msrv" | cut -d '"' -f 2)
+          if [ -z "$MSRV" ]; then MSRV="1.88.0"; fi
+          echo "Checking with MSRV: $MSRV"
+          rustup toolchain install $MSRV --profile minimal
+          cargo +$MSRV check --all-features
+
+      # 5. security audit
+      - name: Install security tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit,cargo-deny
+
+      - name: Run security audit
+        run: cargo audit
+
+      - name: Run cargo-deny
+        run: cargo deny check
+
+      # 6. documentation link check
+      - name: Install nightly for docs
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
+          components: rust-docs
+
+      - name: Build documentation (check links)
+        run: |
+          RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links --cfg docsrs" \
+          cargo +nightly doc --all-features --no-deps
