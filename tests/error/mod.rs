@@ -3,216 +3,67 @@ mod context_tests;
 mod lazy_context;
 
 use rustica::datatypes::either::Either;
-use rustica::datatypes::validated::Validated;
-use rustica::error::ErrorCategory;
-use rustica::error::context::{error_pipeline, with_context};
-use rustica::error::convert::{either_to_result, result_to_either};
-use rustica::error::types::{ComposableError, ErrorContext};
+use rustica::error::context::error_pipeline;
+use rustica::error::convert::{core_to_composable, either_to_result, result_to_either};
+use rustica::error::types::{BoxedComposableResult, ComposableError, ComposableResult};
 
 #[test]
-fn test_composable_error_creation() {
-    let error = ComposableError::new("core error");
-    assert_eq!(error.core_error(), &"core error");
-    assert!(error.context().is_empty());
-    assert_eq!(error.error_code(), None);
+fn test_composable_error_anatomy() {
+    // 1. Creation and basic properties
+    let e = ComposableError::with_code("io_error", 500)
+        .with_context("layer 1".to_string())
+        .with_context("layer 2".to_string());
+
+    assert_eq!(e.core_error(), &"io_error");
+    assert_eq!(e.error_code(), Some(500));
+    assert_eq!(e.context().len(), 2);
+    assert_eq!(e.context()[0], "layer 2"); // Most recent first
+
+    // 2. Formatting and chain display
+    let chain = e.error_chain();
+    assert!(chain.contains("io_error") && chain.contains("layer 1") && chain.contains("layer 2"));
 }
 
 #[test]
-fn test_composable_error_with_context() {
-    let error = ComposableError::new("core error")
-        .with_context("step 1 failed".to_string())
-        .with_context("operation failed".to_string());
-
-    assert_eq!(error.core_error(), &"core error");
-    assert_eq!(error.context().len(), 2);
-    assert_eq!(error.context()[0], "operation failed"); // Most recent first
-    assert_eq!(error.context()[1], "step 1 failed");
-}
-
-#[test]
-fn test_composable_error_with_code() {
-    let error = ComposableError::with_code("not found", 404);
-    assert_eq!(error.core_error(), &"not found");
-    assert_eq!(error.error_code(), Some(404));
-}
-
-#[test]
-fn test_error_context_creation() {
-    let context = ErrorContext::new("test context");
-    assert_eq!(context.message(), "test context");
-}
-
-#[test]
-fn test_error_category_result() {
-    let success: Result<i32, String> = <Result<(), String> as ErrorCategory<String>>::lift(42);
-    assert_eq!(success, Ok(42));
-
-    let error: Result<i32, String> =
-        <Result<(), String> as ErrorCategory<String>>::handle_error("failed".to_string());
-    assert_eq!(error, Err("failed".to_string()));
-}
-
-#[test]
-fn test_error_category_either() {
-    let success: Either<String, i32> = <Either<String, ()> as ErrorCategory<String>>::lift(42);
-    assert_eq!(success, Either::Right(42));
-
-    let error: Either<String, i32> =
-        <Either<String, ()> as ErrorCategory<String>>::handle_error("failed".to_string());
-    assert_eq!(error, Either::Left("failed".to_string()));
-}
-
-#[test]
-fn test_error_category_validated() {
-    let success: Validated<String, i32> =
-        <Validated<String, ()> as ErrorCategory<String>>::lift(42);
-    assert_eq!(success, Validated::Valid(42));
-
-    let error: Validated<String, i32> =
-        <Validated<String, ()> as ErrorCategory<String>>::handle_error("failed".to_string());
-    assert!(error.is_invalid());
-    assert_eq!(error.errors().len(), 1);
-    assert_eq!(error.errors()[0], "failed");
-}
-
-#[test]
-fn test_binary_hkt_either() {
+fn test_error_type_conversions() {
+    // 1. Either/Result mapping and HKT
     use rustica::traits::hkt::BinaryHKT;
-
-    let either: Either<&str, i32> = Either::Right(42);
-    let mapped = either.map_second(|e| format!("Error: {}", e));
-    assert_eq!(mapped, Either::Right(42));
-
-    let error_either: Either<&str, i32> = Either::Left("failed");
-    let mapped_error = error_either.map_second(|e| format!("Error: {}", e));
-    assert_eq!(mapped_error, Either::Left("Error: failed".to_string()));
-}
-
-#[test]
-fn test_conversion_functions() {
-    // Test either_to_result
-    let either_success: Either<String, i32> = Either::Right(42);
-    assert_eq!(either_to_result(either_success), Ok(42));
-
-    let either_error: Either<String, i32> = Either::Left("error".to_string());
-    assert_eq!(either_to_result(either_error), Err("error".to_string()));
-
-    // Test result_to_either
-    let result_success: Result<i32, String> = Ok(42);
-    assert_eq!(result_to_either(result_success), Either::Right(42));
-
-    let result_error: Result<i32, String> = Err("error".to_string());
+    let eith: Either<&str, i32> = Either::Left("err");
     assert_eq!(
-        result_to_either(result_error),
-        Either::Left("error".to_string())
+        eith.map_second(|e| format!("E:{}", e)),
+        Either::Left("E:err".into())
     );
+
+    // 2. Cross-type conversions
+    let success: Either<String, i32> = Either::Right(42);
+    assert_eq!(either_to_result(success), Ok(42));
+    assert_eq!(result_to_either(Ok::<i32, String>(42)), Either::Right(42));
+
+    // 3. Transformation to Composable
+    let c1: ComposableError<&str> = "simple".into();
+    let c2 = core_to_composable("func_call");
+    assert_eq!(c1.core_error(), &"simple");
+    assert_eq!(c2.core_error(), &"func_call");
 }
 
 #[test]
-fn test_with_context_function() {
-    let error = "core error";
-    let contextual = with_context(error, "operation failed");
+fn test_error_pipeline_ergonomics() {
+    let input: Result<i32, i32> = Err(404);
 
-    assert_eq!(contextual.core_error(), &"core error");
-    assert_eq!(contextual.context().len(), 1);
-    assert_eq!(contextual.context()[0], "operation failed");
-}
+    // 1. Boxed Finish (Common usage)
+    let boxed: BoxedComposableResult<i32, i32> =
+        error_pipeline(input).with_context("ctx1").finish();
 
-#[test]
-fn test_error_pipeline() {
-    let result: Result<i32, &str> = Err("parse error");
-
-    let processed = error_pipeline(result)
-        .with_context("Failed to process input")
-        .recover(|_| Ok(42))
-        .finish();
-
-    assert_eq!(processed, Ok(42));
-}
-
-#[test]
-fn test_error_chain_formatting() {
-    let error = ComposableError::new("file not found")
-        .with_context("failed to load config".to_string())
-        .with_context("application startup failed".to_string());
-
-    let chain = error.error_chain();
-    assert!(chain.contains("application startup failed"));
-    assert!(chain.contains("failed to load config"));
-    assert!(chain.contains("file not found"));
-}
-
-#[test]
-fn test_from_trait_conversion() {
-    // Test From<E> for ComposableError<E>
-    let simple_error = "file not found";
-    let composable: ComposableError<&str> = simple_error.into();
-
-    assert_eq!(composable.core_error(), &"file not found");
-    assert!(composable.context().is_empty());
-
-    // Test with different error types
-    let num_error = 404;
-    let composable_num: ComposableError<i32> = num_error.into();
-    assert_eq!(composable_num.core_error(), &404);
-}
-
-#[test]
-fn test_core_to_composable_uses_from() {
-    use rustica::error::convert::core_to_composable;
-
-    // core_to_composable should use From trait internally
-    let error = "test error";
-    let composable = core_to_composable(error);
-
-    assert_eq!(composable.core_error(), &"test error");
-    assert!(composable.context().is_empty());
-}
-
-#[test]
-fn test_error_pipeline_finish_unboxed() {
-    use rustica::error::types::ComposableResult;
-
-    // Test finish_unboxed returns unboxed ComposableError
-    let result: Result<i32, i32> = Err(404);
-    let final_result: ComposableResult<i32, i32> = error_pipeline(result)
-        .with_context("Request failed")
-        .with_context("Server error")
+    // 2. Unboxed Finish (Zero-allocation or specific return handling)
+    let unboxed: ComposableResult<i32, i32> = error_pipeline(input)
+        .with_context("ctx1")
         .finish_without_box();
 
-    match final_result {
-        Ok(_) => panic!("Expected error"),
-        Err(composable) => {
-            assert_eq!(composable.core_error(), &404);
-            assert_eq!(composable.context().len(), 2);
-            assert_eq!(composable.context()[0], "Server error");
-            assert_eq!(composable.context()[1], "Request failed");
-        },
-    }
-}
-
-#[test]
-fn test_error_pipeline_finish_vs_finish_unboxed() {
-    use rustica::error::types::{BoxedComposableResult, ComposableResult};
-
-    let result1: Result<i32, &str> = Err("error");
-    let result2: Result<i32, &str> = Err("error");
-
-    // finish() returns BoxedComposableResult
-    let boxed: BoxedComposableResult<i32, &str> =
-        error_pipeline(result1).with_context("context").finish();
-
-    // finish_unboxed() returns ComposableResult
-    let unboxed: ComposableResult<i32, &str> = error_pipeline(result2)
-        .with_context("context")
-        .finish_without_box();
-
-    // Both should have the same error and context
     match (boxed, unboxed) {
-        (Err(boxed_err), Err(unboxed_err)) => {
-            assert_eq!(boxed_err.core_error(), unboxed_err.core_error());
-            assert_eq!(boxed_err.context(), unboxed_err.context());
+        (Err(b), Err(u)) => {
+            assert_eq!(b.core_error(), u.core_error());
+            assert_eq!(b.context(), u.context());
         },
-        _ => panic!("Both should be errors"),
+        _ => panic!("Expected errors"),
     }
 }

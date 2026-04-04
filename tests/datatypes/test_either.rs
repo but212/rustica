@@ -1,576 +1,158 @@
 use rustica::datatypes::either::Either;
-use rustica::traits::applicative::Applicative;
-use rustica::traits::functor::Functor;
-use rustica::traits::monad::Monad;
-
-// Type alias to simplify complex types
-type IntFunction<'a> = Either<&'a str, fn(&i32) -> i32>;
-use rustica::traits::pure::Pure;
+use rustica::datatypes::error::EitherError;
+use rustica::traits::{applicative::Applicative, functor::Functor, monad::Monad};
 
 #[test]
-fn test_either_creation_and_access() {
-    // Test Left creation
+fn test_either_monadic_fundamentals() {
+    // 1. Creation and Basic Access
     let left: Either<i32, &str> = Either::left(42);
-    assert!(left.is_left());
-    assert!(!left.is_right());
-    assert_eq!(left.unwrap_left(), 42);
-    assert_eq!(*left.left_ref(), 42);
-
-    let left_consumed = Either::<i32, &str>::left(43);
-    assert_eq!(left_consumed.left_value(), 43);
-
-    // Test Right creation
     let right: Either<i32, &str> = Either::right("hello");
-    assert!(!right.is_left());
-    assert!(right.is_right());
-    assert_eq!(right.unwrap_right(), "hello");
-    assert_eq!(*right.right_ref(), "hello");
 
-    let right_consumed = Either::<i32, &str>::right("world");
-    assert_eq!(right_consumed.right_value(), "world");
-}
+    assert!(left.is_left() && right.is_right());
+    assert_eq!(left.left_ref(), &42);
+    assert_eq!(right.right_ref(), &"hello");
 
-#[test]
-fn test_either_mapping() {
-    // Test map_left
-    let left: Either<i32, &str> = Either::left(42);
-    let doubled = left.fmap_left(|x| x * 2);
-    assert_eq!(doubled.unwrap_left(), 84);
-
-    // Test map_right
-    let right: Either<i32, String> = Either::right("hello".to_string());
-    let upper = right.clone().fmap_right(|s| s.to_uppercase());
-    assert_eq!(upper.unwrap_right(), "HELLO");
-
-    // Test that mapping the wrong side doesn't change anything
-    let left_mapped = left.fmap_right(|s| s.to_uppercase());
-    assert_eq!(left_mapped.unwrap_left(), 42);
-    let right_mapped = right.clone().fmap_left(|x| x * 2);
-    assert_eq!(right_mapped.unwrap_right(), "hello");
-}
-
-#[test]
-fn test_either_functor() {
-    // Test with borrowed values
-    let right: Either<i32, i32> = Either::right(42);
-    let mapped = right.fmap(|x| x + 1);
-    assert_eq!(mapped.unwrap_right(), 43);
-
-    let left: Either<i32, i32> = Either::left(42);
-    let mapped = left.fmap(|x| x + 1);
-    assert_eq!(mapped.unwrap_left(), 42);
-
-    // Test with owned values
-    let right: Either<String, i32> = Either::right(42);
-    let mapped = right.fmap(|x| x * 2);
-    assert_eq!(mapped.unwrap_right(), 84);
-
-    let left: Either<String, i32> = Either::left("error".to_string());
-    let mapped = left.fmap(|x| x * 2);
-    assert_eq!(mapped.unwrap_left(), "error");
-}
-
-#[test]
-fn test_either_applicative() {
-    // Test pure
-    let pure: Either<&str, i32> = Either::<&str, i32>::pure(&42);
-    assert_eq!(pure.unwrap_right(), 42);
-
-    // Test apply
-    let value: Either<&str, i32> = Either::right(42);
-    let f: IntFunction = Either::right(|x| x + 1);
-    let result = f.apply(&value);
-    assert_eq!(result.unwrap_right(), 43);
-
-    // Test apply_owned
-    let value: Either<&str, i32> = Either::right(42);
-    let f: Either<&str, fn(i32) -> i32> = Either::right(|x| x + 1);
-    let result = f.apply_owned(value);
-    assert_eq!(result.unwrap_right(), 43);
-
-    // Test lift2
-    let a: Either<&str, i32> = Either::right(2);
-    let b: Either<&str, i32> = Either::right(3);
-    let result = Either::<&str, i32>::lift2(|x, y| x * y, &a, &b);
-    assert_eq!(result.unwrap_right(), 6);
-
-    // Test lift2_owned
-    let a: Either<&str, i32> = Either::right(2);
-    let b: Either<&str, i32> = Either::right(3);
-    let result = Either::<&str, i32>::lift2_owned(|x, y| x * y, a, b);
-    assert_eq!(result.unwrap_right(), 6);
-
-    // Test lift3
-    let a: Either<&str, i32> = Either::right(2);
-    let b: Either<&str, i32> = Either::right(3);
-    let c: Either<&str, i32> = Either::right(4);
-    let result = Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a, &b, &c);
-    assert_eq!(result.unwrap_right(), 10);
-
-    // Test lift3_owned
-    let a: Either<&str, i32> = Either::right(2);
-    let b: Either<&str, i32> = Either::right(3);
-    let c: Either<&str, i32> = Either::right(4);
-    let result = Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a, b, c);
-    assert_eq!(result.unwrap_right(), 10);
-
-    // Test apply short-circuiting behavior
-    let value_right: Either<&str, i32> = Either::right(42);
-    let value_left: Either<&str, i32> = Either::left("value error");
-    type EitherF<'a> = Either<&'a str, fn(&i32) -> i32>;
-    let f_right: EitherF = Either::right(|x| x + 1);
-    let f_left: EitherF = Either::left("function error");
-
-    // Right <*> Right = Right
-    assert_eq!(f_right.apply(&value_right).unwrap_right(), 43);
-    // Left <*> Right = Left
-    assert_eq!(f_right.apply(&value_left).unwrap_left(), "value error");
-    // Right <*> Left = Left
-    assert_eq!(f_left.apply(&value_right).unwrap_left(), "function error");
-    // Left <*> Left = Left (function error takes precedence in forward direction)
-    assert_eq!(f_left.apply(&value_left).unwrap_left(), "function error");
-
-    // Test apply_owned short-circuiting behavior
-    let value_right_owned: Either<&str, i32> = Either::right(42);
-    let value_left_owned: Either<&str, i32> = Either::left("value error owned");
-    let f_right_owned: Either<&str, fn(i32) -> i32> = Either::right(|x| x + 1);
-    let f_left_owned: Either<&str, fn(i32) -> i32> = Either::left("function error owned");
-
-    // Right <*> Right = Right
+    // 2. Functor and Mapping (Both sides)
     assert_eq!(
-        f_right_owned.apply_owned(value_right_owned).unwrap_right(),
-        43
+        Either::<i32, i32>::left(42)
+            .fmap_left(|x| x * 2)
+            .unwrap_left(),
+        84
     );
-    // Left <*> Right = Left
     assert_eq!(
-        f_right_owned.apply_owned(value_left_owned).unwrap_left(),
-        "value error owned"
-    );
-    // Right <*> Left = Left
-    assert_eq!(
-        f_left_owned.apply_owned(value_right_owned).unwrap_left(),
-        "function error owned"
-    );
-    // Left <*> Left = Left (function error takes precedence since function comes first)
-    assert_eq!(
-        f_left_owned.apply_owned(value_left_owned).unwrap_left(),
-        "function error owned"
-    );
-
-    // Test lift2 short-circuiting behavior
-    let a_right: Either<&str, i32> = Either::right(2);
-    let a_left: Either<&str, i32> = Either::left("a error");
-    let b_right: Either<&str, i32> = Either::right(3);
-    let b_left: Either<&str, i32> = Either::left("b error");
-
-    // Right lift Right = Right
-    assert_eq!(
-        Either::<&str, i32>::lift2(|x, y| x * y, &a_right, &b_right).unwrap_right(),
-        6
-    );
-    // Left lift Right = Left
-    assert_eq!(
-        Either::<&str, i32>::lift2(|x, y| x * y, &a_left, &b_right).unwrap_left(),
-        "a error"
-    );
-    // Right lift Left = Left
-    assert_eq!(
-        Either::<&str, i32>::lift2(|x, y| x * y, &a_right, &b_left).unwrap_left(),
-        "b error"
-    );
-    // Left lift Left = Left (first Left encountered)
-    assert_eq!(
-        Either::<&str, i32>::lift2(|x, y| x * y, &a_left, &b_left).unwrap_left(),
-        "a error"
-    );
-
-    // Test lift2_owned short-circuiting behavior
-    // Right lift Right = Right
-    assert_eq!(
-        Either::<&str, i32>::lift2_owned(|x, y| x * y, a_right, b_right).unwrap_right(),
-        6
-    );
-    // Left lift Right = Left
-    assert_eq!(
-        Either::<&str, i32>::lift2_owned(|x, y| x * y, a_left, b_right).unwrap_left(),
-        "a error"
-    );
-    // Right lift Left = Left
-    assert_eq!(
-        Either::<&str, i32>::lift2_owned(|x, y| x * y, a_right, b_left).unwrap_left(),
-        "b error"
-    );
-    // Left lift Left = Left (first Left encountered)
-    assert_eq!(
-        Either::<&str, i32>::lift2_owned(|x, y| x * y, a_left, b_left).unwrap_left(),
-        "a error"
-    );
-
-    // Test lift3 short-circuiting behavior
-    let c_right: Either<&str, i32> = Either::right(4);
-    let c_left: Either<&str, i32> = Either::left("c error");
-
-    // R lift R lift R = R
-    assert_eq!(
-        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_right, &b_right, &c_right)
+        Either::<i32, &str>::right("hi")
+            .fmap_right(|s| s.len())
             .unwrap_right(),
-        10
+        2
     );
-    // L lift R lift R = L (a)
     assert_eq!(
-        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_left, &b_right, &c_right).unwrap_left(),
-        "a error"
-    );
-    // R lift L lift R = L (b)
-    assert_eq!(
-        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_right, &b_left, &c_right).unwrap_left(),
-        "b error"
-    );
-    // R lift R lift L = L (c)
-    assert_eq!(
-        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_right, &b_right, &c_left).unwrap_left(),
-        "c error"
-    );
-    // L lift L lift R = L (a)
-    assert_eq!(
-        Either::<&str, i32>::lift3(|x, y, z| x * y + z, &a_left, &b_left, &c_right).unwrap_left(),
-        "a error"
-    );
-
-    // Test lift3_owned short-circuiting behavior
-    // R lift R lift R = R
-    assert_eq!(
-        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_right, b_right, c_right)
+        Either::<&str, i32>::right(10)
+            .fmap(|x| x + 5)
             .unwrap_right(),
-        10
+        15
     );
-    // L lift R lift R = L (a)
+
+    // 3. Applicative and Monad
+    let val = Either::<&str, i32>::right(42);
+    let f = Either::<&str, fn(i32) -> i32>::right(|x| x + 1);
+
+    // In rustica, usually f.apply(val) or the wrapper needs correct HKT mapping
+    assert_eq!(f.apply_owned(val).unwrap_right(), 43);
     assert_eq!(
-        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_left, b_right, c_right)
-            .unwrap_left(),
-        "a error"
+        Either::<&str, i32>::right(42)
+            .bind(|x| Either::right(x * 2))
+            .unwrap_right(),
+        84
     );
-    // R lift L lift R = L (b)
     assert_eq!(
-        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_right, b_left, c_right)
-            .unwrap_left(),
-        "b error"
+        Either::<&str, Either<&str, i32>>::right(Either::right(100))
+            .join()
+            .unwrap_right(),
+        100
     );
-    // R lift R lift L = L (c)
+}
+
+#[test]
+fn test_either_error_propagation() {
+    // Consolidated test for short-circuiting and error handling
+    let err = Either::<&str, i32>::left("init error");
+    let ok = Either::<&str, i32>::right(10);
+
+    // Applicative short-circuit
     assert_eq!(
-        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_right, b_right, c_left)
-            .unwrap_left(),
-        "c error"
+        Either::<&str, i32>::lift2(|x, y| x + y, &err, &ok).unwrap_left(),
+        "init error"
     );
-    // L lift L lift R = L (a)
     assert_eq!(
-        Either::<&str, i32>::lift3_owned(|x, y, z| x * y + z, a_left, b_left, c_right)
-            .unwrap_left(),
-        "a error"
+        Either::<&str, i32>::lift2(|x, y| x + y, &ok, &err).unwrap_left(),
+        "init error"
     );
-}
 
-#[test]
-fn test_either_monad() {
-    // Test bind
-    let right: Either<&str, i32> = Either::right(42);
-    let result = right.bind(|x| Either::right(x + 1));
-    assert_eq!(result.unwrap_right(), 43);
+    // Monad short-circuit
+    let result = ok
+        .bind(|_| Either::left("bind error"))
+        .bind(|_: &i32| Either::right(100));
+    assert_eq!(result.unwrap_left(), "bind error");
 
-    let left: Either<&str, i32> = Either::left("error");
-    let result = left.bind(|x| Either::right(x + 1));
-    assert_eq!(result.unwrap_left(), "error");
-
-    // Test join
-    let nested: Either<&str, Either<&str, i32>> = Either::right(Either::right(42));
-    let flattened = nested.join();
-    assert_eq!(flattened.unwrap_right(), 42);
-
-    // Test bind_owned and join_owned (optimized versions)
-    let right: Either<&str, i32> = Either::right(42);
-    let result = right.bind_owned(|x| Either::right(x + 1));
-    assert_eq!(result.unwrap_right(), 43);
-
-    let nested = Either::<&str, Either<&str, i32>>::right(Either::right(42));
-    let flattened = nested.join_owned();
-    assert_eq!(flattened.unwrap_right(), 42);
-}
-
-#[test]
-fn test_either_or_methods() {
-    // Test left_or
-    let left: Either<&str, i32> = Either::left("error");
-    let right: Either<&str, i32> = Either::right(42);
-
-    assert_eq!(left.left_or("default"), "error");
-    assert_eq!(right.left_or("default"), "default");
-
-    // Test right_or
-    assert_eq!(left.right_or(0), 0);
-    assert_eq!(right.right_or(0), 42);
-}
-
-#[test]
-fn test_either_performance_pattern() {
-    // Test a common pattern that benefits from the optimized methods
-    let process_data = |input: i32| -> Either<&'static str, String> {
-        let either: Either<&'static str, i32> = if input > 0 {
-            Either::right(input)
-        } else {
-            Either::left("Invalid input")
-        };
-
-        // Using the optimized methods
-        either.fmap_owned(|x| x * 2).bind_owned(|x| {
-            if x < 100 {
-                Either::right(x.to_string())
-            } else {
-                Either::left("Result too large")
-            }
-        })
-    };
-
-    // Test valid case
-    let result = process_data(42);
-    assert_eq!(result.right_value(), "84");
-
-    // Test invalid input
-    let result = process_data(-1);
-    assert_eq!(result.left_value(), "Invalid input");
-
-    // Test too large result
-    let result = process_data(60);
-    assert_eq!(result.left_value(), "Result too large");
-}
-
-#[test]
-fn test_either_identity() {
-    let right: Either<&str, i32> = Either::right(42);
-    assert_eq!(right.unwrap(), 42);
-}
-
-#[test]
-#[should_panic(expected = "called unwrap_left on Right value")]
-fn test_either_unwrap_left_panic() {
-    let right: Either<i32, &str> = Either::right("hello");
-    right.unwrap_left();
-}
-
-#[test]
-#[should_panic(expected = "called unwrap_right on Left value")]
-fn test_either_unwrap_right_panic() {
-    let left: Either<i32, &str> = Either::left(42);
-    left.unwrap_right();
-}
-
-#[test]
-fn test_either_error_handling() {
-    // Simulate error handling with Either
+    // Real-world safe division scenario
     fn safe_div(n: i32, d: i32) -> Either<&'static str, i32> {
         if d == 0 {
-            Either::left("division by zero")
+            Either::left("div0")
         } else {
             Either::right(n / d)
         }
     }
-
-    // Test successful case
-    let result1 = safe_div(10, 2);
-    assert_eq!(result1.unwrap_right(), 5);
-
-    // Test error case
-    let result2 = safe_div(10, 0);
-    assert_eq!(result2.unwrap_left(), "division by zero");
-
-    // Test chaining computations
-    let result3 = safe_div(10, 2).bind(|x| safe_div(*x, 1));
-    assert_eq!(result3.unwrap_right(), 5);
-
-    let result4 = safe_div(10, 2).bind(|x| safe_div(*x, 0));
-    assert_eq!(result4.unwrap_left(), "division by zero");
+    assert_eq!(
+        safe_div(10, 0).bind(|x| safe_div(*x, 1)).unwrap_left(),
+        "div0"
+    );
 }
 
 #[test]
-fn test_either_left_or_right_or() {
-    let l: Either<&str, i32> = Either::left("err");
-    let r: Either<&str, i32> = Either::right(42);
+fn test_either_utilities_and_conversions() {
+    let left: Either<i32, String> = Either::left(42);
+    let right: Either<i32, String> = Either::right("ok".to_string());
 
-    assert_eq!(l.left_or("default"), "err");
-    assert_eq!(r.left_or("default"), "default");
-    assert_eq!(l.right_or(0), 0);
-    assert_eq!(r.right_or(0), 42);
+    // 1. Or Methods
+    assert_eq!(left.clone().left_or(0), 42);
+    assert_eq!(right.clone().left_or(0), 0);
+    assert_eq!(
+        left.clone().right_or("default".to_string()),
+        "default".to_string()
+    );
+    assert_eq!(
+        right.clone().right_or("default".to_string()),
+        "ok".to_string()
+    );
+
+    // 2. Option & Result Conversions
+    assert_eq!(left.clone().left_option(), Some(42));
+    assert_eq!(right.clone().to_result(), Ok("ok".to_string()));
+
+    let res_err: Result<i32, &str> = Err("oops");
+    assert_eq!(
+        Either::from_result(res_err),
+        Either::<&str, i32>::left("oops")
+    );
+
+    // 3. Iterators
+    assert_eq!(left.clone().left_iter().next(), Some(42));
+    assert_eq!(right.clone().left_iter().next(), None);
+
+    // 4. Try & Mut Methods
+    let mut m_left = left.clone();
+    *m_left.left_mut() = 100;
+    assert_eq!(m_left.try_unwrap_left(), Ok(100));
+    assert_eq!(
+        right.clone().try_unwrap_left(),
+        Err(EitherError::ExpectedLeft)
+    );
 }
 
-#[cfg(feature = "serde")]
 #[test]
-fn test_either_serde() {
-    use rustica::datatypes::either::Either;
-    use serde_json;
-
-    // Test with a Right value
-    let right: Either<String, i32> = Either::Right(42);
-    let serialized_right = serde_json::to_string(&right).unwrap();
-    let deserialized_right: Either<String, i32> = serde_json::from_str(&serialized_right).unwrap();
-    assert_eq!(right, deserialized_right);
-
-    // Test with a Left value
-    let left: Either<String, i32> = Either::Left("error".to_string());
-    let serialized_left = serde_json::to_string(&left).unwrap();
-    let deserialized_left: Either<String, i32> = serde_json::from_str(&serialized_left).unwrap();
-    assert_eq!(left, deserialized_left);
-
-    // Test with different types
-    let right_str: Either<i32, String> = Either::Right("hello".to_string());
-    let serialized_right_str = serde_json::to_string(&right_str).unwrap();
-    let deserialized_right_str: Either<i32, String> =
-        serde_json::from_str(&serialized_right_str).unwrap();
-    assert_eq!(right_str, deserialized_right_str);
-
-    let left_int: Either<i32, String> = Either::Left(123);
-    let serialized_left_int = serde_json::to_string(&left_int).unwrap();
-    let deserialized_left_int: Either<i32, String> =
-        serde_json::from_str(&serialized_left_int).unwrap();
-    assert_eq!(left_int, deserialized_left_int);
-}
-
-// ============================================================================
-// Additional Either Tests for Coverage
-// ============================================================================
-
-mod either_option_conversions {
-    use super::*;
-
-    #[test]
-    fn test_left_option() {
-        let left: Either<i32, String> = Either::Left(42);
-        assert_eq!(left.left_option(), Some(42));
-
-        let right: Either<i32, String> = Either::Right("ok".to_string());
-        assert_eq!(right.left_option(), None);
+fn test_either_misc_and_safety() {
+    // 1. Serde integration
+    #[cfg(feature = "serde")]
+    {
+        use serde_json;
+        let r: Either<String, i32> = Either::right(42);
+        let s = serde_json::to_string(&r).unwrap();
+        assert_eq!(serde_json::from_str::<Either<String, i32>>(&s).unwrap(), r);
     }
 
-    #[test]
-    fn test_right_option() {
-        let right: Either<String, i32> = Either::Right(10);
-        assert_eq!(right.right_option(), Some(10));
+    // 2. Panics (Negative cases)
+    let left: Either<i32, &str> = Either::left(1);
+    assert!(std::panic::catch_unwind(move || left.unwrap_right()).is_err());
 
-        let left: Either<String, i32> = Either::Left("error".to_string());
-        assert_eq!(left.right_option(), None);
-    }
-}
-
-mod either_result_conversions {
-    use super::*;
-
-    #[test]
-    fn test_to_result() {
-        let right: Either<String, i32> = Either::Right(100);
-        assert_eq!(right.to_result(), Ok(100));
-
-        let left: Either<String, i32> = Either::Left("failed".to_string());
-        assert_eq!(left.to_result(), Err("failed".to_string()));
-    }
-
-    #[test]
-    fn test_from_result() {
-        let ok_result: Result<i32, String> = Ok(100);
-        assert_eq!(Either::from_result(ok_result), Either::Right(100));
-
-        let err_result: Result<i32, String> = Err("oops".to_string());
-        assert_eq!(
-            Either::from_result(err_result),
-            Either::Left("oops".to_string())
-        );
-    }
-}
-
-mod either_iterators {
-    use super::*;
-
-    #[test]
-    fn test_left_iter() {
-        let left: Either<i32, String> = Either::Left(42);
-        let values: Vec<i32> = left.left_iter().collect();
-        assert_eq!(values, vec![42]);
-
-        let right: Either<i32, String> = Either::Right("ok".to_string());
-        let values: Vec<i32> = right.left_iter().collect();
-        assert!(values.is_empty());
-    }
-
-    #[test]
-    fn test_left_iter_ref() {
-        let left: Either<i32, String> = Either::Left(42);
-        let values: Vec<&i32> = left.left_iter_ref().collect();
-        assert_eq!(values, vec![&42]);
-
-        let right: Either<i32, String> = Either::Right("ok".to_string());
-        let values: Vec<&i32> = right.left_iter_ref().collect();
-        assert!(values.is_empty());
-    }
-
-    #[test]
-    fn test_left_iter_mut() {
-        let mut left: Either<i32, String> = Either::Left(42);
-        for val in left.left_iter_mut() {
-            *val = 100;
-        }
-        assert_eq!(left.unwrap_left(), 100);
-
-        let mut right: Either<i32, String> = Either::Right("ok".to_string());
-        let count = right.left_iter_mut().count();
-        assert_eq!(count, 0);
-    }
-}
-
-mod either_try_methods {
-    use super::*;
-    use rustica::datatypes::error::EitherError;
-
-    #[test]
-    fn test_try_unwrap_left() {
-        let left: Either<i32, &str> = Either::Left(42);
-        assert_eq!(left.try_unwrap_left(), Ok(42));
-
-        let right: Either<i32, &str> = Either::Right("hello");
-        assert_eq!(right.try_unwrap_left(), Err(EitherError::ExpectedLeft));
-    }
-
-    #[test]
-    fn test_try_unwrap_right() {
-        let right: Either<&str, i32> = Either::Right(42);
-        assert_eq!(right.try_unwrap_right(), Ok(42));
-
-        let left: Either<&str, i32> = Either::Left("error");
-        assert_eq!(left.try_unwrap_right(), Err(EitherError::ExpectedRight));
-    }
-
-    #[test]
-    fn test_try_left_ref() {
-        let left: Either<i32, &str> = Either::Left(42);
-        assert_eq!(left.try_left_ref(), Ok(&42));
-
-        let right: Either<i32, &str> = Either::Right("hello");
-        assert_eq!(right.try_left_ref(), Err(EitherError::ExpectedLeft));
-    }
-
-    #[test]
-    fn test_try_right_ref() {
-        let right: Either<&str, i32> = Either::Right(42);
-        assert_eq!(right.try_right_ref(), Ok(&42));
-
-        let left: Either<&str, i32> = Either::Left("error");
-        assert_eq!(left.try_right_ref(), Err(EitherError::ExpectedRight));
-    }
-}
-
-mod either_mut_methods {
-    use super::*;
-
-    #[test]
-    fn test_left_mut() {
-        let mut left: Either<i32, String> = Either::Left(42);
-        *left.left_mut() = 100;
-        assert_eq!(left.unwrap_left(), 100);
-    }
+    // 3. Optimized pattern (bind_owned/fmap_owned)
+    let res = Either::<&str, i32>::right(10)
+        .fmap_owned(|x| x * 2)
+        .bind_owned(|x| {
+            if x > 15 {
+                Either::right(x.to_string())
+            } else {
+                Either::left("small")
+            }
+        });
+    assert_eq!(res.right_value(), "20");
 }

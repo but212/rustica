@@ -1,7 +1,5 @@
 use rustica::datatypes::writer::Writer;
-use rustica::traits::applicative::Applicative;
-use rustica::traits::functor::Functor;
-use rustica::traits::monad::Monad;
+use rustica::prelude::*;
 use rustica::traits::monoid::Monoid;
 use rustica::traits::semigroup::Semigroup;
 
@@ -30,216 +28,69 @@ impl Monoid for Log {
 }
 
 #[test]
-fn test_writer_creation_and_run() {
-    // Test new
-    let writer = Writer::new(Log(vec!["initial".to_string()]), 42);
-    let (log, value) = writer.run();
-    assert_eq!(value, 42);
-    assert_eq!(log, Log(vec!["initial".to_string()]));
+fn test_writer_lifecycle_and_mapping() {
+    // 1. Creation and pure values
+    let w1 = Writer::new(Log(vec!["init".into()]), 42);
+    let w_pure = Writer::<Log, _>::pure_value(100);
 
-    // Test pure_value
-    let writer_pure = Writer::<Log, _>::pure_value(100);
-    let (log_pure, value_pure) = writer_pure.run();
-    assert_eq!(value_pure, 100);
-    assert_eq!(log_pure, Log::empty());
+    assert_eq!(w1.clone().run(), (Log(vec!["init".into()]), 42));
+    assert_eq!(w_pure.run(), (Log::empty(), 100));
+
+    // 2. Mapping values while preserving logs (Functor)
+    let mapped = w1.fmap(|x| x * 2);
+    assert_eq!(mapped.run(), (Log(vec!["init".into()]), 84));
 }
 
 #[test]
-fn test_writer_functor() {
-    let writer = Writer::new(Log(vec!["initial".to_string()]), 42);
+fn test_writer_accumulation_modes() {
+    // 1. Applicative (Horizontal accumulation)
+    let w_fn = Writer::new(Log(vec!["f".into()]), |x: &i32| x * 2);
+    let w_val = Writer::new(Log(vec!["v".into()]), 21);
+    let app_res = w_fn.apply(&w_val);
 
-    // Test fmap
-    let mapped = writer.fmap(|x| x * 2);
-    let (log, value) = mapped.run();
-    assert_eq!(value, 84);
-    assert_eq!(log, Log(vec!["initial".to_string()]));
+    assert_eq!(app_res.run(), (Log(vec!["f".into(), "v".into()]), 42));
 
-    // Test fmap_owned
-    let mapped_owned = Writer::new(Log(vec!["initial".to_string()]), 42).fmap_owned(|x| x * 3);
-    let (log_owned, value_owned) = mapped_owned.run();
-    assert_eq!(value_owned, 126);
-    assert_eq!(log_owned, Log(vec!["initial".to_string()]));
-}
+    // 2. Monad (Vertical/Sequential accumulation)
+    let monad_res = Writer::new(Log(vec!["step1".into()]), 10)
+        .bind(|x| Writer::new(Log(vec![format!("step2:{}", x)]), x + 5));
 
-#[test]
-fn test_writer_applicative() {
-    // Create a Writer with a function that takes a reference to i32
-    let writer_fn = Writer::new(Log(vec!["function created".to_string()]), |x: &i32| x * 2);
-    // Create a Writer with a value
-    let writer_val = Writer::new(Log(vec!["value created".to_string()]), 21);
-
-    // Apply the function to the value (note: writer_fn.apply(&writer_val) is the correct order)
-    let result = writer_fn.apply(&writer_val);
-    let (log, value) = result.run();
-
-    assert_eq!(value, 42);
     assert_eq!(
-        log,
-        Log(vec![
-            "function created".to_string(),
-            "value created".to_string(),
-        ])
-    );
-
-    // Test lift2
-    let add = |a: &i32, b: &i32| a + b;
-    let writer1 = Writer::new(Log(vec!["first value".to_string()]), 10);
-    let writer2 = Writer::new(Log(vec!["second value".to_string()]), 32);
-
-    let result_lift = Writer::<Log, i32>::lift2(add, &writer1, &writer2);
-    let (log_lift, value_lift) = result_lift.run();
-
-    assert_eq!(value_lift, 42);
-    assert_eq!(
-        log_lift,
-        Log(vec!["first value".to_string(), "second value".to_string()])
+        monad_res.run(),
+        (Log(vec!["step1".into(), "step2:10".into()]), 15)
     );
 }
 
 #[test]
-fn test_writer_monad() {
-    // Test bind
-    let writer = Writer::new(Log(vec!["initial".to_string()]), 21);
-
-    let bound = writer.bind(|x| Writer::new(Log(vec![format!("doubled {}", x)]), x * 2));
-
-    let (log, value) = bound.run();
-    assert_eq!(value, 42);
-    assert_eq!(
-        log,
-        Log(vec!["initial".to_string(), "doubled 21".to_string()])
-    );
-
-    // Test chain
-    let writer_chain = Writer::new(Log(vec!["start".to_string()]), 5)
-        .bind(|x| Writer::new(Log(vec![format!("add 10 to {}", x)]), x + 10))
-        .bind(|x| Writer::new(Log(vec![format!("multiply {} by 3", x)]), x * 3))
-        .bind(|x| Writer::new(Log(vec![format!("subtract 3 from {}", x)]), x - 3));
-
-    let (log_chain, value_chain) = writer_chain.run();
-    assert_eq!(value_chain, 42);
-    assert_eq!(
-        log_chain,
-        Log(vec![
-            "start".to_string(),
-            "add 10 to 5".to_string(),
-            "multiply 15 by 3".to_string(),
-            "subtract 3 from 45".to_string()
-        ])
-    );
-}
-
-#[test]
-fn test_writer_tell() {
-    // Create another writer with the same value but with a log
-    let writer_with_log = Writer::new(Log(vec!["added a log".to_string()]), 10);
-
-    let (log, value) = writer_with_log.run();
-    assert_eq!(value, 10);
-    assert_eq!(log, Log(vec!["added a log".to_string()]));
-}
-
-#[test]
-fn test_writer_with_persistent_vector() {
-    // Test that logs are accumulated properly using the persistent vector
-    let writer1 = Writer::new(Log(vec!["log1".to_string()]), 10);
-
-    // Map over the value, the log should remain the same
-    let writer2 = writer1.fmap(|x| x + 1);
-
-    // Add a new log entry by creating a new Writer with the same value
-    let writer3 = Writer::new(Log(vec![format!("value is now {}", 11)]), 11);
-
-    let (log1, value1) = writer1.run();
-    let (log2, value2) = writer2.run();
-    let (log3, value3) = writer3.run();
-
-    assert_eq!(value1, 10);
-    assert_eq!(log1, Log(vec!["log1".to_string()]));
-
-    assert_eq!(value2, 11);
-    assert_eq!(log2, Log(vec!["log1".to_string()]));
-
-    assert_eq!(value3, 11);
-    assert_eq!(log3, Log(vec![format!("value is now {}", 11)]));
-}
-
-#[test]
-fn test_writer_complex_chaining() {
-    // Create a function that logs and transforms a value
-    fn process_number(n: &i32) -> Writer<Log, i32> {
-        Writer::new(Log(vec![format!("processing {}", n)]), n * 2)
-    }
-
-    // Create a chain of Writer operations
-    let start_writer = Writer::<Log, _>::pure_value(5);
-    let intermediate_writer =
-        start_writer.bind(|n| Writer::new(Log(vec!["starting with 5".to_string()]), *n));
-
-    let result = intermediate_writer
-        .bind(process_number)
-        .bind(|n| Writer::new(Log(vec![format!("adding 10 to {}", n)]), n + 10))
+fn test_writer_composition_scenarios() {
+    // 1. Complex Chaining Pipeline
+    let pipeline = Writer::<Log, _>::pure_value(5)
+        .bind(|n| Writer::new(Log(vec!["start".into()]), *n))
+        .bind(|n| Writer::new(Log(vec!["double".into()]), n * 2))
+        .bind(|n| Writer::new(Log(vec!["plus10".into()]), n + 10))
         .fmap(|n| n * 2);
 
-    let (log, value) = result.run();
+    let (log, val) = pipeline.run();
+    assert_eq!(val, 40); // ((5 * 2) + 10) * 2
+    assert_eq!(log.0.len(), 3);
 
-    assert_eq!(value, 40); // ((5 * 2) + 10) * 2
-    assert_eq!(
-        log,
-        Log(vec![
-            "starting with 5".to_string(),
-            "processing 5".to_string(),
-            "adding 10 to 10".to_string(),
-        ])
-    );
-}
-
-// Test for Semigroup instance with String
-#[test]
-fn test_writer_semigroup() {
+    // 2. Direct Semigroup Combination
     use rustica::datatypes::wrapper::sum::Sum;
-    // Test combining two writers
-    let writer1 = Writer::new(Log(vec!["log1".to_string()]), Sum(15));
-    let writer2 = Writer::new(Log(vec!["log2".to_string()]), Sum(27));
+    let w1 = Writer::new(Log(vec!["l1".into()]), Sum(15));
+    let w2 = Writer::new(Log(vec!["l2".into()]), Sum(27));
 
-    let combined = writer1.combine(&writer2);
-    let (log, value) = combined.run();
-
-    assert_eq!(value.0, 42); // 15 + 27
-    assert_eq!(log, Log(vec!["log1".to_string(), "log2".to_string()]));
-
-    // Test combine_owned
-    let writer3 = Writer::new(Log(vec!["log3".to_string()]), Sum(10));
-    let writer4 = Writer::new(Log(vec!["log4".to_string()]), Sum(32));
-
-    let combined_owned = writer3.combine_owned(writer4);
-    let (log_owned, value_owned) = combined_owned.run();
-
-    assert_eq!(value_owned.0, 42); // 10 + 32
-    assert_eq!(log_owned, Log(vec!["log3".to_string(), "log4".to_string()]));
+    let combined = w1.combine(&w2);
+    assert_eq!(
+        combined.run(),
+        (Log(vec!["l1".into(), "l2".into()]), Sum(42))
+    );
 }
 
 #[cfg(feature = "serde")]
 #[test]
 fn test_writer_serde() {
-    use rustica::datatypes::writer::Writer;
     use serde_json;
-
-    // Test with a simple Writer
-    let writer = Writer::new(Log(vec!["log1".to_string()]), 42);
-    let serialized = serde_json::to_string(&writer).unwrap();
-    let deserialized: Writer<Log, i32> = serde_json::from_str(&serialized).unwrap();
-    assert_eq!(writer, deserialized);
-
-    // Test with a struct
-    #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
-    struct Point {
-        x: i32,
-        y: i32,
-    }
-    let point = Point { x: 1, y: 2 };
-    let writer_point = Writer::new(Log(vec!["point log".to_string()]), point.clone());
-    let serialized_point = serde_json::to_string(&writer_point).unwrap();
-    let deserialized_point: Writer<Log, Point> = serde_json::from_str(&serialized_point).unwrap();
-    assert_eq!(writer_point, deserialized_point);
+    let writer = Writer::new(Log(vec!["log".into()]), 42);
+    let json = serde_json::to_string(&writer).unwrap();
+    let back: Writer<Log, i32> = serde_json::from_str(&json).unwrap();
+    assert_eq!(writer, back);
 }

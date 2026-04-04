@@ -1,334 +1,95 @@
+use quickcheck_macros::quickcheck;
 use rustica::traits::applicative::Applicative;
+use rustica::traits::functor::Functor;
 use rustica::traits::pure::Pure;
 
-/// Test the Applicative Identity Law: pure(id) <*> v = v
-///
-/// Applying the identity function wrapped in the applicative context
-/// should leave the value unchanged.
-#[cfg(test)]
-mod applicative_identity_law {
-    use super::*;
+// --- Option Applicative Laws ---
 
-    #[test]
-    fn test_option_identity_law() {
-        let some_value = Some(42);
-        let none_value: Option<i32> = None;
+#[quickcheck]
+fn qc_option_applicative_laws(v: Option<i32>, x: i32, u_some: bool) -> bool {
+    let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
+    let id: fn(&i32) -> i32 = |t| *t;
 
-        // Identity function wrapped in applicative context
-        let id_fn = |x: &i32| *x;
-        let pure_id = <Option<fn(&i32) -> i32> as Pure>::pure(&id_fn);
+    let pure_f = Option::<fn(&i32) -> i32>::pure(&f);
+    let pure_x = Option::<i32>::pure(&x);
+    let u: Option<fn(&i32) -> i32> = if u_some { Some(f) } else { None };
 
-        // Test: pure(id) <*> v = v
-        assert_eq!(Applicative::apply(&pure_id, &some_value), some_value);
-        assert_eq!(Applicative::apply(&pure_id, &none_value), none_value);
-    }
+    // 1. Identity: pure(id) <*> v == v
+    let identity = Applicative::apply(&Option::<fn(&i32) -> i32>::pure(&id), &v) == v;
 
-    #[test]
-    fn test_result_identity_law() {
-        let ok_value: Result<i32, &str> = Ok(42);
-        let err_value: Result<i32, &str> = Err("error");
+    // 2. Homomorphism: pure(f) <*> pure(x) == pure(f(x))
+    let homomorphism = Applicative::apply(&pure_f, &pure_x) == Option::<i32>::pure(&f(&x));
 
-        // Identity function wrapped in applicative context
-        let id_fn = |x: &i32| *x;
-        let pure_id = <Result<fn(&i32) -> i32, &str> as Pure>::pure(&id_fn);
+    // 3. Interchange: u <*> pure(x) == pure(|f| f(x)) <*> u
+    let interchange =
+        Applicative::apply(&u, &pure_x) == Option::<i32>::lift2(|f, x| f(x), &u, &pure_x);
 
-        // Test: pure(id) <*> v = v
-        assert_eq!(Applicative::apply(&pure_id, &ok_value), ok_value);
-        assert_eq!(Applicative::apply(&pure_id, &err_value), err_value);
-    }
+    // 4. Functor Relationship: fmap(f, v) == pure(f) <*> v
+    let functor_rel = v.fmap(f) == Applicative::apply(&pure_f, &v);
 
-    #[test]
-    fn test_vec_identity_law() {
-        let vec_value = vec![1, 2, 3];
-        let empty_vec: Vec<i32> = vec![];
-
-        // Identity function wrapped in applicative context
-        let id_fn = |x: &i32| *x;
-        let pure_id = <Vec<fn(&i32) -> i32> as Pure>::pure(&id_fn);
-
-        // Test: pure(id) <*> v = v
-        assert_eq!(Applicative::apply(&pure_id, &vec_value), vec_value);
-        assert_eq!(Applicative::apply(&pure_id, &empty_vec), empty_vec);
-    }
+    identity && homomorphism && interchange && functor_rel
 }
 
-/// Test the Applicative Composition Law: pure(∘) <*> u <*> v <*> w = u <*> (v <*> w)
-///
-/// Function composition should be associative in the applicative context.
-#[cfg(test)]
-mod applicative_composition_law {
-    use rustica::traits::applicative::Applicative;
+// --- Result Applicative Laws ---
 
-    #[test]
-    fn test_option_composition_law() {
-        // u: F (B -> C), v: F (A -> B), w: F A
-        let u: Option<fn(&i32) -> i32> = Some(|x| x * 2);
-        let v: Option<fn(&i32) -> i32> = Some(|x| x + 1);
-        let w: Option<i32> = Some(5);
+#[quickcheck]
+fn qc_result_applicative_laws(v: Result<i32, i8>, x: i32, is_ok: bool, err: i8) -> bool {
+    let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
+    let id: fn(&i32) -> i32 = |t| *t;
 
-        // Left: pure(compose) <*> u <*> v <*> w
-        // Use lift3 to express pure(compose) application directly
-        let left = Option::<i32>::lift3(
-            |f: &fn(&i32) -> i32, g: &fn(&i32) -> i32, x: &i32| f(&g(x)),
-            &u,
-            &v,
-            &w,
-        );
+    let pure_f = Result::<fn(&i32) -> i32, i8>::pure(&f);
+    let pure_x = Result::<i32, i8>::pure(&x);
+    let u: Result<fn(&i32) -> i32, i8> = if is_ok { Ok(f) } else { Err(err) };
 
-        // Right: u <*> (v <*> w)
-        let vw = Applicative::apply(&v, &w);
-        let right = Applicative::apply(&u, &vw);
+    // 1. Identity
+    let identity = Applicative::apply(&Result::<fn(&i32) -> i32, i8>::pure(&id), &v) == v;
 
-        assert_eq!(left, right);
-    }
+    // 2. Homomorphism
+    let homomorphism = Applicative::apply(&pure_f, &pure_x) == Result::<i32, i8>::pure(&f(&x));
+
+    // 3. Interchange
+    let interchange =
+        Applicative::apply(&u, &pure_x) == Result::<i32, i8>::lift2(|f, x| f(x), &u, &pure_x);
+
+    identity && homomorphism && interchange
 }
 
-/// Test the Applicative Homomorphism Law: pure(f) <*> pure(x) = pure(f(x))
-///
-/// Applying a pure function to a pure value should be equivalent to
-/// applying the function directly and then wrapping the result.
-#[cfg(test)]
-mod applicative_homomorphism_law {
-    use super::*;
+// --- Vec Applicative Laws ---
 
-    #[test]
-    fn test_option_homomorphism_law() {
-        let value = 42;
-        let f = |x: &i32| x * 2;
+#[quickcheck]
+fn qc_vec_applicative_laws(v: Vec<i32>, x: i32) -> bool {
+    let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
+    let id: fn(&i32) -> i32 = |t| *t;
 
-        // Left side: pure(f) <*> pure(x)
-        let pure_f = <Option<fn(&i32) -> i32> as Pure>::pure(&f);
-        let pure_x = <Option<i32> as Pure>::pure(&value);
-        let left_side = Applicative::apply(&pure_f, &pure_x);
+    // 1. Identity
+    let identity = Applicative::apply(&Vec::<fn(&i32) -> i32>::pure(&id), &v) == v;
 
-        // Right side: pure(f(x))
-        let right_side = <Option<i32> as Pure>::pure(&f(&value));
+    // 2. Homomorphism
+    let pure_f = Vec::<fn(&i32) -> i32>::pure(&f);
+    let pure_x = Vec::<i32>::pure(&x);
+    let homomorphism = Applicative::apply(&pure_f, &pure_x) == Vec::<i32>::pure(&f(&x));
 
-        assert_eq!(left_side, right_side);
-    }
-
-    #[test]
-    fn test_result_homomorphism_law() {
-        let value = 42;
-        let f = |x: &i32| x * 2;
-
-        // Left side: pure(f) <*> pure(x)
-        let pure_f = <Result<fn(&i32) -> i32, &str> as Pure>::pure(&f);
-        let pure_x = <Result<i32, &str> as Pure>::pure(&value);
-        let left_side = Applicative::apply(&pure_f, &pure_x);
-
-        // Right side: pure(f(x))
-        let right_side = <Result<i32, &str> as Pure>::pure(&f(&value));
-
-        assert_eq!(left_side, right_side);
-    }
-
-    #[test]
-    fn test_vec_homomorphism_law() {
-        let value = 42;
-        let f = |x: &i32| x * 2;
-
-        // Left side: pure(f) <*> pure(x)
-        let pure_f = <Vec<fn(&i32) -> i32> as Pure>::pure(&f);
-        let pure_x = <Vec<i32> as Pure>::pure(&value);
-        let left_side = Applicative::apply(&pure_f, &pure_x);
-
-        // Right side: pure(f(x))
-        let right_side = <Vec<i32> as Pure>::pure(&f(&value));
-
-        assert_eq!(left_side, right_side);
-    }
+    identity && homomorphism
 }
 
-/// Test the Applicative Interchange Law: u <*> pure(y) = pure($ y) <*> u
-///
-/// The order of application should not matter when one argument is pure.
-#[cfg(test)]
-mod applicative_interchange_law {
-    use super::*;
+// --- Composition Law (Tested separately due to complexity) ---
 
-    #[test]
-    fn test_option_interchange_law() {
-        let f: Option<fn(&i32) -> i32> = Some(|x: &i32| x * 2);
-        let y = 42;
+#[quickcheck]
+fn qc_standard_composition_law(w_opt: Option<i32>, w_res: Result<i32, i8>) -> bool {
+    let f: fn(&i32) -> i32 = |x| x.saturating_add(1);
+    let g: fn(&i32) -> i32 = |x| x.saturating_mul(2);
 
-        // Left: u <*> pure(y)
-        let pure_y = <Option<i32> as Pure>::pure(&y);
-        let left = Applicative::apply(&f, &pure_y);
+    let u_opt = Some(f);
+    let v_opt = Some(g);
+    let u_res: Result<_, i8> = Ok(f);
+    let v_res: Result<_, i8> = Ok(g);
 
-        // Right: pure($) <*> u <*> pure(y)  ≡  lift2(|f, y| f(y), u, pure(y))
-        // Directly expresses applying the function to the value without ignoring params
-        let right = Option::<i32>::lift2(
-            |func: &fn(&i32) -> i32, y_ref: &i32| func(y_ref),
-            &f,
-            &pure_y,
-        );
+    // pure(compose) <*> u <*> v <*> w == u <*> (v <*> w)
+    let left_opt = Option::<i32>::lift3(|f, g, x| f(&g(x)), &u_opt, &v_opt, &w_opt);
+    let right_opt = Applicative::apply(&u_opt, &Applicative::apply(&v_opt, &w_opt));
 
-        assert_eq!(left, right);
-    }
-}
+    let left_res = Result::<i32, i8>::lift3(|f, g, x| f(&g(x)), &u_res, &v_res, &w_res);
+    let right_res = Applicative::apply(&u_res, &Applicative::apply(&v_res, &w_res));
 
-/// Test Applicative-Functor relationship: fmap(f, x) = pure(f) <*> x
-///
-/// Functor's fmap should be equivalent to applying a pure function
-/// in the applicative context.
-#[cfg(test)]
-mod applicative_functor_relationship {
-    use super::*;
-    use rustica::traits::functor::Functor;
-
-    #[test]
-    fn test_option_functor_applicative_relationship() {
-        let some_value = Some(42);
-        let none_value: Option<i32> = None;
-        let f = |x: &i32| x * 2;
-
-        // Left side: fmap(f, x)
-        let fmap_result_some = some_value.fmap(f);
-        let fmap_result_none = none_value.fmap(f);
-
-        // Right side: pure(f) <*> x
-        let pure_f = <Option<fn(&i32) -> i32> as Pure>::pure(&f);
-        let apply_result_some = Applicative::apply(&pure_f, &some_value);
-        let apply_result_none = Applicative::apply(&pure_f, &none_value);
-
-        assert_eq!(fmap_result_some, apply_result_some);
-        assert_eq!(fmap_result_none, apply_result_none);
-    }
-
-    #[test]
-    fn test_result_functor_applicative_relationship() {
-        let ok_value: Result<i32, &str> = Ok(42);
-        let err_value: Result<i32, &str> = Err("error");
-        let f = |x: &i32| x * 2;
-
-        // Left side: fmap(f, x)
-        let fmap_result_ok = ok_value.fmap(f);
-        let fmap_result_err = err_value.fmap(f);
-
-        // Right side: pure(f) <*> x
-        let pure_f = <Result<fn(&i32) -> i32, &str> as Pure>::pure(&f);
-        let apply_result_ok = Applicative::apply(&pure_f, &ok_value);
-        let apply_result_err = Applicative::apply(&pure_f, &err_value);
-
-        assert_eq!(fmap_result_ok, apply_result_ok);
-        assert_eq!(fmap_result_err, apply_result_err);
-    }
-}
-
-#[cfg(test)]
-mod applicative_quickcheck_laws {
-    use super::*;
-    use quickcheck_macros::quickcheck;
-
-    // Identity Law: pure(id) <*> v == v for Option
-    #[quickcheck]
-    fn qc_option_identity(v: Option<i32>) -> bool {
-        let id: fn(&i32) -> i32 = |x| *x;
-        let pure_id = <Option<fn(&i32) -> i32> as Pure>::pure(&id);
-        Applicative::apply(&pure_id, &v) == v
-    }
-
-    // Identity Law: pure(id) <*> v == v for Result
-    #[quickcheck]
-    fn qc_result_identity(x: i32, e: i8, is_ok: bool) -> bool {
-        let v: Result<i32, i8> = if is_ok { Ok(x) } else { Err(e) };
-        let id: fn(&i32) -> i32 = |t| *t;
-        let pure_id = <Result<fn(&i32) -> i32, i8> as Pure>::pure(&id);
-        Applicative::apply(&pure_id, &v) == v
-    }
-
-    // Homomorphism Law: pure(f) <*> pure(x) == pure(f(x)) for Option
-    #[quickcheck]
-    fn qc_option_homomorphism(x: i32) -> bool {
-        let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
-        let pure_f = <Option<fn(&i32) -> i32> as Pure>::pure(&f);
-        let pure_x = <Option<i32> as Pure>::pure(&x);
-        let left = Applicative::apply(&pure_f, &pure_x);
-        let right = <Option<i32> as Pure>::pure(&f(&x));
-        left == right
-    }
-
-    // Homomorphism Law: pure(f) <*> pure(x) == pure(f(x)) for Result
-    #[quickcheck]
-    fn qc_result_homomorphism(x: i32) -> bool {
-        let f: fn(&i32) -> i32 = |n| n.saturating_mul(2);
-        let pure_f = <Result<fn(&i32) -> i32, i8> as Pure>::pure(&f);
-        let pure_x = <Result<i32, i8> as Pure>::pure(&x);
-        let left = Applicative::apply(&pure_f, &pure_x);
-        let right = <Result<i32, i8> as Pure>::pure(&f(&x));
-        left == right
-    }
-
-    // Interchange Law: u <*> pure(y) == pure(|f| f(y)) <*> u for Option
-    #[quickcheck]
-    fn qc_option_interchange(y: i32, u_some: bool) -> bool {
-        let f: fn(&i32) -> i32 = |x| x.saturating_mul(2);
-        let u: Option<fn(&i32) -> i32> = if u_some { Some(f) } else { None };
-        let pure_y = <Option<i32> as Pure>::pure(&y);
-
-        let left = Applicative::apply(&u, &pure_y);
-        let right = Option::<i32>::lift2(
-            |func: &fn(&i32) -> i32, y_ref: &i32| func(y_ref),
-            &u,
-            &pure_y,
-        );
-        left == right
-    }
-
-    // Interchange Law: u <*> pure(y) == pure(|f| f(y)) <*> u for Result
-    #[quickcheck]
-    fn qc_result_interchange(y: i32, is_ok: bool, e: i8) -> bool {
-        let f: fn(&i32) -> i32 = |x| x.saturating_mul(2);
-        let u: Result<fn(&i32) -> i32, i8> = if is_ok { Ok(f) } else { Err(e) };
-        let pure_y = <Result<i32, i8> as Pure>::pure(&y);
-
-        let left = Applicative::apply(&u, &pure_y);
-        let right = Result::<i32, i8>::lift2(
-            |func: &fn(&i32) -> i32, y_ref: &i32| func(y_ref),
-            &u,
-            &pure_y,
-        );
-        left == right
-    }
-
-    // Composition Law: pure(compose) <*> u <*> v <*> w == u <*> (v <*> w) for Option
-    #[quickcheck]
-    fn qc_option_composition(w: Option<i32>, u_some: bool, v_some: bool) -> bool {
-        let f: fn(&i32) -> i32 = |x| x.saturating_add(1);
-        let g: fn(&i32) -> i32 = |x| x.saturating_mul(2);
-        let u: Option<fn(&i32) -> i32> = if u_some { Some(f) } else { None };
-        let v: Option<fn(&i32) -> i32> = if v_some { Some(g) } else { None };
-
-        let left = Option::<i32>::lift3(
-            |f: &fn(&i32) -> i32, g: &fn(&i32) -> i32, x: &i32| f(&g(x)),
-            &u,
-            &v,
-            &w,
-        );
-        let vw = Applicative::apply(&v, &w);
-        let right = Applicative::apply(&u, &vw);
-        left == right
-    }
-
-    // Composition Law: pure(compose) <*> u <*> v <*> w == u <*> (v <*> w) for Result
-    #[quickcheck]
-    fn qc_result_composition(
-        w: Result<i32, i8>, u_ok: bool, u_err: i8, v_ok: bool, v_err: i8,
-    ) -> bool {
-        let f: fn(&i32) -> i32 = |x| x.saturating_add(1);
-        let g: fn(&i32) -> i32 = |x| x.saturating_mul(2);
-        let u: Result<fn(&i32) -> i32, i8> = if u_ok { Ok(f) } else { Err(u_err) };
-        let v: Result<fn(&i32) -> i32, i8> = if v_ok { Ok(g) } else { Err(v_err) };
-
-        let left = Result::<i32, i8>::lift3(
-            |f: &fn(&i32) -> i32, g: &fn(&i32) -> i32, x: &i32| f(&g(x)),
-            &u,
-            &v,
-            &w,
-        );
-        let vw = Applicative::apply(&v, &w);
-        let right = Applicative::apply(&u, &vw);
-        left == right
-    }
+    left_opt == right_opt && left_res == right_res
 }

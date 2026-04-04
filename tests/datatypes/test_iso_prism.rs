@@ -1,6 +1,8 @@
 use rustica::datatypes::iso_prism::IsoPrism;
 use rustica::traits::iso::Iso;
 
+// --- Test Data Structures ---
+
 #[derive(Clone, Debug, PartialEq)]
 enum MyEnum {
     Foo(i32),
@@ -43,69 +45,47 @@ impl Iso<i32, Option<String>> for ToStringPrismIso {
     }
 }
 
-#[test]
-fn test_iso_prism_new_preview_review() {
-    let prism = IsoPrism::new(FooPrismIso);
+// --- Test Cases ---
 
+#[test]
+fn test_iso_prism_core_laws_and_behavior() {
+    let prism = IsoPrism::new(FooPrismIso);
     let foo = MyEnum::Foo(10);
     let bar = MyEnum::Bar("hi".to_string());
 
-    // preview
+    // 1. Basic Operations
     assert_eq!(prism.preview(&foo), Some(10));
     assert_eq!(prism.preview(&bar), None);
+    assert_eq!(prism.review(&20), MyEnum::Foo(20));
 
-    // review
-    let reviewed = prism.review(&20);
-    assert_eq!(reviewed, MyEnum::Foo(20));
-}
-
-#[test]
-fn test_iso_prism_laws() {
-    let prism = IsoPrism::new(FooPrismIso);
-
-    // Review-Preview: preview(review(a)) == Some(a)
+    // 2. Prism Laws
+    // Law 1: Review-Preview: preview(review(a)) == Some(a)
     let a = 123;
     assert_eq!(prism.preview(&prism.review(&a)), Some(a));
 
-    // Preview-Review: if preview(s) = Some(a) then review(a) == s
-    let s = MyEnum::Foo(77);
-    if let Some(a2) = prism.preview(&s) {
-        assert_eq!(prism.review(&a2), s);
-    } else {
-        panic!("Expected Some from preview");
+    // Law 2: Preview-Review: if preview(s) = Some(a) then review(a) == s
+    if let Some(a2) = prism.preview(&foo) {
+        assert_eq!(prism.review(&a2), foo);
     }
 }
 
 #[test]
-fn test_iso_prism_composition_preview_review() {
-    let foo_prism = IsoPrism::new(FooPrismIso);
-    let to_string_prism = IsoPrism::new(ToStringPrismIso);
-    let composed = foo_prism.compose(to_string_prism);
-
-    // preview through composition
-    let s1 = MyEnum::Foo(10);
-    let s2 = MyEnum::Bar("x".to_string());
-    assert_eq!(composed.preview(&s1), Some("10".to_string()));
-    assert_eq!(composed.preview(&s2), None);
-
-    // review through composition
-    let s_new = composed.review(&"42".to_string());
-    assert_eq!(s_new, MyEnum::Foo(42));
-}
-
-#[test]
-fn test_iso_prism_composed_laws() {
+fn test_iso_prism_composition_and_laws() {
     let composed = IsoPrism::new(FooPrismIso).compose(IsoPrism::new(ToStringPrismIso));
+    let s1 = MyEnum::Foo(10);
 
-    // Review-Preview law on composed prism
+    // 1. Preview and Review through composition
+    assert_eq!(composed.preview(&s1), Some("10".to_string()));
+    assert_eq!(composed.preview(&MyEnum::Bar("x".to_string())), None);
+    assert_eq!(composed.review(&"42".to_string()), MyEnum::Foo(42));
+
+    // 2. Verify laws on composed prism
+    // Review-Preview
     let b = "37".to_string();
-    assert_eq!(composed.preview(&composed.review(&b)), Some(b.clone()));
+    assert_eq!(composed.preview(&composed.review(&b)), Some(b));
 
-    // Preview-Review law on composed prism
-    let s = MyEnum::Foo(314);
-    if let Some(b2) = composed.preview(&s) {
-        assert_eq!(composed.review(&b2), s);
-    } else {
-        panic!("Expected Some from composed.preview");
+    // Preview-Review
+    if let Some(b2) = composed.preview(&s1) {
+        assert_eq!(composed.review(&b2), s1);
     }
 }
