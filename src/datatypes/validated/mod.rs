@@ -197,6 +197,6 @@ pub mod iter;
 pub mod recovery;
 pub mod traits;
 
-pub use core::Validated;
 pub use core::ErrorVec;
+pub use core::Validated;
 pub use iter::*;

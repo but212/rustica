@@ -69,15 +69,15 @@ fn test_state_resilience_and_errors() {
 #[test]
 fn test_state_complex_scenarios() {
     // 1. Stack Operations
-    let push = |x: i32| modify(move |mut s: Vec<i32>| {
-        s.push(x);
-        s
-    });
+    let push = |x: i32| {
+        modify(move |mut s: Vec<i32>| {
+            s.push(x);
+            s
+        })
+    };
     let pop = State::new(|mut s: Vec<i32>| (s.pop(), s));
 
-    let stack_logic = push(1)
-        .bind(move |_| push(2))
-        .bind(move |_| pop.clone());
+    let stack_logic = push(1).bind(move |_| push(2)).bind(move |_| pop.clone());
     assert_eq!(stack_logic.run_state(vec![]), (Some(2), vec![1]));
 
     // 2. Fibonacci Generation

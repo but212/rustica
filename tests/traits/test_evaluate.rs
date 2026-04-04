@@ -6,7 +6,7 @@ fn test_evaluate_creation_and_basic_idempotence() {
     // 1. Basic evaluation: should result in the value
     let computation: Thunk<_, i32> = Thunk::new(|| 42);
     assert_eq!(computation.evaluate(), 42);
-    
+
     // 2. Reuse and Idempotence (Referential transparency)
     let first = computation.evaluate();
     let second = computation.evaluate();
@@ -35,9 +35,12 @@ fn test_evaluate_transformation_pipelines() {
 fn test_evaluate_filtering_and_lifetimes() {
     let x = "hello".to_string();
     let t: Thunk<_, String> = Thunk::new(move || x.clone());
-    
+
     // 1. Filter evaluation: Pass/Fail based on predicate
-    assert_eq!(t.filter_evaluate(|s| s.len() > 3), Some("hello".to_string()));
+    assert_eq!(
+        t.filter_evaluate(|s| s.len() > 3),
+        Some("hello".to_string())
+    );
     assert_eq!(t.filter_evaluate(|_| false), None);
 
     // 2. Owned evaluation (Consumes the thunk)

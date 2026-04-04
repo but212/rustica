@@ -27,7 +27,7 @@ fn test_monad_plus_identity_and_binding() {
     use rustica::traits::monad::Monad;
     let some = Some(42);
     let none: Option<i32> = Option::<i32>::mzero();
-    
+
     // Identity and Zero binding
     assert_eq!(none.mplus(&some), some);
     assert_eq!(none.bind(|x| Some(x + 1)), none);
@@ -56,6 +56,10 @@ fn foldable_properties(x: i32) -> bool {
 fn test_fold_integration() {
     let numbers = vec![1, 2, 3, 4];
     // Custom logic to find first mapped Some (MonadPlus + iteration context)
-    let found = numbers.into_iter().map(|x| if x > 2 { Some(x * 10) } else { None }).find(|opt| opt.is_some()).flatten();
+    let found = numbers
+        .into_iter()
+        .map(|x| if x > 2 { Some(x * 10) } else { None })
+        .find(|opt| opt.is_some())
+        .flatten();
     assert_eq!(found, Some(30));
 }

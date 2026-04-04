@@ -36,14 +36,22 @@ fn test_error_mapping_and_transformation() {
 #[test]
 fn test_monad_error_workflow_scenarios() {
     #[derive(Debug, Clone, PartialEq)]
-    struct AppError { msg: String }
+    struct AppError {
+        msg: String,
+    }
 
-    let result: Result<i32, AppError> = Result::<i32, AppError>::throw(AppError { msg: "invalid".into() });
+    let result: Result<i32, AppError> = Result::<i32, AppError>::throw(AppError {
+        msg: "invalid".into(),
+    });
 
     // Full chain: throw -> catch specific -> map the rest
     let handled = result
         .catch(|e| {
-            if e.msg == "retryable" { Ok(0) } else { Err(e.clone()) }
+            if e.msg == "retryable" {
+                Ok(0)
+            } else {
+                Err(e.clone())
+            }
         })
         .map_error_to(|e| format!("Final: {}", e.msg));
 

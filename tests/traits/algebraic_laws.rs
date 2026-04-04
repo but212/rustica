@@ -31,7 +31,7 @@ fn applicative_homomorphism_law(val: i32) -> bool {
     let f = |x: &i32| x.saturating_add(1);
     let pure_f = TestFunctor::<fn(&i32) -> i32>::pure(&f);
     let pure_val = TestFunctor::<i32>::pure(&val);
-    
+
     pure_f.apply(&pure_val) == TestFunctor::new(f(&val))
 }
 
@@ -47,7 +47,7 @@ fn monad_left_identity_law(val: i32) -> bool {
 fn monad_associativity_law(x: TestFunctor<i32>) -> bool {
     let f = |&a: &i32| TestFunctor::new(a.saturating_add(1));
     let g = |&a: &i32| TestFunctor::new(a.saturating_mul(2));
-    
+
     x.bind(f).bind(g) == x.bind(|&a| f(&a).bind(g))
 }
 
@@ -82,14 +82,23 @@ impl<A, B> BinaryHKT for TestBifunctor<A, B> {
 }
 
 impl<A: Clone, B: Clone> Bifunctor for TestBifunctor<A, B> {
-    fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, B> where F: Fn(&A) -> C {
+    fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, B>
+    where
+        F: Fn(&A) -> C,
+    {
         TestBifunctor(f(&self.0), self.1.clone())
     }
-    fn second<D, G>(&self, g: G) -> Self::BinaryOutput<A, D> where G: Fn(&B) -> D {
+    fn second<D, G>(&self, g: G) -> Self::BinaryOutput<A, D>
+    where
+        G: Fn(&B) -> D,
+    {
         TestBifunctor(self.0.clone(), g(&self.1))
     }
     fn bimap<C, D, F, G>(&self, f: F, g: G) -> Self::BinaryOutput<C, D>
-    where F: Fn(&A) -> C, G: Fn(&B) -> D {
+    where
+        F: Fn(&A) -> C,
+        G: Fn(&B) -> D,
+    {
         TestBifunctor(f(&self.0), g(&self.1))
     }
 }

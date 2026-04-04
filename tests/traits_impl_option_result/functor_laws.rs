@@ -11,7 +11,7 @@ fn qc_option_functor_laws(m: Option<i32>) -> bool {
 
     // 1. Identity: fmap(id) == id
     let identity = m.fmap(id) == m;
-    
+
     // 2. Composition: fmap(g . f) == fmap(g) . fmap(f)
     let composition = m.fmap(|&x| g(&f(&x))) == m.fmap(f).fmap(g);
 

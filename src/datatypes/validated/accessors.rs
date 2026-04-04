@@ -1,5 +1,5 @@
-use crate::datatypes::validated::{Validated, ErrorVec};
 use crate::datatypes::error::ValidatedError;
+use crate::datatypes::validated::{ErrorVec, Validated};
 
 impl<E, A> Validated<E, A> {
     /// Returns all errors if this is invalid, or an empty collection if valid.

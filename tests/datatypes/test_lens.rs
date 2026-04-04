@@ -39,16 +39,16 @@ fn address_rc_lens() -> Lens<
     )
 }
 
-fn street_lens(
-) -> Lens<Address, String, impl Fn(&Address) -> String, impl Fn(Address, String) -> Address> {
+fn street_lens()
+-> Lens<Address, String, impl Fn(&Address) -> String, impl Fn(Address, String) -> Address> {
     Lens::new(
         |a: &Address| a.street.clone(),
         |a: Address, street: String| Address { street, ..a },
     )
 }
 
-fn address_val_lens(
-) -> Lens<Person, Address, impl Fn(&Person) -> Address, impl Fn(Person, Address) -> Person> {
+fn address_val_lens()
+-> Lens<Person, Address, impl Fn(&Person) -> Address, impl Fn(Person, Address) -> Person> {
     Lens::new(
         |p: &Person| (*p.address).clone(),
         |p: Person, addr: Address| Person {

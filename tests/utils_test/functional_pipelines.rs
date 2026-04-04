@@ -1,7 +1,7 @@
+use rustica::datatypes::either::Either;
 use rustica::utils::categorical_utils::*;
 use rustica::utils::hkt_utils::*;
 use rustica::utils::transform_utils::*;
-use rustica::datatypes::either::Either;
 
 #[test]
 fn test_functional_transform_utilities() {
@@ -42,5 +42,8 @@ fn test_categorical_mapping() {
     // Test standardized mapping for std types
     assert_eq!(map_option(Some(10), |x| x / 2), Some(5));
     assert_eq!(bimap_result(Ok(10), |x| x + 1, |e: &str| e.len()), Ok(11));
-    assert_eq!(bimap_result(Err("err"), |x: i32| x, |e| e.to_uppercase()), Err("ERR".into()));
+    assert_eq!(
+        bimap_result(Err("err"), |x: i32| x, |e| e.to_uppercase()),
+        Err("ERR".into())
+    );
 }
