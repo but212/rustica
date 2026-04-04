@@ -69,11 +69,6 @@
 //! let split_both = FunctionCategory::split(&double, &square);
 //! assert_eq!(split_both(5), (10, 25));
 //!
-//! // More split examples
-//! let increment = FunctionCategory::arrow(|x: i32| x + 1);
-//! let negate = FunctionCategory::arrow(|x: i32| -x);
-//! let split_ops = FunctionCategory::split(&increment, &negate);
-//! assert_eq!(split_ops(7), (8, -7));
 //!
 //! // Split with different types
 //! let to_string = FunctionCategory::arrow(|x: i32| x.to_string());
@@ -108,7 +103,7 @@
 //! assert_eq!(macro_pipeline(5), "11");
 //!
 //! // Conditional composition
-//! let conditional = FunctionCategory::compose_when(
+//! let conditional = FunctionCategory::then_if(
 //!     &add_one,
 //!     &double,
 //!     |x: &i32| x % 2 == 0
@@ -239,6 +234,11 @@ impl FunctionCategory {
     /// let double_both = FunctionCategory::both(|x: i32| x * 2);
     /// assert_eq!(double_both((3, 5)), (6, 10));
     /// ```
+    ///
+    /// # See also
+    ///
+    /// * [`split`](Arrow::split) - Splitting a single input to two morphisms.
+    /// * [`combine_morphisms`](Arrow::combine_morphisms) - Combining two different morphisms for a pair input.
     pub fn both<A, B, F>(f: F) -> PairMorphism<A, B>
     where
         A: 'static,
@@ -265,6 +265,10 @@ impl FunctionCategory {
     /// assert_eq!(double_if_even(4), 8);  // Even, so doubled
     /// assert_eq!(double_if_even(3), 3);  // Odd, so unchanged
     /// ```
+    ///
+    /// # See also
+    ///
+    /// * [`then_if`](Self::then_if) - For conditional composition of two existing morphisms.
     pub fn when<A, P, F>(predicate: P, transform: F) -> FunctionMorphism<A, A>
     where
         A: 'static,
@@ -279,14 +283,9 @@ impl FunctionCategory {
     /// This is an alias for the Arrow::arrow method, provided for consistency
     /// with the deprecated Composable trait.
     ///
-    /// # Examples
+    /// # See also
     ///
-    /// ```rust
-    /// use rustica::category::function_category::FunctionCategory;
-    ///
-    /// let double = FunctionCategory::lift(|x: i32| x * 2);
-    /// assert_eq!(double(21), 42);
-    /// ```
+    /// * [`Arrow::arrow`] - The standard way to lift functions into the category.
     #[inline]
     pub fn lift<A, B, F>(f: F) -> FunctionMorphism<A, B>
     where
@@ -321,6 +320,10 @@ impl FunctionCategory {
     /// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even)
     /// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd)
     /// ```
+    ///
+    /// # See also
+    ///
+    /// * [`when`](Self::when) - For lifting a single function with a predicate.
     pub fn then_if<A, P>(
         first: &FunctionMorphism<A, A>, second: &FunctionMorphism<A, A>, predicate: P,
     ) -> FunctionMorphism<A, A>
@@ -347,20 +350,9 @@ impl FunctionCategory {
     /// This applies the first morphism, then conditionally applies the second
     /// based on the predicate result.
     ///
-    /// # Examples
+    /// # See also
     ///
-    /// ```rust
-    /// use rustica::category::function_category::FunctionCategory;
-    /// use rustica::traits::arrow::Arrow;
-    ///
-    /// let add_one = FunctionCategory::arrow(|x: i32| x + 1);
-    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
-    /// let is_even = |x: &i32| x % 2 == 0;
-    ///
-    /// let conditional = FunctionCategory::compose_when(&add_one, &double, is_even);
-    /// assert_eq!(conditional(1), 4);  // (1 + 1) * 2 = 4 (2 is even)
-    /// assert_eq!(conditional(2), 3);  // (2 + 1) = 3 (3 is odd)
-    /// ```
+    /// * [`then_if`](Self::then_if) - The modern replacement for this method.
     #[deprecated(
         note = "Please use `then_if` instead. Its name more accurately describes the conditional execution flow."
     )]
@@ -376,8 +368,9 @@ impl FunctionCategory {
 
     /// Creates a morphism that applies multiple transformations in sequence.
     ///
-    /// This is similar to compose_all but takes owned functions for better performance
     /// when the functions don't need to be reused.
+    ///
+    /// If the vector is empty, the resulting morphism is the identity function.
     ///
     /// # Examples
     ///
