@@ -52,7 +52,7 @@ fn test_id_utilities() {
 
     // Accessors
     assert_eq!(id.as_ref(), &42);
-    assert_eq!(id.clone().into_inner(), 42);
+    assert_eq!(id.into_inner(), 42);
 
     // Serde Integration
     #[cfg(feature = "serde")]

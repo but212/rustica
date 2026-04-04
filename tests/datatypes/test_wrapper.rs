@@ -102,7 +102,7 @@ fn test_wrapper_integration_use_cases() {
     assert_eq!(minimum, Min(1));
 
     // Optional stream processing
-    let opts = vec![None, Some(42), Some(84)];
+    let opts = [None, Some(42), Some(84)];
     let first = opts
         .iter()
         .filter_map(|&x| x)

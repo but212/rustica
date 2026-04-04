@@ -65,5 +65,5 @@ fn test_monoid_utilities() {
     let values = vec!["a".to_string(), "b".to_string(), "c".to_string()];
     assert_eq!(mconcat(&values), "abc");
     assert_eq!(repeat("x".to_string(), 3), "xxx");
-    assert_eq!(String::empty().is_empty_monoid(), true);
+    assert!(String::empty().is_empty_monoid());
 }

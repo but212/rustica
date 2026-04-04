@@ -23,38 +23,57 @@ struct Person {
 
 // --- Helper Lenses ---
 
-fn x_lens() -> Lens<Point, f64, impl Fn(&Point) -> f64, impl Fn(Point, f64) -> Point> {
-    Lens::new(|p: &Point| p.x, |p: Point, x: f64| Point { x, ..p })
+type PointXLens = Lens<Point, f64, Box<dyn Fn(&Point) -> f64>, Box<dyn Fn(Point, f64) -> Point>>;
+
+fn x_lens() -> PointXLens {
+    Lens::new(
+        Box::new(|p: &Point| p.x),
+        Box::new(|p: Point, x: f64| Point { x, ..p }),
+    )
 }
 
-fn address_rc_lens() -> Lens<
+type PersonAddressRcLens = Lens<
     Person,
     Rc<Address>,
-    impl Fn(&Person) -> Rc<Address>,
-    impl Fn(Person, Rc<Address>) -> Person,
-> {
+    Box<dyn Fn(&Person) -> Rc<Address>>,
+    Box<dyn Fn(Person, Rc<Address>) -> Person>,
+>;
+
+fn address_rc_lens() -> PersonAddressRcLens {
     Lens::new(
-        |p: &Person| p.address.clone(),
-        |p: Person, address: Rc<Address>| Person { address, ..p },
+        Box::new(|p: &Person| p.address.clone()),
+        Box::new(|p: Person, address: Rc<Address>| Person { address, ..p }),
     )
 }
 
-fn street_lens()
--> Lens<Address, String, impl Fn(&Address) -> String, impl Fn(Address, String) -> Address> {
+type AddressStreetLens = Lens<
+    Address,
+    String,
+    Box<dyn Fn(&Address) -> String>,
+    Box<dyn Fn(Address, String) -> Address>,
+>;
+
+fn street_lens() -> AddressStreetLens {
     Lens::new(
-        |a: &Address| a.street.clone(),
-        |a: Address, street: String| Address { street, ..a },
+        Box::new(|a: &Address| a.street.clone()),
+        Box::new(|a: Address, street: String| Address { street, ..a }),
     )
 }
 
-fn address_val_lens()
--> Lens<Person, Address, impl Fn(&Person) -> Address, impl Fn(Person, Address) -> Person> {
+type PersonAddressValLens = Lens<
+    Person,
+    Address,
+    Box<dyn Fn(&Person) -> Address>,
+    Box<dyn Fn(Person, Address) -> Person>,
+>;
+
+fn address_val_lens() -> PersonAddressValLens {
     Lens::new(
-        |p: &Person| (*p.address).clone(),
-        |p: Person, addr: Address| Person {
+        Box::new(|p: &Person| (*p.address).clone()),
+        Box::new(|p: Person, addr: Address| Person {
             address: Rc::new(addr),
             ..p
-        },
+        }),
     )
 }
 

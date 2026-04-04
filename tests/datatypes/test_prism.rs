@@ -18,32 +18,36 @@ struct User {
 
 // --- Helper Factories ---
 
-fn active_prism()
--> Prism<Status, String, impl Fn(&Status) -> Option<String>, impl Fn(&String) -> Status> {
+type ActivePrism =
+    Prism<Status, String, Box<dyn Fn(&Status) -> Option<String>>, Box<dyn Fn(&String) -> Status>>;
+
+fn active_prism() -> ActivePrism {
     Prism::new(
-        |s| match s {
+        Box::new(|s| match s {
             Status::Active(n) => Some(n.clone()),
             _ => None,
-        },
-        |n| Status::Active(n.clone()),
+        }),
+        Box::new(|n| Status::Active(n.clone())),
     )
 }
 
-fn error_prism() -> Prism<
+type ErrorPrism = Prism<
     Status,
     (u32, String),
-    impl Fn(&Status) -> Option<(u32, String)>,
-    impl Fn(&(u32, String)) -> Status,
-> {
+    Box<dyn Fn(&Status) -> Option<(u32, String)>>,
+    Box<dyn Fn(&(u32, String)) -> Status>,
+>;
+
+fn error_prism() -> ErrorPrism {
     Prism::new(
-        |s| match s {
+        Box::new(|s| match s {
             Status::Error { code, message } => Some((*code, message.clone())),
             _ => None,
-        },
-        |&(code, ref msg)| Status::Error {
+        }),
+        Box::new(|&(code, ref msg)| Status::Error {
             code,
             message: msg.clone(),
-        },
+        }),
     )
 }
 
