@@ -1,9 +1,6 @@
-use crate::datatypes::validated::ErrorVec;
-use crate::datatypes::validated::Validated;
-
+use crate::datatypes::validated::{ErrorVec, Validated};
 use smallvec::SmallVec;
 
-#[cfg(feature = "async")]
 impl<E, A> Validated<E, A> {
     /// Maps an async function over the valid value.
     ///

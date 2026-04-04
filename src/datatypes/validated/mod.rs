@@ -189,6 +189,7 @@
 //!
 //! Please refer to the documentation of individual functions in this module.
 pub mod accessors;
+#[cfg(feature = "async")]
 pub mod async_ops;
 pub mod combinators;
 pub mod conversions;
