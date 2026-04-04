@@ -87,16 +87,6 @@
 //! let doubled = choice.fmap(|x| x * 2);
 //! assert_eq!(doubled.first(), Some(&20));
 //!
-//! // Add more alternatives
-//! let extended = choice.clone().add_alternatives(vec![50, 60]);
-//! assert_eq!(extended.alternatives().len(), 5); // Now has 5 alternatives
-//!
-//! // Filter values
-//! // Filter values (alternatives only)
-//! let filtered_alts = choice.clone().filter(|&x| x < 35);
-//! assert_eq!(filtered_alts.first(), Some(&10)); // Primary is preserved
-//! assert_eq!(filtered_alts.alternatives(), &[20, 30]);
-//!
 //! // Filter all values (primary and alternatives)
 //! let filtered_all = choice.filter_values(|&x| x > 25);
 //! assert_eq!(filtered_all.first(), Some(&30)); // First value that passes the predicate
@@ -362,7 +352,6 @@ impl<T> Choice<T> {
     ///
     /// # See Also
     /// - [`is_empty`](Self::is_empty) - To check if length is zero.
-    /// - [`has_alternatives`](Self::has_alternatives) - To check if there are more than just the primary value.
     #[inline]
     pub fn len(&self) -> usize {
         self.values.len()
@@ -475,8 +464,6 @@ impl<T> Choice<T> {
     /// ```
     #[inline]
     /// # See Also
-    /// - [`filter()`](Self::filter) - To remove multiple alternatives based on a predicate.
-    /// - [`add_alternatives()`](Self::add_alternatives) - To add new alternatives.
     /// - [`try_remove_alternative()`](Self::try_remove_alternative) - Safe version that returns Result.
     pub fn remove_alternative(self, index: usize) -> Self
     where
@@ -562,7 +549,6 @@ impl<T> Choice<T> {
     /// ```
     ///
     /// # See Also
-    /// - [`flatten_sorted`](Self::flatten_sorted) - Similar, but sorts the resulting alternatives.
     /// - [`join`](crate::traits::monad::Monad::join) - The Monad trait's equivalent operation for `Choice<Choice<T>>`.
     /// - [`bind`](crate::traits::monad::Monad::bind) - For more general monadic sequencing which can achieve flattening.
     /// - [`try_flatten`](Self::try_flatten) - Safe version that returns Result.
@@ -734,7 +720,6 @@ impl<T> Choice<T> {
     /// ```
     ///
     /// # See Also
-    /// - [`filter()`](Self::filter) - To filter only alternatives, always preserving the primary value.
     /// - [`Choice::new()`](Self::new) - For creating a `Choice`.
     /// - [`Choice::remove_alternative()`](Self::remove_alternative) - To remove a specific alternative by index.
     #[inline]
