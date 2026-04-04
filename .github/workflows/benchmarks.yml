@@ -1,0 +1,76 @@
+name: Performance Benchmarks
+
+on:
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Run benchmarks
+        run: |
+          cargo bench --all-features 2>&1 | tee benchmark_output.txt || {
+            echo "::warning::Benchmark execution failed"
+            echo "[]" > benchmark_raw_results.json
+            exit 0
+          }
+
+      - name: Parse Criterion JSON results
+        run: |
+          echo "[]" > benchmark_raw_results.json
+          if [ -d "target/criterion" ]; then
+            find target/criterion -type f -name "estimates.json" -print0 | while IFS= read -r -d '' file; do
+              bench_name=$(echo "$file" | sed -E 's|target/criterion/(.+)/new/estimates.json|\1|' | tr '/' '_')
+              jq --arg name "$bench_name" '{
+                name: $name,
+                value: .mean.point_estimate,
+                unit: "ns",
+                range: ((.mean.confidence_interval.upper_bound - .mean.confidence_interval.lower_bound) / 2)
+              }' "$file" >> temp_bench.jsonl || true
+            done
+            if [ -f temp_bench.jsonl ]; then
+              jq -s '[.[] | select(.value > 0)]' temp_bench.jsonl > benchmark_raw_results.json || echo "[]" > benchmark_raw_results.json
+              rm -f temp_bench.jsonl
+            fi
+          fi
+
+      - name: Format for benchmark-action
+        run: |
+          jq 'map({name: .name, value: .value, unit: "ns/iter"})' benchmark_raw_results.json > formatted_benchmark_results.json
+
+      - name: Store benchmark results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Rust Benchmarks
+          tool: "customSmallerIsBetter"
+          output-file-path: formatted_benchmark_results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: benchmarks
+          auto-push: true
+          comment-on-alert: true
+          alert-threshold: "120%"
+          fail-on-alert: false
+          alert-comment-cc-users: "@${{ github.repository_owner }}"
