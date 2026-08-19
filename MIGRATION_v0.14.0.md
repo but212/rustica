@@ -9,7 +9,7 @@ In Rustica 0.14.0, all APIs deprecated in 0.13.0 and their dependent traits and 
 ## Summary of Removals
 
 | Deprecated / Removed in 0.14.0 | Recommended Replacement |
-|---|---|
+| --- | --- |
 | `Maybe<T>` | Standard `Option<T>` (`rustica::traits::Functor`, `Monad`, etc. are implemented for `Option`) |
 | `Either<L, R>` | Standard `Result<R, L>` or external `either` crate |
 | `EitherError` | Standard `Result` pattern matching |
@@ -32,6 +32,7 @@ In Rustica 0.14.0, all APIs deprecated in 0.13.0 and their dependent traits and 
 `Maybe<T>` was a duplicate of `Option<T>`. In Rustica, `Option<T>` implements all functional traits (`Functor`, `Applicative`, `Monad`, `Foldable`, `Traversable`).
 
 #### Before (0.13.x)
+
 ```rust
 use rustica::datatypes::maybe::Maybe;
 use rustica::traits::functor::Functor;
@@ -45,6 +46,7 @@ assert!(empty.is_nothing());
 ```
 
 #### After (0.14.0)
+
 ```rust
 use rustica::traits::functor::Functor;
 
@@ -61,6 +63,7 @@ assert!(empty.is_none());
 ### 2. `Either<L, R>` → `Result<R, L>`
 
 #### Before (0.13.x)
+
 ```rust
 use rustica::datatypes::either::Either;
 use rustica::traits::functor::Functor;
@@ -73,6 +76,7 @@ let err: Either<String, i32> = Either::Left("failed".to_string());
 ```
 
 #### After (0.14.0)
+
 ```rust
 use rustica::traits::functor::Functor;
 
