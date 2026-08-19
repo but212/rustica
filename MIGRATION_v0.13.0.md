@@ -5,6 +5,12 @@ This release removes APIs that were compatibility shims or no-op configuration:
 - `Choice::{remove_alternative, try_remove_alternative, iter_alternatives,
   try_swap_with_alternative}`. Use `alternatives()`/`alternatives().iter()` or
   compose a new `Choice` with `filter_values`.
+- `Choice::new_empty`: `Choice<T>` now statically guarantees a non-empty primary
+  value (`first(&self) -> &T`). Use `Choice::single(value)` or `Choice::of_many(iter)` (returns `Option<Choice<T>>`).
+- `NonEmptyErrors::remove`: Removed to preserve the non-empty invariant of error collections.
+- `Traversable` trait: Removed (0 implementations).
+- Dead utility functions removed: `const_fn`, `compose`, `pipe`, `flip`, `fold_with`, `bimap_result`, `fan_out`, `compose_all`, `lift_option`, `transform_all`.
+- `id` function: Re-exported from `std::convert::identity`.
 - `PersistentVector::{with_cache_policy, from_slice_with_cache_policy}`.
 - `ResultExt` and its `to_validated`, `to_either`, `bimap`, and
   `unwrap_or_default` methods. Use the conversion functions and inherent

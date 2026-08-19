@@ -83,12 +83,6 @@ impl<E> NonEmptyErrors<E> {
     pub fn extend<I: IntoIterator<Item = E>>(&mut self, errors: I) {
         self.0.extend(errors);
     }
-
-    #[inline]
-    pub fn remove(&mut self, index: usize) -> E {
-        assert!(self.len() > 1, "Validated errors cannot be empty");
-        self.0.remove(index)
-    }
 }
 
 impl<E> std::ops::Deref for NonEmptyErrors<E> {

@@ -4,6 +4,27 @@
 
 ### Breaking Changes
 
+- **`Choice<T>` Impossible-State Elimination**
+  - Redesigned `Choice<T>` as `{ primary: T, alternatives: SmallVec<[T; 7]> }` to guarantee at compile-time that empty choices are impossible.
+  - `Choice::first(&self) -> &T` returns a direct reference without returning `Option`.
+  - Removed `Choice::new_empty()`. Added `Choice::single()`, `Choice::of_many()` (returns `Option<Choice<T>>`), and `Choice::filter_values()`.
+  - Implemented `Pure`, `Functor`, `Applicative`, `Monad`, `Semigroup`, `IntoIterator`, `Foldable` on `Choice<T>`.
+
+- **`NonEmptyErrors<E>` Invariant Preservation**
+  - Removed `NonEmptyErrors::remove()` to guarantee that error collections cannot be mutated into an empty state.
+
+- **Dead Code and Speculative Helpers Removed**
+  - Removed 0-impl trait `Traversable`.
+  - Removed dead utility functions: `const_fn`, `compose`, `pipe`, `flip`, `fold_with`, `bimap_result`, `fan_out`, `compose_all`, `lift_option`, `transform_all`.
+  - Re-exported `id` directly from `std::convert::identity`.
+
+- **Deprecations (0.14.0 Complete Removal Notice)**
+  - `Maybe<T>`: Deprecated in favor of standard `Option<T>`.
+  - `Either<L, R>`: Deprecated in favor of `Result<R, L>` or the `either` crate.
+  - 1-impl traits: `Comonad`, `Arrow`, `Category`, `Evaluate`, `EvaluateExt`.
+  - Speculative wrappers: `ErrorCategory`, `ErrorPipeline`, `Pipeline<T>`, `Memoizer`.
+  - Redundant collection iterators: `PersistentVector::{take, skip}`.
+
 - **`Validated<E, A>` Non-Empty Error Invariant**
   - `Validated::Invalid` now stores `NonEmptyErrors<E>` instead of the public
     `ErrorVec<E>` alias, so an invalid value cannot contain zero errors.

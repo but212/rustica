@@ -2,7 +2,6 @@ mod algebraic_laws;
 mod choice_and_iteration;
 mod merging_laws;
 mod monad_error;
-mod test_evaluate;
 
 use quickcheck::{Arbitrary, Gen};
 use rustica::prelude::*;

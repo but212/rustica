@@ -38,9 +38,9 @@
 //! ## Mathematical Definition
 //!
 //! In category theory, a comonad on a category C consists of:
-//! - An endofunctor W: C → C
-//! - A natural transformation ε: W → Id (called `extract`) - **MUST BE TOTAL**
-//! - A natural transformation δ: W → W² (called `duplicate`)
+//! - An endofunctor W: C ??C
+//! - A natural transformation ε: W ??Id (called `extract`) - **MUST BE TOTAL**
+//! - A natural transformation δ: W ??W² (called `duplicate`)
 //!
 //! ## Laws
 //!
@@ -112,8 +112,10 @@ use crate::traits::functor::Functor;
 /// - Zippers
 /// - Store comonads
 ///
-/// Note: Comonads are independent of monads in category theory. They both extend Functor,
-/// but a type can be a comonad without being a monad, and vice versa.
+#[deprecated(
+    since = "0.13.0",
+    note = "Comonad has only one implementor (Id). Use Id methods directly. Comonad will be removed in 0.14.0."
+)]
 pub trait Comonad: Functor {
     /// Extracts the value from a comonadic context.
     ///
@@ -122,7 +124,7 @@ pub trait Comonad: Functor {
     ///
     /// # Category Theory
     ///
-    /// This operation corresponds to the counit (ε: W A → A) of the comonad.
+    /// This operation corresponds to the counit (ε: W A ??A) of the comonad.
     /// It must be total (always succeed) for the type to be a valid comonad.
     ///
     /// # Returns
@@ -187,7 +189,7 @@ pub trait Comonad: Functor {
     ///
     /// # Category Theory
     ///
-    /// This corresponds conceptually to the comultiplication (δ: W A → W (W A)) of the comonad.
+    /// This corresponds conceptually to the comultiplication (δ: W A ??W (W A)) of the comonad.
     /// Implementations should ensure `duplicate` and `extend` are consistent with `extract`.
     ///
     /// # Returns

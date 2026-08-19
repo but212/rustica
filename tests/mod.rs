@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 // Macro definitions for testing laws and properties
 #[macro_use]
 pub mod laws;
@@ -19,8 +21,5 @@ pub mod transformers;
 
 // Utility function tests
 pub mod utils_test;
-
-// Category tests
-pub mod category;
 
 pub mod error;

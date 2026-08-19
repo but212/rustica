@@ -7,7 +7,6 @@ use rustica::datatypes::wrapper::product::Product;
 use rustica::datatypes::wrapper::sum::Sum;
 use rustica::datatypes::wrapper::thunk::Thunk;
 use rustica::prelude::*;
-use rustica::traits::evaluate::Evaluate;
 use std::sync::{Arc, Mutex};
 
 #[test]

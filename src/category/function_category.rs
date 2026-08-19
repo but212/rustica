@@ -14,19 +14,19 @@
 //! ## Category Structure
 //!
 //! - **Objects**: Rust types (`A`, `B`, `C`, etc.)
-//! - **Morphisms**: Functions `A → B` represented as `Arc<dyn Fn(A) -> B + 'static>`
+//! - **Morphisms**: Functions `A ??B` represented as `Arc<dyn Fn(A) -> B + 'static>`
 //! - **Identity**: Identity function `id_A(x) = x`
-//! - **Composition**: Function composition `(g ∘ f)(x) = g(f(x))`
+//! - **Composition**: Function composition `(g ??f)(x) = g(f(x))`
 //!
 //! ## Laws Satisfied
 //!
 //! ### Category Laws
-//! 1. **Identity**: `f ∘ id = f = id ∘ f`
-//! 2. **Associativity**: `(h ∘ g) ∘ f = h ∘ (g ∘ f)`
+//! 1. **Identity**: `f ??id = f = id ??f`
+//! 2. **Associativity**: `(h ??g) ??f = h ??(g ??f)`
 //!
 //! ### Arrow Laws
 //! 1. **Arrow Identity**: `arrow(id) = identity_morphism`
-//! 2. **Arrow Composition**: `arrow(g ∘ f) = compose_morphisms(arrow(f), arrow(g))`
+//! 2. **Arrow Composition**: `arrow(g ??f) = compose_morphisms(arrow(f), arrow(g))`
 //! 3. **First Laws**: Various laws governing the `first` operation
 //!
 //! # Usage Examples
@@ -117,6 +117,8 @@
 //! All morphisms are wrapped in `Arc` for cheap cloning via shared ownership.
 //! Note that `Arc`'s reference counting is thread-safe, but the morphism type itself does not
 //! require `Send`/`Sync` bounds.
+
+#![allow(deprecated)]
 
 pub use crate::traits::arrow::Arrow;
 pub use crate::traits::category::Category;

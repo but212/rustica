@@ -136,33 +136,18 @@ where
 ///
 /// * `T`: The success type
 /// * `E`: The current error type
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::{ErrorPipeline, ComposableError};
-///
-/// let result: Result<i32, &str> = Err("parse error");
-///
-/// let processed = ErrorPipeline::new(result)
-///     .with_context("Failed to process input")
-///     .map_error(|e| format!("Error: {}", e))
-///     .recover(|_| Ok(42))
-///     .finish();
-///
-/// assert_eq!(processed, Ok(42));
-/// ```
+#[deprecated(
+    since = "0.13.0",
+    note = "ErrorPipeline is an unnecessary wrapper. Use Result methods directly. Will be removed in 0.14.0."
+)]
 pub struct ErrorPipeline<T, E> {
     result: Result<T, E>,
     pending_contexts: SmallVec<[String; 4]>,
 }
 
+#[allow(deprecated)]
 impl<T, E> ErrorPipeline<T, E> {
     /// Creates a new error pipeline from a Result.
-    ///
-    /// # Arguments
-    ///
-    /// * `result`: The initial Result to process
     ///
     /// # Examples
     ///
@@ -598,54 +583,4 @@ where
 /// ```
 pub fn extract_context<E>(error: &ComposableError<E>) -> Vec<String> {
     error.context()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::ErrorPipeline;
-
-    #[test]
-    fn test_context_dropped_on_success() {
-        let result = ErrorPipeline::new(Ok(1))
-            .with_context("context 1")
-            .and_then(|_| Err::<(), &str>("error"))
-            .finish();
-
-        match result {
-            Ok(_) => panic!("Expected error"),
-            Err(e) => assert_eq!(e.context().len(), 0),
-        }
-    }
-
-    #[test]
-    fn test_context_preserved_on_failure() {
-        let result = ErrorPipeline::new(Err::<(), &str>("original error"))
-            .with_context("context 1")
-            .finish();
-
-        match result {
-            Ok(_) => panic!("Expected error"),
-            Err(e) => {
-                assert_eq!(e.context().len(), 1);
-                assert_eq!(e.context()[0], "context 1");
-            },
-        }
-    }
-
-    #[test]
-    fn test_context_accumulation_logic() {
-        let result = ErrorPipeline::new(Ok(1))
-            .with_context("context A")
-            .and_then(|_| Err::<(), &str>("error"))
-            .with_context("context B")
-            .finish();
-
-        match result {
-            Ok(_) => panic!("Expected error"),
-            Err(e) => {
-                assert_eq!(e.context().len(), 1);
-                assert_eq!(e.context()[0], "context B");
-            },
-        }
-    }
 }

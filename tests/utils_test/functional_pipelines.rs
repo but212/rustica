@@ -1,7 +1,3 @@
-use rustica::datatypes::either::Either;
-use rustica::utils::categorical_utils::*;
-use rustica::utils::transform_utils::*;
-
 #[test]
 fn test_functional_transform_utilities() {
     // 1. Standard iterator filtering and sequencing
@@ -23,36 +19,21 @@ fn test_functional_transform_utilities() {
         None
     );
 
-    // 2. Composed utilities (compose, pipe, flip)
+    // 2. Idiomatic Rust closure chaining
     let add_one = |x: i32| x + 1;
     let double = |x: i32| x * 2;
-    assert_eq!(compose(double, add_one)(5), 12);
-    assert_eq!(pipe(add_one, double)(5), 12);
-    assert_eq!(flip(|x: i32, y: i32| x - y)(10, 3), -7);
-}
-
-#[test]
-fn test_pipeline_ergonomics() {
-    // 1. Complex Pipeline with Either
-    let res = Pipeline::new(Either::<&str, i32>::right(10))
-        .map(|&x| x * 2)
-        .map(|x| x.to_string())
-        .extract();
-    assert_eq!(res, Either::right("20".to_string()));
-
-    // 2. Iterator interface
-    let pipeline = Pipeline::new(vec![1, 2, 3]);
-    let collected: Vec<_> = pipeline.into_iter().map(|x| x + 1).collect();
-    assert_eq!(collected, vec![2, 3, 4]);
+    assert_eq!(double(add_one(5)), 12);
 }
 
 #[test]
 fn test_categorical_mapping() {
     // Test standardized mapping for std types
     assert_eq!(Some(10).map(|x| x / 2), Some(5));
-    assert_eq!(bimap_result(Ok(10), |x| x + 1, |e: &str| e.len()), Ok(11));
+    let ok_res: Result<i32, &str> = Ok(10);
+    assert_eq!(ok_res.map(|x| x + 1).map_err(|e| e.len()), Ok(11));
+    let err_res: Result<i32, &str> = Err("err");
     assert_eq!(
-        bimap_result(Err("err"), |x: i32| x, |e| e.to_uppercase()),
-        Err("ERR".into())
+        err_res.map(|x| x + 1).map_err(|e| e.to_uppercase()),
+        Err("ERR".to_string())
     );
 }

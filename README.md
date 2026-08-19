@@ -4,36 +4,33 @@
 [![Documentation](https://docs.rs/rustica/badge.svg)](https://docs.rs/rustica)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Rustica is a comprehensive functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem. It provides a rich set of type classes, data types, and utilities commonly found in functional programming languages.
+Rustica is a pragmatic functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem.
 
 ## Overview
 
 Rustica enables idiomatic functional programming in Rust by providing:
 
-- **Type Classes**: Core abstractions like `Functor`, `Applicative`, and `Monad`
-- **Data Types**: Common functional data structures like `Maybe`, `Either`, `Choice`, and `IO`
-- **Monad Transformers**: Powerful composition with `StateT`, `ReaderT`, and more
-- **Categorical Composition**: Category-theoretic function composition via Category and Arrow traits
+- **Type Classes**: Core abstractions like `Functor`, `Applicative`, `Monad`, `Pure`, and `Foldable`
+- **Data Types**: Functional data structures like `Choice` (guaranteed non-empty alternatives), `Validated`, `Id`, and `IO`
+- **Monad Transformers**: Composition with `StateT`, `ReaderT`, and `ContT`
 - **Pure Functional Style**: Patterns for immutable data and explicit effect handling
-- **Error Handling**: Functional error handling utilities that work across different types
+- **Error Handling**: Structured context accumulation via `ComposableError` and `Validated`
+- **Persistent Collections**: Efficient immutable `PersistentVector` (RRB-Tree)
 
 ### Recommended Use Cases
 
 **Excellent for:**
 
-- Learning functional programming concepts
-- Prototyping and research
-- Educational purposes
-- Small-scale applications
+- Domain modeling with compile-time impossible state elimination
+- Complex validation and error accumulation (`Validated`)
+- Side-effect isolation (`IO`, `State`, `Reader`)
+- Learning category theory and functional programming concepts in Rust
 
 **Avoid for:**
 
-- Performance-critical production code
-- Real-time systems
-- Game engines
-- High-throughput web servers
+- Low-level, allocation-critical embedded kernel routines
 
-Whether you're coming from Haskell, Scala, or other functional languages, or just want to explore functional programming in Rust, Rustica provides the tools you need for learning and experimentation.
+---
 
 ## Getting Started
 
@@ -44,234 +41,96 @@ Add Rustica to your `Cargo.toml`:
 rustica = "0.13.0"
 ```
 
-If you want to use async features, add the `async` feature:
-
-```toml
-[dependencies]
-rustica = { version = "0.13.0", features = ["async"] }
-```
-
-Persistent vector collections are included by default. The `full` feature enables all optional library features: `async`, `serde`, and `quickcheck`.
-
-You can combine multiple features as needed:
+For full features including `async`, `serde`, and `quickcheck`:
 
 ```toml
 [dependencies]
 rustica = { version = "0.13.0", features = ["full"] }
 ```
 
-Then import the prelude to get started:
+Import common traits and types through the prelude:
 
 ```rust
 use rustica::prelude::*;
 ```
 
-## Features
+---
 
-### Type Classes
+## Features & Core Types
 
-Rustica implements a wide range of type classes from category theory:
+### 1. Functional Type Classes
 
-- **Basic Abstractions**
-  - `Functor` - For mapping over contained values
-  - `Applicative` - For applying functions in a context
-  - `Monad` - For sequential computations
-  - `Pure` - For lifting values into a context
-  - `Alternative` - For choice between computations
+- **`Functor`** - Structure-preserving mapping (`fmap`, `fmap_owned`)
+- **`Pure`** - Context-lifting (`pure`, `pure_owned`)
+- **`Applicative`** - Multi-argument context application (`apply`, `lift2`, `lift3`)
+- **`Monad`** - Sequential monadic chaining (`bind`, `join`)
+- **`Foldable`** - Folding and aggregation (`fold_left`, `fold_right`)
+- **`Semigroup` / `Monoid`** - Associative combination and identity elements
 
-- **Algebraic Structures**
-  - `Semigroup` - Types with an associative binary operation
-  - `Monoid` - Semigroups with an identity element
-  - `Foldable` - For reducing structures
-  - `Traversable` - For structure-preserving transformations
+### 2. Core Data Types
 
-- **Advanced Concepts**
-  - `Bifunctor` - For mapping over two type parameters
-  - `Contravariant` - For reversing function application
-  - `Category` - For abstract composition
-  - `Arrow` - For generalized computation
-  - `Comonad` - For context-aware computations
-  - `MonadError` - For error handling in monadic contexts
+- **`Choice<T>`**: Guaranteed non-empty alternatives. Statically enforces at least one primary value (`first(&self) -> &T`).
+- **`Validated<E, T>`**: Accumulates all validation errors into `NonEmptyErrors<E>` without early termination.
+- **`Id<T>`**: The identity functor/monad.
+- **`IO<A>`**: Pure description of side-effectful computations.
+- **`State<S, A>`**: Stateful computations with pure transitions.
+- **`Reader<E, A>`**: Dependency injection and environment passing.
+- **`Writer<W, A>`**: Computations that produce an accumulated log.
+- **`Cont<R, A>`**: Continuation-passing style computations.
+- **`PersistentVector<T>`**: High-performance persistent immutable vector with structural sharing.
 
-### Data Types
+### 3. Optics
 
-Rustica provides a rich collection of functional data types:
+- **`Lens`** & **`IsoLens`**: Functional getters and setters for product types.
+- **`Prism`** & **`IsoPrism`**: Pattern matching and traversal optics for sum types.
 
-- **Core Types**
-  - `Maybe<T>` - For optional values (like `Option<T>`)
-  - `Either<L, R>` - For values with two possibilities
-  - `Id<T>` - The identity monad
-  - `Validated<E, T>` - For accumulating validation errors
-  - `NonEmptyErrors<E>` - The non-empty error collection used by `Validated::Invalid`
-  - `Choice<T>` - For representing non-deterministic computations with alternatives
+---
 
-- **Effect Types**
-  - `IO<A>` - For pure I/O operations
-  - `State<S, A>` - For stateful computations with thread-safe implementations
-  - `Reader<E, A>` - For environment-based computations
-  - `Writer<W, A>` - For logging operations
-  - `Cont<R, A>` - For continuation-based programming
-  - `AsyncM<A>` - For asynchronous operations (requires `async` feature)
+## Deprecations in 0.13.0 (Planned for Removal in 0.14.0)
 
-- **Special Purpose**
-  - Various wrapper types (`First`, `Last`, `Min`, `Max`, etc.)
+As part of the Lean Architecture initiative, redundant types and speculative wrappers are deprecated in `0.13.0` and will be completely removed in `0.14.0`:
 
-- **Persistent Collections**
-  - `PersistentVector<T>` - An efficient immutable vector with structural sharing and small vector optimization
+| Deprecated Item | Recommended Replacement |
+| --- | --- |
+| `Maybe<T>` | `Option<T>` (already implements `Functor`, `Monad`, etc.) |
+| `Either<L, R>` | `Result<R, L>` or the `either` crate |
+| `Traversable` | Removed (0 implementations) |
+| `Comonad` | Use `Id` methods directly |
+| `Arrow` / `Category` | Native function chaining / closures |
+| `Evaluate` / `EvaluateExt` | `Thunk::evaluate` directly |
+| `ErrorPipeline` / `ErrorCategory` | Native `Result` method chaining (`.map()`, `.and_then()`) |
+| `Pipeline<T>` | Method chaining directly on types |
+| `Memoizer` | Dedicated crates like `lru` or `moka` |
+| `PersistentVector::{take, skip}` | Iterator adapters (`.into_iter().take().collect()`) |
 
-- **Transformers**
-  - `StateT<S, M, A>` - State monad transformer for combining state with other effects
-  - `ReaderT<E, M, A>` - Reader monad transformer for combining environment with other effects
-  - Bidirectional conversion between monads and their transformer versions
+See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) and [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for full migration guides.
 
-- **Optics**
-  - `Lens` - For focusing on parts of structures
-  - `Prism` - For working with sum types
-  - `IsoLens` - Lawful, composable lenses based on isomorphisms for deep focusing
-  - `IsoPrism` - Lawful, composable prisms based on isomorphisms for sum types
+---
 
-### Error Handling Utilities
-
-Rustica provides standardized error handling utilities that work across different functional types:
-
-- **Core Functions**
-  - `sequence` - Combines a collection of `Result` values into a single `Result` containing a collection
-  - `traverse` - Applies a function that produces a `Result` to a collection, returning a single `Result`
-  - `traverse_validated` - Like `traverse` but collects all errors instead of failing fast
-
-- **Type Conversion**
-  - `WithError` trait - Generic trait for any type that can represent error states
-  - Conversion functions such as `result_to_validated()`, `result_to_either()`, and `validated_to_either()`
-
-- **Error Types**
-  - `ComposableError<E>` - A structured error type that accumulates context
-  - `ErrorPipeline` - Functional error handling pipelines
-  - Helper functions like `with_context()` and `format_error_chain()`
-
-### Persistent Vector
-
-Rustica provides an immutable persistent vector (RRB-Tree) for functional programming patterns.
-
-Example Usage
-
-```rust
-use rustica::pvec::PersistentVector;
-use rustica::pvec::pvec;
-
-let v1: PersistentVector<i32> = pvec![1, 2, 3, 4, 5];
-let v2 = v1.push_back(6);
-let v3 = v1.update(0, 10);
-
-assert_eq!(v1.get(0), Some(&1));
-assert_eq!(v2.get(5), Some(&6));
-assert_eq!(v3.get(0), Some(&10));
-```
-
-### Ownership and allocation notes
-
-The owned APIs are intended for pipelines where the input is no longer needed:
-
-```rust
-use rustica::datatypes::choice::Choice;
-use rustica::pvec::PersistentVector;
-
-// Construction consumes the iterator and does not require `T: Clone`.
-let numbers: PersistentVector<String> = (0..100).map(|n| n.to_string()).collect();
-
-// Consuming Choice conversions also move their elements directly.
-let alternatives: Choice<String> = vec!["primary".to_owned(), "backup".to_owned()].into();
-let values: Vec<String> = alternatives.into();
-assert_eq!(values, vec!["primary".to_owned(), "backup".to_owned()]);
-```
-
-`PersistentVector` preserves structural sharing. Converting a uniquely owned
-tree to `Vec<T>` moves its leaves; a shared tree must clone values so the other
-vectors remain valid. `Memoizer::insert` and its eviction-aware variants also
-accept non-`Clone` values. Retrieval methods that return an owned cached copy
-still require `V: Clone`.
-
-`ReaderT` and `StateT` callback adapters borrow their mapping/combining
-functions for the duration of the base-monad operation, so callers do not need
-to allocate a `Box` or `Arc` for each callback. See
-[MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) for before/after signatures.
-
-### CI/CD & Publishing
-
-Rustica uses GitHub Actions for continuous integration, formatting, linting, and automated publishing to crates.io on tagged releases.
-
-- Tests and formatting are run on every push and pull request.
-- When a tag (e.g. `v0.13.0`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
-
-### Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a complete list of recent changes and enhancements.
-
-For the current API removals and migration steps, see
-[MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md).
-
-## Examples
-
-### Basic Usage
+## Example Usage
 
 ```rust
 use rustica::prelude::*;
 
-// Working with Maybe (like Option)
-let maybe_value = Maybe::Just(42);
-let doubled = maybe_value.fmap(|x| x * 2);
-assert_eq!(doubled.unwrap(), 84);
+// Functor mapping over Option
+let opt = Some(42);
+assert_eq!(opt.fmap(|x| x * 2), Some(84));
 
-// Working with Either for error handling
-let result: Either<String, &str> = Either::Right("success");
-let processed = result.fmap(|s| s.to_uppercase());
-assert_eq!(processed.unwrap(), "SUCCESS");
-
-// Using Choice for multiple alternatives
+// Choice guarantees at least one value at compile time
 let choices = Choice::new(1, [2, 3]);
-let results = choices.fmap(|x| x * 2);
-assert_eq!(results.iter().collect::<Vec<_>>(), vec![&2, &4, &6]);
+assert_eq!(*choices.first(), 1);
+let doubled = choices.fmap(|x| x * 2);
+assert_eq!(doubled.into_iter().collect::<Vec<_>>(), vec![2, 4, 6]);
+
+// Error accumulation with Validated
+let v1: Validated<&str, i32> = Validated::valid(10);
+let v2: Validated<&str, i32> = Validated::valid(20);
+let sum = Validated::<&str, i32>::lift2(|a, b| *a + *b, &v1, &v2);
+assert_eq!(sum, Validated::valid(30));
 ```
 
-### State Management
-
-```rust
-use rustica::datatypes::state::State;
-
-// A simple counter
-let counter = State::new(|count: i32| (count + 1, count));
-
-// Run the state computation
-let (new_count, result) = counter.run_state(0);
-assert_eq!(new_count, 1);
-assert_eq!(result, 0);
-```
-
-### IO Operations
-
-```rust
-use rustica::datatypes::io::IO;
-
-// Pure IO description
-let read_line = IO::new(|| "Hello from IO!".to_string());
-
-// Execute the IO operation
-let result = read_line.run();
-assert_eq!(result, "Hello from IO!");
-```
-
-## Inspiration
-
-Rustica is inspired by functional programming libraries in other languages:
-
-- Haskell's standard library
-- Scala's Cats
-- Kotlin's Arrow
-- TypeScript's fp-ts
+---
 
 ## License
 
-Rustica is licensed under the Apache License, version 2.0. See the [LICENSE](LICENSE) file for details.
-
-## Documentation
-
-For detailed documentation, please visit [docs.rs/rustica](https://docs.rs/rustica)
+Licensed under the Apache License, Version 2.0.

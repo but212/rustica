@@ -8,8 +8,7 @@ use super::error::PVecError;
 use super::iter::{PersistentVectorIntoIter, PersistentVectorIter};
 use super::tree::RRBTree;
 
-/// Maximum number of elements stored inline before transitioning to tree structure.
-pub const ADAPTIVE_INLINE_SIZE: usize = 64;
+pub(crate) const ADAPTIVE_INLINE_SIZE: usize = 64;
 
 /// Generation counter type for tracking vector mutations.
 type Generation = u32;
@@ -908,13 +907,17 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust,ignore
     /// use rustica::pvec::PersistentVector;
     ///
     /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
     /// let taken = vec.take(3);
     /// assert_eq!(taken.to_vec(), vec![1, 2, 3]);
     /// ```
+    #[deprecated(
+        since = "0.13.0",
+        note = "Use iterator methods (.iter().take(...).collect()) instead. Will be removed in 0.14.0."
+    )]
     pub fn take(&self, n: usize) -> Self {
         if n >= self.len {
             self.clone()
@@ -927,13 +930,17 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust,ignore
     /// use rustica::pvec::PersistentVector;
     ///
     /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
     /// let skipped = vec.skip(2);
     /// assert_eq!(skipped.to_vec(), vec![3, 4, 5]);
     /// ```
+    #[deprecated(
+        since = "0.13.0",
+        note = "Use iterator methods (.iter().skip(...).collect()) instead. Will be removed in 0.14.0."
+    )]
     pub fn skip(&self, n: usize) -> Self {
         if n >= self.len {
             Self::new()

@@ -210,7 +210,10 @@ impl<T, E> WithError<E> for Validated<E, T> {
 ///
 /// let error: Result<i32, String> = <Result<(), String> as ErrorCategory<String>>::handle_error("failed".to_string());
 /// assert_eq!(error, Err("failed".to_string()));
-/// ```
+#[deprecated(
+    since = "0.13.0",
+    note = "ErrorCategory is a speculative abstraction. Use native Result methods directly. Will be removed in 0.14.0."
+)]
 pub trait ErrorCategory<E> {
     /// The error functor type that wraps values and errors
     type ErrorFunctor<T: Clone>: WithError<E>;

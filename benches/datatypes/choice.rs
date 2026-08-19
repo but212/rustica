@@ -13,7 +13,7 @@ pub fn choice_benchmarks(c: &mut Criterion) {
     group.bench_function("creation", |b| {
         b.iter(|| {
             black_box(Choice::new(1, vec![2, 3]));
-            black_box(Choice::<i32>::new_empty());
+            black_box(Choice::<i32>::single(1));
         });
     });
 

@@ -57,4 +57,3 @@ pub use crate::traits::monad_plus::MonadPlus;
 pub use crate::traits::monoid::Monoid;
 pub use crate::traits::pure::Pure;
 pub use crate::traits::semigroup::Semigroup;
-pub use crate::traits::traversable::Traversable;

@@ -109,6 +109,7 @@
 //! assert!(!memo.contains_key(&"c")); // 'c' was evicted
 //! assert!(memo.contains_key(&"b"));  // 'b' still present (was accessed)
 //! ```
+
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -500,6 +501,10 @@ impl<T> From<PoisonError<T>> for MemoizerError {
 /// When a maximum capacity is set via `with_capacity()`, the cache automatically
 /// evicts the least recently used entry when inserting a new entry would exceed
 /// the capacity. Access operations (both read and write) update the LRU ordering.
+#[deprecated(
+    since = "0.13.0",
+    note = "Use dedicated caching crates such as `lru` or `moka` instead. Memoizer will be removed in 0.14.0."
+)]
 pub struct Memoizer<K, V> {
     cache: RwLock<LruCache<K, V>>,
     hits: AtomicU64,
@@ -1744,151 +1749,5 @@ where
     pub fn try_clear(&self) -> Result<(), MemoizerError> {
         self.write_cache()?.clear();
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Memoizer, MemoizerError};
-    use std::sync::{Arc, Mutex};
-    use std::thread;
-    use std::time::Duration;
-
-    #[test]
-    fn test_memoizer_core_and_eviction() {
-        let memo = Memoizer::with_capacity(2);
-        let counter = Arc::new(Mutex::new(0));
-        let compute = |k: &i32| {
-            let mut count = counter.lock().unwrap();
-            *count += 1;
-            k * 10
-        };
-
-        assert_eq!(memo.get_or_compute(1, compute), 10);
-        assert_eq!(memo.get_or_compute(1, |_| unreachable!()), 10);
-        assert_eq!(*counter.lock().unwrap(), 1);
-
-        memo.get_or_compute(2, compute);
-        memo.get_or_compute(3, compute);
-        assert!(!memo.contains_key(&1));
-        assert!(memo.contains_key(&2) && memo.contains_key(&3));
-
-        memo.touch(&2);
-        memo.get_or_compute(4, compute);
-        assert!(memo.contains_key(&2));
-        assert!(!memo.contains_key(&3));
-
-        memo.clear();
-        assert!(memo.is_empty());
-    }
-
-    #[test]
-    fn insert_outcome_keeps_eviction_atomic() {
-        let memo = Memoizer::with_capacity(1);
-        memo.insert(1, 10);
-        let outcome = memo.insert_with_eviction_info(2, 20);
-        assert_eq!(outcome.replaced, None);
-        assert_eq!(outcome.evicted, Some((1, 10)));
-    }
-
-    #[test]
-    fn insertion_paths_accept_non_clone_values() {
-        struct NoClone(&'static str);
-
-        let memo: Memoizer<u8, NoClone> = Memoizer::with_capacity(1);
-        assert!(memo.insert(1, NoClone("one")).is_none());
-        let replaced = memo.insert(1, NoClone("updated")).unwrap();
-        assert_eq!(replaced.0, "one");
-        let outcome = memo.insert_with_eviction_info(2, NoClone("two"));
-        assert!(outcome.replaced.is_none());
-        assert_eq!(outcome.evicted.unwrap().0, 1);
-
-        let disabled: Memoizer<u8, NoClone> = Memoizer::with_capacity(0);
-        disabled.insert(1, NoClone("ignored"));
-        assert_eq!(disabled.len(), 0);
-    }
-
-    #[test]
-    fn test_memoizer_concurrency_and_race_conditions() {
-        let memo = Arc::new(Memoizer::new());
-        let mut handles = vec![];
-
-        for i in 0..8 {
-            let memo = memo.clone();
-            handles.push(thread::spawn(move || {
-                for j in 0..50 {
-                    let key = i * 10 + j;
-                    memo.get_or_compute(key, |k| k * 2);
-                }
-            }));
-        }
-
-        use std::sync::atomic::{AtomicU32, Ordering};
-        let compute_count = Arc::new(AtomicU32::new(0));
-        for _ in 0..10 {
-            let memo = memo.clone();
-            let count = compute_count.clone();
-            handles.push(thread::spawn(move || {
-                memo.get_or_compute_optimistic(999, |_| {
-                    count.fetch_add(1, Ordering::Relaxed);
-                    thread::sleep(Duration::from_millis(10));
-                    1000
-                });
-            }));
-        }
-
-        for handle in handles {
-            handle.join().unwrap();
-        }
-        assert_eq!(memo.get_or_compute(999, |_| 0), 1000);
-    }
-
-    #[test]
-    fn test_memoizer_collection_api_and_stats() {
-        let memo = Memoizer::new();
-        memo.insert(1, 10);
-        memo.insert(2, 20);
-
-        assert_eq!(memo.len(), 2);
-        assert_eq!(memo.remove(&1), Some(10));
-        assert_eq!(memo.keys(), vec![2]);
-        assert_eq!(memo.values(), vec![20]);
-
-        assert!(memo.capacity() >= 1);
-        let stats = memo.stats();
-        assert_eq!(stats.misses, 0);
-        memo.get_or_compute(2, |_| 0);
-        memo.get_or_compute(3, |_| 0);
-        assert_eq!(memo.stats().hits, 1);
-        assert_eq!(memo.stats().misses, 1);
-    }
-
-    #[test]
-    fn test_memoizer_resilience_and_errors() {
-        let memo = Memoizer::new();
-
-        let err_res: Result<i32, &str> = memo.get_or_try_compute(1, |_| Err("fail"));
-        assert!(err_res.is_err());
-        assert!(!memo.contains_key(&1));
-
-        assert!(memo.try_insert(1, 10).is_ok());
-        assert_eq!(memo.try_get(&1).unwrap(), Some(10));
-        assert!(memo.try_touch(&1).unwrap());
-
-        let err = MemoizerError {
-            message: "msg".to_string(),
-        };
-        assert!(format!("{:?}", err).contains("MemoizerError"));
-    }
-
-    #[test]
-    fn test_memoizer_complex_types() {
-        let memo: Memoizer<Vec<i32>, Arc<String>> = Memoizer::new();
-        let key = vec![1, 2, 3];
-        let val = Arc::new("test".to_string());
-
-        memo.insert(key.clone(), val.clone());
-        let retrieved = memo.get(&key).unwrap();
-        assert!(Arc::ptr_eq(&val, &retrieved));
     }
 }

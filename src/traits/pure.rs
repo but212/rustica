@@ -527,7 +527,7 @@ impl<T: Clone> PureExt for T {}
 /// assert!(matches!(doubled, Validated::Valid(84)));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PureType<P, T>(PhantomData<P>, PhantomData<T>);
+pub struct PureType<P, T = ()>(PhantomData<P>, PhantomData<T>);
 
 impl<P, T> PureType<P, T>
 where

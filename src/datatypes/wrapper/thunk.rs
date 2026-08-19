@@ -157,6 +157,18 @@ where
             _phantom: PhantomData,
         }
     }
+
+    /// Evaluates the thunk by executing the wrapped function.
+    #[inline]
+    pub fn evaluate(&self) -> T {
+        (self.function)()
+    }
+
+    /// Evaluates the thunk, consuming it.
+    #[inline]
+    pub fn evaluate_owned(self) -> T {
+        (self.function)()
+    }
 }
 
 impl<F, T> HKT for Thunk<F, T>
