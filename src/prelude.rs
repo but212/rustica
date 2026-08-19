@@ -8,7 +8,7 @@
 //!
 //! ## What is included?
 //!
-//! - **Datatypes**: Core functional types (Maybe, Either, Validated, etc.)
+//! - **Datatypes**: Core functional types (Validated, Id, Choice, etc.)
 //! - **Traits**: Functor, Applicative, Monad, Monoid, and many more
 //! - **Trait Extensions**: Ergonomic extension traits for functional operations
 //! - **Wrappers**: Newtype wrappers for monoidal/semigroup operations
@@ -21,17 +21,15 @@
 //! ```rust
 //! use rustica::prelude::*;
 //!
-//! // Use Maybe and Functor
-//! use rustica::datatypes::maybe::Maybe;
-//! let x = Maybe::Just(10);
+//! // Use Option and Functor
+//! let x = Some(10);
 //! let y = x.fmap(|n| n * 2);
-//! assert_eq!(y, Maybe::Just(20));
+//! assert_eq!(y, Some(20));
 //!
-//! // Use Either and Monad
-//! use rustica::datatypes::either::Either;
-//! let e: Either<&str, i32> = Either::right(5);
-//! let bound = e.bind(|n| Either::right(n + 1));
-//! assert_eq!(bound, Either::right(6));
+//! // Use Result and Monad
+//! let e: Result<i32, &str> = Ok(5);
+//! let bound = e.bind(|n| Ok(n + 1));
+//! assert_eq!(bound, Ok(6));
 //!
 //! // Use wrapper types and monoid
 //! use rustica::prelude::wrapper::*;

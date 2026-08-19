@@ -41,7 +41,6 @@
 //!
 //! ```rust
 //! use rustica::datatypes::wrapper::thunk::Thunk;
-//! use rustica::traits::evaluate::Evaluate;
 //!
 //! // Create a thunk with a lazy computation
 //! let thunk = Thunk::new(|| 2 + 3);
@@ -61,7 +60,6 @@
 //! });
 //! assert_eq!(expensive_computation.evaluate(), 500500);
 //! ```
-use crate::traits::evaluate::Evaluate;
 use crate::traits::hkt::HKT;
 use std::marker::PhantomData;
 
@@ -84,7 +82,6 @@ use std::marker::PhantomData;
 /// 1. **Idempotence**: Evaluating multiple times produces the same result for pure functions
 ///    ```rust
 ///    # use rustica::datatypes::wrapper::thunk::Thunk;
-///    # use rustica::traits::evaluate::Evaluate;
 ///    let thunk = Thunk::new(|| 42);
 ///    assert_eq!(thunk.evaluate(), thunk.evaluate()); // Should be true for pure functions
 ///    ```
@@ -92,7 +89,6 @@ use std::marker::PhantomData;
 /// 2. **Referential Transparency**: Replacing a thunk with its evaluated result doesn't change behavior
 ///    ```rust
 ///    # use rustica::datatypes::wrapper::thunk::Thunk;
-///    # use rustica::traits::evaluate::Evaluate;
 ///    let thunk = Thunk::new(|| 42);
 ///    let value = thunk.evaluate();
 ///    
@@ -128,7 +124,6 @@ where
     ///
     /// ```rust
     /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
     ///
     /// // Create a simple thunk
     /// let thunk = Thunk::new(|| "Hello, world!".to_string());
@@ -177,113 +172,4 @@ where
 {
     type Source = T;
     type Output<U> = Thunk<Box<dyn Fn() -> U>, U>;
-}
-
-impl<F, T> Evaluate for Thunk<F, T>
-where
-    F: Fn() -> T,
-{
-    /// Evaluates the thunk by reference, producing the wrapped value.
-    ///
-    /// This method executes the wrapped function and returns its result
-    /// without consuming the thunk, allowing for repeated evaluations.
-    /// Note that with impure functions, each evaluation may produce different results.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(F) where F is the complexity of the wrapped function
-    /// - **Memory Usage**: Depends on the function's implementation and result
-    /// - **Laziness**: Computation only happens when `evaluate()` is called, not when the thunk is created
-    /// - **Multiple Calls**: The function will be executed each time `evaluate()` is called
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Idempotence Law (for pure functions)
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// // For pure functions, multiple evaluations should yield the same result
-    /// fn verify_idempotence<T: PartialEq>(pure_fn: impl Fn() -> T) -> bool {
-    ///     let thunk = Thunk::new(pure_fn);
-    ///     
-    ///     // Two evaluations should produce the same result
-    ///     thunk.evaluate() == thunk.evaluate()
-    /// }
-    ///
-    /// assert!(verify_idempotence(|| 42));
-    /// assert!(verify_idempotence(|| "constant".to_string()));
-    /// ```
-    ///
-    /// ## Referential Transparency Law
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// // Replacing a thunk with its evaluated result should not change behavior
-    /// fn verify_ref_transparency<T: Clone + PartialEq + std::ops::Add<Output = T> + From<u8>>(x: T) -> bool {
-    ///     let thunk = Thunk::new(move || x.clone());
-    ///     let result = thunk.evaluate();
-    ///     
-    ///     // Both ways of adding 1 should yield the same result
-    ///     let result1 = thunk.evaluate() + T::from(1);
-    ///     let result2 = result + T::from(1);
-    ///     
-    ///     result1 == result2
-    /// }
-    ///
-    /// assert!(verify_ref_transparency(41));
-    /// ```
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// // Create a thunk for a pure computation
-    /// let factorial = Thunk::new(|| (1..=5).product::<i32>());
-    ///
-    /// // Evaluate it
-    /// assert_eq!(factorial.evaluate(), 120); // 5! = 120
-    ///
-    /// // Can evaluate multiple times (thunk is not consumed)
-    /// assert_eq!(factorial.evaluate(), 120);
-    /// ```
-    #[inline]
-    fn evaluate(&self) -> T {
-        (self.function)()
-    }
-
-    /// Evaluates the thunk by consuming it, producing the wrapped value.
-    ///
-    /// This method executes the wrapped function and returns its result while consuming the thunk.
-    /// This can be more efficient than `evaluate()` when the thunk will not be used again, as it
-    /// allows the compiler to optimize memory usage by freeing resources associated with the thunk.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(F) where F is the complexity of the wrapped function
-    /// - **Memory Usage**: Depends on the function's implementation and result
-    /// - **Ownership**: Consumes the thunk, freeing resources associated with it
-    /// - **Single-Use**: The function will be executed exactly once and then the thunk is dropped
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::thunk::Thunk;
-    /// use rustica::traits::evaluate::Evaluate;
-    ///
-    /// let thunk = Thunk::new(|| 42);
-    /// let result = thunk.evaluate_owned();
-    ///
-    /// assert_eq!(result, 42);
-    /// // Note: thunk is consumed and can no longer be used
-    /// ```
-    #[inline]
-    fn evaluate_owned(self) -> T {
-        (self.function)()
-    }
 }

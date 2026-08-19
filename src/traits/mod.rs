@@ -19,8 +19,6 @@
 //! which form the foundation of most functional programming patterns.
 
 // ===== Core Evaluation Concepts =====
-/// Traits for evaluating and processing data.
-pub mod evaluate;
 /// Higher-kinded type abstractions for generic programming.
 pub mod hkt;
 /// Creation of values in a computational context.
@@ -41,20 +39,6 @@ pub mod monad_plus;
 // ===== Related Abstractions =====
 /// Mapping over two-type data structures.
 pub mod bifunctor;
-/// Extracting values from comonadic contexts.
-///
-/// This module provides the Comonad trait which represents the categorical dual of a monad.
-pub mod comonad;
-
-// ===== Composition Traits =====
-/// Arrow-based computation abstractions.
-///
-/// This module provides the Arrow trait which represents arrow-based computation abstractions.
-pub mod arrow;
-/// Categorical composition abstractions.
-///
-/// This module provides the Category trait which represents a category in the sense of category theory.
-pub mod category;
 
 // ===== Data Structure Traits =====
 /// Reduction of data structures to a single value.

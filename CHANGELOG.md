@@ -1,15 +1,42 @@
 # CHANGELOG
 
-## [0.13.0]
+## [Unreleased]
+
+### Breaking Changes
+
+- **Duplicate Functional Data Types Removed**
+  - Removed `Maybe<T>` in favor of standard `Option<T>` (`Functor`, `Applicative`, `Monad`, `Foldable` remain implemented for `Option<T>`).
+  - Removed `Either<L, R>`, `EitherError`, `ResultEitherIso`, and all `Either` conversion helpers in favor of standard `Result<R, L>` or the external `either` crate.
+
+- **Single-Implementation Traits Removed**
+  - Removed `Category` and `Arrow` traits; `FunctionCategory` now provides all morphism operations via inherent associated functions (`identity_morphism`, `compose_morphisms`, `arrow`, `first`, `second`, `split`, `combine_morphisms`). Category macros (`function!`, `compose!`, `pipe!`) no longer require trait imports.
+  - Removed `Comonad` trait; `Id<T>` now provides `extract`, `duplicate`, and `extend` as inherent methods.
+  - Removed `Evaluate` and `EvaluateExt` traits; `Thunk` and `IO` expose their evaluation methods inherently (`Thunk::evaluate`, `IO::run`).
+
+- **Redundant Wrappers & Pipelines Removed**
+  - Removed `ErrorPipeline` and `error_pipeline` in favor of standard `Result` combinators.
+  - Removed `ErrorCategory` trait; use `Result` and `Validated` directly.
+  - Removed `Pipeline<T>` from `rustica::utils::transform_utils`.
+  - Removed `Memoizer` wrapper; use dedicated caching crates (`lru`, `moka`).
+
+- **Collection Iterator Helpers Removed**
+  - Removed `PersistentVector::take` and `PersistentVector::skip`; use standard iterator adapters (`.iter().take(n)...`) or `PersistentVector::split_at`.
 
 ### Maintenance
+
+- Added central compile-fail removal contract doctests in `src/lib.rs`.
+- Updated all doc examples and benchmarks to 0.14.0 API.
+
+## [0.13.0]
+
+### Maintenance - 0.13.0
 
 - Relaxed owned error-conversion helpers to accept non-`Clone` values.
 - Simplified `Result` sequencing and pipelines with standard iterator combinators.
 - Kept `ErrorPipeline` behavior unchanged in 0.13.0; migrate to native
   `Result` combinators before its planned 0.14.0 removal.
 
-### Breaking Changes
+### Breaking Changes - 0.13.0
 
 - **`Choice<T>` Impossible-State Elimination**
   - Redesigned `Choice<T>` as `{ primary: T, alternatives: SmallVec<[T; 7]> }` to guarantee at compile-time that empty choices are impossible.
@@ -53,7 +80,7 @@
   - `SemigroupExt::combine_n` and `combine_n_owned` now require
     `NonZeroUsize`, eliminating the zero-count state.
 
-### Changed
+### Changed - 0.13.0
 
 - **Ownership and Allocation Paths**
   - Removed all confirmed redundant clones across library, examples, benches,
@@ -93,7 +120,7 @@
   - `rayon` and `lazy_static` are no longer normal runtime dependencies;
     `quickcheck` is optional and `serde_json` is dev-only.
 
-### Fixed
+### Fixed - 0.13.0
 
 - Fixed owned semigroup repetition that could duplicate the accumulated value
   during repeated combination.

@@ -174,8 +174,8 @@
 //! assert_eq!(id.unwrap(), 43);
 //! ```
 use crate::traits::{
-    applicative::Applicative, comonad::Comonad, foldable::Foldable, functor::Functor, hkt::HKT,
-    monad::Monad, monoid::Monoid, pure::Pure, semigroup::Semigroup,
+    applicative::Applicative, foldable::Foldable, functor::Functor, hkt::HKT, monad::Monad,
+    monoid::Monoid, pure::Pure, semigroup::Semigroup,
 };
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
@@ -583,7 +583,7 @@ impl<T: Clone> Monad for Id<T> {
     }
 }
 
-impl<T: Clone> Comonad for Id<T> {
+impl<T: Clone> Id<T> {
     /// Extracts the value from the Id context.
     ///
     /// The `extract` operation (also known as `counit`) is the dual to the `pure` operation
@@ -593,14 +593,13 @@ impl<T: Clone> Comonad for Id<T> {
     ///
     /// ```rust
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::comonad::Comonad;
     ///
     /// let id = Id::new(42);
     /// let value = id.extract();
     /// assert_eq!(value, 42);
     /// ```
     #[inline]
-    fn extract(&self) -> Self::Source {
+    pub fn extract(&self) -> T {
         self.value.clone()
     }
 
@@ -613,7 +612,6 @@ impl<T: Clone> Comonad for Id<T> {
     ///
     /// ```rust
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::comonad::Comonad;
     ///
     /// let id = Id::new(42);
     /// let duplicated = id.duplicate();
@@ -622,10 +620,12 @@ impl<T: Clone> Comonad for Id<T> {
     /// assert_eq!(duplicated.unwrap(), 42);
     /// ```
     #[inline]
-    fn duplicate(&self) -> Self {
+    pub fn duplicate(&self) -> Self {
         self.clone()
     }
+}
 
+impl<T> Id<T> {
     /// Applies a function to the entire `Id` context and wraps the result in a new `Id`.
     ///
     /// The `extend` operation (also known as `cobind` or `=>>`) is the dual of `bind` in a Monad.
@@ -644,7 +644,6 @@ impl<T: Clone> Comonad for Id<T> {
     ///
     /// ```rust
     /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::comonad::Comonad;
     ///
     /// let id = Id::new(5);
     ///
@@ -657,7 +656,7 @@ impl<T: Clone> Comonad for Id<T> {
     /// assert_eq!(result.unwrap(), 25);
     /// ```
     #[inline]
-    fn extend<U, F>(&self, f: F) -> Self::Output<U>
+    pub fn extend<U, F>(&self, f: F) -> Id<U>
     where
         F: Fn(&Self) -> U,
     {

@@ -1,8 +1,7 @@
-use rustica::datatypes::either::Either;
 use rustica::datatypes::validated::Validated;
 use rustica::error::convert::{
-    collect_errors, core_to_composable, either_to_validated, result_to_validated,
-    split_validated_errors, validated_to_either, validated_to_result,
+    collect_errors, core_to_composable, result_to_validated, split_validated_errors,
+    validated_to_result,
 };
 use rustica::error::types::ComposableError;
 
@@ -45,15 +44,6 @@ fn owned_conversions_accept_non_clone_values() {
         Validated::Valid(NoClone("result"))
     ));
 
-    assert!(matches!(
-        either_to_validated::<NoClone, NoClone>(Either::Right(NoClone("either"))),
-        Validated::Valid(NoClone("either"))
-    ));
-
-    let converted: Either<NoClone, NoClone> =
-        validated_to_either(Validated::valid(NoClone("either")));
-    assert!(matches!(converted, Either::Right(NoClone("either"))));
-
     let collected = collect_errors([NoClone("error")]);
     assert_eq!(collected.error_slice()[0].0, "error");
 
@@ -72,7 +62,7 @@ fn owned_validated_conversion_accepts_non_clone_values() {
 #[test]
 fn sequence_with_error_accepts_non_clone_values() {
     let result: Result<Vec<NoClone>, NoClone> =
-        rustica::error::sequence_with_error(vec![Either::Right(NoClone("value"))]);
+        rustica::error::sequence_with_error(vec![Validated::Valid(NoClone("value"))]);
 
     match result {
         Ok(values) => assert_eq!(values[0].0, "value"),

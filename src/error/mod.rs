@@ -13,30 +13,29 @@
 //!
 //! ## Module Structure
 //!
-//! - `core`: Extended WithError trait and ErrorCategory
+//! - `core`: Extended WithError trait
 //! - `types`: ComposableError and error context structures
 //! - `convert`: Type conversion utilities between error types
-//! - `context`: Error context management, accumulation, and functional pipelines
+//! - `context`: Error context management and accumulation
 //! - `macros`: Error handling macros for lazy context evaluation
 
 pub mod context; // Error context management and accumulation
 pub mod convert; // Error type conversions
-pub mod core; // Extended WithError trait and ErrorCategory
+pub mod core; // Extended WithError trait
 pub mod macros; // Error handling macros
 pub mod types; // ComposableError and error context structures
 
 // Re-export commonly used items
 pub use context::{
-    ErrorPipeline, accumulate_context, context_accumulator, context_fn, error_pipeline,
-    extract_context, format_error_chain, with_context, with_context_result,
+    accumulate_context, context_accumulator, context_fn, extract_context, format_error_chain,
+    with_context, with_context_result,
 };
 pub use convert::{
-    collect_errors, composable_to_core, core_to_composable, either_to_result, either_to_validated,
-    flatten_composable_result, result_to_either, result_to_validated, split_validated_errors,
-    validated_to_either, validated_to_result, wrap_in_composable_result,
+    collect_errors, composable_to_core, core_to_composable, flatten_composable_result,
+    result_to_validated, split_validated_errors, validated_to_result, wrap_in_composable_result,
     wrap_in_composable_result_boxed,
 };
-pub use core::{ErrorCategory, ErrorOps};
+pub use core::ErrorOps;
 pub use types::{
     BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorContext,
     IntoErrorContext, LazyContext,

@@ -521,7 +521,7 @@ where
     /// * This is a non-destructive operation - it doesn't modify the source value
     /// * For enum variants with large data structures, consider minimizing unnecessary clones
     ///   in your preview function
-    /// * Often used in combination with the `Maybe` monad or with pattern matching to
+    /// * Often used in combination with `Option` or with pattern matching to
     ///   handle both the success and failure cases
     ///
     /// # Arguments

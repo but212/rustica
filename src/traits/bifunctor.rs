@@ -36,7 +36,7 @@
 //!
 //! Some common bifunctors in Rust include:
 //!
-//! - `Either<L, R>`: Can be mapped over both branches (Left/Right)
+//! - `Result<T, E>`: Functor in both success `T` and error `E`
 //! - `Tuple2<A, B>`: Functor in both tuple components `A` and `B`
 //!
 //! ## Use Cases
@@ -140,7 +140,6 @@ use crate::traits::hkt::BinaryHKT;
 ///
 /// | Type | `Source` | `Source2` | Rationale |
 /// |------|----------|-----------|-----------|
-/// | `Either<L, R>` | `R` (Right) | `L` (Left) | Right is the "success" path, consistent with Functor |
 /// | `Result<T, E>` | `T` (Ok) | `E` (Err) | Ok is the "success" path |
 /// | `(A, B)` | `A` | `B` | Lexical order |
 ///
@@ -298,13 +297,13 @@ pub trait Bifunctor: BinaryHKT {
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::datatypes::either::Either;
     /// use rustica::traits::bifunctor::Bifunctor;
+    /// use rustica::datatypes::validated::Validated;
     ///
-    /// // For Either<L, R>, `Self::Source` is the Right value (R)
-    /// let either: Either<String, i32> = Either::Right(10);
-    /// let mapped = either.first(|n| n * 2);
-    /// assert_eq!(mapped, Either::Right(20));
+    /// // For Validated<E, A>, `Self::Source` is the Valid value (A)
+    /// let valid: Validated<String, i32> = Validated::valid(10);
+    /// let mapped = valid.first(|n| n * 2);
+    /// assert_eq!(mapped, Validated::valid(20));
     /// ```
     fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
     where
@@ -331,13 +330,13 @@ pub trait Bifunctor: BinaryHKT {
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::datatypes::either::Either;
     /// use rustica::traits::bifunctor::Bifunctor;
+    /// use rustica::datatypes::validated::Validated;
     ///
-    /// // For Either<L, R>, `Self::Source2` is the Left value (L)
-    /// let left: Either<String, i32> = Either::Left("hello".to_string());
-    /// let mapped = left.second(|s| s.len());
-    /// assert_eq!(mapped, Either::Left(5usize));
+    /// // For Validated<E, A>, `Self::Source2` is the Error value (E)
+    /// let invalid: Validated<String, i32> = Validated::invalid("hello".to_string());
+    /// let mapped = invalid.second(|s| s.len());
+    /// assert_eq!(mapped, Validated::invalid(5usize));
     /// ```
     fn second<D, G>(&self, f: G) -> Self::BinaryOutput<Self::Source, D>
     where

@@ -102,8 +102,70 @@
 //! - `pvec`: Persistent vector implementation with structural sharing
 //! - `utils`: Utility functions and helpers for common operations
 //! - `prelude`: A convenient module that re-exports commonly used items
-
-#![allow(deprecated)]
+//!
+//! ## 0.14.0 Deprecated API Removal Contract Tests
+//!
+//! The following doctests verify at compile time that all deprecated and redundant APIs
+//! removed in 0.14.0 can no longer be imported or called:
+//!
+//! ```compile_fail
+//! // Maybe has been removed in 0.14.0 (use Option instead)
+//! use rustica::datatypes::maybe::Maybe;
+//! ```
+//!
+//! ```compile_fail
+//! // Either has been removed in 0.14.0 (use Result or either crate instead)
+//! use rustica::datatypes::either::Either;
+//! ```
+//!
+//! ```compile_fail
+//! // Comonad trait has been removed in 0.14.0 (use Id inherent methods)
+//! use rustica::traits::comonad::Comonad;
+//! ```
+//!
+//! ```compile_fail
+//! // Arrow trait has been removed in 0.14.0 (use FunctionCategory inherent methods)
+//! use rustica::traits::arrow::Arrow;
+//! ```
+//!
+//! ```compile_fail
+//! // Category trait has been removed in 0.14.0 (use FunctionCategory inherent methods)
+//! use rustica::traits::category::Category;
+//! ```
+//!
+//! ```compile_fail
+//! // Evaluate trait has been removed in 0.14.0 (use Thunk::evaluate or IO::run)
+//! use rustica::traits::evaluate::Evaluate;
+//! ```
+//!
+//! ```compile_fail
+//! // Memoizer wrapper has been removed in 0.14.0
+//! use rustica::datatypes::wrapper::memoizer::Memoizer;
+//! ```
+//!
+//! ```compile_fail
+//! // ErrorPipeline has been removed in 0.14.0
+//! use rustica::error::ErrorPipeline;
+//! ```
+//!
+//! ```compile_fail
+//! // Pipeline<T> has been removed in 0.14.0
+//! use rustica::utils::transform_utils::Pipeline;
+//! ```
+//!
+//! ```compile_fail
+//! // PersistentVector::take has been removed in 0.14.0
+//! use rustica::pvec::PersistentVector;
+//! let v = PersistentVector::<i32>::new();
+//! let _ = v.take(1);
+//! ```
+//!
+//! ```compile_fail
+//! // PersistentVector::skip has been removed in 0.14.0
+//! use rustica::pvec::PersistentVector;
+//! let v = PersistentVector::<i32>::new();
+//! let _ = v.skip(1);
+//! ```
 
 /// Core traits for functional programming abstractions.
 ///

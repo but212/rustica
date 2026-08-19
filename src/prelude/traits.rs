@@ -13,24 +13,22 @@
 //! - **Monoid/Semigroup**: Algebraic structures for combination and identity
 //! - **Foldable/Traversable**: Folding and traversing data structures
 //! - **Alternative**: Choice and failure in computations
-//! - **Arrow/Category**: Abstract computation and morphisms
 //! - **etc.**: Other Type Classes
 //!
 //! ## Usage Example
 //!
 //! ```rust
 //! use rustica::prelude::traits::*;
-//! use rustica::datatypes::maybe::Maybe;
 //!
 //! // Functor: fmap
-//! let x = Maybe::Just(10);
+//! let x = Some(10);
 //! let y = x.fmap(|n| n * 2);
-//! assert_eq!(y, Maybe::Just(20));
+//! assert_eq!(y, Some(20));
 //!
 //! // Monad: bind
-//! let m = Maybe::Just(5);
-//! let bound = m.bind(|n| Maybe::Just(n + 1));
-//! assert_eq!(bound, Maybe::Just(6));
+//! let m = Some(5);
+//! let bound = m.bind(|n| Some(n + 1));
+//! assert_eq!(bound, Some(6));
 //!
 //! // Monoid: combine
 //! use rustica::prelude::wrapper::Sum;
@@ -43,10 +41,7 @@
 
 pub use crate::traits::alternative::Alternative;
 pub use crate::traits::applicative::Applicative;
-pub use crate::traits::arrow::Arrow;
 pub use crate::traits::bifunctor::Bifunctor;
-pub use crate::traits::category::Category;
-pub use crate::traits::evaluate::{Evaluate, EvaluateExt};
 pub use crate::traits::foldable::Foldable;
 pub use crate::traits::functor::Functor;
 pub use crate::traits::hkt::HKT;

@@ -914,41 +914,6 @@ impl<T: Clone> PersistentVector<T> {
     /// let taken = vec.take(3);
     /// assert_eq!(taken.to_vec(), vec![1, 2, 3]);
     /// ```
-    #[deprecated(
-        since = "0.13.0",
-        note = "Use iterator methods (.iter().take(...).collect()) instead. Will be removed in 0.14.0."
-    )]
-    pub fn take(&self, n: usize) -> Self {
-        if n >= self.len {
-            self.clone()
-        } else {
-            self.split_at(n).0
-        }
-    }
-
-    /// Creates a new vector skipping the first `n` elements.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,ignore
-    /// use rustica::pvec::PersistentVector;
-    ///
-    /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
-    /// let skipped = vec.skip(2);
-    /// assert_eq!(skipped.to_vec(), vec![3, 4, 5]);
-    /// ```
-    #[deprecated(
-        since = "0.13.0",
-        note = "Use iterator methods (.iter().skip(...).collect()) instead. Will be removed in 0.14.0."
-    )]
-    pub fn skip(&self, n: usize) -> Self {
-        if n >= self.len {
-            Self::new()
-        } else {
-            self.split_at(n).1
-        }
-    }
-
     /// Inserts an element at the specified index, shifting all elements after it.
     ///
     /// If the index is greater than or equal to the length, the element is appended to the end.
@@ -1011,7 +976,7 @@ impl<T: Clone> PersistentVector<T> {
         }
 
         let (left, right) = self.split_at(index);
-        let right_without_first = right.skip(1);
+        let right_without_first = right.split_at(1).1;
         Some(left.concat(&right_without_first))
     }
 

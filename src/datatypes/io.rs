@@ -61,14 +61,6 @@
 //! let io_risky: IO<i32> = IO::new(|| panic!("failed"));
 //! let io_safe = io_risky.recover(|_err| IO::pure(0));
 //! assert_eq!(io_safe.run(), 0);
-//!
-//! // Functional error pipeline
-//! use rustica::error::ErrorPipeline;
-//! let pipeline_result = IO::pure(100)
-//!     .into_error_pipeline()
-//!     .with_context("Step 1")
-//!     .finish();
-//! assert_eq!(pipeline_result.unwrap(), 100);
 //! ```
 //!
 //! ## Functional Programming Context
@@ -338,17 +330,14 @@
 //! assert_eq!(fallback_io.run(), 0);
 //! ```
 //!
-//! ### Functional Error Pipeline
+//! ### Contextual Error Handling
 //!
 //! ```rust
 //! use rustica::datatypes::io::IO;
 //!
 //! let result = IO::pure(42)
 //!     .bind(|x| IO::new(move || x * 2))
-//!     .into_error_pipeline()
-//!     .with_context("Step 1: Double the value")
-//!     .map_error(|e| e.with_context("Step 2: Additional processing".to_string()))
-//!     .finish();
+//!     .try_get_composable_with_context("Step 1: Double the value");
 //!
 //! assert_eq!(result.unwrap(), 84);
 //! ```
@@ -398,13 +387,6 @@
 //! let result = io_operation
 //!     .try_get_composable()
 //!     .map_err(|e| e.with_context("User authentication failed".to_string()));
-//!
-//! // ✅ Good: Use ErrorPipeline for complex chains
-//! let pipeline_result = IO::new(|| 42)
-//!     .into_error_pipeline()
-//!     .with_context("Processing step")
-//!     .map_error(|e| e.set_code(500))
-//!     .finish();
 //! ```
 //!
 //! ## Common Pitfalls and Best Practices
@@ -443,7 +425,7 @@
 //! assert_eq!(good_io_fib.run(), 6765);
 //! ```
 
-use crate::error::{BoxedComposableResult, ComposableError, ComposableResult, ErrorPipeline};
+use crate::error::{BoxedComposableResult, ComposableError, ComposableResult};
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 use std::any::Any;
@@ -1078,31 +1060,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
             .map_err(|e| Box::new(e.with_context(context.into())))
     }
 
-    /// Creates an ErrorPipeline from this IO operation for functional error handling.
-    ///
-    /// This method enables composable, functional-style error handling using the
-    /// `ErrorPipeline` from `src/error/context.rs`. It's particularly useful for
-    /// building complex error handling chains.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::io::IO;
-    ///
-    /// let io_operation = IO::pure(42);
-    /// let result = io_operation
-    ///     .into_error_pipeline()
-    ///     .with_context("Step 1: Initial processing")
-    ///     .map_error(|e| e.with_context("Step 2: Additional context".to_string()))
-    ///     .finish();
-    ///
-    /// assert!(result.is_ok());
-    /// assert_eq!(result.unwrap(), 42);
-    /// ```
-    pub fn into_error_pipeline(self) -> ErrorPipeline<A, Box<ComposableError<IOError>>> {
-        ErrorPipeline::new(self.try_get_composable())
-    }
-
     /// Recovers from an error using a fallback IO operation.
     ///
     /// This method provides error recovery capabilities, catching panics that occur
@@ -1485,14 +1442,6 @@ impl<A> crate::traits::hkt::HKT for IO<A> {
     type Output<U> = IO<U>;
 }
 
-// Implement Evaluate for IO
-impl<A: Send + Sync + Clone + 'static> crate::traits::evaluate::Evaluate for IO<A> {
-    #[inline]
-    fn evaluate(&self) -> Self::Source {
-        self.run()
-    }
-}
-
 #[cfg(any(test, feature = "quickcheck"))]
 impl<A: Send + Sync + Clone + Arbitrary> Arbitrary for IO<A> {
     fn arbitrary(g: &mut Gen) -> Self {
@@ -1540,9 +1489,6 @@ mod tests {
         let recovered_with = IO::<i32>::new(|| panic!("fail")).recover_with(42);
         assert_eq!(recovered.run(), 0);
         assert_eq!(recovered_with.run(), 42);
-
-        let pipeline_res = IO::pure(100).into_error_pipeline().finish();
-        assert_eq!(pipeline_res.unwrap(), 100);
     }
 
     #[test]

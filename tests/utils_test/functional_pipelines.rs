@@ -100,20 +100,29 @@ fn pipeline_result_handles_empty_input_and_short_circuits() {
 
 #[test]
 fn sequence_with_error_preserves_order_and_returns_first_error() {
-    let values: Vec<Either<&str, i32>> = vec![Either::Right(1), Either::Right(2)];
+    let values: Vec<Result<i32, &str>> = vec![Ok(1), Ok(2)];
     assert_eq!(sequence_with_error(values), Ok(vec![1, 2]));
 
-    let values = vec![
-        Either::Right(1),
-        Either::Left("first"),
-        Either::Left("second"),
-    ];
+    let values = vec![Ok(1), Err("first"), Err("second")];
     let result: Result<Vec<i32>, &str> = sequence_with_error(values);
     assert_eq!(result, Err("first"));
 
-    let values: Vec<Either<&str, i32>> = Vec::new();
+    let values: Vec<Result<i32, &str>> = Vec::new();
     assert_eq!(sequence_with_error(values), Ok(Vec::<i32>::new()));
+
+    // Test with Validated as well
+    let val_ok: Vec<Validated<&str, i32>> = vec![Validated::valid(1), Validated::valid(2)];
+    assert_eq!(sequence_with_error(val_ok), Ok(vec![1, 2]));
+
+    let val_err: Vec<Validated<&str, i32>> = vec![
+        Validated::valid(1),
+        Validated::invalid("first"),
+        Validated::invalid("second"),
+    ];
+    let val_res: Result<Vec<i32>, &str> = sequence_with_error(val_err);
+    assert_eq!(val_res, Err("first"));
 }
-use rustica::datatypes::either::Either;
+
+use rustica::datatypes::validated::Validated;
 use rustica::error::{sequence, sequence_with_error, traverse};
 use rustica::utils::hkt_utils::pipeline_result;

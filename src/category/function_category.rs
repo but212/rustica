@@ -35,8 +35,6 @@
 //!
 //! ```rust
 //! use rustica::category::function_category::FunctionCategory;
-//! use rustica::traits::category::Category;
-//! use rustica::traits::arrow::Arrow;
 //!
 //! // Identity morphism
 //! let id = FunctionCategory::identity_morphism::<i32>();
@@ -56,7 +54,6 @@
 //!
 //! ```rust
 //! use rustica::category::function_category::FunctionCategory;
-//! use rustica::traits::arrow::Arrow;
 //!
 //! let double = FunctionCategory::arrow(|x: i32| x * 2);
 //! let square = FunctionCategory::arrow(|x: i32| x * x);
@@ -77,12 +74,10 @@
 //! assert_eq!(mixed_split(6), ("6".to_string(), true));
 //! ```
 //!
-//! ## Complex Pipelines (Replacing Deprecated Composable)
+//! ## Complex Pipelines
 //!
 //! ```rust
 //! use rustica::category::function_category::{FunctionCategory, function, compose};
-//! use rustica::traits::category::Category;
-//! use rustica::traits::arrow::Arrow;
 //!
 //! // Using the function! macro for named morphisms
 //! function!(double: i32 => i32 = |x: i32| x * 2);
@@ -118,16 +113,12 @@
 //! Note that `Arc`'s reference counting is thread-safe, but the morphism type itself does not
 //! require `Send`/`Sync` bounds.
 
-#![allow(deprecated)]
-
-pub use crate::traits::arrow::Arrow;
-pub use crate::traits::category::Category;
 use std::sync::Arc;
 
-/// A concrete implementation of the Category and Arrow traits for functions.
+/// A concrete implementation of function category operations.
 ///
 /// This zero-sized type serves as a namespace for function category operations.
-/// All methods are implemented as associated functions on the traits.
+/// All methods are implemented as inherent associated functions.
 pub struct FunctionCategory;
 
 /// Type alias for function morphisms with static lifetime bounds.
@@ -141,17 +132,36 @@ pub type FunctionMorphism<A, B> = Arc<dyn Fn(A) -> B + 'static>;
 /// like `both` where the same transformation is applied to both elements of a tuple.
 pub type PairMorphism<A, B> = FunctionMorphism<(A, A), (B, B)>;
 
-impl Category for FunctionCategory {
-    type Morphism<A, B> = FunctionMorphism<A, B>;
-
-    fn identity_morphism<A>() -> Self::Morphism<A, A> {
+impl FunctionCategory {
+    /// Creates the identity morphism for a given type.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let id = FunctionCategory::identity_morphism::<i32>();
+    /// assert_eq!(id(42), 42);
+    /// ```
+    pub fn identity_morphism<A>() -> FunctionMorphism<A, A> {
         Arc::new(|x| x)
     }
 
-    fn compose_morphisms<A: 'static, B: 'static, C: 'static>(
-        g: &Self::Morphism<B, C>, f: &Self::Morphism<A, B>,
-    ) -> Self::Morphism<A, C> {
-        // Clone the Arc references to share ownership
+    /// Composes two morphisms category-theoretically: `(g ∘ f)(x) = g(f(x))`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
+    /// let add_one = FunctionCategory::arrow(|x: i32| x + 1);
+    /// let composed = FunctionCategory::compose_morphisms(&double, &add_one);
+    /// assert_eq!(composed(5), 12);
+    /// ```
+    pub fn compose_morphisms<A: 'static, B: 'static, C: 'static>(
+        g: &FunctionMorphism<B, C>, f: &FunctionMorphism<A, B>,
+    ) -> FunctionMorphism<A, C> {
         let f_clone = Arc::clone(f);
         let g_clone = Arc::clone(g);
 
@@ -160,39 +170,75 @@ impl Category for FunctionCategory {
             g_clone(intermediate)
         })
     }
-}
 
-impl Arrow for FunctionCategory {
-    fn arrow<B, C, F>(f: F) -> Self::Morphism<B, C>
+    /// Lifts a function to a morphism.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
+    /// assert_eq!(double(21), 42);
+    /// ```
+    pub fn arrow<B, C, F>(f: F) -> FunctionMorphism<B, C>
     where
         F: Fn(B) -> C + 'static,
     {
         Arc::new(f)
     }
 
-    fn first<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(B, D), (C, D)>
-    where
-        B: 'static,
-        C: 'static,
-        D: 'static,
-    {
+    /// Extends a morphism to act on the first element of a tuple.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
+    /// let first_double = FunctionCategory::first(&double);
+    /// assert_eq!(first_double((5, "hello")), (10, "hello"));
+    /// ```
+    pub fn first<B: 'static, C: 'static, D: 'static>(
+        f: &FunctionMorphism<B, C>,
+    ) -> FunctionMorphism<(B, D), (C, D)> {
         let f_clone = Arc::clone(f);
         Arc::new(move |(b, d)| (f_clone(b), d))
     }
 
-    fn second<B, C, D>(f: &Self::Morphism<B, C>) -> Self::Morphism<(D, B), (D, C)>
-    where
-        B: 'static,
-        C: 'static,
-        D: 'static,
-    {
+    /// Extends a morphism to act on the second element of a tuple.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
+    /// let second_double = FunctionCategory::second(&double);
+    /// assert_eq!(second_double(("hello", 5)), ("hello", 10));
+    /// ```
+    pub fn second<B: 'static, C: 'static, D: 'static>(
+        f: &FunctionMorphism<B, C>,
+    ) -> FunctionMorphism<(D, B), (D, C)> {
         let f_clone = Arc::clone(f);
         Arc::new(move |(d, b)| (d, f_clone(b)))
     }
 
-    fn split<B, C, D>(
-        f: &Self::Morphism<B, C>, g: &Self::Morphism<B, D>,
-    ) -> Self::Morphism<B, (C, D)>
+    /// Splits input across two morphisms in parallel: `f &&& g`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
+    /// let square = FunctionCategory::arrow(|x: i32| x * x);
+    /// let split_both = FunctionCategory::split(&double, &square);
+    /// assert_eq!(split_both(5), (10, 25));
+    /// ```
+    pub fn split<B, C, D>(
+        f: &FunctionMorphism<B, C>, g: &FunctionMorphism<B, D>,
+    ) -> FunctionMorphism<B, (C, D)>
     where
         B: 'static + Clone,
         C: 'static,
@@ -203,9 +249,21 @@ impl Arrow for FunctionCategory {
         Arc::new(move |b: B| (f_clone(b.clone()), g_clone(b)))
     }
 
-    fn combine_morphisms<B, C, D, E>(
-        f: &Self::Morphism<B, C>, g: &Self::Morphism<D, E>,
-    ) -> Self::Morphism<(B, D), (C, E)>
+    /// Combines two morphisms to act on pairs: `f *** g`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::category::function_category::FunctionCategory;
+    ///
+    /// let double = FunctionCategory::arrow(|x: i32| x * 2);
+    /// let to_str = FunctionCategory::arrow(|x: i32| x.to_string());
+    /// let combined = FunctionCategory::combine_morphisms(&double, &to_str);
+    /// assert_eq!(combined((5, 10)), (10, "10".to_string()));
+    /// ```
+    pub fn combine_morphisms<B, C, D, E>(
+        f: &FunctionMorphism<B, C>, g: &FunctionMorphism<D, E>,
+    ) -> FunctionMorphism<(B, D), (C, E)>
     where
         B: 'static,
         C: 'static,
@@ -216,13 +274,7 @@ impl Arrow for FunctionCategory {
         let g_clone = Arc::clone(g);
         Arc::new(move |(b, d)| (f_clone(b), g_clone(d)))
     }
-}
 
-/// Convenience implementations for FunctionCategory
-///
-/// These methods provide additional functionality beyond the basic Category and Arrow traits,
-/// following category theory principles while offering practical composition utilities.
-impl FunctionCategory {
     /// Creates a morphism that applies a function to both components of a pair.
     ///
     /// This is useful when you want to apply the same transformation to both
@@ -312,7 +364,6 @@ impl FunctionCategory {
     ///
     /// ```rust
     /// use rustica::category::function_category::FunctionCategory;
-    /// use rustica::traits::arrow::Arrow;
     ///
     /// let add_one = FunctionCategory::arrow(|x: i32| x + 1);
     /// let double = FunctionCategory::arrow(|x: i32| x * 2);
@@ -383,7 +434,6 @@ impl FunctionCategory {
 ///
 /// ```rust
 /// use rustica::category::function_category::{function, FunctionCategory};
-/// use rustica::traits::category::Category;
 ///
 /// function!(double: i32 => i32 = |x: i32| x * 2);
 /// function!(to_string: i32 => String = |x: i32| x.to_string());
@@ -398,17 +448,13 @@ impl FunctionCategory {
 #[macro_export]
 macro_rules! function {
     ($name:ident: $input:ty => $output:ty = $body:expr) => {
-        let $name = {
-            use $crate::traits::arrow::Arrow;
-            $crate::category::function_category::FunctionCategory::arrow($body)
-        };
+        let $name = { $crate::category::function_category::FunctionCategory::arrow($body) };
     };
 }
 
 /// Macro for composing multiple functions with type annotations.
 ///
-/// This macro provides a convenient way to compose multiple functions,
-/// replacing the deprecated Composable::compose functionality.
+/// This macro provides a convenient way to compose multiple functions.
 ///
 /// # Examples
 ///
@@ -429,8 +475,6 @@ macro_rules! compose {
     };
     ($first:expr, $($rest:expr),+ $(,)?) => {
         {
-            use $crate::traits::arrow::Arrow;
-            use $crate::traits::category::Category;
             let first_morphism = $crate::category::function_category::FunctionCategory::arrow($first);
             let rest_morphism = compose!($($rest),+);
             $crate::category::function_category::FunctionCategory::compose_morphisms(&first_morphism, &rest_morphism)
@@ -459,8 +503,6 @@ macro_rules! pipe {
     };
     ($first:expr, $($rest:expr),+ $(,)?) => {
         {
-            use $crate::traits::arrow::Arrow;
-            use $crate::traits::category::Category;
             let first_morphism = $crate::category::function_category::FunctionCategory::arrow($first);
             let rest_morphism = pipe!($($rest),+);
             $crate::category::function_category::FunctionCategory::compose_morphisms(&rest_morphism, &first_morphism)

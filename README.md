@@ -71,7 +71,7 @@ use rustica::prelude::*;
 
 - **`Choice<T>`**: Guaranteed non-empty alternatives. Statically enforces at least one primary value (`first(&self) -> &T`).
 - **`Validated<E, T>`**: Accumulates all validation errors into `NonEmptyErrors<E>` without early termination.
-- **`Id<T>`**: The identity functor/monad.
+- **`Id<T>`**: The identity functor/monad with inherent comonad methods (`extract`, `duplicate`, `extend`).
 - **`IO<A>`**: Pure description of side-effectful computations.
 - **`State<S, A>`**: Stateful computations with pure transitions.
 - **`Reader<E, A>`**: Dependency injection and environment passing.
@@ -86,38 +86,11 @@ use rustica::prelude::*;
 
 ---
 
-## Deprecations in 0.13.0 (Planned for Removal in 0.14.0)
+## Migration from 0.13 to 0.14
 
-As part of the Lean Architecture initiative, redundant types and speculative wrappers are deprecated in `0.13.0` and will be completely removed in `0.14.0`:
+In `0.14.0`, all redundant types (`Maybe`, `Either`, etc.), 1-impl traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers (`ErrorPipeline`, `ErrorCategory`, `Memoizer`) have been completely removed.
 
-| Deprecated Item | Recommended Replacement |
-| --- | --- |
-| `Maybe<T>` | `Option<T>` (already implements `Functor`, `Monad`, etc.) |
-| `Either<L, R>` | `Result<R, L>` or the `either` crate |
-| `Traversable` | Removed (0 implementations) |
-| `Comonad` | Use `Id` methods directly |
-| `Arrow` / `Category` | Native function chaining / closures |
-| `Evaluate` / `EvaluateExt` | `Thunk::evaluate` directly |
-| `ErrorPipeline` / `ErrorCategory` | Native `Result` method chaining (`.map()`, `.and_then()`) |
-| `Pipeline<T>` | Method chaining directly on types |
-| `Memoizer` | Dedicated crates like `lru` or `moka` |
-| `PersistentVector::{take, skip}` | Iterator adapters (`.into_iter().take().collect()`) |
-
-See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) and [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for full migration guides.
-
-### 0.13.0 Lean Maintenance
-
-The 0.13.0 release also removes unnecessary ownership constraints from owned
-error-conversion helpers. `validated_to_result`, `result_to_validated`,
-`either_to_validated`, `validated_to_either`, `collect_errors`,
-`split_validated_errors`, and `Validated::from_result_owned` now accept
-non-`Clone` values. `sequence`, `traverse`, `sequence_with_error`, and
-`pipeline_result` retain their public APIs and fail-fast behavior while using
-standard iterator combinators internally.
-
-`ErrorPipeline` remains deprecated but intentionally unchanged in 0.13.0. It
-is scheduled for removal in 0.14.0; new code should use native `Result`
-combinators and existing users should migrate before upgrading.
+See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the complete before/after migration guide.
 
 ---
 

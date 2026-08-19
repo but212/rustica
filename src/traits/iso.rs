@@ -49,7 +49,7 @@
 //! 2. **Lens and Optics** - Building blocks for lenses, prisms, and other optics
 //! 3. **Domain Modeling** - Creating type-safe abstractions that map between domain concepts
 
-use crate::prelude::{Either, Validated};
+use crate::prelude::Validated;
 use std::marker::PhantomData;
 
 /// A trait representing an isomorphism between two types.
@@ -668,39 +668,6 @@ pub trait IsoExt<A, B>: Iso<A, B> {
 
 // Implement IsoExt for all types that implement Iso
 impl<T, A, B> IsoExt<A, B> for T where T: Iso<A, B> {}
-
-/// An isomorphism between Result<R, L> and Either<L, R>.
-///
-/// # Example
-/// ```rust
-/// use rustica::traits::iso::{Iso, ResultEitherIso};
-/// use rustica::prelude::Either;
-/// let iso = ResultEitherIso;
-/// let res: Result<i32, &str> = Ok(7);
-/// let either = iso.forward(&res);
-/// assert_eq!(either, Either::right(7));
-/// let res2 = iso.backward(&either);
-/// assert_eq!(res2, Ok(7));
-/// let err: Result<i32, &str> = Err("fail");
-/// let either2 = iso.forward(&err);
-/// assert_eq!(either2, Either::left("fail"));
-/// let res3 = iso.backward(&either2);
-/// assert_eq!(res3, Err("fail"));
-/// ```
-pub struct ResultEitherIso;
-
-impl<R: Clone, L: Clone> Iso<Result<R, L>, Either<L, R>> for ResultEitherIso {
-    type From = Result<R, L>;
-    type To = Either<L, R>;
-
-    fn forward(&self, from: &Self::From) -> Self::To {
-        Either::from_result(from.clone())
-    }
-
-    fn backward(&self, to: &Self::To) -> Self::From {
-        to.clone().to_result()
-    }
-}
 
 /// An isomorphism between Result<A, E> and Validated<E, A>.
 ///

@@ -143,7 +143,7 @@ pub trait HKT {
 /// A trait for higher-kinded types that have two type parameters.
 ///
 /// This trait extends the `HKT` trait to allow for types that have a second type
-/// parameter, such as `Result<T, E>` or `Either<L, R>`.
+/// parameter, such as `Result<T, E>` or `Validated<E, T>`.
 ///
 /// # Important: Type Parameter Mapping Convention
 ///
@@ -154,11 +154,7 @@ pub trait HKT {
 /// | Type | `Source` (primary) | `Source2` (secondary) |
 /// |------|--------------------|-----------------------|
 /// | `Result<T, E>` | `T` (Ok value) | `E` (Err value) |
-/// | `Either<L, R>` | `R` (Right value) | `L` (Left value) |
-///
-/// This means for `Either<L, R>`, the lexical order (`L`, `R`) is **reversed**
-/// in the HKT mapping. This is intentional and consistent with how `Either` is
-/// used in functional programming (Right = success path).
+/// | `Validated<E, T>` | `T` (Valid value) | `E` (Error value) |
 ///
 /// # Examples
 ///

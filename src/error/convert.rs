@@ -1,80 +1,11 @@
 //! # Error Type Conversion Utilities
 //!
 //! This module provides conversion functions between different error handling types,
-//! enabling seamless interoperability between Result, Either, Validated, and
+//! enabling seamless interoperability between Result, Validated, and
 //! ComposableError types while preserving categorical properties.
 
-use crate::datatypes::either::Either;
 use crate::datatypes::validated::Validated;
 use crate::error::types::{BoxedComposableResult, ComposableError};
-
-/// Converts an `Either<E, T>` to a `Result<T, E>`.
-///
-/// This is a lossless conversion that maps `Either::Left(e)` to `Err(e)`
-/// and `Either::Right(t)` to `Ok(t)`.
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The error type
-///
-/// # Arguments
-///
-/// * `either`: The Either value to convert
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::either_to_result;
-/// use rustica::datatypes::either::Either;
-///
-/// let success: Either<String, i32> = Either::Right(42);
-/// assert_eq!(either_to_result(success), Ok(42));
-///
-/// let error: Either<String, i32> = Either::Left("failed".to_string());
-/// assert_eq!(either_to_result(error), Err("failed".to_string()));
-/// ```
-#[inline]
-pub fn either_to_result<T, E>(either: Either<E, T>) -> Result<T, E> {
-    match either {
-        Either::Left(error) => Err(error),
-        Either::Right(value) => Ok(value),
-    }
-}
-
-/// Converts a `Result<T, E>` to an `Either<E, T>`.
-///
-/// This is a lossless conversion that maps `Err(e)` to `Either::Left(e)`
-/// and `Ok(t)` to `Either::Right(t)`.
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The error type
-///
-/// # Arguments
-///
-/// * `result`: The Result value to convert
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::result_to_either;
-/// use rustica::datatypes::either::Either;
-///
-/// let success: Result<i32, String> = Ok(42);
-/// assert_eq!(result_to_either(success), Either::Right(42));
-///
-/// let error: Result<i32, String> = Err("failed".to_string());
-/// assert_eq!(result_to_either(error), Either::Left("failed".to_string()));
-/// ```
-#[inline]
-pub fn result_to_either<T, E>(result: Result<T, E>) -> Either<E, T> {
-    match result {
-        Ok(value) => Either::Right(value),
-        Err(error) => Either::Left(error),
-    }
-}
 
 /// Converts a `Validated<E, T>` to a `Result<T, E>`.
 ///
@@ -150,83 +81,6 @@ pub fn result_to_validated<T, E>(result: Result<T, E>) -> Validated<E, T> {
     match result {
         Ok(value) => Validated::Valid(value),
         Err(error) => Validated::invalid(error),
-    }
-}
-
-/// Converts an `Either<E, T>` to a `Validated<E, T>`.
-///
-/// This is a lossless conversion that maps `Either::Right(t)` to `Validated::Valid(t)`
-/// and `Either::Left(e)` to `Validated::Invalid` containing a single error.
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The error type
-///
-/// # Arguments
-///
-/// * `either`: The Either value to convert
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::either_to_validated;
-/// use rustica::datatypes::either::Either;
-/// use rustica::datatypes::validated::Validated;
-///
-/// let success: Either<String, i32> = Either::Right(42);
-/// assert_eq!(either_to_validated(success), Validated::valid(42));
-///
-/// let error: Either<String, i32> = Either::Left("failed".to_string());
-/// let validated = either_to_validated(error);
-/// assert!(validated.is_invalid());
-/// ```
-#[inline]
-pub fn either_to_validated<T, E>(either: Either<E, T>) -> Validated<E, T> {
-    match either {
-        Either::Right(value) => Validated::Valid(value),
-        Either::Left(error) => Validated::invalid(error),
-    }
-}
-
-/// Converts a `Validated<E, T>` to an `Either<E, T>`.
-///
-/// This conversion takes the first error from the Validated if it's invalid,
-/// or returns the success value if valid. This is a lossy conversion when
-/// multiple errors are present.
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The error type
-///
-/// # Arguments
-///
-/// * `validated`: The Validated value to convert
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::validated_to_either;
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::datatypes::either::Either;
-///
-/// let valid: Validated<String, i32> = Validated::valid(42);
-/// assert_eq!(validated_to_either(valid), Either::Right(42));
-///
-/// let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
-/// assert_eq!(validated_to_either(invalid), Either::Left("error".to_string()));
-/// ```
-#[inline]
-pub fn validated_to_either<T, E>(validated: Validated<E, T>) -> Either<E, T> {
-    match validated {
-        Validated::Valid(value) => Either::Right(value),
-        Validated::Invalid(errors) => Either::Left(
-            errors
-                .into_iter()
-                .next()
-                .expect("Validated::Invalid should contain at least one error"),
-        ),
     }
 }
 
