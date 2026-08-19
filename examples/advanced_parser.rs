@@ -87,13 +87,11 @@ where
 
     pub fn or<P: Into<Parser<I, O>>>(self, other: P) -> Parser<I, O> {
         let other = other.into();
-        Parser::new(move |input| {
-            match (self.parse(input), other.parse(input)) {
-                (Some(a), Some(b)) => Some(a.combine(&b)),
-                (Some(a), None) => Some(a),
-                (None, Some(b)) => Some(b),
-                (None, None) => None,
-            }
+        Parser::new(move |input| match (self.parse(input), other.parse(input)) {
+            (Some(a), Some(b)) => Some(a.combine(&b)),
+            (Some(a), None) => Some(a),
+            (None, Some(b)) => Some(b),
+            (None, None) => None,
         })
     }
 
@@ -157,7 +155,7 @@ where
             Some(choice) => {
                 let (result, remaining) = choice.into_iter().next().unwrap();
                 Some(Choice::single((Some(result), remaining)))
-            }
+            },
             None => Some(Choice::single((None, input))),
         })
     }
@@ -183,9 +181,7 @@ where
     }
 
     pub fn between<L, R, Open, Close>(
-        open: Open,
-        close: Close,
-        content: Parser<I, O>,
+        open: Open, close: Close, content: Parser<I, O>,
     ) -> Parser<I, O>
     where
         Open: Into<Parser<I, L>>,
@@ -198,11 +194,7 @@ where
 
         open_parser
             .and_then(move |_| content.clone())
-            .and_then(move |result| {
-                close_parser
-                    .clone()
-                    .map(move |_| result.clone())
-            })
+            .and_then(move |result| close_parser.clone().map(move |_| result.clone()))
     }
 }
 
@@ -461,7 +453,7 @@ pub fn parser_examples() {
     match parser.parse(&input).and_then(|c| c.into_iter().next()) {
         Some((result, remaining)) => {
             println!("   Parsed: {:?}, Remaining: {:?}", result, remaining);
-        }
+        },
         None => println!("   Parse failed"),
     }
 
@@ -469,15 +461,18 @@ pub fn parser_examples() {
     match parser.parse(&input).and_then(|c| c.into_iter().next()) {
         Some((result, remaining)) => {
             println!("   Parsed: {:?}, Remaining: {:?}", result, remaining);
-        }
+        },
         None => println!("   Parse failed"),
     }
 
     let hello_parser = sequence(vec!['h', 'e', 'l', 'l', 'o']);
-    match hello_parser.parse(&input).and_then(|c| c.into_iter().next()) {
+    match hello_parser
+        .parse(&input)
+        .and_then(|c| c.into_iter().next())
+    {
         Some((result, remaining)) => {
             println!("   Parsed: {:?}, Remaining: {:?}", result, remaining);
-        }
+        },
         None => println!("   Parse failed"),
     }
 }

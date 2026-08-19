@@ -41,4 +41,3 @@ fn test_choice_filter_values() {
     let none = c.filter_values(|&x| x > 100);
     assert_eq!(none, None);
 }
-

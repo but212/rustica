@@ -1,6 +1,4 @@
-use rustica::error::{
-    accumulate_context, format_error_chain, with_context_result,
-};
+use rustica::error::{accumulate_context, format_error_chain, with_context_result};
 
 fn parse_config(content: &str) -> Result<i32, &'static str> {
     content.parse::<i32>().map_err(|_| "Invalid number format")
@@ -22,8 +20,13 @@ fn process_data(connection: &str, value: i32) -> Result<String, &'static str> {
     }
 }
 
-fn run_pipeline(config_str: &str) -> Result<String, Box<rustica::error::ComposableError<&'static str>>> {
-    let cfg = with_context_result(parse_config(config_str), "Failed to parse configuration file")?;
+fn run_pipeline(
+    config_str: &str,
+) -> Result<String, Box<rustica::error::ComposableError<&'static str>>> {
+    let cfg = with_context_result(
+        parse_config(config_str),
+        "Failed to parse configuration file",
+    )?;
     let conn = with_context_result(connect_db(cfg), "DB connection attempt failed")?;
     let msg = with_context_result(process_data(&conn, cfg), "Error during data processing")?;
     Ok(msg)
