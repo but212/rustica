@@ -327,7 +327,7 @@ pub fn iso_lens_benchmarks(c: &mut Criterion) {
     group.bench_function("iso_lens_city_set", |b| {
         b.iter(|| {
             let addr = black_box(address.clone());
-            let new_city_data = ("Updated City".to_string(), addr.clone());
+            let new_city_data = ("Updated City".to_string(), addr);
             let updated = city_lens.set(&new_city_data);
             black_box(updated)
         })

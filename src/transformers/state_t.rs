@@ -69,10 +69,10 @@ use crate::traits::monad::Monad;
 use crate::transformers::MonadTransformer;
 
 /// Type alias for a function that transforms a state-value pair to another state-value pair
-pub type StateValueMapper<S, A, B> = Box<dyn Fn((S, A)) -> (S, B) + Send + Sync>;
+pub type StateValueMapper<S, A, B> = dyn Fn((S, A)) -> (S, B) + Send + Sync;
 
 /// Type alias for a function that combines two state-value pairs into a new state-value pair
-pub type StateCombiner<S, A, B, C> = Box<dyn Fn((S, A), (S, B)) -> (S, C) + Send + Sync>;
+pub type StateCombiner<S, A, B, C> = dyn Fn((S, A), (S, B)) -> (S, C) + Send + Sync;
 
 /// A monad transformer that adds state capabilities to a base monad.
 ///
@@ -330,7 +330,7 @@ where
     /// // Map over the value using fmap_with
     /// let doubled_state = state_t.fmap_with(
     ///     |n: i32| n + 10,
-    ///     |m: Option<(i32, i32)>, f: Box<dyn Fn((i32, i32)) -> (i32, i32) + Send + Sync>| m.map(f)
+    ///     |m: Option<(i32, i32)>, f| m.map(f)
     /// );
     ///
     /// assert_eq!(doubled_state.run_state(5), Some((6, 20)));
@@ -338,7 +338,7 @@ where
     pub fn fmap_with<F, B, MapFn>(&self, f: F, map_fn: MapFn) -> StateT<S, M, B>
     where
         F: Fn(A) -> B + Send + Sync + Clone + 'static,
-        MapFn: Fn(M, StateValueMapper<S, A, B>) -> M + Send + Sync + 'static,
+        MapFn: for<'a> Fn(M, &'a StateValueMapper<S, A, B>) -> M + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
         M: Clone + 'static,
         A: Clone + 'static,
@@ -349,20 +349,16 @@ where
                 let b = f(a.clone());
                 StateT::Pure(b)
             },
-            StateT::LiftM(m) => StateT::LiftM(map_fn(m.clone(), {
-                let f_clone = f.clone();
-                let mapper: StateValueMapper<S, A, B> =
-                    Box::new(move |(state, a)| (state, f_clone(a)));
-                mapper
-            })),
+            StateT::LiftM(m) => {
+                let mapper = move |(state, a)| (state, f(a));
+                StateT::LiftM(map_fn(m.clone(), &mapper))
+            },
             StateT::Effect(run_fn) => {
                 let run_fn = Arc::clone(run_fn);
                 StateT::new(move |s: S| {
                     let f_clone = f.clone();
-                    let mapper: StateValueMapper<S, A, B> =
-                        Box::new(move |(state, a)| (state, f_clone(a)));
-
-                    map_fn(run_fn(s), mapper)
+                    let mapper = move |(state, a)| (state, f_clone(a));
+                    map_fn(run_fn(s), &mapper)
                 })
             },
         }
@@ -415,7 +411,7 @@ where
     pub fn bind_with<F, B, BindFn, N>(&self, f: F, bind_fn: BindFn) -> StateT<S, N, B>
     where
         F: Fn(A) -> StateT<S, N, B> + Send + Sync + Clone + 'static,
-        BindFn: Fn(M, Box<dyn Fn((S, A)) -> N + Send + Sync>) -> N + Send + Sync + 'static,
+        BindFn: for<'a> Fn(M, &'a (dyn Fn((S, A)) -> N + Send + Sync)) -> N + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
         M: Clone + Send + Sync + 'static,
         A: Clone + 'static,
@@ -426,32 +422,26 @@ where
             StateT::Pure(a) => f(a.clone()),
             StateT::LiftM(m) => {
                 let m_clone = m.clone();
-                let f_clone = f.clone();
 
                 StateT::new(move |_: S| {
-                    let f_for_closure = f_clone.clone();
-                    let binder: Box<dyn Fn((S, A)) -> N + Send + Sync> =
-                        Box::new(move |(state, a)| {
-                            let next_state_t = f_for_closure(a);
-                            next_state_t.run_state(state)
-                        });
-
-                    bind_fn(m_clone.clone(), binder)
+                    let f_for_closure = f.clone();
+                    let binder = move |(state, a)| {
+                        let next_state_t = f_for_closure(a);
+                        next_state_t.run_state(state)
+                    };
+                    bind_fn(m_clone.clone(), &binder)
                 })
             },
             StateT::Effect(run_fn) => {
                 let run_fn = Arc::clone(run_fn);
-                let f_clone = f.clone();
 
                 StateT::new(move |s: S| {
-                    let f_for_closure = f_clone.clone();
-                    let binder: Box<dyn Fn((S, A)) -> N + Send + Sync> =
-                        Box::new(move |(state, a)| {
-                            let next_state_t = f_for_closure(a);
-                            next_state_t.run_state(state)
-                        });
-
-                    bind_fn(run_fn(s), binder)
+                    let f_for_closure = f.clone();
+                    let binder = move |(state, a)| {
+                        let next_state_t = f_for_closure(a);
+                        next_state_t.run_state(state)
+                    };
+                    bind_fn(run_fn(s), &binder)
                 })
             },
         }
@@ -475,7 +465,7 @@ where
     ) -> StateT<S, M, C>
     where
         F: Fn(A, B) -> C + Send + Sync + Clone + 'static,
-        CombineFn: Fn(M, M, StateCombiner<S, A, B, C>) -> M + Send + Sync + 'static,
+        CombineFn: for<'a> Fn(M, M, &'a StateCombiner<S, A, B, C>) -> M + Send + Sync + 'static,
         S: Clone + Send + Sync + 'static,
         M: Clone + 'static,
         A: Clone + 'static,
@@ -488,11 +478,11 @@ where
                 StateT::Pure(c)
             },
             (StateT::LiftM(m1), StateT::LiftM(m2)) => {
-                let combiner: StateCombiner<S, A, B, C> = Box::new(move |(s1, a), (_, b)| {
+                let combiner = move |(s1, a), (_, b)| {
                     let f_clone = f.clone();
                     (s1, f_clone(a, b))
-                });
-                StateT::LiftM(combine_fn(m1.clone(), m2.clone(), combiner))
+                };
+                StateT::LiftM(combine_fn(m1.clone(), m2.clone(), &combiner))
             },
             (StateT::Effect(self_run_fn), StateT::Effect(other_run_fn)) => {
                 let self_run_fn = Arc::clone(self_run_fn);
@@ -500,13 +490,12 @@ where
 
                 StateT::new(move |s: S| {
                     let f_clone = f.clone();
-                    let combiner: StateCombiner<S, A, B, C> =
-                        Box::new(move |(_, a), (state, b)| {
-                            let f_clone = f_clone.clone();
-                            (state, f_clone(a, b))
-                        });
+                    let combiner = move |(_, a), (state, b)| {
+                        let f_clone = f_clone.clone();
+                        (state, f_clone(a, b))
+                    };
 
-                    combine_fn(self_run_fn(s.clone()), other_run_fn(s), combiner)
+                    combine_fn(self_run_fn(s.clone()), other_run_fn(s), &combiner)
                 })
             },
             _ => panic!("Cannot combine StateT variants of different types"),
@@ -861,7 +850,7 @@ where
             StateT::Pure(_) => panic!("Cannot run Pure StateT without proper context"),
             StateT::LiftM(result) => match result.as_ref() {
                 Ok((s, a)) => Ok((s.clone(), a.clone())),
-                Err(e) => Err(ComposableError::new(e.clone()).with_context(context.clone())),
+                Err(e) => Err(ComposableError::new(e.clone()).with_context(context)),
             },
             StateT::Effect(run_fn) => {
                 run_fn(state).map_err(|e| ComposableError::new(e).with_context(context.clone()))
@@ -1088,8 +1077,8 @@ where
     /// ```
     pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
         crate::datatypes::state::State::new(move |s: S| {
-            let result = self.run_state(s.clone());
-            let (new_state, value) = result.unwrap().clone();
+            let result = self.run_state(s);
+            let (new_state, value) = result.unwrap();
             (value, new_state)
         })
     }
@@ -1121,5 +1110,172 @@ where
             let (a, s2) = state.run_state(s);
             Id::new((s2, a))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StateT;
+
+    #[test]
+    fn test_state_t_creation_and_running() {
+        let state_t: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| Some((s + 1, s)));
+        assert_eq!(state_t.run_state(5), Some((6, 5)));
+    }
+
+    #[test]
+    fn test_state_t_composition() {
+        let add_one: StateT<i32, Option<(i32, i32)>, i32> =
+            StateT::new(|s: i32| Some((s + 1, s + 1)));
+        let double: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| Some((s * 2, s)));
+        let add_then_double = add_one.bind_with(
+            move |_| double.clone(),
+            |m: Option<(i32, i32)>, f| m.and_then(|(s, _)| f((s, 0))),
+        );
+        assert_eq!(add_then_double.run_state(5), Some((12, 6)));
+    }
+
+    #[test]
+    fn test_state_t_get_and_put() {
+        let get_state = StateT::<i32, Option<(i32, i32)>, i32>::get(Some);
+        let set_state = StateT::<i32, Option<(i32, i32)>, i32>::put(42, Some);
+        assert_eq!(get_state.run_state(10), Some((10, 10)));
+        assert_eq!(set_state.run_state(10), Some((42, 10)));
+    }
+
+    #[test]
+    fn test_state_t_modify() {
+        let double_state = StateT::<i32, Option<(i32, ())>, ()>::modify(|s| s * 2, Some);
+        assert_eq!(double_state.run_state(21), Some((42, ())));
+    }
+
+    #[test]
+    fn test_state_t_with_error_handling() {
+        let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+            if s == 0 {
+                Err("Division by zero".to_string())
+            } else {
+                Ok((s, 100 / s))
+            }
+        });
+        assert_eq!(safe_div.run_state(4), Ok((4, 25)));
+        assert_eq!(safe_div.run_state(0), Err("Division by zero".to_string()));
+    }
+
+    #[test]
+    fn test_state_t_standardized_error_handling() {
+        let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+            if s == 0 {
+                Err("Division by zero".to_string())
+            } else {
+                Ok((s, 100 / s))
+            }
+        });
+
+        assert_eq!(safe_div.try_run_state(4).unwrap(), (4, 25));
+        assert_eq!(
+            safe_div.try_run_state(0).unwrap_err().core_error(),
+            "Division by zero"
+        );
+        assert_eq!(
+            safe_div
+                .try_run_state_with_context(4, "processing user input")
+                .unwrap(),
+            (4, 25)
+        );
+        let error = safe_div
+            .try_run_state_with_context(0, "processing user input")
+            .unwrap_err();
+        assert_eq!(error.core_error(), "Division by zero");
+        assert_eq!(error.context(), vec!["processing user input".to_string()]);
+
+        assert_eq!(safe_div.try_eval_state(4), Ok(25));
+        assert_eq!(
+            safe_div.try_eval_state(0).unwrap_err().core_error(),
+            &"Division by zero"
+        );
+        assert_eq!(
+            safe_div.try_eval_state_with_context(4, "evaluating result"),
+            Ok(25)
+        );
+        let error = safe_div
+            .try_eval_state_with_context(0, "evaluating result")
+            .unwrap_err();
+        assert_eq!(error.core_error(), "Division by zero");
+        assert_eq!(error.context(), vec!["evaluating result".to_string()]);
+
+        let modify_and_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+            if s == 0 {
+                Err("Division by zero".to_string())
+            } else {
+                Ok((s + 1, 100 / s))
+            }
+        });
+        assert_eq!(modify_and_div.try_exec_state(4), Ok(5));
+        assert_eq!(
+            modify_and_div.try_exec_state(0).unwrap_err().core_error(),
+            &"Division by zero"
+        );
+
+        let mapped = safe_div.map_error(|e: String| e.len() as i32);
+        assert_eq!(mapped.run_state(0), Err(16));
+        assert_eq!(mapped.run_state(5), Ok((5, 20)));
+    }
+
+    #[test]
+    fn test_state_t_with_complex_error_handling() {
+        #[derive(Debug, Clone, PartialEq)]
+        struct Counter {
+            value: i32,
+            operations: i32,
+        }
+
+        let increment_if_valid: StateT<Counter, Result<(Counter, i32), String>, i32> =
+            StateT::new(|mut s: Counter| {
+                if s.value < 0 {
+                    Err("Cannot increment a negative counter".to_string())
+                } else {
+                    s.value += 1;
+                    s.operations += 1;
+                    Ok((s.clone(), s.value))
+                }
+            });
+
+        let double_if_even: StateT<Counter, Result<(Counter, i32), String>, i32> =
+            StateT::new(|mut s: Counter| {
+                if s.value % 2 != 0 {
+                    Err("Cannot double an odd value".to_string())
+                } else {
+                    let old_value = s.value;
+                    s.value *= 2;
+                    s.operations += 1;
+                    Ok((s, old_value))
+                }
+            });
+
+        let counter = Counter {
+            value: 5,
+            operations: 0,
+        };
+        let (new_counter, value) = increment_if_valid.try_run_state(counter).unwrap();
+        assert_eq!(value, 6);
+        assert_eq!(new_counter.operations, 1);
+
+        let (final_counter, value) = double_if_even.try_run_state(new_counter).unwrap();
+        assert_eq!(value, 6);
+        assert_eq!(final_counter.value, 12);
+        assert_eq!(final_counter.operations, 2);
+
+        let odd_counter = Counter {
+            value: 7,
+            operations: 0,
+        };
+        assert_eq!(
+            double_if_even
+                .try_run_state(odd_counter)
+                .unwrap_err()
+                .core_error(),
+            &"Cannot double an odd value"
+        );
     }
 }

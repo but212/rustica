@@ -156,6 +156,7 @@
 //! - Usage patterns
 //! - Performance considerations
 //! - Error handling approaches
+//!
 use crate::error::{ComposableError, ComposableResult, WithError};
 use crate::traits::alternative::Alternative;
 use crate::traits::applicative::Applicative;
@@ -164,8 +165,8 @@ use crate::traits::hkt::HKT;
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
-use std::marker::PhantomData;
 // use std::ops::{ControlFlow, FromResidual, Try};
 
 /// A type that represents an optional value, optimized with null pointer optimization.
@@ -200,44 +201,25 @@ use std::marker::PhantomData;
 ///     Maybe::Just(x) => println!("Got a value: {}", x),
 ///     Maybe::Nothing => println!("Got nothing"),
 /// }
-///
-/// // Conditional execution with if-let
-/// if let Maybe::Just(value) = just_five {
-///     println!("Found a value: {}", value);
-/// }
 /// ```
-///
-/// Combining multiple optional values:
-///
-/// ```rust
-/// use rustica::datatypes::maybe::Maybe;
-/// use rustica::traits::functor::Functor;
-/// use rustica::traits::applicative::Applicative;
-///
-/// fn add(a: i32, b: i32) -> i32 { a + b }
-///
-/// let a = Maybe::Just(5);
-/// let b = Maybe::Just(10);
-///
-/// // Using lift2 from the Applicative trait to combine values
-/// let sum = Maybe::<i32>::lift2(|x, y| *x + *y, &a, &b);
-/// assert_eq!(sum, Maybe::Just(15));
-///
-/// // If any value is Nothing, the result is Nothing
-/// let c: Maybe<i32> = Maybe::Nothing;
-/// let partial_sum = Maybe::<i32>::lift2(|x, y| *x + *y, &a, &c);
-/// assert_eq!(partial_sum, Maybe::Nothing);
-/// ```
+#[deprecated(
+    since = "0.13.0",
+    note = "Use Option<T> directly. Option implements all FP traits (Functor, Monad, Applicative). Maybe will be removed in 0.14.0."
+)]
 #[derive(Copy, Clone, Eq, Debug, Hash, PartialEq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Maybe<T> {
-    /// Contains a value of type `T`
+    /// Contains a value of type T
     Just(T),
     /// Represents the absence of a value
     Nothing,
 }
 
 /// Error type for Maybe operations
+#[deprecated(
+    since = "0.13.0",
+    note = "Use Option<T> or std error types instead. MaybeError will be removed in 0.14.0."
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MaybeError {
     /// Error raised when attempting to access a value that doesn't exist
@@ -257,8 +239,9 @@ impl std::fmt::Display for MaybeError {
 
 impl std::error::Error for MaybeError {}
 
+#[allow(deprecated)]
 impl<T> Maybe<T> {
-    /// Creates a `Maybe` with a value (alias for `Just`).
+    /// Creates a Maybe with a value (alias for Just).
     ///
     /// # Examples
     ///
@@ -744,11 +727,6 @@ impl<T> Maybe<T> {
         }
     }
 }
-
-// Use a specialized empty struct to enable null pointer optimization
-// This is a marker type to verify null pointer optimization is enabled
-#[allow(dead_code)]
-struct MaybeNullTestStruct<T>(PhantomData<T>);
 
 // Assert that Maybe<Box<T>> has the same size as Box<T>, confirming null pointer optimization works
 const _: () = assert!(std::mem::size_of::<Maybe<Box<i32>>>() == std::mem::size_of::<Box<i32>>());
@@ -1454,6 +1432,7 @@ impl<'a, T> IntoIterator for &'a mut Maybe<T> {
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<T> Arbitrary for Maybe<T>
 where
     T: Arbitrary + Clone,
@@ -1477,29 +1456,3 @@ where
         }
     }
 }
-
-// // Try trait implementation for ? operator support
-// impl<T> Try for Maybe<T> {
-//     type Output = T;
-//     type Residual = Maybe<std::convert::Infallible>;
-
-//     #[inline]
-//     fn from_output(output: Self::Output) -> Self {
-//         Maybe::Just(output)
-//     }
-
-//     #[inline]
-//     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
-//         match self {
-//             Maybe::Just(value) => ControlFlow::Continue(value),
-//             Maybe::Nothing => ControlFlow::Break(Maybe::Nothing),
-//         }
-//     }
-// }
-
-// impl<T> FromResidual<Maybe<std::convert::Infallible>> for Maybe<T> {
-//     #[inline]
-//     fn from_residual(_: Maybe<std::convert::Infallible>) -> Self {
-//         Maybe::Nothing
-//     }
-// }

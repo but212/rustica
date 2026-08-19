@@ -444,7 +444,9 @@
 //! ```
 
 use crate::error::{BoxedComposableResult, ComposableError, ComposableResult, ErrorPipeline};
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
+use std::any::Any;
 use std::fmt::Debug;
 #[cfg(feature = "async")]
 use std::future::Future;
@@ -472,6 +474,17 @@ pub enum IOError {
     ValueNotSet,
     /// The IO operation failed for some other reason
     Other(String),
+}
+
+#[inline]
+fn panic_message(payload: Box<dyn Any + Send>) -> String {
+    match payload.downcast::<String>() {
+        Ok(message) => *message,
+        Err(payload) => match payload.downcast::<&'static str>() {
+            Ok(message) => (*message).to_owned(),
+            Err(_) => "IO operation panicked with unknown error".to_owned(),
+        },
+    }
 }
 
 impl std::fmt::Display for IOError {
@@ -590,15 +603,17 @@ pub enum IO<A> {
 }
 
 #[cfg(feature = "async")]
+use std::sync::LazyLock;
+#[cfg(feature = "async")]
 use tokio::runtime::{Builder, Runtime};
 
 #[cfg(feature = "async")]
-lazy_static::lazy_static! {
-    static ref TOKIO_RUNTIME: Runtime = Builder::new_multi_thread()
+static TOKIO_RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
+    Builder::new_multi_thread()
         .enable_all()
         .build()
-        .expect("Failed to create Tokio runtime");
-}
+        .expect("Failed to create Tokio runtime")
+});
 
 impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// Creates a new IO operation from a function.
@@ -929,16 +944,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     pub fn try_get(&self) -> ComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
-            Err(e) => {
-                let msg = if let Some(s) = e.downcast_ref::<&str>() {
-                    (*s).to_string()
-                } else if let Some(s) = e.downcast_ref::<String>() {
-                    s.clone()
-                } else {
-                    "IO operation panicked with unknown error".to_string()
-                };
-                Err(ComposableError::new(IOError::Other(msg)))
-            },
+            Err(e) => Err(ComposableError::new(IOError::Other(panic_message(e)))),
         }
     }
 
@@ -986,14 +992,8 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
-                let msg = if let Some(s) = e.downcast_ref::<&str>() {
-                    (*s).to_string()
-                } else if let Some(s) = e.downcast_ref::<String>() {
-                    s.clone()
-                } else {
-                    "IO operation panicked with unknown error".to_string()
-                };
-                Err(ComposableError::new(IOError::Other(msg)).with_context(context.into()))
+                Err(ComposableError::new(IOError::Other(panic_message(e)))
+                    .with_context(context.into()))
             },
         }
     }
@@ -1030,16 +1030,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     pub fn try_get_composable(&self) -> BoxedComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
-            Err(e) => {
-                let msg = if let Some(s) = e.downcast_ref::<&str>() {
-                    (*s).to_string()
-                } else if let Some(s) = e.downcast_ref::<String>() {
-                    s.clone()
-                } else {
-                    "IO operation panicked with unknown error".to_string()
-                };
-                Err(Box::new(ComposableError::new(IOError::Other(msg))))
-            },
+            Err(e) => Err(Box::new(ComposableError::new(IOError::Other(
+                panic_message(e),
+            )))),
         }
     }
 
@@ -1313,7 +1306,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
             // Effect value + Pure function
             (IO::Effect(ma), IO::Pure(f)) => {
                 let ma = Arc::clone(ma);
-                let f = f.clone();
                 IO::Effect(Arc::new(move || f(ma())))
             },
             // Effect value + Effect function
@@ -1501,9 +1493,69 @@ impl<A: Send + Sync + Clone + 'static> crate::traits::evaluate::Evaluate for IO<
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<A: Send + Sync + Clone + Arbitrary> Arbitrary for IO<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);
         IO::pure(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::IO;
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn test_io_shared_state() {
+        let counter = Arc::new(Mutex::new(0));
+        let increment = {
+            let counter = Arc::clone(&counter);
+            IO::new(move || {
+                let mut count = counter.lock().unwrap();
+                *count += 1;
+                *count
+            })
+        };
+
+        assert_eq!(increment.run(), 1);
+        assert_eq!(increment.run(), 2);
+        assert_eq!(*counter.lock().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_io_resilience_and_recovery() {
+        let risky: IO<i32> = IO::new(|| panic!("boom"));
+        let result = risky.try_get_with_context("critical task");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .context()
+                .contains(&"critical task".to_string())
+        );
+
+        let recovered = IO::<i32>::new(|| panic!("fail")).recover(|_| IO::pure(0));
+        let recovered_with = IO::<i32>::new(|| panic!("fail")).recover_with(42);
+        assert_eq!(recovered.run(), 0);
+        assert_eq!(recovered_with.run(), 42);
+
+        let pipeline_res = IO::pure(100).into_error_pipeline().finish();
+        assert_eq!(pipeline_res.unwrap(), 100);
+    }
+
+    #[test]
+    fn test_io_utilities_and_batching() {
+        let ios = vec![IO::pure(1), IO::pure(2)];
+        assert_eq!(IO::sequence(ios).run(), vec![1, 2]);
+        assert_eq!(IO::combine(&IO::pure(10), &IO::pure(20)).run(), (10, 20));
+
+        assert_eq!(IO::when(|| true, || 1, || 0).run(), 1);
+        assert_eq!(IO::when(|| false, || 1, || 0).run(), 0);
+
+        let start = Instant::now();
+        assert_eq!(IO::delay_sync(Duration::from_millis(10), 123).run(), 123);
+        assert!(start.elapsed() >= Duration::from_millis(10));
     }
 }

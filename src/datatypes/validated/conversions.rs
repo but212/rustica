@@ -1,5 +1,4 @@
 use crate::datatypes::validated::Validated;
-use smallvec::smallvec;
 
 impl<E, A> Validated<E, A> {
     /// Converts from `Result<A, E>` to `Validated<E, A>` using a reference to the Result.
@@ -78,11 +77,7 @@ impl<E, A> Validated<E, A> {
     /// assert!(validated.is_invalid());
     /// assert_eq!(validated.errors(), vec!["error".to_string()]);
     /// ```
-    pub fn from_result_owned(result: Result<A, E>) -> Validated<E, A>
-    where
-        A: Clone,
-        E: Clone,
-    {
+    pub fn from_result_owned(result: Result<A, E>) -> Validated<E, A> {
         use crate::error::result_to_validated;
         result_to_validated(result)
     }
@@ -131,7 +126,10 @@ impl<E, A> Validated<E, A> {
     pub fn to_result_owned(self) -> Result<A, E> {
         match self {
             Validated::Valid(a) => Ok(a),
-            Validated::Invalid(mut errors) => Err(errors.remove(0)),
+            Validated::Invalid(errors) => Err(errors
+                .into_iter()
+                .next()
+                .expect("Validated errors cannot be empty")),
         }
     }
 
@@ -166,7 +164,7 @@ impl<E, A> Validated<E, A> {
     {
         match option {
             Some(value) => Validated::Valid(value.clone()),
-            None => Validated::Invalid(smallvec![error.clone()]),
+            None => Validated::invalid(error.clone()),
         }
     }
 
@@ -197,7 +195,7 @@ impl<E, A> Validated<E, A> {
     pub fn from_option_owned(option: Option<A>, error: E) -> Self {
         match option {
             Some(value) => Validated::Valid(value),
-            None => Validated::Invalid(smallvec![error]),
+            None => Validated::invalid(error),
         }
     }
 
@@ -232,7 +230,7 @@ impl<E, A> Validated<E, A> {
     {
         match option {
             Some(value) => Validated::Valid(value.clone()),
-            None => Validated::Invalid(smallvec![error_fn()]),
+            None => Validated::invalid(error_fn()),
         }
     }
 
@@ -266,7 +264,7 @@ impl<E, A> Validated<E, A> {
     {
         match option {
             Some(value) => Validated::Valid(value),
-            None => Validated::Invalid(smallvec![error_fn()]),
+            None => Validated::invalid(error_fn()),
         }
     }
 }

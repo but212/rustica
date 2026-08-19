@@ -78,38 +78,4 @@
 /// // Sometimes helps the compiler infer types
 /// let x = id(42_i32);  // Explicitly i32
 /// ```
-#[inline(always)]
-pub const fn id<A>(a: A) -> A {
-    a
-}
-
-/// Constant function - always returns the same value.
-///
-/// Creates a function that ignores its input and always returns `value`.
-///
-/// Note: In Rust, the returned function is monomorphic over its input type.
-/// That means each constructed function has a single input type. If you want to
-/// use it with different input types, construct separate functions.
-///
-/// # Category Theory
-///
-/// In category theory, this represents a constant morphism.
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::utils::functions::const_fn;
-///
-/// // For numeric inputs
-/// let always_42_num = const_fn(42);
-/// assert_eq!(always_42_num(1), 42);
-/// assert_eq!(always_42_num(999), 42);
-///
-/// // For string inputs (create a separate function instance)
-/// let always_42_str = const_fn(42);
-/// assert_eq!(always_42_str("anything"), 42);
-/// ```
-#[inline(always)]
-pub fn const_fn<A: Clone, B>(value: A) -> impl Fn(B) -> A {
-    move |_| value.clone()
-}
+pub use std::convert::identity as id;

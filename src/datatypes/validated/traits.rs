@@ -1,12 +1,13 @@
 //! Trait implementations for `Validated`.
 //!
-//! `Validated<E, A>` represents either a `Valid(A)` or an `Invalid(SmallVec<[E; 4]>)`.
+//! `Validated<E, A>` represents either a `Valid(A)` or an `Invalid(NonEmptyErrors<E>)`.
 //! In other words, an invalid value carries a *collection* of errors (often used to
 //! accumulate multiple validation failures).
 
-use smallvec::SmallVec;
-
-use crate::datatypes::validated::core::Validated;
+use crate::datatypes::validated::{
+    NonEmptyErrors,
+    core::{ErrorAccumulator, Validated},
+};
 use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
@@ -15,6 +16,7 @@ use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
 impl<E, A> HKT for Validated<E, A> {
@@ -157,7 +159,7 @@ impl<E, A> BinaryHKT for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
             Validated::Invalid(es) => {
-                let transformed: SmallVec<[C; 4]> = es.iter().map(f).collect();
+                let transformed: NonEmptyErrors<C> = es.iter().map(f).collect();
                 Validated::Invalid(transformed)
             },
         }
@@ -171,7 +173,7 @@ impl<E, A> BinaryHKT for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
             Validated::Invalid(es) => {
-                let transformed: SmallVec<[C; 4]> = es.into_iter().map(f).collect();
+                let transformed: NonEmptyErrors<C> = es.into_iter().map(f).collect();
                 Validated::Invalid(transformed)
             },
         }
@@ -181,7 +183,7 @@ impl<E, A> BinaryHKT for Validated<E, A> {
 /// # Examples for `Bifunctor` on `Validated`
 ///
 /// `Validated<E, A>` is a two-parameter type, but its `Invalid` case stores a *collection*
-/// of errors (`SmallVec<[E; 4]>`), not a single `E`.
+/// of errors (`NonEmptyErrors<E>`), not a single `E`.
 ///
 /// In Rustica's `BinaryHKT` encoding for `Validated<E, A>`:
 ///
@@ -226,7 +228,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
             Validated::Invalid(es) => {
-                let transformed: SmallVec<[D; 4]> = es.iter().map(g).collect();
+                let transformed: NonEmptyErrors<D> = es.iter().map(g).collect();
                 Validated::Invalid(transformed)
             },
         }
@@ -251,7 +253,7 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
             Validated::Invalid(es) => {
-                let transformed: SmallVec<[D; 4]> = es.iter().map(g).collect();
+                let transformed: NonEmptyErrors<D> = es.iter().map(g).collect();
                 Validated::Invalid(transformed)
             },
         }
@@ -312,8 +314,8 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// let invalid_val: Validated<String, i32> = Validated::invalid("val_error".to_string());
 /// // The apply implementation accumulates errors in this order:
 /// // first the errors from the function (self), then the errors from the value (value)
-/// let expected_errors = smallvec!["fn_error".to_string(), "val_error".to_string()];
-/// assert_eq!(Applicative::apply(&invalid_fn, &invalid_val), Validated::Invalid(expected_errors));
+/// let expected_errors = Validated::invalid_many(["fn_error".to_string(), "val_error".to_string()]);
+/// assert_eq!(Applicative::apply(&invalid_fn, &invalid_val), expected_errors);
 ///
 /// // lift2
 /// let v1: Validated<&str, i32> = Validated::valid(10);
@@ -331,19 +333,19 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// let v1: Validated<&str, i32> = Validated::valid(10);
 /// let v2: Validated<&str, i32> = Validated::invalid("error_b");
 /// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
-/// assert_eq!(result, Validated::Invalid(smallvec!["error_b"]));
+/// assert_eq!(result, Validated::invalid("error_b"));
 ///
 /// let v3: Validated<&str, i32> = Validated::invalid("error_a");
 /// let v4: Validated<&str, i32> = Validated::valid(20);
 /// let result2 = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v3, &v4);
-/// assert_eq!(result2, Validated::Invalid(smallvec!["error_a"]));
+/// assert_eq!(result2, Validated::invalid("error_a"));
 ///
 /// // Combining two `Invalid` values (error accumulation)
 /// let v1: Validated<&str, i32> = Validated::invalid("error1");
 /// let v2: Validated<&str, i32> = Validated::invalid("error2");
 /// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
 /// // The order of errors in lift2 is left argument's errors then right argument's errors.
-/// assert_eq!(result, Validated::Invalid(smallvec!["error1", "error2"]));
+/// assert_eq!(result, Validated::invalid_many(["error1", "error2"]));
 /// ```
 ///
 /// ## Applicative Laws
@@ -380,10 +382,10 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
             (Validated::Valid(_), Validated::Invalid(e)) => Validated::Invalid(e.clone()),
             (Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e.clone()),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().cloned());
-                errors.extend(e2.iter().cloned());
-                Validated::Invalid(errors)
+                let mut errors = ErrorAccumulator::with_capacity(e1.len() + e2.len());
+                errors.extend_cloned(e1);
+                errors.extend_cloned(e2);
+                Validated::invalid_from_accumulator(errors)
             },
         }
     }
@@ -397,16 +399,16 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         match (self, value) {
             (Validated::Valid(f), Validated::Valid(x)) => Validated::Valid(f(x)),
             (a, b) => {
-                let mut errors = SmallVec::<[E; 4]>::new();
+                let mut errors = ErrorAccumulator::new();
 
                 if let Validated::Invalid(e) = a {
-                    errors.extend(e);
+                    errors.extend_owned(e);
                 }
                 if let Validated::Invalid(e) = b {
-                    errors.extend(e);
+                    errors.extend_owned(e);
                 }
 
-                Validated::Invalid(errors)
+                Validated::invalid_from_accumulator(errors)
             },
         }
     }
@@ -422,17 +424,17 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         match (fa, fb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
             _ => {
-                let mut errors = SmallVec::<[E; 4]>::new();
+                let mut errors = ErrorAccumulator::new();
 
                 if let Validated::Invalid(es) = fa {
-                    errors.extend(es.iter().cloned());
+                    errors.extend_cloned(es);
                 }
 
                 if let Validated::Invalid(es) = fb {
-                    errors.extend(es.iter().cloned());
+                    errors.extend_cloned(es);
                 }
 
-                Validated::Invalid(errors)
+                Validated::invalid_from_accumulator(errors)
             },
         }
     }
@@ -448,16 +450,16 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         match (fa, fb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
             (a, b) => {
-                let mut errors = SmallVec::<[E; 4]>::new();
+                let mut errors = ErrorAccumulator::new();
 
                 if let Validated::Invalid(e) = a {
-                    errors.extend(e);
+                    errors.extend_owned(e);
                 }
                 if let Validated::Invalid(e) = b {
-                    errors.extend(e);
+                    errors.extend_owned(e);
                 }
 
-                Validated::Invalid(errors)
+                Validated::invalid_from_accumulator(errors)
             },
         }
     }
@@ -479,19 +481,19 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
                 Validated::Valid(f(a, b, c))
             },
             _ => {
-                let mut errors = SmallVec::<[E; 4]>::new();
+                let mut errors = ErrorAccumulator::new();
 
                 if let Validated::Invalid(es) = fa {
-                    errors.extend(es.iter().cloned());
+                    errors.extend_cloned(es);
                 }
                 if let Validated::Invalid(es) = fb {
-                    errors.extend(es.iter().cloned());
+                    errors.extend_cloned(es);
                 }
                 if let Validated::Invalid(es) = fc {
-                    errors.extend(es.iter().cloned());
+                    errors.extend_cloned(es);
                 }
 
-                Validated::Invalid(errors)
+                Validated::invalid_from_accumulator(errors)
             },
         }
     }
@@ -512,26 +514,26 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
                 Validated::Valid(f(a, b_val, c_val))
             },
             (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len() + e3.len());
-                errors.extend(e1);
-                errors.extend(e2);
-                errors.extend(e3);
-                Validated::Invalid(errors)
+                let mut errors = ErrorAccumulator::with_capacity(e1.len() + e2.len() + e3.len());
+                errors.extend_owned(e1);
+                errors.extend_owned(e2);
+                errors.extend_owned(e3);
+                Validated::invalid_from_accumulator(errors)
             },
             (a, b, c) => {
-                let mut errors = SmallVec::<[E; 4]>::new();
+                let mut errors = ErrorAccumulator::new();
 
                 if let Validated::Invalid(e) = a {
-                    errors.extend(e);
+                    errors.extend_owned(e);
                 }
                 if let Validated::Invalid(e) = b {
-                    errors.extend(e);
+                    errors.extend_owned(e);
                 }
                 if let Validated::Invalid(e) = c {
-                    errors.extend(e);
+                    errors.extend_owned(e);
                 }
 
-                Validated::Invalid(errors)
+                Validated::invalid_from_accumulator(errors)
             },
         }
     }
@@ -708,10 +710,10 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
             (Validated::Valid(_), _) => self.clone(),
             (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut errors = SmallVec::<[E; 4]>::with_capacity(e1.len() + e2.len());
-                errors.extend(e1.iter().cloned());
-                errors.extend(e2.iter().cloned());
-                Validated::Invalid(errors)
+                let mut errors = ErrorAccumulator::with_capacity(e1.len() + e2.len());
+                errors.extend_cloned(e1);
+                errors.extend_cloned(e2);
+                Validated::invalid_from_accumulator(errors)
             },
         }
     }
@@ -728,6 +730,7 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<E, A> Arbitrary for Validated<E, A>
 where
     E: Arbitrary,

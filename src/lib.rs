@@ -9,7 +9,8 @@
 //! Rustica brings these concepts to Rust with a focus on pragmatism and performance, providing:
 //!
 //! - Type-safe functional abstractions like `Functor`, `Applicative`, and `Monad`
-//! - Practical data types such as `Maybe`, `Either`, and `Validated`
+//! - Type-safe functional abstractions like `Functor`, `Applicative`, and `Monad`
+//! - Practical data types such as `Validated`, `Choice`, and `Id`
 //! - Optics for data manipulation via `Lens` and `Prism`
 //! - Composable operations for error handling and data transformation
 //! - Advanced monad transformers: `StateT`, `ReaderT`, `ContT`
@@ -20,7 +21,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rustica = "0.12.0"
+//! rustica = "0.13.0"
 //! ```
 //!
 //! Import common traits and types through the prelude:
@@ -41,10 +42,10 @@
 //! let doubled: Option<i32> = value.fmap(|x| x * 2);
 //! assert_eq!(doubled, Some(84));
 //!
-//! // With Either for error handling
-//! let success: Either<String, i32> = Either::right(42);
-//! let mapped: Either<String, String> = success.fmap(|n| n.to_string());
-//! assert_eq!(mapped.unwrap_right(), "42");
+//! // With Result for error handling
+//! let success: Result<i32, String> = Ok(42);
+//! let mapped: Result<String, String> = success.fmap(|n| n.to_string());
+//! assert_eq!(mapped, Ok("42".to_string()));
 //! ```
 //!
 //! ### Error Handling with Validated
@@ -101,6 +102,8 @@
 //! - `pvec`: Persistent vector implementation with structural sharing
 //! - `utils`: Utility functions and helpers for common operations
 //! - `prelude`: A convenient module that re-exports commonly used items
+
+#![allow(deprecated)]
 
 /// Core traits for functional programming abstractions.
 ///

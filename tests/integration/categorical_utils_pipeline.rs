@@ -1,5 +1,3 @@
-use rustica::utils::categorical_utils::*;
-
 // This integration test is based on the "Real-world Pipeline Example" from the examples.
 // It tests the composition of several categorical utility functions to achieve a practical goal.
 #[test]
@@ -8,13 +6,13 @@ fn test_data_processing_pipeline() {
         // 1. Parse the string to an integer Option
         let parsed = input.parse::<i32>().ok();
 
-        // 2. Chain with flat_map_option to continue only if parsing was successful
-        flat_map_option(parsed, |num| {
+        // 2. Chain with Option's standard combinators
+        parsed.and_then(|num| {
             // 3. Ensure the number is positive
             let positive_num = (num > 0).then_some(num);
 
             // 4. Map the positive number to a formatted string
-            map_option(positive_num, |n| format!("Processed: {}", n * 2))
+            positive_num.map(|n| format!("Processed: {}", n * 2))
         })
     };
 

@@ -26,24 +26,13 @@ use std::sync::Arc;
 ///
 /// This value (32) is chosen to balance tree height with cache efficiency.
 /// A branching factor of 32 means the tree height grows as log₃₂(n).
-pub const BRANCHING_FACTOR: usize = 32;
+pub(crate) const BRANCHING_FACTOR: usize = 32;
 
-/// Maximum number of elements per leaf node.
-///
-/// This value (64) is optimized for cache line efficiency and reduces
-/// the overhead of tree traversal for small vectors.
-pub const LEAF_CAPACITY: usize = 64;
+pub(crate) const LEAF_CAPACITY: usize = 64;
 
-/// Typical branch size for most nodes (optimization).
-///
-/// Used for `SmallVec` inline storage to avoid heap allocations
-/// for nodes with few children.
-pub const SMALL_BRANCH_SIZE: usize = 8;
+pub(crate) const SMALL_BRANCH_SIZE: usize = 8;
 
-/// Corresponding size table size for small branches.
-///
-/// Matches `SMALL_BRANCH_SIZE` for consistent inline storage.
-pub const SMALL_SIZE_TABLE_SIZE: usize = 8;
+pub(crate) const SMALL_SIZE_TABLE_SIZE: usize = 8;
 
 /// A node in the RRB tree structure.
 ///

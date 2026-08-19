@@ -136,33 +136,18 @@ where
 ///
 /// * `T`: The success type
 /// * `E`: The current error type
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::{ErrorPipeline, ComposableError};
-///
-/// let result: Result<i32, &str> = Err("parse error");
-///
-/// let processed = ErrorPipeline::new(result)
-///     .with_context("Failed to process input")
-///     .map_error(|e| format!("Error: {}", e))
-///     .recover(|_| Ok(42))
-///     .finish();
-///
-/// assert_eq!(processed, Ok(42));
-/// ```
+#[deprecated(
+    since = "0.13.0",
+    note = "ErrorPipeline is an unnecessary wrapper. Use Result methods directly. Will be removed in 0.14.0."
+)]
 pub struct ErrorPipeline<T, E> {
     result: Result<T, E>,
     pending_contexts: SmallVec<[String; 4]>,
 }
 
+#[allow(deprecated)]
 impl<T, E> ErrorPipeline<T, E> {
     /// Creates a new error pipeline from a Result.
-    ///
-    /// # Arguments
-    ///
-    /// * `result`: The initial Result to process
     ///
     /// # Examples
     ///
@@ -209,7 +194,7 @@ impl<T, E> ErrorPipeline<T, E> {
             return self;
         }
 
-        let ctx_str = context.into_error_context().message().to_string();
+        let ctx_str = context.into_error_context().into_message();
         self.pending_contexts.push(ctx_str);
         self
     }
@@ -487,7 +472,7 @@ where
 {
     let context_strings: Vec<String> = contexts
         .into_iter()
-        .map(|c| c.into_error_context().message().to_string())
+        .map(|c| c.into_error_context().into_message())
         .collect();
 
     ComposableError::new(error).with_contexts(context_strings)

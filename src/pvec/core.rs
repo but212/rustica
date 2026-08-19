@@ -8,8 +8,7 @@ use super::error::PVecError;
 use super::iter::{PersistentVectorIntoIter, PersistentVectorIter};
 use super::tree::RRBTree;
 
-/// Maximum number of elements stored inline before transitioning to tree structure.
-pub const ADAPTIVE_INLINE_SIZE: usize = 64;
+pub(crate) const ADAPTIVE_INLINE_SIZE: usize = 64;
 
 /// Generation counter type for tracking vector mutations.
 type Generation = u32;
@@ -472,26 +471,11 @@ impl<T: Clone> PersistentVector<T> {
             return PersistentVector::new();
         }
 
-        PersistentVector::from_iter(
-            self.iter()
-                .collect::<Vec<_>>()
-                .chunks(size)
-                .map(|chunk| PersistentVector::from_iter(chunk.iter().map(|&x| x.clone()))),
-        )
-    }
-
-    /// Creates a new vector with a specific cache policy (currently a no-op).
-    ///
-    /// This method is provided for API compatibility but currently ignores the policy.
-    pub fn with_cache_policy<P>(_policy: P) -> Self {
-        Self::new()
-    }
-
-    /// Creates a vector from a slice with a specific cache policy (currently a no-op).
-    ///
-    /// This method is provided for API compatibility but currently ignores the policy.
-    pub fn from_slice_with_cache_policy<P>(slice: &[T], _policy: P) -> Self {
-        Self::from_slice(slice)
+        let mut iter = self.iter();
+        PersistentVector::from_iter(std::iter::from_fn(move || {
+            let chunk: Vec<T> = iter.by_ref().take(size).cloned().collect();
+            (!chunk.is_empty()).then(|| PersistentVector::from_iter(chunk))
+        }))
     }
 
     /// Creates a new vector with an element added to the end.
@@ -923,13 +907,17 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust,ignore
     /// use rustica::pvec::PersistentVector;
     ///
     /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
     /// let taken = vec.take(3);
     /// assert_eq!(taken.to_vec(), vec![1, 2, 3]);
     /// ```
+    #[deprecated(
+        since = "0.13.0",
+        note = "Use iterator methods (.iter().take(...).collect()) instead. Will be removed in 0.14.0."
+    )]
     pub fn take(&self, n: usize) -> Self {
         if n >= self.len {
             self.clone()
@@ -942,13 +930,17 @@ impl<T: Clone> PersistentVector<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust,ignore
     /// use rustica::pvec::PersistentVector;
     ///
     /// let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
     /// let skipped = vec.skip(2);
     /// assert_eq!(skipped.to_vec(), vec![3, 4, 5]);
     /// ```
+    #[deprecated(
+        since = "0.13.0",
+        note = "Use iterator methods (.iter().skip(...).collect()) instead. Will be removed in 0.14.0."
+    )]
     pub fn skip(&self, n: usize) -> Self {
         if n >= self.len {
             Self::new()
@@ -1039,6 +1031,28 @@ impl<T: Clone> PersistentVector<T> {
     pub fn to_vec(&self) -> Vec<T> {
         self.iter().cloned().collect()
     }
+
+    /// Consumes the vector and extracts owned values. Unique inline/tree
+    /// storage is moved directly; shared tree storage falls back to cloning
+    /// the shared values to preserve persistent-vector semantics.
+    pub fn into_vec(self) -> Vec<T>
+    where
+        T: Clone,
+    {
+        match self.inner {
+            VectorImpl::Inline { elements } => elements.into_vec(),
+            VectorImpl::Tree { tree } => match Arc::try_unwrap(tree) {
+                Ok(tree) => tree.into_vec(),
+                Err(tree) => (0..self.len)
+                    .map(|index| {
+                        tree.get(index)
+                            .expect("persistent vector tree length invariant")
+                            .clone()
+                    })
+                    .collect(),
+            },
+        }
+    }
 }
 
 impl<T> Default for PersistentVector<T> {
@@ -1047,40 +1061,54 @@ impl<T> Default for PersistentVector<T> {
     }
 }
 
-impl<T: Clone> FromIterator<T> for PersistentVector<T> {
+impl<T> FromIterator<T> for PersistentVector<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let elements: Vec<T> = iter.into_iter().collect();
-        let len = elements.len();
-        if len <= ADAPTIVE_INLINE_SIZE {
-            Self {
-                inner: VectorImpl::Inline {
-                    elements: SmallVec::from_vec(elements),
+        let mut iter = iter.into_iter();
+        let mut inline = SmallVec::<[T; ADAPTIVE_INLINE_SIZE]>::new();
+        while inline.len() < ADAPTIVE_INLINE_SIZE {
+            match iter.next() {
+                Some(value) => inline.push(value),
+                None => {
+                    return Self {
+                        len: inline.len(),
+                        inner: VectorImpl::Inline { elements: inline },
+                        generation: 0,
+                    };
                 },
-                len,
-                generation: 0,
             }
-        } else {
-            let tree = RRBTree::from_elements(elements.into_iter());
-            Self {
-                inner: VectorImpl::Tree {
-                    tree: Arc::new(tree.clone()),
-                },
-                len,
+        }
+
+        let first = iter.next();
+        match first {
+            None => Self {
+                len: inline.len(),
+                inner: VectorImpl::Inline { elements: inline },
                 generation: 0,
-            }
+            },
+            Some(first) => {
+                let elements = inline.into_iter().chain(std::iter::once(first)).chain(iter);
+                let tree = RRBTree::from_elements_owned(elements);
+                let len = tree.len;
+                Self {
+                    inner: VectorImpl::Tree {
+                        tree: Arc::new(tree),
+                    },
+                    len,
+                    generation: 0,
+                }
+            },
         }
     }
 }
 
 impl<T: Clone> Extend<T> for PersistentVector<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        for item in iter {
-            *self = self.push_back(item);
-        }
+        let current = std::mem::take(self);
+        *self = current.into_iter().chain(iter).collect();
     }
 }
 
-impl<T: Clone> From<Vec<T>> for PersistentVector<T> {
+impl<T> From<Vec<T>> for PersistentVector<T> {
     fn from(vec: Vec<T>) -> Self {
         Self::from_iter(vec)
     }
@@ -1088,7 +1116,7 @@ impl<T: Clone> From<Vec<T>> for PersistentVector<T> {
 
 impl<T: Clone> From<PersistentVector<T>> for Vec<T> {
     fn from(pvec: PersistentVector<T>) -> Self {
-        pvec.to_vec()
+        pvec.into_vec()
     }
 }
 
@@ -1097,11 +1125,8 @@ impl<T: Clone> IntoIterator for PersistentVector<T> {
     type IntoIter = PersistentVectorIntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let len = self.len;
         PersistentVectorIntoIter {
-            vector: self,
-            front: 0,
-            back: len,
+            iter: self.into_vec().into_iter(),
         }
     }
 }

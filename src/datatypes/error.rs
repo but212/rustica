@@ -17,17 +17,6 @@
 //! use rustica::datatypes::choice::Choice;
 //! use rustica::datatypes::either::Either;
 //!
-//! // Safe alternative access with ChoiceError
-//! let choice: Choice<i32> = Choice::new(1, vec![2, 3]);
-//! match choice.try_remove_alternative(0) {
-//!     Ok(new_choice) => println!("Removed: {:?}", new_choice),
-//!     Err(ChoiceError::IndexOutOfBounds { index, len }) => {
-//!         println!("Index {} out of bounds (len={})", index, len);
-//!     },
-//!     Err(ChoiceError::NoAlternatives) => println!("No alternatives"),
-//!     _ => {},
-//! }
-//!
 //! let either: Either<&str, i32> = Either::Right(42);
 //! match either.try_unwrap_left() {
 //!     Ok(left) => println!("Left: {}", left),
@@ -47,33 +36,11 @@ use std::fmt::{self, Display};
 /// ```rust
 /// use rustica::datatypes::error::ChoiceError;
 ///
-/// let err = ChoiceError::NoAlternatives;
-/// assert_eq!(
-///     err.to_string(),
-///     "Choice operation failed: no alternatives available"
-/// );
+/// let err = ChoiceError::EmptyChoice;
+/// assert_eq!(err.to_string(), "Choice operation failed: choice is empty");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ChoiceError {
-    /// The Choice has no alternatives to operate on.
-    ///
-    /// This error occurs when attempting operations like `remove_alternative`
-    /// or `swap_primary` on a Choice that only has a primary value.
-    NoAlternatives,
-
-    /// Index is out of bounds for the alternatives.
-    ///
-    /// # Fields
-    ///
-    /// - `index` - The invalid index that was accessed
-    /// - `len` - The actual number of alternatives
-    IndexOutOfBounds {
-        /// The invalid index that was accessed.
-        index: usize,
-        /// The actual number of alternatives.
-        len: usize,
-    },
-
     /// Primary value iterator was empty during flatten operation.
     ///
     /// This error occurs when calling `flatten` on a Choice where
@@ -88,29 +55,6 @@ pub enum ChoiceError {
 }
 
 impl ChoiceError {
-    /// Creates a new `IndexOutOfBounds` error.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The invalid index that was accessed
-    /// * `len` - The actual number of alternatives
-    #[inline]
-    pub const fn index_out_of_bounds(index: usize, len: usize) -> Self {
-        ChoiceError::IndexOutOfBounds { index, len }
-    }
-
-    /// Returns `true` if this is a `NoAlternatives` error.
-    #[inline]
-    pub const fn is_no_alternatives(&self) -> bool {
-        matches!(self, ChoiceError::NoAlternatives)
-    }
-
-    /// Returns `true` if this is an `IndexOutOfBounds` error.
-    #[inline]
-    pub const fn is_index_out_of_bounds(&self) -> bool {
-        matches!(self, ChoiceError::IndexOutOfBounds { .. })
-    }
-
     /// Returns `true` if this is an `EmptyPrimaryIterator` error.
     #[inline]
     pub const fn is_empty_primary_iterator(&self) -> bool {
@@ -127,16 +71,6 @@ impl ChoiceError {
 impl Display for ChoiceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChoiceError::NoAlternatives => {
-                write!(f, "Choice operation failed: no alternatives available")
-            },
-            ChoiceError::IndexOutOfBounds { index, len } => {
-                write!(
-                    f,
-                    "Choice::remove_alternative(): index {} out of bounds for {} alternatives",
-                    index, len
-                )
-            },
             ChoiceError::EmptyPrimaryIterator => {
                 write!(
                     f,
@@ -271,3 +205,66 @@ impl Display for ValidatedError {
 }
 
 impl std::error::Error for ValidatedError {}
+
+#[cfg(test)]
+mod tests {
+    use super::{ChoiceError, EitherError, ValidatedError};
+
+    #[test]
+    fn test_choice_error_display() {
+        assert_eq!(
+            ChoiceError::EmptyPrimaryIterator.to_string(),
+            "Choice::flatten(): primary value produced empty iterator"
+        );
+        assert_eq!(
+            ChoiceError::EmptyChoice.to_string(),
+            "Choice operation failed: choice is empty"
+        );
+    }
+
+    #[test]
+    fn test_either_error_display() {
+        assert_eq!(
+            EitherError::ExpectedLeft.to_string(),
+            "Either::unwrap_left(): called on Right variant"
+        );
+        assert_eq!(
+            EitherError::ExpectedRight.to_string(),
+            "Either::unwrap_right(): called on Left variant"
+        );
+    }
+
+    #[test]
+    fn test_validated_error_display() {
+        assert_eq!(
+            ValidatedError::ExpectedValid.to_string(),
+            "Validated::unwrap(): called on Invalid variant"
+        );
+        assert_eq!(
+            ValidatedError::ExpectedInvalid.to_string(),
+            "Validated::unwrap_invalid(): called on Valid variant"
+        );
+    }
+
+    #[test]
+    fn test_choice_error_predicates() {
+        assert!(ChoiceError::EmptyPrimaryIterator.is_empty_primary_iterator());
+        assert!(ChoiceError::EmptyChoice.is_empty_choice());
+    }
+
+    #[test]
+    fn test_either_error_predicates() {
+        assert!(EitherError::ExpectedLeft.is_expected_left());
+        assert!(!EitherError::ExpectedLeft.is_expected_right());
+        assert!(EitherError::ExpectedRight.is_expected_right());
+        assert!(!EitherError::ExpectedRight.is_expected_left());
+    }
+
+    #[test]
+    fn test_validated_error_predicates() {
+        assert!(ValidatedError::ExpectedValid.is_expected_valid());
+        assert!(!ValidatedError::ExpectedValid.is_expected_invalid());
+        assert!(ValidatedError::ExpectedInvalid.is_expected_invalid());
+        assert!(!ValidatedError::ExpectedInvalid.is_expected_valid());
+    }
+}

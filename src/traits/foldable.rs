@@ -514,11 +514,15 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Clone,
     {
-        self.fold_left(&Vec::new(), |acc, x| {
-            let mut new_acc = acc.clone();
-            new_acc.push(x.clone());
-            new_acc
-        })
+        // `fold_left` takes its accumulator by reference and returns a new
+        // value, so cloning a growing `Vec` here makes this operation O(n²).
+        // Keep the public fold API unchanged while using a private mutable
+        // side accumulator. Each source element is cloned exactly once.
+        let out = std::cell::RefCell::new(Vec::new());
+        self.fold_left(&(), |_, x| {
+            out.borrow_mut().push(x.clone());
+        });
+        out.into_inner()
     }
 
     /// Sums all elements in the foldable.

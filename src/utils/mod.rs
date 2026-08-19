@@ -12,10 +12,8 @@
 //!
 //! Category theory-inspired utilities designed for Rust's type system:
 //!
-//! - Functor-inspired mapping helpers (`map_option`, `map_result`, `bimap_result`)
-//! - Monad-inspired chaining helpers (`flat_map_option`, `flat_map_result`)
+//! - Result bifunctor mapping helper (`bimap_result`)
 //! - Function composition utilities (`compose`, `pipe`)
-//! - Collection sequencing operations (`sequence_options`, `sequence_results`)
 //! - Following categorical laws
 //!
 //! ### Error Handling Utilities (`crate::error`)
@@ -29,7 +27,7 @@
 //!
 //! - Composition utilities for functions and transformations
 //! - Pipeline operations for chaining computations
-//! - Collection utilities like `filter_map`, `fan_out`, and `zip_with`
+//! - Context-aware operations like `fan_out`
 //!
 //! ### Transformation Utilities (`transform_utils`)
 //!
@@ -69,10 +67,8 @@ pub mod transform_utils;
 ///
 /// Key features include:
 ///
-/// - Functor-inspired mapping helpers for structure-preserving transformations
-/// - Monad-inspired chaining helpers for sequencing computations with context
+/// - Result bifunctor mapping for transforming success and error values
 /// - Function composition utilities for building complex operations
-/// - Collection utilities for working with sequences of optional/failable values
 pub mod categorical_utils;
 
 /// Basic function combinators and utilities.

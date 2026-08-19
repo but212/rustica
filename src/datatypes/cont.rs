@@ -157,6 +157,7 @@
 //! assert_eq!(result2, -1);
 //! ```
 use crate::transformers::cont_t::ContT;
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 use std::sync::Arc;
 
@@ -728,6 +729,7 @@ where
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<R, A> Arbitrary for Cont<R, A>
 where
     R: Clone + Send + Sync + 'static,
@@ -736,5 +738,58 @@ where
     fn arbitrary(g: &mut Gen) -> Self {
         let val = A::arbitrary(g);
         Cont::return_cont(val)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Cont;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_cont_monadic_fundamentals() {
+        let c = Cont::return_cont(42);
+        assert_eq!(c.run(|x| x), 42);
+
+        let mapped = c.clone().fmap(|x| x * 2);
+        assert_eq!(mapped.run(|x| x), 84);
+
+        let bound = c.clone().bind(|x| Cont::return_cont(x + 8));
+        assert_eq!(bound.run(|x| x), 50);
+
+        let f =
+            Cont::return_cont(Arc::new(|x: i32| x - 2) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+        assert_eq!(c.apply(f).run(|x| x), 40);
+    }
+
+    #[test]
+    fn test_cont_control_flow() {
+        let computation = Cont::<String, i32>::return_cont(1).call_cc(|exit| {
+            Cont::return_cont(1).bind(move |x| {
+                if x > 0 {
+                    exit(100)
+                } else {
+                    Cont::return_cont(x + 1)
+                }
+            })
+        });
+        assert_eq!(computation.run(|x| x.to_string()), "100");
+
+        let normal =
+            Cont::<i32, i32>::return_cont(5).call_cc(|_| Cont::return_cont(5).fmap(|x| x * 2));
+        assert_eq!(normal.run(|x| x), 10);
+
+        let safe_div = |n: i32, d: i32| -> Cont<String, i32> {
+            if d == 0 {
+                Cont::new(|_| "Error: DivByZero".to_string())
+            } else {
+                Cont::return_cont(n / d)
+            }
+        };
+        assert_eq!(safe_div(10, 2).run(|x| x.to_string()), "5");
+        assert_eq!(
+            safe_div(10, 0).run(|_| "Success".to_string()),
+            "Error: DivByZero"
+        );
     }
 }

@@ -567,7 +567,7 @@ where
         A: PartialEq,
     {
         let current = self.get(&source);
-        let new_value = f(current.clone());
+        let new_value = f(current);
         self.set(source, new_value)
     }
 

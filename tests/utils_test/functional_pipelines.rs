@@ -1,49 +1,119 @@
-use rustica::datatypes::either::Either;
-use rustica::utils::categorical_utils::*;
-use rustica::utils::hkt_utils::*;
-use rustica::utils::transform_utils::*;
-
 #[test]
 fn test_functional_transform_utilities() {
-    // 1. filter_map and sequence (HKT & Categorical)
+    // 1. Standard iterator filtering and sequencing
     let numbers = vec![1, 2, 3, 4];
-    let filtered = filter_map(numbers, |&n| n % 2 == 0, |n| n * n);
+    let filtered: Vec<_> = numbers
+        .into_iter()
+        .filter(|n| n % 2 == 0)
+        .map(|n| n * n)
+        .collect();
     assert_eq!(filtered, vec![4, 16]);
 
     let options = vec![Some(1), Some(2)];
-    assert_eq!(sequence_options(options), Some(vec![1, 2]));
-    assert_eq!(sequence_options(vec![Some(1), None]), None);
+    assert_eq!(
+        options.into_iter().collect::<Option<Vec<_>>>(),
+        Some(vec![1, 2])
+    );
+    assert_eq!(
+        vec![Some(1), None].into_iter().collect::<Option<Vec<_>>>(),
+        None
+    );
 
-    // 2. Composed utilities (compose, pipe, flip)
+    // 2. Idiomatic Rust closure chaining
     let add_one = |x: i32| x + 1;
     let double = |x: i32| x * 2;
-    assert_eq!(compose(double, add_one)(5), 12);
-    assert_eq!(pipe(add_one, double)(5), 12);
-    assert_eq!(flip(|x: i32, y: i32| x - y)(10, 3), -7);
-}
-
-#[test]
-fn test_pipeline_ergonomics() {
-    // 1. Complex Pipeline with Either
-    let res = Pipeline::new(Either::<&str, i32>::right(10))
-        .map(|&x| x * 2)
-        .map(|x| x.to_string())
-        .extract();
-    assert_eq!(res, Either::right("20".to_string()));
-
-    // 2. Iterator interface
-    let pipeline = Pipeline::new(vec![1, 2, 3]);
-    let collected: Vec<_> = pipeline.into_iter().map(|x| x + 1).collect();
-    assert_eq!(collected, vec![2, 3, 4]);
+    assert_eq!(double(add_one(5)), 12);
 }
 
 #[test]
 fn test_categorical_mapping() {
     // Test standardized mapping for std types
-    assert_eq!(map_option(Some(10), |x| x / 2), Some(5));
-    assert_eq!(bimap_result(Ok(10), |x| x + 1, |e: &str| e.len()), Ok(11));
+    assert_eq!(Some(10).map(|x| x / 2), Some(5));
+    let ok_res: Result<i32, &str> = Ok(10);
+    assert_eq!(ok_res.map(|x| x + 1).map_err(|e| e.len()), Ok(11));
+    let err_res: Result<i32, &str> = Err("err");
     assert_eq!(
-        bimap_result(Err("err"), |x: i32| x, |e| e.to_uppercase()),
-        Err("ERR".into())
+        err_res.map(|x| x + 1).map_err(|e| e.to_uppercase()),
+        Err("ERR".to_string())
     );
 }
+
+#[test]
+fn sequence_preserves_order_and_returns_first_error() {
+    assert_eq!(sequence::<i32, &str>(vec![]), Ok(Vec::<i32>::new()));
+    assert_eq!(
+        sequence::<i32, &str>(vec![Ok(1), Ok(2), Ok(3)]),
+        Ok(vec![1, 2, 3])
+    );
+    assert_eq!(
+        sequence(vec![Ok(1), Err("first"), Err("second")]),
+        Err("first")
+    );
+}
+
+#[test]
+fn traverse_preserves_order_and_stops_after_first_error() {
+    let mut seen = Vec::new();
+    let result = traverse([1, 2, 3], |value| {
+        seen.push(value);
+        if value == 2 {
+            Err("stop")
+        } else {
+            Ok(value * 10)
+        }
+    });
+
+    assert_eq!(result, Err("stop"));
+    assert_eq!(seen, vec![1, 2]);
+    assert_eq!(
+        traverse([1, 2, 3], |value| Ok::<_, &str>(value * 10)),
+        Ok(vec![10, 20, 30])
+    );
+}
+
+#[test]
+fn pipeline_result_handles_empty_input_and_short_circuits() {
+    assert_eq!(
+        pipeline_result::<_, i32, &'static str, fn(i32) -> Result<i32, &'static str>>(
+            7,
+            Vec::new(),
+        ),
+        Ok(7)
+    );
+
+    fn add_one(value: i32) -> Result<i32, &'static str> {
+        Ok(value + 1)
+    }
+    fn stop(_: i32) -> Result<i32, &'static str> {
+        Err("stop")
+    }
+    fn should_not_run(_: i32) -> Result<i32, &'static str> {
+        panic!("pipeline continued after an error")
+    }
+
+    assert_eq!(pipeline_result(1, vec![add_one, add_one]), Ok(3));
+    assert_eq!(
+        pipeline_result(1, vec![add_one, stop, should_not_run]),
+        Err("stop")
+    );
+}
+
+#[test]
+fn sequence_with_error_preserves_order_and_returns_first_error() {
+    let values: Vec<Either<&str, i32>> = vec![Either::Right(1), Either::Right(2)];
+    assert_eq!(sequence_with_error(values), Ok(vec![1, 2]));
+
+    let values = vec![
+        Either::Right(1),
+        Either::Left("first"),
+        Either::Left("second"),
+    ];
+    let result: Result<Vec<i32>, &str> = sequence_with_error(values);
+    assert_eq!(result, Err("first"));
+
+    let values: Vec<Either<&str, i32>> = Vec::new();
+    assert_eq!(sequence_with_error(values), Ok(Vec::<i32>::new()));
+}
+use rustica::datatypes::either::Either;
+use rustica::error::{sequence, sequence_with_error, traverse};
+use rustica::utils::hkt_utils::pipeline_result;

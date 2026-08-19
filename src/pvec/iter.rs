@@ -492,39 +492,25 @@ impl<'a, T> TreeIterState<'a, T> {
 /// assert_eq!(collected, vec![1, 2, 3]);
 /// ```
 pub struct PersistentVectorIntoIter<T> {
-    pub(crate) vector: PersistentVector<T>,
-    pub(crate) front: usize,
-    pub(crate) back: usize,
+    pub(crate) iter: std::vec::IntoIter<T>,
 }
 
-impl<T: Clone> Iterator for PersistentVectorIntoIter<T> {
+impl<T> Iterator for PersistentVectorIntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.front < self.back {
-            let item = self.vector.get(self.front).cloned();
-            self.front += 1;
-            item
-        } else {
-            None
-        }
+        self.iter.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.back.saturating_sub(self.front);
-        (remaining, Some(remaining))
+        self.iter.size_hint()
     }
 }
 
-impl<T: Clone> ExactSizeIterator for PersistentVectorIntoIter<T> {}
+impl<T> ExactSizeIterator for PersistentVectorIntoIter<T> {}
 
-impl<T: Clone> DoubleEndedIterator for PersistentVectorIntoIter<T> {
+impl<T> DoubleEndedIterator for PersistentVectorIntoIter<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.front < self.back {
-            self.back -= 1;
-            self.vector.get(self.back).cloned()
-        } else {
-            None
-        }
+        self.iter.next_back()
     }
 }

@@ -247,6 +247,7 @@ use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
 use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
 /// The `Either` type represents values with two possibilities: a value of type `L` or a value of type `R`.
@@ -258,6 +259,10 @@ use quickcheck::{Arbitrary, Gen};
 /// * `R`: The type of the right value
 ///
 /// See the module-level documentation for examples and more information.
+#[deprecated(
+    since = "0.13.0",
+    note = "Use Result<R, L> instead. Either will be removed in 0.14.0."
+)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Either<L, R> {
@@ -267,6 +272,7 @@ pub enum Either<L, R> {
     Right(R),
 }
 
+#[allow(deprecated)]
 impl<L, R> Either<L, R> {
     /// Creates a new `Either::Left` containing the given value.
     ///
@@ -711,24 +717,24 @@ impl<L, R> Either<L, R> {
     /// Returns an iterator over the left value, consuming self.
     pub fn left_iter(self) -> EitherLeftIter<L> {
         match self {
-            Either::Left(l) => EitherLeftIter { left: Some(l) },
-            Either::Right(_) => EitherLeftIter { left: None },
+            Either::Left(l) => Some(l).into_iter(),
+            Either::Right(_) => None.into_iter(),
         }
     }
 
     /// Returns an iterator over a reference to the left value.
     pub fn left_iter_ref(&self) -> EitherLeftIterRef<'_, L> {
         match self {
-            Either::Left(l) => EitherLeftIterRef { left: Some(l) },
-            Either::Right(_) => EitherLeftIterRef { left: None },
+            Either::Left(l) => Some(l).into_iter(),
+            Either::Right(_) => None.into_iter(),
         }
     }
 
     /// Returns an iterator over a mutable reference to the left value.
     pub fn left_iter_mut(&mut self) -> EitherLeftIterMut<'_, L> {
         match self {
-            Either::Left(l) => EitherLeftIterMut { left: Some(l) },
-            Either::Right(_) => EitherLeftIterMut { left: None },
+            Either::Left(l) => Some(l).into_iter(),
+            Either::Right(_) => None.into_iter(),
         }
     }
 
@@ -883,41 +889,9 @@ impl<L, R> Either<L, R> {
     }
 }
 
-/// An iterator over the left value of an `Either<L, R>`.
-pub struct EitherLeftIter<L> {
-    left: Option<L>,
-}
-
-impl<L> Iterator for EitherLeftIter<L> {
-    type Item = L;
-    fn next(&mut self) -> Option<L> {
-        self.left.take()
-    }
-}
-
-/// An iterator over a reference to the left value of an `Either<L, R>`.
-pub struct EitherLeftIterRef<'a, L> {
-    left: Option<&'a L>,
-}
-
-impl<'a, L> Iterator for EitherLeftIterRef<'a, L> {
-    type Item = &'a L;
-    fn next(&mut self) -> Option<&'a L> {
-        self.left.take()
-    }
-}
-
-/// An iterator over a mutable reference to the left value of an `Either<L, R>`.
-pub struct EitherLeftIterMut<'a, L> {
-    left: Option<&'a mut L>,
-}
-
-impl<'a, L> Iterator for EitherLeftIterMut<'a, L> {
-    type Item = &'a mut L;
-    fn next(&mut self) -> Option<&'a mut L> {
-        self.left.take()
-    }
-}
+pub type EitherLeftIter<L> = std::option::IntoIter<L>;
+pub type EitherLeftIterRef<'a, L> = std::option::IntoIter<&'a L>;
+pub type EitherLeftIterMut<'a, L> = std::option::IntoIter<&'a mut L>;
 
 impl<L, R> HKT for Either<L, R> {
     type Source = R;
@@ -1248,10 +1222,7 @@ impl<L: Default + Clone, R: Clone> Alternative for Either<L, R> {
 }
 
 // Iterator support for Either
-/// An iterator over the right value of an `Either<L, R>`.
-pub struct EitherIter<R> {
-    inner: Option<R>,
-}
+pub type EitherIter<R> = std::option::IntoIter<R>;
 
 impl<L, R> IntoIterator for Either<L, R> {
     type Item = R;
@@ -1273,23 +1244,13 @@ impl<L, R> IntoIterator for Either<L, R> {
     /// ```
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Either::Right(r) => EitherIter { inner: Some(r) },
-            Either::Left(_) => EitherIter { inner: None },
+            Either::Right(r) => Some(r).into_iter(),
+            Either::Left(_) => None.into_iter(),
         }
     }
 }
 
-impl<R> Iterator for EitherIter<R> {
-    type Item = R;
-    fn next(&mut self) -> Option<R> {
-        self.inner.take()
-    }
-}
-
-/// An iterator over a reference to the right value of an `Either<L, R>`.
-pub struct EitherIterRef<'a, R> {
-    inner: Option<&'a R>,
-}
+pub type EitherIterRef<'a, R> = std::option::IntoIter<&'a R>;
 
 impl<'a, L, R> IntoIterator for &'a Either<L, R> {
     type Item = &'a R;
@@ -1309,23 +1270,13 @@ impl<'a, L, R> IntoIterator for &'a Either<L, R> {
     /// ```
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Either::Right(r) => EitherIterRef { inner: Some(r) },
-            Either::Left(_) => EitherIterRef { inner: None },
+            Either::Right(r) => Some(r).into_iter(),
+            Either::Left(_) => None.into_iter(),
         }
     }
 }
 
-impl<'a, R> Iterator for EitherIterRef<'a, R> {
-    type Item = &'a R;
-    fn next(&mut self) -> Option<&'a R> {
-        self.inner.take()
-    }
-}
-
-/// An iterator over a mutable reference to the right value of an `Either<L, R>`.
-pub struct EitherIterMut<'a, R> {
-    inner: Option<&'a mut R>,
-}
+pub type EitherIterMut<'a, R> = std::option::IntoIter<&'a mut R>;
 
 impl<'a, L, R> IntoIterator for &'a mut Either<L, R> {
     type Item = &'a mut R;
@@ -1344,19 +1295,13 @@ impl<'a, L, R> IntoIterator for &'a mut Either<L, R> {
     /// ```
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Either::Right(r) => EitherIterMut { inner: Some(r) },
-            Either::Left(_) => EitherIterMut { inner: None },
+            Either::Right(r) => Some(r).into_iter(),
+            Either::Left(_) => None.into_iter(),
         }
     }
 }
 
-impl<'a, R> Iterator for EitherIterMut<'a, R> {
-    type Item = &'a mut R;
-    fn next(&mut self) -> Option<&'a mut R> {
-        self.inner.take()
-    }
-}
-
+#[cfg(any(test, feature = "quickcheck"))]
 impl<L, R> Arbitrary for Either<L, R>
 where
     L: Arbitrary,

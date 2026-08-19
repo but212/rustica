@@ -241,6 +241,7 @@ use crate::traits::hkt::HKT;
 use crate::transformers::StateT;
 // Migration note: AppError-based helpers were replaced by
 // `crate::error::ComposableError` in rustica 0.10.2 for unified error handling.
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
 /// Type alias for the inner state transformer used in State monad
@@ -1265,6 +1266,7 @@ where
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<S, A> Arbitrary for State<S, A>
 where
     S: Arbitrary + Send + Sync + 'static,
@@ -1273,5 +1275,74 @@ where
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);
         State::new(move |s: S| (value.clone(), s))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{State, get, modify, put};
+
+    #[test]
+    fn test_state_primitives_and_applicative() {
+        let ops = get::<i32>()
+            .bind(|x| modify(move |s: i32| s + x))
+            .bind(|_| get::<i32>())
+            .bind(|y| put(y * 2).fmap(move |_| y));
+        assert_eq!(ops.run_state(2), (4, 8));
+
+        let add_state = State::new(|s: i32| (move |x: i32| x + s, s + 1));
+        let val_state = State::new(|s: i32| (s * 2, s + 2));
+        assert_eq!(add_state.apply(val_state).run_state(5), (17, 8));
+    }
+
+    #[test]
+    fn test_state_resilience_and_errors() {
+        let fallible: State<i32, Result<i32, &str>> = State::new(|s| {
+            if s > 0 {
+                (Ok(s * 10), s + 1)
+            } else {
+                (Err("negative"), s)
+            }
+        });
+
+        let (res1, s1) = fallible.try_run_state_with_context(5, "ctx");
+        assert_eq!(res1, Ok(50));
+        assert_eq!(s1, 6);
+
+        let (res2, s2) = fallible.try_run_state_with_context(-1, "ctx");
+        assert!(res2.is_err());
+        assert_eq!(res2.unwrap_err().context(), vec!["ctx".to_string()]);
+        assert_eq!(s2, -1);
+        assert!(fallible.try_eval_state(-1).is_err());
+        assert_eq!(fallible.try_exec_state(5), Ok(6));
+    }
+
+    #[test]
+    fn test_state_complex_scenarios() {
+        let push = |x: i32| {
+            modify(move |mut s: Vec<i32>| {
+                s.push(x);
+                s
+            })
+        };
+        let pop = State::new(|mut s: Vec<i32>| (s.pop(), s));
+        let stack_logic = push(1).bind(move |_| push(2)).bind(move |_| pop.clone());
+        assert_eq!(stack_logic.run_state(vec![]), (Some(2), vec![1]));
+
+        let next_fib =
+            get::<(u32, u32)>().bind(|(a, b)| put((b, a + b)).bind(move |_| State::pure(a)));
+        let mut state = (0, 1);
+        let mut results = vec![];
+        for _ in 0..5 {
+            results.push(next_fib.eval_state(state));
+            state = next_fib.exec_state(state);
+        }
+        assert_eq!(results, vec![0, 1, 1, 2, 3]);
+
+        let string_op = modify(|s: String| s + " world").bind(|_| get::<String>());
+        assert_eq!(
+            string_op.run_state("hello".into()),
+            ("hello world".into(), "hello world".into())
+        );
     }
 }

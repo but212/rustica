@@ -68,8 +68,6 @@ pub mod foldable;
 pub mod monoid;
 /// Combinable types without identity elements.
 pub mod semigroup;
-/// Traversing data structures with effects.
-pub mod traversable;
 
 // ===== Advanced Abstractions =====
 /// Choice between alternative computations.

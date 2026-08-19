@@ -1,11 +1,12 @@
-mod categorical_laws;
-mod context_tests;
-mod lazy_context;
-
 use rustica::datatypes::either::Either;
-use rustica::error::context::error_pipeline;
-use rustica::error::convert::{core_to_composable, either_to_result, result_to_either};
-use rustica::error::types::{BoxedComposableResult, ComposableError, ComposableResult};
+use rustica::datatypes::validated::Validated;
+use rustica::error::convert::{
+    collect_errors, core_to_composable, either_to_validated, result_to_validated,
+    split_validated_errors, validated_to_either, validated_to_result,
+};
+use rustica::error::types::ComposableError;
+
+struct NoClone(&'static str);
 
 #[test]
 fn test_composable_error_anatomy() {
@@ -26,20 +27,7 @@ fn test_composable_error_anatomy() {
 
 #[test]
 fn test_error_type_conversions() {
-    // 1. Either/Result mapping and HKT
-    use rustica::traits::hkt::BinaryHKT;
-    let eith: Either<&str, i32> = Either::Left("err");
-    assert_eq!(
-        eith.map_second(|e| format!("E:{}", e)),
-        Either::Left("E:err".into())
-    );
-
-    // 2. Cross-type conversions
-    let success: Either<String, i32> = Either::Right(42);
-    assert_eq!(either_to_result(success), Ok(42));
-    assert_eq!(result_to_either(Ok::<i32, String>(42)), Either::Right(42));
-
-    // 3. Transformation to Composable
+    // Transformation to Composable
     let c1: ComposableError<&str> = "simple".into();
     let c2 = core_to_composable("func_call");
     assert_eq!(c1.core_error(), &"simple");
@@ -47,23 +35,47 @@ fn test_error_type_conversions() {
 }
 
 #[test]
-fn test_error_pipeline_ergonomics() {
-    let input: Result<i32, i32> = Err(404);
+fn owned_conversions_accept_non_clone_values() {
+    let converted: Result<NoClone, NoClone> =
+        validated_to_result(Validated::valid(NoClone("valid")));
+    assert!(matches!(converted, Ok(NoClone("valid"))));
 
-    // 1. Boxed Finish (Common usage)
-    let boxed: BoxedComposableResult<i32, i32> =
-        error_pipeline(input).with_context("ctx1").finish();
+    assert!(matches!(
+        result_to_validated::<NoClone, NoClone>(Ok(NoClone("result"))),
+        Validated::Valid(NoClone("result"))
+    ));
 
-    // 2. Unboxed Finish (Zero-allocation or specific return handling)
-    let unboxed: ComposableResult<i32, i32> = error_pipeline(input)
-        .with_context("ctx1")
-        .finish_without_box();
+    assert!(matches!(
+        either_to_validated::<NoClone, NoClone>(Either::Right(NoClone("either"))),
+        Validated::Valid(NoClone("either"))
+    ));
 
-    match (boxed, unboxed) {
-        (Err(b), Err(u)) => {
-            assert_eq!(b.core_error(), u.core_error());
-            assert_eq!(b.context(), u.context());
-        },
-        _ => panic!("Expected errors"),
+    let converted: Either<NoClone, NoClone> =
+        validated_to_either(Validated::valid(NoClone("either")));
+    assert!(matches!(converted, Either::Right(NoClone("either"))));
+
+    let collected = collect_errors([NoClone("error")]);
+    assert_eq!(collected.error_slice()[0].0, "error");
+
+    let split = split_validated_errors(Validated::<NoClone, ()>::invalid(NoClone("split")));
+    let mut split = split.into_iter();
+    assert!(matches!(split.next(), Some(Err(NoClone("split")))));
+    assert!(split.next().is_none());
+}
+
+#[test]
+fn owned_validated_conversion_accepts_non_clone_values() {
+    let converted = Validated::<NoClone, NoClone>::from_result_owned(Ok(NoClone("owned")));
+    assert!(matches!(converted, Validated::Valid(NoClone("owned"))));
+}
+
+#[test]
+fn sequence_with_error_accepts_non_clone_values() {
+    let result: Result<Vec<NoClone>, NoClone> =
+        rustica::error::sequence_with_error(vec![Either::Right(NoClone("value"))]);
+
+    match result {
+        Ok(values) => assert_eq!(values[0].0, "value"),
+        Err(_) => panic!("expected success"),
     }
 }

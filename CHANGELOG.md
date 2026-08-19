@@ -1,5 +1,107 @@
 # CHANGELOG
 
+## [0.13.0]
+
+### Maintenance
+
+- Relaxed owned error-conversion helpers to accept non-`Clone` values.
+- Simplified `Result` sequencing and pipelines with standard iterator combinators.
+- Kept `ErrorPipeline` behavior unchanged in 0.13.0; migrate to native
+  `Result` combinators before its planned 0.14.0 removal.
+
+### Breaking Changes
+
+- **`Choice<T>` Impossible-State Elimination**
+  - Redesigned `Choice<T>` as `{ primary: T, alternatives: SmallVec<[T; 7]> }` to guarantee at compile-time that empty choices are impossible.
+  - `Choice::first(&self) -> &T` returns a direct reference without returning `Option`.
+  - Removed `Choice::new_empty()`. Added `Choice::single()`, `Choice::of_many()` (returns `Option<Choice<T>>`), and `Choice::filter_values()`.
+  - Implemented `Pure`, `Functor`, `Applicative`, `Monad`, `Semigroup`, `IntoIterator`, `Foldable` on `Choice<T>`.
+
+- **`NonEmptyErrors<E>` Invariant Preservation**
+  - Removed `NonEmptyErrors::remove()` to guarantee that error collections cannot be mutated into an empty state.
+
+- **Dead Code and Speculative Helpers Removed**
+  - Removed 0-impl trait `Traversable`.
+  - Removed dead utility functions: `const_fn`, `compose`, `pipe`, `flip`, `fold_with`, `bimap_result`, `fan_out`, `compose_all`, `lift_option`, `transform_all`.
+  - Re-exported `id` directly from `std::convert::identity`.
+
+- **Deprecations (0.14.0 Complete Removal Notice)**
+  - `Maybe<T>`: Deprecated in favor of standard `Option<T>`.
+  - `Either<L, R>`: Deprecated in favor of `Result<R, L>` or the `either` crate.
+  - 1-impl traits: `Comonad`, `Arrow`, `Category`, `Evaluate`, `EvaluateExt`.
+  - Speculative wrappers: `ErrorCategory`, `ErrorPipeline`, `Pipeline<T>`, `Memoizer`.
+  - Redundant collection iterators: `PersistentVector::{take, skip}`.
+
+- **`Validated<E, A>` Non-Empty Error Invariant**
+  - `Validated::Invalid` now stores `NonEmptyErrors<E>` instead of the public
+    `ErrorVec<E>` alias, so an invalid value cannot contain zero errors.
+  - `Validated::invalid_many` rejects empty input; use
+    `Validated::try_invalid_many` when empty input is expected.
+  - Empty invalid error arrays are rejected during serde deserialization while
+    the existing JSON array representation remains unchanged.
+  - Removed `Validated::invalid_vec` and `Validated::error_buffer_mut`.
+
+- **Legacy and Redundant APIs Removed**
+  - Removed legacy `Choice` alternative mutation/iteration helpers and
+    `PersistentVector` cache-policy constructors.
+  - Removed `ResultExt`, `try_pipeline`, `compose_when`, and the
+    stdlib-equivalent categorical collection helpers. Use the documented
+    conversion functions and standard `Option`/`Result`/`Iterator` APIs.
+  - Removed `SemigroupExtAdapter` and `combine_all_owned`.
+
+- **Semigroup Repetition Contract**
+  - `SemigroupExt::combine_n` and `combine_n_owned` now require
+    `NonZeroUsize`, eliminating the zero-count state.
+
+### Changed
+
+- **Ownership and Allocation Paths**
+  - Removed all confirmed redundant clones across library, examples, benches,
+    and tests; strict `clippy::redundant_clone` now passes for all targets.
+  - `FoldableExt::to_vec` now appends into one accumulator instead of cloning a
+    growing `Vec`, reducing the operation from O(n²) to O(n).
+  - `PersistentVector` builds owned trees leaf-by-leaf, reuses one recursive
+    tree builder for owned and cloned inputs, and moves uniquely owned leaves
+    during consuming conversion.
+  - Vec and Choice applicative operations write directly into their final
+    collection instead of creating intermediate Cartesian-product buffers.
+  - Error-chain display writes directly to the formatter, and panic payloads
+    containing owned `String`s are moved instead of cloned.
+
+- **Callback and Memoizer API Boundaries**
+  - `ReaderT`/`StateT` callback adapters borrow `dyn Fn` callbacks, avoiding
+    per-call `Box`/`Arc` allocation; `ReaderT::lift2` returns an opaque callable.
+  - Memoizer insertion now returns the named `InsertOutcome` internally and
+    replaces values by move. `V: Clone` is limited to APIs that return owned
+    cached copies; zero-capacity caches remain disabled.
+
+- **Validated Error Accumulation Refactor**
+  - Applicative, Bifunctor, Semigroup, sequence, collection, and traversal
+    paths now share one internal `ErrorAccumulator` boundary.
+  - Error order and accumulation semantics are preserved; redundant direct
+    `SmallVec` construction was removed.
+  - `traverse_validated` no longer requires `E: Clone`.
+
+- **Memoizer Result Shape**
+  - Eviction helpers now return the named `InsertOutcome<K, V>` structure with
+    `replaced` and atomic `evicted: Option<(K, V)>` fields.
+
+- **Iterator and Runtime Simplification**
+  - Single-value `Either` and `Validated` iterators use `Option::IntoIter`.
+  - Tokio runtime initialization uses `std::sync::LazyLock` instead of
+    `lazy_static`.
+  - `rayon` and `lazy_static` are no longer normal runtime dependencies;
+    `quickcheck` is optional and `serde_json` is dev-only.
+
+### Fixed
+
+- Fixed owned semigroup repetition that could duplicate the accumulated value
+  during repeated combination.
+- Fixed owned `Validated` error conversion so a singleton error is handled
+  without an invalid removal operation.
+
+See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) for migration details.
+
 ## [0.12.0]
 
 ### Breaking Changes - 0.12.0

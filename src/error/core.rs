@@ -5,9 +5,8 @@
 //! for composable, type-safe error management.
 
 use crate::datatypes::either::Either;
-use crate::datatypes::validated::Validated;
+use crate::datatypes::validated::{Validated, core::ErrorAccumulator};
 use crate::traits::hkt::HKT;
-use smallvec::SmallVec;
 
 pub trait WithError<E>: HKT {
     type Success;
@@ -23,7 +22,7 @@ pub trait WithError<E>: HKT {
 
 #[inline]
 pub fn sequence<A, E>(collection: Vec<Result<A, E>>) -> Result<Vec<A>, E> {
-    sequence_result(collection)
+    collection.into_iter().collect()
 }
 
 #[inline]
@@ -31,7 +30,7 @@ pub fn traverse<A, B, E, F>(collection: impl IntoIterator<Item = A>, f: F) -> Re
 where
     F: FnMut(A) -> Result<B, E>,
 {
-    traverse_result(collection, f)
+    collection.into_iter().map(f).collect()
 }
 
 pub fn traverse_validated<A, B, E, F>(
@@ -39,26 +38,20 @@ pub fn traverse_validated<A, B, E, F>(
 ) -> Validated<E, Vec<B>>
 where
     F: FnMut(A) -> Result<B, E>,
-    E: Clone,
 {
     let mut values = Vec::new();
-    let mut errors = SmallVec::<[E; 4]>::new();
-    let mut had_error = false;
+    let mut errors = ErrorAccumulator::new();
 
     for item in collection {
         match f(item) {
             Ok(value) => values.push(value),
-            Err(error) => {
-                had_error = true;
-                errors.push(error);
-            },
+            Err(error) => errors.push(error),
         }
     }
 
-    if had_error {
-        Validated::Invalid(errors)
-    } else {
-        Validated::Valid(values)
+    match errors.into_non_empty() {
+        Some(errors) => Validated::Invalid(errors),
+        None => Validated::Valid(values),
     }
 }
 
@@ -66,52 +59,12 @@ where
 pub fn sequence_with_error<C, T, E>(collection: Vec<C>) -> Result<Vec<T>, E>
 where
     C: WithError<E>,
-    C::Success: Clone + Into<T>,
-    E: Clone,
+    C::Success: Into<T>,
 {
-    let mut values = Vec::with_capacity(collection.len());
-
-    for item in collection {
-        match item.to_result() {
-            Ok(value) => values.push(value.into()),
-            Err(error) => return Err(error),
-        }
-    }
-
-    Ok(values)
-}
-
-#[inline]
-fn sequence_result<A, E>(collection: Vec<Result<A, E>>) -> Result<Vec<A>, E> {
-    let mut values = Vec::with_capacity(collection.len());
-
-    for item in collection {
-        match item {
-            Ok(value) => values.push(value),
-            Err(error) => return Err(error),
-        }
-    }
-
-    Ok(values)
-}
-
-#[inline]
-fn traverse_result<A, B, E, F>(
-    collection: impl IntoIterator<Item = A>, mut f: F,
-) -> Result<Vec<B>, E>
-where
-    F: FnMut(A) -> Result<B, E>,
-{
-    let mut values = Vec::new();
-
-    for item in collection {
-        match f(item) {
-            Ok(value) => values.push(value),
-            Err(error) => return Err(error),
-        }
-    }
-
-    Ok(values)
+    collection
+        .into_iter()
+        .map(|item| item.to_result().map(Into::into))
+        .collect()
 }
 
 impl<T, E: Clone> WithError<E> for Result<T, E> {
@@ -155,7 +108,7 @@ impl<T, E> WithError<E> for Either<E, T> {
     }
 }
 
-impl<T: Clone, E: Clone> WithError<E> for Validated<E, T> {
+impl<T, E> WithError<E> for Validated<E, T> {
     type Success = T;
     type ErrorOutput<G> = Validated<G, T>;
 
@@ -163,69 +116,20 @@ impl<T: Clone, E: Clone> WithError<E> for Validated<E, T> {
     where
         F: Fn(E) -> G,
         G: Clone,
-        T: Clone,
     {
         match self {
             Validated::Valid(t) => Validated::Valid(t),
-            Validated::Invalid(e) => Validated::Invalid(e.into_iter().map(f).collect()),
+            Validated::Invalid(e) => Validated::invalid_many(e.into_iter().map(f)),
         }
     }
 
     fn to_result(self) -> Result<Self::Success, E> {
         match self {
             Validated::Valid(t) => Ok(t),
-            Validated::Invalid(e) => Err(e.into_iter().next().unwrap()),
-        }
-    }
-}
-
-pub trait ResultExt<T, E> {
-    #[deprecated(note = "Use `crate::error::result_to_validated` instead")]
-    fn to_validated(self) -> Validated<E, T>;
-
-    #[deprecated(note = "Use `crate::error::result_to_either` instead")]
-    fn to_either(self) -> Either<E, T>;
-
-    fn unwrap_or_default(self) -> T
-    where
-        T: Default;
-
-    #[deprecated(note = "Use `crate::error::ErrorOps::bimap_result` instead")]
-    fn bimap<F, G, U, E2>(self, success_map: F, error_map: G) -> Result<U, E2>
-    where
-        F: FnOnce(T) -> U,
-        G: FnOnce(E) -> E2;
-}
-
-impl<T, E> ResultExt<T, E> for Result<T, E> {
-    fn to_validated(self) -> Validated<E, T> {
-        use smallvec::smallvec;
-
-        match self {
-            Ok(value) => Validated::Valid(value),
-            Err(error) => Validated::Invalid(smallvec![error]),
-        }
-    }
-
-    fn to_either(self) -> Either<E, T> {
-        crate::error::result_to_either(self)
-    }
-
-    fn unwrap_or_default(self) -> T
-    where
-        T: Default,
-    {
-        self.unwrap_or_else(|_| T::default())
-    }
-
-    fn bimap<F, G, U, E2>(self, success_map: F, error_map: G) -> Result<U, E2>
-    where
-        F: FnOnce(T) -> U,
-        G: FnOnce(E) -> E2,
-    {
-        match self {
-            Ok(value) => Ok(success_map(value)),
-            Err(error) => Err(error_map(error)),
+            Validated::Invalid(e) => Err(e
+                .into_iter()
+                .next()
+                .expect("Validated errors cannot be empty")),
         }
     }
 }
@@ -266,7 +170,10 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 ///
 /// let error: Result<i32, String> = <Result<(), String> as ErrorCategory<String>>::handle_error("failed".to_string());
 /// assert_eq!(error, Err("failed".to_string()));
-/// ```
+#[deprecated(
+    since = "0.13.0",
+    note = "ErrorCategory is a speculative abstraction. Use native Result methods directly. Will be removed in 0.14.0."
+)]
 pub trait ErrorCategory<E> {
     /// The error functor type that wraps values and errors
     type ErrorFunctor<T: Clone>: WithError<E>;
@@ -479,5 +386,34 @@ impl<E: Clone, T: Clone> ErrorOps<E> for Either<E, T> {
             Either::Right(value) => Ok(success_f(value)),
             Either::Left(error) => Err(error_f(error)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::traverse_validated;
+    use crate::datatypes::validated::Validated;
+
+    #[test]
+    fn traverse_validated_accumulates_errors_in_input_order() {
+        let result = traverse_validated([1, 2, 3], |value| {
+            if value % 2 == 0 {
+                Ok(value * 10)
+            } else {
+                Err(format!("odd:{value}"))
+            }
+        });
+
+        assert_eq!(
+            result,
+            Validated::invalid_many(["odd:1".to_string(), "odd:3".to_string()])
+        );
+    }
+
+    #[test]
+    fn traverse_validated_keeps_all_successes() {
+        let result = traverse_validated([1, 2, 3], |value| Ok::<_, String>(value * 10));
+
+        assert_eq!(result, Validated::valid(vec![10, 20, 30]));
     }
 }

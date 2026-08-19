@@ -132,9 +132,10 @@ use crate::traits::category::Category;
 ///    - Splitting computations into parallel paths
 ///    - Combining results from multiple computations
 ///
-/// 4. **Stream Processing**
-///    - Processing data streams with rich operations
-///    - Composing stream transformations
+#[deprecated(
+    since = "0.13.0",
+    note = "Arrow has only one implementor (FunctionCategory). Arrow will be removed in 0.14.0."
+)]
 pub trait Arrow: Category {
     /// Lifts a pure function into an arrow.
     ///

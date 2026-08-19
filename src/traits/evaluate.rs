@@ -85,6 +85,10 @@ use crate::traits::hkt::HKT;
 /// - `evaluate` is preferred when you need to keep the original computation
 /// - `evaluate_owned` may be more efficient for types where taking ownership avoids cloning
 /// - All methods are marked with `#[inline]` to encourage compiler optimization
+#[deprecated(
+    since = "0.13.0",
+    note = "Evaluate has only one implementor (Thunk). Use Thunk methods directly. Evaluate will be removed in 0.14.0."
+)]
 pub trait Evaluate: HKT
 where
     Self: Sized,
@@ -126,6 +130,10 @@ where
 ///
 /// This trait adds convenience methods for working with evaluatable computations,
 /// such as mapping over the result of evaluation or combining multiple evaluations.
+#[deprecated(
+    since = "0.13.0",
+    note = "Evaluate has only one implementor (Thunk). Use Thunk methods directly. EvaluateExt will be removed in 0.14.0."
+)]
 pub trait EvaluateExt: Evaluate {
     /// Maps a function over the result of evaluating this computation.
     ///

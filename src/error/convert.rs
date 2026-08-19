@@ -104,10 +104,7 @@ pub fn result_to_either<T, E>(result: Result<T, E>) -> Either<E, T> {
 /// assert_eq!(validated_to_result(invalid), Err("error".to_string()));
 /// ```
 #[inline]
-pub fn validated_to_result<T, E>(validated: Validated<E, T>) -> Result<T, E>
-where
-    E: Clone,
-{
+pub fn validated_to_result<T, E>(validated: Validated<E, T>) -> Result<T, E> {
     match validated {
         Validated::Valid(value) => Ok(value),
         Validated::Invalid(errors) => {
@@ -149,11 +146,7 @@ where
 /// assert_eq!(validated.errors().len(), 1);
 /// ```
 #[inline]
-pub fn result_to_validated<T, E>(result: Result<T, E>) -> Validated<E, T>
-where
-    E: Clone,
-    T: Clone,
-{
+pub fn result_to_validated<T, E>(result: Result<T, E>) -> Validated<E, T> {
     match result {
         Ok(value) => Validated::Valid(value),
         Err(error) => Validated::invalid(error),
@@ -189,11 +182,7 @@ where
 /// assert!(validated.is_invalid());
 /// ```
 #[inline]
-pub fn either_to_validated<T, E>(either: Either<E, T>) -> Validated<E, T>
-where
-    E: Clone,
-    T: Clone,
-{
+pub fn either_to_validated<T, E>(either: Either<E, T>) -> Validated<E, T> {
     match either {
         Either::Right(value) => Validated::Valid(value),
         Either::Left(error) => Validated::invalid(error),
@@ -229,10 +218,7 @@ where
 /// assert_eq!(validated_to_either(invalid), Either::Left("error".to_string()));
 /// ```
 #[inline]
-pub fn validated_to_either<T, E>(validated: Validated<E, T>) -> Either<E, T>
-where
-    E: Clone,
-{
+pub fn validated_to_either<T, E>(validated: Validated<E, T>) -> Either<E, T> {
     match validated {
         Validated::Valid(value) => Either::Right(value),
         Validated::Invalid(errors) => Either::Left(
@@ -442,7 +428,6 @@ pub fn wrap_in_composable_result_boxed<T, E>(result: Result<T, E>) -> BoxedCompo
 #[inline]
 pub fn collect_errors<E, I>(errors: I) -> Validated<E, ()>
 where
-    E: Clone,
     I: IntoIterator<Item = E>,
 {
     let error_vec: Vec<E> = errors.into_iter().collect();
@@ -484,11 +469,7 @@ where
 /// assert!(results[0].is_err());
 /// assert!(results[1].is_err());
 /// ```
-pub fn split_validated_errors<T, E>(validated: Validated<E, T>) -> Vec<Result<T, E>>
-where
-    T: Clone,
-    E: Clone,
-{
+pub fn split_validated_errors<T, E>(validated: Validated<E, T>) -> Vec<Result<T, E>> {
     match validated {
         Validated::Valid(value) => vec![Ok(value)],
         Validated::Invalid(errors) => errors.into_iter().map(|e| Err(e)).collect(),

@@ -25,19 +25,19 @@
 //!
 //! 1. Identity:
 //! ```text
-//! f ∘ id = f = id ∘ f
+//! f ??id = f = id ??f
 //! ```
 //! Composing any morphism with identity leaves it unchanged.
 //!
 //! 2. Associativity:
 //! ```text
-//! f ∘ (g ∘ h) = (f ∘ g) ∘ h
+//! f ??(g ??h) = (f ??g) ??h
 //! ```
 //! The order of composition doesn't matter.
 //!
 //! ## Note on Composition Order
 //!
-//! In this crate, `compose_morphisms(g, f)` represents the mathematical composition `g ∘ f`.
+//! In this crate, `compose_morphisms(g, f)` represents the mathematical composition `g ??f`.
 //! That is, `f` is applied first, then `g`.
 //!
 //! ## Common Use Cases
@@ -80,13 +80,13 @@
 ///
 /// 1. Identity:
 ///    ```text
-///    f ∘ id = f = id ∘ f
+///    f ??id = f = id ??f
 ///    ```
 ///    Composing any morphism with identity leaves it unchanged.
 ///
 /// 2. Associativity:
 ///    ```text
-///    f ∘ (g ∘ h) = (f ∘ g) ∘ h
+///    f ??(g ??h) = (f ??g) ??h
 ///    ```
 ///    The order of composition doesn't matter.
 ///
@@ -107,7 +107,10 @@
 ///
 /// 3. **Abstract Algebra**
 ///    - Implementing mathematical structures
-///    - Defining algebraic data types
+#[deprecated(
+    since = "0.13.0",
+    note = "Category has only one implementor. Category will be removed in 0.14.0."
+)]
 pub trait Category {
     type Morphism<A, B>;
 
@@ -115,7 +118,7 @@ pub trait Category {
     ///
     /// The identity morphism is a function that returns its input unchanged.
     /// It serves as the unit element for morphism composition.
-    /// Mathematical definition: id_A: A → A where id_A(a) = a
+    /// Mathematical definition: id_A: A ??A where id_A(a) = a
     ///
     /// # Type Parameters
     /// * `A`: The type for which to create the identity morphism
@@ -127,14 +130,14 @@ pub trait Category {
 
     /// Composes two morphisms in the category.
     ///
-    /// Given morphisms f: A → B and g: B → C, produces a new morphism (g ∘ f): A → C.
-    /// Mathematical definition: (g ∘ f)(x) = g(f(x))
+    /// Given morphisms f: A ??B and g: B ??C, produces a new morphism (g ??f): A ??C.
+    /// Mathematical definition: (g ??f)(x) = g(f(x))
     /// This means f is applied first, then g is applied to the result.
     ///
     /// # Parameter Order Convention
     ///
     /// This function follows the mathematical convention where compose_morphisms(g, f)
-    /// produces g ∘ f, meaning f is applied first, then g. This matches the standard
+    /// produces g ??f, meaning f is applied first, then g. This matches the standard
     /// functional programming convention used in Haskell and other languages.
     ///
     /// # Type Parameters
@@ -145,12 +148,12 @@ pub trait Category {
     ///
     /// # Arguments
     ///
-    /// * `g`: The second morphism to apply (B → C)
-    /// * `f`: The first morphism to apply (A → B)
+    /// * `g`: The second morphism to apply (B ??C)
+    /// * `f`: The first morphism to apply (A ??B)
     ///
     /// # Returns
     ///
-    /// A new morphism representing the composition (g ∘ f): A → C
+    /// A new morphism representing the composition (g ??f): A ??C
     fn compose_morphisms<A, B, C>(
         g: &Self::Morphism<B, C>, f: &Self::Morphism<A, B>,
     ) -> Self::Morphism<A, C>

@@ -882,6 +882,109 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 }
 
+// The owned `Vec` operations share the same Cartesian-product traversal. The
+// helpers keep the ownership bookkeeping out of the trait implementation while
+// retaining the last-use move optimization for each input.
+#[inline]
+fn vec_apply_owned<F, T, B>(functions: Vec<F>, values: Vec<T>) -> Vec<B>
+where
+    F: Fn(T) -> B,
+    T: Clone,
+    B: Clone,
+{
+    let function_count = functions.len();
+    let mut result = Vec::with_capacity(function_count.saturating_mul(values.len()));
+    let mut functions = functions.into_iter();
+    for _ in 0..function_count.saturating_sub(1) {
+        let function = functions.next().expect("function count matches iterator");
+        result.extend(values.iter().cloned().map(function));
+    }
+    if let Some(function) = functions.next() {
+        result.extend(values.into_iter().map(function));
+    }
+    result
+}
+
+#[inline]
+fn vec_lift2_owned<T, U, V, F>(f: F, fa: Vec<T>, fb: Vec<U>) -> Vec<V>
+where
+    F: Fn(T, U) -> V,
+    T: Clone,
+    U: Clone,
+    V: Clone,
+{
+    let fa_len = fa.len();
+    let fb_len = fb.len();
+    let mut result = Vec::with_capacity(fa_len.saturating_mul(fb_len));
+    let mut fa = fa.into_iter();
+    for _ in 0..fa_len.saturating_sub(1) {
+        let a = fa.next().expect("fa length matches iterator");
+        let mut a = Some(a);
+        for (bi, b) in fb.iter().enumerate() {
+            let a_arg = if bi + 1 == fb_len {
+                a.take().expect("last combination consumes a")
+            } else {
+                a.as_ref().expect("a retained for combinations").clone()
+            };
+            result.push(f(a_arg, b.clone()));
+        }
+    }
+    if let Some(a) = fa.next() {
+        let mut a = Some(a);
+        for (bi, b) in fb.into_iter().enumerate() {
+            let a_arg = if bi + 1 == fb_len {
+                a.take().expect("last combination consumes a")
+            } else {
+                a.as_ref().expect("a retained for combinations").clone()
+            };
+            result.push(f(a_arg, b));
+        }
+    }
+    result
+}
+
+#[inline]
+fn vec_lift3_owned<T, U, V, Q, F>(f: F, fa: Vec<T>, fb: Vec<U>, fc: Vec<V>) -> Vec<Q>
+where
+    F: Fn(T, U, V) -> Q,
+    T: Clone,
+    U: Clone,
+    V: Clone,
+    Q: Clone,
+{
+    let fa_len = fa.len();
+    let fb_len = fb.len();
+    let fc_len = fc.len();
+    let mut fa = fa.into_iter().map(Some).collect::<Vec<_>>();
+    let mut fb = fb.into_iter().map(Some).collect::<Vec<_>>();
+    let mut fc = fc.into_iter().map(Some).collect::<Vec<_>>();
+    let mut result = Vec::with_capacity(fa_len.saturating_mul(fb_len).saturating_mul(fc_len));
+
+    for (ai, a_slot) in fa.iter_mut().enumerate() {
+        for (bi, b_slot) in fb.iter_mut().enumerate() {
+            for (ci, c_slot) in fc.iter_mut().enumerate() {
+                let a_arg = if bi + 1 == fb_len && ci + 1 == fc_len {
+                    a_slot.take().expect("last use of a")
+                } else {
+                    a_slot.as_ref().expect("a retained").clone()
+                };
+                let b_arg = if ci + 1 == fc_len {
+                    b_slot.take().expect("last use of b")
+                } else {
+                    b_slot.as_ref().expect("b retained").clone()
+                };
+                let c_arg = if ai + 1 == fa_len && bi + 1 == fb_len {
+                    c_slot.take().expect("last use of c")
+                } else {
+                    c_slot.as_ref().expect("c retained").clone()
+                };
+                result.push(f(a_arg, b_arg, c_arg));
+            }
+        }
+    }
+    result
+}
+
 // Implementation for Vec
 impl<A: Clone> Applicative for Vec<A> {
     #[inline]
@@ -948,13 +1051,7 @@ impl<A: Clone> Applicative for Vec<A> {
         T: Clone,
         B: Clone,
     {
-        let mut result = Vec::new();
-        for func in self {
-            for val in value.clone() {
-                result.push(func(val));
-            }
-        }
-        result
+        vec_apply_owned(self, value)
     }
 
     #[inline]
@@ -966,13 +1063,7 @@ impl<A: Clone> Applicative for Vec<A> {
         V: Clone,
         Self: Sized,
     {
-        let mut result = Vec::with_capacity(fa.len() * fb.len());
-        for a in fa {
-            for b in fb.clone() {
-                result.push(f(a.clone(), b));
-            }
-        }
-        result
+        vec_lift2_owned(f, fa, fb)
     }
 
     #[inline]
@@ -987,14 +1078,6 @@ impl<A: Clone> Applicative for Vec<A> {
         Q: Clone,
         Self: Sized,
     {
-        let mut result = Vec::with_capacity(fa.len() * fb.len() * fc.len());
-        for a in fa.into_iter() {
-            for b in fb.clone() {
-                for c in fc.clone() {
-                    result.push(f(a.clone(), b.clone(), c.clone()));
-                }
-            }
-        }
-        result
+        vec_lift3_owned(f, fa, fb, fc)
     }
 }
