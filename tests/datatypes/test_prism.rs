@@ -97,7 +97,7 @@ fn test_prism_updates_and_sharing() {
     assert_eq!(identical, error);
 
     // 3. Set if different: Update specific focus
-    let reset = prism.set_if_different(error.clone(), (200, "OK".to_string()));
+    let reset = prism.set_if_different(error, (200, "OK".to_string()));
     assert_eq!(
         reset,
         Status::Error {

@@ -111,6 +111,119 @@ impl<T> RRBTree<T> {
             }
         }
     }
+
+    /// Builds a tree by consuming its input. This is the ownership path used
+    /// by `PersistentVector::from_iter`; it never clones element values.
+    pub fn from_elements_owned<I: IntoIterator<Item = T>>(elements: I) -> Self {
+        let mut iter = elements.into_iter();
+        let mut leaves = Vec::new();
+        let mut pending = SmallVec::<[T; LEAF_CAPACITY]>::new();
+        let mut len = 0;
+
+        loop {
+            let chunk: SmallVec<[T; LEAF_CAPACITY]> = iter.by_ref().take(LEAF_CAPACITY).collect();
+            if chunk.is_empty() {
+                break;
+            }
+            len += chunk.len();
+            if !pending.is_empty() {
+                leaves.push(Arc::new(RRBNode::Leaf {
+                    elements: std::mem::replace(&mut pending, chunk),
+                }));
+            } else {
+                pending = chunk;
+            }
+        }
+
+        if leaves.is_empty() {
+            return Self {
+                root: Arc::new(RRBNode::Leaf { elements: pending }),
+                tail: SmallVec::new(),
+                head: SmallVec::new(),
+                height: 0,
+                len,
+            };
+        }
+
+        let tail = if pending.len() == LEAF_CAPACITY {
+            leaves.push(Arc::new(RRBNode::Leaf { elements: pending }));
+            SmallVec::new()
+        } else {
+            pending
+        };
+        let (root, height) = Self::build_tree_recursive(leaves);
+        Self {
+            root,
+            tail,
+            head: SmallVec::new(),
+            height,
+            len,
+        }
+    }
+
+    fn build_tree_recursive(nodes: Vec<Arc<RRBNode<T>>>) -> (Arc<RRBNode<T>>, usize) {
+        if nodes.len() == 1 {
+            return (nodes.into_iter().next().expect("one node"), 0);
+        }
+
+        let mut iter = nodes.into_iter();
+        let mut next_level = Vec::new();
+        loop {
+            let Some(first) = iter.next() else { break };
+            let mut children: SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]> = SmallVec::new();
+            children.push(first);
+            for _ in 1..BRANCHING_FACTOR {
+                let Some(child) = iter.next() else { break };
+                children.push(child);
+            }
+            let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = children
+                .iter()
+                .map(|child| child.calculate_size())
+                .collect();
+            next_level.push(Arc::new(RRBNode::Branch {
+                children,
+                sizes: Some(sizes),
+            }));
+        }
+        let (root, height) = Self::build_tree_recursive(next_level);
+        (root, height + 1)
+    }
+}
+
+impl<T: Clone> RRBTree<T> {
+    /// Consumes the tree and moves values out of uniquely owned nodes.
+    /// Shared nodes are cloned only at the leaf boundary.
+    pub fn into_vec(self) -> Vec<T> {
+        fn drain_node<T: Clone>(node: Arc<RRBNode<T>>, out: &mut Vec<T>) {
+            match Arc::try_unwrap(node) {
+                Ok(RRBNode::Leaf { elements }) => out.extend(elements.into_vec()),
+                Ok(RRBNode::Branch { children, .. }) => {
+                    for child in children {
+                        drain_node(child, out);
+                    }
+                },
+                Err(node) => match node.as_ref() {
+                    RRBNode::Leaf { elements } => out.extend(elements.iter().cloned()),
+                    RRBNode::Branch { children, .. } => {
+                        for child in children {
+                            drain_node(Arc::clone(child), out);
+                        }
+                    },
+                },
+            }
+        }
+
+        let mut out = Vec::with_capacity(self.len);
+        let head_len = self.head.len();
+        let tail_len = self.tail.len();
+        out.extend(self.head);
+        let tree_size = self.len.saturating_sub(head_len + tail_len);
+        if tree_size > 0 {
+            drain_node(self.root, &mut out);
+        }
+        out.extend(self.tail);
+        out
+    }
 }
 
 /// Methods that require Clone for structural modifications
@@ -184,32 +297,6 @@ impl<T: Clone> RRBTree<T> {
                 len: total_len,
             }
         }
-    }
-
-    fn build_tree_recursive(nodes: Vec<Arc<RRBNode<T>>>) -> (Arc<RRBNode<T>>, usize) {
-        if nodes.len() == 1 {
-            return (nodes.into_iter().next().unwrap(), 0);
-        }
-
-        let mut next_level = Vec::new();
-
-        for chunk in nodes.chunks(BRANCHING_FACTOR) {
-            let children = SmallVec::from_iter(chunk.iter().cloned());
-
-            let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = children
-                .iter()
-                .map(|child: &Arc<RRBNode<T>>| child.calculate_size())
-                .collect();
-
-            let branch = RRBNode::Branch {
-                children,
-                sizes: Some(sizes),
-            };
-            next_level.push(Arc::new(branch));
-        }
-
-        let (root, sub_height) = Self::build_tree_recursive(next_level);
-        (root, sub_height + 1)
     }
 
     pub fn update(&self, index: usize, value: T) -> Self {
@@ -369,8 +456,8 @@ impl<T: Clone> RRBTree<T> {
 
         Self {
             root: Arc::new(merged_root),
-            tail: right_for_merge.tail.clone(),
-            head: left_for_merge.head.clone(),
+            tail: right_for_merge.tail,
+            head: left_for_merge.head,
             height: self.height.max(other.height),
             len: self.len + other.len,
         }

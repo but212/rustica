@@ -253,7 +253,7 @@ mod tests {
         let result = Validated::<String, i32>::lift3(|a, b, c| a + b + c, &v1, &v2, &v3);
         assert_eq!(result.errors(), &["e1".to_string(), "e2".to_string()]);
 
-        let list = vec![v1.clone(), v2.clone(), v3.clone()];
+        let list = vec![v1.clone(), v2.clone(), v3];
         let collected: Validated<String, Vec<i32>> = Validated::collect(list.into_iter());
         assert_eq!(collected.errors().len(), 2);
 
@@ -270,7 +270,7 @@ mod tests {
         let invalid: Validated<String, i32> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
 
-        let res = invalid.clone().to_result();
+        let res = invalid.to_result();
         assert_eq!(res, Err("e1".to_string()));
         assert_eq!(
             Validated::<String, i32>::from_result(&Ok::<i32, String>(42)),
@@ -284,7 +284,7 @@ mod tests {
             if e == "e2" {
                 Validated::valid(99)
             } else {
-                Validated::invalid(e.clone())
+                Validated::invalid(e)
             }
         });
         assert_eq!(early_recovery.unwrap(), 99);

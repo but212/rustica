@@ -32,9 +32,8 @@ fn test_monoid_wrappers_behavior() {
 fn test_thunk_and_hkt_composition() {
     // 1. Thunk: Lazy evaluation and side-effect control
     let counter = Arc::new(Mutex::new(0));
-    let c1 = counter.clone();
     let thunk = Thunk::new(move || {
-        let mut n = c1.lock().unwrap();
+        let mut n = counter.lock().unwrap();
         *n += 1;
         *n
     });

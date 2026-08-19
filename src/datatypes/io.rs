@@ -446,6 +446,7 @@
 use crate::error::{BoxedComposableResult, ComposableError, ComposableResult, ErrorPipeline};
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
+use std::any::Any;
 use std::fmt::Debug;
 #[cfg(feature = "async")]
 use std::future::Future;
@@ -473,6 +474,17 @@ pub enum IOError {
     ValueNotSet,
     /// The IO operation failed for some other reason
     Other(String),
+}
+
+#[inline]
+fn panic_message(payload: Box<dyn Any + Send>) -> String {
+    match payload.downcast::<String>() {
+        Ok(message) => *message,
+        Err(payload) => match payload.downcast::<&'static str>() {
+            Ok(message) => (*message).to_owned(),
+            Err(_) => "IO operation panicked with unknown error".to_owned(),
+        },
+    }
 }
 
 impl std::fmt::Display for IOError {
@@ -932,16 +944,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     pub fn try_get(&self) -> ComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
-            Err(e) => {
-                let msg = if let Some(s) = e.downcast_ref::<&str>() {
-                    (*s).to_string()
-                } else if let Some(s) = e.downcast_ref::<String>() {
-                    s.clone()
-                } else {
-                    "IO operation panicked with unknown error".to_string()
-                };
-                Err(ComposableError::new(IOError::Other(msg)))
-            },
+            Err(e) => Err(ComposableError::new(IOError::Other(panic_message(e)))),
         }
     }
 
@@ -989,14 +992,8 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
-                let msg = if let Some(s) = e.downcast_ref::<&str>() {
-                    (*s).to_string()
-                } else if let Some(s) = e.downcast_ref::<String>() {
-                    s.clone()
-                } else {
-                    "IO operation panicked with unknown error".to_string()
-                };
-                Err(ComposableError::new(IOError::Other(msg)).with_context(context.into()))
+                Err(ComposableError::new(IOError::Other(panic_message(e)))
+                    .with_context(context.into()))
             },
         }
     }
@@ -1033,16 +1030,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     pub fn try_get_composable(&self) -> BoxedComposableResult<A, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
-            Err(e) => {
-                let msg = if let Some(s) = e.downcast_ref::<&str>() {
-                    (*s).to_string()
-                } else if let Some(s) = e.downcast_ref::<String>() {
-                    s.clone()
-                } else {
-                    "IO operation panicked with unknown error".to_string()
-                };
-                Err(Box::new(ComposableError::new(IOError::Other(msg))))
-            },
+            Err(e) => Err(Box::new(ComposableError::new(IOError::Other(
+                panic_message(e),
+            )))),
         }
     }
 
@@ -1316,7 +1306,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
             // Effect value + Pure function
             (IO::Effect(ma), IO::Pure(f)) => {
                 let ma = Arc::clone(ma);
-                let f = f.clone();
                 IO::Effect(Arc::new(move || f(ma())))
             },
             // Effect value + Effect function

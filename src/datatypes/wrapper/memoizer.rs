@@ -137,7 +137,6 @@ struct LruCache<K, V> {
 impl<K, V> LruCache<K, V>
 where
     K: Eq + Hash + Clone,
-    V: Clone,
 {
     fn new(max_capacity: Option<usize>) -> Self {
         Self {
@@ -186,7 +185,10 @@ where
     }
 
     /// Gets a value and updates LRU order (marks as most recently used).
-    fn get(&mut self, key: &K) -> Option<V> {
+    fn get(&mut self, key: &K) -> Option<V>
+    where
+        V: Clone,
+    {
         if !self.map.contains_key(key) {
             return None;
         }
@@ -196,18 +198,33 @@ where
         self.map.get(key).map(|node| node.value.clone())
     }
 
-    /// Inserts a key-value pair, evicting LRU entry if at capacity.
-    /// Returns the evicted key-value pair if any.
-    fn insert(&mut self, key: K, value: V) -> Option<(K, V)> {
+    fn touch(&mut self, key: &K) -> bool {
+        if !self.map.contains_key(key) {
+            return false;
+        }
+        self.move_to_tail(key);
+        true
+    }
+
+    /// Inserts a key-value pair, evicting the LRU entry if at capacity.
+    /// Returns both the replaced value and the evicted entry, when present.
+    fn insert(&mut self, key: K, value: V) -> InsertOutcome<K, V> {
         let mut evicted = None;
+        let mut replaced = None;
 
         if self.map.contains_key(&key) {
             // Update existing entry
             if let Some(node) = self.map.get_mut(&key) {
-                node.value = value;
+                replaced = Some(std::mem::replace(&mut node.value, value));
             }
             self.move_to_tail(&key);
         } else {
+            if self.max_capacity == Some(0) {
+                return InsertOutcome {
+                    replaced: None,
+                    evicted: None,
+                };
+            }
             // Check capacity and evict if needed
             if self
                 .max_capacity
@@ -236,7 +253,7 @@ where
             }
         }
 
-        evicted
+        InsertOutcome { replaced, evicted }
     }
 
     /// Removes a key from the cache.
@@ -262,7 +279,10 @@ where
     }
 
     /// Returns all values (in arbitrary order).
-    fn values(&self) -> Vec<V> {
+    fn values(&self) -> Vec<V>
+    where
+        V: Clone,
+    {
         self.map.values().map(|n| n.value.clone()).collect()
     }
 
@@ -464,7 +484,8 @@ impl<T> From<PoisonError<T>> for MemoizerError {
 /// # Type Parameters
 ///
 /// * `K`: The key type, must implement `Eq`, `Hash`, and `Clone`
-/// * `V`: The value type, must implement `Clone`
+/// * `V`: The cached value type. `Clone` is required only for APIs that return
+///   owned copies of cached values.
 ///
 /// # Thread Safety
 ///
@@ -489,7 +510,6 @@ pub struct Memoizer<K, V> {
 impl<K, V> Default for Memoizer<K, V>
 where
     K: Eq + Hash + Clone,
-    V: Clone,
 {
     fn default() -> Self {
         Self::new()
@@ -499,7 +519,6 @@ where
 impl<K, V> Memoizer<K, V>
 where
     K: Eq + Hash + Clone,
-    V: Clone,
 {
     /// Creates a new, empty memoizer with unlimited capacity.
     ///
@@ -723,6 +742,7 @@ where
     pub fn get_or_compute<F>(&self, key: K, f: F) -> V
     where
         F: FnOnce(&K) -> V,
+        V: Clone,
     {
         // For LRU, we need write lock even for reads to update ordering
         let mut cache = self.cache.write().unwrap();
@@ -737,7 +757,7 @@ where
         self.misses.fetch_add(1, Ordering::Relaxed);
         let value = f(&key);
 
-        if let Some(_evicted) = cache.insert(key, value.clone()) {
+        if cache.insert(key, value.clone()).evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
         }
 
@@ -789,6 +809,7 @@ where
     pub fn get_or_compute_optimistic<F>(&self, key: K, f: F) -> V
     where
         F: FnOnce(&K) -> V,
+        V: Clone,
     {
         // Try to get from cache first (with LRU update)
         {
@@ -809,7 +830,7 @@ where
             // Another thread inserted while we were computing
             return existing;
         }
-        if cache.insert(key, value.clone()).is_some() {
+        if cache.insert(key, value.clone()).evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
         }
 
@@ -842,6 +863,7 @@ where
     pub fn try_get_or_compute_optimistic<F>(&self, key: K, f: F) -> Result<V, MemoizerError>
     where
         F: FnOnce(&K) -> V,
+        V: Clone,
     {
         // Try to get from cache first (with LRU update)
         {
@@ -862,7 +884,7 @@ where
             // Another thread inserted while we were computing
             return Ok(existing);
         }
-        if cache.insert(key, value.clone()).is_some() {
+        if cache.insert(key, value.clone()).evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
         }
 
@@ -948,6 +970,7 @@ where
     pub fn try_get_or_compute<F>(&self, key: K, f: F) -> Result<V, MemoizerError>
     where
         F: FnOnce(&K) -> V,
+        V: Clone,
     {
         let mut cache = self.write_cache()?;
 
@@ -961,7 +984,7 @@ where
         self.misses.fetch_add(1, Ordering::Relaxed);
         let value = f(&key);
 
-        if let Some(_evicted) = cache.insert(key, value.clone()) {
+        if cache.insert(key, value.clone()).evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
         }
 
@@ -1007,11 +1030,11 @@ where
     /// ```
     pub fn insert(&self, key: K, value: V) -> Option<V> {
         let mut cache = self.cache.write().unwrap();
-        let old = cache.peek(&key).cloned();
-        if cache.insert(key, value).is_some() {
+        let outcome = cache.insert(key, value);
+        if outcome.evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
         }
-        old
+        outcome.replaced
     }
 
     /// Inserts a key-value pair and provides detailed eviction information.
@@ -1064,11 +1087,11 @@ where
     /// these cases.
     pub fn try_insert(&self, key: K, value: V) -> Result<Option<V>, MemoizerError> {
         let mut cache = self.write_cache()?;
-        let old = cache.peek(&key).cloned();
-        if cache.insert(key, value).is_some() {
+        let outcome = cache.insert(key, value);
+        if outcome.evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
         }
-        Ok(old)
+        Ok(outcome.replaced)
     }
 
     /// Safe version of `insert_with_eviction_info` that returns a Result.
@@ -1082,12 +1105,11 @@ where
     }
 
     fn insert_outcome(&self, cache: &mut LruCache<K, V>, key: K, value: V) -> InsertOutcome<K, V> {
-        let replaced = cache.peek(&key).cloned();
-        let evicted = cache.insert(key, value);
-        if evicted.is_some() {
+        let outcome = cache.insert(key, value);
+        if outcome.evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
         }
-        InsertOutcome { replaced, evicted }
+        outcome
     }
 
     /// Returns the cached value for `key`, or computes it using a fallible function.
@@ -1131,6 +1153,7 @@ where
     pub fn get_or_try_compute<F, E>(&self, key: K, f: F) -> Result<V, E>
     where
         F: FnOnce(&K) -> Result<V, E>,
+        V: Clone,
     {
         let mut cache = self.cache.write().unwrap();
 
@@ -1142,7 +1165,7 @@ where
         self.misses.fetch_add(1, Ordering::Relaxed);
         let value = f(&key)?; // Propagate error without caching
 
-        if cache.insert(key, value.clone()).is_some() {
+        if cache.insert(key, value.clone()).evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
         }
 
@@ -1185,13 +1208,13 @@ where
     /// ```
     pub fn touch(&self, key: &K) -> bool {
         let mut cache = self.cache.write().unwrap();
-        cache.get(key).is_some()
+        cache.touch(key)
     }
 
     /// Safe version of `touch` that returns a Result.
     pub fn try_touch(&self, key: &K) -> Result<bool, MemoizerError> {
         let mut cache = self.write_cache()?;
-        Ok(cache.get(key).is_some())
+        Ok(cache.touch(key))
     }
 
     /// Returns the number of cached entries.
@@ -1397,7 +1420,10 @@ where
     /// ```
     /// Note: This method does NOT update LRU ordering. Use `get_or_compute`
     /// or `get_with_lru_update` if you want LRU ordering to be updated.
-    pub fn get(&self, key: &K) -> Option<V> {
+    pub fn get(&self, key: &K) -> Option<V>
+    where
+        V: Clone,
+    {
         self.cache.read().unwrap().peek(key).cloned()
     }
 
@@ -1416,7 +1442,10 @@ where
     /// ```
     /// Note: This method does NOT update LRU ordering. Use `try_get_or_compute`
     /// or `get_with_lru_update` if you want LRU ordering to be updated.
-    pub fn try_get(&self, key: &K) -> Result<Option<V>, MemoizerError> {
+    pub fn try_get(&self, key: &K) -> Result<Option<V>, MemoizerError>
+    where
+        V: Clone,
+    {
         Ok(self
             .cache
             .read()
@@ -1459,7 +1488,10 @@ where
     /// assert!(memo.contains_key(&1)); // Still present
     /// assert!(!memo.contains_key(&2)); // Evicted
     /// ```
-    pub fn get_with_lru_update(&self, key: &K) -> Option<V> {
+    pub fn get_with_lru_update(&self, key: &K) -> Option<V>
+    where
+        V: Clone,
+    {
         let mut cache = self.cache.write().unwrap();
         cache.get(key)
     }
@@ -1477,7 +1509,10 @@ where
     ///
     /// assert_eq!(memo.try_get_with_lru_update(&1).unwrap(), None);
     /// ```
-    pub fn try_get_with_lru_update(&self, key: &K) -> Result<Option<V>, MemoizerError> {
+    pub fn try_get_with_lru_update(&self, key: &K) -> Result<Option<V>, MemoizerError>
+    where
+        V: Clone,
+    {
         let mut cache = self.write_cache()?;
         Ok(cache.get(key))
     }
@@ -1624,7 +1659,10 @@ where
     /// let values = memo.values();
     /// assert_eq!(values.len(), 2);
     /// ```
-    pub fn values(&self) -> Vec<V> {
+    pub fn values(&self) -> Vec<V>
+    where
+        V: Clone,
+    {
         self.cache.read().unwrap().values()
     }
 
@@ -1640,7 +1678,10 @@ where
     /// let memo: Memoizer<i32, i32> = Memoizer::new();
     /// let values = memo.try_values().unwrap();
     /// ```
-    pub fn try_values(&self) -> Result<Vec<V>, MemoizerError> {
+    pub fn try_values(&self) -> Result<Vec<V>, MemoizerError>
+    where
+        V: Clone,
+    {
         Ok(self.cache.read().map_err(MemoizerError::from)?.values())
     }
 
@@ -1748,6 +1789,23 @@ mod tests {
         let outcome = memo.insert_with_eviction_info(2, 20);
         assert_eq!(outcome.replaced, None);
         assert_eq!(outcome.evicted, Some((1, 10)));
+    }
+
+    #[test]
+    fn insertion_paths_accept_non_clone_values() {
+        struct NoClone(&'static str);
+
+        let memo: Memoizer<u8, NoClone> = Memoizer::with_capacity(1);
+        assert!(memo.insert(1, NoClone("one")).is_none());
+        let replaced = memo.insert(1, NoClone("updated")).unwrap();
+        assert_eq!(replaced.0, "one");
+        let outcome = memo.insert_with_eviction_info(2, NoClone("two"));
+        assert!(outcome.replaced.is_none());
+        assert_eq!(outcome.evicted.unwrap().0, 1);
+
+        let disabled: Memoizer<u8, NoClone> = Memoizer::with_capacity(0);
+        disabled.insert(1, NoClone("ignored"));
+        assert_eq!(disabled.len(), 0);
     }
 
     #[test]

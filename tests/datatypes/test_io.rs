@@ -8,7 +8,7 @@ fn test_io_monadic_fundamentals() {
 
     let f = |x: i32| IO::pure(x * 2);
     assert_eq!(IO::pure(10).bind(f).run(), 20);
-    assert_eq!(pure_io.clone().bind(IO::pure).run(), 42);
+    assert_eq!(IO::pure(42).bind(IO::pure).run(), 42);
 
     let val = IO::pure(5);
     let app_f = IO::new(|| {

@@ -122,8 +122,7 @@ impl<E> ComposableError<E> {
     where
         C: IntoErrorContext,
     {
-        self.context
-            .push(ctx.into_error_context().message().to_string());
+        self.context.push(ctx.into_error_context().into_message());
         self
     }
 
@@ -312,32 +311,41 @@ impl<E> ComposableError<E> {
         E: Display,
     {
         let mut chain = String::new();
+        self.write_chain(&mut chain)
+            .expect("writing to String cannot fail");
+        chain
+    }
 
-        // Iterate in reverse order (most recent first)
+    /// Writes the chain directly to a formatter or string buffer. Keeping
+    /// formatting in one pass avoids the temporary `String` previously
+    /// created by `Display`.
+    pub(crate) fn write_chain<W>(&self, out: &mut W) -> std::fmt::Result
+    where
+        W: std::fmt::Write,
+        E: Display,
+    {
         for (i, ctx) in self.context.iter().rev().enumerate() {
             if i > 0 {
-                chain.push_str(" -> ");
+                out.write_str(" -> ")?;
             }
-            chain.push_str(ctx);
+            out.write_str(ctx)?;
         }
 
         if !self.context.is_empty() {
-            chain.push_str(" -> ");
+            out.write_str(" -> ")?;
         }
 
-        chain.push_str(&format!("{}", self.core_error));
-
+        write!(out, "{}", self.core_error)?;
         if let Some(code) = self.error_code {
-            chain.push_str(&format!(" (code: {})", code));
+            write!(out, " (code: {})", code)?;
         }
-
-        chain
+        Ok(())
     }
 }
 
 impl<E: Display> Display for ComposableError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.error_chain())
+        self.write_chain(f)
     }
 }
 
@@ -420,6 +428,12 @@ impl ErrorContext {
     #[inline]
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    /// Consumes the context and returns its owned message without cloning.
+    #[inline]
+    pub fn into_message(self) -> String {
+        self.message
     }
 }
 
@@ -534,7 +548,7 @@ pub type BoxedComposableResult<T, E> = Result<T, BoxedComposableError<E>>;
 #[cfg(test)]
 mod tests {
     use crate::context;
-    use crate::error::with_context_result;
+    use crate::error::{ErrorContext, with_context_result};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -570,5 +584,14 @@ mod tests {
         );
 
         assert!(was_evaluated.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn owned_context_message_moves_its_buffer() {
+        let message = String::from("owned context");
+        let ptr = message.as_ptr();
+        let moved = ErrorContext::new(message).into_message();
+        assert_eq!(moved.as_ptr(), ptr);
+        assert_eq!(moved, "owned context");
     }
 }

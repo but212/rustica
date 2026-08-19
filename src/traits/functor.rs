@@ -516,7 +516,7 @@ impl<T> FunctorExt for Option<T> {
         match self {
             Some(value) => match f(value) {
                 Ok(b) => Some(b),
-                Err(_) => Some(default.clone()),
+                Err(_) => Some(default),
             },
             None => None,
         }
@@ -565,7 +565,7 @@ where
         match self {
             Ok(value) => match f(value) {
                 Ok(b) => Ok(b),
-                Err(_) => Ok(default.clone()),
+                Err(_) => Ok(default),
             },
             Err(e) => Err(e.clone()),
         }
@@ -628,7 +628,7 @@ impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
     {
         match self {
             Ok(value) => Ok(f(value)),
-            Err(e) => Err(e.clone()),
+            Err(e) => Err(e),
         }
     }
 }

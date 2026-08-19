@@ -27,6 +27,26 @@
 
 ### Changed
 
+- **Ownership and Allocation Paths**
+  - Removed all confirmed redundant clones across library, examples, benches,
+    and tests; strict `clippy::redundant_clone` now passes for all targets.
+  - `FoldableExt::to_vec` now appends into one accumulator instead of cloning a
+    growing `Vec`, reducing the operation from O(n²) to O(n).
+  - `PersistentVector` builds owned trees leaf-by-leaf, reuses one recursive
+    tree builder for owned and cloned inputs, and moves uniquely owned leaves
+    during consuming conversion.
+  - Vec and Choice applicative operations write directly into their final
+    collection instead of creating intermediate Cartesian-product buffers.
+  - Error-chain display writes directly to the formatter, and panic payloads
+    containing owned `String`s are moved instead of cloned.
+
+- **Callback and Memoizer API Boundaries**
+  - `ReaderT`/`StateT` callback adapters borrow `dyn Fn` callbacks, avoiding
+    per-call `Box`/`Arc` allocation; `ReaderT::lift2` returns an opaque callable.
+  - Memoizer insertion now returns the named `InsertOutcome` internally and
+    replaces values by move. `V: Clone` is limited to APIs that return owned
+    cached copies; zero-capacity caches remain disabled.
+
 - **Validated Error Accumulation Refactor**
   - Applicative, Bifunctor, Semigroup, sequence, collection, and traversal
     paths now share one internal `ErrorAccumulator` boundary.

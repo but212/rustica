@@ -607,7 +607,7 @@ where
     pub fn fmap_with<B, F, MapFn>(&self, f: F, map_fn: MapFn) -> ReaderT<E, M, B>
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
-        MapFn: Fn(M, F) -> M + Send + Sync + 'static,
+        MapFn: for<'a> Fn(M, &'a (dyn Fn(A) -> B + Send + Sync)) -> M + Send + Sync + 'static,
         A: 'static,
         B: 'static,
         M: 'static,
@@ -617,7 +617,8 @@ where
 
         ReaderT::new(move |e| {
             let m = inner_fn(e);
-            map_fn(m, f_clone.clone())
+            let mapper = f_clone.clone();
+            map_fn(m, &mapper)
         })
     }
 
@@ -668,26 +669,24 @@ where
     pub fn bind_with<B, N, F, BindFn>(&self, f: F, bind_fn: BindFn) -> ReaderT<E, N, B>
     where
         F: Fn(A) -> ReaderT<E, N, B> + Clone + Send + Sync + 'static,
-        BindFn: Fn(M, Arc<dyn Fn(A) -> N + Send + Sync>) -> N + Send + Sync + 'static,
+        BindFn: for<'a> Fn(M, &'a (dyn Fn(A) -> N + Send + Sync)) -> N + Send + Sync + 'static,
         A: 'static,
         B: 'static,
         M: 'static,
         N: 'static,
     {
         let inner_fn = Arc::clone(&self.run_reader_fn);
-        let f_clone = f.clone();
-
         ReaderT::new(move |e: E| {
             let m = inner_fn(e.clone());
-            let e_for_closure = e.clone();
-            let f_for_closure = f_clone.clone();
+            let e_for_closure = e;
+            let f_for_closure = f.clone();
 
-            let bind_closure = Arc::new(move |a: A| {
+            let bind_closure = move |a: A| {
                 let reader_b = f_for_closure(a);
                 reader_b.run_reader(e_for_closure.clone())
-            });
+            };
 
-            bind_fn(m, bind_closure)
+            bind_fn(m, &bind_closure)
         })
     }
 
@@ -715,12 +714,10 @@ where
     {
         let self_fn = Arc::clone(&self.run_reader_fn);
         let f_fn = Arc::clone(&f.run_reader_fn);
-        let ap_fn_clone = ap_fn.clone();
-
         ReaderT::new(move |e: E| {
             let ma = self_fn(e.clone());
             let mf = f_fn(e);
-            ap_fn_clone(ma, mf)
+            ap_fn(ma, mf)
         })
     }
 
@@ -738,30 +735,27 @@ where
     ///
     /// A function that takes two readers and returns a new reader containing the result
     /// of applying the function to the results of both readers.
+    #[allow(clippy::type_complexity)]
     pub fn lift2<B, C, F, CombineFn>(
         &self, f: F, combine_fn: CombineFn,
-    ) -> Box<ReaderCombineFn<E, M, A, B, C>>
+    ) -> impl Fn(&ReaderT<E, M, A>, &ReaderT<E, M, B>) -> ReaderT<E, M, C> + Send + Sync + 'static
     where
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
         CombineFn: Fn(M, M, F) -> M + Clone + Send + Sync + 'static,
         B: Clone + 'static,
         C: Clone + 'static,
     {
-        let f_clone = f.clone();
-        let combine_fn_clone = combine_fn.clone();
-        Box::new(
-            move |reader1: &ReaderT<E, M, A>, reader2: &ReaderT<E, M, B>| {
-                let run1 = Arc::clone(&reader1.run_reader_fn);
-                let run2 = Arc::clone(&reader2.run_reader_fn);
-                let f_clone = f_clone.clone();
-                let combine_fn_inner = combine_fn_clone.clone();
-                ReaderT::new(move |e: E| {
-                    let ma = run1(e.clone());
-                    let mb = run2(e);
-                    combine_fn_inner(ma, mb, f_clone.clone())
-                })
-            },
-        )
+        move |reader1: &ReaderT<E, M, A>, reader2: &ReaderT<E, M, B>| {
+            let run1 = Arc::clone(&reader1.run_reader_fn);
+            let run2 = Arc::clone(&reader2.run_reader_fn);
+            let f_clone = f.clone();
+            let combine_fn_inner = combine_fn.clone();
+            ReaderT::new(move |e: E| {
+                let ma = run1(e.clone());
+                let mb = run2(e);
+                combine_fn_inner(ma, mb, f_clone.clone())
+            })
+        }
     }
 
     /// Combines this ReaderT with another using a binary function.
@@ -783,7 +777,7 @@ where
     ) -> ReaderT<E, M, C>
     where
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
-        CombineFn: for<'a> Fn(M, M, Box<dyn Fn(&A, &B) -> C + Send + Sync + 'a>) -> M
+        CombineFn: for<'a> Fn(M, M, &'a (dyn Fn(&A, &B) -> C + Send + Sync)) -> M
             + Clone
             + Send
             + Sync
@@ -800,18 +794,10 @@ where
 
         ReaderT::new(move |e: E| {
             let ma = self_fn(e.clone());
-            let mb = other_fn(e.clone());
+            let mb = other_fn(e);
             let f_clone = f.clone();
-
-            // Create a wrapper function that handles the reference-to-owned conversion
-            let boxed_f = Box::new(move |a: &A, b: &B| {
-                // Clone the references to get owned values
-                let a_owned = a.clone();
-                let b_owned = b.clone();
-                f_clone(a_owned, b_owned)
-            }) as Box<dyn Fn(&A, &B) -> C + Send + Sync + 'static>;
-
-            combine_fn.clone()(ma, mb, boxed_f)
+            let combiner = move |a: &A, b: &B| f_clone(a.clone(), b.clone());
+            combine_fn(ma, mb, &combiner)
         })
     }
 
@@ -950,7 +936,7 @@ where
         ReaderT::new(move |e: E| {
             let ma = inner_fn(e.clone());
             let f_clone = f.clone();
-            let e_clone = e.clone();
+            let e_clone = e;
 
             M::bind::<B, _>(&ma, move |source_ref: &M::Source| {
                 let a_owned = source_ref.clone();
@@ -1043,7 +1029,7 @@ where
 
         ReaderT::new(move |e: E| {
             let ma = self_fn(e.clone());
-            let mb = other_fn(e.clone());
+            let mb = other_fn(e);
             let f_clone = f.clone();
 
             M::lift2(move |a: &A, b: &B| f_clone(a.clone(), b.clone()), &ma, &mb)
@@ -1203,8 +1189,7 @@ where
 
     #[inline]
     fn lift(base: Self::BaseMonad) -> Self {
-        let base_clone = base.clone();
-        ReaderT::new(move |_| base_clone.clone())
+        ReaderT::new(move |_| base.clone())
     }
 }
 

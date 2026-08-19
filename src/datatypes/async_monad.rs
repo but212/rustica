@@ -811,7 +811,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         }
 
         let self_inner = self.inner.clone();
-        let mf_inner = mf.inner.clone();
+        let mf_inner = mf.inner;
 
         AsyncM {
             inner: AsyncMInner::Effect(Arc::new(move || {
@@ -1139,7 +1139,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     {
         // Ultra-fast path: Pure + Pure → direct combine
         if let (AsyncMInner::Pure(a), AsyncMInner::Pure(b)) = (&self.inner, &other.inner) {
-            let result = f.clone()((**a).clone(), (**b).clone());
+            let result = f((**a).clone(), (**b).clone());
             return AsyncM::pure(result);
         }
 

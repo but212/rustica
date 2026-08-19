@@ -461,12 +461,12 @@ fn operator_parser() -> Parser<char, String> {
 /// Parse a single condition (e.g., "age > 18")
 fn condition_parser() -> Parser<char, Condition> {
     word().and_then(|field| {
-        let field_clone = field.clone();
+        let field_clone = field;
         whitespace()
             .and_then(|_| operator_parser())
             .and_then(move |operator| {
                 let field_clone2 = field_clone.clone();
-                let operator_clone = operator.clone();
+                let operator_clone = operator;
                 whitespace()
                     .and_then(|_| word())
                     .map(move |value| Condition {
@@ -519,14 +519,14 @@ fn update_parser() -> Parser<char, SqlQuery> {
         .and_then(|_| whitespace())
         .and_then(|_| word())
         .and_then(|table| {
-            let table_clone = table.clone();
+            let table_clone = table;
             whitespace()
                 .and_then(|_| keyword("SET"))
                 .and_then(|_| whitespace())
                 .and_then(|_| word())
                 .and_then(move |set_clause| {
                     let table_clone2 = table_clone.clone();
-                    let set_clause_clone = set_clause.clone();
+                    let set_clause_clone = set_clause;
                     where_parser()
                         .optional()
                         .map(move |where_clause| SqlQuery::Update {
@@ -542,10 +542,10 @@ fn update_parser() -> Parser<char, SqlQuery> {
 pub fn sql_query_parser() -> Parser<char, SqlQuery> {
     select_parser()
         .and_then(|select_clause| {
-            let columns_clone = select_clause.columns.clone();
+            let columns_clone = select_clause.columns;
             from_parser().and_then(move |from_clause| {
                 let columns_clone2 = columns_clone.clone();
-                let table_clone = from_clause.table.clone();
+                let table_clone = from_clause.table;
                 where_parser()
                     .optional()
                     .map(move |where_clause| SqlQuery::Select {

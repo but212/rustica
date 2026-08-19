@@ -167,6 +167,34 @@ assert_eq!(v2.get(5), Some(&6));
 assert_eq!(v3.get(0), Some(&10));
 ```
 
+### Ownership and allocation notes
+
+The owned APIs are intended for pipelines where the input is no longer needed:
+
+```rust
+use rustica::datatypes::choice::Choice;
+use rustica::pvec::PersistentVector;
+
+// Construction consumes the iterator and does not require `T: Clone`.
+let numbers: PersistentVector<String> = (0..100).map(|n| n.to_string()).collect();
+
+// Consuming Choice conversions also move their elements directly.
+let alternatives: Choice<String> = vec!["primary".to_owned(), "backup".to_owned()].into();
+let values: Vec<String> = alternatives.into();
+assert_eq!(values, vec!["primary".to_owned(), "backup".to_owned()]);
+```
+
+`PersistentVector` preserves structural sharing. Converting a uniquely owned
+tree to `Vec<T>` moves its leaves; a shared tree must clone values so the other
+vectors remain valid. `Memoizer::insert` and its eviction-aware variants also
+accept non-`Clone` values. Retrieval methods that return an owned cached copy
+still require `V: Clone`.
+
+`ReaderT` and `StateT` callback adapters borrow their mapping/combining
+functions for the duration of the base-monad operation, so callers do not need
+to allocate a `Box` or `Arc` for each callback. See
+[MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) for before/after signatures.
+
 ### CI/CD & Publishing
 
 Rustica uses GitHub Actions for continuous integration, formatting, linting, and automated publishing to crates.io on tagged releases.

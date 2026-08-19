@@ -323,7 +323,7 @@ pub fn iso_prism_benchmarks(c: &mut Criterion) {
             let result = if let Some(extracted) = success_prism.preview(&original) {
                 success_prism.review(&extracted)
             } else {
-                original.clone()
+                original
             };
             black_box(result)
         })
@@ -335,7 +335,7 @@ pub fn iso_prism_benchmarks(c: &mut Criterion) {
             let result = if let Some(extracted) = error_prism.preview(&original) {
                 error_prism.review(&extracted)
             } else {
-                original.clone()
+                original
             };
             black_box(result)
         })
@@ -347,7 +347,7 @@ pub fn iso_prism_benchmarks(c: &mut Criterion) {
             let result = if let Some(extracted) = ok_prism.preview(&original) {
                 ok_prism.review(&extracted)
             } else {
-                original.clone()
+                original
             };
             black_box(result)
         })

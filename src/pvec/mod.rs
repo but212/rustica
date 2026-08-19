@@ -160,7 +160,7 @@ mod tests {
         let vec = crate::pvec![1, 2, 3];
         assert_eq!(vec.iter().sum::<i32>(), 6);
 
-        let collected: Vec<i32> = vec.clone().into_iter().collect();
+        let collected: Vec<i32> = vec.into_iter().collect();
         assert_eq!(collected, vec![1, 2, 3]);
 
         let from_it: PersistentVector<_> = (0..5).collect();
@@ -190,5 +190,15 @@ mod tests {
 
         let (left, right) = large_vec.split_at(n / 2);
         assert_eq!(left.concat(&right).to_vec(), large_vec.to_vec());
+    }
+
+    #[test]
+    fn pvec_owned_construction_and_conversion_do_not_require_clone() {
+        struct NoClone(u32);
+
+        let vector: PersistentVector<NoClone> = (0..65).map(NoClone).collect();
+        assert_eq!(vector.len(), 65);
+        assert_eq!(vector.get(64).unwrap().0, 64);
+        let _from_vec: PersistentVector<NoClone> = vec![NoClone(1), NoClone(2)].into();
     }
 }

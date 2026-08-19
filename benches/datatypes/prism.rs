@@ -242,7 +242,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
             let result = if let Some(extracted) = text_prism.preview(&original) {
                 text_prism.review(&extracted)
             } else {
-                original.clone()
+                original
             };
             black_box(result)
         })
@@ -254,7 +254,7 @@ pub fn prism_benchmarks(c: &mut Criterion) {
             let result = if let Some(extracted) = dict_prism.preview(&original) {
                 dict_prism.review(&extracted)
             } else {
-                original.clone()
+                original
             };
             black_box(result)
         })

@@ -689,29 +689,6 @@ impl<T> Choice<T> {
         self.values.iter()
     }
 
-    /// Helper function to generate alternatives for apply operation
-    fn generate_apply_alternatives<A, B>(
-        func_values: &SmallVec<[T; 8]>, val_values: &SmallVec<[A; 8]>,
-    ) -> SmallVec<[B; 8]>
-    where
-        T: Fn(A) -> B,
-        A: Clone,
-    {
-        val_values
-            .iter()
-            .enumerate()
-            .flat_map(|(i, val)| {
-                func_values.iter().enumerate().filter_map(move |(j, func)| {
-                    if i == 0 && j == 0 {
-                        None
-                    } else {
-                        Some(func(val.clone()))
-                    }
-                })
-            })
-            .collect()
-    }
-
     /// Safely returns a reference to the primary value.
     ///
     /// This is the safe alternative to `first().unwrap()` that returns
@@ -982,27 +959,27 @@ impl<T: Clone> Monad for Choice<T> {
             return Choice::new_empty();
         }
 
-        let mut values = self.values;
-        let primary_choice = f(values.remove(0));
+        let mut values = self.values.into_iter();
+        let primary_choice = f(values.next().expect("non-empty Choice has a primary"));
 
         if primary_choice.values.is_empty() {
             return Choice::new_empty();
         }
 
-        let primary_choice_values = &primary_choice.values;
-        let first = primary_choice_values[0].clone();
-
-        // Calculate better capacity estimate for bind_owned
-        let mut alternatives = Vec::with_capacity(primary_choice_values.len() - 1 + values.len());
-
-        alternatives.extend_from_slice(&primary_choice_values[1..]);
+        let primary_len = primary_choice.values.len();
+        let mut primary_values = primary_choice.values.into_iter();
+        let first = primary_values.next().expect("non-empty primary Choice");
+        let mut result =
+            SmallVec::<[U; 8]>::with_capacity(primary_len.saturating_sub(1) + values.size_hint().0);
+        result.push(first);
+        result.extend(primary_values);
 
         for alt in values {
             let alt_choice = f(alt);
-            alternatives.extend(alt_choice.values);
+            result.extend(alt_choice.values);
         }
 
-        Choice::new(first, alternatives)
+        Choice { values: result }
     }
 
     #[inline]
@@ -1050,30 +1027,29 @@ impl<T: Clone> Monad for Choice<T> {
             return Choice::new_empty();
         }
 
-        let mut values = self.values;
-        let primary_value = values.remove(0);
+        let mut values = self.values.into_iter();
+        let primary_value = values.next().expect("non-empty Choice has a primary");
         let primary_choice: Self::Output<U> = primary_value.into();
 
         if primary_choice.values.is_empty() {
             return Choice::new_empty();
         }
 
-        let first = primary_choice.first().unwrap().clone();
-
-        // Simple capacity estimate
-        let mut alternatives =
-            Vec::with_capacity(primary_choice.alternatives().len() + values.len());
-
-        // Add alternatives from primary choice
-        alternatives.extend_from_slice(primary_choice.alternatives());
+        let primary_len = primary_choice.values.len();
+        let mut primary_values = primary_choice.values.into_iter();
+        let first = primary_values.next().expect("non-empty primary Choice");
+        let mut result =
+            SmallVec::<[U; 8]>::with_capacity(primary_len.saturating_sub(1) + values.size_hint().0);
+        result.push(first);
+        result.extend(primary_values);
 
         // Add all values from alternative choices
         for alt in values {
             let alt_choice: Self::Output<U> = alt.into();
-            alternatives.extend_from_slice(&alt_choice.values);
+            result.extend(alt_choice.values);
         }
 
-        Choice::new(first, alternatives)
+        Choice { values: result }
     }
 }
 
@@ -1198,23 +1174,14 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
-        let func_values = &self.values;
-        let val_values = &value.values;
-        let func_first = &func_values[0];
-
-        let primary = func_first(&val_values[0]);
-
-        // Apply additional functions to primary value + apply all functions to all alternatives
-        let alternatives: SmallVec<[B; 8]> = func_values[1..]
-            .iter()
-            .map(|f_alt| f_alt(&val_values[0]))
-            .chain(val_values[1..].iter().flat_map(|val_alt| {
-                std::iter::once(func_first(val_alt))
-                    .chain(func_values[1..].iter().map(move |f_alt| f_alt(val_alt)))
-            }))
-            .collect();
-
-        Choice::new(primary, alternatives)
+        let capacity = self.values.len().saturating_mul(value.values.len());
+        let mut values = SmallVec::<[B; 8]>::with_capacity(capacity);
+        for val in &value.values {
+            for func in &self.values {
+                values.push(func(val));
+            }
+        }
+        Choice { values }
     }
 
     fn apply_owned<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
@@ -1228,11 +1195,23 @@ impl<T: Clone> Applicative for Choice<T> {
 
         let func_values = self.values;
         let val_values = value.values;
+        let function_count = func_values.len();
+        let mut values =
+            SmallVec::<[B; 8]>::with_capacity(function_count.saturating_mul(val_values.len()));
 
-        let primary = func_values[0](val_values[0].clone());
-        let alternatives = Self::generate_apply_alternatives(&func_values, &val_values);
+        for value in val_values {
+            let mut value = Some(value);
+            for (function_index, func) in func_values.iter().enumerate() {
+                let arg = if function_index + 1 == function_count {
+                    value.take().expect("last function consumes value")
+                } else {
+                    value.as_ref().expect("value retained").clone()
+                };
+                values.push(func(arg));
+            }
+        }
 
-        Choice::new(primary, alternatives)
+        Choice { values }
     }
 
     fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
@@ -1247,25 +1226,14 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
-        let fa_values = fa.values.as_ref();
-        let fb_values = fb.values.as_ref();
-
-        let primary = f(&fa_values[0], &fb_values[0]);
-
-        // Calculate capacity for alternatives vector
-        let capacity = fa_values.len() * fb_values.len() - 1;
-        let mut alternatives = SmallVec::<[C; 8]>::with_capacity(capacity);
-
-        for (i, fa_val) in fa_values.iter().enumerate() {
-            for (j, fb_val) in fb_values.iter().enumerate() {
-                if i == 0 && j == 0 {
-                    continue; // Skip primary
-                }
-                alternatives.push(f(fa_val, fb_val));
+        let capacity = fa.values.len().saturating_mul(fb.values.len());
+        let mut values = SmallVec::<[C; 8]>::with_capacity(capacity);
+        for a in &fa.values {
+            for b in &fb.values {
+                values.push(f(a, b));
             }
         }
-
-        Choice::new(primary, alternatives)
+        Choice { values }
     }
 
     fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
@@ -1280,22 +1248,16 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
-        let primary = f(fa.values[0].clone(), fb.values[0].clone());
+        let capacity = fa.len().saturating_mul(fb.len());
+        let mut values = SmallVec::<[C; 8]>::with_capacity(capacity);
 
-        // Calculate capacity for alternatives vector
-        let capacity = fa.len() * fb.len() - 1;
-        let mut alternatives = Vec::with_capacity(capacity);
-
-        for (i, a) in fa.values.iter().enumerate() {
-            for (j, b_val) in fb.values.iter().enumerate() {
-                if i == 0 && j == 0 {
-                    continue; // Skip primary
-                }
-                alternatives.push(f(a.clone(), b_val.clone()));
+        for a in fa.values.iter() {
+            for b_val in fb.values.iter() {
+                values.push(f(a.clone(), b_val.clone()));
             }
         }
 
-        Choice::new(primary, alternatives)
+        Choice { values }
     }
 
     fn lift3<A, B, C, D, F>(
@@ -1313,29 +1275,22 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
-        // Get references to the values
-        let fa_values = &fa.values;
-        let fb_values = &fb.values;
-        let fc_values = &fc.values;
+        let capacity = fa
+            .values
+            .len()
+            .saturating_mul(fb.values.len())
+            .saturating_mul(fc.values.len());
+        let mut values = SmallVec::<[D; 8]>::with_capacity(capacity);
 
-        let primary = f(&fa_values[0], &fb_values[0], &fc_values[0]);
-
-        // Calculate capacity for alternatives vector
-        let capacity = fa_values.len() * fb_values.len() * fc_values.len() - 1;
-        let mut alternatives = SmallVec::<[D; 8]>::with_capacity(capacity);
-
-        for (i, fa_val) in fa_values.iter().enumerate() {
-            for (j, fb_val) in fb_values.iter().enumerate() {
-                for (k, fc_val) in fc_values.iter().enumerate() {
-                    if i == 0 && j == 0 && k == 0 {
-                        continue; // Skip primary
-                    }
-                    alternatives.push(f(fa_val, fb_val, fc_val));
+        for a in &fa.values {
+            for b in &fb.values {
+                for c in &fc.values {
+                    values.push(f(a, b, c));
                 }
             }
         }
 
-        Choice::new(primary, alternatives)
+        Choice { values }
     }
 
     fn lift3_owned<A, B, C, D, F>(
@@ -1353,27 +1308,18 @@ impl<T: Clone> Applicative for Choice<T> {
             return Choice::new_empty();
         }
 
-        let primary = f(
-            fa.values[0].clone(),
-            fb.values[0].clone(),
-            fc.values[0].clone(),
-        );
+        let capacity = fa.len().saturating_mul(fb.len()).saturating_mul(fc.len());
+        let mut values = SmallVec::<[D; 8]>::with_capacity(capacity);
 
-        let capacity = fa.len() * fb.len() * fc.len() - 1;
-        let mut alternatives = SmallVec::<[D; 8]>::with_capacity(capacity);
-
-        for (i, a) in fa.values.iter().enumerate() {
-            for (j, b_val) in fb.values.iter().enumerate() {
-                for (k, c_val) in fc.values.iter().enumerate() {
-                    if i == 0 && j == 0 && k == 0 {
-                        continue; // Skip primary
-                    }
-                    alternatives.push(f(a.clone(), b_val.clone(), c_val.clone()));
+        for a in fa.values.iter() {
+            for b_val in fb.values.iter() {
+                for c_val in fc.values.iter() {
+                    values.push(f(a.clone(), b_val.clone(), c_val.clone()));
                 }
             }
         }
 
-        Choice::new(primary, alternatives)
+        Choice { values }
     }
 }
 
@@ -1462,7 +1408,7 @@ impl<'a, T> IntoIterator for &'a Choice<T> {
     }
 }
 
-impl<T: Clone> IntoIterator for Choice<T> {
+impl<T> IntoIterator for Choice<T> {
     type Item = T;
     type IntoIter = smallvec::IntoIter<[T; 8]>;
 
@@ -1523,7 +1469,7 @@ impl<T> FromIterator<T> for Choice<T> {
     }
 }
 
-impl<T: Clone> FromIterator<Choice<T>> for Choice<T> {
+impl<T> FromIterator<Choice<T>> for Choice<T> {
     fn from_iter<I: IntoIterator<Item = Choice<T>>>(iter: I) -> Self {
         let values: SmallVec<[T; 8]> = iter.into_iter().flat_map(|choice| choice.values).collect();
 
@@ -1534,17 +1480,15 @@ impl<T: Clone> FromIterator<Choice<T>> for Choice<T> {
     }
 }
 
-impl<T: Clone> From<Vec<T>> for Choice<T> {
+impl<T> From<Vec<T>> for Choice<T> {
     fn from(v: Vec<T>) -> Self {
         if v.is_empty() {
             return Choice::new_empty();
         }
 
         let mut iter = v.into_iter();
-        let primary = iter.next().unwrap();
-        let alternatives: Vec<T> = iter.collect();
-
-        Choice::new(primary, alternatives)
+        let primary = iter.next().expect("non-empty Vec");
+        Choice::new(primary, iter)
     }
 }
 
@@ -1561,9 +1505,9 @@ impl<T: Clone> From<&[T]> for Choice<T> {
     }
 }
 
-impl<T: Clone> From<Choice<T>> for Vec<T> {
+impl<T> From<Choice<T>> for Vec<T> {
     fn from(choice: Choice<T>) -> Self {
-        choice.values.to_vec()
+        choice.values.into_vec()
     }
 }
 
@@ -1573,7 +1517,7 @@ impl<T: Clone + Default> Default for Choice<T> {
     }
 }
 
-impl<T: Clone> std::iter::Sum for Choice<T> {
+impl<T> std::iter::Sum for Choice<T> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(Self::new_empty(), |acc, choice| {
             let combined: SmallVec<[T; 8]> = acc.values.into_iter().chain(choice.values).collect();
@@ -1605,7 +1549,8 @@ mod tests {
         let double_fn: fn(&i32) -> i32 = |x| x * 2;
         let triple_fn: fn(&i32) -> i32 = |x| x * 3;
         let f = Choice::new(double_fn, vec![triple_fn]);
-        assert_eq!(f.apply(&choice).len(), 6);
+        let applied: Vec<_> = f.apply(&choice).into();
+        assert_eq!(applied, vec![2, 3, 4, 6, 6, 9]);
 
         let lift2 = Choice::<i32>::lift2(|x, y| x + y, &choice, &Choice::new(10, vec![]));
         assert_eq!(*lift2.first().unwrap(), 11);
@@ -1671,7 +1616,7 @@ mod tests {
         assert!(format!("{c}").contains("1"));
 
         let opt_choice = Choice::new(Some(1), vec![Some(2)]);
-        assert_eq!(opt_choice.clone().sequence(), Some(Choice::new(1, vec![2])));
+        assert_eq!(opt_choice.sequence(), Some(Choice::new(1, vec![2])));
         assert!(Choice::new(Some(1), vec![None]).sequence().is_none());
 
         #[cfg(feature = "serde")]
@@ -1680,5 +1625,15 @@ mod tests {
             let deserialized: Choice<i32> = serde_json::from_str(&serialized).unwrap();
             assert_eq!(c, deserialized);
         }
+    }
+
+    #[test]
+    fn choice_owned_conversions_do_not_require_clone() {
+        struct NoClone(u32);
+
+        let choice: Choice<NoClone> = vec![NoClone(1), NoClone(2)].into();
+        let values: Vec<NoClone> = choice.into();
+        assert_eq!(values.len(), 2);
+        assert_eq!(values[1].0, 2);
     }
 }

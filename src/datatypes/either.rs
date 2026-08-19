@@ -1417,13 +1417,10 @@ mod tests {
         assert_eq!(left.clone().left_iter().next(), Some(42));
         assert_eq!(right.clone().left_iter().next(), None);
 
-        let mut m_left = left.clone();
+        let mut m_left = left;
         *m_left.left_mut() = 100;
         assert_eq!(m_left.try_unwrap_left(), Ok(100));
-        assert_eq!(
-            right.clone().try_unwrap_left(),
-            Err(EitherError::ExpectedLeft)
-        );
+        assert_eq!(right.try_unwrap_left(), Err(EitherError::ExpectedLeft));
     }
 
     #[test]

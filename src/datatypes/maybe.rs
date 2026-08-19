@@ -1868,7 +1868,7 @@ mod tests {
             y: i32,
         }
         let point = Point { x: 1, y: 2 };
-        let just_point = Maybe::Just(point.clone());
+        let just_point = Maybe::Just(point);
         let serialized_point = serde_json::to_string(&just_point).unwrap();
         let deserialized_point: Maybe<Point> = serde_json::from_str(&serialized_point).unwrap();
         assert_eq!(just_point, deserialized_point);

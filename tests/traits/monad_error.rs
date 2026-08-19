@@ -4,7 +4,7 @@ use rustica::traits::monad_error::{ErrorMapper, MonadError};
 fn test_monad_error_laws_and_interop() {
     // 1. Left Catch Law: throw(e).catch(h) == h(e)
     let err = "err".to_string();
-    let thrown: Result<i32, String> = Result::<i32, String>::throw(err.clone());
+    let thrown: Result<i32, String> = Result::<i32, String>::throw(err);
     let handled = thrown.catch(|e| if e == "err" { Ok(42) } else { Err(e.clone()) });
     assert_eq!(handled, Ok(42));
 

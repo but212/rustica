@@ -209,7 +209,7 @@ impl<T, E> ErrorPipeline<T, E> {
             return self;
         }
 
-        let ctx_str = context.into_error_context().message().to_string();
+        let ctx_str = context.into_error_context().into_message();
         self.pending_contexts.push(ctx_str);
         self
     }
@@ -487,7 +487,7 @@ where
 {
     let context_strings: Vec<String> = contexts
         .into_iter()
-        .map(|c| c.into_error_context().message().to_string())
+        .map(|c| c.into_error_context().into_message())
         .collect();
 
     ComposableError::new(error).with_contexts(context_strings)
