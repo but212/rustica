@@ -1215,3 +1215,75 @@ where
         Writer::new(y, x)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Writer;
+    use crate::datatypes::wrapper::sum::Sum;
+    use crate::prelude::*;
+
+    #[derive(Clone, Debug, PartialEq, Default)]
+    struct Log(Vec<String>);
+
+    impl Semigroup for Log {
+        fn combine(&self, other: &Self) -> Self {
+            let mut combined = self.0.clone();
+            combined.extend(other.0.clone());
+            Log(combined)
+        }
+
+        fn combine_owned(self, other: Self) -> Self {
+            let mut combined = self.0;
+            combined.extend(other.0);
+            Log(combined)
+        }
+    }
+
+    impl Monoid for Log {
+        fn empty() -> Self {
+            Log(Vec::new())
+        }
+    }
+
+    #[test]
+    fn test_writer_lifecycle_and_mapping() {
+        let w1 = Writer::new(Log(vec!["init".into()]), 42);
+        let w_pure = Writer::<Log, _>::pure_value(100);
+        assert_eq!(w1.clone().run(), (Log(vec!["init".into()]), 42));
+        assert_eq!(w_pure.run(), (Log::empty(), 100));
+        assert_eq!(w1.fmap(|x| x * 2).run(), (Log(vec!["init".into()]), 84));
+    }
+
+    #[test]
+    fn test_writer_accumulation_modes() {
+        let w_fn = Writer::new(Log(vec!["f".into()]), |x: &i32| x * 2);
+        let w_val = Writer::new(Log(vec!["v".into()]), 21);
+        assert_eq!(w_fn.apply(&w_val).run(), (Log(vec!["f".into(), "v".into()]), 42));
+
+        let monad_res = Writer::new(Log(vec!["step1".into()]), 10)
+            .bind(|x| Writer::new(Log(vec![format!("step2:{x}")]), x + 5));
+        assert_eq!(
+            monad_res.run(),
+            (Log(vec!["step1".into(), "step2:10".into()]), 15)
+        );
+    }
+
+    #[test]
+    fn test_writer_composition_scenarios() {
+        let pipeline = Writer::<Log, _>::pure_value(5)
+            .bind(|n| Writer::new(Log(vec!["start".into()]), *n))
+            .bind(|n| Writer::new(Log(vec!["double".into()]), n * 2))
+            .bind(|n| Writer::new(Log(vec!["plus10".into()]), n + 10))
+            .fmap(|n| n * 2);
+        let (log, val) = pipeline.run();
+        assert_eq!(val, 40);
+        assert_eq!(log.0.len(), 3);
+
+        let w1 = Writer::new(Log(vec!["l1".into()]), Sum(15));
+        let w2 = Writer::new(Log(vec!["l2".into()]), Sum(27));
+        assert_eq!(
+            w1.combine(&w2).run(),
+            (Log(vec!["l1".into(), "l2".into()]), Sum(42))
+        );
+    }
+}

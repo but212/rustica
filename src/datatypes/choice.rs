@@ -1838,3 +1838,97 @@ impl<T: Arbitrary + 'static> Arbitrary for Choice<T> {
         Choice::of_many(items)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Choice;
+    use crate::prelude::*;
+
+    #[test]
+    fn test_core_monadic_ops() {
+        let choice = Choice::new(1, vec![2, 3]);
+        let doubled = choice.fmap(|x| x * 2);
+        assert_eq!(*doubled.first().unwrap(), 2);
+        assert_eq!(doubled.alternatives(), &[4, 6]);
+
+        let double_fn: fn(&i32) -> i32 = |x| x * 2;
+        let triple_fn: fn(&i32) -> i32 = |x| x * 3;
+        let f = Choice::new(double_fn, vec![triple_fn]);
+        assert_eq!(f.apply(&choice).len(), 6);
+
+        let lift2 = Choice::<i32>::lift2(|x, y| x + y, &choice, &Choice::new(10, vec![]));
+        assert_eq!(*lift2.first().unwrap(), 11);
+        assert_eq!(lift2.alternatives(), &[12, 13]);
+
+        let bound = choice.bind(|x| Choice::new(x * 10, vec![]));
+        assert_eq!(*bound.first().unwrap(), 10);
+        assert_eq!(bound.alternatives(), &[20, 30]);
+    }
+
+    #[test]
+    fn test_collection_behavior() {
+        let a = Choice::new(1, vec![2]);
+        let b = Choice::new(3, vec![4]);
+        let empty: Choice<i32> = Choice::new_empty();
+
+        assert_eq!(*a.combine(&b).first().unwrap(), 1);
+        assert_eq!(a.combine(&b).alternatives(), &[2, 3, 4]);
+        assert_eq!(a.combine(&empty), a);
+        assert_eq!(empty.combine(&a), a);
+
+        assert!(!Choice::<()>::guard(true).is_empty());
+        assert!(Choice::<()>::guard(false).is_empty());
+
+        let modified = a.combine(&Choice::of_many(vec![5]));
+        assert_eq!(modified.alternatives(), &[2, 5]);
+        assert_eq!(modified.remove_alternative(0).alternatives(), &[5]);
+    }
+
+    #[test]
+    fn test_iteration_and_aggregation() {
+        let choice = Choice::new(1, vec![2, 3]);
+        let collected: Vec<_> = choice.iter().cloned().collect();
+        assert_eq!(collected, vec![1, 2, 3]);
+        let converted: Vec<i32> = choice.clone().into();
+        assert_eq!(converted, vec![1, 2, 3]);
+        assert_eq!(choice.fold_left(&0, |acc, x| acc + x), 6);
+        assert_eq!(choice.fold_right(&1, |x, acc| x * acc), 6);
+        assert_eq!(choice.iter().find(|&&x| x == 2), Some(&2));
+    }
+
+    #[test]
+    fn test_structure_transformation() {
+        let choice = Choice::new(1, vec![2, 3, 4]);
+        let evens = choice.filter_values(|x| x % 2 == 0);
+        assert_eq!(*evens.first().unwrap(), 2);
+        assert_eq!(evens.alternatives(), &[4]);
+
+        let nested = Choice::new(vec![1], vec![vec![2, 3]]);
+        let flat = nested.flatten();
+        assert_eq!(*flat.first().unwrap(), 1);
+        assert_eq!(flat.alternatives(), &[2, 3]);
+
+        let monad_nested = Choice::new(Choice::new(1, vec![2]), vec![Choice::new(3, vec![4])]);
+        let joined = monad_nested.join();
+        assert_eq!(*joined.first().unwrap(), 1);
+        assert_eq!(joined.alternatives(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn test_utilities_and_resilience() {
+        let c = Choice::new(1, vec![2]);
+        assert_eq!(c, c.clone());
+        assert!(format!("{c}").contains("1"));
+
+        let opt_choice = Choice::new(Some(1), vec![Some(2)]);
+        assert_eq!(opt_choice.clone().sequence(), Some(Choice::new(1, vec![2])));
+        assert!(Choice::new(Some(1), vec![None]).sequence().is_none());
+
+        #[cfg(feature = "serde")]
+        {
+            let serialized = serde_json::to_string(&c).unwrap();
+            let deserialized: Choice<i32> = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(c, deserialized);
+        }
+    }
+}

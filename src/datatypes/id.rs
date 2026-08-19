@@ -819,3 +819,34 @@ impl<T: Clone + Arbitrary> Arbitrary for Id<T> {
         Id::new(T::arbitrary(g))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Id;
+    use crate::traits::{functor::Functor, monad::Monad};
+
+    #[test]
+    fn test_id_pipelines() {
+        let result = Id::new(10)
+            .fmap_owned(|n| n + 5)
+            .fmap(|n| n * 2)
+            .bind_owned(|n| Id::new(n.to_string()))
+            .unwrap();
+        assert_eq!(result, "30");
+    }
+
+    #[test]
+    fn test_id_utilities() {
+        let id = Id::new(42);
+        assert_eq!(id.as_ref(), &42);
+        assert_eq!(id.into_inner(), 42);
+
+        #[cfg(feature = "serde")]
+        {
+            let id = Id::new(42);
+            let serialized = serde_json::to_string(&id).unwrap();
+            let deserialized: Id<i32> = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(id, deserialized);
+        }
+    }
+}

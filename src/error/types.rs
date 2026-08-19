@@ -530,3 +530,45 @@ pub type BoxedComposableError<E> = Box<ComposableError<E>>;
 /// * `T`: The success type
 /// * `E`: The core error type
 pub type BoxedComposableResult<T, E> = Result<T, BoxedComposableError<E>>;
+
+#[cfg(test)]
+mod tests {
+    use crate::context;
+    use crate::error::with_context_result;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn test_lazy_context_evaluation() {
+        let was_evaluated = Arc::new(AtomicBool::new(false));
+        let was_evaluated_clone = was_evaluated.clone();
+        let result: Result<i32, &str> = Ok(42);
+
+        let _ = with_context_result(
+            result,
+            context!("This should not be evaluated: {}", {
+                was_evaluated_clone.store(true, Ordering::SeqCst);
+                "failed"
+            }),
+        );
+
+        assert!(!was_evaluated.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn test_lazy_context_evaluation_on_error() {
+        let was_evaluated = Arc::new(AtomicBool::new(false));
+        let was_evaluated_clone = was_evaluated.clone();
+        let result: Result<i32, &str> = Err("oops");
+
+        let _ = with_context_result(
+            result,
+            context!("Context evaluated: {}", {
+                was_evaluated_clone.store(true, Ordering::SeqCst);
+                "yes"
+            }),
+        );
+
+        assert!(was_evaluated.load(Ordering::SeqCst));
+    }
+}

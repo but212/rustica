@@ -1252,3 +1252,62 @@ where
         ReaderT::new(move |_: E| pure_fn(value.clone()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ReaderT;
+
+    #[test]
+    fn test_reader_t_lifecycle() {
+        #[derive(Clone)]
+        struct Env {
+            factor: i32,
+            prefix: String,
+        }
+
+        let get_val: ReaderT<Env, Option<i32>, i32> = ReaderT::new(|env: Env| Some(env.factor));
+        let get_pref: ReaderT<Env, Option<usize>, usize> =
+            ReaderT::new(|env: Env| Some(env.prefix.len()));
+        let combined: ReaderT<Env, Option<i32>, i32> = ReaderT::new(move |env: Env| {
+            let v = get_val.run_reader(env.clone())?;
+            let l = get_pref.run_reader(env)? as i32;
+            Some(v + l)
+        });
+
+        let env = Env {
+            factor: 40,
+            prefix: "hello".into(),
+        };
+        assert_eq!(combined.run_reader(env), Some(45));
+    }
+
+    #[test]
+    fn test_reader_t_error_ergonomics() {
+        #[derive(Clone)]
+        struct Config {
+            max: i32,
+        }
+
+        let safe_proc: ReaderT<Config, Result<i32, String>, i32> = ReaderT::new(|cfg: Config| {
+            if cfg.max <= 0 {
+                Err("Invalid max".to_string())
+            } else {
+                Ok(cfg.max * 2)
+            }
+        });
+
+        assert_eq!(safe_proc.try_run_reader(Config { max: 10 }).unwrap(), 20);
+
+        let res_err = safe_proc.try_run_reader_with_context(Config { max: 0 }, "init_service");
+        match res_err {
+            Err(e) => {
+                assert_eq!(e.core_error(), "Invalid max");
+                assert_eq!(e.context()[0], "init_service");
+            },
+            _ => panic!("Expected error"),
+        }
+
+        let mapped = safe_proc.map_error(|e: String| e.len());
+        assert_eq!(mapped.run_reader(Config { max: 0 }), Err(11));
+    }
+}

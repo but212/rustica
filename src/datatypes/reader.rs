@@ -617,3 +617,39 @@ impl<E: Arbitrary + 'static + Send + Sync, A: Arbitrary + 'static + Send + Sync>
         Reader::new(move |_: E| value.clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Reader;
+
+    #[test]
+    fn test_reader_environment_access() {
+        let r1 = Reader::new(|env: i32| env + 1);
+        assert_eq!(r1.run_reader(10), 11);
+
+        let r_env = Reader::<String, String>::ask();
+        let r_len = Reader::asks(|s: String| s.len());
+        assert_eq!(r_env.run_reader("test".to_string()), "test");
+        assert_eq!(r_len.run_reader("hello".to_string()), 5);
+    }
+
+    #[test]
+    fn test_reader_transformation_pipeline() {
+        let base = Reader::new(|env: i32| env + 1);
+        let mapped = base.fmap(|x| x * 2);
+        let bound = mapped.bind(|x| Reader::new(move |env: i32| x * env));
+        let localized = bound.local(|env| env + 5);
+
+        assert_eq!(mapped.run_reader(10), 22);
+        assert_eq!(bound.run_reader(10), 220);
+        assert_eq!(localized.run_reader(10), 480);
+    }
+
+    #[test]
+    fn test_reader_combination() {
+        let r1 = Reader::new(|env: i32| env + 10);
+        let r2 = Reader::new(|env: i32| format!("val:{}", env));
+        let combined = r1.combine(&r2, |a, b| format!("{a}_{b}"));
+        assert_eq!(combined.run_reader(5), "15_val:5");
+    }
+}

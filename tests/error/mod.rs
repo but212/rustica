@@ -1,6 +1,4 @@
 mod categorical_laws;
-mod context_tests;
-mod lazy_context;
 
 use rustica::datatypes::either::Either;
 use rustica::error::context::error_pipeline;

@@ -599,3 +599,53 @@ where
 pub fn extract_context<E>(error: &ComposableError<E>) -> Vec<String> {
     error.context()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ErrorPipeline;
+
+    #[test]
+    fn test_context_dropped_on_success() {
+        let result = ErrorPipeline::new(Ok(1))
+            .with_context("context 1")
+            .and_then(|_| Err::<(), &str>("error"))
+            .finish();
+
+        match result {
+            Ok(_) => panic!("Expected error"),
+            Err(e) => assert_eq!(e.context().len(), 0),
+        }
+    }
+
+    #[test]
+    fn test_context_preserved_on_failure() {
+        let result = ErrorPipeline::new(Err::<(), &str>("original error"))
+            .with_context("context 1")
+            .finish();
+
+        match result {
+            Ok(_) => panic!("Expected error"),
+            Err(e) => {
+                assert_eq!(e.context().len(), 1);
+                assert_eq!(e.context()[0], "context 1");
+            },
+        }
+    }
+
+    #[test]
+    fn test_context_accumulation_logic() {
+        let result = ErrorPipeline::new(Ok(1))
+            .with_context("context A")
+            .and_then(|_| Err::<(), &str>("error"))
+            .with_context("context B")
+            .finish();
+
+        match result {
+            Ok(_) => panic!("Expected error"),
+            Err(e) => {
+                assert_eq!(e.context().len(), 1);
+                assert_eq!(e.context()[0], "context B");
+            },
+        }
+    }
+}

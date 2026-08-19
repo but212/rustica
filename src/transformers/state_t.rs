@@ -1123,3 +1123,172 @@ where
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::StateT;
+
+    #[test]
+    fn test_state_t_creation_and_running() {
+        let state_t: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| Some((s + 1, s)));
+        assert_eq!(state_t.run_state(5), Some((6, 5)));
+    }
+
+    #[test]
+    fn test_state_t_composition() {
+        let add_one: StateT<i32, Option<(i32, i32)>, i32> =
+            StateT::new(|s: i32| Some((s + 1, s + 1)));
+        let double: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| Some((s * 2, s)));
+        let double_clone = double.clone();
+
+        let add_then_double = add_one.bind_with(
+            move |_| double_clone.clone(),
+            |m: Option<(i32, i32)>, f| m.and_then(|(s, _)| f((s, 0))),
+        );
+        assert_eq!(add_then_double.run_state(5), Some((12, 6)));
+    }
+
+    #[test]
+    fn test_state_t_get_and_put() {
+        let get_state = StateT::<i32, Option<(i32, i32)>, i32>::get(Some);
+        let set_state = StateT::<i32, Option<(i32, i32)>, i32>::put(42, Some);
+        assert_eq!(get_state.run_state(10), Some((10, 10)));
+        assert_eq!(set_state.run_state(10), Some((42, 10)));
+    }
+
+    #[test]
+    fn test_state_t_modify() {
+        let double_state = StateT::<i32, Option<(i32, ())>, ()>::modify(|s| s * 2, Some);
+        assert_eq!(double_state.run_state(21), Some((42, ())));
+    }
+
+    #[test]
+    fn test_state_t_with_error_handling() {
+        let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+            if s == 0 {
+                Err("Division by zero".to_string())
+            } else {
+                Ok((s, 100 / s))
+            }
+        });
+        assert_eq!(safe_div.run_state(4), Ok((4, 25)));
+        assert_eq!(safe_div.run_state(0), Err("Division by zero".to_string()));
+    }
+
+    #[test]
+    fn test_state_t_standardized_error_handling() {
+        let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+            if s == 0 {
+                Err("Division by zero".to_string())
+            } else {
+                Ok((s, 100 / s))
+            }
+        });
+
+        assert_eq!(safe_div.try_run_state(4).unwrap(), (4, 25));
+        assert_eq!(
+            safe_div.try_run_state(0).unwrap_err().core_error(),
+            "Division by zero"
+        );
+        assert_eq!(
+            safe_div
+                .try_run_state_with_context(4, "processing user input")
+                .unwrap(),
+            (4, 25)
+        );
+        let error = safe_div
+            .try_run_state_with_context(0, "processing user input")
+            .unwrap_err();
+        assert_eq!(error.core_error(), "Division by zero");
+        assert_eq!(error.context(), vec!["processing user input".to_string()]);
+
+        assert_eq!(safe_div.try_eval_state(4), Ok(25));
+        assert_eq!(
+            safe_div.try_eval_state(0).unwrap_err().core_error(),
+            &"Division by zero"
+        );
+        assert_eq!(
+            safe_div.try_eval_state_with_context(4, "evaluating result"),
+            Ok(25)
+        );
+        let error = safe_div
+            .try_eval_state_with_context(0, "evaluating result")
+            .unwrap_err();
+        assert_eq!(error.core_error(), "Division by zero");
+        assert_eq!(error.context(), vec!["evaluating result".to_string()]);
+
+        let modify_and_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
+            if s == 0 {
+                Err("Division by zero".to_string())
+            } else {
+                Ok((s + 1, 100 / s))
+            }
+        });
+        assert_eq!(modify_and_div.try_exec_state(4), Ok(5));
+        assert_eq!(
+            modify_and_div.try_exec_state(0).unwrap_err().core_error(),
+            &"Division by zero"
+        );
+
+        let mapped = safe_div.map_error(|e: String| e.len() as i32);
+        assert_eq!(mapped.run_state(0), Err(16));
+        assert_eq!(mapped.run_state(5), Ok((5, 20)));
+    }
+
+    #[test]
+    fn test_state_t_with_complex_error_handling() {
+        #[derive(Debug, Clone, PartialEq)]
+        struct Counter {
+            value: i32,
+            operations: i32,
+        }
+
+        let increment_if_valid: StateT<Counter, Result<(Counter, i32), String>, i32> =
+            StateT::new(|mut s: Counter| {
+                if s.value < 0 {
+                    Err("Cannot increment a negative counter".to_string())
+                } else {
+                    s.value += 1;
+                    s.operations += 1;
+                    Ok((s.clone(), s.value))
+                }
+            });
+
+        let double_if_even: StateT<Counter, Result<(Counter, i32), String>, i32> =
+            StateT::new(|mut s: Counter| {
+                if s.value % 2 != 0 {
+                    Err("Cannot double an odd value".to_string())
+                } else {
+                    let old_value = s.value;
+                    s.value *= 2;
+                    s.operations += 1;
+                    Ok((s.clone(), old_value))
+                }
+            });
+
+        let counter = Counter {
+            value: 5,
+            operations: 0,
+        };
+        let (new_counter, value) = increment_if_valid.try_run_state(counter).unwrap();
+        assert_eq!(value, 6);
+        assert_eq!(new_counter.operations, 1);
+
+        let (final_counter, value) = double_if_even.try_run_state(new_counter).unwrap();
+        assert_eq!(value, 6);
+        assert_eq!(final_counter.value, 12);
+        assert_eq!(final_counter.operations, 2);
+
+        let odd_counter = Counter {
+            value: 7,
+            operations: 0,
+        };
+        assert_eq!(
+            double_if_even
+                .try_run_state(odd_counter)
+                .unwrap_err()
+                .core_error(),
+            &"Cannot double an odd value"
+        );
+    }
+}

@@ -1507,3 +1507,57 @@ impl<A: Send + Sync + Clone + Arbitrary> Arbitrary for IO<A> {
         IO::pure(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::IO;
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn test_io_shared_state() {
+        let counter = Arc::new(Mutex::new(0));
+        let increment = {
+            let counter = Arc::clone(&counter);
+            IO::new(move || {
+                let mut count = counter.lock().unwrap();
+                *count += 1;
+                *count
+            })
+        };
+
+        assert_eq!(increment.run(), 1);
+        assert_eq!(increment.run(), 2);
+        assert_eq!(*counter.lock().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_io_resilience_and_recovery() {
+        let risky: IO<i32> = IO::new(|| panic!("boom"));
+        let result = risky.try_get_with_context("critical task");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().context().contains(&"critical task".to_string()));
+
+        let recovered = IO::<i32>::new(|| panic!("fail")).recover(|_| IO::pure(0));
+        let recovered_with = IO::<i32>::new(|| panic!("fail")).recover_with(42);
+        assert_eq!(recovered.run(), 0);
+        assert_eq!(recovered_with.run(), 42);
+
+        let pipeline_res = IO::pure(100).into_error_pipeline().finish();
+        assert_eq!(pipeline_res.unwrap(), 100);
+    }
+
+    #[test]
+    fn test_io_utilities_and_batching() {
+        let ios = vec![IO::pure(1), IO::pure(2)];
+        assert_eq!(IO::sequence(ios).run(), vec![1, 2]);
+        assert_eq!(IO::combine(&IO::pure(10), &IO::pure(20)).run(), (10, 20));
+
+        assert_eq!(IO::when(|| true, || 1, || 0).run(), 1);
+        assert_eq!(IO::when(|| false, || 1, || 0).run(), 0);
+
+        let start = Instant::now();
+        assert_eq!(IO::delay_sync(Duration::from_millis(10), 123).run(), 123);
+        assert!(start.elapsed() >= Duration::from_millis(10));
+    }
+}
