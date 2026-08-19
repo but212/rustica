@@ -77,11 +77,7 @@ impl<E, A> Validated<E, A> {
     /// assert!(validated.is_invalid());
     /// assert_eq!(validated.errors(), vec!["error".to_string()]);
     /// ```
-    pub fn from_result_owned(result: Result<A, E>) -> Validated<E, A>
-    where
-        A: Clone,
-        E: Clone,
-    {
+    pub fn from_result_owned(result: Result<A, E>) -> Validated<E, A> {
         use crate::error::result_to_validated;
         result_to_validated(result)
     }

@@ -25,15 +25,7 @@ where
     Func: Fn(B) -> Result<B, E>,
     A: Into<B>,
 {
-    let mut iter = operations.into_iter();
-
-    let initial_result = match iter.next() {
-        Some(first_op) => first_op(initial.into()),
-        None => Ok(initial.into()),
-    };
-
-    iter.fold(initial_result, |acc, op| match acc {
-        Ok(value) => op(value),
-        Err(e) => Err(e),
-    })
+    operations
+        .into_iter()
+        .try_fold(initial.into(), |value, op| op(value))
 }

@@ -105,7 +105,7 @@ where
             let mut all_results = Vec::new();
             for (result, remaining) in results.into_iter() {
                 if let Some(next_choices) = f(result).parse(remaining) {
-                    all_results.extend(next_choices.into_iter());
+                    all_results.extend(next_choices);
                 }
             }
             Choice::of_many(all_results)

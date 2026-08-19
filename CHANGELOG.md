@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Maintenance
+
+- Relaxed owned error-conversion helpers to accept non-`Clone` values.
+- Simplified `Result` sequencing and pipelines with standard iterator combinators.
+- Kept `ErrorPipeline` behavior unchanged in 0.13.0; migrate to native
+  `Result` combinators before its planned 0.14.0 removal.
+
 ### Breaking Changes
 
 - **`Choice<T>` Impossible-State Elimination**

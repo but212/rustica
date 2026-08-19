@@ -105,6 +105,20 @@ As part of the Lean Architecture initiative, redundant types and speculative wra
 
 See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) and [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for full migration guides.
 
+### 0.13.0 Lean Maintenance
+
+The 0.13.0 release also removes unnecessary ownership constraints from owned
+error-conversion helpers. `validated_to_result`, `result_to_validated`,
+`either_to_validated`, `validated_to_either`, `collect_errors`,
+`split_validated_errors`, and `Validated::from_result_owned` now accept
+non-`Clone` values. `sequence`, `traverse`, `sequence_with_error`, and
+`pipeline_result` retain their public APIs and fail-fast behavior while using
+standard iterator combinators internally.
+
+`ErrorPipeline` remains deprecated but intentionally unchanged in 0.13.0. It
+is scheduled for removal in 0.14.0; new code should use native `Result`
+combinators and existing users should migrate before upgrading.
+
 ---
 
 ## Example Usage

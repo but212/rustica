@@ -37,3 +37,83 @@ fn test_categorical_mapping() {
         Err("ERR".to_string())
     );
 }
+
+#[test]
+fn sequence_preserves_order_and_returns_first_error() {
+    assert_eq!(sequence::<i32, &str>(vec![]), Ok(Vec::<i32>::new()));
+    assert_eq!(
+        sequence::<i32, &str>(vec![Ok(1), Ok(2), Ok(3)]),
+        Ok(vec![1, 2, 3])
+    );
+    assert_eq!(
+        sequence(vec![Ok(1), Err("first"), Err("second")]),
+        Err("first")
+    );
+}
+
+#[test]
+fn traverse_preserves_order_and_stops_after_first_error() {
+    let mut seen = Vec::new();
+    let result = traverse([1, 2, 3], |value| {
+        seen.push(value);
+        if value == 2 {
+            Err("stop")
+        } else {
+            Ok(value * 10)
+        }
+    });
+
+    assert_eq!(result, Err("stop"));
+    assert_eq!(seen, vec![1, 2]);
+    assert_eq!(
+        traverse([1, 2, 3], |value| Ok::<_, &str>(value * 10)),
+        Ok(vec![10, 20, 30])
+    );
+}
+
+#[test]
+fn pipeline_result_handles_empty_input_and_short_circuits() {
+    assert_eq!(
+        pipeline_result::<_, i32, &'static str, fn(i32) -> Result<i32, &'static str>>(
+            7,
+            Vec::new(),
+        ),
+        Ok(7)
+    );
+
+    fn add_one(value: i32) -> Result<i32, &'static str> {
+        Ok(value + 1)
+    }
+    fn stop(_: i32) -> Result<i32, &'static str> {
+        Err("stop")
+    }
+    fn should_not_run(_: i32) -> Result<i32, &'static str> {
+        panic!("pipeline continued after an error")
+    }
+
+    assert_eq!(pipeline_result(1, vec![add_one, add_one]), Ok(3));
+    assert_eq!(
+        pipeline_result(1, vec![add_one, stop, should_not_run]),
+        Err("stop")
+    );
+}
+
+#[test]
+fn sequence_with_error_preserves_order_and_returns_first_error() {
+    let values: Vec<Either<&str, i32>> = vec![Either::Right(1), Either::Right(2)];
+    assert_eq!(sequence_with_error(values), Ok(vec![1, 2]));
+
+    let values = vec![
+        Either::Right(1),
+        Either::Left("first"),
+        Either::Left("second"),
+    ];
+    let result: Result<Vec<i32>, &str> = sequence_with_error(values);
+    assert_eq!(result, Err("first"));
+
+    let values: Vec<Either<&str, i32>> = Vec::new();
+    assert_eq!(sequence_with_error(values), Ok(Vec::<i32>::new()));
+}
+use rustica::datatypes::either::Either;
+use rustica::error::{sequence, sequence_with_error, traverse};
+use rustica::utils::hkt_utils::pipeline_result;

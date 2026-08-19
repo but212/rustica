@@ -21,6 +21,22 @@ This release removes APIs that were compatibility shims or no-op configuration:
   `filter_map_collect`, `sequence_options`, and `sequence_results`; use the
   corresponding `Option`/`Result`/`Iterator` standard-library methods.
 
+## Lean maintenance (non-breaking)
+
+The following 0.13.0 changes preserve public names, return types, ordering, and
+fail-fast behavior:
+
+- Owned error conversions no longer require `Clone` for values that are moved:
+  `validated_to_result`, `result_to_validated`, `either_to_validated`,
+  `validated_to_either`, `collect_errors`, `split_validated_errors`, and
+  `Validated::from_result_owned`.
+- `sequence`, `traverse`, and `sequence_with_error` now use the standard
+  `Iterator`/`FromIterator` path internally. `pipeline_result` uses
+  `try_fold` while retaining its existing `Vec<Func>` signature.
+- `ErrorPipeline` is kept deprecated and behavior-frozen in 0.13.0. No
+  migration or redesign is required until its planned removal in 0.14.0;
+  use native `Result` combinators for new code.
+
 `Memoizer` eviction helpers now return the named `InsertOutcome<K, V>` struct
 instead of an undocumented tuple alias; read its `replaced` and `evicted`
 fields directly.

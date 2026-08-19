@@ -22,7 +22,7 @@ pub trait WithError<E>: HKT {
 
 #[inline]
 pub fn sequence<A, E>(collection: Vec<Result<A, E>>) -> Result<Vec<A>, E> {
-    sequence_result(collection)
+    collection.into_iter().collect()
 }
 
 #[inline]
@@ -30,7 +30,7 @@ pub fn traverse<A, B, E, F>(collection: impl IntoIterator<Item = A>, f: F) -> Re
 where
     F: FnMut(A) -> Result<B, E>,
 {
-    traverse_result(collection, f)
+    collection.into_iter().map(f).collect()
 }
 
 pub fn traverse_validated<A, B, E, F>(
@@ -59,52 +59,12 @@ where
 pub fn sequence_with_error<C, T, E>(collection: Vec<C>) -> Result<Vec<T>, E>
 where
     C: WithError<E>,
-    C::Success: Clone + Into<T>,
-    E: Clone,
+    C::Success: Into<T>,
 {
-    let mut values = Vec::with_capacity(collection.len());
-
-    for item in collection {
-        match item.to_result() {
-            Ok(value) => values.push(value.into()),
-            Err(error) => return Err(error),
-        }
-    }
-
-    Ok(values)
-}
-
-#[inline]
-fn sequence_result<A, E>(collection: Vec<Result<A, E>>) -> Result<Vec<A>, E> {
-    let mut values = Vec::with_capacity(collection.len());
-
-    for item in collection {
-        match item {
-            Ok(value) => values.push(value),
-            Err(error) => return Err(error),
-        }
-    }
-
-    Ok(values)
-}
-
-#[inline]
-fn traverse_result<A, B, E, F>(
-    collection: impl IntoIterator<Item = A>, mut f: F,
-) -> Result<Vec<B>, E>
-where
-    F: FnMut(A) -> Result<B, E>,
-{
-    let mut values = Vec::new();
-
-    for item in collection {
-        match f(item) {
-            Ok(value) => values.push(value),
-            Err(error) => return Err(error),
-        }
-    }
-
-    Ok(values)
+    collection
+        .into_iter()
+        .map(|item| item.to_result().map(Into::into))
+        .collect()
 }
 
 impl<T, E: Clone> WithError<E> for Result<T, E> {

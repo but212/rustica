@@ -261,7 +261,7 @@ use quickcheck::{Arbitrary, Gen};
 /// See the module-level documentation for examples and more information.
 #[deprecated(
     since = "0.13.0",
-    note = "Use Result<R, L> or the `either` crate instead. Either will be removed in 0.14.0."
+    note = "Use Result<R, L> instead. Either will be removed in 0.14.0."
 )]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
