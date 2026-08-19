@@ -1,18 +1,27 @@
 use rustica::datatypes::either::Either;
 use rustica::utils::categorical_utils::*;
-use rustica::utils::hkt_utils::*;
 use rustica::utils::transform_utils::*;
 
 #[test]
 fn test_functional_transform_utilities() {
-    // 1. filter_map and sequence (HKT & Categorical)
+    // 1. Standard iterator filtering and sequencing
     let numbers = vec![1, 2, 3, 4];
-    let filtered = filter_map(numbers, |&n| n % 2 == 0, |n| n * n);
+    let filtered: Vec<_> = numbers
+        .into_iter()
+        .filter(|n| n % 2 == 0)
+        .map(|n| n * n)
+        .collect();
     assert_eq!(filtered, vec![4, 16]);
 
     let options = vec![Some(1), Some(2)];
-    assert_eq!(sequence_options(options), Some(vec![1, 2]));
-    assert_eq!(sequence_options(vec![Some(1), None]), None);
+    assert_eq!(
+        options.into_iter().collect::<Option<Vec<_>>>(),
+        Some(vec![1, 2])
+    );
+    assert_eq!(
+        vec![Some(1), None].into_iter().collect::<Option<Vec<_>>>(),
+        None
+    );
 
     // 2. Composed utilities (compose, pipe, flip)
     let add_one = |x: i32| x + 1;
@@ -40,7 +49,7 @@ fn test_pipeline_ergonomics() {
 #[test]
 fn test_categorical_mapping() {
     // Test standardized mapping for std types
-    assert_eq!(map_option(Some(10), |x| x / 2), Some(5));
+    assert_eq!(Some(10).map(|x| x / 2), Some(5));
     assert_eq!(bimap_result(Ok(10), |x| x + 1, |e: &str| e.len()), Ok(11));
     assert_eq!(
         bimap_result(Err("err"), |x: i32| x, |e| e.to_uppercase()),

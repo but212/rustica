@@ -1,5 +1,59 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Breaking Changes
+
+- **`Validated<E, A>` Non-Empty Error Invariant**
+  - `Validated::Invalid` now stores `NonEmptyErrors<E>` instead of the public
+    `ErrorVec<E>` alias, so an invalid value cannot contain zero errors.
+  - `Validated::invalid_many` rejects empty input; use
+    `Validated::try_invalid_many` when empty input is expected.
+  - Empty invalid error arrays are rejected during serde deserialization while
+    the existing JSON array representation remains unchanged.
+  - Removed `Validated::invalid_vec` and `Validated::error_buffer_mut`.
+
+- **Legacy and Redundant APIs Removed**
+  - Removed legacy `Choice` alternative mutation/iteration helpers and
+    `PersistentVector` cache-policy constructors.
+  - Removed `ResultExt`, `try_pipeline`, `compose_when`, and the
+    stdlib-equivalent categorical collection helpers. Use the documented
+    conversion functions and standard `Option`/`Result`/`Iterator` APIs.
+  - Removed `SemigroupExtAdapter` and `combine_all_owned`.
+
+- **Semigroup Repetition Contract**
+  - `SemigroupExt::combine_n` and `combine_n_owned` now require
+    `NonZeroUsize`, eliminating the zero-count state.
+
+### Changed
+
+- **Validated Error Accumulation Refactor**
+  - Applicative, Bifunctor, Semigroup, sequence, collection, and traversal
+    paths now share one internal `ErrorAccumulator` boundary.
+  - Error order and accumulation semantics are preserved; redundant direct
+    `SmallVec` construction was removed.
+  - `traverse_validated` no longer requires `E: Clone`.
+
+- **Memoizer Result Shape**
+  - Eviction helpers now return the named `InsertOutcome<K, V>` structure with
+    `replaced` and atomic `evicted: Option<(K, V)>` fields.
+
+- **Iterator and Runtime Simplification**
+  - Single-value `Either` and `Validated` iterators use `Option::IntoIter`.
+  - Tokio runtime initialization uses `std::sync::LazyLock` instead of
+    `lazy_static`.
+  - `rayon` and `lazy_static` are no longer normal runtime dependencies;
+    `quickcheck` is optional and `serde_json` is dev-only.
+
+### Fixed
+
+- Fixed owned semigroup repetition that could duplicate the accumulated value
+  during repeated combination.
+- Fixed owned `Validated` error conversion so a singleton error is handled
+  without an invalid removal operation.
+
+See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) for migration details.
+
 ## [0.12.0]
 
 ### Breaking Changes - 0.12.0

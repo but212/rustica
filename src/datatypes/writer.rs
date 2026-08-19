@@ -161,6 +161,7 @@ use crate::traits::monad::Monad;
 use crate::traits::monoid::Monoid;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
 /// The Writer monad represents computations that produce a value along with an accumulated log.
@@ -1204,6 +1205,7 @@ impl<'a, W, A> IntoIterator for &'a mut Writer<W, A> {
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<E, A> Arbitrary for Writer<E, A>
 where
     E: Monoid + Arbitrary,
@@ -1258,7 +1260,10 @@ mod tests {
     fn test_writer_accumulation_modes() {
         let w_fn = Writer::new(Log(vec!["f".into()]), |x: &i32| x * 2);
         let w_val = Writer::new(Log(vec!["v".into()]), 21);
-        assert_eq!(w_fn.apply(&w_val).run(), (Log(vec!["f".into(), "v".into()]), 42));
+        assert_eq!(
+            w_fn.apply(&w_val).run(),
+            (Log(vec!["f".into(), "v".into()]), 42)
+        );
 
         let monad_res = Writer::new(Log(vec!["step1".into()]), 10)
             .bind(|x| Writer::new(Log(vec![format!("step2:{x}")]), x + 5));

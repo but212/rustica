@@ -241,6 +241,7 @@ use crate::traits::hkt::HKT;
 use crate::transformers::StateT;
 // Migration note: AppError-based helpers were replaced by
 // `crate::error::ComposableError` in rustica 0.10.2 for unified error handling.
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
 /// Type alias for the inner state transformer used in State monad
@@ -1265,6 +1266,7 @@ where
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<S, A> Arbitrary for State<S, A>
 where
     S: Arbitrary + Send + Sync + 'static,
@@ -1327,7 +1329,8 @@ mod tests {
         let stack_logic = push(1).bind(move |_| push(2)).bind(move |_| pop.clone());
         assert_eq!(stack_logic.run_state(vec![]), (Some(2), vec![1]));
 
-        let next_fib = get::<(u32, u32)>().bind(|(a, b)| put((b, a + b)).bind(move |_| State::pure(a)));
+        let next_fib =
+            get::<(u32, u32)>().bind(|(a, b)| put((b, a + b)).bind(move |_| State::pure(a)));
         let mut state = (0, 1);
         let mut results = vec![];
         for _ in 0..5 {

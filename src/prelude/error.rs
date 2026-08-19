@@ -21,7 +21,7 @@
 
 pub use crate::error::{
     BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorCategory,
-    ErrorContext, ErrorOps, ErrorPipeline, IntoErrorContext, LazyContext, ResultExt, WithError,
+    ErrorContext, ErrorOps, ErrorPipeline, IntoErrorContext, LazyContext, WithError,
     accumulate_context, collect_errors, composable_to_core, context_accumulator, context_fn,
     core_to_composable, either_to_result, either_to_validated, error_pipeline, extract_context,
     flatten_composable_result, format_error_chain, result_to_either, result_to_validated, sequence,

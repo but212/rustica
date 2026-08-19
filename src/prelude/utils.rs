@@ -14,12 +14,12 @@
 //!
 //! // --- HKT Utilities ---
 //! let numbers = vec![1, 2, 3, 4, 5, 6];
-//! let evens_squared = filter_map(numbers, |&n| n % 2 == 0, |n| n * n);
+//! let evens_squared: Vec<_> = numbers.into_iter().filter(|n| n % 2 == 0).map(|n| n * n).collect();
 //! assert_eq!(evens_squared, vec![4, 16, 36]);
 //!
 //! let a = vec![1, 2, 3];
 //! let b = vec![4, 5, 6];
-//! let summed = zip_with(a, b, |x, y| x + y);
+//! let summed: Vec<_> = a.into_iter().zip(b).map(|(x, y)| x + y).collect();
 //! assert_eq!(summed, vec![5, 7, 9]);
 //!
 //! let double_if_even = |n: i32| if n % 2 == 0 { Some(n * 2) } else { None };

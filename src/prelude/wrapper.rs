@@ -32,7 +32,7 @@
 pub use crate::datatypes::wrapper::first::First;
 pub use crate::datatypes::wrapper::last::Last;
 pub use crate::datatypes::wrapper::max::Max;
-pub use crate::datatypes::wrapper::memoizer::Memoizer;
+pub use crate::datatypes::wrapper::memoizer::{InsertOutcome, Memoizer};
 pub use crate::datatypes::wrapper::min::Min;
 pub use crate::datatypes::wrapper::product::Product;
 pub use crate::datatypes::wrapper::sum::Sum;

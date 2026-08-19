@@ -444,6 +444,7 @@
 //! ```
 
 use crate::error::{BoxedComposableResult, ComposableError, ComposableResult, ErrorPipeline};
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::Debug;
 #[cfg(feature = "async")]
@@ -590,15 +591,17 @@ pub enum IO<A> {
 }
 
 #[cfg(feature = "async")]
+use std::sync::LazyLock;
+#[cfg(feature = "async")]
 use tokio::runtime::{Builder, Runtime};
 
 #[cfg(feature = "async")]
-lazy_static::lazy_static! {
-    static ref TOKIO_RUNTIME: Runtime = Builder::new_multi_thread()
+static TOKIO_RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
+    Builder::new_multi_thread()
         .enable_all()
         .build()
-        .expect("Failed to create Tokio runtime");
-}
+        .expect("Failed to create Tokio runtime")
+});
 
 impl<A: Send + Sync + 'static + Clone> IO<A> {
     /// Creates a new IO operation from a function.
@@ -1501,6 +1504,7 @@ impl<A: Send + Sync + Clone + 'static> crate::traits::evaluate::Evaluate for IO<
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<A: Send + Sync + Clone + Arbitrary> Arbitrary for IO<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);
@@ -1536,7 +1540,12 @@ mod tests {
         let risky: IO<i32> = IO::new(|| panic!("boom"));
         let result = risky.try_get_with_context("critical task");
         assert!(result.is_err());
-        assert!(result.unwrap_err().context().contains(&"critical task".to_string()));
+        assert!(
+            result
+                .unwrap_err()
+                .context()
+                .contains(&"critical task".to_string())
+        );
 
         let recovered = IO::<i32>::new(|| panic!("fail")).recover(|_| IO::pure(0));
         let recovered_with = IO::<i32>::new(|| panic!("fail")).recover_with(42);

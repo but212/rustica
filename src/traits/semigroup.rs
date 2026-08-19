@@ -28,6 +28,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
+use std::num::NonZeroUsize;
 
 /// A trait for semigroups, which are algebraic structures with an associative binary operation.
 /// A semigroup consists of a set together with a binary operation that combines two elements
@@ -134,10 +135,6 @@ pub trait Semigroup: Sized {
     fn combine_owned(self, other: Self) -> Self;
 }
 
-/// Adapter struct to provide extension methods for semigroups.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SemigroupExtAdapter<T>(T);
-
 /// Extension methods for semigroups, providing additional functionality.
 pub trait SemigroupExt: Semigroup {
     /// Combines `self` with all the values in an iterator.
@@ -173,40 +170,14 @@ pub trait SemigroupExt: Semigroup {
         others.into_iter().fold(self, |acc, x| acc.combine_owned(x))
     }
 
-    /// Combines all elements in an iterator into one value, starting from the first.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::semigroup::{Semigroup, SemigroupExt};
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    ///
-    /// let vals = vec![Sum(1), Sum(2), Sum(3)];
-    /// let total = SemigroupExt::combine_all_owned(vals);
-    /// assert_eq!(total, Sum(6));
-    /// ```
-    #[inline]
-    fn combine_all_owned<I>(vals: I) -> Self
-    where
-        I: IntoIterator<Item = Self>,
-        Self: Sized,
-    {
-        let mut iter = vals.into_iter();
-        let first = iter.next().expect("at least one element required");
-        iter.fold(first, |acc, x| acc.combine_owned(x))
-    }
-
     /// Combines the semigroup value with itself a specified number of times.
     #[inline]
-    fn combine_n(&self, n: &usize) -> Self
+    fn combine_n(&self, n: NonZeroUsize) -> Self
     where
         Self: Clone,
     {
-        if *n == 0 {
-            return self.clone();
-        }
         let mut acc = self.clone();
-        for _ in 1..*n {
+        for _ in 1..n.get() {
             acc = acc.combine(self);
         }
         acc
@@ -214,16 +185,14 @@ pub trait SemigroupExt: Semigroup {
 
     /// Combines the semigroup value with itself a specified number of times, by value.
     #[inline]
-    fn combine_n_owned(self, n: usize) -> Self
+    fn combine_n_owned(self, n: NonZeroUsize) -> Self
     where
         Self: Clone,
     {
-        if n == 0 {
-            return self;
-        }
+        let seed = self.clone();
         let mut acc = self;
-        for _ in 1..n {
-            acc = acc.clone().combine_owned(acc);
+        for _ in 1..n.get() {
+            acc = acc.combine_owned(seed.clone());
         }
         acc
     }
@@ -231,33 +200,6 @@ pub trait SemigroupExt: Semigroup {
 
 // Default implementation for all types implementing Semigroup
 impl<T: Semigroup> SemigroupExt for T {}
-
-// Implement extension methods
-impl<T: Semigroup> SemigroupExtAdapter<T> {
-    /// Combines `self` with all the values in an iterator.
-    pub fn combine_all<I>(self, others: I) -> T
-    where
-        I: IntoIterator<Item = T>,
-    {
-        self.0.combine_all(others)
-    }
-
-    /// Combines the semigroup value with itself a specified number of times.
-    pub fn combine_n_owned(self, n: usize) -> T
-    where
-        T: Clone,
-    {
-        self.0.combine_n_owned(n)
-    }
-
-    /// Combines the semigroup value with itself a specified number of times by reference.
-    pub fn combine_n(&self, n: &usize) -> T
-    where
-        T: Clone,
-    {
-        self.0.combine_n(n)
-    }
-}
 
 // Standard library implementations
 
@@ -539,4 +481,24 @@ where
     values
         .into_iter()
         .fold(initial, |acc, x| acc.combine_owned(x))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SemigroupExt, combine_all_values};
+    use crate::datatypes::wrapper::sum::Sum;
+    use std::num::NonZeroUsize;
+
+    #[test]
+    fn repeat_owned_matches_borrowed_without_doubling() {
+        let n = NonZeroUsize::new(3).unwrap();
+        assert_eq!(Sum(2).combine_n(n), Sum(6));
+        assert_eq!(Sum(2).combine_n_owned(n), Sum(6));
+    }
+
+    #[test]
+    fn empty_sequence_is_option() {
+        let values: Vec<Sum<i32>> = Vec::new();
+        assert_eq!(combine_all_values(values), None);
+    }
 }

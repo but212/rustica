@@ -5,11 +5,146 @@
 
 use smallvec::{SmallVec, smallvec};
 
+/// A non-empty collection of validation errors.
+///
+/// The private buffer prevents callers from constructing or clearing an empty
+/// error collection while retaining the compact `SmallVec` representation.
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+pub struct NonEmptyErrors<E>(ErrorVec<E>);
+
+impl<E> NonEmptyErrors<E> {
+    #[inline]
+    pub fn new(first: E) -> Self {
+        Self(smallvec![first])
+    }
+
+    #[inline]
+    pub(crate) fn from_vec(errors: ErrorVec<E>) -> Self {
+        assert!(!errors.is_empty(), "Validated errors cannot be empty");
+        Self(errors)
+    }
+
+    #[inline]
+    pub(crate) fn try_from_vec(errors: ErrorVec<E>) -> Option<Self> {
+        (!errors.is_empty()).then_some(Self(errors))
+    }
+
+    #[inline]
+    pub(crate) fn from_first_and_iter<I>(first: E, rest: I) -> Self
+    where
+        I: IntoIterator<Item = E>,
+    {
+        let mut errors = ErrorVec::new();
+        errors.push(first);
+        errors.extend(rest);
+        Self(errors)
+    }
+
+    #[inline]
+    pub(crate) fn into_vec(self) -> ErrorVec<E> {
+        self.0
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[E] {
+        &self.0
+    }
+
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<'_, E> {
+        self.0.iter()
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, E> {
+        self.0.iter_mut()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns whether the error collection is empty.
+    ///
+    /// This is always `false`: constructing `NonEmptyErrors` requires at
+    /// least one error, and its mutating methods preserve that invariant.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    #[inline]
+    pub fn push(&mut self, error: E) {
+        self.0.push(error);
+    }
+
+    #[inline]
+    pub fn extend<I: IntoIterator<Item = E>>(&mut self, errors: I) {
+        self.0.extend(errors);
+    }
+
+    #[inline]
+    pub fn remove(&mut self, index: usize) -> E {
+        assert!(self.len() > 1, "Validated errors cannot be empty");
+        self.0.remove(index)
+    }
+}
+
+impl<E> std::ops::Deref for NonEmptyErrors<E> {
+    type Target = [E];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+impl<E: PartialEq> PartialEq<ErrorVec<E>> for NonEmptyErrors<E> {
+    fn eq(&self, other: &ErrorVec<E>) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl<E> IntoIterator for NonEmptyErrors<E> {
+    type Item = E;
+    type IntoIter = std::vec::IntoIter<E>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_vec().into_iter()
+    }
+}
+
+impl<E> std::iter::FromIterator<E> for NonEmptyErrors<E> {
+    fn from_iter<I: IntoIterator<Item = E>>(iter: I) -> Self {
+        let mut errors = ErrorVec::new();
+        errors.extend(iter);
+        Self::from_vec(errors)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<E: serde::Serialize> serde::Serialize for NonEmptyErrors<E> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.0.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, E: serde::Deserialize<'de>> serde::Deserialize<'de> for NonEmptyErrors<E> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let errors = ErrorVec::<E>::deserialize(deserializer)?;
+        if errors.is_empty() {
+            return Err(serde::de::Error::custom("Validated errors cannot be empty"));
+        }
+        Ok(Self(errors))
+    }
+}
+
 /// Type alias for the internal error collection.
 ///
 /// Uses `SmallVec` with inline capacity of 4 to optimize for the common case
 /// of few errors while still supporting larger error collections efficiently.
-pub type ErrorVec<E> = SmallVec<[E; 4]>;
+pub(crate) type ErrorVec<E> = SmallVec<[E; 4]>;
 
 /// Internal helper for efficiently accumulating validation errors.
 ///
@@ -29,7 +164,7 @@ pub type ErrorVec<E> = SmallVec<[E; 4]>;
 /// * `E` - The error type being accumulated
 pub(crate) struct ErrorAccumulator<E> {
     /// Internal buffer storing accumulated errors.
-    pub(crate) buffer: ErrorVec<E>,
+    buffer: ErrorVec<E>,
 }
 
 impl<E> ErrorAccumulator<E> {
@@ -58,12 +193,14 @@ impl<E> ErrorAccumulator<E> {
         }
     }
 
-    /// Consumes the accumulator and returns the collected errors.
-    ///
-    /// This transfers ownership of the error collection without cloning.
     #[inline]
-    pub(crate) fn into_inner(self) -> ErrorVec<E> {
-        self.buffer
+    pub(crate) fn into_non_empty(self) -> Option<NonEmptyErrors<E>> {
+        NonEmptyErrors::try_from_vec(self.buffer)
+    }
+
+    #[inline]
+    pub(crate) fn push(&mut self, error: E) {
+        self.buffer.push(error);
     }
 
     /// Extends the accumulator with owned errors, avoiding clones.
@@ -75,8 +212,8 @@ impl<E> ErrorAccumulator<E> {
     ///
     /// * `errors` - The error collection to drain and append
     #[inline]
-    pub(crate) fn extend_owned(&mut self, mut errors: ErrorVec<E>) {
-        self.buffer.extend(errors.drain(..));
+    pub(crate) fn extend_owned<I: IntoIterator<Item = E>>(&mut self, errors: I) {
+        self.buffer.extend(errors);
     }
 }
 
@@ -91,7 +228,7 @@ impl<E: Clone> ErrorAccumulator<E> {
     ///
     /// * `errors` - The error collection to clone from
     #[inline]
-    pub(crate) fn extend_cloned(&mut self, errors: &ErrorVec<E>) {
+    pub(crate) fn extend_cloned(&mut self, errors: &[E]) {
         if errors.is_empty() {
             return;
         }
@@ -112,7 +249,7 @@ pub enum Validated<E, A> {
     Valid(A),
     /// Represents an invalid state with multiple errors of type E.
     /// Uses SmallVec for better performance with small error counts.
-    Invalid(ErrorVec<E>),
+    Invalid(NonEmptyErrors<E>),
 }
 
 impl<E, A> Validated<E, A> {
@@ -137,7 +274,7 @@ impl<E, A> Validated<E, A> {
     /// Creates a new invalid instance with a single error.
     #[inline]
     pub fn invalid(e: E) -> Self {
-        Validated::Invalid(smallvec![e])
+        Validated::Invalid(NonEmptyErrors::new(e))
     }
 
     /// Creates a new invalid instance with multiple errors from a collection.
@@ -146,55 +283,32 @@ impl<E, A> Validated<E, A> {
     where
         I: IntoIterator<Item = E>,
     {
-        let iter = errors.into_iter();
-        let (lower, upper) = iter.size_hint();
-        match upper {
-            Some(exact) if exact == lower => {
-                if exact <= 4 {
-                    Validated::Invalid(iter.collect())
-                } else {
-                    let mut vec = SmallVec::with_capacity(exact);
-                    vec.extend(iter);
-                    Validated::Invalid(vec)
-                }
-            },
-            Some(upper_bound) => {
-                if upper_bound <= 4 {
-                    Validated::Invalid(iter.collect())
-                } else {
-                    let mut vec = SmallVec::with_capacity(upper_bound);
-                    vec.extend(iter);
-                    Validated::Invalid(vec)
-                }
-            },
-            None => {
-                if lower <= 4 {
-                    Validated::Invalid(iter.collect())
-                } else {
-                    let mut vec = SmallVec::with_capacity(lower);
-                    vec.extend(iter);
-                    Validated::Invalid(vec)
-                }
-            },
-        }
+        let mut iter = errors.into_iter();
+        let Some(first) = iter.next() else {
+            panic!("Validated::invalid_many requires at least one error")
+        };
+        Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, iter))
     }
 
-    /// Creates a new invalid instance with multiple errors from a collection.
-    /// Panics if empty.
+    /// Attempts to create an invalid value, returning `None` for an empty iterator.
     #[inline]
-    pub fn invalid_vec<I>(errors: I) -> Self
+    pub fn try_invalid_many<I>(errors: I) -> Option<Self>
     where
         I: IntoIterator<Item = E>,
     {
         let mut iter = errors.into_iter();
-        if let Some(first) = iter.next() {
-            let (lower, _upper) = iter.size_hint();
-            let mut vec: ErrorVec<E> = SmallVec::with_capacity(lower.saturating_add(1));
-            vec.push(first);
-            vec.extend(iter);
-            Validated::Invalid(vec)
-        } else {
-            panic!("Validated::invalid_vec requires at least one error")
-        }
+        let first = iter.next()?;
+        Some(Validated::Invalid(NonEmptyErrors::from_first_and_iter(
+            first, iter,
+        )))
+    }
+
+    #[inline]
+    pub(crate) fn invalid_from_accumulator(accumulator: ErrorAccumulator<E>) -> Self {
+        Validated::Invalid(
+            accumulator
+                .into_non_empty()
+                .expect("Validated errors cannot be empty"),
+        )
     }
 }

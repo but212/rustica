@@ -480,20 +480,6 @@ impl<T: Clone> PersistentVector<T> {
         )
     }
 
-    /// Creates a new vector with a specific cache policy (currently a no-op).
-    ///
-    /// This method is provided for API compatibility but currently ignores the policy.
-    pub fn with_cache_policy<P>(_policy: P) -> Self {
-        Self::new()
-    }
-
-    /// Creates a vector from a slice with a specific cache policy (currently a no-op).
-    ///
-    /// This method is provided for API compatibility but currently ignores the policy.
-    pub fn from_slice_with_cache_policy<P>(slice: &[T], _policy: P) -> Self {
-        Self::from_slice(slice)
-    }
-
     /// Creates a new vector with an element added to the end.
     ///
     /// # Examples

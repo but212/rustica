@@ -177,6 +177,7 @@ use crate::traits::{
     applicative::Applicative, comonad::Comonad, foldable::Foldable, functor::Functor, hkt::HKT,
     monad::Monad, monoid::Monoid, pure::Pure, semigroup::Semigroup,
 };
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
 /// The identity monad, which represents a computation that simply wraps a value.
@@ -814,6 +815,7 @@ impl<'a, T> IntoIterator for &'a mut Id<T> {
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<T: Clone + Arbitrary> Arbitrary for Id<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         Id::new(T::arbitrary(g))

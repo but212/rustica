@@ -43,4 +43,4 @@ pub use types::{
 };
 
 // Re-export error utility traits directly from the unified error module.
-pub use core::{ResultExt, WithError, sequence, sequence_with_error, traverse, traverse_validated};
+pub use core::{WithError, sequence, sequence_with_error, traverse, traverse_validated};

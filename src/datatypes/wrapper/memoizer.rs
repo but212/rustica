@@ -422,13 +422,15 @@ pub struct MemoizerError {
     pub message: String,
 }
 
-/// Type alias for the result of insert_with_eviction_info operations.
+/// Describes the effect of inserting an entry into the cache.
 ///
-/// Represents a tuple containing:
-/// - The old value that was replaced (if any)
-/// - The evicted key (if any due to capacity limit)
-/// - The evicted value (if any due to capacity limit)
-pub type InsertEvictionResult<V, K> = (Option<V>, Option<K>, Option<V>);
+/// The eviction is represented as one optional pair so a key can never be
+/// returned without its corresponding value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InsertOutcome<K, V> {
+    pub replaced: Option<V>,
+    pub evicted: Option<(K, V)>,
+}
 
 impl std::fmt::Display for MemoizerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -1024,9 +1026,8 @@ where
     ///
     /// # Returns
     ///
-    /// A tuple `(old_value, evicted_key, evicted_value)` where:
-    /// - `old_value` is the previous value for the key (if any)
-    /// - `evicted_key` and `evicted_value` are the evicted entry (if any)
+    /// An [`InsertOutcome`] containing the replaced value and, when capacity
+    /// forced an eviction, the evicted key/value pair.
     ///
     /// # Panics
     ///
@@ -1042,24 +1043,13 @@ where
     /// memo.insert(2, 20);
     ///
     /// // Insert third key, causing eviction
-    /// let (old, evicted_key, evicted_value) = memo.insert_with_eviction_info(3, 30);
-    /// assert_eq!(old, None);
-    /// assert_eq!(evicted_key, Some(1));
-    /// assert_eq!(evicted_value, Some(10));
+    /// let outcome = memo.insert_with_eviction_info(3, 30);
+    /// assert_eq!(outcome.replaced, None);
+    /// assert_eq!(outcome.evicted, Some((1, 10)));
     /// ```
-    pub fn insert_with_eviction_info(&self, key: K, value: V) -> InsertEvictionResult<V, K> {
+    pub fn insert_with_eviction_info(&self, key: K, value: V) -> InsertOutcome<K, V> {
         let mut cache = self.cache.write().unwrap();
-        let old = cache.peek(&key).cloned();
-        let evicted = cache.insert(key, value);
-
-        let (evicted_key, evicted_value) = if let Some((k, v)) = evicted {
-            self.evictions.fetch_add(1, Ordering::Relaxed);
-            (Some(k), Some(v))
-        } else {
-            (None, None)
-        };
-
-        (old, evicted_key, evicted_value)
+        self.insert_outcome(&mut cache, key, value)
     }
 
     /// Safe version of `insert` that returns a Result.
@@ -1086,19 +1076,18 @@ where
     /// Returns an error if the lock is poisoned.
     pub fn try_insert_with_eviction_info(
         &self, key: K, value: V,
-    ) -> Result<InsertEvictionResult<V, K>, MemoizerError> {
+    ) -> Result<InsertOutcome<K, V>, MemoizerError> {
         let mut cache = self.write_cache()?;
-        let old = cache.peek(&key).cloned();
+        Ok(self.insert_outcome(&mut cache, key, value))
+    }
+
+    fn insert_outcome(&self, cache: &mut LruCache<K, V>, key: K, value: V) -> InsertOutcome<K, V> {
+        let replaced = cache.peek(&key).cloned();
         let evicted = cache.insert(key, value);
-
-        let (evicted_key, evicted_value) = if let Some((k, v)) = evicted {
+        if evicted.is_some() {
             self.evictions.fetch_add(1, Ordering::Relaxed);
-            (Some(k), Some(v))
-        } else {
-            (None, None)
-        };
-
-        Ok((old, evicted_key, evicted_value))
+        }
+        InsertOutcome { replaced, evicted }
     }
 
     /// Returns the cached value for `key`, or computes it using a fallible function.
@@ -1750,6 +1739,15 @@ mod tests {
 
         memo.clear();
         assert!(memo.is_empty());
+    }
+
+    #[test]
+    fn insert_outcome_keeps_eviction_atomic() {
+        let memo = Memoizer::with_capacity(1);
+        memo.insert(1, 10);
+        let outcome = memo.insert_with_eviction_info(2, 20);
+        assert_eq!(outcome.replaced, None);
+        assert_eq!(outcome.evicted, Some((1, 10)));
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use crate::datatypes::error::ValidatedError;
-use crate::datatypes::validated::{ErrorVec, Validated};
+use crate::datatypes::validated::{NonEmptyErrors, Validated};
 
 impl<E, A> Validated<E, A> {
     /// Returns all errors if this is invalid, or an empty collection if valid.
@@ -49,31 +49,6 @@ impl<E, A> Validated<E, A> {
         match self {
             Validated::Valid(_) => &[],
             Validated::Invalid(es) => es.as_slice(),
-        }
-    }
-
-    /// Returns a mutable reference to the internal error buffer when invalid.
-    ///
-    /// This enables in-place modifications without reallocating. Mutating the
-    /// returned buffer is only safe when you can preserve the semantic meaning
-    /// of accumulated errors.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let mut invalid: Validated<String, ()> = Validated::invalid("oops".to_string());
-    /// if let Some(errors) = invalid.error_buffer_mut() {
-    ///     errors.push("more".to_string());
-    /// }
-    /// assert_eq!(invalid.error_slice(), &["oops", "more"]);
-    /// ```
-    #[inline]
-    pub fn error_buffer_mut(&mut self) -> Option<&mut ErrorVec<E>> {
-        match self {
-            Validated::Valid(_) => None,
-            Validated::Invalid(es) => Some(es),
         }
     }
 
@@ -129,7 +104,7 @@ impl<E, A> Validated<E, A> {
     /// }
     /// ```
     #[inline]
-    pub fn error_payload(&self) -> Option<&ErrorVec<E>> {
+    pub fn error_payload(&self) -> Option<&NonEmptyErrors<E>> {
         match self {
             Validated::Valid(_) => None,
             Validated::Invalid(es) => Some(es),
@@ -202,7 +177,7 @@ impl<E, A> Validated<E, A> {
     /// valid.unwrap_invalid_owned();
     /// ```
     #[inline]
-    pub fn unwrap_invalid_owned(self) -> ErrorVec<E>
+    pub fn unwrap_invalid_owned(self) -> NonEmptyErrors<E>
     where
         A: std::fmt::Debug,
     {
@@ -223,13 +198,13 @@ impl<E, A> Validated<E, A> {
     ///
     /// ```rust
     /// use rustica::datatypes::validated::Validated;
-    /// use smallvec::smallvec;
     ///
     /// let valid: Validated<&str, i32> = Validated::valid(42);
     /// assert_eq!(valid.into_value(), Ok(42));
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid_many(vec!["err1", "err2"]);
-    /// assert_eq!(invalid.into_value(), Err(smallvec!["err1", "err2"]));
+    /// let Err(errors) = invalid.into_value() else { unreachable!() };
+    /// assert_eq!(errors.as_slice(), &["err1", "err2"]);
     ///
     /// // Example with move semantics (no cloning required)
     /// use std::rc::Rc;
@@ -249,7 +224,7 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(Rc::strong_count(&data), 2); // No additional clones created
     /// ```
     #[inline]
-    pub fn into_value(self) -> Result<A, ErrorVec<E>> {
+    pub fn into_value(self) -> Result<A, NonEmptyErrors<E>> {
         match self {
             Validated::Valid(a) => Ok(a),
             Validated::Invalid(es) => Err(es),
@@ -266,7 +241,6 @@ impl<E, A> Validated<E, A> {
     /// ```rust
     /// use rustica::datatypes::validated::Validated;
     /// use std::rc::Rc;
-    /// use smallvec::smallvec;
     ///
     /// let valid: Validated<String, i32> = Validated::valid(42);
     /// let result = valid.into_error_payload();
@@ -274,7 +248,7 @@ impl<E, A> Validated<E, A> {
     ///
     /// let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
     /// let result = invalid.into_error_payload();
-    /// assert_eq!(result, Ok(smallvec!["error".to_string()]));
+    /// assert_eq!(result.unwrap().as_slice(), &["error"]);
     ///
     /// // Example with truly non-Clone types
     /// struct TrulyNonClone {
@@ -298,12 +272,12 @@ impl<E, A> Validated<E, A> {
     /// let result = valid_nc.into_error_payload();
     /// assert!(matches!(result, Err(_)));
     ///
-    /// let invalid_nc: Validated<TrulyNonClone, TrulyNonClone> = Validated::Invalid(smallvec![error]);
+    /// let invalid_nc: Validated<TrulyNonClone, TrulyNonClone> = Validated::invalid(error);
     /// let result = invalid_nc.into_error_payload();
     /// assert!(matches!(result, Ok(_)));
     /// ```
     #[inline]
-    pub fn into_error_payload(self) -> Result<ErrorVec<E>, A> {
+    pub fn into_error_payload(self) -> Result<NonEmptyErrors<E>, A> {
         match self {
             Validated::Valid(a) => Err(a),
             Validated::Invalid(es) => Ok(es),
@@ -322,7 +296,7 @@ impl<E, A> Validated<E, A> {
     /// let valid: Validated<&str, i32> = Validated::Valid(42);
     /// assert_eq!(valid.as_option(), Some(&42));
     ///
-    /// let invalid: Validated<&str, i32> = Validated::Invalid(vec!["error"].into());
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
     /// assert_eq!(invalid.as_option(), None);
     /// ```
     #[inline]
@@ -345,7 +319,7 @@ impl<E, A> Validated<E, A> {
     /// let valid: Validated<&str, i32> = Validated::Valid(42);
     /// assert_eq!(valid.into_option(), Some(42));
     ///
-    /// let invalid: Validated<&str, i32> = Validated::Invalid(vec!["error"].into());
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
     /// assert_eq!(invalid.into_option(), None);
     /// ```
     #[inline]
@@ -411,7 +385,7 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(valid.try_unwrap_invalid(), Err(ValidatedError::ExpectedInvalid));
     /// ```
     #[inline]
-    pub fn try_unwrap_invalid(self) -> Result<ErrorVec<E>, ValidatedError> {
+    pub fn try_unwrap_invalid(self) -> Result<NonEmptyErrors<E>, ValidatedError> {
         match self {
             Validated::Invalid(es) => Ok(es),
             Validated::Valid(_) => Err(ValidatedError::ExpectedInvalid),

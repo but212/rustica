@@ -1,30 +1,7 @@
 use crate::datatypes::validated::core::Validated;
 
-/// Iterator over a Validated value (0 or 1 item)
-pub struct Iter<'a, A> {
-    inner: Option<&'a A>,
-}
-
-impl<'a, A> Iterator for Iter<'a, A> {
-    type Item = &'a A;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.take()
-    }
-}
-
-/// Mutable iterator over a Validated value (0 or 1 item)
-pub struct IterMut<'a, A> {
-    inner: Option<&'a mut A>,
-}
-
-impl<'a, A> Iterator for IterMut<'a, A> {
-    type Item = &'a mut A;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.take()
-    }
-}
+pub type Iter<'a, A> = std::option::IntoIter<&'a A>;
+pub type IterMut<'a, A> = std::option::IntoIter<&'a mut A>;
 
 /// Iterator over errors in a Validated
 pub enum ErrorsIter<'a, E> {
@@ -66,23 +43,12 @@ impl<E, A> IntoIterator for Validated<E, A> {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Validated::Valid(a) => IntoIter { inner: Some(a) },
-            _ => IntoIter { inner: None },
+            Validated::Valid(a) => Some(a).into_iter(),
+            _ => None.into_iter(),
         }
     }
 }
-
-pub struct IntoIter<A> {
-    inner: Option<A>,
-}
-
-impl<A> Iterator for IntoIter<A> {
-    type Item = A;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.take()
-    }
-}
+pub type IntoIter<A> = std::option::IntoIter<A>;
 
 impl<'a, E, A> IntoIterator for &'a Validated<E, A> {
     type Item = &'a A;
@@ -106,16 +72,16 @@ impl<E, A> Validated<E, A> {
     /// Returns an iterator over the valid value (0 or 1 item).
     pub fn iter(&self) -> Iter<'_, A> {
         match self {
-            Validated::Valid(a) => Iter { inner: Some(a) },
-            _ => Iter { inner: None },
+            Validated::Valid(a) => Some(a).into_iter(),
+            _ => None.into_iter(),
         }
     }
 
     /// Returns a mutable iterator over the valid value (0 or 1 item).
     pub fn iter_mut(&mut self) -> IterMut<'_, A> {
         match self {
-            Validated::Valid(a) => IterMut { inner: Some(a) },
-            _ => IterMut { inner: None },
+            Validated::Valid(a) => Some(a).into_iter(),
+            _ => None.into_iter(),
         }
     }
 

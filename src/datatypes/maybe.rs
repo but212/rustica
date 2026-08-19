@@ -164,8 +164,8 @@ use crate::traits::hkt::HKT;
 use crate::traits::monad::Monad;
 use crate::traits::monad_plus::MonadPlus;
 use crate::traits::pure::Pure;
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
-use std::marker::PhantomData;
 // use std::ops::{ControlFlow, FromResidual, Try};
 
 /// A type that represents an optional value, optimized with null pointer optimization.
@@ -744,11 +744,6 @@ impl<T> Maybe<T> {
         }
     }
 }
-
-// Use a specialized empty struct to enable null pointer optimization
-// This is a marker type to verify null pointer optimization is enabled
-#[allow(dead_code)]
-struct MaybeNullTestStruct<T>(PhantomData<T>);
 
 // Assert that Maybe<Box<T>> has the same size as Box<T>, confirming null pointer optimization works
 const _: () = assert!(std::mem::size_of::<Maybe<Box<i32>>>() == std::mem::size_of::<Box<i32>>());
@@ -1454,6 +1449,7 @@ impl<'a, T> IntoIterator for &'a mut Maybe<T> {
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<T> Arbitrary for Maybe<T>
 where
     T: Arbitrary + Clone,

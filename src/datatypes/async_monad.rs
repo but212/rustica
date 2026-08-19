@@ -216,6 +216,7 @@
 //! ```
 
 use futures::{Future, FutureExt};
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 use std::{marker::PhantomData, panic, pin::Pin, sync::Arc};
 
@@ -1272,6 +1273,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<A: Arbitrary + 'static + Send + Sync> Arbitrary for AsyncM<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);

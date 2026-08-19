@@ -6,7 +6,7 @@
 //!
 //! ## Categories of Utilities
 //!
-//! - **Collection Operations**: Functions like `filter_map` and `zip_with` that work with collections
+//! - **Context Operations**: Functions such as `lift_option` and `fan_out`
 //! - **Pipeline Functions**: Utilities like `pipeline_option` and `pipeline_result` for chaining operations
 //! - **Function Transformers**: Utilities that transform functions to work with different contexts
 //! - **Composition Utilities**: Functions for combining and composing operations
@@ -14,117 +14,6 @@
 //! These utilities complement the traits in the `traits` module and provide ready-to-use
 //! implementations of common functional programming patterns.
 //!
-
-/// Filters and maps a collection in a single pass.
-///
-/// This function combines filtering and mapping operations for better performance
-/// and cleaner code. It first filters elements using the predicate and then
-/// applies the transformation function to the filtered elements.
-///
-/// # Type Parameters
-///
-/// * `A`: The type of elements in the input collection
-/// * `B`: The type of elements in the output collection
-/// * `C`: The type of the input collection
-/// * `P`: The type of the predicate function
-/// * `F`: The type of the mapping function
-///
-/// # Arguments
-///
-/// * `collection`: The input collection to filter and map
-/// * `predicate`: A function that decides which elements to keep
-/// * `f`: A function that transforms kept elements
-///
-/// # Returns
-///
-/// A new vector containing the transformed elements that passed the predicate
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::utils::hkt_utils::filter_map;
-///
-/// let numbers = vec![1, 2, 3, 4, 5, 6];
-///
-/// // Keep only even numbers and square them
-/// let result = filter_map(
-///     numbers,
-///     |&n| n % 2 == 0,  // Keep only even numbers
-///     |n| n * n        // Square the kept numbers
-/// );
-///
-/// assert_eq!(result, vec![4, 16, 36]);
-/// ```
-#[inline]
-pub fn filter_map<A, B, C, P, F>(collection: C, predicate: P, f: F) -> Vec<B>
-where
-    C: IntoIterator<Item = A>,
-    P: Fn(&A) -> bool,
-    F: Fn(A) -> B,
-{
-    let iter = collection.into_iter();
-    let (lower, _) = iter.size_hint();
-
-    // Pre-allocate with estimated capacity (assume ~50% pass filter)
-    let estimated_capacity = std::cmp::max(lower / 2, 8);
-    let mut result = Vec::with_capacity(estimated_capacity);
-
-    for item in iter {
-        if predicate(&item) {
-            result.push(f(item));
-        }
-    }
-
-    result
-}
-
-/// Combines elements from two collections using a combining function.
-///
-/// This function pairs elements from two collections and applies a combining function
-/// to each pair, producing a new collection of the results. The length of the output
-/// will be the minimum of the lengths of the two input collections.
-///
-/// # Type Parameters
-///
-/// * `A`: The type of elements in the first input collection
-/// * `B`: The type of elements in the second input collection
-/// * `C`: The type of elements in the output collection
-/// * `F`: The type of the combining function
-///
-/// # Arguments
-///
-/// * `xs`: The first input collection
-/// * `ys`: The second input collection
-/// * `f`: A function that combines elements from both collections
-///
-/// # Returns
-///
-/// A new vector containing the combined elements
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::utils::hkt_utils::zip_with;
-///
-/// let numbers = vec![1, 2, 3, 4];
-/// let multipliers = vec![10, 20, 30];
-///
-/// // Multiply corresponding elements
-/// let result = zip_with(
-///     numbers,
-///     multipliers,
-///     |n, m| n * m
-/// );
-///
-/// assert_eq!(result, vec![10, 40, 90]);  // Note: only 3 elements (minimum length)
-/// ```
-#[inline]
-pub fn zip_with<A, B, C, F>(xs: Vec<A>, ys: Vec<B>, f: F) -> Vec<C>
-where
-    F: Fn(A, B) -> C,
-{
-    xs.into_iter().zip(ys).map(|(x, y)| f(x, y)).collect()
-}
 
 // ===== Pipeline Functions =====
 
@@ -265,65 +154,6 @@ where
     })
 }
 
-/// Convenience wrapper around `pipeline_result` with a more intuitive name.
-///
-/// This function is identical to `pipeline_result` but with a name that better
-/// reflects its error handling behavior.
-///
-/// # Type Parameters
-///
-/// * `A`: The type of the initial value
-/// * `B`: The type that the initial value is converted to and operations work with
-/// * `E`: The error type
-/// * `F`: The type of the operation functions
-///
-/// # Arguments
-///
-/// * `initial`: The starting value for the pipeline
-/// * `operations`: A sequence of operations to apply
-///
-/// # Returns
-///
-/// The final transformed value, or the first error encountered
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::utils::hkt_utils::try_pipeline;
-///
-/// // Define operations that may fail
-/// let parse_as_f64 = |s: &str| -> Result<f64, &'static str> {
-///     s.parse::<f64>().map_err(|_| "parse error")
-/// };
-///
-/// let sqrt = |n: f64| -> Result<f64, &'static str> {
-///     if n >= 0.0 {
-///         Ok(n.sqrt())
-///     } else {
-///         Err("cannot take square root of negative number")
-///     }
-/// };
-///
-/// // Chain operations with try_pipeline
-/// let result = try_pipeline(
-///     "16".to_string(),
-///     vec![
-///         Box::new(|s: String| parse_as_f64(&s).map(|n| n.to_string())) as Box<dyn Fn(String) -> Result<String, &'static str>>,
-///         Box::new(|s: String| parse_as_f64(&s).and_then(sqrt).map(|n| n.to_string()))
-///     ]
-/// );
-///
-/// assert_eq!(result.map(|s| s.parse::<f64>().unwrap()), Ok(4.0));
-/// ```
-#[inline]
-pub fn try_pipeline<A, B, E, F>(initial: A, operations: Vec<F>) -> Result<B, E>
-where
-    F: Fn(B) -> Result<B, E>,
-    A: Into<B>,
-{
-    pipeline_result(initial, operations)
-}
-
 // ===== Function Transformers =====
 
 /// Lifts a function to work with `Option` values.
@@ -372,9 +202,6 @@ where
 {
     move |opt| opt.map(&f)
 }
-
-// Re-export map_result from categorical_utils for backward compatibility
-pub use crate::utils::categorical_utils::map_result;
 
 // ===== Multi-Operation Utilities =====
 

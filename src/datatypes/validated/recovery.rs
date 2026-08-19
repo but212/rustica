@@ -68,7 +68,7 @@ impl<E, A> Validated<E, A> {
                     }
                 }
 
-                Validated::Invalid(smallvec::SmallVec::from_vec(accumulated))
+                Validated::invalid_many(accumulated)
             },
         }
     }
@@ -112,7 +112,7 @@ impl<E, A> Validated<E, A> {
     {
         match self {
             Validated::Valid(v) => Validated::Valid(v),
-            Validated::Invalid(errors) => recovery(errors.into_vec()),
+            Validated::Invalid(errors) => recovery(errors.into_vec().into_vec()),
         }
     }
 

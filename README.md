@@ -41,23 +41,23 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.12.0"
+rustica = "0.13.0"
 ```
 
 If you want to use async features, add the `async` feature:
 
 ```toml
 [dependencies]
-rustica = { version = "0.12.0", features = ["async"] }
+rustica = { version = "0.13.0", features = ["async"] }
 ```
 
-Persistent vector collections are included by default. The `full` feature enables `async` and `serde` support.
+Persistent vector collections are included by default. The `full` feature enables all optional library features: `async`, `serde`, and `quickcheck`.
 
 You can combine multiple features as needed:
 
 ```toml
 [dependencies]
-rustica = { version = "0.12.0", features = ["full"] }
+rustica = { version = "0.13.0", features = ["full"] }
 ```
 
 Then import the prelude to get started:
@@ -102,6 +102,7 @@ Rustica provides a rich collection of functional data types:
   - `Either<L, R>` - For values with two possibilities
   - `Id<T>` - The identity monad
   - `Validated<E, T>` - For accumulating validation errors
+  - `NonEmptyErrors<E>` - The non-empty error collection used by `Validated::Invalid`
   - `Choice<T>` - For representing non-deterministic computations with alternatives
 
 - **Effect Types**
@@ -139,9 +140,8 @@ Rustica provides standardized error handling utilities that work across differen
   - `traverse_validated` - Like `traverse` but collects all errors instead of failing fast
 
 - **Type Conversion**
-  - `ResultExt` trait - Extends `Result` with methods like `to_validated()` and `to_either()`
   - `WithError` trait - Generic trait for any type that can represent error states
-  - Conversion functions between `Result`, `Either`, and `Validated`
+  - Conversion functions such as `result_to_validated()`, `result_to_either()`, and `validated_to_either()`
 
 - **Error Types**
   - `ComposableError<E>` - A structured error type that accumulates context
@@ -172,11 +172,14 @@ assert_eq!(v3.get(0), Some(&10));
 Rustica uses GitHub Actions for continuous integration, formatting, linting, and automated publishing to crates.io on tagged releases.
 
 - Tests and formatting are run on every push and pull request.
-- When a tag (e.g. `v0.12.0`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
+- When a tag (e.g. `v0.13.0`) is pushed, the version is checked and, if not already published, is automatically uploaded to crates.io.
 
 ### Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for a complete list of recent changes and enhancements.
+
+For the current API removals and migration steps, see
+[MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md).
 
 ## Examples
 

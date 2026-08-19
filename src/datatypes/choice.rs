@@ -158,6 +158,7 @@
 //! - Flattening nested choices
 //! - Converting between collections and choices
 //! - Monadic operations for sequencing computations
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
@@ -389,100 +390,6 @@ impl<T> Choice<T> {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
-    }
-
-    /// Removes an alternative at the specified index and returns a new `Choice`.
-    ///
-    /// The `index` is 0-based and relative to the list of alternatives (excluding the primary value).
-    /// This method creates a new `Choice` instance by cloning the current values
-    /// and removing the specified alternative.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The 0-based index of the alternative to remove.
-    ///
-    /// # Returns
-    ///
-    /// A new `Choice<T>` with the alternative at the specified index removed.
-    ///
-    /// # Panics
-    ///
-    /// Panics if:
-    /// - The `Choice` has no alternatives (i.e., it only contains a primary value or is empty).
-    /// - The `index` is out of bounds for the list of alternatives.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// // Basic removal
-    /// let choice = Choice::new(10, vec![20, 30, 40]); // alternatives are [20, 30, 40]
-    /// let new_choice = choice.remove_alternative(1); // Removes alternative at index 1 (value 30)
-    ///
-    /// assert_eq!(new_choice.first(), Some(&10));
-    /// assert_eq!(new_choice.alternatives(), &[20, 40]);
-    /// assert_eq!(new_choice.len(), 3);
-    ///
-    /// // Remove first alternative
-    /// let choice2 = Choice::new(10, vec![20, 30]);
-    /// let after_remove_first = choice2.remove_alternative(0); // Removes 20
-    /// assert_eq!(after_remove_first.first(), Some(&10));
-    /// assert_eq!(after_remove_first.alternatives(), &[30]);
-    ///
-    /// // Remove last alternative
-    /// let choice3 = Choice::new(100, vec![200, 300, 400]);
-    /// let after_remove_last = choice3.remove_alternative(2); // Removes 400
-    /// assert_eq!(after_remove_last.first(), Some(&100));
-    /// assert_eq!(after_remove_last.alternatives(), &[200, 300]);
-    /// ```
-    ///
-    /// ### Panics - Index out of bounds
-    /// ```should_panic
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3]); // alternatives: [2, 3] (len 2)
-    /// // Panics because index 2 is out of bounds for alternatives.
-    /// let _ = choice.remove_alternative(2);
-    /// ```
-    ///
-    /// ### Panics - No alternatives to remove
-    /// ```should_panic
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice_only_primary = Choice::new(1, Vec::<i32>::new());
-    /// // Panics because there are no alternatives to remove.
-    /// let _ = choice_only_primary.remove_alternative(0);
-    /// ```
-    ///
-    /// ```should_panic
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// // Panics because an empty choice has no alternatives.
-    /// let _ = empty_choice.remove_alternative(0);
-    /// ```
-    #[inline]
-    /// # See Also
-    /// - [`try_remove_alternative()`](Self::try_remove_alternative) - Safe version that returns Result.
-    pub fn remove_alternative(self, index: usize) -> Self
-    where
-        T: Clone,
-    {
-        if self.values.len() <= 1 {
-            panic!("Cannot remove alternative from Choice with no alternatives");
-        }
-        if index >= self.alternatives().len() {
-            panic!(
-                "Index out of bounds: the len is {} but the index is {}",
-                self.alternatives().len(),
-                index
-            );
-        }
-
-        let mut new_values = self.values;
-        new_values.remove(index + 1); // +1 because alternatives start at index 1
-        Self { values: new_values }
     }
 
     /// Flattens a `Choice` of iterable items into a `Choice` of individual items.
@@ -721,7 +628,6 @@ impl<T> Choice<T> {
     ///
     /// # See Also
     /// - [`Choice::new()`](Self::new) - For creating a `Choice`.
-    /// - [`Choice::remove_alternative()`](Self::remove_alternative) - To remove a specific alternative by index.
     #[inline]
     pub fn filter_values<F>(&self, predicate: F) -> Self
     where
@@ -776,58 +682,11 @@ impl<T> Choice<T> {
     /// ```
     ///
     /// # See Also
-    /// - [`iter_alternatives`](Self::iter_alternatives) - For an iterator over only the alternatives.
     /// - [`into_iter`](#impl-IntoIterator-for-&'a-Choice<T>) - For consuming iteration by reference.
     /// - [`into_iter`](#impl-IntoIterator-for-Choice<T>) - For consuming iteration by value.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.values.iter()
-    }
-
-    /// Returns an iterator over the alternative values in the `Choice`, excluding the primary value.
-    ///
-    /// The iterator yields items in their stored order.
-    ///
-    /// # Returns
-    ///
-    /// An iterator yielding references (`&T`) to the alternative values.
-    /// If there are no alternatives, or if the `Choice` is empty, the iterator will be empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::datatypes::choice::Choice;
-    ///
-    /// let choice = Choice::new(10, vec![20, 30, 40]);
-    /// let mut alt_iterator = choice.iter_alternatives();
-    ///
-    /// assert_eq!(alt_iterator.next(), Some(&20));
-    /// assert_eq!(alt_iterator.next(), Some(&30));
-    /// assert_eq!(alt_iterator.next(), Some(&40));
-    /// assert_eq!(alt_iterator.next(), None);
-    ///
-    /// // Using in a for loop
-    /// let mut collected_alternatives = Vec::new();
-    /// for alt_value in choice.iter_alternatives() {
-    ///     collected_alternatives.push(*alt_value);
-    /// }
-    /// assert_eq!(collected_alternatives, vec![20, 30, 40]);
-    ///
-    /// // Choice with no alternatives
-    /// let single_choice = Choice::new(100, Vec::<i32>::new());
-    /// assert_eq!(single_choice.iter_alternatives().next(), None);
-    ///
-    /// // Iterating an empty choice
-    /// let empty_choice: Choice<i32> = Choice::new_empty();
-    /// assert_eq!(empty_choice.iter_alternatives().next(), None);
-    /// ```
-    ///
-    /// # See Also
-    /// - [`iter`](Self::iter) - For an iterator over all values, including the primary.
-    /// - [`alternatives`](Self::alternatives) - To get a slice of alternatives directly.
-    #[inline]
-    pub fn iter_alternatives(&self) -> impl Iterator<Item = &T> {
-        self.values.iter().skip(1)
     }
 
     /// Helper function to generate alternatives for apply operation
@@ -878,63 +737,6 @@ impl<T> Choice<T> {
     #[inline]
     pub fn try_first(&self) -> Result<&T, ChoiceError> {
         self.first().ok_or(ChoiceError::EmptyChoice)
-    }
-
-    /// Safely removes an alternative at the specified index.
-    ///
-    /// This is the safe alternative to `remove_alternative` that returns
-    /// a proper error type instead of panicking.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - The 0-based index of the alternative to remove.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Choice<T>)` - A new Choice with the alternative removed
-    /// * `Err(ChoiceError)` - An error if the operation cannot be performed
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::datatypes::error::ChoiceError;
-    ///
-    /// let choice = Choice::new(1, vec![2, 3, 4]);
-    /// let result = choice.try_remove_alternative(1);
-    /// assert!(result.is_ok());
-    /// let new_choice = result.unwrap();
-    /// assert_eq!(new_choice.alternatives(), &[2, 4]);
-    ///
-    /// // Error cases
-    /// let single: Choice<i32> = Choice::new(1, vec![]);
-    /// assert_eq!(
-    ///     single.try_remove_alternative(0),
-    ///     Err(ChoiceError::NoAlternatives)
-    /// );
-    ///
-    /// let choice2 = Choice::new(1, vec![2, 3]);
-    /// assert!(matches!(
-    ///     choice2.try_remove_alternative(10),
-    ///     Err(ChoiceError::IndexOutOfBounds { .. })
-    /// ));
-    /// ```
-    pub fn try_remove_alternative(self, index: usize) -> Result<Self, ChoiceError>
-    where
-        T: Clone,
-    {
-        if self.values.len() <= 1 {
-            return Err(ChoiceError::NoAlternatives);
-        }
-
-        let alt_len = self.alternatives().len();
-        if index >= alt_len {
-            return Err(ChoiceError::index_out_of_bounds(index, alt_len));
-        }
-
-        let mut new_values = self.values;
-        new_values.remove(index + 1);
-        Ok(Self { values: new_values })
     }
 
     /// Safely flattens a `Choice` of iterable items.
@@ -993,58 +795,6 @@ impl<T> Choice<T> {
             },
             None => Err(ChoiceError::EmptyPrimaryIterator),
         }
-    }
-
-    /// Safely swaps the primary value with an alternative.
-    ///
-    /// This is the safe alternative to `swap_with_alternative` that returns
-    /// a proper error type instead of panicking.
-    ///
-    /// # Arguments
-    ///
-    /// * `alt_index` - The 0-based index of the alternative to swap with.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Choice<T>)` - A new Choice with values swapped
-    /// * `Err(ChoiceError)` - An error if the operation cannot be performed
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::choice::Choice;
-    /// use rustica::datatypes::error::ChoiceError;
-    ///
-    /// let choice = Choice::new(10, vec![20, 30]);
-    /// let result = choice.try_swap_with_alternative(0);
-    /// assert!(result.is_ok());
-    /// let swapped = result.unwrap();
-    /// assert_eq!(swapped.try_first(), Ok(&20));
-    ///
-    /// // Error cases
-    /// let single: Choice<i32> = Choice::new(1, vec![]);
-    /// assert_eq!(
-    ///     single.try_swap_with_alternative(0),
-    ///     Err(ChoiceError::NoAlternatives)
-    /// );
-    /// ```
-    pub fn try_swap_with_alternative(self, alt_index: usize) -> Result<Self, ChoiceError>
-    where
-        T: Clone,
-    {
-        if self.values.len() <= 1 {
-            return Err(ChoiceError::NoAlternatives);
-        }
-
-        let alt_len = self.alternatives().len();
-        if alt_index >= alt_len {
-            return Err(ChoiceError::index_out_of_bounds(alt_index, alt_len));
-        }
-
-        let actual_alt_index = alt_index + 1;
-        let mut new_values = self.values;
-        new_values.swap(0, actual_alt_index);
-        Ok(Self { values: new_values })
     }
 }
 
@@ -1832,6 +1582,7 @@ impl<T: Clone> std::iter::Sum for Choice<T> {
     }
 }
 
+#[cfg(any(test, feature = "quickcheck"))]
 impl<T: Arbitrary + 'static> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         let items: Vec<T> = Arbitrary::arbitrary(g);
@@ -1881,7 +1632,6 @@ mod tests {
 
         let modified = a.combine(&Choice::of_many(vec![5]));
         assert_eq!(modified.alternatives(), &[2, 5]);
-        assert_eq!(modified.remove_alternative(0).alternatives(), &[5]);
     }
 
     #[test]

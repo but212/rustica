@@ -19,7 +19,7 @@
 //!     if *x > 0 {
 //!         Validated::Valid(*x)
 //!     } else {
-//!         Validated::Invalid(vec!["Must be positive".to_string()].into())
+//!         Validated::invalid("Must be positive".to_string())
 //!     }
 //! };
 //!
@@ -27,7 +27,7 @@
 //!     if *x % 2 == 0 {
 //!         Validated::Valid(*x)
 //!     } else {
-//!         Validated::Invalid(vec!["Must be even".to_string()].into())
+//!         Validated::invalid("Must be even".to_string())
 //!     }
 //! };
 //!
@@ -198,8 +198,7 @@ pub mod iter;
 pub mod recovery;
 pub mod traits;
 
-pub use core::ErrorVec;
-pub use core::Validated;
+pub use core::{NonEmptyErrors, Validated};
 pub use iter::*;
 
 #[cfg(test)]
@@ -218,6 +217,18 @@ mod tests {
         assert!(i.is_invalid());
         assert_eq!(v.unwrap(), 42);
         assert_eq!(i.errors(), &["err".to_string()]);
+    }
+
+    #[test]
+    #[should_panic(expected = "requires at least one error")]
+    fn invalid_many_rejects_empty_input() {
+        let _: Validated<String, ()> = Validated::invalid_many(std::iter::empty());
+    }
+
+    #[test]
+    fn try_invalid_many_reports_empty_input() {
+        let result: Option<Validated<String, ()>> = Validated::try_invalid_many(std::iter::empty());
+        assert!(result.is_none());
     }
 
     #[quickcheck]
@@ -346,9 +357,10 @@ mod tests {
     fn test_validated_serialization() {
         use serde_json;
 
-        let valid: Validated<String, i32> = Validated::Valid(42);
-        let json = serde_json::to_string(&valid).unwrap();
+        let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
+        let json = serde_json::to_string(&invalid).unwrap();
         let back: Validated<String, i32> = serde_json::from_str(&json).unwrap();
-        assert_eq!(valid, back);
+        assert_eq!(invalid, back);
+        assert!(serde_json::from_str::<Validated<String, i32>>(r#"{"Invalid":[]}"#).is_err());
     }
 }

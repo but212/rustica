@@ -1,5 +1,4 @@
-use crate::datatypes::validated::{ErrorVec, Validated};
-use smallvec::SmallVec;
+use crate::datatypes::validated::Validated;
 
 impl<E, A> Validated<E, A> {
     /// Maps an async function over the valid value.
@@ -87,9 +86,7 @@ impl<E, A> Validated<E, A> {
                 // Using futures::future::join_all to run all futures concurrently
                 let futures = es.iter().map(|e| f(e.clone()));
                 let results = futures::future::join_all(futures).await;
-                let transformed: SmallVec<[G; 4]> = results.into_iter().collect();
-
-                Validated::Invalid(transformed)
+                Validated::invalid_many(results)
             },
         }
     }
@@ -200,8 +197,7 @@ impl<E, A> Validated<E, A> {
             Validated::Invalid(es) => {
                 let futures = es.into_iter().map(f);
                 let results = futures::future::join_all(futures).await;
-                let transformed: ErrorVec<G> = results.into_iter().collect();
-                Validated::Invalid(transformed)
+                Validated::invalid_many(results)
             },
         }
     }

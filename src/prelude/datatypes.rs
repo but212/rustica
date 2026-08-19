@@ -53,5 +53,5 @@ pub use crate::datatypes::maybe::Maybe;
 pub use crate::datatypes::prism::Prism;
 pub use crate::datatypes::reader::Reader;
 pub use crate::datatypes::state::State;
-pub use crate::datatypes::validated::Validated;
+pub use crate::datatypes::validated::{NonEmptyErrors, Validated};
 pub use crate::datatypes::writer::Writer;

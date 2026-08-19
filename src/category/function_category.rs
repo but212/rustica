@@ -344,28 +344,6 @@ impl FunctionCategory {
         })
     }
 
-    /// **deprecated: rename to then_if**
-    /// Composes two morphisms conditionally based on a predicate.
-    ///
-    /// This applies the first morphism, then conditionally applies the second
-    /// based on the predicate result.
-    ///
-    /// # See also
-    ///
-    /// * [`then_if`](Self::then_if) - The modern replacement for this method.
-    #[deprecated(
-        note = "Please use `then_if` instead. Its name more accurately describes the conditional execution flow."
-    )]
-    pub fn compose_when<A, P>(
-        first: &FunctionMorphism<A, A>, second: &FunctionMorphism<A, A>, predicate: P,
-    ) -> FunctionMorphism<A, A>
-    where
-        A: 'static,
-        P: Fn(&A) -> bool + 'static,
-    {
-        Self::then_if(first, second, predicate)
-    }
-
     /// Creates a morphism that applies multiple transformations in sequence.
     ///
     /// when the functions don't need to be reused.

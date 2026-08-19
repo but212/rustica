@@ -1,6 +1,5 @@
-use super::core::{ErrorAccumulator, ErrorVec};
+use super::core::ErrorAccumulator;
 use crate::datatypes::validated::Validated;
-use smallvec::SmallVec;
 
 impl<E, A> Validated<E, A> {
     /// Maps a function over the error values if `Invalid`, or returns the `Valid` value (cloned).
@@ -73,10 +72,7 @@ impl<E, A> Validated<E, A> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => {
-                let transformed: SmallVec<[G; 4]> = es.into_iter().map(f).collect();
-                Validated::Invalid(transformed)
-            },
+            Validated::Invalid(es) => Validated::invalid_many(es.into_iter().map(f)),
         }
     }
 
@@ -146,7 +142,7 @@ impl<E, A> Validated<E, A> {
                 let mut acc = ErrorAccumulator::with_capacity(e1.len() + e2.len());
                 acc.extend_cloned(e1);
                 acc.extend_cloned(e2);
-                Validated::Invalid(acc.into_inner())
+                Validated::invalid_from_accumulator(acc)
             },
         }
     }
@@ -263,7 +259,7 @@ impl<E, A> Validated<E, A> {
             }
         }
 
-        Validated::Invalid(acc.into_inner())
+        Validated::invalid_from_accumulator(acc)
     }
 
     /// Sequences owned Validated values into a single Validated value.
@@ -324,7 +320,7 @@ impl<E, A> Validated<E, A> {
             }
         }
 
-        Validated::Invalid(acc.into_inner())
+        Validated::invalid_from_accumulator(acc)
     }
 
     /// Collects an iterator of Validated values into a single Validated value.
@@ -395,21 +391,19 @@ impl<E, A> Validated<E, A> {
         I: Iterator<Item = Validated<E, A>>,
         C: FromIterator<A>,
     {
-        let (values, errors): (Vec<_>, ErrorVec<E>) = iter.fold(
-            (Vec::new(), SmallVec::<[E; 4]>::new()),
-            |(mut values, mut errors), item| {
-                match item {
-                    Validated::Valid(a) => values.push(a),
-                    Validated::Invalid(es) => errors.extend(es),
-                }
-                (values, errors)
-            },
-        );
+        let mut values = Vec::new();
+        let mut errors = ErrorAccumulator::new();
 
-        if errors.is_empty() {
-            Validated::Valid(C::from_iter(values))
-        } else {
-            Validated::Invalid(errors)
+        for item in iter {
+            match item {
+                Validated::Valid(a) => values.push(a),
+                Validated::Invalid(es) => errors.extend_owned(es),
+            }
+        }
+
+        match errors.into_non_empty() {
+            Some(errors) => Validated::Invalid(errors),
+            None => Validated::Valid(C::from_iter(values)),
         }
     }
 
@@ -451,10 +445,9 @@ impl<E, A> Validated<E, A> {
             }
         }
 
-        if acc.buffer.is_empty() {
-            Validated::Valid(C::from_iter(values))
-        } else {
-            Validated::Invalid(acc.into_inner())
+        match acc.into_non_empty() {
+            Some(errors) => Validated::Invalid(errors),
+            None => Validated::Valid(C::from_iter(values)),
         }
     }
 }
