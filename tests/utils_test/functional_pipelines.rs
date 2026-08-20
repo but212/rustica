@@ -40,13 +40,22 @@ fn test_categorical_mapping() {
 
 #[test]
 fn sequence_preserves_order_and_returns_first_error() {
-    assert_eq!(sequence::<i32, &str>(vec![]), Ok(Vec::<i32>::new()));
     assert_eq!(
-        sequence::<i32, &str>(vec![Ok(1), Ok(2), Ok(3)]),
+        Vec::<Result<i32, &str>>::new()
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>(),
+        Ok(Vec::<i32>::new())
+    );
+    assert_eq!(
+        vec![Ok(1), Ok(2), Ok(3)]
+            .into_iter()
+            .collect::<Result<Vec<_>, &str>>(),
         Ok(vec![1, 2, 3])
     );
     assert_eq!(
-        sequence(vec![Ok(1), Err("first"), Err("second")]),
+        vec![Ok(1), Err("first"), Err("second")]
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>(),
         Err("first")
     );
 }
@@ -54,19 +63,25 @@ fn sequence_preserves_order_and_returns_first_error() {
 #[test]
 fn traverse_preserves_order_and_stops_after_first_error() {
     let mut seen = Vec::new();
-    let result = traverse([1, 2, 3], |value| {
-        seen.push(value);
-        if value == 2 {
-            Err("stop")
-        } else {
-            Ok(value * 10)
-        }
-    });
+    let result: Result<Vec<_>, _> = [1, 2, 3]
+        .into_iter()
+        .map(|value| {
+            seen.push(value);
+            if value == 2 {
+                Err("stop")
+            } else {
+                Ok(value * 10)
+            }
+        })
+        .collect();
 
     assert_eq!(result, Err("stop"));
     assert_eq!(seen, vec![1, 2]);
     assert_eq!(
-        traverse([1, 2, 3], |value| Ok::<_, &str>(value * 10)),
+        [1, 2, 3]
+            .into_iter()
+            .map(|value| Ok::<_, &str>(value * 10))
+            .collect::<Result<Vec<_>, _>>(),
         Ok(vec![10, 20, 30])
     );
 }
@@ -124,5 +139,5 @@ fn sequence_with_error_preserves_order_and_returns_first_error() {
 }
 
 use rustica::datatypes::validated::Validated;
-use rustica::error::{sequence, sequence_with_error, traverse};
+use rustica::error::sequence_with_error;
 use rustica::utils::hkt_utils::pipeline_result;

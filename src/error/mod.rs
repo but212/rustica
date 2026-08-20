@@ -30,16 +30,11 @@ pub use context::{
     accumulate_context, context_accumulator, context_fn, extract_context, format_error_chain,
     with_context, with_context_result,
 };
-pub use convert::{
-    collect_errors, composable_to_core, core_to_composable, flatten_composable_result,
-    result_to_validated, split_validated_errors, validated_to_result, wrap_in_composable_result,
-    wrap_in_composable_result_boxed,
-};
-pub use core::ErrorOps;
+pub use convert::{collect_errors, split_validated_errors};
 pub use types::{
     BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorContext,
     IntoErrorContext, LazyContext,
 };
 
 // Re-export error utility traits directly from the unified error module.
-pub use core::{WithError, sequence, sequence_with_error, traverse, traverse_validated};
+pub use core::{WithError, sequence_with_error, traverse_validated};

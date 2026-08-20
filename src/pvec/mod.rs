@@ -95,6 +95,8 @@ pub use pvec;
 #[cfg(test)]
 mod tests {
     use super::PersistentVector;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
 
     #[test]
     fn test_pvec_lifecycle_and_persistence() {
@@ -242,5 +244,39 @@ mod tests {
         let mut expected: Vec<i32> = (0..100).collect();
         expected.remove(50);
         assert_eq!(remove_mid.to_vec(), expected);
+    }
+
+    #[test]
+    fn representation_and_history_do_not_affect_value_semantics() {
+        let collected: PersistentVector<i32> = (0..100).collect();
+        let pushed = (0..100).fold(PersistentVector::new(), |vector, value| {
+            vector.push_back(value)
+        });
+        let rebuilt = collected.split_at(64).0.concat(&collected.split_at(64).1);
+
+        assert_eq!(collected, pushed);
+        assert_eq!(collected, rebuilt);
+        assert_eq!(collected.cmp(&pushed), std::cmp::Ordering::Equal);
+
+        let hash = |vector: &PersistentVector<i32>| {
+            let mut hasher = DefaultHasher::new();
+            vector.hash(&mut hasher);
+            hasher.finish()
+        };
+        assert_eq!(hash(&collected), hash(&pushed));
+        assert_eq!(hash(&collected), hash(&rebuilt));
+    }
+
+    #[test]
+    fn inline_tree_boundary_lengths_follow_the_representation() {
+        for len in [0usize, 1, 63, 64, 65, 127] {
+            let vector: PersistentVector<usize> = (0..len).collect();
+            assert_eq!(vector.len(), len);
+            assert_eq!(vector.iter().count(), len);
+
+            let (left, right) = vector.split_at(len / 2);
+            assert_eq!(left.len() + right.len(), len);
+            assert_eq!(left.concat(&right), vector);
+        }
     }
 }

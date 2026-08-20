@@ -694,10 +694,10 @@ impl<A: Clone, E: Clone> Iso<Result<A, E>, Validated<E, A>> for ResultValidatedI
     type To = Validated<E, A>;
 
     fn forward(&self, from: &Self::From) -> Self::To {
-        Validated::from_result(from)
+        Validated::from(from)
     }
 
     fn backward(&self, to: &Self::To) -> Self::From {
-        to.to_result()
+        to.clone().into_result_first_error()
     }
 }

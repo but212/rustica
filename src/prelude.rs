@@ -40,7 +40,7 @@
 //! // Use error utilities
 //! use rustica::prelude::error::*;
 //! let results = vec![Ok(1), Ok(2), Ok(3)];
-//! let ok: Result<Vec<i32>, &str> = sequence(results);
+//! let ok: Result<Vec<i32>, &str> = results.into_iter().collect();
 //! assert_eq!(ok, Ok(vec![1, 2, 3]));
 //! ```
 //!

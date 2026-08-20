@@ -4,6 +4,19 @@
 
 ### Breaking Changes
 
+- **Transformer State and Type Invariants**
+  - `ReaderT<E, M, A>` now requires `M: HKT<Source = A>` and type-changing operations return the corresponding `M::Output<B>`; the unsafe bind conversion was removed.
+  - `StateT<S, M, A>` now has one executable representation, requires `M: HKT<Source = (S, A)>`, and threads state left-to-right through composition.
+  - `StateT` no longer exposes `Pure` or `LiftM`; its `MonadTransformer::BaseMonad` is the base family containing `A` rather than `(S, A)`.
+
+- **Error and Conversion API**
+  - Removed impossible `ChoiceError::EmptyChoice`, `PVecError::InvalidRange`, and `IOError::ValueNotSet` variants.
+  - Removed `ErrorOps`, `sequence`, `traverse`, and redundant free error-conversion functions in favor of `Result`/`Iterator` methods and `From`.
+  - `Validated` now converts from owned or borrowed `Result` through `From`; lossy conversion is explicitly named `into_result_first_error`.
+
+- **Dead Utilities Removed**
+  - Removed empty `utils::categorical_utils`, the `utils::functions::id` alias, and unused `ReaderCombineFn`/`ContFn` aliases.
+
 - **Duplicate Functional Data Types Removed**
   - Removed `Maybe<T>` in favor of standard `Option<T>` (`Functor`, `Applicative`, `Monad`, `Foldable` remain implemented for `Option<T>`).
   - Removed `Either<L, R>`, `EitherError`, `ResultEitherIso`, and all `Either` conversion helpers in favor of standard `Result<R, L>` or the external `either` crate.
@@ -26,6 +39,8 @@
 
 - Added central compile-fail removal contract doctests in `src/lib.rs`.
 - Updated all doc examples and benchmarks to 0.14.0 API.
+- Persistent vectors derive length from their representation and compare/hash by logical element sequence; the unused generation counter was removed.
+- Added a targeted Miri CI test for owning `ReaderT::bind` values and removed redundant phantom fields and the unused futures `thread-pool` feature.
 
 ## [0.13.0]
 

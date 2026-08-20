@@ -26,14 +26,6 @@ use std::fmt::{self, Display};
 /// This enum represents error conditions for [`Choice`](super::choice::Choice)
 /// operations that would otherwise panic.
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::error::ChoiceError;
-///
-/// let err = ChoiceError::EmptyChoice;
-/// assert_eq!(err.to_string(), "Choice operation failed: choice is empty");
-/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ChoiceError {
     /// Primary value iterator was empty during flatten operation.
@@ -41,12 +33,6 @@ pub enum ChoiceError {
     /// This error occurs when calling `flatten` on a Choice where
     /// the primary value produces an empty iterator.
     EmptyPrimaryIterator,
-
-    /// The Choice is empty (has no values at all).
-    ///
-    /// This error occurs when attempting to access values from
-    /// an empty Choice created with `Choice::new_empty()`.
-    EmptyChoice,
 }
 
 impl ChoiceError {
@@ -55,27 +41,14 @@ impl ChoiceError {
     pub const fn is_empty_primary_iterator(&self) -> bool {
         matches!(self, ChoiceError::EmptyPrimaryIterator)
     }
-
-    /// Returns `true` if this is an `EmptyChoice` error.
-    #[inline]
-    pub const fn is_empty_choice(&self) -> bool {
-        matches!(self, ChoiceError::EmptyChoice)
-    }
 }
 
 impl Display for ChoiceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ChoiceError::EmptyPrimaryIterator => {
-                write!(
-                    f,
-                    "Choice::flatten(): primary value produced empty iterator"
-                )
-            },
-            ChoiceError::EmptyChoice => {
-                write!(f, "Choice operation failed: choice is empty")
-            },
-        }
+        write!(
+            f,
+            "Choice::flatten(): primary value produced empty iterator"
+        )
     }
 }
 
@@ -151,10 +124,6 @@ mod tests {
             ChoiceError::EmptyPrimaryIterator.to_string(),
             "Choice::flatten(): primary value produced empty iterator"
         );
-        assert_eq!(
-            ChoiceError::EmptyChoice.to_string(),
-            "Choice operation failed: choice is empty"
-        );
     }
 
     #[test]
@@ -172,7 +141,6 @@ mod tests {
     #[test]
     fn test_choice_error_predicates() {
         assert!(ChoiceError::EmptyPrimaryIterator.is_empty_primary_iterator());
-        assert!(ChoiceError::EmptyChoice.is_empty_choice());
     }
 
     #[test]

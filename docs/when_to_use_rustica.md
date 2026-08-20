@@ -30,7 +30,7 @@ Rustica is designed to bring expressive functional programming abstractions, com
 
 | Requirement | Recommendation |
 | --- | --- |
-| Simple Optional Values | Use standard `Option<T>` (`Maybe<T>` is deprecated in 0.13.0) |
-| Standard Success/Failure | Use standard `Result<T, E>` (`Either<L, R>` is deprecated in 0.13.0) |
+| Simple Optional Values | Use standard `Option<T>` (`Maybe<T>` was removed in 0.14.0) |
+| Standard Success/Failure | Use standard `Result<T, E>` (`Either<L, R>` was removed in 0.14.0) |
 | Production High-Throughput Caching | Use dedicated crates such as [`lru`](https://crates.io/crates/lru) or [`moka`](https://crates.io/crates/moka) |
 | General Function Chaining | Use native Rust closures / method chaining directly |

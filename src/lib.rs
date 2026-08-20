@@ -9,7 +9,6 @@
 //! Rustica brings these concepts to Rust with a focus on pragmatism and performance, providing:
 //!
 //! - Type-safe functional abstractions like `Functor`, `Applicative`, and `Monad`
-//! - Type-safe functional abstractions like `Functor`, `Applicative`, and `Monad`
 //! - Practical data types such as `Validated`, `Choice`, and `Id`
 //! - Optics for data manipulation via `Lens` and `Prism`
 //! - Composable operations for error handling and data transformation
@@ -21,7 +20,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rustica = "0.13.0"
+//! rustica = "0.14.0"
 //! ```
 //!
 //! Import common traits and types through the prelude:
@@ -165,6 +164,84 @@
 //! use rustica::pvec::PersistentVector;
 //! let v = PersistentVector::<i32>::new();
 //! let _ = v.skip(1);
+//! ```
+//!
+//! ```compile_fail
+//! // ReaderT now rejects a base monad whose source is not its value type.
+//! use rustica::transformers::ReaderT;
+//! let _: Option<ReaderT<(), Option<i32>, String>> = None;
+//! ```
+//!
+//! ```compile_fail
+//! // StateT no longer exposes non-executable Pure/LiftM variants.
+//! use rustica::transformers::StateT;
+//! let _: StateT<i32, Option<(i32, i32)>, i32> = StateT::Pure(1);
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::transformers::StateT;
+//! let _: StateT<i32, Option<(i32, i32)>, i32> = StateT::LiftM(Some((0, 1)));
+//! ```
+//!
+//! ```compile_fail
+//! // Impossible error variants were removed.
+//! use rustica::datatypes::error::ChoiceError;
+//! let _ = ChoiceError::EmptyChoice;
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::pvec::PVecError;
+//! let _ = PVecError::InvalidRange { start: 2, end: 1 };
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::datatypes::io::IOError;
+//! let _ = IOError::ValueNotSet;
+//! ```
+//!
+//! ```compile_fail
+//! // Result already provides the former ErrorOps operations.
+//! use rustica::error::ErrorOps;
+//! ```
+//!
+//! ```compile_fail
+//! // Use Iterator::collect instead of stdlib wrappers.
+//! use rustica::error::sequence;
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::error::traverse;
+//! ```
+//!
+//! ```compile_fail
+//! // Use From and map_err for error conversions.
+//! use rustica::error::result_to_validated;
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::error::wrap_in_composable_result;
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::datatypes::validated::Validated;
+//! let _ = Validated::<&str, i32>::from_result_owned(Ok(1));
+//! ```
+//!
+//! ```compile_fail
+//! // Empty/stdlib-only utility modules and orphan aliases were removed.
+//! use rustica::utils::categorical_utils;
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::utils::functions::id;
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::datatypes::cont::ContFn;
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::transformers::reader_t::ReaderCombineFn;
 //! ```
 
 /// Core traits for functional programming abstractions.

@@ -452,8 +452,6 @@ pub type ComposableErrorCollection<E> = smallvec::SmallVec<[Box<ComposableError<
 /// A custom error type for IO operations
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IOError {
-    /// The IO operation failed because the value hasn't been set yet
-    ValueNotSet,
     /// The IO operation failed for some other reason
     Other(String),
 }
@@ -471,10 +469,8 @@ fn panic_message(payload: Box<dyn Any + Send>) -> String {
 
 impl std::fmt::Display for IOError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            IOError::ValueNotSet => write!(f, "Value not set"),
-            IOError::Other(msg) => write!(f, "IO Error: {msg}"),
-        }
+        let IOError::Other(msg) = self;
+        write!(f, "IO Error: {msg}")
     }
 }
 

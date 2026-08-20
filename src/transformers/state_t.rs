@@ -1,118 +1,39 @@
-//! The State monad transformer, adding stateful computations to any monad.
+//! State monad transformer.
 //!
-//! `StateT` allows combining state operations with effects provided by the base monad.
-//! For example, it can be combined with `Option` to create stateful computations that
-//! may fail, or with `Result` to create stateful computations that may produce errors.
-//!
-//! # Examples
-//!
-//! ```rust
-//! use rustica::transformers::StateT;
-//! use rustica::prelude::*;
-//!
-//! // Create a StateT over Option that increments the state and returns it
-//! let state_t: StateT<i32, Option<(i32, i32)>, i32> =
-//!     StateT::new(|s: i32| Some((s + 1, s)));
-//!
-//! // Run with an initial state
-//! let result = state_t.run_state(10);
-//! assert_eq!(result, Some((11, 10)));
-//! ```
-//!
-//! ## State Manipulation and Composition
-//!
-//! ```rust
-//! use rustica::transformers::StateT;
-//! use rustica::prelude::*;
-//!
-//! // Define a more complex state type
-//! #[derive(Debug, Clone, PartialEq)]
-//! struct Counter {
-//!     value: i32,
-//!     increments: i32,
-//! }
-//!
-//! // Create a state that increments the counter value
-//! let increment: StateT<Counter, Option<(Counter, i32)>, i32> = StateT::new(|mut s: Counter| {
-//!     s.value += 1;
-//!     s.increments += 1;
-//!     Some((s.clone(), s.value))
-//! });
-//!
-//! // Create a StateT that doubles the counter value and returns the previous value
-//! let double: StateT<Counter, Option<(Counter, i32)>, i32> = StateT::new(|mut s: Counter| {
-//!     let prev = s.value;
-//!     s.value *= 2;
-//!     s.increments += 1;
-//!     Some((s.clone(), prev))
-//! });
-//!
-//! // Compose state operations
-//! let inc_and_double = increment.bind_with(
-//!     move |_| double.clone(),
-//!     |m, f| m.and_then(|(s, _)| f((s, 0)))
-//! );
-//!
-//! // Run with an initial state
-//! let result = inc_and_double.run_state(Counter { value: 5, increments: 0 });
-//!
-//! // After incrementing, value = 6, then we double to 12
-//! // The final result is ((Counter{value: 12, increments: 2}, 6))
-//! // where 6 is the value after increment (returned by double)
-//! assert_eq!(result.map(|(s, v)| (s.value, s.increments, v)), Some((12, 2, 6)));
-//! ```
+//! The only representable state is an executable transition `S -> M`, where
+//! the base monad contains the canonical `(S, A)` pair.
 
+use super::MonadTransformer;
+use crate::datatypes::id::Id;
+use crate::error::{ComposableError, ComposableResult, IntoErrorContext};
+use crate::traits::functor::Functor;
+use crate::traits::hkt::HKT;
+use crate::traits::monad::Monad;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crate::error::{ComposableError, ComposableResult, IntoErrorContext};
-use crate::traits::monad::Monad;
-use crate::transformers::MonadTransformer;
+type StateRun<S, M> = dyn Fn(S) -> M + Send + Sync;
 
-/// Type alias for a function that transforms a state-value pair to another state-value pair
+/// Maps the state/value pair while preserving the state component.
 pub type StateValueMapper<S, A, B> = dyn Fn((S, A)) -> (S, B) + Send + Sync;
 
-/// Type alias for a function that combines two state-value pairs into a new state-value pair
-pub type StateCombiner<S, A, B, C> = dyn Fn((S, A), (S, B)) -> (S, C) + Send + Sync;
-
-/// A monad transformer that adds state capabilities to a base monad.
-///
-/// The `StateT` type takes three type parameters:
-/// - `S`: The state type
-/// - `M`: The base monad type, which wraps a tuple of state and value
-/// - `A`: The value type
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::transformers::StateT;
-/// use rustica::prelude::*;
-///
-/// // Create a state transformer over Result that counts characters
-/// let count_chars: StateT<usize, Result<(usize, usize), &str>, usize> = StateT::new(|state: usize| {
-///     Ok((state + 1, state))
-/// });
-///
-/// // Run with a specific initial state
-/// let result = count_chars.run_state(5);
-/// assert_eq!(result, Ok((6, 5)));
-/// ```
-pub enum StateT<S, M, A> {
-    Pure(A),
-    LiftM(M),
-    Effect(Arc<dyn Fn(S) -> M + Send + Sync>),
+/// A state transition whose base monad contains `(state, value)`.
+pub struct StateT<S, M, A>
+where
+    M: HKT<Source = (S, A)>,
+{
+    run_state_fn: Arc<StateRun<S, M>>,
+    _value: PhantomData<A>,
 }
 
 impl<S, M, A> Clone for StateT<S, M, A>
 where
-    S: 'static,
-    M: Clone + 'static,
-    A: Clone + 'static,
+    M: HKT<Source = (S, A)>,
 {
     fn clone(&self) -> Self {
-        match self {
-            StateT::Pure(a) => StateT::Pure(a.clone()),
-            StateT::LiftM(m) => StateT::LiftM(m.clone()),
-            StateT::Effect(f) => StateT::Effect(Arc::clone(f)),
+        Self {
+            run_state_fn: Arc::clone(&self.run_state_fn),
+            _value: PhantomData,
         }
     }
 }
@@ -120,1162 +41,387 @@ where
 impl<S, M, A> StateT<S, M, A>
 where
     S: 'static,
-    M: 'static,
+    M: HKT<Source = (S, A)> + 'static,
     A: 'static,
 {
-    /// Creates a new `StateT` transformer.
-    ///
-    /// This constructor wraps a state transition function in the `StateT`
-    /// transformer. The provided function takes an initial state and
-    /// produces a monadic value that contains both the updated state and
-    /// the computed result.
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - Function from state to the underlying monad containing `(state, value)`
-    ///
-    /// # Returns
-    ///
-    /// A new `StateT` instance encapsulating the provided state transition.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// // A simple counter that increments the state and returns the old value
-    /// let counter: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| {
-    ///     Some((s + 1, s))
-    /// });
-    ///
-    /// assert_eq!(counter.run_state(0), Some((1, 0)));
-    /// ```
+    /// Creates an executable state transition.
     pub fn new<F>(f: F) -> Self
     where
         F: Fn(S) -> M + Send + Sync + 'static,
     {
-        StateT::Effect(Arc::new(f))
-    }
-
-    /// Runs the state transformer with a specific initial state.
-    ///
-    /// # Parameters
-    ///
-    /// * `state` - The initial state to run with
-    ///
-    /// # Returns
-    ///
-    /// The resulting monadic value containing the new state and result
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    /// use rustica::prelude::*;
-    /// use std::collections::HashMap;
-    ///
-    /// // Create a state that counts word frequencies
-    /// let count_word: StateT<HashMap<String, i32>, Option<(HashMap<String, i32>, i32)>, i32> =
-    ///     StateT::new(|mut state: HashMap<String, i32>| {
-    ///         let word = "hello".to_string();
-    ///         let count = state.entry(word).or_insert(0);
-    ///         *count += 1;
-    ///         let result = *count;
-    ///         Some((state, result))
-    ///     });
-    ///
-    /// // Run with an empty HashMap
-    /// let mut map = HashMap::new();
-    /// let result1 = count_word.run_state(map);
-    ///
-    /// // Extract the state and result
-    /// let (new_state, count) = result1.unwrap();
-    /// assert_eq!(count, 1);
-    ///
-    /// // Run again with the updated state
-    /// let result2 = count_word.run_state(new_state);
-    /// assert_eq!(result2.map(|(_, c)| c), Some(2));
-    /// ```
-    pub fn run_state(&self, state: S) -> M
-    where
-        M: Clone,
-        A: Clone,
-    {
-        match self {
-            StateT::Pure(_) => panic!("Cannot run Pure StateT without a base monad"),
-            StateT::LiftM(m) => m.clone(),
-            StateT::Effect(f) => f(state),
+        Self {
+            run_state_fn: Arc::new(f),
+            _value: PhantomData,
         }
     }
 
-    /// Creates a `StateT` that returns the current state without modifying it.
-    ///
-    /// # Parameters
-    ///
-    /// * `pure` - A function that lifts a value into the base monad
-    ///
-    /// # Returns
-    ///
-    /// A new `StateT` that returns the current state
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a StateT that gets the current state
-    /// let get_state = StateT::<i32, Option<(i32, i32)>, i32>::get(Some);
-    ///
-    /// // Run with a specific state
-    /// let result = get_state.run_state(42);
-    /// assert_eq!(result, Some((42, 42)));
-    /// ```
-    pub fn get<P>(pure: P) -> StateT<S, M, S>
-    where
-        P: Fn((S, S)) -> M + Send + Sync + 'static,
-        S: Clone + Send + Sync,
-    {
-        StateT::new(move |s: S| pure((s.clone(), s)))
+    /// Runs the transition with an initial state.
+    #[inline]
+    pub fn run_state(&self, state: S) -> M {
+        (self.run_state_fn)(state)
     }
 
-    /// Creates a `StateT` that replaces the current state and returns the old state.
-    ///
-    /// # Parameters
-    ///
-    /// * `new_state` - The new state to set
-    /// * `pure` - Function to lift a value into the base monad
-    ///
-    /// # Returns
-    ///
-    /// A `StateT` that updates the state
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a StateT that sets a new state and returns the old one
-    /// let put_state = StateT::<i32, Result<(i32, i32), &str>, i32>::put(100, |t| Ok(t));
-    ///
-    /// // Run with a specific state
-    /// let result = put_state.run_state(42);
-    /// assert_eq!(result, Ok((100, 42)));
-    /// ```
-    pub fn put<P>(new_state: S, pure: P) -> StateT<S, M, S>
+    /// Creates a transition that returns a value without changing state.
+    pub fn pure<P>(value: A, pure_fn: P) -> Self
     where
-        P: Fn((S, S)) -> M + Send + Sync + 'static,
-        S: Clone + Send + Sync,
+        S: Send + Sync,
+        A: Clone + Send + Sync,
+        P: Fn((S, A)) -> M + Send + Sync + 'static,
     {
-        StateT::new(move |s: S| pure((new_state.clone(), s)))
+        Self::new(move |state| pure_fn((state, value.clone())))
     }
 
-    /// Creates a `StateT` that modifies the current state with a function.
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - Function to modify the state
-    /// * `pure` - Function to lift a value into the base monad
-    ///
-    /// # Returns
-    ///
-    /// A `StateT` that modifies the state
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a StateT that doubles the current state
-    /// let modify_state = StateT::<i32, Option<(i32, ())>, ()>::modify(|s| s * 2, |t| Some(t));
-    ///
-    /// // Run with a specific state
-    /// let result = modify_state.run_state(21);
-    /// assert_eq!(result, Some((42, ())));
-    /// ```
-    pub fn modify<F, P>(f: F, pure: P) -> StateT<S, M, ()>
+    /// Returns the current state as the value.
+    pub fn get<P>(pure_fn: P) -> StateT<S, M::Output<(S, S)>, S>
+    where
+        S: Clone + Send + Sync,
+        P: Fn((S, S)) -> M::Output<(S, S)> + Send + Sync + 'static,
+        M::Output<(S, S)>: 'static,
+    {
+        StateT::new(move |state: S| pure_fn((state.clone(), state)))
+    }
+
+    /// Replaces the state and returns the previous state.
+    pub fn put<P>(new_state: S, pure_fn: P) -> StateT<S, M::Output<(S, S)>, S>
+    where
+        S: Clone + Send + Sync,
+        P: Fn((S, S)) -> M::Output<(S, S)> + Send + Sync + 'static,
+        M::Output<(S, S)>: 'static,
+    {
+        StateT::new(move |old_state: S| pure_fn((new_state.clone(), old_state)))
+    }
+
+    /// Modifies the current state and returns unit.
+    pub fn modify<F, P>(f: F, pure_fn: P) -> StateT<S, M::Output<(S, ())>, ()>
     where
         F: Fn(S) -> S + Send + Sync + 'static,
-        P: Fn((S, ())) -> M + Send + Sync + 'static,
+        P: Fn((S, ())) -> M::Output<(S, ())> + Send + Sync + 'static,
+        M::Output<(S, ())>: 'static,
     {
-        StateT::new(move |s: S| pure((f(s), ())))
+        StateT::new(move |state| pure_fn((f(state), ())))
     }
 
-    /// Maps a function over the values inside this StateT.
-    ///
-    /// This is a specialized implementation that works with monads that have a map function.
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - Function to apply to the values
-    /// * `map_fn` - Function that knows how to map over the base monad
-    ///
-    /// # Returns
-    ///
-    /// A new StateT with the function applied to its values
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a state transformer over Option
-    /// let state_t: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| {
-    ///     Some((s + 1, s * 2))
-    /// });
-    ///
-    /// // Map over the value using fmap_with
-    /// let doubled_state = state_t.fmap_with(
-    ///     |n: i32| n + 10,
-    ///     |m: Option<(i32, i32)>, f| m.map(f)
-    /// );
-    ///
-    /// assert_eq!(doubled_state.run_state(5), Some((6, 20)));
-    /// ```
-    pub fn fmap_with<F, B, MapFn>(&self, f: F, map_fn: MapFn) -> StateT<S, M, B>
+    /// Maps with a caller-provided operation from the same HKT family.
+    pub fn fmap_with<B, F, MapFn>(&self, f: F, map_fn: MapFn) -> StateT<S, M::Output<(S, B)>, B>
     where
-        F: Fn(A) -> B + Send + Sync + Clone + 'static,
-        MapFn: for<'a> Fn(M, &'a StateValueMapper<S, A, B>) -> M + Send + Sync + 'static,
-        S: Clone + Send + Sync + 'static,
-        M: Clone + 'static,
-        A: Clone + 'static,
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
+        MapFn: for<'a> Fn(M, &'a StateValueMapper<S, A, B>) -> M::Output<(S, B)>
+            + Send
+            + Sync
+            + 'static,
         B: 'static,
+        M::Output<(S, B)>: 'static,
     {
-        match self {
-            StateT::Pure(a) => {
-                let b = f(a.clone());
-                StateT::Pure(b)
-            },
-            StateT::LiftM(m) => {
-                let mapper = move |(state, a)| (state, f(a));
-                StateT::LiftM(map_fn(m.clone(), &mapper))
-            },
-            StateT::Effect(run_fn) => {
-                let run_fn = Arc::clone(run_fn);
-                StateT::new(move |s: S| {
-                    let f_clone = f.clone();
-                    let mapper = move |(state, a)| (state, f_clone(a));
-                    map_fn(run_fn(s), &mapper)
-                })
-            },
-        }
+        let run = Arc::clone(&self.run_state_fn);
+        StateT::new(move |state| {
+            let mapper = f.clone();
+            let map_pair = move |(next_state, value)| (next_state, mapper(value));
+            map_fn(run(state), &map_pair)
+        })
     }
 
-    /// Binds this StateT with a function that produces another StateT.
-    ///
-    /// This is the monadic bind operation, which allows sequencing operations that depend
-    /// on the result of previous operations.
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - Function that takes a value and returns a new StateT
-    /// * `bind_fn` - Function that knows how to perform bind on the base monad
-    ///
-    /// # Returns
-    ///
-    /// A new StateT representing the sequenced computation
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    /// use rustica::prelude::*;
-    ///
-    /// // Create a state that increments and returns the new value
-    /// let increment: StateT<i32, Option<(i32, i32)>, i32> =
-    ///     StateT::new(|s: i32| Some((s + 1, s + 1)));
-    ///
-    /// // Create a function that takes the output and produces another state transformer
-    /// let validate = |n: i32| {
-    ///     StateT::new(move |s: i32| {
-    ///         if n > 10 {
-    ///             Some((s, n * 2))
-    ///         } else {
-    ///             Some((s, n))
-    ///         }
-    ///     })
-    /// };
-    ///
-    /// // Compose using bind_with
-    /// let inc_and_validate: StateT<i32, Option<(i32, i32)>, i32> = increment.bind_with(
-    ///     validate,
-    ///     |m: Option<(i32, i32)>, f| m.and_then(|(s, a)| f((s, a)))
-    /// );
-    ///
-    /// assert_eq!(inc_and_validate.run_state(5), Some((6, 6))); // <= 10, returns as-is
-    /// assert_eq!(inc_and_validate.run_state(10), Some((11, 22))); // > 10, doubles
-    /// ```
-    pub fn bind_with<F, B, BindFn, N>(&self, f: F, bind_fn: BindFn) -> StateT<S, N, B>
+    /// Binds with a caller-provided operation from the same HKT family.
+    pub fn bind_with<B, F, BindFn>(&self, f: F, bind_fn: BindFn) -> StateT<S, M::Output<(S, B)>, B>
     where
-        F: Fn(A) -> StateT<S, N, B> + Send + Sync + Clone + 'static,
-        BindFn: for<'a> Fn(M, &'a (dyn Fn((S, A)) -> N + Send + Sync)) -> N + Send + Sync + 'static,
-        S: Clone + Send + Sync + 'static,
-        M: Clone + Send + Sync + 'static,
-        A: Clone + 'static,
-        N: Clone + 'static,
-        B: Clone + 'static,
+        S: Clone + Send + Sync,
+        A: Send + Sync,
+        F: Fn(A) -> StateT<S, M::Output<(S, B)>, B> + Clone + Send + Sync + 'static,
+        BindFn: for<'a> Fn(
+                M,
+                &'a (dyn Fn((S, A)) -> M::Output<(S, B)> + Send + Sync),
+            ) -> M::Output<(S, B)>
+            + Send
+            + Sync
+            + 'static,
+        B: 'static,
+        M::Output<(S, B)>: 'static,
     {
-        match self {
-            StateT::Pure(a) => f(a.clone()),
-            StateT::LiftM(m) => {
-                let m_clone = m.clone();
-
-                StateT::new(move |_: S| {
-                    let f_for_closure = f.clone();
-                    let binder = move |(state, a)| {
-                        let next_state_t = f_for_closure(a);
-                        next_state_t.run_state(state)
-                    };
-                    bind_fn(m_clone.clone(), &binder)
-                })
-            },
-            StateT::Effect(run_fn) => {
-                let run_fn = Arc::clone(run_fn);
-
-                StateT::new(move |s: S| {
-                    let f_for_closure = f.clone();
-                    let binder = move |(state, a)| {
-                        let next_state_t = f_for_closure(a);
-                        next_state_t.run_state(state)
-                    };
-                    bind_fn(run_fn(s), &binder)
-                })
-            },
-        }
+        let run = Arc::clone(&self.run_state_fn);
+        StateT::new(move |state| {
+            let next = f.clone();
+            let binder = move |(next_state, value)| next(value).run_state(next_state);
+            bind_fn(run(state), &binder)
+        })
     }
 
-    /// Combines this StateT with another using a binary function.
-    ///
-    /// This is useful for combining the results of two state operations that have the same state type.
-    ///
-    /// # Parameters
-    ///
-    /// * `other` - Another StateT to combine with
-    /// * `f` - Function to combine the results
-    /// * `combine_fn` - Function that knows how to combine values in the base monad
-    ///
-    /// # Returns
-    ///
-    /// A new StateT with the combined results
-    pub fn combine_with<B, C, F, CombineFn>(
-        &self, other: &StateT<S, M, B>, f: F, combine_fn: CombineFn,
-    ) -> StateT<S, M, C>
+    /// Combines transitions left-to-right with a caller-provided bind operation.
+    pub fn combine_with<B, C, F, BindFn>(
+        &self, other: &StateT<S, M::Output<(S, B)>, B>, f: F, bind_fn: BindFn,
+    ) -> StateT<S, M::Output<(S, C)>, C>
     where
-        F: Fn(A, B) -> C + Send + Sync + Clone + 'static,
-        CombineFn: for<'a> Fn(M, M, &'a StateCombiner<S, A, B, C>) -> M + Send + Sync + 'static,
-        S: Clone + Send + Sync + 'static,
-        M: Clone + 'static,
-        A: Clone + 'static,
-        B: Clone + 'static,
-        C: 'static,
-    {
-        match (self, other) {
-            (StateT::Pure(a), StateT::Pure(b)) => {
-                let c = f(a.clone(), b.clone());
-                StateT::Pure(c)
-            },
-            (StateT::LiftM(m1), StateT::LiftM(m2)) => {
-                let combiner = move |(s1, a), (_, b)| {
-                    let f_clone = f.clone();
-                    (s1, f_clone(a, b))
-                };
-                StateT::LiftM(combine_fn(m1.clone(), m2.clone(), &combiner))
-            },
-            (StateT::Effect(self_run_fn), StateT::Effect(other_run_fn)) => {
-                let self_run_fn = Arc::clone(self_run_fn);
-                let other_run_fn = Arc::clone(other_run_fn);
-
-                StateT::new(move |s: S| {
-                    let f_clone = f.clone();
-                    let combiner = move |(_, a), (state, b)| {
-                        let f_clone = f_clone.clone();
-                        (state, f_clone(a, b))
-                    };
-
-                    combine_fn(self_run_fn(s.clone()), other_run_fn(s), &combiner)
-                })
-            },
-            _ => panic!("Cannot combine StateT variants of different types"),
-        }
-    }
-
-    /// Creates a new `StateT` transformer with a pure value.
-    ///
-    /// This method lifts a pure value into the `StateT` monad without changing
-    /// the current state. It's the analog of `State::pure`.
-    ///
-    /// # Parameters
-    ///
-    /// * `a` - The value to lift into the StateT
-    /// * `pure_fn` - A function that lifts a tuple into the base monad
-    ///
-    /// # Returns
-    ///
-    /// A new `StateT` containing the value and preserving the state
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// // Create a StateT with a pure value
-    /// let state_t = StateT::<i32, Option<(i32, String)>, String>::pure("hello".to_string(), Some);
-    ///
-    /// // Running with any state just returns the value and preserves the state
-    /// assert_eq!(state_t.run_state(42), Some((42, "hello".to_string())));
-    /// ```
-    pub fn pure<P>(a: A, pure_fn: P) -> Self
-    where
-        P: Fn((S, A)) -> M + Send + Sync + 'static,
+        S: Clone + Send + Sync,
         A: Clone + Send + Sync,
+        B: Clone + Send + Sync + 'static,
+        C: Clone + 'static,
+        F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
+        BindFn: for<'a> Fn(
+                M,
+                &'a (dyn Fn((S, A)) -> M::Output<(S, C)> + Send + Sync),
+            ) -> M::Output<(S, C)>
+            + Send
+            + Sync
+            + 'static,
+        M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
+        M::Output<(S, C)>: 'static,
     {
-        StateT::new(move |s| pure_fn((s, a.clone())))
+        let left = Arc::clone(&self.run_state_fn);
+        let right = Arc::clone(&other.run_state_fn);
+        StateT::new(move |state| {
+            let right = Arc::clone(&right);
+            let combine = f.clone();
+            let binder = move |(next_state, left_value): (S, A)| {
+                let combine = combine.clone();
+                right(next_state).fmap(move |pair| {
+                    let (final_state, right_value) = pair;
+                    (
+                        final_state.clone(),
+                        combine(left_value.clone(), right_value.clone()),
+                    )
+                })
+            };
+            bind_fn(left(state), &binder)
+        })
     }
 
-    /// Runs the state computation and returns only the final state, discarding the value.
-    ///
-    /// # Parameters
-    ///
-    /// * `s` - The initial state
-    /// * `extract_state_fn` - Function that knows how to extract the state from the monadic result
-    ///
-    /// # Returns
-    ///
-    /// The final state after running the computation
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// // Create a state that increments the state
-    /// let state_t = StateT::<i32, Option<(i32, String)>, String>::new(|s| {
-    ///     Some((s + 1, format!("Value: {}", s)))
-    /// });
-    ///
-    /// // Run and extract only the state
-    /// let result = state_t.exec_state(42, |opt| opt.map(|(s, _)| s));
-    /// assert_eq!(result, Some(43));
-    /// ```
-    pub fn exec_state<F, B>(&self, s: S, extract_state_fn: F) -> B
+    /// Runs a base-level flattening operation without introducing state variants.
+    pub fn join<OuterM, JoinFn>(&self, join_fn: JoinFn) -> StateT<S, OuterM, A>
+    where
+        OuterM: HKT<Source = (S, A)> + 'static,
+        JoinFn: Fn(M) -> OuterM + Send + Sync + 'static,
+    {
+        let run = Arc::clone(&self.run_state_fn);
+        StateT::new(move |state| join_fn(run(state)))
+    }
+
+    /// Runs the transition and lets the caller project the base result.
+    pub fn exec_state<F, B>(&self, state: S, extract: F) -> B
     where
         F: FnOnce(M) -> B,
-        M: Clone,
-        A: Clone,
     {
-        extract_state_fn(self.run_state(s))
+        extract(self.run_state(state))
+    }
+}
+
+impl<S, M, A> StateT<S, M, A>
+where
+    S: Clone + 'static,
+    M: Monad<Source = (S, A)> + Clone + 'static,
+    A: Clone + 'static,
+{
+    /// Maps the value while preserving the produced state.
+    pub fn fmap<B, F>(&self, f: F) -> StateT<S, M::Output<(S, B)>, B>
+    where
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
+        B: Clone + 'static,
+        M::Output<(S, B)>: 'static,
+    {
+        let run = Arc::clone(&self.run_state_fn);
+        StateT::new(move |state| {
+            let mapper = f.clone();
+            run(state).fmap(move |pair| {
+                let (next_state, value) = pair;
+                (next_state.clone(), mapper(value.clone()))
+            })
+        })
     }
 
-    /// Applies a function inside a StateT to a value inside another StateT.
-    ///
-    /// This is the applicative apply operation for StateT, allowing you to
-    /// apply a function in a stateful context to a value in a stateful context.
-    ///
-    /// # Parameters
-    ///
-    /// * `other` - A StateT containing the value to apply the function to
-    /// * `apply_fn` - A function that knows how to apply functions in the base monad
-    ///
-    /// # Returns
-    ///
-    /// A new StateT containing the result of applying the function to the value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// // Define a function that adds state to its argument
-    /// let fn_state: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| {
-    ///     Some((s + 1, 10))
-    /// });
-    ///
-    /// // Define a state holding a value
-    /// let value_state: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| {
-    ///     Some((s * 2, 5))
-    /// });
-    ///
-    /// // Apply the function to the value
-    /// let result: StateT<i32, Option<(i32, i32)>, i32> = fn_state.apply(value_state, |f_result, v_result| {
-    ///     match (f_result, v_result) {
-    ///         (Some((s1, f)), Some((s2, v))) => {
-    ///             Some((s2, f + v)) // Using the second state, add the values
-    ///         },
-    ///         _ => None
-    ///     }
-    /// });
-    ///
-    /// // Run with state 10
-    /// // fn_state: returns (11, 10)
-    /// // value_state: returns (20, 5)
-    /// // apply: returns (20, 10 + 5) = (20, 15)
-    /// assert_eq!(result.run_state(10), Some((20, 15)));
-    /// ```
-    pub fn apply<B, C, ApplyFn>(&self, other: StateT<S, M, B>, apply_fn: ApplyFn) -> StateT<S, M, C>
+    /// Sequences transitions and threads the produced state into the next step.
+    pub fn bind<B, F>(&self, f: F) -> StateT<S, M::Output<(S, B)>, B>
     where
-        A: Clone + Send + Sync + 'static,
-        B: Clone + Send + Sync + 'static,
-        C: Clone + Send + Sync + 'static,
-        S: Clone + Send + Sync + 'static,
-        M: Clone + Send + Sync + 'static,
-        ApplyFn: Fn(M, M) -> M + Send + Sync + 'static,
+        F: Fn(A) -> StateT<S, M::Output<(S, B)>, B> + Clone + Send + Sync + 'static,
+        B: Clone + 'static,
+        M::Output<(S, B)>: 'static,
     {
-        match (self, &other) {
-            (StateT::Pure(f), StateT::Pure(v)) => {
-                let f_clone = f.clone();
-                let v_clone = v.clone();
-                StateT::new(move |s: S| {
-                    let f_state = StateT::Pure(f_clone.clone());
-                    let v_state = StateT::Pure(v_clone.clone());
-                    let f_result = f_state.run_state(s.clone());
-                    let v_result = v_state.run_state(s);
-                    apply_fn(f_result, v_result)
+        let run = Arc::clone(&self.run_state_fn);
+        StateT::new(move |state| {
+            let next = f.clone();
+            run(state).bind(move |pair| {
+                let (next_state, value) = pair;
+                next(value.clone()).run_state(next_state.clone())
+            })
+        })
+    }
+
+    /// Combines transitions left-to-right while threading state.
+    pub fn combine<B, C, F>(
+        &self, other: &StateT<S, M::Output<(S, B)>, B>, f: F,
+    ) -> StateT<S, M::Output<(S, C)>, C>
+    where
+        B: Clone + 'static,
+        C: Clone + 'static,
+        F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
+        M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
+        M::Output<(S, C)>: 'static,
+    {
+        let left = Arc::clone(&self.run_state_fn);
+        let right = Arc::clone(&other.run_state_fn);
+        StateT::new(move |state| {
+            let right = Arc::clone(&right);
+            let combine = f.clone();
+            left(state).bind(move |pair| {
+                let (next_state, left_value) = pair;
+                let combine = combine.clone();
+                right(next_state.clone()).fmap(move |right_pair| {
+                    let (final_state, right_value) = right_pair;
+                    (
+                        final_state.clone(),
+                        combine(left_value.clone(), right_value.clone()),
+                    )
                 })
-            },
-            (StateT::LiftM(m1), StateT::LiftM(m2)) => {
-                StateT::LiftM(apply_fn(m1.clone(), m2.clone()))
-            },
-            (StateT::Effect(self_run), StateT::Effect(other_run)) => {
-                let self_run = Arc::clone(self_run);
-                let other_run = Arc::clone(other_run);
-
-                StateT::new(move |s: S| apply_fn(self_run(s.clone()), other_run(s)))
-            },
-            _ => {
-                let self_run = match self {
-                    StateT::Pure(_) | StateT::LiftM(_) => {
-                        let self_clone = self.clone();
-                        Arc::new(move |s: S| self_clone.run_state(s))
-                            as Arc<dyn Fn(S) -> M + Send + Sync>
-                    },
-                    StateT::Effect(run) => Arc::clone(run),
-                };
-
-                let other_run = match &other {
-                    StateT::Pure(_) | StateT::LiftM(_) => {
-                        let other_clone = other.clone();
-                        Arc::new(move |s: S| other_clone.run_state(s))
-                            as Arc<dyn Fn(S) -> M + Send + Sync>
-                    },
-                    StateT::Effect(run) => Arc::clone(run),
-                };
-
-                StateT::new(move |s: S| apply_fn(self_run(s.clone()), other_run(s)))
-            },
-        }
+            })
+        })
     }
 
-    /// Joins a nested StateT structure, flattening it to a single level.
-    ///
-    /// This is useful when working with operations that return StateT instances
-    /// inside StateT, allowing you to flatten the nested structure.
-    ///
-    /// # Parameters
-    ///
-    /// * `join_fn` - Function that knows how to join/flatten the base monad
-    ///
-    /// # Returns
-    ///
-    /// A flattened StateT instance
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// // Create a nested StateT (StateT inside StateT)
-    /// let nested: StateT<i32, Option<(i32, StateT<i32, Option<(i32, i32)>, i32>)>, StateT<i32, Option<(i32, i32)>, i32>> =
-    ///     StateT::new(|s: i32| {
-    ///         let inner = StateT::new(move |inner_s: i32| {
-    ///             Some((inner_s * 2, inner_s + s))
-    ///         });
-    ///         Some((s + 1, inner))
-    ///     });
-    ///
-    /// // Flatten the structure
-    /// let flattened = nested.join(|m| {
-    ///     m.and_then(|(outer_s, inner_state_t)| {
-    ///         inner_state_t.run_state(outer_s)
-    ///     })
-    /// });
-    ///
-    /// // Run the flattened computation
-    /// // With initial state 10:
-    /// // 1. outer: (11, inner_state_t)
-    /// // 2. inner_state_t with state 11: (22, 21)
-    /// assert_eq!(flattened.run_state(10), Some((22, 21)));
-    /// ```
-    pub fn join<JoinFn, OuterM>(&self, join_fn: JoinFn) -> StateT<S, OuterM, A>
+    /// Applies a state-held function to the next state-held value.
+    pub fn apply<B, C>(
+        &self, other: &StateT<S, M::Output<(S, B)>, B>,
+    ) -> StateT<S, M::Output<(S, C)>, C>
     where
-        A: Clone + Send + Sync + 'static,
-        M: Clone + 'static,
-        JoinFn: Fn(M) -> OuterM + Send + Sync + 'static,
-        OuterM: 'static,
+        A: Fn(B) -> C,
+        B: Clone + 'static,
+        C: Clone + 'static,
+        M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
+        M::Output<(S, C)>: 'static,
     {
-        match self {
-            StateT::Pure(inner_state_t) => StateT::Pure(inner_state_t.clone()),
-            StateT::LiftM(m) => StateT::LiftM(join_fn(m.clone())),
-            StateT::Effect(run_fn) => {
-                let run_fn = Arc::clone(run_fn);
-                StateT::new(move |s: S| join_fn(run_fn(s)))
-            },
-        }
+        self.combine(other, |function, value| function(value))
     }
 }
 
 impl<S, M, A> MonadTransformer for StateT<S, M, A>
 where
     S: Clone + Send + Sync + 'static,
-    M: Monad<Source = (S, A)> + Send + Sync + Clone + 'static,
+    M: Monad<Source = (S, A)> + Clone + 'static,
     A: Clone + Send + Sync + 'static,
+    M::Output<A>: Monad<Source = A> + HKT<Output<(S, A)> = M> + Clone + Send + Sync + 'static,
 {
-    type BaseMonad = M;
+    type BaseMonad = M::Output<A>;
 
-    #[inline]
-    fn lift(base: M) -> Self {
-        StateT::new(move |_: S| base.clone())
+    fn lift(base: Self::BaseMonad) -> Self {
+        StateT::new(move |state: S| base.fmap(|value| (state.clone(), value.clone())))
     }
 }
 
 impl<S, E, A> StateT<S, Result<(S, A), E>, A>
 where
     S: Clone + 'static,
-    E: 'static,
-    A: Send + Sync + 'static,
+    E: Clone + 'static,
+    A: Clone + 'static,
 {
-    /// Runs the state transformer and converts errors to [`ComposableError`] for standardized error handling.
-    ///
-    /// This method executes the state transformer with the given initial state and converts
-    /// any errors to the standardized [`ComposableError`] type, providing consistent error handling
-    /// across the library.
-    ///
-    /// # Parameters
-    ///
-    /// * `state` - Initial state
-    ///
-    /// # Returns
-    ///
-    /// Result containing either the state-value pair or a [`ComposableError`]
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// // Create a StateT that may fail with division
-    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-    ///     if s == 0 {
-    ///         Err("Division by zero".to_string())
-    ///     } else {
-    ///         Ok((s, 100 / s))
-    ///     }
-    /// });
-    ///
-    /// // Convert regular errors to [`ComposableError`]
-    /// let result = safe_div.try_run_state(4);
-    /// assert!(result.is_ok());
-    /// assert_eq!(result.unwrap(), (4, 25)); // 100/4 = 25
-    ///
-    /// // With error
-    /// let result = safe_div.try_run_state(0);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().core_error(), "Division by zero");
-    /// ```
-    pub fn try_run_state(&self, state: S) -> ComposableResult<(S, A), E>
-    where
-        A: Clone,
-        E: Clone,
-    {
-        match self {
-            StateT::Pure(_) => panic!("Cannot run Pure StateT without proper context"),
-            StateT::LiftM(result) => match result.as_ref() {
-                Ok((s, a)) => Ok((s.clone(), a.clone())),
-                Err(e) => Err(ComposableError::new(e.clone())),
-            },
-            StateT::Effect(run_fn) => run_fn(state).map_err(ComposableError::new),
-        }
+    pub fn try_run_state(&self, state: S) -> ComposableResult<(S, A), E> {
+        self.run_state(state).map_err(ComposableError::new)
     }
 
-    /// Runs the state transformer with context information for better error reporting.
-    ///
-    /// This method is similar to `try_run_state` but allows for adding context to the error,
-    /// which can provide more information about what was happening when the error occurred.
-    ///
-    /// # Parameters
-    ///
-    /// * `state` - Initial state
-    /// * `context` - Context information to include with errors
-    ///
-    /// # Returns
-    ///
-    /// Result containing either the state-value pair or a [`ComposableError`] with context
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// // Create a StateT that may fail with division
-    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-    ///     if s == 0 {
-    ///         Err("Division by zero".to_string())
-    ///     } else {
-    ///         Ok((s, 100 / s))
-    ///     }
-    /// });
-    ///
-    /// // Run with context
-    /// let result = safe_div.try_run_state_with_context(4, "processing user input");
-    /// assert!(result.is_ok());
-    /// assert_eq!(result.unwrap(), (4, 25)); // 100/4 = 25
-    ///
-    /// // With error and context
-    /// let result = safe_div.try_run_state_with_context(0, "processing user input");
-    /// assert!(result.is_err());
-    /// let error = result.unwrap_err();
-    /// assert_eq!(error.core_error(), "Division by zero");
-    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
-    /// ```
     pub fn try_run_state_with_context<C>(&self, state: S, context: C) -> ComposableResult<(S, A), E>
     where
         C: IntoErrorContext,
-        A: Clone,
-        E: Clone,
     {
         let context = context.into_error_context();
-        match self {
-            StateT::Pure(_) => panic!("Cannot run Pure StateT without proper context"),
-            StateT::LiftM(result) => match result.as_ref() {
-                Ok((s, a)) => Ok((s.clone(), a.clone())),
-                Err(e) => Err(ComposableError::new(e.clone()).with_context(context)),
-            },
-            StateT::Effect(run_fn) => {
-                run_fn(state).map_err(|e| ComposableError::new(e).with_context(context.clone()))
-            },
-        }
+        self.run_state(state)
+            .map_err(|error| ComposableError::new(error).with_context(context.clone()))
     }
 
-    /// Maps a function over the error contained in this StateT.
-    ///
-    /// This method transforms the error type of the StateT, allowing for conversion
-    /// between different error types while preserving the structure of the StateT.
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - Function to apply to the error
-    ///
-    /// # Returns
-    ///
-    /// A new StateT with the mapped error
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// // Create a StateT with a string error
-    /// let state_t: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-    ///     if s == 0 {
-    ///         Err("Division by zero".to_string())
-    ///     } else {
-    ///         Ok((s, 100 / s))
-    ///     }
-    /// });
-    ///
-    /// // Map the error to a different type
-    /// let mapped = state_t.map_error(|e: String| e.len() as i32);
-    ///
-    /// // Now the error is an i32 (the length of the original error string)
-    /// let result = mapped.run_state(0);
-    /// assert_eq!(result, Err(16)); // "Division by zero" has length 16
-    /// ```
     pub fn map_error<F, E2>(&self, f: F) -> StateT<S, Result<(S, A), E2>, A>
     where
         F: Fn(E) -> E2 + Send + Sync + 'static,
-        E2: 'static,
-        A: Clone,
-        E: Clone,
+        E2: Clone + 'static,
     {
-        match self {
-            StateT::Pure(a) => StateT::Pure(a.clone()),
-            StateT::LiftM(result) => {
-                let mapped_result = match result.as_ref() {
-                    Ok((s, a)) => Ok((s.clone(), a.clone())),
-                    Err(e) => Err(f(e.clone())),
-                };
-                StateT::LiftM(mapped_result)
-            },
-            StateT::Effect(run_fn) => {
-                let run_fn = Arc::clone(run_fn);
-                StateT::new(move |s: S| run_fn(s).map_err(&f))
-            },
-        }
+        let run = Arc::clone(&self.run_state_fn);
+        StateT::new(move |state| run(state).map_err(&f))
     }
 
-    /// Runs the state transformer and returns only the value as a [`ComposableResult`].
-    ///
-    /// This method is similar to `try_run_state` but discards the final state and
-    /// only returns the computed value.
-    ///
-    /// # Parameters
-    ///
-    /// * `state` - Initial state
-    ///
-    /// # Returns
-    ///
-    /// Result containing either the computed value or a [`ComposableError`]
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-    ///     if s == 0 {
-    ///         Err("Division by zero".to_string())
-    ///     } else {
-    ///         Ok((s, 100 / s))
-    ///     }
-    /// });
-    ///
-    /// let result = safe_div.try_eval_state(4);
-    /// assert_eq!(result, Ok(25)); // 100/4 = 25
-    ///
-    /// let result = safe_div.try_eval_state(0);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().core_error(), "Division by zero");
-    /// ```
-    pub fn try_eval_state(&self, state: S) -> ComposableResult<A, E>
-    where
-        A: Clone,
-        E: Clone,
-    {
-        self.try_run_state(state).map(|(_, a)| a)
+    pub fn try_eval_state(&self, state: S) -> ComposableResult<A, E> {
+        self.try_run_state(state).map(|(_, value)| value)
     }
 
-    /// Runs the state transformer with context and returns only the value as a [`ComposableResult`].
-    ///
-    /// This method is similar to `try_run_state_with_context` but discards the final state
-    /// and only returns the computed value.
-    ///
-    /// # Parameters
-    ///
-    /// * `state` - Initial state
-    /// * `context` - Context information to include with errors
-    ///
-    /// # Returns
-    ///
-    /// Result containing either the computed value or a [`ComposableError`] with context
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-    ///     if s == 0 {
-    ///         Err("Division by zero".to_string())
-    ///     } else {
-    ///         Ok((s, 100 / s))
-    ///     }
-    /// });
-    ///
-    /// let result = safe_div.try_eval_state_with_context(4, "processing user input");
-    /// assert_eq!(result, Ok(25)); // 100/4 = 25
-    ///
-    /// let result = safe_div.try_eval_state_with_context(0, "processing user input");
-    /// assert!(result.is_err());
-    /// let error = result.unwrap_err();
-    /// assert_eq!(error.core_error(), "Division by zero");
-    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
-    /// ```
     pub fn try_eval_state_with_context<C>(&self, state: S, context: C) -> ComposableResult<A, E>
     where
         C: IntoErrorContext,
-        A: Clone,
-        E: Clone,
     {
         self.try_run_state_with_context(state, context)
-            .map(|(_, a)| a)
+            .map(|(_, value)| value)
     }
 
-    /// Runs the state transformer and returns only the final state as a [`ComposableResult`].
-    ///
-    /// This method is similar to `try_run_state` but discards the computed value and
-    /// only returns the final state.
-    ///
-    /// # Parameters
-    ///
-    /// * `state` - Initial state
-    ///
-    /// # Returns
-    ///
-    /// Result containing either the final state or a [`ComposableError`]
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    ///
-    /// let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-    ///     if s == 0 {
-    ///         Err("Division by zero".to_string())
-    ///     } else {
-    ///         Ok((s + 1, 100 / s))
-    ///     }
-    /// });
-    ///
-    /// let result = safe_div.try_exec_state(4);
-    /// assert_eq!(result, Ok(5)); // initial state 4 + 1 = 5
-    ///
-    /// let result = safe_div.try_exec_state(0);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().core_error(), "Division by zero");
-    /// ```
-    pub fn try_exec_state(&self, state: S) -> ComposableResult<S, E>
-    where
-        A: Clone,
-        E: Clone,
-    {
-        self.try_run_state(state).map(|(s, _)| s)
+    pub fn try_exec_state(&self, state: S) -> ComposableResult<S, E> {
+        self.try_run_state(state)
+            .map(|(final_state, _)| final_state)
     }
 }
-
-use crate::datatypes::id::Id;
 
 impl<S, A> StateT<S, Id<(S, A)>, A>
 where
     S: Clone + Send + Sync + 'static,
     A: Clone + Send + Sync + 'static,
 {
-    /// Converts this `StateT<S, Id<(S, A)>, A>` into a `State<S, A>`.
-    ///
-    /// This method allows you to convert a state transformer with the identity monad as its base
-    /// back into a regular `State` monad. This is useful when you want to drop the transformer
-    /// context and work with the simpler state monad.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::transformers::StateT;
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a StateT with Id as the monad
-    /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::new(|s: i32| {
-    ///     Id::new((s * 2, s + 1))
-    /// });
-    ///
-    /// // Convert to State
-    /// let state: State<i32, i32> = state_t.to_state();
-    ///
-    /// // The behavior should be identical
-    /// assert_eq!(state.run_state(21), (22, 42));
-    /// ```
+    /// Converts to `State`, preserving its public `(value, state)` result order.
     pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
-        crate::datatypes::state::State::new(move |s: S| {
-            let result = self.run_state(s);
-            let (new_state, value) = result.unwrap();
-            (value, new_state)
-        })
+        self.into()
     }
 
-    /// Converts a `State<S, A>` into a `StateT<S, Id<(S, A)>, A>`.
-    ///
-    /// This method allows you to lift a regular state monad into the transformer context
-    /// with the identity monad as the base. This is useful for composing stateful computations
-    /// with other monad transformers.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::transformers::StateT;
-    ///
-    /// // Create a State
-    /// let state = State::new(|s: i32| (s * 2, s + 1));
-    ///
-    /// // Convert to StateT
-    /// let state_t: StateT<i32, Id<(i32, i32)>, i32> = StateT::from_state(state);
-    ///
-    /// // The behavior should be identical
-    /// assert_eq!(state_t.run_state(21).unwrap(), (22, 42));
-    /// ```
+    /// Converts from `State` into the canonical `(state, value)` transformer form.
     pub fn from_state(state: crate::datatypes::state::State<S, A>) -> Self {
-        StateT::new(move |s: S| {
-            let (a, s2) = state.run_state(s);
-            Id::new((s2, a))
-        })
+        state.into()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::StateT;
+    use crate::datatypes::state::State;
+    use crate::transformers::MonadTransformer;
 
     #[test]
-    fn test_state_t_creation_and_running() {
-        let state_t: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| Some((s + 1, s)));
-        assert_eq!(state_t.run_state(5), Some((6, 5)));
+    fn type_changes_and_state_is_threaded_left_to_right() {
+        type Formatter = fn(i32) -> String;
+        type FunctionState = StateT<i32, Option<(i32, Formatter)>, Formatter>;
+
+        let first: StateT<i32, Option<(i32, i32)>, i32> =
+            StateT::new(|state| Some((state + 1, state)));
+        let bound: StateT<i32, Option<(i32, String)>, String> = first
+            .bind(|value| StateT::new(move |state| Some((state * 2, format!("{value}:{state}")))));
+        assert_eq!(bound.run_state(3), Some((8, "3:4".to_owned())));
+
+        let second: StateT<i32, Option<(i32, &'static str)>, &'static str> =
+            StateT::new(|state| Some((state * 2, "done")));
+        let combined = first.combine(&second, |value, label| format!("{value}:{label}"));
+        assert_eq!(combined.run_state(3), Some((8, "3:done".to_owned())));
+
+        let mapped: StateT<i32, Option<(i32, String)>, String> =
+            first.fmap(|value| value.to_string());
+        assert_eq!(mapped.run_state(3), Some((4, "3".to_owned())));
+
+        let functions: FunctionState =
+            StateT::new(|state| Some((state + 1, (|value| format!("value={value}")) as Formatter)));
+        let values: StateT<i32, Option<(i32, i32)>, i32> =
+            StateT::new(|state| Some((state * 2, state)));
+        let applied: StateT<i32, Option<(i32, String)>, String> = functions.apply(&values);
+        assert_eq!(applied.run_state(3), Some((8, "value=4".to_owned())));
     }
 
     #[test]
-    fn test_state_t_composition() {
-        let add_one: StateT<i32, Option<(i32, i32)>, i32> =
-            StateT::new(|s: i32| Some((s + 1, s + 1)));
-        let double: StateT<i32, Option<(i32, i32)>, i32> = StateT::new(|s: i32| Some((s * 2, s)));
-        let add_then_double = add_one.bind_with(
-            move |_| double.clone(),
-            |m: Option<(i32, i32)>, f| m.and_then(|(s, _)| f((s, 0))),
+    fn lift_preserves_the_input_state() {
+        let lifted: StateT<String, Option<(String, usize)>, usize> = StateT::lift(Some(7));
+        assert_eq!(
+            lifted.run_state("state".to_owned()),
+            Some(("state".to_owned(), 7))
         );
-        assert_eq!(add_then_double.run_state(5), Some((12, 6)));
     }
 
     #[test]
-    fn test_state_t_get_and_put() {
-        let get_state = StateT::<i32, Option<(i32, i32)>, i32>::get(Some);
-        let set_state = StateT::<i32, Option<(i32, i32)>, i32>::put(42, Some);
-        assert_eq!(get_state.run_state(10), Some((10, 10)));
-        assert_eq!(set_state.run_state(10), Some((42, 10)));
-    }
-
-    #[test]
-    fn test_state_t_modify() {
-        let double_state = StateT::<i32, Option<(i32, ())>, ()>::modify(|s| s * 2, Some);
-        assert_eq!(double_state.run_state(21), Some((42, ())));
-    }
-
-    #[test]
-    fn test_state_t_with_error_handling() {
-        let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-            if s == 0 {
-                Err("Division by zero".to_string())
-            } else {
-                Ok((s, 100 / s))
-            }
+    fn state_round_trip_keeps_public_value_state_order() {
+        let state: State<String, usize> = State::new(|current: String| {
+            let value = current.len();
+            (value, format!("{current}!"))
         });
-        assert_eq!(safe_div.run_state(4), Ok((4, 25)));
-        assert_eq!(safe_div.run_state(0), Err("Division by zero".to_string()));
-    }
-
-    #[test]
-    fn test_state_t_standardized_error_handling() {
-        let safe_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-            if s == 0 {
-                Err("Division by zero".to_string())
-            } else {
-                Ok((s, 100 / s))
-            }
-        });
-
-        assert_eq!(safe_div.try_run_state(4).unwrap(), (4, 25));
+        let transformed = StateT::from_state(state);
         assert_eq!(
-            safe_div.try_run_state(0).unwrap_err().core_error(),
-            "Division by zero"
-        );
-        assert_eq!(
-            safe_div
-                .try_run_state_with_context(4, "processing user input")
-                .unwrap(),
-            (4, 25)
-        );
-        let error = safe_div
-            .try_run_state_with_context(0, "processing user input")
-            .unwrap_err();
-        assert_eq!(error.core_error(), "Division by zero");
-        assert_eq!(error.context(), vec!["processing user input".to_string()]);
-
-        assert_eq!(safe_div.try_eval_state(4), Ok(25));
-        assert_eq!(
-            safe_div.try_eval_state(0).unwrap_err().core_error(),
-            &"Division by zero"
-        );
-        assert_eq!(
-            safe_div.try_eval_state_with_context(4, "evaluating result"),
-            Ok(25)
-        );
-        let error = safe_div
-            .try_eval_state_with_context(0, "evaluating result")
-            .unwrap_err();
-        assert_eq!(error.core_error(), "Division by zero");
-        assert_eq!(error.context(), vec!["evaluating result".to_string()]);
-
-        let modify_and_div: StateT<i32, Result<(i32, i32), String>, i32> = StateT::new(|s: i32| {
-            if s == 0 {
-                Err("Division by zero".to_string())
-            } else {
-                Ok((s + 1, 100 / s))
-            }
-        });
-        assert_eq!(modify_and_div.try_exec_state(4), Ok(5));
-        assert_eq!(
-            modify_and_div.try_exec_state(0).unwrap_err().core_error(),
-            &"Division by zero"
+            transformed.run_state("abc".to_owned()).unwrap(),
+            ("abc!".to_owned(), 3)
         );
 
-        let mapped = safe_div.map_error(|e: String| e.len() as i32);
-        assert_eq!(mapped.run_state(0), Err(16));
-        assert_eq!(mapped.run_state(5), Ok((5, 20)));
-    }
-
-    #[test]
-    fn test_state_t_with_complex_error_handling() {
-        #[derive(Debug, Clone, PartialEq)]
-        struct Counter {
-            value: i32,
-            operations: i32,
-        }
-
-        let increment_if_valid: StateT<Counter, Result<(Counter, i32), String>, i32> =
-            StateT::new(|mut s: Counter| {
-                if s.value < 0 {
-                    Err("Cannot increment a negative counter".to_string())
-                } else {
-                    s.value += 1;
-                    s.operations += 1;
-                    Ok((s.clone(), s.value))
-                }
-            });
-
-        let double_if_even: StateT<Counter, Result<(Counter, i32), String>, i32> =
-            StateT::new(|mut s: Counter| {
-                if s.value % 2 != 0 {
-                    Err("Cannot double an odd value".to_string())
-                } else {
-                    let old_value = s.value;
-                    s.value *= 2;
-                    s.operations += 1;
-                    Ok((s, old_value))
-                }
-            });
-
-        let counter = Counter {
-            value: 5,
-            operations: 0,
-        };
-        let (new_counter, value) = increment_if_valid.try_run_state(counter).unwrap();
-        assert_eq!(value, 6);
-        assert_eq!(new_counter.operations, 1);
-
-        let (final_counter, value) = double_if_even.try_run_state(new_counter).unwrap();
-        assert_eq!(value, 6);
-        assert_eq!(final_counter.value, 12);
-        assert_eq!(final_counter.operations, 2);
-
-        let odd_counter = Counter {
-            value: 7,
-            operations: 0,
-        };
+        let state_again = transformed.to_state();
         assert_eq!(
-            double_if_even
-                .try_run_state(odd_counter)
-                .unwrap_err()
-                .core_error(),
-            &"Cannot double an odd value"
+            state_again.run_state("rust".to_owned()),
+            (4, "rust!".to_owned())
         );
     }
 }

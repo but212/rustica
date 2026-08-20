@@ -1,8 +1,5 @@
 use rustica::datatypes::validated::Validated;
-use rustica::error::convert::{
-    collect_errors, core_to_composable, result_to_validated, split_validated_errors,
-    validated_to_result,
-};
+use rustica::error::convert::{collect_errors, split_validated_errors};
 use rustica::error::types::ComposableError;
 
 struct NoClone(&'static str);
@@ -28,7 +25,7 @@ fn test_composable_error_anatomy() {
 fn test_error_type_conversions() {
     // Transformation to Composable
     let c1: ComposableError<&str> = "simple".into();
-    let c2 = core_to_composable("func_call");
+    let c2 = ComposableError::from("func_call");
     assert_eq!(c1.core_error(), &"simple");
     assert_eq!(c2.core_error(), &"func_call");
 }
@@ -36,11 +33,11 @@ fn test_error_type_conversions() {
 #[test]
 fn owned_conversions_accept_non_clone_values() {
     let converted: Result<NoClone, NoClone> =
-        validated_to_result(Validated::valid(NoClone("valid")));
+        Validated::valid(NoClone("valid")).into_result_first_error();
     assert!(matches!(converted, Ok(NoClone("valid"))));
 
     assert!(matches!(
-        result_to_validated::<NoClone, NoClone>(Ok(NoClone("result"))),
+        Validated::<NoClone, NoClone>::from(Ok(NoClone("result"))),
         Validated::Valid(NoClone("result"))
     ));
 
@@ -55,7 +52,7 @@ fn owned_conversions_accept_non_clone_values() {
 
 #[test]
 fn owned_validated_conversion_accepts_non_clone_values() {
-    let converted = Validated::<NoClone, NoClone>::from_result_owned(Ok(NoClone("owned")));
+    let converted = Validated::<NoClone, NoClone>::from(Ok(NoClone("owned")));
     assert!(matches!(converted, Validated::Valid(NoClone("owned"))));
 }
 

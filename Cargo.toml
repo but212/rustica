@@ -1,6 +1,6 @@
 [package]
 name = "rustica"
-version = "0.13.0"
+version = "0.14.0"
 authors = ["jeong-il suk <wjddlf211@naver.com>"]
 edition = "2024"
 description = "Rustica is a functional programming library for the Rust language."
@@ -19,7 +19,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-futures = { version = "0.3", optional = true, features = ["thread-pool"] }
+futures = { version = "0.3", optional = true }
 smallvec = "1.14.0"
 tokio = { version = "1", features = [
     "macros",
