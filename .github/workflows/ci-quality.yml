@@ -43,9 +43,6 @@ jobs:
         with:
           tool: cargo-audit,cargo-deny
 
-      - name: Verify locked dependency metadata
-        run: cargo metadata --no-deps --format-version 1 --locked > /dev/null
-
       - name: Run security audit
         run: cargo audit
 

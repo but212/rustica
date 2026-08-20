@@ -39,14 +39,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.14.0"
+rustica = "0.13.0"
 ```
 
 For full features including `async`, `serde`, and `quickcheck`:
 
 ```toml
 [dependencies]
-rustica = { version = "0.14.0", features = ["full"] }
+rustica = { version = "0.13.0", features = ["full"] }
 ```
 
 Import common traits and types through the prelude:
@@ -89,9 +89,9 @@ use rustica::prelude::*;
 
 ## Migration from 0.13 to 0.14
 
-In `0.14.0`, redundant types (`Maybe`, `Either`), single-implementation traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers (`ErrorPipeline`, `ErrorCategory`, `Memoizer`) have been removed. `ReaderT` and `StateT` also enforce their base-monad value types at compile time, while standard `Result`, `Iterator`, and `From` APIs replace duplicate error helpers.
+In `0.13.0`, redundant types (`Maybe`, `Either`), single-implementation traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers (`ErrorPipeline`, `ErrorCategory`, `Memoizer`) have been removed. `ReaderT` and `StateT` also enforce their base-monad value types at compile time, while standard `Result`, `Iterator`, and `From` APIs replace duplicate error helpers.
 
-See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the complete before/after migration guide.
+See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) for the complete before/after migration guide.
 
 ---
 
@@ -107,9 +107,11 @@ cargo test --all-features --locked
 cargo package --all-features --locked
 ```
 
-Pull requests run read-only tests and benchmarks. A trusted reporter compares
-benchmark results with the `main` baseline and marks the check as failed when a
-benchmark is at least 20% slower. Pushes to `main` update that baseline.
+Pull requests run read-only quality checks, platform tests, and MSRV validation.
+Nightly tests, unused-dependency checks, and Miri run on the weekly schedule or
+when manually dispatched. Benchmarks run on `main` pushes and the weekly
+schedule; the `main` result updates the trusted baseline, while scheduled
+results are retained as performance-observation artifacts.
 
 Releases are created from `v*` tags after the tag version, Cargo metadata, and
 the matching `CHANGELOG.md` section are validated. Publishing is protected by

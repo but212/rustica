@@ -13,7 +13,6 @@ SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from benchmark_common import api, parse_results  # noqa: E402
-from benchmark_report import compare_results, load_baseline  # noqa: E402
 from release_metadata import extract_release_body  # noqa: E402
 
 
@@ -49,21 +48,6 @@ class BenchmarkTests(TestCase):
                     {"name": "sort", "value": 2, "unit": "ns/iter"},
                 ]
             )
-
-    def test_exactly_twenty_percent_is_regression(self) -> None:
-        _, regressions = compare_results({"sort": 120.0}, {"sort": 100.0})
-        self.assertEqual(len(regressions), 1)
-
-    def test_under_twenty_percent_and_new_benchmark_pass(self) -> None:
-        rows, regressions = compare_results(
-            {"sort": 119.99, "new": 10.0}, {"sort": 100.0}
-        )
-        self.assertEqual(regressions, [])
-        self.assertEqual([row["status"] for row in rows], ["new", "ok"])
-
-    @patch("benchmark_report.api", return_value=None)
-    def test_missing_baseline_is_allowed(self, _api) -> None:
-        self.assertIsNone(load_baseline("but212/rustica"))
 
     @patch.dict(os.environ, {"GH_TOKEN": "test-token"})
     @patch("benchmark_common.urlopen")

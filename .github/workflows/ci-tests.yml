@@ -19,8 +19,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        features: ["", "--all-features"]
+        include:
+          - os: ubuntu-latest
+            features: ""
+          - os: windows-latest
+            features: ""
+          - os: macos-latest
+            features: ""
+          - os: ubuntu-latest
+            features: "--all-features"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -71,6 +78,7 @@ jobs:
 
   nightly:
     name: Test nightly
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
@@ -94,6 +102,7 @@ jobs:
 
   unused_dependencies:
     name: Check for unused dependencies
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
@@ -122,6 +131,7 @@ jobs:
 
   miri:
     name: Miri transformer ownership
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     continue-on-error: true

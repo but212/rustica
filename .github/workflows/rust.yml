@@ -9,6 +9,7 @@ on:
     branches: [main, develop]
   schedule:
     - cron: "0 0 * * 0"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -44,7 +45,9 @@ jobs:
 
   benchmarks:
     name: Benchmarks
-    if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: [quality, tests]
     permissions:
       contents: read
