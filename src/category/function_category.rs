@@ -291,8 +291,8 @@ impl FunctionCategory {
     ///
     /// # See also
     ///
-    /// * [`split`](Arrow::split) - Splitting a single input to two morphisms.
-    /// * [`combine_morphisms`](Arrow::combine_morphisms) - Combining two different morphisms for a pair input.
+    /// * [`split`](FunctionCategory::split) - Splitting a single input to two morphisms.
+    /// * [`combine_morphisms`](FunctionCategory::combine_morphisms) - Combining two different morphisms for a pair input.
     pub fn both<A, B, F>(f: F) -> PairMorphism<A, B>
     where
         A: 'static,
@@ -334,12 +334,12 @@ impl FunctionCategory {
 
     /// Creates a morphism that lifts a regular function into the category.
     ///
-    /// This is an alias for the Arrow::arrow method, provided for consistency
+    /// This is an alias for the FunctionCategory::arrow method, provided for consistency
     /// with the deprecated Composable trait.
     ///
     /// # See also
     ///
-    /// * [`Arrow::arrow`] - The standard way to lift functions into the category.
+    /// * [`FunctionCategory::arrow`] - The standard way to lift functions into the category.
     #[inline]
     pub fn lift<A, B, F>(f: F) -> FunctionMorphism<A, B>
     where
