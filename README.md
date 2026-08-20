@@ -107,9 +107,11 @@ cargo test --all-features --locked
 cargo package --all-features --locked
 ```
 
-Pull requests run read-only tests and benchmarks. A trusted reporter compares
-benchmark results with the `main` baseline and marks the check as failed when a
-benchmark is at least 20% slower. Pushes to `main` update that baseline.
+Pull requests run read-only quality checks, platform tests, and MSRV validation.
+Nightly tests, unused-dependency checks, and Miri run on the weekly schedule or
+when manually dispatched. Benchmarks run on `main` pushes and the weekly
+schedule; the `main` result updates the trusted baseline, while scheduled
+results are retained as performance-observation artifacts.
 
 Releases are created from `v*` tags after the tag version, Cargo metadata, and
 the matching `CHANGELOG.md` section are validated. Publishing is protected by

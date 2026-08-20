@@ -70,7 +70,3 @@ def parse_results(values: object) -> list[dict]:
 
 def read_results(path: Path) -> list[dict]:
     return parse_results(json.loads(path.read_text(encoding="utf-8")))
-
-
-def results_by_name(values: list[dict]) -> dict[str, float]:
-    return {item["name"]: item["value"] for item in values}
