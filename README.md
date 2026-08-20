@@ -2,6 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/rustica.svg)](https://crates.io/crates/rustica)
 [![Documentation](https://docs.rs/rustica/badge.svg)](https://docs.rs/rustica)
+[![CI](https://github.com/but212/rustica/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/but212/rustica/actions/workflows/rust.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 Rustica is a pragmatic functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem.
@@ -91,6 +92,29 @@ use rustica::prelude::*;
 In `0.14.0`, redundant types (`Maybe`, `Either`), single-implementation traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers (`ErrorPipeline`, `ErrorCategory`, `Memoizer`) have been removed. `ReaderT` and `StateT` also enforce their base-monad value types at compile time, while standard `Result`, `Iterator`, and `From` APIs replace duplicate error helpers.
 
 See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the complete before/after migration guide.
+
+---
+
+## Development and CI
+
+Rustica supports Rust 1.88.0 and newer. Before opening a pull request, run the
+same core checks used by CI:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --all-features --locked
+cargo package --all-features --locked
+```
+
+Pull requests run read-only tests and benchmarks. A trusted reporter compares
+benchmark results with the `main` baseline and marks the check as failed when a
+benchmark is at least 20% slower. Pushes to `main` update that baseline.
+
+Releases are created from `v*` tags after the tag version, Cargo metadata, and
+the matching `CHANGELOG.md` section are validated. Publishing is protected by
+the `crates-io` environment, and the release receives SLSA provenance. See
+[SECURITY.md](.github/SECURITY.md) for vulnerability reporting instructions.
 
 ---
 

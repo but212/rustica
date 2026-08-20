@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible problem in Rustica.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search existing issues before opening a new report.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What went wrong?
+      placeholder: Describe the observed and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include a minimal Rust example or repository link.
+      render: rust
+    validations:
+      required: true
+  - type: input
+    id: rust-version
+    attributes:
+      label: Rust version
+      placeholder: "rustc --version"
+    validations:
+      required: true
+  - type: input
+    id: rustica-version
+    attributes:
+      label: Rustica version
+      placeholder: "0.14.0"
+    validations:
+      required: true

@@ -6,61 +6,140 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings -A deprecated"
+  NIGHTLY_TOOLCHAIN: nightly-2026-08-20
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: Test ${{ matrix.rust }} on ${{ matrix.os }}
+    name: Test on ${{ matrix.os }} (${{ matrix.features }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        rust: [stable]
         os: [ubuntu-latest, windows-latest, macos-latest]
         features: ["", "--all-features"]
-        include:
-          - rust: 1.88.0
-            os: ubuntu-latest
-            features: "--all-features"
-          - rust: nightly
-            os: ubuntu-latest
-            features: "--all-features"
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust ${{ matrix.rust }}
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          toolchain: ${{ matrix.rust }}
-      - uses: Swatinem/rust-cache@v2
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+
       - name: Run tests
-        run: cargo test ${{ matrix.features }} --verbose
+        env:
+          FEATURES: ${{ matrix.features }}
+        shell: bash
+        run: |
+          if [ -n "$FEATURES" ]; then
+            cargo test "$FEATURES" --locked --verbose
+          else
+            cargo test --locked --verbose
+          fi
+
+  msrv:
+    name: Test declared MSRV
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable for metadata
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: stable
+
+      - name: Check all features on MSRV
+        shell: bash
+        run: |
+          set -euo pipefail
+          MSRV="$(cargo metadata --no-deps --format-version 1 --locked | python3 -c 'import json, sys; print(json.load(sys.stdin)["packages"][0]["rust_version"])')"
+          echo "Testing with MSRV: $MSRV"
+          rustup toolchain install "$MSRV" --profile minimal
+          cargo "+$MSRV" check --all-features --locked --verbose
+          cargo "+$MSRV" test --all-features --locked --verbose
+
+  nightly:
+    name: Test nightly
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install pinned nightly
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: ${{ env.NIGHTLY_TOOLCHAIN }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+
+      - name: Run nightly tests
+        env:
+          TOOLCHAIN: ${{ env.NIGHTLY_TOOLCHAIN }}
+        run: cargo "+$TOOLCHAIN" test --all-features --locked --verbose
 
   unused_dependencies:
     name: Check for unused dependencies
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          toolchain: nightly
-      - uses: Swatinem/rust-cache@v2
+          persist-credentials: false
+
+      - name: Install pinned nightly
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: ${{ env.NIGHTLY_TOOLCHAIN }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+
       - name: Install cargo-udeps
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2
         with:
           tool: cargo-udeps
+
       - name: Run cargo-udeps
-        run: cargo +nightly udeps --all-targets --all-features
+        env:
+          TOOLCHAIN: ${{ env.NIGHTLY_TOOLCHAIN }}
+        run: cargo "+$TOOLCHAIN" udeps --all-targets --all-features --locked
 
   miri:
     name: Miri transformer ownership
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - name: Install nightly with Miri
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          toolchain: nightly
+          persist-credentials: false
+
+      - name: Install pinned nightly with Miri
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: ${{ env.NIGHTLY_TOOLCHAIN }}
           components: miri
-      - uses: Swatinem/rust-cache@v2
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+
       - name: Run targeted Miri tests
-        run: cargo +nightly miri test --test miri_transformers
+        env:
+          TOOLCHAIN: ${{ env.NIGHTLY_TOOLCHAIN }}
+        run: cargo "+$TOOLCHAIN" miri test --test miri_transformers --locked

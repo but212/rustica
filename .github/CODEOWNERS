@@ -1,0 +1,5 @@
+# Default repository ownership.
+* @but212
+
+# CI, release, and security policy changes require explicit owner review.
+/.github/ @but212

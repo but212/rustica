@@ -11,3 +11,15 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    reviewers:
+      - "but212"
+    assignees:
+      - "but212"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

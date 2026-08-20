@@ -41,3 +41,4 @@ output.txt
 .hooks
 
 .pytest_cache/
+__pycache__/

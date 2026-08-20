@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### CI/CD and Security
+
+- Added least-privilege workflow permissions, pinned external actions, and
+  workflow security checks with `actionlint` and `zizmor`.
+- Declared the minimum supported Rust version through Cargo's
+  `package.rust-version` metadata and added a dedicated MSRV check.
+- Hardened releases with locked packaging, exact CHANGELOG validation, a
+  protected crates.io environment, and verified SLSA verifier downloads.
+- Added trusted benchmark regression reporting with a 20% slowdown threshold
+  while keeping pull request benchmark jobs read-only.
+- Added repository ownership, security reporting, pull request, and issue
+  templates under `.github/`.
+
 ### Breaking Changes
 
 - **Transformer State and Type Invariants**

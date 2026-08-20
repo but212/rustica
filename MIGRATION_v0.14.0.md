@@ -85,7 +85,7 @@ Because `Validated` can accumulate multiple errors while `Result` carries only o
 
 `Maybe<T>` was a duplicate of `Option<T>`. In Rustica, `Option<T>` implements all functional traits (`Functor`, `Applicative`, `Monad`, `Foldable`, `Traversable`).
 
-#### Before (0.13.x)
+#### Before (0.13.x) - Maybe
 
 ```rust
 use rustica::datatypes::maybe::Maybe;
@@ -99,7 +99,7 @@ let empty: Maybe<i32> = Maybe::Nothing;
 assert!(empty.is_nothing());
 ```
 
-#### After (0.14.0)
+#### After (0.14.0) - Maybe
 
 ```rust
 use rustica::traits::functor::Functor;
@@ -116,7 +116,7 @@ assert!(empty.is_none());
 
 ### `Either<L, R>` → `Result<R, L>`
 
-#### Before (0.13.x)
+#### Before (0.13.x) - Either
 
 ```rust
 use rustica::datatypes::either::Either;
@@ -129,7 +129,7 @@ assert_eq!(mapped, Either::Right(43));
 let err: Either<String, i32> = Either::Left("failed".to_string());
 ```
 
-#### After (0.14.0)
+#### After (0.14.0) - Either
 
 ```rust
 use rustica::traits::functor::Functor;
