@@ -32,7 +32,7 @@ jobs:
           toolchain: stable
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: Run tests
         env:
@@ -85,7 +85,7 @@ jobs:
           toolchain: ${{ env.NIGHTLY_TOOLCHAIN }}
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: Run nightly tests
         env:
@@ -108,7 +108,7 @@ jobs:
           toolchain: ${{ env.NIGHTLY_TOOLCHAIN }}
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: Install cargo-udeps
         uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2
@@ -137,7 +137,16 @@ jobs:
           components: miri
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          # Miri builds a nightly-specific custom sysroot. Reusing target artifacts
+          # from another compiler or an older Miri sysroot can hide dependencies.
+          cache-targets: false
+
+      - name: Initialize Miri sysroot
+        env:
+          TOOLCHAIN: ${{ env.NIGHTLY_TOOLCHAIN }}
+        run: cargo "+$TOOLCHAIN" miri setup
 
       - name: Run targeted Miri tests
         env:

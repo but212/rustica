@@ -36,12 +36,11 @@ jobs:
     needs: [quality, tests]
     permissions:
       contents: write # required by the release job after crates.io approval
+      id-token: write # required by crates.io Trusted Publishing
     concurrency:
       group: release-${{ github.ref }}
       cancel-in-progress: false
     uses: ./.github/workflows/publish-release.yml
-    secrets:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   benchmarks:
     name: Benchmarks
