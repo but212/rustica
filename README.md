@@ -39,14 +39,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.14.0"
+rustica = "0.13.0"
 ```
 
 For full features including `async`, `serde`, and `quickcheck`:
 
 ```toml
 [dependencies]
-rustica = { version = "0.14.0", features = ["full"] }
+rustica = { version = "0.13.0", features = ["full"] }
 ```
 
 Import common traits and types through the prelude:
@@ -89,9 +89,9 @@ use rustica::prelude::*;
 
 ## Migration from 0.13 to 0.14
 
-In `0.14.0`, redundant types (`Maybe`, `Either`), single-implementation traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers (`ErrorPipeline`, `ErrorCategory`, `Memoizer`) have been removed. `ReaderT` and `StateT` also enforce their base-monad value types at compile time, while standard `Result`, `Iterator`, and `From` APIs replace duplicate error helpers.
+In `0.13.0`, redundant types (`Maybe`, `Either`), single-implementation traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers (`ErrorPipeline`, `ErrorCategory`, `Memoizer`) have been removed. `ReaderT` and `StateT` also enforce their base-monad value types at compile time, while standard `Result`, `Iterator`, and `From` APIs replace duplicate error helpers.
 
-See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the complete before/after migration guide.
+See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) for the complete before/after migration guide.
 
 ---
 
