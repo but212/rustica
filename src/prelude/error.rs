@@ -20,12 +20,8 @@
 //! ```
 
 pub use crate::error::{
-    BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorCategory,
-    ErrorContext, ErrorOps, ErrorPipeline, IntoErrorContext, LazyContext, WithError,
-    accumulate_context, collect_errors, composable_to_core, context_accumulator, context_fn,
-    core_to_composable, either_to_result, either_to_validated, error_pipeline, extract_context,
-    flatten_composable_result, format_error_chain, result_to_either, result_to_validated, sequence,
-    sequence_with_error, split_validated_errors, traverse, traverse_validated, validated_to_either,
-    validated_to_result, with_context, with_context_result, wrap_in_composable_result,
-    wrap_in_composable_result_boxed,
+    BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorContext,
+    IntoErrorContext, LazyContext, WithError, accumulate_context, collect_errors,
+    context_accumulator, context_fn, extract_context, format_error_chain, sequence_with_error,
+    split_validated_errors, traverse_validated, with_context, with_context_result,
 };

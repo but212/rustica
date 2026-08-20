@@ -2,6 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/rustica.svg)](https://crates.io/crates/rustica)
 [![Documentation](https://docs.rs/rustica/badge.svg)](https://docs.rs/rustica)
+[![CI](https://github.com/but212/rustica/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/but212/rustica/actions/workflows/rust.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 Rustica is a pragmatic functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem.
@@ -38,14 +39,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.13.0"
+rustica = "0.14.0"
 ```
 
 For full features including `async`, `serde`, and `quickcheck`:
 
 ```toml
 [dependencies]
-rustica = { version = "0.13.0", features = ["full"] }
+rustica = { version = "0.14.0", features = ["full"] }
 ```
 
 Import common traits and types through the prelude:
@@ -71,7 +72,7 @@ use rustica::prelude::*;
 
 - **`Choice<T>`**: Guaranteed non-empty alternatives. Statically enforces at least one primary value (`first(&self) -> &T`).
 - **`Validated<E, T>`**: Accumulates all validation errors into `NonEmptyErrors<E>` without early termination.
-- **`Id<T>`**: The identity functor/monad.
+- **`Id<T>`**: The identity functor/monad with inherent comonad methods (`extract`, `duplicate`, `extend`).
 - **`IO<A>`**: Pure description of side-effectful computations.
 - **`State<S, A>`**: Stateful computations with pure transitions.
 - **`Reader<E, A>`**: Dependency injection and environment passing.
@@ -86,38 +87,34 @@ use rustica::prelude::*;
 
 ---
 
-## Deprecations in 0.13.0 (Planned for Removal in 0.14.0)
+## Migration from 0.13 to 0.14
 
-As part of the Lean Architecture initiative, redundant types and speculative wrappers are deprecated in `0.13.0` and will be completely removed in `0.14.0`:
+In `0.14.0`, redundant types (`Maybe`, `Either`), single-implementation traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers (`ErrorPipeline`, `ErrorCategory`, `Memoizer`) have been removed. `ReaderT` and `StateT` also enforce their base-monad value types at compile time, while standard `Result`, `Iterator`, and `From` APIs replace duplicate error helpers.
 
-| Deprecated Item | Recommended Replacement |
-| --- | --- |
-| `Maybe<T>` | `Option<T>` (already implements `Functor`, `Monad`, etc.) |
-| `Either<L, R>` | `Result<R, L>` or the `either` crate |
-| `Traversable` | Removed (0 implementations) |
-| `Comonad` | Use `Id` methods directly |
-| `Arrow` / `Category` | Native function chaining / closures |
-| `Evaluate` / `EvaluateExt` | `Thunk::evaluate` directly |
-| `ErrorPipeline` / `ErrorCategory` | Native `Result` method chaining (`.map()`, `.and_then()`) |
-| `Pipeline<T>` | Method chaining directly on types |
-| `Memoizer` | Dedicated crates like `lru` or `moka` |
-| `PersistentVector::{take, skip}` | Iterator adapters (`.into_iter().take().collect()`) |
+See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the complete before/after migration guide.
 
-See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) and [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for full migration guides.
+---
 
-### 0.13.0 Lean Maintenance
+## Development and CI
 
-The 0.13.0 release also removes unnecessary ownership constraints from owned
-error-conversion helpers. `validated_to_result`, `result_to_validated`,
-`either_to_validated`, `validated_to_either`, `collect_errors`,
-`split_validated_errors`, and `Validated::from_result_owned` now accept
-non-`Clone` values. `sequence`, `traverse`, `sequence_with_error`, and
-`pipeline_result` retain their public APIs and fail-fast behavior while using
-standard iterator combinators internally.
+Rustica supports Rust 1.88.0 and newer. Before opening a pull request, run the
+same core checks used by CI:
 
-`ErrorPipeline` remains deprecated but intentionally unchanged in 0.13.0. It
-is scheduled for removal in 0.14.0; new code should use native `Result`
-combinators and existing users should migrate before upgrading.
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --all-features --locked
+cargo package --all-features --locked
+```
+
+Pull requests run read-only tests and benchmarks. A trusted reporter compares
+benchmark results with the `main` baseline and marks the check as failed when a
+benchmark is at least 20% slower. Pushes to `main` update that baseline.
+
+Releases are created from `v*` tags after the tag version, Cargo metadata, and
+the matching `CHANGELOG.md` section are validated. Publishing is protected by
+the `crates-io` environment, and the release receives SLSA provenance. See
+[SECURITY.md](.github/SECURITY.md) for vulnerability reporting instructions.
 
 ---
 

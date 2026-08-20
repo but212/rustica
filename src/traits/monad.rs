@@ -13,26 +13,25 @@
 //!
 //! ```rust
 //! use rustica::traits::monad::Monad;
-//! use rustica::datatypes::maybe::Maybe;
 //!
-//! // Chain operations with bind - short-circuits on Nothing
-//! let safe_divide = |x: &i32, y: &i32| -> Maybe<i32> {
-//!     if *y == 0 { Maybe::Nothing } else { Maybe::Just(*x / *y) }
+//! // Chain operations with bind - short-circuits on None
+//! let safe_divide = |x: &i32, y: &i32| -> Option<i32> {
+//!     if *y == 0 { None } else { Some(*x / *y) }
 //! };
 //!
-//! let result = Maybe::Just(20)
+//! let result = Some(20)
 //!     .bind(|x| safe_divide(x, &4))  // 20 / 4 = 5
 //!     .bind(|x| safe_divide(x, &2))  // 5 / 2 = 2
-//!     .bind(|x| Maybe::Just(x * 10)); // 2 * 10 = 20
+//!     .bind(|x| Some(x * 10)); // 2 * 10 = 20
 //!
-//! assert_eq!(result, Maybe::Just(20));
+//! assert_eq!(result, Some(20));
 //!
 //! // Automatic short-circuiting on failure
-//! let failed = Maybe::Just(10)
+//! let failed = Some(10)
 //!     .bind(|x| safe_divide(x, &0))  // Division by zero!
-//!     .bind(|x| Maybe::Just(x * 100)); // This won't execute
+//!     .bind(|x| Some(x * 100)); // This won't execute
 //!
-//! assert_eq!(failed, Maybe::Nothing);
+//! assert_eq!(failed, None);
 //! ```
 //!
 //! ## Relationship to other traits

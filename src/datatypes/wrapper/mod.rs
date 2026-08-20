@@ -36,7 +36,6 @@
 //! These wrappers provide different ways to handle computations:
 //!
 //! - `Thunk`: A lazy computation wrapper that evaluates only when needed
-//! - `Memoizer`: Caches the result of a function for repeated calls
 //!
 //! ## Usage Patterns
 //!
@@ -68,7 +67,6 @@
 //! - Use `Min`/`Max` for finding extremes in collections
 //! - Use `First`/`Last` when dealing with optional values that need to be combined with precedence rules
 //! - Use `Thunk` when you need lazy evaluation
-//! - Use `Memoizer` when you want to cache function results
 //!
 //! ## Implementation Note
 //!
@@ -84,7 +82,6 @@
 pub mod first;
 pub mod last;
 pub mod max;
-pub mod memoizer;
 pub mod min;
 pub mod predicate;
 pub mod product;

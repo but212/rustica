@@ -80,11 +80,11 @@
 //! use rustica::datatypes::validated::Validated;
 //!
 //! let result: Result<i32, &str> = Ok(42);
-//! let validated = Validated::from_result(&result);
+//! let validated = Validated::from(&result);
 //! assert_eq!(validated, Validated::valid(42));
 //!
 //! let error_result: Result<i32, &str> = Err("error");
-//! let validated = Validated::from_result(&error_result);
+//! let validated = Validated::from(&error_result);
 //! assert_eq!(validated, Validated::invalid("error"));
 //! ```
 //!
@@ -270,10 +270,10 @@ mod tests {
         let invalid: Validated<String, i32> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
 
-        let res = invalid.to_result();
+        let res = invalid.clone().into_result_first_error();
         assert_eq!(res, Err("e1".to_string()));
         assert_eq!(
-            Validated::<String, i32>::from_result(&Ok::<i32, String>(42)),
+            Validated::<String, i32>::from(&Ok::<i32, String>(42)),
             Validated::valid(42)
         );
 

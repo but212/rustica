@@ -95,6 +95,8 @@ pub use pvec;
 #[cfg(test)]
 mod tests {
     use super::PersistentVector;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
 
     #[test]
     fn test_pvec_lifecycle_and_persistence() {
@@ -200,5 +202,81 @@ mod tests {
         assert_eq!(vector.len(), 65);
         assert_eq!(vector.get(64).unwrap().0, 64);
         let _from_vec: PersistentVector<NoClone> = vec![NoClone(1), NoClone(2)].into();
+    }
+
+    #[test]
+    fn test_pvec_remove_comprehensive() {
+        // 1. Empty vector
+        let empty: PersistentVector<i32> = PersistentVector::new();
+        assert_eq!(empty.remove(0), None);
+        assert_eq!(empty.remove(10), None);
+
+        // 2. Out of bounds
+        let v3 = crate::pvec![1, 2, 3];
+        assert_eq!(v3.remove(3), None);
+        assert_eq!(v3.remove(100), None);
+
+        // 3. Single element
+        let single = PersistentVector::unit(42);
+        let removed_single = single.remove(0).expect("should succeed");
+        assert_eq!(removed_single.len(), 0);
+        assert_eq!(removed_single.to_vec(), Vec::<i32>::new());
+
+        // 4. Remove first, mid, last
+        let v5 = crate::pvec![10, 20, 30, 40, 50];
+        assert_eq!(v5.remove(0).unwrap().to_vec(), vec![20, 30, 40, 50]);
+        assert_eq!(v5.remove(2).unwrap().to_vec(), vec![10, 20, 40, 50]);
+        assert_eq!(v5.remove(4).unwrap().to_vec(), vec![10, 20, 30, 40]);
+
+        // 5. Large vector (>64 elements, tree/branch boundary)
+        let large: PersistentVector<i32> = (0..100).collect();
+        assert_eq!(
+            large.remove(0).unwrap().to_vec(),
+            (1..100).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            large.remove(99).unwrap().to_vec(),
+            (0..99).collect::<Vec<_>>()
+        );
+
+        let remove_mid = large.remove(50).unwrap();
+        assert_eq!(remove_mid.len(), 99);
+        let mut expected: Vec<i32> = (0..100).collect();
+        expected.remove(50);
+        assert_eq!(remove_mid.to_vec(), expected);
+    }
+
+    #[test]
+    fn representation_and_history_do_not_affect_value_semantics() {
+        let collected: PersistentVector<i32> = (0..100).collect();
+        let pushed = (0..100).fold(PersistentVector::new(), |vector, value| {
+            vector.push_back(value)
+        });
+        let rebuilt = collected.split_at(64).0.concat(&collected.split_at(64).1);
+
+        assert_eq!(collected, pushed);
+        assert_eq!(collected, rebuilt);
+        assert_eq!(collected.cmp(&pushed), std::cmp::Ordering::Equal);
+
+        let hash = |vector: &PersistentVector<i32>| {
+            let mut hasher = DefaultHasher::new();
+            vector.hash(&mut hasher);
+            hasher.finish()
+        };
+        assert_eq!(hash(&collected), hash(&pushed));
+        assert_eq!(hash(&collected), hash(&rebuilt));
+    }
+
+    #[test]
+    fn inline_tree_boundary_lengths_follow_the_representation() {
+        for len in [0usize, 1, 63, 64, 65, 127] {
+            let vector: PersistentVector<usize> = (0..len).collect();
+            assert_eq!(vector.len(), len);
+            assert_eq!(vector.iter().count(), len);
+
+            let (left, right) = vector.split_at(len / 2);
+            assert_eq!(left.len() + right.len(), len);
+            assert_eq!(left.concat(&right), vector);
+        }
     }
 }

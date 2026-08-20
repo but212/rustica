@@ -23,3 +23,18 @@ fn test_id_monadic_laws() {
     );
     assert_eq!(Id::new(Id::new(100)).join::<i32>().unwrap(), 100);
 }
+
+#[test]
+fn test_id_inherent_comonad_api_without_comonad_trait_import() {
+    let id = Id::new(42);
+    // Inherent extract
+    assert_eq!(id.extract(), 42);
+
+    // Inherent duplicate
+    let dup = id.duplicate();
+    assert_eq!(dup.unwrap(), 42);
+
+    // Inherent extend
+    let extended = id.extend(|ctx| ctx.extract() * 2);
+    assert_eq!(extended.extract(), 84);
+}

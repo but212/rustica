@@ -9,15 +9,14 @@
 //! ```rust
 //! use rustica::prelude::traits_ext::*;
 //! use rustica::prelude::wrapper::*;
-//! use rustica::datatypes::maybe::Maybe;
 //! use rustica::traits::functor::Functor;
 //!
-//! let x = Maybe::Just(10);
+//! let x = Some(10);
 //! let y = x.fmap(|n| n + 1);
-//! assert_eq!(y, Maybe::Just(11));
+//! assert_eq!(y, Some(11));
 //!
 //! use rustica::traits::foldable::{Foldable, FoldableExt};
-//! let xs = vec![Maybe::Just(1), Maybe::Just(2), Maybe::Nothing];
+//! let xs = vec![Some(1), Some(2), None];
 //! let sum = xs.fold_map(|m| Sum(m.unwrap_or(0)));
 //! assert_eq!(sum.0, 3);
 //!
@@ -28,7 +27,6 @@
 //! assert_eq!(total.0, 6);
 //! ```
 
-pub use crate::traits::evaluate::EvaluateExt;
 pub use crate::traits::foldable::FoldableExt;
 pub use crate::traits::functor::FunctorExt;
 pub use crate::traits::iso::IsoExt;

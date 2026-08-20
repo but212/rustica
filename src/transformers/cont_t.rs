@@ -39,7 +39,7 @@ pub type ContTFn<M, A> = dyn Fn(Arc<dyn Fn(A) -> M + Send + Sync>) -> M + Send +
 #[derive(Clone)]
 pub struct ContT<R, M, A> {
     pub run_cont: Arc<ContTFn<M, A>>,
-    _phantom: PhantomData<(R, A)>,
+    _phantom: PhantomData<R>,
 }
 
 impl<R, M, A> ContT<R, M, A> {

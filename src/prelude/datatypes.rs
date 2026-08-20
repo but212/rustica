@@ -7,8 +7,6 @@
 //!
 //! ## Included Data Types
 //!
-//! - [`Maybe`]: Optional values (like Option)
-//! - [`Either`]: Sum type for error handling or branching
 //! - [`Validated`]: Error accumulation and validation
 //! - [`Choice`]: Non-deterministic computation with multiple alternatives
 //! - [`State`]: Composable stateful computations
@@ -25,13 +23,9 @@
 //! use rustica::prelude::datatypes::*;
 //! use rustica::traits::functor::Functor;
 //!
-//! let x = Maybe::Just(42);
+//! let x = Id::new(42);
 //! let y = x.fmap(|n| n + 1);
-//! assert_eq!(y, Maybe::Just(43));
-//!
-//! let e: Either<&str, i32> = Either::right(10);
-//! let mapped = e.fmap(|n| n * 2);
-//! assert_eq!(mapped, Either::right(20));
+//! assert_eq!(y.unwrap(), 43);
 //!
 //! let v: Validated<&str, i32> = Validated::valid(5);
 //! assert!(v.is_valid());
@@ -43,13 +37,11 @@
 pub use crate::datatypes::async_monad::AsyncM;
 pub use crate::datatypes::choice::Choice;
 pub use crate::datatypes::cont::Cont;
-pub use crate::datatypes::either::Either;
 pub use crate::datatypes::id::Id;
 pub use crate::datatypes::io::IO;
 pub use crate::datatypes::iso_lens::IsoLens;
 pub use crate::datatypes::iso_prism::IsoPrism;
 pub use crate::datatypes::lens::Lens;
-pub use crate::datatypes::maybe::Maybe;
 pub use crate::datatypes::prism::Prism;
 pub use crate::datatypes::reader::Reader;
 pub use crate::datatypes::state::State;

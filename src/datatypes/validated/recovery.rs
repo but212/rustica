@@ -6,8 +6,8 @@ impl<E, A> Validated<E, A> {
     /// This is a `Validated`-specific variant of recovery for the case where there may be
     /// multiple accumulated errors.
     ///
-    /// Unlike `ErrorOps::recover` (which recovers from a single error in fail-fast types like
-    /// `Result`), this method feeds each accumulated error to the recovery function.
+    /// Unlike fail-fast `Result::or_else`, this method feeds each accumulated error to the
+    /// recovery function.
     ///
     /// **Important**: errors are processed left-to-right, and if any recovery returns
     /// `Validated::Valid(v)`, evaluation stops early and that `Valid(v)` is returned.

@@ -18,7 +18,6 @@
 //!
 //! ```rust
 //! use rustica::traits::functor::Functor;
-//! use rustica::datatypes::maybe::Maybe;
 //!
 //! // Transform values in context
 //! let numbers = vec![1, 2, 3, 4, 5];
@@ -26,14 +25,14 @@
 //! assert_eq!(doubled, vec![2, 4, 6, 8, 10]);
 //!
 //! // Works with optional values
-//! let maybe_num = Maybe::Just(42);
-//! let maybe_string = maybe_num.fmap(|x| x.to_string());
-//! assert_eq!(maybe_string, Maybe::Just("42".to_string()));
+//! let opt_num = Some(42);
+//! let opt_string = opt_num.fmap(|x| x.to_string());
+//! assert_eq!(opt_string, Some("42".to_string()));
 //!
-//! // Preserves structure - Nothing stays Nothing
-//! let nothing: Maybe<i32> = Maybe::Nothing;
+//! // Preserves structure - None stays None
+//! let nothing: Option<i32> = None;
 //! let still_nothing = nothing.fmap(|x| x.to_string());
-//! assert_eq!(still_nothing, Maybe::Nothing);
+//! assert_eq!(still_nothing, None);
 //! ```
 //!
 //! ## Relationship to other traits
@@ -100,27 +99,26 @@ use crate::prelude::*;
 ///
 /// ```rust
 /// use rustica::traits::functor::Functor;
-/// use rustica::datatypes::maybe::Maybe;
 ///
-/// // Using the Functor implementation for Maybe
-/// let maybe_int = Maybe::Just(42);
+/// // Using the Functor implementation for Option
+/// let opt_int = Some(42);
 ///
 /// // Transform i32 to String
-/// let maybe_string = maybe_int.fmap(|x: &i32| x.to_string());
-/// assert_eq!(maybe_string, Maybe::Just("42".to_string()));
+/// let opt_string = opt_int.fmap(|x: &i32| x.to_string());
+/// assert_eq!(opt_string, Some("42".to_string()));
 ///
 /// // Using replace to substitute values
-/// let replaced = maybe_int.replace(&String::from("hello"));
+/// let replaced = opt_int.replace(&String::from("hello"));
 /// assert_eq!(replaced.unwrap(), "hello");
 ///
 /// // Using void to discard values
-/// let voided = maybe_int.void();
-/// assert!(matches!(voided, Maybe::Just(())));
+/// let voided = opt_int.void();
+/// assert!(matches!(voided, Some(())));
 ///
 /// // With empty values
-/// let maybe_none = Maybe::<i32>::Nothing;
-/// let mapped_none = maybe_none.fmap(|x: &i32| x.to_string());
-/// assert!(mapped_none.is_nothing());
+/// let opt_none: Option<i32> = None;
+/// let mapped_none = opt_none.fmap(|x: &i32| x.to_string());
+/// assert_eq!(mapped_none, None);
 /// ```
 pub trait Functor: HKT {
     /// Maps a function over the values in a functor without consuming it.

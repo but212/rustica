@@ -218,7 +218,7 @@
 use futures::{Future, FutureExt};
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
-use std::{marker::PhantomData, panic, pin::Pin, sync::Arc};
+use std::{panic, pin::Pin, sync::Arc};
 
 /// A type alias for an asynchronous computation that can be sent between threads.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
@@ -472,7 +472,6 @@ enum AsyncMInner<A> {
 #[derive(Clone)]
 pub struct AsyncM<A> {
     inner: AsyncMInner<A>,
-    _phantom: PhantomData<A>,
 }
 
 impl<A: Send + Sync + 'static> AsyncM<A> {
@@ -516,7 +515,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     {
         AsyncM {
             inner: AsyncMInner::Effect(Arc::new(move || f().boxed())),
-            _phantom: PhantomData,
         }
     }
 
@@ -553,7 +551,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     {
         AsyncM {
             inner: AsyncMInner::Pure(Arc::new(value)),
-            _phantom: PhantomData,
         }
     }
 
@@ -650,7 +647,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                     let value = Arc::clone(&value);
                     async move { f((*value).clone()).await }.boxed()
                 })),
-                _phantom: PhantomData,
             };
         }
 
@@ -670,7 +666,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 
@@ -738,7 +733,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                     }
                     .boxed()
                 })),
-                _phantom: PhantomData,
             };
         }
 
@@ -762,7 +756,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 
@@ -838,7 +831,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 
@@ -908,7 +900,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 
@@ -963,7 +954,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 
@@ -1025,7 +1015,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 
@@ -1090,7 +1079,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 
@@ -1168,7 +1156,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 
@@ -1268,7 +1255,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 }
                 .boxed()
             })),
-            _phantom: PhantomData,
         }
     }
 }

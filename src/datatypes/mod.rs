@@ -14,10 +14,8 @@
 //!
 //! ## Core Monadic Types
 //!
-//! - `maybe` - Optional values with `Just(T)` and `Nothing` variants
-//! - `either` - Sum type representing one of two possible values (`Left` or `Right`)
 //! - `id` - Identity functor/monad, the simplest container
-//! - `validated` - Accumulating error handling (unlike `Either` which fails fast)
+//! - `validated` - Accumulating error handling
 //!
 //! ## Effect Types
 //!
@@ -46,33 +44,25 @@
 //! # Example
 //!
 //! ```rust
-//! use rustica::datatypes::maybe::Maybe;
-//! use rustica::datatypes::either::Either;
+//! use rustica::datatypes::id::Id;
 //! use rustica::traits::functor::Functor;
 //!
-//! // Using Maybe for optional values
-//! let value = Maybe::Just(42);
+//! // Using Id for simple pure values
+//! let value = Id::new(42);
 //! let doubled = value.fmap(|x| x * 2);
-//! assert_eq!(doubled, Maybe::Just(84));
-//!
-//! // Using Either for error handling
-//! let result: Either<String, i32> = Either::Right(10);
-//! let incremented = result.fmap(|x| x + 1);
-//! assert_eq!(incremented, Either::Right(11));
+//! assert_eq!(doubled.unwrap(), 84);
 //! ```
 
 #[cfg(feature = "async")]
 pub mod async_monad;
 pub mod choice;
 pub mod cont;
-pub mod either;
 pub mod error;
 pub mod id;
 pub mod io;
 pub mod iso_lens;
 pub mod iso_prism;
 pub mod lens;
-pub mod maybe;
 pub mod prism;
 pub mod reader;
 pub mod state;

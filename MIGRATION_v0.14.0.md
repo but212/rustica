@@ -1,42 +1,215 @@
-# Rustica 0.14 Migration Plan (Notice for Deprecated Items in 0.13.0)
+# Rustica 0.14.0 Migration Guide
 
-This document provides early guidance for migrating code using APIs that were deprecated in `0.13.0` and will be completely removed in `0.14.0`.
+This document provides a guide for migrating code from Rustica 0.13.x to 0.14.0.
 
-> **0.13.0 policy:** The deprecated APIs remain available and behavior-frozen
-> during 0.13.x. In particular, `ErrorPipeline` is not being redesigned in
-> 0.13.0; migrate to native `Result` combinators before adopting 0.14.0.
+Rustica 0.14.0 removes the APIs deprecated in 0.13.0 and tightens transformer and error-state invariants. These are intentional breaking changes that eliminate duplicate standard-library functionality and states that valid values could never reach.
 
-## Planned Removals in 0.14.0
+---
 
-### 1. `Maybe<T>` → `Option<T>`
+## Summary of Breaking Changes
 
-- **Reason**: `Maybe<T>` is a 1:1 duplicate of Rust's standard `Option<T>`. `Option<T>` already implements all FP traits (`Functor`, `Monad`, `Applicative`, `Foldable`).
-- **Migration**:
-  - Replace `Maybe::Just(x)` with `Some(x)`
-  - Replace `Maybe::Nothing` with `None`
-  - Replace `Maybe<T>` type annotations with `Option<T>`
+| Deprecated / Removed in 0.14.0 | Recommended Replacement |
+| --- | --- |
+| `Maybe<T>` | Standard `Option<T>` (`rustica::traits::Functor`, `Monad`, etc. are implemented for `Option`) |
+| `Either<L, R>` | Standard `Result<R, L>` or external `either` crate |
+| `EitherError` | Standard `Result` pattern matching |
+| `ResultEitherIso`, `either_to_result`, etc. | Standard `Result` methods |
+| `Category`, `Arrow` traits | `FunctionCategory` inherent associated functions |
+| `Comonad` trait | `Id<T>` inherent methods (`extract`, `duplicate`, `extend`) |
+| `Evaluate`, `EvaluateExt` traits | Inherent methods (`Thunk::evaluate`, `IO::run`) |
+| `ErrorPipeline`, `error_pipeline` | Native `Result` combinators + `with_context` |
+| `ErrorCategory` trait | Native `Result` and `Validated` methods |
+| `Pipeline<T>` | Native method chaining on `Functor` types |
+| `Memoizer` | Dedicated caching crates ([`lru`](https://crates.io/crates/lru), [`moka`](https://crates.io/crates/moka)) |
+| `PersistentVector::{take, skip}` | `.iter().take(n).cloned().collect()` / `.split_at(n)` |
+| `ReaderT<E, M, A>` with unrelated `M`/`A` | Use a base monad whose `HKT::Source` is `A`; mapped/bound results use `M::Output<B>` |
+| `StateT::{Pure, LiftM}` | Construct executable transitions with `StateT::new`, `pure`, or `MonadTransformer::lift` |
+| `ErrorOps::{recover, bimap_result}` | `Result::or_else`, followed by `map` and `map_err` |
+| `error::{sequence, traverse}` | `into_iter().collect()` / `into_iter().map(f).collect()` |
+| `result_to_validated` / `Validated::from_result*` | `Validated::from(result)` or `result.into()` |
+| `validated_to_result` / `Validated::to_result*` | `validated.into_result_first_error()` |
+| `core_to_composable` / `wrap_in_composable_result*` | `ComposableError::from` / `Result::map_err` |
+| `composable_to_core` / `flatten_composable_result` | Access `ComposableError::core_error` / `Result::map_err` |
+| `utils::functions::id` | `std::convert::identity` |
+| Empty `utils::categorical_utils` module | Remove the import; use the standard iterator and `Result` operations directly |
+| `ReaderCombineFn`, `ContFn` aliases | Use `ReaderT`/`Cont` operations directly and let closure types be inferred |
+| `ChoiceError::EmptyChoice` | Remove the unreachable match arm; `Choice<T>` cannot be empty |
+| `PVecError::InvalidRange` | Remove the unreachable match arm; no public operation produces this variant |
+| `IOError::ValueNotSet` | Remove the unreachable match arm; executable `IO` values do not have an unset state |
 
-### 2. `Either<L, R>` → `Result<R, L>`
+---
 
-- **Reason**: `Either<L, R>` is isomorphic to `Result<R, L>`. The ecosystem-standard `either` crate is recommended for non-error branching.
-- **Migration**:
-  - Replace `Either::Right(r)` with `Ok(r)`
-  - Replace `Either::Left(l)` with `Err(l)`
-  - Use `either` crate directly if non-result sum semantics are desired.
+## Detailed Migration Examples
 
-### 3. Single-Implementation Traits
+### Transformer type changes
 
-- **`Comonad`**: Only implemented for `Id`. Call `.extract()` or `.run()` directly on `Id`.
-- **`Arrow` & `Category`**: Only implemented for `FunctionCategory`. Use function chaining or closures directly.
-- **`Evaluate` & `EvaluateExt`**: Only implemented for `Thunk`. Call `thunk.evaluate()` directly.
+`ReaderT` and `StateT` now encode their base-monad contents in the type system. A type-changing reader map therefore changes `Option<A>` to `Option<B>`, and state-transformer composition always uses `(state, value)` internally:
 
-### 4. Over-Engineered Wrappers
+```rust
+use rustica::transformers::{ReaderT, StateT};
 
-- **`ErrorPipeline`**: Use native `Result` combinators (`.map()`, `.and_then()`, `.map_err()`).
-- **`ErrorCategory`**: Use `Result` standard methods.
-- **`Pipeline<T>`**: Use native method chaining.
-- **`Memoizer`**: Use dedicated production caching crates such as [`lru`](https://crates.io/crates/lru) or [`moka`](https://crates.io/crates/moka).
+let reader: ReaderT<i32, Option<i32>, i32> = ReaderT::new(Some);
+let text: ReaderT<i32, Option<String>, String> = reader.fmap(|n| n.to_string());
 
-### 5. `PersistentVector` Collection Iterators
+let state: StateT<i32, Option<(i32, i32)>, i32> =
+    StateT::new(|s| Some((s + 1, s)));
+let text_state: StateT<i32, Option<(i32, String)>, String> =
+    state.fmap(|n| n.to_string());
+```
 
-- **`PersistentVector::{take, skip}`**: Use standard iterator adapters: `.into_iter().take(n).collect()` or `.iter().skip(n).collect()`.
+`State<S, A>` still returns `(A, S)` publicly; tuple reordering occurs only at its `StateT` conversion boundary.
+
+### Error conversion changes
+
+```rust
+use rustica::datatypes::validated::Validated;
+
+let validated: Validated<&str, i32> = Result::<i32, &str>::Ok(42).into();
+let result = validated.into_result_first_error();
+assert_eq!(result, Ok(42));
+```
+
+Borrowed results are also supported when both payloads implement `Clone`:
+
+```rust
+use rustica::datatypes::validated::Validated;
+
+let result = Result::<String, String>::Ok("ready".into());
+let validated: Validated<String, String> = (&result).into();
+assert_eq!(validated.into_result_first_error(), Ok("ready".into()));
+```
+
+Because `Validated` can accumulate multiple errors while `Result` carries only one, `into_result_first_error` deliberately returns the first error. Use `into_error_payload` when every accumulated error must be preserved.
+
+### `Maybe<T>` → `Option<T>`
+
+`Maybe<T>` was a duplicate of `Option<T>`. In Rustica, `Option<T>` implements all functional traits (`Functor`, `Applicative`, `Monad`, `Foldable`, `Traversable`).
+
+#### Before (0.13.x) - Maybe
+
+```rust
+use rustica::datatypes::maybe::Maybe;
+use rustica::traits::functor::Functor;
+
+let value = Maybe::Just(42);
+let doubled = value.fmap(|x| x * 2);
+assert_eq!(doubled, Maybe::Just(84));
+
+let empty: Maybe<i32> = Maybe::Nothing;
+assert!(empty.is_nothing());
+```
+
+#### After (0.14.0) - Maybe
+
+```rust
+use rustica::traits::functor::Functor;
+
+let value = Some(42);
+let doubled = value.fmap(|x| x * 2);
+assert_eq!(doubled, Some(84));
+
+let empty: Option<i32> = None;
+assert!(empty.is_none());
+```
+
+---
+
+### `Either<L, R>` → `Result<R, L>`
+
+#### Before (0.13.x) - Either
+
+```rust
+use rustica::datatypes::either::Either;
+use rustica::traits::functor::Functor;
+
+let res: Either<String, i32> = Either::Right(42);
+let mapped = res.fmap(|x| x + 1);
+assert_eq!(mapped, Either::Right(43));
+
+let err: Either<String, i32> = Either::Left("failed".to_string());
+```
+
+#### After (0.14.0) - Either
+
+```rust
+use rustica::traits::functor::Functor;
+
+let res: Result<i32, String> = Ok(42);
+let mapped = res.fmap(|x| x + 1);
+assert_eq!(mapped, Ok(43));
+
+let err: Result<i32, String> = Err("failed".to_string());
+```
+
+---
+
+### Single-Implementation Traits
+
+#### `Category` & `Arrow` → `FunctionCategory` Inherent Methods
+
+The `Category` and `Arrow` traits are removed. `FunctionCategory` provides all morphism methods directly, and macros (`function!`, `compose!`, `pipe!`) work without trait imports.
+
+```rust
+use rustica::category::FunctionCategory;
+
+let id_fn = FunctionCategory::identity_morphism::<i32>();
+let arrow_fn = FunctionCategory::arrow(|x: i32| x * 2);
+let first_fn = FunctionCategory::first::<i32, i32, &str>(&arrow_fn);
+```
+
+#### `Comonad` → `Id` Inherent Methods
+
+```rust
+use rustica::datatypes::id::Id;
+
+let id = Id::new(42);
+assert_eq!(id.extract(), 42);
+let duplicated = id.duplicate();
+let extended = id.extend(|i| i.extract() * 2);
+```
+
+#### `Evaluate` → Inherent Methods
+
+```rust
+use rustica::datatypes::wrapper::thunk::Thunk;
+
+let thunk = Thunk::new(|| 42);
+assert_eq!(thunk.evaluate(), &42);
+assert_eq!(thunk.evaluate_owned(), 42);
+```
+
+---
+
+### Error Handling & Pipelines
+
+#### `ErrorPipeline` → Native `Result` Combinators
+
+```rust
+use rustica::error::{ComposableError, with_context};
+
+let result: Result<i32, &str> = Err("404");
+let final_result = result
+    .map(|x| x * 2)
+    .map_err(|e| with_context(e, "Request failed"))
+    .or_else(|_| Ok::<i32, ComposableError<&str>>(0));
+```
+
+---
+
+### Collections: `PersistentVector::{take, skip}`
+
+```rust
+use rustica::pvec::PersistentVector;
+
+let vec = PersistentVector::from_slice(&[1, 2, 3, 4, 5]);
+
+// Iterator approach
+let taken: PersistentVector<i32> = vec.iter().take(3).cloned().collect();
+let skipped: PersistentVector<i32> = vec.iter().skip(2).cloned().collect();
+
+// Structural split approach (O(log n))
+let (head, _) = vec.split_at(3);
+let (_, tail) = vec.split_at(2);
+```
+
+No migration is required for equality, ordering, or hashing. In 0.14.0 these operations consistently use the vector's logical element sequence, independent of whether the values are stored inline or in the RRB tree and independent of construction history.

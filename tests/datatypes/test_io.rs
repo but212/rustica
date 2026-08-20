@@ -20,3 +20,17 @@ fn test_io_monadic_fundamentals() {
     let complex = pure_io.fmap(|x| x + 8).bind(|x| IO::new(move || x / 2));
     assert_eq!(complex.run(), 25);
 }
+
+#[test]
+fn test_io_execution_and_try_get_composable() {
+    let io = IO::pure(100);
+    assert_eq!(io.run(), 100);
+    assert_eq!(io.try_get_composable(), Ok(100));
+
+    let effect = IO::new(|| 200);
+    assert_eq!(effect.run(), 200);
+    assert_eq!(effect.try_get_composable(), Ok(200));
+
+    let panicking: IO<i32> = IO::new(|| panic!("failure"));
+    assert!(panicking.try_get_composable().is_err());
+}

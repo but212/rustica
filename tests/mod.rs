@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 // Macro definitions for testing laws and properties
 #[macro_use]
 pub mod laws;

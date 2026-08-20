@@ -8,36 +8,69 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    - cron: "0 0 * * 0" # Weekly dependency check
+    - cron: "0 0 * * 0"
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: read
+
+concurrency:
+  group: rust-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # 1. Quality
   quality:
     name: Quality
+    permissions:
+      contents: read
     uses: ./.github/workflows/ci-quality.yml
 
-  # 2. Tests
   tests:
     name: Tests
+    permissions:
+      contents: read
     uses: ./.github/workflows/ci-tests.yml
 
-  # 3. Publish and Release (only when tag is pushed)
   publish:
     name: Publish
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [quality, tests]
+    permissions:
+      contents: write # required by the release job after crates.io approval
+      id-token: write # required by crates.io Trusted Publishing
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
     uses: ./.github/workflows/publish-release.yml
-    secrets:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-  # 4. Benchmarks (only when tag is pushed or schedule)
   benchmarks:
     name: Benchmarks
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
     needs: [quality, tests]
+    permissions:
+      contents: read
     uses: ./.github/workflows/benchmarks.yml
+
+  benchmark_baseline:
+    name: Update benchmark baseline
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [benchmarks]
+    permissions:
+      contents: write # required to update the gh-pages baseline
+      actions: read # required to download the benchmark artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Download benchmark artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: benchmark-results-${{ github.run_id }}
+          path: benchmark-results
+
+      - name: Update gh-pages baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/benchmark_baseline.py benchmark-results/formatted_benchmark_results.json

@@ -245,7 +245,7 @@ use crate::transformers::StateT;
 use quickcheck::{Arbitrary, Gen};
 
 /// Type alias for the inner state transformer used in State monad
-pub type StateInner<S, A> = StateT<S, Id<(A, S)>, A>;
+pub type StateInner<S, A> = StateT<S, Id<(S, A)>, A>;
 
 /// A monad that represents stateful computations.
 ///
@@ -382,7 +382,10 @@ where
         F: Fn(S) -> (A, S) + Send + Sync + 'static,
     {
         State {
-            inner: StateT::new(move |s: S| Id::new(f(s))),
+            inner: StateT::new(move |s: S| {
+                let (value, next_state) = f(s);
+                Id::new((next_state, value))
+            }),
         }
     }
 
@@ -424,7 +427,8 @@ where
     #[inline]
     pub fn run_state(&self, s: S) -> (A, S) {
         // Direct mapping from Id monad's value
-        self.inner.run_state(s).unwrap()
+        let (next_state, value) = self.inner.run_state(s).unwrap();
+        (value, next_state)
     }
 
     /// Runs the state computation and returns only the final value.
@@ -1256,13 +1260,23 @@ impl<
 /// let state: State<i32, i32> = State::from(state_t);
 /// assert_eq!(state.run_state(1), (2, 2));
 /// ```
-impl<S, A> From<StateT<S, Id<(A, S)>, A>> for State<S, A>
+impl<S, A> From<StateT<S, Id<(S, A)>, A>> for State<S, A>
 where
     S: Clone + Send + Sync + 'static,
     A: Clone + Send + Sync + 'static,
 {
-    fn from(state_t: StateT<S, Id<(A, S)>, A>) -> Self {
+    fn from(state_t: StateT<S, Id<(S, A)>, A>) -> Self {
         State { inner: state_t }
+    }
+}
+
+impl<S, A> From<State<S, A>> for StateT<S, Id<(S, A)>, A>
+where
+    S: Clone + Send + Sync + 'static,
+    A: Clone + Send + Sync + 'static,
+{
+    fn from(state: State<S, A>) -> Self {
+        state.inner
     }
 }
 

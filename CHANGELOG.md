@@ -1,15 +1,70 @@
 # CHANGELOG
 
-## [0.13.0]
+## [Unreleased]
+
+### CI/CD and Security
+
+- Added least-privilege workflow permissions, pinned external actions, and
+  workflow security checks with `actionlint` and `zizmor`.
+- Declared the minimum supported Rust version through Cargo's
+  `package.rust-version` metadata and added a dedicated MSRV check.
+- Hardened releases with locked packaging, exact CHANGELOG validation, a
+  protected crates.io environment, and verified SLSA verifier downloads.
+- Added trusted benchmark regression reporting with a 20% slowdown threshold
+  while keeping pull request benchmark jobs read-only.
+- Added repository ownership, security reporting, pull request, and issue
+  templates under `.github/`.
+
+### Breaking Changes
+
+- **Transformer State and Type Invariants**
+  - `ReaderT<E, M, A>` now requires `M: HKT<Source = A>` and type-changing operations return the corresponding `M::Output<B>`; the unsafe bind conversion was removed.
+  - `StateT<S, M, A>` now has one executable representation, requires `M: HKT<Source = (S, A)>`, and threads state left-to-right through composition.
+  - `StateT` no longer exposes `Pure` or `LiftM`; its `MonadTransformer::BaseMonad` is the base family containing `A` rather than `(S, A)`.
+
+- **Error and Conversion API**
+  - Removed impossible `ChoiceError::EmptyChoice`, `PVecError::InvalidRange`, and `IOError::ValueNotSet` variants.
+  - Removed `ErrorOps`, `sequence`, `traverse`, and redundant free error-conversion functions in favor of `Result`/`Iterator` methods and `From`.
+  - `Validated` now converts from owned or borrowed `Result` through `From`; lossy conversion is explicitly named `into_result_first_error`.
+
+- **Dead Utilities Removed**
+  - Removed empty `utils::categorical_utils`, the `utils::functions::id` alias, and unused `ReaderCombineFn`/`ContFn` aliases.
+
+- **Duplicate Functional Data Types Removed**
+  - Removed `Maybe<T>` in favor of standard `Option<T>` (`Functor`, `Applicative`, `Monad`, `Foldable` remain implemented for `Option<T>`).
+  - Removed `Either<L, R>`, `EitherError`, `ResultEitherIso`, and all `Either` conversion helpers in favor of standard `Result<R, L>` or the external `either` crate.
+
+- **Single-Implementation Traits Removed**
+  - Removed `Category` and `Arrow` traits; `FunctionCategory` now provides all morphism operations via inherent associated functions (`identity_morphism`, `compose_morphisms`, `arrow`, `first`, `second`, `split`, `combine_morphisms`). Category macros (`function!`, `compose!`, `pipe!`) no longer require trait imports.
+  - Removed `Comonad` trait; `Id<T>` now provides `extract`, `duplicate`, and `extend` as inherent methods.
+  - Removed `Evaluate` and `EvaluateExt` traits; `Thunk` and `IO` expose their evaluation methods inherently (`Thunk::evaluate`, `IO::run`).
+
+- **Redundant Wrappers & Pipelines Removed**
+  - Removed `ErrorPipeline` and `error_pipeline` in favor of standard `Result` combinators.
+  - Removed `ErrorCategory` trait; use `Result` and `Validated` directly.
+  - Removed `Pipeline<T>` from `rustica::utils::transform_utils`.
+  - Removed `Memoizer` wrapper; use dedicated caching crates (`lru`, `moka`).
+
+- **Collection Iterator Helpers Removed**
+  - Removed `PersistentVector::take` and `PersistentVector::skip`; use standard iterator adapters (`.iter().take(n)...`) or `PersistentVector::split_at`.
 
 ### Maintenance
+
+- Added central compile-fail removal contract doctests in `src/lib.rs`.
+- Updated all doc examples and benchmarks to 0.14.0 API.
+- Persistent vectors derive length from their representation and compare/hash by logical element sequence; the unused generation counter was removed.
+- Added a targeted Miri CI test for owning `ReaderT::bind` values and removed redundant phantom fields and the unused futures `thread-pool` feature.
+
+## [0.13.0]
+
+### Maintenance - 0.13.0
 
 - Relaxed owned error-conversion helpers to accept non-`Clone` values.
 - Simplified `Result` sequencing and pipelines with standard iterator combinators.
 - Kept `ErrorPipeline` behavior unchanged in 0.13.0; migrate to native
   `Result` combinators before its planned 0.14.0 removal.
 
-### Breaking Changes
+### Breaking Changes - 0.13.0
 
 - **`Choice<T>` Impossible-State Elimination**
   - Redesigned `Choice<T>` as `{ primary: T, alternatives: SmallVec<[T; 7]> }` to guarantee at compile-time that empty choices are impossible.
@@ -53,7 +108,7 @@
   - `SemigroupExt::combine_n` and `combine_n_owned` now require
     `NonZeroUsize`, eliminating the zero-count state.
 
-### Changed
+### Changed - 0.13.0
 
 - **Ownership and Allocation Paths**
   - Removed all confirmed redundant clones across library, examples, benches,
@@ -93,7 +148,7 @@
   - `rayon` and `lazy_static` are no longer normal runtime dependencies;
     `quickcheck` is optional and `serde_json` is dev-only.
 
-### Fixed
+### Fixed - 0.13.0
 
 - Fixed owned semigroup repetition that could duplicate the accumulated value
   during repeated combination.

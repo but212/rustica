@@ -7,7 +7,6 @@
 //! - [`First`], [`Last`]: First/last priority wrappers (useful for Monoid/Ord operations)
 //! - [`Max`], [`Min`]: Maximum/minimum value wrappers
 //! - [`Product`], [`Sum`]: Product/sum wrappers (numeric Monoids)
-//! - [`Memoizer`]: Memoization wrappers
 //! - [`Thunk`]: Lazy evaluation wrapper
 //!
 //! # Usage Examples
@@ -32,14 +31,12 @@
 pub use crate::datatypes::wrapper::first::First;
 pub use crate::datatypes::wrapper::last::Last;
 pub use crate::datatypes::wrapper::max::Max;
-pub use crate::datatypes::wrapper::memoizer::{InsertOutcome, Memoizer};
 pub use crate::datatypes::wrapper::min::Min;
 pub use crate::datatypes::wrapper::product::Product;
 pub use crate::datatypes::wrapper::sum::Sum;
 pub use crate::datatypes::wrapper::thunk::Thunk;
 
 // Also re-export commonly used traits
-pub use crate::traits::evaluate::Evaluate;
 pub use crate::traits::functor::Functor;
 pub use crate::traits::monoid::Monoid;
 pub use crate::traits::semigroup::Semigroup;
