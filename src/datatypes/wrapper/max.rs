@@ -46,7 +46,9 @@
 //! `Max<T>` implements the following type classes:
 //!
 //! - `Semigroup`: For any `T` that implements `Ord`
-//! - `Monoid`: For any `T` that implements `Ord` and `Default` (identity is `Max(T::default())`)
+//! - `Monoid`: For any `T` that implements `Ord` and `Default` (identity is `Max(T::default())`;
+//!   the monoid laws hold only when `T::default()` is the minimum value of `T`, e.g. for
+//!   unsigned integers. For signed integers use `Max(T::MIN)` as the identity instead.)
 //! - `Functor`: For mapping operations over the inner value
 //!
 //! ## Quick Start
@@ -314,11 +316,16 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
 }
 
 impl<T: Clone + Ord + Default> Monoid for Max<T> {
-    /// Returns the identity element for the `Max` monoid, which is `Max(T::default())`,
-    /// typically the minimum possible value of `T`.
+    /// Returns the identity element for the `Max` monoid, which is `Max(T::default())`.
     ///
-    /// For numeric types, this is usually the minimum possible value (e.g., MIN_INT for integers).
-    /// When combined with any other `Max` value, the result will always be the other value.
+    /// # Correctness Note
+    ///
+    /// `T::default()` is the true identity element only when it is the minimum
+    /// value of `T` (e.g., unsigned integer types such as `u32`, where the default is 0).
+    /// For signed integers `T::default()` is 0, so combining a negative value with
+    /// `empty()` yields `Max(0)` instead of the original value — the monoid identity
+    /// laws do **not** hold in that case. For a true identity with signed types,
+    /// use `Max(T::MIN)` directly.
     ///
     /// # Performance
     ///
@@ -336,15 +343,19 @@ impl<T: Clone + Ord + Default> Monoid for Max<T> {
     /// use rustica::traits::semigroup::Semigroup;
     ///
     /// // For any Max(x), empty() ⊕ Max(x) = Max(x)
-    /// fn verify_left_identity<T: Clone + Ord + Default + PartialEq>(x: T) -> bool {
-    ///     let empty = Max::<T>::empty();
+    /// // This holds when empty() contains the minimum value of T.
+    /// fn verify_left_identity<T: Clone + Ord + PartialEq>(identity: T, x: T) -> bool {
+    ///     let empty = Max(identity);
     ///     let value = Max(x);
     ///     
     ///     empty.combine(&value) == value
     /// }
     ///
-    /// assert!(verify_left_identity(42));
-    /// assert!(verify_left_identity(0));
+    /// // For i32, i32::MIN is the true identity (not i32::default())
+    /// assert!(verify_left_identity(i32::MIN, 42));
+    /// assert!(verify_left_identity(i32::MIN, -7));
+    /// // u32::default() == 0 == u32::MIN, so empty() works for unsigned types
+    /// assert!(verify_left_identity(u32::default(), 42));
     /// ```
     ///
     /// ## Right Identity
@@ -355,15 +366,16 @@ impl<T: Clone + Ord + Default> Monoid for Max<T> {
     /// use rustica::traits::semigroup::Semigroup;
     ///
     /// // For any Max(x), Max(x) ⊕ empty() = Max(x)
-    /// fn verify_right_identity<T: Clone + Ord + Default + PartialEq>(x: T) -> bool {
+    /// // This holds when empty() contains the minimum value of T.
+    /// fn verify_right_identity<T: Clone + Ord + PartialEq>(x: T, identity: T) -> bool {
     ///     let value = Max(x);
-    ///     let empty = Max::<T>::empty();
+    ///     let empty = Max(identity);
     ///     
     ///     value.combine(&empty) == value
     /// }
     ///
-    /// assert!(verify_right_identity(42));
-    /// assert!(verify_right_identity(0));
+    /// assert!(verify_right_identity(42, i32::MIN));
+    /// assert!(verify_right_identity(-7, i32::MIN));
     /// ```
     ///
     /// # Examples

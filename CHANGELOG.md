@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Documentation Correctness
+
+- Corrected `Max<T>::empty()` documentation: the monoid identity is
+  `Max(T::default())`, and the monoid identity laws hold only when
+  `T::default()` is the minimum value of `T` (e.g., unsigned integers).
+  The previous claim that `T::default()` is "typically MIN_INT" was false;
+  callers needing a lawful identity over signed types must use
+  `Max(T::MIN)` directly.
+- Documented the same limitation more precisely for `Min<T>`: the identity
+  must be the maximum value of `T`, so the monoid laws do not hold with
+  `T::default()` for any standard numeric type, including unsigned integers.
+  Use `Min(T::MAX)` explicitly.
+
+### Tests
+
+- Added `test_max_min_identity_law_boundary` regression test pinning both
+  the lawful cases (`Max<u32>` with default identity, explicit extremum
+  identities) and the documented violations (`Max(-1)`, `Min(1)` over signed
+  and unsigned integers) so the boundary behavior stays visible.
+
+### Changed
+
+- Generalized `pipeline_result` to accept any `IntoIterator<Item = Func>`
+  instead of `Vec<Func>`, matching `pipeline_option`. Passing a `Vec`
+  continues to work.
+
 ### CI/CD and Security
 
 - Added least-privilege workflow permissions, pinned external actions, and
