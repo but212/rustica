@@ -213,3 +213,43 @@ let (_, tail) = vec.split_at(2);
 ```
 
 No migration is required for equality, ordering, or hashing. In 0.14.0 these operations consistently use the vector's logical element sequence, independent of whether the values are stored inline or in the RRB tree and independent of construction history.
+
+---
+
+## Behavior Notes (Non-Breaking)
+
+### `Min<T>` / `Max<T>` Monoid Identity
+
+`Monoid::empty()` for both wrappers remains `Max(T::default())` /
+`Min(T::default())`, but the documentation now states accurately when the
+monoid identity laws hold. If you relied on `empty()` over numeric types,
+verify your usage:
+
+| Wrapper | Lawful identity | `empty()` lawful? |
+| --- | --- | --- |
+| `Max<u32>` (and other unsigned integers) | minimum of `T` (`0 == T::MIN`) | Yes |
+| `Max<i32>` and other signed types | `T::MIN` | No — use `Max(T::MIN)` |
+| `Min<T>` for any standard numeric type | `T::MAX` | No — use `Min(T::MAX)` |
+
+```rust
+use rustica::datatypes::wrapper::{max::Max, min::Min};
+use rustica::traits::semigroup::Semigroup;
+
+// 0.13.x behavior: Max(-1).combine(&Max::<i32>::empty()) == Max(0)
+// (violates right identity; unchanged in 0.14.0, now documented)
+let lawful_max_id = Max(i32::MIN);
+assert_eq!(Max(-1).combine(&lawful_max_id), Max(-1));
+
+let lawful_min_id = Min(i32::MAX);
+assert_eq!(Min(1).combine(&lawful_min_id), Min(1));
+```
+
+See `docs/wrapper-monoid-identity.md` for counterexamples and the regression
+test `test_max_min_identity_law_boundary`.
+
+### `pipeline_result` Accepts Any Iterator
+
+`rustica::utils::hkt_utils::pipeline_result` now takes
+`impl IntoIterator<Item = Func>` instead of `Vec<Func>`, matching
+`pipeline_option`. Existing `Vec` callers compile unchanged; no action is
+required.
