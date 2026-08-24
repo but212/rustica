@@ -20,10 +20,11 @@ where
 
 /// Chains a sequence of operations that may return `Result<T, E>`.
 #[inline]
-pub fn pipeline_result<A, B, E, Func>(initial: A, operations: Vec<Func>) -> Result<B, E>
+pub fn pipeline_result<A, B, E, I, Func>(initial: A, operations: I) -> Result<B, E>
 where
     Func: Fn(B) -> Result<B, E>,
     A: Into<B>,
+    I: IntoIterator<Item = Func>,
 {
     operations
         .into_iter()

@@ -89,9 +89,9 @@ fn traverse_preserves_order_and_stops_after_first_error() {
 #[test]
 fn pipeline_result_handles_empty_input_and_short_circuits() {
     assert_eq!(
-        pipeline_result::<_, i32, &'static str, fn(i32) -> Result<i32, &'static str>>(
+        pipeline_result::<_, i32, &'static str, _, _>(
             7,
-            Vec::new(),
+            Vec::<fn(i32) -> Result<i32, &'static str>>::new(),
         ),
         Ok(7)
     );

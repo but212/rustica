@@ -10,6 +10,36 @@ use rustica::prelude::*;
 use std::sync::{Arc, Mutex};
 
 #[test]
+fn test_max_min_identity_law_boundary() {
+    use rustica::traits::monoid::Monoid;
+    use rustica::traits::semigroup::Semigroup;
+
+    // Monoid identity laws hold for Max when T::default() is the minimum of T
+    // (e.g., unsigned integers, where default == 0 == MIN).
+    let m: Max<u32> = Max(7);
+    assert_eq!(m.combine(&Max::<u32>::empty()), m);
+    assert_eq!(Max::<u32>::empty().combine(&m), m);
+
+    // Boundary: for signed integers T::default() == 0, which is NOT the extremum,
+    // so the identity laws do not hold. Note that for `Min` this applies to ALL
+    // numeric types: the identity must be the maximum of T, but default() is the
+    // minimum (or zero). This documents the known limitation: callers needing a
+    // lawful monoid must supply the true extremum themselves,
+    // e.g. Max(i32::MIN) / Min(i32::MAX).
+    assert_ne!(Max(-1).combine(&Max::<i32>::empty()), Max(-1));
+    assert_ne!(Min(1).combine(&Min::<i32>::empty()), Min(1));
+    assert_ne!(Min(1u32).combine(&Min::<u32>::empty()), Min(1u32));
+
+    // The laws DO hold when the true extremum is used explicitly.
+    let true_max_id = Max(i32::MIN);
+    assert_eq!(true_max_id.combine(&Max(-1)), Max(-1));
+    assert_eq!(Max(-1).combine(&true_max_id), Max(-1));
+    let true_min_id = Min(i32::MAX);
+    assert_eq!(true_min_id.combine(&Min(1)), Min(1));
+    assert_eq!(Min(1).combine(&true_min_id), Min(1));
+}
+
+#[test]
 fn test_monoid_wrappers_behavior() {
     // 1. Optional Wrappers (First/Last)
     assert_eq!(First(Some(1)).combine(&First(Some(2))), First(Some(1)));
@@ -20,6 +50,7 @@ fn test_monoid_wrappers_behavior() {
     assert_eq!(Min(10).combine(&Min(5)), Min(5));
     assert_eq!(Max(10).combine(&Max(5)), Max(10));
     assert_eq!(Min::<u32>::empty(), Min(0)); // Default min for unsigned
+    assert_eq!(Max::<u32>::empty(), Max(0)); // Default max for unsigned (0 is the minimum)
 
     // 3. Numeric Arithmetic (Sum/Product)
     assert_eq!(Sum(10).combine(&Sum(5)), Sum(15));
