@@ -63,7 +63,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
     // Parametric benchmarks for different error rates
     for error_rate in [10, 50, 90].iter() {
         group.bench_with_input(
-            BenchmarkId::new("bulk_validation", error_rate),
+            BenchmarkId::new("validity_scan", error_rate),
             error_rate,
             |b, &rate| {
                 let data = gen_validated_vec(1000, rate);

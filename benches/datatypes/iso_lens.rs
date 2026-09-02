@@ -336,10 +336,8 @@ pub fn iso_lens_benchmarks(c: &mut Criterion) {
     group.bench_function("iso_lens_city_modify", |b| {
         b.iter(|| {
             let addr = black_box(address.clone());
-            let updated = city_lens.modify(&addr, |(city, mut addr)| {
-                addr.city = format!("{} - Modified", city);
-                (city, addr)
-            });
+            let updated =
+                city_lens.modify(&addr, |(city, addr)| (format!("{} - Modified", city), addr));
             black_box(updated)
         })
     });

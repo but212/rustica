@@ -1,8 +1,8 @@
 # Rustica 0.14.0 Migration Guide
 
-This document provides a guide for migrating code from Rustica 0.13.x to 0.14.0.
-
-Rustica 0.14.0 removes the APIs deprecated in 0.13.0 and tightens transformer and error-state invariants. These are intentional breaking changes that eliminate duplicate standard-library functionality and states that valid values could never reach.
+Migrate from Rustica 0.13.x to 0.14.0 by replacing APIs deprecated in 0.13.0
+and adapting to tighter transformer and error-state invariants. These breaking
+changes remove duplicate standard-library functionality and unreachable states.
 
 ---
 
@@ -45,7 +45,9 @@ Rustica 0.14.0 removes the APIs deprecated in 0.13.0 and tightens transformer an
 
 ### Transformer type changes
 
-`ReaderT` and `StateT` now encode their base-monad contents in the type system. A type-changing reader map therefore changes `Option<A>` to `Option<B>`, and state-transformer composition always uses `(state, value)` internally:
+`ReaderT` and `StateT` now encode base-monad contents in their types. A
+reader map from `A` to `B` changes `Option<A>` to `Option<B>`; state-transformer
+composition uses `(state, value)` internally:
 
 ```rust
 use rustica::transformers::{ReaderT, StateT};
@@ -59,7 +61,8 @@ let text_state: StateT<i32, Option<(i32, String)>, String> =
     state.fmap(|n| n.to_string());
 ```
 
-`State<S, A>` still returns `(A, S)` publicly; tuple reordering occurs only at its `StateT` conversion boundary.
+`State<S, A>` still returns `(A, S)` publicly; only its `StateT` conversion
+boundary reorders the tuple.
 
 ### Error conversion changes
 
@@ -71,7 +74,7 @@ let result = validated.into_result_first_error();
 assert_eq!(result, Ok(42));
 ```
 
-Borrowed results are also supported when both payloads implement `Clone`:
+Borrowed results are supported when both payloads implement `Clone`:
 
 ```rust
 use rustica::datatypes::validated::Validated;
@@ -81,7 +84,9 @@ let validated: Validated<String, String> = (&result).into();
 assert_eq!(validated.into_result_first_error(), Ok("ready".into()));
 ```
 
-Because `Validated` can accumulate multiple errors while `Result` carries only one, `into_result_first_error` deliberately returns the first error. Use `into_error_payload` when every accumulated error must be preserved.
+Because `Validated` can hold multiple errors and `Result` only one,
+`into_result_first_error` returns the first. Use `into_error_payload` to
+preserve every error.
 
 ### `Maybe<T>` → `Option<T>`
 
@@ -149,7 +154,8 @@ let err: Result<i32, String> = Err("failed".to_string());
 
 #### `Category` & `Arrow` → `FunctionCategory` Inherent Methods
 
-The `Category` and `Arrow` traits are removed. `FunctionCategory` provides all morphism methods directly, and macros (`function!`, `compose!`, `pipe!`) work without trait imports.
+`Category` and `Arrow` are removed. `FunctionCategory` provides their morphism
+methods directly; `function!`, `compose!`, and `pipe!` need no trait imports.
 
 ```rust
 use rustica::category::FunctionCategory;
@@ -200,7 +206,9 @@ let final_result = result
 
 ### Non-empty collection construction
 
-`Choice` and `NonEmptyErrors` no longer implement infallible collection conversions. Empty input previously caused a panic through `From` or `FromIterator`; use an explicit fallible API instead:
+`Choice` and `NonEmptyErrors` no longer provide infallible collection
+conversions. Because empty input previously panicked through `From` or
+`FromIterator`, use an explicit fallible API:
 
 ```rust
 use rustica::datatypes::choice::Choice;
@@ -211,7 +219,10 @@ let choice = Choice::of_many([1, 2]);
 let errors = NonEmptyErrors::try_from_iter(["first", "second"]);
 ```
 
-`Choice` conversions return `Result<Choice<T>, ChoiceError>` and report `ChoiceError::EmptyInput`; `NonEmptyErrors::try_from_iter` returns `None` for an empty iterator. Existing `Choice::of_many` and `Validated::try_invalid_many` remain available when `Option` is the desired result.
+`Choice` conversions return `Result<Choice<T>, ChoiceError>` with
+`ChoiceError::EmptyInput` for empty input. `NonEmptyErrors::try_from_iter`
+returns `None` for an empty iterator. Use the existing `Choice::of_many` and
+`Validated::try_invalid_many` when an `Option` result is preferable.
 
 ### Collections: `PersistentVector::{take, skip}`
 
@@ -229,15 +240,15 @@ let (head, _) = vec.split_at(3);
 let (_, tail) = vec.split_at(2);
 ```
 
-No migration is required for equality, ordering, or hashing. In 0.14.0 these operations consistently use the vector's logical element sequence, independent of whether the values are stored inline or in the RRB tree and independent of construction history.
+Equality, ordering, and hashing require no migration. They now use the vector's
+logical element sequence regardless of inline/RRB-tree storage or construction
+history.
 
 ### `PersistentVector` concatenation and `pop_back`
 
-`PersistentVector::concat` now preserves left-to-right operand order even when
-its RRB trees have different heights. `pop_back` also continues until the
-vector is empty when front insertions leave values in the head buffer after the
-main tree is exhausted. No API migration is required; these are correctness
-fixes to existing operations.
+`PersistentVector::concat` now preserves operand order across unequal-height
+RRB trees. `pop_back` drains head-buffer values left by front insertions after
+the main tree is exhausted. These correctness fixes require no API migration.
 
 ---
 
@@ -245,9 +256,9 @@ fixes to existing operations.
 
 ### `Min<T>` / `Max<T>` are semigroups
 
-In 0.14.0, `Min<T>` and `Max<T>` no longer implement `Monoid`. A generic
-`T::default()` is not guaranteed to be the maximum or minimum value, so it
-cannot serve as a lawful identity for every `T` admitted by the wrappers.
+`Min<T>` and `Max<T>` no longer implement `Monoid`: `T::default()` is not
+necessarily an extremum, so it cannot be a lawful identity for every supported
+`T`.
 
 If you previously reduced a possibly empty collection with `empty()`, use the
 `Option`-returning `combine_all_values` helper:
@@ -260,25 +271,23 @@ let minimum = combine_all_values([Min(4), Min(1), Min(3)]);
 assert_eq!(minimum, Some(Min(1)));
 ```
 
-For a domain with a known extremum, seed the reduction explicitly, for example
+For a domain with a known extremum, seed the reduction with, for example,
 `Max(i32::MIN)` or `Min(i32::MAX)`. See `docs/wrapper-monoid-identity.md`.
 
 ### `Result` and `MonadPlus`
 
-`Result<T, E>` no longer implements `MonadPlus`: `E::default()` cannot
-preserve an arbitrary existing error as the right identity. Use native
-`Result` combinators such as `or_else` for fallback behavior. `Option<T>`
-retains its `MonadPlus` implementation when `None` is the lawful zero.
+`Result<T, E>` no longer implements `MonadPlus` because `E::default()` cannot
+preserve an arbitrary error as the right identity. Use `Result` combinators
+such as `or_else`. `Option<T>` retains `MonadPlus` because `None` is a lawful
+zero.
 
 ### Phantom marker wrappers
 
-`HKTType` and `PureType` were zero-sized forwarding markers without behavior
-beyond the underlying traits and are removed in 0.14. Use `HKT`/`Pure` or the
-`PureExt` methods directly.
+The zero-sized forwarding markers `HKTType` and `PureType` are removed. Use
+`HKT`, `Pure`, or `PureExt` methods directly.
 
 ### `pipeline_result` Accepts Any Iterator
 
-`rustica::utils::hkt_utils::pipeline_result` now takes
+`rustica::utils::hkt_utils::pipeline_result` now accepts
 `impl IntoIterator<Item = Func>` instead of `Vec<Func>`, matching
-`pipeline_option`. Existing `Vec` callers compile unchanged; no action is
-required.
+`pipeline_option`. Existing `Vec` callers need no changes.

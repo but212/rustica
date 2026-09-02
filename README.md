@@ -5,18 +5,18 @@
 [![CI](https://github.com/but212/rustica/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/but212/rustica/actions/workflows/rust.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Rustica is a pragmatic functional programming library for Rust, bringing powerful abstractions from category theory and functional programming to the Rust ecosystem.
+Rustica brings pragmatic functional-programming and category-theory abstractions to Rust.
 
 ## Overview
 
-Rustica enables idiomatic functional programming in Rust by providing:
+Rustica provides:
 
-- **Type Classes**: Core abstractions like `Functor`, `Applicative`, `Monad`, `Pure`, and `Foldable`
-- **Data Types**: Functional data structures like `Choice` (guaranteed non-empty alternatives), `Validated`, `Id`, and `IO`
-- **Monad Transformers**: Composition with `StateT`, `ReaderT`, and `ContT`
-- **Pure Functional Style**: Patterns for immutable data and explicit effect handling
-- **Error Handling**: Structured context accumulation via `ComposableError` and `Validated`
-- **Persistent Collections**: Efficient immutable `PersistentVector` (RRB-Tree)
+- **Type Classes**: `Functor`, `Applicative`, `Monad`, `Pure`, and `Foldable`
+- **Data Types**: `Choice` (guaranteed non-empty alternatives), `Validated`, `Id`, and `IO`
+- **Monad Transformers**: `StateT`, `ReaderT`, and `ContT`
+- **Pure Functional Style**: Immutable data and explicit effects
+- **Error Handling**: Context accumulation with `ComposableError` and `Validated`
+- **Persistent Collections**: Immutable RRB-tree `PersistentVector`
 
 ### Recommended Use Cases
 
@@ -89,16 +89,20 @@ use rustica::prelude::*;
 
 ## Migration from 0.13 to 0.14
 
-In `0.13.0`, redundant types (`Maybe`, `Either`), single-implementation traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers (`ErrorPipeline`, `ErrorCategory`, `Memoizer`) have been removed. `ReaderT` and `StateT` also enforce their base-monad value types at compile time, while standard `Result`, `Iterator`, and `From` APIs replace duplicate error helpers.
+`0.14.0` removes redundant types (`Maybe`, `Either`), single-implementation
+traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers
+(`ErrorPipeline`, `ErrorCategory`, `Memoizer`). `ReaderT` and `StateT` enforce
+base-monad value types at compile time; standard `Result`, `Iterator`, and
+`From` APIs replace duplicate error helpers.
 
-See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) for the complete before/after migration guide.
+See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the migration guide.
 
 ---
 
 ## Development and CI
 
-Rustica supports Rust 1.88.0 and newer. Before opening a pull request, run the
-same core checks used by CI:
+Rustica requires Rust 1.88.0 or newer. Before opening a pull request, run CI's
+core checks:
 
 ```bash
 cargo fmt --all -- --check
@@ -107,16 +111,15 @@ cargo test --all-features --locked
 cargo package --all-features --locked
 ```
 
-Pull requests run read-only quality checks, platform tests, and MSRV validation.
-Nightly tests, unused-dependency checks, and Miri run on the weekly schedule or
-when manually dispatched. Benchmarks run on `main` pushes and the weekly
-schedule; the `main` result updates the trusted baseline, while scheduled
-results are retained as performance-observation artifacts.
+Pull requests run read-only quality, platform, and MSRV checks. Weekly or
+manual workflows run nightly tests, unused-dependency checks, and Miri.
+Benchmarks run weekly and on `main` pushes; `main` updates the trusted baseline,
+while weekly results remain performance-observation artifacts.
 
-Releases are created from `v*` tags after the tag version, Cargo metadata, and
-the matching `CHANGELOG.md` section are validated. Publishing is protected by
-the `crates-io` environment, and the release receives SLSA provenance. See
-[SECURITY.md](.github/SECURITY.md) for vulnerability reporting instructions.
+`v*` tags create releases after validating the tag version, Cargo metadata, and
+matching `CHANGELOG.md` section. The protected `crates-io` environment controls
+publishing, and releases receive SLSA provenance. Report vulnerabilities as
+instructed in [SECURITY.md](.github/SECURITY.md).
 
 ---
 
