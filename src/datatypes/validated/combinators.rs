@@ -1,4 +1,4 @@
-use super::core::ErrorAccumulator;
+use super::core::{ErrorAccumulator, NonEmptyErrors};
 use crate::datatypes::validated::Validated;
 
 impl<E, A> Validated<E, A> {
@@ -35,8 +35,9 @@ impl<E, A> Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
             Validated::Invalid(_) => {
-                let transformed = self.iter_errors().map(f).collect();
-                Validated::Invalid(transformed)
+                let mut transformed = self.iter_errors().map(f);
+                let first = transformed.next().expect("invalid values have errors");
+                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
             },
         }
     }

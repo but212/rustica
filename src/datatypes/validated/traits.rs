@@ -159,8 +159,9 @@ impl<E, A> BinaryHKT for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
             Validated::Invalid(es) => {
-                let transformed: NonEmptyErrors<C> = es.iter().map(f).collect();
-                Validated::Invalid(transformed)
+                let mut transformed = es.iter().map(f);
+                let first = transformed.next().expect("invalid values have errors");
+                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
             },
         }
     }
@@ -173,8 +174,9 @@ impl<E, A> BinaryHKT for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
             Validated::Invalid(es) => {
-                let transformed: NonEmptyErrors<C> = es.into_iter().map(f).collect();
-                Validated::Invalid(transformed)
+                let mut transformed = es.into_iter().map(f);
+                let first = transformed.next().expect("invalid values have errors");
+                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
             },
         }
     }
@@ -228,8 +230,9 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
             Validated::Invalid(es) => {
-                let transformed: NonEmptyErrors<D> = es.iter().map(g).collect();
-                Validated::Invalid(transformed)
+                let mut transformed = es.iter().map(g);
+                let first = transformed.next().expect("invalid values have errors");
+                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
             },
         }
     }
@@ -253,8 +256,9 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x.clone()),
             Validated::Invalid(es) => {
-                let transformed: NonEmptyErrors<D> = es.iter().map(g).collect();
-                Validated::Invalid(transformed)
+                let mut transformed = es.iter().map(g);
+                let first = transformed.next().expect("invalid values have errors");
+                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
             },
         }
     }

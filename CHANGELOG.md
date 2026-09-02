@@ -52,6 +52,8 @@
   - Removed impossible `ChoiceError::EmptyChoice`, `PVecError::InvalidRange`, and `IOError::ValueNotSet` variants.
   - Removed `ErrorOps`, `sequence`, `traverse`, and redundant free error-conversion functions in favor of `Result`/`Iterator` methods and `From`.
   - `Validated` now converts from owned or borrowed `Result` through `From`; lossy conversion is explicitly named `into_result_first_error`.
+  - Removed the panicking `NonEmptyErrors` `FromIterator` implementation; use `NonEmptyErrors::try_from_iter`, which returns `Option` for empty-capable input.
+  - Removed panicking `Choice` conversions from `Vec`, slices, and iterators. Use `Choice::of_many` for an `Option` result or `TryFrom` for `Result<Choice<T>, ChoiceError>`; empty input returns `ChoiceError::EmptyInput`.
 
 - **Dead Utilities Removed**
   - Removed empty `utils::categorical_utils`, the `utils::functions::id` alias, and unused `ReaderCombineFn`/`ContFn` aliases.

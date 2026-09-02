@@ -203,7 +203,7 @@ pub use iter::*;
 
 #[cfg(test)]
 mod tests {
-    use super::Validated;
+    use super::{NonEmptyErrors, Validated};
     use crate::traits::{applicative::Applicative, functor::Functor, monad::Monad, pure::Pure};
     use quickcheck_macros::quickcheck;
 
@@ -229,6 +229,15 @@ mod tests {
     fn try_invalid_many_reports_empty_input() {
         let result: Option<Validated<String, ()>> = Validated::try_invalid_many(std::iter::empty());
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn non_empty_errors_fallible_construction() {
+        assert_eq!(NonEmptyErrors::<String>::try_from_iter(Vec::new()), None);
+
+        let errors = NonEmptyErrors::try_from_iter(["first".to_string(), "second".to_string()])
+            .expect("non-empty input should construct errors");
+        assert_eq!(errors.as_slice(), ["first", "second"]);
     }
 
     #[quickcheck]

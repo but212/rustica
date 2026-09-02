@@ -190,6 +190,23 @@
 //! ```
 //!
 //! ```compile_fail
+//! // Choice construction is fallible when the input may be empty.
+//! use rustica::datatypes::choice::Choice;
+//! let _: Choice<i32> = vec![].into();
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::datatypes::choice::Choice;
+//! let _: Choice<i32> = std::iter::empty().collect();
+//! ```
+//!
+//! ```compile_fail
+//! // NonEmptyErrors no longer panics through FromIterator on empty input.
+//! use rustica::datatypes::validated::NonEmptyErrors;
+//! let _: NonEmptyErrors<i32> = std::iter::empty().collect();
+//! ```
+//!
+//! ```compile_fail
 //! use rustica::pvec::PVecError;
 //! let _ = PVecError::InvalidRange { start: 2, end: 1 };
 //! ```

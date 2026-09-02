@@ -247,6 +247,25 @@ mod tests {
     }
 
     #[test]
+    fn split_after_insert_preserves_values_and_lengths() {
+        let vector: PersistentVector<i32> = (0..83).collect();
+        let inserted = vector.insert(38, 999);
+        let expected: Vec<i32> = (0..38).chain(std::iter::once(999)).chain(38..83).collect();
+
+        let (left, right) = inserted.split_at(42);
+        assert_eq!(left.len(), 42);
+        assert_eq!(right.len(), 42);
+        assert_eq!(left.to_vec(), expected[..42]);
+        assert_eq!(right.to_vec(), expected[42..]);
+        assert_eq!(left.concat(&right).to_vec(), expected);
+
+        let removed = inserted
+            .remove(38)
+            .expect("inserted value should be removable");
+        assert_eq!(removed.to_vec(), (0..83).collect::<Vec<_>>());
+    }
+
+    #[test]
     fn representation_and_history_do_not_affect_value_semantics() {
         let collected: PersistentVector<i32> = (0..100).collect();
         let pushed = (0..100).fold(PersistentVector::new(), |vector, value| {

@@ -769,27 +769,27 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         F: Future<Output = A> + Send + 'static,
         A: Send + Sync,
     {
-        // Note: This implementation evaluates the future at most once and caches the result.
+        // The OnceLock makes future execution and result publication one atomic,
+        // blocking initialization for all concurrent callers. The separate mutex
+        // moves a non-Sync future into that one initialization closure.
         let future_once = Arc::new(Mutex::new(Some(fut)));
         let result_cache = Arc::new(OnceLock::<A>::new());
 
         IO::new(move || {
-            if let Some(cached_result) = result_cache.get() {
-                return cached_result.clone();
-            }
-
-            let future_to_run = future_once.lock().unwrap().take();
-            if let Some(f) = future_to_run {
-                let result = TOKIO_RUNTIME
-                    .block_on(tokio::task::spawn_blocking(move || {
-                        TOKIO_RUNTIME.block_on(f)
-                    }))
-                    .unwrap();
-                let _ = result_cache.set(result.clone());
-                result
-            } else {
-                result_cache.get().unwrap().clone()
-            }
+            result_cache
+                .get_or_init(|| {
+                    let future = future_once
+                        .lock()
+                        .expect("async IO future lock poisoned")
+                        .take()
+                        .expect("async IO future already consumed");
+                    TOKIO_RUNTIME
+                        .block_on(
+                            TOKIO_RUNTIME.spawn_blocking(move || TOKIO_RUNTIME.block_on(future)),
+                        )
+                        .expect("Failed to run async IO task")
+                })
+                .clone()
         })
     }
 

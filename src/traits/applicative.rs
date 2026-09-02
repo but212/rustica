@@ -968,7 +968,7 @@ where
                 } else {
                     a_slot.as_ref().expect("a retained").clone()
                 };
-                let b_arg = if ci + 1 == fc_len {
+                let b_arg = if ai + 1 == fa_len && ci + 1 == fc_len {
                     b_slot.take().expect("last use of b")
                 } else {
                     b_slot.as_ref().expect("b retained").clone()

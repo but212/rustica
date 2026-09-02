@@ -448,17 +448,17 @@ impl<T: Clone> RRBTree<T> {
             right_for_merge = right_for_merge.push_head_to_tree();
         }
 
-        let merged_root = Self::concat_nodes(
-            &left_for_merge.root,
-            &right_for_merge.root,
-            self.height.max(other.height),
-        );
+        let merge_height = left_for_merge.height.max(right_for_merge.height);
+        let merged_root =
+            Self::concat_nodes(&left_for_merge.root, &right_for_merge.root, merge_height);
+        let root = Arc::new(merged_root);
+        let height = Self::calculate_height(&root);
 
         Self {
-            root: Arc::new(merged_root),
+            root,
             tail: right_for_merge.tail,
             head: left_for_merge.head,
-            height: self.height.max(other.height),
+            height,
             len: self.len + other.len,
         }
     }

@@ -1,5 +1,11 @@
 use rustica::datatypes::io::IO;
 
+#[cfg(feature = "async")]
+use std::sync::{
+    Arc, Barrier,
+    atomic::{AtomicUsize, Ordering},
+};
+
 #[test]
 fn test_io_monadic_fundamentals() {
     let pure_io = IO::pure(42);
@@ -19,6 +25,43 @@ fn test_io_monadic_fundamentals() {
 
     let complex = pure_io.fmap(|x| x + 8).bind(|x| IO::new(move || x / 2));
     assert_eq!(complex.run(), 25);
+}
+
+#[cfg(feature = "async")]
+#[test]
+fn new_async_run_uses_its_shared_runtime() {
+    assert_eq!(IO::new_async(async { 42 }).run(), 42);
+}
+
+#[cfg(feature = "async")]
+#[test]
+fn new_async_concurrent_runs_wait_for_one_initialization() {
+    let started = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let executions = Arc::new(AtomicUsize::new(0));
+    let io = Arc::new(IO::new_async({
+        let started = started.clone();
+        let release = release.clone();
+        let executions = executions.clone();
+        async move {
+            executions.fetch_add(1, Ordering::SeqCst);
+            started.wait();
+            release.wait();
+            42
+        }
+    }));
+
+    let first_io = io.clone();
+    let first = std::thread::spawn(move || first_io.run());
+    started.wait();
+
+    let second_io = io.clone();
+    let second = std::thread::spawn(move || second_io.run());
+    release.wait();
+
+    assert_eq!(first.join().unwrap(), 42);
+    assert_eq!(second.join().unwrap(), 42);
+    assert_eq!(executions.load(Ordering::SeqCst), 1);
 }
 
 #[test]

@@ -36,6 +36,8 @@ Rustica 0.14.0 removes the APIs deprecated in 0.13.0 and tightens transformer an
 | `ChoiceError::EmptyChoice` | Remove the unreachable match arm; `Choice<T>` cannot be empty |
 | `PVecError::InvalidRange` | Remove the unreachable match arm; no public operation produces this variant |
 | `IOError::ValueNotSet` | Remove the unreachable match arm; executable `IO` values do not have an unset state |
+| `Choice::{From<Vec<_>>, From<&[_]>, FromIterator}` | `Choice::of_many(...)` or `TryFrom` (`values.try_into()`) |
+| `NonEmptyErrors::FromIterator` | `NonEmptyErrors::try_from_iter(...)` (`Option` result) |
 
 ---
 
@@ -195,6 +197,21 @@ let final_result = result
 ```
 
 ---
+
+### Non-empty collection construction
+
+`Choice` and `NonEmptyErrors` no longer implement infallible collection conversions. Empty input previously caused a panic through `From` or `FromIterator`; use an explicit fallible API instead:
+
+```rust
+use rustica::datatypes::choice::Choice;
+use rustica::datatypes::validated::NonEmptyErrors;
+
+let choice_result: Result<Choice<i32>, _> = vec![1, 2].try_into();
+let choice = Choice::of_many([1, 2]);
+let errors = NonEmptyErrors::try_from_iter(["first", "second"]);
+```
+
+`Choice` conversions return `Result<Choice<T>, ChoiceError>` and report `ChoiceError::EmptyInput`; `NonEmptyErrors::try_from_iter` returns `None` for an empty iterator. Existing `Choice::of_many` and `Validated::try_invalid_many` remain available when `Option` is the desired result.
 
 ### Collections: `PersistentVector::{take, skip}`
 
