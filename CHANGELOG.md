@@ -4,23 +4,25 @@
 
 ### Documentation Correctness
 
-- Corrected `Max<T>::empty()` documentation: the monoid identity is
-  `Max(T::default())`, and the monoid identity laws hold only when
-  `T::default()` is the minimum value of `T` (e.g., unsigned integers).
-  The previous claim that `T::default()` is "typically MIN_INT" was false;
-  callers needing a lawful identity over signed types must use
-  `Max(T::MIN)` directly.
-- Documented the same limitation more precisely for `Min<T>`: the identity
-  must be the maximum value of `T`, so the monoid laws do not hold with
-  `T::default()` for any standard numeric type, including unsigned integers.
-  Use `Min(T::MAX)` explicitly.
+- Documented `Min<T>` and `Max<T>` as `Semigroup` wrappers without a generic
+  `Monoid` identity. Empty-capable reductions should use
+  `semigroup::combine_all_values`; domain-specific reductions may provide an
+  explicit extremum.
+
+### Bug Fixes
+
+- Fixed `PersistentVector::concat` to preserve left-to-right order across
+  unequal-height RRB trees.
+- Fixed `PersistentVector::pop_back` to continue removing elements after the
+  tree is exhausted and only the front head buffer remains.
 
 ### Tests
 
-- Added `test_max_min_identity_law_boundary` regression test pinning both
-  the lawful cases (`Max<u32>` with default identity, explicit extremum
-  identities) and the documented violations (`Max(-1)`, `Min(1)` over signed
-  and unsigned integers) so the boundary behavior stays visible.
+- Added regression coverage for unequal-height `PersistentVector::concat`,
+  head/tree `pop_back` full draining, and `FoldableExt::fold_option`
+  short-circuiting.
+- Added compile-fail contracts for the removed unlawful implementations and
+  phantom marker wrappers.
 
 ### Changed
 
@@ -42,6 +44,11 @@
   templates under `.github/`.
 
 ### Breaking Changes
+
+- **Lawful Algebraic Trait Surface**
+  - Removed `Monoid` implementations for `Min<T>` and `Max<T>`; use `Semigroup::combine` with an explicit extremum or `combine_all_values` for empty-capable reductions.
+  - Removed `MonadPlus` for `Result<T, E>` because no lawful zero exists for arbitrary `E`; use native `Result::or_else` for fallback behavior.
+  - Removed the unused `HKTType` and `PureType` phantom wrappers; use `HKT`, `Pure`, or `PureExt` directly.
 
 - **Transformer State and Type Invariants**
   - `ReaderT<E, M, A>` now requires `M: HKT<Source = A>` and type-changing operations return the corresponding `M::Output<B>`; the unsafe bind conversion was removed.

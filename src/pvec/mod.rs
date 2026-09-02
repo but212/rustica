@@ -120,6 +120,36 @@ mod tests {
     }
 
     #[test]
+    fn unequal_height_concat_preserves_operand_order() {
+        let short = PersistentVector::unit(0);
+        let long: PersistentVector<usize> = (1..130).collect();
+        assert_eq!(short.concat(&long).to_vec(), (0..130).collect::<Vec<_>>());
+        assert_eq!(
+            long.concat(&short).to_vec(),
+            (1..130).chain([0]).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn pop_back_handles_head_and_tree_storage() {
+        for length in [65, 129] {
+            let mut vector = PersistentVector::new();
+            for value in 0..length {
+                vector = vector.push_front(value);
+            }
+
+            let mut expected: Vec<_> = (0..length).rev().collect();
+            for _ in 0..length {
+                let (without_last, last) = vector.pop_back().expect("non-empty vector");
+                assert_eq!(last, expected.pop().expect("expected value"));
+                assert_eq!(without_last.to_vec(), expected);
+                vector = without_last;
+            }
+            assert!(vector.pop_back().is_none());
+        }
+    }
+
+    #[test]
     fn test_pvec_element_access_and_updates() {
         let vec = crate::pvec![1, 2, 3];
         assert_eq!(vec.first(), Some(&1));

@@ -231,38 +231,50 @@ let (_, tail) = vec.split_at(2);
 
 No migration is required for equality, ordering, or hashing. In 0.14.0 these operations consistently use the vector's logical element sequence, independent of whether the values are stored inline or in the RRB tree and independent of construction history.
 
+### `PersistentVector` concatenation and `pop_back`
+
+`PersistentVector::concat` now preserves left-to-right operand order even when
+its RRB trees have different heights. `pop_back` also continues until the
+vector is empty when front insertions leave values in the head buffer after the
+main tree is exhausted. No API migration is required; these are correctness
+fixes to existing operations.
+
 ---
 
-## Behavior Notes (Non-Breaking)
+## Behavior Notes
 
-### `Min<T>` / `Max<T>` Monoid Identity
+### `Min<T>` / `Max<T>` are semigroups
 
-`Monoid::empty()` for both wrappers remains `Max(T::default())` /
-`Min(T::default())`, but the documentation now states accurately when the
-monoid identity laws hold. If you relied on `empty()` over numeric types,
-verify your usage:
+In 0.14.0, `Min<T>` and `Max<T>` no longer implement `Monoid`. A generic
+`T::default()` is not guaranteed to be the maximum or minimum value, so it
+cannot serve as a lawful identity for every `T` admitted by the wrappers.
 
-| Wrapper | Lawful identity | `empty()` lawful? |
-| --- | --- | --- |
-| `Max<u32>` (and other unsigned integers) | minimum of `T` (`0 == T::MIN`) | Yes |
-| `Max<i32>` and other signed types | `T::MIN` | No — use `Max(T::MIN)` |
-| `Min<T>` for any standard numeric type | `T::MAX` | No — use `Min(T::MAX)` |
+If you previously reduced a possibly empty collection with `empty()`, use the
+`Option`-returning `combine_all_values` helper:
 
 ```rust
-use rustica::datatypes::wrapper::{max::Max, min::Min};
-use rustica::traits::semigroup::Semigroup;
+use rustica::datatypes::wrapper::min::Min;
+use rustica::traits::semigroup::combine_all_values;
 
-// 0.13.x behavior: Max(-1).combine(&Max::<i32>::empty()) == Max(0)
-// (violates right identity; unchanged in 0.14.0, now documented)
-let lawful_max_id = Max(i32::MIN);
-assert_eq!(Max(-1).combine(&lawful_max_id), Max(-1));
-
-let lawful_min_id = Min(i32::MAX);
-assert_eq!(Min(1).combine(&lawful_min_id), Min(1));
+let minimum = combine_all_values([Min(4), Min(1), Min(3)]);
+assert_eq!(minimum, Some(Min(1)));
 ```
 
-See `docs/wrapper-monoid-identity.md` for counterexamples and the regression
-test `test_max_min_identity_law_boundary`.
+For a domain with a known extremum, seed the reduction explicitly, for example
+`Max(i32::MIN)` or `Min(i32::MAX)`. See `docs/wrapper-monoid-identity.md`.
+
+### `Result` and `MonadPlus`
+
+`Result<T, E>` no longer implements `MonadPlus`: `E::default()` cannot
+preserve an arbitrary existing error as the right identity. Use native
+`Result` combinators such as `or_else` for fallback behavior. `Option<T>`
+retains its `MonadPlus` implementation when `None` is the lawful zero.
+
+### Phantom marker wrappers
+
+`HKTType` and `PureType` were zero-sized forwarding markers without behavior
+beyond the underlying traits and are removed in 0.14. Use `HKT`/`Pure` or the
+`PureExt` methods directly.
 
 ### `pipeline_result` Accepts Any Iterator
 

@@ -79,8 +79,6 @@
 //! }
 //! ```
 
-use std::marker::PhantomData;
-
 /// A trait for types that can be treated as higher-kinded types.
 ///
 /// In category theory, a functor is a mapping between categories. In Rust terms,
@@ -283,32 +281,4 @@ impl<T> HKT for Vec<T> {
 impl<T> HKT for Box<T> {
     type Source = T;
     type Output<U> = Box<U>;
-}
-
-/// A phantom type used to represent a higher-kinded type at the type level.
-///
-/// This struct is useful for type-level programming with higher-kinded types.
-/// It has no runtime representation and is used only for type checking.
-///
-/// # Type Parameters
-///
-/// * `H`: The higher-kinded type to wrap
-/// * `T`: The source type that the higher-kinded type will be applied to
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HKTType<H, T>(PhantomData<H>, PhantomData<T>);
-
-impl<H, T> Default for HKTType<H, T> {
-    /// Creates a new `HKTType` with default values
-    #[inline]
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<H, T> HKTType<H, T> {
-    /// Creates a new `HKTType`
-    #[inline]
-    pub fn new() -> Self {
-        Self(PhantomData, PhantomData)
-    }
 }

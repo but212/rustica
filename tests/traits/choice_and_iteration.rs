@@ -1,8 +1,10 @@
 use super::TestFunctor;
 use quickcheck_macros::quickcheck;
+use rustica::datatypes::wrapper::sum::Sum;
 use rustica::traits::alternative::Alternative;
 use rustica::traits::foldable::{Foldable, FoldableExt};
 use rustica::traits::monad_plus::MonadPlus;
+use std::cell::Cell;
 
 // --- Choice Mechanisms (Alternative & MonadPlus) ---
 
@@ -50,6 +52,20 @@ fn foldable_properties(x: i32) -> bool {
     let contains_ok = f.contains(&x);
 
     mult_ok && found && all_ok && any_ok && contains_ok
+}
+
+#[test]
+fn fold_option_stops_mapping_after_none() {
+    let numbers = vec![1, 2, 3];
+    let visited = Cell::new(0);
+
+    let result = numbers.fold_option(|value| {
+        visited.set(visited.get() + 1);
+        if *value == 1 { None } else { Some(Sum(*value)) }
+    });
+
+    assert_eq!(result, None);
+    assert_eq!(visited.get(), 1);
 }
 
 #[test]

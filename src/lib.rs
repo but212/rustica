@@ -173,6 +173,35 @@
 //! ```
 //!
 //! ```compile_fail
+//! // Min and Max are semigroups; they do not provide a fabricated Monoid identity.
+//! use rustica::datatypes::wrapper::min::Min;
+//! use rustica::traits::monoid::Monoid;
+//! let _ = Min::<i32>::empty();
+//! ```
+//!
+//! ```compile_fail
+//! use rustica::datatypes::wrapper::max::Max;
+//! use rustica::traits::monoid::Monoid;
+//! let _ = Max::<i32>::empty();
+//! ```
+//!
+//! ```compile_fail
+//! // Result has no lawful MonadPlus zero for an arbitrary error type.
+//! use rustica::traits::monad_plus::MonadPlus;
+//! let _: Result<i32, String> = Result::<i32, String>::mzero();
+//! ```
+//!
+//! ```compile_fail
+//! // HKTType was an unused phantom wrapper; use HKT directly.
+//! use rustica::traits::hkt::HKTType;
+//! ```
+//!
+//! ```compile_fail
+//! // PureType was an unused phantom wrapper; use Pure or PureExt directly.
+//! use rustica::traits::pure::PureType;
+//! ```
+//!
+//! ```compile_fail
 //! // StateT no longer exposes non-executable Pure/LiftM variants.
 //! use rustica::transformers::StateT;
 //! let _: StateT<i32, Option<(i32, i32)>, i32> = StateT::Pure(1);

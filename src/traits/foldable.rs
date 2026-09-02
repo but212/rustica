@@ -429,7 +429,7 @@ pub trait FoldableExt: Foldable {
 
     /// Folds over a structure with an optional monoidal value.
     ///
-    /// This is a more powerful version of fold that can short-circuit when None is encountered.
+    /// This is a more powerful version of fold that stops invoking `f` after `None` is encountered.
     ///
     /// # Type Parameters
     ///
@@ -449,9 +449,11 @@ pub trait FoldableExt: Foldable {
         F: Fn(&Self::Source) -> Option<B>,
         B: Monoid + Clone,
     {
-        self.fold_left(&Some(B::empty()), |acc, x| match (acc, f(x)) {
-            (Some(a), Some(b)) => Some(a.combine(&b)),
-            _ => None,
+        self.fold_left(&Some(B::empty()), |acc, x| {
+            let Some(acc) = acc else {
+                return None;
+            };
+            f(x).map(|value| acc.combine(&value))
         })
     }
 

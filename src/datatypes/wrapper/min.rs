@@ -19,18 +19,6 @@
 //!   - For all values a, b, and c, combining a and b and then combining the result with c
 //!     yields the same result as combining a with the combination of b and c.
 //!
-//! ### Monoid Laws
-//!
-//! `Min<T>` has a `Monoid` instance when `T: Default`, using `Min(T::default())` as the identity.
-//! Note that `T::default()` is not necessarily the *true* identity for the minimum operation unless
-//! it is greater than or equal to all other values of `T`.
-//!
-//! - **Left Identity**: `empty() ⊕ a = a`
-//!   - Combining the identity element (typically the maximum value of `T`) with any value gives the original value.
-//!
-//! - **Right Identity**: `a ⊕ empty() = a`
-//!   - Combining any value with the identity element gives the original value.
-//!
 //! ### Functor Laws
 //!
 //! `Min<T>` satisfies the functor laws:
@@ -46,7 +34,6 @@
 //! `Min<T>` implements the following type classes:
 //!
 //! - `Semigroup`: For any `T` that implements `Ord`
-//! - `Monoid`: For any `T` that implements `Ord` and `Default` (identity is `Min(T::default())`)
 //! - `Functor`: For mapping operations over the inner value
 //!
 //! ## Quick Start
@@ -70,14 +57,13 @@
 //! ```
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::cmp::Ordering;
 use std::fmt;
 
 /// A wrapper type that forms a semigroup under the minimum operation.
 ///
-/// When the inner type has a maximum value, this also forms a monoid.
+/// Empty-capable reductions can use `crate::traits::semigroup::combine_all_values`.
 ///
 /// # Examples
 ///
@@ -124,23 +110,19 @@ use std::fmt;
 /// assert!(verify_associativity(10, 2, 7));
 /// ```
 ///
-/// # Monoid Laws
+/// # Explicit Extremum Seeds
 ///
-/// When `T` has a maximum value (like numeric types), `Min<T>` also satisfies the monoid laws:
+/// When a domain has a known maximum, it can be supplied explicitly as a
+/// reduction seed:
 ///
 /// ```rust
 /// use rustica::datatypes::wrapper::min::Min;
 /// use rustica::traits::semigroup::Semigroup;
-/// use rustica::traits::monoid::Monoid;
 ///
-/// // For integers, the default (0) may not be the identity element for Min
-/// // We can verify that Max::MAX would be the true identity
-/// let a = Min(42);
-/// let id = Min(i32::MAX);
-///
-/// // Identity laws: empty() combine x = x combine empty() = x
-/// assert_eq!(a.clone().combine(&id), a.clone());
-/// assert_eq!(id.combine(&a), a);
+/// let value = Min(42);
+/// let identity = Min(i32::MAX);
+/// assert_eq!(value.combine(&identity), value);
+/// assert_eq!(identity.combine(&value), value);
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -306,92 +288,6 @@ impl<T: Clone + Ord> Semigroup for Min<T> {
             Ordering::Less | Ordering::Equal => Min(self.0.clone()),
             Ordering::Greater => Min(other.0.clone()),
         }
-    }
-}
-
-impl<T: Clone + Ord + Default> Monoid for Min<T> {
-    /// Returns the identity element for the `Min` monoid, which is `Min(T::default())`,
-    /// typically the maximum possible value of `T`.
-    ///
-    /// For numeric types, this is usually the maximum possible value (e.g., MAX_INT for integers).
-    /// When combined with any other `Min` value, the result will always be the other value.
-    /// However, note that for many types, T::default() may not be the true identity element for Min.
-    /// For proper identity behavior, the maximum possible value for type T should be used.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Simply creates a wrapper with the default value
-    /// - **Memory Usage**: Space required for the wrapper and the default value of type T
-    /// - **Allocation**: Any allocations required by T::default() implementation
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Left Identity
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // For any Min(x), empty() ⊕ Min(x) = Min(x) when empty() contains the maximum value
-    /// fn verify_left_identity<T: Clone + Ord + Default + PartialEq>(x: T, max_value: T) -> bool {
-    ///     // Note: For a true identity, we'd ideally use the maximum value for T
-    ///     // rather than T::default(), which might not be suitable for all types
-    ///     let identity = Min(max_value);
-    ///     let value = Min(x);
-    ///     
-    ///     identity.combine(&value) == value
-    /// }
-    ///
-    /// // Test with integers where i32::MAX is the identity for Min
-    /// assert!(verify_left_identity(42, i32::MAX));
-    /// assert!(verify_left_identity(0, i32::MAX));
-    /// ```
-    ///
-    /// ## Right Identity
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // For any Min(x), Min(x) ⊕ empty() = Min(x) when empty() contains the maximum value
-    /// fn verify_right_identity<T: Clone + Ord + Default + PartialEq>(x: T, max_value: T) -> bool {
-    ///     let value = Min(x);
-    ///     // Note: For a true identity, we'd ideally use the maximum value for T
-    ///     let identity = Min(max_value);
-    ///     
-    ///     value.combine(&identity) == value
-    /// }
-    ///
-    /// // Test with integers where i32::MAX is the identity for Min
-    /// assert!(verify_right_identity(42, i32::MAX));
-    /// assert!(verify_right_identity(0, i32::MAX));
-    /// ```
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // Create an identity element for integers
-    /// // Note: For Min, T::default() may not be the true identity element
-    /// let empty = Min::<i32>::empty();
-    /// assert_eq!(empty, Min(0)); // Default for i32 is 0, but ideally it should be i32::MAX
-    ///
-    /// // For a true identity with integers:
-    /// let true_identity = Min(i32::MAX);
-    /// let value = Min(42);
-    ///
-    /// // Identity laws should hold
-    /// assert_eq!(true_identity.combine(&value), value);
-    /// assert_eq!(value.combine(&true_identity), value);
-    /// ```
-    #[inline]
-    fn empty() -> Self {
-        Min(T::default())
     }
 }
 
