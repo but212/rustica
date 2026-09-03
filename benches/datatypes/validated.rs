@@ -1,142 +1,48 @@
 use criterion::{BenchmarkId, Criterion};
 use rustica::datatypes::validated::Validated;
-use rustica::traits::applicative::Applicative;
 use rustica::traits::functor::Functor;
-use rustica::traits::pure::Pure;
 use std::hint::black_box;
-
-// Helper functions for generating test data
-fn gen_validated_vec(len: usize, error_rate: usize) -> Vec<Validated<String, i32>> {
-    (0..len)
-        .map(|i| {
-            if (i % 100) < error_rate {
-                Validated::invalid(format!("error_{}", i))
-            } else {
-                Validated::valid(i as i32)
-            }
-        })
-        .collect()
-}
 
 pub fn validated_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Validated");
 
-    group.bench_function("creation", |b| {
-        b.iter(|| {
-            black_box(Validated::<String, i32>::valid(42));
-            black_box(Validated::<String, i32>::invalid("error".to_string()));
-        });
-    });
-
-    group.bench_function("functor_ops", |b| {
-        let valid = Validated::<String, i32>::valid(42);
-        let invalid = Validated::<String, i32>::invalid("error".to_string());
-        b.iter(|| {
-            black_box(valid.fmap(|x: &i32| x * 2));
-            black_box(invalid.fmap(|x: &i32| x * 2));
-        });
-    });
-
-    group.bench_function("applicative_ops", |b| {
-        let valid = Validated::<String, i32>::valid(42);
-        let invalid = Validated::<String, i32>::invalid("error".to_string());
-        let func = Validated::<String, fn(&i32) -> i32>::valid(|x: &i32| x + 1);
-        b.iter(|| {
-            black_box(Validated::<String, i32>::pure(&42));
-            black_box(func.apply(&valid));
-            black_box(Validated::<String, i32>::lift2(
-                |x, y| x + y,
-                &valid,
-                &invalid,
-            ));
-        });
-    });
-
-    group.bench_function("error_accumulation", |b| {
-        let invalid1 = Validated::<String, i32>::invalid("error 1".to_string());
-        let invalid2 = Validated::<String, i32>::invalid("error 2".to_string());
-        b.iter(|| {
-            black_box(invalid1.combine_errors(&invalid2));
-        });
-    });
-
-    // Parametric benchmarks for different error rates
-    for error_rate in [10, 50, 90].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("validity_scan", error_rate),
-            error_rate,
-            |b, &rate| {
-                let data = gen_validated_vec(1000, rate);
-                b.iter(|| {
-                    let count = data.iter().filter(|v| v.is_valid()).count();
-                    black_box(count);
-                });
-            },
-        );
-    }
-
-    group.bench_function("validated_success", |b| {
-        let valid_data = 42;
-        b.iter(|| {
-            let validated = Validated::<String, i32>::valid(valid_data);
-            let mapped = validated.fmap(|x| x + 1);
-            black_box(mapped);
-        });
-    });
-
-    group.bench_function("result_success", |b| {
-        let valid_data = 42;
-        b.iter(|| {
-            let result = Result::<i32, String>::Ok(valid_data);
-            let mapped = result.map(|x| x + 1);
-            let _ = black_box(mapped);
-        });
-    });
-
-    group.bench_function("validated_error_accumulation", |b| {
-        let errors: Vec<String> = (0..10).map(|i| format!("error_{}", i)).collect();
-        b.iter(|| {
-            let mut validated = Validated::<String, i32>::valid(0);
-            for error in &errors {
-                let error_validated = Validated::<String, i32>::invalid(error.clone());
-                validated = validated.combine_errors(&error_validated);
-            }
-            black_box(validated);
-        });
-    });
-
-    group.bench_function("result_error_accumulation", |b| {
-        let errors: Vec<String> = (0..10).map(|i| format!("error_{}", i)).collect();
-        b.iter(|| {
-            let mut accumulated_errors = Vec::new();
-            for error in &errors {
-                accumulated_errors.push(error.clone());
-            }
-            let result: Result<i32, Vec<String>> = Err(accumulated_errors);
-            let _ = black_box(result);
-        });
-    });
-
-    for error_count in [1, 2, 4, 8, 16].iter() {
+    // Four errors fit inline; five require heap storage.
+    for error_count in [4, 5] {
         group.bench_with_input(
             BenchmarkId::new("invalid_many", error_count),
-            error_count,
-            |b, &count| {
-                let errors: Vec<String> = (0..count).map(|i| format!("error_{}", i)).collect();
-                b.iter(|| {
-                    black_box(Validated::<String, i32>::invalid_many(errors.clone()));
-                });
+            &error_count,
+            |b, &error_count| {
+                let errors: Vec<_> = (0..error_count)
+                    .map(|index| format!("error_{index}"))
+                    .collect();
+                b.iter(|| black_box(Validated::<String, i32>::invalid_many(errors.clone())));
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("combine_errors", error_count),
+            &error_count,
+            |b, &error_count| {
+                let left = Validated::<String, i32>::invalid("left".to_string());
+                let right = Validated::<String, i32>::invalid_many(
+                    (0..error_count).map(|index| format!("error_{index}")),
+                );
+                b.iter(|| black_box(left.combine_errors(&right)));
             },
         );
     }
 
-    group.bench_function("mixed_operations", |b| {
-        let valid = Validated::<String, i32>::valid(42);
-        let invalid = Validated::<String, i32>::invalid("error".to_string());
+    group.bench_function("validated_map", |b| {
         b.iter(|| {
-            black_box(valid.fmap(|x| x * 2));
-            black_box(invalid.fmap(|x| x * 2));
-            black_box(valid.combine_errors(&invalid));
+            let value = Validated::<String, i32>::valid(42);
+            black_box(value.fmap(|value| value + 1))
+        });
+    });
+
+    group.bench_function("result_map", |b| {
+        b.iter(|| {
+            let value = Result::<i32, String>::Ok(42);
+            black_box(value.map(|value| value + 1))
         });
     });
 
