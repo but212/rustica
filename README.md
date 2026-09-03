@@ -113,8 +113,8 @@ cargo package --all-features --locked
 
 Pull requests run read-only quality, platform, and MSRV checks. Weekly or
 manual workflows run nightly tests, unused-dependency checks, and Miri.
-Benchmarks run weekly and on `main` pushes; `main` updates the trusted baseline,
-while weekly results remain performance-observation artifacts.
+Benchmarks are available locally through Cargo's benchmark tooling and are not
+run as part of CI.
 
 `v*` tags create releases after validating the tag version, Cargo metadata, and
 matching `CHANGELOG.md` section. The protected `crates-io` environment controls
