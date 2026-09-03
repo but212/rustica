@@ -45,11 +45,12 @@ jobs:
             echo "::error::Version mismatch: tag $TAG_VERSION != Cargo.toml $CARGO_VERSION"
             exit 1
           fi
-          python3 .github/scripts/release_metadata.py "$CARGO_VERSION" > release-notes.md
+          RELEASE_NOTES="$RUNNER_TEMP/release-notes.md"
+          python3 .github/scripts/release_metadata.py "$CARGO_VERSION" > "$RELEASE_NOTES"
           echo "version=$CARGO_VERSION" >> "$GITHUB_OUTPUT"
           {
             echo "body<<CHANGELOG_BODY"
-            cat release-notes.md
+            cat "$RELEASE_NOTES"
             echo "CHANGELOG_BODY"
           } >> "$GITHUB_OUTPUT"
 
