@@ -695,3 +695,34 @@ impl<A: Clone, E: Clone> Foldable for Result<A, E> {
         }
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::{Foldable, FoldableExt};
+    use crate::datatypes::wrapper::sum::Sum;
+    use std::cell::Cell;
+
+    #[test]
+    fn folds_combine_values_and_preserve_empty_initial_values() {
+        assert_eq!(vec![1, 2, 3, 4].fold_map(|n: &i32| Sum(*n)), Sum(10));
+        assert_eq!(
+            vec![Sum(1), Sum(2), Sum(3), Sum(4)].fold_monoid::<Sum<i32>>(),
+            Sum(10)
+        );
+        assert_eq!(Some(42).fold_left(&0, |_, value| value * 2), 84);
+        assert_eq!(None::<i32>.fold_left(&100, |acc, _| *acc), 100);
+        assert_eq!(Ok::<i32, &str>(42).fold_left(&0, |_, value| value + 10), 52);
+        assert_eq!(Err::<i32, _>("error").fold_left(&100, |acc, _| *acc), 100);
+    }
+
+    #[test]
+    fn fold_option_stops_after_the_first_none() {
+        let visited = Cell::new(0);
+        let result = vec![1, 2, 3].fold_option(|value| {
+            visited.set(visited.get() + 1);
+            if *value == 1 { None } else { Some(Sum(*value)) }
+        });
+        assert_eq!(result, None);
+        assert_eq!(visited.get(), 1);
+    }
+}

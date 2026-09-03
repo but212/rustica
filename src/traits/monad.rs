@@ -384,3 +384,44 @@ mod tests {
         assert!(matches!(flattened, Validated::Valid(42)));
     }
 }
+
+#[cfg(test)]
+mod standard_law_tests {
+    use super::Monad;
+    use crate::traits::{functor::Functor, pure::Pure};
+    use quickcheck_macros::quickcheck;
+
+    #[quickcheck]
+    fn option_monad_laws(m: Option<i32>, value: i32) -> bool {
+        let f = |&x: &i32| {
+            if x > 0 {
+                Some(x.saturating_mul(2))
+            } else {
+                None
+            }
+        };
+        let g = |&x: &i32| Some(x.saturating_add(10));
+        Option::<i32>::pure(&value).bind(f) == f(&value)
+            && m.clone().bind(Option::<i32>::pure) == m
+            && m.clone().bind(f).bind(g) == m.clone().bind(|&x| f(&x).bind(g))
+            && m.fmap(f).join() == m.bind(f)
+    }
+
+    #[quickcheck]
+    fn result_monad_laws(m: Result<i32, i8>, value: i32) -> bool {
+        let f = |&x: &i32| -> Result<i32, i8> { Ok(x.saturating_mul(2)) };
+        let g = |&x: &i32| -> Result<i32, i8> { Ok(x.saturating_add(10)) };
+        Result::<i32, i8>::pure(&value).bind(f) == f(&value)
+            && m.clone().bind(Result::<i32, i8>::pure) == m
+            && m.clone().bind(f).bind(g) == m.clone().bind(|&x| f(&x).bind(g))
+            && m.fmap(f).join() == m.bind(f)
+    }
+
+    #[test]
+    fn join_handles_nested_standard_values() {
+        let nested_some: Option<Option<i32>> = Some(Some(42));
+        assert_eq!(nested_some.join(), Some(42));
+        let nested_err: Result<Result<i32, &str>, &str> = Ok(Err("inner"));
+        assert_eq!(nested_err.join(), Err("inner"));
+    }
+}

@@ -654,3 +654,19 @@ mod tests {
         assert_eq!(result, 43);
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::Cont;
+    #[test]
+    fn chaining_and_monad_identity_hold() {
+        let c = Cont::return_cont(10);
+        let chain = c
+            .clone()
+            .fmap(|x| x * 2)
+            .bind(|x| Cont::return_cont(x + 5))
+            .fmap(|x| x - 3);
+        assert_eq!(chain.run(|x| x), 22);
+        assert_eq!(c.clone().bind(Cont::return_cont).run(|x| x), c.run(|x| x));
+    }
+}

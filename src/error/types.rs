@@ -530,3 +530,22 @@ mod tests {
         assert_eq!(moved, "owned context");
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::ComposableError;
+
+    #[test]
+    fn public_error_anatomy_and_conversion_are_preserved() {
+        let error = ComposableError::with_code("io_error", 500)
+            .with_context("layer 1".to_string())
+            .with_context("layer 2".to_string());
+        assert_eq!(error.core_error(), &"io_error");
+        assert_eq!(error.error_code(), Some(500));
+        assert_eq!(error.context().len(), 2);
+        assert!(error.error_chain().contains("io_error"));
+
+        let converted: ComposableError<&str> = "simple".into();
+        assert_eq!(converted.core_error(), &"simple");
+    }
+}

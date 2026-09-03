@@ -1022,3 +1022,88 @@ mod tests {
         assert!(start.elapsed() >= Duration::from_millis(10));
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::IO;
+
+    #[cfg(feature = "async")]
+    use std::sync::{
+        Arc, Barrier,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    #[test]
+    fn monadic_fundamentals_and_error_boundaries_hold() {
+        let pure_io = IO::pure(42);
+        let effect_io = IO::new(|| 42);
+        assert!(pure_io.is_pure() && effect_io.is_effect());
+        assert_eq!(IO::pure(10).bind(|x| IO::pure(x * 2)).run(), 20);
+        assert_eq!(IO::pure(42).bind(IO::pure).run(), 42);
+        let app_f = IO::new(|| {
+            let multiplier = 3;
+            move |x: i32| x * multiplier
+        });
+        assert_eq!(IO::pure(5).apply(app_f).run(), 15);
+        assert_eq!(
+            pure_io
+                .fmap(|x| x + 8)
+                .bind(|x| IO::new(move || x / 2))
+                .run(),
+            25
+        );
+
+        let failed: IO<i32> = IO::new(|| panic!("failed operation"));
+        assert_eq!(IO::pure(100).run(), 100);
+        assert_eq!(IO::pure(100).try_get_composable(), Ok(100));
+        assert_eq!(IO::new(|| 200).try_get_composable(), Ok(200));
+        let panicking: IO<i32> = IO::new(|| panic!("failure"));
+        assert!(panicking.try_get_composable().is_err());
+
+        assert!(
+            failed
+                .try_get()
+                .unwrap_err()
+                .to_string()
+                .contains("failed operation")
+        );
+        let result = IO::sequence_composable(vec![
+            IO::pure(1),
+            IO::new(|| panic!("error 1")),
+            IO::pure(3),
+            IO::new(|| panic!("error 2")),
+        ]);
+        let errors = result.unwrap_err();
+        assert_eq!(errors.len(), 2);
+        assert!(errors[0].error_chain().contains("error 1"));
+        assert!(errors[1].error_chain().contains("error 2"));
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn async_runs_share_one_initialization() {
+        let started = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let executions = Arc::new(AtomicUsize::new(0));
+        let io = Arc::new(IO::new_async({
+            let started = started.clone();
+            let release = release.clone();
+            let executions = executions.clone();
+            async move {
+                executions.fetch_add(1, Ordering::SeqCst);
+                started.wait();
+                release.wait();
+                42
+            }
+        }));
+        let first_io = io.clone();
+        let first = std::thread::spawn(move || first_io.run());
+        started.wait();
+        let second_io = io.clone();
+        let second = std::thread::spawn(move || second_io.run());
+        release.wait();
+        assert_eq!(first.join().unwrap(), 42);
+        assert_eq!(second.join().unwrap(), 42);
+        assert_eq!(executions.load(Ordering::SeqCst), 1);
+    }
+}

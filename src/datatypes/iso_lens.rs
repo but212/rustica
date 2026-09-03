@@ -559,3 +559,102 @@ where
         self.inner.backward(to)
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::IsoLens;
+    use crate::traits::iso::Iso;
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct Person {
+        name: String,
+        age: u32,
+    }
+    struct NameIso;
+    impl Iso<Person, (String, Person)> for NameIso {
+        type From = Person;
+        type To = (String, Person);
+        fn forward(&self, from: &Person) -> (String, Person) {
+            (from.name.clone(), from.clone())
+        }
+        fn backward(&self, to: &(String, Person)) -> Person {
+            Person {
+                name: to.0.clone(),
+                ..to.1.clone()
+            }
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct Inner {
+        value: i32,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    struct Outer {
+        inner: Inner,
+    }
+    struct InnerIso;
+    impl Iso<Outer, Inner> for InnerIso {
+        type From = Outer;
+        type To = Inner;
+        fn forward(&self, from: &Outer) -> Inner {
+            from.inner.clone()
+        }
+        fn backward(&self, to: &Inner) -> Outer {
+            Outer { inner: to.clone() }
+        }
+    }
+    struct ValuePairIso;
+    impl Iso<Inner, (i32, Outer)> for ValuePairIso {
+        type From = Inner;
+        type To = (i32, Outer);
+        fn forward(&self, from: &Inner) -> (i32, Outer) {
+            (
+                from.value,
+                Outer {
+                    inner: from.clone(),
+                },
+            )
+        }
+        fn backward(&self, to: &(i32, Outer)) -> Inner {
+            Inner { value: to.0 }
+        }
+    }
+
+    #[test]
+    fn core_operations_and_laws_hold() {
+        let lens = IsoLens::new(NameIso);
+        let person = Person {
+            name: "Alice".into(),
+            age: 30,
+        };
+        assert_eq!(lens.get(&person).0, "Alice");
+        assert_eq!(lens.set_focus(&person, &"Bob".into()).name, "Bob");
+        assert_eq!(lens.set(&lens.get(&person)), person);
+        assert_eq!(
+            lens.get(&lens.set_focus(&person, &"David".into())).0,
+            "David"
+        );
+        assert_eq!(
+            lens.modify_focus(&person, |name| name.to_uppercase()).name,
+            "ALICE"
+        );
+        assert_eq!(lens.iso_ref().forward(&person).0, "Alice");
+    }
+
+    #[test]
+    fn composition_focuses_and_updates_nested_values() {
+        let outer = Outer {
+            inner: Inner { value: 42 },
+        };
+        let composed = IsoLens::new(InnerIso).compose(IsoLens::new(ValuePairIso));
+        assert_eq!(composed.get(&outer).0, 42);
+        let updated = composed.set(&(
+            100,
+            Outer {
+                inner: Inner { value: 100 },
+            },
+        ));
+        assert_eq!(updated.inner.value, 100);
+    }
+}

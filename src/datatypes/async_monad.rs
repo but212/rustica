@@ -1138,3 +1138,25 @@ mod tests {
         assert_eq!(deep_panic.try_get().await, 500);
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::AsyncM;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn cancellation_aborts_a_pending_computation() {
+        let task = AsyncM::new(|| async {
+            tokio::time::sleep(Duration::from_secs(10)).await;
+            42
+        });
+        let handle = tokio::spawn(async move {
+            task.bind(|x| async move { AsyncM::pure(x + 1) })
+                .try_get()
+                .await
+        });
+        handle.abort();
+        let error = handle.await.expect_err("task should be cancelled");
+        assert!(error.is_cancelled());
+    }
+}

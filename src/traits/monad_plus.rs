@@ -140,3 +140,17 @@ impl<T: Clone> MonadPlus for Option<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::MonadPlus;
+    use crate::traits::monad::Monad;
+
+    #[test]
+    fn zero_and_binding_preserve_option_identity() {
+        let some = Some(42);
+        let none: Option<i32> = Option::<i32>::mzero();
+        assert_eq!(none.mplus(&some), some);
+        assert_eq!(none.bind(|x| Some(x + 1)), none);
+    }
+}

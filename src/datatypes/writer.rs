@@ -1268,3 +1268,39 @@ mod tests {
         );
     }
 }
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::Writer;
+    use crate::traits::{monoid::Monoid, semigroup::Semigroup};
+
+    #[derive(Clone, Debug, PartialEq, Default)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    struct Log(Vec<String>);
+
+    impl Semigroup for Log {
+        fn combine(&self, other: &Self) -> Self {
+            let mut combined = self.0.clone();
+            combined.extend(other.0.clone());
+            Log(combined)
+        }
+        fn combine_owned(self, other: Self) -> Self {
+            let mut combined = self.0;
+            combined.extend(other.0);
+            Log(combined)
+        }
+    }
+    impl Monoid for Log {
+        fn empty() -> Self {
+            Log(Vec::new())
+        }
+    }
+
+    #[test]
+    fn writer_round_trips_through_serde() {
+        let writer = Writer::new(Log(vec!["log".into()]), 42);
+        let json = serde_json::to_string(&writer).unwrap();
+        let back: Writer<Log, i32> = serde_json::from_str(&json).unwrap();
+        assert_eq!(writer, back);
+    }
+}

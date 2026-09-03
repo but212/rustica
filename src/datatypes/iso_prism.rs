@@ -437,3 +437,66 @@ where
         to.as_ref().map(|b| self.inner.backward(&Some(b.clone())))
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::IsoPrism;
+    use crate::traits::iso::Iso;
+
+    #[derive(Clone, Debug, PartialEq)]
+    enum MyEnum {
+        Foo(i32),
+        Bar(String),
+    }
+    struct FooPrismIso;
+    impl Iso<MyEnum, Option<i32>> for FooPrismIso {
+        type From = MyEnum;
+        type To = Option<i32>;
+        fn forward(&self, from: &MyEnum) -> Option<i32> {
+            match from {
+                MyEnum::Foo(x) => Some(*x),
+                _ => None,
+            }
+        }
+        fn backward(&self, to: &Option<i32>) -> MyEnum {
+            match to {
+                Some(x) => MyEnum::Foo(*x),
+                None => MyEnum::Bar("default".into()),
+            }
+        }
+    }
+    struct ToStringPrismIso;
+    impl Iso<i32, Option<String>> for ToStringPrismIso {
+        type From = i32;
+        type To = Option<String>;
+        fn forward(&self, from: &i32) -> Option<String> {
+            Some(from.to_string())
+        }
+        fn backward(&self, to: &Option<String>) -> i32 {
+            to.as_ref().and_then(|s| s.parse().ok()).unwrap_or(0)
+        }
+    }
+
+    #[test]
+    fn preview_review_laws_hold() {
+        let prism = IsoPrism::new(FooPrismIso);
+        let foo = MyEnum::Foo(10);
+        assert_eq!(prism.preview(&foo), Some(10));
+        assert_eq!(prism.preview(&MyEnum::Bar("hi".into())), None);
+        assert_eq!(prism.review(&20), MyEnum::Foo(20));
+        assert_eq!(prism.preview(&prism.review(&123)), Some(123));
+        assert_eq!(prism.review(&prism.preview(&foo).unwrap()), foo);
+    }
+
+    #[test]
+    fn composition_preserves_matching_and_non_matching_cases() {
+        let composed = IsoPrism::new(FooPrismIso).compose(IsoPrism::new(ToStringPrismIso));
+        assert_eq!(composed.preview(&MyEnum::Foo(10)), Some("10".into()));
+        assert_eq!(composed.preview(&MyEnum::Bar("x".into())), None);
+        assert_eq!(composed.review(&"42".into()), MyEnum::Foo(42));
+        assert_eq!(
+            composed.preview(&composed.review(&"37".into())),
+            Some("37".into())
+        );
+    }
+}

@@ -190,3 +190,22 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::Alternative;
+
+    #[test]
+    fn option_and_vec_choose_the_first_available_value() {
+        let none: Option<i32> = None;
+        let some = Some(42);
+        assert_eq!(Alternative::alt(&none, &some), some);
+        assert_eq!(Option::<i32>::guard(true), Some(()));
+        assert_eq!(Option::<i32>::guard(false), None);
+
+        let first = vec![1];
+        let second = vec![2];
+        assert_eq!(Vec::<i32>::empty_alt().alt(&first), first);
+        assert_eq!(first.alt(&second), first);
+    }
+}

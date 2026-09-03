@@ -1035,3 +1035,61 @@ impl<A: Clone> Applicative for Vec<A> {
         vec_lift3_owned(f, fa, fb, fc)
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::Applicative;
+    use crate::traits::{functor::Functor, pure::Pure};
+    use quickcheck_macros::quickcheck;
+
+    #[quickcheck]
+    fn option_applicative_laws(v: Option<i32>, x: i32, has_function: bool) -> bool {
+        let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
+        let id: fn(&i32) -> i32 = |n| *n;
+        let pure_f = Option::<fn(&i32) -> i32>::pure(&f);
+        let pure_x = Option::<i32>::pure(&x);
+        let functions = if has_function { Some(f) } else { None };
+        Applicative::apply(&Option::<fn(&i32) -> i32>::pure(&id), &v) == v
+            && Applicative::apply(&pure_f, &pure_x) == Option::<i32>::pure(&f(&x))
+            && Applicative::apply(&functions, &pure_x)
+                == Option::<i32>::lift2(|f, x| f(x), &functions, &pure_x)
+            && v.fmap(f) == Applicative::apply(&pure_f, &v)
+    }
+
+    #[quickcheck]
+    fn result_applicative_laws(v: Result<i32, i8>, x: i32, is_ok: bool, err: i8) -> bool {
+        let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
+        let id: fn(&i32) -> i32 = |n| *n;
+        let pure_f = Result::<fn(&i32) -> i32, i8>::pure(&f);
+        let pure_x = Result::<i32, i8>::pure(&x);
+        let functions = if is_ok { Ok(f) } else { Err(err) };
+        Applicative::apply(&Result::<fn(&i32) -> i32, i8>::pure(&id), &v) == v
+            && Applicative::apply(&pure_f, &pure_x) == Result::<i32, i8>::pure(&f(&x))
+            && Applicative::apply(&functions, &pure_x)
+                == Result::<i32, i8>::lift2(|f, x| f(x), &functions, &pure_x)
+    }
+
+    #[quickcheck]
+    fn vec_applicative_laws(v: Vec<i32>, x: i32) -> bool {
+        let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
+        let id: fn(&i32) -> i32 = |n| *n;
+        Applicative::apply(&Vec::<fn(&i32) -> i32>::pure(&id), &v) == v
+            && Applicative::apply(&Vec::<fn(&i32) -> i32>::pure(&f), &Vec::<i32>::pure(&x))
+                == Vec::<i32>::pure(&f(&x))
+    }
+
+    #[quickcheck]
+    fn standard_composition_law(w_opt: Option<i32>, w_res: Result<i32, i8>) -> bool {
+        let f: fn(&i32) -> i32 = |x| x.saturating_add(1);
+        let g: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+        let u_opt = Some(f);
+        let v_opt = Some(g);
+        let u_res: Result<_, i8> = Ok(f);
+        let v_res: Result<_, i8> = Ok(g);
+        let left_opt = Option::<i32>::lift3(|f, g, x| f(&g(x)), &u_opt, &v_opt, &w_opt);
+        let right_opt = Applicative::apply(&u_opt, &Applicative::apply(&v_opt, &w_opt));
+        let left_res = Result::<i32, i8>::lift3(|f, g, x| f(&g(x)), &u_res, &v_res, &w_res);
+        let right_res = Applicative::apply(&u_res, &Applicative::apply(&v_res, &w_res));
+        left_opt == right_opt && left_res == right_res
+    }
+}

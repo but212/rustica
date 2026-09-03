@@ -779,3 +779,157 @@ where
         self.compose(other)
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::Lens;
+    use std::rc::Rc;
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct Point {
+        x: f64,
+        y: f64,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    struct Address {
+        street: String,
+        city: String,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    struct Person {
+        name: String,
+        address: Rc<Address>,
+    }
+
+    type PointXLens =
+        Lens<Point, f64, Box<dyn Fn(&Point) -> f64>, Box<dyn Fn(Point, f64) -> Point>>;
+    fn x_lens() -> PointXLens {
+        Lens::new(
+            Box::new(|p: &Point| p.x),
+            Box::new(|p: Point, x| Point { x, ..p }),
+        )
+    }
+    type AddressLens = Lens<
+        Address,
+        String,
+        Box<dyn Fn(&Address) -> String>,
+        Box<dyn Fn(Address, String) -> Address>,
+    >;
+    fn street_lens() -> AddressLens {
+        Lens::new(
+            Box::new(|a: &Address| a.street.clone()),
+            Box::new(|a, street| Address { street, ..a }),
+        )
+    }
+    type PersonAddressLens = Lens<
+        Person,
+        Address,
+        Box<dyn Fn(&Person) -> Address>,
+        Box<dyn Fn(Person, Address) -> Person>,
+    >;
+    fn address_lens() -> PersonAddressLens {
+        Lens::new(
+            Box::new(|p: &Person| (*p.address).clone()),
+            Box::new(|p, address| Person {
+                address: Rc::new(address),
+                ..p
+            }),
+        )
+    }
+
+    #[test]
+    fn basic_lens_operations_obey_lens_laws() {
+        #[derive(Clone, Debug, PartialEq)]
+        struct NameAge {
+            name: String,
+            age: u32,
+        }
+        let name = Lens::new(
+            |p: &NameAge| p.name.clone(),
+            |p, name| NameAge { name, ..p },
+        );
+        let age = Lens::new(|p: &NameAge| p.age, |p, age| NameAge { age, ..p });
+        let person = NameAge {
+            name: "Alice".into(),
+            age: 30,
+        };
+        assert_eq!(name.get(&person), "Alice");
+        assert_eq!(age.get(&person), 30);
+        assert_eq!(name.set(person.clone(), "Bob".into()).name, "Bob");
+        assert_eq!(age.modify(person, |value| value + 1).age, 31);
+    }
+
+    #[test]
+    fn nested_updates_preserve_sharing_when_unchanged() {
+        let person = Person {
+            name: "Alice".into(),
+            address: Rc::new(Address {
+                street: "123 Main St".into(),
+                city: "Springfield".into(),
+            }),
+        };
+        let lens = address_lens();
+        let updated = lens.modify(person.clone(), |address| {
+            street_lens().set(address, "456 Oak Ave".into())
+        });
+        assert_eq!(updated.address.street, "456 Oak Ave");
+        let unchanged = lens.modify(person.clone(), |address| {
+            street_lens().set(address, "123 Main St".into())
+        });
+        assert!(Rc::ptr_eq(&person.address, &unchanged.address));
+        let v1 = Address {
+            street: "V1".into(),
+            city: "C1".into(),
+        };
+        let v2 = Address {
+            street: "V2".into(),
+            city: "C2".into(),
+        };
+        assert_eq!(
+            lens.set(lens.set(person.clone(), v1), v2.clone()),
+            lens.set(person.clone(), v2)
+        );
+        assert!(Rc::ptr_eq(
+            &person.address,
+            &lens.set(person.clone(), lens.get(&person)).address
+        ));
+    }
+
+    #[test]
+    fn composition_and_unconditional_updates_work() {
+        let person = Person {
+            name: "Alice".into(),
+            address: Rc::new(Address {
+                street: "123 Main St".into(),
+                city: "Springfield".into(),
+            }),
+        };
+        let composed = address_lens().compose(street_lens());
+        assert_eq!(composed.get(&person), "123 Main St");
+        assert_eq!(
+            composed
+                .set(person.clone(), "456 Oak Ave".into())
+                .address
+                .street,
+            "456 Oak Ave"
+        );
+        assert!(Rc::ptr_eq(
+            &person.address,
+            &composed.set(person.clone(), "123 Main St".into()).address
+        ));
+        assert_eq!(
+            address_lens().then(street_lens()).get(&person),
+            "123 Main St"
+        );
+
+        let point = Point { x: 10.0, y: 20.0 };
+        assert_eq!(x_lens().set_always(point.clone(), 10.0).x, 10.0);
+        assert_eq!(x_lens().modify_always(point, |x| x).x, 10.0);
+        let string_lens = x_lens().fmap(|x| x.to_string(), |s| s.parse::<f64>().unwrap_or(0.0));
+        assert_eq!(string_lens.get(&Point { x: 10.0, y: 20.0 }), "10");
+        assert_eq!(
+            string_lens.set(Point { x: 10.0, y: 20.0 }, "25.5".into()).x,
+            25.5
+        );
+    }
+}

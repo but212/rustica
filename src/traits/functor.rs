@@ -608,3 +608,33 @@ impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
         }
     }
 }
+
+#[cfg(test)]
+mod standard_law_tests {
+    use super::Functor;
+    use quickcheck_macros::quickcheck;
+
+    #[quickcheck]
+    fn option_functor_laws(m: Option<i32>) -> bool {
+        let f = |&x: &i32| x.saturating_mul(2);
+        let g = |&x: &i32| x.saturating_add(1);
+        m.fmap(|&x| x) == m
+            && m.fmap(|&x| g(&f(&x))) == m.fmap(f).fmap(g)
+            && m.fmap(f).is_some() == m.is_some()
+    }
+
+    #[quickcheck]
+    fn result_functor_laws(m: Result<i32, i8>) -> bool {
+        let f = |&x: &i32| x.saturating_add(10);
+        let g = |&x: &i32| x.saturating_mul(3);
+        m.clone().fmap(|&x| x) == m
+            && m.clone().fmap(|&x| g(&f(&x))) == m.clone().fmap(f).fmap(g)
+            && m.fmap(f).is_ok() == m.is_ok()
+    }
+
+    #[quickcheck]
+    fn vec_functor_laws(v: Vec<i32>) -> bool {
+        let mapped = v.fmap(|&x| x.saturating_abs());
+        v.fmap(|&x| x) == v && mapped.len() == v.len()
+    }
+}

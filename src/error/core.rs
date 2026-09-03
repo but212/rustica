@@ -125,3 +125,38 @@ mod tests {
         assert_eq!(result, Validated::valid(vec![10, 20, 30]));
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::sequence_with_error;
+    use crate::datatypes::validated::Validated;
+
+    #[test]
+    fn sequence_with_error_accepts_owned_non_clone_values() {
+        struct NoClone(&'static str);
+        let result: Result<Vec<NoClone>, NoClone> =
+            sequence_with_error(vec![Validated::Valid(NoClone("value"))]);
+        match result {
+            Ok(values) => assert_eq!(values[0].0, "value"),
+            Err(_) => panic!("expected success"),
+        }
+    }
+
+    #[test]
+    fn sequence_with_error_preserves_order_and_returns_first_error() {
+        let values: Vec<Result<i32, &str>> = vec![Ok(1), Ok(2)];
+        assert_eq!(sequence_with_error(values), Ok(vec![1, 2]));
+        let values = vec![Ok(1), Err("first"), Err("second")];
+        let result: Result<Vec<i32>, &str> = sequence_with_error(values);
+        assert_eq!(result, Err("first"));
+        let values: Vec<Result<i32, &str>> = Vec::new();
+        assert_eq!(sequence_with_error(values), Ok(Vec::<i32>::new()));
+        let validated = vec![
+            Validated::valid(1),
+            Validated::invalid("first"),
+            Validated::invalid("second"),
+        ];
+        let result: Result<Vec<i32>, &str> = sequence_with_error(validated);
+        assert_eq!(result, Err("first"));
+    }
+}

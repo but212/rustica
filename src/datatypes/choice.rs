@@ -603,3 +603,41 @@ impl<T: Arbitrary + Clone + 'static> Arbitrary for Choice<T> {
         Choice::new(primary, alternatives)
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::Choice;
+    use crate::prelude::*;
+
+    #[test]
+    fn monad_laws_hold_for_choice() {
+        let m = Choice::new(1, vec![2]);
+        let f = |x: &i32| Choice::new(x + 1, vec![]);
+        let g = |x: &i32| Choice::new(x * 2, vec![]);
+
+        assert_eq!(Choice::<i32>::pure(&10).bind(f), f(&10));
+        assert_eq!(m.bind(Choice::<i32>::pure), m);
+        assert_eq!(m.bind(f).bind(g), m.bind(|x| f(x).bind(g)));
+    }
+
+    #[test]
+    fn choice_construction_and_filtering_preserve_values() {
+        let c = Choice::new(1, vec![2, 3, 4]);
+        assert_eq!(*c.first(), 1);
+        assert_eq!(*c.primary(), 1);
+        assert_eq!(c.alternatives(), &[2, 3, 4]);
+        assert_eq!(c.len(), 4);
+        assert!(!c.is_empty());
+
+        let empty: Result<Choice<i32>, _> = Vec::new().try_into();
+        assert_eq!(empty, Err(crate::datatypes::error::ChoiceError::EmptyInput));
+        let choice: Choice<i32> = vec![10, 20, 30].try_into().unwrap();
+        assert_eq!(choice.iter().copied().collect::<Vec<_>>(), vec![10, 20, 30]);
+
+        assert_eq!(Choice::of_many(Vec::<i32>::new()), None);
+        let evens = c.filter_values(|&x| x % 2 == 0).expect("should have evens");
+        assert_eq!(*evens.first(), 2);
+        assert_eq!(evens.alternatives(), &[4]);
+        assert_eq!(c.filter_values(|&x| x > 100), None);
+    }
+}

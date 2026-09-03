@@ -28,3 +28,27 @@ where
         .into_iter()
         .try_fold(initial.into(), |value, op| op(value))
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::pipeline_result;
+
+    #[test]
+    fn result_pipeline_handles_empty_input_and_short_circuits() {
+        assert_eq!(
+            pipeline_result::<_, i32, &'static str, _, _>(
+                7,
+                Vec::<fn(i32) -> Result<i32, &'static str>>::new()
+            ),
+            Ok(7)
+        );
+        fn add_one(value: i32) -> Result<i32, &'static str> {
+            Ok(value + 1)
+        }
+        fn stop(_: i32) -> Result<i32, &'static str> {
+            Err("stop")
+        }
+        assert_eq!(pipeline_result(1, vec![add_one, add_one]), Ok(3));
+        assert_eq!(pipeline_result(1, vec![add_one, stop]), Err("stop"));
+    }
+}

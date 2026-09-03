@@ -851,3 +851,37 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::Id;
+    use crate::traits::{applicative::Applicative, functor::Functor, monad::Monad, pure::Pure};
+
+    #[test]
+    fn monadic_and_applicative_laws_hold() {
+        let x = Id::new(42);
+        let f = |n: &i32| Id::new(n * 2);
+        let g = |n: &i32| Id::new(n + 3);
+
+        assert_eq!(x.clone().fmap(|n| *n).unwrap(), x.unwrap());
+        assert_eq!(x.clone().fmap(|n| n + 3).fmap(|n| n * 2).unwrap(), 90);
+        let app_f = Id::new(|n: &i32| n + 1);
+        assert_eq!(app_f.apply(&x).unwrap(), 43);
+        assert_eq!(Id::<i32>::lift2(|a, b| a + b, &x, &Id::new(8)).unwrap(), 50);
+        assert_eq!(Id::<i32>::pure(&42).bind(&f).unwrap(), f(&42).unwrap());
+        assert_eq!(x.clone().bind(Id::<i32>::pure).unwrap(), x.unwrap());
+        assert_eq!(
+            x.clone().bind(f).bind(g).unwrap(),
+            x.bind(|n| f(n).bind(&g)).unwrap()
+        );
+        assert_eq!(Id::new(Id::new(100)).join::<i32>().unwrap(), 100);
+    }
+
+    #[test]
+    fn inherent_comonad_api_is_available() {
+        let id = Id::new(42);
+        assert_eq!(id.extract(), 42);
+        assert_eq!(id.duplicate().unwrap(), 42);
+        assert_eq!(id.extend(|ctx| ctx.extract() * 2).extract(), 84);
+    }
+}

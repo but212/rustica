@@ -373,3 +373,37 @@ impl<T: Clone> ErrorMapper<()> for Option<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::{ErrorMapper, MonadError};
+
+    #[test]
+    fn monad_error_laws_and_mapping_hold() {
+        let thrown: Result<i32, String> = Result::<i32, String>::throw("err".to_string());
+        assert_eq!(
+            thrown.catch(|e| if e == "err" { Ok(42) } else { Err(e.clone()) }),
+            Ok(42)
+        );
+        let value: Result<i32, String> = Ok(10);
+        assert_eq!(
+            value.catch(|e| Result::<i32, String>::throw(e.clone())),
+            value
+        );
+        let thrown_none: Option<i32> = Option::<i32>::throw::<i32>(());
+        assert_eq!(thrown_none, None);
+        assert_eq!(None::<i32>.catch(|_| Some(0)), Some(0));
+
+        let result: Result<i32, String> = Err("404".into());
+        assert_eq!(
+            result.map_error_to(|e: &String| format!("E:{e}")),
+            Err("E:404".into())
+        );
+        assert_eq!(
+            result
+                .map(|x| x * 2)
+                .map_error_to(|e| format!("Error on {e}")),
+            Err("Error on 404".into())
+        );
+    }
+}

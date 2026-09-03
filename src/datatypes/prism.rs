@@ -757,3 +757,163 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::Prism;
+    use crate::datatypes::lens::Lens;
+    use std::collections::HashMap;
+
+    #[derive(Clone, Debug, PartialEq)]
+    enum Status {
+        Active(String),
+        Inactive,
+        Error { code: u32, message: String },
+    }
+    type ActivePrism = Prism<
+        Status,
+        String,
+        Box<dyn Fn(&Status) -> Option<String>>,
+        Box<dyn Fn(&String) -> Status>,
+    >;
+    fn active_prism() -> ActivePrism {
+        Prism::new(
+            Box::new(|s| match s {
+                Status::Active(name) => Some(name.clone()),
+                _ => None,
+            }),
+            Box::new(|name| Status::Active(name.clone())),
+        )
+    }
+    type ErrorPrism = Prism<
+        Status,
+        (u32, String),
+        Box<dyn Fn(&Status) -> Option<(u32, String)>>,
+        Box<dyn Fn(&(u32, String)) -> Status>,
+    >;
+    fn error_prism() -> ErrorPrism {
+        Prism::new(
+            Box::new(|s| match s {
+                Status::Error { code, message } => Some((*code, message.clone())),
+                _ => None,
+            }),
+            Box::new(|value| Status::Error {
+                code: value.0,
+                message: value.1.clone(),
+            }),
+        )
+    }
+
+    #[test]
+    fn preview_review_and_modify_obey_prism_contracts() {
+        let prism = active_prism();
+        let target = Status::Active("Alice".into());
+        assert_eq!(prism.preview(&target), Some("Alice".into()));
+        assert_eq!(prism.preview(&Status::Inactive), None);
+        assert_eq!(prism.review(&"Bob".into()), Status::Active("Bob".into()));
+        assert_eq!(
+            prism.preview(&prism.review(&"LawCheck".into())),
+            Some("LawCheck".into())
+        );
+
+        let error = Status::Error {
+            code: 500,
+            message: "Fail".into(),
+        };
+        assert_eq!(
+            error_prism().modify(error.clone(), |(code, message)| (
+                code + 1,
+                format!("{message}-fixed")
+            )),
+            Status::Error {
+                code: 501,
+                message: "Fail-fixed".into()
+            }
+        );
+        assert_eq!(
+            active_prism().modify(Status::Inactive, |_| "ignored".into()),
+            Status::Inactive
+        );
+        assert_eq!(
+            error_prism().set_if_different(error, (200, "OK".into())),
+            Status::Error {
+                code: 200,
+                message: "OK".into()
+            }
+        );
+    }
+
+    #[test]
+    fn complex_extraction_and_composition_work() {
+        #[derive(Debug, Clone, PartialEq)]
+        enum ConfigValue {
+            Integer(i64),
+            String(String),
+            Dictionary(HashMap<String, ConfigValue>),
+        }
+        let dict = Prism::new(
+            |value: &ConfigValue| match value {
+                ConfigValue::Dictionary(map) => Some(map.clone()),
+                _ => None,
+            },
+            |map: &HashMap<String, ConfigValue>| ConfigValue::Dictionary(map.clone()),
+        );
+        let mut values = HashMap::new();
+        values.insert("name".into(), ConfigValue::String("Alice".into()));
+        values.insert("age".into(), ConfigValue::Integer(30));
+        let mut updated_values = values.clone();
+        updated_values.insert("theme".into(), ConfigValue::String("dark".into()));
+        let updated = dict.review(&updated_values);
+        let new_values = dict.preview(&updated).unwrap();
+        assert_eq!(new_values.len(), 3);
+        assert!(new_values.contains_key("theme"));
+
+        #[derive(Debug, Clone, PartialEq)]
+        enum Inner {
+            Val(i32),
+            Empty,
+        }
+        #[derive(Debug, Clone, PartialEq)]
+        enum Outer {
+            Nested(Inner),
+            Other,
+        }
+        let outer = Prism::new(
+            |value: &Outer| match value {
+                Outer::Nested(inner) => Some(inner.clone()),
+                _ => None,
+            },
+            |inner: &Inner| Outer::Nested(inner.clone()),
+        );
+        let inner = Prism::new(
+            |value: &Inner| match value {
+                Inner::Val(value) => Some(*value),
+                Inner::Empty => None,
+            },
+            |value: &i32| Inner::Val(*value),
+        );
+        let deep = outer.then(inner);
+        assert_eq!(deep.preview(&Outer::Nested(Inner::Val(42))), Some(42));
+        assert_eq!(deep.review(&100), Outer::Nested(Inner::Val(100)));
+        assert_eq!(deep.preview(&Outer::Nested(Inner::Empty)), None);
+        assert_eq!(deep.preview(&Outer::Other), None);
+
+        #[derive(Clone, Debug, PartialEq)]
+        struct User {
+            id: u64,
+            status: Status,
+        }
+        let status = Lens::new(
+            |u: &User| u.status.clone(),
+            |u, status| User { status, ..u },
+        );
+        let user = User {
+            id: 1,
+            status: Status::Active("online".into()),
+        };
+        let updated = status.modify(user, |value| {
+            active_prism().modify(value, |name| format!("{name}-away"))
+        });
+        assert_eq!(updated.status, Status::Active("online-away".into()));
+    }
+}

@@ -511,3 +511,42 @@ macro_rules! pipe {
 }
 
 pub use {compose, function, pipe};
+
+#[cfg(test)]
+mod unit_tests {
+    use super::FunctionCategory;
+
+    #[test]
+    fn inherent_api_composes_functions_and_pairs() {
+        let id = FunctionCategory::identity_morphism::<i32>();
+        assert_eq!(id(42), 42);
+
+        let double = FunctionCategory::arrow(|x: i32| x * 2);
+        let add_one = FunctionCategory::arrow(|x: i32| x + 1);
+        assert_eq!(
+            FunctionCategory::compose_morphisms(&add_one, &double)(5),
+            11
+        );
+        assert_eq!(
+            FunctionCategory::compose_morphisms(&double, &add_one)(5),
+            12
+        );
+        assert_eq!(
+            FunctionCategory::first(&double)((10, "keep".to_string())),
+            (20, "keep".to_string())
+        );
+        assert_eq!(
+            FunctionCategory::second(&double)(("keep".to_string(), 10)),
+            ("keep".to_string(), 20)
+        );
+        assert_eq!(
+            FunctionCategory::split(&double, &FunctionCategory::arrow(|x: i32| x * x))(4),
+            (8, 16)
+        );
+        let to_str = FunctionCategory::arrow(|x: i32| x.to_string());
+        assert_eq!(
+            FunctionCategory::combine_morphisms(&double, &to_str)((5, 10)),
+            (10, "10".to_string())
+        );
+    }
+}
