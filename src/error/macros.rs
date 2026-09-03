@@ -9,23 +9,8 @@
 /// the operation is successful. It returns a `LazyContext` that implements
 /// `IntoErrorContext`.
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::context;
-/// use rustica::error::{with_context_result, ComposableResult};
-///
-/// fn might_fail(id: i32) -> Result<i32, &'static str> {
-///     Ok(id)
-/// }
-///
-/// let id = 42;
-/// // The format! is not executed because the result is Ok
-/// let result = with_context_result(
-///     might_fail(id),
-///     context!("Failed to process item {}", id)
-/// );
-/// ```
+/// Use it with `with_context_result` when context formatting should be deferred until
+/// the error path is taken; the lazy-evaluation behavior is covered by the module tests.
 #[macro_export]
 macro_rules! context {
     ($($arg:tt)*) => {

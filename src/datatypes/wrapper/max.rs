@@ -19,18 +19,6 @@
 //!   - For all values a, b, and c, combining a and b and then combining the result with c
 //!     yields the same result as combining a with the combination of b and c.
 //!
-//! ### Monoid Laws
-//!
-//! `Max<T>` has a `Monoid` instance when `T: Default`, using `Max(T::default())` as the identity.
-//! Note that `T::default()` is not necessarily the *true* identity for the maximum operation unless
-//! it is less than or equal to all other values of `T`.
-//!
-//! - **Left Identity**: `empty() ⊕ a = a`
-//!   - Combining the identity element (typically the minimum value of `T`) with any value gives the original value.
-//!
-//! - **Right Identity**: `a ⊕ empty() = a`
-//!   - Combining any value with the identity element gives the original value.
-//!
 //! ### Functor Laws
 //!
 //! `Max<T>` satisfies the functor laws:
@@ -46,9 +34,6 @@
 //! `Max<T>` implements the following type classes:
 //!
 //! - `Semigroup`: For any `T` that implements `Ord`
-//! - `Monoid`: For any `T` that implements `Ord` and `Default` (identity is `Max(T::default())`;
-//!   the monoid laws hold only when `T::default()` is the minimum value of `T`, e.g. for
-//!   unsigned integers. For signed integers use `Max(T::MIN)` as the identity instead.)
 //! - `Functor`: For mapping operations over the inner value
 //!
 //! ## Quick Start
@@ -73,14 +58,13 @@
 
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
-use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::cmp::Ordering;
 use std::fmt;
 
 /// A wrapper type that forms a semigroup under the maximum operation.
 ///
-/// When the inner type has a minimum value, this also forms a monoid.
+/// Empty-capable reductions can use `crate::traits::semigroup::combine_all_values`.
 ///
 /// # Examples
 ///
@@ -105,48 +89,22 @@ use std::fmt;
 ///
 /// The `Max<T>` wrapper satisfies the semigroup associativity law:
 ///
-/// ```rust
-/// use rustica::datatypes::wrapper::max::Max;
-/// use rustica::traits::semigroup::Semigroup;
 ///
-/// // Verify associativity: (a combine b) combine c = a combine (b combine c)
-/// fn verify_associativity<T: Clone + Ord>(a: T, b: T, c: T) -> bool {
-///     let max_a = Max(a);
-///     let max_b = Max(b);
-///     let max_c = Max(c);
-///     
-///     let left = max_a.clone().combine(&max_b).combine(&max_c);
-///     let right = max_a.combine(&max_b.combine(&max_c));
-///     
-///     left == right
-/// }
+/// Algebraic laws for this wrapper are verified by unit tests.
 ///
-/// assert!(verify_associativity(1, 5, 3));
-/// assert!(verify_associativity(10, 2, 7));
-/// ```
+/// # Explicit Extremum Seeds
 ///
-/// # Monoid Laws
-///
-/// When `T` has a default value (typically the minimum possible value), `Max<T>` forms a monoid:
+/// When a domain has a known minimum, it can be supplied explicitly as a
+/// reduction seed:
 ///
 /// ```rust
 /// use rustica::datatypes::wrapper::max::Max;
 /// use rustica::traits::semigroup::Semigroup;
-/// use rustica::traits::monoid::Monoid;
 ///
-/// // Verify identity laws: empty combine x = x combine empty = x
-/// fn verify_identity_laws<T: Clone + Ord + Default>(x: T) -> bool {
-///     let max_x = Max(x.clone());
-///     let empty = Max::<T>::empty();
-///     
-///     let left_id = empty.clone().combine(&max_x.clone()) == max_x.clone();
-///     let right_id = max_x.clone().combine(&empty) == max_x;
-///     
-///     left_id && right_id
-/// }
-///
-/// assert!(verify_identity_laws(42));
-/// assert!(verify_identity_laws(0));
+/// let value = Max(42);
+/// let identity = Max(i32::MIN);
+/// assert_eq!(value.combine(&identity), value);
+/// assert_eq!(identity.combine(&value), value);
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -209,27 +167,8 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation
-    /// fn verify_associativity<T: Clone + Ord>(a: T, b: T, c: T) -> bool {
-    ///     let max_a = Max(a);
-    ///     let max_b = Max(b);
-    ///     let max_c = Max(c);
-    ///     
-    ///     let left = max_a.clone().combine_owned(max_b.clone()).combine_owned(max_c.clone());
-    ///     let right = max_a.combine_owned(max_b.combine_owned(max_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10, 2, 7));
-    /// assert!(verify_associativity(-5, -10, -3));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -267,27 +206,8 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation
-    /// fn verify_associativity<T: Clone + Ord + PartialEq>(a: T, b: T, c: T) -> bool {
-    ///     let max_a = Max(a);
-    ///     let max_b = Max(b);
-    ///     let max_c = Max(c);
-    ///     
-    ///     let left = max_a.combine(&max_b).combine(&max_c);
-    ///     let right = max_a.combine(&max_b.combine(&max_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10, 2, 7));
-    /// assert!(verify_associativity(-5, -10, -3));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -312,89 +232,6 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
             Ordering::Greater | Ordering::Equal => Max(self.0.clone()),
             Ordering::Less => Max(other.0.clone()),
         }
-    }
-}
-
-impl<T: Clone + Ord + Default> Monoid for Max<T> {
-    /// Returns the identity element for the `Max` monoid, which is `Max(T::default())`.
-    ///
-    /// # Correctness Note
-    ///
-    /// `T::default()` is the true identity element only when it is the minimum
-    /// value of `T` (e.g., unsigned integer types such as `u32`, where the default is 0).
-    /// For signed integers `T::default()` is 0, so combining a negative value with
-    /// `empty()` yields `Max(0)` instead of the original value — the monoid identity
-    /// laws do **not** hold in that case. For a true identity with signed types,
-    /// use `Max(T::MIN)` directly.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Simply creates a wrapper with the default value
-    /// - **Memory Usage**: Space required for the wrapper and the default value of type T
-    /// - **Allocation**: Any allocations required by T::default() implementation
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Left Identity
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // For any Max(x), empty() ⊕ Max(x) = Max(x)
-    /// // This holds when empty() contains the minimum value of T.
-    /// fn verify_left_identity<T: Clone + Ord + PartialEq>(identity: T, x: T) -> bool {
-    ///     let empty = Max(identity);
-    ///     let value = Max(x);
-    ///     
-    ///     empty.combine(&value) == value
-    /// }
-    ///
-    /// // For i32, i32::MIN is the true identity (not i32::default())
-    /// assert!(verify_left_identity(i32::MIN, 42));
-    /// assert!(verify_left_identity(i32::MIN, -7));
-    /// // u32::default() == 0 == u32::MIN, so empty() works for unsigned types
-    /// assert!(verify_left_identity(u32::default(), 42));
-    /// ```
-    ///
-    /// ## Right Identity
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // For any Max(x), Max(x) ⊕ empty() = Max(x)
-    /// // This holds when empty() contains the minimum value of T.
-    /// fn verify_right_identity<T: Clone + Ord + PartialEq>(x: T, identity: T) -> bool {
-    ///     let value = Max(x);
-    ///     let empty = Max(identity);
-    ///     
-    ///     value.combine(&empty) == value
-    /// }
-    ///
-    /// assert!(verify_right_identity(42, i32::MIN));
-    /// assert!(verify_right_identity(-7, i32::MIN));
-    /// ```
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // Create an identity element for integers
-    /// let empty = Max::<i32>::empty();
-    /// assert_eq!(empty, Max(i32::default()));
-    ///
-    /// let empty_i64 = Max::<i64>::empty();
-    /// assert_eq!(empty_i64, Max(i64::default()));
-    /// ```
-    #[inline]
-    fn empty() -> Self {
-        Max(T::default())
     }
 }
 
@@ -432,54 +269,13 @@ impl<T: Clone + Ord> Functor for Max<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Max(x), fmap(id) = id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + Ord + PartialEq>(x: T) -> bool {
-    ///     let max_x = Max(x.clone());
-    ///     let mapped = max_x.fmap(|a| a.clone());
-    ///     mapped == max_x
-    /// }
-    ///
-    /// // Test with various values
-    /// assert!(verify_identity_law(42));
-    /// assert!(verify_identity_law(-7));
-    /// assert!(verify_identity_law(0));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Max(x) and functions f and g:
-    /// // fmap(f . g) = fmap(f) . fmap(g)
-    /// fn verify_composition_law<T>(x: T) -> bool
-    /// where
-    ///     T: Clone + Ord + PartialEq + std::fmt::Display,
-    /// {
-    ///     let max_x = Max(x);
-    ///     
-    ///     // Define two functions to compose
-    ///     let f = |x: &String| x.len();
-    ///     let g = |x: &T| x.to_string();
-    ///     
-    ///     // Left side: fmap(f . g)
-    ///     let left_side = max_x.clone().fmap(|a| f(&g(a)));
-    ///     
-    ///     // Right side: fmap(f) . fmap(g)
-    ///     let right_side = max_x.clone().fmap(g).fmap(f);
-    ///     
-    ///     left_side == right_side
-    /// }
-    ///
-    /// // Test with a value that can be converted to String
-    /// assert!(verify_composition_law(42));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///

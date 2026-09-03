@@ -1,5 +1,6 @@
 mod algebraic_laws;
 mod choice_and_iteration;
+mod foldable;
 mod merging_laws;
 mod monad_error;
 

@@ -5,11 +5,9 @@
 
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
+use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
-use std::iter::FromIterator;
-
-use smallvec::SmallVec;
 
 use crate::datatypes::error::ChoiceError;
 use crate::prelude::traits::*;
@@ -563,41 +561,19 @@ impl<T> Foldable for Choice<T> {
     }
 }
 
-impl<T> FromIterator<T> for Choice<T> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut iter = iter.into_iter();
-        let primary = iter
-            .next()
-            .expect("Choice::from_iter requires a non-empty iterator");
-        let alternatives = iter.collect();
-        Self {
-            primary,
-            alternatives,
-        }
+impl<T> TryFrom<Vec<T>> for Choice<T> {
+    type Error = ChoiceError;
+
+    fn try_from(values: Vec<T>) -> Result<Self, Self::Error> {
+        Self::of_many(values).ok_or(ChoiceError::EmptyInput)
     }
 }
 
-impl<T> From<Vec<T>> for Choice<T> {
-    fn from(v: Vec<T>) -> Self {
-        let mut iter = v.into_iter();
-        let primary = iter.next().expect("Cannot convert empty Vec into Choice");
-        let alternatives = iter.collect();
-        Self {
-            primary,
-            alternatives,
-        }
-    }
-}
+impl<T: Clone> TryFrom<&[T]> for Choice<T> {
+    type Error = ChoiceError;
 
-impl<T: Clone> From<&[T]> for Choice<T> {
-    fn from(slice: &[T]) -> Self {
-        assert!(!slice.is_empty(), "Cannot convert empty slice into Choice");
-        let primary = slice[0].clone();
-        let alternatives = slice[1..].iter().cloned().collect();
-        Self {
-            primary,
-            alternatives,
-        }
+    fn try_from(values: &[T]) -> Result<Self, Self::Error> {
+        Self::of_many(values.iter().cloned()).ok_or(ChoiceError::EmptyInput)
     }
 }
 

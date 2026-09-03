@@ -19,14 +19,21 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
-    pub(crate) fn from_vec(errors: ErrorVec<E>) -> Self {
-        assert!(!errors.is_empty(), "Validated errors cannot be empty");
-        Self(errors)
-    }
-
-    #[inline]
     pub(crate) fn try_from_vec(errors: ErrorVec<E>) -> Option<Self> {
         (!errors.is_empty()).then_some(Self(errors))
+    }
+
+    /// Creates a non-empty error collection from an iterator.
+    ///
+    /// Returns `None` when the iterator yields no errors.
+    #[inline]
+    pub fn try_from_iter<I>(iter: I) -> Option<Self>
+    where
+        I: IntoIterator<Item = E>,
+    {
+        let mut iter = iter.into_iter();
+        let first = iter.next()?;
+        Some(Self::from_first_and_iter(first, iter))
     }
 
     #[inline]
@@ -105,14 +112,6 @@ impl<E> IntoIterator for NonEmptyErrors<E> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_vec().into_iter()
-    }
-}
-
-impl<E> std::iter::FromIterator<E> for NonEmptyErrors<E> {
-    fn from_iter<I: IntoIterator<Item = E>>(iter: I) -> Self {
-        let mut errors = ErrorVec::new();
-        errors.extend(iter);
-        Self::from_vec(errors)
     }
 }
 

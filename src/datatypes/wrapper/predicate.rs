@@ -403,30 +403,8 @@ impl<A: 'static> Semigroup for Predicate<A> {
     ///
     /// ## Associativity: (a `combine` b) `combine` c = a `combine` (b `combine` c)
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::predicate::Predicate;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // Define three simple predicates
-    /// let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
-    /// let is_positive = Predicate::new(|x: &i32| *x > 0);
-    /// let is_multiple_of_3 = Predicate::new(|x: &i32| *x % 3 == 0);
-    ///
-    /// // Test values
-    /// let test_values = [-6, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 9, 12];
-    ///
-    /// // Verify associativity
-    /// fn verify_associativity(a: &Predicate<i32>, b: &Predicate<i32>, c: &Predicate<i32>, x: &i32) -> bool {
-    ///     let left = a.combine(&b).combine(c).contains(x);
-    ///     let right = a.combine(&b.combine(c)).contains(x);
-    ///     left == right
-    /// }
-    ///
-    /// // Verify the law for all test values
-    /// for &val in test_values.iter() {
-    ///     assert!(verify_associativity(&is_even, &is_positive, &is_multiple_of_3, &val));
-    /// }
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -511,47 +489,13 @@ impl<A: 'static> Monoid for Predicate<A> {
     ///
     /// ## Left Identity: `empty().combine(a) = a`
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::predicate::Predicate;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
-    /// let test_values = [-10, -5, -2, -1, 0, 1, 2, 5, 10];
-    ///
-    /// // Verify left identity law
-    /// fn verify_left_identity(a: &Predicate<i32>, x: i32) -> bool {
-    ///     let empty = Predicate::<i32>::empty();
-    ///     empty.combine(a).contains(&x) == a.contains(&x)
-    /// }
-    ///
-    /// // Test with multiple values
-    /// for &val in test_values.iter() {
-    ///     assert!(verify_left_identity(&is_even, val));
-    /// }
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Right Identity: `a.combine(empty()) = a`
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::predicate::Predicate;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// let is_positive = Predicate::new(|x: &i32| *x > 0);
-    /// let test_values = [-10, -5, -2, -1, 0, 1, 2, 5, 10];
-    ///
-    /// // Verify right identity law
-    /// fn verify_right_identity(a: &Predicate<i32>, x: i32) -> bool {
-    ///     let empty = Predicate::<i32>::empty();
-    ///     a.combine(&empty).contains(&x) == a.contains(&x)
-    /// }
-    ///
-    /// // Test with multiple values
-    /// for &val in test_values.iter() {
-    ///     assert!(verify_right_identity(&is_positive, val));
-    /// }
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///

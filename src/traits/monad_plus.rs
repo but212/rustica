@@ -55,8 +55,6 @@
 //! assert_eq!(result, None);
 //! ```
 
-use std::fmt::Debug;
-
 use crate::traits::monad::Monad;
 
 /// A trait for monads that can represent a choice between multiple values.
@@ -139,27 +137,6 @@ impl<T: Clone> MonadPlus for Option<T> {
         match self {
             Some(_) => self,
             None => other,
-        }
-    }
-}
-
-// Implementation for Result with a shared error type
-impl<T: Clone, E: Clone + Debug + Default> MonadPlus for Result<T, E> {
-    fn mzero<U: Clone>() -> Self::Output<U> {
-        Err(E::default())
-    }
-
-    fn mplus(&self, other: &Self) -> Self {
-        match self {
-            Ok(_) => self.clone(),
-            Err(_) => other.clone(),
-        }
-    }
-
-    fn mplus_owned(self, other: Self) -> Self {
-        match self {
-            Ok(_) => self,
-            Err(_) => other,
         }
     }
 }

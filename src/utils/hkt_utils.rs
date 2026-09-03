@@ -3,8 +3,6 @@
 //! This module provides utility functions and combinators for working with higher-kinded types
 //! and functional programming patterns.
 
-// ===== Pipeline Functions =====
-
 /// Chains a sequence of operations that may return `Option<T>`.
 #[inline]
 pub fn pipeline_option<A, B, I, Func>(initial: A, operations: I) -> Option<B>

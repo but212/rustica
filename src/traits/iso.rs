@@ -67,40 +67,6 @@ use std::marker::PhantomData;
 /// used by `forward` and `backward`. Implementations in this crate typically set `From = A` and
 /// `To = B`.
 ///
-/// # Examples
-///
-/// Creating an isomorphism between a newtype and its inner value:
-///
-/// ```rust
-/// use rustica::traits::iso::Iso;
-///
-/// // A newtype wrapper
-/// struct UserId(u64);
-///
-/// // Isomorphism between UserId and u64
-/// struct UserIdIso;
-///
-/// impl Iso<UserId, u64> for UserIdIso {
-///     type From = UserId;
-///     type To = u64;
-///
-///     fn forward(&self, from: &Self::From) -> Self::To {
-///         from.0
-///     }
-///
-///     fn backward(&self, to: &Self::To) -> Self::From {
-///         UserId(*to)
-///     }
-/// }
-///
-/// let iso = UserIdIso;
-/// let user_id = UserId(123);
-/// let id_num = iso.forward(&user_id);
-/// assert_eq!(id_num, 123);
-///
-/// let user_id2 = iso.backward(&id_num);
-/// assert_eq!(user_id2.0, user_id.0);
-/// ```
 pub trait Iso<A, B> {
     /// The source type of the isomorphism.
     type From;
@@ -118,30 +84,6 @@ pub trait Iso<A, B> {
     ///
     /// A value of the target type
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::iso::Iso;
-    ///
-    /// struct StringVecIso;
-    ///
-    /// impl Iso<String, Vec<char>> for StringVecIso {
-    ///     type From = String;
-    ///     type To = Vec<char>;
-    ///
-    ///     fn forward(&self, from: &Self::From) -> Self::To {
-    ///         from.chars().collect()
-    ///     }
-    ///
-    ///     fn backward(&self, to: &Self::To) -> Self::From {
-    ///         to.iter().collect()
-    ///     }
-    /// }
-    ///
-    /// let text = String::from("hello");
-    /// let chars = StringVecIso.forward(&text);
-    /// assert_eq!(chars, vec!['h', 'e', 'l', 'l', 'o']);
-    /// ```
     fn forward(&self, from: &Self::From) -> Self::To;
 
     /// Converts from the target type back to the source type.
@@ -154,30 +96,6 @@ pub trait Iso<A, B> {
     ///
     /// A value of the source type
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::iso::Iso;
-    ///
-    /// struct StringVecIso;
-    ///
-    /// impl Iso<String, Vec<char>> for StringVecIso {
-    ///     type From = String;
-    ///     type To = Vec<char>;
-    ///
-    ///     fn forward(&self, from: &Self::From) -> Self::To {
-    ///         from.chars().collect()
-    ///     }
-    ///
-    ///     fn backward(&self, to: &Self::To) -> Self::From {
-    ///         to.iter().collect()
-    ///     }
-    /// }
-    ///
-    /// let chars = vec!['h', 'e', 'l', 'l', 'o'];
-    /// let text = StringVecIso.backward(&chars);
-    /// assert_eq!(text, "hello");
-    /// ```
     fn backward(&self, to: &Self::To) -> Self::From;
 
     /// Converts a function that operates on the target type to a function
@@ -194,36 +112,6 @@ pub trait Iso<A, B> {
     /// # Returns
     ///
     /// A function that takes a reference to a source value and returns the same result type
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::iso::Iso;
-    ///
-    /// struct StringVecIso;
-    ///
-    /// impl Iso<String, Vec<char>> for StringVecIso {
-    ///     type From = String;
-    ///     type To = Vec<char>;
-    ///
-    ///     fn forward(&self, from: &Self::From) -> Self::To {
-    ///         from.chars().collect()
-    ///     }
-    ///
-    ///     fn backward(&self, to: &Self::To) -> Self::From {
-    ///         to.iter().collect()
-    ///     }
-    /// }
-    ///
-    /// // Create a function that counts elements in the target type (Vec<char>)
-    /// let count_chars = |chars: &Vec<char>| chars.len();
-    ///
-    /// // Convert it to operate on the source type (String)
-    /// let count_string_chars = StringVecIso.map_from_target(count_chars);
-    ///
-    /// // Use the converted function
-    /// assert_eq!(count_string_chars(&"hello".to_string()), 5);
-    /// ```
     #[inline]
     fn map_from_target<F, R>(&self, f: F) -> impl Fn(&Self::From) -> R
     where
@@ -246,37 +134,6 @@ pub trait Iso<A, B> {
     /// # Returns
     ///
     /// A function that takes a reference to a target value and returns the same result type
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::iso::Iso;
-    ///
-    /// struct StringVecIso;
-    ///
-    /// impl Iso<String, Vec<char>> for StringVecIso {
-    ///     type From = String;
-    ///     type To = Vec<char>;
-    ///
-    ///     fn forward(&self, from: &Self::From) -> Self::To {
-    ///         from.chars().collect()
-    ///     }
-    ///
-    ///     fn backward(&self, to: &Self::To) -> Self::From {
-    ///         to.iter().collect()
-    ///     }
-    /// }
-    ///
-    /// // Create a function that operates on the source type (String)
-    /// let is_hello = |s: &String| s == "hello";
-    ///
-    /// // Convert it to operate on the target type (Vec<char>)
-    /// let is_hello_vec = StringVecIso.map_from_source(is_hello);
-    ///
-    /// // Use the converted function
-    /// assert!(is_hello_vec(&vec!['h', 'e', 'l', 'l', 'o']));
-    /// assert!(!is_hello_vec(&vec!['w', 'o', 'r', 'l', 'd']));
-    /// ```
     #[inline]
     fn map_from_source<F, R>(&self, f: F) -> impl Fn(&Self::To) -> R
     where
@@ -303,52 +160,6 @@ pub trait Iso<A, B> {
     ///
     /// A new isomorphism that represents the composition of the two isomorphisms
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::iso::Iso;
-    ///
-    /// // Isomorphism between String and Vec<char>
-    /// #[derive(Clone)]
-    /// struct StringVecIso;
-    /// impl Iso<String, Vec<char>> for StringVecIso {
-    ///     type From = String;
-    ///     type To = Vec<char>;
-    ///
-    ///     fn forward(&self, from: &Self::From) -> Self::To {
-    ///         from.chars().collect()
-    ///     }
-    ///
-    ///     fn backward(&self, to: &Self::To) -> Self::From {
-    ///         to.iter().collect()
-    ///     }
-    /// }
-    ///
-    /// // Isomorphism between Vec<char> and String length
-    /// #[derive(Clone)]
-    /// struct VecLenIso;
-    /// impl Iso<Vec<char>, usize> for VecLenIso {
-    ///     type From = Vec<char>;
-    ///     type To = usize;
-    ///
-    ///     fn forward(&self, from: &Self::From) -> Self::To {
-    ///         from.len()
-    ///     }
-    ///
-    ///     fn backward(&self, to: &Self::To) -> Self::From {
-    ///         vec!['x'; *to]
-    ///     }
-    /// }
-    ///
-    /// // Compose the two isomorphisms
-    /// let string_to_len = StringVecIso.iso_compose(VecLenIso);
-    ///
-    /// let s = String::from("hello");
-    /// assert_eq!(string_to_len.forward(&s), 5);
-    ///
-    /// let len = 3;
-    /// assert_eq!(string_to_len.backward(&len), "xxx");
-    /// ```
     fn iso_compose<C, ISO2>(&self, other: ISO2) -> ComposedIso<Self, ISO2, A, B, C>
     where
         Self: Iso<A, B> + Sized + Clone,
@@ -378,42 +189,6 @@ pub trait Iso<A, B> {
     ///
     /// A new isomorphism with the same types but with source and target swapped
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::iso::Iso;
-    ///
-    /// // A newtype wrapper
-    /// #[derive(Clone)]
-    /// struct UserId(u64);
-    ///
-    /// // Isomorphism between UserId and u64
-    /// #[derive(Clone)]
-    /// struct UserIdIso;
-    ///
-    /// impl Iso<UserId, u64> for UserIdIso {
-    ///     type From = UserId;
-    ///     type To = u64;
-    ///
-    ///     fn forward(&self, from: &Self::From) -> Self::To {
-    ///         from.0
-    ///     }
-    ///
-    ///     fn backward(&self, to: &Self::To) -> Self::From {
-    ///         UserId(*to)
-    ///     }
-    /// }
-    ///
-    /// let iso = UserIdIso;
-    /// let inverse = iso.inverse();
-    ///
-    /// let num = 42u64;
-    /// let user_id = inverse.forward(&num);  // Converts u64 to UserId
-    /// assert_eq!(user_id.0, 42);
-    ///
-    /// let original = inverse.backward(&user_id);  // Converts UserId back to u64
-    /// assert_eq!(original, 42);
-    /// ```
     fn inverse(&self) -> InverseIso<Self, A, B>
     where
         Self: Sized + Clone,
@@ -438,54 +213,6 @@ pub trait Iso<A, B> {
 /// * `B`: The intermediate type
 /// * `C`: The target type of the composed isomorphism
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::iso::Iso;
-///
-/// // Define isomorphisms for string <-> chars and chars <-> bytes
-/// #[derive(Clone)]
-/// struct StringCharsIso;
-/// #[derive(Clone)]
-/// struct CharsBytesIso;
-///
-/// impl Iso<String, Vec<char>> for StringCharsIso {
-///     type From = String;
-///     type To = Vec<char>;
-///
-///     fn forward(&self, from: &String) -> Vec<char> {
-///         from.chars().collect()
-///     }
-///
-///     fn backward(&self, to: &Vec<char>) -> String {
-///         to.iter().collect()
-///     }
-/// }
-///
-/// impl Iso<Vec<char>, Vec<u8>> for CharsBytesIso {
-///     type From = Vec<char>;
-///     type To = Vec<u8>;
-///
-///     fn forward(&self, from: &Vec<char>) -> Vec<u8> {
-///         from.iter().map(|&c| c as u8).collect()
-///     }
-///
-///     fn backward(&self, to: &Vec<u8>) -> Vec<char> {
-///         to.iter().map(|&b| b as char).collect()
-///     }
-/// }
-///
-/// // Compose the isomorphisms
-/// let string_iso = StringCharsIso;
-/// let bytes_iso = CharsBytesIso;
-/// let composed = string_iso.iso_compose(bytes_iso);
-///
-/// // Use the composed isomorphism
-/// let s = "Hello".to_string();
-/// let bytes = composed.forward(&s);
-/// let original = composed.backward(&bytes);
-/// assert_eq!(original, s);
-/// ```
 pub struct ComposedIso<ISO1, ISO2, A, B, C>
 where
     ISO1: Iso<A, B>,
@@ -531,40 +258,6 @@ where
 /// * `A` - The source type of the original isomorphism
 /// * `B` - The target type of the original isomorphism
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::iso::Iso;
-/// use std::marker::PhantomData;
-///
-/// // Define an isomorphism between String and Vec<char>
-/// #[derive(Clone)]
-/// struct StringVecIso;
-///
-/// impl Iso<String, Vec<char>> for StringVecIso {
-///     type From = String;
-///     type To = Vec<char>;
-///
-///     fn forward(&self, from: &Self::From) -> Self::To {
-///         from.chars().collect()
-///     }
-///
-///     fn backward(&self, to: &Self::To) -> Self::From {
-///         to.iter().collect()
-///     }
-/// }
-///
-/// // Create and use the inverse isomorphism
-/// let iso = StringVecIso;
-/// let inverse = iso.inverse();
-///
-/// let chars = vec!['h', 'e', 'l', 'l', 'o'];
-/// let string = inverse.forward(&chars);
-/// assert_eq!(string, "hello");
-///
-/// let chars2 = inverse.backward(&string);
-/// assert_eq!(chars, chars2);
-/// ```
 pub struct InverseIso<ISO, A, B>
 where
     ISO: Iso<A, B>,
@@ -699,5 +392,88 @@ impl<A: Clone, E: Clone> Iso<Result<A, E>, Validated<E, A>> for ResultValidatedI
 
     fn backward(&self, to: &Self::To) -> Self::From {
         to.clone().into_result_first_error()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Clone)]
+    struct StringVecIso;
+
+    impl Iso<String, Vec<char>> for StringVecIso {
+        type From = String;
+        type To = Vec<char>;
+
+        fn forward(&self, from: &Self::From) -> Self::To {
+            from.chars().collect()
+        }
+
+        fn backward(&self, to: &Self::To) -> Self::From {
+            to.iter().collect()
+        }
+    }
+
+    #[derive(Clone)]
+    struct VecLenIso;
+
+    impl Iso<Vec<char>, usize> for VecLenIso {
+        type From = Vec<char>;
+        type To = usize;
+
+        fn forward(&self, from: &Self::From) -> Self::To {
+            from.len()
+        }
+
+        fn backward(&self, to: &Self::To) -> Self::From {
+            vec!['x'; *to]
+        }
+    }
+
+    #[test]
+    fn iso_round_trips_and_maps_functions() {
+        let iso = StringVecIso;
+        let text = "hello".to_owned();
+        let chars = iso.forward(&text);
+        assert_eq!(chars, vec!['h', 'e', 'l', 'l', 'o']);
+        assert_eq!(iso.backward(&chars), text);
+        assert_eq!(
+            iso.map_from_target(|value: &Vec<char>| value.len())(&text),
+            5
+        );
+        assert!(iso.map_from_source(|value: &String| value == "hello")(
+            &chars
+        ));
+        assert!(!iso.map_from_source(|value: &String| value == "hello")(
+            &vec!['w', 'o', 'r', 'l', 'd']
+        ));
+    }
+
+    #[test]
+    fn iso_composition_and_inverse_preserve_direction() {
+        let composed = StringVecIso.iso_compose(VecLenIso);
+        assert_eq!(composed.forward(&"hello".to_owned()), 5);
+        assert_eq!(composed.backward(&3), "xxx");
+
+        let inverse = StringVecIso.inverse();
+        let chars = vec!['h', 'e', 'l', 'l', 'o'];
+        let text = inverse.forward(&chars);
+        assert_eq!(text, "hello");
+        assert_eq!(inverse.backward(&text), chars);
+    }
+
+    #[test]
+    fn result_validated_iso_round_trips_success_and_error() {
+        let iso = ResultValidatedIso;
+        let result: Result<i32, &str> = Ok(42);
+        let validated = iso.forward(&result);
+        assert_eq!(validated, Validated::valid(42));
+        assert_eq!(iso.backward(&validated), Ok(42));
+
+        let error: Result<i32, &str> = Err("fail");
+        let invalid = iso.forward(&error);
+        assert!(invalid.is_invalid());
+        assert_eq!(iso.backward(&invalid), Err("fail"));
     }
 }

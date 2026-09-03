@@ -104,6 +104,36 @@ impl<A: Clone, B: Clone> Bifunctor for TestBifunctor<A, B> {
 }
 
 #[test]
+fn vec_lift3_owned_matches_borrowed_cartesian_product() {
+    let expected = vec![
+        (1, 10, 100),
+        (1, 10, 200),
+        (1, 20, 100),
+        (1, 20, 200),
+        (2, 10, 100),
+        (2, 10, 200),
+        (2, 20, 100),
+        (2, 20, 200),
+    ];
+
+    let borrowed = Vec::<i32>::lift3(
+        |a, b, c| (*a, *b, *c),
+        &vec![1, 2],
+        &vec![10, 20],
+        &vec![100, 200],
+    );
+    let owned = Vec::<i32>::lift3_owned(
+        |a, b, c| (a, b, c),
+        vec![1, 2],
+        vec![10, 20],
+        vec![100, 200],
+    );
+
+    assert_eq!(borrowed, expected);
+    assert_eq!(owned, expected);
+}
+
+#[test]
 fn bifunctor_identity_and_consistency() {
     let bf = TestBifunctor(10, 20);
     // Identity
@@ -113,4 +143,22 @@ fn bifunctor_identity_and_consistency() {
     let g = |&b: &i32| b * 2;
     assert_eq!(bf.bimap(f, |&b| b), bf.first(f));
     assert_eq!(bf.bimap(|&a| a, g), bf.second(g));
+}
+
+#[test]
+fn bifunctor_maps_each_side_and_chains_operations() {
+    let success = TestBifunctor(5, "error");
+    assert_eq!(success.first(|value| value * 2), TestBifunctor(10, "error"));
+    assert_eq!(success.second(|message| message.len()), TestBifunctor(5, 5));
+    assert_eq!(
+        success.bimap(|value| value * 2, |message| message.len()),
+        TestBifunctor(10, 5)
+    );
+    assert_eq!(
+        success
+            .first(|value| value + 3)
+            .first(|value| value * 2)
+            .second(|message| message.to_string()),
+        TestBifunctor(16, "error".to_string())
+    );
 }

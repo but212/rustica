@@ -55,33 +55,15 @@ use crate::traits::semigroup::Semigroup;
 /// # Examples
 ///
 /// ```rust
-/// use rustica::traits::monoid::Monoid;
 /// use rustica::traits::semigroup::Semigroup;
 ///
-/// // String monoid under concatenation
 /// let hello = String::from("Hello");
-/// let empty_string = String::empty();
-///
-/// // Owned value identity laws
-/// assert_eq!(hello.clone().combine_owned(empty_string.clone()), hello.clone());  // Right identity
-/// assert_eq!(String::empty().combine_owned(hello.clone()), hello.clone());       // Left identity
-///
-/// // Reference identity laws
-/// assert_eq!(hello.combine(&empty_string), hello.clone());           // Right identity
-/// assert_eq!(empty_string.combine(&hello), hello);                   // Left identity
-///
-/// // Vec monoid under concatenation
-/// let numbers = vec![1, 2, 3];
-/// let empty_vec = Vec::<i32>::empty();
-///
-/// // Owned value identity laws
-/// assert_eq!(numbers.clone().combine_owned(empty_vec.clone()), numbers.clone());  // Right identity
-/// assert_eq!(Vec::<i32>::empty().combine_owned(numbers.clone()), numbers.clone()); // Left identity
-///
-/// // Reference identity laws
-/// assert_eq!(numbers.combine(&empty_vec), numbers.clone());            // Right identity
-/// assert_eq!(empty_vec.combine(&numbers), numbers);                    // Left identity
+/// let world = String::from(", world!");
+/// assert_eq!(hello.combine_owned(world), "Hello, world!");
 /// ```
+///
+/// The complete identity and associativity checks are maintained in
+/// `tests/traits/merging_laws.rs`.
 ///
 /// # Common Use Cases
 ///

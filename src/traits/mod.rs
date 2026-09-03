@@ -18,13 +18,11 @@
 //! If you're new to functional programming, start with Functor, Applicative, and Monad
 //! which form the foundation of most functional programming patterns.
 
-// ===== Core Evaluation Concepts =====
 /// Higher-kinded type abstractions for generic programming.
 pub mod hkt;
 /// Creation of values in a computational context.
 pub mod pure;
 
-// ===== Fundamental Abstractions =====
 /// Function application within a computational context.
 pub mod applicative;
 /// Structure-preserving mapping over computational contexts.
@@ -36,11 +34,9 @@ pub mod monad_error;
 /// Monads with zero and plus operations.
 pub mod monad_plus;
 
-// ===== Related Abstractions =====
 /// Mapping over two-type data structures.
 pub mod bifunctor;
 
-// ===== Data Structure Traits =====
 /// Reduction of data structures to a single value.
 ///
 /// This module provides the Foldable trait which represents data structures that can be "folded" into a summary value.
@@ -53,7 +49,6 @@ pub mod monoid;
 /// Combinable types without identity elements.
 pub mod semigroup;
 
-// ===== Advanced Abstractions =====
 /// Choice between alternative computations.
 pub mod alternative;
 

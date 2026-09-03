@@ -130,13 +130,8 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(valid.unwrap_owned(), 42);
     /// ```
     ///
-    /// ```rust,should_panic
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid("error message");
-    /// // This will panic with: "Called Validated::unwrap_owned() on an Invalid value: [\"error message\"]"
-    /// invalid.unwrap_owned();
-    /// ```
+    /// Calling this method on an invalid value panics; use [`try_unwrap`](#method.try_unwrap)
+    /// when the state is not known.
     #[inline]
     pub fn unwrap_owned(self) -> A
     where
@@ -169,13 +164,8 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(invalid.unwrap_invalid_owned(), expected);
     /// ```
     ///
-    /// ```rust,should_panic
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// // This will panic with: "Called Validated::unwrap_invalid_owned() on a Valid value: 42"
-    /// valid.unwrap_invalid_owned();
-    /// ```
+    /// Calling this method on a valid value panics; use [`try_unwrap_invalid`](#method.try_unwrap_invalid)
+    /// when the state is not known.
     #[inline]
     pub fn unwrap_invalid_owned(self) -> NonEmptyErrors<E>
     where
@@ -436,13 +426,6 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(valid.unwrap(), 42);
     /// ```
     ///
-    /// ```rust,should_panic
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// invalid.unwrap(); // Panics
-    /// ```
-    ///
     /// # Panics
     ///
     /// Panics if this is invalid.
@@ -523,13 +506,6 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(invalid.unwrap_invalid(), vec!["e1", "e2"]);
     /// ```
     ///
-    /// ```rust,should_panic
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// valid.unwrap_invalid(); // Panics
-    /// ```
-    ///
     /// # Panics
     ///
     /// Panics if this is `Valid`.
@@ -553,5 +529,34 @@ impl<E, A> Validated<E, A> {
             Validated::Valid(x) => Some(x.clone()),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Validated;
+
+    #[test]
+    #[should_panic(expected = "Cannot unwrap invalid value")]
+    fn unwrap_rejects_invalid_values() {
+        Validated::<&str, i32>::invalid("error").unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot unwrap valid value")]
+    fn unwrap_invalid_rejects_valid_values() {
+        Validated::<&str, i32>::valid(42).unwrap_invalid();
+    }
+
+    #[test]
+    #[should_panic(expected = "Called Validated::unwrap_owned()")]
+    fn unwrap_owned_rejects_invalid_values() {
+        Validated::<&str, i32>::invalid("error").unwrap_owned();
+    }
+
+    #[test]
+    #[should_panic(expected = "Called Validated::unwrap_invalid_owned()")]
+    fn unwrap_invalid_owned_rejects_valid_values() {
+        Validated::<&str, i32>::valid(42).unwrap_invalid_owned();
     }
 }

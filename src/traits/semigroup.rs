@@ -56,31 +56,6 @@ use std::num::NonZeroUsize;
 ///
 /// Additional helper methods like `combine_n` / `combine_n_owned` are provided by `SemigroupExt`.
 ///
-/// # Example: Custom implementation
-///
-/// ```rust
-/// use rustica::traits::semigroup::Semigroup;
-///
-/// // A simple wrapper type for demonstrating Semigroup
-/// #[derive(Debug, Clone, PartialEq, Eq)]
-/// struct Max(i32);
-///
-/// impl Semigroup for Max {
-///     fn combine(&self, other: &Self) -> Self {
-///         Max(std::cmp::max(self.0, other.0))
-///     }
-///     
-///     fn combine_owned(self, other: Self) -> Self {
-///         Max(std::cmp::max(self.0, other.0))
-///     }
-/// }
-///
-/// // Using our custom Semigroup implementation
-/// let a = Max(5);
-/// let b = Max(10);
-/// let c = a.combine(&b);
-/// assert_eq!(c, Max(10)); // Max takes the maximum value
-/// ```
 pub trait Semigroup: Sized {
     /// Combines two values by reference to produce a new value.
     ///
@@ -95,17 +70,6 @@ pub trait Semigroup: Sized {
     ///
     /// A new value of the same type, which is the result of combining `self` and `other`.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // Combining strings (concatenation is a semigroup operation)
-    /// let hello = "Hello, ".to_string();
-    /// let world = "world!".to_string();
-    /// let message = hello.combine(&world);
-    /// assert_eq!(message, "Hello, world!");
-    /// ```
     fn combine(&self, other: &Self) -> Self;
 
     /// Combines two values by consuming them to produce a new value.
@@ -485,7 +449,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{SemigroupExt, combine_all_values};
+    use super::{Semigroup, SemigroupExt, combine_all_values};
     use crate::datatypes::wrapper::sum::Sum;
     use std::num::NonZeroUsize;
 
@@ -500,5 +464,29 @@ mod tests {
     fn empty_sequence_is_option() {
         let values: Vec<Sum<i32>> = Vec::new();
         assert_eq!(combine_all_values(values), None);
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct Max(i32);
+
+    impl super::Semigroup for Max {
+        fn combine(&self, other: &Self) -> Self {
+            Max(self.0.max(other.0))
+        }
+
+        fn combine_owned(self, other: Self) -> Self {
+            Max(self.0.max(other.0))
+        }
+    }
+
+    #[test]
+    fn custom_semigroup_combines_values() {
+        assert_eq!(Max(5).combine(&Max(10)), Max(10));
+    }
+
+    #[test]
+    fn strings_combine_by_concatenation() {
+        let hello = "Hello, ".to_owned();
+        assert_eq!(hello.combine(&"world!".to_owned()), "Hello, world!");
     }
 }

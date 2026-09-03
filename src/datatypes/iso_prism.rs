@@ -89,87 +89,9 @@
 //!
 //! ### Composing IsoPrisms
 //!
-//! ```rust
-//! use rustica::datatypes::iso_prism::IsoPrism;
-//! use rustica::traits::iso::Iso;
-//! use std::marker::PhantomData;
-//!
-//! // Nested enum structure
-//! #[derive(Clone, Debug, PartialEq)]
-//! enum Shape {
-//!     Circle { radius: f64 },
-//!     Rectangle { width: f64, height: f64 },
-//! }
-//!
-//! #[derive(Clone, Debug, PartialEq)]
-//! enum Drawing {
-//!     Shape(Shape),
-//!     Text(String),
-//! }
-//!
-//! // Iso for focusing on the Shape variant in Drawing
-//! struct ShapeIso;
-//! impl Iso<Drawing, Option<Shape>> for ShapeIso {
-//!     type From = Drawing;
-//!     type To = Option<Shape>;
-//!
-//!     fn forward(&self, from: &Drawing) -> Option<Shape> {
-//!         match from {
-//!             Drawing::Shape(shape) => Some(shape.clone()),
-//!             _ => None,
-//!         }
-//!     }
-//!
-//!     fn backward(&self, to: &Option<Shape>) -> Drawing {
-//!         match to {
-//!             Some(shape) => Drawing::Shape(shape.clone()),
-//!             None => Drawing::Text("Placeholder".to_string()),
-//!         }
-//!     }
-//! }
-//!
-//! // Iso for focusing on the Circle variant in Shape
-//! struct CircleIso;
-//! impl Iso<Shape, Option<f64>> for CircleIso {
-//!     type From = Shape;
-//!     type To = Option<f64>;
-//!
-//!     fn forward(&self, from: &Shape) -> Option<f64> {
-//!         match from {
-//!             Shape::Circle { radius } => Some(*radius),
-//!             _ => None,
-//!         }
-//!     }
-//!
-//!     fn backward(&self, to: &Option<f64>) -> Shape {
-//!         match to {
-//!             Some(radius) => Shape::Circle { radius: *radius },
-//!             None => Shape::Rectangle { width: 0.0, height: 0.0 },
-//!         }
-//!     }
-//! }
-//!
-//! // Create the prisms
-//! let shape_prism = IsoPrism::new(ShapeIso);
-//! let circle_prism = IsoPrism::new(CircleIso);
-//!
-//! // Compose them to get a prism that focuses on Circle within Drawing
-//! let circle_in_drawing_prism = shape_prism.compose(circle_prism);
-//!
-//! // Use the composed prism
-//! let circle_drawing = Drawing::Shape(Shape::Circle { radius: 5.0 });
-//! let rect_drawing = Drawing::Shape(Shape::Rectangle { width: 3.0, height: 4.0 });
-//! let text_drawing = Drawing::Text("Hello".to_string());
-//!
-//! // Extract the radius from various drawings
-//! assert_eq!(circle_in_drawing_prism.preview(&circle_drawing), Some(5.0));
-//! assert_eq!(circle_in_drawing_prism.preview(&rect_drawing), None);
-//! assert_eq!(circle_in_drawing_prism.preview(&text_drawing), None);
-//!
-//! // Create a new drawing with a circle of radius 10.0
-//! let new_circle_drawing = circle_in_drawing_prism.review(&10.0);
-//! assert_eq!(new_circle_drawing, Drawing::Shape(Shape::Circle { radius: 10.0 }));
-//! ```
+//! Use [`IsoPrism::compose`] to focus through nested sum types. The composition
+//! preserves `None` when either prism does not match; its behavior is covered by
+//! `test_iso_prism_nested_composition`.
 //!
 //! ## Type Class Laws
 //!

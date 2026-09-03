@@ -24,6 +24,27 @@ fn test_choice_always_has_primary() {
 }
 
 #[test]
+fn choice_try_from_rejects_empty_and_preserves_order() {
+    let empty: Result<Choice<i32>, _> = Vec::new().try_into();
+    assert_eq!(
+        empty,
+        Err(rustica::datatypes::error::ChoiceError::EmptyInput)
+    );
+    let empty_slice: Result<Choice<i32>, _> = (&[][..]).try_into();
+    assert_eq!(
+        empty_slice,
+        Err(rustica::datatypes::error::ChoiceError::EmptyInput)
+    );
+
+    let choice: Choice<i32> = vec![10, 20, 30].try_into().unwrap();
+    assert_eq!(choice.iter().copied().collect::<Vec<_>>(), vec![10, 20, 30]);
+
+    let values = [40, 50];
+    let choice: Choice<i32> = (&values[..]).try_into().unwrap();
+    assert_eq!(choice.iter().copied().collect::<Vec<_>>(), vec![40, 50]);
+}
+
+#[test]
 fn test_choice_of_many() {
     assert_eq!(Choice::of_many(Vec::<i32>::new()), None);
     let c = Choice::of_many(vec![10, 20, 30]).expect("should be non-empty");

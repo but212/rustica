@@ -72,7 +72,12 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
                     |vec| {
                         let mut sum = 0usize;
                         for i in 0..size {
-                            sum += black_box(vec.get(i).unwrap());
+                            match vec.get(i) {
+                                Some(item) => sum += black_box(item),
+                                None => {
+                                    unreachable!("indexed benchmark input must contain every index")
+                                },
+                            }
                         }
                         black_box(sum)
                     },
@@ -247,12 +252,15 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
                 .collect();
 
             for handle in handles {
-                handle.join().unwrap();
+                match handle.join() {
+                    Ok(()) => {},
+                    Err(payload) => std::panic::resume_unwind(payload),
+                }
             }
         });
     });
 
-    group.bench_function("concurrent_modifications", |b| {
+    group.bench_function("parallel_clone_updates", |b| {
         let vec: PersistentVector<usize> = (0..1000).collect();
         let arc_vec = Arc::new(vec);
 
@@ -271,7 +279,13 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
                 })
                 .collect();
 
-            let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+            let results: Vec<_> = handles
+                .into_iter()
+                .map(|handle| match handle.join() {
+                    Ok(result) => result,
+                    Err(payload) => std::panic::resume_unwind(payload),
+                })
+                .collect();
             black_box(results)
         });
     });

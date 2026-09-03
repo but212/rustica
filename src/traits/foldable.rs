@@ -40,23 +40,8 @@
 //! let sum: i32 = numbers.clone().fold_left(&0, |acc, x| acc + x);
 //! assert_eq!(sum, 15);
 //!
-//! // Example with Option
-//! let some_value: Option<i32> = Some(42);
-//! let doubled: i32 = some_value.clone().fold_left(&0, |_, x| x * 2);
-//! assert_eq!(doubled, 84);
-//!
-//! let none_value: Option<i32> = None;
-//! let result: i32 = none_value.fold_left(&100, |acc, _| acc.to_owned());
-//! assert_eq!(result, 100); // Initial value is returned for None
-//!
-//! // Example with Result
-//! let ok_result: Result<i32, &str> = Ok(42);
-//! let incremented: i32 = ok_result.clone().fold_left(&0, |_, x| x + 10);
-//! assert_eq!(incremented, 52);
-//!
-//! let err_result: Result<i32, &str> = Err("error");
-//! let fallback: i32 = err_result.fold_left(&100, |acc, _| acc.to_owned());
-//! assert_eq!(fallback, 100); // Initial value is returned for Err
+//! // `Option` and `Result` also fold their successful value, returning the initial
+//! // accumulator for `None` or `Err`.
 //!
 //! // Using extension methods
 //! assert_eq!(numbers.sum_values(), 15);
@@ -185,31 +170,10 @@ pub trait Foldable: HKT {
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::traits::foldable::Foldable;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
+    /// use rustica::prelude::*;
     ///
-    /// #[derive(Debug, PartialEq, Clone)]
-    /// struct Sum(i32);
-    ///
-    /// impl Semigroup for Sum {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         Sum(self.0 + other.0)
-    ///     }
-    ///
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         Sum(self.0 + other.0)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Sum {
-    ///     fn empty() -> Self {
-    ///         Sum(0)
-    ///     }
-    /// }
-    ///
-    /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
-    /// let result: Sum = numbers.fold_map(|n| Sum(*n));
+    /// let numbers = vec![1, 2, 3, 4];
+    /// let result: Sum<i32> = numbers.fold_map(|n| Sum(*n));
     /// assert_eq!(result, Sum(10));
     /// ```
     #[inline]
@@ -236,33 +200,10 @@ pub trait Foldable: HKT {
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::traits::foldable::Foldable;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monoid::Monoid;
-    /// use std::ops::Add;
+    /// use rustica::prelude::*;
     ///
-    /// #[derive(Debug, PartialEq, Clone)]
-    /// struct Sum(i32);
-    ///
-    /// impl Semigroup for Sum {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         Sum(self.0 + other.0)
-    ///     }
-    ///
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         Sum(self.0 + other.0)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Sum {
-    ///     fn empty() -> Self {
-    ///         Sum(0)
-    ///     }
-    /// }
-    ///
-    /// let numbers: Vec<Sum> = vec![Sum(1), Sum(2), Sum(3), Sum(4)];
-    /// let result: Sum = numbers.fold_monoid::<Sum>();
-    /// assert_eq!(result, Sum(10));
+    /// let numbers = vec![Sum(1), Sum(2), Sum(3), Sum(4)];
+    /// assert_eq!(numbers.fold_monoid::<Sum<i32>>(), Sum(10));
     /// ```
     #[inline]
     fn fold_monoid<M: Monoid + Clone>(&self) -> M
@@ -429,7 +370,7 @@ pub trait FoldableExt: Foldable {
 
     /// Folds over a structure with an optional monoidal value.
     ///
-    /// This is a more powerful version of fold that can short-circuit when None is encountered.
+    /// This is a more powerful version of fold that stops invoking `f` after `None` is encountered.
     ///
     /// # Type Parameters
     ///
@@ -449,9 +390,11 @@ pub trait FoldableExt: Foldable {
         F: Fn(&Self::Source) -> Option<B>,
         B: Monoid + Clone,
     {
-        self.fold_left(&Some(B::empty()), |acc, x| match (acc, f(x)) {
-            (Some(a), Some(b)) => Some(a.combine(&b)),
-            _ => None,
+        self.fold_left(&Some(B::empty()), |acc, x| {
+            let Some(acc) = acc else {
+                return None;
+            };
+            f(x).map(|value| acc.combine(&value))
         })
     }
 

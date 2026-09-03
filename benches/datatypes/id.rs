@@ -100,7 +100,7 @@ pub fn id_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             let id = Id::new(black_box(5));
             let result = id.extend(|ctx| {
-                let inner_value = ctx.unwrap();
+                let inner_value = *ctx.as_ref();
                 inner_value * inner_value
             });
             black_box(result)
@@ -126,10 +126,10 @@ pub fn id_benchmarks(c: &mut Criterion) {
     });
 
     // Identity trait benchmarks
-    group.bench_function("id_value", |b| {
+    group.bench_function("id_as_ref", |b| {
         b.iter(|| {
             let id = Id::new(black_box(42));
-            let result = id.unwrap();
+            let result = *id.as_ref();
             black_box(result)
         })
     });

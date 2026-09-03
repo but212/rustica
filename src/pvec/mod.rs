@@ -120,6 +120,36 @@ mod tests {
     }
 
     #[test]
+    fn unequal_height_concat_preserves_operand_order() {
+        let short = PersistentVector::unit(0);
+        let long: PersistentVector<usize> = (1..130).collect();
+        assert_eq!(short.concat(&long).to_vec(), (0..130).collect::<Vec<_>>());
+        assert_eq!(
+            long.concat(&short).to_vec(),
+            (1..130).chain([0]).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn pop_back_handles_head_and_tree_storage() {
+        for length in [65, 129] {
+            let mut vector = PersistentVector::new();
+            for value in 0..length {
+                vector = vector.push_front(value);
+            }
+
+            let mut expected: Vec<_> = (0..length).rev().collect();
+            for _ in 0..length {
+                let (without_last, last) = vector.pop_back().expect("non-empty vector");
+                assert_eq!(last, expected.pop().expect("expected value"));
+                assert_eq!(without_last.to_vec(), expected);
+                vector = without_last;
+            }
+            assert!(vector.pop_back().is_none());
+        }
+    }
+
+    #[test]
     fn test_pvec_element_access_and_updates() {
         let vec = crate::pvec![1, 2, 3];
         assert_eq!(vec.first(), Some(&1));
@@ -244,6 +274,25 @@ mod tests {
         let mut expected: Vec<i32> = (0..100).collect();
         expected.remove(50);
         assert_eq!(remove_mid.to_vec(), expected);
+    }
+
+    #[test]
+    fn split_after_insert_preserves_values_and_lengths() {
+        let vector: PersistentVector<i32> = (0..83).collect();
+        let inserted = vector.insert(38, 999);
+        let expected: Vec<i32> = (0..38).chain(std::iter::once(999)).chain(38..83).collect();
+
+        let (left, right) = inserted.split_at(42);
+        assert_eq!(left.len(), 42);
+        assert_eq!(right.len(), 42);
+        assert_eq!(left.to_vec(), expected[..42]);
+        assert_eq!(right.to_vec(), expected[42..]);
+        assert_eq!(left.concat(&right).to_vec(), expected);
+
+        let removed = inserted
+            .remove(38)
+            .expect("inserted value should be removable");
+        assert_eq!(removed.to_vec(), (0..83).collect::<Vec<_>>());
     }
 
     #[test]

@@ -430,7 +430,7 @@ impl<T: Clone> RRBTree<T> {
         if self.height == other.height {
             self.concat_same_height(other)
         } else if self.height < other.height {
-            other.concat_different_height(self, false)
+            self.concat_different_height(other, false)
         } else {
             self.concat_different_height(other, true)
         }
@@ -448,17 +448,17 @@ impl<T: Clone> RRBTree<T> {
             right_for_merge = right_for_merge.push_head_to_tree();
         }
 
-        let merged_root = Self::concat_nodes(
-            &left_for_merge.root,
-            &right_for_merge.root,
-            self.height.max(other.height),
-        );
+        let merge_height = left_for_merge.height.max(right_for_merge.height);
+        let merged_root =
+            Self::concat_nodes(&left_for_merge.root, &right_for_merge.root, merge_height);
+        let root = Arc::new(merged_root);
+        let height = Self::calculate_height(&root);
 
         Self {
-            root: Arc::new(merged_root),
+            root,
             tail: right_for_merge.tail,
             head: left_for_merge.head,
-            height: self.height.max(other.height),
+            height,
             len: self.len + other.len,
         }
     }
@@ -594,6 +594,21 @@ impl<T: Clone> RRBTree<T> {
                 popped,
             ))
         } else {
+            let tree_size = self.len - self.head.len() - self.tail.len();
+            if tree_size == 0 {
+                let mut new_head = self.head.clone();
+                let popped = new_head.pop()?;
+                return Some((
+                    Self {
+                        root: self.root.clone(),
+                        tail: self.tail.clone(),
+                        head: new_head,
+                        height: self.height,
+                        len: self.len - 1,
+                    },
+                    popped,
+                ));
+            }
             self.pop_from_tree()
         }
     }
@@ -603,7 +618,7 @@ impl<T: Clone> RRBTree<T> {
             return None;
         }
 
-        let tree_size = self.len - self.tail.len();
+        let tree_size = self.len - self.head.len() - self.tail.len();
         if tree_size == 0 {
             return None;
         }

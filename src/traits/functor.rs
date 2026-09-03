@@ -6,12 +6,6 @@
 //! A functor is a type constructor that supports a mapping operation which preserves
 //! the structure of the functor while transforming its contents.
 //!
-//! ## Breaking Change (v0.11.0)
-//!
-//! The `Functor` trait no longer extends `Identity`. This aligns with category theory
-//! where functors don't require value extraction capabilities. The `Identity` trait
-//! is deprecated - use standard methods (`unwrap`, `as_ref`) or `Comonad::extract()` instead.
-//!
 //! ## Quick Start
 //!
 //! Transform values while preserving structure:
@@ -58,24 +52,8 @@
 //!
 //! ## Functor Laws
 //!
-//! A proper functor should satisfy the following laws:
-//!
-//! ```rust
-//! use rustica::traits::functor::Functor;
-//!
-//! // 1. Identity
-//! let x: Option<i32> = Some(42);
-//! assert_eq!(x.fmap(|v| v.clone()), x);
-//!
-//! // 2. Composition
-//! let f = |x: &i32| x + 1;
-//! let g = |x: &i32| x * 2;
-//! let x: Option<i32> = Some(1);
-//!
-//! let result1: Option<i32> = x.fmap(|v| g(&f(v)));
-//! let result2: Option<i32> = x.fmap(f).fmap(g);
-//! assert_eq!(result1, result2);
-//! ```
+//! Implementations preserve identity and composition. Exhaustive law checks live in
+//! `tests/traits/algebraic_laws.rs`; the quick-start example above shows normal usage.
 
 use crate::prelude::*;
 

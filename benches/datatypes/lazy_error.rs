@@ -43,24 +43,33 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
         });
     });
 
-    // Multi-context - happy path
+    // Multi-context happy path: lazy formatting is skipped for Ok results.
     group.bench_function("multi_context_happy_lazy", |b| {
         b.iter(|| {
-            let mut err: ComposableError<&str> = ComposableError::new("core");
-            for i in 0..5 {
-                err = err.with_context(context!("step {} failed", i));
-            }
-            black_box(err)
+            let result: Result<i32, &str> = Ok(42);
+            let processed = result.map_err(|error| {
+                let mut err = ComposableError::new(error);
+                for i in 0..5 {
+                    err = err.with_context(context!("step {} failed", i));
+                }
+                err
+            });
+            black_box(processed)
         });
     });
 
     group.bench_function("multi_context_happy_eager", |b| {
         b.iter(|| {
-            let mut err: ComposableError<&str> = ComposableError::new("core");
-            for i in 0..5 {
-                err = err.with_context(format!("step {} failed", i));
-            }
-            black_box(err)
+            let result: Result<i32, &str> = Ok(42);
+            let contexts: Vec<String> = (0..5).map(|i| format!("step {} failed", i)).collect();
+            let processed = result.map_err(|error| {
+                let mut err = ComposableError::new(error);
+                for context in contexts {
+                    err = err.with_context(context);
+                }
+                err
+            });
+            black_box(processed)
         });
     });
 
@@ -71,15 +80,19 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
             count,
             |b, &count| {
                 b.iter(|| {
-                    let mut err: ComposableError<&str> = ComposableError::new("core");
-                    for i in 0..count {
-                        err = err.with_context(context!(
-                            "Error at iteration {} with value {}",
-                            i,
-                            i * 100
-                        ));
-                    }
-                    black_box(err)
+                    let result: Result<i32, &str> = Ok(42);
+                    let processed = result.map_err(|error| {
+                        let mut err = ComposableError::new(error);
+                        for i in 0..count {
+                            err = err.with_context(context!(
+                                "Error at iteration {} with value {}",
+                                i,
+                                i * 100
+                            ));
+                        }
+                        err
+                    });
+                    black_box(processed)
                 });
             },
         );
@@ -89,15 +102,18 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
             count,
             |b, &count| {
                 b.iter(|| {
-                    let mut err: ComposableError<&str> = ComposableError::new("core");
-                    for i in 0..count {
-                        err = err.with_context(format!(
-                            "Error at iteration {} with value {}",
-                            i,
-                            i * 100
-                        ));
-                    }
-                    black_box(err)
+                    let result: Result<i32, &str> = Ok(42);
+                    let contexts: Vec<String> = (0..count)
+                        .map(|i| format!("Error at iteration {} with value {}", i, i * 100))
+                        .collect();
+                    let processed = result.map_err(|error| {
+                        let mut err = ComposableError::new(error);
+                        for context in contexts {
+                            err = err.with_context(context);
+                        }
+                        err
+                    });
+                    black_box(processed)
                 });
             },
         );
@@ -119,8 +135,10 @@ pub fn lazy_error_benchmarks(c: &mut Criterion) {
                 }),
             );
 
-            // Counter should remain 0 because result is Ok
-            black_box(counter.load(Ordering::Relaxed))
+            // Counter must remain 0 because result is Ok.
+            let evaluations = counter.load(Ordering::Relaxed);
+            assert_eq!(evaluations, 0);
+            black_box(evaluations)
         });
     });
 

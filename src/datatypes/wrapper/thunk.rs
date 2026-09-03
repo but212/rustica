@@ -77,26 +77,8 @@ use std::marker::PhantomData;
 ///
 /// # Evaluate Laws
 ///
-/// Thunk satisfies the following laws:
-///
-/// 1. **Idempotence**: Evaluating multiple times produces the same result for pure functions
-///    ```rust
-///    # use rustica::datatypes::wrapper::thunk::Thunk;
-///    let thunk = Thunk::new(|| 42);
-///    assert_eq!(thunk.evaluate(), thunk.evaluate()); // Should be true for pure functions
-///    ```
-///
-/// 2. **Referential Transparency**: Replacing a thunk with its evaluated result doesn't change behavior
-///    ```rust
-///    # use rustica::datatypes::wrapper::thunk::Thunk;
-///    let thunk = Thunk::new(|| 42);
-///    let value = thunk.evaluate();
-///    
-///    // These should be equivalent operations:
-///    let result1 = thunk.evaluate() + 1;
-///    let result2 = value + 1;
-///    assert_eq!(result1, result2);
-///    ```
+/// For pure functions, repeated evaluation is idempotent and referentially transparent;
+/// these properties are verified by unit tests.
 #[derive(Clone)]
 pub struct Thunk<F, T>
 where
@@ -172,4 +154,17 @@ where
 {
     type Source = T;
     type Output<U> = Thunk<Box<dyn Fn() -> U>, U>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Thunk;
+
+    #[test]
+    fn pure_thunks_are_idempotent_and_referentially_transparent() {
+        let thunk = Thunk::new(|| 42);
+        assert_eq!(thunk.evaluate(), thunk.evaluate());
+        let value = thunk.evaluate();
+        assert_eq!(thunk.evaluate() + 1, value + 1);
+    }
 }

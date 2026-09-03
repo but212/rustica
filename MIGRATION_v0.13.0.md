@@ -1,6 +1,6 @@
 # Rustica 0.13 migration
 
-This release removes APIs that were compatibility shims or no-op configuration:
+This release removes compatibility shims and no-op configuration:
 
 - `Choice::{remove_alternative, try_remove_alternative, iter_alternatives,
   try_swap_with_alternative}`. Use `alternatives()`/`alternatives().iter()` or
@@ -23,8 +23,7 @@ This release removes APIs that were compatibility shims or no-op configuration:
 
 ## Lean maintenance (non-breaking)
 
-The following 0.13.0 changes preserve public names, return types, ordering, and
-fail-fast behavior:
+These changes preserve public names, return types, ordering, and fail-fast behavior:
 
 - Owned error conversions no longer require `Clone` for values that are moved:
   `validated_to_result`, `result_to_validated`, `either_to_validated`,
@@ -37,24 +36,23 @@ fail-fast behavior:
   migration or redesign is required until its planned removal in 0.14.0;
   use native `Result` combinators for new code.
 
-`Memoizer` eviction helpers now return the named `InsertOutcome<K, V>` struct
-instead of an undocumented tuple alias; read its `replaced` and `evicted`
-fields directly.
+`Memoizer` eviction helpers now return `InsertOutcome<K, V>` instead of an
+undocumented tuple alias. Read its `replaced` and `evicted` fields directly.
 
 `Validated::Invalid` now stores `NonEmptyErrors<E>`; the former public
 `ErrorVec<E>` alias is internal. Use `errors()`, `error_slice()`, or
-`NonEmptyErrors` iteration instead. Existing JSON is still an array of errors,
-but deserializing an empty error array is rejected.
+`NonEmptyErrors` iteration. JSON remains an error array, but empty arrays are
+rejected during deserialization.
 
 Validated's applicative, bifunctor, semigroup, sequence, collection, and
-traversal operations now share one internal error accumulator. Error ordering
-and accumulation behavior are unchanged, and `traverse_validated` no longer
-requires `E: Clone`.
+traversal operations now share an internal error accumulator. Error ordering
+and accumulation are unchanged; `traverse_validated` no longer requires
+`E: Clone`.
 
-`SemigroupExt::combine_n` and `combine_n_owned` accept `NonZeroUsize`, and
-`combine_all_values` is the single empty-safe sequence operation.
+`SemigroupExt::combine_n` and `combine_n_owned` accept `NonZeroUsize`.
+`combine_all_values` is the only empty-safe sequence operation.
 
-Performance/API updates in this release:
+Performance/API updates:
 
 - `StateT::{fmap_with, bind_with, combine_with}` and `ReaderT::{fmap_with,
   bind_with, combine_with}` pass callback functions by borrowed `dyn Fn`
@@ -77,8 +75,8 @@ Performance/API updates in this release:
 - `PersistentVector` construction from `Iterator`/`Vec` no longer requires
   `T: Clone`. Consuming iteration and `Vec::from(PersistentVector)` move
   uniquely-owned storage and clone only when a persistent tree is shared.
-- `PersistentVector` owned construction consumes input in leaf-sized chunks;
-  it no longer materializes a second full input `Vec` before building the tree.
+- `PersistentVector` owned construction consumes leaf-sized chunks without
+  materializing a second full input `Vec`.
 - `Choice` consuming conversions (`From<Vec<T>>`, `From<Choice<T>> for Vec<T>`,
   `IntoIterator`, and `FromIterator<Choice<T>>`) no longer require `T: Clone`.
 - `Memoizer::insert`, `try_insert`, and eviction-info insertion paths replace
@@ -86,7 +84,7 @@ Performance/API updates in this release:
   cached copies (`get*`, `get_or_compute*`, and `values`). A zero-capacity
   memoizer now stores no entries.
 
-The following behavior is unchanged while using fewer temporary allocations:
+These operations now use fewer temporary allocations without changing behavior:
 
 - `Choice` applicative results retain value-major ordering (all functions are
   applied to the primary value first, then to each alternative).

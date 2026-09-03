@@ -40,18 +40,6 @@
 //! ## Async Support
 //!
 //! - `async_monad` - Async-aware monadic operations (requires `async` feature)
-//!
-//! # Example
-//!
-//! ```rust
-//! use rustica::datatypes::id::Id;
-//! use rustica::traits::functor::Functor;
-//!
-//! // Using Id for simple pure values
-//! let value = Id::new(42);
-//! let doubled = value.fmap(|x| x * 2);
-//! assert_eq!(doubled.unwrap(), 84);
-//! ```
 
 #[cfg(feature = "async")]
 pub mod async_monad;

@@ -110,74 +110,8 @@
 //!
 //! ## Basic Usage
 //!
-//! ```rust
-//! use rustica::datatypes::prism::Prism;
-//!
-//! // Define an enum (sum type)
-//! #[derive(Debug, Clone, PartialEq)]
-//! enum UserStatus {
-//!     Active { username: String, last_login: u64 },
-//!     Inactive { username: String, since: u64 },
-//!     Pending { username: String },
-//! }
-//!
-//! // Create a prism for the Active variant
-//! let active_prism = Prism::new(
-//!     // Preview function - extract data if it's the Active variant
-//!     |status: &UserStatus| match status {
-//!         UserStatus::Active { username, last_login } =>
-//!             Some((username.clone(), *last_login)),
-//!         _ => None,
-//!     },
-//!     // Review function - create an Active variant from the data
-//!     |(username, last_login): &(String, u64)| UserStatus::Active {
-//!         username: username.clone(),
-//!         last_login: *last_login
-//!     },
-//! );
-//!
-//! // Create sample data
-//! let active_user = UserStatus::Active {
-//!     username: "alice".to_string(),
-//!     last_login: 1625097600
-//! };
-//! let inactive_user = UserStatus::Inactive {
-//!     username: "bob".to_string(),
-//!     since: 1622505600
-//! };
-//!
-//! // Preview (extract) data - succeeds for the matching variant
-//! let active_data = active_prism.preview(&active_user);
-//! assert_eq!(active_data, Some(("alice".to_string(), 1625097600)));
-//!
-//! // Preview fails for non-matching variant
-//! let no_data = active_prism.preview(&inactive_user);
-//! assert_eq!(no_data, None);
-//!
-//! // Review (construct) - create a new UserStatus::Active
-//! let new_active = active_prism.review(&("carol".to_string(), 1633046400));
-//! assert_eq!(new_active, UserStatus::Active {
-//!     username: "carol".to_string(),
-//!     last_login: 1633046400
-//! });
-//!
-//! // Transform - preview, modify, and review if it's the right variant
-//! let updated = match active_prism.preview(&active_user) {
-//!     Some((name, _)) => active_prism.review(&(name, 1633046400)),
-//!     None => active_user.clone(),
-//! };
-//! assert_eq!(updated, UserStatus::Active {
-//!     username: "alice".to_string(),
-//!     last_login: 1633046400
-//! });
-//!
-//! // Transform does nothing for wrong variant
-//! let unchanged = match active_prism.preview(&inactive_user) {
-//!     Some((name, _)) => active_prism.review(&(name, 1633046400)),
-//!     None => inactive_user.clone(),
-//! };
-//! assert_eq!(unchanged, inactive_user);
-//! ```
+//! The quick-start example above covers preview, review, and modification.
+//! Law and boundary behavior is covered by `tests/datatypes/test_prism.rs`.
 //!
 //! ## Type Class Laws
 //!
@@ -204,110 +138,9 @@
 //!
 //! # Examples
 //!
-//! Basic usage with enum variants:
-//!
-//! ```rust
-//! use rustica::datatypes::prism::Prism;
-//!
-//! // Define a sum type
-//! #[derive(Debug, PartialEq, Clone)]
-//! enum UserStatus {
-//!     LoggedIn { username: String, session_id: String },
-//!     LoggedOut,
-//!     Suspended { reason: String },
-//! }
-//!
-//! // Create a prism for the LoggedIn variant
-//! let logged_in_prism = Prism::new(
-//!     |status: &UserStatus| match status {
-//!         UserStatus::LoggedIn { username, session_id } => Some((username.clone(), session_id.clone())),
-//!         _ => None,
-//!     },
-//!     |&(ref username, ref session_id)| UserStatus::LoggedIn {
-//!         username: username.clone(),
-//!         session_id: session_id.clone(),
-//!     },
-//! );
-//!
-//! // Use the prism to extract data
-//! let user = UserStatus::LoggedIn {
-//!     username: "alice".to_string(),
-//!     session_id: "abc123".to_string(),
-//! };
-//!
-//! let suspended = UserStatus::Suspended {
-//!     reason: "Violation of terms".to_string(),
-//! };
-//!
-//! // Preview succeeds for LoggedIn
-//! let data = logged_in_prism.preview(&user);
-//! assert_eq!(data, Some(("alice".to_string(), "abc123".to_string())));
-//!
-//! // Preview fails for other variants
-//! let no_data = logged_in_prism.preview(&suspended);
-//! assert_eq!(no_data, None);
-//!
-//! // Create a new LoggedIn user
-//! let new_user = logged_in_prism.review(&("bob".to_string(), "xyz789".to_string()));
-//! assert_eq!(new_user, UserStatus::LoggedIn {
-//!     username: "bob".to_string(),
-//!     session_id: "xyz789".to_string(),
-//! });
-//! ```
-//!
-//! Composing prisms for nested structures:
-//!
-//! ```rust
-//! use rustica::datatypes::prism::Prism;
-//!
-//! #[derive(Debug, PartialEq, Clone)]
-//! enum HttpResponse {
-//!     Success { body: ResponseBody, status: u16 },
-//!     Error { code: u16, message: String }
-//! }
-//!
-//! #[derive(Debug, PartialEq, Clone)]
-//! enum ResponseBody {
-//!     Json(String),
-//!     Text(String),
-//!     Binary(Vec<u8>)
-//! }
-//!
-//! // Prism for the Success variant
-//! let success_prism = Prism::new(
-//!     |resp: &HttpResponse| match resp {
-//!         HttpResponse::Success { body, status } => Some((body.clone(), *status)),
-//!         _ => None
-//!     },
-//!     |&(ref body, status)| HttpResponse::Success {
-//!         body: body.clone(),
-//!         status
-//!     }
-//! );
-//!
-//! // Prism for the Json body variant
-//! let json_body_prism = Prism::new(
-//!     |body: &ResponseBody| match body {
-//!         ResponseBody::Json(json) => Some(json.clone()),
-//!         _ => None
-//!     },
-//!     |json: &String| ResponseBody::Json(json.clone())
-//! );
-//!
-//! // Example response
-//! let response = HttpResponse::Success {
-//!     body: ResponseBody::Json("{\"user\": \"alice\"}".to_string()),
-//!     status: 200
-//! };
-//!
-//! // First extract the success part
-//! if let Some((body, status)) = success_prism.preview(&response) {
-//!     // Then extract the JSON content if available
-//!     if let Some(json) = json_body_prism.preview(&body) {
-//!         assert_eq!(json, "{\"user\": \"alice\"}");
-//!     }
-//! }
-//! ```
+//! The quick-start example demonstrates the core Prism workflow. Nested prism
+//! composition and variant-specific behavior are covered by
+//! `tests/datatypes/test_prism.rs`.
 
 use std::marker::PhantomData;
 
@@ -381,58 +214,8 @@ use std::marker::PhantomData;
 /// assert!(matches!(new_active, Status::Active(name) if name == "Bob"));
 /// ```
 ///
-/// Working with complex enum variants:
-///
-/// ```rust
-/// use rustica::datatypes::prism::Prism;
-/// use std::collections::HashMap;
-///
-/// #[derive(Debug, Clone, PartialEq)]
-/// enum ConfigValue {
-///     Integer(i64),
-///     Float(f64),
-///     String(String),
-///     Dictionary(HashMap<String, ConfigValue>),
-///     Array(Vec<ConfigValue>),
-/// }
-///
-/// // Create a prism for the Dictionary variant
-/// let dict_prism = Prism::new(
-///     |cv: &ConfigValue| match cv {
-///         ConfigValue::Dictionary(map) => Some(map.clone()),
-///         _ => None,
-///     },
-///     |map: &HashMap<String, ConfigValue>| ConfigValue::Dictionary(map.clone()),
-/// );
-///
-/// // Create sample configuration
-/// let mut user_prefs = HashMap::new();
-/// user_prefs.insert("name".to_string(), ConfigValue::String("Alice".to_string()));
-/// user_prefs.insert("age".to_string(), ConfigValue::Integer(30));
-///
-/// let config = ConfigValue::Dictionary(user_prefs);
-///
-/// // Extract the dictionary from the config
-/// if let Some(prefs) = dict_prism.preview(&config) {
-///     // Access values from the dictionary
-///     if let Some(ConfigValue::String(name)) = prefs.get("name") {
-///         assert_eq!(name, "Alice");
-///     }
-///     
-///     // Create a modified dictionary
-///     let mut updated_prefs = prefs.clone();
-///     updated_prefs.insert("theme".to_string(), ConfigValue::String("dark".to_string()));
-///     
-///     // Create a new config with the updated dictionary
-///     let updated_config = dict_prism.review(&updated_prefs);
-///     
-///     // We can verify the new config has our updated preferences
-///     if let Some(new_prefs) = dict_prism.preview(&updated_config) {
-///         assert_eq!(new_prefs.len(), 3);
-///         assert!(new_prefs.contains_key("theme"));
-///     }
-/// }
-/// ```
+/// Complex variant extraction and nested composition are covered by
+/// `tests/datatypes/test_prism.rs`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Prism<S, A, PreviewFn, ReviewFn>
 where

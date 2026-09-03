@@ -33,6 +33,9 @@ pub enum ChoiceError {
     /// This error occurs when calling `flatten` on a Choice where
     /// the primary value produces an empty iterator.
     EmptyPrimaryIterator,
+
+    /// Input contained no values when constructing a `Choice`.
+    EmptyInput,
 }
 
 impl ChoiceError {
@@ -41,14 +44,23 @@ impl ChoiceError {
     pub const fn is_empty_primary_iterator(&self) -> bool {
         matches!(self, ChoiceError::EmptyPrimaryIterator)
     }
+
+    /// Returns `true` if this is an `EmptyInput` error.
+    #[inline]
+    pub const fn is_empty_input(&self) -> bool {
+        matches!(self, ChoiceError::EmptyInput)
+    }
 }
 
 impl Display for ChoiceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Choice::flatten(): primary value produced empty iterator"
-        )
+        match self {
+            ChoiceError::EmptyPrimaryIterator => write!(
+                f,
+                "Choice::flatten(): primary value produced empty iterator"
+            ),
+            ChoiceError::EmptyInput => write!(f, "Choice construction requires at least one value"),
+        }
     }
 }
 
@@ -123,6 +135,10 @@ mod tests {
         assert_eq!(
             ChoiceError::EmptyPrimaryIterator.to_string(),
             "Choice::flatten(): primary value produced empty iterator"
+        );
+        assert_eq!(
+            ChoiceError::EmptyInput.to_string(),
+            "Choice construction requires at least one value"
         );
     }
 
