@@ -39,14 +39,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.13.0"
+rustica = "0.14.0"
 ```
 
 For full features including `async`, `serde`, and `quickcheck`:
 
 ```toml
 [dependencies]
-rustica = { version = "0.13.0", features = ["full"] }
+rustica = { version = "0.14.0", features = ["full"] }
 ```
 
 Import common traits and types through the prelude:
