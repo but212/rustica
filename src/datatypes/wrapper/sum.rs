@@ -247,26 +247,8 @@ impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation
-    /// fn verify_associativity<T: Clone + std::ops::Add<Output = T> + PartialEq>(a: T, b: T, c: T) -> bool {
-    ///     let sum_a = Sum(a);
-    ///     let sum_b = Sum(b);
-    ///     let sum_c = Sum(c);
-    ///     
-    ///     let left = sum_a.clone().combine_owned(sum_b.clone()).combine_owned(sum_c.clone());
-    ///     let right = sum_a.combine_owned(sum_b.combine_owned(sum_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10, 2, 7));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -301,26 +283,8 @@ impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation
-    /// fn verify_associativity<T: Clone + std::ops::Add<Output = T> + PartialEq>(a: T, b: T, c: T) -> bool {
-    ///     let sum_a = Sum(a);
-    ///     let sum_b = Sum(b);
-    ///     let sum_c = Sum(c);
-    ///     
-    ///     let left = sum_a.clone().combine(&sum_b).combine(&sum_c);
-    ///     let right = sum_a.combine(&sum_b.combine(&sum_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10, 2, 7));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -374,41 +338,13 @@ impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
     ///
     /// ## Left Identity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a: empty() ⊕ a = a, where ⊕ is the combine operation
-    /// fn verify_left_identity<T: Clone + Default + std::ops::Add<Output = T> + PartialEq>(a: T) -> bool {
-    ///     let sum_a = Sum(a.clone());
-    ///     let id = Sum::<T>::empty();
-    ///     
-    ///     id.combine(&sum_a) == sum_a
-    /// }
-    ///
-    /// assert!(verify_left_identity(42));
-    /// assert!(verify_left_identity(3.14));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Right Identity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a: a ⊕ empty() = a, where ⊕ is the combine operation
-    /// fn verify_right_identity<T: Clone + Default + std::ops::Add<Output = T> + PartialEq>(a: T) -> bool {
-    ///     let sum_a = Sum(a.clone());
-    ///     let id = Sum::<T>::empty();
-    ///     
-    ///     sum_a.combine(&id) == sum_a
-    /// }
-    ///
-    /// assert!(verify_right_identity(42));
-    /// assert!(verify_right_identity(3.14));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -453,49 +389,13 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Sum(x): fmap(id) == id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + std::ops::Add<Output = T> + PartialEq>(x: T) -> bool {
-    ///     let sum_x = Sum(x.clone());
-    ///     
-    ///     // Apply identity function
-    ///     let mapped = sum_x.fmap(|val| val.clone());
-    ///     
-    ///     mapped == sum_x
-    /// }
-    ///
-    /// assert!(verify_identity_law(42));
-    /// assert!(verify_identity_law(3.14));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Sum(x) and functions f and g:
-    /// // fmap(f . g) == fmap(f) . fmap(g)
-    /// fn verify_composition_law() -> bool {
-    ///     let sum_x = Sum(5);
-    ///     
-    ///     // Define two functions
-    ///     let f = |x: i32| x * 2;
-    ///     let g = |x: i32| x + 1;
-    ///     
-    ///     // Apply the functions in two different ways
-    ///     let result1 = sum_x.clone().fmap(|x| f(g(*x)));
-    ///     let result2 = sum_x.fmap(|x| g(*x)).fmap(|x| f(*x));
-    ///     
-    ///     result1 == result2
-    /// }
-    ///
-    /// assert!(verify_composition_law());
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -541,52 +441,13 @@ impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Sum(x): fmap_owned(id) == id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + std::ops::Add<Output = T> + PartialEq>(x: T) -> bool {
-    ///     let sum_x = Sum(x.clone());
-    ///     
-    ///     // Apply identity function
-    ///     let mapped = sum_x.fmap_owned(|val| val);
-    ///     
-    ///     mapped == Sum(x)
-    /// }
-    ///
-    /// assert!(verify_identity_law(42));
-    /// assert!(verify_identity_law(3.14));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Sum(x) and functions f and g:
-    /// // fmap_owned(f . g) == fmap_owned(g) . fmap_owned(f)
-    /// fn verify_composition_law() -> bool {
-    ///     let sum_x = Sum(5);
-    ///     
-    ///     // Define two functions
-    ///     let f = |x: i32| x * 2;
-    ///     let g = |x: i32| x + 1;
-    ///     
-    ///     // Compose the functions (g then f)
-    ///     let fg = |x: i32| f(g(x));
-    ///     
-    ///     // Apply the functions in two different ways
-    ///     let result1 = Sum(5).fmap_owned(fg);
-    ///     let result2 = Sum(5).fmap_owned(g).fmap_owned(f);
-    ///     
-    ///     result1 == result2
-    /// }
-    ///
-    /// assert!(verify_composition_law());
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///

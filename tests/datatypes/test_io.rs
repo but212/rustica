@@ -65,6 +65,31 @@ fn new_async_concurrent_runs_wait_for_one_initialization() {
 }
 
 #[test]
+fn test_io_error_boundaries_and_composable_sequence() {
+    let failed: IO<i32> = IO::new(|| panic!("failed operation"));
+    let error = failed.try_get().unwrap_err();
+    assert!(error.to_string().contains("failed operation"));
+
+    let contextual: IO<i32> = IO::new(|| panic!("database error"));
+    let error = contextual
+        .try_get_composable_with_context("fetching user")
+        .unwrap_err();
+    assert_eq!(error.context(), vec!["fetching user".to_string()]);
+    assert!(error.error_chain().contains("database error"));
+
+    let result = IO::sequence_composable(vec![
+        IO::pure(1),
+        IO::new(|| panic!("error 1")),
+        IO::pure(3),
+        IO::new(|| panic!("error 2")),
+    ]);
+    let errors = result.unwrap_err();
+    assert_eq!(errors.len(), 2);
+    assert!(errors[0].error_chain().contains("error 1"));
+    assert!(errors[1].error_chain().contains("error 2"));
+}
+
+#[test]
 fn test_io_execution_and_try_get_composable() {
     let io = IO::pure(100);
     assert_eq!(io.run(), 100);

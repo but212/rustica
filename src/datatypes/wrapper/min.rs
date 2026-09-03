@@ -90,25 +90,8 @@ use std::fmt;
 ///
 /// The `Min<T>` wrapper satisfies the semigroup associativity law:
 ///
-/// ```rust
-/// use rustica::datatypes::wrapper::min::Min;
-/// use rustica::traits::semigroup::Semigroup;
 ///
-/// // Verify associativity: (a combine b) combine c = a combine (b combine c)
-/// fn verify_associativity<T: Clone + Ord>(a: T, b: T, c: T) -> bool {
-///     let min_a = Min(a);
-///     let min_b = Min(b);
-///     let min_c = Min(c);
-///     
-///     let left = min_a.clone().combine(&min_b).combine(&min_c);
-///     let right = min_a.combine(&min_b.combine(&min_c));
-///     
-///     left == right
-/// }
-///
-/// assert!(verify_associativity(1, 5, 3));
-/// assert!(verify_associativity(10, 2, 7));
-/// ```
+/// Algebraic laws for this wrapper are verified by unit tests.
 ///
 /// # Explicit Extremum Seeds
 ///
@@ -185,27 +168,8 @@ impl<T: Clone + Ord> Semigroup for Min<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation
-    /// fn verify_associativity<T: Clone + Ord>(a: T, b: T, c: T) -> bool {
-    ///     let min_a = Min(a);
-    ///     let min_b = Min(b);
-    ///     let min_c = Min(c);
-    ///     
-    ///     let left = min_a.clone().combine_owned(min_b.clone()).combine_owned(min_c.clone());
-    ///     let right = min_a.combine_owned(min_b.combine_owned(min_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10, 2, 7));
-    /// assert!(verify_associativity(-5, -10, -3));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -243,27 +207,8 @@ impl<T: Clone + Ord> Semigroup for Min<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation
-    /// fn verify_associativity<T: Clone + Ord + PartialEq>(a: T, b: T, c: T) -> bool {
-    ///     let min_a = Min(a);
-    ///     let min_b = Min(b);
-    ///     let min_c = Min(c);
-    ///     
-    ///     let left = min_a.combine(&min_b).combine(&min_c);
-    ///     let right = min_a.combine(&min_b.combine(&min_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10, 2, 7));
-    /// assert!(verify_associativity(-5, -10, -3));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -325,54 +270,13 @@ impl<T: Clone + Ord> Functor for Min<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Min(x), fmap(id) = id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + Ord + PartialEq>(x: T) -> bool {
-    ///     let min_x = Min(x.clone());
-    ///     let mapped = min_x.fmap(|a| a.clone());
-    ///     mapped == min_x
-    /// }
-    ///
-    /// // Test with various values
-    /// assert!(verify_identity_law(42));
-    /// assert!(verify_identity_law(-7));
-    /// assert!(verify_identity_law(0));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Min(x) and functions f and g:
-    /// // fmap(f . g) = fmap(f) . fmap(g)
-    /// fn verify_composition_law<T>(x: T) -> bool
-    /// where
-    ///     T: Clone + Ord + PartialEq + std::fmt::Display,
-    /// {
-    ///     let min_x = Min(x);
-    ///     
-    ///     // Define two functions to compose
-    ///     let f = |x: &String| x.len();
-    ///     let g = |x: &T| x.to_string();
-    ///     
-    ///     // Left side: fmap(f . g)
-    ///     let left_side = min_x.clone().fmap(|a| f(&g(a)));
-    ///     
-    ///     // Right side: fmap(f) . fmap(g)
-    ///     let right_side = min_x.clone().fmap(g).fmap(f);
-    ///     
-    ///     left_side == right_side
-    /// }
-    ///
-    /// // Test with a value that can be displayed as a string
-    /// assert!(verify_composition_law(42));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///

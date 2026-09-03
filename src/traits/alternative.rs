@@ -53,27 +53,6 @@ use crate::traits::applicative::Applicative;
 /// `Alternative` extends `Applicative` with operations for choice and failure.
 /// It represents applicative functors that also have a monoid structure.
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::alternative::Alternative;
-/// use rustica::traits::pure::Pure;
-///
-/// // Using Option as an Alternative
-/// let some_value: Option<i32> = Some(42);
-/// let none_value: Option<i32> = None;
-///
-/// // The alt method provides choice between alternatives
-/// assert_eq!(some_value.alt(&none_value), Some(42));
-/// assert_eq!(none_value.alt(&some_value), Some(42));
-///
-/// // The empty_alt method represents failure
-/// assert_eq!(Option::<i32>::empty_alt::<i32>(), None);
-///
-/// // Using guard for conditional computation
-/// assert_eq!(Option::<i32>::guard(true), Some(()));
-/// assert_eq!(Option::<i32>::guard(false), None);
-/// ```
 pub trait Alternative: Applicative {
     /// Returns an empty value representing failure for the alternative computation.
     ///

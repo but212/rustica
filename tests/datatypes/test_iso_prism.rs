@@ -45,6 +45,61 @@ impl Iso<i32, Option<String>> for ToStringPrismIso {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum Shape {
+    Circle { radius: f64 },
+    Rectangle { width: f64, height: f64 },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum Drawing {
+    Shape(Shape),
+    Text(String),
+}
+
+struct ShapeIso;
+impl Iso<Drawing, Option<Shape>> for ShapeIso {
+    type From = Drawing;
+    type To = Option<Shape>;
+
+    fn forward(&self, from: &Drawing) -> Option<Shape> {
+        match from {
+            Drawing::Shape(shape) => Some(shape.clone()),
+            Drawing::Text(_) => None,
+        }
+    }
+
+    fn backward(&self, to: &Option<Shape>) -> Drawing {
+        match to {
+            Some(shape) => Drawing::Shape(shape.clone()),
+            None => Drawing::Text("Placeholder".to_string()),
+        }
+    }
+}
+
+struct CircleIso;
+impl Iso<Shape, Option<f64>> for CircleIso {
+    type From = Shape;
+    type To = Option<f64>;
+
+    fn forward(&self, from: &Shape) -> Option<f64> {
+        match from {
+            Shape::Circle { radius } => Some(*radius),
+            Shape::Rectangle { .. } => None,
+        }
+    }
+
+    fn backward(&self, to: &Option<f64>) -> Shape {
+        match to {
+            Some(radius) => Shape::Circle { radius: *radius },
+            None => Shape::Rectangle {
+                width: 0.0,
+                height: 0.0,
+            },
+        }
+    }
+}
+
 // --- Test Cases ---
 
 #[test]
@@ -88,4 +143,23 @@ fn test_iso_prism_composition_and_laws() {
     if let Some(b2) = composed.preview(&s1) {
         assert_eq!(composed.review(&b2), s1);
     }
+}
+
+#[test]
+fn test_iso_prism_nested_composition() {
+    let composed = IsoPrism::new(ShapeIso).compose(IsoPrism::new(CircleIso));
+    let circle_drawing = Drawing::Shape(Shape::Circle { radius: 5.0 });
+    let rect_drawing = Drawing::Shape(Shape::Rectangle {
+        width: 3.0,
+        height: 4.0,
+    });
+    let text_drawing = Drawing::Text("Hello".to_string());
+
+    assert_eq!(composed.preview(&circle_drawing), Some(5.0));
+    assert_eq!(composed.preview(&rect_drawing), None);
+    assert_eq!(composed.preview(&text_drawing), None);
+    assert_eq!(
+        composed.review(&10.0),
+        Drawing::Shape(Shape::Circle { radius: 10.0 })
+    );
 }

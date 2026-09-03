@@ -89,25 +89,8 @@ use std::fmt;
 ///
 /// The `Max<T>` wrapper satisfies the semigroup associativity law:
 ///
-/// ```rust
-/// use rustica::datatypes::wrapper::max::Max;
-/// use rustica::traits::semigroup::Semigroup;
 ///
-/// // Verify associativity: (a combine b) combine c = a combine (b combine c)
-/// fn verify_associativity<T: Clone + Ord>(a: T, b: T, c: T) -> bool {
-///     let max_a = Max(a);
-///     let max_b = Max(b);
-///     let max_c = Max(c);
-///     
-///     let left = max_a.clone().combine(&max_b).combine(&max_c);
-///     let right = max_a.combine(&max_b.combine(&max_c));
-///     
-///     left == right
-/// }
-///
-/// assert!(verify_associativity(1, 5, 3));
-/// assert!(verify_associativity(10, 2, 7));
-/// ```
+/// Algebraic laws for this wrapper are verified by unit tests.
 ///
 /// # Explicit Extremum Seeds
 ///
@@ -184,27 +167,8 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation
-    /// fn verify_associativity<T: Clone + Ord>(a: T, b: T, c: T) -> bool {
-    ///     let max_a = Max(a);
-    ///     let max_b = Max(b);
-    ///     let max_c = Max(c);
-    ///     
-    ///     let left = max_a.clone().combine_owned(max_b.clone()).combine_owned(max_c.clone());
-    ///     let right = max_a.combine_owned(max_b.combine_owned(max_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10, 2, 7));
-    /// assert!(verify_associativity(-5, -10, -3));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -242,27 +206,8 @@ impl<T: Clone + Ord> Semigroup for Max<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation
-    /// fn verify_associativity<T: Clone + Ord + PartialEq>(a: T, b: T, c: T) -> bool {
-    ///     let max_a = Max(a);
-    ///     let max_b = Max(b);
-    ///     let max_c = Max(c);
-    ///     
-    ///     let left = max_a.combine(&max_b).combine(&max_c);
-    ///     let right = max_a.combine(&max_b.combine(&max_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(1, 5, 3));
-    /// assert!(verify_associativity(10, 2, 7));
-    /// assert!(verify_associativity(-5, -10, -3));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -324,54 +269,13 @@ impl<T: Clone + Ord> Functor for Max<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Max(x), fmap(id) = id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + Ord + PartialEq>(x: T) -> bool {
-    ///     let max_x = Max(x.clone());
-    ///     let mapped = max_x.fmap(|a| a.clone());
-    ///     mapped == max_x
-    /// }
-    ///
-    /// // Test with various values
-    /// assert!(verify_identity_law(42));
-    /// assert!(verify_identity_law(-7));
-    /// assert!(verify_identity_law(0));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::max::Max;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Max(x) and functions f and g:
-    /// // fmap(f . g) = fmap(f) . fmap(g)
-    /// fn verify_composition_law<T>(x: T) -> bool
-    /// where
-    ///     T: Clone + Ord + PartialEq + std::fmt::Display,
-    /// {
-    ///     let max_x = Max(x);
-    ///     
-    ///     // Define two functions to compose
-    ///     let f = |x: &String| x.len();
-    ///     let g = |x: &T| x.to_string();
-    ///     
-    ///     // Left side: fmap(f . g)
-    ///     let left_side = max_x.clone().fmap(|a| f(&g(a)));
-    ///     
-    ///     // Right side: fmap(f) . fmap(g)
-    ///     let right_side = max_x.clone().fmap(g).fmap(f);
-    ///     
-    ///     left_side == right_side
-    /// }
-    ///
-    /// // Test with a value that can be converted to String
-    /// assert!(verify_composition_law(42));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///

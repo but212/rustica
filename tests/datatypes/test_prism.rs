@@ -1,5 +1,6 @@
 use rustica::datatypes::lens::Lens;
 use rustica::datatypes::prism::Prism;
+use std::collections::HashMap;
 
 // --- Test Data Structures ---
 
@@ -112,6 +113,44 @@ fn test_prism_updates_and_sharing() {
         prism.modify(active.clone(), |_| (0, "".to_string())),
         active
     );
+}
+
+#[test]
+fn test_prism_complex_variant_extraction() {
+    #[derive(Debug, Clone, PartialEq)]
+    enum ConfigValue {
+        Integer(i64),
+        String(String),
+        Dictionary(HashMap<String, ConfigValue>),
+    }
+
+    let dict_prism = Prism::new(
+        |value: &ConfigValue| match value {
+            ConfigValue::Dictionary(map) => Some(map.clone()),
+            _ => None,
+        },
+        |map: &HashMap<String, ConfigValue>| ConfigValue::Dictionary(map.clone()),
+    );
+
+    let mut preferences = HashMap::new();
+    preferences.insert("name".to_string(), ConfigValue::String("Alice".to_string()));
+    preferences.insert("age".to_string(), ConfigValue::Integer(30));
+    let config = ConfigValue::Dictionary(preferences);
+
+    if let Some(values) = dict_prism.preview(&config) {
+        assert!(matches!(values.get("name"), Some(ConfigValue::String(name)) if name == "Alice"));
+        let mut updated_values = values.clone();
+        updated_values.insert("theme".to_string(), ConfigValue::String("dark".to_string()));
+        let updated_config = dict_prism.review(&updated_values);
+        let new_values = match dict_prism.preview(&updated_config) {
+            Some(values) => values,
+            None => panic!("dictionary prism did not match after review"),
+        };
+        assert_eq!(new_values.len(), 3);
+        assert!(new_values.contains_key("theme"));
+    } else {
+        panic!("dictionary prism did not match");
+    }
 }
 
 #[test]

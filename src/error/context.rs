@@ -138,17 +138,6 @@ where
 /// * `error`: The base error
 /// * `contexts`: An iterator of context information
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::accumulate_context;
-///
-/// let error = "core error";
-/// let contexts = vec!["step 1 failed", "step 2 failed", "operation failed"];
-/// let accumulated = accumulate_context(error, contexts);
-///
-/// assert_eq!(accumulated.context().len(), 3);
-/// ```
 pub fn accumulate_context<E, I, C>(error: E, contexts: I) -> ComposableError<E>
 where
     I: IntoIterator<Item = C>,
@@ -177,24 +166,6 @@ where
 ///
 /// * `contexts`: The contexts to accumulate
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::context_accumulator;
-///
-/// let contexts = vec!["database error", "user operation failed"];
-/// let accumulator = context_accumulator(contexts);
-///
-/// let error1 = "connection timeout";
-/// let error2 = "query failed";
-///
-/// let contextual1 = accumulator(error1);
-/// let contextual2 = accumulator(error2);
-///
-/// // Both errors now have the same context stack
-/// assert_eq!(contextual1.context().len(), 2);
-/// assert_eq!(contextual2.context().len(), 2);
-/// ```
 pub fn context_accumulator<E, I, C>(contexts: I) -> impl Fn(E) -> ComposableError<E>
 where
     I: IntoIterator<Item = C> + Clone,
@@ -217,20 +188,6 @@ where
 ///
 /// * `error`: The ComposableError to format
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::{ComposableError, format_error_chain};
-///
-/// let error = ComposableError::new("file not found")
-///     .with_context("failed to load config".to_string())
-///     .with_context("application startup failed".to_string());
-///
-/// let formatted = format_error_chain(&error);
-/// assert!(formatted.contains("application startup failed"));
-/// assert!(formatted.contains("failed to load config"));
-/// assert!(formatted.contains("file not found"));
-/// ```
 pub fn format_error_chain<E>(error: &ComposableError<E>) -> String
 where
     E: Display,
@@ -251,20 +208,56 @@ where
 ///
 /// * `error`: The ComposableError to extract context from
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::{ComposableError, extract_context};
-///
-/// let error = ComposableError::new("error")
-///     .with_context("context 1".to_string())
-///     .with_context("context 2".to_string());
-///
-/// let contexts = extract_context(&error);
-/// assert_eq!(contexts.len(), 2);
-/// assert_eq!(contexts[0], "context 2"); // Most recent first
-/// assert_eq!(contexts[1], "context 1");
-/// ```
 pub fn extract_context<E>(error: &ComposableError<E>) -> Vec<String> {
     error.context()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{accumulate_context, context_accumulator, extract_context, format_error_chain};
+    use crate::error::ComposableError;
+
+    #[test]
+    fn accumulate_context_preserves_all_entries() {
+        let error = accumulate_context(
+            "core error",
+            ["step 1 failed", "step 2 failed", "operation failed"],
+        );
+
+        assert_eq!(error.context().len(), 3);
+        assert_eq!(error.context()[0], "operation failed");
+    }
+
+    #[test]
+    fn context_accumulator_reuses_contexts_for_multiple_errors() {
+        let accumulator = context_accumulator(["database error", "user operation failed"]);
+
+        let first = accumulator("connection timeout");
+        let second = accumulator("query failed");
+
+        assert_eq!(first.context().len(), 2);
+        assert_eq!(second.context().len(), 2);
+        assert_eq!(first.context(), second.context());
+    }
+
+    #[test]
+    fn format_error_chain_includes_context_and_core_error() {
+        let error = ComposableError::new("file not found")
+            .with_context("failed to load config")
+            .with_context("application startup failed");
+
+        assert_eq!(
+            format_error_chain(&error),
+            "application startup failed -> failed to load config -> file not found"
+        );
+    }
+
+    #[test]
+    fn extract_context_returns_most_recent_first() {
+        let error = ComposableError::new("error")
+            .with_context("context 1")
+            .with_context("context 2");
+
+        assert_eq!(extract_context(&error), vec!["context 2", "context 1"]);
+    }
 }

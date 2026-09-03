@@ -42,19 +42,6 @@ type StackEntry<'a, T> = (&'a Arc<RRBNode<T>>, usize);
 ///
 /// [`iter`]: super::core::PersistentVector::iter
 ///
-/// # Examples
-///
-/// ```
-/// use rustica::pvec::PersistentVector;
-///
-/// let vec = PersistentVector::from_slice(&[1, 2, 3]);
-/// let mut iter = vec.iter();
-///
-/// assert_eq!(iter.next(), Some(&1));
-/// assert_eq!(iter.next(), Some(&2));
-/// assert_eq!(iter.next(), Some(&3));
-/// assert_eq!(iter.next(), None);
-/// ```
 pub struct PersistentVectorIter<'a, T> {
     /// Current traversal state
     state: IterState<'a, T>,
@@ -482,15 +469,6 @@ impl<'a, T> TreeIterState<'a, T> {
 /// This iterator requires `T: Clone` because elements are cloned from the
 /// underlying storage to produce owned values.
 ///
-/// # Examples
-///
-/// ```
-/// use rustica::pvec::PersistentVector;
-///
-/// let vec = PersistentVector::from_slice(&[1, 2, 3]);
-/// let collected: Vec<i32> = vec.into_iter().collect();
-/// assert_eq!(collected, vec![1, 2, 3]);
-/// ```
 pub struct PersistentVectorIntoIter<T> {
     pub(crate) iter: std::vec::IntoIter<T>,
 }

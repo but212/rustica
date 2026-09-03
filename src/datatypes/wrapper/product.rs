@@ -185,26 +185,8 @@ impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation (multiplication)
-    /// fn verify_associativity<T: Clone + std::ops::Mul<Output = T> + PartialEq>(a: T, b: T, c: T) -> bool {
-    ///     let product_a = Product(a);
-    ///     let product_b = Product(b);
-    ///     let product_c = Product(c);
-    ///     
-    ///     let left = product_a.clone().combine_owned(product_b.clone()).combine_owned(product_c.clone());
-    ///     let right = product_a.combine_owned(product_b.combine_owned(product_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(2, 3, 4));
-    /// assert!(verify_associativity(2.5, 3.0, 4.0));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -239,26 +221,8 @@ impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
     ///
     /// ## Associativity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a, b, c: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-    /// // where ⊕ is the combine operation (multiplication)
-    /// fn verify_associativity<T: Clone + std::ops::Mul<Output = T> + PartialEq>(a: T, b: T, c: T) -> bool {
-    ///     let product_a = Product(a);
-    ///     let product_b = Product(b);
-    ///     let product_c = Product(c);
-    ///     
-    ///     let left = product_a.combine(&product_b).combine(&product_c);
-    ///     let right = product_a.combine(&product_b.combine(&product_c));
-    ///     
-    ///     left == right
-    /// }
-    ///
-    /// assert!(verify_associativity(2, 3, 4));
-    /// assert!(verify_associativity(2.5, 3.0, 4.0));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -312,41 +276,13 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
     ///
     /// ## Left Identity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a: empty() ⊕ a = a, where ⊕ is the combine operation
-    /// fn verify_left_identity<T: Clone + From<u8> + std::ops::Mul<Output = T> + PartialEq>(a: T) -> bool {
-    ///     let product_a = Product(a.clone());
-    ///     let id = Product::<T>::empty();
-    ///     
-    ///     id.combine(&product_a) == product_a
-    /// }
-    ///
-    /// assert!(verify_left_identity(42));
-    /// assert!(verify_left_identity(3.14));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Right Identity
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // For any a: a ⊕ empty() = a, where ⊕ is the combine operation
-    /// fn verify_right_identity<T: Clone + From<u8> + std::ops::Mul<Output = T> + PartialEq>(a: T) -> bool {
-    ///     let product_a = Product(a.clone());
-    ///     let id = Product::<T>::empty();
-    ///     
-    ///     product_a.combine(&id) == product_a
-    /// }
-    ///
-    /// assert!(verify_right_identity(42));
-    /// assert!(verify_right_identity(3.14));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -391,49 +327,13 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Product(x): fmap(id) == id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + std::ops::Mul<Output = T> + PartialEq>(x: T) -> bool {
-    ///     let product_x = Product(x.clone());
-    ///     
-    ///     // Apply identity function
-    ///     let mapped = product_x.fmap(|val| val.clone());
-    ///     
-    ///     mapped == product_x
-    /// }
-    ///
-    /// assert!(verify_identity_law(42));
-    /// assert!(verify_identity_law(3.14));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Product(x) and functions f and g:
-    /// // fmap(f . g) == fmap(f) . fmap(g)
-    /// fn verify_composition_law() -> bool {
-    ///     let product_x = Product(5);
-    ///     
-    ///     // Define two functions
-    ///     let f = |x: &i32| x * 2;
-    ///     let g = |x: &i32| x + 1;
-    ///     
-    ///     // Apply the functions in two different ways
-    ///     let result1 = product_x.clone().fmap(|x| f(&g(x)));
-    ///     let result2 = product_x.fmap(g).fmap(f);
-    ///     
-    ///     result1 == result2
-    /// }
-    ///
-    /// assert!(verify_composition_law());
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///
@@ -479,52 +379,13 @@ impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Product(x): fmap_owned(id) == id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + std::ops::Mul<Output = T> + PartialEq>(x: T) -> bool {
-    ///     let product_x = Product(x.clone());
-    ///     
-    ///     // Apply identity function
-    ///     let mapped = product_x.fmap_owned(|val| val);
-    ///     
-    ///     mapped == Product(x)
-    /// }
-    ///
-    /// assert!(verify_identity_law(42));
-    /// assert!(verify_identity_law(3.14));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Product(x) and functions f and g:
-    /// // fmap_owned(f . g) == fmap_owned(g) . fmap_owned(f)
-    /// fn verify_composition_law() -> bool {
-    ///     let x = 5;
-    ///     
-    ///     // Define two functions
-    ///     let f = |x: i32| x * 2;
-    ///     let g = |x: i32| x + 1;
-    ///     
-    ///     // Compose the functions (g then f)
-    ///     let fg = |x: i32| f(g(x));
-    ///     
-    ///     // Apply the functions in two different ways
-    ///     let result1 = Product(x).fmap_owned(fg);
-    ///     let result2 = Product(x).fmap_owned(g).fmap_owned(f);
-    ///     
-    ///     result1 == result2
-    /// }
-    ///
-    /// assert!(verify_composition_law());
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///

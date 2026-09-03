@@ -157,14 +157,6 @@ impl<E> ComposableError<E> {
 
     /// Returns a reference to the core error.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ComposableError;
-    ///
-    /// let error = ComposableError::new("Core issue");
-    /// assert_eq!(error.core_error(), &"Core issue");
-    /// ```
     #[inline]
     pub fn core_error(&self) -> &E {
         &self.core_error
@@ -172,20 +164,6 @@ impl<E> ComposableError<E> {
 
     /// Returns a vector of contexts with the most recent first.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ComposableError;
-    ///
-    /// let error = ComposableError::new("Error")
-    ///     .with_context("Context 1".to_string())
-    ///     .with_context("Context 2".to_string());
-    ///
-    /// let contexts = error.context();
-    /// assert_eq!(contexts.len(), 2);
-    /// assert_eq!(contexts[0], "Context 2"); // Most recent first
-    /// assert_eq!(contexts[1], "Context 1");
-    /// ```
     #[inline]
     pub fn context(&self) -> Vec<String> {
         self.context.iter().rev().cloned().collect()
@@ -193,18 +171,6 @@ impl<E> ComposableError<E> {
 
     /// Returns an iterator over the context entries, most recent first.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ComposableError;
-    ///
-    /// let error = ComposableError::new("Error")
-    ///     .with_context("First".to_string())
-    ///     .with_context("Second".to_string());
-    ///
-    /// let contexts: Vec<&String> = error.context_iter().collect();
-    /// assert_eq!(contexts, vec![&"Second".to_string(), &"First".to_string()]);
-    /// ```
     #[inline]
     pub fn context_iter(&self) -> std::iter::Rev<std::slice::Iter<'_, String>> {
         self.context.iter().rev()
@@ -212,17 +178,6 @@ impl<E> ComposableError<E> {
 
     /// Returns the error code if present.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ComposableError;
-    ///
-    /// let error = ComposableError::with_code("Not found", 404);
-    /// assert_eq!(error.error_code(), Some(404));
-    ///
-    /// let simple_error = ComposableError::new("Simple error");
-    /// assert_eq!(simple_error.error_code(), None);
-    /// ```
     #[inline]
     pub fn error_code(&self) -> Option<u32> {
         self.error_code
@@ -234,14 +189,6 @@ impl<E> ComposableError<E> {
     ///
     /// * `code`: The error code to set
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ComposableError;
-    ///
-    /// let error = ComposableError::new("Server error").set_code(500);
-    /// assert_eq!(error.error_code(), Some(500));
-    /// ```
     #[inline]
     pub fn set_code(mut self, code: u32) -> Self {
         self.error_code = Some(code);
@@ -262,18 +209,6 @@ impl<E> ComposableError<E> {
     ///
     /// * `f`: The function to apply to the core error
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ComposableError;
-    ///
-    /// let error = ComposableError::new(42)
-    ///     .with_context("Numeric error".to_string());
-    ///
-    /// let string_error = error.map_core(|n| format!("Error code: {}", n));
-    /// assert_eq!(string_error.core_error(), "Error code: 42");
-    /// assert_eq!(string_error.context().len(), 1);
-    /// ```
     #[inline]
     pub fn map_core<F, T>(self, f: F) -> ComposableError<T>
     where
@@ -292,20 +227,6 @@ impl<E> ComposableError<E> {
     /// all context information, formatted as a chain from most recent to
     /// core error.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ComposableError;
-    ///
-    /// let error = ComposableError::new("Connection refused")
-    ///     .with_context("Database connection failed".to_string())
-    ///     .with_context("User login failed".to_string());
-    ///
-    /// let chain = error.error_chain();
-    /// assert!(chain.contains("User login failed"));
-    /// assert!(chain.contains("Database connection failed"));
-    /// assert!(chain.contains("Connection refused"));
-    /// ```
     pub fn error_chain(&self) -> String
     where
         E: Display,
@@ -356,16 +277,6 @@ impl<E: Debug + Display> std::error::Error for ComposableError<E> {}
 /// This allows any error type `E` to be converted into a `ComposableError<E>`
 /// using the standard `into()` method, making error handling more ergonomic.
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::ComposableError;
-///
-/// let simple_error = "file not found";
-/// let composable: ComposableError<&str> = simple_error.into();
-/// assert_eq!(composable.core_error(), &"file not found");
-/// assert!(composable.context().is_empty());
-/// ```
 impl<E> From<E> for ComposableError<E> {
     #[inline]
     fn from(error: E) -> Self {
@@ -400,14 +311,6 @@ impl ErrorContext {
     ///
     /// * `message`: The context message
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ErrorContext;
-    ///
-    /// let context = ErrorContext::new("Operation failed");
-    /// assert_eq!(context.message(), "Operation failed");
-    /// ```
     #[inline]
     pub fn new<S: Into<String>>(message: S) -> Self {
         Self {
@@ -417,14 +320,6 @@ impl ErrorContext {
 
     /// Returns the context message.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::error::ErrorContext;
-    ///
-    /// let context = ErrorContext::new("Test message");
-    /// assert_eq!(context.message(), "Test message");
-    /// ```
     #[inline]
     pub fn message(&self) -> &str {
         &self.message
@@ -512,15 +407,6 @@ where
 /// * `T`: The success type
 /// * `E`: The core error type
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::{ComposableResult, ComposableError};
-///
-/// fn might_fail() -> ComposableResult<i32, &'static str> {
-///     Err(ComposableError::new("Something went wrong"))
-/// }
-/// ```
 #[allow(clippy::result_large_err)]
 pub type ComposableResult<T, E> = Result<T, ComposableError<E>>;
 
@@ -548,9 +434,58 @@ pub type BoxedComposableResult<T, E> = Result<T, BoxedComposableError<E>>;
 #[cfg(test)]
 mod tests {
     use crate::context;
-    use crate::error::{ErrorContext, with_context_result};
+    use crate::error::{ComposableError, ErrorContext, with_context_result};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn composable_error_accessors_preserve_context_order() {
+        let error = ComposableError::with_code("root", 404)
+            .with_context("first")
+            .with_context("second");
+
+        assert_eq!(error.core_error(), &"root");
+        assert_eq!(error.context(), vec!["second", "first"]);
+        assert_eq!(
+            error.context_iter().collect::<Vec<_>>(),
+            error.context().iter().collect::<Vec<_>>()
+        );
+        assert_eq!(error.error_code(), Some(404));
+        assert_eq!(ComposableError::new("plain").error_code(), None);
+    }
+
+    #[test]
+    fn set_code_and_map_core_preserve_error_metadata() {
+        let error = ComposableError::new(42)
+            .with_context("numeric")
+            .set_code(500)
+            .map_core(|value| format!("code: {value}"));
+
+        assert_eq!(error.core_error(), "code: 42");
+        assert_eq!(error.context(), vec!["numeric"]);
+        assert_eq!(error.error_code(), Some(500));
+    }
+
+    #[test]
+    fn error_chain_and_from_conversion_are_user_readable() {
+        let error: ComposableError<&str> = "file not found".into();
+        assert_eq!(error.core_error(), &"file not found");
+        assert!(error.context().is_empty());
+
+        let chained = ComposableError::new("Connection refused")
+            .with_context("Database connection failed")
+            .with_context("User login failed");
+        assert_eq!(
+            chained.error_chain(),
+            "User login failed -> Database connection failed -> Connection refused"
+        );
+    }
+
+    #[test]
+    fn error_context_exposes_its_message() {
+        let context = ErrorContext::new("Operation failed");
+        assert_eq!(context.message(), "Operation failed");
+    }
 
     #[test]
     fn test_lazy_context_evaluation() {

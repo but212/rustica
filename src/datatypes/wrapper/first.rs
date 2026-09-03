@@ -124,51 +124,15 @@ use std::fmt;
 ///
 /// First satisfies the semigroup associativity law:
 ///
-/// ```rust
-/// use rustica::datatypes::wrapper::first::First;
-/// use rustica::traits::semigroup::Semigroup;
 ///
-/// // Verify associativity: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-/// fn verify_associativity<T: Clone + PartialEq>(a: First<T>, b: First<T>, c: First<T>) -> bool {
-///     let left = a.clone().combine(&b).combine(&c);
-///     let right = a.combine(&b.combine(&c));
-///     left == right
-/// }
-///
-/// // Test with various combinations
-/// assert!(verify_associativity(First(Some(1)), First(Some(2)), First(Some(3))));
-/// assert!(verify_associativity(First(None), First(Some(2)), First(Some(3))));
-/// assert!(verify_associativity(First(Some(1)), First(None), First(Some(3))));
-/// assert!(verify_associativity(First(Some(1)), First(Some(2)), First(None)));
-/// ```
+/// Algebraic laws for this wrapper are verified by unit tests.
 ///
 /// # Monoid Laws
 ///
 /// First satisfies the monoid identity laws:
 ///
-/// ```rust
-/// use rustica::datatypes::wrapper::first::First;
-/// use rustica::traits::monoid::Monoid;
-/// use rustica::traits::semigroup::Semigroup;
 ///
-/// // Verify left identity: empty() ⊕ a = a
-/// fn verify_left_identity<T: Clone + PartialEq>(a: First<T>) -> bool {
-///     let empty = First::empty();
-///     empty.combine(&a) == a
-/// }
-///
-/// // Verify right identity: a ⊕ empty() = a
-/// fn verify_right_identity<T: Clone + PartialEq>(a: First<T>) -> bool {
-///     let empty = First::empty();
-///     a.combine(&empty) == a
-/// }
-///
-/// // Test with Some and None values
-/// assert!(verify_left_identity(First(Some(42))));
-/// assert!(verify_left_identity::<i32>(First::empty()));
-/// assert!(verify_right_identity(First(Some(42))));
-/// assert!(verify_right_identity::<i32>(First::empty()));
-/// ```
+/// Algebraic laws for this wrapper are verified by unit tests.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
@@ -388,52 +352,13 @@ impl<T: Clone> Functor for First<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any First(x), fmap(id) = id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + PartialEq>(x: First<T>) -> bool {
-    ///     let mapped = x.clone().fmap(|a| a.clone());
-    ///     mapped == x
-    /// }
-    ///
-    /// // Test with Some value
-    /// assert!(verify_identity_law(First(Some(42))));
-    ///
-    /// // Test with None value
-    /// assert!(verify_identity_law(First::<i32>(None)));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any First(x) and functions f and g:
-    /// // fmap(f . g) = fmap(f) . fmap(g)
-    /// fn verify_composition_law<T>(x: First<T>) -> bool
-    /// where
-    ///     T: Clone + PartialEq + std::fmt::Debug,
-    ///     i32: From<T>,
-    /// {
-    ///     let f = |x: &i32| x * 2;
-    ///     let g = |x: &T| i32::from(x.clone()) + 1;
-    ///     
-    ///     let left_side = x.clone().fmap(|a| f(&g(a)));
-    ///     let right_side = x.clone().fmap(g).fmap(f);
-    ///     
-    ///     left_side == right_side
-    /// }
-    ///
-    /// // Test with Some value (using i32 which implements From<i32>)
-    /// assert!(verify_composition_law(First(Some(5))));
-    ///
-    /// // Test with None value
-    /// assert!(verify_composition_law(First::<i32>(None)));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///

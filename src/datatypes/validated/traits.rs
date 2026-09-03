@@ -106,19 +106,8 @@ impl<E: Clone, A: Clone> Pure for Validated<E, A> {
 /// assert_eq!(mapped, Validated::invalid("error".to_string()));
 /// ```
 ///
-/// ## Functor Laws
 ///
-/// ### Identity Law: `v.fmap(|x| x.clone()) == v`
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::functor::Functor;
-///
-/// let valid: Validated<&str, i32> = Validated::valid(10);
-/// assert_eq!(valid.fmap(|x: &i32| *x), valid);
-///
-/// let invalid: Validated<&str, i32> = Validated::invalid("error");
-/// assert_eq!(invalid.fmap(|x: &i32| *x), invalid);
-/// ```
+/// The functor identity and composition laws are verified by unit tests.
 impl<E: Clone, A: Clone> Functor for Validated<E, A> {
     #[inline]
     fn fmap<B, F>(&self, f: F) -> Self::Output<B>
@@ -352,29 +341,8 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// assert_eq!(result, Validated::invalid_many(["error1", "error2"]));
 /// ```
 ///
-/// ## Applicative Laws
 ///
-/// ### Homomorphism: `Applicative::apply(&Validated::pure(f), &Validated::pure(x)) == Validated::pure(f(x))`
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::applicative::Applicative;
-/// use rustica::traits::pure::Pure;
-///
-/// let f = |x: &i32| *x * 2; // Note: Using a reference parameter to match apply's expected Fn(&T) signature
-/// let x = 10;
-///
-/// // Left side: Applicative::apply(&Validated::pure(f), &Validated::pure(x))
-/// let pure_f: Validated<String, fn(&i32) -> i32> = Validated::<String, fn(&i32) -> i32>::pure_owned(f);
-/// let pure_x: Validated<String, i32> = Validated::<String, i32>::pure_owned(x);
-/// let left_side = <Validated<String, fn(&i32) -> i32> as Applicative>::apply(&pure_f, &pure_x); // This works because f is a Fn(&i32) -> i32
-///
-/// // Right side: Validated::pure(f(x))
-/// let right_side = Validated::<String, i32>::pure_owned(f(&x));
-///
-/// // Both sides are equal
-/// assert_eq!(left_side, right_side);
-/// assert_eq!(left_side, Validated::valid(20));
-/// ```
+/// Applicative laws and error ordering are verified by unit tests.
 impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
     fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
     where
@@ -582,23 +550,8 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
 /// assert_eq!(result, Validated::invalid("original_error"));
 /// ```
 ///
-/// ## Monad Laws
 ///
-/// ### Left Identity: `Pure::pure_owned(a).bind_owned(f) == f(a)`
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::monad::Monad;
-/// use rustica::traits::pure::Pure;
-///
-/// let f = |x: i32| -> Validated<String, i32> { Validated::valid(x * 2) };
-/// let x = 21;
-///
-/// let lhs = <Validated<String, i32> as Pure>::pure_owned(x).bind_owned(f);
-/// let rhs = f(x);
-///
-/// assert_eq!(lhs, rhs);
-/// assert_eq!(lhs, Validated::valid(42));
-/// ```
+/// Monad laws are verified by unit tests.
 impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     #[inline]
     fn bind<U, F>(&self, f: F) -> Self::Output<U>

@@ -75,35 +75,6 @@
 //!    ```
 //!    The order of binding operations should not matter.
 //!
-//! ## Examples
-//!
-//! ```rust
-//! use rustica::traits::monad::Monad;
-//! use rustica::traits::pure::Pure;
-//! use rustica::traits::functor::Functor;
-//! use rustica::traits::applicative::Applicative;
-//! use rustica::datatypes::validated::Validated;
-//!
-//! // Creating a validated value
-//! let valid: Validated<&str, i32> = Validated::valid(42);
-//!
-//! // Using bind to sequence operations
-//! let result: Validated<&str, i32> = valid.bind(|x| {
-//!     if *x > 0 {
-//!         Validated::valid(*x * 2)
-//!     } else {
-//!         Validated::invalid("Value must be positive")
-//!     }
-//! });
-//!
-//! assert!(matches!(result, Validated::Valid(84)));
-//!
-//! // Using join to flatten nested monads
-//! let nested: Validated<&str, Validated<&str, i32>> = Validated::valid(Validated::valid(42));
-//! let flattened: Validated<&str, i32> = nested.join();
-//! assert!(matches!(flattened, Validated::Valid(42)));
-//! ```
-//!
 
 use crate::traits::applicative::Applicative;
 
@@ -388,5 +359,28 @@ impl<T: Clone, E: std::fmt::Debug + Clone> Monad for Result<T, E> {
         Self: Sized,
     {
         self.and_then(Into::into)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Monad;
+    use crate::datatypes::validated::Validated;
+
+    #[test]
+    fn validated_bind_and_join_preserve_valid_values() {
+        let valid: Validated<&str, i32> = Validated::valid(42);
+        let result: Validated<&str, i32> = valid.bind(|value| {
+            if *value > 0 {
+                Validated::valid(*value * 2)
+            } else {
+                Validated::invalid("Value must be positive")
+            }
+        });
+        assert!(matches!(result, Validated::Valid(84)));
+
+        let nested: Validated<&str, Validated<&str, i32>> = Validated::valid(Validated::valid(42));
+        let flattened: Validated<&str, i32> = nested.join();
+        assert!(matches!(flattened, Validated::Valid(42)));
     }
 }

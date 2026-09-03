@@ -96,40 +96,12 @@ impl<E, A> Validated<E, A> {
     /// ```rust
     /// use rustica::datatypes::validated::Validated;
     ///
-    /// let invalid1: Validated<&str, i32> = Validated::invalid("error1");
-    /// let invalid2: Validated<&str, i32> = Validated::invalid_many(["error2", "error3"]);
-    ///
-    /// // Case 1: self is Invalid, other is Invalid
-    /// let combined1 = invalid1.clone().combine_errors(&invalid2);
-    /// assert!(combined1.is_invalid());
-    /// if let Validated::Invalid(errors) = combined1 {
-    ///     assert_eq!(errors.as_slice(), &["error1", "error2", "error3"]);
-    /// }
-    ///
-    /// // Case 2: self is Valid, other is Invalid
-    /// let valid1: Validated<&str, i32> = Validated::valid(1);
-    /// let combined2 = valid1.clone().combine_errors(&invalid2);
-    /// assert!(combined2.is_invalid());
-    /// if let Validated::Invalid(errors) = combined2 {
-    ///     assert_eq!(errors.as_slice(), &["error2", "error3"]);
-    /// }
-    ///
-    /// // Case 3: self is Invalid, other is Valid
-    /// let combined3 = invalid1.clone().combine_errors(&valid1);
-    /// assert!(combined3.is_invalid());
-    /// if let Validated::Invalid(errors) = combined3 {
-    ///     assert_eq!(errors.as_slice(), &["error1"]);
-    /// }
+    /// let first: Validated<&str, i32> = Validated::invalid("error1");
+    /// let second = Validated::invalid_many(["error2", "error3"]);
+    /// assert_eq!(first.combine_errors(&second).error_slice(), &["error1", "error2", "error3"]);
     /// ```
     ///
-    /// ```rust,should_panic
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// // Panics if both are Valid
-    /// let valid1: Validated<&str, i32> = Validated::valid(1);
-    /// let valid2: Validated<&str, i32> = Validated::valid(2);
-    /// let _combined_panic = valid1.combine_errors(&valid2);
-    /// ```
+    /// Calling this method with two valid values is a programmer error and panics.
     pub fn combine_errors(&self, other: &Self) -> Self
     where
         A: Clone,
@@ -202,32 +174,12 @@ impl<E, A> Validated<E, A> {
     /// ```rust
     /// use rustica::datatypes::validated::Validated;
     ///
-    /// let a: Validated<&str, i32> = Validated::valid(1);
-    /// let b: Validated<&str, i32> = Validated::valid(2);
-    /// let c: Validated<&str, i32> = Validated::valid(3);
-    ///
-    /// let values = [&a, &b, &c];
-    /// let sum = Validated::sequence(&values, &|vs: &[i32]| {
-    ///     vs.iter().sum()
-    /// });
-    /// assert_eq!(sum, Validated::valid(6));
-    ///
-    /// // Example with invalid inputs
-    /// let d: Validated<&str, i32> = Validated::invalid("error1");
-    /// let e: Validated<&str, i32> = Validated::valid(5);
-    /// let f: Validated<&str, i32> = Validated::invalid("error2");
-    /// let mixed_values = [&d, &e, &f];
-    /// let mixed_result = Validated::sequence(&mixed_values, &|vs: &[i32]| vs.iter().sum::<i32>());
-    /// assert!(mixed_result.is_invalid());
-    /// if let Validated::Invalid(errors) = mixed_result {
-    ///     assert_eq!(errors.as_slice(), &["error1", "error2"]);
-    /// }
-    ///
-    /// // Example with empty input
-    /// let empty_values: &[&Validated<&str, i32>; 0] = &[];
-    /// let empty_result = Validated::sequence(empty_values, &|vs: &[i32]| vs.iter().sum::<i32>());
-    /// assert_eq!(empty_result, Validated::valid(0));
+    /// let values = [Validated::<&str, i32>::valid(1), Validated::valid(2)];
+    /// let result = Validated::sequence(&values.iter().collect::<Vec<_>>(), &|values: &[i32]| values.iter().sum::<i32>());
+    /// assert_eq!(result, Validated::valid(3));
     /// ```
+    ///
+    /// Invalid values and empty input are covered by unit tests.
     pub fn sequence<B, F>(values: &[&Validated<E, A>], f: &F) -> Validated<E, B>
     where
         F: Fn(&[A]) -> B,
@@ -350,43 +302,12 @@ impl<E, A> Validated<E, A> {
     /// ```rust
     /// use rustica::datatypes::validated::Validated;
     ///
-    /// let values = vec![
-    ///     Validated::<&str, i32>::valid(1),
-    ///     Validated::<&str, i32>::valid(2),
-    ///     Validated::<&str, i32>::valid(3),
-    /// ];
-    ///
-    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(values.iter().cloned());
-    /// assert_eq!(collected, Validated::valid(vec![1, 2, 3]));
-    ///
-    /// let mixed = vec![
-    ///     Validated::<&str, i32>::valid(1),
-    ///     Validated::<&str, i32>::invalid("error"),
-    ///     Validated::<&str, i32>::valid(3),
-    /// ];
-    ///
-    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.iter().cloned());
-    /// assert!(collected.is_invalid());
-    /// if let Validated::Invalid(errors) = collected {
-    ///     assert_eq!(errors.as_slice(), &["error"]);
-    /// }
-    ///
-    /// // Example with all invalid inputs
-    /// let all_invalid = vec![
-    ///     Validated::<&str, i32>::invalid("err1"),
-    ///     Validated::<&str, i32>::invalid("err2"),
-    /// ];
-    /// let collected_all_invalid: Validated<&str, Vec<i32>> = Validated::collect(all_invalid.iter().cloned());
-    /// assert!(collected_all_invalid.is_invalid());
-    /// if let Validated::Invalid(errors) = collected_all_invalid {
-    ///     assert_eq!(errors.as_slice(), &["err1", "err2"]);
-    /// }
-    ///
-    /// // Example with an empty iterator
-    /// let empty_iter: std::vec::IntoIter<Validated<&str, i32>> = vec![].into_iter();
-    /// let collected_empty: Validated<&str, Vec<i32>> = Validated::collect(empty_iter);
-    /// assert_eq!(collected_empty, Validated::valid(Vec::<i32>::new()));
+    /// let values = [Validated::valid(1), Validated::valid(2)];
+    /// let collected: Validated<&str, Vec<i32>> = Validated::collect(values.into_iter());
+    /// assert_eq!(collected, Validated::valid(vec![1, 2]));
     /// ```
+    ///
+    /// Error accumulation and empty input are covered by unit tests.
     pub fn collect<I, C>(iter: I) -> Validated<E, C>
     where
         I: Iterator<Item = Validated<E, A>>,
@@ -450,5 +371,50 @@ impl<E, A> Validated<E, A> {
             Some(errors) => Validated::Invalid(errors),
             None => Validated::Valid(C::from_iter(values)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Validated;
+
+    #[test]
+    fn sequence_covers_accumulation_and_empty_input() {
+        let first = Validated::<&str, i32>::invalid("first");
+        let second = Validated::valid(2);
+        let third = Validated::invalid("third");
+        let values = [&first, &second, &third];
+        let result = Validated::sequence(&values, &|items: &[i32]| items.iter().sum::<i32>());
+        assert_eq!(result.error_slice(), &["first", "third"]);
+
+        let empty: &[&Validated<&str, i32>] = &[];
+        assert_eq!(
+            Validated::sequence(empty, &|items: &[i32]| items.len()),
+            Validated::valid(0)
+        );
+    }
+
+    #[test]
+    fn combine_errors_handles_each_validity_case() {
+        let invalid = Validated::<&str, i32>::invalid("error1");
+        let other = Validated::invalid_many(["error2", "error3"]);
+        assert_eq!(
+            invalid.combine_errors(&other).error_slice(),
+            &["error1", "error2", "error3"]
+        );
+        assert_eq!(
+            Validated::valid(1).combine_errors(&other).error_slice(),
+            &["error2", "error3"]
+        );
+        assert_eq!(
+            invalid.combine_errors(&Validated::valid(1)).error_slice(),
+            &["error1"]
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn combine_errors_rejects_two_valid_values() {
+        let _ = Validated::<&str, i32>::valid(1).combine_errors(&Validated::valid(2));
     }
 }

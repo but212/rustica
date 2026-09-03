@@ -165,75 +165,9 @@
 //!
 //! ## Examples
 //!
-//! ### Basic Usage
-//!
-//! ```rust
-//! use rustica::datatypes::state::State;
-//!
-//! // A simple counter that returns the current state and increments it
-//! let counter = State::new(|s: i32| (s, s + 1));
-//!
-//! // Run the state computation with initial state 0
-//! assert_eq!(counter.run_state(0), (0, 1));
-//!
-//! // Run it again with a different initial state
-//! assert_eq!(counter.run_state(10), (10, 11));
-//! ```
-//!
-//! ### Chaining State Operations
-//!
-//! ```rust
-//! use rustica::datatypes::state::State;
-//! use rustica::datatypes::state::{get, put, modify};
-//!
-//! // Define a sequence of state operations
-//! let computation = get::<i32>()                     // Get the current state
-//!     .bind(|x| modify(move |s: i32| s + x)          // Modify state by adding its current value
-//!         .bind(|_| get::<i32>()                     // Get the new state
-//!             .bind(|y| put(y * 2)                   // Double the state
-//!                 .bind(move |_| State::pure(y)))));      // Return the previous state value
-//!
-//! // Run the computation with initial state 2
-//! // 1. get() returns (2, 2)
-//! // 2. modify(|s| s + x) changes state to 4 (2 + 2)
-//! // 3. get() returns (4, 4)
-//! // 4. put(y * 2) changes state to 8 (4 * 2)
-//! // 5. State::pure(y) returns the value 4 with state 8
-//! assert_eq!(computation.run_state(2), (4, 8));
-//! ```
-//!
-//! ### Implementing a Stack with State
-//!
-//! ```rust
-//! use rustica::datatypes::state::State;
-//!
-//! // Define stack operations
-//! fn push<T: Send + Sync + Clone + 'static>(x: T) -> State<Vec<T>, ()> {
-//!     State::new(move |mut stack: Vec<T>| {
-//!         stack.push(x.clone());
-//!         ((), stack)
-//!     })
-//! }
-//!
-//! fn pop<T: Send + Sync + Clone + 'static>() -> State<Vec<T>, Option<T>> {
-//!     State::new(|mut stack: Vec<T>| {
-//!         let item = stack.pop();
-//!         (item, stack)
-//!     })
-//! }
-//!
-//! // Use the stack operations in a sequence
-//! let stack_ops = push(1)
-//!     .bind(|_| push(2))
-//!     .bind(|_| push(3))
-//!     .bind(|_| pop::<i32>())
-//!     .bind(|x| pop::<i32>().bind(move |y| State::pure((x, y))));
-//!
-//! // Run the stack operations with an empty stack
-//! // After pushing 1, 2, 3 and popping twice, we get the values 3 and 2
-//! // The final stack contains just [1]
-//! assert_eq!(stack_ops.run_state(Vec::new()), ((Some(3), Some(2)), vec![1]));
-//! ```
+//! The quick-start example above demonstrates sequential state updates and the
+//! `get`/`modify` helpers. Additional state-transition scenarios are covered by
+//! the named tests in this module.
 //!
 use crate::datatypes::id::Id;
 use crate::error::{ComposableError, ComposableResult, IntoErrorContext};
@@ -297,32 +231,8 @@ pub type StateInner<S, A> = StateT<S, Id<(S, A)>, A>;
 /// ```rust
 /// use rustica::datatypes::state::State;
 ///
-/// // A simple state computation that doubles the state and returns the original
 /// let counter = State::new(|s: i32| (s, s * 2));
 /// assert_eq!(counter.run_state(5), (5, 10));
-///
-/// // Chain multiple state operations
-/// let double_counter = counter.bind(|x| {
-///     State::new(move |s| (x + s, s + 1))
-/// });
-/// assert_eq!(double_counter.run_state(0), (0, 1));
-///
-/// // Using State for a more complex computation
-/// let computation = State::new(|s: i32| (s * 2, s))
-///     .bind(|x| State::new(move |s| (x + s, s + 1)))
-///     .bind(|x| State::new(move |s| (format!("Result: {}", x), s * 2)));
-///
-/// // When run with initial state 3:
-/// // 1. First computation returns (6, 3)
-/// // 2. Second computation returns (6 + 3, 3 + 1) = (9, 4)
-/// // 3. Third computation returns ("Result: 9", 4 * 2) = ("Result: 9", 8)
-/// assert_eq!(computation.run_state(3), ("Result: 9".to_string(), 8));
-///
-/// // Verifying functor identity law
-/// let state = State::new(|s: i32| (s + 1, s * 2));
-/// let identity = |x| x;
-/// let mapped = state.clone().fmap(identity);
-/// assert_eq!(state.run_state(5), mapped.run_state(5));
 /// ```
 #[repr(transparent)]
 pub struct State<S, A> {

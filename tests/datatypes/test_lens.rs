@@ -72,6 +72,67 @@ fn address_val_lens() -> PersonAddressValLens {
 // --- Test Cases ---
 
 #[test]
+fn test_lens_basic_usage() {
+    #[derive(Clone, Debug, PartialEq)]
+    struct Person {
+        name: String,
+        age: u32,
+    }
+
+    let name_lens = Lens::new(
+        |p: &Person| p.name.clone(),
+        |p: Person, name: String| Person { name, ..p },
+    );
+    let age_lens = Lens::new(
+        |p: &Person| p.age,
+        |p: Person, age: u32| Person { age, ..p },
+    );
+    let person = Person {
+        name: "Alice".to_string(),
+        age: 30,
+    };
+
+    assert_eq!(name_lens.get(&person), "Alice");
+    assert_eq!(age_lens.get(&person), 30);
+
+    let renamed = name_lens.set(person.clone(), "Bob".to_string());
+    assert_eq!(
+        renamed,
+        Person {
+            name: "Bob".to_string(),
+            age: 30
+        }
+    );
+
+    let older = age_lens.modify(person, |age| age + 1);
+    assert_eq!(older.age, 31);
+}
+
+#[test]
+fn test_lens_nested_modify_and_structural_sharing() {
+    let person = Person {
+        name: "Alice".to_string(),
+        address: Rc::new(Address {
+            street: "123 Main St".to_string(),
+            city: "Springfield".to_string(),
+        }),
+    };
+    let address_lens = address_val_lens();
+    let street_lens = street_lens();
+
+    let updated = address_lens.modify(person.clone(), |address| {
+        street_lens.set(address, "456 Oak Ave".to_string())
+    });
+    assert_eq!(updated.address.street, "456 Oak Ave");
+    assert_eq!(updated.address.city, "Springfield");
+
+    let unchanged = address_lens.modify(person.clone(), |address| {
+        street_lens.set(address, "123 Main St".to_string())
+    });
+    assert!(Rc::ptr_eq(&person.address, &unchanged.address));
+}
+
+#[test]
 fn test_lens_laws_and_structural_sharing() {
     let person = Person {
         name: "Alice".to_string(),

@@ -110,19 +110,15 @@
 //! - Right Identity: `m >>= return = m`
 //! - Associativity: `(m >>= f) >>= g = m >>= (\x -> f x >>= g)`
 //!
-//! See individual method documentation (e.g., `fmap`, `apply`, `bind`) for specific examples demonstrating these laws.
+//! See unit tests for verification of these algebraic laws.
 //!
 //! ## Examples
-//!
-//! ### Basic Usage
 //!
 //! ```rust
 //! use rustica::datatypes::cont::Cont;
 //!
-//! // Create a simple continuation
+//! // Create a simple continuation and run it
 //! let cont = Cont::return_cont(42);
-//!
-//! // Run the continuation with a handler
 //! let result = cont.clone().run(|x| x * 2);
 //! assert_eq!(result, 84);
 //!
@@ -130,29 +126,18 @@
 //! let cont2 = cont.bind(|x| Cont::return_cont(x + 1));
 //! let result2 = cont2.run(|x| x * 2);
 //! assert_eq!(result2, 86);
-//! ```
 //!
-//! ### Control Flow Example
-//!
-//! ```rust
-//! use std::sync::Arc;
-//! use rustica::datatypes::cont::Cont;
-//!
-//! // A function that uses continuations to implement early return
+//! // Implement early return using continuations
 //! fn safe_divide(a: i32, b: i32) -> Cont<i32, i32> {
 //!     if b == 0 {
-//!         // Early return with a default value
 //!         Cont::new(|_| -1)
 //!     } else {
-//!         // Continue with the division
 //!         Cont::return_cont(a / b)
 //!     }
 //! }
 //!
-//! // Run with different inputs
 //! let result1 = safe_divide(10, 2).run(|x| x);
 //! let result2 = safe_divide(10, 0).run(|x| x);
-//!
 //! assert_eq!(result1, 5);
 //! assert_eq!(result2, -1);
 //! ```
@@ -313,27 +298,6 @@ where
     /// simply passes the provided value to the continuation function. It is analogous
     /// to `pure` in applicative style and `return` in monadic style.
     ///
-    /// # Functional Programming Laws
-    ///
-    /// ## Identity Law (Monad)
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // For any continuation cont, binding with return_cont should return the original continuation
-    /// // m >>= return = m
-    /// let verify_identity_law = |x: i32| {
-    ///     let cont = Cont::return_cont(x);
-    ///     let with_return = cont.clone().bind(|val| Cont::return_cont(val));
-    ///     
-    ///     // Both should yield the same result with any continuation function
-    ///     let f = |v: i32| v * 2;
-    ///     assert_eq!(cont.run(f), with_return.run(f));
-    /// };
-    ///
-    /// verify_identity_law(42);
-    /// ```
-    ///
     /// # Arguments
     ///
     /// * `a` - The value to be returned by the continuation
@@ -362,53 +326,6 @@ where
     ///
     /// This operation allows transformation of the value inside the `Cont` context
     /// without changing the continuation structure.
-    ///
-    /// # Functional Programming Laws
-    ///
-    /// ## Functor Identity Law
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // For any continuation cont, mapping the identity function should return an equivalent continuation
-    /// // fmap id = id
-    /// let verify_identity_law = |x: i32| {
-    ///     let cont = Cont::return_cont(x);
-    ///     let mapped = cont.clone().fmap(|x| x); // Identity function
-    ///     
-    ///     // Both should yield the same result when run
-    ///     assert_eq!(cont.run(|x| x), mapped.run(|x| x));
-    /// };
-    ///
-    /// verify_identity_law(42);
-    /// ```
-    ///
-    /// ## Functor Composition Law
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // For any continuation cont and functions f and g, mapping their composition
-    /// // should be the same as mapping f and then mapping g
-    /// // fmap (f . g) = fmap f . fmap g
-    /// let verify_composition_law = |x: i32| {
-    ///     let f = |x: i32| x * 2;
-    ///     let g = |x: i32| x + 3;
-    ///     
-    ///     let cont = Cont::return_cont(x);
-    ///     
-    ///     // Map the composition of f and g
-    ///     let mapped_composition = cont.clone().fmap(move |x| f(g(x)));
-    ///     
-    ///     // Map g, then map f
-    ///     let mapped_separately = cont.clone().fmap(g).fmap(f);
-    ///     
-    ///     // Both should yield the same result when run
-    ///     assert_eq!(mapped_composition.run(|x| x), mapped_separately.run(|x| x));
-    /// };
-    ///
-    /// verify_composition_law(10); // (10 + 3) * 2 = 26
-    /// ```
     ///
     /// # Arguments
     ///
@@ -441,76 +358,6 @@ where
     /// Allows sequencing of continuation computations by applying a function to the result
     /// of this continuation and returning a new continuation. This is the core operation that
     /// enables chaining complex control flow patterns in a composable manner.
-    ///
-    /// # Functional Programming Laws
-    ///
-    /// ## Left Identity Law
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // For any function f and value x, return x >>= f should be equivalent to f(x)
-    /// // return a >>= f = f a
-    /// let verify_left_identity = |x: i32| {
-    ///     let f = |n: i32| Cont::return_cont(n * 2);
-    ///     
-    ///     let left_side = Cont::return_cont(x).bind(f);
-    ///     let right_side = f(x);
-    ///     
-    ///     // Both should yield the same result when run
-    ///     assert_eq!(left_side.run(|n| n), right_side.run(|n| n));
-    /// };
-    ///
-    /// verify_left_identity(5); // Both sides should result in 10
-    /// ```
-    ///
-    /// ## Right Identity Law
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // For any continuation m, m >>= return should be equivalent to m
-    /// // m >>= return = m
-    /// let verify_right_identity = |x: i32| {
-    ///     let cont = Cont::return_cont(x);
-    ///     
-    ///     let with_bind = cont.clone().bind(|val| Cont::return_cont(val));
-    ///     
-    ///     // Both should yield the same result when run
-    ///     assert_eq!(cont.run(|n| n), with_bind.run(|n| n));
-    /// };
-    ///
-    /// verify_right_identity(5);
-    /// ```
-    ///
-    /// ## Associativity Law
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    ///
-    /// // For any continuation m and functions f and g:
-    /// // (m >>= f) >>= g = m >>= (\x -> f x >>= g)
-    /// let verify_associativity = |x: i32| {
-    ///     let m = Cont::return_cont(x);
-    ///     let f = |n: i32| Cont::return_cont(n * 2);
-    ///     let g = |n: i32| Cont::return_cont(n + 3);
-    ///     
-    ///     // (m >>= f) >>= g
-    ///     let left_side = m.clone().bind(f).bind(g);
-    ///     
-    ///     // m >>= (\x -> f x >>= g)
-    ///     let right_side = m.clone().bind(move |val| {
-    ///         let f = f;  // Capture f by value
-    ///         let g = g;  // Capture g by value
-    ///         f(val).bind(g)
-    ///     });
-    ///     
-    ///     // Both should yield the same result when run
-    ///     assert_eq!(left_side.run(|n| n), right_side.run(|n| n));
-    /// };
-    ///
-    /// verify_associativity(5); // Both sides should result in 13 ((5*2)+3)
-    /// ```
     ///
     /// # Arguments
     ///
@@ -547,50 +394,6 @@ where
     /// This is the applicative functor's apply operation for the continuation monad. It allows
     /// combining two independent continuations where one contains a function and the other contains
     /// a value to be applied to that function.
-    ///
-    /// # Functional Programming Laws
-    ///
-    /// ## Identity Law (Applicative)
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    /// use std::sync::Arc;
-    ///
-    /// // For any applicative v, pure id <*> v = v
-    /// let verify_identity_law = |x: i32| {
-    ///     let v = Cont::return_cont(x);
-    ///     let id_fn = Cont::return_cont(Arc::new(|x| x) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
-    ///     
-    ///     let applied = v.clone().apply(id_fn);
-    ///     
-    ///     // Both should yield the same result when run
-    ///     assert_eq!(v.run(|x| x), applied.run(|x| x));
-    /// };
-    ///
-    /// verify_identity_law(5);
-    /// ```
-    ///
-    /// ## Homomorphism Law (Applicative)
-    ///
-    /// ```rust
-    /// use rustica::datatypes::cont::Cont;
-    /// use std::sync::Arc;
-    ///
-    /// // pure f <*> pure x = pure (f x)
-    /// let verify_homomorphism_law = |x: i32| {
-    ///     let f = |n: i32| n * 2;
-    ///     
-    ///     let pure_f = Cont::return_cont(Arc::new(f) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
-    ///     let pure_x = Cont::return_cont(x);
-    ///     
-    ///     let left_side = pure_x.clone().apply(pure_f);
-    ///     let right_side = Cont::return_cont(f(x));
-    ///     
-    ///     assert_eq!(left_side.run(|x| x), right_side.run(|x| x));
-    /// };
-    ///
-    /// verify_homomorphism_law(5); // Both sides should equal 10
-    /// ```
     ///
     /// # Arguments
     ///
@@ -741,12 +544,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::Cont;
+    use crate::datatypes::id::Id;
+    use crate::transformers::cont_t::ContT;
     use std::sync::Arc;
 
     #[test]
     fn test_cont_monadic_fundamentals() {
         let c = Cont::return_cont(42);
         assert_eq!(c.run(|x| x), 42);
+
+        let p = Cont::pure(42);
+        assert_eq!(p.run(|x| x), 42);
 
         let mapped = c.clone().fmap(|x| x * 2);
         assert_eq!(mapped.run(|x| x), 84);
@@ -788,5 +596,61 @@ mod tests {
             safe_div(10, 0).run(|_| "Success".to_string()),
             "Error: DivByZero"
         );
+    }
+
+    #[test]
+    fn test_cont_functor_laws() {
+        let cont = Cont::return_cont(42);
+        let mapped = cont.clone().fmap(|x| x);
+        assert_eq!(cont.run(|x| x), mapped.run(|x| x));
+
+        let f = |x: i32| x * 2;
+        let g = |x: i32| x + 3;
+        let cont = Cont::return_cont(10);
+        let mapped_composition = cont.clone().fmap(move |x| f(g(x)));
+        let mapped_separately = cont.clone().fmap(g).fmap(f);
+        assert_eq!(mapped_composition.run(|x| x), mapped_separately.run(|x| x));
+    }
+
+    #[test]
+    fn test_cont_monad_laws() {
+        let f = |n: i32| Cont::return_cont(n * 2);
+        let left_side = Cont::return_cont(5).bind(f);
+        let right_side = f(5);
+        assert_eq!(left_side.run(|n| n), right_side.run(|n| n));
+
+        let cont = Cont::return_cont(5);
+        let with_bind = cont.clone().bind(Cont::return_cont);
+        assert_eq!(cont.run(|n| n), with_bind.run(|n| n));
+
+        let m = Cont::return_cont(5);
+        let f = |n: i32| Cont::return_cont(n * 2);
+        let g = |n: i32| Cont::return_cont(n + 3);
+        let left_assoc = m.clone().bind(f).bind(g);
+        let right_assoc = m.clone().bind(move |val| f(val).bind(g));
+        assert_eq!(left_assoc.run(|n| n), right_assoc.run(|n| n));
+    }
+
+    #[test]
+    fn test_cont_applicative_laws() {
+        let v = Cont::return_cont(5);
+        let id_fn = Cont::return_cont(Arc::new(|x| x) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+        let applied = v.clone().apply(id_fn);
+        assert_eq!(v.run(|x| x), applied.run(|x| x));
+
+        let f = |n: i32| n * 2;
+        let pure_f = Cont::return_cont(Arc::new(f) as Arc<dyn Fn(i32) -> i32 + Send + Sync>);
+        let pure_x = Cont::return_cont(5);
+        let left_side = pure_x.apply(pure_f);
+        let right_side = Cont::return_cont(f(5));
+        assert_eq!(left_side.run(|x| x), right_side.run(|x| x));
+    }
+
+    #[test]
+    fn test_cont_from_cont_t() {
+        let cont_t: ContT<i32, Id<i32>, i32> = ContT::new(|k| k(42));
+        let cont: Cont<i32, i32> = Cont::from(cont_t);
+        let result = cont.run(|x| x + 1);
+        assert_eq!(result, 43);
     }
 }

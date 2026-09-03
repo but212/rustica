@@ -66,88 +66,8 @@
 //! **Execution model**: most combinators (`fmap`, `bind`, `zip`, ...) build a new `AsyncM` without running
 //! anything immediately. Actual execution happens when you call [`AsyncM::try_get`].
 //!
-//! ## Basic Usage
-//!
-//! ```rust
-//! use rustica::datatypes::async_monad::AsyncM;
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     // Create a pure value
-//!     let async_value = AsyncM::pure(42);
-//!     
-//!     // Map over the value
-//!     let doubled = async_value.clone().fmap(|x| async move { x * 2 });
-//!     assert_eq!(doubled.try_get().await, 84);
-//!     
-//!     // Chain async computations
-//!     let result = async_value
-//!         .bind(|x| async move { AsyncM::pure(x + 1) })
-//!         .fmap(|x| async move { x * 2 });
-//!     assert_eq!(result.try_get().await, 86);
-//! }
-//! ```
-//!
-//! # Complete Example: Building an Async Pipeline
-//!
-//! ```rust
-//! use rustica::datatypes::async_monad::AsyncM;
-//! use tokio;
-//!
-//! #[derive(Clone)]
-//! struct User { id: i32, name: String }
-//!
-//! #[derive(Clone)]
-//! struct Order { user_id: i32, total: f64 }
-//!
-//! async fn fetch_user(id: i32) -> User {
-//!     // Simulate API call
-//!     User { id, name: format!("User{}", id) }
-//! }
-//!
-//! async fn fetch_orders(user_id: i32) -> Vec<Order> {
-//!     // Simulate API call
-//!     vec![Order { user_id, total: 99.99 }]
-//! }
-//!
-//! async fn calculate_discount(orders: &[Order]) -> f64 {
-//!     // Business logic
-//!     if orders.iter().map(|o| o.total).sum::<f64>() > 100.0 {
-//!         0.1
-//!     } else {
-//!         0.0
-//!     }
-//! }
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     // Build a pipeline using AsyncM
-//!     let pipeline = AsyncM::pure(123)
-//!         .fmap(|user_id| fetch_user(user_id))
-//!         .bind(|user| {
-//!             let user_clone = user.clone();
-//!             let user_id = user.id;
-//!             async move {
-//!                 AsyncM::new(move || fetch_orders(user_id))
-//!                     .fmap(move |orders| {
-//!                         let value = user_clone.clone();
-//!                         async move { (value, orders) }
-//!                     })
-//!             }
-//!         })
-//!         .bind(|(user, orders)| async move {
-//!             let discount = calculate_discount(&orders).await;
-//!             AsyncM::pure(format!(
-//!                 "{} gets {}% discount on {} orders",
-//!                 user.name,
-//!                 discount * 100.0,
-//!                 orders.len()
-//!             ))
-//!         });
-//!     
-//!     println!("{}", pipeline.try_get().await);
-//! }
-//!```
+//! Additional examples are provided on individual methods; the quick-start flow above is the
+//! canonical end-to-end usage example.
 //!
 //! ## Type Class Laws
 //!
@@ -267,170 +187,18 @@ enum AsyncMInner<A> {
 ///
 /// # Type Class Laws
 ///
-/// For computations whose provided closures are pure (no observable side effects) and do not
-/// panic, `AsyncM` satisfies the following laws:
+/// For pure, non-panicking computations, `AsyncM` follows the standard Functor, Applicative,
+/// and Monad laws. These laws are verified by asynchronous unit tests below. Combinators such
+/// as `apply` and `zip` may run effects concurrently, so side-effect ordering is not guaranteed.
 ///
-/// ## Functor Laws
+/// # Advanced Usage
+///
+/// Use the documented combinators to build fallible, parallel, and resource-aware pipelines.
+/// Keep computations cold by constructing them first and executing them with [`try_get`](Self::try_get).
+///
 /// ```rust
-/// # use rustica::datatypes::async_monad::AsyncM;
-/// # use tokio;
-/// # #[tokio::main]
-/// # async fn main() {
-/// // Identity: fmap id = id
-/// let m = AsyncM::pure(42);
-/// let identity = m.clone().fmap(|x| async move { x });
-/// assert_eq!(m.try_get().await, identity.try_get().await);
-///
-/// // Composition: fmap (f . g) = fmap f . fmap g
-/// let f = |x: i32| async move { x * 2 };
-/// let g = |x: i32| async move { x + 1 };
-/// let m = AsyncM::pure(10);
-///
-/// let composed = m.clone().fmap(|x| async move { (x + 1) * 2 });
-/// let chained = m.clone().fmap(g).fmap(f);
-/// assert_eq!(composed.try_get().await, chained.try_get().await);
-/// # }
-/// ```
-///
-/// ## Applicative Laws
-/// ```rust
-/// # use rustica::datatypes::async_monad::AsyncM;
-/// # use tokio;
-/// # #[tokio::main]
-/// # async fn main() {
-/// // Identity: pure id <*> v = v
-/// let v = AsyncM::pure(42);
-/// let id_fn = AsyncM::pure(|x: i32| x);
-/// assert_eq!(v.clone().apply(id_fn).try_get().await, v.try_get().await);
-///
-/// // Composition: pure (.) <*> u <*> v <*> w = u <*> (v <*> w)
-/// let add_one = AsyncM::pure(|x: i32| x + 1);
-/// let mul_two = AsyncM::pure(|x: i32| x * 2);
-/// let value = AsyncM::pure(10);
-///
-/// // Left side: compose functions first
-/// let compose = AsyncM::pure(|f: fn(i32) -> i32| {
-///     move |g: fn(i32) -> i32| move |x| f(g(x))
-/// });
-/// // ... (composition example would be complex due to Rust's type system)
-/// # }
-/// ```
-///
-/// ## Monad Laws
-/// ```rust
-/// # use rustica::datatypes::async_monad::AsyncM;
-/// # use tokio;
-/// # #[tokio::main]
-/// # async fn main() {
-/// // Left identity: pure a >>= f = f a
-/// let a = 42;
-/// let f = |x| async move { AsyncM::pure(x * 2) };
-///
-/// let left = AsyncM::pure(a).bind(f.clone());
-/// let right = f(a).await;
-/// assert_eq!(left.try_get().await, right.try_get().await);
-///
-/// // Right identity: m >>= pure = m
-/// let m = AsyncM::pure(42);
-/// let bound = m.clone().bind(|x| async move { AsyncM::pure(x) });
-/// assert_eq!(m.try_get().await, bound.try_get().await);
-///
-/// // Associativity: (m >>= f) >>= g = m >>= (\x -> f x >>= g)
-/// let m = AsyncM::pure(10);
-/// let f = |x| async move { AsyncM::pure(x + 1) };
-/// let g = |x| async move { AsyncM::pure(x * 2) };
-///
-/// let left = m.clone().bind(f.clone()).bind(g.clone());
-/// let right = m.bind(move |x| async move {
-///     f(x).await.bind(g.clone())
-/// });
-/// assert_eq!(left.try_get().await, right.try_get().await);
-/// # }
-/// ```
-///
-/// # Advanced Examples
-///
-/// ## Error Handling with AsyncM
-/// ```rust
-/// # use rustica::datatypes::async_monad::AsyncM;
-/// # use tokio;
-/// # #[tokio::main]
-/// # async fn main() {
-/// // Chaining fallible operations
-/// async fn fetch_user_id() -> Result<i32, String> {
-///     Ok(42)
-/// }
-///
-/// async fn fetch_user_name(id: i32) -> Result<String, String> {
-///     Ok(format!("User{}", id))
-/// }
-///
-/// let user_info = AsyncM::from_result_or_default(
-///     || fetch_user_id(),
-///     0
-/// ).bind(|id| async move {
-///     if id == 0 {
-///         AsyncM::pure("Anonymous".to_string())
-///     } else {
-///         AsyncM::from_result_or_default(
-///             move || fetch_user_name(id),
-///             "Unknown".to_string()
-///         )
-///     }
-/// });
-///
-/// println!("User: {}", user_info.try_get().await);
-/// # }
-/// ```
-///
-/// ## Parallel Computation Patterns
-/// ```rust
-/// # use rustica::datatypes::async_monad::AsyncM;
-/// # use tokio;
-/// # use std::time::{Duration, Instant};
-/// # #[tokio::main]
-/// # async fn main() {
-/// // Parallel API calls
-/// let fetch_weather = AsyncM::new(|| async {
-///     tokio::time::sleep(Duration::from_millis(100)).await;
-///     "Sunny, 22°C"
-/// });
-///
-/// let fetch_news = AsyncM::new(|| async {
-///     tokio::time::sleep(Duration::from_millis(150)).await;
-///     vec!["Breaking: Rust 2.0 released!", "Tech: AsyncM patterns"]
-/// });
-///
-/// let fetch_stocks = AsyncM::new(|| async {
-///     tokio::time::sleep(Duration::from_millis(80)).await;
-///     vec![("AAPL", 150.0), ("GOOGL", 2800.0)]
-/// });
-///
-/// // Combine all results in parallel
-/// let start = Instant::now();
-/// let dashboard = fetch_weather
-///     .zip(fetch_news)
-///     .zip(fetch_stocks)
-///     .fmap(|((weather, news), stocks)| async move {
-///         format!(
-///             "Weather: {}\nTop News: {}\nStocks: {:?}",
-///             weather, news[0], stocks[0]
-///         )
-///     });
-///
-/// println!("{}", dashboard.try_get().await);
-/// println!("Total time: {:?} (parallel execution)", start.elapsed());
-/// # }
-/// ```
-///
-/// ## Resource Management Pattern
-/// ```rust
-/// # use rustica::datatypes::async_monad::AsyncM;
-/// # use tokio;
 /// # use std::sync::{Arc, Mutex};
-/// # #[tokio::main]
-/// # async fn main() {
-/// // Safely manage shared resources
+/// # use rustica::datatypes::async_monad::AsyncM;
 /// #[derive(Clone)]
 /// struct Database {
 ///     connections: Arc<Mutex<Vec<String>>>,
@@ -453,6 +221,8 @@ enum AsyncMInner<A> {
 ///     }
 /// }
 ///
+/// #[tokio::main]
+/// async fn main() {
 /// let db = Database {
 ///     connections: Arc::new(Mutex::new(Vec::new())),
 /// };
@@ -467,8 +237,9 @@ enum AsyncMInner<A> {
 ///     });
 ///
 /// println!("Query result: {}", result.try_get().await);
-/// # }
+/// }
 /// ```
+#[repr(transparent)]
 #[derive(Clone)]
 pub struct AsyncM<A> {
     inner: AsyncMInner<A>,
@@ -1260,7 +1031,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
 }
 
 #[cfg(any(test, feature = "quickcheck"))]
-impl<A: Arbitrary + 'static + Send + Sync> Arbitrary for AsyncM<A> {
+impl<A: Arbitrary + Clone + 'static + Send + Sync> Arbitrary for AsyncM<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);
         AsyncM::pure(value)
@@ -1288,6 +1059,33 @@ mod tests {
             .try_get()
             .await;
         assert_eq!(res_owned, "52");
+    }
+
+    #[tokio::test]
+    async fn test_async_monad_laws_for_pure_computations() {
+        let value = AsyncM::pure(10);
+        let identity = value.clone().fmap(|x| async move { x });
+        assert_eq!(value.clone().try_get().await, identity.try_get().await);
+
+        let f = |x: i32| async move { x * 2 };
+        let g = |x: i32| async move { x + 1 };
+        let composed = value.clone().fmap(|x| async move { (x + 1) * 2 });
+        let chained = value.clone().fmap(g).fmap(f);
+        assert_eq!(composed.try_get().await, chained.try_get().await);
+
+        let id_fn = AsyncM::pure(|x: i32| x);
+        assert_eq!(
+            value.clone().apply(id_fn).try_get().await,
+            value.try_get().await
+        );
+
+        let bind = |x: i32| async move { AsyncM::pure(x + 1) };
+        let left = AsyncM::pure(10).bind(bind);
+        let right = bind(10).await;
+        assert_eq!(left.try_get().await, right.try_get().await);
+
+        let right_identity = AsyncM::pure(10).bind(|x| async move { AsyncM::pure(x) });
+        assert_eq!(right_identity.try_get().await, 10);
     }
 
     #[tokio::test]

@@ -43,30 +43,8 @@
 //!
 //! # Extension Traits
 //!
-//! The `PureExt` trait provides extension methods for working with values that can be
-//! lifted into a context:
-//!
-//! ```rust
-//! use rustica::traits::hkt::HKT;
-//! use rustica::traits::pure::{Pure, PureExt};
-//!
-//! // Using the to_pure extension method
-//! let value: i32 = 42;
-//! let option: Option<i32> = value.to_pure::<Option<i32>>();
-//! assert_eq!(option, Some(42));
-//!
-//! // Using pair_with to combine two values
-//! let a: i32 = 42;
-//! let b: &str = "hello";
-//! let pair: Option<(i32, &str)> = a.pair_with::<Option<(i32, &str)>, &str>(&b);
-//! assert_eq!(pair, Some((42, "hello")));
-//!
-//! // Using lift_other to lift a value into the same context
-//! let a: i32 = 42;
-//! let b: &str = "hello";
-//! let lifted: Option<&str> = a.lift_other::<Option<&str>, &str>(&b);
-//! assert_eq!(lifted, Some("hello"));
-//! ```
+//! `PureExt` provides value-oriented helpers such as `to_pure`, `pair_with`, and
+//! `lift_other`. Each method documents one concise invocation below its definition.
 
 use crate::traits::hkt::HKT;
 

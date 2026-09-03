@@ -62,75 +62,8 @@
 //!
 //! ## Examples
 //!
-//! ### Creating and Checking Validated Values
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! let valid: Validated<&str, i32> = Validated::valid(42);
-//! assert!(valid.is_valid());
-//!
-//! let invalid: Validated<&str, i32> = Validated::invalid("error");
-//! assert!(invalid.is_invalid());
-//! ```
-//!
-//! ### Converting From Result
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! let result: Result<i32, &str> = Ok(42);
-//! let validated = Validated::from(&result);
-//! assert_eq!(validated, Validated::valid(42));
-//!
-//! let error_result: Result<i32, &str> = Err("error");
-//! let validated = Validated::from(&error_result);
-//! assert_eq!(validated, Validated::invalid("error"));
-//! ```
-//!
-//! ### Converting From Option
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! let some_value: Option<i32> = Some(42);
-//! let validated: Validated<&str, i32> = Validated::from_option(&some_value, &"missing value");
-//! assert_eq!(validated, Validated::valid(42));
-//!
-//! let none_value: Option<i32> = None;
-//! let validated: Validated<&str, i32> = Validated::from_option(&none_value, &"missing value");
-//! assert_eq!(validated, Validated::invalid("missing value"));
-//! ```
-//!
-//! ### Advanced Operations
-//!
-//! ```rust
-//! use rustica::datatypes::validated::Validated;
-//!
-//! // Collecting Multiple Validated Values
-//!
-//! let values = vec![
-//!     Validated::<&str, i32>::valid(1),
-//!     Validated::<&str, i32>::valid(2),
-//!     Validated::<&str, i32>::valid(3),
-//! ];
-//! let collected: Validated<&str, Vec<i32>> = Validated::collect(values.iter().cloned());
-//! assert_eq!(collected, Validated::valid(vec![1, 2, 3]));
-//!
-//! let mixed = vec![
-//!     Validated::<&str, i32>::valid(1),
-//!     Validated::<&str, i32>::invalid("error"),
-//!     Validated::<&str, i32>::valid(3),
-//! ];
-//! let collected: Validated<&str, Vec<i32>> = Validated::collect(mixed.iter().cloned());
-//! assert!(collected.is_invalid());
-//!
-//! // Error Transformation
-//!
-//! let invalid: Validated<&str, i32> = Validated::invalid("error");
-//! let mapped = invalid.fmap_invalid(|e| format!("Error: {}", e));
-//! assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
-//! ```
+//! The quick-start example above demonstrates the core workflow. Individual methods document
+//! their minimal invocation; algebraic laws and boundary cases are covered by the unit tests.
 //!
 //! ## Functional Programming Context
 //!
@@ -147,26 +80,8 @@
 //!
 //! ## Type Class Laws
 //!
-//! ### Functor Laws
-//!
-//! 1. **Identity**: `fmap(id) == id`
-//! 2. **Composition**: `fmap(f . g) == fmap(f) . fmap(g)`
-//!
-//! ### Bifunctor Laws
-//!
-//! 1. **Identity**: `bimap(id, id) == id`
-//! 2. **Composition**: `bimap(f1 . f2, g1 . g2) == bimap(f1, g1) . bimap(f2, g2)`
-//!
-//! ### Applicative Laws
-//!
-//! 1. **Identity**: `pure(id) <*> v = v`
-//! 2. **Homomorphism**: `pure(f) <*> pure(x) = pure(f(x))`
-//! 3. **Interchange**: `u <*> pure(y) = pure($ y) <*> u`
-//! 4. **Composition**: `pure(.) <*> u <*> v <*> w = u <*> (v <*> w)`
-//!
-//! ### Semigroup Laws
-//!
-//! 1. **Associativity**: `(a <> b) <> c = a <> (b <> c)`
+//! The type-class implementations obey their documented laws; executable law and boundary
+//! checks live in the unit-test module below rather than in independent doctest crates.
 //!
 //! ## Use Cases
 //!
@@ -204,7 +119,10 @@ pub use iter::*;
 #[cfg(test)]
 mod tests {
     use super::{NonEmptyErrors, Validated};
-    use crate::traits::{applicative::Applicative, functor::Functor, monad::Monad, pure::Pure};
+    use crate::traits::{
+        applicative::Applicative, bifunctor::Bifunctor, functor::Functor, monad::Monad, pure::Pure,
+        semigroup::Semigroup,
+    };
     use quickcheck_macros::quickcheck;
 
     // Core Algebraic Laws & Properties
@@ -250,6 +168,56 @@ mod tests {
     fn prop_validated_monad_left_identity(val: i32) -> bool {
         let f = |x: &i32| Validated::<String, i32>::valid(x.saturating_add(1));
         Validated::<String, i32>::pure(&val).bind(f) == f(&val)
+    }
+
+    #[test]
+    fn test_validated_typeclass_laws() {
+        let value = Validated::<String, i32>::valid(10);
+        let mapped = value.fmap(|x| x + 1).fmap(|x| x * 2);
+        assert_eq!(mapped, Validated::valid(22));
+
+        let function: Validated<String, fn(&i32) -> i32> = Validated::valid(|x| x * 2);
+        let argument = Validated::<String, i32>::valid(10);
+        assert_eq!(function.apply(&argument), Validated::valid(20));
+
+        let left = Validated::<String, i32>::invalid("a".into());
+        let middle = Validated::<String, i32>::invalid("b".into());
+        let right = Validated::<String, i32>::invalid("c".into());
+        assert_eq!(
+            left.combine(&middle).combine(&right),
+            left.combine(&middle.combine(&right))
+        );
+
+        let bifunctor = Validated::<String, i32>::invalid("error".into());
+        assert_eq!(
+            bifunctor.bimap(|x| x + 1, |e| format!("{e}!")),
+            Validated::invalid("error!".to_string())
+        );
+    }
+
+    #[test]
+    fn test_validated_core_conversions_and_mapping() {
+        let valid: Validated<&str, i32> = Validated::valid(42);
+        assert!(valid.is_valid());
+        let invalid: Validated<&str, i32> = Validated::invalid("error");
+        assert!(invalid.is_invalid());
+
+        let result: Result<i32, &str> = Err("error");
+        assert_eq!(Validated::from(&result), invalid);
+
+        let some = Some(42);
+        assert_eq!(
+            Validated::from_option(&some, &"missing"),
+            Validated::valid(42)
+        );
+        let none: Option<i32> = None;
+        assert_eq!(
+            Validated::from_option(&none, &"missing"),
+            Validated::invalid("missing")
+        );
+
+        let mapped = invalid.fmap_invalid(|error| format!("Error: {error}"));
+        assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     }
 
     // Accumulation & Traversal (the core USP)

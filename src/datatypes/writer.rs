@@ -104,56 +104,8 @@
 //! - An identity element (`empty`): The starting point for accumulation
 //! - A binary operation (`combine`): How to combine two logs
 //!
-//! ```
-//! use rustica::datatypes::writer::Writer;
-//! use rustica::traits::semigroup::Semigroup;
-//! use rustica::traits::monoid::Monoid;
-//! use rustica::traits::monad::Monad;
-//!
-//! #[derive(Clone)]
-//! struct Log(Vec<String>);
-//!
-//! impl Semigroup for Log {
-//!     fn combine(&self, other: &Self) -> Self {
-//!         let mut combined = self.0.clone();
-//!         combined.extend(other.0.clone());
-//!         Log(combined)
-//!     }
-//!
-//!     fn combine_owned(self, other: Self) -> Self {
-//!         let mut combined = self.0.clone();
-//!         combined.extend(other.0.clone());
-//!         Log(combined)
-//!     }
-//! }
-//!
-//! impl Monoid for Log {
-//!     fn empty() -> Self {
-//!         Log(Vec::new())
-//!     }
-//! }
-//!
-//! let double = |x: &i32| -> Writer<Log, i32> {
-//!     Writer::new(Log(vec![format!("Doubled {} to {}", x, x * 2)]), x * 2)
-//! };
-//!
-//! let add_ten = |x: &i32| -> Writer<Log, i32> {
-//!     Writer::new(Log(vec![format!("Added 10 to {} to get {}", x, x + 10)]), x + 10)
-//! };
-//!
-//! // Chain the computations
-//! let computation = Writer::new(Log(vec!["Starting with 5".to_string()]), 5);
-//! let result = computation.bind(&double).bind(&add_ten);
-//!
-//! // Run the computation to get the final value and combined log
-//! let (log, value) = result.run();
-//!
-//! // The value should be (5 * 2) + 10 = 20
-//! assert_eq!(value, 20);
-//!
-//! // The log should contain entries from all three steps
-//! assert_eq!(log.0.len(), 3);
-//! ```
+//! The log type must implement [`Monoid`]. The `tests` module exercises custom log types,
+//! ordered accumulation, and chained computations.
 use crate::traits::applicative::Applicative;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
@@ -1270,6 +1222,30 @@ mod tests {
         assert_eq!(
             monad_res.run(),
             (Log(vec!["step1".into(), "step2:10".into()]), 15)
+        );
+    }
+
+    #[test]
+    fn test_writer_requirements_example_flow() {
+        let double = |x: &i32| -> Writer<Log, i32> {
+            Writer::new(Log(vec![format!("Doubled {x} to {}", x * 2)]), x * 2)
+        };
+        let add_ten = |x: &i32| -> Writer<Log, i32> {
+            Writer::new(Log(vec![format!("Added 10 to {x} to {}", x + 10)]), x + 10)
+        };
+
+        let computation = Writer::new(Log(vec!["Starting with 5".to_string()]), 5);
+        let (log, value) = computation.bind(&double).bind(&add_ten).run();
+
+        assert_eq!(value, 20);
+        assert_eq!(log.0.len(), 3);
+        assert_eq!(
+            log,
+            Log(vec![
+                "Starting with 5".into(),
+                "Doubled 5 to 10".into(),
+                "Added 10 to 10 to 20".into(),
+            ])
         );
     }
 

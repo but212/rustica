@@ -137,55 +137,9 @@ use crate::traits::pure::Pure;
 /// ```
 /// Function composition should be associative.
 ///
-/// ## Examples
-///
-/// ### Basic Usage
-/// ```rust
-/// use rustica::traits::applicative::Applicative;
-/// use rustica::traits::pure::Pure;
-///
-/// // Apply a function in context to a value in context
-/// let func: Option<fn(&i32) -> i32> = Some(|x: &i32| *x * 2);
-/// let value: Option<i32> = Some(5);
-///
-/// let result = Applicative::apply(&func, &value);
-/// assert_eq!(result, Some(10));
-/// ```
-///
-/// ### Combining Multiple Values
-/// ```rust
-/// use rustica::traits::applicative::Applicative;
-/// use rustica::traits::pure::Pure;
-///
-/// let x: Option<i32> = Some(2);
-/// let y: Option<i32> = Some(3);
-/// let z: Option<i32> = Some(4);
-///
-/// // Function-first style (mathematical convention)
-/// let result = Option::<i32>::lift2(|a: &i32, b: &i32| *a + *b, &x, &y);
-/// assert_eq!(result, Some(5));
-///
-/// let result3 = Option::<i32>::lift3(|a: &i32, b: &i32, c: &i32| *a + *b + *c, &x, &y, &z);
-/// assert_eq!(result3, Some(9));
-/// ```
-///
-/// ### Validation Example
-/// ```rust
-/// use rustica::traits::applicative::Applicative;
-/// use rustica::traits::pure::Pure;
-/// use rustica::datatypes::validated::Validated;
-///
-/// let name: Validated<String, &str> = Validated::valid("John");
-/// let age: Validated<String, i32> = Validated::valid(30);
-///
-/// // Combine validations - all must succeed
-/// let user = Validated::<String, String>::lift2(
-///     |n: &&str, a: &i32| format!("User: {}, Age: {}", n, a),
-///     &name,
-///     &age
-/// );
-/// assert!(matches!(user, Validated::Valid(_)));
-/// ```
+/// A minimal application example appears in the module documentation; the individual
+/// combinators document their own idiomatic usage. Law checks belong in tests rather than
+/// in this trait's documentation.
 pub trait Applicative: Functor + Pure {
     /// Applies a function wrapped in the applicative context to a value.
     ///

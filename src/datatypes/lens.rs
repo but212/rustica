@@ -83,46 +83,9 @@
 //!
 //! ## Basic Usage
 //!
-//! ```rust
-//! use rustica::datatypes::lens::Lens;
-//!
-//! // Define a simple data structure
-//! #[derive(Clone, Debug, PartialEq)]
-//! struct Person {
-//!     name: String,
-//!     age: u32,
-//! }
-//!
-//! // Create lenses for each field
-//! let name_lens = Lens::new(
-//!     |p: &Person| p.name.clone(),
-//!     |p: Person, name: String| Person { name, ..p },
-//! );
-//!
-//! let age_lens = Lens::new(
-//!     |p: &Person| p.age,
-//!     |p: Person, age: u32| Person { age, ..p },
-//! );
-//!
-//! // Use the lenses
-//! let person = Person {
-//!     name: "Alice".to_string(),
-//!     age: 30,
-//! };
-//!
-//! // Get values
-//! assert_eq!(name_lens.get(&person), "Alice");
-//! assert_eq!(age_lens.get(&person), 30);
-//!
-//! // Set values
-//! let updated = name_lens.set(person.clone(), "Bob".to_string());
-//! assert_eq!(updated.name, "Bob");
-//! assert_eq!(updated.age, 30); // Original value preserved
-//!
-//! // Modify values
-//! let older = age_lens.modify(person, |age| age + 5);
-//! assert_eq!(older.age, 35);
-//! ```
+//! The quick-start example above demonstrates getting, setting, and modifying
+//! fields. Their laws and boundary behavior are covered by the tests in
+//! `tests/datatypes/test_lens.rs`.
 //!
 //! ## Type Class Laws
 //!
@@ -153,64 +116,11 @@
 //!
 //! "Setting a value and then immediately setting another value is the same as just setting the second value"
 //!
-//! # Examples
+//! ## Nested lenses
 //!
-//! ```rust
-//! use rustica::datatypes::lens::Lens;
-//! use std::rc::Rc;
-//!
-//! // A nested data structure
-//! #[derive(Clone, Debug, PartialEq)]
-//! struct Address {
-//!     street: String,
-//!     city: String,
-//! }
-//!
-//! #[derive(Clone, Debug, PartialEq)]
-//! struct Person {
-//!     name: String,
-//!     address: Rc<Address>, // Using Rc for structural sharing
-//! }
-//!
-//! // Create lenses for accessing nested fields
-//! let address_lens = Lens::new(
-//!     |p: &Person| p.address.as_ref().clone(),
-//!     |p: Person, addr: Address| Person {
-//!         address: Rc::new(addr),
-//!         ..p
-//!     },
-//! );
-//!
-//! let street_lens = Lens::new(
-//!     |a: &Address| a.street.clone(),
-//!     |a: Address, s: String| Address { street: s, ..a },
-//! );
-//!
-//! // Create initial data
-//! let person = Person {
-//!     name: "Alice".to_string(),
-//!     address: Rc::new(Address {
-//!         street: "123 Main St".to_string(),
-//!         city: "Springfield".to_string(),
-//!     }),
-//! };
-//!
-//! // Update nested field - this will create new structures
-//! let updated = address_lens.modify(person.clone(), |addr| {
-//!     street_lens.set(addr, "456 Oak Ave".to_string())
-//! });
-//!
-//! assert_eq!(updated.address.street, "456 Oak Ave");
-//! assert_eq!(updated.address.city, "Springfield");
-//!
-//! // Demonstrate structural sharing when no actual change is made
-//! let unchanged = address_lens.modify(person.clone(), |addr| {
-//!     street_lens.set(addr, "123 Main St".to_string()) // Same value as before
-//! });
-//!
-//! // Verify it's the same object (structural sharing)
-//! assert!(Rc::ptr_eq(&person.address, &unchanged.address));
-//! ```
+//! Compose lenses to update nested data while preserving unrelated fields. The
+//! composition and structural-sharing behavior is covered by
+//! `test_lens_composition_and_chaining` in `tests/datatypes/test_lens.rs`.
 
 use std::marker::PhantomData;
 use std::sync::Arc;

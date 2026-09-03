@@ -46,37 +46,10 @@
 //! ```rust
 //! use rustica::traits::hkt::HKT;
 //!
-//! // Define our own wrapper types for the examples
-//! // MyOption is a simple wrapper around Option
-//! #[derive(Clone)]
-//! struct MyOption<T>(Option<T>);
-//!
-//! // Implement HKT for our custom wrapper
-//! impl<T> HKT for MyOption<T> {
-//!     type Source = T;
-//!     type Output<U> = MyOption<U>;
-//! }
-//!
-//! // MyVec is a simple wrapper around Vec
-//! #[derive(Clone)]
-//! struct MyVec<T>(Vec<T>);
-//!
-//! // Implement HKT for our custom wrapper
-//! impl<T> HKT for MyVec<T> {
-//!     type Source = T;
-//!     type Output<U> = MyVec<U>;
-//! }
-//!
-//! // Writing a function that works with any HKT
-//! fn map_hkt<H, T, U, F>(value: &H, f: F) -> H::Output<U>
-//! where
-//!     H: HKT<Source = T>,
-//!     F: Fn(&T) -> U,
-//! {
-//!     // This would be the implementation in a real case
-//!     // Here we're just demonstrating the type signatures
-//!     unimplemented!()
-//! }
+//! // `Output` names the same type constructor with a new contained type.
+//! type TextOption = <Option<i32> as HKT>::Output<String>;
+//! let value: TextOption = Some("hkt".to_owned());
+//! assert_eq!(value.as_deref(), Some("hkt"));
 //! ```
 
 /// A trait for types that can be treated as higher-kinded types.
@@ -93,43 +66,6 @@
 /// * `Source` - The type contained in this HKT
 /// * `Output<U>` - The same HKT but containing type U instead of Source
 ///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::hkt::HKT;
-///
-/// // Define our own wrapper types for the examples
-/// // MyOption is a simple wrapper around Option
-/// #[derive(Clone)]
-/// struct MyOption<T>(Option<T>);
-///
-/// // Implement HKT for our custom wrapper
-/// impl<T> HKT for MyOption<T> {
-///     type Source = T;
-///     type Output<U> = MyOption<U>;
-/// }
-///
-/// // MyVec is a simple wrapper around Vec
-/// #[derive(Clone)]
-/// struct MyVec<T>(Vec<T>);
-///
-/// // Implement HKT for our custom wrapper
-/// impl<T> HKT for MyVec<T> {
-///     type Source = T;
-///     type Output<U> = MyVec<U>;
-/// }
-///
-/// // A function that uses HKT
-/// fn transform<H, T, U>(container: &H, value: &T) -> H::Output<U>
-/// where
-///     H: HKT<Source = T>,
-///     T: Clone,
-///     U: From<T>,
-/// {
-///     // Just an example signature
-///     unimplemented!()
-/// }
-/// ```
 pub trait HKT {
     /// The type contained in this HKT.
     type Source;
@@ -156,59 +92,16 @@ pub trait HKT {
 ///
 /// # Examples
 ///
+/// `BinaryHKT` is useful when a type has a primary value and a separately mapped
+/// secondary value:
+///
 /// ```rust
-/// use rustica::traits::hkt::{HKT, BinaryHKT};
+/// use rustica::datatypes::validated::Validated;
+/// use rustica::traits::hkt::BinaryHKT;
 ///
-/// // Define our own wrapper types for the examples
-/// // MyResult is a simple wrapper around Result
-/// #[derive(Clone)]
-/// struct MyResult<T, E>(Result<T, E>);
-///
-/// // Implement HKT for our custom wrapper
-/// impl<T, E> HKT for MyResult<T, E> {
-///     type Source = T;
-///     type Output<U> = MyResult<U, E>;
-/// }
-///
-/// // Implement BinaryHKT for our custom wrapper
-/// impl<T, E> BinaryHKT for MyResult<T, E> {
-///     type Source2 = E;
-///     type BinaryOutput<Type1, Type2> = MyResult<Type1, Type2>;
-///     
-///     fn map_second<F, NewType2>(&self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
-///     where
-///         F: Fn(&Self::Source2) -> NewType2,
-///         Self::Source: Clone,
-///         Self::Source2: Clone,
-///     {
-///         MyResult(match &self.0 {
-///             Ok(v) => Ok(v.clone()),
-///             Err(e) => Err(f(e)),
-///         })
-///     }
-///
-///     fn map_second_owned<F, NewType2>(self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
-///     where
-///         F: Fn(Self::Source2) -> NewType2,
-///     {
-///         MyResult(match self.0 {
-///             Ok(v) => Ok(v),
-///             Err(e) => Err(f(e)),
-///         })
-///     }
-/// }
-///
-/// // A function that works with BinaryHKT
-/// fn map_second_generic<H, T, E, U, F>(value: &H, f: F) -> H::BinaryOutput<T, U>
-/// where
-///     H: BinaryHKT<Source = T, Source2 = E>,
-///     F: Fn(&E) -> U,
-///     T: Clone,
-///     E: Clone,
-///     U: Clone,
-/// {
-///     value.map_second(f)
-/// }
+/// let value = Validated::<String, i32>::invalid("bad".to_owned());
+/// let mapped = value.map_second_owned(|error| error.len());
+/// let _: Validated<usize, i32> = mapped;
 /// ```
 pub trait BinaryHKT: HKT {
     /// The second type parameter of this HKT.

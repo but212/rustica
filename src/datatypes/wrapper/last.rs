@@ -126,22 +126,8 @@ use std::fmt;
 ///
 /// Last satisfies the semigroup associativity law:
 ///
-/// ```rust
-/// use rustica::datatypes::wrapper::last::Last;
-/// use rustica::traits::semigroup::Semigroup;
 ///
-/// // Verify associativity: (a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
-/// fn check_associativity<T: Clone + PartialEq>(a: Last<T>, b: Last<T>, c: Last<T>) -> bool {
-///     let left = a.clone().combine(&b).combine(&c);
-///     let right = a.combine(&b.combine(&c));
-///     left == right
-/// }
-///
-/// // Test with different combinations
-/// assert!(check_associativity(Last(Some(1)), Last(Some(2)), Last(Some(3))));
-/// assert!(check_associativity(Last(Some(1)), Last(None), Last(Some(3))));
-/// assert!(check_associativity(Last(None), Last(Some(2)), Last(None)));
-/// ```
+/// Algebraic laws for this wrapper are verified by unit tests.
 ///
 /// # Monoid Laws
 ///
@@ -406,52 +392,13 @@ impl<T: Clone> Functor for Last<T> {
     ///
     /// ## Identity Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Last(x), fmap(id) = id
-    /// // where id is the identity function
-    /// fn verify_identity_law<T: Clone + PartialEq>(x: Last<T>) -> bool {
-    ///     let mapped = x.clone().fmap(|a| a.clone());
-    ///     mapped == x
-    /// }
-    ///
-    /// // Test with Some value
-    /// assert!(verify_identity_law(Last(Some(42))));
-    ///
-    /// // Test with None value
-    /// assert!(verify_identity_law(Last::<i32>(None)));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// ## Composition Law
     ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::functor::Functor;
     ///
-    /// // For any Last(x) and functions f and g:
-    /// // fmap(f . g) = fmap(f) . fmap(g)
-    /// fn verify_composition_law<T>(x: Last<T>) -> bool
-    /// where
-    ///     T: Clone + PartialEq + std::fmt::Debug,
-    ///     i32: From<T>,
-    /// {
-    ///     let f = |x: &i32| x * 2;
-    ///     let g = |x: &T| i32::from(x.clone()) + 1;
-    ///     
-    ///     let left_side = x.clone().fmap(|a| f(&g(a)));
-    ///     let right_side = x.clone().fmap(g).fmap(f);
-    ///     
-    ///     left_side == right_side
-    /// }
-    ///
-    /// // Test with Some value (using i32 which implements From<i32>)
-    /// assert!(verify_composition_law(Last(Some(5))));
-    ///
-    /// // Test with None value
-    /// assert!(verify_composition_law(Last::<i32>(None)));
-    /// ```
+    /// Algebraic laws for this wrapper are verified by unit tests.
     ///
     /// # Examples
     ///

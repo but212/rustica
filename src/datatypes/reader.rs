@@ -109,18 +109,9 @@
 //!
 //! ### Modifying the Environment
 //!
-//! ```rust
-//! use rustica::datatypes::reader::Reader;
-//!
-//! // A reader that depends on a string environment
-//! let reader = Reader::new(|s: String| s.len());
-//!
-//! // Modify the environment before running the reader
-//! let modified = reader.local(|s| s.to_uppercase());
-//!
-//! assert_eq!(modified.run_reader("hello".to_string()), 5);
-//! assert_eq!(reader.run_reader("hello".to_string()), 5);
-//! ```
+//! [`Reader::local`] adapts an environment for one computation without changing
+//! the original reader. Its behavior is covered by
+//! `test_reader_transformation_pipeline` below.
 
 use crate::datatypes::id::Id;
 use crate::prelude::*;
@@ -159,55 +150,8 @@ use quickcheck::{Arbitrary, Gen};
 /// assert_eq!(string_reader.run_reader(21), "42");
 /// ```
 ///
-/// Using with a complex environment:
-///
-/// ```rust
-/// use rustica::datatypes::reader::Reader;
-///
-/// // Application configuration
-/// #[derive(Clone)]
-/// struct Config {
-///     base_url: String,
-///     timeout_ms: u32,
-///     retry_count: u8,
-/// }
-///
-/// // Service that depends on configuration
-/// struct ApiService {
-///     url_reader: Reader<Config, String>,
-///     timeout_reader: Reader<Config, u32>,
-/// }
-///
-/// impl ApiService {
-///     fn new() -> Self {
-///         ApiService {
-///             url_reader: Reader::asks(|config: Config| config.base_url.clone()),
-///             timeout_reader: Reader::asks(|config: Config| config.timeout_ms),
-///         }
-///     }
-///     
-///     // Compose readers to build a connection string
-///     fn connection_string(&self) -> Reader<Config, String> {
-///         self.url_reader.combine(&self.timeout_reader, |url, timeout| {
-///             format!("{} (timeout: {}ms)", url, timeout)
-///         })
-///     }
-/// }
-///
-/// // Create the service
-/// let service = ApiService::new();
-///
-/// // Run with a specific configuration
-/// let config = Config {
-///     base_url: "https://api.example.com".to_string(),
-///     timeout_ms: 3000,
-///     retry_count: 3,
-/// };
-///
-/// // Get the connection string
-/// let conn_str = service.connection_string().run_reader(config);
-/// assert_eq!(conn_str, "https://api.example.com (timeout: 3000ms)");
-/// ```
+/// Complex environment composition is covered by
+/// `test_reader_complex_environment` in the module tests.
 #[repr(transparent)]
 pub struct Reader<E, A> {
     inner: ReaderT<E, Id<A>, A>,
@@ -645,6 +589,31 @@ mod tests {
         assert_eq!(mapped.run_reader(10), 22);
         assert_eq!(bound.run_reader(10), 220);
         assert_eq!(localized.run_reader(10), 480);
+        assert_eq!(base.run_reader(10), 11);
+    }
+
+    #[test]
+    fn test_reader_complex_environment() {
+        #[derive(Clone)]
+        struct Config {
+            base_url: String,
+            timeout_ms: u32,
+        }
+
+        let url_reader = Reader::asks(|config: Config| config.base_url.clone());
+        let timeout_reader = Reader::asks(|config: Config| config.timeout_ms);
+        let connection = url_reader.combine(&timeout_reader, |url, timeout| {
+            format!("{} (timeout: {}ms)", url, timeout)
+        });
+
+        let config = Config {
+            base_url: "https://api.example.com".to_string(),
+            timeout_ms: 3000,
+        };
+        assert_eq!(
+            connection.run_reader(config),
+            "https://api.example.com (timeout: 3000ms)"
+        );
     }
 
     #[test]
