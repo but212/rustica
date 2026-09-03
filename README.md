@@ -39,14 +39,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.13.0"
+rustica = "0.14.0"
 ```
 
 For full features including `async`, `serde`, and `quickcheck`:
 
 ```toml
 [dependencies]
-rustica = { version = "0.13.0", features = ["full"] }
+rustica = { version = "0.14.0", features = ["full"] }
 ```
 
 Import common traits and types through the prelude:
@@ -113,8 +113,8 @@ cargo package --all-features --locked
 
 Pull requests run read-only quality, platform, and MSRV checks. Weekly or
 manual workflows run nightly tests, unused-dependency checks, and Miri.
-Benchmarks run weekly and on `main` pushes; `main` updates the trusted baseline,
-while weekly results remain performance-observation artifacts.
+Benchmarks are available locally through Cargo's benchmark tooling and are not
+run as part of CI.
 
 `v*` tags create releases after validating the tag version, Cargo metadata, and
 matching `CHANGELOG.md` section. The protected `crates-io` environment controls

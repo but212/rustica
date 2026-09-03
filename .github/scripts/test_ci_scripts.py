@@ -1,18 +1,13 @@
 from __future__ import annotations
 
-import io
-import os
 import sys
 from pathlib import Path
 from unittest import TestCase, main
-from unittest.mock import patch
-from urllib.error import HTTPError
 
 
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from benchmark_common import api, parse_results  # noqa: E402
 from release_metadata import extract_release_body  # noqa: E402
 
 
@@ -31,46 +26,6 @@ class ReleaseMetadataTests(TestCase):
     def test_empty_heading(self) -> None:
         with self.assertRaisesRegex(ValueError, "empty"):
             extract_release_body("1.2.3", "## [1.2.3] - 2026-08-20\n\n## [1.2.2]")
-
-
-class BenchmarkTests(TestCase):
-    def test_contract_is_normalized(self) -> None:
-        values = parse_results([{"name": "sort", "value": 123, "unit": "ns/iter"}])
-        self.assertEqual(values, [{"name": "sort", "value": 123.0, "unit": "ns/iter"}])
-
-    def test_contract_rejects_empty_and_duplicate_names(self) -> None:
-        with self.assertRaises(ValueError):
-            parse_results([{"name": "", "value": 1, "unit": "ns/iter"}])
-        with self.assertRaises(ValueError):
-            parse_results(
-                [
-                    {"name": "sort", "value": 1, "unit": "ns/iter"},
-                    {"name": "sort", "value": 2, "unit": "ns/iter"},
-                ]
-            )
-
-    @patch.dict(os.environ, {"GH_TOKEN": "test-token"})
-    @patch("benchmark_common.urlopen")
-    def test_get_404_can_be_missing(self, urlopen) -> None:
-        urlopen.side_effect = HTTPError(
-            "https://api.github.com/missing", 404, "missing", {}, io.BytesIO(b"missing")
-        )
-        self.assertIsNone(api("GET", "/missing", allow_not_found=True))
-
-    @patch.dict(os.environ, {"GH_TOKEN": "test-token"})
-    @patch("benchmark_common.urlopen")
-    def test_write_404_is_an_error(self, urlopen) -> None:
-        for method in ("POST", "PUT"):
-            with self.subTest(method=method):
-                urlopen.side_effect = HTTPError(
-                    "https://api.github.com/missing", 404, "missing", {}, io.BytesIO(b"missing")
-                )
-                with self.assertRaises(RuntimeError):
-                    api(method, "/missing", {})
-
-    def test_not_found_flag_is_get_only(self) -> None:
-        with self.assertRaises(ValueError):
-            api("POST", "/missing", {}, allow_not_found=True)
 
 
 if __name__ == "__main__":
