@@ -7,6 +7,7 @@
 //! - [`First`], [`Last`]: First/last priority wrappers (useful for Monoid/Ord operations)
 //! - [`Max`], [`Min`]: Maximum/minimum value wrappers
 //! - [`Product`], [`Sum`]: Product/sum wrappers (numeric Monoids)
+//! - [`Predicate`]: Composable intensional sets with algebraic operations
 //! - [`Thunk`]: Lazy evaluation wrapper
 //!
 //! # Usage Examples
@@ -22,6 +23,9 @@
 //! let m = Max(10);
 //! let n = Max(20);
 //! assert_eq!(m.combine(&n).unwrap(), 20);
+//!
+//! let positive = Predicate::new(|value: &i32| *value > 0);
+//! assert!(positive.contains(&1));
 //! ```
 //!
 //! # Note
@@ -32,6 +36,7 @@ pub use crate::datatypes::wrapper::first::First;
 pub use crate::datatypes::wrapper::last::Last;
 pub use crate::datatypes::wrapper::max::Max;
 pub use crate::datatypes::wrapper::min::Min;
+pub use crate::datatypes::wrapper::predicate::Predicate;
 pub use crate::datatypes::wrapper::product::Product;
 pub use crate::datatypes::wrapper::sum::Sum;
 pub use crate::datatypes::wrapper::thunk::Thunk;

@@ -23,6 +23,7 @@
 //! - `Product<T>`: Forms a semigroup under multiplication (T must support `Mul`)
 //! - `Min<T>`: Forms a semigroup taking the minimum value (T must support `PartialOrd`)
 //! - `Max<T>`: Forms a semigroup taking the maximum value (T must support `PartialOrd`)
+//! - `Predicate<T>`: Forms a monoid of intensional sets under logical union
 //!
 //! ### Option-Based Wrappers
 //!
@@ -137,7 +138,10 @@ mod unit_tests {
 
 #[cfg(test)]
 mod law_tests {
-    use super::{first::First, last::Last, max::Max, min::Min, product::Product, sum::Sum};
+    use super::{
+        first::First, last::Last, max::Max, min::Min, predicate::Predicate, product::Product,
+        sum::Sum,
+    };
     use crate::traits::{functor::Functor, monoid::Monoid, semigroup::Semigroup};
 
     #[test]
@@ -165,5 +169,24 @@ mod law_tests {
         assert_eq!(Product(4).fmap(|x| *x), Product(4));
         assert_eq!(First(Some(4)).fmap(|x| *x), First(Some(4)));
         assert_eq!(Last::<i32>(None).fmap(|x| *x), Last(None));
+    }
+
+    #[test]
+    fn predicate_monoid_laws_hold_and_predicates_are_thread_safe() {
+        let even = Predicate::new(|value: &i32| value % 2 == 0);
+        let positive = Predicate::new(|value: &i32| *value > 0);
+        let negative = Predicate::new(|value: &i32| *value < 0);
+        let left = even.combine(&positive).combine(&negative);
+        let right = even.combine(&positive.combine(&negative));
+        let empty = Predicate::<i32>::empty();
+
+        for value in [-2, 0, 3] {
+            assert_eq!(left.contains(&value), right.contains(&value));
+            assert_eq!(empty.combine(&even).contains(&value), even.contains(&value));
+            assert_eq!(even.combine(&empty).contains(&value), even.contains(&value));
+        }
+
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Predicate<i32>>();
     }
 }

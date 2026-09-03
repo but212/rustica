@@ -93,7 +93,7 @@ use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
 use std::ops::{BitAnd, BitOr, Not, Sub};
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// An intensional set, defined by a predicate function.
 ///
@@ -103,7 +103,7 @@ use std::rc::Rc;
 #[repr(transparent)]
 #[derive(Clone)]
 pub struct Predicate<A> {
-    func: Rc<dyn Fn(&A) -> bool>,
+    func: Arc<dyn Fn(&A) -> bool + Send + Sync>,
 }
 
 impl<A> Predicate<A> {
@@ -129,14 +129,14 @@ impl<A> Predicate<A> {
     ///
     /// # Performance
     ///
-    /// - Time Complexity: O(1) - Simply wraps the function in an Rc
-    /// - Memory Usage: O(1) - Stores a single Rc pointer to the function
+    /// - Time Complexity: O(1) - Simply wraps the function in an Arc
+    /// - Memory Usage: O(1) - Stores a single Arc pointer to the function
     #[inline]
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(&A) -> bool + 'static,
+        F: Fn(&A) -> bool + Send + Sync + 'static,
     {
-        Predicate { func: Rc::new(f) }
+        Predicate { func: Arc::new(f) }
     }
 
     /// Returns true if the value satisfies the predicate.
@@ -397,7 +397,7 @@ impl<A: 'static> Semigroup for Predicate<A> {
     ///   complexities of the component predicates
     /// - **Memory Usage**: O(1) - Creates a new predicate with references to existing predicates
     /// - **Short-circuit Evaluation**: Returns early if the first predicate evaluates to true
-    /// - **Cloning**: Only the Rc pointers are cloned, not the underlying functions
+    /// - **Cloning**: Only the Arc pointers are cloned, not the underlying functions
     ///
     /// # Type Class Laws
     ///
@@ -482,7 +482,7 @@ impl<A: 'static> Monoid for Predicate<A> {
     /// # Performance
     ///
     /// - **Time Complexity**: O(1) for both creation and evaluation
-    /// - **Memory Usage**: Minimal, just stores an Rc to a trivial function
+    /// - **Memory Usage**: Minimal, just stores an Arc to a trivial function
     /// - **Evaluation**: Always returns false regardless of input
     ///
     /// # Type Class Laws

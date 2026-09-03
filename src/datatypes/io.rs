@@ -228,10 +228,11 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     {
         let this = self.clone();
         let handle = tokio::runtime::Handle::current();
-        handle
-            .spawn_blocking(move || this.run())
-            .await
-            .expect("Failed to run blocking task")
+        match handle.spawn_blocking(move || this.run()).await {
+            Ok(value) => value,
+            Err(error) if error.is_panic() => std::panic::resume_unwind(error.into_panic()),
+            Err(error) => panic!("Failed to run blocking task: {error}"),
+        }
     }
 
     /// Checks if this IO operation is pure (contains a value without side effects).
@@ -1028,6 +1029,9 @@ mod unit_tests {
     use super::IO;
 
     #[cfg(feature = "async")]
+    use super::{TOKIO_RUNTIME, panic_message};
+
+    #[cfg(feature = "async")]
     use std::sync::{
         Arc, Barrier,
         atomic::{AtomicUsize, Ordering},
@@ -1077,6 +1081,17 @@ mod unit_tests {
         assert_eq!(errors.len(), 2);
         assert!(errors[0].error_chain().contains("error 1"));
         assert!(errors[1].error_chain().contains("error 2"));
+    }
+
+    #[cfg(feature = "async")]
+    #[test]
+    fn run_async_preserves_panics_from_the_blocking_operation() {
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            TOKIO_RUNTIME.block_on(IO::new(|| panic!("run_async panic")).run_async())
+        }));
+
+        let payload = result.expect_err("run_async should propagate the operation panic");
+        assert_eq!(panic_message(payload), "run_async panic");
     }
 
     #[cfg(feature = "async")]

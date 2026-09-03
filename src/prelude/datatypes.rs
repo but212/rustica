@@ -15,7 +15,8 @@
 //! - [`Id`]: Identity functor
 //! - [`IO`]: Side-effectful computations
 //! - [`Cont`]: Continuation-passing style
-//! - [`Lens`, `Prism`, `IsoLens`, `IsoPrism`]: Optics for immutable data access
+//! - [`Lens`, `Prism`]: Optics for immutable data access; `Iso` values can
+//!   be lifted with `Lens::from_iso` and `Prism::from_iso`
 //!
 //! ## Usage Example
 //!
@@ -39,8 +40,6 @@ pub use crate::datatypes::choice::Choice;
 pub use crate::datatypes::cont::Cont;
 pub use crate::datatypes::id::Id;
 pub use crate::datatypes::io::IO;
-pub use crate::datatypes::iso_lens::IsoLens;
-pub use crate::datatypes::iso_prism::IsoPrism;
 pub use crate::datatypes::lens::Lens;
 pub use crate::datatypes::prism::Prism;
 pub use crate::datatypes::reader::Reader;

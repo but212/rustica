@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Breaking Changes
+
+- Removed `IsoLens` and `IsoPrism`; use `Lens::from_iso` and `Prism::from_iso`.
+- Removed `Lens::compose` and `Prism::compose`; use `then` for left-to-right optic composition.
+- Removed `pipeline_option`, `pipeline_result`, `transform_chain`, and the `utils` modules; use standard iterator operations such as `try_fold`.
+
+### Changed
+
+- `Predicate` is exported through the prelude and stores thread-safe predicates using `Arc` with `Send + Sync` closures.
+- `IO::run_async` preserves and rethrows the original panic payload from blocking operations.
+
 ## [0.14.0]
 
 ### Documentation Correctness

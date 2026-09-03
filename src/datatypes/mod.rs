@@ -29,8 +29,9 @@
 //!
 //! - `lens` - Bidirectional accessors for product types (structs)
 //! - `prism` - Bidirectional accessors for sum types (enums)
-//! - `iso_lens` - Isomorphism combined with lens functionality
-//! - `iso_prism` - Isomorphism combined with prism functionality
+//!
+//! Isomorphisms can also induce core lenses and prisms through `Lens::from_iso`
+//! and `Prism::from_iso`.
 //!
 //! ## Utility Types
 //!
@@ -48,8 +49,6 @@ pub mod cont;
 pub mod error;
 pub mod id;
 pub mod io;
-pub mod iso_lens;
-pub mod iso_prism;
 pub mod lens;
 pub mod prism;
 pub mod reader;
