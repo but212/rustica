@@ -82,8 +82,8 @@ use rustica::prelude::*;
 
 ### 3. Optics
 
-- **`Lens`** & **`IsoLens`**: Functional getters and setters for product types.
-- **`Prism`** & **`IsoPrism`**: Pattern matching and traversal optics for sum types.
+- **`Lens`**: Functional getters and setters for product types. Build one from an `Iso` with `Lens::from_iso`.
+- **`Prism`**: Pattern matching and traversal optics for sum types. Build one from an `Iso` with `Prism::from_iso`.
 
 ---
 
@@ -96,6 +96,9 @@ base-monad value types at compile time; standard `Result`, `Iterator`, and
 `From` APIs replace duplicate error helpers.
 
 See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the migration guide.
+
+The unreleased 0.15.0 breaking changes are documented in
+[MIGRATION_v0.15.0.md](MIGRATION_v0.15.0.md).
 
 ---
 

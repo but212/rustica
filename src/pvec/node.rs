@@ -126,50 +126,6 @@ impl<T> RRBNode<T> {
         }
     }
 
-    /// Returns true if this node has a size table (is relaxed/irregular).
-    pub fn is_relaxed(&self) -> bool {
-        matches!(self, RRBNode::Branch { sizes: Some(_), .. })
-    }
-
-    /// Gets a reference to the element at the specified index.
-    pub fn get(&self, index: usize) -> Option<&T> {
-        match self {
-            RRBNode::Leaf { elements } => elements.get(index),
-            RRBNode::Branch { children, .. } => {
-                let (child_idx, sub_index) = if self.is_relaxed() {
-                    self.find_child_relaxed(index)?
-                } else {
-                    self.find_child_regular(index, 1)?
-                };
-                children.get(child_idx)?.get(sub_index)
-            },
-        }
-    }
-
-    /// Finds the child index and sub-index using the provided size table.
-    pub fn find_child(
-        &self, index: usize, sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
-    ) -> Option<(usize, usize)> {
-        if let Some(sizes) = sizes {
-            let mut i = 0;
-            let mut cumulative_size = 0;
-            while i < sizes.len() {
-                let size = sizes[i];
-                if index < cumulative_size + size {
-                    return Some((i, index - cumulative_size));
-                }
-                cumulative_size += size;
-                i += 1;
-            }
-            None
-        } else {
-            let child_size = LEAF_CAPACITY;
-            let child_index = index / child_size;
-            let sub_index = index % child_size;
-            Some((child_index, sub_index))
-        }
-    }
-
     /// Calculates the total size (number of elements) in this subtree.
     pub fn calculate_size(&self) -> usize {
         match self {
@@ -185,8 +141,54 @@ impl<T> RRBNode<T> {
     }
 }
 
-/// Methods that require Clone for structural modifications
+/// Node transformation and update methods
 impl<T: Clone> RRBNode<T> {
+    pub fn create_branch_result(
+        children: SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
+        sizes: Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>, popped: T,
+    ) -> Option<(Self, T)> {
+        Some((RRBNode::Branch { children, sizes }, popped))
+    }
+
+    pub fn update(&self, index: usize, value: T, current_height: usize) -> Self {
+        match self {
+            RRBNode::Leaf { elements } => {
+                let mut new_elements = elements.clone();
+                if index < new_elements.len() {
+                    new_elements[index] = value;
+                }
+                RRBNode::Leaf {
+                    elements: new_elements,
+                }
+            },
+            RRBNode::Branch { children, sizes } => {
+                let found = if sizes.is_some() {
+                    self.find_child_relaxed(index)
+                } else {
+                    let child_height = current_height.saturating_sub(1);
+                    self.find_child_regular(index, child_height)
+                };
+
+                if let Some((child_index, sub_index)) = found {
+                    if let Some(child) = children.get(child_index) {
+                        let child_height = current_height.saturating_sub(1);
+                        let updated_child = child.update(sub_index, value, child_height);
+                        let mut new_children = children.clone();
+                        new_children[child_index] = Arc::new(updated_child);
+                        RRBNode::Branch {
+                            children: new_children,
+                            sizes: sizes.clone(),
+                        }
+                    } else {
+                        self.clone()
+                    }
+                } else {
+                    self.clone()
+                }
+            },
+        }
+    }
+
     pub fn make_relaxed(children: Vec<Arc<RRBNode<T>>>) -> Self {
         let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = children
             .iter()
@@ -204,10 +206,8 @@ impl<T: Clone> RRBNode<T> {
     ) -> Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>> {
         if let Some(sizes) = sizes {
             let mut new_sizes = sizes.clone();
-            if index == 0 {
-                new_sizes.remove(0);
-            } else {
-                new_sizes.pop();
+            if index < new_sizes.len() {
+                new_sizes.remove(index);
             }
             if new_sizes.is_empty() {
                 None
@@ -242,86 +242,132 @@ impl<T: Clone> RRBNode<T> {
         ))
     }
 
-    pub fn create_branch_result(
-        children: SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
-        sizes: Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>, popped: T,
-    ) -> Option<(Self, T)> {
-        Some((RRBNode::Branch { children, sizes }, popped))
-    }
-
-    pub fn update(&self, index: usize, value: T) -> Self {
-        match self {
-            RRBNode::Leaf { elements } => {
-                let mut new_elements = elements.clone();
-                if index < new_elements.len() {
-                    new_elements[index] = value;
-                }
-                RRBNode::Leaf {
-                    elements: new_elements,
-                }
-            },
-            RRBNode::Branch { children, sizes } => {
-                if let Some((child_index, sub_index)) = self.find_child(index, sizes) {
-                    if let Some(child) = children.get(child_index) {
-                        let updated_child = child.update(sub_index, value);
-                        let mut new_children = children.clone();
-                        new_children[child_index] = Arc::new(updated_child);
-                        RRBNode::Branch {
-                            children: new_children,
-                            sizes: sizes.clone(),
-                        }
-                    } else {
-                        self.clone()
-                    }
-                } else {
-                    self.clone()
-                }
-            },
+    fn append_size(
+        children: &[Arc<RRBNode<T>>], sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
+        new_size: usize,
+    ) -> SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> {
+        if let Some(s) = sizes {
+            let mut ns = s.clone();
+            ns.push(new_size);
+            ns
+        } else {
+            let mut ns: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> =
+                children.iter().map(|c| c.calculate_size()).collect();
+            ns.push(new_size);
+            ns
         }
     }
 
-    pub fn push_leaf(&self, leaf: Arc<RRBNode<T>>) -> Self {
-        match self {
-            RRBNode::Leaf { .. } => {
-                let self_size = self.calculate_size();
-                let leaf_size = leaf.calculate_size();
-                let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> =
-                    SmallVec::from_iter([self_size, leaf_size]);
+    fn prepend_size(
+        children: &[Arc<RRBNode<T>>], sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
+        new_size: usize,
+    ) -> SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> {
+        if let Some(s) = sizes {
+            let mut ns = SmallVec::with_capacity(s.len() + 1);
+            ns.push(new_size);
+            ns.extend(s.iter().cloned());
+            ns
+        } else {
+            let mut ns = SmallVec::with_capacity(children.len() + 1);
+            ns.push(new_size);
+            ns.extend(children.iter().map(|c| c.calculate_size()));
+            ns
+        }
+    }
 
-                RRBNode::Branch {
-                    children: SmallVec::from_iter([Arc::new(self.clone()), leaf]),
-                    sizes: Some(sizes),
-                }
-            },
-            RRBNode::Branch { children, sizes } => {
-                if children.len() < BRANCHING_FACTOR {
+    fn replace_size_at(
+        children: &[Arc<RRBNode<T>>], sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
+        index: usize, new_size: usize,
+    ) -> SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> {
+        if let Some(s) = sizes {
+            let mut ns = s.clone();
+            ns[index] = new_size;
+            ns
+        } else {
+            let mut ns: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> =
+                children.iter().map(|c| c.calculate_size()).collect();
+            ns[index] = new_size;
+            ns
+        }
+    }
+
+    /// Recursively inserts a leaf node at the back of a subtree at the given height.
+    ///
+    /// - If the insertion succeeds within the current subtree, returns `Ok(new_node)`.
+    /// - If the subtree overflows, returns `Err(new_sibling)` where `new_sibling` is at the same
+    ///   height as `node`, containing the inserted elements.
+    pub fn push_back_leaf_recursive(
+        node: &Arc<RRBNode<T>>, leaf: Arc<RRBNode<T>>, height: usize,
+    ) -> Result<Arc<RRBNode<T>>, Arc<RRBNode<T>>> {
+        let RRBNode::Branch { children, sizes } = node.as_ref() else {
+            let leaf_size = leaf.calculate_size();
+            let new_sibling = Arc::new(RRBNode::Branch {
+                children: SmallVec::from_iter([leaf]),
+                sizes: Some(SmallVec::from_iter([leaf_size])),
+            });
+            return Err(new_sibling);
+        };
+
+        let leaf_size = leaf.calculate_size();
+        if height <= 1 {
+            if children.len() < BRANCHING_FACTOR {
+                let mut new_children = children.clone();
+                new_children.push(leaf);
+                let new_sizes = Self::append_size(children, sizes, leaf_size);
+                Ok(Arc::new(RRBNode::Branch {
+                    children: new_children,
+                    sizes: Some(new_sizes),
+                }))
+            } else {
+                let new_sibling = Arc::new(RRBNode::Branch {
+                    children: SmallVec::from_iter([leaf]),
+                    sizes: Some(SmallVec::from_iter([leaf_size])),
+                });
+                Err(new_sibling)
+            }
+        } else {
+            if children.is_empty() {
+                let child = Arc::new(RRBNode::Branch {
+                    children: SmallVec::from_iter([leaf.clone()]),
+                    sizes: Some(SmallVec::from_iter([leaf_size])),
+                });
+                return Ok(Arc::new(RRBNode::Branch {
+                    children: SmallVec::from_iter([child.clone()]),
+                    sizes: Some(SmallVec::from_iter([child.calculate_size()])),
+                }));
+            }
+
+            let last_idx = children.len() - 1;
+            match Self::push_back_leaf_recursive(&children[last_idx], leaf, height - 1) {
+                Ok(new_last_child) => {
                     let mut new_children = children.clone();
-                    new_children.push(leaf.clone());
-
-                    let mut new_sizes = sizes.clone().unwrap_or_else(|| {
-                        children
-                            .iter()
-                            .map(|child| child.calculate_size())
-                            .collect()
-                    });
-                    new_sizes.push(leaf.calculate_size());
-
-                    RRBNode::Branch {
+                    let child_size = new_last_child.calculate_size();
+                    new_children[last_idx] = new_last_child;
+                    let new_sizes = Self::replace_size_at(children, sizes, last_idx, child_size);
+                    Ok(Arc::new(RRBNode::Branch {
                         children: new_children,
                         sizes: Some(new_sizes),
+                    }))
+                },
+                Err(new_sibling) => {
+                    let sibling_size = new_sibling.calculate_size();
+                    if children.len() < BRANCHING_FACTOR {
+                        let mut new_children = children.clone();
+                        new_children.push(new_sibling);
+                        let new_sizes = Self::append_size(children, sizes, sibling_size);
+                        Ok(Arc::new(RRBNode::Branch {
+                            children: new_children,
+                            sizes: Some(new_sizes),
+                        }))
+                    } else {
+                        let new_branch = Arc::new(RRBNode::Branch {
+                            children: SmallVec::from_iter([new_sibling]),
+                            sizes: Some(SmallVec::from_iter([sibling_size])),
+                        });
+                        Err(new_branch)
                     }
-                } else {
-                    let self_size = self.calculate_size();
-                    let leaf_size = leaf.calculate_size();
-                    let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> =
-                        SmallVec::from_iter([self_size, leaf_size]);
-
-                    RRBNode::Branch {
-                        children: SmallVec::from_iter([Arc::new(self.clone()), leaf]),
-                        sizes: Some(sizes),
-                    }
-                }
-            },
+                },
+            }
         }
     }
 
@@ -383,53 +429,84 @@ impl<T: Clone> RRBNode<T> {
         }
     }
 
-    pub fn push_front_leaf(&self, leaf: Arc<RRBNode<T>>) -> Self {
-        match self {
-            RRBNode::Leaf { .. } => {
-                let leaf_size = leaf.calculate_size();
-                let self_size = self.calculate_size();
-                let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> =
-                    SmallVec::from_iter([leaf_size, self_size]);
+    /// Recursively inserts a leaf node at the front of a subtree at the given height.
+    ///
+    /// - If the insertion succeeds within the current subtree, returns `Ok(new_node)`.
+    /// - If the subtree overflows, returns `Err(new_sibling)` where `new_sibling` is at the same
+    ///   height as `node`, containing the inserted elements.
+    pub fn push_front_leaf_recursive(
+        node: &Arc<RRBNode<T>>, leaf: Arc<RRBNode<T>>, height: usize,
+    ) -> Result<Arc<RRBNode<T>>, Arc<RRBNode<T>>> {
+        let RRBNode::Branch { children, sizes } = node.as_ref() else {
+            let leaf_size = leaf.calculate_size();
+            let new_sibling = Arc::new(RRBNode::Branch {
+                children: SmallVec::from_iter([leaf]),
+                sizes: Some(SmallVec::from_iter([leaf_size])),
+            });
+            return Err(new_sibling);
+        };
 
-                RRBNode::Branch {
-                    children: SmallVec::from_iter([leaf, Arc::new(self.clone())]),
-                    sizes: Some(sizes),
-                }
-            },
-            RRBNode::Branch { children, sizes } => {
-                if children.len() < BRANCHING_FACTOR {
-                    let mut new_children = SmallVec::with_capacity(children.len() + 1);
-                    new_children.push(leaf.clone());
-                    new_children.extend(children.iter().cloned());
+        let leaf_size = leaf.calculate_size();
+        if height <= 1 {
+            if children.len() < BRANCHING_FACTOR {
+                let mut new_children = SmallVec::with_capacity(children.len() + 1);
+                new_children.push(leaf);
+                new_children.extend(children.iter().cloned());
+                let new_sizes = Self::prepend_size(children, sizes, leaf_size);
+                Ok(Arc::new(RRBNode::Branch {
+                    children: new_children,
+                    sizes: Some(new_sizes),
+                }))
+            } else {
+                let new_sibling = Arc::new(RRBNode::Branch {
+                    children: SmallVec::from_iter([leaf]),
+                    sizes: Some(SmallVec::from_iter([leaf_size])),
+                });
+                Err(new_sibling)
+            }
+        } else {
+            if children.is_empty() {
+                let child = Arc::new(RRBNode::Branch {
+                    children: SmallVec::from_iter([leaf.clone()]),
+                    sizes: Some(SmallVec::from_iter([leaf_size])),
+                });
+                return Ok(Arc::new(RRBNode::Branch {
+                    children: SmallVec::from_iter([child.clone()]),
+                    sizes: Some(SmallVec::from_iter([child.calculate_size()])),
+                }));
+            }
 
-                    let new_sizes = if let Some(sizes) = sizes {
-                        let mut new_sizes = SmallVec::with_capacity(sizes.len() + 1);
-                        new_sizes.push(leaf.calculate_size());
-                        new_sizes.extend(sizes.iter().cloned());
-                        new_sizes
-                    } else {
-                        let mut new_sizes = SmallVec::with_capacity(children.len() + 1);
-                        new_sizes.push(leaf.calculate_size());
-                        new_sizes.extend(children.iter().map(|child| child.calculate_size()));
-                        new_sizes
-                    };
-
-                    RRBNode::Branch {
+            match Self::push_front_leaf_recursive(&children[0], leaf, height - 1) {
+                Ok(new_first_child) => {
+                    let mut new_children = children.clone();
+                    let child_size = new_first_child.calculate_size();
+                    new_children[0] = new_first_child;
+                    let new_sizes = Self::replace_size_at(children, sizes, 0, child_size);
+                    Ok(Arc::new(RRBNode::Branch {
                         children: new_children,
                         sizes: Some(new_sizes),
+                    }))
+                },
+                Err(new_sibling) => {
+                    let sibling_size = new_sibling.calculate_size();
+                    if children.len() < BRANCHING_FACTOR {
+                        let mut new_children = SmallVec::with_capacity(children.len() + 1);
+                        new_children.push(new_sibling);
+                        new_children.extend(children.iter().cloned());
+                        let new_sizes = Self::prepend_size(children, sizes, sibling_size);
+                        Ok(Arc::new(RRBNode::Branch {
+                            children: new_children,
+                            sizes: Some(new_sizes),
+                        }))
+                    } else {
+                        let new_branch = Arc::new(RRBNode::Branch {
+                            children: SmallVec::from_iter([new_sibling]),
+                            sizes: Some(SmallVec::from_iter([sibling_size])),
+                        });
+                        Err(new_branch)
                     }
-                } else {
-                    let leaf_size = leaf.calculate_size();
-                    let self_size = self.calculate_size();
-                    let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> =
-                        SmallVec::from_iter([leaf_size, self_size]);
-
-                    RRBNode::Branch {
-                        children: SmallVec::from_iter([leaf, Arc::new(self.clone())]),
-                        sizes: Some(sizes),
-                    }
-                }
-            },
+                },
+            }
         }
     }
 

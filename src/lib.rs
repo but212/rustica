@@ -96,16 +96,15 @@
 //! - `traits`: Fundamental traits for functional programming concepts
 //! - `datatypes`: Implementations of various functional data types
 //! - `transformers`: Monad transformers and related utilities
-//! - `category`: Category theory abstractions
 //! - `error`: Composable error handling utilities
 //! - `pvec`: Persistent vector implementation with structural sharing
-//! - `utils`: Utility functions and helpers for common operations
+//! - `category`: Category theory abstractions and function composition
 //! - `prelude`: A convenient module that re-exports commonly used items
 //!
-//! ## 0.14.0 Deprecated API Removal Contract Tests
+//! ## API Removal Contract Tests
 //!
-//! The following doctests verify at compile time that all deprecated and redundant APIs
-//! removed in 0.14.0 can no longer be imported or called:
+//! The following doctests verify at compile time that deprecated and redundant APIs
+//! removed in 0.14.0 or in the unreleased breaking changes can no longer be imported or called:
 //!
 //! ```compile_fail
 //! // Maybe has been removed in 0.14.0 (use Option instead)
@@ -153,6 +152,49 @@
 //! ```
 //!
 //! ```compile_fail
+//! // IsoLens has been removed in the unreleased breaking changes
+//! use rustica::datatypes::iso_lens::IsoLens;
+//! ```
+//!
+//! ```compile_fail
+//! // IsoPrism has been removed in the unreleased breaking changes
+//! use rustica::datatypes::iso_prism::IsoPrism;
+//! ```
+//!
+//! ```compile_fail
+//! // Lens::compose is removed in the unreleased changes (use Lens::then)
+//! use rustica::datatypes::lens::Lens;
+//! let first = Lens::new(
+//!     |value: &i32| *value,
+//!     |_: i32, value: i32| value,
+//! );
+//! let second = Lens::new(
+//!     |value: &i32| *value,
+//!     |_: i32, value: i32| value,
+//! );
+//! let _ = first.compose(second);
+//! ```
+//!
+//! ```compile_fail
+//! // pipeline_result is removed in the unreleased changes (use Iterator::try_fold)
+//! use rustica::utils::hkt_utils::pipeline_result;
+//! ```
+//!
+//! ```compile_fail
+//! // Prism::compose is removed in the unreleased changes (use Prism::then)
+//! use rustica::datatypes::prism::Prism;
+//! let first = Prism::new(
+//!     |value: &i32| Some(*value),
+//!     |value: &i32| *value,
+//! );
+//! let second = Prism::new(
+//!     |value: &i32| Some(*value),
+//!     |value: &i32| *value,
+//! );
+//! let _ = first.compose(second);
+//! ```
+//!
+//! ```compile_fail
 //! // PersistentVector::take has been removed in 0.14.0
 //! use rustica::pvec::PersistentVector;
 //! let v = PersistentVector::<i32>::new();
@@ -186,9 +228,9 @@
 //! ```
 //!
 //! ```compile_fail
-//! // Result has no lawful MonadPlus zero for an arbitrary error type.
-//! use rustica::traits::monad_plus::MonadPlus;
-//! let _: Result<i32, String> = Result::<i32, String>::mzero();
+//! // Result has no lawful Alternative empty for an arbitrary error type.
+//! use rustica::traits::alternative::Alternative;
+//! let _: Result<i32, String> = Result::<i32, String>::empty_alt();
 //! ```
 //!
 //! ```compile_fail
@@ -300,12 +342,6 @@
 /// - `Monad`: Monadic types with binding operations
 /// - `Monoid`: Types that can be combined with an identity element
 pub mod traits;
-
-/// Utility functions and helpers for common operations.
-///
-/// This module provides helper functions for error handling, function
-/// composition, and other common functional programming patterns.
-pub mod utils;
 
 /// Persistent vector implementation with structural sharing.
 ///

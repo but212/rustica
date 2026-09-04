@@ -142,6 +142,7 @@
 //! composition and variant-specific behavior are covered by
 //! `tests/datatypes/test_prism.rs`.
 
+use crate::traits::iso::Iso;
 use std::marker::PhantomData;
 
 /// A `Prism` is an optic that allows focusing on a specific case of a sum type.
@@ -587,8 +588,8 @@ where
     ///     |v: &i32| Inner::Value(*v),
     /// );
     ///
-    /// // Compose to create a prism from Outer to i32
-    /// let deep_prism = nested_prism.compose(value_prism);
+    /// // Chain to create a prism from Outer to i32
+    /// let deep_prism = nested_prism.then(value_prism);
     ///
     /// let data = Outer::Nested(Inner::Value(42));
     /// assert_eq!(deep_prism.preview(&data), Some(42));
@@ -597,7 +598,7 @@ where
     /// assert_eq!(constructed, Outer::Nested(Inner::Value(100)));
     /// ```
     #[inline]
-    pub fn compose<B, PreviewFn2, ReviewFn2>(
+    pub fn then<B, PreviewFn2, ReviewFn2>(
         self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
     ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
     where
@@ -615,74 +616,6 @@ where
             move |s: &S| preview1(s).and_then(|a| preview2(&a)),
             move |b: &B| review1(&review2(b)),
         )
-    }
-
-    /// Alias for `compose` - chains two prisms together.
-    ///
-    /// This method is provided as a more fluent alternative to `compose`,
-    /// allowing for a natural left-to-right reading order when chaining
-    /// multiple prisms.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The type of the deeply nested focus
-    /// * `PreviewFn2` - The type of the inner prism preview function
-    /// * `ReviewFn2` - The type of the inner prism review function
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - The inner prism that focuses from `A` to `B`
-    ///
-    /// # Returns
-    ///
-    /// A new prism that focuses from `S` directly to `B`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Level3 { Data(String) }
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Level2 { Inner(Level3), None2 }
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Level1 { Outer(Level2), None1 }
-    ///
-    /// let l1_l2 = Prism::new(
-    ///     |l: &Level1| match l { Level1::Outer(l2) => Some(l2.clone()), _ => None },
-    ///     |l2: &Level2| Level1::Outer(l2.clone()),
-    /// );
-    ///
-    /// let l2_l3 = Prism::new(
-    ///     |l: &Level2| match l { Level2::Inner(l3) => Some(l3.clone()), _ => None },
-    ///     |l3: &Level3| Level2::Inner(l3.clone()),
-    /// );
-    ///
-    /// let l3_data = Prism::new(
-    ///     |l: &Level3| match l { Level3::Data(s) => Some(s.clone()) },
-    ///     |s: &String| Level3::Data(s.clone()),
-    /// );
-    ///
-    /// // Chain multiple prisms
-    /// let deep = l1_l2.then(l2_l3).then(l3_data);
-    ///
-    /// let data = Level1::Outer(Level2::Inner(Level3::Data("hello".to_string())));
-    /// assert_eq!(deep.preview(&data), Some("hello".to_string()));
-    /// ```
-    #[inline]
-    pub fn then<B, PreviewFn2, ReviewFn2>(
-        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
-    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
-    where
-        A: Clone,
-        B: Clone,
-        PreviewFn2: Fn(&A) -> Option<B>,
-        ReviewFn2: Fn(&B) -> A,
-    {
-        self.compose(other)
     }
 
     /// Sets the focused value with structural sharing optimization.
@@ -755,6 +688,44 @@ where
             },
             None => self.review(&new_value), // Preview failed, create new structure with the value
         }
+    }
+}
+
+impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
+    /// Creates a prism from a total isomorphism.
+    ///
+    /// The underlying isomorphism maps every source to a focus, so preview
+    /// always succeeds.
+    #[inline]
+    pub fn from_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
+    where
+        I: Iso<S, A, From = S, To = A>,
+    {
+        let iso = std::sync::Arc::new(iso);
+        let preview_iso = std::sync::Arc::clone(&iso);
+        Prism::new(
+            move |source: &S| Some(preview_iso.forward(source)),
+            move |focus: &A| iso.backward(focus),
+        )
+    }
+
+    /// Creates a prism from an option-valued isomorphism.
+    ///
+    /// This is the direct replacement for the removed `IsoPrism`: the iso's
+    /// `forward` map decides whether the case matches, and `backward` receives
+    /// `Some(focus)` when reviewing a focused value.
+    #[inline]
+    pub fn from_option_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
+    where
+        A: Clone,
+        I: Iso<S, Option<A>, From = S, To = Option<A>>,
+    {
+        let iso = std::sync::Arc::new(iso);
+        let preview_iso = std::sync::Arc::clone(&iso);
+        Prism::new(
+            move |source: &S| preview_iso.forward(source),
+            move |focus: &A| iso.backward(&Some(focus.clone())),
+        )
     }
 }
 
@@ -841,6 +812,54 @@ mod unit_tests {
                 message: "OK".into()
             }
         );
+    }
+
+    #[derive(Clone, Copy)]
+    struct IdentityIso;
+
+    impl crate::traits::iso::Iso<i32, i32> for IdentityIso {
+        type From = i32;
+        type To = i32;
+
+        fn forward(&self, from: &Self::From) -> Self::To {
+            *from
+        }
+
+        fn backward(&self, to: &Self::To) -> Self::From {
+            *to
+        }
+    }
+
+    #[test]
+    fn from_iso_induces_a_prism() {
+        let prism = Prism::from_iso(IdentityIso);
+
+        assert_eq!(prism.preview(&42), Some(42));
+        assert_eq!(prism.review(&7), 7);
+    }
+
+    struct OptionIso;
+
+    impl crate::traits::iso::Iso<i32, Option<i32>> for OptionIso {
+        type From = i32;
+        type To = Option<i32>;
+
+        fn forward(&self, from: &Self::From) -> Self::To {
+            (*from >= 0).then_some(*from)
+        }
+
+        fn backward(&self, to: &Self::To) -> Self::From {
+            to.unwrap_or_default()
+        }
+    }
+
+    #[test]
+    fn option_iso_induces_a_prism_without_double_wrapping() {
+        let prism = Prism::from_option_iso(OptionIso);
+
+        assert_eq!(prism.preview(&42), Some(42));
+        assert_eq!(prism.preview(&-1), None);
+        assert_eq!(prism.review(&7), 7);
     }
 
     #[test]

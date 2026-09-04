@@ -64,21 +64,6 @@ impl<A, B> HKT for TestBifunctor<A, B> {
 impl<A, B> BinaryHKT for TestBifunctor<A, B> {
     type Source2 = B;
     type BinaryOutput<U, V> = TestBifunctor<U, V>;
-
-    fn map_second<F, NewType2>(&self, f: F) -> Self::BinaryOutput<A, NewType2>
-    where
-        F: Fn(&Self::Source2) -> NewType2,
-        A: Clone,
-    {
-        TestBifunctor(self.0.clone(), f(&self.1))
-    }
-
-    fn map_second_owned<F, NewType2>(self, f: F) -> Self::BinaryOutput<A, NewType2>
-    where
-        F: Fn(Self::Source2) -> NewType2,
-    {
-        TestBifunctor(self.0, f(self.1))
-    }
 }
 
 impl<A: Clone, B: Clone> Bifunctor for TestBifunctor<A, B> {
@@ -161,4 +146,18 @@ fn bifunctor_maps_each_side_and_chains_operations() {
             .second(|message| message.to_string()),
         TestBifunctor(16, "error".to_string())
     );
+}
+
+#[test]
+fn test_product_monoid_i8() {
+    use rustica::datatypes::wrapper::product::Product;
+    use rustica::traits::monoid::Monoid;
+    use rustica::traits::semigroup::Semigroup;
+
+    let empty: Product<i8> = Product::empty();
+    assert_eq!(empty.0, 1i8);
+
+    let val = Product(5i8);
+    assert_eq!(val.combine(&empty), val);
+    assert_eq!(empty.combine(&val), val);
 }

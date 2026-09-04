@@ -48,7 +48,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use rustica::traits::monad_error::{MonadError, ErrorMapper};
+//! use rustica::traits::monad_error::MonadError;
 //! use rustica::traits::monad::Monad;
 //! use rustica::traits::pure::Pure;
 //! use rustica::traits::functor::Functor;
@@ -77,11 +77,6 @@
 //! });
 //!
 //! assert_eq!(handled, Ok(0));
-//!
-//! // Transforming between error types using ErrorMapper
-//! let string_error = success_result.map_error_to::<String, _>(|e| format!("Error {}: {}", e.code, e.message));
-//!
-//! assert_eq!(string_error, Ok(42));
 //! ```
 use crate::traits::monad::Monad;
 
@@ -175,76 +170,6 @@ pub trait MonadError<E>: Monad {
         Self: Sized;
 }
 
-/// A trait for types that can map their error type to a different error type.
-///
-/// This trait is separate from MonadError to allow for more flexible error handling
-/// where the error type can be transformed. It follows category-theoretic principles
-/// by not imposing unnecessary constraints on error types.
-///
-/// # Type Parameters
-/// * `E`: The original error type (no additional constraints required)
-///
-/// # Category Theory
-///
-/// This trait represents a natural transformation between error types, which is
-/// a fundamental concept in category theory. The transformation preserves the
-/// structure while changing the error type.
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::monad_error::ErrorMapper;
-///
-/// let result: Result<i32, &str> = Ok(42);
-/// let string_result = result.map_error_to::<String, _>(|e| format!("Error: {}", e));
-/// assert_eq!(string_result, Ok(42));
-/// ```
-pub trait ErrorMapper<E> {
-    /// The source type contained in the monad
-    type Source;
-
-    /// Transforms the error type using the given function.
-    ///
-    /// This allows for adapting between different error types while preserving
-    /// the successful value. This is a category-theoretic natural transformation.
-    ///
-    /// # Type Parameters
-    /// * `NewE`: The new error type
-    /// * `F`: The type of the error-mapping function
-    ///
-    /// # Parameters
-    /// * `f`: A function that transforms the error type
-    ///
-    /// # Returns
-    /// A new monadic value with the same success type but a different error type
-    fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
-    where
-        F: Fn(&E) -> NewE,
-        Self::Source: Clone;
-
-    /// Transforms the error type using the given function, consuming self.
-    ///
-    /// This variant of `map_error_to` takes ownership of `self`, allowing for more
-    /// efficient implementations when the original monad is no longer needed.
-    ///
-    /// This is the ownership-based version for better performance.
-    ///
-    /// # Type Parameters
-    /// * `NewE`: The new error type
-    /// * `F`: The type of the error-mapping function
-    ///
-    /// # Parameters
-    /// * `f`: A function that transforms the error type
-    ///
-    /// # Returns
-    /// A new monadic value with the same success type but a different error type
-    fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
-    where
-        F: Fn(E) -> NewE,
-        Self::Source: Clone,
-        Self: Sized;
-}
-
 // Implementation for Result
 // Note: We only require Clone for T and E where actually needed, not as blanket constraints
 impl<T: Clone, E: Clone + std::fmt::Debug> MonadError<E> for Result<T, E> {
@@ -275,37 +200,6 @@ impl<T: Clone, E: Clone + std::fmt::Debug> MonadError<E> for Result<T, E> {
         match self {
             Ok(value) => Ok(value),
             Err(error) => f(error),
-        }
-    }
-}
-
-// Implementation of ErrorMapper for Result
-// Note: Only requiring Clone where actually needed for the operation
-impl<T: Clone, E> ErrorMapper<E> for Result<T, E> {
-    type Source = T;
-
-    #[inline]
-    fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
-    where
-        F: Fn(&E) -> NewE,
-        Self::Source: Clone,
-    {
-        match self {
-            Ok(value) => Ok(value.clone()),
-            Err(error) => Err(f(error)),
-        }
-    }
-
-    #[inline]
-    fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
-    where
-        F: Fn(E) -> NewE,
-        Self::Source: Clone,
-        Self: Sized,
-    {
-        match self {
-            Ok(value) => Ok(value),
-            Err(error) => Err(f(error)),
         }
     }
 }
@@ -344,42 +238,12 @@ impl<T: Clone> MonadError<()> for Option<T> {
     }
 }
 
-// Option can map its "error" type by converting None to a specific error
-impl<T: Clone> ErrorMapper<()> for Option<T> {
-    type Source = T;
-
-    #[inline]
-    fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
-    where
-        F: Fn(&()) -> NewE,
-        Self::Source: Clone,
-    {
-        match self {
-            Some(value) => Ok(value.clone()),
-            None => Err(f(&())),
-        }
-    }
-
-    #[inline]
-    fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
-    where
-        F: Fn(()) -> NewE,
-        Self::Source: Clone,
-        Self: Sized,
-    {
-        match self {
-            Some(value) => Ok(value),
-            None => Err(f(())),
-        }
-    }
-}
-
 #[cfg(test)]
 mod unit_tests {
-    use super::{ErrorMapper, MonadError};
+    use super::MonadError;
 
     #[test]
-    fn monad_error_laws_and_mapping_hold() {
+    fn monad_error_laws_hold() {
         let thrown: Result<i32, String> = Result::<i32, String>::throw("err".to_string());
         assert_eq!(
             thrown.catch(|e| if e == "err" { Ok(42) } else { Err(e.clone()) }),
@@ -393,17 +257,5 @@ mod unit_tests {
         let thrown_none: Option<i32> = Option::<i32>::throw::<i32>(());
         assert_eq!(thrown_none, None);
         assert_eq!(None::<i32>.catch(|_| Some(0)), Some(0));
-
-        let result: Result<i32, String> = Err("404".into());
-        assert_eq!(
-            result.map_error_to(|e: &String| format!("E:{e}")),
-            Err("E:404".into())
-        );
-        assert_eq!(
-            result
-                .map(|x| x * 2)
-                .map_error_to(|e| format!("Error on {e}")),
-            Err("Error on 404".into())
-        );
     }
 }

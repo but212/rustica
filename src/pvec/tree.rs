@@ -320,7 +320,7 @@ impl<T: Clone> RRBTree<T> {
         let tree_size = self.len - self.head.len() - self.tail.len();
 
         if adjusted_index < tree_size {
-            let new_root = self.root.update(adjusted_index, value);
+            let new_root = self.root.update(adjusted_index, value, self.height);
             Self {
                 root: Arc::new(new_root),
                 tail: self.tail.clone(),
@@ -365,19 +365,61 @@ impl<T: Clone> RRBTree<T> {
             return self.clone();
         }
 
-        let tail_leaf = RRBNode::Leaf {
+        let tail_leaf = Arc::new(RRBNode::Leaf {
             elements: self.tail.clone(),
-        };
+        });
 
-        let new_root = self.root.push_leaf(Arc::new(tail_leaf));
-        let new_height = Self::calculate_height(&Arc::new(new_root.clone()));
-
-        Self {
-            root: Arc::new(new_root),
-            tail: SmallVec::new(),
-            head: self.head.clone(),
-            height: new_height,
-            len: self.len,
+        if self.height == 0 {
+            if self.root.calculate_size() == 0 {
+                Self {
+                    root: tail_leaf,
+                    tail: SmallVec::new(),
+                    head: self.head.clone(),
+                    height: 0,
+                    len: self.len,
+                }
+            } else {
+                let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> =
+                    SmallVec::from_iter([self.root.calculate_size(), tail_leaf.calculate_size()]);
+                let new_root = Arc::new(RRBNode::Branch {
+                    children: SmallVec::from_iter([self.root.clone(), tail_leaf]),
+                    sizes: Some(sizes),
+                });
+                Self {
+                    root: new_root,
+                    tail: SmallVec::new(),
+                    head: self.head.clone(),
+                    height: 1,
+                    len: self.len,
+                }
+            }
+        } else {
+            match RRBNode::push_back_leaf_recursive(&self.root, tail_leaf, self.height) {
+                Ok(new_root) => Self {
+                    root: new_root,
+                    tail: SmallVec::new(),
+                    head: self.head.clone(),
+                    height: self.height,
+                    len: self.len,
+                },
+                Err(new_sibling) => {
+                    let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = SmallVec::from_iter([
+                        self.root.calculate_size(),
+                        new_sibling.calculate_size(),
+                    ]);
+                    let new_root = Arc::new(RRBNode::Branch {
+                        children: SmallVec::from_iter([self.root.clone(), new_sibling]),
+                        sizes: Some(sizes),
+                    });
+                    Self {
+                        root: new_root,
+                        tail: SmallVec::new(),
+                        head: self.head.clone(),
+                        height: self.height + 1,
+                        len: self.len,
+                    }
+                },
+            }
         }
     }
 
@@ -403,19 +445,61 @@ impl<T: Clone> RRBTree<T> {
             return self.clone();
         }
 
-        let head_leaf = RRBNode::Leaf {
+        let head_leaf = Arc::new(RRBNode::Leaf {
             elements: self.head.clone(),
-        };
+        });
 
-        let new_root = self.root.push_front_leaf(Arc::new(head_leaf));
-        let new_height = Self::calculate_height(&Arc::new(new_root.clone()));
-
-        Self {
-            root: Arc::new(new_root),
-            tail: self.tail.clone(),
-            head: SmallVec::new(),
-            height: new_height,
-            len: self.len,
+        if self.height == 0 {
+            if self.root.calculate_size() == 0 {
+                Self {
+                    root: head_leaf,
+                    tail: self.tail.clone(),
+                    head: SmallVec::new(),
+                    height: 0,
+                    len: self.len,
+                }
+            } else {
+                let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> =
+                    SmallVec::from_iter([head_leaf.calculate_size(), self.root.calculate_size()]);
+                let new_root = Arc::new(RRBNode::Branch {
+                    children: SmallVec::from_iter([head_leaf, self.root.clone()]),
+                    sizes: Some(sizes),
+                });
+                Self {
+                    root: new_root,
+                    tail: self.tail.clone(),
+                    head: SmallVec::new(),
+                    height: 1,
+                    len: self.len,
+                }
+            }
+        } else {
+            match RRBNode::push_front_leaf_recursive(&self.root, head_leaf, self.height) {
+                Ok(new_root) => Self {
+                    root: new_root,
+                    tail: self.tail.clone(),
+                    head: SmallVec::new(),
+                    height: self.height,
+                    len: self.len,
+                },
+                Err(new_sibling) => {
+                    let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = SmallVec::from_iter([
+                        new_sibling.calculate_size(),
+                        self.root.calculate_size(),
+                    ]);
+                    let new_root = Arc::new(RRBNode::Branch {
+                        children: SmallVec::from_iter([new_sibling, self.root.clone()]),
+                        sizes: Some(sizes),
+                    });
+                    Self {
+                        root: new_root,
+                        tail: self.tail.clone(),
+                        head: SmallVec::new(),
+                        height: self.height + 1,
+                        len: self.len,
+                    }
+                },
+            }
         }
     }
 
@@ -427,16 +511,6 @@ impl<T: Clone> RRBTree<T> {
             return self.clone();
         }
 
-        if self.height == other.height {
-            self.concat_same_height(other)
-        } else if self.height < other.height {
-            self.concat_different_height(other, false)
-        } else {
-            self.concat_different_height(other, true)
-        }
-    }
-
-    fn concat_same_height(&self, other: &Self) -> Self {
         let mut left_for_merge = self.clone();
         let mut right_for_merge = other.clone();
 
@@ -448,28 +522,28 @@ impl<T: Clone> RRBTree<T> {
             right_for_merge = right_for_merge.push_head_to_tree();
         }
 
-        let merge_height = left_for_merge.height.max(right_for_merge.height);
-        let merged_root =
-            Self::concat_nodes(&left_for_merge.root, &right_for_merge.root, merge_height);
+        if left_for_merge.height == right_for_merge.height {
+            Self::concat_flushed_same_height(&left_for_merge, &right_for_merge)
+        } else if left_for_merge.height < right_for_merge.height {
+            let elevated_left = Self::elevate_tree(&left_for_merge, right_for_merge.height);
+            Self::concat_flushed_same_height(&elevated_left, &right_for_merge)
+        } else {
+            let elevated_right = Self::elevate_tree(&right_for_merge, left_for_merge.height);
+            Self::concat_flushed_same_height(&left_for_merge, &elevated_right)
+        }
+    }
+
+    fn concat_flushed_same_height(left: &Self, right: &Self) -> Self {
+        let merged_root = Self::concat_nodes(&left.root, &right.root, left.height);
         let root = Arc::new(merged_root);
         let height = Self::calculate_height(&root);
 
         Self {
             root,
-            tail: right_for_merge.tail,
-            head: left_for_merge.head,
+            tail: right.tail.clone(),
+            head: left.head.clone(),
             height,
-            len: self.len + other.len,
-        }
-    }
-
-    fn concat_different_height(&self, other: &Self, left_higher: bool) -> Self {
-        if left_higher {
-            let elevated_other = Self::elevate_tree(other, self.height);
-            self.concat_same_height(&elevated_other)
-        } else {
-            let elevated_self = Self::elevate_tree(self, other.height);
-            elevated_self.concat_same_height(other)
+            len: left.len + right.len,
         }
     }
 
@@ -546,7 +620,17 @@ impl<T: Clone> RRBTree<T> {
                 {
                     let next_height = height.saturating_sub(1);
                     let merged_middle = Self::concat_nodes(left_last, right_first, next_height);
-                    new_children.push(Arc::new(merged_middle));
+                    match merged_middle {
+                        RRBNode::Branch {
+                            children: middle_children,
+                            ..
+                        } if next_height == 0 => {
+                            new_children.extend(middle_children);
+                        },
+                        _ => {
+                            new_children.push(Arc::new(merged_middle));
+                        },
+                    }
                 }
 
                 for i in 1..right_children.len() {
@@ -624,7 +708,7 @@ impl<T: Clone> RRBTree<T> {
         }
 
         let last_tree_index = tree_size - 1;
-        let last_element = self.root.get(last_tree_index)?.clone();
+        let last_element = self.get_from_tree(last_tree_index)?.clone();
 
         let (new_root, new_height) = if tree_size == 1 {
             (
@@ -898,10 +982,10 @@ impl<T: Clone> RRBTree<T> {
             }
             target_index.saturating_sub(cumulative)
         } else {
-            let child_capacity = if height <= 1 {
+            let child_capacity = if height == 0 {
                 LEAF_CAPACITY
             } else {
-                LEAF_CAPACITY * BRANCHING_FACTOR.pow((height - 1) as u32)
+                LEAF_CAPACITY * BRANCHING_FACTOR.pow(height as u32)
             };
             target_index.saturating_sub(child_index * child_capacity)
         }

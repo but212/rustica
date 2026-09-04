@@ -433,10 +433,13 @@ impl<E, A> Validated<E, A> {
     pub fn unwrap(&self) -> A
     where
         A: Clone,
+        E: std::fmt::Debug,
     {
         match self {
             Validated::Valid(value) => value.clone(),
-            _ => panic!("Cannot unwrap invalid value"),
+            Validated::Invalid(e) => {
+                panic!("Called Validated::unwrap() on an Invalid value: {e:?}")
+            },
         }
     }
 
@@ -513,10 +516,13 @@ impl<E, A> Validated<E, A> {
     pub fn unwrap_invalid(&self) -> Vec<E>
     where
         E: Clone,
+        A: std::fmt::Debug,
     {
         match self {
             Validated::Invalid(_) => self.iter_errors().cloned().collect(),
-            _ => panic!("Cannot unwrap valid value"),
+            Validated::Valid(a) => {
+                panic!("Called Validated::unwrap_invalid() on a Valid value: {a:?}")
+            },
         }
     }
 
@@ -537,13 +543,13 @@ mod tests {
     use super::Validated;
 
     #[test]
-    #[should_panic(expected = "Cannot unwrap invalid value")]
+    #[should_panic(expected = "Called Validated::unwrap() on an Invalid value:")]
     fn unwrap_rejects_invalid_values() {
         Validated::<&str, i32>::invalid("error").unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "Cannot unwrap valid value")]
+    #[should_panic(expected = "Called Validated::unwrap_invalid() on a Valid value:")]
     fn unwrap_invalid_rejects_valid_values() {
         Validated::<&str, i32>::valid(42).unwrap_invalid();
     }

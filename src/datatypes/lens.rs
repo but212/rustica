@@ -122,6 +122,7 @@
 //! composition and structural-sharing behavior is covered by
 //! `test_lens_composition_and_chaining` in `tests/datatypes/test_lens.rs`.
 
+use crate::traits::iso::Iso;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -663,8 +664,8 @@ where
     ///     |a: Address, street: String| Address { street, ..a },
     /// );
     ///
-    /// // Compose to create a lens from Person to street
-    /// let person_street_lens = address_lens.compose(street_lens);
+    /// // Chain to create a lens from Person to street
+    /// let person_street_lens = address_lens.then(street_lens);
     ///
     /// let person = Person {
     ///     name: "Alice".to_string(),
@@ -683,7 +684,7 @@ where
     /// assert_eq!(updated.address.city, "Springfield"); // Other fields preserved
     /// ```
     #[inline]
-    pub fn compose<B, GetFn2, SetFn2>(
+    pub fn then<B, GetFn2, SetFn2>(
         self, other: Lens<A, B, GetFn2, SetFn2>,
     ) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
     where
@@ -707,76 +708,28 @@ where
             },
         )
     }
+}
 
-    /// Alias for `compose` - chains two lenses together.
+impl<S, A> Lens<S, A, fn(&S) -> A, fn(S, A) -> S>
+where
+    S: Clone,
+    A: Clone,
+{
+    /// Creates a lens induced by an isomorphism.
     ///
-    /// This method is provided as a more fluent alternative to `compose`,
-    /// allowing for a natural left-to-right reading order when chaining
-    /// multiple lenses.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The type of the deeply nested focus
-    /// * `GetFn2` - The type of the inner lens getter
-    /// * `SetFn2` - The type of the inner lens setter
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - The inner lens that focuses from `A` to `B`
-    ///
-    /// # Returns
-    ///
-    /// A new lens that focuses from `S` directly to `B`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Inner { value: i32 }
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Middle { inner: Inner }
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Outer { middle: Middle }
-    ///
-    /// let outer_middle = Lens::new(
-    ///     |o: &Outer| o.middle.clone(),
-    ///     |o: Outer, m: Middle| Outer { middle: m },
-    /// );
-    ///
-    /// let middle_inner = Lens::new(
-    ///     |m: &Middle| m.inner.clone(),
-    ///     |m: Middle, i: Inner| Middle { inner: i },
-    /// );
-    ///
-    /// let inner_value = Lens::new(
-    ///     |i: &Inner| i.value,
-    ///     |i: Inner, v: i32| Inner { value: v },
-    /// );
-    ///
-    /// // Chain multiple lenses with `then` for readable composition
-    /// let deep_lens = outer_middle.then(middle_inner).then(inner_value);
-    ///
-    /// let data = Outer { middle: Middle { inner: Inner { value: 42 } } };
-    ///
-    /// assert_eq!(deep_lens.get(&data), 42);
-    ///
-    /// let updated = deep_lens.set(data, 100);
-    /// assert_eq!(updated.middle.inner.value, 100);
-    /// ```
+    /// The isomorphism's `forward` map becomes the lens getter and its
+    /// `backward` map reconstructs the source when setting a focus.
     #[inline]
-    pub fn then<B, GetFn2, SetFn2>(
-        self, other: Lens<A, B, GetFn2, SetFn2>,
-    ) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    pub fn from_iso<I>(iso: I) -> Lens<S, A, impl Fn(&S) -> A, impl Fn(S, A) -> S>
     where
-        B: Clone,
-        GetFn2: Fn(&A) -> B,
-        SetFn2: Fn(A, B) -> A,
+        I: Iso<S, A, From = S, To = A>,
     {
-        self.compose(other)
+        let iso = Arc::new(iso);
+        let getter_iso = Arc::clone(&iso);
+        Lens::new(
+            move |source: &S| getter_iso.forward(source),
+            move |_source: S, focus: A| iso.backward(&focus),
+        )
     }
 }
 
@@ -895,6 +848,31 @@ mod unit_tests {
         ));
     }
 
+    #[derive(Clone, Copy)]
+    struct IdentityIso;
+
+    impl crate::traits::iso::Iso<i32, i32> for IdentityIso {
+        type From = i32;
+        type To = i32;
+
+        fn forward(&self, from: &Self::From) -> Self::To {
+            *from
+        }
+
+        fn backward(&self, to: &Self::To) -> Self::From {
+            *to
+        }
+    }
+
+    #[test]
+    fn from_iso_induces_a_lens() {
+        let lens = Lens::from_iso(IdentityIso);
+
+        assert_eq!(lens.get(&42), 42);
+        assert_eq!(lens.set(42, 7), 7);
+        assert_eq!(lens.modify(42, |value| value + 1), 43);
+    }
+
     #[test]
     fn composition_and_unconditional_updates_work() {
         let person = Person {
@@ -904,7 +882,7 @@ mod unit_tests {
                 city: "Springfield".into(),
             }),
         };
-        let composed = address_lens().compose(street_lens());
+        let composed = address_lens().then(street_lens());
         assert_eq!(composed.get(&person), "123 Main St");
         assert_eq!(
             composed

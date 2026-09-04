@@ -112,33 +112,52 @@ use std::fmt;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Min<T>(pub T);
 
-impl<T: Clone> Min<T> {
-    /// Unwraps the min value.
+impl<T> Min<T> {
+    /// Creates a new `Min` wrapping the given value.
+    #[inline]
+    pub const fn new(value: T) -> Self {
+        Min(value)
+    }
+
+    /// Consumes the wrapper and returns the contained value.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use rustica::datatypes::wrapper::min::Min;
+    /// use rustica::datatypes::wrapper::min::Min;
     /// let min = Min(42);
-    /// assert_eq!(min.unwrap(), 42);
+    /// assert_eq!(min.into_inner(), 42);
     /// ```
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::min::Min;
+    /// let min = Min(42);
+    /// assert_eq!(*min.get(), 42);
+    /// ```
+    #[inline]
+    pub fn get(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: Clone> Min<T> {
+    /// Unwraps the min value.
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     #[inline]
     pub fn unwrap(&self) -> T {
         self.0.clone()
     }
 
     /// Unwraps the min value or returns a default.
-    ///
-    /// Since `Min` always contains a value, this method simply returns the contained value.
-    /// The `default` parameter is ignored.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::min::Min;
-    /// let min = Min(42);
-    /// assert_eq!(min.unwrap_or(0), 42);
-    /// ```
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     #[inline]
     pub fn unwrap_or(&self, _default: T) -> T {
         self.0.clone()

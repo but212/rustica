@@ -180,9 +180,9 @@ mod tests {
         let argument = Validated::<String, i32>::valid(10);
         assert_eq!(function.apply(&argument), Validated::valid(20));
 
-        let left = Validated::<String, i32>::invalid("a".into());
-        let middle = Validated::<String, i32>::invalid("b".into());
-        let right = Validated::<String, i32>::invalid("c".into());
+        let left = Validated::<String, String>::invalid("a".into());
+        let middle = Validated::<String, String>::invalid("b".into());
+        let right = Validated::<String, String>::invalid("c".into());
         assert_eq!(
             left.combine(&middle).combine(&right),
             left.combine(&middle.combine(&right))

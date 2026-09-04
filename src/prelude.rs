@@ -13,7 +13,6 @@
 //! - **Trait Extensions**: Ergonomic extension traits for functional operations
 //! - **Wrappers**: Newtype wrappers for monoidal/semigroup operations
 //! - **Error handling**: Composable errors and helpers (see `prelude::error`)
-//! - **Utilities**: Higher-kinded type tools and transformation utilities (see `prelude::utils`)
 //! - **Transformers**: Monad transformers (StateT, ReaderT, etc.)
 //!
 //! ## Usage Example
@@ -35,7 +34,7 @@
 //! use rustica::prelude::wrapper::*;
 //! let a = Sum(3);
 //! let b = Sum(4);
-//! assert_eq!(a.combine(&b).unwrap(), 7);
+//! assert_eq!(a.combine(&b).into_inner(), 7);
 //!
 //! // Use error utilities
 //! use rustica::prelude::error::*;
@@ -52,7 +51,6 @@ pub mod error;
 pub mod traits;
 pub mod traits_ext;
 pub mod transformers;
-pub mod utils;
 pub mod wrapper;
 
 pub use category::*;
@@ -61,5 +59,4 @@ pub use error::*;
 pub use traits::*;
 pub use traits_ext::*;
 pub use transformers::*;
-pub use utils::*;
 pub use wrapper::*;

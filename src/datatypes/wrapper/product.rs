@@ -74,6 +74,7 @@
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;
+use crate::traits::one::One;
 use crate::traits::semigroup::Semigroup;
 use std::fmt;
 use std::ops::Mul;
@@ -129,33 +130,52 @@ use std::ops::Mul;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Product<T>(pub T);
 
-impl<T: Clone> Product<T> {
-    /// Unwraps the product value.
+impl<T> Product<T> {
+    /// Creates a new `Product` wrapping the given value.
+    #[inline]
+    pub const fn new(value: T) -> Self {
+        Product(value)
+    }
+
+    /// Consumes the wrapper and returns the contained value.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use rustica::datatypes::wrapper::product::Product;
+    /// use rustica::datatypes::wrapper::product::Product;
     /// let product = Product(42);
-    /// assert_eq!(product.unwrap(), 42);
+    /// assert_eq!(product.into_inner(), 42);
     /// ```
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::product::Product;
+    /// let product = Product(42);
+    /// assert_eq!(*product.get(), 42);
+    /// ```
+    #[inline]
+    pub fn get(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: Clone> Product<T> {
+    /// Unwraps the product value.
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     #[inline]
     pub fn unwrap(&self) -> T {
         self.0.clone()
     }
 
     /// Unwraps the product value or returns a default.
-    ///
-    /// Since `Product` always contains a value, this method simply returns the contained value.
-    /// The `default` parameter is ignored.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::product::Product;
-    /// let product = Product(42);
-    /// assert_eq!(product.unwrap_or(0), 42);
-    /// ```
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     #[inline]
     pub fn unwrap_or(&self, _default: T) -> T {
         self.0.clone()
@@ -259,7 +279,7 @@ impl<T: fmt::Display> fmt::Display for Product<T> {
     }
 }
 
-impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
+impl<T: Clone + Mul<Output = T> + One> Monoid for Product<T> {
     /// Returns the identity element for the multiplication operation.
     ///
     /// This method creates a `Product` that contains the value `1` of type `T`,
@@ -268,9 +288,9 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
     ///
     /// # Performance
     ///
-    /// - **Time Complexity**: O(1) plus the complexity of `T::from(1)`
+    /// - **Time Complexity**: O(1) plus the complexity of `T::one()`
     /// - **Memory Usage**: Creates a single new `Product` wrapper with the multiplicative identity
-    /// - **Note**: For primitive numeric types, `T::from(1)` returns the value 1
+    /// - **Note**: For primitive numeric types, `T::one()` returns the value 1
     ///
     /// # Type Class Laws
     ///
@@ -293,7 +313,7 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
     ///
     /// // Create the identity element (Product(1))
     /// let identity: Product<i32> = Product::empty();
-    /// assert_eq!(identity.unwrap(), 1);
+    /// assert_eq!(*identity.get(), 1);
     ///
     /// // Identity property demonstration
     /// let a = Product(42);
@@ -302,7 +322,7 @@ impl<T: Clone + Mul<Output = T> + From<u8>> Monoid for Product<T> {
     /// ```
     #[inline]
     fn empty() -> Self {
-        Product(T::from(1))
+        Product(T::one())
     }
 }
 

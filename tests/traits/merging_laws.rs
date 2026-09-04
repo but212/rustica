@@ -67,3 +67,19 @@ fn test_monoid_utilities() {
     assert_eq!(repeat("x".to_string(), 3), "xxx");
     assert!(String::empty().is_empty_monoid());
 }
+
+#[test]
+fn test_validated_semigroup_accumulation() {
+    use rustica::datatypes::validated::core::Validated;
+    use rustica::datatypes::wrapper::sum::Sum;
+
+    // 1. Semigroup accumulates both valid payloads when both are Valid
+    let v1: Validated<String, Sum<i32>> = Validated::valid(Sum(10));
+    let v2: Validated<String, Sum<i32>> = Validated::valid(Sum(20));
+    assert_eq!(v1.combine(&v2), Validated::valid(Sum(30)));
+
+    // 2. Semigroup yields Invalid when one is Invalid (errors take precedence)
+    let inv: Validated<String, Sum<i32>> = Validated::invalid("err1".to_string());
+    assert!(v1.combine(&inv).is_invalid());
+    assert!(inv.combine(&v1).is_invalid());
+}

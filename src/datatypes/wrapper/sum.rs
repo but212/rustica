@@ -125,7 +125,7 @@ use std::ops::Add;
 ///
 /// // Combine them (addition)
 /// let c = a.combine(&b);
-/// assert_eq!(c.unwrap(), 12);
+/// assert_eq!(c.into_inner(), 12);
 ///
 /// // Addition is associative: (a + b) + c = a + (b + c)
 /// let x: Sum<i32> = Sum(1);
@@ -134,13 +134,13 @@ use std::ops::Add;
 ///
 /// let result1 = x.clone().combine(&y).combine(&z.clone());
 /// let result2 = x.combine(&y.combine(&z));
-/// assert_eq!(result1.unwrap(), result2.unwrap());
+/// assert_eq!(result1.into_inner(), result2.into_inner());
 ///
 /// // Identity element
 /// let id: Sum<i32> = Sum(0);
-/// assert_eq!(id.unwrap(), 0);
-/// assert_eq!(Sum(42).combine(&id).unwrap(), 42);
-/// assert_eq!(id.combine(&Sum(42)).unwrap(), 42);
+/// assert_eq!(*id.get(), 0);
+/// assert_eq!(Sum(42).combine(&id).into_inner(), 42);
+/// assert_eq!(id.combine(&Sum(42)).into_inner(), 42);
 /// ```
 ///
 /// Working with floating-point numbers:
@@ -152,7 +152,7 @@ use std::ops::Add;
 /// let a: Sum<f64> = Sum(2.5);
 /// let b: Sum<f64> = Sum(3.7);
 /// let c = a.combine(&b);
-/// assert_eq!(c.unwrap(), 6.2);
+/// assert_eq!(c.into_inner(), 6.2);
 /// ```
 ///
 /// Custom types that implement `Add`:
@@ -184,40 +184,59 @@ use std::ops::Add;
 /// let v2: Sum<Vector2D> = Sum(Vector2D { x: 3.0, y: 4.0 });
 /// let v3 = v1.combine(&v2);
 ///
-/// assert_eq!(v3.unwrap(), Vector2D { x: 4.0, y: 6.0 });
+/// assert_eq!(v3.into_inner(), Vector2D { x: 4.0, y: 6.0 });
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
 pub struct Sum<T>(pub T);
 
-impl<T: Clone> Sum<T> {
-    /// Unwraps the sum value.
+impl<T> Sum<T> {
+    /// Creates a new `Sum` wrapping the given value.
+    #[inline]
+    pub const fn new(value: T) -> Self {
+        Sum(value)
+    }
+
+    /// Consumes the wrapper and returns the contained value.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use rustica::datatypes::wrapper::sum::Sum;
+    /// use rustica::datatypes::wrapper::sum::Sum;
     /// let sum = Sum(42);
-    /// assert_eq!(sum.unwrap(), 42);
+    /// assert_eq!(sum.into_inner(), 42);
     /// ```
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::sum::Sum;
+    /// let sum = Sum(42);
+    /// assert_eq!(*sum.get(), 42);
+    /// ```
+    #[inline]
+    pub fn get(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: Clone> Sum<T> {
+    /// Unwraps the sum value.
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     #[inline]
     pub fn unwrap(&self) -> T {
         self.0.clone()
     }
 
     /// Unwraps the sum value or returns a default.
-    ///
-    /// Since `Sum` always contains a value, this method simply returns the contained value.
-    /// The `default` parameter is ignored.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::sum::Sum;
-    /// let sum = Sum(42);
-    /// assert_eq!(sum.unwrap_or(0), 42);
-    /// ```
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     #[inline]
     pub fn unwrap_or(&self, _default: T) -> T {
         self.0.clone()
@@ -355,7 +374,7 @@ impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
     ///
     /// // Create the identity element (Sum(0))
     /// let identity: Sum<i32> = Sum::empty();
-    /// assert_eq!(identity.unwrap(), 0);
+    /// assert_eq!(*identity.get(), 0);
     ///
     /// // Identity property demonstration
     /// let a = Sum(42);

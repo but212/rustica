@@ -1,85 +1,70 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput};
 use rustica::pvec::PersistentVector;
 use std::hint::black_box;
-use std::sync::Arc;
-use std::thread;
 
 pub fn pvec_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("PersistentVector");
 
-    // Creation operations
     group.bench_function("creation", |b| {
-        b.iter(|| {
-            black_box(PersistentVector::<i32>::new());
-        });
+        b.iter(|| black_box(PersistentVector::<i32>::new()));
     });
 
-    // Push operations with different sizes
-    for size in [10, 100, 1000, 10000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
-        group.bench_with_input(BenchmarkId::new("push_back", size), size, |b, &size| {
+    // 64 is the inline/tree representation boundary.
+    for size in [64usize, 65, 10_000] {
+        group.throughput(Throughput::Elements(size as u64));
+        group.bench_with_input(BenchmarkId::new("push_back", size), &size, |b, &size| {
             b.iter(|| {
                 let mut vec = PersistentVector::new();
-                for i in 0..size {
-                    vec = vec.push_back(black_box(i));
+                for value in 0..size {
+                    vec = vec.push_back(black_box(value));
                 }
                 black_box(vec)
             });
         });
     }
 
-    // Iterator traversal performance - O(n) vs O(n log n)
-    for size in [1000, 10000, 100000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
-
-        // Forward iteration using new O(n) iterator
-        group.bench_with_input(BenchmarkId::new("iter_forward", size), size, |b, &size| {
-            b.iter_batched_ref(
-                || (0..size).collect::<PersistentVector<usize>>(),
-                |vec| {
-                    let mut sum = 0usize;
-                    for item in vec.iter() {
-                        sum += black_box(item);
-                    }
-                    black_box(sum)
+    for size in [1_000usize, 100_000] {
+        group.throughput(Throughput::Elements(size as u64));
+        for direction in ["forward", "reverse"] {
+            group.bench_with_input(
+                BenchmarkId::new(format!("iter_{direction}"), size),
+                &size,
+                |b, &size| {
+                    b.iter_batched_ref(
+                        || (0..size).collect::<PersistentVector<usize>>(),
+                        |vec| {
+                            if direction == "reverse" {
+                                black_box(
+                                    vec.iter()
+                                        .rev()
+                                        .fold(0usize, |sum, value| sum + black_box(value)),
+                                )
+                            } else {
+                                black_box(
+                                    vec.iter().fold(0usize, |sum, value| sum + black_box(value)),
+                                )
+                            }
+                        },
+                        BatchSize::SmallInput,
+                    );
                 },
-                BatchSize::SmallInput,
             );
-        });
+        }
 
-        // Reverse iteration using DoubleEndedIterator
-        group.bench_with_input(BenchmarkId::new("iter_reverse", size), size, |b, &size| {
-            b.iter_batched_ref(
-                || (0..size).collect::<PersistentVector<usize>>(),
-                |vec| {
-                    let mut sum = 0usize;
-                    for item in vec.iter().rev() {
-                        sum += black_box(item);
-                    }
-                    black_box(sum)
-                },
-                BatchSize::SmallInput,
-            );
-        });
-
-        // Old-style indexed access (O(n log n))
         group.bench_with_input(
             BenchmarkId::new("indexed_access", size),
-            size,
+            &size,
             |b, &size| {
                 b.iter_batched_ref(
                     || (0..size).collect::<PersistentVector<usize>>(),
                     |vec| {
-                        let mut sum = 0usize;
-                        for i in 0..size {
-                            match vec.get(i) {
-                                Some(item) => sum += black_box(item),
-                                None => {
-                                    unreachable!("indexed benchmark input must contain every index")
-                                },
-                            }
-                        }
-                        black_box(sum)
+                        black_box((0..size).fold(0usize, |sum, index| {
+                            let value = match vec.get(index) {
+                                Some(value) => value,
+                                None => unreachable!("benchmark index must exist"),
+                            };
+                            sum + black_box(value)
+                        }))
                     },
                     BatchSize::SmallInput,
                 );
@@ -87,206 +72,54 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         );
     }
 
-    // Access operations with proper setup
-    group.bench_function("random_access", |b| {
-        let vec: PersistentVector<usize> = (0..10000).collect();
-        b.iter(|| {
-            for i in 0..1000 {
-                let idx = (i * 17) % 10000;
-                black_box(vec.get(black_box(idx)));
-            }
-        });
-    });
-
-    group.bench_function("sequential_access", |b| {
-        let vec: PersistentVector<usize> = (0..10000).collect();
-        b.iter(|| {
-            for i in 0..1000 {
-                black_box(vec.get(black_box(i)));
-            }
-        });
-    });
-
-    // Update operations with proper setup
-    group.bench_function("update_random", |b| {
-        let vec: PersistentVector<usize> = (0..1000).collect();
-        b.iter(|| {
-            let mut v = vec.clone();
-            for i in 0..100 {
-                let idx = (i * 17) % 1000;
-                v = v.update(black_box(idx), black_box(i * 2));
-            }
-            black_box(v)
-        });
-    });
-
-    group.bench_function("update_sequential", |b| {
-        let vec: PersistentVector<usize> = (0..1000).collect();
-        b.iter(|| {
-            let mut v = vec.clone();
-            for i in 0..100 {
-                v = v.update(black_box(i), black_box(i * 2));
-            }
-            black_box(v)
-        });
-    });
-
-    // Pop operations with proper setup
-    group.bench_function("pop_back", |b| {
-        let vec: PersistentVector<usize> = (0..1000).collect();
-        b.iter(|| {
-            let mut v = vec.clone();
-            for _ in 0..100 {
-                if let Some((new_v, _)) = v.pop_back() {
-                    v = new_v;
-                }
-            }
-            black_box(v)
-        });
-    });
-
-    // Memory efficiency (structural sharing)
-    group.bench_function("clone_large", |b| {
-        let vec: PersistentVector<usize> = (0..10000).collect();
-        b.iter(|| {
-            black_box(vec.clone());
-        });
-    });
-
-    group.bench_function("update_after_clone", |b| {
-        let vec: PersistentVector<usize> = (0..10000).collect();
-        b.iter(|| {
-            let mut cloned = vec.clone();
-            cloned = cloned.update(5000, black_box(42));
-            black_box(cloned)
-        });
-    });
-
-    // Comparison with std::Vec
-    let size = 10000;
-    let access_count = 1000;
-
-    // PersistentVector access
-    group.bench_function("pvec_access", |b| {
-        let vec: PersistentVector<usize> = (0..size).collect();
-        b.iter(|| {
-            for i in 0..access_count {
-                let idx = (i * 17) % size;
-                black_box(vec.get(black_box(idx)));
-            }
-        });
-    });
-
-    // std::Vec access
-    group.bench_function("std_vec_access", |b| {
-        let vec: Vec<usize> = (0..size).collect();
-        b.iter(|| {
-            for i in 0..access_count {
-                let idx = (i * 17) % size;
-                black_box(vec.get(black_box(idx)));
-            }
-        });
-    });
-
-    // PersistentVector build
-    group.bench_function("pvec_build", |b| {
-        b.iter(|| {
+    for size in [1_000, 10_000] {
+        group.bench_with_input(BenchmarkId::new("update", size), &size, |b, &size| {
             let vec: PersistentVector<usize> = (0..size).collect();
-            black_box(vec)
+            b.iter(|| {
+                let mut updated = vec.clone();
+                for index in (0..size).step_by(size / 10) {
+                    updated = updated.update(black_box(index), black_box(index * 2));
+                }
+                black_box(updated)
+            });
         });
-    });
+    }
 
-    // std::Vec build
-    group.bench_function("std_vec_build", |b| {
+    group.bench_function("pop_back", |b| {
+        let vec: PersistentVector<usize> = (0..1_000).collect();
         b.iter(|| {
-            let mut vec = Vec::new();
-            for i in 0..size {
-                vec.push(black_box(i));
+            let mut current = vec.clone();
+            for _ in 0..100 {
+                current = match current.pop_back() {
+                    Some((next, _)) => next,
+                    None => unreachable!("benchmark vector is non-empty"),
+                };
             }
-            black_box(vec)
+            black_box(current)
         });
     });
 
-    // PersistentVector structural sharing vs std::Vec copying
     group.bench_function("pvec_sharing", |b| {
-        let base: PersistentVector<usize> = (0..1000).collect();
+        let base: PersistentVector<usize> = (0..1_000).collect();
         b.iter(|| {
-            let mut versions = Vec::new();
-            for i in 0..10 {
-                let version = base.update(i * 100, black_box(i * 1000));
-                versions.push(version);
-            }
+            let versions: Vec<_> = (0..10)
+                .map(|index| base.update(index * 100, black_box(index * 1_000)))
+                .collect();
             black_box(versions)
         });
     });
 
     group.bench_function("std_vec_copying", |b| {
-        let base: Vec<usize> = (0..1000).collect();
+        let base: Vec<usize> = (0..1_000).collect();
         b.iter(|| {
-            let mut versions = Vec::new();
-            for i in 0..10 {
-                let mut copy = base.clone();
-                copy[i * 100] = i * 1000;
-                versions.push(copy);
-            }
+            let versions: Vec<_> = (0..10)
+                .map(|index| {
+                    let mut copy = base.clone();
+                    copy[index * 100] = black_box(index * 1_000);
+                    copy
+                })
+                .collect();
             black_box(versions)
-        });
-    });
-
-    // Concurrency with proper setup
-    group.bench_function("concurrent_read", |b| {
-        let vec: PersistentVector<usize> = (0..10000).collect();
-        let arc_vec = Arc::new(vec);
-
-        b.iter(|| {
-            let handles: Vec<_> = (0..4)
-                .map(|_| {
-                    let vec_clone = arc_vec.clone();
-                    thread::spawn(move || {
-                        for i in 0..250 {
-                            let idx = (i * 17) % 10000;
-                            black_box(vec_clone.get(idx));
-                        }
-                    })
-                })
-                .collect();
-
-            for handle in handles {
-                match handle.join() {
-                    Ok(()) => {},
-                    Err(payload) => std::panic::resume_unwind(payload),
-                }
-            }
-        });
-    });
-
-    group.bench_function("parallel_clone_updates", |b| {
-        let vec: PersistentVector<usize> = (0..1000).collect();
-        let arc_vec = Arc::new(vec);
-
-        b.iter(|| {
-            let handles: Vec<_> = (0..4)
-                .map(|thread_id| {
-                    let vec_clone = arc_vec.clone();
-                    thread::spawn(move || {
-                        let mut local_vec = (*vec_clone).clone();
-                        for i in 0..25 {
-                            let idx = (thread_id * 250 + i) % 1000;
-                            local_vec = local_vec.update(idx, black_box(thread_id * 1000 + i));
-                        }
-                        local_vec
-                    })
-                })
-                .collect();
-
-            let results: Vec<_> = handles
-                .into_iter()
-                .map(|handle| match handle.join() {
-                    Ok(result) => result,
-                    Err(payload) => std::panic::resume_unwind(payload),
-                })
-                .collect();
-            black_box(results)
         });
     });
 

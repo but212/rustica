@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Bug Fixes
+
+- **IO::delay Tokio Reactor Panic**: Fixed `IO::delay` to construct `tokio::time::sleep` inside an `async` block evaluated by `TOKIO_RUNTIME.block_on`, eliminating reactor panics when called outside an active Tokio runtime.
+- **PVec Uniform-Height Tree Invariant**: Implemented recursive, height-aware front and back leaf insertion (`push_front_leaf_recursive`, `push_back_leaf_recursive`) and height-aligned concatenation in `RRBTree`, eliminating depth corruption and data loss on height $\ge 2$ trees.
+- **PVec Index Routing**: Fixed capacity calculation in `calculate_adjusted_index` to properly scale by tree height (`LEAF_CAPACITY * BRANCHING_FACTOR.pow(height)`), preventing tree corruption for vectors with >2048 elements.
+- **PVec Branch Traversal**: Made `RRBNode::update` height-aware using relaxed/regular branch navigation; deleted height-blind `find_child` and dead `RRBNode::get`; routed `pop_from_tree` to `get_from_tree`.
+- **Differential QuickCheck Suite**: Added `tests/pvec_differential.rs` verifying arbitrary sequences of `push`, `pop`, `update`, `split_at`, and `concat` against `std::vec::Vec`.
+- **Validated Panic Context**: `unwrap()` and `unwrap_invalid()` now preserve and format inner error and success payloads in panic messages.
+- **Trait Generic Bounds**: Aligned `Fn` and `Clone` bounds between trait declarations and implementations for `Functor` and `Monad` across `Vec`, `Option`, and `Result`.
+
+### Contract Integrity & Laws
+
+- **Validated Semigroup Accumulation**: `Validated<E, A>: Semigroup` now requires `A: Semigroup` and accumulates valid components `(Valid(a1), Valid(a2)) => Valid(a1.combine(a2))`, while errors take precedence. `Alternative` is omitted because `NonEmptyErrors` lacks an empty identity element.
+- **Product Monoid Law**: Introduced `One` trait (`rustica::traits::one::One`) implemented for all numeric primitives (`u8`..`u128`, `usize`, `i8`..`i128`, `isize`, `f32`, `f64`), enabling `Product<i8>: Monoid`.
+- **IO Cold Computation**: Removed `IO::new_async` cold-computation caching bug; made `IO::delay` instantiate fresh sleep operations per run.
+- **Choice Flattening**: `Choice::flatten` returns `Option<Choice<I>>` instead of panicking on empty iterators.
+- **Prelude Exports**: Re-exported `compose` macro in `prelude::category` and `lift` function in `prelude::transformers`.
+- **BinaryHKT Separation**: Removed runtime mapping methods `map_second` and `map_second_owned` from `BinaryHKT` to preserve pure type-constructor boundaries.
+
+### Structural Pruning & Cleanup
+
+- **Wrapper Accessors**: Added idiomatic `into_inner()` and `get()` accessors on `Sum`, `Product`, `Min`, and `Max`, and marked `unwrap()` and `unwrap_or()` as `#[deprecated]`; removed unused `A: Debug` bound from `IO::sequence_composable`.
+- **Transformer Simplification**: Removed manual `*_with` forwarding combinators (`fmap_with`, `bind_with`, `combine_with`, `apply_with`) from `StateT` and `ReaderT`; made `ReaderT::lift2` an associated function.
+- **Hollow Traits Removed**: Removed `MonadPlus` (migrated to `Alternative`) and `ErrorMapper` (migrated to `Result::map_err`).
+- **Applicative / Bifunctor / Foldable**: Removed redundant `Applicative::ap2` alias; added default implementations for `Bifunctor::first` and `second` via `bimap`; simplified `Monad::map_and_pure` to delegate to `fmap`; simplified `Foldable::fold_monoid` to delegate to `fold_map`.
+- **PVec Optimization**: Replaced $O(n \log n)$ shared-tree fallback in `into_vec` with $O(n)$ iterator collect; generalized `update_size_table_after_removal`.
+- **Optics & Predicate**: Removed `IsoLens`/`IsoPrism` in favor of `Lens::from_iso`/`Prism::from_iso`; replaced `compose` with `then`; stored thread-safe closures in `Predicate` via `Arc`.
+
 ## [0.14.0]
 
 ### Documentation Correctness

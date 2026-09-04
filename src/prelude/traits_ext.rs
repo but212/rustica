@@ -18,13 +18,13 @@
 //! use rustica::traits::foldable::{Foldable, FoldableExt};
 //! let xs = vec![Some(1), Some(2), None];
 //! let sum = xs.fold_map(|m| Sum(m.unwrap_or(0)));
-//! assert_eq!(sum.0, 3);
+//! assert_eq!(sum.into_inner(), 3);
 //!
 //! use rustica::traits::monoid::MonoidExt;
 //! use rustica::traits::semigroup::Semigroup;
 //! let vals = vec![1, 2, 3];
 //! let total = vals.iter().cloned().map(Sum).fold(Sum(0), |a, b| a.combine_owned(b));
-//! assert_eq!(total.0, 6);
+//! assert_eq!(total.into_inner(), 6);
 //! ```
 
 pub use crate::traits::foldable::FoldableExt;

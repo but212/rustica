@@ -163,10 +163,15 @@ pub trait Bifunctor: BinaryHKT {
     /// let mapped = valid.first(|n| n * 2);
     /// assert_eq!(mapped, Validated::valid(20));
     /// ```
+    #[inline]
     fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
     where
         F: Fn(&Self::Source) -> C,
-        C: Clone;
+        C: Clone,
+        Self::Source2: Clone,
+    {
+        self.bimap(f, |s| s.clone())
+    }
 
     /// Maps a function over `Self::Source2`.
     ///
@@ -196,10 +201,15 @@ pub trait Bifunctor: BinaryHKT {
     /// let mapped = invalid.second(|s| s.len());
     /// assert_eq!(mapped, Validated::invalid(5usize));
     /// ```
+    #[inline]
     fn second<D, G>(&self, f: G) -> Self::BinaryOutput<Self::Source, D>
     where
         G: Fn(&Self::Source2) -> D,
-        D: Clone;
+        D: Clone,
+        Self::Source: Clone,
+    {
+        self.bimap(|s| s.clone(), f)
+    }
 
     /// Maps two functions over both type parameters simultaneously.
     ///

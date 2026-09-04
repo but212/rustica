@@ -48,7 +48,7 @@ pub use crate::traits::hkt::HKT;
 pub use crate::traits::iso::Iso;
 pub use crate::traits::monad::Monad;
 pub use crate::traits::monad_error::MonadError;
-pub use crate::traits::monad_plus::MonadPlus;
 pub use crate::traits::monoid::Monoid;
+pub use crate::traits::one::One;
 pub use crate::traits::pure::Pure;
 pub use crate::traits::semigroup::Semigroup;

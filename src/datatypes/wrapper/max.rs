@@ -111,33 +111,52 @@ use std::fmt;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Max<T>(pub T);
 
-impl<T: Clone> Max<T> {
-    /// Unwraps the max value.
+impl<T> Max<T> {
+    /// Creates a new `Max` wrapping the given value.
+    #[inline]
+    pub const fn new(value: T) -> Self {
+        Max(value)
+    }
+
+    /// Consumes the wrapper and returns the contained value.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// # use rustica::datatypes::wrapper::max::Max;
+    /// use rustica::datatypes::wrapper::max::Max;
     /// let max = Max(42);
-    /// assert_eq!(max.unwrap(), 42);
+    /// assert_eq!(max.into_inner(), 42);
     /// ```
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+
+    /// Returns a reference to the contained value.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::max::Max;
+    /// let max = Max(42);
+    /// assert_eq!(*max.get(), 42);
+    /// ```
+    #[inline]
+    pub fn get(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: Clone> Max<T> {
+    /// Unwraps the max value.
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     #[inline]
     pub fn unwrap(&self) -> T {
         self.0.clone()
     }
 
     /// Unwraps the max value or returns a default.
-    ///
-    /// Since `Max` always contains a value, this method simply returns the contained value.
-    /// The `default` parameter is ignored.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::max::Max;
-    /// let max = Max(42);
-    /// assert_eq!(max.unwrap_or(0), 42);
-    /// ```
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     #[inline]
     pub fn unwrap_or(&self, _default: T) -> T {
         self.0.clone()
