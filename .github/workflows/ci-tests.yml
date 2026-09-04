@@ -1,7 +1,7 @@
 name: CI Tests
 
 on:
-  workflow_call:
+  workflow_call: {}
 
 env:
   CARGO_TERM_COLOR: always
@@ -134,7 +134,6 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -161,4 +160,4 @@ jobs:
       - name: Run targeted Miri tests
         env:
           TOOLCHAIN: ${{ env.NIGHTLY_TOOLCHAIN }}
-        run: cargo "+$TOOLCHAIN" miri test --test miri_transformers --locked
+        run: cargo "+$TOOLCHAIN" miri test --lib --locked bind_owns_strings_without_aliasing_or_double_drop

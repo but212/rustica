@@ -299,7 +299,10 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         &self, f: impl Fn(A) -> B + Send + Sync + 'static,
     ) -> IO<B> {
         match self {
-            IO::Pure(a) => IO::Pure(f(a.clone())),
+            IO::Pure(a) => {
+                let a = a.clone();
+                IO::Effect(Arc::new(move || f(a.clone())))
+            },
             IO::Effect(effect) => {
                 let effect = Arc::clone(effect);
                 IO::Effect(Arc::new(move || f(effect())))
@@ -366,7 +369,10 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         &self, f: impl Fn(A) -> IO<B> + Send + Sync + 'static,
     ) -> IO<B> {
         match self {
-            IO::Pure(a) => f(a.clone()),
+            IO::Pure(a) => {
+                let a = a.clone();
+                IO::Effect(Arc::new(move || f(a.clone()).run()))
+            },
             IO::Effect(effect) => {
                 let effect = Arc::clone(effect);
                 IO::Effect(Arc::new(move || f(effect()).run()))
@@ -703,13 +709,7 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
         B: Send + Sync + Clone + 'static,
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
     {
-        // Ultra-fast path: Pure + Pure → Pure
-        // Inspired by AsyncM optimization - avoid any Arc overhead
-        if let (IO::Pure(v), IO::Pure(f)) = (self, &mf) {
-            return IO::Pure(f(v.clone()));
-        }
-
-        // Fast path optimizations for mixed cases
+        // Fast path optimizations for all representation pairs
         match (self, mf) {
             // Pure value + Effect function
             (IO::Pure(a), IO::Effect(mf)) => {
@@ -726,8 +726,12 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
                 let ma = Arc::clone(ma);
                 IO::Effect(Arc::new(move || mf()(ma())))
             },
-            // Pure + Pure case already handled above
-            _ => unreachable!("All IO enum cases covered"),
+            // Pure value + Pure function
+            (IO::Pure(a), IO::Pure(f)) => {
+                let a = a.clone();
+                let f = f.clone();
+                IO::Effect(Arc::new(move || f(a.clone())))
+            },
         }
     }
 
@@ -967,9 +971,55 @@ mod tests {
 #[cfg(test)]
 mod unit_tests {
     use super::IO;
+    use std::sync::Arc;
 
     #[cfg(feature = "async")]
     use super::{TOKIO_RUNTIME, panic_message};
+
+    #[test]
+    fn pure_combinators_remain_cold_and_repeatable() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let fmap_calls = Arc::new(AtomicUsize::new(0));
+        let mapped = IO::pure(1).fmap({
+            let fmap_calls = Arc::clone(&fmap_calls);
+            move |value| {
+                fmap_calls.fetch_add(1, Ordering::SeqCst);
+                value + 1
+            }
+        });
+        assert_eq!(fmap_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(mapped.run(), 2);
+        assert_eq!(mapped.run(), 2);
+        assert_eq!(fmap_calls.load(Ordering::SeqCst), 2);
+
+        let bind_calls = Arc::new(AtomicUsize::new(0));
+        let bound = IO::pure(2).bind({
+            let bind_calls = Arc::clone(&bind_calls);
+            move |value| {
+                bind_calls.fetch_add(1, Ordering::SeqCst);
+                IO::pure(value * 2)
+            }
+        });
+        assert_eq!(bind_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(bound.run(), 4);
+        assert_eq!(bound.run(), 4);
+        assert_eq!(bind_calls.load(Ordering::SeqCst), 2);
+
+        let apply_calls = Arc::new(AtomicUsize::new(0));
+        let function = IO::pure({
+            let apply_calls = Arc::clone(&apply_calls);
+            move |value: i32| {
+                apply_calls.fetch_add(1, Ordering::SeqCst);
+                value * 3
+            }
+        });
+        let applied = IO::pure(3).apply(function);
+        assert_eq!(apply_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(applied.run(), 9);
+        assert_eq!(applied.run(), 9);
+        assert_eq!(apply_calls.load(Ordering::SeqCst), 2);
+    }
 
     #[test]
     fn monadic_fundamentals_and_error_boundaries_hold() {

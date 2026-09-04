@@ -534,9 +534,17 @@ impl<T: Clone> RRBTree<T> {
     }
 
     fn concat_flushed_same_height(left: &Self, right: &Self) -> Self {
-        let merged_root = Self::concat_nodes(&left.root, &right.root, left.height);
-        let root = Arc::new(merged_root);
-        let height = Self::calculate_height(&root);
+        let mut merged_nodes = Self::concat_nodes(&left.root, &right.root, left.height);
+        let (root, height) = if merged_nodes.len() == 1 {
+            let root = match merged_nodes.pop() {
+                Some(root) => root,
+                None => unreachable!("concatenating non-empty trees produces a root"),
+            };
+            (root, left.height)
+        } else {
+            let (root, additional_height) = Self::build_tree_recursive(merged_nodes);
+            (root, left.height + additional_height)
+        };
 
         Self {
             root,
@@ -569,7 +577,16 @@ impl<T: Clone> RRBTree<T> {
         }
     }
 
-    fn concat_nodes(left: &Arc<RRBNode<T>>, right: &Arc<RRBNode<T>>, height: usize) -> RRBNode<T> {
+    fn pack_children(children: Vec<Arc<RRBNode<T>>>) -> Vec<Arc<RRBNode<T>>> {
+        children
+            .chunks(BRANCHING_FACTOR)
+            .map(|chunk| Arc::new(RRBNode::make_relaxed(chunk.to_vec())))
+            .collect()
+    }
+
+    fn concat_nodes(
+        left: &Arc<RRBNode<T>>, right: &Arc<RRBNode<T>>, height: usize,
+    ) -> Vec<Arc<RRBNode<T>>> {
         match (left.as_ref(), right.as_ref()) {
             (
                 RRBNode::Leaf {
@@ -583,20 +600,21 @@ impl<T: Clone> RRBTree<T> {
                 combined.extend(right_elems.iter().cloned());
 
                 if combined.len() <= LEAF_CAPACITY {
-                    RRBNode::Leaf { elements: combined }
+                    vec![Arc::new(RRBNode::Leaf { elements: combined })]
                 } else {
-                    let mid = LEAF_CAPACITY;
-                    let left_part = SmallVec::from_iter(combined.iter().take(mid).cloned());
-                    let right_part = SmallVec::from_iter(combined.iter().skip(mid).cloned());
+                    let left_part =
+                        SmallVec::from_iter(combined.iter().take(LEAF_CAPACITY).cloned());
+                    let right_part =
+                        SmallVec::from_iter(combined.iter().skip(LEAF_CAPACITY).cloned());
 
-                    RRBNode::make_relaxed(vec![
+                    vec![
                         Arc::new(RRBNode::Leaf {
                             elements: left_part,
                         }),
                         Arc::new(RRBNode::Leaf {
                             elements: right_part,
                         }),
-                    ])
+                    ]
                 }
             },
             (
@@ -611,33 +629,22 @@ impl<T: Clone> RRBTree<T> {
             ) => {
                 let mut new_children = Vec::new();
 
-                for i in 0..left_children.len().saturating_sub(1) {
-                    new_children.push(left_children[i].clone());
+                for child in left_children
+                    .iter()
+                    .take(left_children.len().saturating_sub(1))
+                {
+                    new_children.push(child.clone());
                 }
 
                 if let (Some(left_last), Some(right_first)) =
                     (left_children.last(), right_children.first())
                 {
                     let next_height = height.saturating_sub(1);
-                    let merged_middle = Self::concat_nodes(left_last, right_first, next_height);
-                    match merged_middle {
-                        RRBNode::Branch {
-                            children: middle_children,
-                            ..
-                        } if next_height == 0 => {
-                            new_children.extend(middle_children);
-                        },
-                        _ => {
-                            new_children.push(Arc::new(merged_middle));
-                        },
-                    }
+                    new_children.extend(Self::concat_nodes(left_last, right_first, next_height));
                 }
 
-                for i in 1..right_children.len() {
-                    new_children.push(right_children[i].clone());
-                }
-
-                RRBNode::make_relaxed(new_children)
+                new_children.extend(right_children.iter().skip(1).cloned());
+                Self::pack_children(new_children)
             },
             (RRBNode::Leaf { .. }, RRBNode::Branch { .. })
             | (RRBNode::Branch { .. }, RRBNode::Leaf { .. }) => {
@@ -653,8 +660,7 @@ impl<T: Clone> RRBTree<T> {
 
                 let mut all_children = left_as_branch;
                 all_children.extend(right_as_branch);
-
-                RRBNode::make_relaxed(all_children)
+                Self::pack_children(all_children)
             },
         }
     }
@@ -1128,5 +1134,51 @@ impl<T: Clone> RRBTree<T> {
                 }
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RRBTree;
+    use crate::pvec::node::{BRANCHING_FACTOR, RRBNode};
+    use std::sync::Arc;
+
+    fn assert_branch_width<T>(node: &Arc<RRBNode<T>>) {
+        if let RRBNode::Branch { children, .. } = node.as_ref() {
+            assert!(children.len() <= BRANCHING_FACTOR);
+            for child in children {
+                assert_branch_width(child);
+            }
+        }
+    }
+
+    #[test]
+    fn concat_keeps_every_branch_within_the_branching_factor() {
+        let chunk: Vec<_> = (0..2048).collect();
+        let mut tree = RRBTree::from_elements(chunk.clone().into_iter());
+        let mut expected = chunk.clone();
+
+        for _ in 1..4 {
+            tree = tree.concat(&RRBTree::from_elements(chunk.clone().into_iter()));
+            expected.extend_from_slice(&chunk);
+            assert_branch_width(&tree.root);
+            assert_eq!(tree.clone().into_vec(), expected);
+        }
+    }
+
+    #[test]
+    fn bounded_concat_preserves_order_and_access() {
+        let left = RRBTree::from_elements(0..2048);
+        let right = RRBTree::from_elements(2048..4096);
+        let merged = left.concat(&right);
+
+        assert_branch_width(&merged.root);
+        assert_eq!(merged.len, 4096);
+        assert_eq!(merged.get(0), Some(&0));
+        assert_eq!(merged.get(2047), Some(&2047));
+        assert_eq!(merged.get(2048), Some(&2048));
+        assert_eq!(merged.get(4095), Some(&4095));
+        assert_eq!(merged.clone().into_vec(), (0..4096).collect::<Vec<_>>());
+        assert_eq!(left.into_vec(), (0..2048).collect::<Vec<_>>());
     }
 }

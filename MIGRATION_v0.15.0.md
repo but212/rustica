@@ -22,6 +22,8 @@ This guide describes the breaking changes and migration steps for Rustica 0.15.0
 | `Validated<E, A>: Alternative` | Omitted; `Validated` cannot lawfully implement `Alternative` (lacks empty identity for `NonEmptyErrors`). |
 | `Choice::flatten` | Returns `Option<Choice<I>>` instead of panicking on empty iterators. |
 | `StateT` / `ReaderT` (`*_with` combinators) | Removed manual closure threading methods. |
+| `FunctionCategory::lift` | Removed; use `FunctionCategory::arrow`. |
+| `Id::unwrap_or` | Removed; use `Id::into_inner` or `Id::unwrap`. |
 
 ## Optics
 
@@ -92,6 +94,29 @@ let composed = first_lens.then(second_lens);
 
 In categorical notation, `a.then(b)` corresponds to `b ∘ a`.
 
+## FunctionCategory and Id API cleanup
+
+`FunctionCategory::lift` was a forwarding alias for `FunctionCategory::arrow` and
+has been removed. Construct function morphisms with `arrow`:
+
+```rust
+use rustica::category::function_category::FunctionCategory;
+
+let doubled = FunctionCategory::arrow(|value: i32| value * 2);
+assert_eq!(doubled(21), 42);
+```
+
+`Id` always contains a value, so `Id::unwrap_or` has been removed. Use
+`into_inner()` to consume the wrapper or `unwrap()` when retaining the existing
+terminology:
+
+```rust
+use rustica::datatypes::id::Id;
+
+assert_eq!(Id::new(42).into_inner(), 42);
+assert_eq!(Id::new(42).unwrap(), 42);
+```
+
 ## Predicate
 
 `Predicate` is exported from `rustica::prelude::*` and
@@ -108,7 +133,10 @@ assert!(positive.contains(&1));
 Predicates that capture non-thread-safe values must use thread-safe captures,
 such as `Arc<Mutex<_>>`.
 
-## IO Panic Behavior
+## IO
+
+Combinators (`fmap`, `bind`, `apply`) on pure inputs now always return the
+`Effect` representation; `is_pure()` reflects the representation, not evaluation cost.
 
 `IO::run_async` now rethrows the original panic payload from the blocking
 operation instead of replacing it with a generic join error message. No source
@@ -144,6 +172,7 @@ assert_eq!(result, Ok(12));
 `MonadPlus` identically duplicated the choice and identity semantics of `Alternative`. The trait and module have been removed.
 
 **Before (0.14.0):**
+
 ```rust
 use rustica::traits::monad_plus::MonadPlus;
 
@@ -152,6 +181,7 @@ let combined = Option::<i32>::mplus(&Some(1), &Some(2));
 ```
 
 **After (0.15.0):**
+
 ```rust
 use rustica::traits::alternative::Alternative;
 
@@ -164,6 +194,7 @@ let combined = Some(1).alt(&Some(2));
 `ErrorMapper` was a hollow trait forwarding to `Result::map_err`. Use standard library methods directly:
 
 **Before (0.14.0):**
+
 ```rust
 use rustica::traits::monad_error::ErrorMapper;
 
@@ -172,6 +203,7 @@ let mapped = result.map_error_to(|e| format!("Code: {e}"));
 ```
 
 **After (0.15.0):**
+
 ```rust
 let result: Result<i32, &str> = Err("404");
 let mapped = result.map_err(|e| format!("Code: {e}"));
@@ -232,6 +264,7 @@ assert_eq!(choices.flatten(), None);
 ### Wrapper Types Accessors
 
 The `.unwrap()` and `.unwrap_or()` methods on `Sum`, `Product`, `Min`, and `Max` are deprecated in 0.15.0 and superseded by standard accessors:
+
 - `into_inner(self) -> T`: moves the inner value out of the wrapper without requiring `T: Clone`.
 - `get(&self) -> &T`: borrows the inner value.
 - `.0`: direct field access on the `pub T` tuple struct.
