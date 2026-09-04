@@ -44,7 +44,7 @@ fn test_pvec_height_2_push_front_split_regression() {
     let original: Vec<i32> = (0..5000).collect();
 
     for i in 0..65 {
-        pvec = pvec.push_front(-((i + 1) as i32));
+        pvec = pvec.push_front(-(i + 1));
     }
 
     assert_eq!(pvec.len(), 5065);
