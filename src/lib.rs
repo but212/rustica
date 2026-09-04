@@ -228,9 +228,9 @@
 //! ```
 //!
 //! ```compile_fail
-//! // Result has no lawful MonadPlus zero for an arbitrary error type.
-//! use rustica::traits::monad_plus::MonadPlus;
-//! let _: Result<i32, String> = Result::<i32, String>::mzero();
+//! // Result has no lawful Alternative empty for an arbitrary error type.
+//! use rustica::traits::alternative::Alternative;
+//! let _: Result<i32, String> = Result::<i32, String>::empty_alt();
 //! ```
 //!
 //! ```compile_fail

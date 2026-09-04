@@ -383,52 +383,6 @@ pub trait Applicative: Functor + Pure {
         Self::lift2(|a, _| a.clone(), fa, fb)
     }
 
-    /// Applies a binary function to two applicative values.
-    ///
-    /// This is an alias for `lift2` that may be more intuitive in some contexts.
-    /// It follows the same function-first convention as `lift2`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value
-    /// * `C`: The result type after applying the function
-    /// * `F`: The function type that transforms references to `A` and `B` into `C`
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: A function to apply to both values (function-first style)
-    /// * `fa`: A reference to the first applicative value
-    /// * `fb`: A reference to the second applicative value
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the result of applying the function to both values
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::pure::Pure;
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let v1: Validated<String, i32> = Validated::valid(5);
-    /// let v2: Validated<String, i32> = Validated::valid(3);
-    ///
-    /// let result: Validated<String, i32> = Validated::<String, i32>::ap2(|a: &i32, b: &i32| *a * *b, &v1, &v2);
-    /// assert!(matches!(result, Validated::Valid(15)));
-    /// ```
-    #[inline]
-    fn ap2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
-    where
-        F: Fn(&A, &B) -> C,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-    {
-        Self::lift2(f, fa, fb)
-    }
-
     /// Applies a function to a value, with both wrapped in an applicative context, taking
     /// ownership of both values.
     ///

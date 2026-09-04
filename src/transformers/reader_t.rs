@@ -120,85 +120,10 @@ where
         self.run_reader(env)
     }
 
-    /// Maps using a caller-provided base-family mapping operation.
-    pub fn fmap_with<B, F, MapFn>(&self, f: F, map_fn: MapFn) -> ReaderT<E, M::Output<B>, B>
-    where
-        E: Clone,
-        F: Fn(A) -> B + Clone + Send + Sync + 'static,
-        MapFn: for<'a> Fn(M, &'a (dyn Fn(A) -> B + Send + Sync)) -> M::Output<B>
-            + Send
-            + Sync
-            + 'static,
-        B: 'static,
-        M::Output<B>: 'static,
-    {
-        let run = Arc::clone(&self.run_reader_fn);
-        ReaderT::new(move |env| {
-            let mapper = f.clone();
-            map_fn(run(env), &mapper)
-        })
-    }
-
-    /// Binds using a caller-provided operation from the same HKT family.
-    pub fn bind_with<B, F, BindFn>(&self, f: F, bind_fn: BindFn) -> ReaderT<E, M::Output<B>, B>
-    where
-        E: Clone + Send + Sync,
-        F: Fn(A) -> ReaderT<E, M::Output<B>, B> + Clone + Send + Sync + 'static,
-        BindFn: for<'a> Fn(M, &'a (dyn Fn(A) -> M::Output<B> + Send + Sync)) -> M::Output<B>
-            + Send
-            + Sync
-            + 'static,
-        B: 'static,
-        M::Output<B>: 'static,
-    {
-        let run = Arc::clone(&self.run_reader_fn);
-        ReaderT::new(move |env: E| {
-            let next_env = env.clone();
-            let next = f.clone();
-            let binder = move |value| next(value).run_reader(next_env.clone());
-            bind_fn(run(env), &binder)
-        })
-    }
-
-    /// Applies a reader-held function using a caller-provided base operation.
-    pub fn apply_with<B, Func, ApFn>(
-        &self, functions: &ReaderT<E, M::Output<Func>, Func>, ap_fn: ApFn,
-    ) -> ReaderT<E, M::Output<B>, B>
-    where
-        E: Clone,
-        Func: Fn(A) -> B + Clone + Send + Sync + 'static,
-        ApFn: Fn(M, M::Output<Func>) -> M::Output<B> + Send + Sync + 'static,
-        B: 'static,
-        M::Output<Func>: 'static,
-        M::Output<B>: 'static,
-    {
-        let values = Arc::clone(&self.run_reader_fn);
-        let functions = Arc::clone(&functions.run_reader_fn);
-        ReaderT::new(move |env: E| ap_fn(values(env.clone()), functions(env)))
-    }
-
-    /// Combines readers using a caller-provided operation from the same HKT family.
-    pub fn combine_with<B, C, F, CombineFn>(
-        &self, other: &ReaderT<E, M::Output<B>, B>, f: F, combine_fn: CombineFn,
-    ) -> ReaderT<E, M::Output<C>, C>
-    where
-        E: Clone,
-        F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
-        CombineFn: Fn(M, M::Output<B>, F) -> M::Output<C> + Send + Sync + 'static,
-        B: 'static,
-        C: 'static,
-        M::Output<B>: 'static,
-        M::Output<C>: 'static,
-    {
-        let left = Arc::clone(&self.run_reader_fn);
-        let right = Arc::clone(&other.run_reader_fn);
-        ReaderT::new(move |env: E| combine_fn(left(env.clone()), right(env), f.clone()))
-    }
-
     /// Returns a reusable binary-reader lifting function.
     #[allow(clippy::type_complexity)]
     pub fn lift2<B, C, F, CombineFn>(
-        &self, f: F, combine_fn: CombineFn,
+        f: F, combine_fn: CombineFn,
     ) -> impl Fn(&ReaderT<E, M, A>, &ReaderT<E, M::Output<B>, B>) -> ReaderT<E, M::Output<C>, C>
     + Send
     + Sync
@@ -212,7 +137,13 @@ where
         M::Output<B>: 'static,
         M::Output<C>: 'static,
     {
-        move |left, right| left.combine_with(right, f.clone(), combine_fn.clone())
+        move |left, right| {
+            let left_fn = Arc::clone(&left.run_reader_fn);
+            let right_fn = Arc::clone(&right.run_reader_fn);
+            let combine = combine_fn.clone();
+            let f = f.clone();
+            ReaderT::new(move |env: E| combine(left_fn(env.clone()), right_fn(env), f.clone()))
+        }
     }
 
     /// Lifts a pure value into the base monad without reading the environment.

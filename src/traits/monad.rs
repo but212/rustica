@@ -244,10 +244,7 @@ pub trait Monad: Applicative {
         Self::Source: Clone,
         Self: crate::traits::pure::Pure,
     {
-        self.bind(|x| {
-            let result = f(x);
-            Self::pure(&result)
-        })
+        self.fmap(f)
     }
 
     /// Applies a monadic function to a non-monadic value, with error handling.
@@ -286,6 +283,7 @@ impl<T: Clone> Monad for Option<T> {
     fn join<U>(&self) -> Self::Output<U>
     where
         Self::Source: Clone + Into<Self::Output<U>>,
+        U: Clone,
     {
         self.as_ref().and_then(|x| x.clone().into())
     }
@@ -295,6 +293,7 @@ impl<T: Clone> Monad for Option<T> {
     where
         F: Fn(&Self::Source) -> Self::Output<U>,
         Self::Source: Clone,
+        U: Clone,
     {
         self.as_ref().and_then(f)
     }
@@ -303,6 +302,7 @@ impl<T: Clone> Monad for Option<T> {
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
     where
         F: Fn(Self::Source) -> Self::Output<U>,
+        U: Clone,
         Self: Sized,
     {
         self.and_then(f)
@@ -312,6 +312,7 @@ impl<T: Clone> Monad for Option<T> {
     fn join_owned<U>(self) -> Self::Output<U>
     where
         Self::Source: Into<Self::Output<U>>,
+        U: Clone,
         Self: Sized,
     {
         self.and_then(Into::into)
@@ -324,6 +325,7 @@ impl<T: Clone, E: std::fmt::Debug + Clone> Monad for Result<T, E> {
     fn join<U>(&self) -> Self::Output<U>
     where
         Self::Source: Clone + Into<Self::Output<U>>,
+        U: Clone,
     {
         match self {
             Ok(x) => x.clone().into(),
@@ -336,6 +338,7 @@ impl<T: Clone, E: std::fmt::Debug + Clone> Monad for Result<T, E> {
     where
         F: Fn(&Self::Source) -> Self::Output<U>,
         Self::Source: Clone,
+        U: Clone,
     {
         match self {
             Ok(x) => f(x),
@@ -347,6 +350,7 @@ impl<T: Clone, E: std::fmt::Debug + Clone> Monad for Result<T, E> {
     fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
     where
         F: Fn(Self::Source) -> Self::Output<U>,
+        U: Clone,
         Self: Sized,
     {
         self.and_then(f)
@@ -356,6 +360,7 @@ impl<T: Clone, E: std::fmt::Debug + Clone> Monad for Result<T, E> {
     fn join_owned<U>(self) -> Self::Output<U>
     where
         Self::Source: Into<Self::Output<U>>,
+        U: Clone,
         Self: Sized,
     {
         self.and_then(Into::into)

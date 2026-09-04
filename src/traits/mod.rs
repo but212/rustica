@@ -31,8 +31,6 @@ pub mod functor;
 pub mod monad;
 /// Error handling within monadic contexts.
 pub mod monad_error;
-/// Monads with zero and plus operations.
-pub mod monad_plus;
 
 /// Mapping over two-type data structures.
 pub mod bifunctor;
@@ -56,3 +54,7 @@ pub mod alternative;
 ///
 /// This module provides the Iso trait which represents isomorphisms between types.
 pub mod iso;
+
+/// Multiplicative identity element.
+pub mod one;
+pub use one::One;

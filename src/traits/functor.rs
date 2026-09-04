@@ -430,6 +430,7 @@ impl<T> Functor for Vec<T> {
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
+        B: Clone,
         Self: Sized,
     {
         self.into_iter().map(f).collect()
@@ -440,7 +441,7 @@ impl<T> FunctorExt for Vec<T> {
     #[inline]
     fn filter_map<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: FnMut(&Self::Source) -> Option<B>,
+        F: Fn(&Self::Source) -> Option<B>,
     {
         self.iter().filter_map(f).collect()
     }
@@ -478,7 +479,7 @@ impl<T> FunctorExt for Option<T> {
     #[inline]
     fn filter_map<B, F>(&self, f: F) -> Self::Output<B>
     where
-        F: FnOnce(&Self::Source) -> Option<B>,
+        F: Fn(&Self::Source) -> Option<B>,
     {
         self.as_ref().and_then(f)
     }
@@ -486,7 +487,7 @@ impl<T> FunctorExt for Option<T> {
     #[inline]
     fn try_map_or<B, E, F>(&self, default: B, f: F) -> Self::Output<B>
     where
-        F: FnOnce(&Self::Source) -> Result<B, E>,
+        F: Fn(&Self::Source) -> Result<B, E>,
         B: Clone,
     {
         match self {
@@ -501,7 +502,7 @@ impl<T> FunctorExt for Option<T> {
     #[inline]
     fn try_map_or_else<B, E, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
     where
-        F: FnOnce(&Self::Source) -> Result<B, E>,
+        F: Fn(&Self::Source) -> Result<B, E>,
         D: Fn(&E) -> B,
     {
         match self {
@@ -577,6 +578,7 @@ impl<T> Functor for Option<T> {
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
+        B: Clone,
         Self: Sized,
     {
         self.map(f)
@@ -600,6 +602,7 @@ impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
     fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
     where
         F: Fn(Self::Source) -> B,
+        B: Clone,
         Self: Sized,
     {
         match self {

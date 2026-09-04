@@ -31,12 +31,7 @@ use crate::error::{BoxedComposableResult, ComposableError, ComposableResult};
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 use std::any::Any;
-use std::fmt::Debug;
-#[cfg(feature = "async")]
-use std::future::Future;
 use std::sync::Arc;
-#[cfg(feature = "async")]
-use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 /// Type alias for IO morphisms with static lifetime bounds.
@@ -275,62 +270,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     #[inline(always)]
     pub fn is_effect(&self) -> bool {
         matches!(self, IO::Effect(_))
-    }
-
-    /// Creates a new `IO` from an `async` block.
-    ///
-    /// This method is available when the `async` feature is enabled.
-    /// It allows creating an `IO` operation from an asynchronous computation.
-    /// The provided future is executed on a shared Tokio runtime.
-    ///
-    /// # Arguments
-    ///
-    /// * `fut` - A future that resolves to the value of the IO operation.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// use rustica::datatypes::io::IO;
-    /// use std::time::Duration;
-    ///
-    /// let async_io = IO::new_async(async {
-    ///     tokio::time::sleep(Duration::from_millis(10)).await;
-    ///     "done".to_string()
-    /// });
-    ///
-    /// assert_eq!(async_io.run_async().await, "done");
-    /// # }
-    /// ```
-    #[cfg(feature = "async")]
-    pub fn new_async<F>(fut: F) -> Self
-    where
-        F: Future<Output = A> + Send + 'static,
-        A: Send + Sync,
-    {
-        // The OnceLock makes future execution and result publication one atomic,
-        // blocking initialization for all concurrent callers. The separate mutex
-        // moves a non-Sync future into that one initialization closure.
-        let future_once = Arc::new(Mutex::new(Some(fut)));
-        let result_cache = Arc::new(OnceLock::<A>::new());
-
-        IO::new(move || {
-            result_cache
-                .get_or_init(|| {
-                    let future = future_once
-                        .lock()
-                        .expect("async IO future lock poisoned")
-                        .take()
-                        .expect("async IO future already consumed");
-                    TOKIO_RUNTIME
-                        .block_on(
-                            TOKIO_RUNTIME.spawn_blocking(move || TOKIO_RUNTIME.block_on(future)),
-                        )
-                        .expect("Failed to run async IO task")
-                })
-                .clone()
-        })
     }
 
     /// Maps a function over the result of this IO operation.
@@ -701,7 +640,6 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     pub fn sequence_composable<I>(ios: I) -> Result<Vec<A>, ComposableErrorCollection<IOError>>
     where
         I: IntoIterator<Item = IO<A>>,
-        A: Debug,
     {
         let (successes, failures): (Vec<_>, Vec<_>) = ios
             .into_iter()
@@ -709,9 +647,9 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
             .partition(Result::is_ok);
 
         if failures.is_empty() {
-            Ok(successes.into_iter().map(Result::unwrap).collect())
+            Ok(successes.into_iter().filter_map(Result::ok).collect())
         } else {
-            Err(failures.into_iter().map(Result::unwrap_err).collect())
+            Err(failures.into_iter().filter_map(Result::err).collect())
         }
     }
 
@@ -822,11 +760,13 @@ impl<A: Send + Sync + 'static + Clone> IO<A> {
     #[cfg(feature = "async")]
     pub fn delay(duration: Duration, a: A) -> Self
     where
-        A: Send + Sync,
+        A: Send + Sync + Clone,
     {
-        IO::new_async(async move {
-            tokio::time::sleep(duration).await;
-            a
+        IO::new(move || {
+            TOKIO_RUNTIME.block_on(async {
+                tokio::time::sleep(duration).await;
+            });
+            a.clone()
         })
     }
 
@@ -1031,12 +971,6 @@ mod unit_tests {
     #[cfg(feature = "async")]
     use super::{TOKIO_RUNTIME, panic_message};
 
-    #[cfg(feature = "async")]
-    use std::sync::{
-        Arc, Barrier,
-        atomic::{AtomicUsize, Ordering},
-    };
-
     #[test]
     fn monadic_fundamentals_and_error_boundaries_hold() {
         let pure_io = IO::pure(42);
@@ -1096,29 +1030,9 @@ mod unit_tests {
 
     #[cfg(feature = "async")]
     #[test]
-    fn async_runs_share_one_initialization() {
-        let started = Arc::new(Barrier::new(2));
-        let release = Arc::new(Barrier::new(2));
-        let executions = Arc::new(AtomicUsize::new(0));
-        let io = Arc::new(IO::new_async({
-            let started = started.clone();
-            let release = release.clone();
-            let executions = executions.clone();
-            async move {
-                executions.fetch_add(1, Ordering::SeqCst);
-                started.wait();
-                release.wait();
-                42
-            }
-        }));
-        let first_io = io.clone();
-        let first = std::thread::spawn(move || first_io.run());
-        started.wait();
-        let second_io = io.clone();
-        let second = std::thread::spawn(move || second_io.run());
-        release.wait();
-        assert_eq!(first.join().unwrap(), 42);
-        assert_eq!(second.join().unwrap(), 42);
-        assert_eq!(executions.load(Ordering::SeqCst), 1);
+    fn test_io_delay_runs_synchronously_without_reactor_panic() {
+        use std::time::Duration;
+        let result = IO::delay(Duration::from_millis(1), 42).run();
+        assert_eq!(result, 42);
     }
 }

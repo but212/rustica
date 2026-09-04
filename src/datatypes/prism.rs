@@ -692,10 +692,10 @@ where
 }
 
 impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
-    /// Creates a prism induced by an isomorphism.
+    /// Creates a prism from a total isomorphism.
     ///
-    /// An isomorphism always previews successfully: `forward` becomes
-    /// `preview`, while `backward` becomes `review`.
+    /// The underlying isomorphism maps every source to a focus, so preview
+    /// always succeeds.
     #[inline]
     pub fn from_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
@@ -706,6 +706,25 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
         Prism::new(
             move |source: &S| Some(preview_iso.forward(source)),
             move |focus: &A| iso.backward(focus),
+        )
+    }
+
+    /// Creates a prism from an option-valued isomorphism.
+    ///
+    /// This is the direct replacement for the removed `IsoPrism`: the iso's
+    /// `forward` map decides whether the case matches, and `backward` receives
+    /// `Some(focus)` when reviewing a focused value.
+    #[inline]
+    pub fn from_option_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
+    where
+        A: Clone,
+        I: Iso<S, Option<A>, From = S, To = Option<A>>,
+    {
+        let iso = std::sync::Arc::new(iso);
+        let preview_iso = std::sync::Arc::clone(&iso);
+        Prism::new(
+            move |source: &S| preview_iso.forward(source),
+            move |focus: &A| iso.backward(&Some(focus.clone())),
         )
     }
 }
@@ -816,6 +835,30 @@ mod unit_tests {
         let prism = Prism::from_iso(IdentityIso);
 
         assert_eq!(prism.preview(&42), Some(42));
+        assert_eq!(prism.review(&7), 7);
+    }
+
+    struct OptionIso;
+
+    impl crate::traits::iso::Iso<i32, Option<i32>> for OptionIso {
+        type From = i32;
+        type To = Option<i32>;
+
+        fn forward(&self, from: &Self::From) -> Self::To {
+            (*from >= 0).then_some(*from)
+        }
+
+        fn backward(&self, to: &Self::To) -> Self::From {
+            to.unwrap_or_default()
+        }
+    }
+
+    #[test]
+    fn option_iso_induces_a_prism_without_double_wrapping() {
+        let prism = Prism::from_option_iso(OptionIso);
+
+        assert_eq!(prism.preview(&42), Some(42));
+        assert_eq!(prism.preview(&-1), None);
         assert_eq!(prism.review(&7), 7);
     }
 

@@ -137,38 +137,6 @@ impl<E: Clone, A: Clone> Functor for Validated<E, A> {
 impl<E, A> BinaryHKT for Validated<E, A> {
     type Source2 = E;
     type BinaryOutput<U, V> = Validated<V, U>;
-
-    fn map_second<F, C>(&self, f: F) -> Self::BinaryOutput<A, C>
-    where
-        F: Fn(&Self::Source2) -> C,
-        Self::Source: Clone,
-        Self::Source2: Clone,
-        C: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(x.clone()),
-            Validated::Invalid(es) => {
-                let mut transformed = es.iter().map(f);
-                let first = transformed.next().expect("invalid values have errors");
-                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
-            },
-        }
-    }
-
-    fn map_second_owned<F, C>(self, f: F) -> Self::BinaryOutput<A, C>
-    where
-        F: Fn(Self::Source2) -> C,
-        C: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => {
-                let mut transformed = es.into_iter().map(f);
-                let first = transformed.next().expect("invalid values have errors");
-                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
-            },
-        }
-    }
 }
 
 /// # Examples for `Bifunctor` on `Validated`
@@ -656,16 +624,16 @@ impl<E, A> Foldable for Validated<E, A> {
 
 /// # Semigroup for `Validated`
 ///
-/// This `Semigroup` instance matches the behavior of `Alternative::alt` for `Validated`:
-///
-/// - If `self` is `Valid`, it is returned.
-/// - If `self` is `Invalid` and `other` is `Valid`, `other` is returned.
-/// - If both are `Invalid`, their error collections are concatenated (left-to-right).
-impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
+/// Combines two `Validated` values:
+/// - If both are `Valid`, their inner values are combined using `A::combine`.
+/// - If one is `Invalid` and one is `Valid`, the `Invalid` is returned (errors take precedence).
+/// - If both are `Invalid`, their error collections are concatenated.
+impl<E: Clone, A: Clone + Semigroup> Semigroup for Validated<E, A> {
     fn combine(&self, other: &Self) -> Self {
         match (self, other) {
-            (Validated::Valid(_), _) => self.clone(),
-            (Validated::Invalid(_), Validated::Valid(_)) => other.clone(),
+            (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine(a2)),
+            (Validated::Valid(_), Validated::Invalid(_)) => other.clone(),
+            (Validated::Invalid(_), Validated::Valid(_)) => self.clone(),
             (Validated::Invalid(e1), Validated::Invalid(e2)) => {
                 let mut errors = ErrorAccumulator::with_capacity(e1.len() + e2.len());
                 errors.extend_cloned(e1);
@@ -677,8 +645,9 @@ impl<E: Clone, A: Clone> Semigroup for Validated<E, A> {
 
     fn combine_owned(self, other: Self) -> Self {
         match (self, other) {
-            (s @ Validated::Valid(_), _) => s,
-            (Validated::Invalid(_), o @ Validated::Valid(_)) => o,
+            (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine_owned(a2)),
+            (Validated::Valid(_), o @ Validated::Invalid(_)) => o,
+            (s @ Validated::Invalid(_), Validated::Valid(_)) => s,
             (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
                 e1.extend(e2);
                 Validated::Invalid(e1)

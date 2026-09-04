@@ -152,17 +152,13 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Flattens a `Choice` of iterable items.
-    ///
-    /// # Panics
-    /// Panics if the primary value's iterator is empty.
-    pub fn flatten<I>(&self) -> Choice<I>
+    /// Flattens a `Choice` of iterable items, returning `None` if the primary iterator is empty.
+    pub fn flatten<I>(&self) -> Option<Choice<I>>
     where
         T: IntoIterator<Item = I> + Clone,
         I: Clone,
     {
-        self.try_flatten()
-            .expect("Primary value was an empty iterator in Choice::flatten")
+        self.try_flatten().ok()
     }
 }
 

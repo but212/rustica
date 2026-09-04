@@ -92,16 +92,14 @@ pub trait HKT {
 ///
 /// # Examples
 ///
-/// `BinaryHKT` is useful when a type has a primary value and a separately mapped
-/// secondary value:
+/// `BinaryHKT` is useful when a type constructor has two type parameters:
 ///
 /// ```rust
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::hkt::BinaryHKT;
 ///
-/// let value = Validated::<String, i32>::invalid("bad".to_owned());
-/// let mapped = value.map_second_owned(|error| error.len());
-/// let _: Validated<usize, i32> = mapped;
+/// fn check_binary_hkt<T: BinaryHKT>() {}
+/// check_binary_hkt::<Validated<String, i32>>();
 /// ```
 pub trait BinaryHKT: HKT {
     /// The second type parameter of this HKT.
@@ -109,46 +107,6 @@ pub trait BinaryHKT: HKT {
 
     /// The same HKT but with both type parameters replaced.
     type BinaryOutput<Type1, Type2>: BinaryHKT<Source = Type1, Source2 = Type2>;
-
-    /// Maps a function over the second type parameter.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F` - The function type
-    /// * `NewType2` - The type of the transformed second parameter
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - A function that transforms the second type parameter
-    ///
-    /// # Returns
-    ///
-    /// A new HKT with the second type parameter transformed
-    fn map_second<F, NewType2>(&self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
-    where
-        F: Fn(&Self::Source2) -> NewType2,
-        Self::Source: Clone,
-        Self::Source2: Clone,
-        NewType2: Clone;
-
-    /// Maps a function over the second type parameter, consuming the HKT.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F` - The function type
-    /// * `NewType2` - The type of the transformed second parameter
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - A function that transforms the second type parameter
-    ///
-    /// # Returns
-    ///
-    /// A new HKT with the second type parameter transformed
-    fn map_second_owned<F, NewType2>(self, f: F) -> Self::BinaryOutput<Self::Source, NewType2>
-    where
-        F: Fn(Self::Source2) -> NewType2,
-        NewType2: Clone;
 }
 
 // Implementations for common Rust types

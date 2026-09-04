@@ -10,4 +10,7 @@
 /// - `FunctionMorphism`: Type alias for function morphisms with static lifetime bounds
 /// - `function`: Macro for creating named function morphisms
 /// - `pipe`: Macro for creating function pipelines with left-to-right composition
-pub use crate::category::function_category::{FunctionCategory, FunctionMorphism, function, pipe};
+/// - `compose`: Macro for creating function composition
+pub use crate::category::function_category::{
+    FunctionCategory, FunctionMorphism, compose, function, pipe,
+};

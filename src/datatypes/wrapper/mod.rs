@@ -51,13 +51,13 @@
 //! let sum1: Sum<i32> = Sum(5);
 //! let sum2: Sum<i32> = Sum(7);
 //! let combined = sum1.combine(&sum2);
-//! assert_eq!(combined.0, 12); // 5 + 7 = 12
+//! assert_eq!(combined.into_inner(), 12); // 5 + 7 = 12
 //!
 //! // 2. Combining multiple values into one
 //! let values = vec![Sum(1), Sum(2), Sum(3)];
 //! let sum: i32 = values.into_iter()
 //!     .fold(Sum(0), |acc, x| acc.combine(&x))
-//!     .0;
+//!     .into_inner();
 //! assert_eq!(sum, 6); // 1 + 2 + 3 = 6
 //!
 //! ```

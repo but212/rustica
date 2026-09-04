@@ -18,11 +18,11 @@
 //!
 //! let a = Sum(3);
 //! let b = Sum(4);
-//! assert_eq!(a.combine(&b).unwrap(), 7);
+//! assert_eq!(a.combine(&b).into_inner(), 7);
 //!
 //! let m = Max(10);
 //! let n = Max(20);
-//! assert_eq!(m.combine(&n).unwrap(), 20);
+//! assert_eq!(m.combine(&n).into_inner(), 20);
 //!
 //! let positive = Predicate::new(|value: &i32| *value > 0);
 //! assert!(positive.contains(&1));

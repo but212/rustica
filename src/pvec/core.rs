@@ -672,13 +672,12 @@ impl<T: Clone> PersistentVector<T> {
             VectorImpl::Inline { elements } => elements.into_vec(),
             VectorImpl::Tree { tree } => match Arc::try_unwrap(tree) {
                 Ok(tree) => tree.into_vec(),
-                Err(tree) => (0..tree.len)
-                    .map(|index| {
-                        tree.get(index)
-                            .expect("persistent vector tree length invariant")
-                            .clone()
-                    })
-                    .collect(),
+                Err(tree) => {
+                    let temp = PersistentVector {
+                        inner: VectorImpl::Tree { tree },
+                    };
+                    temp.iter().cloned().collect()
+                },
             },
         }
     }

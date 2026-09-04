@@ -14,9 +14,6 @@ use std::sync::Arc;
 
 type StateRun<S, M> = dyn Fn(S) -> M + Send + Sync;
 
-/// Maps the state/value pair while preserving the state component.
-pub type StateValueMapper<S, A, B> = dyn Fn((S, A)) -> (S, B) + Send + Sync;
-
 /// A state transition whose base monad contains `(state, value)`.
 pub struct StateT<S, M, A>
 where
@@ -99,88 +96,6 @@ where
         M::Output<(S, ())>: 'static,
     {
         StateT::new(move |state| pure_fn((f(state), ())))
-    }
-
-    /// Maps with a caller-provided operation from the same HKT family.
-    pub fn fmap_with<B, F, MapFn>(&self, f: F, map_fn: MapFn) -> StateT<S, M::Output<(S, B)>, B>
-    where
-        F: Fn(A) -> B + Clone + Send + Sync + 'static,
-        MapFn: for<'a> Fn(M, &'a StateValueMapper<S, A, B>) -> M::Output<(S, B)>
-            + Send
-            + Sync
-            + 'static,
-        B: 'static,
-        M::Output<(S, B)>: 'static,
-    {
-        let run = Arc::clone(&self.run_state_fn);
-        StateT::new(move |state| {
-            let mapper = f.clone();
-            let map_pair = move |(next_state, value)| (next_state, mapper(value));
-            map_fn(run(state), &map_pair)
-        })
-    }
-
-    /// Binds with a caller-provided operation from the same HKT family.
-    pub fn bind_with<B, F, BindFn>(&self, f: F, bind_fn: BindFn) -> StateT<S, M::Output<(S, B)>, B>
-    where
-        S: Clone + Send + Sync,
-        A: Send + Sync,
-        F: Fn(A) -> StateT<S, M::Output<(S, B)>, B> + Clone + Send + Sync + 'static,
-        BindFn: for<'a> Fn(
-                M,
-                &'a (dyn Fn((S, A)) -> M::Output<(S, B)> + Send + Sync),
-            ) -> M::Output<(S, B)>
-            + Send
-            + Sync
-            + 'static,
-        B: 'static,
-        M::Output<(S, B)>: 'static,
-    {
-        let run = Arc::clone(&self.run_state_fn);
-        StateT::new(move |state| {
-            let next = f.clone();
-            let binder = move |(next_state, value)| next(value).run_state(next_state);
-            bind_fn(run(state), &binder)
-        })
-    }
-
-    /// Combines transitions left-to-right with a caller-provided bind operation.
-    pub fn combine_with<B, C, F, BindFn>(
-        &self, other: &StateT<S, M::Output<(S, B)>, B>, f: F, bind_fn: BindFn,
-    ) -> StateT<S, M::Output<(S, C)>, C>
-    where
-        S: Clone + Send + Sync,
-        A: Clone + Send + Sync,
-        B: Clone + Send + Sync + 'static,
-        C: Clone + 'static,
-        F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
-        BindFn: for<'a> Fn(
-                M,
-                &'a (dyn Fn((S, A)) -> M::Output<(S, C)> + Send + Sync),
-            ) -> M::Output<(S, C)>
-            + Send
-            + Sync
-            + 'static,
-        M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
-        M::Output<(S, C)>: 'static,
-    {
-        let left = Arc::clone(&self.run_state_fn);
-        let right = Arc::clone(&other.run_state_fn);
-        StateT::new(move |state| {
-            let right = Arc::clone(&right);
-            let combine = f.clone();
-            let binder = move |(next_state, left_value): (S, A)| {
-                let combine = combine.clone();
-                right(next_state).fmap(move |pair| {
-                    let (final_state, right_value) = pair;
-                    (
-                        final_state.clone(),
-                        combine(left_value.clone(), right_value.clone()),
-                    )
-                })
-            };
-            bind_fn(left(state), &binder)
-        })
     }
 
     /// Runs a base-level flattening operation without introducing state variants.

@@ -210,7 +210,7 @@ pub trait Foldable: HKT {
     where
         Self::Source: Clone + Into<M>,
     {
-        self.fold_left(&M::empty(), |acc, x| acc.combine(&x.clone().into()))
+        self.fold_map(|x| x.clone().into())
     }
 
     /// Returns the number of elements in the foldable structure.
