@@ -1,13 +1,25 @@
-//! # One Trait
+//! Multiplicative identity element for types supporting multiplication.
 //!
-//! Multiplicative identity element for types that support multiplication.
+//! Defines the multiplicative identity for algebraic structures such as
+//! [`Product`](crate::datatypes::wrapper::Product).
 
-/// A type that has a multiplicative identity value.
+/// Multiplicative identity element.
 ///
-/// Implementors must guarantee that `x * T::one() == x` and
-/// `T::one() * x == x` hold for every `x: T`.
+/// Implementors must guarantee the identity laws for all `x: Self`:
+///
+/// - `x * Self::one() == x`
+/// - `Self::one() * x == x`
+///
+/// # Examples
+///
+/// ```
+/// use rustica::traits::one::One;
+///
+/// assert_eq!(i32::one(), 1);
+/// assert_eq!(5 * i32::one(), 5);
+/// ```
 pub trait One: Sized {
-    /// Returns `1`, the identity value for multiplication on `Self`.
+    /// Returns the multiplicative identity element of `Self`.
     fn one() -> Self;
 }
 
