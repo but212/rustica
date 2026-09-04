@@ -1,7 +1,7 @@
 //! Multiplicative identity element for types supporting multiplication.
 //!
 //! Defines the multiplicative identity for algebraic structures such as
-//! [`Product`](crate::datatypes::wrapper::Product).
+//! [`Product`](crate::datatypes::wrapper::product::Product).
 
 /// Multiplicative identity element.
 ///

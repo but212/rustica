@@ -331,6 +331,18 @@
 //! ```compile_fail
 //! use rustica::transformers::reader_t::ReaderCombineFn;
 //! ```
+//!
+//! ```compile_fail
+//! // FunctionCategory::lift was removed in 0.15.0; use arrow instead.
+//! use rustica::category::function_category::FunctionCategory;
+//! let _ = FunctionCategory::lift(|x: i32| x + 1);
+//! ```
+//!
+//! ```compile_fail
+//! // Id::unwrap_or was removed in 0.15.0; use into_inner instead.
+//! use rustica::datatypes::id::Id;
+//! let _ = Id::new(42).unwrap_or(0);
+//! ```
 
 /// Core traits for functional programming abstractions.
 ///
