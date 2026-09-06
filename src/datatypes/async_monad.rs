@@ -715,12 +715,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         C: Send + Sync + Clone + 'static,
         A: Clone,
     {
-        // Ultra-fast path: Pure + Pure → direct combine
-        if let (AsyncMInner::Pure(a), AsyncMInner::Pure(b)) = (&self.inner, &other.inner) {
-            let result = f((**a).clone(), (**b).clone());
-            return AsyncM::pure(result);
-        }
-
         AsyncM {
             inner: AsyncMInner::Effect(Arc::new(move || {
                 let self_inner = self.inner.clone();
@@ -961,7 +955,46 @@ mod tests {
 #[cfg(test)]
 mod unit_tests {
     use super::AsyncM;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
     use std::time::Duration;
+
+    #[tokio::test]
+    async fn pure_apply_remains_cold_and_repeatable() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let function = AsyncM::pure({
+            let calls = Arc::clone(&calls);
+            move |value: i32| {
+                calls.fetch_add(1, Ordering::SeqCst);
+                value * 2
+            }
+        });
+        let applied = AsyncM::pure(3).apply(function);
+
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(applied.try_get().await, 6);
+        assert_eq!(applied.try_get().await, 6);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn pure_zip_with_remains_cold_and_repeatable() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let combined = AsyncM::pure(2).zip_with(AsyncM::pure(4), {
+            let calls = Arc::clone(&calls);
+            move |left, right| {
+                calls.fetch_add(1, Ordering::SeqCst);
+                left + right
+            }
+        });
+
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(combined.try_get().await, 6);
+        assert_eq!(combined.try_get().await, 6);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
 
     #[tokio::test]
     async fn cancellation_aborts_a_pending_computation() {

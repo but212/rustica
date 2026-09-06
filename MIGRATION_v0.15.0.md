@@ -132,7 +132,10 @@ assert!(positive.contains(&1));
 Predicates that capture non-thread-safe values must use thread-safe captures,
 such as `Arc<Mutex<_>>`.
 
-## IO Panic Behavior
+## IO
+
+Combinators (`fmap`, `bind`, `apply`) on pure inputs now always return the
+`Effect` representation; `is_pure()` reflects the representation, not evaluation cost.
 
 `IO::run_async` now rethrows the original panic payload from the blocking
 operation instead of replacing it with a generic join error message. No source
