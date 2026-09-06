@@ -11,6 +11,7 @@
 //! - **Structural Sharing**: Modified vectors share structure with originals, minimizing memory usage
 //! - **Adaptive Storage**: Small vectors (≤64 elements) use inline storage for optimal performance
 //! - **Efficient Operations**: O(log n) for most operations including random access, update, and split
+//! - **Bounded Branches**: Every RRB branch contains at most 32 children, including after concatenation
 //!
 //! # When to Use
 //!

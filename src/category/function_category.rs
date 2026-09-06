@@ -1,6 +1,6 @@
 //! Function Category Implementation
 //!
-//! This module provides a concrete implementation of the Category and Arrow traits for functions.
+//! This module provides category-theoretic operations for functions.
 //! It represents the category of functions where objects are types and morphisms are functions between those types.
 //!
 //! **Note**: This module replaces the deprecated `Composable` trait with category-theoretically sound
@@ -330,24 +330,6 @@ impl FunctionCategory {
         F: Fn(A) -> A + 'static,
     {
         Arc::new(move |a| if predicate(&a) { transform(a) } else { a })
-    }
-
-    /// Creates a morphism that lifts a regular function into the category.
-    ///
-    /// This is an alias for the FunctionCategory::arrow method, provided for consistency
-    /// with the deprecated Composable trait.
-    ///
-    /// # See also
-    ///
-    /// * [`FunctionCategory::arrow`] - The standard way to lift functions into the category.
-    #[inline]
-    pub fn lift<A, B, F>(f: F) -> FunctionMorphism<A, B>
-    where
-        F: Fn(A) -> B + 'static,
-        A: 'static,
-        B: 'static,
-    {
-        Self::arrow(f)
     }
 
     /// Conditionally composes two morphisms based on a predicate.

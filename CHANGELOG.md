@@ -28,7 +28,8 @@
   - Stripped unnecessary `Clone` bounds from `Functor::fmap` result type `B`, `Monad::bind` target type `U`, and `IO::run`/`Writer::unwrap` output types.
 - **Validated Semigroup Accumulation**: `Validated<E, A>: Semigroup` now requires `A: Semigroup` and accumulates valid components `(Valid(a1), Valid(a2)) => Valid(a1.combine(a2))`, while errors take precedence. `Alternative` is omitted because `NonEmptyErrors` lacks an empty identity element.
 - **Product Monoid Law**: Introduced `One` trait (`rustica::traits::one::One`) implemented for all numeric primitives (`u8`..`u128`, `usize`, `i8`..`i128`, `isize`, `f32`, `f64`), enabling `Product<i8>: Monoid`.
-- **IO Cold Computation**: Removed `IO::new_async` cold-computation caching bug; made `IO::delay` instantiate fresh sleep operations per run.
+- **IO Cold Computation**: Removed `IO::new_async` cold-computation caching bug; made `IO::delay` instantiate fresh sleep operations per run. Pure `fmap`, `bind`, and `apply` paths now also defer callbacks until each run (always produce `Effect` representation, even from pure inputs).
+- **AsyncM Cold Computation**: Pure `apply` and `zip_with` paths now defer callbacks until each `try_get` evaluation and remain repeatable.
 - **Choice Flattening**: `Choice::flatten` returns `Option<Choice<I>>` instead of panicking on empty iterators.
 - **Prelude Exports**: Re-exported `compose` macro in `prelude::category` and `lift` function in `prelude::transformers`.
 - **BinaryHKT Separation**: Removed runtime mapping methods `map_second` and `map_second_owned` from `BinaryHKT` to preserve pure type-constructor boundaries.
@@ -39,8 +40,9 @@
 - **Transformer Simplification**: Removed manual `*_with` forwarding combinators (`fmap_with`, `bind_with`, `combine_with`, `apply_with`) from `StateT` and `ReaderT`; made `ReaderT::lift2` an associated function.
 - **Hollow Traits Removed**: Removed `MonadPlus` (migrated to `Alternative`) and `ErrorMapper` (migrated to `Result::map_err`).
 - **Applicative / Bifunctor / Foldable**: Removed redundant `Applicative::ap2` alias; added default implementations for `Bifunctor::first` and `second` via `bimap`; simplified `Monad::map_and_pure` to delegate to `fmap`; simplified `Foldable::fold_monoid` to delegate to `fold_map`.
-- **PVec Optimization**: Replaced $O(n \log n)$ shared-tree fallback in `into_vec` with $O(n)$ iterator collect; generalized `update_size_table_after_removal`.
+- **PVec Optimization**: Replaced $O(n \log n)$ shared-tree fallback in `into_vec` with $O(n)$ iterator collect; generalized `update_size_table_after_removal`; bounded concatenation branches to 32 children while preserving structural sharing.
 - **Optics & Predicate**: Removed `IsoLens`/`IsoPrism` in favor of `Lens::from_iso`/`Prism::from_iso`; replaced `compose` with `then`; stored thread-safe closures in `Predicate` via `Arc`.
+- **Redundant API Removal**: Removed `FunctionCategory::lift` in favor of `FunctionCategory::arrow` and `Id::unwrap_or` in favor of `Id::into_inner` or `Id::unwrap`.
 
 ## [0.14.0]
 
