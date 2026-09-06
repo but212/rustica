@@ -50,7 +50,7 @@ mod unit_tests {
     use super::Validated;
 
     #[test]
-    fn owned_conversions_accept_non_clone_values() {
+    fn conversions_accept_non_clone_values() {
         struct NoClone(&'static str);
         let converted: Result<NoClone, NoClone> =
             Validated::valid(NoClone("valid")).into_result_first_error();

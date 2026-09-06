@@ -269,10 +269,10 @@ impl<E, A> Applicative for Validated<E, A> {
                 let mut errors = ErrorAccumulator::new();
 
                 if let Validated::Invalid(e) = a {
-                    errors.extend_owned(e);
+                    errors.extend(e);
                 }
                 if let Validated::Invalid(e) = b {
-                    errors.extend_owned(e);
+                    errors.extend(e);
                 }
 
                 Validated::invalid_from_accumulator(errors)
@@ -292,10 +292,10 @@ impl<E, A> Applicative for Validated<E, A> {
                 let mut errors = ErrorAccumulator::new();
 
                 if let Validated::Invalid(e) = a {
-                    errors.extend_owned(e);
+                    errors.extend(e);
                 }
                 if let Validated::Invalid(e) = b {
-                    errors.extend_owned(e);
+                    errors.extend(e);
                 }
 
                 Validated::invalid_from_accumulator(errors)
@@ -318,22 +318,22 @@ impl<E, A> Applicative for Validated<E, A> {
             },
             (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
                 let mut errors = ErrorAccumulator::with_capacity(e1.len() + e2.len() + e3.len());
-                errors.extend_owned(e1);
-                errors.extend_owned(e2);
-                errors.extend_owned(e3);
+                errors.extend(e1);
+                errors.extend(e2);
+                errors.extend(e3);
                 Validated::invalid_from_accumulator(errors)
             },
             (a, b, c) => {
                 let mut errors = ErrorAccumulator::new();
 
                 if let Validated::Invalid(e) = a {
-                    errors.extend_owned(e);
+                    errors.extend(e);
                 }
                 if let Validated::Invalid(e) = b {
-                    errors.extend_owned(e);
+                    errors.extend(e);
                 }
                 if let Validated::Invalid(e) = c {
-                    errors.extend_owned(e);
+                    errors.extend(e);
                 }
 
                 Validated::invalid_from_accumulator(errors)

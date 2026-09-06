@@ -29,7 +29,7 @@ mod unit_tests {
     use crate::datatypes::validated::Validated;
 
     #[test]
-    fn owned_error_conversions_preserve_values() {
+    fn error_conversions_preserve_non_clone_values() {
         struct NoClone(&'static str);
         let collected = collect_errors([NoClone("error")]);
         assert_eq!(collected.error_slice()[0].0, "error");

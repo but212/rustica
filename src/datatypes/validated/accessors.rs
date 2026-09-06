@@ -255,7 +255,7 @@ impl<E, A> Validated<E, A> {
 
     /// Safely extracts the valid value.
     ///
-    /// This is the safe alternative to `unwrap_owned()` that returns
+    /// This is the safe alternative to `unwrap()` that returns
     /// a proper error type instead of panicking.
     ///
     /// # Returns
@@ -285,7 +285,7 @@ impl<E, A> Validated<E, A> {
 
     /// Safely extracts the error collection.
     ///
-    /// This is the safe alternative to `unwrap_invalid_owned()` that returns
+    /// This is the safe alternative to `unwrap_invalid()` that returns
     /// a proper error type instead of panicking.
     ///
     /// # Returns

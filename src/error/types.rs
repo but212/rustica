@@ -522,7 +522,7 @@ mod tests {
     }
 
     #[test]
-    fn owned_context_message_moves_its_buffer() {
+    fn context_into_message_moves_buffer() {
         let message = String::from("owned context");
         let ptr = message.as_ptr();
         let moved = ErrorContext::new(message).into_message();

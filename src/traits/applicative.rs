@@ -315,11 +315,11 @@ impl<A, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 }
 
-// The owned `Vec` operations share the same Cartesian-product traversal. The
+// The `Vec` operations share the same Cartesian-product traversal. The
 // helpers keep the ownership bookkeeping out of the trait implementation while
 // retaining the last-use move optimization for each input.
 #[inline]
-fn vec_apply_owned<F, T, B>(functions: Vec<F>, values: Vec<T>) -> Vec<B>
+fn vec_apply<F, T, B>(functions: Vec<F>, values: Vec<T>) -> Vec<B>
 where
     F: Fn(T) -> B,
     T: Clone,
@@ -338,7 +338,7 @@ where
 }
 
 #[inline]
-fn vec_lift2_owned<T, U, V, F>(f: F, fa: Vec<T>, fb: Vec<U>) -> Vec<V>
+fn vec_lift2<T, U, V, F>(f: F, fa: Vec<T>, fb: Vec<U>) -> Vec<V>
 where
     F: Fn(T, U) -> V,
     T: Clone,
@@ -375,7 +375,7 @@ where
 }
 
 #[inline]
-fn vec_lift3_owned<T, U, V, Q, F>(f: F, fa: Vec<T>, fb: Vec<U>, fc: Vec<V>) -> Vec<Q>
+fn vec_lift3<T, U, V, Q, F>(f: F, fa: Vec<T>, fb: Vec<U>, fc: Vec<V>) -> Vec<Q>
 where
     F: Fn(T, U, V) -> Q,
     T: Clone,
@@ -423,7 +423,7 @@ impl<A> Applicative for Vec<A> {
         Self::Source: Fn(T) -> B,
         T: Clone,
     {
-        vec_apply_owned(self, value)
+        vec_apply(self, value)
     }
 
     #[inline]
@@ -433,7 +433,7 @@ impl<A> Applicative for Vec<A> {
         T: Clone,
         U: Clone,
     {
-        vec_lift2_owned(f, fa, fb)
+        vec_lift2(f, fa, fb)
     }
 
     #[inline]
@@ -446,7 +446,7 @@ impl<A> Applicative for Vec<A> {
         U: Clone,
         V: Clone,
     {
-        vec_lift3_owned(f, fa, fb, fc)
+        vec_lift3(f, fa, fb, fc)
     }
 }
 

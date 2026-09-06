@@ -871,13 +871,13 @@ mod tests {
             .await;
         assert_eq!(res_ref, "42");
 
-        let res_owned = AsyncM::new(|| async { 21 })
+        let res_applied = AsyncM::new(|| async { 21 })
             .fmap(|x| async move { x * 2 })
             .bind(|x| async move { AsyncM::pure(x + 10) })
             .apply(AsyncM::pure(|x: i32| x.to_string()))
             .try_get()
             .await;
-        assert_eq!(res_owned, "52");
+        assert_eq!(res_applied, "52");
     }
 
     #[tokio::test]

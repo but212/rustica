@@ -132,7 +132,7 @@ mod unit_tests {
     use crate::datatypes::validated::Validated;
 
     #[test]
-    fn sequence_with_error_accepts_owned_non_clone_values() {
+    fn sequence_with_error_accepts_non_clone_values() {
         struct NoClone(&'static str);
         let result: Result<Vec<NoClone>, NoClone> =
             sequence_with_error(vec![Validated::Valid(NoClone("value"))]);

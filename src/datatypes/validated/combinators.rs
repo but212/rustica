@@ -112,7 +112,7 @@ impl<E, A> Validated<E, A> {
         let mut acc = ErrorAccumulator::new();
         for value in values {
             if let Validated::Invalid(es) = value {
-                acc.extend_owned(es);
+                acc.extend(es);
             }
         }
 
@@ -153,7 +153,7 @@ impl<E, A> Validated<E, A> {
         for item in iter {
             match item {
                 Validated::Valid(a) => values.push(a),
-                Validated::Invalid(es) => errors.extend_owned(es),
+                Validated::Invalid(es) => errors.extend(es),
             }
         }
 

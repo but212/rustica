@@ -249,7 +249,7 @@ mod tests {
     use std::num::NonZeroUsize;
 
     #[test]
-    fn repeat_owned_matches_borrowed_without_doubling() {
+    fn combine_n_repeats_value() {
         let n = NonZeroUsize::new(3).unwrap();
         assert_eq!(Sum(2).combine_n(n), Sum(6));
     }
