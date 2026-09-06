@@ -149,7 +149,7 @@ pub(crate) type ErrorVec<E> = SmallVec<[E; 4]>;
 ///
 /// - Stack-allocated for up to 4 errors (via `SmallVec`)
 /// - Heap allocation only when exceeding inline capacity
-/// - Zero-copy error transfer via `extend_owned` when consuming `Validated` instances
+/// - Zero-copy error transfer via `extend` when consuming `Validated` instances
 /// - Efficient cloning path via `extend_cloned` for borrowed references
 ///
 /// # Type Parameters
@@ -196,7 +196,7 @@ impl<E> ErrorAccumulator<E> {
         self.buffer.push(error);
     }
 
-    /// Extends the accumulator with owned errors, avoiding clones.
+    /// Extends the accumulator with errors, avoiding clones.
     ///
     /// This method is optimized for consuming `Validated::Invalid` instances
     /// by draining their error collections directly into the accumulator.
@@ -205,28 +205,15 @@ impl<E> ErrorAccumulator<E> {
     ///
     /// * `errors` - The error collection to drain and append
     #[inline]
-    pub(crate) fn extend_owned<I: IntoIterator<Item = E>>(&mut self, errors: I) {
+    pub(crate) fn extend<I: IntoIterator<Item = E>>(&mut self, errors: I) {
         self.buffer.extend(errors);
     }
 }
 
-impl<E: Clone> ErrorAccumulator<E> {
-    /// Extends the accumulator by cloning errors from a borrowed collection.
-    ///
-    /// This method is used when working with `&Validated` references where
-    /// the original error collection cannot be consumed. It pre-reserves
-    /// capacity to minimize reallocations.
-    ///
-    /// # Arguments
-    ///
-    /// * `errors` - The error collection to clone from
+impl<E> Extend<E> for ErrorAccumulator<E> {
     #[inline]
-    pub(crate) fn extend_cloned(&mut self, errors: &[E]) {
-        if errors.is_empty() {
-            return;
-        }
-        self.buffer.reserve(errors.len());
-        self.buffer.extend(errors.iter().cloned());
+    fn extend<I: IntoIterator<Item = E>>(&mut self, iter: I) {
+        self.buffer.extend(iter);
     }
 }
 

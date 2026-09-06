@@ -34,7 +34,7 @@
 //! use rustica::prelude::wrapper::Sum;
 //! let a = Sum(3);
 //! let b = Sum(4);
-//! assert_eq!(a.combine(&b), Sum(7));
+//! assert_eq!(a.combine(b), Sum(7));
 //! ```
 //!
 //! See each trait's documentation for more details and advanced usage.

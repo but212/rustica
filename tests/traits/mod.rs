@@ -34,71 +34,37 @@ impl<T> HKT for TestFunctor<T> {
 }
 
 impl<T> Pure for TestFunctor<T> {
-    fn pure<U: Clone>(value: &U) -> Self::Output<U> {
-        TestFunctor::new(value.clone())
+    fn pure<U>(value: U) -> Self::Output<U> {
+        TestFunctor::new(value)
     }
 }
 
 impl<T> Functor for TestFunctor<T> {
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, mut f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
-    {
-        TestFunctor::new(f(&self.0))
-    }
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
+        F: FnMut(Self::Source) -> B,
     {
         TestFunctor::new(f(self.0))
     }
 }
 
 impl<T> Applicative for TestFunctor<T> {
-    fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
-    where
-        Self::Source: Fn(&A) -> B,
-        B: Clone,
-    {
-        TestFunctor::new(self.0(&value.0))
-    }
-    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
-    where
-        F: Fn(&A, &B) -> C,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-    {
-        TestFunctor::new(f(&fa.0, &fb.0))
-    }
-    fn lift3<A, B, C, D, F>(
-        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
-    ) -> Self::Output<D>
-    where
-        F: Fn(&A, &B, &C) -> D,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        D: Clone,
-    {
-        TestFunctor::new(f(&fa.0, &fb.0, &fc.0))
-    }
-    fn apply_owned<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
+    fn apply<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
     where
         Self::Source: Fn(A) -> B,
+        A: Clone,
     {
         TestFunctor::new((self.0)(value.0))
     }
-    fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
+    fn lift2<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
         B: Clone,
-        C: Clone,
     {
         TestFunctor::new(f(fa.0, fb.0))
     }
-    fn lift3_owned<A, B, C, D, F>(
+    fn lift3<A, B, C, D, F>(
         f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
     ) -> Self::Output<D>
     where
@@ -106,47 +72,29 @@ impl<T> Applicative for TestFunctor<T> {
         A: Clone,
         B: Clone,
         C: Clone,
-        D: Clone,
     {
         TestFunctor::new(f(fa.0, fb.0, fc.0))
     }
 }
 
-impl<T: Clone> Monad for TestFunctor<T> {
-    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+impl<T> Monad for TestFunctor<T> {
+    fn bind<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: Fn(&Self::Source) -> Self::Output<U>,
-    {
-        f(&self.0)
-    }
-    fn join<U>(&self) -> Self::Output<U>
-    where
-        T: Clone + Into<Self::Output<U>>,
-    {
-        self.0.clone().into()
-    }
-    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: Fn(Self::Source) -> Self::Output<U>,
-        U: Clone,
+        F: FnMut(Self::Source) -> Self::Output<U>,
     {
         f(self.0)
     }
-    fn join_owned<U>(self) -> Self::Output<U>
+    fn join<U>(self) -> Self::Output<U>
     where
         Self::Source: Into<Self::Output<U>>,
-        U: Clone,
     {
         self.0.into()
     }
 }
 
-impl<T: Semigroup + Clone> Semigroup for TestFunctor<T> {
-    fn combine(&self, other: &Self) -> Self {
-        TestFunctor::new(self.0.combine(&other.0))
-    }
-    fn combine_owned(self, other: Self) -> Self {
-        TestFunctor::new(self.0.combine(&other.0))
+impl<T: Semigroup> Semigroup for TestFunctor<T> {
+    fn combine(self, other: Self) -> Self {
+        TestFunctor::new(self.0.combine(other.0))
     }
 }
 
@@ -157,15 +105,15 @@ impl<T: Monoid + Clone + Default> Monoid for TestFunctor<T> {
 }
 
 impl<T> Foldable for TestFunctor<T> {
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&U, &Self::Source) -> U,
+        F: FnMut(U, &Self::Source) -> U,
     {
         f(init, &self.0)
     }
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&Self::Source, &U) -> U,
+        F: FnMut(&Self::Source, U) -> U,
     {
         f(&self.0, init)
     }

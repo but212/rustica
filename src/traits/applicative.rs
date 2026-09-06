@@ -58,7 +58,7 @@
 //! let v2: Validated<String, i32> = Validated::valid(10);
 //!
 //! // Combine them with a function
-//! let result = Validated::<String, i32>::lift2(|a: &i32, b: &i32| *a + *b, &v1, &v2);
+//! let result = Validated::<String, i32>::lift2(|a: i32, b: i32| a + b, v1, v2);
 //! ```
 //!
 //! ### 2. Sequencing Operations
@@ -74,7 +74,7 @@
 //! let step2: Option<i32> = Some(20);
 //!
 //! // Keep only the result of step2, but both must succeed
-//! let result: Option<i32> = Option::<i32>::sequence_right(&step1, &step2);
+//! let result: Option<i32> = Option::<i32>::sequence_right(step1, step2);
 //! ```
 //!
 //! ## Relationship to Other Traits
@@ -180,427 +180,56 @@ pub trait Applicative: Functor + Pure {
     /// let func: Option<fn(&i32) -> i32> = Some(|x: &i32| *x * 2);
     /// let value: Option<i32> = Some(5);
     ///
-    /// let result = Applicative::apply(&func, &value);
-    /// assert_eq!(result, Some(10));
-    ///
-    /// // If either is None, result is None
-    /// let none_func: Option<fn(&i32) -> i32> = None;
-    /// let result2 = Applicative::apply(&none_func, &value);
-    /// assert_eq!(result2, None);
-    /// ```
-    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
-    where
-        Self::Source: Fn(&T) -> B,
-        B: Clone;
-
-    /// Lifts a binary function to work with two applicative values.
-    ///
-    /// This method follows the mathematical convention where the function comes first,
-    /// matching the curried style used in functional programming languages like Haskell.
-    /// It combines two applicative values using a binary function.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value  
-    /// * `C`: The result type after applying the function
-    /// * `F`: The function type that transforms references to `A` and `B` into `C`
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: A function to apply to both values (function-first, curried style)
-    /// * `fa`: A reference to the first applicative value
-    /// * `fb`: A reference to the second applicative value
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the result of applying the function to both values
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let x: Option<i32> = Some(5);
-    /// let y: Option<i32> = Some(3);
-    ///
-    /// // Function-first style (mathematical convention)
-    /// let result: Option<i32> = Option::<i32>::lift2(|a: &i32, b: &i32| *a + *b, &x, &y);
-    /// assert_eq!(result, Some(8));
-    ///
-    /// // If any value is None, the result is None
-    /// let none_x: Option<i32> = None;
-    /// let result2: Option<i32> = Option::<i32>::lift2(|a: &i32, b: &i32| *a + *b, &none_x, &y);
-    /// assert_eq!(result2, None);
-    /// ```
-    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
-    where
-        F: Fn(&A, &B) -> C,
-        A: Clone,
-        B: Clone,
-        C: Clone;
-
-    /// Lifts a ternary function to work with three applicative values.
-    ///
-    /// This method follows the mathematical convention where the function comes first,
-    /// matching the curried style used in functional programming languages like Haskell.
-    /// It combines three applicative values using a ternary function.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value
-    /// * `C`: The type of the third applicative value
-    /// * `D`: The result type after applying the function
-    /// * `F`: The function type that transforms references to `A`, `B`, and `C` into `D`
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: A function to apply to all three values (function-first, curried style)
-    /// * `fa`: A reference to the first applicative value
-    /// * `fb`: A reference to the second applicative value
-    /// * `fc`: A reference to the third applicative value
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the result of applying the function to all three values
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let x: Option<i32> = Some(2);
-    /// let y: Option<i32> = Some(3);
-    /// let z: Option<i32> = Some(5);
-    ///
-    /// // Function-first style (mathematical convention)
-    /// let result: Option<i32> = Option::<i32>::lift3(
-    ///     |a: &i32, b: &i32, c: &i32| *a + *b + *c,
-    ///     &x, &y, &z
-    /// );
-    /// assert_eq!(result, Some(10));
-    /// ```
-    fn lift3<A, B, C, D, F>(
-        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
-    ) -> Self::Output<D>
-    where
-        F: Fn(&A, &B, &C) -> D,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        D: Clone;
-
-    /// Sequences two applicative actions, discarding the left value and keeping the right.
-    ///
-    /// This method applies two applicative actions in sequence, discarding the result
-    /// of the first action and keeping only the result of the second action.
-    /// Equivalent to `*>` in Haskell.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value
-    ///
-    /// # Arguments
-    ///
-    /// * `fa`: A reference to the first applicative value
-    /// * `fb`: A reference to the second applicative value
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the value from `fb`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let x: Option<i32> = Some(1);
-    /// let y: Option<i32> = Some(2);
-    ///
-    /// let result: Option<i32> = Option::<i32>::sequence_right(&x, &y);
-    /// assert_eq!(result, Some(2));
-    ///
-    /// // If either fails, the whole operation fails
-    /// let none_x: Option<i32> = None;
-    /// let result2: Option<i32> = Option::<i32>::sequence_right(&none_x, &y);
-    /// assert_eq!(result2, None);
-    /// ```
-    #[inline]
-    fn sequence_right<A, B>(fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<B>
-    where
-        A: Clone,
-        B: Clone,
-    {
-        Self::lift2(|_, b| b.clone(), fa, fb)
-    }
-
-    /// Sequences two applicative actions, keeping the left value and discarding the right.
-    ///
-    /// This method applies two applicative actions in sequence, keeping the result
-    /// of the first action and discarding the result of the second action.
-    /// Equivalent to `<*` in Haskell.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value
-    ///
-    /// # Arguments
-    ///
-    /// * `fa`: A reference to the first applicative value
-    /// * `fb`: A reference to the second applicative value
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the value from `fa`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let x: Option<i32> = Some(1);
-    /// let y: Option<i32> = Some(2);
-    ///
-    /// let result: Option<i32> = Option::<i32>::sequence_left(&x, &y);
-    /// assert_eq!(result, Some(1));
-    ///
-    /// // If either fails, the whole operation fails
-    /// let none_y: Option<i32> = None;
-    /// let result2: Option<i32> = Option::<i32>::sequence_left(&x, &none_y);
-    /// assert_eq!(result2, None);
-    /// ```
-    #[inline]
-    fn sequence_left<A, B>(fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<A>
-    where
-        A: Clone,
-        B: Clone,
-    {
-        Self::lift2(|a, _| a.clone(), fa, fb)
-    }
-
-    /// Applies a function to a value, with both wrapped in an applicative context, taking
-    /// ownership of both values.
-    ///
-    /// This is an ownership-based version of `apply` that avoids unnecessary cloning
-    /// when the applicative values are no longer needed. The signature matches the
-    /// mathematical definition: F\<A -> B\> -> F\<A\> -> F\<B\>.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `T`: The input type of the value being transformed
-    /// * `B`: The result type after applying the function
-    ///
-    /// # Arguments
-    ///
-    /// * `value`: An applicative containing the value to transform (takes ownership)
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the result of applying the function to the value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let func: Option<fn(i32) -> i32> = Some(|x| x * 2);
-    /// let value: Option<i32> = Some(5);
-    ///
-    /// let result = Applicative::apply_owned(func, value);
-    /// assert_eq!(result, Some(10));
-    /// ```
-    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
+    fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
         Self::Source: Fn(T) -> B,
-        T: Clone,
-        B: Clone;
+        T: Clone;
 
-    /// Lifts a binary function to work with two applicative values, taking
-    /// ownership of both values.
-    ///
-    /// This is an ownership-based version of `lift2` that avoids unnecessary cloning
-    /// when the applicative values are no longer needed. It follows the same
-    /// function-first convention as `lift2`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value
-    /// * `C`: The result type after applying the function
-    /// * `F`: The function type that transforms `A` and `B` into `C`
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: A function to apply to both values (function-first style)
-    /// * `fa`: First applicative value (takes ownership)
-    /// * `fb`: Second applicative value (takes ownership)
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the result of applying the function to both values
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let x: Option<i32> = Some(5);
-    /// let y: Option<i32> = Some(3);
-    ///
-    /// let result: Option<i32> = Option::<i32>::lift2_owned(|a, b| a + b, x, y);
-    /// assert_eq!(result, Some(8));
-    /// ```
-    fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
+    /// Lifts a binary function to work with two applicative values.
+    fn lift2<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
-        B: Clone,
-        C: Clone;
+        B: Clone;
 
-    /// Lifts a ternary function to work with three applicative values, taking
-    /// ownership of all values.
-    ///
-    /// This is an ownership-based version of `lift3` that avoids unnecessary cloning
-    /// when the applicative values are no longer needed. It follows the same
-    /// function-first convention as `lift3`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value
-    /// * `C`: The type of the third applicative value
-    /// * `D`: The result type after applying the function
-    /// * `F`: The function type that transforms `A`, `B`, and `C` into `D`
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: A function to apply to all three values (function-first style)
-    /// * `fa`: First applicative value (takes ownership)
-    /// * `fb`: Second applicative value (takes ownership)
-    /// * `fc`: Third applicative value (takes ownership)
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the result of applying the function to all three values
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    /// use rustica::traits::pure::Pure;
-    ///
-    /// let x: Option<i32> = Some(2);
-    /// let y: Option<i32> = Some(3);
-    /// let z: Option<i32> = Some(4);
-    ///
-    /// let result: Option<i32> = Option::<i32>::lift3_owned(|a, b, c| a + b + c, x, y, z);
-    /// assert_eq!(result, Some(9));
-    /// ```
-    fn lift3_owned<A, B, C, D, F>(
+    /// Lifts a ternary function to work with three applicative values.
+    fn lift3<A, B, C, D, F>(
         f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
     ) -> Self::Output<D>
     where
         F: Fn(A, B, C) -> D,
         A: Clone,
         B: Clone,
-        C: Clone,
-        D: Clone;
+        C: Clone;
 
-    /// Sequences two applicative actions, keeping only the result of the right one
-    /// (discarding the left result).
-    ///
-    /// This is an ownership-based version of `sequence_right` that avoids unnecessary cloning
-    /// when the applicative values are no longer needed.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value
-    ///
-    /// # Arguments
-    ///
-    /// * `fa`: The first applicative value (takes ownership)
-    /// * `fb`: The second applicative value (takes ownership)
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the value from `fb`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let x: Option<i32> = Some(1);
-    /// let y: Option<i32> = Some(2);
-    ///
-    /// let result: Option<i32> = Option::<i32>::sequence_right_owned(x, y);
-    /// assert_eq!(result, Some(2));
-    /// ```
+    /// Sequences two applicative actions, discarding the left value and keeping the right.
     #[inline]
-    fn sequence_right_owned<A, B>(fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<B>
+    fn sequence_right<A, B>(fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<B>
     where
         A: Clone,
         B: Clone,
     {
-        Self::lift2_owned(|_, b| b, fa, fb)
+        Self::lift2(|_, b| b, fa, fb)
     }
 
-    /// Sequences two applicative actions, keeping only the result of the left one
-    /// (discarding the right result).
-    ///
-    /// This is an ownership-based version of `sequence_left` that avoids unnecessary cloning
-    /// when the applicative values are no longer needed.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `A`: The type of the first applicative value
-    /// * `B`: The type of the second applicative value
-    ///
-    /// # Arguments
-    ///
-    /// * `fa`: The first applicative value (takes ownership)
-    /// * `fb`: The second applicative value (takes ownership)
-    ///
-    /// # Returns
-    ///
-    /// An applicative containing the value from `fa`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// let x: Option<i32> = Some(1);
-    /// let y: Option<i32> = Some(2);
-    ///
-    /// let result: Option<i32> = Option::<i32>::sequence_left_owned(x, y);
-    /// assert_eq!(result, Some(1));
-    /// ```
+    /// Sequences two applicative actions, keeping the left value and discarding the right.
     #[inline]
-    fn sequence_left_owned<A, B>(fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<A>
+    fn sequence_left<A, B>(fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<A>
     where
         A: Clone,
         B: Clone,
     {
-        Self::lift2_owned(|a, _| a, fa, fb)
+        Self::lift2(|a, _| a, fa, fb)
     }
 }
 
 // Implementation for Option
 impl<A> Applicative for Option<A> {
     #[inline]
-    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
+    fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
-        Self::Source: Fn(&T) -> B,
-        B: Clone,
+        Self::Source: Fn(T) -> B,
+        T: Clone,
     {
         match (self, value) {
             (Some(func), Some(a)) => Some(func(a)),
@@ -609,13 +238,11 @@ impl<A> Applicative for Option<A> {
     }
 
     #[inline]
-    fn lift2<T, U, V, F>(f: F, fa: &Self::Output<T>, fb: &Self::Output<U>) -> Self::Output<V>
+    fn lift2<T, U, V, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<V>
     where
-        F: Fn(&T, &U) -> V,
+        F: Fn(T, U) -> V,
         T: Clone,
         U: Clone,
-        V: Clone,
-        Self: Sized,
     {
         match (fa, fb) {
             (Some(a), Some(b)) => Some(f(a, b)),
@@ -625,52 +252,6 @@ impl<A> Applicative for Option<A> {
 
     #[inline]
     fn lift3<T, U, V, Q, F>(
-        f: F, fa: &Self::Output<T>, fb: &Self::Output<U>, fc: &Self::Output<V>,
-    ) -> Self::Output<Q>
-    where
-        F: Fn(&T, &U, &V) -> Q,
-        T: Clone,
-        U: Clone,
-        V: Clone,
-        Q: Clone,
-        Self: Sized,
-    {
-        match (fa, fb, fc) {
-            (Some(a), Some(b), Some(c)) => Some(f(a, b, c)),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
-    where
-        Self::Source: Fn(T) -> B,
-        T: Clone,
-        B: Clone,
-    {
-        match (self, value) {
-            (Some(func), Some(a)) => Some(func(a)),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    fn lift2_owned<T, U, V, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<V>
-    where
-        F: Fn(T, U) -> V,
-        T: Clone,
-        U: Clone,
-        V: Clone,
-        Self: Sized,
-    {
-        match (fa, fb) {
-            (Some(a), Some(b)) => Some(f(a, b)),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    fn lift3_owned<T, U, V, Q, F>(
         f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
     ) -> Self::Output<Q>
     where
@@ -678,8 +259,6 @@ impl<A> Applicative for Option<A> {
         T: Clone,
         U: Clone,
         V: Clone,
-        Q: Clone,
-        Self: Sized,
     {
         match (fa, fb, fc) {
             (Some(a), Some(b), Some(c)) => Some(f(a, b, c)),
@@ -689,88 +268,36 @@ impl<A> Applicative for Option<A> {
 }
 
 // Implementation for Result
-impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
+impl<A, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     #[inline]
-    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
+    fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
-        Self::Source: Fn(&T) -> B,
-        B: Clone,
+        Self::Source: Fn(T) -> B,
+        T: Clone,
     {
         match (self, value) {
             (Ok(func), Ok(a)) => Ok(func(a)),
-            (Err(e), _) => Err(e.clone()),
-            (_, Err(e)) => Err(e.clone()),
+            (Err(e), _) => Err(e),
+            (_, Err(e)) => Err(e),
         }
     }
 
     #[inline]
-    fn lift2<T, U, V, F>(f: F, fa: &Self::Output<T>, fb: &Self::Output<U>) -> Self::Output<V>
+    fn lift2<T, U, V, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<V>
     where
-        F: Fn(&T, &U) -> V,
+        F: Fn(T, U) -> V,
         T: Clone,
         U: Clone,
-        V: Clone,
-        Self: Sized,
     {
         match (fa, fb) {
             (Ok(a), Ok(b)) => Ok(f(a, b)),
-            (Err(e), _) => Err(e.clone()),
-            (_, Err(e)) => Err(e.clone()),
+            (Err(e), _) => Err(e),
+            (_, Err(e)) => Err(e),
         }
     }
 
     #[inline]
     fn lift3<T, U, V, Q, F>(
-        f: F, fa: &Self::Output<T>, fb: &Self::Output<U>, fc: &Self::Output<V>,
-    ) -> Self::Output<Q>
-    where
-        F: Fn(&T, &U, &V) -> Q,
-        T: Clone,
-        U: Clone,
-        V: Clone,
-        Q: Clone,
-        Self: Sized,
-    {
-        match (fa, fb, fc) {
-            (Ok(a), Ok(b), Ok(c)) => Ok(f(a, b, c)),
-            (Err(e), _, _) => Err(e.clone()),
-            (_, Err(e), _) => Err(e.clone()),
-            (_, _, Err(e)) => Err(e.clone()),
-        }
-    }
-
-    #[inline]
-    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
-    where
-        Self::Source: Fn(T) -> B,
-        T: Clone,
-        B: Clone,
-    {
-        match (self, value) {
-            (Ok(func), Ok(a)) => Ok(func(a)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
-        }
-    }
-
-    #[inline]
-    fn lift2_owned<T, U, V, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<V>
-    where
-        F: Fn(T, U) -> V,
-        T: Clone,
-        U: Clone,
-        V: Clone,
-        Self: Sized,
-    {
-        match (fa, fb) {
-            (Ok(a), Ok(b)) => Ok(f(a, b)),
-            (Err(e), _) => Err(e),
-            (_, Err(e)) => Err(e),
-        }
-    }
-
-    #[inline]
-    fn lift3_owned<T, U, V, Q, F>(
         f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
     ) -> Self::Output<Q>
     where
@@ -778,8 +305,6 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
         T: Clone,
         U: Clone,
         V: Clone,
-        Q: Clone,
-        Self: Sized,
     {
         match (fa, fb, fc) {
             (Ok(a), Ok(b), Ok(c)) => Ok(f(a, b, c)),
@@ -790,15 +315,14 @@ impl<A: Clone, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
     }
 }
 
-// The owned `Vec` operations share the same Cartesian-product traversal. The
+// The `Vec` operations share the same Cartesian-product traversal. The
 // helpers keep the ownership bookkeeping out of the trait implementation while
 // retaining the last-use move optimization for each input.
 #[inline]
-fn vec_apply_owned<F, T, B>(functions: Vec<F>, values: Vec<T>) -> Vec<B>
+fn vec_apply<F, T, B>(functions: Vec<F>, values: Vec<T>) -> Vec<B>
 where
     F: Fn(T) -> B,
     T: Clone,
-    B: Clone,
 {
     let function_count = functions.len();
     let mut result = Vec::with_capacity(function_count.saturating_mul(values.len()));
@@ -814,12 +338,11 @@ where
 }
 
 #[inline]
-fn vec_lift2_owned<T, U, V, F>(f: F, fa: Vec<T>, fb: Vec<U>) -> Vec<V>
+fn vec_lift2<T, U, V, F>(f: F, fa: Vec<T>, fb: Vec<U>) -> Vec<V>
 where
     F: Fn(T, U) -> V,
     T: Clone,
     U: Clone,
-    V: Clone,
 {
     let fa_len = fa.len();
     let fb_len = fb.len();
@@ -852,13 +375,12 @@ where
 }
 
 #[inline]
-fn vec_lift3_owned<T, U, V, Q, F>(f: F, fa: Vec<T>, fb: Vec<U>, fc: Vec<V>) -> Vec<Q>
+fn vec_lift3<T, U, V, Q, F>(f: F, fa: Vec<T>, fb: Vec<U>, fc: Vec<V>) -> Vec<Q>
 where
     F: Fn(T, U, V) -> Q,
     T: Clone,
     U: Clone,
     V: Clone,
-    Q: Clone,
 {
     let fa_len = fa.len();
     let fb_len = fb.len();
@@ -894,88 +416,28 @@ where
 }
 
 // Implementation for Vec
-impl<A: Clone> Applicative for Vec<A> {
+impl<A> Applicative for Vec<A> {
     #[inline]
-    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
-    where
-        Self::Source: Fn(&T) -> B,
-        B: Clone,
-    {
-        let mut result = Vec::new();
-        for func in self {
-            for val in value {
-                result.push(func(val));
-            }
-        }
-        result
-    }
-
-    #[inline]
-    fn lift2<T, U, V, F>(f: F, fa: &Self::Output<T>, fb: &Self::Output<U>) -> Self::Output<V>
-    where
-        F: Fn(&T, &U) -> V,
-        T: Clone,
-        U: Clone,
-        V: Clone,
-        Self: Sized,
-    {
-        let mut result = Vec::with_capacity(fa.len() * fb.len());
-        for a in fa {
-            for b in fb {
-                result.push(f(a, b));
-            }
-        }
-        result
-    }
-
-    #[inline]
-    fn lift3<T, U, V, Q, F>(
-        f: F, fa: &Self::Output<T>, fb: &Self::Output<U>, fc: &Self::Output<V>,
-    ) -> Self::Output<Q>
-    where
-        F: Fn(&T, &U, &V) -> Q,
-        T: Clone,
-        U: Clone,
-        V: Clone,
-        Q: Clone,
-        Self: Sized,
-    {
-        let mut result = Vec::with_capacity(fa.len() * fb.len() * fc.len());
-        for ((a, b), c) in fa
-            .iter()
-            .flat_map(|a| fb.iter().map(move |b| (a, b)))
-            .flat_map(|(a, b)| fc.iter().map(move |c| ((a, b), c)))
-        {
-            result.push(f(a, b, c));
-        }
-        result
-    }
-
-    // Ownership-based implementations for better performance
-    #[inline]
-    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
+    fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
         Self::Source: Fn(T) -> B,
         T: Clone,
-        B: Clone,
     {
-        vec_apply_owned(self, value)
+        vec_apply(self, value)
     }
 
     #[inline]
-    fn lift2_owned<T, U, V, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<V>
+    fn lift2<T, U, V, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<V>
     where
         F: Fn(T, U) -> V,
         T: Clone,
         U: Clone,
-        V: Clone,
-        Self: Sized,
     {
-        vec_lift2_owned(f, fa, fb)
+        vec_lift2(f, fa, fb)
     }
 
     #[inline]
-    fn lift3_owned<T, U, V, Q, F>(
+    fn lift3<T, U, V, Q, F>(
         f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
     ) -> Self::Output<Q>
     where
@@ -983,10 +445,8 @@ impl<A: Clone> Applicative for Vec<A> {
         T: Clone,
         U: Clone,
         V: Clone,
-        Q: Clone,
-        Self: Sized,
     {
-        vec_lift3_owned(f, fa, fb, fc)
+        vec_lift3(f, fa, fb, fc)
     }
 }
 
@@ -998,52 +458,52 @@ mod unit_tests {
 
     #[quickcheck]
     fn option_applicative_laws(v: Option<i32>, x: i32, has_function: bool) -> bool {
-        let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
-        let id: fn(&i32) -> i32 = |n| *n;
-        let pure_f = Option::<fn(&i32) -> i32>::pure(&f);
-        let pure_x = Option::<i32>::pure(&x);
+        let f: fn(i32) -> i32 = |n| n.saturating_add(1);
+        let id: fn(i32) -> i32 = |n| n;
+        let pure_f = Option::<fn(i32) -> i32>::pure(f);
+        let pure_x = Option::<i32>::pure(x);
         let functions = if has_function { Some(f) } else { None };
-        Applicative::apply(&Option::<fn(&i32) -> i32>::pure(&id), &v) == v
-            && Applicative::apply(&pure_f, &pure_x) == Option::<i32>::pure(&f(&x))
-            && Applicative::apply(&functions, &pure_x)
-                == Option::<i32>::lift2(|f, x| f(x), &functions, &pure_x)
-            && v.fmap(f) == Applicative::apply(&pure_f, &v)
+        Applicative::apply(Option::<fn(i32) -> i32>::pure(id), v) == v
+            && Applicative::apply(pure_f, pure_x) == Option::<i32>::pure(f(x))
+            && Applicative::apply(functions, pure_x)
+                == Option::<i32>::lift2(|f, x| f(x), functions, pure_x)
+            && v.fmap(f) == Applicative::apply(pure_f, v)
     }
 
     #[quickcheck]
     fn result_applicative_laws(v: Result<i32, i8>, x: i32, is_ok: bool, err: i8) -> bool {
-        let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
-        let id: fn(&i32) -> i32 = |n| *n;
-        let pure_f = Result::<fn(&i32) -> i32, i8>::pure(&f);
-        let pure_x = Result::<i32, i8>::pure(&x);
+        let f: fn(i32) -> i32 = |n| n.saturating_add(1);
+        let id: fn(i32) -> i32 = |n| n;
+        let pure_f = Result::<fn(i32) -> i32, i8>::pure(f);
+        let pure_x = Result::<i32, i8>::pure(x);
         let functions = if is_ok { Ok(f) } else { Err(err) };
-        Applicative::apply(&Result::<fn(&i32) -> i32, i8>::pure(&id), &v) == v
-            && Applicative::apply(&pure_f, &pure_x) == Result::<i32, i8>::pure(&f(&x))
-            && Applicative::apply(&functions, &pure_x)
-                == Result::<i32, i8>::lift2(|f, x| f(x), &functions, &pure_x)
+        Applicative::apply(Result::<fn(i32) -> i32, i8>::pure(id), v) == v
+            && Applicative::apply(pure_f, pure_x) == Result::<i32, i8>::pure(f(x))
+            && Applicative::apply(functions, pure_x)
+                == Result::<i32, i8>::lift2(|f, x| f(x), functions, pure_x)
     }
 
     #[quickcheck]
     fn vec_applicative_laws(v: Vec<i32>, x: i32) -> bool {
-        let f: fn(&i32) -> i32 = |n| n.saturating_add(1);
-        let id: fn(&i32) -> i32 = |n| *n;
-        Applicative::apply(&Vec::<fn(&i32) -> i32>::pure(&id), &v) == v
-            && Applicative::apply(&Vec::<fn(&i32) -> i32>::pure(&f), &Vec::<i32>::pure(&x))
-                == Vec::<i32>::pure(&f(&x))
+        let f: fn(i32) -> i32 = |n| n.saturating_add(1);
+        let id: fn(i32) -> i32 = |n| n;
+        Applicative::apply(Vec::<fn(i32) -> i32>::pure(id), v.clone()) == v
+            && Applicative::apply(Vec::<fn(i32) -> i32>::pure(f), Vec::<i32>::pure(x))
+                == Vec::<i32>::pure(f(x))
     }
 
     #[quickcheck]
     fn standard_composition_law(w_opt: Option<i32>, w_res: Result<i32, i8>) -> bool {
-        let f: fn(&i32) -> i32 = |x| x.saturating_add(1);
-        let g: fn(&i32) -> i32 = |x| x.saturating_mul(2);
+        let f: fn(i32) -> i32 = |x| x.saturating_add(1);
+        let g: fn(i32) -> i32 = |x| x.saturating_mul(2);
         let u_opt = Some(f);
         let v_opt = Some(g);
         let u_res: Result<_, i8> = Ok(f);
         let v_res: Result<_, i8> = Ok(g);
-        let left_opt = Option::<i32>::lift3(|f, g, x| f(&g(x)), &u_opt, &v_opt, &w_opt);
-        let right_opt = Applicative::apply(&u_opt, &Applicative::apply(&v_opt, &w_opt));
-        let left_res = Result::<i32, i8>::lift3(|f, g, x| f(&g(x)), &u_res, &v_res, &w_res);
-        let right_res = Applicative::apply(&u_res, &Applicative::apply(&v_res, &w_res));
+        let left_opt = Option::<i32>::lift3(|f, g, x| f(g(x)), u_opt, v_opt, w_opt);
+        let right_opt = Applicative::apply(u_opt, Applicative::apply(v_opt, w_opt));
+        let left_res = Result::<i32, i8>::lift3(|f, g, x| f(g(x)), u_res, v_res, w_res);
+        let right_res = Applicative::apply(u_res, Applicative::apply(v_res, w_res));
         left_opt == right_opt && left_res == right_res
     }
 }

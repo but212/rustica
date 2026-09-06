@@ -699,13 +699,15 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     #[inline]
     pub fn from_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
+        S: Clone,
+        A: Clone,
         I: Iso<S, A, From = S, To = A>,
     {
         let iso = std::sync::Arc::new(iso);
         let preview_iso = std::sync::Arc::clone(&iso);
         Prism::new(
-            move |source: &S| Some(preview_iso.forward(source)),
-            move |focus: &A| iso.backward(focus),
+            move |source: &S| Some(preview_iso.forward(source.clone())),
+            move |focus: &A| iso.backward(focus.clone()),
         )
     }
 
@@ -717,14 +719,15 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     #[inline]
     pub fn from_option_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
+        S: Clone,
         A: Clone,
         I: Iso<S, Option<A>, From = S, To = Option<A>>,
     {
         let iso = std::sync::Arc::new(iso);
         let preview_iso = std::sync::Arc::clone(&iso);
         Prism::new(
-            move |source: &S| preview_iso.forward(source),
-            move |focus: &A| iso.backward(&Some(focus.clone())),
+            move |source: &S| preview_iso.forward(source.clone()),
+            move |focus: &A| iso.backward(Some(focus.clone())),
         )
     }
 }
@@ -821,12 +824,12 @@ mod unit_tests {
         type From = i32;
         type To = i32;
 
-        fn forward(&self, from: &Self::From) -> Self::To {
-            *from
+        fn forward(&self, from: Self::From) -> Self::To {
+            from
         }
 
-        fn backward(&self, to: &Self::To) -> Self::From {
-            *to
+        fn backward(&self, to: Self::To) -> Self::From {
+            to
         }
     }
 
@@ -844,11 +847,11 @@ mod unit_tests {
         type From = i32;
         type To = Option<i32>;
 
-        fn forward(&self, from: &Self::From) -> Self::To {
-            (*from >= 0).then_some(*from)
+        fn forward(&self, from: Self::From) -> Self::To {
+            (from >= 0).then_some(from)
         }
 
-        fn backward(&self, to: &Self::To) -> Self::From {
+        fn backward(&self, to: Self::To) -> Self::From {
             to.unwrap_or_default()
         }
     }

@@ -48,11 +48,11 @@
 //! let c = Min(3);
 //!
 //! // Minimum value wins when combining
-//! assert_eq!(a.combine(&b), Min(5)); // Smaller value wins
-//! assert_eq!(b.combine(&c), Min(3)); // Keeps minimum
+//! assert_eq!(a.combine(b), Min(5)); // Smaller value wins
+//! assert_eq!(b.combine(c), Min(3)); // Keeps minimum
 //!
 //! // Chaining multiple values
-//! let result = a.combine(&b).combine(&c);
+//! let result = a.combine(b).combine(c);
 //! assert_eq!(result, Min(3)); // Overall minimum
 //! ```
 use crate::traits::functor::Functor;
@@ -75,15 +75,15 @@ use std::fmt;
 ///
 /// let a = Min(5);
 /// let b = Min(7);
-/// let c = a.combine(&b);
+/// let c = a.combine(b);
 /// assert_eq!(c, Min(5));
 ///
 /// // Taking the minimum is associative: min(min(a, b), c) = min(a, min(b, c))
 /// let x = Min(10);
 /// let y = Min(2);
 /// let z = Min(6);
-/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()),
-///            x.clone().combine(&y.clone().combine(&z.clone())));
+/// assert_eq!(x.clone().combine(y.clone()).combine(z.clone()),
+///            x.clone().combine(y.clone().combine(z.clone())));
 /// ```
 ///
 /// # Semigroup Laws
@@ -104,8 +104,8 @@ use std::fmt;
 ///
 /// let value = Min(42);
 /// let identity = Min(i32::MAX);
-/// assert_eq!(value.combine(&identity), value);
-/// assert_eq!(identity.combine(&value), value);
+/// assert_eq!(value.combine(identity), value);
+/// assert_eq!(identity.combine(value), value);
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -171,86 +171,24 @@ impl<T> AsRef<T> for Min<T> {
     }
 }
 
-impl<T: Clone + Ord> Semigroup for Min<T> {
+impl<T: Ord> Semigroup for Min<T> {
     /// Combines two `Min` values by taking the minimum, consuming self.
     ///
-    /// This method implements the Semigroup operation for `Min<T>`, which is taking
-    /// the minimum of two values. This method consumes both operands.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Just performs a comparison and returns one of the values
-    /// - **Memory Usage**: No additional memory allocation
-    /// - **Ownership**: Takes ownership of both `self` and `other`
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Associativity
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
     /// # Examples
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::min::Min;
     /// use rustica::traits::semigroup::Semigroup;
     ///
     /// let a = Min(5);
     /// let b = Min(10);
-    ///
-    /// // a and b are consumed
-    /// let c = a.combine_owned(b);
+    /// let c = a.combine(b);
     /// assert_eq!(c, Min(5));
     /// ```
     #[inline]
-    fn combine_owned(self, other: Self) -> Self {
+    fn combine(self, other: Self) -> Self {
         match self.0.cmp(&other.0) {
             Ordering::Less | Ordering::Equal => self,
             Ordering::Greater => other,
-        }
-    }
-
-    /// Combines two `Min` values by taking the minimum, borrowing self.
-    ///
-    /// This method implements the Semigroup operation for `Min<T>`, which is taking
-    /// the minimum of two values. This method borrows both operands and returns a new `Min`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Just performs a comparison and clones one of the values
-    /// - **Memory Usage**: Creates a new `Min` wrapper with a clone of one of the input values
-    /// - **Borrowing**: Borrows `self` and `other`, avoiding unnecessary cloning of both
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Associativity
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let a = Min(5);
-    /// let b = Min(10);
-    ///
-    /// // a and b are borrowed
-    /// let c = a.combine(&b);
-    /// assert_eq!(c, Min(5));
-    ///
-    /// // a and b can still be used
-    /// let d = b.combine(&a);
-    /// assert_eq!(d, Min(5));
-    /// ```
-    #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        match self.0.cmp(&other.0) {
-            Ordering::Less | Ordering::Equal => Min(self.0.clone()),
-            Ordering::Greater => Min(other.0.clone()),
         }
     }
 }
@@ -272,83 +210,11 @@ impl<T> HKT for Min<T> {
     type Output<U> = Min<U>;
 }
 
-impl<T: Clone + Ord> Functor for Min<T> {
-    /// Maps a function over the value contained in this `Min` wrapper.
-    ///
-    /// This method implements the Functor typeclass by applying the function `f`
-    /// to the inner value and wrapping the result in a new `Min` container.
-    /// This method borrows the inner value, avoiding consumption.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of function `f`
-    /// - **Memory Usage**: Creates a new `Min` wrapper with the transformed value
-    /// - **Borrowing**: Takes a reference to the inner value, avoiding cloning it
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Identity Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// ## Composition Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let min_value = Min(5);
-    /// let doubled = min_value.fmap(|x| x * 2);
-    /// assert_eq!(doubled, Min(10));
-    /// ```
+impl<T: Ord> Functor for Min<T> {
     #[inline]
-    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: FnOnce(&Self::Source) -> U,
-    {
-        Min(f(&self.0))
-    }
-
-    /// Maps a function over the value contained in this `Min` wrapper, consuming it.
-    ///
-    /// This method is similar to `fmap` but takes ownership of `self` and passes
-    /// ownership of the inner value to the mapping function. This avoids unnecessary
-    /// cloning when the original value is no longer needed.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of function `f`
-    /// - **Memory Usage**: Creates a new `Min` wrapper with the transformed value
-    /// - **Ownership**: Consumes `self`, avoiding unnecessary cloning
-    ///
-    /// # Type Class Laws
-    ///
-    /// The same functor laws apply as for `fmap`, but with ownership semantics.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::min::Min;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let min_string = Min(String::from("hello"));
-    ///
-    /// // Efficiently transform without cloning the string
-    /// let min_length = min_string.fmap_owned(|s| s.len());
-    /// assert_eq!(min_length, Min(5));
-    ///
-    /// // Note: min_string has been consumed and can't be used anymore
-    /// ```
-    #[inline]
-    fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: FnOnce(Self::Source) -> U,
+        F: FnMut(Self::Source) -> U,
     {
         Min(f(self.0))
     }

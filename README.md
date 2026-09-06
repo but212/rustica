@@ -61,8 +61,8 @@ use rustica::prelude::*;
 
 ### 1. Functional Type Classes
 
-- **`Functor`** - Structure-preserving mapping (`fmap`, `fmap_owned`)
-- **`Pure`** - Context-lifting (`pure`, `pure_owned`)
+- **`Functor`** - Structure-preserving mapping (`fmap`)
+- **`Pure`** - Context-lifting (`pure`)
 - **`Applicative`** - Multi-argument context application (`apply`, `lift2`, `lift3`)
 - **`Monad`** - Sequential monadic chaining (`bind`, `join`)
 - **`Foldable`** - Folding and aggregation (`fold_left`, `fold_right`)
@@ -144,7 +144,7 @@ assert_eq!(doubled.into_iter().collect::<Vec<_>>(), vec![2, 4, 6]);
 // Error accumulation with Validated
 let v1: Validated<&str, i32> = Validated::valid(10);
 let v2: Validated<&str, i32> = Validated::valid(20);
-let sum = Validated::<&str, i32>::lift2(|a, b| *a + *b, &v1, &v2);
+let sum = Validated::<&str, i32>::lift2(|a, b| a + b, v1, v2);
 assert_eq!(sum, Validated::valid(30));
 ```
 

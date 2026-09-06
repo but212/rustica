@@ -27,36 +27,14 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-    pub fn from_option(option: &Option<A>, error: &E) -> Self
-    where
-        A: Clone,
-        E: Clone,
-    {
-        match option {
-            Some(value) => Self::Valid(value.clone()),
-            None => Self::invalid(error.clone()),
-        }
-    }
-
-    pub fn from_option_owned(option: Option<A>, error: E) -> Self {
+    pub fn from_option(option: Option<A>, error: E) -> Self {
         match option {
             Some(value) => Self::Valid(value),
             None => Self::invalid(error),
         }
     }
 
-    pub fn from_option_with<F>(option: &Option<A>, error_fn: &F) -> Self
-    where
-        F: Fn() -> E,
-        A: Clone,
-    {
-        match option {
-            Some(value) => Self::Valid(value.clone()),
-            None => Self::invalid(error_fn()),
-        }
-    }
-
-    pub fn from_option_with_owned<F>(option: Option<A>, error_fn: F) -> Self
+    pub fn from_option_with<F>(option: Option<A>, error_fn: F) -> Self
     where
         F: FnOnce() -> E,
     {
@@ -72,7 +50,7 @@ mod unit_tests {
     use super::Validated;
 
     #[test]
-    fn owned_conversions_accept_non_clone_values() {
+    fn conversions_accept_non_clone_values() {
         struct NoClone(&'static str);
         let converted: Result<NoClone, NoClone> =
             Validated::valid(NoClone("valid")).into_result_first_error();

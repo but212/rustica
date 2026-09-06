@@ -17,21 +17,21 @@
 //!     type From = String;
 //!     type To = Vec<char>;
 //!
-//!     fn forward(&self, from: &Self::From) -> Self::To {
+//!     fn forward(&self, from: Self::From) -> Self::To {
 //!         from.chars().collect()
 //!     }
 //!
-//!     fn backward(&self, to: &Self::To) -> Self::From {
-//!         to.iter().collect()
+//!     fn backward(&self, to: Self::To) -> Self::From {
+//!         to.into_iter().collect()
 //!     }
 //! }
 //!
 //! // Using the isomorphism
 //! let s = String::from("hello");
-//! let vec = StringVecIso.forward(&s);
+//! let vec = StringVecIso.forward(s);
 //! assert_eq!(vec, vec!['h', 'e', 'l', 'l', 'o']);
-//! let s2 = StringVecIso.backward(&vec);
-//! assert_eq!(s, s2);
+//! let s2 = StringVecIso.backward(vec);
+//! assert_eq!(s2, "hello");
 //! ```
 //!
 //! ## Laws
@@ -49,7 +49,7 @@
 //! 2. **Lens and Optics** - Building blocks for lenses, prisms, and other optics
 //! 3. **Domain Modeling** - Creating type-safe abstractions that map between domain concepts
 
-use crate::prelude::Validated;
+use crate::datatypes::validated::{NonEmptyErrors, Validated};
 use std::marker::PhantomData;
 
 /// A trait representing an isomorphism between two types.
@@ -78,25 +78,23 @@ pub trait Iso<A, B> {
     ///
     /// # Arguments
     ///
-    /// * `from` - A reference to a value of the source type
+    /// * `from` - A value of the source type
     ///
     /// # Returns
     ///
     /// A value of the target type
-    ///
-    fn forward(&self, from: &Self::From) -> Self::To;
+    fn forward(&self, from: Self::From) -> Self::To;
 
     /// Converts from the target type back to the source type.
     ///
     /// # Arguments
     ///
-    /// * `to` - A reference to a value of the target type
+    /// * `to` - A value of the target type
     ///
     /// # Returns
     ///
     /// A value of the source type
-    ///
-    fn backward(&self, to: &Self::To) -> Self::From;
+    fn backward(&self, to: Self::To) -> Self::From;
 
     /// Converts a function that operates on the target type to a function
     /// that operates on the source type.
@@ -107,17 +105,17 @@ pub trait Iso<A, B> {
     ///
     /// # Arguments
     ///
-    /// * `f` - A function that takes a reference to a target value and returns some result
+    /// * `f` - A function that takes a target value and returns some result
     ///
     /// # Returns
     ///
-    /// A function that takes a reference to a source value and returns the same result type
+    /// A function that takes a source value and returns the same result type
     #[inline]
-    fn map_from_target<F, R>(&self, f: F) -> impl Fn(&Self::From) -> R
+    fn map_from_target<F, R>(&self, f: F) -> impl Fn(Self::From) -> R
     where
-        F: Fn(&Self::To) -> R,
+        F: Fn(Self::To) -> R,
     {
-        move |from| f(&self.forward(from))
+        move |from| f(self.forward(from))
     }
 
     /// Converts a function that operates on the source type to a function
@@ -129,17 +127,17 @@ pub trait Iso<A, B> {
     ///
     /// # Arguments
     ///
-    /// * `f` - A function that takes a reference to a source value and returns some result
+    /// * `f` - A function that takes a source value and returns some result
     ///
     /// # Returns
     ///
-    /// A function that takes a reference to a target value and returns the same result type
+    /// A function that takes a target value and returns the same result type
     #[inline]
-    fn map_from_source<F, R>(&self, f: F) -> impl Fn(&Self::To) -> R
+    fn map_from_source<F, R>(&self, f: F) -> impl Fn(Self::To) -> R
     where
-        F: Fn(&Self::From) -> R,
+        F: Fn(Self::From) -> R,
     {
-        move |to| f(&self.backward(to))
+        move |to| f(self.backward(to))
     }
 
     /// Creates a new isomorphism by composing this isomorphism with another.
@@ -159,17 +157,10 @@ pub trait Iso<A, B> {
     /// # Returns
     ///
     /// A new isomorphism that represents the composition of the two isomorphisms
-    ///
     fn iso_compose<C, ISO2>(&self, other: ISO2) -> ComposedIso<Self, ISO2, A, B, C>
     where
         Self: Iso<A, B> + Sized + Clone,
-        Self::From: Clone,
-        Self::To: Clone,
-        B: Clone,
         ISO2: Iso<B, C, From = B, To = C>,
-        ISO2::From: Clone,
-        ISO2::To: Clone,
-        C: Clone,
     {
         ComposedIso {
             first: self.clone(),
@@ -188,7 +179,6 @@ pub trait Iso<A, B> {
     /// # Returns
     ///
     /// A new isomorphism with the same types but with source and target swapped
-    ///
     fn inverse(&self) -> InverseIso<Self, A, B>
     where
         Self: Sized + Clone,
@@ -212,7 +202,6 @@ pub trait Iso<A, B> {
 /// * `A`: The source type of the composed isomorphism
 /// * `B`: The intermediate type
 /// * `C`: The target type of the composed isomorphism
-///
 pub struct ComposedIso<ISO1, ISO2, A, B, C>
 where
     ISO1: Iso<A, B>,
@@ -227,23 +216,18 @@ impl<ISO1, ISO2, A, B, C> Iso<A, C> for ComposedIso<ISO1, ISO2, A, B, C>
 where
     ISO1: Iso<A, B, From = A, To = B>,
     ISO2: Iso<B, C, From = B, To = C>,
-    A: Clone,
-    B: Clone,
-    C: Clone,
 {
     type From = A;
     type To = C;
 
-    fn forward(&self, from: &Self::From) -> Self::To {
-        // Since we've constrained the types to be equal, we can use them directly
+    fn forward(&self, from: Self::From) -> Self::To {
         let b = self.first.forward(from);
-        self.second.forward(&b)
+        self.second.forward(b)
     }
 
-    fn backward(&self, to: &Self::To) -> Self::From {
-        // Since we've constrained the types to be equal, we can use them directly
+    fn backward(&self, to: Self::To) -> Self::From {
         let b = self.second.backward(to);
-        self.first.backward(&b)
+        self.first.backward(b)
     }
 }
 
@@ -257,7 +241,6 @@ where
 /// * `ISO` - The original isomorphism type
 /// * `A` - The source type of the original isomorphism
 /// * `B` - The target type of the original isomorphism
-///
 pub struct InverseIso<ISO, A, B>
 where
     ISO: Iso<A, B>,
@@ -269,19 +252,15 @@ where
 impl<ISO, A, B> Iso<B, A> for InverseIso<ISO, A, B>
 where
     ISO: Iso<A, B, From = A, To = B>,
-    A: Clone,
-    B: Clone,
 {
     type From = B;
     type To = A;
 
-    fn forward(&self, from: &Self::From) -> Self::To {
-        // Since we've constrained the types to be equal, we can use them directly
+    fn forward(&self, from: Self::From) -> Self::To {
         self.original.backward(from)
     }
 
-    fn backward(&self, to: &Self::To) -> Self::From {
-        // Since we've constrained the types to be equal, we can use them directly
+    fn backward(&self, to: Self::To) -> Self::From {
         self.original.forward(to)
     }
 }
@@ -297,7 +276,7 @@ pub trait IsoExt<A, B>: Iso<A, B> {
     /// # Returns
     ///
     /// The converted value in the target type
-    fn convert_forward(&self, value: &Self::From) -> Self::To {
+    fn convert_forward(&self, value: Self::From) -> Self::To {
         self.forward(value)
     }
 
@@ -310,7 +289,7 @@ pub trait IsoExt<A, B>: Iso<A, B> {
     /// # Returns
     ///
     /// The converted value in the source type
-    fn convert_backward(&self, value: &Self::To) -> Self::From {
+    fn convert_backward(&self, value: Self::To) -> Self::From {
         self.backward(value)
     }
 
@@ -329,11 +308,11 @@ pub trait IsoExt<A, B>: Iso<A, B> {
     /// # Returns
     ///
     /// The modified value in the source type
-    fn modify<F>(&self, from: &Self::From, f: F) -> Self::From
+    fn modify<F>(&self, from: Self::From, f: F) -> Self::From
     where
         F: FnOnce(Self::To) -> Self::To,
     {
-        self.backward(&f(self.forward(from)))
+        self.backward(f(self.forward(from)))
     }
 
     /// Verifies that this isomorphism satisfies the isomorphism laws for the given values.
@@ -347,51 +326,60 @@ pub trait IsoExt<A, B>: Iso<A, B> {
     ///
     /// `true` if the isomorphism laws are satisfied for the given values,
     /// `false` otherwise
-    fn verify_laws(&self, from: &Self::From, to: &Self::To) -> bool
+    fn verify_laws(&self, from: Self::From, to: Self::To) -> bool
     where
-        Self::From: PartialEq,
-        Self::To: PartialEq,
+        Self::From: PartialEq + Clone,
+        Self::To: PartialEq + Clone,
     {
-        let round_trip_from = self.backward(&self.forward(from));
-        let round_trip_to = self.forward(&self.backward(to));
+        let round_trip_from = self.backward(self.forward(from.clone()));
+        let round_trip_to = self.forward(self.backward(to.clone()));
 
-        &round_trip_from == from && &round_trip_to == to
+        round_trip_from == from && round_trip_to == to
     }
 }
 
 // Implement IsoExt for all types that implement Iso
 impl<T, A, B> IsoExt<A, B> for T where T: Iso<A, B> {}
 
-/// An isomorphism between Result<A, E> and Validated<E, A>.
+/// An isomorphism between `Result<A, NonEmptyErrors<E>>` and `Validated<E, A>`.
+///
+/// This provides a lossless, bijective isomorphism between `Result` holding a non-empty
+/// collection of errors and `Validated`.
 ///
 /// # Example
 /// ```rust
 /// use rustica::traits::iso::{Iso, ResultValidatedIso};
-/// use rustica::datatypes::validated::Validated;
+/// use rustica::datatypes::validated::{NonEmptyErrors, Validated};
 /// let iso = ResultValidatedIso;
-/// let res: Result<i32, &str> = Ok(42);
-/// let validated = iso.forward(&res);
+/// let res: Result<i32, NonEmptyErrors<&str>> = Ok(42);
+/// let validated = iso.forward(res);
 /// assert_eq!(validated, Validated::valid(42));
-/// let res2 = iso.backward(&validated);
+/// let res2 = iso.backward(validated);
 /// assert_eq!(res2, Ok(42));
-/// let err: Result<i32, &str> = Err("fail");
-/// let validated2 = iso.forward(&err);
+/// let err: Result<i32, NonEmptyErrors<&str>> = Err(NonEmptyErrors::new("fail"));
+/// let validated2 = iso.forward(err.clone());
 /// assert!(validated2.is_invalid());
-/// let res3 = iso.backward(&validated2);
-/// assert_eq!(res3, Err("fail"));
+/// let res3 = iso.backward(validated2);
+/// assert_eq!(res3, err);
 /// ```
 pub struct ResultValidatedIso;
 
-impl<A: Clone, E: Clone> Iso<Result<A, E>, Validated<E, A>> for ResultValidatedIso {
-    type From = Result<A, E>;
+impl<A, E> Iso<Result<A, NonEmptyErrors<E>>, Validated<E, A>> for ResultValidatedIso {
+    type From = Result<A, NonEmptyErrors<E>>;
     type To = Validated<E, A>;
 
-    fn forward(&self, from: &Self::From) -> Self::To {
-        Validated::from(from)
+    fn forward(&self, from: Self::From) -> Self::To {
+        match from {
+            Ok(a) => Validated::Valid(a),
+            Err(es) => Validated::Invalid(es),
+        }
     }
 
-    fn backward(&self, to: &Self::To) -> Self::From {
-        to.clone().into_result_first_error()
+    fn backward(&self, to: Self::To) -> Self::From {
+        match to {
+            Validated::Valid(a) => Ok(a),
+            Validated::Invalid(es) => Err(es),
+        }
     }
 }
 
@@ -406,12 +394,12 @@ mod tests {
         type From = String;
         type To = Vec<char>;
 
-        fn forward(&self, from: &Self::From) -> Self::To {
+        fn forward(&self, from: Self::From) -> Self::To {
             from.chars().collect()
         }
 
-        fn backward(&self, to: &Self::To) -> Self::From {
-            to.iter().collect()
+        fn backward(&self, to: Self::To) -> Self::From {
+            to.into_iter().collect()
         }
     }
 
@@ -422,12 +410,12 @@ mod tests {
         type From = Vec<char>;
         type To = usize;
 
-        fn forward(&self, from: &Self::From) -> Self::To {
+        fn forward(&self, from: Self::From) -> Self::To {
             from.len()
         }
 
-        fn backward(&self, to: &Self::To) -> Self::From {
-            vec!['x'; *to]
+        fn backward(&self, to: Self::To) -> Self::From {
+            vec!['x'; to]
         }
     }
 
@@ -435,45 +423,60 @@ mod tests {
     fn iso_round_trips_and_maps_functions() {
         let iso = StringVecIso;
         let text = "hello".to_owned();
-        let chars = iso.forward(&text);
+        let chars = iso.forward(text.clone());
         assert_eq!(chars, vec!['h', 'e', 'l', 'l', 'o']);
-        assert_eq!(iso.backward(&chars), text);
+        assert_eq!(iso.backward(chars.clone()), text);
         assert_eq!(
-            iso.map_from_target(|value: &Vec<char>| value.len())(&text),
+            iso.map_from_target(|value: Vec<char>| value.len())(text.clone()),
             5
         );
-        assert!(iso.map_from_source(|value: &String| value == "hello")(
-            &chars
+        assert!(iso.map_from_source(|value: String| value == "hello")(
+            chars.clone()
         ));
-        assert!(!iso.map_from_source(|value: &String| value == "hello")(
-            &vec!['w', 'o', 'r', 'l', 'd']
+        assert!(!iso.map_from_source(|value: String| value == "hello")(
+            vec!['w', 'o', 'r', 'l', 'd']
         ));
     }
 
     #[test]
     fn iso_composition_and_inverse_preserve_direction() {
         let composed = StringVecIso.iso_compose(VecLenIso);
-        assert_eq!(composed.forward(&"hello".to_owned()), 5);
-        assert_eq!(composed.backward(&3), "xxx");
+        assert_eq!(composed.forward("hello".to_owned()), 5);
+        assert_eq!(composed.backward(3), "xxx".to_owned());
 
         let inverse = StringVecIso.inverse();
         let chars = vec!['h', 'e', 'l', 'l', 'o'];
-        let text = inverse.forward(&chars);
+        let text = inverse.forward(chars.clone());
         assert_eq!(text, "hello");
-        assert_eq!(inverse.backward(&text), chars);
+        assert_eq!(inverse.backward(text), chars);
     }
 
     #[test]
     fn result_validated_iso_round_trips_success_and_error() {
         let iso = ResultValidatedIso;
-        let result: Result<i32, &str> = Ok(42);
-        let validated = iso.forward(&result);
+        let result: Result<i32, NonEmptyErrors<&str>> = Ok(42);
+        let validated = iso.forward(result.clone());
         assert_eq!(validated, Validated::valid(42));
-        assert_eq!(iso.backward(&validated), Ok(42));
+        assert_eq!(iso.backward(validated), result);
 
-        let error: Result<i32, &str> = Err("fail");
-        let invalid = iso.forward(&error);
+        let error: Result<i32, NonEmptyErrors<&str>> = Err(NonEmptyErrors::new("fail"));
+        let invalid = iso.forward(error.clone());
         assert!(invalid.is_invalid());
-        assert_eq!(iso.backward(&invalid), Err("fail"));
+        assert_eq!(iso.backward(invalid), error);
+    }
+
+    #[test]
+    fn result_validated_iso_round_trips_multi_error_validated() {
+        let iso = ResultValidatedIso;
+        let validated: Validated<&str, i32> = Validated::invalid_many(["err1", "err2", "err3"]);
+        let result = iso.backward(validated.clone());
+        let round_trip = iso.forward(result);
+        assert_eq!(round_trip, validated);
+
+        let err_res: Result<i32, NonEmptyErrors<&str>> =
+            Err(NonEmptyErrors::from_first_and_iter("e1", ["e2", "e3"]));
+        let valid = iso.forward(err_res.clone());
+        let round_trip_res = iso.backward(valid);
+        assert_eq!(round_trip_res, err_res);
     }
 }

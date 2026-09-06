@@ -54,17 +54,17 @@ where
 
     /// Runs the computation with an environment.
     #[inline]
-    pub fn run_reader(&self, env: E) -> M {
+    pub fn run_reader(self, env: E) -> M {
         (self.run_reader_fn)(env)
     }
 
     /// Runs the computation after transforming its environment.
     #[inline]
-    pub fn local<F>(&self, f: F) -> Self
+    pub fn local<F>(self, f: F) -> Self
     where
         F: Fn(E) -> E + Send + Sync + 'static,
     {
-        let run = Arc::clone(&self.run_reader_fn);
+        let run = self.run_reader_fn;
         Self::new(move |env| run(f(env)))
     }
 
@@ -124,7 +124,7 @@ where
     #[allow(clippy::type_complexity)]
     pub fn lift2<B, C, F, CombineFn>(
         f: F, combine_fn: CombineFn,
-    ) -> impl Fn(&ReaderT<E, M, A>, &ReaderT<E, M::Output<B>, B>) -> ReaderT<E, M::Output<C>, C>
+    ) -> impl Fn(ReaderT<E, M, A>, ReaderT<E, M::Output<B>, B>) -> ReaderT<E, M::Output<C>, C>
     + Send
     + Sync
     + 'static
@@ -138,8 +138,8 @@ where
         M::Output<C>: 'static,
     {
         move |left, right| {
-            let left_fn = Arc::clone(&left.run_reader_fn);
-            let right_fn = Arc::clone(&right.run_reader_fn);
+            let left_fn = left.run_reader_fn;
+            let right_fn = right.run_reader_fn;
             let combine = combine_fn.clone();
             let f = f.clone();
             ReaderT::new(move |env: E| combine(left_fn(env.clone()), right_fn(env), f.clone()))
@@ -164,13 +164,13 @@ where
     A: Clone + 'static,
 {
     /// Maps the base monad while changing its contained type.
-    pub fn fmap<B, F>(&self, f: F) -> ReaderT<E, M::Output<B>, B>
+    pub fn fmap<B, F>(self, f: F) -> ReaderT<E, M::Output<B>, B>
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
         B: Clone + 'static,
         M::Output<B>: 'static,
     {
-        let run = Arc::clone(&self.run_reader_fn);
+        let run = self.run_reader_fn;
         ReaderT::new(move |env| {
             let mapper = f.clone();
             run(env).fmap(move |value| mapper(value.clone()))
@@ -178,13 +178,13 @@ where
     }
 
     /// Sequences computations in the same base-monad family.
-    pub fn bind<B, F>(&self, f: F) -> ReaderT<E, M::Output<B>, B>
+    pub fn bind<B, F>(self, f: F) -> ReaderT<E, M::Output<B>, B>
     where
         F: Fn(A) -> ReaderT<E, M::Output<B>, B> + Clone + Send + Sync + 'static,
         B: Clone + 'static,
         M::Output<B>: 'static,
     {
-        let run = Arc::clone(&self.run_reader_fn);
+        let run = self.run_reader_fn;
         ReaderT::new(move |env: E| {
             let next_env = env.clone();
             let next = f.clone();
@@ -194,7 +194,7 @@ where
 
     /// Combines two readers that share an environment and monad family.
     pub fn combine<B, C, F>(
-        &self, other: &ReaderT<E, M::Output<B>, B>, f: F,
+        self, other: ReaderT<E, M::Output<B>, B>, f: F,
     ) -> ReaderT<E, M::Output<C>, C>
     where
         M: HKT<Output<A> = M>,
@@ -204,21 +204,21 @@ where
         M::Output<B>: Clone + 'static,
         M::Output<C>: 'static,
     {
-        let left = Arc::clone(&self.run_reader_fn);
-        let right = Arc::clone(&other.run_reader_fn);
+        let left = self.run_reader_fn;
+        let right = other.run_reader_fn;
         ReaderT::new(move |env: E| {
             let combine = f.clone();
             M::lift2(
-                move |a: &A, b: &B| combine(a.clone(), b.clone()),
-                &left(env.clone()),
-                &right(env),
+                move |a: A, b: B| combine(a, b),
+                left(env.clone()),
+                right(env),
             )
         })
     }
 
     /// Applies a reader-held function to this reader's value.
     pub fn apply<B, Func>(
-        &self, functions: &ReaderT<E, M::Output<Func>, Func>,
+        self, functions: ReaderT<E, M::Output<Func>, Func>,
     ) -> ReaderT<E, M::Output<B>, B>
     where
         M: HKT<Output<A> = M>,
@@ -237,11 +237,11 @@ where
     Err: Clone + 'static,
     A: Clone + 'static,
 {
-    pub fn try_run_reader(&self, env: E) -> ComposableResult<A, Err> {
+    pub fn try_run_reader(self, env: E) -> ComposableResult<A, Err> {
         self.run_reader(env).map_err(ComposableError::new)
     }
 
-    pub fn try_run_reader_with_context<C>(&self, env: E, context: C) -> ComposableResult<A, Err>
+    pub fn try_run_reader_with_context<C>(self, env: E, context: C) -> ComposableResult<A, Err>
     where
         C: IntoErrorContext,
     {
@@ -250,12 +250,12 @@ where
             .map_err(|error| ComposableError::new(error).with_context(context.clone()))
     }
 
-    pub fn map_error<F, Err2>(&self, f: F) -> ReaderT<E, Result<A, Err2>, A>
+    pub fn map_error<F, Err2>(self, f: F) -> ReaderT<E, Result<A, Err2>, A>
     where
         F: Fn(Err) -> Err2 + Send + Sync + 'static,
         Err2: Clone + 'static,
     {
-        let run = Arc::clone(&self.run_reader_fn);
+        let run = self.run_reader_fn;
         ReaderT::new(move |env| run(env).map_err(&f))
     }
 }
@@ -283,21 +283,23 @@ mod tests {
         type FunctionReader = ReaderT<i32, Option<Formatter>, Formatter>;
 
         let value: ReaderT<i32, Option<i32>, i32> = ReaderT::new(Some);
-        let mapped: ReaderT<i32, Option<String>, String> = value.fmap(|n| n.to_string());
+        let mapped: ReaderT<i32, Option<String>, String> = value.clone().fmap(|n| n.to_string());
         assert_eq!(mapped.run_reader(7), Some("7".to_owned()));
 
-        let bound: ReaderT<i32, Option<String>, String> =
-            value.bind(|n| ReaderT::new(move |env| Some(format!("{env}:{n}"))));
+        let bound: ReaderT<i32, Option<String>, String> = value
+            .clone()
+            .bind(|n| ReaderT::new(move |env| Some(format!("{env}:{n}"))));
         assert_eq!(bound.run_reader(7), Some("7:7".to_owned()));
 
         let suffix: ReaderT<i32, Option<&'static str>, &'static str> = ReaderT::new(|_| Some("!"));
-        let combined: ReaderT<i32, Option<String>, String> =
-            value.combine(&suffix, |n, suffix| format!("{n}{suffix}"));
+        let combined: ReaderT<i32, Option<String>, String> = value
+            .clone()
+            .combine(suffix, |n, suffix| format!("{n}{suffix}"));
         assert_eq!(combined.run_reader(7), Some("7!".to_owned()));
 
         let functions: FunctionReader =
             ReaderT::new(|_| Some((|n| format!("value={n}")) as Formatter));
-        let applied: ReaderT<i32, Option<String>, String> = value.apply(&functions);
+        let applied: ReaderT<i32, Option<String>, String> = value.apply(functions);
         assert_eq!(applied.run_reader(7), Some("value=7".to_owned()));
     }
 }

@@ -112,9 +112,9 @@ impl<T> RRBTree<T> {
         }
     }
 
-    /// Builds a tree by consuming its input. This is the ownership path used
-    /// by `PersistentVector::from_iter`; it never clones element values.
-    pub fn from_elements_owned<I: IntoIterator<Item = T>>(elements: I) -> Self {
+    /// Builds a tree by consuming its input without intermediate allocations.
+    /// This is the primary path used to construct trees from any iterable sequence.
+    pub fn from_elements<I: IntoIterator<Item = T>>(elements: I) -> Self {
         let mut iter = elements.into_iter();
         let mut leaves = Vec::new();
         let mut pending = SmallVec::<[T; LEAF_CAPACITY]>::new();
@@ -228,77 +228,6 @@ impl<T: Clone> RRBTree<T> {
 
 /// Methods that require Clone for structural modifications
 impl<T: Clone> RRBTree<T> {
-    /// Creates a new RRB tree from an iterator of elements.
-    ///
-    /// This is the primary constructor for building an RRB tree from existing data.
-    /// For small collections (up to `LEAF_CAPACITY` elements), creates a single leaf node.
-    /// For larger collections, builds a proper tree structure with elements distributed
-    /// across multiple leaf nodes.
-    ///
-    /// # Arguments
-    ///
-    /// * `elements` - An iterator yielding elements to store in the tree
-    ///
-    /// # Returns
-    ///
-    /// A new `RRBTree` containing all elements from the iterator.
-    pub fn from_elements<I: Iterator<Item = T>>(elements: I) -> Self {
-        let elements: Vec<T> = elements.collect();
-
-        let len = elements.len();
-        if len <= LEAF_CAPACITY {
-            Self {
-                root: Arc::new(RRBNode::Leaf {
-                    elements: SmallVec::from_iter(elements),
-                }),
-                tail: SmallVec::new(),
-                head: SmallVec::new(),
-                height: 0,
-                len,
-            }
-        } else {
-            Self::build_tree_with_tail(elements)
-        }
-    }
-
-    fn build_tree_with_tail(elements: Vec<T>) -> Self {
-        let total_len = elements.len();
-
-        let tree_elements_len = (total_len / LEAF_CAPACITY) * LEAF_CAPACITY;
-        let tree_elements = &elements[..tree_elements_len];
-        let tail_elements = &elements[tree_elements_len..];
-
-        if tree_elements.is_empty() {
-            Self {
-                root: Arc::new(RRBNode::Leaf {
-                    elements: SmallVec::new(),
-                }),
-                tail: SmallVec::from_iter(tail_elements.iter().cloned()),
-                head: SmallVec::new(),
-                height: 0,
-                len: total_len,
-            }
-        } else {
-            let mut leaves = Vec::new();
-            for chunk in tree_elements.chunks(LEAF_CAPACITY) {
-                let leaf = RRBNode::Leaf {
-                    elements: SmallVec::from_iter(chunk.iter().cloned()),
-                };
-                leaves.push(Arc::new(leaf));
-            }
-
-            let (root, height) = Self::build_tree_recursive(leaves);
-
-            Self {
-                root,
-                tail: SmallVec::from_iter(tail_elements.iter().cloned()),
-                head: SmallVec::new(),
-                height,
-                len: total_len,
-            }
-        }
-    }
-
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.len {
             return self.clone();
@@ -1155,11 +1084,11 @@ mod tests {
     #[test]
     fn concat_keeps_every_branch_within_the_branching_factor() {
         let chunk: Vec<_> = (0..2048).collect();
-        let mut tree = RRBTree::from_elements(chunk.clone().into_iter());
+        let mut tree = RRBTree::from_elements(chunk.clone());
         let mut expected = chunk.clone();
 
         for _ in 1..4 {
-            tree = tree.concat(&RRBTree::from_elements(chunk.clone().into_iter()));
+            tree = tree.concat(&RRBTree::from_elements(chunk.clone()));
             expected.extend_from_slice(&chunk);
             assert_branch_width(&tree.root);
             assert_eq!(tree.clone().into_vec(), expected);

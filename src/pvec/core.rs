@@ -707,7 +707,7 @@ impl<T> FromIterator<T> for PersistentVector<T> {
             None => Self::inline(inline),
             Some(first) => {
                 let elements = inline.into_iter().chain(std::iter::once(first)).chain(iter);
-                let tree = RRBTree::from_elements_owned(elements);
+                let tree = RRBTree::from_elements(elements);
                 Self::tree(tree)
             },
         }

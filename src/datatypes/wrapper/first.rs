@@ -58,14 +58,14 @@
 //! let none = First(None);
 //!
 //! // First non-None value wins
-//! assert_eq!(a.combine(&b), First(Some(42))); // First value wins
-//! assert_eq!(none.combine(&b), First(Some(10))); // Second value when first is None
-//! assert_eq!(a.combine(&none), First(Some(42))); // First value when second is None
+//! assert_eq!(a.combine(b), First(Some(42))); // First value wins
+//! assert_eq!(none.combine(b), First(Some(10))); // Second value when first is None
+//! assert_eq!(a.combine(none), First(Some(42))); // First value when second is None
 //!
 //! // Identity element
 //! let empty = First::empty();
-//! assert_eq!(empty.combine(&a), a);
-//! assert_eq!(a.combine(&empty), a);
+//! assert_eq!(empty.combine(a), a);
+//! assert_eq!(a.combine(empty), a);
 //! ```
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
@@ -88,21 +88,21 @@ use std::fmt;
 ///
 /// let a = First(Some(5));
 /// let b = First(Some(7));
-/// let c = a.combine(&b);
+/// let c = a.combine(b);
 /// assert_eq!(c, First(Some(5)));
 ///
 /// // First is associative
 /// let x = First(Some(1));
 /// let y = First(None);
 /// let z = First(Some(3));
-/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()),
-///            x.clone().combine(&y.clone().combine(&z.clone())));
+/// assert_eq!(x.clone().combine(y.clone()).combine(z.clone()),
+///            x.clone().combine(y.clone().combine(z.clone())));
 ///
 /// // Identity element
 /// let id = First::empty();  // First(None)
 /// assert_eq!(id, First(None));
-/// assert_eq!(First(Some(42)).combine(&id.clone()), First(Some(42)));
-/// assert_eq!(id.combine(&First(Some(42))), First(Some(42)));
+/// assert_eq!(First(Some(42)).combine(id.clone()), First(Some(42)));
+/// assert_eq!(id.combine(First(Some(42))), First(Some(42)));
 /// ```
 ///
 /// Using with `Functor` to transform the inner value:
@@ -115,8 +115,8 @@ use std::fmt;
 /// let b = a.fmap(|x| x * 2);
 /// assert_eq!(b, First(Some(10)));
 ///
-/// let c = First(None);
-/// let d = c.fmap(|x: &i32| x * 2);
+/// let c: First<i32> = First(None);
+/// let d = c.fmap(|x| x * 2);
 /// assert_eq!(d, First(None));
 /// ```
 ///
@@ -185,86 +185,24 @@ impl<T> AsRef<T> for First<T> {
     }
 }
 
-impl<T: Clone> Semigroup for First<T> {
+impl<T> Semigroup for First<T> {
     /// Combines two `First` values by taking the first non-None value, consuming both values.
     ///
-    /// This is the owned version of the semigroup operation that takes ownership of both `self` and `other`.
-    /// It returns the first value if it contains `Some`, otherwise it returns the second value.
-    ///
     /// # Examples
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::first::First;
     /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // When first value is Some
     /// let a = First(Some(5));
     /// let b = First(Some(10));
-    /// let c = a.combine_owned(b);
+    /// let c = a.combine(b);
     /// assert_eq!(c, First(Some(5)));
-    ///
-    /// // When first value is None
-    /// let x = First(None);
-    /// let y = First(Some(7));
-    /// let z = x.combine_owned(y);
-    /// assert_eq!(z, First(Some(7)));
-    ///
-    /// // When both values are None
-    /// let p = First::<i32>(None);
-    /// let q = First::<i32>(None);
-    /// let r = p.combine_owned(q);
-    /// assert_eq!(r, First(None));
     /// ```
     #[inline]
-    fn combine_owned(self, other: Self) -> Self {
+    fn combine(self, other: Self) -> Self {
         match self.0 {
             Some(_) => self,
             None => other,
-        }
-    }
-
-    /// Combines two `First` values by taking the first non-None value, preserving the originals.
-    ///
-    /// This method implements the semigroup operation for `First` by returning a new `First`
-    /// containing the first non-None value from either `self` or `other`. If both contain `None`,
-    /// the result will be `First(None)`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // When first value is Some
-    /// let a = First(Some(5));
-    /// let b = First(Some(10));
-    /// let c = a.combine(&b);
-    /// assert_eq!(c, First(Some(5)));
-    /// // Original values are preserved
-    /// assert_eq!(a, First(Some(5)));
-    /// assert_eq!(b, First(Some(10)));
-    ///
-    /// // When first value is None
-    /// let x = First(None);
-    /// let y = First(Some(7));
-    /// let z = x.combine(&y);
-    /// assert_eq!(z, First(Some(7)));
-    ///
-    /// // Demonstrating associativity
-    /// let v1 = First(None);
-    /// let v2 = First(Some(10));
-    /// let v3 = First(Some(20));
-    ///
-    /// // (v1 ⊕ v2) ⊕ v3 = v1 ⊕ (v2 ⊕ v3)
-    /// let left = v1.combine(&v2).combine(&v3);
-    /// let right = v1.combine(&v2.combine(&v3));
-    /// assert_eq!(left, right);
-    /// ```
-    #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        match &self.0 {
-            Some(_) => First(self.0.clone()),
-            None => First(other.0.clone()),
         }
     }
 }
@@ -298,7 +236,7 @@ impl<T: Clone> Monoid for First<T> {
     /// let empty = First::<i32>::empty();
     /// let value = First(Some(42));
     ///
-    /// assert_eq!(empty.combine(&value), value);
+    /// assert_eq!(empty.combine(value), value);
     /// ```
     ///
     /// ## Right Identity
@@ -312,7 +250,7 @@ impl<T: Clone> Monoid for First<T> {
     /// let value = First(Some(42));
     /// let empty = First::<i32>::empty();
     ///
-    /// assert_eq!(value.combine(&empty), value);
+    /// assert_eq!(value.combine(empty), value);
     /// ```
     ///
     /// # Examples
@@ -336,87 +274,11 @@ impl<T> HKT for First<T> {
     type Output<U> = First<U>;
 }
 
-impl<T: Clone> Functor for First<T> {
-    /// Maps a function over the inner value of this `First` container, if it exists.
-    ///
-    /// This method applies the function `f` to the inner value if it's `Some`,
-    /// otherwise it returns `First(None)`. This borrows the inner value during the mapping.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of function `f`
-    /// - **Memory Usage**: Creates a new `First` wrapper with the transformed value
-    /// - **Borrowing**: Takes a reference to the inner value, avoiding unnecessary clones
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Identity Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// ## Composition Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let a = First(Some(5));
-    /// let b = a.fmap(|x| x * 2);
-    /// assert_eq!(b, First(Some(10)));
-    ///
-    /// let c = First::<i32>(None);
-    /// let d = c.fmap(|x| x * 2);
-    /// assert_eq!(d, First(None));
-    /// ```
+impl<T> Functor for First<T> {
     #[inline]
-    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: FnOnce(&Self::Source) -> U,
-    {
-        match &self.0 {
-            Some(value) => First(Some(f(value))),
-            None => First(None),
-        }
-    }
-
-    /// Maps a function over the inner value of this `First` container, consuming it.
-    ///
-    /// This method is similar to `fmap` but takes ownership of `self` and passes ownership
-    /// of the inner value to the function `f`. This is more efficient when you don't need
-    /// to preserve the original container.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of function `f`
-    /// - **Memory Usage**: Creates a new `First` wrapper with the transformed value
-    /// - **Ownership**: Consumes `self` and avoids unnecessary cloning of the inner value
-    ///
-    /// # Type Class Laws
-    ///
-    /// The same functor laws apply as for `fmap`, but with ownership semantics.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::first::First;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let a = First(Some(String::from("hello")));
-    /// let b = a.fmap_owned(|s| s.len());  // Consumes the string efficiently
-    /// assert_eq!(b, First(Some(5)));
-    ///
-    /// // a is consumed and can't be used anymore
-    /// ```
-    #[inline]
-    fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: FnOnce(Self::Source) -> U,
+        F: FnMut(Self::Source) -> U,
     {
         match self.0 {
             Some(value) => First(Some(f(value))),

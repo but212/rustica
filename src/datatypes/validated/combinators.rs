@@ -1,12 +1,11 @@
-use super::core::{ErrorAccumulator, NonEmptyErrors};
+use super::core::ErrorAccumulator;
 use crate::datatypes::validated::Validated;
 
 impl<E, A> Validated<E, A> {
-    /// Maps a function over the error values if `Invalid`, or returns the `Valid` value (cloned).
+    /// Maps a function over the error values if `Invalid`, or returns the `Valid` value.
     ///
     /// If this `Validated` is `Invalid`, applies the function `f` to transform each error.
-    /// If `Valid`, the original valid value `A` is cloned and returned in a new `Validated::Valid`.
-    /// This method is suitable when you only have a reference (`&self`) to the `Validated` value.
+    /// If `Valid`, the original valid value `A` is returned in a new `Validated::Valid`.
     ///
     /// # Type Parameters
     ///
@@ -26,50 +25,9 @@ impl<E, A> Validated<E, A> {
     /// let mapped = invalid.fmap_invalid(|e| format!("Error: {}", e));
     /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     /// ```
-    pub fn fmap_invalid<G, F>(&self, f: F) -> Validated<G, A>
+    pub fn fmap_invalid<G, F>(self, f: F) -> Validated<G, A>
     where
-        F: Fn(&E) -> G,
-        G: Clone,
-        A: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(x.clone()),
-            Validated::Invalid(_) => {
-                let mut transformed = self.iter_errors().map(f);
-                let first = transformed.next().expect("invalid values have errors");
-                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
-            },
-        }
-    }
-
-    /// Maps a function over the error values if `Invalid` (taking ownership), or returns the `Valid` value (moved).
-    ///
-    /// If this `Validated` is `Invalid`, applies the function `f` to transform each error (errors `E` are moved into `f`).
-    /// If `Valid`, the original valid value `A` is moved and returned in a new `Validated::Valid`.
-    /// This method takes `self` by ownership, which can be more efficient as it avoids cloning the value `A` if it's `Valid`.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `G`: The result type of the mapping function
-    /// * `F`: The type of the mapping function
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function to apply to each error
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// let mapped = invalid.fmap_invalid_owned(|e| format!("Error: {}", e));
-    /// assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
-    /// ```
-    pub fn fmap_invalid_owned<G, F>(self, f: F) -> Validated<G, A>
-    where
-        F: Fn(E) -> G,
-        G: Clone,
+        F: FnMut(E) -> G,
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
@@ -77,53 +35,7 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-    /// Combines errors from two Validated values.
-    ///
-    /// This is used internally to combine errors when both values are invalid.
-    /// The function assumes at least one of the values is invalid.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - Another Validated instance to combine errors with
-    ///
-    /// # Panics
-    ///
-    /// Panics if both values are valid, as this function should only be called when
-    /// at least one value is invalid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let first: Validated<&str, i32> = Validated::invalid("error1");
-    /// let second = Validated::invalid_many(["error2", "error3"]);
-    /// assert_eq!(first.combine_errors(&second).error_slice(), &["error1", "error2", "error3"]);
-    /// ```
-    ///
-    /// Calling this method with two valid values is a programmer error and panics.
-    pub fn combine_errors(&self, other: &Self) -> Self
-    where
-        A: Clone,
-        E: Clone,
-    {
-        match (self, other) {
-            (Validated::Valid(_), Validated::Valid(_)) => unreachable!(),
-            (Validated::Valid(_), invalid) => invalid.clone(),
-            (invalid, Validated::Valid(_)) => invalid.clone(),
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut acc = ErrorAccumulator::with_capacity(e1.len() + e2.len());
-                acc.extend_cloned(e1);
-                acc.extend_cloned(e2);
-                Validated::invalid_from_accumulator(acc)
-            },
-        }
-    }
-
-    /// Combines errors from two `Validated` instances, taking ownership of both.
-    ///
-    /// This method is more efficient than `combine_errors` when you can consume
-    /// both `Validated` instances, as it avoids cloning the error collections.
+    /// Combines errors from two `Validated` instances, consuming both.
     ///
     /// # Panics
     ///
@@ -137,11 +49,11 @@ impl<E, A> Validated<E, A> {
     ///
     /// let invalid1: Validated<&str, i32> = Validated::invalid("error1");
     /// let invalid2: Validated<&str, i32> = Validated::invalid("error2");
-    /// let combined = invalid1.combine_errors_owned(invalid2);
+    /// let combined = invalid1.combine_errors(invalid2);
     /// assert_eq!(combined.error_slice(), &["error1", "error2"]);
     /// ```
     #[inline]
-    pub fn combine_errors_owned(self, other: Self) -> Self {
+    pub fn combine_errors(self, other: Self) -> Self {
         match (self, other) {
             (Validated::Valid(_), Validated::Valid(_)) => unreachable!(),
             (Validated::Valid(_), invalid) => invalid,
@@ -153,76 +65,11 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-    /// Combines multiple Validated values using a function.
-    ///
-    /// This is similar to `lift2` but works with a slice of Validated values.
-    /// If all values are valid, applies the function to combine them.
-    /// If any values are invalid, collects all errors.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B`: The result type of the combining function
-    /// * `F`: The type of the combining function
-    ///
-    /// # Arguments
-    ///
-    /// * `values` - Slice of Validated values
-    /// * `f` - Function to combine valid values
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let values = [Validated::<&str, i32>::valid(1), Validated::valid(2)];
-    /// let result = Validated::sequence(&values.iter().collect::<Vec<_>>(), &|values: &[i32]| values.iter().sum::<i32>());
-    /// assert_eq!(result, Validated::valid(3));
-    /// ```
-    ///
-    /// Invalid values and empty input are covered by unit tests.
-    pub fn sequence<B, F>(values: &[&Validated<E, A>], f: &F) -> Validated<E, B>
-    where
-        F: Fn(&[A]) -> B,
-        B: Clone,
-        A: Clone,
-        E: Clone,
-    {
-        // Early check for empty slice
-        if values.is_empty() {
-            return Validated::Valid(f(&[]));
-        }
-
-        // First pass to check if all are valid (fast path)
-        if values.iter().all(|v| matches!(v, Validated::Valid(_))) {
-            let valid_values: Vec<A> = values
-                .iter()
-                .filter_map(|v| match v {
-                    Validated::Valid(x) => Some(x.clone()),
-                    _ => None,
-                })
-                .collect();
-            return Validated::Valid(f(&valid_values));
-        }
-
-        // Collect all errors using iterator methods
-        let mut acc = ErrorAccumulator::new();
-        for value in values {
-            if let Validated::Invalid(es) = value {
-                acc.extend_cloned(es);
-            }
-        }
-
-        Validated::invalid_from_accumulator(acc)
-    }
-
     /// Sequences owned Validated values into a single Validated value.
     ///
-    /// This method is more efficient than `sequence` when you can consume the
-    /// Validated instances, as it avoids cloning error collections.
-    ///
     /// # Type Parameters
     ///
-    /// * `B`: The output value type (must implement `Clone`)
+    /// * `B`: The output value type
     /// * `F`: The function type to transform collected valid values
     ///
     /// # Arguments
@@ -239,21 +86,18 @@ impl<E, A> Validated<E, A> {
     ///     Validated::<&str, i32>::valid(1),
     ///     Validated::<&str, i32>::valid(2),
     /// ];
-    /// let result = Validated::sequence_owned(values, |vals| vals.len());
+    /// let result = Validated::sequence(values, |vals| vals.len());
     /// assert_eq!(result, Validated::valid(2));
     /// ```
     #[inline]
-    pub fn sequence_owned<B, F>(values: Vec<Self>, f: F) -> Validated<E, B>
+    pub fn sequence<B, F>(values: Vec<Self>, f: F) -> Validated<E, B>
     where
-        F: Fn(Vec<A>) -> B,
-        B: Clone,
+        F: FnOnce(Vec<A>) -> B,
     {
-        // Early check for empty vec
         if values.is_empty() {
             return Validated::Valid(f(Vec::new()));
         }
 
-        // First pass to check if all are valid (fast path)
         if values.iter().all(|v| matches!(v, Validated::Valid(_))) {
             let valid_values: Vec<A> = values
                 .into_iter()
@@ -265,11 +109,10 @@ impl<E, A> Validated<E, A> {
             return Validated::Valid(f(valid_values));
         }
 
-        // Collect all errors using extend_owned for efficiency
         let mut acc = ErrorAccumulator::new();
         for value in values {
             if let Validated::Invalid(es) = value {
-                acc.extend_owned(es);
+                acc.extend(es);
             }
         }
 
@@ -286,13 +129,6 @@ impl<E, A> Validated<E, A> {
     /// * `I`: The iterator type yielding `Validated<E, A>` items
     /// * `C`: The collection type to collect valid values into (must implement `FromIterator<A>`)
     ///
-    /// # Trait Bounds
-    ///
-    /// * `I: Iterator<Item = Validated<E, A>>` - The iterator must yield `Validated<E, A>` items
-    /// * `C: FromIterator<A> + Clone` - The collection must be constructible from an iterator of `A` values
-    /// * `A: Clone` - The value type must be cloneable
-    /// * `E: Clone` - The error type must be cloneable
-    ///
     /// # Arguments
     ///
     /// * `iter` - Iterator of Validated values
@@ -306,8 +142,6 @@ impl<E, A> Validated<E, A> {
     /// let collected: Validated<&str, Vec<i32>> = Validated::collect(values.into_iter());
     /// assert_eq!(collected, Validated::valid(vec![1, 2]));
     /// ```
-    ///
-    /// Error accumulation and empty input are covered by unit tests.
     pub fn collect<I, C>(iter: I) -> Validated<E, C>
     where
         I: Iterator<Item = Validated<E, A>>,
@@ -319,55 +153,11 @@ impl<E, A> Validated<E, A> {
         for item in iter {
             match item {
                 Validated::Valid(a) => values.push(a),
-                Validated::Invalid(es) => errors.extend_owned(es),
+                Validated::Invalid(es) => errors.extend(es),
             }
         }
 
         match errors.into_non_empty() {
-            Some(errors) => Validated::Invalid(errors),
-            None => Validated::Valid(C::from_iter(values)),
-        }
-    }
-
-    /// Collects owned Validated values from an iterator into a single Validated value.
-    ///
-    /// This method is more efficient than `collect` when working with owned Validated
-    /// instances, as it can move errors instead of cloning them.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `I`: The iterator type yielding `Validated<E, A>` items
-    /// * `C`: The collection type to collect valid values into (must implement `FromIterator<A>`)
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let values = vec![
-    ///     Validated::<&str, i32>::valid(1),
-    ///     Validated::<&str, i32>::valid(2),
-    /// ];
-    /// let result: Validated<&str, Vec<i32>> = Validated::collect_owned(values.into_iter());
-    /// assert_eq!(result, Validated::valid(vec![1, 2]));
-    /// ```
-    #[inline]
-    pub fn collect_owned<I, C>(iter: I) -> Validated<E, C>
-    where
-        I: Iterator<Item = Validated<E, A>>,
-        C: FromIterator<A>,
-    {
-        let mut acc = ErrorAccumulator::new();
-        let mut values = Vec::new();
-
-        for item in iter {
-            match item {
-                Validated::Valid(a) => values.push(a),
-                Validated::Invalid(es) => acc.extend_owned(es),
-            }
-        }
-
-        match acc.into_non_empty() {
             Some(errors) => Validated::Invalid(errors),
             None => Validated::Valid(C::from_iter(values)),
         }
@@ -383,13 +173,13 @@ mod tests {
         let first = Validated::<&str, i32>::invalid("first");
         let second = Validated::valid(2);
         let third = Validated::invalid("third");
-        let values = [&first, &second, &third];
-        let result = Validated::sequence(&values, &|items: &[i32]| items.iter().sum::<i32>());
+        let values = vec![first, second, third];
+        let result = Validated::sequence(values, |items: Vec<i32>| items.iter().sum::<i32>());
         assert_eq!(result.error_slice(), &["first", "third"]);
 
-        let empty: &[&Validated<&str, i32>] = &[];
+        let empty: Vec<Validated<&str, i32>> = Vec::new();
         assert_eq!(
-            Validated::sequence(empty, &|items: &[i32]| items.len()),
+            Validated::sequence(empty, |items: Vec<i32>| items.len()),
             Validated::valid(0)
         );
     }
@@ -399,15 +189,15 @@ mod tests {
         let invalid = Validated::<&str, i32>::invalid("error1");
         let other = Validated::invalid_many(["error2", "error3"]);
         assert_eq!(
-            invalid.combine_errors(&other).error_slice(),
+            invalid.clone().combine_errors(other.clone()).error_slice(),
             &["error1", "error2", "error3"]
         );
         assert_eq!(
-            Validated::valid(1).combine_errors(&other).error_slice(),
+            Validated::valid(1).combine_errors(other).error_slice(),
             &["error2", "error3"]
         );
         assert_eq!(
-            invalid.combine_errors(&Validated::valid(1)).error_slice(),
+            invalid.combine_errors(Validated::valid(1)).error_slice(),
             &["error1"]
         );
     }
@@ -415,6 +205,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn combine_errors_rejects_two_valid_values() {
-        let _ = Validated::<&str, i32>::valid(1).combine_errors(&Validated::valid(2));
+        let _ = Validated::<&str, i32>::valid(1).combine_errors(Validated::valid(2));
     }
 }

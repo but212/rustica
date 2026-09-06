@@ -22,8 +22,16 @@ This guide describes the breaking changes and migration steps for Rustica 0.15.0
 | `Validated<E, A>: Alternative` | Omitted; `Validated` cannot lawfully implement `Alternative` (lacks empty identity for `NonEmptyErrors`). |
 | `Choice::flatten` | Returns `Option<Choice<I>>` instead of panicking on empty iterators. |
 | `StateT` / `ReaderT` (`*_with` combinators) | Removed manual closure threading methods. |
-| `FunctionCategory::lift` | Removed; use `FunctionCategory::arrow`. |
-| `Id::unwrap_or` | Removed; use `Id::into_inner` or `Id::unwrap`. |
+| `StateT` / `ReaderT` (`run_state`, `run_reader`, `fmap`, etc.) | Take `self` and `other` by value (`StateT`, `ReaderT`). |
+| `Thunk::evaluate` | Takes `self` by value; `F: FnOnce() -> T`; deleted `evaluate_owned`. |
+| `Alternative::alt` / `many` | Takes `self` and `other: Self` by value; removed `T: Clone` bounds. |
+| `Bifunctor::first` / `second` / `bimap` | Takes `self` by value; `FnMut(Source) -> C`; removed `Clone` bounds. |
+| `Foldable::fold_left` / `fold_right` | `fold_left<U, F>(&self, init: U, f: F) -> U` takes accumulator by value; supports `U: !Clone`. |
+| `Iso::forward` / `backward` | Takes values by value: `forward(&self, from: Self::From) -> Self::To`. |
+| `*_owned` method variants (`fmap_owned`, `bind_owned`, etc.) | Consolidated into single owned `self` methods (`fmap`, `bind`, etc.). |
+| `IO::run` / `IO::run_async` | Takes `self` by value; removed `A: Clone` bound. |
+| `Writer::unwrap` | Takes `self` by value; removed `A: Clone` bound. |
+| `Validated` (`unwrap_owned`, `combine_errors_owned`, etc.) | Consolidated into `unwrap`, `combine_errors`, `sequence`, etc. |
 
 ## Optics
 
@@ -40,12 +48,12 @@ impl Iso<i32, i32> for IdentityIso {
     type From = i32;
     type To = i32;
 
-    fn forward(&self, value: &i32) -> i32 {
-        *value
+    fn forward(&self, value: i32) -> i32 {
+        value
     }
 
-    fn backward(&self, value: &i32) -> i32 {
-        *value
+    fn backward(&self, value: i32) -> i32 {
+        value
     }
 }
 
@@ -67,14 +75,14 @@ impl Iso<MyEnum, Option<i32>> for CaseIso {
     type From = MyEnum;
     type To = Option<i32>;
 
-    fn forward(&self, value: &MyEnum) -> Option<i32> {
+    fn forward(&self, value: MyEnum) -> Option<i32> {
         match value {
-            MyEnum::Value(number) => Some(*number),
+            MyEnum::Value(number) => Some(number),
             MyEnum::Other => None,
         }
     }
 
-    fn backward(&self, value: &Option<i32>) -> MyEnum {
+    fn backward(&self, value: Option<i32>) -> MyEnum {
         value.map_or(MyEnum::Other, MyEnum::Value)
     }
 }
@@ -94,27 +102,18 @@ let composed = first_lens.then(second_lens);
 
 In categorical notation, `a.then(b)` corresponds to `b ∘ a`.
 
-## FunctionCategory and Id API cleanup
+### ResultValidatedIso Lawful Bijection
 
-`FunctionCategory::lift` was a forwarding alias for `FunctionCategory::arrow` and
-has been removed. Construct function morphisms with `arrow`:
-
-```rust
-use rustica::category::function_category::FunctionCategory;
-
-let doubled = FunctionCategory::arrow(|value: i32| value * 2);
-assert_eq!(doubled(21), 42);
-```
-
-`Id` always contains a value, so `Id::unwrap_or` has been removed. Use
-`into_inner()` to consume the wrapper or `unwrap()` when retaining the existing
-terminology:
+In 0.15.0, `ResultValidatedIso` implements `Iso<Result<A, NonEmptyErrors<E>>, Validated<E, A>>`, establishing a lossless bijection between `Result` with non-empty error collections and `Validated`:
 
 ```rust
-use rustica::datatypes::id::Id;
+use rustica::datatypes::validated::{NonEmptyErrors, Validated};
+use rustica::traits::iso::{Iso, ResultValidatedIso};
 
-assert_eq!(Id::new(42).into_inner(), 42);
-assert_eq!(Id::new(42).unwrap(), 42);
+let iso = ResultValidatedIso;
+let val: Validated<&str, i32> = Validated::invalid_many(["err1", "err2"]);
+let res = iso.backward(val.clone());
+assert_eq!(iso.forward(res), val); // Fully lawful round-trip
 ```
 
 ## Predicate
@@ -186,7 +185,7 @@ let combined = Option::<i32>::mplus(&Some(1), &Some(2));
 use rustica::traits::alternative::Alternative;
 
 let opt = Option::<i32>::empty_alt();
-let combined = Some(1).alt(&Some(2));
+let combined = Some(1).alt(Some(2));
 ```
 
 ### ErrorMapper Removed
@@ -216,7 +215,7 @@ let mapped = result.map_err(|e| format!("Code: {e}"));
 ```rust
 use rustica::traits::applicative::Applicative;
 
-let result = Option::lift2(|a, b| a + b, &Some(2), &Some(3));
+let result = Option::lift2(|a, b| a + b, Some(2), Some(3));
 ```
 
 ## Datatype Invariants
@@ -225,7 +224,7 @@ let result = Option::lift2(|a, b| a + b, &Some(2), &Some(3));
 
 In previous versions, `Validated<E, A>::combine` did not accumulate `Valid` components when both operands were valid. In 0.15.0:
 
-`Semigroup for Validated<E, A>` requires `A: Semigroup`. When both operands are `Valid(a1)` and `Valid(a2)`, it returns `Valid(a1.combine(&a2))`. Any `Invalid` accumulates errors. Note that `Alternative for Validated<E, A>` is not implemented because `NonEmptyErrors<E>` contains at least 1 error and therefore lacks a lawful empty identity element for `empty_alt()`.
+`Semigroup for Validated<E, A>` requires `A: Semigroup`. When both operands are `Valid(a1)` and `Valid(a2)`, it returns `Valid(a1.combine(a2))`. Any `Invalid` accumulates errors. Note that `Alternative for Validated<E, A>` is not implemented because `NonEmptyErrors<E>` contains at least 1 error and therefore lacks a lawful empty identity element for `empty_alt()`.
 
 ```rust
 use rustica::datatypes::validated::Validated;
@@ -235,7 +234,7 @@ use rustica::traits::semigroup::Semigroup;
 // Semigroup accumulates both errors and valid monoidal values:
 let v1: Validated<String, Sum<i32>> = Validated::valid(Sum(10));
 let v2: Validated<String, Sum<i32>> = Validated::valid(Sum(20));
-assert_eq!(v1.combine(&v2), Validated::valid(Sum(30)));
+assert_eq!(v1.combine(v2), Validated::valid(Sum(30)));
 ```
 
 ### Product Monoid Bound (`One` Trait)
@@ -295,4 +294,51 @@ use rustica::transformers::reader_t::ReaderT;
 let lift = ReaderT::<(), Option<i32>, i32>::lift2(|a, b| a + b, |left, right, f| {
     left.and_then(|x| right.map(|y| f(x, y)))
 });
+```
+
+## Receiver Unification & Move Semantics
+
+In Rustica 0.15.0, the dual API surface of borrowed receiver methods (`foo(&self)`) and separate owned variants (`foo_owned(self)`) has been consolidated into idiomatic owned receiver methods (`foo(self)`). All `*_owned` suffixes and redundant borrowed methods have been removed.
+
+### Migrating Method Calls
+
+| Old API | 0.15.0 Replacement | Notes |
+| --- | --- | --- |
+| `val.combine(&other)` / `val.combine_owned(other)` | `val.combine(other)` | Consumes both operands. |
+| `val.fmap(&f)` / `val.fmap_owned(f)` | `val.fmap(f)` | Consumes `self`. `F: FnMut(Source) -> B`. No `B: Clone` bound. |
+| `f_val.apply(&val)` / `f_val.apply_owned(val)` | `f_val.apply(val)` | Consumes both operands. |
+| `Type::lift2(f, &a, &b)` / `Type::lift2_owned(f, a, b)` | `Type::lift2(f, a, b)` | Consumes arguments by value. |
+| `Type::lift3(f, &a, &b, &c)` / `Type::lift3_owned(...)` | `Type::lift3(f, a, b, c)` | Consumes arguments by value. |
+| `val.bind(&f)` / `val.bind_owned(f)` | `val.bind(f)` | Consumes `self`. `F: FnMut(Source) -> Output<U>`. No `U: Clone` bound. |
+| `val.join()` / `val.join_owned()` | `val.join()` | Consumes `self`. |
+| `val.catch(&f)` / `val.catch_owned(f)` | `val.catch(f)` | Consumes `self`. `F: FnOnce(E) -> Output<Source>`. |
+| `io.run()` / `io.run_owned()` | `io.run()` | Consumes `self`. `A` no longer requires `Clone`. |
+| `io.run_async()` / `io.run_async_owned()` | `io.run_async()` | Consumes `self`. `A` no longer requires `Clone`. |
+| `state.run_state(s)` / `state.run_state_owned(s)` | `state.run_state(s)` | Consumes `self`. |
+| `state.eval_state(s)` / `exec_state(s)` | `state.eval_state(s)` / `exec_state(s)` | Consumes `self`. |
+| `reader.run_reader(env)` / `run_reader_owned(env)` | `reader.run_reader(env)` | Consumes `self`. |
+| `writer.run()` / `writer.run_owned()` | `writer.run()` | Consumes `self`. Returns `(W, A)`. |
+| `writer.unwrap()` / `writer.unwrap_owned()` | `writer.unwrap()` | Consumes `self`. `A` no longer requires `Clone`. |
+| `validated.unwrap()` / `validated.unwrap_owned()` | `validated.unwrap()` | Consumes `self`. Returns `A`. |
+| `validated.unwrap_invalid()` / `unwrap_invalid_owned()` | `validated.unwrap_invalid()` | Consumes `self`. Returns `NonEmptyErrors<E>`. |
+| `validated.unwrap_or(&default)` | `validated.unwrap_or(default)` | Consumes `self` and `default: A`. No `A: Clone` bound. |
+| `validated.combine_errors(&other)` / `combine_errors_owned` | `validated.combine_errors(other)` | Consumes both operands. Zero-copy error transfer. |
+| `Validated::sequence(&values, &f)` / `sequence_owned` | `Validated::sequence(values, f)` | Takes `Vec<Validated<E, A>>`. |
+| `Validated::collect_owned(iter)` | `Validated::collect(iter)` | `collect_owned` removed; `collect` moves errors directly. |
+
+### Support for Move-Only Types (`!Clone`)
+
+By removing spurious `Clone` bounds on result and transform types, you can now use move-only types (such as file handles, channels, non-cloneable structs) with core abstractions:
+
+```rust
+use rustica::datatypes::io::IO;
+
+struct NonCloneResource {
+    handle: u64,
+}
+
+let resource_io = IO::new(|| NonCloneResource { handle: 100 });
+// Runs cleanly without requiring `NonCloneResource: Clone`:
+let resource = resource_io.run();
+assert_eq!(resource.handle, 100);
 ```

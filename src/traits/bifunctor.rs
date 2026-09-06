@@ -134,7 +134,7 @@ use crate::traits::hkt::BinaryHKT;
 /// 3. Type Conversion:
 ///    - Convert between different error types in error handling
 ///    - Transform data structures that contain two type parameters
-pub trait Bifunctor: BinaryHKT {
+pub trait Bifunctor: BinaryHKT + Sized {
     /// Maps a function over `Self::Source`.
     ///
     /// Maps a function over `Self::Source`, leaving `Self::Source2` unchanged.
@@ -164,13 +164,11 @@ pub trait Bifunctor: BinaryHKT {
     /// assert_eq!(mapped, Validated::valid(20));
     /// ```
     #[inline]
-    fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
+    fn first<C, F>(self, f: F) -> Self::BinaryOutput<C, Self::Source2>
     where
-        F: Fn(&Self::Source) -> C,
-        C: Clone,
-        Self::Source2: Clone,
+        F: FnMut(Self::Source) -> C,
     {
-        self.bimap(f, |s| s.clone())
+        self.bimap(f, |s| s)
     }
 
     /// Maps a function over `Self::Source2`.
@@ -202,13 +200,11 @@ pub trait Bifunctor: BinaryHKT {
     /// assert_eq!(mapped, Validated::invalid(5usize));
     /// ```
     #[inline]
-    fn second<D, G>(&self, f: G) -> Self::BinaryOutput<Self::Source, D>
+    fn second<D, G>(self, g: G) -> Self::BinaryOutput<Self::Source, D>
     where
-        G: Fn(&Self::Source2) -> D,
-        D: Clone,
-        Self::Source: Clone,
+        G: FnMut(Self::Source2) -> D,
     {
-        self.bimap(|s| s.clone(), f)
+        self.bimap(|s| s, g)
     }
 
     /// Maps two functions over both type parameters simultaneously.
@@ -242,10 +238,40 @@ pub trait Bifunctor: BinaryHKT {
     /// let mapped = value.bimap(|number| number * 2, |error| format!("{error}!"));
     /// assert_eq!(mapped, Validated::valid(10));
     /// ```
-    fn bimap<C, D, F, G>(&self, f: F, g: G) -> Self::BinaryOutput<C, D>
+    fn bimap<C, D, F, G>(self, f: F, g: G) -> Self::BinaryOutput<C, D>
     where
-        F: Fn(&Self::Source) -> C,
-        G: Fn(&Self::Source2) -> D,
-        C: Clone,
-        D: Clone;
+        F: FnMut(Self::Source) -> C,
+        G: FnMut(Self::Source2) -> D;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Bifunctor;
+    use crate::datatypes::validated::Validated;
+
+    #[derive(Debug, PartialEq)]
+    struct MoveOnly(i32);
+
+    #[test]
+    fn bifunctor_supports_move_only_types() {
+        let val: Validated<MoveOnly, MoveOnly> = Validated::valid(MoveOnly(10));
+        let mapped = val.bimap(|x| MoveOnly(x.0 * 2), |e| MoveOnly(e.0 + 1));
+        assert_eq!(mapped, Validated::valid(MoveOnly(20)));
+
+        let err: Validated<MoveOnly, MoveOnly> = Validated::invalid(MoveOnly(5));
+        let mapped_err = err.bimap(|x| MoveOnly(x.0 * 2), |e| MoveOnly(e.0 + 1));
+        assert_eq!(mapped_err, Validated::invalid(MoveOnly(6)));
+    }
+
+    #[test]
+    fn bifunctor_first_and_second() {
+        let val: Validated<String, i32> = Validated::valid(10);
+        assert_eq!(val.first(|x| x * 2), Validated::valid(20));
+
+        let err: Validated<String, i32> = Validated::invalid("fail".to_string());
+        assert_eq!(
+            err.second(|e| format!("{e}!")),
+            Validated::invalid("fail!".to_string())
+        );
+    }
 }

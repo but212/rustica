@@ -34,9 +34,9 @@
 //! // Combine validations - accumulates ALL errors
 //! let combine_validations = |a: &i32, b: &i32| -> Validated<String, i32> {
 //!     Validated::<String, i32>::lift2(
-//!         |x: &i32, y: &i32| x + y,
-//!         &validate_positive(a),
-//!         &validate_even(b)
+//!         |x: i32, y: i32| x + y,
+//!         validate_positive(a),
+//!         validate_even(b)
 //!     )
 //! };
 //!
@@ -161,13 +161,13 @@ mod tests {
     #[quickcheck]
     fn prop_validated_functor_identity(val: i32) -> bool {
         let v: Validated<String, i32> = Validated::valid(val);
-        v.fmap(|x| *x) == v
+        v.clone().fmap(|x| x) == v
     }
 
     #[quickcheck]
     fn prop_validated_monad_left_identity(val: i32) -> bool {
-        let f = |x: &i32| Validated::<String, i32>::valid(x.saturating_add(1));
-        Validated::<String, i32>::pure(&val).bind(f) == f(&val)
+        let f = |x: i32| Validated::<String, i32>::valid(x.saturating_add(1));
+        Validated::<String, i32>::pure(val).bind(f) == f(val)
     }
 
     #[test]
@@ -176,16 +176,16 @@ mod tests {
         let mapped = value.fmap(|x| x + 1).fmap(|x| x * 2);
         assert_eq!(mapped, Validated::valid(22));
 
-        let function: Validated<String, fn(&i32) -> i32> = Validated::valid(|x| x * 2);
+        let function: Validated<String, fn(i32) -> i32> = Validated::valid(|x| x * 2);
         let argument = Validated::<String, i32>::valid(10);
-        assert_eq!(function.apply(&argument), Validated::valid(20));
+        assert_eq!(function.apply(argument), Validated::valid(20));
 
         let left = Validated::<String, String>::invalid("a".into());
         let middle = Validated::<String, String>::invalid("b".into());
         let right = Validated::<String, String>::invalid("c".into());
         assert_eq!(
-            left.combine(&middle).combine(&right),
-            left.combine(&middle.combine(&right))
+            left.clone().combine(middle.clone()).combine(right.clone()),
+            left.combine(middle.combine(right))
         );
 
         let bifunctor = Validated::<String, i32>::invalid("error".into());
@@ -207,12 +207,12 @@ mod tests {
 
         let some = Some(42);
         assert_eq!(
-            Validated::from_option(&some, &"missing"),
+            Validated::from_option(some, "missing"),
             Validated::valid(42)
         );
         let none: Option<i32> = None;
         assert_eq!(
-            Validated::from_option(&none, &"missing"),
+            Validated::from_option(none, "missing"),
             Validated::invalid("missing")
         );
 
@@ -227,14 +227,15 @@ mod tests {
         let v2: Validated<String, i32> = Validated::invalid("e2".into());
         let v3: Validated<String, i32> = Validated::valid(100);
 
-        let result = Validated::<String, i32>::lift3(|a, b, c| a + b + c, &v1, &v2, &v3);
+        let result =
+            Validated::<String, i32>::lift3(|a, b, c| a + b + c, v1.clone(), v2.clone(), v3);
         assert_eq!(result.errors(), &["e1".to_string(), "e2".to_string()]);
 
-        let list = vec![v1.clone(), v2.clone(), v3];
+        let list = vec![v1.clone(), v2.clone(), Validated::valid(100)];
         let collected: Validated<String, Vec<i32>> = Validated::collect(list.into_iter());
         assert_eq!(collected.errors().len(), 2);
 
-        let combined = v1.combine_errors_owned(v2);
+        let combined = v1.combine_errors(v2);
         assert_eq!(
             combined.error_slice(),
             &["e1".to_string(), "e2".to_string()]
@@ -266,7 +267,7 @@ mod tests {
         });
         assert_eq!(early_recovery.unwrap(), 99);
 
-        assert_eq!(Validated::<&str, i32>::valid(10).unwrap_or(&0), 10);
+        assert_eq!(Validated::<&str, i32>::valid(10).unwrap_or(0), 10);
         assert_eq!(invalid.into_option(), None);
     }
 
@@ -305,12 +306,12 @@ mod tests {
         let result = Validated::<String, User>::lift3(
             |n, a, e| User {
                 name: n.clone(),
-                age: *a,
+                age: a,
                 email: e.clone(),
             },
-            &validate_name("A"),
-            &validate_age(10),
-            &validate_email("bad"),
+            validate_name("A"),
+            validate_age(10),
+            validate_email("bad"),
         );
 
         assert_eq!(result.errors().len(), 3);
@@ -319,12 +320,12 @@ mod tests {
         let success = Validated::<String, User>::lift3(
             |n, a, e| User {
                 name: n.clone(),
-                age: *a,
+                age: a,
                 email: e.clone(),
             },
-            &validate_name("John"),
-            &validate_age(25),
-            &validate_email("john@doe.com"),
+            validate_name("John"),
+            validate_age(25),
+            validate_email("john@doe.com"),
         );
         assert!(success.is_valid());
     }

@@ -14,6 +14,18 @@
 
 ### Contract Integrity & Laws
 
+- **Receiver Unification & Move Semantics**:
+  - Eliminated dual borrowed/owned API duplication (`foo(&self)` vs `foo_owned(self)`) across all traits, effect types, and wrappers in favor of idiomatic owned `self` signatures (`foo(self)`).
+  - Consolidated `Semigroup::combine(self, other)`, `Functor::fmap(self, f)`, `Applicative::apply(self, val)`, `Applicative::lift2`/`lift3`, `Monad::bind(self, f)`, `Monad::join(self)`, and `MonadError::catch(self, f)`. Deleted all `*_owned` variants (`combine_owned`, `fmap_owned`, `apply_owned`, `lift2_owned`, `lift3_owned`, `bind_owned`, `join_owned`, `catch_owned`).
+  - Generalized `Alternative::alt(self, other: Self) -> Self` and `Alternative::many(self)` to owned receivers, eliminating spurious `T: Clone` bounds.
+  - Generalized `Bifunctor::first(self, f)`, `second(self, g)`, and `bimap(self, f, g)` to owned receivers with `FnMut(Source) -> C`, removing 4 `Clone` bounds.
+  - Unified `Thunk::evaluate(self) -> T` to owned receiver; relaxed closure bound to `F: FnOnce() -> T`; removed `evaluate_owned`.
+  - Migrated `StateT` and `ReaderT` methods (`run_state`, `run_reader`, `fmap`, `bind`, `combine`, `apply`, etc.) to owned receivers and owned other arguments.
+  - Generalized `Foldable::fold_left<U, F>(&self, init: U, mut f: F) -> U` and `fold_right` to consume the accumulator by value, enabling zero-copy folding over non-`Clone` accumulators (`U: !Clone`).
+  - Generalized `Iso::forward(&self, from: Self::From) -> Self::To` and `backward(&self, to: Self::To) -> Self::From` to accept values by move instead of reference.
+  - Effect types: `IO::run(self) -> A` and `IO::run_async(self) -> A` now support move-only / non-`Clone` types; deleted `run_owned`, `run_async_owned`. `State::run_state(self, s)`, `eval_state`, `exec_state`, `Reader::run_reader(self, env)`, and `Writer::run(self)`, `unwrap(self)` consume `self`.
+  - `Validated`: Consolidated `combine_errors(self, other)`, `fmap_invalid(self, f)`, `sequence(values: Vec<Self>, f)`, `unwrap(self)`, `unwrap_invalid(self)`, `unwrap_or(self, default)`, and async methods to owned receivers. Removed duplicate `collect_owned`.
+  - Stripped unnecessary `Clone` bounds from `Functor::fmap` result type `B`, `Monad::bind` target type `U`, and `IO::run`/`Writer::unwrap` output types.
 - **Validated Semigroup Accumulation**: `Validated<E, A>: Semigroup` now requires `A: Semigroup` and accumulates valid components `(Valid(a1), Valid(a2)) => Valid(a1.combine(a2))`, while errors take precedence. `Alternative` is omitted because `NonEmptyErrors` lacks an empty identity element.
 - **Product Monoid Law**: Introduced `One` trait (`rustica::traits::one::One`) implemented for all numeric primitives (`u8`..`u128`, `usize`, `i8`..`i128`, `isize`, `f32`, `f64`), enabling `Product<i8>: Monoid`.
 - **IO Cold Computation**: Removed `IO::new_async` cold-computation caching bug; made `IO::delay` instantiate fresh sleep operations per run. Pure `fmap`, `bind`, and `apply` paths now also defer callbacks until each run (always produce `Effect` representation, even from pure inputs).
@@ -34,25 +46,25 @@
 
 ## [0.14.0]
 
-### Documentation Correctness
+### Documentation Correctness - 0.14.0
 
 - Documented `Min<T>` and `Max<T>` as `Semigroup` wrappers without a generic `Monoid` identity. Use `semigroup::combine_all_values` for empty-capable reductions or provide a domain-specific extremum.
 
-### Bug Fixes
+### Bug Fixes - 0.14.0
 
 - Fixed `PersistentVector::concat` ordering across unequal-height RRB trees.
 - Fixed `PersistentVector::pop_back` to drain the front head buffer after the tree is exhausted.
 
-### Tests
+### Tests - 0.14.0
 
 - Added regressions for unequal-height `PersistentVector::concat`, full head/tree `pop_back` draining, and `FoldableExt::fold_option` short-circuiting.
 - Added compile-fail contracts for removed unlawful implementations and phantom marker wrappers.
 
-### Changed
+### Changed - 0.14.0
 
 - Generalized `pipeline_result` from `Vec<Func>` to any `IntoIterator<Item = Func>`, matching `pipeline_option`; `Vec` still works.
 
-### CI/CD and Security
+### CI/CD and Security - 0.14.0
 
 - Added least-privilege workflow permissions, pinned external actions, and `actionlint`/`zizmor` checks.
 - Declared the MSRV through Cargo's `package.rust-version` metadata and added a dedicated check.
@@ -60,7 +72,7 @@
 - Added trusted benchmark regression reporting with a 20% slowdown threshold; pull-request benchmark jobs remain read-only.
 - Added repository ownership, security reporting, pull-request, and issue templates under `.github/`.
 
-### Breaking Changes
+### Breaking Changes - 0.14.0
 
 - **Lawful Algebraic Trait Surface**
   - Removed `Monoid` for `Min<T>`/`Max<T>`; use `Semigroup::combine` with an explicit extremum or `combine_all_values` for empty-capable reductions.
@@ -97,7 +109,7 @@
 - **Collection Iterator Helpers Removed**
   - Removed `PersistentVector::take`/`skip`; use iterator adapters or `PersistentVector::split_at`.
 
-### Maintenance
+### Maintenance - 0.14.0
 
 - Added central compile-fail removal contract doctests in `src/lib.rs`.
 - Updated all doc examples and benchmarks to the 0.14.0 API.

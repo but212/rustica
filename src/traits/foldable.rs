@@ -37,7 +37,7 @@
 //!
 //! // Example with Vec
 //! let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-//! let sum: i32 = numbers.clone().fold_left(&0, |acc, x| acc + x);
+//! let sum: i32 = numbers.clone().fold_left(0, |acc, x| acc + x);
 //! assert_eq!(sum, 15);
 //!
 //! // `Option` and `Result` also fold their successful value, returning the initial
@@ -100,17 +100,17 @@ pub trait Foldable: HKT {
     /// use rustica::traits::foldable::Foldable;
     ///
     /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
-    /// let sum: i32 = numbers.fold_left(&0, |acc, n| acc + n);
+    /// let sum: i32 = numbers.fold_left(0, |acc, n| acc + n);
     /// assert_eq!(sum, 10);
     ///
     /// // Processing a Vec from left to right
     /// let strings: Vec<&str> = vec!["a", "b", "c"];
-    /// let concat: String = strings.fold_left(&String::new(), |acc, s| acc.to_owned() + s);
+    /// let concat: String = strings.fold_left(String::new(), |mut acc, s| { acc.push_str(s); acc });
     /// assert_eq!(concat, "abc");
     /// ```
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: U, f: F) -> U
     where
-        F: Fn(&U, &Self::Source) -> U;
+        F: FnMut(U, &Self::Source) -> U;
 
     /// Right-associative fold of a structure.
     ///
@@ -137,17 +137,17 @@ pub trait Foldable: HKT {
     /// use rustica::traits::foldable::Foldable;
     ///
     /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
-    /// let sum: i32 = numbers.fold_right(&0, |n, acc| n + acc);
+    /// let sum: i32 = numbers.fold_right(0, |n, acc| n + acc);
     /// assert_eq!(sum, 10);
     ///
     /// // Processing a Vec from right to left
     /// let strings: Vec<&str> = vec!["a", "b", "c"];
-    /// let concat: String = strings.fold_right(&String::new(), |s, acc| s.to_string() + &acc);
+    /// let concat: String = strings.fold_right(String::new(), |s, acc| s.to_string() + &acc);
     /// assert_eq!(concat, "abc");
     /// ```
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: U, f: F) -> U
     where
-        F: Fn(&Self::Source, &U) -> U;
+        F: FnMut(&Self::Source, U) -> U;
 
     /// Maps elements to a monoid and combines them.
     ///
@@ -177,11 +177,11 @@ pub trait Foldable: HKT {
     /// assert_eq!(result, Sum(10));
     /// ```
     #[inline]
-    fn fold_map<M: Monoid + Clone, F>(&self, f: F) -> M
+    fn fold_map<M: Monoid, F>(&self, mut f: F) -> M
     where
-        F: Fn(&Self::Source) -> M,
+        F: FnMut(&Self::Source) -> M,
     {
-        self.fold_left(&M::empty(), |acc, x| acc.combine(&f(x)))
+        self.fold_left(M::empty(), |acc, x| acc.combine(f(x)))
     }
 
     /// Fold a structure into a monoid.
@@ -206,7 +206,7 @@ pub trait Foldable: HKT {
     /// assert_eq!(numbers.fold_monoid::<Sum<i32>>(), Sum(10));
     /// ```
     #[inline]
-    fn fold_monoid<M: Monoid + Clone>(&self) -> M
+    fn fold_monoid<M: Monoid>(&self) -> M
     where
         Self::Source: Clone + Into<M>,
     {
@@ -223,7 +223,7 @@ pub trait Foldable: HKT {
     /// The number of elements in the structure
     #[inline]
     fn length(&self) -> usize {
-        self.fold_left(&0, |acc, _| acc + 1)
+        self.fold_left(0, |acc, _| acc + 1)
     }
 
     /// Tests if the structure is empty.
@@ -261,14 +261,14 @@ pub trait FoldableExt: Foldable {
     /// assert_eq!(no_match, None);
     /// ```
     #[inline]
-    fn find<F>(&self, pred: F) -> Option<Self::Source>
+    fn find<F>(&self, mut pred: F) -> Option<Self::Source>
     where
-        F: Fn(&Self::Source) -> bool,
+        F: FnMut(&Self::Source) -> bool,
         Self::Source: Clone,
     {
-        self.fold_left(&None, |acc, x| {
+        self.fold_left(None, |acc, x| {
             if acc.is_some() {
-                acc.clone()
+                acc
             } else if pred(x) {
                 Some(x.clone())
             } else {
@@ -302,11 +302,11 @@ pub trait FoldableExt: Foldable {
     /// assert!(!all_even);
     /// ```
     #[inline]
-    fn all<F>(&self, pred: F) -> bool
+    fn all<F>(&self, mut pred: F) -> bool
     where
-        F: Fn(&Self::Source) -> bool,
+        F: FnMut(&Self::Source) -> bool,
     {
-        self.fold_left(&true, |acc, x| *acc && pred(x))
+        self.fold_left(true, |acc, x| acc && pred(x))
     }
 
     /// Tests whether any element in the foldable satisfies the predicate.
@@ -334,11 +334,11 @@ pub trait FoldableExt: Foldable {
     /// assert!(!has_even);
     /// ```
     #[inline]
-    fn any<F>(&self, pred: F) -> bool
+    fn any<F>(&self, mut pred: F) -> bool
     where
-        F: Fn(&Self::Source) -> bool,
+        F: FnMut(&Self::Source) -> bool,
     {
-        self.fold_left(&false, |acc, x| *acc || pred(x))
+        self.fold_left(false, |acc, x| acc || pred(x))
     }
 
     /// Tests whether the foldable contains a specific value.
@@ -385,16 +385,14 @@ pub trait FoldableExt: Foldable {
     ///
     /// The final accumulated value, or None if a None was encountered during folding.
     #[inline]
-    fn fold_option<B, F>(&self, f: F) -> Option<B>
+    fn fold_option<B, F>(&self, mut f: F) -> Option<B>
     where
-        F: Fn(&Self::Source) -> Option<B>,
-        B: Monoid + Clone,
+        F: FnMut(&Self::Source) -> Option<B>,
+        B: Monoid,
     {
-        self.fold_left(&Some(B::empty()), |acc, x| {
-            let Some(acc) = acc else {
-                return None;
-            };
-            f(x).map(|value| acc.combine(&value))
+        self.fold_left(Some(B::empty()), |acc, x| {
+            let acc = acc?;
+            f(x).map(|value| acc.combine(value))
         })
     }
 
@@ -420,13 +418,13 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Clone + Ord,
     {
-        self.fold_left(&(true, None), |(is_sorted, prev), curr| {
+        self.fold_left((true, None), |(is_sorted, prev), curr| {
             if !is_sorted {
                 (false, Some(curr.clone()))
             } else {
                 match prev {
                     None => (true, Some(curr.clone())),
-                    Some(p) => (p <= curr, Some(curr.clone())),
+                    Some(p) => (p <= *curr, Some(curr.clone())),
                 }
             }
         })
@@ -457,15 +455,11 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Clone,
     {
-        // `fold_left` takes its accumulator by reference and returns a new
-        // value, so cloning a growing `Vec` here makes this operation O(n²).
-        // Keep the public fold API unchanged while using a private mutable
-        // side accumulator. Each source element is cloned exactly once.
-        let out = std::cell::RefCell::new(Vec::new());
-        self.fold_left(&(), |_, x| {
-            out.borrow_mut().push(x.clone());
+        let mut out = Vec::new();
+        self.fold_left((), |_, x| {
+            out.push(x.clone());
         });
-        out.into_inner()
+        out
     }
 
     /// Sums all elements in the foldable.
@@ -487,7 +481,7 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Add<Output = Self::Source> + Default + Clone,
     {
-        self.fold_left(&Self::Source::default(), |acc, x| acc.clone() + x.clone())
+        self.fold_left(Self::Source::default(), |acc, x| acc + x.clone())
     }
 
     /// Multiplies all elements in the foldable.
@@ -509,7 +503,7 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Mul<Output = Self::Source> + From<u8> + Clone,
     {
-        self.fold_left(&Self::Source::from(1), |acc, x| acc.clone() * x.clone())
+        self.fold_left(Self::Source::from(1), |acc, x| acc * x.clone())
     }
 
     /// Finds the maximum element in the foldable.
@@ -534,12 +528,12 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Ord + Clone,
     {
-        self.fold_left(&None, |max: &Option<Self::Source>, x| match max {
+        self.fold_left(None, |max, x| match max {
             None => Some(x.clone()),
-            Some(current_max) => Some(if x > current_max {
+            Some(current_max) => Some(if *x > current_max {
                 x.clone()
             } else {
-                current_max.clone()
+                current_max
             }),
         })
     }
@@ -566,12 +560,12 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Ord + Clone,
     {
-        self.fold_left(&None, |min: &Option<Self::Source>, x| match min {
+        self.fold_left(None, |min, x| match min {
             None => Some(x.clone()),
-            Some(current_min) => Some(if x < current_min {
+            Some(current_min) => Some(if *x < current_min {
                 x.clone()
             } else {
-                current_min.clone()
+                current_min
             }),
         })
     }
@@ -604,14 +598,14 @@ pub trait FoldableExt: Foldable {
     /// assert_eq!(sum, None);
     /// ```
     #[inline]
-    fn reduce<F>(&self, f: F) -> Option<Self::Source>
+    fn reduce<F>(&self, mut f: F) -> Option<Self::Source>
     where
-        F: Fn(&Self::Source, &Self::Source) -> Self::Source,
+        F: FnMut(&Self::Source, &Self::Source) -> Self::Source,
         Self::Source: Clone,
     {
-        self.fold_left(&None, |acc: &Option<Self::Source>, x| match acc {
+        self.fold_left(None, |acc, x| match acc {
             None => Some(x.clone()),
-            Some(a) => Some(f(a, x)),
+            Some(a) => Some(f(&a, x)),
         })
     }
 }
@@ -620,78 +614,78 @@ pub trait FoldableExt: Foldable {
 impl<T: Foldable> FoldableExt for T {}
 
 // Implement Foldable for Vec
-impl<A: Clone> Foldable for Vec<A> {
+impl<A> Foldable for Vec<A> {
     #[inline]
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&U, &A) -> U,
+        F: FnMut(U, &Self::Source) -> U,
     {
-        let mut acc = init.clone();
+        let mut acc = init;
         for item in self {
-            acc = f(&acc, item);
+            acc = f(acc, item);
         }
         acc
     }
 
     #[inline]
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&A, &U) -> U,
+        F: FnMut(&Self::Source, U) -> U,
     {
-        let mut acc = init.clone();
+        let mut acc = init;
         for item in self.iter().rev() {
-            acc = f(item, &acc);
+            acc = f(item, acc);
         }
         acc
     }
 }
 
 // Implement Foldable for Option
-impl<A: Clone> Foldable for Option<A> {
+impl<A> Foldable for Option<A> {
     #[inline]
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&U, &A) -> U,
+        F: FnMut(U, &Self::Source) -> U,
     {
         match self {
             Some(a) => f(init, a),
-            None => init.clone(),
+            None => init,
         }
     }
 
     #[inline]
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&A, &U) -> U,
+        F: FnMut(&Self::Source, U) -> U,
     {
         match self {
             Some(a) => f(a, init),
-            None => init.clone(),
+            None => init,
         }
     }
 }
 
 // Implement Foldable for Result
-impl<A: Clone, E: Clone> Foldable for Result<A, E> {
+impl<A, E: Clone> Foldable for Result<A, E> {
     #[inline]
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&U, &A) -> U,
+        F: FnMut(U, &Self::Source) -> U,
     {
         match self {
             Ok(a) => f(init, a),
-            Err(_) => init.clone(),
+            Err(_) => init,
         }
     }
 
     #[inline]
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&A, &U) -> U,
+        F: FnMut(&Self::Source, U) -> U,
     {
         match self {
             Ok(a) => f(a, init),
-            Err(_) => init.clone(),
+            Err(_) => init,
         }
     }
 }
@@ -709,10 +703,10 @@ mod unit_tests {
             vec![Sum(1), Sum(2), Sum(3), Sum(4)].fold_monoid::<Sum<i32>>(),
             Sum(10)
         );
-        assert_eq!(Some(42).fold_left(&0, |_, value| value * 2), 84);
-        assert_eq!(None::<i32>.fold_left(&100, |acc, _| *acc), 100);
-        assert_eq!(Ok::<i32, &str>(42).fold_left(&0, |_, value| value + 10), 52);
-        assert_eq!(Err::<i32, _>("error").fold_left(&100, |acc, _| *acc), 100);
+        assert_eq!(Some(42).fold_left(0, |_, value| value * 2), 84);
+        assert_eq!(None::<i32>.fold_left(100, |acc, _| acc), 100);
+        assert_eq!(Ok::<i32, &str>(42).fold_left(0, |_, value| value + 10), 52);
+        assert_eq!(Err::<i32, _>("error").fold_left(100, |acc, _| acc), 100);
     }
 
     #[test]
@@ -724,5 +718,13 @@ mod unit_tests {
         });
         assert_eq!(result, None);
         assert_eq!(visited.get(), 1);
+    }
+
+    #[test]
+    fn fold_left_works_with_move_only_accumulator() {
+        struct NoClone(i32);
+        let numbers = vec![1, 2, 3, 4];
+        let res = numbers.fold_left(NoClone(0), |acc, &n| NoClone(acc.0 + n));
+        assert_eq!(res.0, 10);
     }
 }
