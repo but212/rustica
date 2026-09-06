@@ -337,7 +337,7 @@ where
     #[inline]
     pub fn run_state(self, s: S) -> (A, S) {
         // Direct mapping from Id monad's value
-        let (next_state, value) = self.inner.run_state(s).unwrap();
+        let (next_state, value) = self.inner.run_state(s).into_inner();
         (value, next_state)
     }
 

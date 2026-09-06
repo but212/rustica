@@ -14,14 +14,11 @@
 //! struct StringVecIso;
 //!
 //! impl Iso<String, Vec<char>> for StringVecIso {
-//!     type From = String;
-//!     type To = Vec<char>;
-//!
-//!     fn forward(&self, from: Self::From) -> Self::To {
+//!     fn forward(&self, from: String) -> Vec<char> {
 //!         from.chars().collect()
 //!     }
 //!
-//!     fn backward(&self, to: Self::To) -> Self::From {
+//!     fn backward(&self, to: Vec<char>) -> String {
 //!         to.into_iter().collect()
 //!     }
 //! }
@@ -63,17 +60,7 @@ use std::marker::PhantomData;
 /// * `A`: The first type in the isomorphism
 /// * `B`: The second type in the isomorphism
 ///
-/// Note: this trait also defines associated types `From` and `To` which are the types actually
-/// used by `forward` and `backward`. Implementations in this crate typically set `From = A` and
-/// `To = B`.
-///
 pub trait Iso<A, B> {
-    /// The source type of the isomorphism.
-    type From;
-
-    /// The target type of the isomorphism.
-    type To;
-
     /// Converts from the source type to the target type.
     ///
     /// # Arguments
@@ -83,7 +70,7 @@ pub trait Iso<A, B> {
     /// # Returns
     ///
     /// A value of the target type
-    fn forward(&self, from: Self::From) -> Self::To;
+    fn forward(&self, from: A) -> B;
 
     /// Converts from the target type back to the source type.
     ///
@@ -94,7 +81,7 @@ pub trait Iso<A, B> {
     /// # Returns
     ///
     /// A value of the source type
-    fn backward(&self, to: Self::To) -> Self::From;
+    fn backward(&self, to: B) -> A;
 
     /// Converts a function that operates on the target type to a function
     /// that operates on the source type.
@@ -111,9 +98,9 @@ pub trait Iso<A, B> {
     ///
     /// A function that takes a source value and returns the same result type
     #[inline]
-    fn map_from_target<F, R>(&self, f: F) -> impl Fn(Self::From) -> R
+    fn map_from_target<F, R>(&self, f: F) -> impl Fn(A) -> R
     where
-        F: Fn(Self::To) -> R,
+        F: Fn(B) -> R,
     {
         move |from| f(self.forward(from))
     }
@@ -133,9 +120,9 @@ pub trait Iso<A, B> {
     ///
     /// A function that takes a target value and returns the same result type
     #[inline]
-    fn map_from_source<F, R>(&self, f: F) -> impl Fn(Self::To) -> R
+    fn map_from_source<F, R>(&self, f: F) -> impl Fn(B) -> R
     where
-        F: Fn(Self::From) -> R,
+        F: Fn(A) -> R,
     {
         move |to| f(self.backward(to))
     }
@@ -160,7 +147,7 @@ pub trait Iso<A, B> {
     fn iso_compose<C, ISO2>(&self, other: ISO2) -> ComposedIso<Self, ISO2, A, B, C>
     where
         Self: Iso<A, B> + Sized + Clone,
-        ISO2: Iso<B, C, From = B, To = C>,
+        ISO2: Iso<B, C>,
     {
         ComposedIso {
             first: self.clone(),
@@ -214,18 +201,15 @@ where
 
 impl<ISO1, ISO2, A, B, C> Iso<A, C> for ComposedIso<ISO1, ISO2, A, B, C>
 where
-    ISO1: Iso<A, B, From = A, To = B>,
-    ISO2: Iso<B, C, From = B, To = C>,
+    ISO1: Iso<A, B>,
+    ISO2: Iso<B, C>,
 {
-    type From = A;
-    type To = C;
-
-    fn forward(&self, from: Self::From) -> Self::To {
+    fn forward(&self, from: A) -> C {
         let b = self.first.forward(from);
         self.second.forward(b)
     }
 
-    fn backward(&self, to: Self::To) -> Self::From {
+    fn backward(&self, to: C) -> A {
         let b = self.second.backward(to);
         self.first.backward(b)
     }
@@ -251,16 +235,13 @@ where
 
 impl<ISO, A, B> Iso<B, A> for InverseIso<ISO, A, B>
 where
-    ISO: Iso<A, B, From = A, To = B>,
+    ISO: Iso<A, B>,
 {
-    type From = B;
-    type To = A;
-
-    fn forward(&self, from: Self::From) -> Self::To {
+    fn forward(&self, from: B) -> A {
         self.original.backward(from)
     }
 
-    fn backward(&self, to: Self::To) -> Self::From {
+    fn backward(&self, to: A) -> B {
         self.original.forward(to)
     }
 }
@@ -276,7 +257,7 @@ pub trait IsoExt<A, B>: Iso<A, B> {
     /// # Returns
     ///
     /// The converted value in the target type
-    fn convert_forward(&self, value: Self::From) -> Self::To {
+    fn convert_forward(&self, value: A) -> B {
         self.forward(value)
     }
 
@@ -289,7 +270,7 @@ pub trait IsoExt<A, B>: Iso<A, B> {
     /// # Returns
     ///
     /// The converted value in the source type
-    fn convert_backward(&self, value: Self::To) -> Self::From {
+    fn convert_backward(&self, value: B) -> A {
         self.backward(value)
     }
 
@@ -308,9 +289,9 @@ pub trait IsoExt<A, B>: Iso<A, B> {
     /// # Returns
     ///
     /// The modified value in the source type
-    fn modify<F>(&self, from: Self::From, f: F) -> Self::From
+    fn modify<F>(&self, from: A, f: F) -> A
     where
-        F: FnOnce(Self::To) -> Self::To,
+        F: FnOnce(B) -> B,
     {
         self.backward(f(self.forward(from)))
     }
@@ -326,10 +307,10 @@ pub trait IsoExt<A, B>: Iso<A, B> {
     ///
     /// `true` if the isomorphism laws are satisfied for the given values,
     /// `false` otherwise
-    fn verify_laws(&self, from: Self::From, to: Self::To) -> bool
+    fn verify_laws(&self, from: A, to: B) -> bool
     where
-        Self::From: PartialEq + Clone,
-        Self::To: PartialEq + Clone,
+        A: PartialEq + Clone,
+        B: PartialEq + Clone,
     {
         let round_trip_from = self.backward(self.forward(from.clone()));
         let round_trip_to = self.forward(self.backward(to.clone()));
@@ -365,17 +346,14 @@ impl<T, A, B> IsoExt<A, B> for T where T: Iso<A, B> {}
 pub struct ResultValidatedIso;
 
 impl<A, E> Iso<Result<A, NonEmptyErrors<E>>, Validated<E, A>> for ResultValidatedIso {
-    type From = Result<A, NonEmptyErrors<E>>;
-    type To = Validated<E, A>;
-
-    fn forward(&self, from: Self::From) -> Self::To {
+    fn forward(&self, from: Result<A, NonEmptyErrors<E>>) -> Validated<E, A> {
         match from {
             Ok(a) => Validated::Valid(a),
             Err(es) => Validated::Invalid(es),
         }
     }
 
-    fn backward(&self, to: Self::To) -> Self::From {
+    fn backward(&self, to: Validated<E, A>) -> Result<A, NonEmptyErrors<E>> {
         match to {
             Validated::Valid(a) => Ok(a),
             Validated::Invalid(es) => Err(es),
@@ -391,14 +369,11 @@ mod tests {
     struct StringVecIso;
 
     impl Iso<String, Vec<char>> for StringVecIso {
-        type From = String;
-        type To = Vec<char>;
-
-        fn forward(&self, from: Self::From) -> Self::To {
+        fn forward(&self, from: String) -> Vec<char> {
             from.chars().collect()
         }
 
-        fn backward(&self, to: Self::To) -> Self::From {
+        fn backward(&self, to: Vec<char>) -> String {
             to.into_iter().collect()
         }
     }
@@ -407,14 +382,11 @@ mod tests {
     struct VecLenIso;
 
     impl Iso<Vec<char>, usize> for VecLenIso {
-        type From = Vec<char>;
-        type To = usize;
-
-        fn forward(&self, from: Self::From) -> Self::To {
+        fn forward(&self, from: Vec<char>) -> usize {
             from.len()
         }
 
-        fn backward(&self, to: Self::To) -> Self::From {
+        fn backward(&self, to: usize) -> Vec<char> {
             vec!['x'; to]
         }
     }

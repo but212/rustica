@@ -194,29 +194,6 @@ impl<T, E: std::fmt::Debug + Clone> Monad for Result<T, E> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::Monad;
-    use crate::datatypes::validated::Validated;
-
-    #[test]
-    fn validated_bind_and_join_preserve_valid_values() {
-        let valid: Validated<&str, i32> = Validated::valid(42);
-        let result: Validated<&str, i32> = valid.bind(|value| {
-            if value > 0 {
-                Validated::valid(value * 2)
-            } else {
-                Validated::invalid("Value must be positive")
-            }
-        });
-        assert!(matches!(result, Validated::Valid(84)));
-
-        let nested: Validated<&str, Validated<&str, i32>> = Validated::valid(Validated::valid(42));
-        let flattened: Validated<&str, i32> = nested.join();
-        assert!(matches!(flattened, Validated::Valid(42)));
-    }
-}
-
-#[cfg(test)]
 mod standard_law_tests {
     use super::Monad;
     use crate::traits::{functor::Functor, pure::Pure};

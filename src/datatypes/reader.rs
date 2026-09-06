@@ -114,7 +114,6 @@
 //! `test_reader_transformation_pipeline` below.
 
 use crate::datatypes::id::Id;
-use crate::prelude::*;
 use crate::transformers::ReaderT;
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
@@ -161,7 +160,6 @@ impl<E, A> Reader<E, A>
 where
     E: Clone + Send + Sync + 'static,
     A: Clone + Send + Sync + 'static,
-    Id<A>: HKT<Source = A, Output<A> = Id<A>> + Monad,
 {
     /// Creates a new Reader monad from a function that depends on an environment.
     ///
@@ -222,7 +220,6 @@ where
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
-        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
         let inner = self.inner;
 
@@ -240,7 +237,6 @@ where
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
-        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
         self.map(f)
     }
@@ -250,7 +246,6 @@ where
     where
         F: Fn(A) -> Reader<E, B> + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
-        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
         let inner = self.inner;
 
@@ -269,7 +264,6 @@ where
     where
         F: Fn(A) -> Reader<E, B> + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
-        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
         self.bind(f)
     }
@@ -279,7 +273,6 @@ where
     where
         F: Fn(A) -> Reader<E, B> + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
-        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
         self.bind(f)
     }
@@ -461,8 +454,6 @@ where
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
         C: Clone + Send + Sync + 'static,
-        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
-        Id<C>: HKT<Source = C, Output<C> = Id<C>> + Monad,
     {
         let self_inner = self.inner;
         let other_inner = other.inner;
@@ -498,8 +489,6 @@ where
 /// ```
 impl<E: Clone + Send + Sync + 'static, A: Clone + Send + Sync + 'static> From<ReaderT<E, Id<A>, A>>
     for Reader<E, A>
-where
-    Id<A>: HKT<Source = A, Output<A> = Id<A>> + Monad,
 {
     fn from(reader_t: ReaderT<E, Id<A>, A>) -> Self {
         Reader { inner: reader_t }

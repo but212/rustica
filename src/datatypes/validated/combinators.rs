@@ -37,10 +37,9 @@ impl<E, A> Validated<E, A> {
 
     /// Combines errors from two `Validated` instances, consuming both.
     ///
-    /// # Panics
-    ///
-    /// Panics if both `Validated` instances are `Valid`. This is a programmer error
-    /// as there are no errors to combine.
+    /// Returns `Some(Validated::Invalid(...))` with accumulated errors if either or both
+    /// instances are `Invalid`. Returns `None` if both instances are `Valid` (meaning there
+    /// are no validation errors to combine).
     ///
     /// # Examples
     ///
@@ -49,18 +48,22 @@ impl<E, A> Validated<E, A> {
     ///
     /// let invalid1: Validated<&str, i32> = Validated::invalid("error1");
     /// let invalid2: Validated<&str, i32> = Validated::invalid("error2");
-    /// let combined = invalid1.combine_errors(invalid2);
+    /// let combined = invalid1.combine_errors(invalid2).unwrap();
     /// assert_eq!(combined.error_slice(), &["error1", "error2"]);
+    ///
+    /// let valid1: Validated<&str, i32> = Validated::valid(1);
+    /// let valid2: Validated<&str, i32> = Validated::valid(2);
+    /// assert_eq!(valid1.combine_errors(valid2), None);
     /// ```
     #[inline]
-    pub fn combine_errors(self, other: Self) -> Self {
+    pub fn combine_errors(self, other: Self) -> Option<Self> {
         match (self, other) {
-            (Validated::Valid(_), Validated::Valid(_)) => unreachable!(),
-            (Validated::Valid(_), invalid) => invalid,
-            (invalid, Validated::Valid(_)) => invalid,
+            (Validated::Valid(_), Validated::Valid(_)) => None,
+            (Validated::Valid(_), invalid @ Validated::Invalid(_)) => Some(invalid),
+            (invalid @ Validated::Invalid(_), Validated::Valid(_)) => Some(invalid),
             (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
                 e1.extend(e2);
-                Validated::Invalid(e1)
+                Some(Validated::Invalid(e1))
             },
         }
     }
@@ -189,22 +192,32 @@ mod tests {
         let invalid = Validated::<&str, i32>::invalid("error1");
         let other = Validated::invalid_many(["error2", "error3"]);
         assert_eq!(
-            invalid.clone().combine_errors(other.clone()).error_slice(),
+            invalid
+                .clone()
+                .combine_errors(other.clone())
+                .unwrap()
+                .error_slice(),
             &["error1", "error2", "error3"]
         );
         assert_eq!(
-            Validated::valid(1).combine_errors(other).error_slice(),
+            Validated::valid(1)
+                .combine_errors(other)
+                .unwrap()
+                .error_slice(),
             &["error2", "error3"]
         );
         assert_eq!(
-            invalid.combine_errors(Validated::valid(1)).error_slice(),
+            invalid
+                .combine_errors(Validated::valid(1))
+                .unwrap()
+                .error_slice(),
             &["error1"]
         );
     }
 
     #[test]
-    #[should_panic]
-    fn combine_errors_rejects_two_valid_values() {
-        let _ = Validated::<&str, i32>::valid(1).combine_errors(Validated::valid(2));
+    fn combine_errors_returns_none_for_two_valid_values() {
+        let result = Validated::<&str, i32>::valid(1).combine_errors(Validated::valid(2));
+        assert_eq!(result, None);
     }
 }

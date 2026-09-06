@@ -343,6 +343,30 @@
 //! use rustica::datatypes::id::Id;
 //! let _ = Id::new(42).unwrap_or(0);
 //! ```
+//!
+//! ```compile_fail
+//! // Validated has no lawful Monad implementation; convert to Result via into_value()
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::monad::Monad;
+//! let _: Validated<&str, i32> = Validated::valid(1).bind(|x| Validated::valid(x + 1));
+//! ```
+//!
+//! ```compile_fail
+//! // Id::unwrap was removed in 0.15.0; use into_inner instead.
+//! use rustica::datatypes::id::Id;
+//! let _ = Id::new(42).unwrap();
+//! ```
+//!
+//! ```compile_fail
+//! // Writer::exec was removed in 0.15.0; use log instead.
+//! use rustica::datatypes::writer::Writer;
+//! let _ = Writer::new(String::new(), 42).exec();
+//! ```
+//!
+//! ```compile_fail
+//! // Thunk wrapper was removed in 0.15.0.
+//! use rustica::datatypes::wrapper::thunk::Thunk;
+//! ```
 
 /// Core traits for functional programming abstractions.
 ///

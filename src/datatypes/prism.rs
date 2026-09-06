@@ -701,7 +701,7 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     where
         S: Clone,
         A: Clone,
-        I: Iso<S, A, From = S, To = A>,
+        I: Iso<S, A>,
     {
         let iso = std::sync::Arc::new(iso);
         let preview_iso = std::sync::Arc::clone(&iso);
@@ -721,7 +721,7 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     where
         S: Clone,
         A: Clone,
-        I: Iso<S, Option<A>, From = S, To = Option<A>>,
+        I: Iso<S, Option<A>>,
     {
         let iso = std::sync::Arc::new(iso);
         let preview_iso = std::sync::Arc::clone(&iso);
@@ -821,14 +821,11 @@ mod unit_tests {
     struct IdentityIso;
 
     impl crate::traits::iso::Iso<i32, i32> for IdentityIso {
-        type From = i32;
-        type To = i32;
-
-        fn forward(&self, from: Self::From) -> Self::To {
+        fn forward(&self, from: i32) -> i32 {
             from
         }
 
-        fn backward(&self, to: Self::To) -> Self::From {
+        fn backward(&self, to: i32) -> i32 {
             to
         }
     }
@@ -844,14 +841,11 @@ mod unit_tests {
     struct OptionIso;
 
     impl crate::traits::iso::Iso<i32, Option<i32>> for OptionIso {
-        type From = i32;
-        type To = Option<i32>;
-
-        fn forward(&self, from: Self::From) -> Self::To {
+        fn forward(&self, from: i32) -> Option<i32> {
             (from >= 0).then_some(from)
         }
 
-        fn backward(&self, to: Self::To) -> Self::From {
+        fn backward(&self, to: Option<i32>) -> i32 {
             to.unwrap_or_default()
         }
     }

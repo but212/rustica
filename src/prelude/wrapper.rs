@@ -8,7 +8,6 @@
 //! - [`Max`], [`Min`]: Maximum/minimum value wrappers
 //! - [`Product`], [`Sum`]: Product/sum wrappers (numeric Monoids)
 //! - [`Predicate`]: Composable intensional sets with algebraic operations
-//! - [`Thunk`]: Lazy evaluation wrapper
 //!
 //! # Usage Examples
 //!
@@ -39,7 +38,6 @@ pub use crate::datatypes::wrapper::min::Min;
 pub use crate::datatypes::wrapper::predicate::Predicate;
 pub use crate::datatypes::wrapper::product::Product;
 pub use crate::datatypes::wrapper::sum::Sum;
-pub use crate::datatypes::wrapper::thunk::Thunk;
 
 // Also re-export commonly used traits
 pub use crate::traits::functor::Functor;

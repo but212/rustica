@@ -305,12 +305,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
         self.value
     }
 
-    /// Extracts just the log from the Writer, discarding the value.
-    #[inline]
-    pub fn exec(self) -> W {
-        self.log
-    }
-
     /// Creates a new Writer with the given value and an empty log.
     ///
     /// This is a convenience method that creates a Writer with a value and the empty monoid

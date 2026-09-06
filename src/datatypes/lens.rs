@@ -722,7 +722,7 @@ where
     #[inline]
     pub fn from_iso<I>(iso: I) -> Lens<S, A, impl Fn(&S) -> A, impl Fn(S, A) -> S>
     where
-        I: Iso<S, A, From = S, To = A>,
+        I: Iso<S, A>,
     {
         let iso = Arc::new(iso);
         let getter_iso = Arc::clone(&iso);
@@ -852,14 +852,11 @@ mod unit_tests {
     struct IdentityIso;
 
     impl crate::traits::iso::Iso<i32, i32> for IdentityIso {
-        type From = i32;
-        type To = i32;
-
-        fn forward(&self, from: Self::From) -> Self::To {
+        fn forward(&self, from: i32) -> i32 {
             from
         }
 
-        fn backward(&self, to: Self::To) -> Self::From {
+        fn backward(&self, to: i32) -> i32 {
             to
         }
     }

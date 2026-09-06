@@ -120,8 +120,7 @@ pub use iter::*;
 mod tests {
     use super::{NonEmptyErrors, Validated};
     use crate::traits::{
-        applicative::Applicative, bifunctor::Bifunctor, functor::Functor, monad::Monad, pure::Pure,
-        semigroup::Semigroup,
+        applicative::Applicative, bifunctor::Bifunctor, functor::Functor, semigroup::Semigroup,
     };
     use quickcheck_macros::quickcheck;
 
@@ -162,12 +161,6 @@ mod tests {
     fn prop_validated_functor_identity(val: i32) -> bool {
         let v: Validated<String, i32> = Validated::valid(val);
         v.clone().fmap(|x| x) == v
-    }
-
-    #[quickcheck]
-    fn prop_validated_monad_left_identity(val: i32) -> bool {
-        let f = |x: i32| Validated::<String, i32>::valid(x.saturating_add(1));
-        Validated::<String, i32>::pure(val).bind(f) == f(val)
     }
 
     #[test]
@@ -235,7 +228,7 @@ mod tests {
         let collected: Validated<String, Vec<i32>> = Validated::collect(list.into_iter());
         assert_eq!(collected.errors().len(), 2);
 
-        let combined = v1.combine_errors(v2);
+        let combined = v1.combine_errors(v2).unwrap();
         assert_eq!(
             combined.error_slice(),
             &["e1".to_string(), "e2".to_string()]

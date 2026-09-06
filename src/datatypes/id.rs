@@ -300,22 +300,6 @@ impl<T> Id<T> {
         self.value
     }
 
-    /// Unwraps the Id, yielding the contained value.
-    ///
-    /// This is the standard `unwrap()` method that extracts the value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::id::Id;
-    /// let id = Id::new(42);
-    /// assert_eq!(id.unwrap(), 42);
-    /// ```
-    #[inline]
-    pub fn unwrap(self) -> T {
-        self.value
-    }
-
     /// Returns a mutable reference to the inner value.
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value
@@ -663,7 +647,7 @@ mod tests {
             .fmap(|n| n + 5)
             .fmap(|n| n * 2)
             .bind(|n| Id::new(n.to_string()))
-            .unwrap();
+            .into_inner();
         assert_eq!(result, "30");
     }
 
@@ -694,25 +678,28 @@ mod unit_tests {
         let f = |n: i32| Id::new(n * 2);
         let g = |n: i32| Id::new(n + 3);
 
-        assert_eq!(x.fmap(|n| n).unwrap(), x.unwrap());
-        assert_eq!(x.fmap(|n| n + 3).fmap(|n| n * 2).unwrap(), 90);
+        assert_eq!(x.fmap(|n| n).into_inner(), x.into_inner());
+        assert_eq!(x.fmap(|n| n + 3).fmap(|n| n * 2).into_inner(), 90);
         let app_f = Id::new(|n: i32| n + 1);
-        assert_eq!(app_f.apply(x).unwrap(), 43);
-        assert_eq!(Id::<i32>::lift2(|a, b| a + b, x, Id::new(8)).unwrap(), 50);
-        assert_eq!(Id::<i32>::pure(42).bind(f).unwrap(), f(42).unwrap());
-        assert_eq!(x.bind(Id::<i32>::pure).unwrap(), x.unwrap());
+        assert_eq!(app_f.apply(x).into_inner(), 43);
         assert_eq!(
-            x.bind(f).bind(g).unwrap(),
-            x.bind(|n| f(n).bind(g)).unwrap()
+            Id::<i32>::lift2(|a, b| a + b, x, Id::new(8)).into_inner(),
+            50
         );
-        assert_eq!(Id::new(Id::new(100)).join::<i32>().unwrap(), 100);
+        assert_eq!(Id::<i32>::pure(42).bind(f).into_inner(), f(42).into_inner());
+        assert_eq!(x.bind(Id::<i32>::pure).into_inner(), x.into_inner());
+        assert_eq!(
+            x.bind(f).bind(g).into_inner(),
+            x.bind(|n| f(n).bind(g)).into_inner()
+        );
+        assert_eq!(Id::new(Id::new(100)).join::<i32>().into_inner(), 100);
     }
 
     #[test]
     fn inherent_comonad_api_is_available() {
         let id = Id::new(42);
         assert_eq!(id.extract(), 42);
-        assert_eq!(id.duplicate().unwrap(), 42);
+        assert_eq!(id.duplicate().into_inner(), 42);
         assert_eq!(id.extend(|ctx| ctx.extract() * 2).extract(), 84);
     }
 }

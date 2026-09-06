@@ -13,7 +13,6 @@ use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::{BinaryHKT, HKT};
-use crate::traits::monad::Monad;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
 #[cfg(any(test, feature = "quickcheck"))]
@@ -338,71 +337,6 @@ impl<E, A> Applicative for Validated<E, A> {
 
                 Validated::invalid_from_accumulator(errors)
             },
-        }
-    }
-}
-
-/// # Examples for `Monad` on `Validated`
-///
-/// Unlike `Applicative`, the `Monad` instance for `Validated` is fail-fast. It does not
-/// accumulate errors. It's useful for sequencing operations where any failure should
-/// halt the entire chain.
-///
-/// ## `bind`
-///
-/// ### Chaining `Valid` computations
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::monad::Monad;
-///
-/// let v: Validated<&str, i32> = Validated::valid(10);
-/// let result = v.bind(|x: i32| Validated::valid(x + 5));
-/// assert_eq!(result, Validated::valid(15));
-/// ```
-///
-/// ### A `Valid` value bound with a function that returns `Invalid`
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::monad::Monad;
-///
-/// let v: Validated<&str, i32> = Validated::valid(10);
-/// let result = v.bind(|_x: i32| Validated::<&str, i32>::invalid("computation_failed"));
-/// assert_eq!(result, Validated::invalid("computation_failed"));
-/// ```
-///
-/// ### An `Invalid` value (short-circuiting)
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::monad::Monad;
-///
-/// let v: Validated<&str, i32> = Validated::invalid("original_error");
-/// // The closure is never executed because `v` is Invalid.
-/// let result = v.bind(|x: i32| Validated::valid(x + 5));
-/// assert_eq!(result, Validated::invalid("original_error"));
-/// ```
-///
-///
-/// Monad laws are verified by unit tests.
-impl<E, A> Monad for Validated<E, A> {
-    #[inline]
-    fn bind<U, F>(self, mut f: F) -> Self::Output<U>
-    where
-        F: FnMut(Self::Source) -> Self::Output<U>,
-    {
-        match self {
-            Validated::Valid(a) => f(a),
-            Validated::Invalid(e) => Validated::Invalid(e),
-        }
-    }
-
-    #[inline]
-    fn join<U>(self) -> Self::Output<U>
-    where
-        Self::Source: Into<Self::Output<U>>,
-    {
-        match self {
-            Validated::Valid(inner) => inner.into(),
-            Validated::Invalid(e) => Validated::Invalid(e),
         }
     }
 }

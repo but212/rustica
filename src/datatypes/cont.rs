@@ -234,7 +234,8 @@ where
         F: Fn(Arc<dyn Fn(A) -> R + Send + Sync>) -> R + Send + Sync + 'static,
     {
         Self::new_inner(move |k: Arc<dyn Fn(A) -> Id<R> + Send + Sync>| {
-            let k_arc = Arc::new(move |a: A| (k)(a).unwrap()) as Arc<dyn Fn(A) -> R + Send + Sync>;
+            let k_arc =
+                Arc::new(move |a: A| (k)(a).into_inner()) as Arc<dyn Fn(A) -> R + Send + Sync>;
             Id::new(f(k_arc))
         })
     }
@@ -289,7 +290,7 @@ where
     where
         FN: Fn(A) -> R + Send + Sync + 'static,
     {
-        self.inner.run(move |a: A| Id::new(k(a))).unwrap()
+        self.inner.run(move |a: A| Id::new(k(a))).into_inner()
     }
 
     /// Creates a continuation that immediately returns the given value.
@@ -444,7 +445,7 @@ where
     ///
     /// # Returns
     ///
-    /// A new continuation of type `Cont<R, B>`
+    /// A new continuation of type `Cont<R, A>`
     ///
     /// # Examples
     ///
@@ -453,7 +454,7 @@ where
     /// use rustica::datatypes::cont::Cont;
     ///
     /// // Use call_cc to implement early return
-    /// let computation = Cont::return_cont(5).call_cc(|exit| {
+    /// let computation = Cont::<i32, i32>::call_cc(|exit| {
     ///     // If condition is met, exit early with a different value
     ///     if 5 > 3 {
     ///         exit(10)
@@ -465,17 +466,15 @@ where
     /// assert_eq!(computation.run(|x| x), 10);
     /// ```
     #[inline]
-    pub fn call_cc<B, F>(self, f: F) -> Cont<R, B>
+    pub fn call_cc<F>(f: F) -> Cont<R, A>
     where
-        F: FnOnce(Box<dyn Fn(B) -> Cont<R, A> + Send + Sync>) -> Cont<R, B>
-            + Send
-            + Sync
-            + Copy
-            + 'static,
-        B: Clone + Send + Sync + 'static,
+        F: Fn(Arc<dyn Fn(A) -> Cont<R, A> + Send + Sync>) -> Cont<R, A> + Send + Sync + 'static,
     {
         Cont {
-            inner: ContT::call_cc(move |k| f(Box::new(move |b| Cont { inner: k(b) })).inner),
+            inner: ContT::call_cc(move |k| {
+                let k_cont = Arc::new(move |a: A| Cont { inner: k(a) });
+                f(k_cont).inner
+            }),
         }
     }
 
@@ -569,7 +568,7 @@ mod tests {
 
     #[test]
     fn test_cont_control_flow() {
-        let computation = Cont::<String, i32>::return_cont(1).call_cc(|exit| {
+        let computation = Cont::<String, i32>::call_cc(|exit| {
             Cont::return_cont(1).bind(move |x| {
                 if x > 0 {
                     exit(100)
@@ -580,8 +579,7 @@ mod tests {
         });
         assert_eq!(computation.run(|x| x.to_string()), "100");
 
-        let normal =
-            Cont::<i32, i32>::return_cont(5).call_cc(|_| Cont::return_cont(5).fmap(|x| x * 2));
+        let normal = Cont::<i32, i32>::call_cc(|_| Cont::return_cont(5).fmap(|x| x * 2));
         assert_eq!(normal.run(|x| x), 10);
 
         let safe_div = |n: i32, d: i32| -> Cont<String, i32> {

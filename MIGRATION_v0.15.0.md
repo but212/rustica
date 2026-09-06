@@ -20,14 +20,17 @@ This guide describes the breaking changes and migration steps for Rustica 0.15.0
 | `Product<T>: Monoid` | Bound updated from `From<u8>` to `rustica::traits::one::One`. |
 | `Validated<E, A>: Semigroup` | Now requires `A: Semigroup` and accumulates `Valid` elements. |
 | `Validated<E, A>: Alternative` | Omitted; `Validated` cannot lawfully implement `Alternative` (lacks empty identity for `NonEmptyErrors`). |
+| `Validated<E, A>: Monad` | Removed; `Validated` accumulates errors in `Applicative` and cannot lawfully implement `Monad` (`apply != bind`). Use `.into_value()` to convert to `Result` for monadic sequencing. |
 | `Choice::flatten` | Returns `Option<Choice<I>>` instead of panicking on empty iterators. |
 | `StateT` / `ReaderT` (`*_with` combinators) | Removed manual closure threading methods. |
 | `StateT` / `ReaderT` (`run_state`, `run_reader`, `fmap`, etc.) | Take `self` and `other` by value (`StateT`, `ReaderT`). |
-| `Thunk::evaluate` | Takes `self` by value; `F: FnOnce() -> T`; deleted `evaluate_owned`. |
+| `Thunk` | Removed; use standard Rust closures (`impl FnOnce() -> T`) or standard library lazy initialization. |
+| `Writer::exec` | Removed duplicate method; use `Writer::log`. |
+| `Id::unwrap` | Removed duplicate method; use `Id::into_inner`. |
 | `Alternative::alt` / `many` | Takes `self` and `other: Self` by value; removed `T: Clone` bounds. |
 | `Bifunctor::first` / `second` / `bimap` | Takes `self` by value; `FnMut(Source) -> C`; removed `Clone` bounds. |
 | `Foldable::fold_left` / `fold_right` | `fold_left<U, F>(&self, init: U, f: F) -> U` takes accumulator by value; supports `U: !Clone`. |
-| `Iso::forward` / `backward` | Takes values by value: `forward(&self, from: Self::From) -> Self::To`. |
+| `Iso::forward` / `backward` | Takes values by value: `forward(&self, from: A) -> B`. Removed redundant associated types `type From` and `type To`. |
 | `*_owned` method variants (`fmap_owned`, `bind_owned`, etc.) | Consolidated into single owned `self` methods (`fmap`, `bind`, etc.). |
 | `IO::run` / `IO::run_async` | Takes `self` by value; removed `A: Clone` bound. |
 | `Writer::unwrap` | Takes `self` by value; removed `A: Clone` bound. |
@@ -45,9 +48,6 @@ use rustica::traits::iso::Iso;
 struct IdentityIso;
 
 impl Iso<i32, i32> for IdentityIso {
-    type From = i32;
-    type To = i32;
-
     fn forward(&self, value: i32) -> i32 {
         value
     }
@@ -72,9 +72,6 @@ it with `Prism::from_option_iso`, which preserves unmatched cases as `None`:
 struct CaseIso;
 
 impl Iso<MyEnum, Option<i32>> for CaseIso {
-    type From = MyEnum;
-    type To = Option<i32>;
-
     fn forward(&self, value: MyEnum) -> Option<i32> {
         match value {
             MyEnum::Value(number) => Some(number),

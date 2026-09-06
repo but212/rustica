@@ -246,22 +246,29 @@ impl<T> Applicative for Choice<T> {
         B: Clone,
         C: Clone,
     {
-        let a_vals: Vec<A> = fa.into();
-        let b_vals: Vec<B> = fb.into();
-        let c_vals: Vec<C> = fc.into();
-
-        let primary = f(a_vals[0].clone(), b_vals[0].clone(), c_vals[0].clone());
+        let primary = f(fa.primary.clone(), fb.primary.clone(), fc.primary.clone());
         let mut alternatives = SmallVec::<[D; 7]>::new();
 
-        let mut first = true;
-        for a in &a_vals {
-            for b in &b_vals {
-                for c in &c_vals {
-                    if first {
-                        first = false;
-                    } else {
-                        alternatives.push(f(a.clone(), b.clone(), c.clone()));
-                    }
+        for c in &fc.alternatives {
+            alternatives.push(f(fa.primary.clone(), fb.primary.clone(), c.clone()));
+        }
+
+        for b in &fb.alternatives {
+            alternatives.push(f(fa.primary.clone(), b.clone(), fc.primary.clone()));
+            for c in &fc.alternatives {
+                alternatives.push(f(fa.primary.clone(), b.clone(), c.clone()));
+            }
+        }
+
+        for a in &fa.alternatives {
+            alternatives.push(f(a.clone(), fb.primary.clone(), fc.primary.clone()));
+            for c in &fc.alternatives {
+                alternatives.push(f(a.clone(), fb.primary.clone(), c.clone()));
+            }
+            for b in &fb.alternatives {
+                alternatives.push(f(a.clone(), b.clone(), fc.primary.clone()));
+                for c in &fc.alternatives {
+                    alternatives.push(f(a.clone(), b.clone(), c.clone()));
                 }
             }
         }

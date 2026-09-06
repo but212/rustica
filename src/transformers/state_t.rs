@@ -329,7 +329,7 @@ mod tests {
         });
         let transformed = StateT::from_state(state);
         assert_eq!(
-            transformed.clone().run_state("abc".to_owned()).unwrap(),
+            transformed.clone().run_state("abc".to_owned()).into_inner(),
             ("abc!".to_owned(), 3)
         );
 

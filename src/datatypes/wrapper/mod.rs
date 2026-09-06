@@ -10,8 +10,7 @@
 //!
 //! 1. **Algebraic Structures**: Implement mathematical structures like monoids and semigroups
 //! 2. **Type-Based Operations**: Enable operations based on wrapped type (like Sum, Product)
-//! 3. **Deferred Computation**: Allow for lazy evaluation with types like Thunk
-//! 4. **Context Addition**: Add additional context or capabilities to basic types
+//! 3. **Context Addition**: Add additional context or capabilities to basic types
 //!
 //! ## Available Wrapper Types
 //!
@@ -32,12 +31,7 @@
 //! - `First<T>`: Takes the first `Some` value when combining multiple `Option<T>` values
 //! - `Last<T>`: Takes the last `Some` value when combining multiple `Option<T>` values
 //!
-//! ### Computation Wrappers
-//!
-//! These wrappers provide different ways to handle computations:
-//!
-//! - `Thunk`: A lazy computation wrapper that evaluates only when needed
-//!
+
 //! ## Usage Patterns
 //!
 //! Wrapper types are typically used in these ways:
@@ -67,7 +61,6 @@
 //! - Use `Sum`/`Product` when working with numeric collections that need to be combined
 //! - Use `Min`/`Max` for finding extremes in collections
 //! - Use `First`/`Last` when dealing with optional values that need to be combined with precedence rules
-//! - Use `Thunk` when you need lazy evaluation
 //!
 //! ## Implementation Note
 //!
@@ -87,16 +80,14 @@ pub mod min;
 pub mod predicate;
 pub mod product;
 pub mod sum;
-pub mod thunk;
 
 #[cfg(test)]
 mod unit_tests {
     use super::{
         first::First, last::Last, max::Max, min::Min, predicate::Predicate, product::Product,
-        sum::Sum, thunk::Thunk,
+        sum::Sum,
     };
     use crate::prelude::*;
-    use std::sync::{Arc, Mutex};
 
     #[test]
     fn wrappers_satisfy_their_algebraic_operations() {
@@ -118,19 +109,7 @@ mod unit_tests {
     }
 
     #[test]
-    fn thunk_is_lazy_and_wrappers_are_functors() {
-        let counter = Arc::new(Mutex::new(0));
-        let thunk = Thunk::new({
-            let counter = counter.clone();
-            move || {
-                let mut n = counter.lock().unwrap();
-                *n += 1;
-                *n
-            }
-        });
-        assert_eq!(thunk.clone().evaluate(), 1);
-        assert_eq!(thunk.clone().evaluate(), 2);
-        assert_eq!(thunk.evaluate(), 3);
+    fn wrappers_are_functors() {
         assert_eq!(Sum(42).fmap(|x| x.to_string()), Sum("42".to_string()));
         assert_eq!(First(Some(10)).fmap(|x| x * 2), First(Some(20)));
     }
