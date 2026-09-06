@@ -469,11 +469,11 @@ mod unit_tests {
     use super::{TOKIO_RUNTIME, panic_message};
 
     #[test]
-    fn pure_combinators_remain_cold_and_repeatable() {
+    fn effect_combinators_remain_cold_and_repeatable() {
         use std::sync::atomic::{AtomicUsize, Ordering};
 
         let fmap_calls = Arc::new(AtomicUsize::new(0));
-        let mapped = IO::pure(1).fmap({
+        let mapped = IO::new(|| 1).fmap({
             let fmap_calls = Arc::clone(&fmap_calls);
             move |value| {
                 fmap_calls.fetch_add(1, Ordering::SeqCst);
@@ -481,12 +481,12 @@ mod unit_tests {
             }
         });
         assert_eq!(fmap_calls.load(Ordering::SeqCst), 0);
-        assert_eq!(mapped.run(), 2);
+        assert_eq!(mapped.clone().run(), 2);
         assert_eq!(mapped.run(), 2);
         assert_eq!(fmap_calls.load(Ordering::SeqCst), 2);
 
         let bind_calls = Arc::new(AtomicUsize::new(0));
-        let bound = IO::pure(2).bind({
+        let bound = IO::new(|| 2).bind({
             let bind_calls = Arc::clone(&bind_calls);
             move |value| {
                 bind_calls.fetch_add(1, Ordering::SeqCst);
@@ -494,7 +494,7 @@ mod unit_tests {
             }
         });
         assert_eq!(bind_calls.load(Ordering::SeqCst), 0);
-        assert_eq!(bound.run(), 4);
+        assert_eq!(bound.clone().run(), 4);
         assert_eq!(bound.run(), 4);
         assert_eq!(bind_calls.load(Ordering::SeqCst), 2);
 
@@ -506,9 +506,9 @@ mod unit_tests {
                 value * 3
             }
         });
-        let applied = IO::pure(3).apply(function);
+        let applied = IO::new(|| 3).apply(function);
         assert_eq!(apply_calls.load(Ordering::SeqCst), 0);
-        assert_eq!(applied.run(), 9);
+        assert_eq!(applied.clone().run(), 9);
         assert_eq!(applied.run(), 9);
         assert_eq!(apply_calls.load(Ordering::SeqCst), 2);
     }
