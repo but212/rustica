@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased]
+## [0.15.0]
 
 ### Bug Fixes
 

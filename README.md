@@ -39,14 +39,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.14.0"
+rustica = "0.15.0"
 ```
 
 For full features including `async`, `serde`, and `quickcheck`:
 
 ```toml
 [dependencies]
-rustica = { version = "0.14.0", features = ["full"] }
+rustica = { version = "0.15.0", features = ["full"] }
 ```
 
 Import common traits and types through the prelude:
@@ -97,7 +97,7 @@ base-monad value types at compile time; standard `Result`, `Iterator`, and
 
 See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the migration guide.
 
-The unreleased 0.15.0 breaking changes are documented in
+The 0.15.0 migration guide and breaking changes are documented in
 [MIGRATION_v0.15.0.md](MIGRATION_v0.15.0.md).
 
 ---
