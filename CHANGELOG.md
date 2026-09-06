@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [0.16.0]
+
+### Priority & Fallback Semantics (`Choice<T>`)
+
+- **Semantic Fallback Execution**: Added `Choice::try_each`, `Choice::try_each_validated`, and `Choice::first_match` execution primitives to guide AI coding agents and human developers in writing robust priority-fallback logic.
+- **Error Accumulation Synergy**: `Choice::try_each_validated` accumulates errors across all alternatives into `Validated<E, R>` upon total failure.
+- **Category-Theory Deprecations**: Deprecated `Choice::bind` and `Choice::apply`, along with `impl Pure`, `impl Applicative`, and `impl Monad` for `Choice<T>` since 0.16.0, realigning `Choice` with its intended purpose as a priority/fallback collection.
+- **Documentation Overhaul**: Rewrote `Choice<T>` Rustdoc with explicit primary/fallback domain guidance and runnable doctests.
+
 ## [0.15.0]
 
 ### Bug Fixes

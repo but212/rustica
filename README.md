@@ -12,7 +12,7 @@ Rustica brings pragmatic functional-programming and category-theory abstractions
 Rustica provides:
 
 - **Type Classes**: `Functor`, `Applicative`, `Monad`, `Pure`, and `Foldable`
-- **Data Types**: `Choice` (guaranteed non-empty alternatives), `Validated`, `Id`, and `IO`
+- **Data Types**: `Choice` (guaranteed non-empty priority/fallback collection), `Validated`, `Id`, and `IO`
 - **Monad Transformers**: `StateT`, `ReaderT`, and `ContT`
 - **Pure Functional Style**: Immutable data and explicit effects
 - **Error Handling**: Context accumulation with `ComposableError` and `Validated`
@@ -70,7 +70,7 @@ use rustica::prelude::*;
 
 ### 2. Core Data Types
 
-- **`Choice<T>`**: Guaranteed non-empty alternatives. Statically enforces at least one primary value (`first(&self) -> &T`).
+- **`Choice<T>`**: Statically non-empty collection with priority and fallback semantics. Provides `try_each`, `try_each_validated`, and `first_match` to reliably execute fallback logic in priority order.
 - **`Validated<E, T>`**: Accumulates all validation errors into `NonEmptyErrors<E>` without early termination.
 - **`Id<T>`**: The identity functor/monad with inherent comonad methods (`extract`, `duplicate`, `extend`).
 - **`IO<A>`**: Pure description of side-effectful computations.
@@ -97,8 +97,8 @@ base-monad value types at compile time; standard `Result`, `Iterator`, and
 
 See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the migration guide.
 
-The 0.15.0 migration guide and breaking changes are documented in
-[MIGRATION_v0.15.0.md](MIGRATION_v0.15.0.md).
+The 0.15.0 migration guide is documented in [MIGRATION_v0.15.0.md](MIGRATION_v0.15.0.md).
+The 0.16.0 migration guide is documented in [MIGRATION_v0.16.0.md](MIGRATION_v0.16.0.md).
 
 ---
 
@@ -135,11 +135,13 @@ use rustica::prelude::*;
 let opt = Some(42);
 assert_eq!(opt.fmap(|x| x * 2), Some(84));
 
-// Choice guarantees at least one value at compile time
-let choices = Choice::new(1, [2, 3]);
-assert_eq!(*choices.first(), 1);
-let doubled = choices.fmap(|x| x * 2);
-assert_eq!(doubled.into_iter().collect::<Vec<_>>(), vec![2, 4, 6]);
+// Choice: guaranteed non-empty priority/fallback execution
+let endpoints = Choice::new("primary.api.com", ["backup1.api.com", "backup2.api.com"]);
+assert_eq!(*endpoints.primary(), "primary.api.com");
+let connected = endpoints.try_each(|ep| {
+    if *ep == "backup1.api.com" { Ok("connected") } else { Err("unreachable") }
+});
+assert_eq!(connected, Ok("connected"));
 
 // Error accumulation with Validated
 let v1: Validated<&str, i32> = Validated::valid(10);
