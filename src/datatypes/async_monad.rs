@@ -22,7 +22,7 @@
 //!     });
 //!
 //!     // Chain computations with bind
-//!     let result = value
+//!     let result = value.clone()
 //!         .bind(|x| async move { AsyncM::pure(x * 2) })
 //!         .bind(|x| async move { AsyncM::pure(x + 10) });
 //!
@@ -402,7 +402,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// }
     /// ```
     #[inline(always)]
-    pub fn fmap<B, F, Fut>(&self, f: F) -> AsyncM<B>
+    pub fn fmap<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
         B: Send + 'static,
         F: Fn(A) -> Fut + Send + Sync + Clone + 'static,
@@ -410,8 +410,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         A: Clone,
     {
         // Fast path: Pure → Lazy (avoid double wrapping)
-        if let AsyncMInner::Pure(value) = &self.inner {
-            let value = Arc::clone(value);
+        if let AsyncMInner::Pure(value) = self.inner {
             return AsyncM {
                 inner: AsyncMInner::Effect(Arc::new(move || {
                     let f = f.clone();
@@ -422,7 +421,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         }
 
         // General path: Lazy → Lazy
-        let inner = self.inner.clone();
+        let inner = self.inner;
         AsyncM {
             inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
@@ -480,7 +479,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// }
     /// ```
     #[inline(always)]
-    pub fn bind<B, F, Fut>(&self, f: F) -> AsyncM<B>
+    pub fn bind<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
         B: Send + Sync + Clone + 'static,
         F: Fn(A) -> Fut + Send + Sync + Clone + 'static,
@@ -488,8 +487,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         A: Clone,
     {
         // Fast path: Pure → direct call
-        if let AsyncMInner::Pure(value) = &self.inner {
-            let value = Arc::clone(value);
+        if let AsyncMInner::Pure(value) = self.inner {
             return AsyncM {
                 inner: AsyncMInner::Effect(Arc::new(move || {
                     let f = f.clone();
@@ -508,7 +506,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         }
 
         // General path: Lazy → Lazy
-        let inner = self.inner.clone();
+        let inner = self.inner;
         AsyncM {
             inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
@@ -562,7 +560,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// }
     /// ```
     #[inline(always)]
-    pub fn apply<B, F>(&self, mf: AsyncM<F>) -> AsyncM<B>
+    pub fn apply<B, F>(self, mf: AsyncM<F>) -> AsyncM<B>
     where
         B: Send + Sync + Clone + 'static,
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
@@ -574,7 +572,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
             return AsyncM::pure(result);
         }
 
-        let self_inner = self.inner.clone();
+        let self_inner = self.inner;
         let mf_inner = mf.inner;
 
         AsyncM {
@@ -668,185 +666,6 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                         Ok(value) => value,
                         Err(_) => (*default_value).clone(),
                     }
-                }
-                .boxed()
-            })),
-        }
-    }
-
-    /// Maps a function over the result of this async computation, consuming the original.
-    ///
-    /// This is an ownership-aware version of `fmap` that avoids unnecessary cloning
-    /// by taking ownership of `self`.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - An async function that transforms `A` into `B`
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The type of the result after applying the function
-    /// * `F` - The type of the function
-    /// * `Fut` - The type of the future returned by the function
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::async_monad::AsyncM;
-    /// use tokio;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     // Create an AsyncM and consume it with map_owned
-    ///     let result = AsyncM::pure(42)
-    ///         .fmap_owned(|x| async move { x * 2 });
-    ///     assert_eq!(result.try_get().await, 84);
-    /// }
-    /// ```
-    #[inline]
-    pub fn fmap_owned<B, F, Fut>(self, f: F) -> AsyncM<B>
-    where
-        F: Fn(A) -> Fut + Clone + Send + Sync + 'static,
-        Fut: Future<Output = B> + Send + 'static,
-        B: Send + 'static,
-        A: Clone,
-    {
-        AsyncM {
-            inner: AsyncMInner::Effect(Arc::new(move || {
-                let f = f.clone();
-                let inner = self.inner.clone();
-
-                async move {
-                    let a = match &inner {
-                        AsyncMInner::Pure(value) => (**value).clone(),
-                        AsyncMInner::Effect(run) => run().await,
-                    };
-                    f(a).await
-                }
-                .boxed()
-            })),
-        }
-    }
-
-    /// Chains this computation with another async computation, consuming the original.
-    ///
-    /// This is an ownership-aware version of `bind` that avoids unnecessary cloning
-    /// by taking ownership of `self`.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - An async function that takes the result of this computation and returns a new computation
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The type of the result after applying the function
-    /// * `F` - The type of the function
-    /// * `Fut` - The type of the future returned by the function
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::async_monad::AsyncM;
-    /// use tokio;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     // Create an AsyncM and consume it with bind_owned
-    ///     let result = AsyncM::pure(42)
-    ///         .bind_owned(|x| async move {
-    ///             // This function returns a new AsyncM
-    ///             AsyncM::pure(x + 10)
-    ///         });
-    ///     assert_eq!(result.try_get().await, 52);
-    /// }
-    /// ```
-    #[inline]
-    pub fn bind_owned<B, F, Fut>(self, f: F) -> AsyncM<B>
-    where
-        F: Fn(A) -> Fut + Clone + Send + Sync + 'static,
-        Fut: Future<Output = AsyncM<B>> + Send + 'static,
-        B: Send + Sync + Clone + 'static,
-        A: Clone,
-    {
-        AsyncM {
-            inner: AsyncMInner::Effect(Arc::new(move || {
-                let f = f.clone();
-                let inner = self.inner.clone();
-
-                async move {
-                    let a = match &inner {
-                        AsyncMInner::Pure(value) => (**value).clone(),
-                        AsyncMInner::Effect(run) => run().await,
-                    };
-                    let mb = f(a).await;
-                    match &mb.inner {
-                        AsyncMInner::Pure(value) => (**value).clone(),
-                        AsyncMInner::Effect(run) => run().await,
-                    }
-                }
-                .boxed()
-            })),
-        }
-    }
-
-    /// Applies a wrapped function to this async computation, consuming both.
-    ///
-    /// This is an ownership-aware version of `apply` that avoids unnecessary cloning
-    /// by taking ownership of both `self` and the function.
-    ///
-    /// # Arguments
-    ///
-    /// * `mf` - An async computation that produces a function
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The type of the result after applying the function
-    /// * `F` - The type of the function
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::async_monad::AsyncM;
-    /// use tokio;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let computation = AsyncM::pure(42);
-    ///     let func = AsyncM::pure(|x: i32| x * 2);
-    ///     
-    ///     // Apply the function to the value, consuming both
-    ///     let result = computation.apply_owned(func);
-    ///     assert_eq!(result.try_get().await, 84);
-    /// }
-    /// ```
-    #[inline]
-    pub fn apply_owned<B, F>(self, mf: AsyncM<F>) -> AsyncM<B>
-    where
-        F: Fn(A) -> B + Clone + Send + Sync + 'static,
-        B: Send + Sync + 'static,
-        A: Clone,
-    {
-        AsyncM {
-            inner: AsyncMInner::Effect(Arc::new(move || {
-                let self_inner = self.inner.clone();
-                let mf_inner = mf.inner.clone();
-
-                async move {
-                    // Use join to run both futures concurrently
-                    let a_fut = async {
-                        match &self_inner {
-                            AsyncMInner::Pure(v) => (**v).clone(),
-                            AsyncMInner::Effect(run) => run().await,
-                        }
-                    };
-                    let f_fut = async {
-                        match &mf_inner {
-                            AsyncMInner::Pure(f) => (**f).clone(),
-                            AsyncMInner::Effect(run) => run().await,
-                        }
-                    };
-                    let (a, f) = tokio::join!(a_fut, f_fut);
-                    f(a)
                 }
                 .boxed()
             })),
@@ -1053,9 +872,9 @@ mod tests {
         assert_eq!(res_ref, "42");
 
         let res_owned = AsyncM::new(|| async { 21 })
-            .fmap_owned(|x| async move { x * 2 })
-            .bind_owned(|x| async move { AsyncM::pure(x + 10) })
-            .apply_owned(AsyncM::pure(|x: i32| x.to_string()))
+            .fmap(|x| async move { x * 2 })
+            .bind(|x| async move { AsyncM::pure(x + 10) })
+            .apply(AsyncM::pure(|x: i32| x.to_string()))
             .try_get()
             .await;
         assert_eq!(res_owned, "52");
@@ -1103,7 +922,7 @@ mod tests {
                     AsyncM::pure(0)
                 }
             })
-            .bind_owned(|x| async move { AsyncM::pure(x.to_string()) });
+            .bind(|x| async move { AsyncM::pure(x.to_string()) });
 
         assert_eq!(pipeline.try_get().await, "22");
     }

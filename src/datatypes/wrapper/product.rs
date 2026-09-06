@@ -60,16 +60,16 @@
 //! let c = Product(5);
 //!
 //! // Values are combined by multiplication
-//! assert_eq!(a.combine(&b), Product(12)); // 3 * 4 = 12
-//! assert_eq!(b.combine(&c), Product(20)); // 4 * 5 = 20
+//! assert_eq!(a.combine(b), Product(12)); // 3 * 4 = 12
+//! assert_eq!(b.combine(c), Product(20)); // 4 * 5 = 20
 //!
 //! // Chaining multiplications
-//! let result = a.combine(&b).combine(&c);
+//! let result = a.combine(b).combine(c);
 //! assert_eq!(result, Product(60)); // 3 * 4 * 5 = 60
 //!
 //! // Identity element (multiplicative identity: 1)
 //! let empty = Product::empty();
-//! assert_eq!(a.combine(&empty), a); // 3 * 1 = 3
+//! assert_eq!(a.combine(empty), a); // 3 * 1 = 3
 //! ```
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
@@ -107,7 +107,7 @@ use std::ops::Mul;
 /// let b = Product(7);
 ///
 /// // Combine them (multiplication)
-/// let c = a.combine(&b);
+/// let c = a.combine(b);
 /// assert_eq!(c, Product(35));
 ///
 /// // Multiplication is associative: (a * b) * c = a * (b * c)
@@ -115,15 +115,15 @@ use std::ops::Mul;
 /// let y = Product(3);
 /// let z = Product(4);
 ///
-/// let result1 = x.clone().combine(&y).combine(&z.clone());
-/// let result2 = x.combine(&y.combine(&z));
+/// let result1 = x.clone().combine(y).combine(z.clone());
+/// let result2 = x.combine(y.combine(z));
 /// assert_eq!(result1, result2);
 ///
 /// // Identity element
 /// let id = Product::empty();  // Product(1)
 /// assert_eq!(id, Product(1));
-/// assert_eq!(Product(42).combine(&id), Product(42));
-/// assert_eq!(id.combine(&Product(42)), Product(42));
+/// assert_eq!(Product(42).combine(id), Product(42));
+/// assert_eq!(id.combine(Product(42)), Product(42));
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -189,81 +189,22 @@ impl<T> AsRef<T> for Product<T> {
     }
 }
 
-impl<T: Clone + Mul<Output = T>> Semigroup for Product<T> {
+impl<T: Mul<Output = T>> Semigroup for Product<T> {
     /// Combines two `Product` values through multiplication, consuming self.
     ///
-    /// This method implements the Semigroup operation for `Product<T>`, which is multiplying
-    /// two values. This method consumes both operands and returns a new `Product`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of `T`'s multiplication operation
-    /// - **Memory Usage**: Creates a new `Product` wrapper with the result of the multiplication
-    /// - **Ownership**: Takes ownership of both `self` and `other`
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Associativity
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
     /// # Examples
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::product::Product;
     /// use rustica::traits::semigroup::Semigroup;
     ///
     /// let a = Product(5);
     /// let b = Product(10);
-    ///
-    /// // a and b are consumed
-    /// let c = a.combine_owned(b);
+    /// let c = a.combine(b);
     /// assert_eq!(c, Product(50));
     /// ```
     #[inline]
-    fn combine_owned(self, other: Self) -> Self {
+    fn combine(self, other: Self) -> Self {
         Product(self.0 * other.0)
-    }
-
-    /// Combines two `Product` values through multiplication, borrowing self.
-    ///
-    /// This method implements the Semigroup operation for `Product<T>`, which is multiplying
-    /// two values. This method borrows both operands and returns a new `Product`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of `T`'s multiplication operation
-    /// - **Memory Usage**: Creates a new `Product` wrapper with the result of the multiplication
-    /// - **Borrowing**: Clones both values before performing the multiplication
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Associativity
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let a = Product(5);
-    /// let b = Product(10);
-    ///
-    /// // a and b are borrowed
-    /// let c = a.combine(&b);
-    /// assert_eq!(c, Product(50));
-    ///
-    /// // a and b can still be used
-    /// let d = b.combine(&a);
-    /// assert_eq!(d, Product(50));
-    /// ```
-    #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        Product(self.0.clone() * other.0.clone())
     }
 }
 
@@ -317,8 +258,8 @@ impl<T: Clone + Mul<Output = T> + One> Monoid for Product<T> {
     ///
     /// // Identity property demonstration
     /// let a = Product(42);
-    /// assert_eq!(a.combine(&identity), a);  // a * 1 = a
-    /// assert_eq!(identity.combine(&a), a);  // 1 * a = a
+    /// assert_eq!(a.combine(identity), a);  // a * 1 = a
+    /// assert_eq!(identity.combine(a), a);  // 1 * a = a
     /// ```
     #[inline]
     fn empty() -> Self {
@@ -331,98 +272,11 @@ impl<T> HKT for Product<T> {
     type Output<U> = Product<U>;
 }
 
-impl<T: Clone + Mul<Output = T>> Functor for Product<T> {
-    /// Maps a function over the wrapped value, borrowing self.
-    ///
-    /// This method applies the function `f` to the value inside the `Product` wrapper,
-    /// returning a new `Product` containing the result. The original `Product` is preserved.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of the function `f`
-    /// - **Memory Usage**: Creates a new `Product` wrapper with the result of `f`
-    /// - **Borrowing**: Borrows the inner value without cloning it
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Identity Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// ## Composition Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let num = Product(5);
-    ///
-    /// // Double the value
-    /// let doubled = num.fmap(|x| x * 2);
-    /// assert_eq!(doubled, Product(10));
-    ///
-    /// // Chain transformations
-    /// let result = num
-    ///     .fmap(|x| x * 3)      // Product(15)
-    ///     .fmap(|x| x + 5)      // Product(20)
-    ///     .fmap(|x| x.to_string()); // Product("20")
-    ///
-    /// assert_eq!(result, Product("20".to_string()));
-    /// ```
+impl<T: Mul<Output = T>> Functor for Product<T> {
     #[inline]
-    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: FnOnce(&Self::Source) -> U,
-    {
-        Product(f(&self.0))
-    }
-
-    /// Maps a function over the wrapped value, consuming self.
-    ///
-    /// This method applies the function `f` to the value inside the `Product` wrapper,
-    /// consuming the original `Product` and returning a new `Product` containing the result.
-    /// This is more efficient than `fmap` when you no longer need the original `Product`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of the function `f`
-    /// - **Memory Usage**: Creates a new `Product` wrapper with the result of `f`
-    /// - **Ownership**: Takes ownership of the inner value, avoiding clones
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Identity Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// ## Composition Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::product::Product;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let num = Product(5);
-    ///
-    /// // Consume num and double the value
-    /// let doubled = num.fmap_owned(|x| x * 2);
-    /// assert_eq!(doubled, Product(10));
-    /// ```
-    #[inline]
-    fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: FnOnce(Self::Source) -> U,
+        F: FnMut(Self::Source) -> U,
     {
         Product(f(self.0))
     }

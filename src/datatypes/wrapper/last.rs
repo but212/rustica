@@ -59,14 +59,14 @@
 //! let none = Last(None);
 //!
 //! // Last non-None value wins
-//! assert_eq!(a.combine(&b), Last(Some(10))); // Second value wins
-//! assert_eq!(none.combine(&b), Last(Some(10))); // Second value when first is None
-//! assert_eq!(a.combine(&none), Last(Some(42))); // First value when second is None
+//! assert_eq!(a.combine(b), Last(Some(10))); // Second value wins
+//! assert_eq!(none.combine(b), Last(Some(10))); // Second value when first is None
+//! assert_eq!(a.combine(none), Last(Some(42))); // First value when second is None
 //!
 //! // Identity element
 //! let empty = Last::empty();
-//! assert_eq!(empty.combine(&a), a);
-//! assert_eq!(a.combine(&empty), a);
+//! assert_eq!(empty.combine(a), a);
+//! assert_eq!(a.combine(empty), a);
 //! ```
 
 use crate::traits::functor::Functor;
@@ -90,21 +90,21 @@ use std::fmt;
 ///
 /// let a = Last(Some(5));
 /// let b = Last(Some(7));
-/// let c = a.combine(&b);
+/// let c = a.combine(b);
 /// assert_eq!(c, Last(Some(7)));
 ///
 /// // Last is associative
 /// let x = Last(Some(1));
 /// let y = Last(None);
 /// let z = Last(Some(3));
-/// assert_eq!(x.clone().combine(&y.clone()).combine(&z.clone()),
-///            x.clone().combine(&y.clone().combine(&z.clone())));
+/// assert_eq!(x.clone().combine(y.clone()).combine(z.clone()),
+///            x.clone().combine(y.clone().combine(z.clone())));
 ///
 /// // Identity element
 /// let id = Last::empty();  // Last(None)
 /// assert_eq!(id, Last(None));
-/// assert_eq!(Last(Some(42)).combine(&id.clone()), Last(Some(42)));
-/// assert_eq!(id.combine(&Last(Some(42))), Last(Some(42)));
+/// assert_eq!(Last(Some(42)).combine(id.clone()), Last(Some(42)));
+/// assert_eq!(id.combine(Last(Some(42))), Last(Some(42)));
 /// ```
 ///
 /// Using with `Functor` to transform the inner value:
@@ -117,7 +117,7 @@ use std::fmt;
 /// let b = a.fmap(|x| x * 2);
 /// assert_eq!(b, Last(Some(10)));
 ///
-/// let c = Last(None);
+/// let c: Last<i32> = Last(None);
 /// let d = c.fmap(|x| x * 2);
 /// assert_eq!(d, Last(None));
 /// ```
@@ -141,13 +141,13 @@ use std::fmt;
 /// // Verify left identity: empty() ⊕ a = a
 /// fn check_left_identity<T: Clone + PartialEq>(a: Last<T>) -> bool {
 ///     let empty = Last::empty();
-///     empty.combine(&a) == a
+///     empty.combine(a.clone()) == a
 /// }
 ///
 /// // Verify right identity: a ⊕ empty() = a
 /// fn check_right_identity<T: Clone + PartialEq>(a: Last<T>) -> bool {
 ///     let empty = Last::empty();
-///     a.combine(&empty) == a
+///     a.clone().combine(empty) == a
 /// }
 ///
 /// assert!(check_left_identity(Last(Some(42))));
@@ -207,98 +207,24 @@ impl<T> AsRef<T> for Last<T> {
     }
 }
 
-impl<T: Clone> Semigroup for Last<T> {
+impl<T> Semigroup for Last<T> {
     /// Combines two `Last` values by taking the last non-None value, consuming both values.
     ///
-    /// This is the owned version of the semigroup operation that takes ownership of both `self` and `other`.
-    /// It returns the second value if it contains `Some`, otherwise it returns the first value.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Simply checks if the second value is Some
-    /// - **Memory Usage**: No additional allocations, just pattern matching
-    /// - **Ownership**: Consumes both values, avoiding unnecessary clones
-    ///
     /// # Examples
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::last::Last;
     /// use rustica::traits::semigroup::Semigroup;
     ///
-    /// // When second value is Some
     /// let a = Last(Some(5));
     /// let b = Last(Some(10));
-    /// let c = a.combine_owned(b);
+    /// let c = a.combine(b);
     /// assert_eq!(c, Last(Some(10)));
-    ///
-    /// // When second value is None
-    /// let x = Last(Some(7));
-    /// let y = Last(None);
-    /// let z = x.combine_owned(y);
-    /// assert_eq!(z, Last(Some(7)));
-    ///
-    /// // When both values are None
-    /// let p = Last::<i32>(None);
-    /// let q = Last::<i32>(None);
-    /// let r = p.combine_owned(q);
-    /// assert_eq!(r, Last(None));
     /// ```
     #[inline]
-    fn combine_owned(self, other: Self) -> Self {
+    fn combine(self, other: Self) -> Self {
         match other.0 {
             Some(_) => other,
             None => self,
-        }
-    }
-
-    /// Combines two `Last` values by taking the last non-None value, preserving the originals.
-    ///
-    /// This method implements the semigroup operation for `Last` by returning a new `Last`
-    /// containing the last non-None value from either `self` or `other`. If both contain `None`,
-    /// the result will be `Last(None)`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) - Simply checks if the second value is Some
-    /// - **Memory Usage**: Requires cloning the inner value when returning a result
-    /// - **Borrowing**: Takes references to both values, requiring `T: Clone`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // When second value is Some
-    /// let a = Last(Some(5));
-    /// let b = Last(Some(10));
-    /// let c = a.combine(&b);
-    /// assert_eq!(c, Last(Some(10)));
-    /// // Original values are preserved
-    /// assert_eq!(a, Last(Some(5)));
-    /// assert_eq!(b, Last(Some(10)));
-    ///
-    /// // When second value is None
-    /// let x = Last(Some(7));
-    /// let y = Last(None);
-    /// let z = x.combine(&y);
-    /// assert_eq!(z, Last(Some(7)));
-    ///
-    /// // Demonstrating associativity
-    /// let v1 = Last(None);
-    /// let v2 = Last(Some(10));
-    /// let v3 = Last(Some(20));
-    ///
-    /// // (v1 ⊕ v2) ⊕ v3 = v1 ⊕ (v2 ⊕ v3)
-    /// let left = v1.combine(&v2).combine(&v3);
-    /// let right = v1.combine(&v2.combine(&v3));
-    /// assert_eq!(left, right);
-    /// ```
-    #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        match &other.0 {
-            Some(_) => Last(other.0.clone()),
-            None => Last(self.0.clone()),
         }
     }
 }
@@ -338,7 +264,7 @@ impl<T: Clone> Monoid for Last<T> {
     /// let empty = Last::<i32>::empty();
     /// let value = Last(Some(42));
     ///
-    /// assert_eq!(empty.combine(&value), value);
+    /// assert_eq!(empty.combine(value), value);
     /// ```
     ///
     /// ## Right Identity
@@ -352,7 +278,7 @@ impl<T: Clone> Monoid for Last<T> {
     /// let value = Last(Some(42));
     /// let empty = Last::<i32>::empty();
     ///
-    /// assert_eq!(value.combine(&empty), value);
+    /// assert_eq!(value.combine(empty), value);
     /// ```
     ///
     /// # Examples
@@ -376,87 +302,11 @@ impl<T> HKT for Last<T> {
     type Output<U> = Last<U>;
 }
 
-impl<T: Clone> Functor for Last<T> {
-    /// Maps a function over the inner value of this `Last` container, if it exists.
-    ///
-    /// This method applies the function `f` to the inner value if it's `Some`,
-    /// otherwise it returns `Last(None)`. This borrows the inner value during the mapping.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of function `f`
-    /// - **Memory Usage**: Creates a new `Last` wrapper with the transformed value
-    /// - **Borrowing**: Takes a reference to the inner value, avoiding unnecessary clones
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Identity Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// ## Composition Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let a = Last(Some(5));
-    /// let b = a.fmap(|x| x * 2);  // Maps Some(5) to Some(10)
-    /// assert_eq!(b, Last(Some(10)));
-    ///
-    /// let c = Last::<i32>(None);
-    /// let d = c.fmap(|x| x * 2);  // None remains None
-    /// assert_eq!(d, Last(None));
-    /// ```
+impl<T> Functor for Last<T> {
     #[inline]
-    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: FnOnce(&Self::Source) -> U,
-    {
-        match &self.0 {
-            Some(value) => Last(Some(f(value))),
-            None => Last(None),
-        }
-    }
-
-    /// Maps a function over the inner value of this `Last` container, consuming it.
-    ///
-    /// This method is similar to `fmap` but takes ownership of `self` and passes ownership
-    /// of the inner value to the function `f`. This is more efficient when you don't need
-    /// to preserve the original container.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of function `f`
-    /// - **Memory Usage**: Creates a new `Last` wrapper with the transformed value
-    /// - **Ownership**: Consumes `self` and avoids unnecessary cloning of the inner value
-    ///
-    /// # Type Class Laws
-    ///
-    /// The same functor laws apply as for `fmap`, but with ownership semantics.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::last::Last;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let a = Last(Some(String::from("hello")));
-    /// let b = a.fmap_owned(|s| s.len());  // Consumes the string efficiently
-    /// assert_eq!(b, Last(Some(5)));
-    ///
-    /// // a is consumed and can't be used anymore
-    /// ```
-    #[inline]
-    fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: FnOnce(Self::Source) -> U,
+        F: FnMut(Self::Source) -> U,
     {
         match self.0 {
             Some(value) => Last(Some(f(value))),

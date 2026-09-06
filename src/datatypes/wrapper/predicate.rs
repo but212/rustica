@@ -416,7 +416,7 @@ impl<A: 'static> Semigroup for Predicate<A> {
     /// let is_large = Predicate::new(|x: &i32| *x > 100);
     ///
     /// // Combine predicates using Semigroup trait
-    /// let is_even_or_large = is_even.combine(&is_large);
+    /// let is_even_or_large = is_even.combine(is_large);
     ///
     /// assert!(is_even_or_large.contains(&2));      // Even but not large
     /// assert!(is_even_or_large.contains(&200));    // Both even and large
@@ -424,41 +424,7 @@ impl<A: 'static> Semigroup for Predicate<A> {
     /// assert!(!is_even_or_large.contains(&51));    // Neither even nor large
     /// ```
     #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        self.union(other)
-    }
-
-    /// Combines two predicates by consuming them, using logical OR operation (union).
-    ///
-    /// This is the ownership-consuming variant of `combine`. The resulting predicate
-    /// will evaluate to `true` for an input if either of the original predicates
-    /// would evaluate to `true` for that input.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) for creation, O(f1 + f2) for evaluation
-    /// - **Memory Usage**: More efficient than `combine` when both predicates are
-    ///   no longer needed separately
-    /// - **Ownership**: Consumes both predicates rather than cloning references
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::predicate::Predicate;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let is_divisible_by_2 = Predicate::new(|x: &i32| *x % 2 == 0);
-    /// let is_divisible_by_3 = Predicate::new(|x: &i32| *x % 3 == 0);
-    ///
-    /// // Consume both predicates to create a new one
-    /// let is_divisible_by_2_or_3 = is_divisible_by_2.combine_owned(is_divisible_by_3);
-    ///
-    /// assert!(is_divisible_by_2_or_3.contains(&6));   // Divisible by both 2 and 3
-    /// assert!(is_divisible_by_2_or_3.contains(&4));   // Divisible by 2 only
-    /// assert!(is_divisible_by_2_or_3.contains(&9));   // Divisible by 3 only
-    /// assert!(!is_divisible_by_2_or_3.contains(&5));  // Divisible by neither
-    /// ```
-    fn combine_owned(self, other: Self) -> Self {
+    fn combine(self, other: Self) -> Self {
         Predicate::new({
             let f1 = self.func;
             let f2 = other.func;
@@ -514,7 +480,7 @@ impl<A: 'static> Monoid for Predicate<A> {
     ///
     /// // Combining with other predicates
     /// let is_positive = Predicate::new(|x: &i32| *x > 0);
-    /// let combined = empty_pred.combine(&is_positive);
+    /// let combined = empty_pred.combine(is_positive);
     ///
     /// // The result is equivalent to the non-empty predicate
     /// assert!(combined.contains(&5));

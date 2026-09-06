@@ -82,43 +82,24 @@ use crate::prelude::*;
 /// let opt_int = Some(42);
 ///
 /// // Transform i32 to String
-/// let opt_string = opt_int.fmap(|x: &i32| x.to_string());
+/// let opt_string = opt_int.fmap(|x: i32| x.to_string());
 /// assert_eq!(opt_string, Some("42".to_string()));
 ///
 /// // Using replace to substitute values
-/// let replaced = opt_int.replace(&String::from("hello"));
+/// let replaced = Some(42).replace(String::from("hello"));
 /// assert_eq!(replaced.unwrap(), "hello");
 ///
 /// // Using void to discard values
-/// let voided = opt_int.void();
+/// let voided = Some(42).void();
 /// assert!(matches!(voided, Some(())));
 ///
 /// // With empty values
 /// let opt_none: Option<i32> = None;
-/// let mapped_none = opt_none.fmap(|x: &i32| x.to_string());
+/// let mapped_none = opt_none.fmap(|x: i32| x.to_string());
 /// assert_eq!(mapped_none, None);
 /// ```
 pub trait Functor: HKT {
-    /// Maps a function over the values in a functor without consuming it.
-    ///
-    /// This is a reference-based version of `fmap` that doesn't consume the functor.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that transforms values of type `Self::Source` into type `B`
-    ///
-    /// # Returns
-    ///
-    /// A new functor containing the transformed values
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> B,
-        B: Clone;
-
-    /// Maps a function over the values in a functor.
-    ///
-    /// This operation applies the given function to each value inside the
-    /// functor, preserving the structure while transforming the contents.
+    /// Maps a function over the values in a functor, consuming it.
     ///
     /// # Arguments
     ///
@@ -127,34 +108,11 @@ pub trait Functor: HKT {
     /// # Returns
     ///
     /// A new functor containing the transformed value.
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(Self::Source) -> B,
-        B: Clone,
-        Self: Sized;
+        F: FnMut(Self::Source) -> B;
 
-    /// Replaces all values in the functor with a constant value, without consuming it.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - A reference to the value to replace all elements with
-    ///
-    /// # Returns
-    ///
-    /// A new functor with all elements replaced by a clone of the given value
-    ///
-    /// # Default Implementation
-    ///
-    /// Uses `map` to replace all values.
-    #[inline]
-    fn replace<B>(&self, value: &B) -> Self::Output<B>
-    where
-        B: Clone,
-    {
-        self.fmap(|_| value.clone())
-    }
-
-    /// Replaces all values in the functor with a constant value.
+    /// Replaces all values in the functor with a constant value, consuming the functor.
     ///
     /// # Arguments
     ///
@@ -163,48 +121,26 @@ pub trait Functor: HKT {
     /// # Returns
     ///
     /// A new functor with all elements replaced by the given value
-    ///
-    /// # Default Implementation
-    ///
-    /// Uses `map_owned` to replace all values.
     #[inline]
-    fn replace_owned<B>(&self, value: B) -> Self::Output<B>
+    fn replace<B>(self, value: B) -> Self::Output<B>
     where
         B: Clone,
         Self: Sized,
     {
-        self.fmap(|_| value.clone())
+        self.fmap(move |_| value.clone())
     }
 
-    /// Void functor - discards the values and replaces them with unit, without consuming the functor.
+    /// Void functor - discards the values and replaces them with unit, consuming the functor.
     ///
     /// # Returns
     ///
     /// A new functor with all elements replaced by ()
-    ///
-    /// # Default Implementation
-    ///
-    /// Uses `map` to replace all values with unit.
     #[inline]
-    fn void(&self) -> Self::Output<()> {
-        self.fmap(|_| ())
-    }
-
-    /// Void functor - discards the values and replaces them with unit.
-    ///
-    /// # Returns
-    ///
-    /// A new functor with all elements replaced by ()
-    ///
-    /// # Default Implementation
-    ///
-    /// Uses `map_owned` to replace all values with unit.
-    #[inline]
-    fn void_owned(self) -> Self::Output<()>
+    fn void(self) -> Self::Output<()>
     where
         Self: Sized,
     {
-        self.fmap_owned(|_| ())
+        self.fmap(|_| ())
     }
 }
 
@@ -235,7 +171,7 @@ pub trait Functor: HKT {
 ///
 /// // Using filter_map to transform and potentially filter out values
 /// let filter_mapped: Option<String> = some_value.filter_map(|x| {
-///     if *x > 40 {
+///     if x > 40 {
 ///         Some(x.to_string())
 ///     } else {
 ///         None
@@ -278,7 +214,7 @@ pub trait FunctorExt: Functor {
     /// let result: Option<String> = some_value.try_map_or(
     ///     "default".to_string(),
     ///     |x| -> Result<String, &str> {
-    ///         if *x > 0 {
+    ///         if x > 0 {
     ///             Ok(x.to_string())
     ///         } else {
     ///             Err("negative number")
@@ -292,7 +228,7 @@ pub trait FunctorExt: Functor {
     /// let result_with_default: Option<String> = negative.try_map_or(
     ///     "default".to_string(),
     ///     |x| -> Result<String, &str> {
-    ///         if *x > 0 {
+    ///         if x > 0 {
     ///             Ok(x.to_string())
     ///         } else {
     ///             Err("negative number")
@@ -302,136 +238,43 @@ pub trait FunctorExt: Functor {
     /// assert_eq!(result_with_default, Some("default".to_string()));
     /// ```
     #[inline]
-    fn try_map_or<B, E, F>(&self, default: B, f: F) -> Self::Output<B>
+    fn try_map_or<B, E, F>(self, default: B, mut f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> Result<B, E>,
+        F: FnMut(Self::Source) -> Result<B, E>,
         B: Clone,
+        Self: Sized,
     {
-        self.fmap(|a| match f(a) {
+        self.fmap(move |a| match f(a) {
             Ok(b) => b,
             Err(_) => default.clone(),
         })
     }
 
     /// Transforms values with a fallible function, handling errors with a provided function.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that may fail
-    /// * `default_fn` - A function that provides a default value from the error
-    ///
-    /// # Returns
-    ///
-    /// A new functor with transformed values or computed defaults in case of errors
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::functor::{Functor, FunctorExt};
-    /// use rustica::traits::hkt::HKT;
-    ///
-    /// let some_value: Option<i32> = Some(42);
-    ///
-    /// // Using try_map_or_else with a fallible function and error handler
-    /// let result: Option<String> = some_value.try_map_or_else(
-    ///     |err: &String| format!("Error: {}", err),
-    ///     |x| -> Result<String, String> {
-    ///         if *x > 0 {
-    ///             Ok(x.to_string())
-    ///         } else {
-    ///             Err("negative number".to_string())
-    ///         }
-    ///     }
-    /// );
-    /// assert_eq!(result, Some("42".to_string()));
-    ///
-    /// // With a value that causes an error
-    /// let negative: Option<i32> = Some(-10);
-    /// let result_with_error_handler: Option<String> = negative.try_map_or_else(
-    ///     |err: &String| format!("Error: {}", err),
-    ///     |x| -> Result<String, String> {
-    ///         if *x > 0 {
-    ///             Ok(x.to_string())
-    ///         } else {
-    ///             Err("negative number".to_string())
-    ///         }
-    ///     }
-    /// );
-    /// assert_eq!(result_with_error_handler, Some("Error: negative number".to_string()));
-    /// ```
     #[inline]
-    fn try_map_or_else<B, E, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
+    fn try_map_or_else<B, E, D, F>(self, mut default_fn: D, mut f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> Result<B, E>,
-        B: Clone,
-        D: Fn(&E) -> B,
+        F: FnMut(Self::Source) -> Result<B, E>,
+        D: FnMut(E) -> B,
+        Self: Sized,
     {
-        self.fmap(|a| match f(a) {
+        self.fmap(move |a| match f(a) {
             Ok(b) => b,
-            Err(e) => default_fn(&e),
+            Err(e) => default_fn(e),
         })
     }
 
     /// Transforms values with a function that might return None, filtering out None results.
-    ///
-    /// This combines mapping and filtering into a single operation.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that returns an Option
-    ///
-    /// # Returns
-    ///
-    /// A new functor containing only the values for which the function returned Some
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::functor::{Functor, FunctorExt};
-    /// use rustica::traits::hkt::HKT;
-    ///
-    /// let some_value: Option<i32> = Some(42);
-    ///
-    /// // Keep only values that pass a predicate and transform them
-    /// let filter_mapped: Option<String> = some_value.filter_map(|x| {
-    ///     if *x > 40 {
-    ///         Some(x.to_string())
-    ///     } else {
-    ///         None
-    ///     }
-    /// });
-    /// assert_eq!(filter_mapped, Some("42".to_string()));
-    ///
-    /// // Value filtered out
-    /// let filtered_out: Option<String> = some_value.filter_map(|x| {
-    ///     if *x > 100 {
-    ///         Some(x.to_string())
-    ///     } else {
-    ///         None
-    ///     }
-    /// });
-    /// assert_eq!(filtered_out, None);
-    /// ```
-    fn filter_map<B, F>(&self, f: F) -> Self::Output<B>
+    fn filter_map<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> Option<B>;
+        F: FnMut(Self::Source) -> Option<B>;
 }
 
 impl<T> Functor for Vec<T> {
     #[inline]
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
-    {
-        self.iter().map(f).collect()
-    }
-
-    #[inline]
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
-        B: Clone,
-        Self: Sized,
+        F: FnMut(Self::Source) -> B,
     {
         self.into_iter().map(f).collect()
     }
@@ -439,174 +282,58 @@ impl<T> Functor for Vec<T> {
 
 impl<T> FunctorExt for Vec<T> {
     #[inline]
-    fn filter_map<B, F>(&self, f: F) -> Self::Output<B>
+    fn filter_map<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> Option<B>,
+        F: FnMut(Self::Source) -> Option<B>,
     {
-        self.iter().filter_map(f).collect()
+        self.into_iter().filter_map(f).collect()
     }
+}
 
+impl<T> Functor for Option<T> {
     #[inline]
-    fn try_map_or<B, E, F>(&self, default: B, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> Result<B, E>,
-        B: Clone,
+        F: FnMut(Self::Source) -> B,
     {
-        self.iter()
-            .map(|x| match f(x) {
-                Ok(b) => b,
-                Err(_) => default.clone(),
-            })
-            .collect()
-    }
-
-    #[inline]
-    fn try_map_or_else<B, E, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> Result<B, E>,
-        D: Fn(&E) -> B,
-    {
-        self.iter()
-            .map(|x| match f(x) {
-                Ok(b) => b,
-                Err(e) => default_fn(&e),
-            })
-            .collect()
+        self.map(f)
     }
 }
 
 impl<T> FunctorExt for Option<T> {
     #[inline]
-    fn filter_map<B, F>(&self, f: F) -> Self::Output<B>
+    fn filter_map<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> Option<B>,
+        F: FnMut(Self::Source) -> Option<B>,
     {
-        self.as_ref().and_then(f)
-    }
-
-    #[inline]
-    fn try_map_or<B, E, F>(&self, default: B, f: F) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> Result<B, E>,
-        B: Clone,
-    {
-        match self {
-            Some(value) => match f(value) {
-                Ok(b) => Some(b),
-                Err(_) => Some(default),
-            },
-            None => None,
-        }
-    }
-
-    #[inline]
-    fn try_map_or_else<B, E, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> Result<B, E>,
-        D: Fn(&E) -> B,
-    {
-        match self {
-            Some(value) => match f(value) {
-                Ok(b) => Some(b),
-                Err(e) => Some(default_fn(&e)),
-            },
-            None => None,
-        }
+        self.and_then(f)
     }
 }
 
-impl<T, E: std::fmt::Debug> FunctorExt for Result<T, E>
+impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
+    #[inline]
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
+    where
+        F: FnMut(Self::Source) -> B,
+    {
+        self.map(f)
+    }
+}
+
+impl<A, E: std::fmt::Debug + Clone> FunctorExt for Result<A, E>
 where
-    E: Clone + Default,
+    E: Default,
 {
     #[inline]
-    fn filter_map<B, F>(&self, f: F) -> Self::Output<B>
+    fn filter_map<B, F>(self, mut f: F) -> Self::Output<B>
     where
-        F: FnOnce(&Self::Source) -> Option<B>,
+        F: FnMut(Self::Source) -> Option<B>,
     {
         match self {
             Ok(value) => match f(value) {
                 Some(b) => Ok(b),
                 None => Err(E::default()),
             },
-            Err(e) => Err(e.clone()),
-        }
-    }
-
-    #[inline]
-    fn try_map_or<B, E2, F>(&self, default: B, f: F) -> Self::Output<B>
-    where
-        F: FnOnce(&Self::Source) -> Result<B, E2>,
-        B: Clone,
-    {
-        match self {
-            Ok(value) => match f(value) {
-                Ok(b) => Ok(b),
-                Err(_) => Ok(default),
-            },
-            Err(e) => Err(e.clone()),
-        }
-    }
-
-    #[inline]
-    fn try_map_or_else<B, E2, D, F>(&self, default_fn: D, f: F) -> Self::Output<B>
-    where
-        F: FnOnce(&Self::Source) -> Result<B, E2>,
-        D: Fn(&E2) -> B,
-    {
-        match self {
-            Ok(value) => match f(value) {
-                Ok(b) => Ok(b),
-                Err(e) => Ok(default_fn(&e)),
-            },
-            Err(e) => Err(e.clone()),
-        }
-    }
-}
-
-impl<T> Functor for Option<T> {
-    #[inline]
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> B,
-        B: Clone,
-    {
-        self.as_ref().map(f)
-    }
-
-    #[inline]
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
-        B: Clone,
-        Self: Sized,
-    {
-        self.map(f)
-    }
-}
-
-impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
-    #[inline]
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
-    where
-        F: Fn(&Self::Source) -> B,
-        B: Clone,
-    {
-        match self {
-            Ok(value) => Ok(f(value)),
-            Err(e) => Err(e.clone()),
-        }
-    }
-
-    #[inline]
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
-        B: Clone,
-        Self: Sized,
-    {
-        match self {
-            Ok(value) => Ok(f(value)),
             Err(e) => Err(e),
         }
     }
@@ -619,25 +346,25 @@ mod standard_law_tests {
 
     #[quickcheck]
     fn option_functor_laws(m: Option<i32>) -> bool {
-        let f = |&x: &i32| x.saturating_mul(2);
-        let g = |&x: &i32| x.saturating_add(1);
-        m.fmap(|&x| x) == m
-            && m.fmap(|&x| g(&f(&x))) == m.fmap(f).fmap(g)
+        let f = |x: i32| x.saturating_mul(2);
+        let g = |x: i32| x.saturating_add(1);
+        m.fmap(|x| x) == m
+            && m.fmap(|x| g(f(x))) == m.fmap(f).fmap(g)
             && m.fmap(f).is_some() == m.is_some()
     }
 
     #[quickcheck]
     fn result_functor_laws(m: Result<i32, i8>) -> bool {
-        let f = |&x: &i32| x.saturating_add(10);
-        let g = |&x: &i32| x.saturating_mul(3);
-        m.clone().fmap(|&x| x) == m
-            && m.clone().fmap(|&x| g(&f(&x))) == m.clone().fmap(f).fmap(g)
+        let f = |x: i32| x.saturating_add(10);
+        let g = |x: i32| x.saturating_mul(3);
+        m.clone().fmap(|x| x) == m
+            && m.clone().fmap(|x| g(f(x))) == m.clone().fmap(f).fmap(g)
             && m.fmap(f).is_ok() == m.is_ok()
     }
 
     #[quickcheck]
     fn vec_functor_laws(v: Vec<i32>) -> bool {
-        let mapped = v.fmap(|&x| x.saturating_abs());
-        v.fmap(|&x| x) == v && mapped.len() == v.len()
+        let mapped = v.clone().fmap(|x| x.saturating_abs());
+        v.clone().fmap(|x| x) == v && mapped.len() == v.len()
     }
 }

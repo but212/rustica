@@ -142,7 +142,7 @@
 //! assert_eq!(doubled.unwrap(), 84);
 //!
 //! // Lift a value into Id context (Pure)
-//! let pure_value = Id::<i32>::pure(&100);
+//! let pure_value = Id::<i32>::pure(100);
 //! assert_eq!(pure_value.unwrap(), 100);
 //! ```
 //!
@@ -214,30 +214,30 @@ use quickcheck::{Arbitrary, Gen};
 /// assert_eq!(doubled.unwrap(), 10);
 ///
 /// // Using Pure to lift a value into Id context
-/// let pure_value = Id::<i32>::pure(&42);
+/// let pure_value = Id::<i32>::pure(42);
 /// assert_eq!(pure_value.unwrap(), 42);
 ///
 /// // Using Applicative to apply functions
 /// // 1. Apply a function wrapped in Id
-/// let add_one = Id::new(|x: &i32| x + 1);
-/// let result = Applicative::apply(&add_one, &x);
+/// let add_one = Id::new(|x: i32| x + 1);
+/// let result = Applicative::apply(add_one, x);
 /// assert_eq!(result.unwrap(), 6);
 ///
 /// // 2. Combine two Id values with lift2
-/// let add = |a: &i32, b: &i32| a + b;
-/// let sum = Id::<i32>::lift2(&add, &x, &y);
+/// let add = |a: i32, b: i32| a + b;
+/// let sum = Id::<i32>::lift2(add, x, y);
 /// assert_eq!(sum.unwrap(), 8);
 ///
 /// // 3. Combine three Id values with lift3
-/// let multiply = |a: &i32, b: &i32, c: &i32| a * b * c;
-/// let product = Id::<i32>::lift3(&multiply, &x, &y, &z);
+/// let multiply = |a: i32, b: i32, c: i32| a * b * c;
+/// let product = Id::<i32>::lift3(multiply, x, y, z);
 /// assert_eq!(product.unwrap(), 30);
 ///
 /// // Working with different types
 /// let greeting = Id::new("Hello");
 /// let count = Id::new(3_usize);
-/// let repeat = |s: &&str, n: &usize| s.repeat(*n);
-/// let repeated = Id::<&str>::lift2(&repeat, &greeting, &count);
+/// let repeat = |s: &str, n: usize| s.repeat(n);
+/// let repeated = Id::<&str>::lift2(repeat, greeting, count);
 /// assert_eq!(repeated.unwrap(), "HelloHelloHello");
 ///
 /// // Chaining operations
@@ -399,185 +399,62 @@ impl<T> HKT for Id<T> {
 
 impl<T> Functor for Id<T> {
     #[inline]
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, mut f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
-    {
-        Id::new(f(&self.value))
-    }
-
-    #[inline]
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: FnOnce(Self::Source) -> B,
+        F: FnMut(Self::Source) -> B,
     {
         Id::new(f(self.value))
     }
 }
 
-impl<T: Clone> Pure for Id<T> {
+impl<T> Pure for Id<T> {
     #[inline]
-    fn pure<U: Clone>(x: &U) -> Self::Output<U> {
-        Id::new(x.clone())
+    fn pure<U>(x: U) -> Self::Output<U> {
+        Id::new(x)
     }
 }
 
-impl<T: Clone> Applicative for Id<T> {
+impl<T> Applicative for Id<T> {
     #[inline]
-    fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
+    fn apply<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
     where
-        Self::Source: Fn(&A) -> B,
+        Self::Source: Fn(A) -> B,
     {
-        Id::new(self.as_ref()(value.as_ref()))
+        Id::new((self.value)(value.value))
     }
 
     #[inline]
-    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
-    where
-        F: Fn(&A, &B) -> C,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        Self: Sized,
-    {
-        Id::new(f(fa.as_ref(), fb.as_ref()))
-    }
-
-    #[inline]
-    fn lift3<A, B, C, D, F>(
-        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
-    ) -> Self::Output<D>
-    where
-        F: Fn(&A, &B, &C) -> D,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        D: Clone,
-        Self: Sized,
-    {
-        Id::new(f(fa.as_ref(), fb.as_ref(), fc.as_ref()))
-    }
-
-    #[inline]
-    fn apply_owned<U, B>(self, value: Self::Output<U>) -> Self::Output<B>
-    where
-        Self::Source: Fn(U) -> B,
-        U: Clone,
-        B: Clone,
-    {
-        Id::new((self.as_ref())(value.value))
-    }
-
-    #[inline]
-    fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
+    fn lift2<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
     where
         F: Fn(A, B) -> C,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        Self: Sized,
     {
         Id::new(f(fa.value, fb.value))
     }
 
     #[inline]
-    fn lift3_owned<A, B, C, D, F>(
+    fn lift3<A, B, C, D, F>(
         f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
     ) -> Self::Output<D>
     where
         F: Fn(A, B, C) -> D,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        D: Clone,
-        Self: Sized,
     {
         Id::new(f(fa.value, fb.value, fc.value))
     }
 }
 
-impl<T: Clone> Monad for Id<T> {
-    /// Sequences two Id operations, with the second depending on the result of the first.
-    ///
-    /// This method implements the `bind` operation (also known as `flatMap` or `>>=`)
-    /// from the Monad typeclass in functional programming. It allows you to sequence
-    /// Id computations where the second computation depends on the value produced
-    /// by the first.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The type of the value produced by the second computation
-    /// * `F`: The type of the function that produces the second computation
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - Function that takes the value from the first computation and returns a new Id computation
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// // Simple binding with a transformation
-    /// let x = Id::new(5);
-    /// let result = x.bind(|n| Id::new(n * 2));
-    /// assert_eq!(result.unwrap(), 10);
-    ///
-    /// // Chaining multiple bind operations
-    /// let result = Id::new(5)
-    ///     .bind(|n| Id::new(n + 3))          // 5 -> 8
-    ///     .bind(|n| Id::new(n * 2))          // 8 -> 16
-    ///     .bind(|n| Id::new(format!("{}", n))); // 16 -> "16"
-    /// assert_eq!(result.unwrap(), "16");
-    ///
-    /// // Conditional logic in bind
-    /// let process = |n: &i32| {
-    ///     if *n > 0 {
-    ///         Id::new(format!("Positive: {}", n))
-    ///     } else {
-    ///         Id::new(format!("Non-positive: {}", n))
-    ///     }
-    /// };
-    ///
-    /// let pos = Id::new(42).bind(process);
-    /// assert_eq!(pos.unwrap(), "Positive: 42");
-    ///
-    /// let neg = Id::new(-10).bind(process);
-    /// assert_eq!(neg.unwrap(), "Non-positive: -10");
-    /// ```
+impl<T> Monad for Id<T> {
     #[inline]
-    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    fn bind<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: Fn(&Self::Source) -> Self::Output<U>,
-    {
-        f(&self.value)
-    }
-
-    #[inline]
-    fn join<U>(&self) -> Self::Output<U>
-    where
-        Self::Source: Clone + Into<Self::Output<U>>,
-    {
-        self.value.clone().into()
-    }
-
-    #[inline]
-    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: Fn(Self::Source) -> Self::Output<U>,
-        U: Clone,
-        Self: Sized,
+        F: FnMut(Self::Source) -> Self::Output<U>,
     {
         f(self.value)
     }
 
     #[inline]
-    fn join_owned<U>(self) -> Self::Output<U>
+    fn join<U>(self) -> Self::Output<U>
     where
         Self::Source: Into<Self::Output<U>>,
-        U: Clone,
-        Self: Sized,
     {
         self.value.into()
     }
@@ -684,45 +561,18 @@ impl<T: Semigroup> Semigroup for Id<T> {
     /// let a = Id::new("Hello, ".to_string());
     /// let b = Id::new("world!".to_string());
     ///
-    /// let combined = a.combine(&b);
+    /// let combined = a.combine(b);
     /// assert_eq!(combined.unwrap(), "Hello, world!");
     ///
     /// // Combining two Id<Vec<i32>> values
     /// let v1 = Id::new(vec![1, 2]);
     /// let v2 = Id::new(vec![3, 4]);
-    /// let combined_vec = v1.combine(&v2);
+    /// let combined_vec = v1.combine(v2);
     /// assert_eq!(combined_vec.unwrap(), vec![1, 2, 3, 4]);
     /// ```
     #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        Id::new(self.value.combine(&other.value))
-    }
-
-    /// Owned version of `combine` that consumes both values.
-    ///
-    /// This works the same as `combine` but takes ownership of both values, potentially
-    /// avoiding unnecessary clones when the values are no longer needed separately.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - Another `Id` value to combine with this one
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::id::Id;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// // Combining two Id<Vec<i32>> values
-    /// let a = Id::new(vec![1, 2, 3]);
-    /// let b = Id::new(vec![4, 5, 6]);
-    ///
-    /// let combined = a.combine_owned(b);
-    /// assert_eq!(combined.unwrap(), vec![1, 2, 3, 4, 5, 6]);
-    /// ```
-    #[inline]
-    fn combine_owned(self, other: Self) -> Self {
-        Id::new(self.value.combine_owned(other.value))
+    fn combine(self, other: Self) -> Self {
+        Id::new(self.value.combine(other.value))
     }
 }
 
@@ -752,21 +602,19 @@ impl<T: Monoid> Monoid for Id<T> {
     }
 }
 
-impl<T: Clone> Foldable for Id<T> {
+impl<T> Foldable for Id<T> {
     #[inline]
-    fn fold_left<U, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where
-        U: Clone,
-        F: Fn(&U, &Self::Source) -> U,
+        F: FnMut(U, &Self::Source) -> U,
     {
         f(init, &self.value)
     }
 
     #[inline]
-    fn fold_right<U, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: U, mut f: F) -> U
     where
-        U: Clone,
-        F: Fn(&Self::Source, &U) -> U,
+        F: FnMut(&Self::Source, U) -> U,
     {
         f(&self.value, init)
     }
@@ -829,9 +677,9 @@ mod tests {
     #[test]
     fn test_id_pipelines() {
         let result = Id::new(10)
-            .fmap_owned(|n| n + 5)
+            .fmap(|n| n + 5)
             .fmap(|n| n * 2)
-            .bind_owned(|n| Id::new(n.to_string()))
+            .bind(|n| Id::new(n.to_string()))
             .unwrap();
         assert_eq!(result, "30");
     }
@@ -860,19 +708,19 @@ mod unit_tests {
     #[test]
     fn monadic_and_applicative_laws_hold() {
         let x = Id::new(42);
-        let f = |n: &i32| Id::new(n * 2);
-        let g = |n: &i32| Id::new(n + 3);
+        let f = |n: i32| Id::new(n * 2);
+        let g = |n: i32| Id::new(n + 3);
 
-        assert_eq!(x.clone().fmap(|n| *n).unwrap(), x.unwrap());
+        assert_eq!(x.clone().fmap(|n| n).unwrap(), x.unwrap());
         assert_eq!(x.clone().fmap(|n| n + 3).fmap(|n| n * 2).unwrap(), 90);
-        let app_f = Id::new(|n: &i32| n + 1);
-        assert_eq!(app_f.apply(&x).unwrap(), 43);
-        assert_eq!(Id::<i32>::lift2(|a, b| a + b, &x, &Id::new(8)).unwrap(), 50);
-        assert_eq!(Id::<i32>::pure(&42).bind(&f).unwrap(), f(&42).unwrap());
+        let app_f = Id::new(|n: i32| n + 1);
+        assert_eq!(app_f.apply(x).unwrap(), 43);
+        assert_eq!(Id::<i32>::lift2(|a, b| a + b, x, Id::new(8)).unwrap(), 50);
+        assert_eq!(Id::<i32>::pure(42).bind(f).unwrap(), f(42).unwrap());
         assert_eq!(x.clone().bind(Id::<i32>::pure).unwrap(), x.unwrap());
         assert_eq!(
             x.clone().bind(f).bind(g).unwrap(),
-            x.bind(|n| f(n).bind(&g)).unwrap()
+            x.bind(|n| f(n).bind(g)).unwrap()
         );
         assert_eq!(Id::new(Id::new(100)).join::<i32>().unwrap(), 100);
     }

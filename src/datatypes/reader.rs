@@ -25,7 +25,7 @@
 //! let timeout_reader = Reader::asks(|config: Config| config.timeout * 2);
 //!
 //! // Combine readers
-//! let connection_reader = db_reader.combine(&timeout_reader, |url, timeout| {
+//! let connection_reader = db_reader.combine(timeout_reader, |url, timeout| {
 //!     format!("{}?timeout={}", url, timeout)
 //! });
 //!
@@ -143,7 +143,7 @@ use quickcheck::{Arbitrary, Gen};
 ///
 /// // Create a reader that doubles the environment value
 /// let reader: Reader<i32, i32> = Reader::new(|e: i32| e * 2);
-/// assert_eq!(reader.run_reader(21), 42);
+/// assert_eq!(reader.clone().run_reader(21), 42);
 ///
 /// // Transform the result using fmap
 /// let string_reader: Reader<i32, String> = reader.fmap(|x| x.to_string());
@@ -210,87 +210,78 @@ where
     /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
     /// assert_eq!(reader.run_reader(21), 42);
     /// ```
+    /// Runs this Reader with the given environment, returning the final value.
     #[inline]
-    pub fn run_reader(&self, env: E) -> A {
+    pub fn run_reader(self, env: E) -> A {
         let id_value = self.inner.run_reader(env);
         id_value.into_inner()
     }
 
     /// Maps a function over the value produced by this Reader.
-    /// This allows transforming the output of a Reader without affecting its environment dependency.
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - Function to apply to the value produced by this Reader
-    ///
-    /// # Returns
-    ///
-    /// A new Reader that applies the function to the result of the original Reader
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    /// use rustica::datatypes::id::Id;
-    ///
-    /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n + 10);
-    /// let mapped: Reader<i32, String> = reader.fmap(|n| n.to_string());
-    /// assert_eq!(mapped.run_reader(5), "15");
-    /// ```
-    pub fn fmap<B, F>(&self, f: F) -> Reader<E, B>
+    pub fn map<B, F>(self, f: F) -> Reader<E, B>
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
         Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
-        let inner_clone = self.inner.clone();
+        let inner = self.inner;
 
         Reader {
             inner: ReaderT::new(move |e: E| {
-                let id_a = inner_clone.run_reader(e);
+                let id_a = inner.clone().run_reader(e);
                 let a = id_a.into_inner();
                 Id::new(f(a))
             }),
         }
     }
 
+    /// Alias for `map` following functor terminology.
+    pub fn fmap<B, F>(self, f: F) -> Reader<E, B>
+    where
+        F: Fn(A) -> B + Clone + Send + Sync + 'static,
+        B: Clone + Send + Sync + 'static,
+        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
+    {
+        self.map(f)
+    }
+
     /// Sequences two Reader computations, passing the result of the first to the second.
-    /// This is the core method that enables chained operations where each operation can depend
-    /// on the result of the previous one, following the monadic bind pattern.
-    ///
-    /// # Parameters
-    ///
-    /// * `f` - Function that takes the result of this Reader and returns a new Reader
-    ///
-    /// # Returns
-    ///
-    /// A new Reader that represents the sequential computation
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// let reader: Reader<i32, i32> = Reader::new(|n: i32| n + 5);
-    /// let bound: Reader<i32, i32> = reader.bind(|n| Reader::new(move |env: i32| env * n));
-    /// assert_eq!(bound.run_reader(10), 150); // (10 + 5) * 10 = 150
-    /// ```
-    pub fn bind<B, F>(&self, f: F) -> Reader<E, B>
+    pub fn bind<B, F>(self, f: F) -> Reader<E, B>
     where
         F: Fn(A) -> Reader<E, B> + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
         Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
     {
-        let inner_clone = self.inner.clone();
+        let inner = self.inner;
 
         Reader {
             inner: ReaderT::new(move |e: E| {
-                let id_a = inner_clone.run_reader(e.clone());
+                let id_a = inner.clone().run_reader(e.clone());
                 let a = id_a.into_inner();
                 let reader_b = f(a);
                 reader_b.inner.run_reader(e)
             }),
         }
+    }
+
+    /// Alias for `bind`.
+    pub fn flat_map<B, F>(self, f: F) -> Reader<E, B>
+    where
+        F: Fn(A) -> Reader<E, B> + Clone + Send + Sync + 'static,
+        B: Clone + Send + Sync + 'static,
+        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
+    {
+        self.bind(f)
+    }
+
+    /// Alias for `bind`.
+    pub fn and_then<B, F>(self, f: F) -> Reader<E, B>
+    where
+        F: Fn(A) -> Reader<E, B> + Clone + Send + Sync + 'static,
+        B: Clone + Send + Sync + 'static,
+        Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
+    {
+        self.bind(f)
     }
 
     /// Creates a Reader that returns the environment itself. This is a fundamental operation
@@ -453,50 +444,19 @@ where
     /// let local: Reader<i32, i32> = reader.local(|n: i32| n + 1);
     /// assert_eq!(local.run_reader(5), 12); // (5 + 1) * 2 = 12
     /// ```
-    pub fn local<F>(&self, f: F) -> Self
+    pub fn local<F>(self, f: F) -> Self
     where
-        F: Fn(E) -> E + Clone + Send + Sync + 'static,
+        F: Fn(E) -> E + Send + Sync + 'static,
     {
-        let inner_clone = self.inner.clone();
+        let inner = self.inner;
 
         Reader {
-            inner: ReaderT::new(move |e: E| inner_clone.run_reader(f(e))),
+            inner: ReaderT::new(move |e: E| inner.clone().run_reader(f(e))),
         }
     }
 
     /// Combines two Readers using a binary function, implementing Applicative functor functionality.
-    /// This allows independent composition of Readers that share the same environment type but
-    /// may produce different result types.
-    ///
-    /// # Use Cases
-    ///
-    /// * When you need to combine results from multiple independent Readers
-    /// * For parallel data extraction from the same environment
-    /// * Building composite results from multiple environment queries
-    /// * Implementing applicative-style programming patterns
-    ///
-    /// # Parameters
-    ///
-    /// * `other` - Another Reader to combine with this one
-    /// * `f` - Function to combine the results of both Readers
-    ///
-    /// # Returns
-    ///
-    /// A new Reader with the combined result
-    ///
-    /// # Examples
-    ///
-    /// Basic combination:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::reader::Reader;
-    ///
-    /// let reader1: Reader<i32, i32> = Reader::new(|n: i32| n + 1);
-    /// let reader2: Reader<i32, i32> = Reader::new(|n: i32| n * 2);
-    /// let combined: Reader<i32, String> = reader1.combine(&reader2, |a: i32, b: i32| format!("{} and {}", a, b));
-    /// assert_eq!(combined.run_reader(10), "11 and 20");
-    /// ```
-    pub fn combine<B, C, F>(&self, other: &Reader<E, B>, f: F) -> Reader<E, C>
+    pub fn combine<B, C, F>(self, other: Reader<E, B>, f: F) -> Reader<E, C>
     where
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
         B: Clone + Send + Sync + 'static,
@@ -504,13 +464,13 @@ where
         Id<B>: HKT<Source = B, Output<B> = Id<B>> + Monad,
         Id<C>: HKT<Source = C, Output<C> = Id<C>> + Monad,
     {
-        let self_inner = self.inner.clone();
-        let other_inner = other.inner.clone();
+        let self_inner = self.inner;
+        let other_inner = other.inner;
 
         Reader {
             inner: ReaderT::new(move |e: E| {
-                let a = self_inner.run_reader(e.clone()).into_inner();
-                let b = other_inner.run_reader(e).into_inner();
+                let a = self_inner.clone().run_reader(e.clone()).into_inner();
+                let b = other_inner.clone().run_reader(e).into_inner();
                 Id::new(f(a, b))
             }),
         }
@@ -582,9 +542,11 @@ mod tests {
     #[test]
     fn test_reader_transformation_pipeline() {
         let base = Reader::new(|env: i32| env + 1);
-        let mapped = base.fmap(|x| x * 2);
-        let bound = mapped.bind(|x| Reader::new(move |env: i32| x * env));
-        let localized = bound.local(|env| env + 5);
+        let mapped = base.clone().fmap(|x| x * 2);
+        let bound = mapped
+            .clone()
+            .bind(|x| Reader::new(move |env: i32| x * env));
+        let localized = bound.clone().local(|env| env + 5);
 
         assert_eq!(mapped.run_reader(10), 22);
         assert_eq!(bound.run_reader(10), 220);
@@ -602,7 +564,7 @@ mod tests {
 
         let url_reader = Reader::asks(|config: Config| config.base_url.clone());
         let timeout_reader = Reader::asks(|config: Config| config.timeout_ms);
-        let connection = url_reader.combine(&timeout_reader, |url, timeout| {
+        let connection = url_reader.combine(timeout_reader, |url, timeout| {
             format!("{} (timeout: {}ms)", url, timeout)
         });
 
@@ -620,7 +582,7 @@ mod tests {
     fn test_reader_combination() {
         let r1 = Reader::new(|env: i32| env + 10);
         let r2 = Reader::new(|env: i32| format!("val:{}", env));
-        let combined = r1.combine(&r2, |a, b| format!("{a}_{b}"));
+        let combined = r1.combine(r2, |a, b| format!("{a}_{b}"));
         assert_eq!(combined.run_reader(5), "15_val:5");
     }
 }

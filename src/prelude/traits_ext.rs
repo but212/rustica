@@ -23,7 +23,7 @@
 //! use rustica::traits::monoid::MonoidExt;
 //! use rustica::traits::semigroup::Semigroup;
 //! let vals = vec![1, 2, 3];
-//! let total = vals.iter().cloned().map(Sum).fold(Sum(0), |a, b| a.combine_owned(b));
+//! let total = vals.iter().cloned().map(Sum).fold(Sum(0), |a, b| a.combine(b));
 //! assert_eq!(total.into_inner(), 6);
 //! ```
 

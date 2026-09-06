@@ -17,7 +17,7 @@
 //!
 //! // Transform the value while preserving the log
 //! let doubled = writer1.fmap(|x| x * 2);
-//! assert_eq!(doubled.unwrap(), 84);
+//! assert_eq!(doubled.clone().unwrap(), 84);
 //! assert_eq!(doubled.log(), "Starting computation");
 //!
 //! // Chain computations, combining logs
@@ -25,7 +25,7 @@
 //!     .bind(|x| Writer::new("Step 2".to_string(), x + 5))
 //!     .bind(|x| Writer::new("Step 3".to_string(), x * 2));
 //!
-//! assert_eq!(result.unwrap(), 30);
+//! assert_eq!(result.clone().unwrap(), 30);
 //! assert_eq!(result.log(), "Step 1Step 2Step 3");
 //!
 //! // Add to log without changing the value
@@ -163,16 +163,9 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// struct Log(Vec<String>);
     ///
     /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
+    ///     fn combine(mut self, other: Self) -> Self {
+    ///         self.0.extend(other.0);
+    ///         self
     ///     }
     /// }
     ///
@@ -210,16 +203,9 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// struct Log(Vec<String>);
     ///
     /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
+    ///     fn combine(mut self, other: Self) -> Self {
+    ///         self.0.extend(other.0);
+    ///         self
     ///     }
     /// }
     ///
@@ -258,16 +244,9 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// struct Log(Vec<String>);
     ///
     /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
+    ///     fn combine(mut self, other: Self) -> Self {
+    ///         self.0.extend(other.0);
+    ///         self
     ///     }
     /// }
     ///
@@ -303,16 +282,9 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// struct Log(Vec<String>);
     ///
     /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
+    ///     fn combine(mut self, other: Self) -> Self {
+    ///         self.0.extend(other.0);
+    ///         self
     ///     }
     /// }
     ///
@@ -329,11 +301,14 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// assert_eq!(value, 42);
     /// ```
     #[inline]
-    pub fn unwrap(&self) -> A
-    where
-        A: Clone,
-    {
-        self.value.clone()
+    pub fn unwrap(self) -> A {
+        self.value
+    }
+
+    /// Extracts just the log from the Writer, discarding the value.
+    #[inline]
+    pub fn exec(self) -> W {
+        self.log
     }
 
     /// Creates a new Writer with the given value and an empty log.
@@ -360,16 +335,9 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     /// struct Log(Vec<String>);
     ///
     /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
+    ///     fn combine(mut self, other: Self) -> Self {
+    ///         self.0.extend(other.0);
+    ///         self
     ///     }
     /// }
     ///
@@ -396,17 +364,9 @@ impl<W, A> HKT for Writer<W, A> {
     type Output<T> = Writer<W, T>;
 }
 
-impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
+impl<W: Monoid, A> Pure for Writer<W, A> {
     #[inline]
-    fn pure<T: Clone>(value: &T) -> Self::Output<T> {
-        Writer {
-            log: W::empty(),
-            value: value.clone(),
-        }
-    }
-
-    #[inline]
-    fn pure_owned<T>(value: T) -> Self::Output<T> {
+    fn pure<T>(value: T) -> Self::Output<T> {
         Writer {
             log: W::empty(),
             value,
@@ -414,25 +374,17 @@ impl<W: Monoid + Clone, A: Clone> Pure for Writer<W, A> {
     }
 }
 
-impl<W: Monoid + Clone, A: Clone + Monoid> Semigroup for Writer<W, A> {
+impl<W: Monoid, A: Semigroup> Semigroup for Writer<W, A> {
     #[inline]
-    fn combine_owned(self, other: Self) -> Self {
+    fn combine(self, other: Self) -> Self {
         Writer {
-            log: self.log.combine_owned(other.log),
-            value: self.value.combine_owned(other.value),
-        }
-    }
-
-    #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        Writer {
-            log: self.log.combine(&other.log),
-            value: self.value.combine(&other.value),
+            log: self.log.combine(other.log),
+            value: self.value.combine(other.value),
         }
     }
 }
 
-impl<W: Monoid + Clone, A: Clone + Monoid> Monoid for Writer<W, A> {
+impl<W: Monoid, A: Monoid> Monoid for Writer<W, A> {
     #[inline]
     fn empty() -> Self {
         Writer {
@@ -442,22 +394,11 @@ impl<W: Monoid + Clone, A: Clone + Monoid> Monoid for Writer<W, A> {
     }
 }
 
-impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
+impl<W, A> Functor for Writer<W, A> {
     #[inline]
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, mut f: F) -> Self::Output<B>
     where
-        F: FnOnce(&Self::Source) -> B,
-    {
-        Writer {
-            log: self.log.clone(),
-            value: f(&self.value),
-        }
-    }
-
-    #[inline]
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: FnOnce(Self::Source) -> B,
+        F: FnMut(Self::Source) -> B,
     {
         Writer {
             log: self.log,
@@ -466,406 +407,34 @@ impl<W: Monoid + Clone, A: Clone> Functor for Writer<W, A> {
     }
 }
 
-impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
-    /// Applies a function stored in a Writer to a value stored in another Writer.
-    ///
-    /// This method is the core of the Applicative interface. It combines the logs of both Writers
-    /// and applies the function from one Writer to the value in another.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create a Writer with a function and a log
-    /// let add_five_fn = Writer::new(
-    ///     Log(vec!["Function: add 5".to_string()]),
-    ///     |x: &i32| x + 5
-    /// );
-    ///
-    /// // Create a Writer with a value and a log
-    /// let value_writer = Writer::new(
-    ///     Log(vec!["Value: 10".to_string()]),
-    ///     10
-    /// );
-    ///
-    /// // Apply the function to the value, combining logs
-    /// let result = Applicative::apply(&add_five_fn, &value_writer);
-    ///
-    /// // Extract the result
-    /// let (log, value) = result.run();
-    ///
-    /// // Check the value: 10 + 5 = 15
-    /// assert_eq!(value, 15);
-    ///
-    /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Function: add 5");
-    /// assert_eq!(log.0[1], "Value: 10");
-    /// ```
+impl<W: Monoid, A> Applicative for Writer<W, A> {
     #[inline]
-    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
-    where
-        Self::Source: Fn(&T) -> B,
-    {
-        Writer {
-            log: self.log.combine(&value.log),
-            value: (self.value)(&value.value),
-        }
-    }
-
-    /// Applies a function to values from two Writer instances, combining their logs.
-    ///
-    /// This method allows you to combine two independent Writer computations using a binary function.
-    /// It's useful for operations that need values from multiple Writers while preserving their logs.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create two Writers with different values
-    /// let a = Writer::new(Log(vec!["Value a: 10".to_string()]), 10);
-    /// let b = Writer::new(Log(vec!["Value b: 5".to_string()]), 5);
-    ///
-    /// // Combine them with a function that adds the values
-    /// let result = Writer::<Log, i32>::lift2(|x, y| x + y, &a, &b);
-    ///
-    /// // Extract the result
-    /// let (log, value) = result.run();
-    ///
-    /// // Check the value: 10 + 5 = 15
-    /// assert_eq!(value, 15);
-    ///
-    /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Value a: 10");
-    /// assert_eq!(log.0[1], "Value b: 5");
-    /// ```
-    #[inline]
-    fn lift2<T, U, C, F>(f: F, fa: &Self::Output<T>, fb: &Self::Output<U>) -> Self::Output<C>
-    where
-        F: Fn(&T, &U) -> C,
-        T: Clone,
-        U: Clone,
-        C: Clone,
-        Self: Sized,
-    {
-        Writer {
-            log: fa.log.combine(&fb.log),
-            value: f(&fa.value, &fb.value),
-        }
-    }
-
-    /// Applies a function to values from three Writer instances, combining all their logs.
-    ///
-    /// This method allows you to combine three independent Writer computations using a ternary function.
-    /// It's particularly useful for operations that need to gather values from multiple sources while
-    /// preserving the logs from each computation.
-    ///
-    /// # Examples
-    ///
-    /// ## Basic Three-way Combination
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// let a = Writer::new(Log(vec!["Log A".to_string()]), 2);
-    /// let b = Writer::new(Log(vec!["Log B".to_string()]), 3);
-    /// let c = Writer::new(Log(vec!["Log C".to_string()]), 4);
-    ///
-    /// let result = Writer::<Log, i32>::lift3(|x, y, z| x * y * z, &a, &b, &c);
-    /// let (log, value) = result.run();
-    /// assert_eq!(value, 24);
-    /// assert_eq!(log.0, vec!["Log A", "Log B", "Log C"]);
-    /// ```
-    #[inline]
-    fn lift3<T, U, V, Q, F>(
-        f: F, fa: &Self::Output<T>, fb: &Self::Output<U>, fc: &Self::Output<V>,
-    ) -> Self::Output<Q>
-    where
-        F: Fn(&T, &U, &V) -> Q,
-        T: Clone,
-        U: Clone,
-        V: Clone,
-        Q: Clone,
-        Self: Sized,
-    {
-        Writer {
-            log: fa.log.combine(&fb.log).combine(&fc.log),
-            value: f(&fa.value, &fb.value, &fc.value),
-        }
-    }
-
-    /// This method is similar to `apply` but it consumes the Writer instances, potentially allowing
-    /// for more efficient memory usage in some cases.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create a Writer with a function
-    /// let add_five_fn = Writer::new(
-    ///     Log(vec!["Function: add 5".to_string()]),
-    ///     |x| x + 5
-    /// );
-    ///
-    /// // Create a Writer with a value
-    /// let value_writer = Writer::new(
-    ///     Log(vec!["Value: 10".to_string()]),
-    ///     10
-    /// );
-    ///
-    /// // Apply the function to the value, consuming both Writers
-    /// let result = Applicative::apply_owned(add_five_fn, value_writer);
-    ///
-    /// // Extract the result
-    /// let (log, value) = result.run();
-    ///
-    /// // Check the value: 10 + 5 = 15
-    /// assert_eq!(value, 15);
-    ///
-    /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Function: add 5");
-    /// assert_eq!(log.0[1], "Value: 10");
-    /// ```
-    #[inline]
-    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
+    fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
         Self::Source: Fn(T) -> B,
         T: Clone,
-        B: Clone,
     {
         Writer {
-            log: self.log.combine_owned(value.log),
+            log: self.log.combine(value.log),
             value: (self.value)(value.value),
         }
     }
 
-    /// Owned version of `lift2` which consumes the Writer instances.
-    ///
-    /// Applies a binary function to values from two Writer instances while combining their logs.
-    /// This method consumes both Writer instances, potentially allowing for more efficient memory usage
-    /// in some cases compared to the borrowing version.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create two Writers with different values
-    /// let a = Writer::new(Log(vec!["Value a: 10".to_string()]), 10);
-    /// let b = Writer::new(Log(vec!["Value b: 5".to_string()]), 5);
-    ///
-    /// // Combine them with a function that adds the values, consuming both Writers
-    /// let result = Writer::<Log, i32>::lift2_owned(|x, y| x + y, a, b);
-    ///
-    /// // Extract the result
-    /// let (log, value) = result.run();
-    ///
-    /// // Check the value: 10 + 5 = 15
-    /// assert_eq!(value, 15);
-    ///
-    /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Value a: 10");
-    /// assert_eq!(log.0[1], "Value b: 5");
-    /// ```
     #[inline]
-    fn lift2_owned<T, U, C, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<C>
+    fn lift2<T, U, C, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<C>
     where
         F: Fn(T, U) -> C,
         T: Clone,
         U: Clone,
-        C: Clone,
-        Self: Sized,
     {
         Writer {
-            log: fa.log.combine_owned(fb.log),
+            log: fa.log.combine(fb.log),
             value: f(fa.value, fb.value),
         }
     }
 
-    /// Owned version of `lift3` which consumes all three Writer instances.
-    ///
-    /// Applies a ternary function to values from three Writer instances while combining their logs.
-    /// This method consumes all Writer instances, potentially allowing for more efficient memory usage
-    /// compared to the borrowing version.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::applicative::Applicative;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create three Writers with different values
-    /// let a = Writer::new(Log(vec!["Value a: 10".to_string()]), 10);
-    /// let b = Writer::new(Log(vec!["Value b: 5".to_string()]), 5);
-    /// let c = Writer::new(Log(vec!["Value c: 2".to_string()]), 2);
-    ///
-    /// // Combine them with a function, consuming all Writers
-    /// let result = Writer::<Log, i32>::lift3_owned(|x, y, z| x + y * z, a, b, c);
-    ///
-    /// // Extract the result
-    /// let (log, value) = result.run();
-    ///
-    /// // Check the value: 10 + (5 * 2) = 20
-    /// assert_eq!(value, 20);
-    ///
-    /// // Check that logs were combined
-    /// assert_eq!(log.0[0], "Value a: 10");
-    /// assert_eq!(log.0[1], "Value b: 5");
-    /// assert_eq!(log.0[2], "Value c: 2");
-    /// ```
     #[inline]
-    fn lift3_owned<T, U, V, Q, F>(
+    fn lift3<T, U, V, Q, F>(
         f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
     ) -> Self::Output<Q>
     where
@@ -873,258 +442,35 @@ impl<W: Monoid + Clone, A: Clone> Applicative for Writer<W, A> {
         T: Clone,
         U: Clone,
         V: Clone,
-        Q: Clone,
-        Self: Sized,
     {
-        let log = fa.log.combine_owned(fb.log).combine_owned(fc.log);
-        let value = f(fa.value, fb.value, fc.value);
-        Writer { log, value }
+        Writer {
+            log: fa.log.combine(fb.log).combine(fc.log),
+            value: f(fa.value, fb.value, fc.value),
+        }
     }
 }
 
-impl<W: Monoid + Clone, A: Clone> Monad for Writer<W, A> {
-    /// Sequences Writer computations, combining their logs.
-    ///
-    /// This method takes a Writer and a function that generates a new Writer based on the value of the first Writer.
-    /// It runs both computations and combines their logs according to the Semigroup instance of the log type.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Define a function to double a value and log the operation
-    /// let double = |x: &i32| -> Writer<Log, i32> {
-    ///     Writer::new(Log(vec![format!("Doubled {} to {}", x, x * 2)]), x * 2)
-    /// };
-    ///
-    /// // Create an initial Writer
-    /// let initial = Writer::new(Log(vec!["Starting with 3".to_string()]), 3);
-    ///
-    /// // Chain operations using bind
-    /// let result = initial.bind(&double);
-    ///
-    /// // Extract final value and log
-    /// let (log, value) = result.run();
-    ///
-    /// // Value should be 3 * 2 = 6
-    /// assert_eq!(value, 6);
-    ///
-    /// // Log should contain both entries in order
-    /// assert_eq!(log.0[0], "Starting with 3");
-    /// assert_eq!(log.0[1], "Doubled 3 to 6");
-    /// ```
+impl<W: Monoid, A> Monad for Writer<W, A> {
     #[inline]
-    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    fn bind<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: FnOnce(&Self::Source) -> Self::Output<U>,
-    {
-        let Writer { log, value } = f(&self.value);
-        Writer {
-            log: self.log.combine(&log),
-            value,
-        }
-    }
-
-    /// Owned version of `bind`, which consumes the Writer.
-    ///
-    /// This method is similar to `bind` but it consumes the Writer instance, potentially allowing
-    /// for more efficient memory usage in some cases.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// let initial = Writer::new(Log(vec!["Initial".to_string()]), 10);
-    ///
-    /// let result = initial.bind_owned(|x| {
-    ///     Writer::new(Log(vec!["Processed".to_string()]), x * 2)
-    /// });
-    ///
-    /// let (log, value) = result.run();
-    /// assert_eq!(value, 20);
-    /// assert_eq!(log.0, vec!["Initial".to_string(), "Processed".to_string()]);
-    /// ```
-    #[inline]
-    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: Fn(Self::Source) -> Self::Output<U>,
-        F: FnOnce(Self::Source) -> Self::Output<U>,
+        F: FnMut(Self::Source) -> Self::Output<U>,
     {
         let result = f(self.value);
         Writer {
-            log: self.log.combine_owned(result.log),
+            log: self.log.combine(result.log),
             value: result.value,
         }
     }
 
-    /// Flattens a nested Writer structure by combining the logs.
-    ///
-    /// This method is used when you have a Writer containing another Writer and want to flatten
-    /// the structure into a single Writer, combining the logs from both layers.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create a nested Writer structure
-    /// let inner = Writer::new(Log(vec!["Inner log".to_string()]), 42);
-    /// let outer = Writer::new(Log(vec!["Outer log".to_string()]), inner);
-    ///
-    /// // Flatten the nested structure
-    /// let flattened = outer.join();
-    ///
-    /// // Check the result
-    /// let (log, value) = flattened.run();
-    /// assert_eq!(value, 42);
-    /// assert_eq!(log.0, vec!["Outer log".to_string(), "Inner log".to_string()]);
-    /// ```
-    fn join<U>(&self) -> Self::Output<U>
-    where
-        Self::Source: Clone + Into<Self::Output<U>>,
-        U: Clone,
-    {
-        let inner: Self::Output<U> = self.value.clone().into();
-        Writer {
-            log: self.log.combine(&inner.log),
-            value: inner.value,
-        }
-    }
-
-    /// Owned version of `join`, which consumes the Writer.
-    ///
-    /// This method is similar to `join` but it consumes the Writer instance, potentially allowing
-    /// for more efficient memory usage in some cases.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::writer::Writer;
-    /// use rustica::traits::monoid::Monoid;
-    /// use rustica::traits::semigroup::Semigroup;
-    /// use rustica::traits::monad::Monad;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Log(Vec<String>);
-    ///
-    /// impl Semigroup for Log {
-    ///     fn combine(&self, other: &Self) -> Self {
-    ///         let mut combined = self.0.clone();
-    ///         combined.extend(other.0.clone());
-    ///         Log(combined)
-    ///     }
-    ///     fn combine_owned(self, other: Self) -> Self {
-    ///         let mut combined = self.0;
-    ///         combined.extend(other.0);
-    ///         Log(combined)
-    ///     }
-    /// }
-    ///
-    /// impl Monoid for Log {
-    ///     fn empty() -> Self {
-    ///         Log(Vec::new())
-    ///     }
-    /// }
-    ///
-    /// // Create a nested Writer structure
-    /// let inner = Writer::new(Log(vec!["Inner log".to_string()]), 42);
-    /// let outer = Writer::new(Log(vec!["Outer log".to_string()]), inner);
-    ///
-    /// // Flatten the nested structure using the owned version
-    /// let flattened = outer.join_owned();
-    ///
-    /// // Check the result
-    /// let (log, value) = flattened.run();
-    /// assert_eq!(value, 42);
-    /// assert_eq!(log.0, vec!["Outer log".to_string(), "Inner log".to_string()]);
-    /// ```
     #[inline]
-    fn join_owned<U>(self) -> Self::Output<U>
+    fn join<U>(self) -> Self::Output<U>
     where
         Self::Source: Into<Self::Output<U>>,
-        U: Clone,
-        Self: Sized,
     {
         let inner: Self::Output<U> = self.value.into();
         Writer {
-            log: self.log.combine_owned(inner.log),
+            log: self.log.combine(inner.log),
             value: inner.value,
         }
     }
@@ -1180,16 +526,9 @@ mod tests {
     struct Log(Vec<String>);
 
     impl Semigroup for Log {
-        fn combine(&self, other: &Self) -> Self {
-            let mut combined = self.0.clone();
-            combined.extend(other.0.clone());
-            Log(combined)
-        }
-
-        fn combine_owned(self, other: Self) -> Self {
-            let mut combined = self.0;
-            combined.extend(other.0);
-            Log(combined)
+        fn combine(mut self, other: Self) -> Self {
+            self.0.extend(other.0);
+            self
         }
     }
 
@@ -1210,10 +549,10 @@ mod tests {
 
     #[test]
     fn test_writer_accumulation_modes() {
-        let w_fn = Writer::new(Log(vec!["f".into()]), |x: &i32| x * 2);
+        let w_fn = Writer::new(Log(vec!["f".into()]), |x: i32| x * 2);
         let w_val = Writer::new(Log(vec!["v".into()]), 21);
         assert_eq!(
-            w_fn.apply(&w_val).run(),
+            w_fn.apply(w_val).run(),
             (Log(vec!["f".into(), "v".into()]), 42)
         );
 
@@ -1227,15 +566,15 @@ mod tests {
 
     #[test]
     fn test_writer_requirements_example_flow() {
-        let double = |x: &i32| -> Writer<Log, i32> {
+        let double = |x: i32| -> Writer<Log, i32> {
             Writer::new(Log(vec![format!("Doubled {x} to {}", x * 2)]), x * 2)
         };
-        let add_ten = |x: &i32| -> Writer<Log, i32> {
+        let add_ten = |x: i32| -> Writer<Log, i32> {
             Writer::new(Log(vec![format!("Added 10 to {x} to {}", x + 10)]), x + 10)
         };
 
         let computation = Writer::new(Log(vec!["Starting with 5".to_string()]), 5);
-        let (log, value) = computation.bind(&double).bind(&add_ten).run();
+        let (log, value) = computation.bind(double).bind(add_ten).run();
 
         assert_eq!(value, 20);
         assert_eq!(log.0.len(), 3);
@@ -1252,7 +591,7 @@ mod tests {
     #[test]
     fn test_writer_composition_scenarios() {
         let pipeline = Writer::<Log, _>::pure_value(5)
-            .bind(|n| Writer::new(Log(vec!["start".into()]), *n))
+            .bind(|n| Writer::new(Log(vec!["start".into()]), n))
             .bind(|n| Writer::new(Log(vec!["double".into()]), n * 2))
             .bind(|n| Writer::new(Log(vec!["plus10".into()]), n + 10))
             .fmap(|n| n * 2);
@@ -1263,7 +602,7 @@ mod tests {
         let w1 = Writer::new(Log(vec!["l1".into()]), Sum(15));
         let w2 = Writer::new(Log(vec!["l2".into()]), Sum(27));
         assert_eq!(
-            w1.combine(&w2).run(),
+            w1.combine(w2).run(),
             (Log(vec!["l1".into(), "l2".into()]), Sum(42))
         );
     }
@@ -1279,15 +618,9 @@ mod serde_tests {
     struct Log(Vec<String>);
 
     impl Semigroup for Log {
-        fn combine(&self, other: &Self) -> Self {
-            let mut combined = self.0.clone();
-            combined.extend(other.0.clone());
-            Log(combined)
-        }
-        fn combine_owned(self, other: Self) -> Self {
-            let mut combined = self.0;
-            combined.extend(other.0);
-            Log(combined)
+        fn combine(mut self, other: Self) -> Self {
+            self.0.extend(other.0);
+            self
         }
     }
     impl Monoid for Log {

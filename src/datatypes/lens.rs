@@ -727,8 +727,8 @@ where
         let iso = Arc::new(iso);
         let getter_iso = Arc::clone(&iso);
         Lens::new(
-            move |source: &S| getter_iso.forward(source),
-            move |_source: S, focus: A| iso.backward(&focus),
+            move |source: &S| getter_iso.forward(source.clone()),
+            move |_source: S, focus: A| iso.backward(focus),
         )
     }
 }
@@ -855,12 +855,12 @@ mod unit_tests {
         type From = i32;
         type To = i32;
 
-        fn forward(&self, from: &Self::From) -> Self::To {
-            *from
+        fn forward(&self, from: Self::From) -> Self::To {
+            from
         }
 
-        fn backward(&self, to: &Self::To) -> Self::From {
-            *to
+        fn backward(&self, to: Self::To) -> Self::From {
+            to
         }
     }
 

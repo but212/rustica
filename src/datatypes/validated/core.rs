@@ -210,26 +210,6 @@ impl<E> ErrorAccumulator<E> {
     }
 }
 
-impl<E: Clone> ErrorAccumulator<E> {
-    /// Extends the accumulator by cloning errors from a borrowed collection.
-    ///
-    /// This method is used when working with `&Validated` references where
-    /// the original error collection cannot be consumed. It pre-reserves
-    /// capacity to minimize reallocations.
-    ///
-    /// # Arguments
-    ///
-    /// * `errors` - The error collection to clone from
-    #[inline]
-    pub(crate) fn extend_cloned(&mut self, errors: &[E]) {
-        if errors.is_empty() {
-            return;
-        }
-        self.buffer.reserve(errors.len());
-        self.buffer.extend(errors.iter().cloned());
-    }
-}
-
 /// A validation type that can accumulate multiple errors.
 ///
 /// Validated<E, A> represents either a valid value of type A or a collection of

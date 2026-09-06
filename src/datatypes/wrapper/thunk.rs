@@ -1,9 +1,7 @@
-//! # Thunk
-//!
 //! A lightweight thunk that can be evaluated.
 //!
 //! This module provides the `Thunk` type, which is a statically-typed
-//! function wrapper that implements the `Evaluate` trait.
+//! function wrapper for delayed computation.
 //!
 //! ## Functional Programming Context
 //!
@@ -13,29 +11,6 @@
 //! - **Lazy evaluation**: Computations are only performed when their results are needed
 //! - **Separation of definition and execution**: Define what to compute separately from when to compute it
 //! - **Memoization potential**: Results can be cached after first evaluation (not implemented in this type)
-//!
-//! ## Type Class Laws
-//!
-//! ### Evaluate Laws
-//!
-//! Thunk satisfies the following laws:
-//!
-//! - **Idempotence**: For pure functions, multiple evaluations produce the same result
-//!   - `thunk.evaluate() == thunk.evaluate()` for any pure function thunk
-//!
-//! - **Referential Transparency**: A thunk can be replaced with its evaluated result without changing behavior
-//!   - For any pure function thunk and any function `f`, `f(thunk.evaluate())` is equivalent to `f(value)`
-//!     where `value` is the result of evaluating the thunk
-//!
-//! - **Composition**: Thunks compose with other higher-order operations in a predictable manner
-//!   - For any thunk `t` and functions `f` and `g`, applying `f` then `g` to the evaluated result is
-//!     equivalent to applying the composition of `f` and `g` to the evaluated result
-//!
-//! ## Type Class Implementations
-//!
-//! - **Evaluate**: Core functionality for executing the wrapped function
-//! - **HKT**: Higher-kinded type support for working with generic type transformations
-//! - **Clone**: Allows duplicating the thunk with its wrapped function
 //!
 //! ## Quick Start
 //!
@@ -47,50 +22,32 @@
 //!
 //! // The computation isn't performed until evaluation
 //! assert_eq!(thunk.evaluate(), 5);
-//! assert_eq!(thunk.evaluate_owned(), 5);
 //!
-//! // Thunks can capture variables
-//! let base = 10;
-//! let complex_thunk = Thunk::new(move || base * base + 1);
-//! assert_eq!(complex_thunk.evaluate(), 101);
-//!
-//! // Useful for expensive computations that might not be needed
-//! let expensive_computation = Thunk::new(|| {
-//!     (1..=1000).sum::<i32>()
-//! });
-//! assert_eq!(expensive_computation.evaluate(), 500500);
+//! // Thunks can capture and consume move-only variables
+//! let string = String::from("hello");
+//! let move_thunk = Thunk::new(move || string + " world");
+//! assert_eq!(move_thunk.evaluate(), "hello world");
 //! ```
 use crate::traits::hkt::HKT;
 use std::marker::PhantomData;
 
 /// A thunk that lazily produces a value when evaluated.
 ///
-/// This type provides a more lightweight alternative to `BoxedFn` when:
-/// - No dynamic dispatch is needed
-/// - The function's exact type is known at compile time
-/// - Performance is a primary concern
+/// This type provides a lightweight wrapper around an `FnOnce() -> T` computation.
 ///
 /// # Type Parameters
 ///
 /// * `F` - The function type that produces the value
 /// * `T` - The type of value produced by the function
-///
-/// # Evaluate Laws
-///
-/// For pure functions, repeated evaluation is idempotent and referentially transparent;
-/// these properties are verified by unit tests.
 #[derive(Clone)]
-pub struct Thunk<F, T>
-where
-    F: Fn() -> T,
-{
+pub struct Thunk<F, T> {
     function: F,
     _phantom: PhantomData<T>,
 }
 
 impl<F, T> Thunk<F, T>
 where
-    F: Fn() -> T,
+    F: FnOnce() -> T,
 {
     /// Creates a new thunk from a function.
     ///
@@ -109,24 +66,8 @@ where
     ///
     /// // Create a simple thunk
     /// let thunk = Thunk::new(|| "Hello, world!".to_string());
-    ///
-    /// // Create a thunk with captured variables
-    /// let base = 10;
-    /// let calculation = Thunk::new(move || base * 5);
-    /// assert_eq!(calculation.evaluate(), 50);
-    ///
-    /// // Create a thunk with potentially expensive computation
-    /// let complex = Thunk::new(|| {
-    ///     // This won't execute until evaluate() is called
-    ///     (0..5).fold(1, |acc, x| acc * (x + 1))
-    /// });
-    /// assert_eq!(complex.evaluate(), 120); // 5!
+    /// assert_eq!(thunk.evaluate(), "Hello, world!");
     /// ```
-    ///
-    /// # Performance
-    ///
-    /// - Time Complexity: O(1) - Just stores the function
-    /// - Space Complexity: O(1) plus the size of the function closure
     #[inline]
     pub fn new(f: F) -> Self {
         Thunk {
@@ -135,25 +76,19 @@ where
         }
     }
 
-    /// Evaluates the thunk by executing the wrapped function.
+    /// Evaluates the thunk, consuming it and returning the result.
     #[inline]
-    pub fn evaluate(&self) -> T {
-        (self.function)()
-    }
-
-    /// Evaluates the thunk, consuming it.
-    #[inline]
-    pub fn evaluate_owned(self) -> T {
+    pub fn evaluate(self) -> T {
         (self.function)()
     }
 }
 
 impl<F, T> HKT for Thunk<F, T>
 where
-    F: Fn() -> T,
+    F: FnOnce() -> T,
 {
     type Source = T;
-    type Output<U> = Thunk<Box<dyn Fn() -> U>, U>;
+    type Output<U> = Thunk<Box<dyn FnOnce() -> U>, U>;
 }
 
 #[cfg(test)]
@@ -161,10 +96,19 @@ mod tests {
     use super::Thunk;
 
     #[test]
-    fn pure_thunks_are_idempotent_and_referentially_transparent() {
+    fn pure_thunks_evaluate_correctly() {
         let thunk = Thunk::new(|| 42);
-        assert_eq!(thunk.evaluate(), thunk.evaluate());
-        let value = thunk.evaluate();
-        assert_eq!(thunk.evaluate() + 1, value + 1);
+        assert_eq!(thunk.evaluate(), 42);
+    }
+
+    #[test]
+    fn thunk_supports_move_only_closure() {
+        let s = String::from("Rustica");
+        let thunk = Thunk::new(move || {
+            let mut s = s;
+            s.push_str(" FP");
+            s
+        });
+        assert_eq!(thunk.evaluate(), "Rustica FP");
     }
 }

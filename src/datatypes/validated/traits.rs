@@ -35,27 +35,12 @@ impl<E, A> HKT for Validated<E, A> {
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::pure::Pure;
 ///
-/// let valid: Validated<&str, i32> = <Validated<&str, i32> as Pure>::pure(&10);
+/// let valid: Validated<&str, i32> = <Validated<&str, i32> as Pure>::pure(10);
 /// assert_eq!(valid, Validated::valid(10));
 /// ```
-///
-/// ## `pure_owned`
-///
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::pure::Pure;
-///
-/// let valid: Validated<String, i32> = <Validated<String, i32> as Pure>::pure_owned(10);
-/// assert_eq!(valid, Validated::valid(10));
-/// ```
-impl<E: Clone, A: Clone> Pure for Validated<E, A> {
+impl<E, A> Pure for Validated<E, A> {
     #[inline]
-    fn pure<T: Clone>(x: &T) -> Self::Output<T> {
-        Validated::Valid(x.clone())
-    }
-
-    #[inline]
-    fn pure_owned<T: Clone>(x: T) -> Self::Output<T> {
+    fn pure<T>(x: T) -> Self::Output<T> {
         Validated::Valid(x)
     }
 }
@@ -70,7 +55,7 @@ impl<E: Clone, A: Clone> Pure for Validated<E, A> {
 /// use rustica::traits::functor::Functor;
 ///
 /// let valid: Validated<&str, i32> = Validated::valid(10);
-/// let mapped = valid.fmap(|x: &i32| x * 2);
+/// let mapped = valid.fmap(|x: i32| x * 2);
 /// assert_eq!(mapped, Validated::valid(20));
 /// ```
 ///
@@ -80,52 +65,16 @@ impl<E: Clone, A: Clone> Pure for Validated<E, A> {
 /// use rustica::traits::functor::Functor;
 ///
 /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-/// let mapped = invalid.fmap(|x: &i32| x * 2);
+/// let mapped = invalid.fmap(|x: i32| x * 2);
 /// assert_eq!(mapped, Validated::invalid("error"));
 /// ```
 ///
-/// ## `fmap_owned`
-///
-/// Mapping over a `Valid` value with ownership:
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::functor::Functor;
-///
-/// let valid: Validated<String, i32> = Validated::valid(10);
-/// let mapped = valid.fmap_owned(|x: i32| x * 2);
-/// assert_eq!(mapped, Validated::valid(20));
-/// ```
-///
-/// Mapping over an `Invalid` value with ownership:
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::functor::Functor;
-///
-/// let invalid: Validated<String, i32> = Validated::invalid("error".to_string());
-/// let mapped = invalid.fmap_owned(|x: i32| x * 2);
-/// assert_eq!(mapped, Validated::invalid("error".to_string()));
-/// ```
-///
-///
 /// The functor identity and composition laws are verified by unit tests.
-impl<E: Clone, A: Clone> Functor for Validated<E, A> {
+impl<E, A> Functor for Validated<E, A> {
     #[inline]
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, mut f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
-        B: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::Invalid(e) => Validated::Invalid(e.clone()),
-        }
-    }
-
-    #[inline]
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        Self: Sized,
-        F: FnOnce(Self::Source) -> B,
+        F: FnMut(Self::Source) -> B,
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
@@ -163,7 +112,7 @@ impl<E, A> BinaryHKT for Validated<E, A> {
 ///
 /// let valid: Validated<&str, i32> = Validated::valid(10);
 /// // `f` is applied to the `Valid` value.
-/// let result = valid.bimap(|v: &i32| v * 2, |e: &&str| format!("Error: {}", e));
+/// let result = valid.bimap(|v: i32| v * 2, |e: &str| format!("Error: {}", e));
 /// assert_eq!(result, Validated::valid(20));
 /// ```
 ///
@@ -174,46 +123,43 @@ impl<E, A> BinaryHKT for Validated<E, A> {
 ///
 /// let invalid: Validated<&str, i32> = Validated::invalid_many(vec!["e1", "e2"]);
 /// // `g` is applied to each error element inside `Invalid(errors)`.
-/// let result = invalid.bimap(|v: &i32| v * 2, |e: &&str| format!("New-{}", e));
+/// let result = invalid.bimap(|v: i32| v * 2, |e: &str| format!("New-{}", e));
 /// assert_eq!(result, Validated::invalid_many(vec!["New-e1".to_string(), "New-e2".to_string()]));
-impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
-    fn bimap<C, D, F, G>(&self, f: F, g: G) -> Self::BinaryOutput<C, D>
+/// ```
+impl<E, A> Bifunctor for Validated<E, A> {
+    fn bimap<C, D, F, G>(self, mut f: F, g: G) -> Self::BinaryOutput<C, D>
     where
-        F: Fn(&Self::Source) -> C,
-        G: Fn(&Self::Source2) -> D,
-        C: Clone,
-        D: Clone,
+        F: FnMut(Self::Source) -> C,
+        G: FnMut(Self::Source2) -> D,
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
             Validated::Invalid(es) => {
-                let mut transformed = es.iter().map(g);
+                let mut transformed = es.into_iter().map(g);
                 let first = transformed.next().expect("invalid values have errors");
                 Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
             },
         }
     }
 
-    fn first<C, F>(&self, f: F) -> Self::BinaryOutput<C, Self::Source2>
+    fn first<C, F>(self, mut f: F) -> Self::BinaryOutput<C, Self::Source2>
     where
-        F: Fn(&Self::Source) -> C,
-        C: Clone,
+        F: FnMut(Self::Source) -> C,
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::Invalid(e) => Validated::Invalid(e.clone()),
+            Validated::Invalid(e) => Validated::Invalid(e),
         }
     }
 
-    fn second<D, G>(&self, g: G) -> Self::BinaryOutput<Self::Source, D>
+    fn second<D, G>(self, g: G) -> Self::BinaryOutput<Self::Source, D>
     where
-        G: Fn(&Self::Source2) -> D,
-        D: Clone,
+        G: FnMut(Self::Source2) -> D,
     {
         match self {
-            Validated::Valid(x) => Validated::Valid(x.clone()),
+            Validated::Valid(x) => Validated::Valid(x),
             Validated::Invalid(es) => {
-                let mut transformed = es.iter().map(g);
+                let mut transformed = es.into_iter().map(g);
                 let first = transformed.next().expect("invalid values have errors");
                 Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
             },
@@ -237,9 +183,9 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// use rustica::traits::applicative::Applicative;
 /// use rustica::traits::pure::Pure;
 ///
-/// let valid_fn: Validated<&str, fn(&i32) -> i32> = Validated::valid(|x: &i32| x * 2);
+/// let valid_fn: Validated<&str, fn(i32) -> i32> = Validated::valid(|x: i32| x * 2);
 /// let valid_val: Validated<&str, i32> = Validated::valid(10);
-/// assert_eq!(Applicative::apply(&valid_fn, &valid_val), Validated::valid(20));
+/// assert_eq!(Applicative::apply(valid_fn, valid_val), Validated::valid(20));
 /// ```
 ///
 /// ### Invalid function, Valid value
@@ -248,9 +194,9 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// use rustica::traits::applicative::Applicative;
 /// use rustica::traits::pure::Pure;
 ///
-/// let invalid_fn: Validated<&str, fn(&i32) -> i32> = Validated::invalid("fn_error");
+/// let invalid_fn: Validated<&str, fn(i32) -> i32> = Validated::invalid("fn_error");
 /// let valid_val: Validated<&str, i32> = Validated::valid(10);
-/// assert_eq!(Applicative::apply(&invalid_fn, &valid_val), Validated::invalid("fn_error"));
+/// assert_eq!(Applicative::apply(invalid_fn, valid_val), Validated::invalid("fn_error"));
 /// ```
 ///
 /// ### Valid function, Invalid value
@@ -259,9 +205,9 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// use rustica::traits::applicative::Applicative;
 /// use rustica::traits::pure::Pure;
 ///
-/// let valid_fn: Validated<&str, fn(&i32) -> i32> = Validated::valid(|x: &i32| x * 2);
+/// let valid_fn: Validated<&str, fn(i32) -> i32> = Validated::valid(|x: i32| x * 2);
 /// let invalid_val: Validated<&str, i32> = Validated::invalid("val_error");
-/// assert_eq!(Applicative::apply(&valid_fn, &invalid_val), Validated::invalid("val_error"));
+/// assert_eq!(Applicative::apply(valid_fn, invalid_val), Validated::invalid("val_error"));
 /// ```
 ///
 /// ### Invalid function, Invalid value (error accumulation)
@@ -271,17 +217,17 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 /// use rustica::traits::pure::Pure;
 /// use smallvec::smallvec;
 ///
-/// let invalid_fn: Validated<String, fn(&i32) -> i32> = Validated::invalid("fn_error".to_string());
+/// let invalid_fn: Validated<String, fn(i32) -> i32> = Validated::invalid("fn_error".to_string());
 /// let invalid_val: Validated<String, i32> = Validated::invalid("val_error".to_string());
 /// // The apply implementation accumulates errors in this order:
 /// // first the errors from the function (self), then the errors from the value (value)
 /// let expected_errors = Validated::invalid_many(["fn_error".to_string(), "val_error".to_string()]);
-/// assert_eq!(Applicative::apply(&invalid_fn, &invalid_val), expected_errors);
+/// assert_eq!(Applicative::apply(invalid_fn, invalid_val), expected_errors);
 ///
 /// // lift2
 /// let v1: Validated<&str, i32> = Validated::valid(10);
 /// let v2: Validated<&str, i32> = Validated::valid(20);
-/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
+/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
 /// assert_eq!(result, Validated::valid(30));
 /// ```
 ///
@@ -293,48 +239,29 @@ impl<E: Clone, A: Clone> Bifunctor for Validated<E, A> {
 ///
 /// let v1: Validated<&str, i32> = Validated::valid(10);
 /// let v2: Validated<&str, i32> = Validated::invalid("error_b");
-/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
+/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
 /// assert_eq!(result, Validated::invalid("error_b"));
 ///
 /// let v3: Validated<&str, i32> = Validated::invalid("error_a");
 /// let v4: Validated<&str, i32> = Validated::valid(20);
-/// let result2 = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v3, &v4);
+/// let result2 = <Validated<&str, i32> as Applicative>::lift2(|a: i32, b: i32| a + b, v3, v4);
 /// assert_eq!(result2, Validated::invalid("error_a"));
 ///
 /// // Combining two `Invalid` values (error accumulation)
 /// let v1: Validated<&str, i32> = Validated::invalid("error1");
 /// let v2: Validated<&str, i32> = Validated::invalid("error2");
-/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: &i32, b: &i32| a + b, &v1, &v2);
+/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
 /// // The order of errors in lift2 is left argument's errors then right argument's errors.
 /// assert_eq!(result, Validated::invalid_many(["error1", "error2"]));
 /// ```
 ///
 ///
 /// Applicative laws and error ordering are verified by unit tests.
-impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
-    fn apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>
-    where
-        Self::Source: Fn(&T) -> B,
-        B: Clone,
-    {
-        match (self, value) {
-            (Validated::Valid(f), Validated::Valid(a)) => Validated::Valid(f(a)),
-            (Validated::Valid(_), Validated::Invalid(e)) => Validated::Invalid(e.clone()),
-            (Validated::Invalid(e), Validated::Valid(_)) => Validated::Invalid(e.clone()),
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut errors = ErrorAccumulator::with_capacity(e1.len() + e2.len());
-                errors.extend_cloned(e1);
-                errors.extend_cloned(e2);
-                Validated::invalid_from_accumulator(errors)
-            },
-        }
-    }
-
-    fn apply_owned<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
+impl<E, A> Applicative for Validated<E, A> {
+    fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where
         Self::Source: Fn(T) -> B,
         T: Clone,
-        B: Clone,
     {
         match (self, value) {
             (Validated::Valid(f), Validated::Valid(x)) => Validated::Valid(f(x)),
@@ -353,39 +280,11 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         }
     }
 
-    fn lift2<T, U, C, F>(f: F, fa: &Self::Output<T>, fb: &Self::Output<U>) -> Self::Output<C>
-    where
-        F: Fn(&T, &U) -> C,
-        T: Clone,
-        U: Clone,
-        C: Clone,
-        Self: Sized,
-    {
-        match (fa, fb) {
-            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
-            _ => {
-                let mut errors = ErrorAccumulator::new();
-
-                if let Validated::Invalid(es) = fa {
-                    errors.extend_cloned(es);
-                }
-
-                if let Validated::Invalid(es) = fb {
-                    errors.extend_cloned(es);
-                }
-
-                Validated::invalid_from_accumulator(errors)
-            },
-        }
-    }
-
-    fn lift2_owned<T, U, C, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<C>
+    fn lift2<T, U, C, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<C>
     where
         F: Fn(T, U) -> C,
         T: Clone,
         U: Clone,
-        C: Clone,
-        Self: Sized,
     {
         match (fa, fb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
@@ -404,41 +303,7 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         }
     }
 
-    #[inline]
     fn lift3<T, U, V, C, F>(
-        f: F, fa: &Self::Output<T>, fb: &Self::Output<U>, fc: &Self::Output<V>,
-    ) -> Self::Output<C>
-    where
-        F: Fn(&T, &U, &V) -> C,
-        T: Clone,
-        U: Clone,
-        V: Clone,
-        C: Clone,
-        Self: Sized,
-    {
-        match (fa, fb, fc) {
-            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
-                Validated::Valid(f(a, b, c))
-            },
-            _ => {
-                let mut errors = ErrorAccumulator::new();
-
-                if let Validated::Invalid(es) = fa {
-                    errors.extend_cloned(es);
-                }
-                if let Validated::Invalid(es) = fb {
-                    errors.extend_cloned(es);
-                }
-                if let Validated::Invalid(es) = fc {
-                    errors.extend_cloned(es);
-                }
-
-                Validated::invalid_from_accumulator(errors)
-            },
-        }
-    }
-
-    fn lift3_owned<T, U, V, C, F>(
         f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
     ) -> Self::Output<C>
     where
@@ -446,8 +311,6 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
         T: Clone,
         U: Clone,
         V: Clone,
-        C: Clone,
-        Self: Sized,
     {
         match (fa, fb, fc) {
             (Validated::Valid(a), Validated::Valid(b_val), Validated::Valid(c_val)) => {
@@ -493,7 +356,7 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
 /// use rustica::traits::monad::Monad;
 ///
 /// let v: Validated<&str, i32> = Validated::valid(10);
-/// let result = v.bind(|x: &i32| Validated::valid(*x + 5));
+/// let result = v.bind(|x: i32| Validated::valid(x + 5));
 /// assert_eq!(result, Validated::valid(15));
 /// ```
 ///
@@ -503,7 +366,7 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
 /// use rustica::traits::monad::Monad;
 ///
 /// let v: Validated<&str, i32> = Validated::valid(10);
-/// let result = v.bind(|_x: &i32| Validated::<&str, i32>::invalid("computation_failed"));
+/// let result = v.bind(|_x: i32| Validated::<&str, i32>::invalid("computation_failed"));
 /// assert_eq!(result, Validated::invalid("computation_failed"));
 /// ```
 ///
@@ -514,43 +377,17 @@ impl<E: Clone, A: Clone> Applicative for Validated<E, A> {
 ///
 /// let v: Validated<&str, i32> = Validated::invalid("original_error");
 /// // The closure is never executed because `v` is Invalid.
-/// let result = v.bind(|x: &i32| Validated::valid(*x + 5));
+/// let result = v.bind(|x: i32| Validated::valid(x + 5));
 /// assert_eq!(result, Validated::invalid("original_error"));
 /// ```
 ///
 ///
 /// Monad laws are verified by unit tests.
-impl<E: Clone, A: Clone> Monad for Validated<E, A> {
+impl<E, A> Monad for Validated<E, A> {
     #[inline]
-    fn bind<U, F>(&self, f: F) -> Self::Output<U>
+    fn bind<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        U: Clone,
-        F: Fn(&Self::Source) -> Self::Output<U>,
-    {
-        match self {
-            Validated::Valid(a) => f(a),
-            Validated::Invalid(e) => Validated::Invalid(e.clone()),
-        }
-    }
-
-    #[inline]
-    fn join<U>(&self) -> Self::Output<U>
-    where
-        Self::Source: Clone + Into<Self::Output<U>>,
-        U: Clone,
-        E: Clone,
-    {
-        match self {
-            Validated::Valid(inner) => inner.clone().into(),
-            Validated::Invalid(e) => Validated::Invalid(e.clone()),
-        }
-    }
-
-    #[inline]
-    fn bind_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        U: Clone,
-        F: FnOnce(Self::Source) -> Self::Output<U>,
+        F: FnMut(Self::Source) -> Self::Output<U>,
     {
         match self {
             Validated::Valid(a) => f(a),
@@ -559,7 +396,7 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
     }
 
     #[inline]
-    fn join_owned<U>(self) -> Self::Output<U>
+    fn join<U>(self) -> Self::Output<U>
     where
         Self::Source: Into<Self::Output<U>>,
     {
@@ -578,46 +415,44 @@ impl<E: Clone, A: Clone> Monad for Validated<E, A> {
 ///
 /// // Folding a Valid value with fold_left
 /// let valid = Validated::<&str, i32>::valid(42);
-/// let doubled = valid.fold_left(&0, |_, x| *x * 2);
+/// let doubled = valid.fold_left(0, |_, x| x * 2);
 /// assert_eq!(doubled, 84);
 ///
 /// // Folding an Invalid value with fold_left returns the initial value
 /// let invalid = Validated::<&str, i32>::invalid("error");
-/// let result = invalid.fold_left(&100, |_, x| *x + 1);
+/// let result = invalid.fold_left(100, |_, x| x + 1);
 /// assert_eq!(result, 100);
 ///
 /// // Folding a Valid value with fold_right
 /// let valid = Validated::<&str, i32>::valid(42);
-/// let doubled = valid.fold_right(&0, |x, _| *x * 2);
+/// let doubled = valid.fold_right(0, |x, _| x * 2);
 /// assert_eq!(doubled, 84);
 ///
 /// // Folding an Invalid value with fold_right returns the initial value
 /// let invalid = Validated::<&str, i32>::invalid("error");
-/// let result = invalid.fold_right(&100, |x, _| *x + 1);
+/// let result = invalid.fold_right(100, |x, _| x + 1);
 /// assert_eq!(result, 100);
 /// ```
 impl<E, A> Foldable for Validated<E, A> {
     #[inline]
-    fn fold_left<U, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&U, &Self::Source) -> U,
-        U: Clone,
+        F: FnMut(U, &Self::Source) -> U,
     {
         match self {
             Validated::Valid(a) => f(init, a),
-            _ => init.clone(),
+            _ => init,
         }
     }
 
     #[inline]
-    fn fold_right<U, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&Self::Source, &U) -> U,
-        U: Clone,
+        F: FnMut(&Self::Source, U) -> U,
     {
         match self {
             Validated::Valid(a) => f(a, init),
-            _ => init.clone(),
+            _ => init,
         }
     }
 }
@@ -628,24 +463,10 @@ impl<E, A> Foldable for Validated<E, A> {
 /// - If both are `Valid`, their inner values are combined using `A::combine`.
 /// - If one is `Invalid` and one is `Valid`, the `Invalid` is returned (errors take precedence).
 /// - If both are `Invalid`, their error collections are concatenated.
-impl<E: Clone, A: Clone + Semigroup> Semigroup for Validated<E, A> {
-    fn combine(&self, other: &Self) -> Self {
+impl<E, A: Semigroup> Semigroup for Validated<E, A> {
+    fn combine(self, other: Self) -> Self {
         match (self, other) {
             (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine(a2)),
-            (Validated::Valid(_), Validated::Invalid(_)) => other.clone(),
-            (Validated::Invalid(_), Validated::Valid(_)) => self.clone(),
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => {
-                let mut errors = ErrorAccumulator::with_capacity(e1.len() + e2.len());
-                errors.extend_cloned(e1);
-                errors.extend_cloned(e2);
-                Validated::invalid_from_accumulator(errors)
-            },
-        }
-    }
-
-    fn combine_owned(self, other: Self) -> Self {
-        match (self, other) {
-            (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine_owned(a2)),
             (Validated::Valid(_), o @ Validated::Invalid(_)) => o,
             (s @ Validated::Invalid(_), Validated::Valid(_)) => s,
             (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
