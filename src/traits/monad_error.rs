@@ -192,10 +192,7 @@ mod unit_tests {
             Ok(42)
         );
         let value: Result<i32, String> = Ok(10);
-        assert_eq!(
-            value.clone().catch(Result::<i32, String>::throw),
-            value
-        );
+        assert_eq!(value.clone().catch(Result::<i32, String>::throw), value);
         let thrown_none: Option<i32> = Option::<i32>::throw::<i32>(());
         assert_eq!(thrown_none, None);
         assert_eq!(None::<i32>.catch(|_| Some(0)), Some(0));
