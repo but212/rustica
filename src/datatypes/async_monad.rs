@@ -962,7 +962,7 @@ mod unit_tests {
     use std::time::Duration;
 
     #[tokio::test]
-    async fn pure_apply_remains_cold_and_repeatable() {
+    async fn effect_apply_remains_cold_and_repeatable() {
         let calls = Arc::new(AtomicUsize::new(0));
         let function = AsyncM::pure({
             let calls = Arc::clone(&calls);
@@ -971,7 +971,7 @@ mod unit_tests {
                 value * 2
             }
         });
-        let applied = AsyncM::pure(3).apply(function);
+        let applied = AsyncM::new(|| async { 3 }).apply(function);
 
         assert_eq!(calls.load(Ordering::SeqCst), 0);
         assert_eq!(applied.try_get().await, 6);

@@ -1084,11 +1084,11 @@ mod tests {
     #[test]
     fn concat_keeps_every_branch_within_the_branching_factor() {
         let chunk: Vec<_> = (0..2048).collect();
-        let mut tree = RRBTree::from_elements(chunk.clone().into_iter());
+        let mut tree = RRBTree::from_elements(chunk.clone());
         let mut expected = chunk.clone();
 
         for _ in 1..4 {
-            tree = tree.concat(&RRBTree::from_elements(chunk.clone().into_iter()));
+            tree = tree.concat(&RRBTree::from_elements(chunk.clone()));
             expected.extend_from_slice(&chunk);
             assert_branch_width(&tree.root);
             assert_eq!(tree.clone().into_vec(), expected);
