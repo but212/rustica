@@ -226,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn pvec_owned_construction_and_conversion_do_not_require_clone() {
+    fn pvec_construction_and_conversion_do_not_require_clone() {
         struct NoClone(u32);
 
         let vector: PersistentVector<NoClone> = (0..65).map(NoClone).collect();

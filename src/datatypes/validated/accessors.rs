@@ -111,74 +111,6 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-    /// Returns the contained `Valid` value, consuming the `self` value.
-    ///
-    /// Because this function consumes `self`, it does not require `A` to be `Clone`.
-    /// This is more efficient than `unwrap()` if `A` is `Clone` but cloning is expensive,
-    /// or if `A` is not `Clone`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `self` is `Invalid`, with a panic message including the errors.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// assert_eq!(valid.unwrap_owned(), 42);
-    /// ```
-    ///
-    /// Calling this method on an invalid value panics; use [`try_unwrap`](#method.try_unwrap)
-    /// when the state is not known.
-    #[inline]
-    pub fn unwrap_owned(self) -> A
-    where
-        E: std::fmt::Debug,
-    {
-        match self {
-            Validated::Valid(a) => a,
-            Validated::Invalid(e) => {
-                panic!("Called Validated::unwrap_owned() on an Invalid value: {e:?}")
-            },
-        }
-    }
-
-    /// Returns the contained `Invalid` error collection, consuming the `self` value.
-    ///
-    /// This method moves the `SmallVec` out of the `Validated` instance.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `self` is `Valid`, with a panic message including the valid value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    /// use smallvec::SmallVec;
-    ///
-    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// let expected: SmallVec<[&str; 4]> = SmallVec::from_slice(&["error"]);
-    /// assert_eq!(invalid.unwrap_invalid_owned(), expected);
-    /// ```
-    ///
-    /// Calling this method on a valid value panics; use [`try_unwrap_invalid`](#method.try_unwrap_invalid)
-    /// when the state is not known.
-    #[inline]
-    pub fn unwrap_invalid_owned(self) -> NonEmptyErrors<E>
-    where
-        A: std::fmt::Debug,
-    {
-        match self {
-            Validated::Valid(a) => {
-                panic!("Called Validated::unwrap_invalid_owned() on a Valid value: {a:?}")
-            },
-            Validated::Invalid(e) => e,
-        }
-    }
-
     /// Consumes `self` and returns `Ok(A)` if `Valid(A)`, or `Err(ErrorVec<E>)` if `Invalid(errors)`.
     ///
     /// This method is useful for safely extracting the valid value or the complete collection of errors,
@@ -322,7 +254,7 @@ impl<E, A> Validated<E, A> {
 
     /// Safely extracts the valid value.
     ///
-    /// This is the safe alternative to `unwrap_owned()` that returns
+    /// This is the safe alternative to `unwrap()` that returns
     /// a proper error type instead of panicking.
     ///
     /// # Returns
@@ -352,7 +284,7 @@ impl<E, A> Validated<E, A> {
 
     /// Safely extracts the error collection.
     ///
-    /// This is the safe alternative to `unwrap_invalid_owned()` that returns
+    /// This is the safe alternative to `unwrap_invalid()` that returns
     /// a proper error type instead of panicking.
     ///
     /// # Returns
@@ -430,17 +362,30 @@ impl<E, A> Validated<E, A> {
     ///
     /// Panics if this is invalid.
     #[inline]
-    pub fn unwrap(&self) -> A
+    pub fn unwrap(self) -> A
     where
-        A: Clone,
         E: std::fmt::Debug,
     {
         match self {
-            Validated::Valid(value) => value.clone(),
+            Validated::Valid(value) => value,
             Validated::Invalid(e) => {
                 panic!("Called Validated::unwrap() on an Invalid value: {e:?}")
             },
         }
+    }
+
+    /// Unwraps a valid value, consuming self.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this is invalid.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `unwrap` instead")]
+    pub fn unwrap_owned(self) -> A
+    where
+        E: std::fmt::Debug,
+    {
+        self.unwrap()
     }
 
     /// Unwraps a valid value or returns a default.
@@ -458,19 +403,16 @@ impl<E, A> Validated<E, A> {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let valid: Validated<&str, i32> = Validated::valid(42);
-    /// assert_eq!(valid.unwrap_or(&0), 42);
+    /// assert_eq!(valid.unwrap_or(0), 42);
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid("error");
-    /// assert_eq!(invalid.unwrap_or(&0), 0);
+    /// assert_eq!(invalid.unwrap_or(0), 0);
     /// ```
     #[inline]
-    pub fn unwrap_or(&self, default: &A) -> A
-    where
-        A: Clone,
-    {
+    pub fn unwrap_or(self, default: A) -> A {
         match self {
-            Validated::Valid(x) => x.clone(),
-            _ => default.clone(),
+            Validated::Valid(x) => x,
+            _ => default,
         }
     }
 
@@ -495,10 +437,10 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-    /// Unwraps a valid value or panics with a message.
+    /// Unwraps an invalid error collection or panics with a message.
     ///
-    /// If this is valid, returns the valid value.
-    /// If this is invalid, panics with a message.
+    /// If this is invalid, returns the error collection.
+    /// If this is valid, panics with a message.
     ///
     /// # Examples
     ///
@@ -506,24 +448,37 @@ impl<E, A> Validated<E, A> {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let invalid: Validated<&str, i32> = Validated::invalid_many(["e1", "e2"]);
-    /// assert_eq!(invalid.unwrap_invalid(), vec!["e1", "e2"]);
+    /// assert_eq!(invalid.unwrap_invalid().as_slice(), &["e1", "e2"]);
     /// ```
     ///
     /// # Panics
     ///
     /// Panics if this is `Valid`.
     #[inline]
-    pub fn unwrap_invalid(&self) -> Vec<E>
+    pub fn unwrap_invalid(self) -> NonEmptyErrors<E>
     where
-        E: Clone,
         A: std::fmt::Debug,
     {
         match self {
-            Validated::Invalid(_) => self.iter_errors().cloned().collect(),
+            Validated::Invalid(es) => es,
             Validated::Valid(a) => {
                 panic!("Called Validated::unwrap_invalid() on a Valid value: {a:?}")
             },
         }
+    }
+
+    /// Unwraps an invalid error collection, consuming self.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this is `Valid`.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `unwrap_invalid` instead")]
+    pub fn unwrap_invalid_owned(self) -> NonEmptyErrors<E>
+    where
+        A: std::fmt::Debug,
+    {
+        self.unwrap_invalid()
     }
 
     #[inline]
@@ -555,14 +510,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Called Validated::unwrap_owned()")]
-    fn unwrap_owned_rejects_invalid_values() {
-        Validated::<&str, i32>::invalid("error").unwrap_owned();
-    }
+    fn unwrap_owned_success() {
+        #[allow(deprecated)]
+        let val = Validated::<&str, i32>::valid(42).unwrap_owned();
+        assert_eq!(val, 42);
 
-    #[test]
-    #[should_panic(expected = "Called Validated::unwrap_invalid_owned()")]
-    fn unwrap_invalid_owned_rejects_valid_values() {
-        Validated::<&str, i32>::valid(42).unwrap_invalid_owned();
+        #[allow(deprecated)]
+        let err = Validated::<&str, i32>::invalid("e").unwrap_invalid_owned();
+        assert_eq!(err.as_slice(), &["e"]);
     }
 }

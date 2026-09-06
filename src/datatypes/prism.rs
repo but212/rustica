@@ -618,6 +618,21 @@ where
         )
     }
 
+    /// Composes two prisms together.
+    #[deprecated(since = "0.15.0", note = "use `then()` instead")]
+    #[inline]
+    pub fn compose<B, PreviewFn2, ReviewFn2>(
+        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
+    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
+    where
+        A: Clone,
+        B: Clone,
+        PreviewFn2: Fn(&A) -> Option<B>,
+        ReviewFn2: Fn(&B) -> A,
+    {
+        self.then(other)
+    }
+
     /// Sets the focused value with structural sharing optimization.
     ///
     /// This method sets the focused value to a new value, but only creates a new structure
@@ -699,13 +714,15 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     #[inline]
     pub fn from_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
-        I: Iso<S, A, From = S, To = A>,
+        S: Clone,
+        A: Clone,
+        I: Iso<S, A>,
     {
         let iso = std::sync::Arc::new(iso);
         let preview_iso = std::sync::Arc::clone(&iso);
         Prism::new(
-            move |source: &S| Some(preview_iso.forward(source)),
-            move |focus: &A| iso.backward(focus),
+            move |source: &S| Some(preview_iso.forward(source.clone())),
+            move |focus: &A| iso.backward(focus.clone()),
         )
     }
 
@@ -717,14 +734,15 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     #[inline]
     pub fn from_option_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
+        S: Clone,
         A: Clone,
-        I: Iso<S, Option<A>, From = S, To = Option<A>>,
+        I: Iso<S, Option<A>>,
     {
         let iso = std::sync::Arc::new(iso);
         let preview_iso = std::sync::Arc::clone(&iso);
         Prism::new(
-            move |source: &S| preview_iso.forward(source),
-            move |focus: &A| iso.backward(&Some(focus.clone())),
+            move |source: &S| preview_iso.forward(source.clone()),
+            move |focus: &A| iso.backward(Some(focus.clone())),
         )
     }
 }
@@ -818,15 +836,12 @@ mod unit_tests {
     struct IdentityIso;
 
     impl crate::traits::iso::Iso<i32, i32> for IdentityIso {
-        type From = i32;
-        type To = i32;
-
-        fn forward(&self, from: &Self::From) -> Self::To {
-            *from
+        fn forward(&self, from: i32) -> i32 {
+            from
         }
 
-        fn backward(&self, to: &Self::To) -> Self::From {
-            *to
+        fn backward(&self, to: i32) -> i32 {
+            to
         }
     }
 
@@ -841,14 +856,11 @@ mod unit_tests {
     struct OptionIso;
 
     impl crate::traits::iso::Iso<i32, Option<i32>> for OptionIso {
-        type From = i32;
-        type To = Option<i32>;
-
-        fn forward(&self, from: &Self::From) -> Self::To {
-            (*from >= 0).then_some(*from)
+        fn forward(&self, from: i32) -> Option<i32> {
+            (from >= 0).then_some(from)
         }
 
-        fn backward(&self, to: &Self::To) -> Self::From {
+        fn backward(&self, to: Option<i32>) -> i32 {
             to.unwrap_or_default()
         }
     }

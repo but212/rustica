@@ -86,14 +86,14 @@ impl std::error::Error for ChoiceError {}
 pub enum ValidatedError {
     /// Expected Valid variant but got Invalid.
     ///
-    /// This error occurs when calling `unwrap()` or `unwrap_owned()`
-    /// on a `Validated::Invalid` value.
+    /// This error occurs when expecting a `Validated::Valid` value
+    /// but encountering a `Validated::Invalid` value.
     ExpectedValid,
 
     /// Expected Invalid variant but got Valid.
     ///
-    /// This error occurs when calling `unwrap_invalid_owned()`
-    /// on a `Validated::Valid` value.
+    /// This error occurs when expecting a `Validated::Invalid` value
+    /// but encountering a `Validated::Valid` value.
     ExpectedInvalid,
 }
 

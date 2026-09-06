@@ -168,32 +168,15 @@ impl<T> HKT for Choice<T> {
 }
 
 impl<T> Pure for Choice<T> {
-    fn pure<A: Clone>(value: &A) -> Self::Output<A> {
-        Choice::single(value.clone())
-    }
-
-    fn pure_owned<A: Clone>(value: A) -> Self::Output<A> {
+    fn pure<A>(value: A) -> Self::Output<A> {
         Choice::single(value)
     }
 }
 
-impl<T: Clone> Functor for Choice<T> {
-    #[inline]
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+impl<T> Functor for Choice<T> {
+    fn fmap<B, F>(self, mut f: F) -> Self::Output<B>
     where
-        F: Fn(&T) -> B,
-        B: Clone,
-    {
-        Choice {
-            primary: f(&self.primary),
-            alternatives: self.alternatives.iter().map(f).collect(),
-        }
-    }
-
-    fn fmap_owned<B, F>(self, mut f: F) -> Self::Output<B>
-    where
-        F: FnMut(T) -> B,
-        B: Clone,
+        F: FnMut(Self::Source) -> B,
     {
         Choice {
             primary: f(self.primary),
@@ -202,38 +185,11 @@ impl<T: Clone> Functor for Choice<T> {
     }
 }
 
-impl<T: Clone> Applicative for Choice<T> {
-    #[inline]
-    fn apply<A, B>(&self, value: &Self::Output<A>) -> Self::Output<B>
-    where
-        Self::Source: Fn(&A) -> B,
-        B: Clone,
-    {
-        let primary = (self.primary)(&value.primary);
-        let mut alternatives = SmallVec::<[B; 7]>::new();
-
-        for val_alt in &value.alternatives {
-            alternatives.push((self.primary)(val_alt));
-        }
-
-        for fn_alt in &self.alternatives {
-            alternatives.push(fn_alt(&value.primary));
-            for val_alt in &value.alternatives {
-                alternatives.push(fn_alt(val_alt));
-            }
-        }
-
-        Choice {
-            primary,
-            alternatives,
-        }
-    }
-
-    fn apply_owned<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
+impl<T> Applicative for Choice<T> {
+    fn apply<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
     where
         Self::Source: Fn(A) -> B,
         A: Clone,
-        B: Clone,
     {
         let primary = (self.primary)(value.primary.clone());
         let mut alternatives = SmallVec::<[B; 7]>::new();
@@ -255,41 +211,11 @@ impl<T: Clone> Applicative for Choice<T> {
         }
     }
 
-    fn lift2<A, B, C, F>(f: F, fa: &Self::Output<A>, fb: &Self::Output<B>) -> Self::Output<C>
-    where
-        F: Fn(&A, &B) -> C,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        Self: Sized,
-    {
-        let primary = f(&fa.primary, &fb.primary);
-        let mut alternatives = SmallVec::<[C; 7]>::new();
-
-        for b in &fb.alternatives {
-            alternatives.push(f(&fa.primary, b));
-        }
-
-        for a in &fa.alternatives {
-            alternatives.push(f(a, &fb.primary));
-            for b in &fb.alternatives {
-                alternatives.push(f(a, b));
-            }
-        }
-
-        Choice {
-            primary,
-            alternatives,
-        }
-    }
-
-    fn lift2_owned<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
+    fn lift2<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
         B: Clone,
-        C: Clone,
-        Self: Sized,
     {
         let primary = f(fa.primary.clone(), fb.primary.clone());
         let mut alternatives = SmallVec::<[C; 7]>::new();
@@ -312,39 +238,6 @@ impl<T: Clone> Applicative for Choice<T> {
     }
 
     fn lift3<A, B, C, D, F>(
-        f: F, fa: &Self::Output<A>, fb: &Self::Output<B>, fc: &Self::Output<C>,
-    ) -> Self::Output<D>
-    where
-        F: Fn(&A, &B, &C) -> D,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-        D: Clone,
-        Self: Sized,
-    {
-        let primary = f(&fa.primary, &fb.primary, &fc.primary);
-        let mut alternatives = SmallVec::<[D; 7]>::new();
-
-        for a in fa.iter() {
-            for b in fb.iter() {
-                for c in fc.iter() {
-                    if !(std::ptr::eq(a, &fa.primary)
-                        && std::ptr::eq(b, &fb.primary)
-                        && std::ptr::eq(c, &fc.primary))
-                    {
-                        alternatives.push(f(a, b, c));
-                    }
-                }
-            }
-        }
-
-        Choice {
-            primary,
-            alternatives,
-        }
-    }
-
-    fn lift3_owned<A, B, C, D, F>(
         f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
     ) -> Self::Output<D>
     where
@@ -352,25 +245,30 @@ impl<T: Clone> Applicative for Choice<T> {
         A: Clone,
         B: Clone,
         C: Clone,
-        D: Clone,
-        Self: Sized,
     {
-        let a_vals: Vec<A> = fa.into();
-        let b_vals: Vec<B> = fb.into();
-        let c_vals: Vec<C> = fc.into();
-
-        let primary = f(a_vals[0].clone(), b_vals[0].clone(), c_vals[0].clone());
+        let primary = f(fa.primary.clone(), fb.primary.clone(), fc.primary.clone());
         let mut alternatives = SmallVec::<[D; 7]>::new();
 
-        let mut first = true;
-        for a in &a_vals {
-            for b in &b_vals {
-                for c in &c_vals {
-                    if first {
-                        first = false;
-                    } else {
-                        alternatives.push(f(a.clone(), b.clone(), c.clone()));
-                    }
+        for c in &fc.alternatives {
+            alternatives.push(f(fa.primary.clone(), fb.primary.clone(), c.clone()));
+        }
+
+        for b in &fb.alternatives {
+            alternatives.push(f(fa.primary.clone(), b.clone(), fc.primary.clone()));
+            for c in &fc.alternatives {
+                alternatives.push(f(fa.primary.clone(), b.clone(), c.clone()));
+            }
+        }
+
+        for a in &fa.alternatives {
+            alternatives.push(f(a.clone(), fb.primary.clone(), fc.primary.clone()));
+            for c in &fc.alternatives {
+                alternatives.push(f(a.clone(), fb.primary.clone(), c.clone()));
+            }
+            for b in &fb.alternatives {
+                alternatives.push(f(a.clone(), b.clone(), fc.primary.clone()));
+                for c in &fc.alternatives {
+                    alternatives.push(f(a.clone(), b.clone(), c.clone()));
                 }
             }
         }
@@ -382,32 +280,11 @@ impl<T: Clone> Applicative for Choice<T> {
     }
 }
 
-impl<T: Clone> Monad for Choice<T> {
+impl<T> Monad for Choice<T> {
     #[inline]
-    fn bind<U, F>(&self, mut f: F) -> Self::Output<U>
-    where
-        F: FnMut(&Self::Source) -> Self::Output<U>,
-        U: Clone,
-    {
-        let primary_choice = f(&self.primary);
-        let mut alternatives = primary_choice.alternatives;
-
-        for alt in &self.alternatives {
-            let alt_choice = f(alt);
-            alternatives.push(alt_choice.primary);
-            alternatives.extend(alt_choice.alternatives);
-        }
-
-        Choice {
-            primary: primary_choice.primary,
-            alternatives,
-        }
-    }
-
-    fn bind_owned<U, F>(self, mut f: F) -> Self::Output<U>
+    fn bind<U, F>(self, mut f: F) -> Self::Output<U>
     where
         F: FnMut(Self::Source) -> Self::Output<U>,
-        U: Clone,
     {
         let primary_choice = f(self.primary);
         let mut alternatives = primary_choice.alternatives;
@@ -425,31 +302,9 @@ impl<T: Clone> Monad for Choice<T> {
     }
 
     #[inline]
-    fn join<U>(&self) -> Self::Output<U>
+    fn join<U>(self) -> Self::Output<U>
     where
-        T: Into<Self::Output<U>> + Clone,
-        U: Clone,
-    {
-        let primary_choice: Self::Output<U> = self.primary.clone().into();
-        let mut alternatives = primary_choice.alternatives;
-
-        for alt in &self.alternatives {
-            let alt_choice: Self::Output<U> = alt.clone().into();
-            alternatives.push(alt_choice.primary);
-            alternatives.extend(alt_choice.alternatives);
-        }
-
-        Choice {
-            primary: primary_choice.primary,
-            alternatives,
-        }
-    }
-
-    #[inline]
-    fn join_owned<U>(self) -> Self::Output<U>
-    where
-        T: Into<Self::Output<U>> + Clone,
-        U: Clone,
+        Self::Source: Into<Self::Output<U>>,
     {
         let primary_choice: Self::Output<U> = self.primary.into();
         let mut alternatives = primary_choice.alternatives;
@@ -467,25 +322,11 @@ impl<T: Clone> Monad for Choice<T> {
     }
 }
 
-impl<T: Clone> Semigroup for Choice<T> {
-    fn combine(&self, other: &Self) -> Self {
-        let mut alternatives = self.alternatives.clone();
-        alternatives.push(other.primary.clone());
-        alternatives.extend(other.alternatives.iter().cloned());
-        Choice {
-            primary: self.primary.clone(),
-            alternatives,
-        }
-    }
-
-    fn combine_owned(self, other: Self) -> Self {
-        let mut alternatives = self.alternatives;
-        alternatives.push(other.primary);
-        alternatives.extend(other.alternatives);
-        Choice {
-            primary: self.primary,
-            alternatives,
-        }
+impl<T> Semigroup for Choice<T> {
+    fn combine(mut self, other: Self) -> Self {
+        self.alternatives.push(other.primary);
+        self.alternatives.extend(other.alternatives);
+        self
     }
 }
 
@@ -534,26 +375,20 @@ impl<T: Display> Display for Choice<T> {
 }
 
 impl<T> Foldable for Choice<T> {
-    fn fold_left<B, F>(&self, initial: &B, mut f: F) -> B
+    fn fold_left<B, F>(&self, initial: B, mut f: F) -> B
     where
-        F: FnMut(&B, &Self::Source) -> B,
-        B: Clone,
+        F: FnMut(B, &Self::Source) -> B,
     {
         let acc = f(initial, &self.primary);
-        self.alternatives.iter().fold(acc, |a, v| f(&a, v))
+        self.alternatives.iter().fold(acc, f)
     }
 
-    fn fold_right<B, F>(&self, initial: &B, mut f: F) -> B
+    fn fold_right<B, F>(&self, initial: B, mut f: F) -> B
     where
-        F: FnMut(&Self::Source, &B) -> B,
-        B: Clone,
+        F: FnMut(&Self::Source, B) -> B,
     {
-        let acc = self
-            .alternatives
-            .iter()
-            .rev()
-            .fold(initial.clone(), |a, v| f(v, &a));
-        f(&self.primary, &acc)
+        let acc = self.alternatives.iter().rev().fold(initial, |a, v| f(v, a));
+        f(&self.primary, acc)
     }
 }
 
@@ -608,12 +443,12 @@ mod unit_tests {
     #[test]
     fn monad_laws_hold_for_choice() {
         let m = Choice::new(1, vec![2]);
-        let f = |x: &i32| Choice::new(x + 1, vec![]);
-        let g = |x: &i32| Choice::new(x * 2, vec![]);
+        let f = |x: i32| Choice::new(x + 1, vec![]);
+        let g = |x: i32| Choice::new(x * 2, vec![]);
 
-        assert_eq!(Choice::<i32>::pure(&10).bind(f), f(&10));
-        assert_eq!(m.bind(Choice::<i32>::pure), m);
-        assert_eq!(m.bind(f).bind(g), m.bind(|x| f(x).bind(g)));
+        assert_eq!(Choice::<i32>::pure(10).bind(f), f(10));
+        assert_eq!(m.clone().bind(Choice::<i32>::pure), m);
+        assert_eq!(m.clone().bind(f).bind(g), m.bind(|x| f(x).bind(g)));
     }
 
     #[test]

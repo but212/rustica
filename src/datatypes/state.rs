@@ -329,114 +329,49 @@ where
     /// let counter = State::new(|s: i32| (s, s * 2));
     ///
     /// // Run with initial state 5
-    /// assert_eq!(counter.run_state(5), (5, 10));
+    /// assert_eq!(counter.clone().run_state(5), (5, 10));
     ///
     /// // Run with a different initial state
     /// assert_eq!(counter.run_state(21), (21, 42));
     /// ```
     #[inline]
-    pub fn run_state(&self, s: S) -> (A, S) {
+    pub fn run_state(self, s: S) -> (A, S) {
         // Direct mapping from Id monad's value
-        let (next_state, value) = self.inner.run_state(s).unwrap();
+        let (next_state, value) = self.inner.run_state(s).into_inner();
         (value, next_state)
     }
 
-    /// Runs the state computation and returns only the final value.
-    ///
-    /// This method is similar to `run_state`, but it discards the final state and
-    /// only returns the computed value. This is useful when you're only interested
-    /// in the result of the computation, not the state changes.
-    ///
-    /// # State Monad Context
-    ///
-    /// The `eval_state` operation is commonly used when the state is just a means to
-    /// an end, and the final value is what matters for the computation.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The initial state
-    ///
-    /// # Returns
-    ///
-    /// The computed value, discarding the final state.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    /// use rustica::datatypes::state::{get, put, modify};
-    ///
-    /// // A state computation that returns the state multiplied by 2
-    /// let counter = State::new(|s: i32| (s * 2, s + 1));
-    ///
-    /// // Only get the value, not the state
-    /// assert_eq!(counter.eval_state(5), 10);
-    ///
-    /// // Useful for computations where the state is just a means to calculate a result
-    /// let fibonacci = get::<(u32, u32)>()
-    ///     .bind(|(a, b)| {
-    ///         put((b, a + b))
-    ///             .bind(move |_| State::pure(a))
-    ///     });
-    ///
-    /// // Calculate the first 10 Fibonacci numbers
-    /// let mut results = Vec::new();
-    /// let mut state = (0, 1); // Initial state (F_0, F_1)
-    ///
-    /// for _ in 0..10 {
-    ///     let value = fibonacci.eval_state(state.clone());
-    ///     results.push(value);
-    ///     state = fibonacci.exec_state(state); // Update state for next iteration
-    /// }
-    ///
-    /// assert_eq!(results, vec![0, 1, 1, 2, 3, 5, 8, 13, 21, 34]);
-    /// ```
+    /// Runs the state computation with an initial state, consuming self.
     #[inline]
-    pub fn eval_state(&self, s: S) -> A {
+    #[deprecated(since = "0.15.0", note = "use `run_state` instead")]
+    pub fn run_state_owned(self, s: S) -> (A, S) {
+        self.run_state(s)
+    }
+
+    /// Runs the state computation and returns only the final value.
+    #[inline]
+    pub fn eval_state(self, s: S) -> A {
         self.run_state(s).0
     }
 
-    /// Runs the state computation and returns only the final state.
-    ///
-    /// This method is similar to `run_state`, but it discards the computed value and
-    /// only returns the final state. This is useful when you're only interested in
-    /// the state changes, not the computed value.
-    ///
-    /// # State Monad Context
-    ///
-    /// The `exec_state` operation is commonly used for side-effecting computations where
-    /// the primary goal is to modify the state.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The initial state
-    ///
-    /// # Returns
-    ///
-    /// The final state, discarding the computed value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    /// use rustica::datatypes::state::{get, put, modify};
-    ///
-    /// // Define a series of state operations
-    /// let add_5 = modify(|s: i32| s + 5);
-    /// let multiply_by_2 = modify(|s: i32| s * 2);
-    /// let subtract_3 = modify(|s: i32| s - 3);
-    ///
-    /// // Chain operations together
-    /// let apply_operations = vec![add_5, multiply_by_2, subtract_3]
-    ///     .into_iter()
-    ///     .fold(State::pure(()), |acc, op| acc.bind(move |_| op.clone()));
-    ///
-    /// // Starting with 0: 0 -> 5 -> 10 -> 7
-    /// assert_eq!(apply_operations.exec_state(0), 7);
-    /// ```
+    /// Runs the state computation and returns only the final value, consuming self.
     #[inline]
-    pub fn exec_state(&self, s: S) -> S {
+    #[deprecated(since = "0.15.0", note = "use `eval_state` instead")]
+    pub fn eval_state_owned(self, s: S) -> A {
+        self.eval_state(s)
+    }
+
+    /// Runs the state computation and returns only the final state.
+    #[inline]
+    pub fn exec_state(self, s: S) -> S {
         self.run_state(s).1
+    }
+
+    /// Runs the state computation and returns only the final state, consuming self.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `exec_state` instead")]
+    pub fn exec_state_owned(self, s: S) -> S {
+        self.exec_state(s)
     }
 
     /// Maps a function over the value produced by a state computation.
@@ -508,13 +443,22 @@ where
     /// assert_eq!(doubled.run_state(5), (10, 6));
     /// ```
     #[inline]
+    pub fn map<B, F>(self, f: F) -> State<S, B>
+    where
+        B: Clone + Send + Sync + 'static,
+        F: Fn(A) -> B + Send + Sync + 'static,
+    {
+        self.fmap(f)
+    }
+
+    #[inline]
     pub fn fmap<B, F>(self, f: F) -> State<S, B>
     where
         B: Clone + Send + Sync + 'static,
         F: Fn(A) -> B + Send + Sync + 'static,
     {
         State::new(move |s| {
-            let (a, s) = self.run_state(s);
+            let (a, s) = self.clone().run_state(s);
             (f(a), s)
         })
     }
@@ -612,7 +556,7 @@ where
     /// // With initial state 4:
     /// // 1. counter returns (4, 5)
     /// // 2. Since 4 is even, the second computation returns ("Even: 4", 5 * 2) = ("Even: 4", 10)
-    /// assert_eq!(computation.run_state(4), ("Even: 4".to_string(), 10));
+    /// assert_eq!(computation.clone().run_state(4), ("Even: 4".to_string(), 10));
     ///
     /// // With initial state 5:
     /// // 1. counter returns (5, 6)
@@ -626,9 +570,27 @@ where
         F: Fn(A) -> State<S, B> + Send + Sync + 'static,
     {
         State::new(move |s| {
-            let (a, s) = self.run_state(s);
+            let (a, s) = self.clone().run_state(s);
             f(a).run_state(s)
         })
+    }
+
+    #[inline]
+    pub fn flat_map<B, F>(self, f: F) -> State<S, B>
+    where
+        B: Clone + Send + Sync + 'static,
+        F: Fn(A) -> State<S, B> + Send + Sync + 'static,
+    {
+        self.bind(f)
+    }
+
+    #[inline]
+    pub fn and_then<B, F>(self, f: F) -> State<S, B>
+    where
+        B: Clone + Send + Sync + 'static,
+        F: Fn(A) -> State<S, B> + Send + Sync + 'static,
+    {
+        self.bind(f)
     }
 
     /// Lifts a value into the State monad.
@@ -666,7 +628,7 @@ where
     ///
     /// // Create a State computation that always returns 42
     /// let computation = State::pure(42);
-    /// assert_eq!(computation.run_state(10), (42, 10));
+    /// assert_eq!(computation.clone().run_state(10), (42, 10));
     /// assert_eq!(computation.run_state(99), (42, 99));
     ///
     /// // pure preserves the state regardless of its type
@@ -746,8 +708,8 @@ where
         A: Fn(B) -> C + Clone + Send + Sync + 'static,
     {
         State::new(move |s| {
-            let (f, s1) = self.run_state(s);
-            let (a, s2) = other.run_state(s1);
+            let (f, s1) = self.clone().run_state(s);
+            let (a, s2) = other.clone().run_state(s1);
             (f(a), s2)
         })
     }
@@ -758,28 +720,7 @@ where
     /// discarding the computed value.
     ///
     /// This is an alias for [`State::exec_state`].
-    ///
-    /// # Parameters
-    ///
-    /// * `s` - The initial state
-    ///
-    /// # Returns
-    ///
-    /// The final state after running the computation
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a state that modifies the state but returns a value
-    /// let state = State::new(|s: i32| (s * 2, s + 1));
-    ///
-    /// // Run and extract only the state
-    /// let result = state.exec_pure(42);
-    /// assert_eq!(result, 43); // Only the state (42 + 1) is returned
-    /// ```
-    pub fn exec_pure(&self, s: S) -> S {
+    pub fn exec_pure(self, s: S) -> S {
         self.exec_state(s)
     }
 }
@@ -940,7 +881,7 @@ impl<
     ///     }
     /// });
     ///
-    /// let (result, final_state) = state.try_run_state(5);
+    /// let (result, final_state) = state.clone().try_run_state(5);
     /// assert_eq!(result, Ok(10));
     /// assert_eq!(final_state, 6);
     ///
@@ -949,50 +890,14 @@ impl<
     /// assert_eq!(result.unwrap_err().core_error(), &"Value must be positive");
     /// assert_eq!(final_state, -1);
     /// ```
-    pub fn try_run_state(&self, s: S) -> (ComposableResult<A, Err>, S) {
+    pub fn try_run_state(self, s: S) -> (ComposableResult<A, Err>, S) {
         let (result, final_state) = self.run_state(s);
         let transformed_result = result.map_err(ComposableError::new);
         (transformed_result, final_state)
     }
 
     /// Runs the state computation with context and returns a `ComposableResult`.
-    ///
-    /// This method is similar to `try_run_state` but allows for adding context to the error.
-    ///
-    /// It returns a tuple of the (possibly transformed) result and the final state.
-    /// The provided context is only attached when the underlying `Result` is `Err`.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The initial state
-    /// * `context` - Context to add to the error if the computation fails
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a state computation that might fail
-    /// let state = State::new(|s: i32| {
-    ///     if s > 0 {
-    ///         (Ok(s * 2), s + 1)
-    ///     } else {
-    ///         (Err("Value must be positive"), s)
-    ///     }
-    /// });
-    ///
-    /// let (result, final_state) = state.try_run_state_with_context(5, "processing user input");
-    /// assert_eq!(result, Ok(10));
-    /// assert_eq!(final_state, 6);
-    ///
-    /// let (result, final_state) = state.try_run_state_with_context(-1, "processing user input");
-    /// assert!(result.is_err());
-    /// let error = result.unwrap_err();
-    /// assert_eq!(error.core_error(), &"Value must be positive");
-    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
-    /// assert_eq!(final_state, -1);
-    /// ```
-    pub fn try_run_state_with_context<C>(&self, s: S, context: C) -> (ComposableResult<A, Err>, S)
+    pub fn try_run_state_with_context<C>(self, s: S, context: C) -> (ComposableResult<A, Err>, S)
     where
         C: IntoErrorContext,
     {
@@ -1004,68 +909,13 @@ impl<
     }
 
     /// Runs the state computation and returns only the value as a `ComposableResult`.
-    ///
-    /// This method is similar to `eval_state` but converts errors to [`ComposableError`].
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a state computation that might fail
-    /// let state = State::new(|s: i32| {
-    ///     if s > 0 {
-    ///         (Ok(s * 2), s + 1)
-    ///     } else {
-    ///         (Err("Value must be positive"), s)
-    ///     }
-    /// });
-    ///
-    /// let result = state.try_eval_state(5);
-    /// assert_eq!(result, Ok(10));
-    ///
-    /// let result = state.try_eval_state(-1);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().core_error(), &"Value must be positive");
-    /// ```
-    pub fn try_eval_state(&self, s: S) -> ComposableResult<A, Err> {
+    pub fn try_eval_state(self, s: S) -> ComposableResult<A, Err> {
         let (result, _) = self.try_run_state(s);
         result
     }
 
     /// Runs the state computation with context and returns only the value as a `ComposableResult`.
-    ///
-    /// This method is similar to `try_eval_state` but allows for adding context to the error.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The initial state
-    /// * `context` - Context to add to the error if the computation fails
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a state computation that might fail
-    /// let state = State::new(|s: i32| {
-    ///     if s > 0 {
-    ///         (Ok(s * 2), s + 1)
-    ///     } else {
-    ///         (Err("Value must be positive"), s)
-    ///     }
-    /// });
-    ///
-    /// let result = state.try_eval_state_with_context(5, "processing user input");
-    /// assert_eq!(result, Ok(10));
-    ///
-    /// let result = state.try_eval_state_with_context(-1, "processing user input");
-    /// assert!(result.is_err());
-    /// let error = result.unwrap_err();
-    /// assert_eq!(error.core_error(), &"Value must be positive");
-    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
-    /// ```
-    pub fn try_eval_state_with_context<C>(&self, s: S, context: C) -> ComposableResult<A, Err>
+    pub fn try_eval_state_with_context<C>(self, s: S, context: C) -> ComposableResult<A, Err>
     where
         C: IntoErrorContext,
     {
@@ -1074,31 +924,7 @@ impl<
     }
 
     /// Runs the state computation and returns only the final state as a `ComposableResult`.
-    ///
-    /// This method is similar to `exec_state` but returns a Result in case of error.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a state computation that might fail
-    /// let state = State::new(|s: i32| {
-    ///     if s > 0 {
-    ///         (Ok(s * 2), s + 1)
-    ///     } else {
-    ///         (Err("Value must be positive"), s)
-    ///     }
-    /// });
-    ///
-    /// let final_state = state.try_exec_state(5);
-    /// assert_eq!(final_state, Ok(6));
-    ///
-    /// let final_state = state.try_exec_state(-1);
-    /// assert!(final_state.is_err());
-    /// assert_eq!(final_state.unwrap_err().core_error(), &"Value must be positive");
-    /// ```
-    pub fn try_exec_state(&self, s: S) -> ComposableResult<S, Err> {
+    pub fn try_exec_state(self, s: S) -> ComposableResult<S, Err> {
         let (result, final_state) = self.try_run_state(s);
         match result {
             Ok(_) => Ok(final_state),
@@ -1107,38 +933,7 @@ impl<
     }
 
     /// Runs the state computation with context and returns only the final state as a `ComposableResult`.
-    ///
-    /// This method is similar to `try_exec_state` but allows for adding context to the error.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The initial state
-    /// * `context` - Context to add to the error if the computation fails
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::state::State;
-    ///
-    /// // Create a state computation that might fail
-    /// let state = State::new(|s: i32| {
-    ///     if s > 0 {
-    ///         (Ok(s * 2), s + 1)
-    ///     } else {
-    ///         (Err("Value must be positive"), s)
-    ///     }
-    /// });
-    ///
-    /// let final_state = state.try_exec_state_with_context(5, "processing user input");
-    /// assert_eq!(final_state, Ok(6));
-    ///
-    /// let final_state = state.try_exec_state_with_context(-1, "processing user input");
-    /// assert!(final_state.is_err());
-    /// let error = final_state.unwrap_err();
-    /// assert_eq!(error.core_error(), &"Value must be positive");
-    /// assert_eq!(error.context(), vec!["processing user input".to_string()]);
-    /// ```
-    pub fn try_exec_state_with_context<C>(&self, s: S, context: C) -> ComposableResult<S, Err>
+    pub fn try_exec_state_with_context<C>(self, s: S, context: C) -> ComposableResult<S, Err>
     where
         C: IntoErrorContext,
     {
@@ -1217,6 +1012,14 @@ mod tests {
         let add_state = State::new(|s: i32| (move |x: i32| x + s, s + 1));
         let val_state = State::new(|s: i32| (s * 2, s + 2));
         assert_eq!(add_state.apply(val_state).run_state(5), (17, 8));
+
+        #[allow(deprecated)]
+        {
+            let s = State::new(|x: i32| (x * 2, x + 1));
+            assert_eq!(s.clone().run_state_owned(5), (10, 6));
+            assert_eq!(s.clone().eval_state_owned(5), 10);
+            assert_eq!(s.exec_state_owned(5), 6);
+        }
     }
 
     #[test]
@@ -1229,15 +1032,15 @@ mod tests {
             }
         });
 
-        let (res1, s1) = fallible.try_run_state_with_context(5, "ctx");
+        let (res1, s1) = fallible.clone().try_run_state_with_context(5, "ctx");
         assert_eq!(res1, Ok(50));
         assert_eq!(s1, 6);
 
-        let (res2, s2) = fallible.try_run_state_with_context(-1, "ctx");
+        let (res2, s2) = fallible.clone().try_run_state_with_context(-1, "ctx");
         assert!(res2.is_err());
         assert_eq!(res2.unwrap_err().context(), vec!["ctx".to_string()]);
         assert_eq!(s2, -1);
-        assert!(fallible.try_eval_state(-1).is_err());
+        assert!(fallible.clone().try_eval_state(-1).is_err());
         assert_eq!(fallible.try_exec_state(5), Ok(6));
     }
 
@@ -1258,8 +1061,8 @@ mod tests {
         let mut state = (0, 1);
         let mut results = vec![];
         for _ in 0..5 {
-            results.push(next_fib.eval_state(state));
-            state = next_fib.exec_state(state);
+            results.push(next_fib.clone().eval_state(state));
+            state = next_fib.clone().exec_state(state);
         }
         assert_eq!(results, vec![0, 1, 1, 2, 3]);
 
@@ -1278,7 +1081,7 @@ mod unit_tests {
     #[test]
     fn documented_state_scenarios_hold() {
         let counter = State::new(|s: i32| (s, s + 1));
-        assert_eq!(counter.run_state(0), (0, 1));
+        assert_eq!(counter.clone().run_state(0), (0, 1));
         assert_eq!(counter.run_state(10), (10, 11));
 
         let computation = get::<i32>().bind(|x| {
@@ -1291,8 +1094,8 @@ mod unit_tests {
     #[test]
     fn state_monad_maps_and_executes() {
         let state = State::new(|s: i32| (s * 2, s + 1));
-        assert_eq!(state.run_state(5), (10, 6));
-        assert_eq!(state.eval_state(5), 10);
+        assert_eq!(state.clone().run_state(5), (10, 6));
+        assert_eq!(state.clone().eval_state(5), 10);
         assert_eq!(state.exec_state(5), 6);
 
         let pure_val = State::pure(42);

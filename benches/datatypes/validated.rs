@@ -27,7 +27,7 @@ pub fn validated_benchmarks(c: &mut Criterion) {
                 let right = Validated::<String, i32>::invalid_many(
                     (0..error_count).map(|index| format!("error_{index}")),
                 );
-                b.iter(|| black_box(left.combine_errors(&right)));
+                b.iter(|| black_box(left.clone().combine_errors(right.clone())));
             },
         );
     }

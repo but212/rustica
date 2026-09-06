@@ -32,7 +32,7 @@ fn basic_usage() {
     // Using Validated for error accumulation
     let v1: Validated<&str, i32> = Validated::valid(10);
     let v2: Validated<&str, i32> = Validated::valid(20);
-    let sum = Validated::<&str, i32>::lift2(|a, b| *a + *b, &v1, &v2);
+    let sum = Validated::<&str, i32>::lift2(|a, b| a + b, v1, v2);
     assert_eq!(sum, Validated::valid(30));
 }
 

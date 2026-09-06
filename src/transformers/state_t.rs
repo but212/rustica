@@ -54,7 +54,7 @@ where
 
     /// Runs the transition with an initial state.
     #[inline]
-    pub fn run_state(&self, state: S) -> M {
+    pub fn run_state(self, state: S) -> M {
         (self.run_state_fn)(state)
     }
 
@@ -99,17 +99,17 @@ where
     }
 
     /// Runs a base-level flattening operation without introducing state variants.
-    pub fn join<OuterM, JoinFn>(&self, join_fn: JoinFn) -> StateT<S, OuterM, A>
+    pub fn join<OuterM, JoinFn>(self, join_fn: JoinFn) -> StateT<S, OuterM, A>
     where
         OuterM: HKT<Source = (S, A)> + 'static,
         JoinFn: Fn(M) -> OuterM + Send + Sync + 'static,
     {
-        let run = Arc::clone(&self.run_state_fn);
+        let run = self.run_state_fn;
         StateT::new(move |state| join_fn(run(state)))
     }
 
     /// Runs the transition and lets the caller project the base result.
-    pub fn exec_state<F, B>(&self, state: S, extract: F) -> B
+    pub fn exec_state<F, B>(self, state: S, extract: F) -> B
     where
         F: FnOnce(M) -> B,
     {
@@ -124,42 +124,42 @@ where
     A: Clone + 'static,
 {
     /// Maps the value while preserving the produced state.
-    pub fn fmap<B, F>(&self, f: F) -> StateT<S, M::Output<(S, B)>, B>
+    pub fn fmap<B, F>(self, f: F) -> StateT<S, M::Output<(S, B)>, B>
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
         B: Clone + 'static,
         M::Output<(S, B)>: 'static,
     {
-        let run = Arc::clone(&self.run_state_fn);
+        let run = self.run_state_fn;
         StateT::new(move |state| {
             let mapper = f.clone();
             run(state).fmap(move |pair| {
                 let (next_state, value) = pair;
-                (next_state.clone(), mapper(value.clone()))
+                (next_state, mapper(value))
             })
         })
     }
 
     /// Sequences transitions and threads the produced state into the next step.
-    pub fn bind<B, F>(&self, f: F) -> StateT<S, M::Output<(S, B)>, B>
+    pub fn bind<B, F>(self, f: F) -> StateT<S, M::Output<(S, B)>, B>
     where
         F: Fn(A) -> StateT<S, M::Output<(S, B)>, B> + Clone + Send + Sync + 'static,
         B: Clone + 'static,
         M::Output<(S, B)>: 'static,
     {
-        let run = Arc::clone(&self.run_state_fn);
+        let run = self.run_state_fn;
         StateT::new(move |state| {
             let next = f.clone();
             run(state).bind(move |pair| {
                 let (next_state, value) = pair;
-                next(value.clone()).run_state(next_state.clone())
+                next(value).run_state(next_state)
             })
         })
     }
 
     /// Combines transitions left-to-right while threading state.
     pub fn combine<B, C, F>(
-        &self, other: &StateT<S, M::Output<(S, B)>, B>, f: F,
+        self, other: StateT<S, M::Output<(S, B)>, B>, f: F,
     ) -> StateT<S, M::Output<(S, C)>, C>
     where
         B: Clone + 'static,
@@ -168,20 +168,17 @@ where
         M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
         M::Output<(S, C)>: 'static,
     {
-        let left = Arc::clone(&self.run_state_fn);
-        let right = Arc::clone(&other.run_state_fn);
+        let left = self.run_state_fn;
+        let right = other.run_state_fn;
         StateT::new(move |state| {
             let right = Arc::clone(&right);
             let combine = f.clone();
             left(state).bind(move |pair| {
                 let (next_state, left_value) = pair;
                 let combine = combine.clone();
-                right(next_state.clone()).fmap(move |right_pair| {
+                right(next_state).fmap(move |right_pair| {
                     let (final_state, right_value) = right_pair;
-                    (
-                        final_state.clone(),
-                        combine(left_value.clone(), right_value.clone()),
-                    )
+                    (final_state, combine(left_value.clone(), right_value))
                 })
             })
         })
@@ -189,7 +186,7 @@ where
 
     /// Applies a state-held function to the next state-held value.
     pub fn apply<B, C>(
-        &self, other: &StateT<S, M::Output<(S, B)>, B>,
+        self, other: StateT<S, M::Output<(S, B)>, B>,
     ) -> StateT<S, M::Output<(S, C)>, C>
     where
         A: Fn(B) -> C,
@@ -212,7 +209,7 @@ where
     type BaseMonad = M::Output<A>;
 
     fn lift(base: Self::BaseMonad) -> Self {
-        StateT::new(move |state: S| base.fmap(|value| (state.clone(), value.clone())))
+        StateT::new(move |state: S| base.clone().fmap(|value| (state.clone(), value)))
     }
 }
 
@@ -222,11 +219,11 @@ where
     E: Clone + 'static,
     A: Clone + 'static,
 {
-    pub fn try_run_state(&self, state: S) -> ComposableResult<(S, A), E> {
+    pub fn try_run_state(self, state: S) -> ComposableResult<(S, A), E> {
         self.run_state(state).map_err(ComposableError::new)
     }
 
-    pub fn try_run_state_with_context<C>(&self, state: S, context: C) -> ComposableResult<(S, A), E>
+    pub fn try_run_state_with_context<C>(self, state: S, context: C) -> ComposableResult<(S, A), E>
     where
         C: IntoErrorContext,
     {
@@ -235,20 +232,20 @@ where
             .map_err(|error| ComposableError::new(error).with_context(context.clone()))
     }
 
-    pub fn map_error<F, E2>(&self, f: F) -> StateT<S, Result<(S, A), E2>, A>
+    pub fn map_error<F, E2>(self, f: F) -> StateT<S, Result<(S, A), E2>, A>
     where
         F: Fn(E) -> E2 + Send + Sync + 'static,
         E2: Clone + 'static,
     {
-        let run = Arc::clone(&self.run_state_fn);
+        let run = self.run_state_fn;
         StateT::new(move |state| run(state).map_err(&f))
     }
 
-    pub fn try_eval_state(&self, state: S) -> ComposableResult<A, E> {
+    pub fn try_eval_state(self, state: S) -> ComposableResult<A, E> {
         self.try_run_state(state).map(|(_, value)| value)
     }
 
-    pub fn try_eval_state_with_context<C>(&self, state: S, context: C) -> ComposableResult<A, E>
+    pub fn try_eval_state_with_context<C>(self, state: S, context: C) -> ComposableResult<A, E>
     where
         C: IntoErrorContext,
     {
@@ -256,7 +253,7 @@ where
             .map(|(_, value)| value)
     }
 
-    pub fn try_exec_state(&self, state: S) -> ComposableResult<S, E> {
+    pub fn try_exec_state(self, state: S) -> ComposableResult<S, E> {
         self.try_run_state(state)
             .map(|(final_state, _)| final_state)
     }
@@ -292,12 +289,15 @@ mod tests {
         let first: StateT<i32, Option<(i32, i32)>, i32> =
             StateT::new(|state| Some((state + 1, state)));
         let bound: StateT<i32, Option<(i32, String)>, String> = first
+            .clone()
             .bind(|value| StateT::new(move |state| Some((state * 2, format!("{value}:{state}")))));
         assert_eq!(bound.run_state(3), Some((8, "3:4".to_owned())));
 
         let second: StateT<i32, Option<(i32, &'static str)>, &'static str> =
             StateT::new(|state| Some((state * 2, "done")));
-        let combined = first.combine(&second, |value, label| format!("{value}:{label}"));
+        let combined = first
+            .clone()
+            .combine(second, |value, label| format!("{value}:{label}"));
         assert_eq!(combined.run_state(3), Some((8, "3:done".to_owned())));
 
         let mapped: StateT<i32, Option<(i32, String)>, String> =
@@ -308,7 +308,7 @@ mod tests {
             StateT::new(|state| Some((state + 1, (|value| format!("value={value}")) as Formatter)));
         let values: StateT<i32, Option<(i32, i32)>, i32> =
             StateT::new(|state| Some((state * 2, state)));
-        let applied: StateT<i32, Option<(i32, String)>, String> = functions.apply(&values);
+        let applied: StateT<i32, Option<(i32, String)>, String> = functions.apply(values);
         assert_eq!(applied.run_state(3), Some((8, "value=4".to_owned())));
     }
 
@@ -329,7 +329,7 @@ mod tests {
         });
         let transformed = StateT::from_state(state);
         assert_eq!(
-            transformed.run_state("abc".to_owned()).unwrap(),
+            transformed.clone().run_state("abc".to_owned()).into_inner(),
             ("abc!".to_owned(), 3)
         );
 

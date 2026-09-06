@@ -8,7 +8,6 @@
 //! - [`Max`], [`Min`]: Maximum/minimum value wrappers
 //! - [`Product`], [`Sum`]: Product/sum wrappers (numeric Monoids)
 //! - [`Predicate`]: Composable intensional sets with algebraic operations
-//! - [`Thunk`]: Lazy evaluation wrapper
 //!
 //! # Usage Examples
 //!
@@ -18,11 +17,11 @@
 //!
 //! let a = Sum(3);
 //! let b = Sum(4);
-//! assert_eq!(a.combine(&b).into_inner(), 7);
+//! assert_eq!(a.combine(b).into_inner(), 7);
 //!
 //! let m = Max(10);
 //! let n = Max(20);
-//! assert_eq!(m.combine(&n).into_inner(), 20);
+//! assert_eq!(m.combine(n).into_inner(), 20);
 //!
 //! let positive = Predicate::new(|value: &i32| *value > 0);
 //! assert!(positive.contains(&1));
@@ -39,6 +38,7 @@ pub use crate::datatypes::wrapper::min::Min;
 pub use crate::datatypes::wrapper::predicate::Predicate;
 pub use crate::datatypes::wrapper::product::Product;
 pub use crate::datatypes::wrapper::sum::Sum;
+#[allow(deprecated)]
 pub use crate::datatypes::wrapper::thunk::Thunk;
 
 // Also re-export commonly used traits

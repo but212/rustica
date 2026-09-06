@@ -88,7 +88,7 @@ where
     pub fn or<P: Into<Parser<I, O>>>(self, other: P) -> Parser<I, O> {
         let other = other.into();
         Parser::new(move |input| match (self.parse(input), other.parse(input)) {
-            (Some(a), Some(b)) => Some(a.combine(&b)),
+            (Some(a), Some(b)) => Some(a.combine(b)),
             (Some(a), None) => Some(a),
             (None, Some(b)) => Some(b),
             (None, None) => None,
@@ -119,7 +119,7 @@ where
     {
         Parser::new(move |input| {
             let results = self.parse(input)?;
-            let mapped = results.fmap(|(res, rem)| (f(res.clone()), *rem));
+            let mapped = results.fmap(|(res, rem)| (f(res), rem));
             Some(mapped)
         })
     }

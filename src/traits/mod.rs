@@ -31,6 +31,13 @@ pub mod functor;
 pub mod monad;
 /// Error handling within monadic contexts.
 pub mod monad_error;
+#[allow(deprecated)]
+pub mod monad_plus;
+
+#[allow(deprecated)]
+pub use monad_error::ErrorMapper;
+#[allow(deprecated)]
+pub use monad_plus::MonadPlus;
 
 /// Mapping over two-type data structures.
 pub mod bifunctor;

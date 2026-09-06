@@ -20,7 +20,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rustica = "0.14.0"
+//! rustica = "0.15.0"
 //! ```
 //!
 //! Import common traits and types through the prelude:
@@ -75,8 +75,8 @@
 //! let email = validate_email("invalid-email");
 //!
 //! // Combine validations and format the result only when both are valid
-//! let format_user = |n: &String, e: &String| format!("User: {n}, Email: {e}");
-//! let combined = Validated::<String, String>::lift2(format_user, &name, &email);
+//! let format_user = |n: String, e: String| format!("User: {n}, Email: {e}");
+//! let combined = Validated::<String, String>::lift2(format_user, name, email);
 //! assert!(combined.is_invalid());
 //! assert_eq!(combined.unwrap_invalid().len(), 2); // Both errors are collected
 //! ```
@@ -159,39 +159,6 @@
 //! ```compile_fail
 //! // IsoPrism has been removed in the unreleased breaking changes
 //! use rustica::datatypes::iso_prism::IsoPrism;
-//! ```
-//!
-//! ```compile_fail
-//! // Lens::compose is removed in the unreleased changes (use Lens::then)
-//! use rustica::datatypes::lens::Lens;
-//! let first = Lens::new(
-//!     |value: &i32| *value,
-//!     |_: i32, value: i32| value,
-//! );
-//! let second = Lens::new(
-//!     |value: &i32| *value,
-//!     |_: i32, value: i32| value,
-//! );
-//! let _ = first.compose(second);
-//! ```
-//!
-//! ```compile_fail
-//! // pipeline_result is removed in the unreleased changes (use Iterator::try_fold)
-//! use rustica::utils::hkt_utils::pipeline_result;
-//! ```
-//!
-//! ```compile_fail
-//! // Prism::compose is removed in the unreleased changes (use Prism::then)
-//! use rustica::datatypes::prism::Prism;
-//! let first = Prism::new(
-//!     |value: &i32| Some(*value),
-//!     |value: &i32| *value,
-//! );
-//! let second = Prism::new(
-//!     |value: &i32| Some(*value),
-//!     |value: &i32| *value,
-//! );
-//! let _ = first.compose(second);
 //! ```
 //!
 //! ```compile_fail
@@ -337,11 +304,11 @@
 //! use rustica::category::function_category::FunctionCategory;
 //! let _ = FunctionCategory::lift(|x: i32| x + 1);
 //! ```
-//!
 //! ```compile_fail
-//! // Id::unwrap_or was removed in 0.15.0; use into_inner instead.
-//! use rustica::datatypes::id::Id;
-//! let _ = Id::new(42).unwrap_or(0);
+//! // Validated has no lawful Monad implementation; convert to Result via into_value()
+//! use rustica::datatypes::validated::Validated;
+//! use rustica::traits::monad::Monad;
+//! let _: Validated<&str, i32> = Validated::valid(1).bind(|x| Validated::valid(x + 1));
 //! ```
 
 /// Core traits for functional programming abstractions.
@@ -383,3 +350,10 @@ pub mod error;
 
 /// Convenient re-exports of commonly used items.
 pub mod prelude;
+
+/// Deprecated utility helpers.
+#[deprecated(
+    since = "0.15.0",
+    note = "use standard iterator, `Option`, and `Result` operations instead"
+)]
+pub mod utils;

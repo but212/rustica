@@ -35,8 +35,8 @@
 //! let empty: Vec<i32> = <Vec<i32> as Alternative>::empty_alt::<i32>();
 //!
 //! // alt combines alternatives
-//! assert_eq!(a.alt(&b), vec![1, 2]);
-//! assert_eq!(empty.alt(&b), vec![3, 4]);
+//! assert_eq!(a.alt(b), vec![1, 2]);
+//! assert_eq!(empty.alt(vec![3, 4]), vec![3, 4]);
 //!
 //! // guard for conditional inclusion
 //! assert_eq!(Vec::<i32>::guard(true), vec![()]);
@@ -66,7 +66,7 @@ pub trait Alternative: Applicative {
     /// assert_eq!(Option::<i32>::empty_alt::<i32>(), None);
     /// assert_eq!(Vec::<i32>::empty_alt::<i32>(), Vec::new());
     /// ```
-    fn empty_alt<T: Clone>() -> Self::Output<T>;
+    fn empty_alt<T>() -> Self::Output<T>;
 
     /// Combines two alternatives, choosing the first success.
     ///
@@ -81,13 +81,11 @@ pub trait Alternative: Applicative {
     /// let b = Some(2);
     /// let c: Option<i32> = None;
     ///
-    /// assert_eq!(a.alt(&b), Some(1));
-    /// assert_eq!(c.alt(&b), Some(2));
-    /// assert_eq!(c.alt(&c), None);
+    /// assert_eq!(a.alt(b), Some(1));
+    /// assert_eq!(c.alt(Some(2)), Some(2));
+    /// assert_eq!(Option::<i32>::None.alt(None), None);
     /// ```
-    fn alt(&self, other: &Self) -> Self
-    where
-        Self: Sized + Clone;
+    fn alt(self, other: Self) -> Self;
 
     /// Returns a value if the condition is true, otherwise returns the empty value.
     ///
@@ -130,63 +128,45 @@ pub trait Alternative: Applicative {
     /// assert_eq!(none.many(), None);
     /// assert_eq!(some.many(), Some(vec![42]));
     /// ```
-    fn many(&self) -> Self::Output<Vec<Self::Source>>
-    where
-        Self::Source: Clone;
+    fn many(self) -> Self::Output<Vec<Self::Source>>;
 }
 
-impl<T> Alternative for Option<T>
-where
-    T: Clone,
-{
+impl<T> Alternative for Option<T> {
     fn empty_alt<U>() -> Self::Output<U> {
         None
     }
 
-    fn alt(&self, other: &Self) -> Self {
-        self.clone().or_else(|| other.clone())
+    fn alt(self, other: Self) -> Self {
+        self.or(other)
     }
 
     fn guard(condition: bool) -> Self::Output<()> {
         condition.then_some(())
     }
 
-    fn many(&self) -> Self::Output<Vec<Self::Source>>
-    where
-        Self::Source: Clone,
-    {
-        self.as_ref().map(|value| vec![value.clone()])
+    fn many(self) -> Self::Output<Vec<Self::Source>> {
+        self.map(|value| vec![value])
     }
 }
 
-impl<T> Alternative for Vec<T>
-where
-    T: Clone,
-{
+impl<T> Alternative for Vec<T> {
     fn empty_alt<U>() -> Self::Output<U> {
         Vec::new()
     }
 
-    fn alt(&self, other: &Self) -> Self {
-        if self.is_empty() {
-            other.clone()
-        } else {
-            self.clone()
-        }
+    fn alt(self, other: Self) -> Self {
+        if self.is_empty() { other } else { self }
     }
 
     fn guard(condition: bool) -> Self::Output<()> {
         if condition { vec![()] } else { Vec::new() }
     }
 
-    fn many(&self) -> Self::Output<Vec<Self::Source>>
-    where
-        Self::Source: Clone,
-    {
+    fn many(self) -> Self::Output<Vec<Self::Source>> {
         if self.is_empty() {
             Vec::new()
         } else {
-            vec![self.clone()]
+            vec![self]
         }
     }
 }
@@ -195,17 +175,31 @@ where
 mod unit_tests {
     use super::Alternative;
 
+    #[derive(Debug, PartialEq)]
+    struct MoveOnly(i32);
+
     #[test]
     fn option_and_vec_choose_the_first_available_value() {
         let none: Option<i32> = None;
         let some = Some(42);
-        assert_eq!(Alternative::alt(&none, &some), some);
+        assert_eq!(Alternative::alt(none, some), Some(42));
         assert_eq!(Option::<i32>::guard(true), Some(()));
         assert_eq!(Option::<i32>::guard(false), None);
 
         let first = vec![1];
         let second = vec![2];
-        assert_eq!(Vec::<i32>::empty_alt().alt(&first), first);
-        assert_eq!(first.alt(&second), first);
+        assert_eq!(Vec::<i32>::empty_alt().alt(first.clone()), first);
+        assert_eq!(first.alt(second), vec![1]);
+    }
+
+    #[test]
+    fn alternative_supports_move_only_types() {
+        let none: Option<MoveOnly> = None;
+        let some = Some(MoveOnly(42));
+        assert_eq!(none.alt(some), Some(MoveOnly(42)));
+
+        let v_empty: Vec<MoveOnly> = Vec::new();
+        let v_items = vec![MoveOnly(1)];
+        assert_eq!(v_empty.alt(v_items), vec![MoveOnly(1)]);
     }
 }

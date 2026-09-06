@@ -69,16 +69,16 @@
 //! let c = Sum(5);
 //!
 //! // Values are combined by addition
-//! assert_eq!(a.combine(&b), Sum(10)); // 3 + 7 = 10
-//! assert_eq!(b.combine(&c), Sum(12)); // 7 + 5 = 12
+//! assert_eq!(a.clone().combine(b.clone()), Sum(10)); // 3 + 7 = 10
+//! assert_eq!(b.clone().combine(c.clone()), Sum(12)); // 7 + 5 = 12
 //!
 //! // Chaining additions
-//! let result = a.combine(&b).combine(&c);
+//! let result = a.clone().combine(b).combine(c.clone());
 //! assert_eq!(result, Sum(15)); // 3 + 7 + 5 = 15
 //!
 //! // Identity element (additive identity: 0)
 //! let empty = Sum::empty();
-//! assert_eq!(a.combine(&empty), a); // 3 + 0 = 3
+//! assert_eq!(a.clone().combine(empty), a); // 3 + 0 = 3
 //! ```
 
 use crate::traits::functor::Functor;
@@ -124,7 +124,7 @@ use std::ops::Add;
 /// let b: Sum<i32> = Sum(7);
 ///
 /// // Combine them (addition)
-/// let c = a.combine(&b);
+/// let c = a.combine(b);
 /// assert_eq!(c.into_inner(), 12);
 ///
 /// // Addition is associative: (a + b) + c = a + (b + c)
@@ -132,15 +132,15 @@ use std::ops::Add;
 /// let y: Sum<i32> = Sum(2);
 /// let z: Sum<i32> = Sum(3);
 ///
-/// let result1 = x.clone().combine(&y).combine(&z.clone());
-/// let result2 = x.combine(&y.combine(&z));
+/// let result1 = x.clone().combine(y.clone()).combine(z.clone());
+/// let result2 = x.combine(y.combine(z));
 /// assert_eq!(result1.into_inner(), result2.into_inner());
 ///
 /// // Identity element
 /// let id: Sum<i32> = Sum(0);
 /// assert_eq!(*id.get(), 0);
-/// assert_eq!(Sum(42).combine(&id).into_inner(), 42);
-/// assert_eq!(id.combine(&Sum(42)).into_inner(), 42);
+/// assert_eq!(Sum(42).combine(id.clone()).into_inner(), 42);
+/// assert_eq!(id.combine(Sum(42)).into_inner(), 42);
 /// ```
 ///
 /// Working with floating-point numbers:
@@ -151,7 +151,7 @@ use std::ops::Add;
 ///
 /// let a: Sum<f64> = Sum(2.5);
 /// let b: Sum<f64> = Sum(3.7);
-/// let c = a.combine(&b);
+/// let c = a.combine(b);
 /// assert_eq!(c.into_inner(), 6.2);
 /// ```
 ///
@@ -182,7 +182,7 @@ use std::ops::Add;
 /// // Now we can use Sum with our custom type
 /// let v1: Sum<Vector2D> = Sum(Vector2D { x: 1.0, y: 2.0 });
 /// let v2: Sum<Vector2D> = Sum(Vector2D { x: 3.0, y: 4.0 });
-/// let v3 = v1.combine(&v2);
+/// let v3 = v1.combine(v2);
 ///
 /// assert_eq!(v3.into_inner(), Vector2D { x: 4.0, y: 6.0 });
 /// ```
@@ -250,81 +250,22 @@ impl<T> AsRef<T> for Sum<T> {
     }
 }
 
-impl<T: Clone + Add<Output = T>> Semigroup for Sum<T> {
+impl<T: Add<Output = T>> Semigroup for Sum<T> {
     /// Combines two `Sum` values through addition, consuming self.
     ///
-    /// This method implements the Semigroup operation for `Sum<T>`, which is adding
-    /// two values. This method consumes both operands and returns a new `Sum`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of `T`'s addition operation
-    /// - **Memory Usage**: Creates a new `Sum` wrapper with the result of the addition
-    /// - **Ownership**: Takes ownership of both `self` and `other`
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Associativity
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
     /// # Examples
-    ///
     /// ```rust
     /// use rustica::datatypes::wrapper::sum::Sum;
     /// use rustica::traits::semigroup::Semigroup;
     ///
     /// let a = Sum(5);
     /// let b = Sum(10);
-    ///
-    /// // a and b are consumed
-    /// let c = a.combine_owned(b);
+    /// let c = a.combine(b);
     /// assert_eq!(c, Sum(15));
     /// ```
     #[inline]
-    fn combine_owned(self, other: Self) -> Self {
+    fn combine(self, other: Self) -> Self {
         Sum(self.0 + other.0)
-    }
-
-    /// Combines two `Sum` values through addition, borrowing self.
-    ///
-    /// This method implements the Semigroup operation for `Sum<T>`, which is adding
-    /// two values. This method borrows both operands and returns a new `Sum`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of `T`'s addition operation
-    /// - **Memory Usage**: Creates a new `Sum` wrapper with the result of the addition
-    /// - **Borrowing**: Clones both values before performing the addition
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Associativity
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::semigroup::Semigroup;
-    ///
-    /// let a = Sum(5);
-    /// let b = Sum(10);
-    ///
-    /// // a and b are borrowed
-    /// let c = a.combine(&b);
-    /// assert_eq!(c, Sum(15));
-    ///
-    /// // a and b can still be used
-    /// let d = b.combine(&a);
-    /// assert_eq!(d, Sum(15));
-    /// ```
-    #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        Sum(self.0.clone() + other.0.clone())
     }
 }
 
@@ -378,8 +319,8 @@ impl<T: Clone + Add<Output = T> + Default> Monoid for Sum<T> {
     ///
     /// // Identity property demonstration
     /// let a = Sum(42);
-    /// assert_eq!(a.combine(&identity), a);  // a + 0 = a
-    /// assert_eq!(identity.combine(&a), a);  // 0 + a = a
+    /// assert_eq!(a.clone().combine(identity.clone()), a);  // a + 0 = a
+    /// assert_eq!(identity.clone().combine(a.clone()), a);  // 0 + a = a
     /// ```
     #[inline]
     fn empty() -> Self {
@@ -392,99 +333,11 @@ impl<T> HKT for Sum<T> {
     type Output<U> = Sum<U>;
 }
 
-impl<T: Clone + Add<Output = T>> Functor for Sum<T> {
-    /// Maps a function over the wrapped value, borrowing self.
-    ///
-    /// This method applies the function `f` to the value inside the `Sum` wrapper,
-    /// returning a new `Sum` containing the result. The original `Sum` is preserved.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of the function `f`
-    /// - **Memory Usage**: Creates a new `Sum` wrapper with the result of `f`
-    /// - **Borrowing**: Borrows the inner value without cloning it
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Identity Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// ## Composition Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let num = Sum(5);
-    ///
-    /// // Double the value
-    /// let doubled = num.fmap(|x| x * 2);
-    /// assert_eq!(doubled, Sum(10));
-    ///
-    /// // Chain transformations
-    /// let result = num
-    ///     .fmap(|x| x * 3)     // Sum(15)
-    ///     .fmap(|x| x + 5)     // Sum(20)
-    ///     .fmap(|x| x.to_string()); // Sum("20")
-    ///
-    /// assert_eq!(result, Sum("20".to_string()));
-    /// ```
+impl<T: Add<Output = T>> Functor for Sum<T> {
     #[inline]
-    fn fmap<U, F>(&self, f: F) -> Self::Output<U>
+    fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where
-        F: Fn(&Self::Source) -> U,
-    {
-        Sum(f(&self.0))
-    }
-
-    /// Maps a function over the wrapped value, consuming self.
-    ///
-    /// This method applies the function `f` to the value inside the `Sum` wrapper,
-    /// consuming the original `Sum` and returning a new `Sum` containing the result.
-    /// This is more efficient than `fmap` when you no longer need the original `Sum`.
-    ///
-    /// # Performance
-    ///
-    /// - **Time Complexity**: O(1) plus the complexity of the function `f`
-    /// - **Memory Usage**: Creates a new `Sum` wrapper with the result of `f`
-    /// - **Ownership**: Takes ownership of the inner value, avoiding clones
-    ///
-    /// # Type Class Laws
-    ///
-    /// ## Identity Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// ## Composition Law
-    ///
-    ///
-    /// Algebraic laws for this wrapper are verified by unit tests.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::wrapper::sum::Sum;
-    /// use rustica::traits::functor::Functor;
-    ///
-    /// let num = Sum(5);
-    ///
-    /// // Consume num and double the value
-    /// let doubled = num.fmap_owned(|x| x * 2);
-    /// assert_eq!(doubled, Sum(10));
-    /// ```
-    #[inline]
-    fn fmap_owned<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: FnOnce(Self::Source) -> U,
-        Self::Source: Add<Output = Self::Source>,
+        F: FnMut(Self::Source) -> U,
     {
         Sum(f(self.0))
     }

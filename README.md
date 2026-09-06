@@ -39,14 +39,14 @@ Add Rustica to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.14.0"
+rustica = "0.15.0"
 ```
 
 For full features including `async`, `serde`, and `quickcheck`:
 
 ```toml
 [dependencies]
-rustica = { version = "0.14.0", features = ["full"] }
+rustica = { version = "0.15.0", features = ["full"] }
 ```
 
 Import common traits and types through the prelude:
@@ -61,8 +61,8 @@ use rustica::prelude::*;
 
 ### 1. Functional Type Classes
 
-- **`Functor`** - Structure-preserving mapping (`fmap`, `fmap_owned`)
-- **`Pure`** - Context-lifting (`pure`, `pure_owned`)
+- **`Functor`** - Structure-preserving mapping (`fmap`)
+- **`Pure`** - Context-lifting (`pure`)
 - **`Applicative`** - Multi-argument context application (`apply`, `lift2`, `lift3`)
 - **`Monad`** - Sequential monadic chaining (`bind`, `join`)
 - **`Foldable`** - Folding and aggregation (`fold_left`, `fold_right`)
@@ -97,7 +97,7 @@ base-monad value types at compile time; standard `Result`, `Iterator`, and
 
 See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the migration guide.
 
-The unreleased 0.15.0 breaking changes are documented in
+The 0.15.0 migration guide and breaking changes are documented in
 [MIGRATION_v0.15.0.md](MIGRATION_v0.15.0.md).
 
 ---
@@ -144,7 +144,7 @@ assert_eq!(doubled.into_iter().collect::<Vec<_>>(), vec![2, 4, 6]);
 // Error accumulation with Validated
 let v1: Validated<&str, i32> = Validated::valid(10);
 let v2: Validated<&str, i32> = Validated::valid(20);
-let sum = Validated::<&str, i32>::lift2(|a, b| *a + *b, &v1, &v2);
+let sum = Validated::<&str, i32>::lift2(|a, b| a + b, v1, v2);
 assert_eq!(sum, Validated::valid(30));
 ```
 

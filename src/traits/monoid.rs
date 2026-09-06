@@ -15,13 +15,13 @@
 //! // String monoid under concatenation
 //! let s1 = String::from("Hello, ");
 //! let s2 = String::from("world!");
-//! let s3 = s1.clone().combine_owned(s2.clone());
+//! let s3 = s1.clone().combine(s2.clone());
 //! assert_eq!(s3, "Hello, world!");
 //!
 //! // The empty string is the identity element
 //! let empty = String::empty();
-//! assert_eq!(s1.clone().combine_owned(empty.clone()), s1.clone());
-//! assert_eq!(empty.combine_owned(s2.clone()), s2);
+//! assert_eq!(s1.clone().combine(empty.clone()), s1.clone());
+//! assert_eq!(empty.combine(s2.clone()), s2);
 //! ```
 //!
 //! ## Extension Trait
@@ -43,13 +43,13 @@ use crate::traits::semigroup::Semigroup;
 ///
 /// For any value `x` of type implementing Monoid:
 /// ```text
-/// x.combine(&Self::empty()) = x           // Right identity
-/// Self::empty().combine(&x) = x           // Left identity
+/// x.combine(Self::empty()) = x           // Right identity
+/// Self::empty().combine(x) = x           // Left identity
 /// ```
 ///
 /// Additionally, since Monoid extends `Semigroup`, the associativity law must hold:
 /// ```text
-/// (a.combine(&b)).combine(&c) = a.combine(&b.combine(&c))
+/// (a.combine(b)).combine(c) = a.combine(b.combine(c))
 /// ```
 ///
 /// # Examples
@@ -59,7 +59,7 @@ use crate::traits::semigroup::Semigroup;
 ///
 /// let hello = String::from("Hello");
 /// let world = String::from(", world!");
-/// assert_eq!(hello.combine_owned(world), "Hello, world!");
+/// assert_eq!(hello.combine(world), "Hello, world!");
 /// ```
 ///
 /// The complete identity and associativity checks are maintained in
@@ -100,13 +100,9 @@ pub trait Monoid: Semigroup {
     /// let empty_string = String::empty();
     /// let hello = String::from("Hello");
     ///
-    /// // Owned identity laws
-    /// assert_eq!(hello.clone().combine_owned(empty_string.clone()), hello.clone());
-    /// assert_eq!(String::empty().combine_owned(hello.clone()), hello.clone());
-    ///
-    /// // Reference identity laws
-    /// assert_eq!(hello.combine(&empty_string), hello.clone());
-    /// assert_eq!(empty_string.combine(&hello), hello);
+    /// // Identity laws
+    /// assert_eq!(hello.clone().combine(empty_string.clone()), hello.clone());
+    /// assert_eq!(String::empty().combine(hello.clone()), hello.clone());
     /// ```
     fn empty() -> Self;
 }
@@ -163,7 +159,7 @@ where
 {
     let mut iter = values.into_iter();
     match iter.next() {
-        Some(first) => iter.fold(first, |acc, x| acc.combine_owned(x)),
+        Some(first) => iter.fold(first, |acc, x| acc.combine(x)),
         None => M::empty(),
     }
 }
@@ -251,7 +247,7 @@ where
 
     let mut result = value.clone();
     for _ in 1..n {
-        result = result.combine_owned(value.clone());
+        result = result.combine(value.clone());
     }
     result
 }
@@ -304,7 +300,7 @@ where
 
     let mut result = values[0].clone();
     for value in &values[1..] {
-        result = result.combine(value);
+        result = result.combine(value.clone());
     }
     result
 }

@@ -27,16 +27,16 @@
 //!
 //! // Functor: map over elements
 //! let vec = PersistentVector::from_slice(&[1, 2, 3]);
-//! let doubled: PersistentVector<i32> = vec.fmap(|x| x * 2);
+//! let doubled: PersistentVector<i32> = vec.clone().fmap(|x| x * 2);
 //! assert_eq!(doubled.to_vec(), vec![2, 4, 6]);
 //!
 //! // Foldable: reduce elements
-//! let sum = vec.fold_left(&0, |acc, x| acc + x);
+//! let sum = vec.fold_left(0, |acc, x| acc + x);
 //! assert_eq!(sum, 6);
 //!
 //! // Monoid: empty and combine
 //! let empty: PersistentVector<i32> = PersistentVector::empty();
-//! let combined = vec.combine(&PersistentVector::from_slice(&[4, 5]));
+//! let combined = vec.combine(PersistentVector::from_slice(&[4, 5]));
 //! assert_eq!(combined.to_vec(), vec![1, 2, 3, 4, 5]);
 //! ```
 
@@ -63,20 +63,9 @@ impl<T> HKT for PersistentVector<T> {
 /// - Composition: `vec.fmap(f).fmap(g) == vec.fmap(|x| g(f(x)))`
 impl<T: Clone> Functor for PersistentVector<T> {
     #[inline]
-    fn fmap<B, F>(&self, f: F) -> Self::Output<B>
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
-        F: Fn(&Self::Source) -> B,
-        B: Clone,
-    {
-        self.map(f)
-    }
-
-    #[inline]
-    fn fmap_owned<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: Fn(Self::Source) -> B,
-        B: Clone,
-        Self: Sized,
+        F: FnMut(Self::Source) -> B,
     {
         PersistentVector::from_iter(self.into_iter().map(f))
     }
@@ -89,13 +78,13 @@ impl<T: Clone> Functor for PersistentVector<T> {
 impl<T> Foldable for PersistentVector<T> {
     /// Folds elements from left to right.
     #[inline]
-    fn fold_left<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&U, &Self::Source) -> U,
+        F: FnMut(U, &Self::Source) -> U,
     {
-        let mut acc = init.clone();
+        let mut acc = init;
         for item in self {
-            acc = f(&acc, item);
+            acc = f(acc, item);
         }
         acc
     }
@@ -104,13 +93,11 @@ impl<T> Foldable for PersistentVector<T> {
     ///
     /// Uses `DoubleEndedIterator` for efficient reverse traversal.
     #[inline]
-    fn fold_right<U: Clone, F>(&self, init: &U, f: F) -> U
+    fn fold_right<U, F>(&self, init: U, mut f: F) -> U
     where
-        F: Fn(&Self::Source, &U) -> U,
+        F: FnMut(&Self::Source, U) -> U,
     {
-        self.iter()
-            .rev()
-            .fold(init.clone(), |acc, item| f(item, &acc))
+        self.iter().rev().fold(init, |acc, item| f(item, acc))
     }
 
     #[inline]
@@ -126,12 +113,7 @@ impl<T> Foldable for PersistentVector<T> {
 impl<T: Clone> Semigroup for PersistentVector<T> {
     /// Concatenates two vectors.
     #[inline]
-    fn combine(&self, other: &Self) -> Self {
-        self.concat(other)
-    }
-
-    #[inline]
-    fn combine_owned(self, other: Self) -> Self {
+    fn combine(self, other: Self) -> Self {
         self.concat(&other)
     }
 }

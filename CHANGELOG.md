@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased]
+## [0.15.0]
 
 ### Bug Fixes
 
@@ -14,6 +14,17 @@
 
 ### Contract Integrity & Laws
 
+- **Receiver Unification & Move Semantics**:
+  - Consolidated dual borrowed/owned API duplication (`foo(&self)` vs `foo_owned(self)`) across traits, effect types, and wrappers in favor of idiomatic owned `self` signatures (`foo(self)`).
+  - Maintained backwards compatibility during the 0.15.0 migration period by marking `*_owned` method variants on core effect types (`IO::run_owned`, `IO::run_async_owned`, `Writer::run_owned`, `Writer::unwrap_owned`, `State::run_state_owned`, `State::eval_state_owned`, `State::exec_state_owned`, `Reader::run_reader_owned`, `Validated::unwrap_owned`, `Validated::unwrap_invalid_owned`, `Validated::combine_errors_owned`, `Validated::sequence_owned`, `Validated::collect_owned`, `Validated::from_option_owned`, `Validated::from_option_with_owned`, `Validated::fmap_invalid_owned`, `MonadError::catch_owned`) as `#[deprecated]`, forwarding directly to their unified counterparts.
+  - Generalized `Alternative::alt(self, other: Self) -> Self` and `Alternative::many(self)` to owned receivers, eliminating spurious `T: Clone` bounds.
+  - Generalized `Bifunctor::first(self, f)`, `second(self, g)`, and `bimap(self, f, g)` to owned receivers with `FnMut(Source) -> C`, removing 4 `Clone` bounds.
+  - Migrated `StateT` and `ReaderT` methods (`run_state`, `run_reader`, `fmap`, `bind`, `combine`, `apply`, etc.) to owned receivers and owned other arguments.
+  - Generalized `Foldable::fold_left<U, F>(&self, init: U, mut f: F) -> U` and `fold_right` to consume the accumulator by value, enabling zero-copy folding over non-`Clone` accumulators (`U: !Clone`).
+  - Generalized `Iso::forward(&self, from: Self::From) -> Self::To` and `backward(&self, to: Self::To) -> Self::From` to accept values by move instead of reference.
+  - Effect types: `IO::run(self) -> A` and `IO::run_async(self) -> A` now support move-only / non-`Clone` types; `State::run_state(self, s)`, `eval_state`, `exec_state`, `Reader::run_reader(self, env)`, and `Writer::run(self)`, `into_value(self)` consume `self`.
+  - `Validated`: Consolidated `combine_errors(self, other)`, `fmap_invalid(self, f)`, `sequence(values: Vec<Self>, f)`, `unwrap(self)`, `unwrap_invalid(self)`, `unwrap_or(self, default)`, and async methods to owned receivers.
+  - Stripped unnecessary `Clone` bounds from `Functor::fmap` result type `B`, `Monad::bind` target type `U`, and `IO::run`/`Writer::unwrap` output types.
 - **Validated Semigroup Accumulation**: `Validated<E, A>: Semigroup` now requires `A: Semigroup` and accumulates valid components `(Valid(a1), Valid(a2)) => Valid(a1.combine(a2))`, while errors take precedence. `Alternative` is omitted because `NonEmptyErrors` lacks an empty identity element.
 - **Product Monoid Law**: Introduced `One` trait (`rustica::traits::one::One`) implemented for all numeric primitives (`u8`..`u128`, `usize`, `i8`..`i128`, `isize`, `f32`, `f64`), enabling `Product<i8>: Monoid`.
 - **IO Cold Computation**: Removed `IO::new_async` cold-computation caching bug; made `IO::delay` instantiate fresh sleep operations per run. Pure `fmap`, `bind`, and `apply` paths now also defer callbacks until each run (always produce `Effect` representation, even from pure inputs).
@@ -24,35 +35,36 @@
 
 ### Structural Pruning & Cleanup
 
-- **Wrapper Accessors**: Added idiomatic `into_inner()` and `get()` accessors on `Sum`, `Product`, `Min`, and `Max`, and marked `unwrap()` and `unwrap_or()` as `#[deprecated]`; removed unused `A: Debug` bound from `IO::sequence_composable`.
-- **Transformer Simplification**: Removed manual `*_with` forwarding combinators (`fmap_with`, `bind_with`, `combine_with`, `apply_with`) from `StateT` and `ReaderT`; made `ReaderT::lift2` an associated function.
-- **Hollow Traits Removed**: Removed `MonadPlus` (migrated to `Alternative`) and `ErrorMapper` (migrated to `Result::map_err`).
-- **Applicative / Bifunctor / Foldable**: Removed redundant `Applicative::ap2` alias; added default implementations for `Bifunctor::first` and `second` via `bimap`; simplified `Monad::map_and_pure` to delegate to `fmap`; simplified `Foldable::fold_monoid` to delegate to `fold_map`.
+- **Wrapper & Value Accessors**: Added idiomatic `into_inner()` and `get()` accessors across all wrapper types (`Sum`, `Product`, `Min`, `Max`, `First`, `Last`), and marked `unwrap()` and `unwrap_or()` as `#[deprecated]`; added `into_value()` on `Writer` and marked `unwrap()` as `#[deprecated]`; marked `Thunk` wrapper as `#[deprecated]` in favor of standard closures; removed unused `A: Debug` bound from `IO::sequence_composable`.
+- **Transformer Simplification**: Removed manual `*_with` forwarding combinators (`fmap_with`, `bind_with`, `combine_with`, `apply_with`) from `StateT` and `ReaderT`; marked `ReaderT::unwrap_with` as `#[deprecated]` in favor of `run_reader`; made `ReaderT::lift2` an associated function.
+- **Hollow Traits Deprecation**: Marked `MonadPlus` (migrated to `Alternative`) and `ErrorMapper` (migrated to `Result::map_err` / `Option::ok_or`) as `#[deprecated]`.
+- **Applicative / Bifunctor / Foldable**: Marked `Applicative::ap2` as `#[deprecated]` in favor of `lift2`; added default implementations for `Bifunctor::first` and `second` via `bimap`; simplified `Monad::map_and_pure` to delegate to `fmap`; simplified `Foldable::fold_monoid` to delegate to `fold_map`.
 - **PVec Optimization**: Replaced $O(n \log n)$ shared-tree fallback in `into_vec` with $O(n)$ iterator collect; generalized `update_size_table_after_removal`; bounded concatenation branches to 32 children while preserving structural sharing.
-- **Optics & Predicate**: Removed `IsoLens`/`IsoPrism` in favor of `Lens::from_iso`/`Prism::from_iso`; replaced `compose` with `then`; stored thread-safe closures in `Predicate` via `Arc`.
-- **Redundant API Removal**: Removed `FunctionCategory::lift` in favor of `FunctionCategory::arrow` and `Id::unwrap_or` in favor of `Id::into_inner` or `Id::unwrap`.
+- **Optics & Predicate**: Removed `IsoLens`/`IsoPrism` in favor of `Lens::from_iso`/`Prism::from_iso`; marked `compose` as `#[deprecated]` on `Lens` and `Prism` in favor of fluent `then`; stored thread-safe closures in `Predicate` via `Arc`.
+- **Redundant API Removal & Deprecation**: Removed `FunctionCategory::lift` in favor of `FunctionCategory::arrow`; marked `Id::unwrap`, `Id::unwrap_or`, and `Writer::exec` as `#[deprecated]` in favor of `Id::into_inner` and `Writer::log`.
+- **Utils Deprecation**: Marked `rustica::utils` module and its helpers (`pipeline_option`, `pipeline_result`, `transform_chain`) as `#[deprecated]` in favor of standard `Iterator::try_fold` and `Option::map` / `Functor::fmap`.
 
 ## [0.14.0]
 
-### Documentation Correctness
+### Documentation Correctness - 0.14.0
 
 - Documented `Min<T>` and `Max<T>` as `Semigroup` wrappers without a generic `Monoid` identity. Use `semigroup::combine_all_values` for empty-capable reductions or provide a domain-specific extremum.
 
-### Bug Fixes
+### Bug Fixes - 0.14.0
 
 - Fixed `PersistentVector::concat` ordering across unequal-height RRB trees.
 - Fixed `PersistentVector::pop_back` to drain the front head buffer after the tree is exhausted.
 
-### Tests
+### Tests - 0.14.0
 
 - Added regressions for unequal-height `PersistentVector::concat`, full head/tree `pop_back` draining, and `FoldableExt::fold_option` short-circuiting.
 - Added compile-fail contracts for removed unlawful implementations and phantom marker wrappers.
 
-### Changed
+### Changed - 0.14.0
 
 - Generalized `pipeline_result` from `Vec<Func>` to any `IntoIterator<Item = Func>`, matching `pipeline_option`; `Vec` still works.
 
-### CI/CD and Security
+### CI/CD and Security - 0.14.0
 
 - Added least-privilege workflow permissions, pinned external actions, and `actionlint`/`zizmor` checks.
 - Declared the MSRV through Cargo's `package.rust-version` metadata and added a dedicated check.
@@ -60,7 +72,7 @@
 - Added trusted benchmark regression reporting with a 20% slowdown threshold; pull-request benchmark jobs remain read-only.
 - Added repository ownership, security reporting, pull-request, and issue templates under `.github/`.
 
-### Breaking Changes
+### Breaking Changes - 0.14.0
 
 - **Lawful Algebraic Trait Surface**
   - Removed `Monoid` for `Min<T>`/`Max<T>`; use `Semigroup::combine` with an explicit extremum or `combine_all_values` for empty-capable reductions.
@@ -97,7 +109,7 @@
 - **Collection Iterator Helpers Removed**
   - Removed `PersistentVector::take`/`skip`; use iterator adapters or `PersistentVector::split_at`.
 
-### Maintenance
+### Maintenance - 0.14.0
 
 - Added central compile-fail removal contract doctests in `src/lib.rs`.
 - Updated all doc examples and benchmarks to the 0.14.0 API.

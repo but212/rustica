@@ -708,6 +708,20 @@ where
             },
         )
     }
+
+    /// Composes two lenses together.
+    #[deprecated(since = "0.15.0", note = "use `then()` instead")]
+    #[inline]
+    pub fn compose<B, GetFn2, SetFn2>(
+        self, other: Lens<A, B, GetFn2, SetFn2>,
+    ) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    where
+        B: Clone,
+        GetFn2: Fn(&A) -> B,
+        SetFn2: Fn(A, B) -> A,
+    {
+        self.then(other)
+    }
 }
 
 impl<S, A> Lens<S, A, fn(&S) -> A, fn(S, A) -> S>
@@ -722,13 +736,13 @@ where
     #[inline]
     pub fn from_iso<I>(iso: I) -> Lens<S, A, impl Fn(&S) -> A, impl Fn(S, A) -> S>
     where
-        I: Iso<S, A, From = S, To = A>,
+        I: Iso<S, A>,
     {
         let iso = Arc::new(iso);
         let getter_iso = Arc::clone(&iso);
         Lens::new(
-            move |source: &S| getter_iso.forward(source),
-            move |_source: S, focus: A| iso.backward(&focus),
+            move |source: &S| getter_iso.forward(source.clone()),
+            move |_source: S, focus: A| iso.backward(focus),
         )
     }
 }
@@ -852,15 +866,12 @@ mod unit_tests {
     struct IdentityIso;
 
     impl crate::traits::iso::Iso<i32, i32> for IdentityIso {
-        type From = i32;
-        type To = i32;
-
-        fn forward(&self, from: &Self::From) -> Self::To {
-            *from
+        fn forward(&self, from: i32) -> i32 {
+            from
         }
 
-        fn backward(&self, to: &Self::To) -> Self::From {
-            *to
+        fn backward(&self, to: i32) -> i32 {
+            to
         }
     }
 
