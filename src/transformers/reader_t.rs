@@ -115,6 +115,7 @@ where
     }
 
     /// Runs and returns the base monad.
+    #[deprecated(since = "0.15.0", note = "use `run_reader()` instead")]
     #[inline]
     pub fn unwrap_with(self, env: E) -> M {
         self.run_reader(env)

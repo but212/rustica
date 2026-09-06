@@ -618,6 +618,21 @@ where
         )
     }
 
+    /// Composes two prisms together.
+    #[deprecated(since = "0.15.0", note = "use `then()` instead")]
+    #[inline]
+    pub fn compose<B, PreviewFn2, ReviewFn2>(
+        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
+    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
+    where
+        A: Clone,
+        B: Clone,
+        PreviewFn2: Fn(&A) -> Option<B>,
+        ReviewFn2: Fn(&B) -> A,
+    {
+        self.then(other)
+    }
+
     /// Sets the focused value with structural sharing optimization.
     ///
     /// This method sets the focused value to a new value, but only creates a new structure

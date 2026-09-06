@@ -156,6 +156,13 @@ impl<O: Send + Sync + 'static> IO<O> {
         }
     }
 
+    /// Runs the IO operation and returns the result, consuming the IO.
+    #[inline(always)]
+    #[deprecated(since = "0.15.0", note = "use `run` instead")]
+    pub fn run_owned(self) -> O {
+        self.run()
+    }
+
     /// Runs the IO operation asynchronously.
     ///
     /// This method is available when the `async` feature is enabled.
@@ -169,6 +176,13 @@ impl<O: Send + Sync + 'static> IO<O> {
             Err(error) if error.is_panic() => std::panic::resume_unwind(error.into_panic()),
             Err(error) => panic!("Failed to run blocking task: {error}"),
         }
+    }
+
+    /// Runs the IO operation asynchronously, consuming the IO.
+    #[cfg(feature = "async")]
+    #[deprecated(since = "0.15.0", note = "use `run_async` instead")]
+    pub async fn run_async_owned(self) -> O {
+        self.run_async().await
     }
 
     /// Checks if this IO operation is pure (contains a value without side effects).
@@ -576,5 +590,12 @@ mod unit_tests {
         use std::time::Duration;
         let result = IO::delay(Duration::from_millis(1), 42).run();
         assert_eq!(result, 42);
+    }
+
+    #[test]
+    fn run_owned_works() {
+        #[allow(deprecated)]
+        let val = IO::new(|| 42).run_owned();
+        assert_eq!(val, 42);
     }
 }

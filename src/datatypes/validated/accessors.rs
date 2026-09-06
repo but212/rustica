@@ -374,6 +374,20 @@ impl<E, A> Validated<E, A> {
         }
     }
 
+    /// Unwraps a valid value, consuming self.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this is invalid.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `unwrap` instead")]
+    pub fn unwrap_owned(self) -> A
+    where
+        E: std::fmt::Debug,
+    {
+        self.unwrap()
+    }
+
     /// Unwraps a valid value or returns a default.
     ///
     /// If this is valid, returns the valid value.
@@ -453,6 +467,20 @@ impl<E, A> Validated<E, A> {
         }
     }
 
+    /// Unwraps an invalid error collection, consuming self.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this is `Valid`.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `unwrap_invalid` instead")]
+    pub fn unwrap_invalid_owned(self) -> NonEmptyErrors<E>
+    where
+        A: std::fmt::Debug,
+    {
+        self.unwrap_invalid()
+    }
+
     #[inline]
     pub fn to_option(&self) -> Option<A>
     where
@@ -479,5 +507,16 @@ mod tests {
     #[should_panic(expected = "Called Validated::unwrap_invalid() on a Valid value:")]
     fn unwrap_invalid_rejects_valid_values() {
         Validated::<&str, i32>::valid(42).unwrap_invalid();
+    }
+
+    #[test]
+    fn unwrap_owned_success() {
+        #[allow(deprecated)]
+        let val = Validated::<&str, i32>::valid(42).unwrap_owned();
+        assert_eq!(val, 42);
+
+        #[allow(deprecated)]
+        let err = Validated::<&str, i32>::invalid("e").unwrap_invalid_owned();
+        assert_eq!(err.as_slice(), &["e"]);
     }
 }

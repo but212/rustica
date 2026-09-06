@@ -140,6 +140,38 @@ pub trait MonadError<E>: Monad {
     fn catch<F>(self, f: F) -> Self::Output<Self::Source>
     where
         F: FnOnce(E) -> Self::Output<Self::Source>;
+
+    /// Handles an error by applying a function that can recover from the error, consuming self.
+    #[deprecated(since = "0.15.0", note = "use `catch` instead")]
+    fn catch_owned<F>(self, f: F) -> Self::Output<Self::Source>
+    where
+        F: FnOnce(E) -> Self::Output<Self::Source>,
+        Self: Sized,
+    {
+        self.catch(f)
+    }
+}
+
+/// A trait for types that can map their error type to a different error type.
+#[deprecated(
+    since = "0.15.0",
+    note = "use `Result::map_err` or `Option::ok_or` instead"
+)]
+pub trait ErrorMapper<E> {
+    /// The source type contained in the monad
+    type Source;
+
+    /// Transforms the error type using the given function.
+    fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
+    where
+        F: Fn(&E) -> NewE,
+        Self::Source: Clone;
+
+    /// Transforms the error type using the given function, consuming self.
+    fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
+    where
+        F: Fn(E) -> NewE,
+        Self: Sized;
 }
 
 // Implementation for Result
@@ -157,6 +189,35 @@ impl<T, E: Clone + std::fmt::Debug> MonadError<E> for Result<T, E> {
         match self {
             Ok(value) => Ok(value),
             Err(error) => f(error),
+        }
+    }
+}
+
+#[allow(deprecated)]
+impl<T: Clone, E> ErrorMapper<E> for Result<T, E> {
+    type Source = T;
+
+    #[inline]
+    fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
+    where
+        F: Fn(&E) -> NewE,
+        Self::Source: Clone,
+    {
+        match self {
+            Ok(value) => Ok(value.clone()),
+            Err(error) => Err(f(error)),
+        }
+    }
+
+    #[inline]
+    fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
+    where
+        F: Fn(E) -> NewE,
+        Self: Sized,
+    {
+        match self {
+            Ok(value) => Ok(value),
+            Err(error) => Err(f(error)),
         }
     }
 }
@@ -180,9 +241,39 @@ impl<T> MonadError<()> for Option<T> {
     }
 }
 
+#[allow(deprecated)]
+impl<T: Clone> ErrorMapper<()> for Option<T> {
+    type Source = T;
+
+    #[inline]
+    fn map_error_to<NewE, F>(&self, f: F) -> Result<Self::Source, NewE>
+    where
+        F: Fn(&()) -> NewE,
+        Self::Source: Clone,
+    {
+        match self {
+            Some(value) => Ok(value.clone()),
+            None => Err(f(&())),
+        }
+    }
+
+    #[inline]
+    fn map_error_to_owned<NewE, F>(self, f: F) -> Result<Self::Source, NewE>
+    where
+        F: Fn(()) -> NewE,
+        Self: Sized,
+    {
+        match self {
+            Some(value) => Ok(value),
+            None => Err(f(())),
+        }
+    }
+}
+
 #[cfg(test)]
 mod unit_tests {
-    use super::MonadError;
+    #[allow(deprecated)]
+    use super::{ErrorMapper, MonadError};
 
     #[test]
     fn monad_error_laws_hold() {
@@ -196,5 +287,35 @@ mod unit_tests {
         let thrown_none: Option<i32> = Option::<i32>::throw::<i32>(());
         assert_eq!(thrown_none, None);
         assert_eq!(None::<i32>.catch(|_| Some(0)), Some(0));
+
+        #[allow(deprecated)]
+        let caught = Result::<i32, &str>::Err("err").catch_owned(|_| Ok(99));
+        assert_eq!(caught, Ok(99));
+    }
+
+    #[test]
+    fn error_mapper_works() {
+        #[allow(deprecated)]
+        let res: Result<i32, &str> = Err("404");
+        #[allow(deprecated)]
+        let mapped = res.map_error_to(|e| format!("code: {e}"));
+        assert_eq!(mapped, Err("code: 404".to_string()));
+
+        #[allow(deprecated)]
+        let res_owned: Result<i32, &str> = Err("500");
+        #[allow(deprecated)]
+        let mapped_owned = res_owned.map_error_to_owned(|e| format!("error: {e}"));
+        assert_eq!(mapped_owned, Err("error: 500".to_string()));
+
+        #[allow(deprecated)]
+        let opt: Option<i32> = None;
+        #[allow(deprecated)]
+        let opt_mapped = opt.map_error_to(|_| "missing");
+        assert_eq!(opt_mapped, Err("missing"));
+        #[allow(deprecated)]
+        let opt_owned: Option<i32> = None;
+        #[allow(deprecated)]
+        let opt_owned_mapped = opt_owned.map_error_to_owned(|_| "missing");
+        assert_eq!(opt_owned_mapped, Err("missing"));
     }
 }

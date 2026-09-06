@@ -341,16 +341,37 @@ where
         (value, next_state)
     }
 
+    /// Runs the state computation with an initial state, consuming self.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `run_state` instead")]
+    pub fn run_state_owned(self, s: S) -> (A, S) {
+        self.run_state(s)
+    }
+
     /// Runs the state computation and returns only the final value.
     #[inline]
     pub fn eval_state(self, s: S) -> A {
         self.run_state(s).0
     }
 
+    /// Runs the state computation and returns only the final value, consuming self.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `eval_state` instead")]
+    pub fn eval_state_owned(self, s: S) -> A {
+        self.eval_state(s)
+    }
+
     /// Runs the state computation and returns only the final state.
     #[inline]
     pub fn exec_state(self, s: S) -> S {
         self.run_state(s).1
+    }
+
+    /// Runs the state computation and returns only the final state, consuming self.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `exec_state` instead")]
+    pub fn exec_state_owned(self, s: S) -> S {
+        self.exec_state(s)
     }
 
     /// Maps a function over the value produced by a state computation.
@@ -991,6 +1012,14 @@ mod tests {
         let add_state = State::new(|s: i32| (move |x: i32| x + s, s + 1));
         let val_state = State::new(|s: i32| (s * 2, s + 2));
         assert_eq!(add_state.apply(val_state).run_state(5), (17, 8));
+
+        #[allow(deprecated)]
+        {
+            let s = State::new(|x: i32| (x * 2, x + 1));
+            assert_eq!(s.clone().run_state_owned(5), (10, 6));
+            assert_eq!(s.clone().eval_state_owned(5), 10);
+            assert_eq!(s.exec_state_owned(5), 6);
+        }
     }
 
     #[test]

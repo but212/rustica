@@ -708,6 +708,20 @@ where
             },
         )
     }
+
+    /// Composes two lenses together.
+    #[deprecated(since = "0.15.0", note = "use `then()` instead")]
+    #[inline]
+    pub fn compose<B, GetFn2, SetFn2>(
+        self, other: Lens<A, B, GetFn2, SetFn2>,
+    ) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    where
+        B: Clone,
+        GetFn2: Fn(&A) -> B,
+        SetFn2: Fn(A, B) -> A,
+    {
+        self.then(other)
+    }
 }
 
 impl<S, A> Lens<S, A, fn(&S) -> A, fn(S, A) -> S>

@@ -160,6 +160,38 @@ use std::fmt;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Last<T>(pub Option<T>);
 
+impl<T> Last<T> {
+    /// Consumes the wrapper and returns the inner option.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::last::Last;
+    ///
+    /// let last = Last(Some(42));
+    /// assert_eq!(last.into_inner(), Some(42));
+    /// ```
+    #[inline]
+    pub fn into_inner(self) -> Option<T> {
+        self.0
+    }
+
+    /// Returns a reference to the inner option.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::last::Last;
+    ///
+    /// let last = Last(Some(42));
+    /// assert_eq!(last.get(), Some(&42));
+    /// ```
+    #[inline]
+    pub fn get(&self) -> Option<&T> {
+        self.0.as_ref()
+    }
+}
+
 impl<T: Clone> Last<T> {
     /// Unwraps the last value, panicking if None.
     ///
@@ -177,6 +209,7 @@ impl<T: Clone> Last<T> {
     /// # Panics
     ///
     /// Panics if the inner value is None.
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     pub fn unwrap(&self) -> T {
         self.0.clone().unwrap()
     }
@@ -193,6 +226,7 @@ impl<T: Clone> Last<T> {
     /// assert_eq!(last.unwrap_or(0), 42);
     /// assert_eq!(empty.unwrap_or(0), 0);
     /// ```
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     pub fn unwrap_or(&self, default: T) -> T {
         self.0.clone().unwrap_or(default)
     }
@@ -319,5 +353,21 @@ impl<T> From<T> for Last<T> {
     #[inline]
     fn from(value: T) -> Self {
         Last(Some(value))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_last_into_inner_and_get() {
+        let last = Last(Some(42));
+        assert_eq!(last.get(), Some(&42));
+        assert_eq!(last.into_inner(), Some(42));
+
+        let empty: Last<i32> = Last(None);
+        assert_eq!(empty.get(), None);
+        assert_eq!(empty.into_inner(), None);
     }
 }

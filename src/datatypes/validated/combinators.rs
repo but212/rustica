@@ -35,6 +35,16 @@ impl<E, A> Validated<E, A> {
         }
     }
 
+    /// Maps a function over the error values if `Invalid`, consuming self.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `fmap_invalid` instead")]
+    pub fn fmap_invalid_owned<G, F>(self, f: F) -> Validated<G, A>
+    where
+        F: FnMut(E) -> G,
+    {
+        self.fmap_invalid(f)
+    }
+
     /// Combines errors from two `Validated` instances, consuming both.
     ///
     /// Returns `Some(Validated::Invalid(...))` with accumulated errors if either or both
@@ -66,6 +76,13 @@ impl<E, A> Validated<E, A> {
                 Some(Validated::Invalid(e1))
             },
         }
+    }
+
+    /// Combines errors from two `Validated` instances, consuming both.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `combine_errors` instead")]
+    pub fn combine_errors_owned(self, other: Self) -> Option<Self> {
+        self.combine_errors(other)
     }
 
     /// Sequences owned Validated values into a single Validated value.
@@ -165,6 +182,27 @@ impl<E, A> Validated<E, A> {
             None => Validated::Valid(C::from_iter(values)),
         }
     }
+
+    /// Sequences owned Validated values into a single Validated value.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `Validated::sequence` instead")]
+    pub fn sequence_owned<B, F>(values: Vec<Self>, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(Vec<A>) -> B,
+    {
+        Self::sequence(values, f)
+    }
+
+    /// Collects an iterator of Validated values into a single Validated value.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `Validated::collect` instead")]
+    pub fn collect_owned<I, C>(iter: I) -> Validated<E, C>
+    where
+        I: IntoIterator<Item = Validated<E, A>>,
+        C: FromIterator<A>,
+    {
+        Self::collect(iter.into_iter())
+    }
 }
 
 #[cfg(test)]
@@ -219,5 +257,27 @@ mod tests {
     fn combine_errors_returns_none_for_two_valid_values() {
         let result = Validated::<&str, i32>::valid(1).combine_errors(Validated::valid(2));
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn deprecated_owned_combinators_work() {
+        #[allow(deprecated)]
+        let mapped = Validated::<&str, i32>::invalid("e").fmap_invalid_owned(|e| format!("{e}!"));
+        assert_eq!(mapped.error_slice(), &["e!"]);
+
+        #[allow(deprecated)]
+        let combined = Validated::<&str, i32>::invalid("e1")
+            .combine_errors_owned(Validated::invalid("e2"))
+            .unwrap();
+        assert_eq!(combined.error_slice(), &["e1", "e2"]);
+
+        #[allow(deprecated)]
+        let seq = Validated::sequence_owned(vec![Validated::<&str, i32>::valid(1)], |v| v[0]);
+        assert_eq!(seq, Validated::valid(1));
+
+        #[allow(deprecated)]
+        let collected: Validated<&str, Vec<i32>> =
+            Validated::collect_owned(vec![Validated::valid(10)]);
+        assert_eq!(collected, Validated::valid(vec![10]));
     }
 }

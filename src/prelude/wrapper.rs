@@ -38,6 +38,8 @@ pub use crate::datatypes::wrapper::min::Min;
 pub use crate::datatypes::wrapper::predicate::Predicate;
 pub use crate::datatypes::wrapper::product::Product;
 pub use crate::datatypes::wrapper::sum::Sum;
+#[allow(deprecated)]
+pub use crate::datatypes::wrapper::thunk::Thunk;
 
 // Also re-export commonly used traits
 pub use crate::traits::functor::Functor;

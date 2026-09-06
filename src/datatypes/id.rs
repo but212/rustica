@@ -300,6 +300,20 @@ impl<T> Id<T> {
         self.value
     }
 
+    /// Unwraps the Id, yielding the contained value.
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` instead")]
+    #[inline]
+    pub fn unwrap(self) -> T {
+        self.value
+    }
+
+    /// Unwraps the Id or returns a default value.
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` instead")]
+    #[inline]
+    pub fn unwrap_or(self, _default: T) -> T {
+        self.value
+    }
+
     /// Returns a mutable reference to the inner value.
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value

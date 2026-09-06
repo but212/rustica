@@ -162,39 +162,6 @@
 //! ```
 //!
 //! ```compile_fail
-//! // Lens::compose is removed in the unreleased changes (use Lens::then)
-//! use rustica::datatypes::lens::Lens;
-//! let first = Lens::new(
-//!     |value: &i32| *value,
-//!     |_: i32, value: i32| value,
-//! );
-//! let second = Lens::new(
-//!     |value: &i32| *value,
-//!     |_: i32, value: i32| value,
-//! );
-//! let _ = first.compose(second);
-//! ```
-//!
-//! ```compile_fail
-//! // pipeline_result is removed in the unreleased changes (use Iterator::try_fold)
-//! use rustica::utils::hkt_utils::pipeline_result;
-//! ```
-//!
-//! ```compile_fail
-//! // Prism::compose is removed in the unreleased changes (use Prism::then)
-//! use rustica::datatypes::prism::Prism;
-//! let first = Prism::new(
-//!     |value: &i32| Some(*value),
-//!     |value: &i32| *value,
-//! );
-//! let second = Prism::new(
-//!     |value: &i32| Some(*value),
-//!     |value: &i32| *value,
-//! );
-//! let _ = first.compose(second);
-//! ```
-//!
-//! ```compile_fail
 //! // PersistentVector::take has been removed in 0.14.0
 //! use rustica::pvec::PersistentVector;
 //! let v = PersistentVector::<i32>::new();
@@ -337,35 +304,11 @@
 //! use rustica::category::function_category::FunctionCategory;
 //! let _ = FunctionCategory::lift(|x: i32| x + 1);
 //! ```
-//!
-//! ```compile_fail
-//! // Id::unwrap_or was removed in 0.15.0; use into_inner instead.
-//! use rustica::datatypes::id::Id;
-//! let _ = Id::new(42).unwrap_or(0);
-//! ```
-//!
 //! ```compile_fail
 //! // Validated has no lawful Monad implementation; convert to Result via into_value()
 //! use rustica::datatypes::validated::Validated;
 //! use rustica::traits::monad::Monad;
 //! let _: Validated<&str, i32> = Validated::valid(1).bind(|x| Validated::valid(x + 1));
-//! ```
-//!
-//! ```compile_fail
-//! // Id::unwrap was removed in 0.15.0; use into_inner instead.
-//! use rustica::datatypes::id::Id;
-//! let _ = Id::new(42).unwrap();
-//! ```
-//!
-//! ```compile_fail
-//! // Writer::exec was removed in 0.15.0; use log instead.
-//! use rustica::datatypes::writer::Writer;
-//! let _ = Writer::new(String::new(), 42).exec();
-//! ```
-//!
-//! ```compile_fail
-//! // Thunk wrapper was removed in 0.15.0.
-//! use rustica::datatypes::wrapper::thunk::Thunk;
 //! ```
 
 /// Core traits for functional programming abstractions.
@@ -407,3 +350,10 @@ pub mod error;
 
 /// Convenient re-exports of commonly used items.
 pub mod prelude;
+
+/// Deprecated utility helpers.
+#[deprecated(
+    since = "0.15.0",
+    note = "use standard iterator, `Option`, and `Result` operations instead"
+)]
+pub mod utils;

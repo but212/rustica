@@ -138,6 +138,38 @@ use std::fmt;
 #[repr(transparent)]
 pub struct First<T>(pub Option<T>);
 
+impl<T> First<T> {
+    /// Consumes the wrapper and returns the inner option.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::first::First;
+    ///
+    /// let first = First(Some(42));
+    /// assert_eq!(first.into_inner(), Some(42));
+    /// ```
+    #[inline]
+    pub fn into_inner(self) -> Option<T> {
+        self.0
+    }
+
+    /// Returns a reference to the inner option.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::wrapper::first::First;
+    ///
+    /// let first = First(Some(42));
+    /// assert_eq!(first.get(), Some(&42));
+    /// ```
+    #[inline]
+    pub fn get(&self) -> Option<&T> {
+        self.0.as_ref()
+    }
+}
+
 impl<T: Clone> First<T> {
     /// Unwraps the first value, panicking if None.
     ///
@@ -155,6 +187,7 @@ impl<T: Clone> First<T> {
     /// # Panics
     ///
     /// Panics if the inner value is None.
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     pub fn unwrap(&self) -> T {
         self.0.clone().unwrap()
     }
@@ -171,6 +204,7 @@ impl<T: Clone> First<T> {
     /// assert_eq!(first.unwrap_or(0), 42);
     /// assert_eq!(empty.unwrap_or(0), 0);
     /// ```
+    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
     pub fn unwrap_or(&self, default: T) -> T {
         self.0.clone().unwrap_or(default)
     }
@@ -291,5 +325,21 @@ impl<T> From<T> for First<T> {
     #[inline]
     fn from(value: T) -> Self {
         First(Some(value))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_first_into_inner_and_get() {
+        let first = First(Some(42));
+        assert_eq!(first.get(), Some(&42));
+        assert_eq!(first.into_inner(), Some(42));
+
+        let empty: First<i32> = First(None);
+        assert_eq!(empty.get(), None);
+        assert_eq!(empty.into_inner(), None);
     }
 }

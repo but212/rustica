@@ -215,6 +215,13 @@ where
         id_value.into_inner()
     }
 
+    /// Runs this Reader with the given environment, consuming self.
+    #[inline]
+    #[deprecated(since = "0.15.0", note = "use `run_reader` instead")]
+    pub fn run_reader_owned(self, env: E) -> A {
+        self.run_reader(env)
+    }
+
     /// Maps a function over the value produced by this Reader.
     pub fn map<B, F>(self, f: F) -> Reader<E, B>
     where
@@ -573,5 +580,9 @@ mod tests {
         let r2 = Reader::new(|env: i32| format!("val:{}", env));
         let combined = r1.combine(r2, |a, b| format!("{a}_{b}"));
         assert_eq!(combined.run_reader(5), "15_val:5");
+
+        #[allow(deprecated)]
+        let owned = Reader::new(|env: i32| env * 2).run_reader_owned(7);
+        assert_eq!(owned, 14);
     }
 }
