@@ -341,7 +341,7 @@ pub trait IsoExt<A, B>: Iso<A, B> {
 // Implement IsoExt for all types that implement Iso
 impl<T, A, B> IsoExt<A, B> for T where T: Iso<A, B> {}
 
-/// An isomorphism between Result<A, NonEmptyErrors<E>> and Validated<E, A>.
+/// An isomorphism between `Result<A, NonEmptyErrors<E>>` and `Validated<E, A>`.
 ///
 /// This provides a lossless, bijective isomorphism between `Result` holding a non-empty
 /// collection of errors and `Validated`.
