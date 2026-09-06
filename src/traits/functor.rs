@@ -357,8 +357,8 @@ mod standard_law_tests {
     fn result_functor_laws(m: Result<i32, i8>) -> bool {
         let f = |x: i32| x.saturating_add(10);
         let g = |x: i32| x.saturating_mul(3);
-        m.clone().fmap(|x| x) == m
-            && m.clone().fmap(|x| g(f(x))) == m.clone().fmap(f).fmap(g)
+        m.fmap(|x| x) == m
+            && m.fmap(|x| g(f(x))) == m.fmap(f).fmap(g)
             && m.fmap(f).is_ok() == m.is_ok()
     }
 

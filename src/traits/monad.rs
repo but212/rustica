@@ -233,8 +233,8 @@ mod standard_law_tests {
         };
         let g = |x: i32| Some(x.saturating_add(10));
         Option::<i32>::pure(value).bind(f) == f(value)
-            && m.clone().bind(Option::<i32>::pure) == m
-            && m.clone().bind(f).bind(g) == m.clone().bind(|x| f(x).bind(g))
+            && m.bind(Option::<i32>::pure) == m
+            && m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
             && m.fmap(f).join() == m.bind(f)
     }
 
@@ -243,8 +243,8 @@ mod standard_law_tests {
         let f = |x: i32| -> Result<i32, i8> { Ok(x.saturating_mul(2)) };
         let g = |x: i32| -> Result<i32, i8> { Ok(x.saturating_add(10)) };
         Result::<i32, i8>::pure(value).bind(f) == f(value)
-            && m.clone().bind(Result::<i32, i8>::pure) == m
-            && m.clone().bind(f).bind(g) == m.clone().bind(|x| f(x).bind(g))
+            && m.bind(Result::<i32, i8>::pure) == m
+            && m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
             && m.fmap(f).join() == m.bind(f)
     }
 

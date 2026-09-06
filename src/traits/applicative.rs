@@ -477,8 +477,8 @@ mod unit_tests {
         let pure_f = Result::<fn(i32) -> i32, i8>::pure(f);
         let pure_x = Result::<i32, i8>::pure(x);
         let functions = if is_ok { Ok(f) } else { Err(err) };
-        Applicative::apply(Result::<fn(i32) -> i32, i8>::pure(id), v.clone()) == v
-            && Applicative::apply(pure_f, pure_x.clone()) == Result::<i32, i8>::pure(f(x))
+        Applicative::apply(Result::<fn(i32) -> i32, i8>::pure(id), v) == v
+            && Applicative::apply(pure_f, pure_x) == Result::<i32, i8>::pure(f(x))
             && Applicative::apply(functions, pure_x)
                 == Result::<i32, i8>::lift2(|f, x| f(x), functions, pure_x)
     }
@@ -502,7 +502,7 @@ mod unit_tests {
         let v_res: Result<_, i8> = Ok(g);
         let left_opt = Option::<i32>::lift3(|f, g, x| f(g(x)), u_opt, v_opt, w_opt);
         let right_opt = Applicative::apply(u_opt, Applicative::apply(v_opt, w_opt));
-        let left_res = Result::<i32, i8>::lift3(|f, g, x| f(g(x)), u_res, v_res, w_res.clone());
+        let left_res = Result::<i32, i8>::lift3(|f, g, x| f(g(x)), u_res, v_res, w_res);
         let right_res = Applicative::apply(u_res, Applicative::apply(v_res, w_res));
         left_opt == right_opt && left_res == right_res
     }
