@@ -111,7 +111,6 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-
     /// Consumes `self` and returns `Ok(A)` if `Valid(A)`, or `Err(ErrorVec<E>)` if `Invalid(errors)`.
     ///
     /// This method is useful for safely extracting the valid value or the complete collection of errors,

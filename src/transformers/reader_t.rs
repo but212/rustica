@@ -286,13 +286,15 @@ mod tests {
         let mapped: ReaderT<i32, Option<String>, String> = value.clone().fmap(|n| n.to_string());
         assert_eq!(mapped.run_reader(7), Some("7".to_owned()));
 
-        let bound: ReaderT<i32, Option<String>, String> =
-            value.clone().bind(|n| ReaderT::new(move |env| Some(format!("{env}:{n}"))));
+        let bound: ReaderT<i32, Option<String>, String> = value
+            .clone()
+            .bind(|n| ReaderT::new(move |env| Some(format!("{env}:{n}"))));
         assert_eq!(bound.run_reader(7), Some("7:7".to_owned()));
 
         let suffix: ReaderT<i32, Option<&'static str>, &'static str> = ReaderT::new(|_| Some("!"));
-        let combined: ReaderT<i32, Option<String>, String> =
-            value.clone().combine(suffix, |n, suffix| format!("{n}{suffix}"));
+        let combined: ReaderT<i32, Option<String>, String> = value
+            .clone()
+            .combine(suffix, |n, suffix| format!("{n}{suffix}"));
         assert_eq!(combined.run_reader(7), Some("7!".to_owned()));
 
         let functions: FunctionReader =

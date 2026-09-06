@@ -228,7 +228,6 @@ impl<T: Clone> RRBTree<T> {
 
 /// Methods that require Clone for structural modifications
 impl<T: Clone> RRBTree<T> {
-
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.len {
             return self.clone();

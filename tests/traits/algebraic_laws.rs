@@ -130,10 +130,18 @@ fn bifunctor_identity_and_consistency() {
 #[test]
 fn bifunctor_maps_each_side_and_chains_operations() {
     let success = TestBifunctor(5, "error");
-    assert_eq!(success.clone().first(|value| value * 2), TestBifunctor(10, "error"));
-    assert_eq!(success.clone().second(|message| message.len()), TestBifunctor(5, 5));
     assert_eq!(
-        success.clone().bimap(|value| value * 2, |message| message.len()),
+        success.clone().first(|value| value * 2),
+        TestBifunctor(10, "error")
+    );
+    assert_eq!(
+        success.clone().second(|message| message.len()),
+        TestBifunctor(5, 5)
+    );
+    assert_eq!(
+        success
+            .clone()
+            .bimap(|value| value * 2, |message| message.len()),
         TestBifunctor(10, 5)
     );
     assert_eq!(

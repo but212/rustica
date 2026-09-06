@@ -155,11 +155,7 @@ impl<T> Alternative for Vec<T> {
     }
 
     fn alt(self, other: Self) -> Self {
-        if self.is_empty() {
-            other
-        } else {
-            self
-        }
+        if self.is_empty() { other } else { self }
     }
 
     fn guard(condition: bool) -> Self::Output<()> {

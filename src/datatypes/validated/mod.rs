@@ -227,7 +227,8 @@ mod tests {
         let v2: Validated<String, i32> = Validated::invalid("e2".into());
         let v3: Validated<String, i32> = Validated::valid(100);
 
-        let result = Validated::<String, i32>::lift3(|a, b, c| a + b + c, v1.clone(), v2.clone(), v3);
+        let result =
+            Validated::<String, i32>::lift3(|a, b, c| a + b + c, v1.clone(), v2.clone(), v3);
         assert_eq!(result.errors(), &["e1".to_string(), "e2".to_string()]);
 
         let list = vec![v1.clone(), v2.clone(), Validated::valid(100)];
