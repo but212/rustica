@@ -88,6 +88,13 @@ impl<R, M, A> ContT<R, M, A> {
     /// This method applies the provided continuation function to the result of this computation,
     /// effectively executing the continuation and producing the final result in the base monad.
     ///
+    /// # Receiver Semantics
+    ///
+    /// Unlike `StateT::run_state(self)` or `ReaderT::run_reader(self)` which consume the computation by value,
+    /// `ContT::run` takes `&self`. This allows multi-shot continuation evaluation: the same
+    /// continuation transformer can be invoked multiple times with different callbacks because its
+    /// inner execution pipeline is backed by an `Arc`.
+    ///
     /// # Arguments
     ///
     /// * `k` - A function that takes a value of type `A` and returns a value of type `M`
@@ -103,8 +110,10 @@ impl<R, M, A> ContT<R, M, A> {
     /// use rustica::datatypes::id::Id;
     ///
     /// let cont = ContT::<i32, Id<i32>, i32>::pure(42);
-    /// let result = cont.run(|x| Id::new(x * 2));
-    /// assert_eq!(result.into_inner(), 84);
+    /// let result1 = cont.run(|x| Id::new(x * 2));
+    /// let result2 = cont.run(|x| Id::new(x + 10));
+    /// assert_eq!(result1.into_inner(), 84);
+    /// assert_eq!(result2.into_inner(), 52);
     /// ```
     pub fn run<FN>(&self, k: FN) -> M
     where
@@ -351,12 +360,18 @@ impl<R, A> ContT<R, crate::datatypes::id::Id<R>, A> {
     /// use rustica::transformers::cont_t::ContT;
     ///
     /// let cont_t = ContT::<i32, Id<i32>, i32>::pure(5);
-    /// let cont = cont_t.to_cont();
+    /// let cont = cont_t.into_cont();
     /// let result = cont.run(|x| x + 1);
     /// assert_eq!(result, 6);
     /// ```
-    pub fn to_cont(self) -> crate::datatypes::cont::Cont<R, A> {
+    pub fn into_cont(self) -> crate::datatypes::cont::Cont<R, A> {
         crate::datatypes::cont::Cont { inner: self }
+    }
+
+    /// Converts this `ContT<R, Id<R>, A>` into a `Cont<R, A>`.
+    #[deprecated(since = "0.16.0", note = "Use `into_cont` instead.")]
+    pub fn to_cont(self) -> crate::datatypes::cont::Cont<R, A> {
+        self.into_cont()
     }
 
     /// Converts a `Cont<R, A>` into this `ContT<R, Id<R>, A>`.

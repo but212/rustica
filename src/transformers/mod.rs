@@ -24,7 +24,7 @@
 //! ## Transformer Concepts
 //!
 //! Monad transformers add effects to a base monad. In Rustica, transformers like
-//! [`ReaderT`], [`StateT`], and [`ContT`] wrap a base monad family implementing [`crate::traits::hkt::HKT`]
+//! [`crate::transformers::ReaderT`], [`crate::transformers::StateT`], and [`crate::transformers::ContT`] wrap a base monad family implementing [`crate::traits::hkt::HKT`]
 //! and [`crate::traits::monad::Monad`]:
 //!
 //! - `Option<T>`, `Result<T, E>`, or `Id<T>` serve as common base monads.

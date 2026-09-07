@@ -314,9 +314,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
         Self::new(W::empty(), value)
     }
 
-    /// Extracts just the log from the Writer, discarding the value.
-    ///
-    /// This method consumes the Writer.
+    /// Extracts the log by consuming the writer, discarding the computed value.
     ///
     /// # Examples
     ///
@@ -343,13 +341,30 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///
     /// let writer = Writer::new(Log(vec!["Log entry".to_string()]), 42);
     ///
-    /// // Extract just the log, discarding the value
-    /// let log = writer.log();
+    /// // Extract just the log, consuming the writer
+    /// let log = writer.into_log();
     /// assert_eq!(log, Log(vec!["Log entry".to_string()]));
     /// ```
     #[inline]
-    pub fn log(self) -> W {
+    pub fn into_log(self) -> W {
         self.log
+    }
+
+    /// Returns a reference to the log without consuming the writer.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::writer::Writer;
+    ///
+    /// let writer = Writer::new(vec!["Log entry".to_string()], 42);
+    /// assert_eq!(writer.log(), &vec!["Log entry".to_string()]);
+    /// // Writer is not consumed:
+    /// assert_eq!(writer.into_value(), 42);
+    /// ```
+    #[inline]
+    pub fn log(&self) -> &W {
+        &self.log
     }
 }
 
@@ -605,6 +620,15 @@ mod tests {
     fn test_writer_into_value() {
         let writer = Writer::new(Log(vec!["log".into()]), 42);
         assert_eq!(writer.into_value(), 42);
+    }
+
+    #[test]
+    fn test_writer_log_and_into_log() {
+        let writer = Writer::new(Log(vec!["entry".into()]), 100);
+        // Borrowed log inspection:
+        assert_eq!(writer.log(), &Log(vec!["entry".into()]));
+        // Writer can still be consumed after borrowed log call:
+        assert_eq!(writer.into_log(), Log(vec!["entry".into()]));
     }
 }
 

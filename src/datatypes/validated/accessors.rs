@@ -12,6 +12,8 @@ impl<E, A> Validated<E, A> {
     /// ```rust
     /// use rustica::datatypes::validated::Validated;
     ///
+    /// # #[allow(deprecated)]
+    /// # {
     /// let valid: Validated<&str, i32> = Validated::valid(42);
     /// let errors = valid.errors();
     /// assert!(errors.is_empty());
@@ -20,7 +22,9 @@ impl<E, A> Validated<E, A> {
     /// let errors = invalid.errors();
     /// assert_eq!(errors.len(), 1);
     /// assert_eq!(errors[0], "error");
+    /// # }
     /// ```
+    #[deprecated(since = "0.16.0", note = "Use `error_slice` or `iter_errors` instead.")]
     #[inline]
     pub fn errors(&self) -> Vec<E>
     where
@@ -479,5 +483,17 @@ mod tests {
     #[should_panic(expected = "Called Validated::unwrap_invalid() on a Valid value:")]
     fn unwrap_invalid_rejects_valid_values() {
         Validated::<&str, i32>::valid(42).unwrap_invalid();
+    }
+
+    #[test]
+    fn test_error_accessors_and_deprecated_errors() {
+        let invalid: Validated<String, i32> = Validated::invalid("err1".into());
+        assert_eq!(invalid.error_slice(), &["err1".to_string()]);
+        assert_eq!(invalid.iter_errors().count(), 1);
+
+        #[allow(deprecated)]
+        {
+            assert_eq!(invalid.errors(), vec!["err1".to_string()]);
+        }
     }
 }

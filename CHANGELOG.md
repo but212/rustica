@@ -20,6 +20,7 @@
 
 - **Over-Constrained Bounds Relaxed**: Removed unnecessary `E: Debug`, `E: Clone`, and `S: Default` bounds from `Result`, `State`, and `PersistentVector`.
 - **Applicative Polarity Rectified**: Inverted `apply` argument polarity on `ContT` and `ReaderT` (`fn.apply(val)`) to match standard functional programming Applicative conventions.
+- **Rust API Guidelines Receiver Alignment**: Aligned method receivers with official Rust API Guidelines (C-CONV, C-BUILDER, C-GETTER). Renamed consuming conversions to `into_*` (`StateT::into_state`, `ContT::into_cont`, `WithError::into_result`), builder method to `with_error_code`, and consuming execution runners to `IO::try_run*`. Converted `Writer::log` from consuming to borrowed `&self` (breaking; use `Writer::into_log(self)` to consume). Converted `Choice::flatten` and `Choice::try_flatten` from borrowed `&self` to consuming `self` (breaking; eliminates `T: Clone` requirement, callers needing borrow can use `.clone().flatten()` or `flatten_cloned`). Added consuming `Choice::filter`.
 - **Prelude Exports**: Added missing prelude exports for `BinaryHKT`, `ChoiceError`, `ValidatedError`, and the `context!` macro.
 - **Ergonomic Aliases**: Added `Id::get`, `Id::into_value`, `into_value` on wrappers (`First`, `Last`, `Min`, `Max`, `Product`, `Sum`), `eval` on `Predicate`, `single` on `PersistentVector`, and `AsyncM::join`.
 
@@ -37,6 +38,13 @@
 - **Type Construction & Accessor Renames**:
   - Deprecated `PersistentVector::unit` in favor of `PersistentVector::single`.
   - Deprecated `Choice::first` in favor of `Choice::primary`.
+  - Deprecated `StateT::to_state` in favor of `StateT::into_state` (C-CONV).
+  - Deprecated `ContT::to_cont` in favor of `ContT::into_cont` (C-CONV).
+  - Deprecated `WithError::to_result` in favor of `WithError::into_result` (C-CONV).
+  - Deprecated `ComposableError::set_code` in favor of `ComposableError::with_error_code` (C-BUILDER).
+  - Deprecated `IO::try_get*` runner family in favor of `IO::try_run*` (C-GETTER).
+  - Deprecated `Choice::filter_values` in favor of consuming `Choice::filter`.
+  - Deprecated `Validated::errors` in favor of `Validated::error_slice` or `iter_errors`.
 
 ## [0.15.0]
 
