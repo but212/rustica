@@ -9,6 +9,35 @@
 - **Category-Theory Deprecations**: Deprecated `Choice::bind` and `Choice::apply`, along with `impl Pure`, `impl Applicative`, and `impl Monad` for `Choice<T>` since 0.16.0, realigning `Choice` with its intended purpose as a priority/fallback collection.
 - **Documentation Overhaul**: Rewrote `Choice<T>` Rustdoc with explicit primary/fallback domain guidance and runnable doctests.
 
+### Bug Fixes & Soundness
+
+- **AsRef Panic Removal**: Removed panicking `AsRef` implementations from `First` and `Last` in favor of non-panicking `get()` and `into_value()`.
+- **IO::delay Reactor Nesting**: Resolved Tokio thread panics caused by nested `block_on` runtime invocations in `IO::delay`.
+- **PVec Reversal and Height Reset**: Fixed order reversal and height loss bugs in `pop_front_from_tree` within `src/pvec/tree.rs`.
+- **Vec Alternative Monoidal Semantics**: Changed `<Vec<T> as Alternative>::alt` from first-non-empty semantics to monoidal concatenation (`self.extend(other)`).
+
+### Trait Bounds & Structural Cleanup
+
+- **Over-Constrained Bounds Relaxed**: Removed unnecessary `E: Debug`, `E: Clone`, and `S: Default` bounds from `Result`, `State`, and `PersistentVector`.
+- **Applicative Polarity Rectified**: Inverted `apply` argument polarity on `ContT` and `ReaderT` (`fn.apply(val)`) to match standard functional programming Applicative conventions.
+- **Prelude Exports**: Added missing prelude exports for `BinaryHKT`, `ChoiceError`, `ValidatedError`, and the `context!` macro.
+- **Ergonomic Aliases**: Added `Id::get`, `Id::into_value`, `into_value` on wrappers (`First`, `Last`, `Min`, `Max`, `Product`, `Sum`), `eval` on `Predicate`, `single` on `PersistentVector`, and `AsyncM::join`.
+
+### Deprecations (Planned for Removal in 0.17.0)
+
+- **`Iso` Family**: Deprecated `Iso`, `IsoExt`, `ComposedIso`, `InverseIso`, and `ResultValidatedIso` in favor of standard `From`/`Into` and `TryFrom`/`TryInto`.
+- **`Bifunctor`**: Deprecated `Bifunctor` trait in favor of inherent `bimap`/`first`/`second` methods and standard Rust pattern matching.
+- **`FoldableExt` Search Methods**: Deprecated non-short-circuiting linear traversal methods on `FoldableExt` (`find`, `all`, `any`, `contains`, `is_sorted`) in favor of Rust's standard `Iterator` equivalents.
+- **`Alternative::many`**: Deprecated `Alternative::many` in favor of standard iterator combinators or explicit repetition.
+- **`FunctorExt` Combinators**: Deprecated `filter_map`, `try_map_or`, and `try_map_or_else` on `FunctorExt` in favor of standard `Iterator::filter_map` or `fmap` with `unwrap_or`/`unwrap_or_else`.
+- **`PureExt` Combinators**: Deprecated `pair_with`, `lift_other`, and `combine_with` on `PureExt` in favor of direct value construction and `Pure::pure`.
+- **`Monad` Methods**: Deprecated `map_and_pure` and `try_bind` on `Monad` in favor of `Functor::fmap` or explicit error handling inside `bind`.
+- **`SemigroupExt` / Helpers**: Deprecated `SemigroupExt::combine_all`, `combine_n` and standalone functions `combine_all_values`, `combine_values` in favor of standard iterator folds with `combine`.
+- **`MonoidExt` / Helpers**: Deprecated `MonoidExt::is_empty_monoid`, `monoid::mconcat`, and `monoid::power` in favor of comparison with `Monoid::empty()`, `monoid::combine_all`, and `monoid::repeat`.
+- **Type Construction & Accessor Renames**:
+  - Deprecated `PersistentVector::unit` in favor of `PersistentVector::single`.
+  - Deprecated `Choice::first` in favor of `Choice::primary`.
+
 ## [0.15.0]
 
 ### Bug Fixes

@@ -114,19 +114,6 @@ pub enum IO<A> {
     Effect(IOMorphism<A>),
 }
 
-#[cfg(feature = "async")]
-use std::sync::LazyLock;
-#[cfg(feature = "async")]
-use tokio::runtime::{Builder, Runtime};
-
-#[cfg(feature = "async")]
-static TOKIO_RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
-    Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio runtime")
-});
-
 impl<O: Send + Sync + 'static> IO<O> {
     /// Creates a new IO operation from a function.
     ///
@@ -346,12 +333,7 @@ impl<A: Send + Sync + Clone + 'static> IO<A> {
     /// Creates an IO operation that completes after a specified duration.
     #[cfg(feature = "async")]
     pub fn delay(duration: Duration, a: A) -> Self {
-        IO::new(move || {
-            TOKIO_RUNTIME.block_on(async {
-                tokio::time::sleep(duration).await;
-            });
-            a.clone()
-        })
+        Self::delay_sync(duration, a)
     }
 
     /// Creates a new IO operation that waits for a specified duration before completing (synchronous).
@@ -466,7 +448,7 @@ mod unit_tests {
     use std::sync::Arc;
 
     #[cfg(feature = "async")]
-    use super::{TOKIO_RUNTIME, panic_message};
+    use super::panic_message;
 
     #[test]
     fn effect_combinators_remain_cold_and_repeatable() {
@@ -562,8 +544,9 @@ mod unit_tests {
     #[cfg(feature = "async")]
     #[test]
     fn run_async_preserves_panics_from_the_blocking_operation() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            TOKIO_RUNTIME.block_on(IO::new(|| panic!("run_async panic")).run_async())
+            rt.block_on(IO::new(|| panic!("run_async panic")).run_async())
         }));
 
         let payload = result.expect_err("run_async should propagate the operation panic");
@@ -573,6 +556,14 @@ mod unit_tests {
     #[cfg(feature = "async")]
     #[test]
     fn test_io_delay_runs_synchronously_without_reactor_panic() {
+        use std::time::Duration;
+        let result = IO::delay(Duration::from_millis(1), 42).run();
+        assert_eq!(result, 42);
+    }
+
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_io_delay_inside_tokio_context_does_not_panic() {
         use std::time::Duration;
         let result = IO::delay(Duration::from_millis(1), 42).run();
         assert_eq!(result, 42);

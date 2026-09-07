@@ -268,7 +268,7 @@ impl<A> Applicative for Option<A> {
 }
 
 // Implementation for Result
-impl<A, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
+impl<A, E: Clone> Applicative for Result<A, E> {
     #[inline]
     fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where

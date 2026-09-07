@@ -154,6 +154,12 @@ impl<T> First<T> {
         self.0
     }
 
+    /// Consumes the wrapper and returns the inner option.
+    #[inline]
+    pub fn into_value(self) -> Option<T> {
+        self.0
+    }
+
     /// Returns a reference to the inner option.
     ///
     /// # Examples
@@ -167,15 +173,6 @@ impl<T> First<T> {
     #[inline]
     pub fn get(&self) -> Option<&T> {
         self.0.as_ref()
-    }
-}
-
-impl<T> AsRef<T> for First<T> {
-    #[inline]
-    fn as_ref(&self) -> &T {
-        self.0
-            .as_ref()
-            .expect("called `as_ref()` on an empty `First`")
     }
 }
 

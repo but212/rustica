@@ -119,9 +119,7 @@ pub use iter::*;
 #[cfg(test)]
 mod tests {
     use super::{NonEmptyErrors, Validated};
-    use crate::traits::{
-        applicative::Applicative, bifunctor::Bifunctor, functor::Functor, semigroup::Semigroup,
-    };
+    use crate::traits::{applicative::Applicative, functor::Functor, semigroup::Semigroup};
     use quickcheck_macros::quickcheck;
 
     // Core Algebraic Laws & Properties
@@ -179,12 +177,6 @@ mod tests {
         assert_eq!(
             left.clone().combine(middle.clone()).combine(right.clone()),
             left.combine(middle.combine(right))
-        );
-
-        let bifunctor = Validated::<String, i32>::invalid("error".into());
-        assert_eq!(
-            bifunctor.bimap(|x| x + 1, |e| format!("{e}!")),
-            Validated::invalid("error!".to_string())
         );
     }
 

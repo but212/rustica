@@ -38,6 +38,7 @@
 pub use crate::datatypes::async_monad::AsyncM;
 pub use crate::datatypes::choice::Choice;
 pub use crate::datatypes::cont::Cont;
+pub use crate::datatypes::error::{ChoiceError, ValidatedError};
 pub use crate::datatypes::id::Id;
 pub use crate::datatypes::io::IO;
 pub use crate::datatypes::lens::Lens;

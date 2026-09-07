@@ -12,8 +12,7 @@ pub trait WithError<E>: HKT {
 
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
     where
-        F: Fn(E) -> G,
-        G: Clone;
+        F: Fn(E) -> G;
 
     fn to_result(self) -> Result<Self::Success, E>;
 }
@@ -52,7 +51,7 @@ where
         .collect()
 }
 
-impl<T, E: Clone> WithError<E> for Result<T, E> {
+impl<T, E> WithError<E> for Result<T, E> {
     type Success = T;
     type ErrorOutput<G> = Result<T, G>;
 
@@ -78,7 +77,6 @@ impl<T, E> WithError<E> for Validated<E, T> {
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
     where
         F: Fn(E) -> G,
-        G: Clone,
     {
         match self {
             Validated::Valid(t) => Validated::Valid(t),

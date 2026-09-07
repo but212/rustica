@@ -836,7 +836,7 @@ where
 }
 
 impl<
-    S: Clone + Default + Send + Sync + 'static,
+    S: Clone + Send + Sync + 'static,
     A: Clone + Send + Sync + 'static,
     Err: Clone + Send + Sync + 'static,
 > State<S, Result<A, Err>>

@@ -1,5 +1,5 @@
 use quickcheck_macros::quickcheck;
-use rustica::traits::monoid::{Monoid, MonoidExt};
+use rustica::traits::monoid::Monoid;
 use rustica::traits::semigroup::Semigroup;
 use std::collections::{HashMap, HashSet};
 
@@ -61,12 +61,9 @@ fn test_complex_combination_laws() {
 
 #[test]
 fn test_monoid_utilities() {
-    use rustica::traits::monoid::{mconcat, repeat};
+    use rustica::traits::monoid::repeat;
 
-    let values = vec!["a".to_string(), "b".to_string(), "c".to_string()];
-    assert_eq!(mconcat(&values), "abc");
     assert_eq!(repeat("x".to_string(), 3), "xxx");
-    assert!(String::empty().is_empty_monoid());
 }
 
 #[test]

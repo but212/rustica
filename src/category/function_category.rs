@@ -359,12 +359,13 @@ impl FunctionCategory {
     /// # See also
     ///
     /// * [`when`](Self::when) - For lifting a single function with a predicate.
-    pub fn then_if<A, P>(
-        first: &FunctionMorphism<A, A>, second: &FunctionMorphism<A, A>, predicate: P,
-    ) -> FunctionMorphism<A, A>
+    pub fn then_if<A, B, P>(
+        first: &FunctionMorphism<A, B>, second: &FunctionMorphism<B, B>, predicate: P,
+    ) -> FunctionMorphism<A, B>
     where
         A: 'static,
-        P: Fn(&A) -> bool + 'static,
+        B: 'static,
+        P: Fn(&B) -> bool + 'static,
     {
         let first_clone = Arc::clone(first);
         let second_clone = Arc::clone(second);
@@ -381,27 +382,24 @@ impl FunctionCategory {
 
     /// Creates a morphism that applies multiple transformations in sequence.
     ///
-    /// when the functions don't need to be reused.
-    ///
-    /// If the vector is empty, the resulting morphism is the identity function.
+    /// If the slice is empty, the resulting morphism is the identity function.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::category::function_category::FunctionCategory;
     ///
-    /// let pipeline = FunctionCategory::sequence(vec![
-    ///     |x: i32| x + 1,
-    ///     |x: i32| x * 2,
-    ///     |x: i32| x - 3,
-    /// ]);
+    /// let f1 = FunctionCategory::arrow(|x: i32| x + 1);
+    /// let f2 = FunctionCategory::arrow(|x: i32| x * 2);
+    /// let f3 = FunctionCategory::arrow(|x: i32| x - 3);
+    /// let pipeline = FunctionCategory::sequence(&[f1, f2, f3]);
     /// assert_eq!(pipeline(5), 9); // ((5 + 1) * 2) - 3 = 9
     /// ```
-    pub fn sequence<A, F>(functions: Vec<F>) -> FunctionMorphism<A, A>
+    pub fn sequence<A>(functions: &[FunctionMorphism<A, A>]) -> FunctionMorphism<A, A>
     where
         A: 'static,
-        F: Fn(A) -> A + 'static,
     {
+        let functions: Vec<FunctionMorphism<A, A>> = functions.to_vec();
         Arc::new(move |initial| functions.iter().fold(initial, |acc, f| f(acc)))
     }
 }
@@ -430,7 +428,8 @@ impl FunctionCategory {
 #[macro_export]
 macro_rules! function {
     ($name:ident: $input:ty => $output:ty = $body:expr) => {
-        let $name = { $crate::category::function_category::FunctionCategory::arrow($body) };
+        let $name: $crate::category::function_category::FunctionMorphism<$input, $output> =
+            $crate::category::function_category::FunctionCategory::arrow($body);
     };
 }
 

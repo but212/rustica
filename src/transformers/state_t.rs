@@ -120,14 +120,14 @@ where
 impl<S, M, A> StateT<S, M, A>
 where
     S: Clone + 'static,
-    M: Monad<Source = (S, A)> + Clone + 'static,
-    A: Clone + 'static,
+    M: Monad<Source = (S, A)> + 'static,
+    A: 'static,
 {
     /// Maps the value while preserving the produced state.
     pub fn fmap<B, F>(self, f: F) -> StateT<S, M::Output<(S, B)>, B>
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
-        B: Clone + 'static,
+        B: 'static,
         M::Output<(S, B)>: 'static,
     {
         let run = self.run_state_fn;
@@ -144,7 +144,7 @@ where
     pub fn bind<B, F>(self, f: F) -> StateT<S, M::Output<(S, B)>, B>
     where
         F: Fn(A) -> StateT<S, M::Output<(S, B)>, B> + Clone + Send + Sync + 'static,
-        B: Clone + 'static,
+        B: 'static,
         M::Output<(S, B)>: 'static,
     {
         let run = self.run_state_fn;
@@ -162,8 +162,9 @@ where
         self, other: StateT<S, M::Output<(S, B)>, B>, f: F,
     ) -> StateT<S, M::Output<(S, C)>, C>
     where
-        B: Clone + 'static,
-        C: Clone + 'static,
+        A: Clone,
+        B: 'static,
+        C: 'static,
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
         M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
         M::Output<(S, C)>: 'static,
@@ -189,9 +190,9 @@ where
         self, other: StateT<S, M::Output<(S, B)>, B>,
     ) -> StateT<S, M::Output<(S, C)>, C>
     where
-        A: Fn(B) -> C,
-        B: Clone + 'static,
-        C: Clone + 'static,
+        A: Clone + Fn(B) -> C,
+        B: 'static,
+        C: 'static,
         M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
         M::Output<(S, C)>: 'static,
     {

@@ -151,6 +151,12 @@ impl<T> Product<T> {
         self.0
     }
 
+    /// Consumes the wrapper and returns the contained value.
+    #[inline]
+    pub fn into_value(self) -> T {
+        self.0
+    }
+
     /// Returns a reference to the contained value.
     ///
     /// # Examples
@@ -256,7 +262,7 @@ impl<T> HKT for Product<T> {
     type Output<U> = Product<U>;
 }
 
-impl<T: Mul<Output = T>> Functor for Product<T> {
+impl<T> Functor for Product<T> {
     #[inline]
     fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where

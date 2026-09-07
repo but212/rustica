@@ -60,6 +60,7 @@ use std::marker::PhantomData;
 /// * `A`: The first type in the isomorphism
 /// * `B`: The second type in the isomorphism
 ///
+#[deprecated(since = "0.16.0", note = "use standard From/Into conversions instead")]
 pub trait Iso<A, B> {
     /// Converts from the source type to the target type.
     ///
@@ -189,6 +190,7 @@ pub trait Iso<A, B> {
 /// * `A`: The source type of the composed isomorphism
 /// * `B`: The intermediate type
 /// * `C`: The target type of the composed isomorphism
+#[deprecated(since = "0.16.0", note = "use standard From/Into conversions instead")]
 pub struct ComposedIso<ISO1, ISO2, A, B, C>
 where
     ISO1: Iso<A, B>,
@@ -225,6 +227,7 @@ where
 /// * `ISO` - The original isomorphism type
 /// * `A` - The source type of the original isomorphism
 /// * `B` - The target type of the original isomorphism
+#[deprecated(since = "0.16.0", note = "use standard From/Into conversions instead")]
 pub struct InverseIso<ISO, A, B>
 where
     ISO: Iso<A, B>,
@@ -247,6 +250,7 @@ where
 }
 
 /// Extension methods for types that implement `Iso`.
+#[deprecated(since = "0.16.0", note = "use standard From/Into conversions instead")]
 pub trait IsoExt<A, B>: Iso<A, B> {
     /// Applies this isomorphism to convert a value of the source type into the target type.
     ///
@@ -343,6 +347,7 @@ impl<T, A, B> IsoExt<A, B> for T where T: Iso<A, B> {}
 /// let res3 = iso.backward(validated2);
 /// assert_eq!(res3, err);
 /// ```
+#[deprecated(since = "0.16.0", note = "use standard From/Into conversions instead")]
 pub struct ResultValidatedIso;
 
 impl<A, E> Iso<Result<A, NonEmptyErrors<E>>, Validated<E, A>> for ResultValidatedIso {

@@ -53,6 +53,12 @@ pub mod alternative;
 /// Isomorphism between types.
 ///
 /// This module provides the Iso trait which represents isomorphisms between types.
+///
+/// # Deprecation Warning
+///
+/// This module is deprecated and will be removed in a future version.
+/// Use standard From/Into conversions instead.
+#[allow(deprecated)]
 pub mod iso;
 
 /// Multiplicative identity element.

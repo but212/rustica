@@ -116,10 +116,7 @@ impl<T> HKT for Option<T> {
     type Output<U> = Option<U>;
 }
 
-impl<T, E> HKT for Result<T, E>
-where
-    E: Clone,
-{
+impl<T, E> HKT for Result<T, E> {
     type Source = T;
     type Output<U> = Result<U, E>;
 }

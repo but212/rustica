@@ -32,6 +32,10 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use crate::traits::hkt::HKT;
+use crate::traits::monad::Monad;
+use crate::transformers::MonadTransformer;
+
 /// Type alias for the core continuation transformer function type
 pub type ContTFn<M, A> = dyn Fn(Arc<dyn Fn(A) -> M + Send + Sync>) -> M + Send + Sync;
 
@@ -134,7 +138,7 @@ impl<R, M, A> ContT<R, M, A> {
     /// ```
     pub fn pure(a: A) -> Self
     where
-        M: Clone + 'static,
+        M: 'static,
         A: Clone + Send + Sync + 'static,
         R: 'static,
     {
@@ -237,34 +241,39 @@ impl<R, M, A> ContT<R, M, A> {
     /// A new continuation transformer of type `ContT<R, M, B>`
     ///
     /// # Examples
+    /// Applies a continuation-held function to a continuation-held value.
+    ///
+    /// # Examples
     ///
     /// ```rust
     /// use std::sync::Arc;
     /// use rustica::transformers::cont_t::ContT;
     /// use rustica::datatypes::id::Id;
     ///
-    /// let cont_val = ContT::<String, Id<String>, i32>::pure(5);
     /// let cont_fn = ContT::<String, Id<String>, Arc<dyn Fn(i32) -> String + Send + Sync>>::pure(
     ///     Arc::new(|x| format!("Value: {}", x))
     /// );
+    /// let cont_val = ContT::<String, Id<String>, i32>::pure(5);
     ///
-    /// let result = cont_val.apply(cont_fn).run(|x| Id::new(x));
+    /// let result = cont_fn.apply(cont_val).run(|x| Id::new(x));
     /// assert_eq!(result.into_inner(), "Value: 5");
     /// ```
-    pub fn apply<B>(self, cf: ContT<R, M, Arc<dyn Fn(A) -> B + Send + Sync>>) -> ContT<R, M, B>
+    pub fn apply<B, C>(self, v: ContT<R, M, B>) -> ContT<R, M, C>
     where
-        A: Send + Sync + 'static,
+        A: Into<Arc<dyn Fn(B) -> C + Send + Sync>> + 'static,
         B: Send + Sync + 'static,
+        C: Send + Sync + 'static,
         M: 'static,
     {
         ContT::new(move |k| {
-            let run_val = self.run_cont.clone();
-            let run_func = cf.run_cont.clone();
+            let run_func = self.run_cont.clone();
+            let run_val = v.run_cont.clone();
             let k = Arc::new(k);
             run_func(Arc::new(move |f| {
+                let f_arc: Arc<dyn Fn(B) -> C + Send + Sync> = f.into();
                 let run_val = run_val.clone();
                 let k = k.clone();
-                run_val(Arc::new(move |a| k.clone()(f(a))))
+                run_val(Arc::new(move |b| k.clone()(f_arc(b))))
             }))
         })
     }
@@ -366,5 +375,19 @@ impl<R, A> ContT<R, crate::datatypes::id::Id<R>, A> {
     /// ```
     pub fn from_cont(cont: crate::datatypes::cont::Cont<R, A>) -> Self {
         cont.inner
+    }
+}
+
+impl<R, M, A> MonadTransformer for ContT<R, M, A>
+where
+    R: 'static,
+    A: Send + Sync + 'static,
+    M: HKT<Source = R> + Send + Sync + 'static,
+    M::Output<A>: Monad<Source = A, Output<R> = M> + Clone + Send + Sync + 'static,
+{
+    type BaseMonad = M::Output<A>;
+
+    fn lift(base: Self::BaseMonad) -> Self {
+        ContT::new(move |k| base.clone().bind::<R, _>(move |a| k(a)))
     }
 }
