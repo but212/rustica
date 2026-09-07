@@ -28,7 +28,11 @@ fn basic_usage() {
     let endpoints = Choice::new("primary.api.com", ["backup1.api.com", "backup2.api.com"]);
     assert_eq!(*endpoints.primary(), "primary.api.com");
     let connected = endpoints.try_each(|ep| {
-        if *ep == "backup1.api.com" { Ok("connected") } else { Err("unreachable") }
+        if *ep == "backup1.api.com" {
+            Ok("connected")
+        } else {
+            Err("unreachable")
+        }
     });
     assert_eq!(connected, Ok("connected"));
 
