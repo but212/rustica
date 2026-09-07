@@ -27,17 +27,17 @@
 //! let id_string = Id::new("hello".to_string());
 //!
 //! // Access the wrapped value
-//! assert_eq!(id_number.unwrap(), 42);
+//! assert_eq!(id_number.into_inner(), 42);
 //!
 //! // Transform with fmap
 //! let doubled = id_number.fmap(|x| x * 2);
-//! assert_eq!(doubled.unwrap(), 84);
+//! assert_eq!(doubled.into_inner(), 84);
 //!
 //! // Chain with bind
 //! let result = Id::new(10)
 //!     .bind(|x| Id::new(x + 5))
 //!     .bind(|x| Id::new(x * 2));
-//! assert_eq!(result.unwrap(), 30);
+//! assert_eq!(result.into_inner(), 30);
 //!
 //! // Perfect for testing monadic code
 //! fn monadic_computation<M: Monad>(m: M) -> M::Output<String>
@@ -48,7 +48,7 @@
 //! }
 //!
 //! let test_result = monadic_computation(Id::new(123));
-//! assert_eq!(test_result.unwrap(), "Result: 123");
+//! assert_eq!(test_result.into_inner(), "Result: 123");
 //! ```
 //!
 //! ## Functional Programming Context
@@ -135,15 +135,15 @@
 //! let x: Id<i32> = Id::new(42);
 //!
 //! // Access the inner value
-//! assert_eq!(x.unwrap(), 42);
+//! assert_eq!(x.into_inner(), 42);
 //!
 //! // Map a function over the value (Functor)
 //! let doubled = x.fmap(|n| n * 2);
-//! assert_eq!(doubled.unwrap(), 84);
+//! assert_eq!(doubled.into_inner(), 84);
 //!
 //! // Lift a value into Id context (Pure)
 //! let pure_value = Id::<i32>::pure(100);
-//! assert_eq!(pure_value.unwrap(), 100);
+//! assert_eq!(pure_value.into_inner(), 100);
 //! ```
 //!
 //! ## Iterator Example
@@ -171,7 +171,7 @@
 //! *value += 1;
 //! assert_eq!(iter.next(), None);
 //! drop(iter);
-//! assert_eq!(id.unwrap(), 43);
+//! assert_eq!(id.into_inner(), 43);
 //! ```
 use crate::traits::{
     applicative::Applicative, foldable::Foldable, functor::Functor, hkt::HKT, monad::Monad,
@@ -207,45 +207,45 @@ use quickcheck::{Arbitrary, Gen};
 /// let y = Id::new(3);
 /// let z = Id::new(2);
 ///
-/// assert_eq!(x.unwrap(), 5);
+/// assert_eq!(x.into_inner(), 5);
 ///
 /// // Using Functor to map over Id
 /// let doubled = x.fmap(|n| n * 2);
-/// assert_eq!(doubled.unwrap(), 10);
+/// assert_eq!(doubled.into_inner(), 10);
 ///
 /// // Using Pure to lift a value into Id context
 /// let pure_value = Id::<i32>::pure(42);
-/// assert_eq!(pure_value.unwrap(), 42);
+/// assert_eq!(pure_value.into_inner(), 42);
 ///
 /// // Using Applicative to apply functions
 /// // 1. Apply a function wrapped in Id
 /// let add_one = Id::new(|x: i32| x + 1);
 /// let result = Applicative::apply(add_one, x);
-/// assert_eq!(result.unwrap(), 6);
+/// assert_eq!(result.into_inner(), 6);
 ///
 /// // 2. Combine two Id values with lift2
 /// let add = |a: i32, b: i32| a + b;
 /// let sum = Id::<i32>::lift2(add, x, y);
-/// assert_eq!(sum.unwrap(), 8);
+/// assert_eq!(sum.into_inner(), 8);
 ///
 /// // 3. Combine three Id values with lift3
 /// let multiply = |a: i32, b: i32, c: i32| a * b * c;
 /// let product = Id::<i32>::lift3(multiply, x, y, z);
-/// assert_eq!(product.unwrap(), 30);
+/// assert_eq!(product.into_inner(), 30);
 ///
 /// // Working with different types
 /// let greeting = Id::new("Hello");
 /// let count = Id::new(3_usize);
 /// let repeat = |s: &str, n: usize| s.repeat(n);
 /// let repeated = Id::<&str>::lift2(repeat, greeting, count);
-/// assert_eq!(repeated.unwrap(), "HelloHelloHello");
+/// assert_eq!(repeated.into_inner(), "HelloHelloHello");
 ///
 /// // Chaining operations
 /// let result = x
 ///     .fmap(|n| n + 1)     // 5 -> 6
 ///     .fmap(|n| n * 2)     // 6 -> 12
 ///     .fmap(|n| n.to_string());
-/// assert_eq!(result.unwrap(), "12");
+/// assert_eq!(result.into_inner(), "12");
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -271,11 +271,11 @@ impl<T> Id<T> {
     /// use rustica::datatypes::id::Id;
     ///
     /// let x = Id::new(42);
-    /// assert_eq!(x.unwrap(), 42);
+    /// assert_eq!(x.into_inner(), 42);
     ///
     /// // Create Id with different types
     /// let s: Id<String> = Id::new("hello".to_string());
-    /// assert_eq!(s.unwrap(), "hello");
+    /// assert_eq!(s.into_inner(), "hello");
     /// ```
     #[inline]
     pub const fn new(x: T) -> Self {
@@ -300,20 +300,6 @@ impl<T> Id<T> {
         self.value
     }
 
-    /// Unwraps the Id, yielding the contained value.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` instead")]
-    #[inline]
-    pub fn unwrap(self) -> T {
-        self.value
-    }
-
-    /// Unwraps the Id or returns a default value.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` instead")]
-    #[inline]
-    pub fn unwrap_or(self, _default: T) -> T {
-        self.value
-    }
-
     /// Returns a mutable reference to the inner value.
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value
@@ -334,7 +320,7 @@ impl<T> Id<T> {
     /// let x = Id::new(42);
     /// let y = Id::new("hello");
     /// let result = x.then(y);
-    /// assert_eq!(result.unwrap(), "hello");
+    /// assert_eq!(result.into_inner(), "hello");
     /// ```
     #[inline(always)]
     pub fn then<U>(self, next: Id<U>) -> Id<U> {
@@ -365,7 +351,7 @@ impl<T: Clone> Id<T> {
     ///
     /// let value = 42;
     /// let x = Id::from_ref(&value);
-    /// assert_eq!(x.unwrap(), 42);
+    /// assert_eq!(x.into_inner(), 42);
     /// ```
     #[inline]
     pub fn from_ref(x: &T) -> Self {
@@ -475,7 +461,7 @@ impl<T: Clone> Id<T> {
     /// let duplicated = id.duplicate();
     ///
     /// // The result is equivalent to id.clone()
-    /// assert_eq!(duplicated.unwrap(), 42);
+    /// assert_eq!(duplicated.into_inner(), 42);
     /// ```
     #[inline]
     pub fn duplicate(&self) -> Self {
@@ -507,11 +493,11 @@ impl<T> Id<T> {
     ///
     /// // Apply a function to the context, squaring the inner value
     /// let result = id.extend(|ctx| {
-    ///     let inner_value = ctx.unwrap();
+    ///     let inner_value = ctx.into_inner();
     ///     inner_value * inner_value  // Produces 25
     /// });
     ///
-    /// assert_eq!(result.unwrap(), 25);
+    /// assert_eq!(result.into_inner(), 25);
     /// ```
     #[inline]
     pub fn extend<U, F>(&self, f: F) -> Id<U>
@@ -543,13 +529,13 @@ impl<T: Semigroup> Semigroup for Id<T> {
     /// let b = Id::new("world!".to_string());
     ///
     /// let combined = a.combine(b);
-    /// assert_eq!(combined.unwrap(), "Hello, world!");
+    /// assert_eq!(combined.into_inner(), "Hello, world!");
     ///
     /// // Combining two Id<Vec<i32>> values
     /// let v1 = Id::new(vec![1, 2]);
     /// let v2 = Id::new(vec![3, 4]);
     /// let combined_vec = v1.combine(v2);
-    /// assert_eq!(combined_vec.unwrap(), vec![1, 2, 3, 4]);
+    /// assert_eq!(combined_vec.into_inner(), vec![1, 2, 3, 4]);
     /// ```
     #[inline]
     fn combine(self, other: Self) -> Self {
@@ -571,11 +557,11 @@ impl<T: Monoid> Monoid for Id<T> {
     ///
     /// // Empty Id<String>
     /// let empty_string = Id::<String>::empty();
-    /// assert_eq!(empty_string.unwrap(), "");
+    /// assert_eq!(empty_string.into_inner(), "");
     ///
     /// // Empty Id<Vec<i32>>
     /// let empty_vec = Id::<Vec<i32>>::empty();
-    /// assert_eq!(empty_vec.unwrap(), vec![]);
+    /// assert_eq!(empty_vec.into_inner(), vec![]);
     /// ```
     #[inline]
     fn empty() -> Self {

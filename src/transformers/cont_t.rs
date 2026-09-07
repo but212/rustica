@@ -62,12 +62,12 @@ impl<R, M, A> ContT<R, M, A> {
     /// // Create a ContT that adds 1 to the continuation's result
     /// let cont = ContT::<i32, Id<i32>, i32>::new(|k| {
     ///     let result = k(42);
-    ///     Id::new(result.unwrap() + 1)
+    ///     Id::new(result.into_inner() + 1)
     /// });
     ///
     /// // Run with a continuation that doubles its input
     /// let result = cont.run(|x| Id::new(x * 2));
-    /// assert_eq!(result.unwrap(), 85); // (42 * 2) + 1
+    /// assert_eq!(result.into_inner(), 85); // (42 * 2) + 1
     /// ```
     pub fn new<F>(f: F) -> Self
     where
@@ -100,7 +100,7 @@ impl<R, M, A> ContT<R, M, A> {
     ///
     /// let cont = ContT::<i32, Id<i32>, i32>::pure(42);
     /// let result = cont.run(|x| Id::new(x * 2));
-    /// assert_eq!(result.unwrap(), 84);
+    /// assert_eq!(result.into_inner(), 84);
     /// ```
     pub fn run<FN>(&self, k: FN) -> M
     where
@@ -165,7 +165,7 @@ impl<R, M, A> ContT<R, M, A> {
     /// let cont1 = ContT::<i32, Id<i32>, i32>::pure(5);
     /// let cont2 = cont1.bind(|x| ContT::pure(x * 2));
     /// let result = cont2.run(|x| Id::new(x));
-    /// assert_eq!(result.unwrap(), 10);
+    /// assert_eq!(result.into_inner(), 10);
     /// ```
     pub fn bind<B, F>(self, f: F) -> ContT<R, M, B>
     where
@@ -206,7 +206,7 @@ impl<R, M, A> ContT<R, M, A> {
     /// // Map a function over the continuation
     /// let doubled = computation.fmap(|x| x * 2);
     /// let result = doubled.run(|x| Id::new(x));
-    /// assert_eq!(result.unwrap(), 84);
+    /// assert_eq!(result.into_inner(), 84);
     /// ```
     pub fn fmap<B, F>(self, f: F) -> ContT<R, M, B>
     where
@@ -249,7 +249,7 @@ impl<R, M, A> ContT<R, M, A> {
     /// );
     ///
     /// let result = cont_val.apply(cont_fn).run(|x| Id::new(x));
-    /// assert_eq!(result.unwrap(), "Value: 5");
+    /// assert_eq!(result.into_inner(), "Value: 5");
     /// ```
     pub fn apply<B>(self, cf: ContT<R, M, Arc<dyn Fn(A) -> B + Send + Sync>>) -> ContT<R, M, B>
     where
@@ -307,7 +307,7 @@ impl<R, M, A> ContT<R, M, A> {
     /// });
     ///
     /// let result = computation.run(|x| Id::new(x));
-    /// assert_eq!(result.unwrap(), 10);
+    /// assert_eq!(result.into_inner(), 10);
     /// ```
     pub fn call_cc<B, F>(f: F) -> ContT<R, M, A>
     where
@@ -362,7 +362,7 @@ impl<R, A> ContT<R, crate::datatypes::id::Id<R>, A> {
     /// let cont = Cont::return_cont(5);
     /// let cont_t = ContT::<i32, Id<i32>, i32>::from_cont(cont);
     /// let result = cont_t.run(|x| Id::new(x + 1));
-    /// assert_eq!(result.unwrap(), 6);
+    /// assert_eq!(result.into_inner(), 6);
     /// ```
     pub fn from_cont(cont: crate::datatypes::cont::Cont<R, A>) -> Self {
         cont.inner

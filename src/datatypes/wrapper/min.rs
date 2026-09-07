@@ -148,22 +148,6 @@ impl<T> Min<T> {
     }
 }
 
-impl<T: Clone> Min<T> {
-    /// Unwraps the min value.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap(&self) -> T {
-        self.0.clone()
-    }
-
-    /// Unwraps the min value or returns a default.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap_or(&self, _default: T) -> T {
-        self.0.clone()
-    }
-}
-
 impl<T> AsRef<T> for Min<T> {
     #[inline]
     fn as_ref(&self) -> &T {

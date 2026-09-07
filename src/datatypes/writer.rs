@@ -17,7 +17,7 @@
 //!
 //! // Transform the value while preserving the log
 //! let doubled = writer1.fmap(|x| x * 2);
-//! assert_eq!(doubled.clone().unwrap(), 84);
+//! assert_eq!(doubled.clone().into_value(), 84);
 //! assert_eq!(doubled.log(), "Starting computation");
 //!
 //! // Chain computations, combining logs
@@ -25,7 +25,7 @@
 //!     .bind(|x| Writer::new("Step 2".to_string(), x + 5))
 //!     .bind(|x| Writer::new("Step 3".to_string(), x * 2));
 //!
-//! assert_eq!(result.clone().unwrap(), 30);
+//! assert_eq!(result.clone().into_value(), 30);
 //! assert_eq!(result.log(), "Step 1Step 2Step 3");
 //!
 //! // Add to log without changing the value
@@ -268,13 +268,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
         (self.log, self.value)
     }
 
-    /// Extracts both the value and the log from the Writer, consuming it.
-    #[deprecated(since = "0.15.0", note = "use `run()` instead")]
-    #[inline]
-    pub fn run_owned(self) -> (W, A) {
-        self.run()
-    }
-
     /// Extracts just the value from the Writer, discarding the log.
     ///
     /// This method consumes the Writer.
@@ -310,20 +303,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     #[inline]
     pub fn into_value(self) -> A {
         self.value
-    }
-
-    /// Extracts just the value from the Writer, discarding the log.
-    #[deprecated(since = "0.15.0", note = "use `into_value()` instead")]
-    #[inline]
-    pub fn unwrap(self) -> A {
-        self.into_value()
-    }
-
-    /// Extracts just the value from the Writer, discarding the log.
-    #[deprecated(since = "0.15.0", note = "use `into_value()` instead")]
-    #[inline]
-    pub fn unwrap_owned(self) -> A {
-        self.into_value()
     }
 
     /// Creates a new Writer with the given value and an empty log.
@@ -371,13 +350,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     #[inline]
     pub fn log(self) -> W {
         self.log
-    }
-
-    /// Extracts just the log from the Writer, discarding the value.
-    #[deprecated(since = "0.15.0", note = "use `log()` instead")]
-    #[inline]
-    pub fn exec(self) -> W {
-        self.log()
     }
 }
 
@@ -633,15 +605,6 @@ mod tests {
     fn test_writer_into_value() {
         let writer = Writer::new(Log(vec!["log".into()]), 42);
         assert_eq!(writer.into_value(), 42);
-
-        #[allow(deprecated)]
-        let (log, val) = Writer::new(Log(vec!["log".into()]), 42).run_owned();
-        assert_eq!(val, 42);
-        assert_eq!(log, Log(vec!["log".into()]));
-
-        #[allow(deprecated)]
-        let unwrapped = Writer::new(Log(vec!["log".into()]), 42).unwrap_owned();
-        assert_eq!(unwrapped, 42);
     }
 }
 

@@ -588,18 +588,6 @@ mod unit_tests {
     use crate::prelude::*;
 
     #[test]
-    #[allow(deprecated)]
-    fn monad_laws_hold_for_choice_backward_compatibility() {
-        let m = Choice::new(1, vec![2]);
-        let f = |x: i32| Choice::new(x + 1, vec![]);
-        let g = |x: i32| Choice::new(x * 2, vec![]);
-
-        assert_eq!(Choice::<i32>::pure(10).bind(f), f(10));
-        assert_eq!(m.clone().bind(Choice::<i32>::pure), m);
-        assert_eq!(m.clone().bind(f).bind(g), m.bind(|x| f(x).bind(g)));
-    }
-
-    #[test]
     fn priority_and_transformation_contracts() {
         // C-01: Non-empty single and multiple
         let s = Choice::single(100);

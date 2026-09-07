@@ -147,22 +147,6 @@ impl<T> Max<T> {
     }
 }
 
-impl<T: Clone> Max<T> {
-    /// Unwraps the max value.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap(&self) -> T {
-        self.0.clone()
-    }
-
-    /// Unwraps the max value or returns a default.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap_or(&self, _default: T) -> T {
-        self.0.clone()
-    }
-}
-
 impl<T> AsRef<T> for Max<T> {
     #[inline]
     fn as_ref(&self) -> &T {
