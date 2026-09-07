@@ -613,7 +613,10 @@ mod unit_tests {
         let combined = c1.combine(c2);
         assert_eq!(*combined.primary(), 1);
         assert_eq!(combined.alternatives(), &[2, 3, 4, 5]);
-        assert_eq!(combined.iter().copied().collect::<Vec<_>>(), vec![1, 2, 3, 4, 5]);
+        assert_eq!(
+            combined.iter().copied().collect::<Vec<_>>(),
+            vec![1, 2, 3, 4, 5]
+        );
 
         // C-04: Functor fmap preserves priority structure
         let mapped = combined.clone().fmap(|x| x * 10);
@@ -689,9 +692,8 @@ mod unit_tests {
     #[test]
     fn try_each_validated_collects_errors() {
         let choices = Choice::new(1, [2, 3]);
-        let res: Validated<String, i32> = choices.try_each_validated(|&x| {
-            Err(format!("err_{}", x))
-        });
+        let res: Validated<String, i32> =
+            choices.try_each_validated(|&x| Err(format!("err_{}", x)));
         assert!(res.is_invalid());
         if let Validated::Invalid(errs) = res {
             let err_list: Vec<_> = errs.into_iter().collect();
@@ -701,13 +703,8 @@ mod unit_tests {
         }
 
         // Success on alternative
-        let ok_res: Validated<&str, i32> = choices.try_each_validated(|&x| {
-            if x == 2 {
-                Ok(200)
-            } else {
-                Err("fail")
-            }
-        });
+        let ok_res: Validated<&str, i32> =
+            choices.try_each_validated(|&x| if x == 2 { Ok(200) } else { Err("fail") });
         assert_eq!(ok_res, Validated::Valid(200));
     }
 
