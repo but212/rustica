@@ -183,16 +183,31 @@ impl<E> ComposableError<E> {
         self.error_code
     }
 
-    /// Sets the error code.
+    /// Sets or updates the error code using builder chaining.
     ///
     /// # Arguments
     ///
     /// * `code`: The error code to set
     ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::error::ComposableError;
+    ///
+    /// let error = ComposableError::new("Not found").with_error_code(404);
+    /// assert_eq!(error.error_code(), Some(404));
+    /// ```
     #[inline]
-    pub fn set_code(mut self, code: u32) -> Self {
+    pub fn with_error_code(mut self, code: u32) -> Self {
         self.error_code = Some(code);
         self
+    }
+
+    /// Sets the error code.
+    #[deprecated(since = "0.16.0", note = "Use `with_error_code` instead.")]
+    #[inline]
+    pub fn set_code(self, code: u32) -> Self {
+        self.with_error_code(code)
     }
 
     /// Maps the core error to a new type.
@@ -458,12 +473,20 @@ mod tests {
     fn set_code_and_map_core_preserve_error_metadata() {
         let error = ComposableError::new(42)
             .with_context("numeric")
-            .set_code(500)
+            .with_error_code(500)
             .map_core(|value| format!("code: {value}"));
 
         assert_eq!(error.core_error(), "code: 42");
         assert_eq!(error.context(), vec!["numeric"]);
         assert_eq!(error.error_code(), Some(500));
+
+        #[allow(deprecated)]
+        let error_deprecated = ComposableError::new(42)
+            .with_context("numeric")
+            .set_code(500)
+            .map_core(|value| format!("code: {value}"));
+
+        assert_eq!(error_deprecated.error_code(), Some(500));
     }
 
     #[test]

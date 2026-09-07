@@ -268,6 +268,13 @@ where
     /// effectively executing the continuation and producing the final result. It is the primary
     /// way to extract a value from a continuation.
     ///
+    /// # Receiver Semantics
+    ///
+    /// Unlike `IO::run(self)` or `State::run_state(self)` which consume the computation by value,
+    /// `Cont::run` takes `&self`. This allows multi-shot continuation evaluation: the same
+    /// continuation can be invoked multiple times with different callbacks because its
+    /// inner execution pipeline is backed by an `Arc`.
+    ///
     /// # Arguments
     ///
     /// * `k` - A function that takes a value of type `A` and returns a value of type `R`
@@ -282,8 +289,10 @@ where
     /// use rustica::datatypes::cont::Cont;
     ///
     /// let cont = Cont::return_cont(42);
-    /// let result = cont.run(|x| x * 2);
-    /// assert_eq!(result, 84);
+    /// let result1 = cont.run(|x| x * 2);
+    /// let result2 = cont.run(|x| x + 10);
+    /// assert_eq!(result1, 84);
+    /// assert_eq!(result2, 52);
     /// ```
     #[inline]
     pub fn run<FN>(&self, k: FN) -> R

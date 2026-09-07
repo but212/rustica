@@ -124,7 +124,38 @@ impl<T> Choice<T> {
         })
     }
 
-    /// Filters values in the `Choice`. Returns `None` if all values are filtered out.
+    /// Filters values in the `Choice` by consuming it. Returns `None` if all values are filtered out.
+    ///
+    /// Unlike [`Self::filter_values`], this consuming version does not require `T: Clone`.
+    pub fn filter<F>(self, mut predicate: F) -> Option<Self>
+    where
+        F: FnMut(&T) -> bool,
+    {
+        let mut kept = SmallVec::<[T; 8]>::new();
+        if predicate(&self.primary) {
+            kept.push(self.primary);
+        }
+        for alt in self.alternatives {
+            if predicate(&alt) {
+                kept.push(alt);
+            }
+        }
+
+        if kept.is_empty() {
+            None
+        } else {
+            let mut iter = kept.into_iter();
+            let primary = iter.next().unwrap();
+            let alternatives = iter.collect();
+            Some(Self {
+                primary,
+                alternatives,
+            })
+        }
+    }
+
+    /// Filters values in the `Choice` by reference. Returns `None` if all values are filtered out.
+    #[deprecated(since = "0.16.0", note = "Use `filter` or iterate/filter explicitly.")]
     pub fn filter_values<F>(&self, mut predicate: F) -> Option<Self>
     where
         T: Clone,
@@ -159,21 +190,22 @@ impl<T> Choice<T> {
         std::iter::once(&self.primary).chain(self.alternatives.iter())
     }
 
-    /// Safely flattens a `Choice` of iterable items.
-    pub fn try_flatten<I>(&self) -> Result<Choice<I>, ChoiceError>
+    /// Safely flattens a `Choice` of iterable items by consuming it.
+    ///
+    /// Unlike [`Self::try_flatten_cloned`], this consuming version does not require `T: Clone`.
+    pub fn try_flatten<I>(self) -> Result<Choice<I>, ChoiceError>
     where
-        T: IntoIterator<Item = I> + Clone,
+        T: IntoIterator<Item = I>,
     {
-        let primary_iter = self.primary.clone().into_iter();
-        let mut primary_iter = primary_iter;
+        let mut primary_iter = self.primary.into_iter();
 
         match primary_iter.next() {
             Some(first_item) => {
                 let alternatives = primary_iter
                     .chain(
                         self.alternatives
-                            .iter()
-                            .flat_map(|val| val.clone().into_iter()),
+                            .into_iter()
+                            .flat_map(IntoIterator::into_iter),
                     )
                     .collect::<SmallVec<[I; 7]>>();
 
@@ -186,12 +218,30 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Flattens a `Choice` of iterable items, returning `None` if the primary iterator is empty.
-    pub fn flatten<I>(&self) -> Option<Choice<I>>
+    /// Safely flattens a borrowed `Choice` of iterable items by cloning elements.
+    pub fn try_flatten_cloned<I>(&self) -> Result<Choice<I>, ChoiceError>
     where
         T: IntoIterator<Item = I> + Clone,
     {
+        self.clone().try_flatten()
+    }
+
+    /// Flattens a `Choice` of iterable items by consuming it, returning `None` if the primary iterator is empty.
+    ///
+    /// Unlike [`Self::flatten_cloned`], this consuming version does not require `T: Clone`.
+    pub fn flatten<I>(self) -> Option<Choice<I>>
+    where
+        T: IntoIterator<Item = I>,
+    {
         self.try_flatten().ok()
+    }
+
+    /// Flattens a borrowed `Choice` of iterable items by cloning elements, returning `None` if the primary iterator is empty.
+    pub fn flatten_cloned<I>(&self) -> Option<Choice<I>>
+    where
+        T: IntoIterator<Item = I> + Clone,
+    {
+        self.try_flatten_cloned().ok()
     }
 
     /// Tries `f` on each value in priority order (primary first, then alternatives).
@@ -629,9 +679,19 @@ mod unit_tests {
         assert_eq!(choice.iter().copied().collect::<Vec<_>>(), vec![10, 20, 30]);
 
         assert_eq!(Choice::of_many(Vec::<i32>::new()), None);
-        let evens = c.filter_values(|&x| x % 2 == 0).expect("should have evens");
+        let evens = c
+            .clone()
+            .filter(|&x| x % 2 == 0)
+            .expect("should have evens");
         assert_eq!(evens.alternatives(), &[4]);
-        assert_eq!(c.filter_values(|&x| x > 100), None);
+        assert_eq!(c.clone().filter(|&x| x > 100), None);
+
+        #[allow(deprecated)]
+        {
+            let evens = c.filter_values(|&x| x % 2 == 0).expect("should have evens");
+            assert_eq!(evens.alternatives(), &[4]);
+            assert_eq!(c.filter_values(|&x| x > 100), None);
+        }
     }
 
     #[test]
@@ -715,5 +775,65 @@ mod unit_tests {
         // Total failure returns None
         let none_res = choices.first_match(|&x| if x > 100 { Some(x) } else { None });
         assert_eq!(none_res, None);
+    }
+
+    #[test]
+    fn filter_and_flatten_consume_without_clone() {
+        #[derive(Debug, PartialEq, Eq)]
+        struct NoClone(i32);
+
+        let choice = Choice::new(NoClone(1), vec![NoClone(2), NoClone(3)]);
+        let filtered = choice.filter(|x| x.0 % 2 != 0).expect("keeps 1 and 3");
+        assert_eq!(filtered.primary(), &NoClone(1));
+        assert_eq!(filtered.alternatives(), &[NoClone(3)]);
+
+        let nested = Choice::new(vec![NoClone(10)], vec![vec![NoClone(20), NoClone(30)]]);
+        let flattened = nested.flatten().expect("flatten succeeds");
+        assert_eq!(flattened.primary(), &NoClone(10));
+        assert_eq!(flattened.alternatives(), &[NoClone(20), NoClone(30)]);
+
+        let empty_primary: Choice<Vec<NoClone>> = Choice::single(vec![]);
+        assert_eq!(
+            empty_primary.try_flatten(),
+            Err(crate::datatypes::error::ChoiceError::EmptyPrimaryIterator)
+        );
+    }
+
+    #[test]
+    fn flatten_cloned_and_try_flatten_cloned() {
+        let nested = Choice::new(vec![1, 2], vec![vec![3, 4]]);
+        let flattened = nested.flatten_cloned().unwrap();
+        assert_eq!(flattened.primary(), &1);
+        assert_eq!(flattened.alternatives(), &[2, 3, 4]);
+
+        let res = nested.try_flatten_cloned().unwrap();
+        assert_eq!(res.primary(), &1);
+        assert_eq!(res.alternatives(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn filter_values_clones_only_matching_elements() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static CLONE_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        #[derive(Debug, PartialEq, Eq)]
+        struct Tracked(i32);
+
+        impl Clone for Tracked {
+            fn clone(&self) -> Self {
+                CLONE_COUNT.fetch_add(1, Ordering::SeqCst);
+                Tracked(self.0)
+            }
+        }
+
+        CLONE_COUNT.store(0, Ordering::SeqCst);
+        let c = Choice::new(Tracked(1), vec![Tracked(2), Tracked(3), Tracked(4)]);
+
+        #[allow(deprecated)]
+        let filtered = c.filter_values(|x| x.0 % 2 == 0);
+        assert!(filtered.is_some());
+        // Only Tracked(2) and Tracked(4) should have been cloned (2 times), not all 4 elements!
+        assert_eq!(CLONE_COUNT.load(Ordering::SeqCst), 2);
     }
 }

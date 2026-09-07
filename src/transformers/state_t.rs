@@ -266,8 +266,14 @@ where
     A: Clone + Send + Sync + 'static,
 {
     /// Converts to `State`, preserving its public `(value, state)` result order.
-    pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
+    pub fn into_state(self) -> crate::datatypes::state::State<S, A> {
         self.into()
+    }
+
+    /// Converts to `State`, preserving its public `(value, state)` result order.
+    #[deprecated(since = "0.16.0", note = "Use `into_state` instead.")]
+    pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
+        self.into_state()
     }
 
     /// Converts from `State` into the canonical `(state, value)` transformer form.
@@ -334,6 +340,13 @@ mod tests {
             ("abc!".to_owned(), 3)
         );
 
+        let state_from_into = transformed.clone().into_state();
+        assert_eq!(
+            state_from_into.run_state("rust".to_owned()),
+            (4, "rust!".to_owned())
+        );
+
+        #[allow(deprecated)]
         let state_again = transformed.to_state();
         assert_eq!(
             state_again.run_state("rust".to_owned()),
