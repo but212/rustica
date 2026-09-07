@@ -1,8 +1,6 @@
 use super::TestFunctor;
 use quickcheck_macros::quickcheck;
 use rustica::prelude::*;
-use rustica::traits::bifunctor::Bifunctor;
-use rustica::traits::hkt::{BinaryHKT, HKT};
 
 // --- Functor Laws ---
 
@@ -51,47 +49,6 @@ fn monad_associativity_law(x: TestFunctor<i32>) -> bool {
     x.clone().bind(f).bind(g) == x.bind(move |a| f(a).bind(g))
 }
 
-// --- Bifunctor Laws ---
-
-#[derive(Clone, Debug, PartialEq)]
-struct TestBifunctor<A, B>(A, B);
-
-impl<A, B> HKT for TestBifunctor<A, B> {
-    type Source = A;
-    type Output<U> = TestBifunctor<U, B>;
-}
-
-impl<A, B> BinaryHKT for TestBifunctor<A, B> {
-    type Source2 = B;
-    type BinaryOutput<U, V> = TestBifunctor<U, V>;
-}
-
-impl<A, B> Bifunctor for TestBifunctor<A, B> {
-    fn first<C, F>(self, f: F) -> Self::BinaryOutput<C, B>
-    where
-        F: FnMut(A) -> C,
-    {
-        let mut f = f;
-        TestBifunctor(f(self.0), self.1)
-    }
-    fn second<D, G>(self, g: G) -> Self::BinaryOutput<A, D>
-    where
-        G: FnMut(B) -> D,
-    {
-        let mut g = g;
-        TestBifunctor(self.0, g(self.1))
-    }
-    fn bimap<C, D, F, G>(self, f: F, g: G) -> Self::BinaryOutput<C, D>
-    where
-        F: FnMut(A) -> C,
-        G: FnMut(B) -> D,
-    {
-        let mut f = f;
-        let mut g = g;
-        TestBifunctor(f(self.0), g(self.1))
-    }
-}
-
 #[test]
 fn vec_lift3_matches_cartesian_product() {
     let expected = vec![
@@ -113,44 +70,6 @@ fn vec_lift3_matches_cartesian_product() {
     );
 
     assert_eq!(result, expected);
-}
-
-#[test]
-fn bifunctor_identity_and_consistency() {
-    let bf = TestBifunctor(10, 20);
-    // Identity
-    assert_eq!(bf.clone().bimap(|a| a, |b| b), bf);
-    // Comparison
-    let f = |a: i32| a + 1;
-    let g = |b: i32| b * 2;
-    assert_eq!(bf.clone().bimap(f, |b| b), bf.clone().first(f));
-    assert_eq!(bf.clone().bimap(|a| a, g), bf.second(g));
-}
-
-#[test]
-fn bifunctor_maps_each_side_and_chains_operations() {
-    let success = TestBifunctor(5, "error");
-    assert_eq!(
-        success.clone().first(|value| value * 2),
-        TestBifunctor(10, "error")
-    );
-    assert_eq!(
-        success.clone().second(|message| message.len()),
-        TestBifunctor(5, 5)
-    );
-    assert_eq!(
-        success
-            .clone()
-            .bimap(|value| value * 2, |message| message.len()),
-        TestBifunctor(10, 5)
-    );
-    assert_eq!(
-        success
-            .first(|value| value + 3)
-            .first(|value| value * 2)
-            .second(|message| message.to_string()),
-        TestBifunctor(16, "error".to_string())
-    );
 }
 
 #[test]

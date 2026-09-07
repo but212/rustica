@@ -41,10 +41,12 @@
 
 pub use crate::traits::alternative::Alternative;
 pub use crate::traits::applicative::Applicative;
+#[allow(deprecated)]
 pub use crate::traits::bifunctor::Bifunctor;
 pub use crate::traits::foldable::Foldable;
 pub use crate::traits::functor::Functor;
-pub use crate::traits::hkt::HKT;
+pub use crate::traits::hkt::{BinaryHKT, HKT};
+#[allow(deprecated)]
 pub use crate::traits::iso::Iso;
 pub use crate::traits::monad::Monad;
 pub use crate::traits::monad_error::MonadError;

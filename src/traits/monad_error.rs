@@ -143,7 +143,7 @@ pub trait MonadError<E>: Monad {
 }
 
 // Implementation for Result
-impl<T, E: Clone + std::fmt::Debug> MonadError<E> for Result<T, E> {
+impl<T, E: Clone> MonadError<E> for Result<T, E> {
     #[inline]
     fn throw<U>(error: E) -> Self::Output<U> {
         Err(error)

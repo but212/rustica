@@ -421,7 +421,7 @@ where
         B: Clone + Send + Sync + 'static,
     {
         Cont {
-            inner: self.inner.apply(cf.inner),
+            inner: cf.inner.apply(self.inner),
         }
     }
 

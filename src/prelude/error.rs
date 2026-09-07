@@ -19,6 +19,7 @@
 //! assert_eq!(result.unwrap_err().context(), vec!["while running example".to_string()]);
 //! ```
 
+pub use crate::context;
 pub use crate::error::{
     BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, ErrorContext,
     IntoErrorContext, LazyContext, WithError, accumulate_context, collect_errors,

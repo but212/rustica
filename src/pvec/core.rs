@@ -104,9 +104,16 @@ impl<T> PersistentVector<T> {
     }
 
     /// Creates a new persistent vector containing a single element.
-    ///
-    pub fn unit(value: T) -> Self {
+    #[inline]
+    pub fn single(value: T) -> Self {
         Self::inline(SmallVec::from_iter([value]))
+    }
+
+    /// Creates a new persistent vector containing a single element.
+    #[deprecated(since = "0.16.0", note = "use PersistentVector::single instead")]
+    #[inline]
+    pub fn unit(value: T) -> Self {
+        Self::single(value)
     }
 
     /// Returns the number of elements in the vector.
@@ -143,6 +150,50 @@ impl<T> PersistentVector<T> {
             VectorImpl::Tree { tree } => tree.as_ref().get(index),
         }
     }
+
+    /// Gets a reference to the element at the specified index, returning an error if out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustica::pvec::PersistentVector;
+    ///
+    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
+    /// assert!(vec.try_get(1).is_ok());
+    /// assert!(vec.try_get(10).is_err());
+    /// ```
+    pub fn try_get(&self, index: usize) -> Result<&T, PVecError> {
+        self.get(index).ok_or(PVecError::IndexOutOfBounds {
+            index,
+            len: self.len(),
+        })
+    }
+
+    /// Gets a reference to the first element.
+    ///
+    /// Returns `None` if the vector is empty.
+    pub fn first(&self) -> Option<&T> {
+        self.get(0)
+    }
+
+    /// Gets a reference to the last element.
+    ///
+    /// Returns `None` if the vector is empty.
+    pub fn last(&self) -> Option<&T> {
+        if !self.is_empty() {
+            self.get(self.len() - 1)
+        } else {
+            None
+        }
+    }
+
+    /// Applies a function to each element, accumulating the results.
+    pub fn fold<B, F>(&self, init: B, f: F) -> B
+    where
+        F: Fn(B, &T) -> B,
+    {
+        self.iter().fold(init, f)
+    }
 }
 
 impl<T: Clone> PersistentVector<T> {
@@ -169,44 +220,6 @@ impl<T: Clone> PersistentVector<T> {
         F: Fn(&T) -> bool,
     {
         Self::from_iter(self.iter().filter(|x| predicate(x)).cloned())
-    }
-
-    /// Gets a reference to the element at the specified index, returning an error if out of bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustica::pvec::PersistentVector;
-    ///
-    /// let vec = PersistentVector::from_slice(&[1, 2, 3]);
-    /// assert!(vec.try_get(1).is_ok());
-    /// assert!(vec.try_get(10).is_err());
-    /// ```
-    pub fn try_get(&self, index: usize) -> Result<&T, PVecError> {
-        self.get(index).ok_or(PVecError::IndexOutOfBounds {
-            index,
-            len: self.len(),
-        })
-    }
-
-    /// Gets a reference to the first element.
-    ///
-    /// Returns `None` if the vector is empty.
-    ///
-    pub fn first(&self) -> Option<&T> {
-        self.get(0)
-    }
-
-    /// Gets a reference to the last element.
-    ///
-    /// Returns `None` if the vector is empty.
-    ///
-    pub fn last(&self) -> Option<&T> {
-        if !self.is_empty() {
-            self.get(self.len() - 1)
-        } else {
-            None
-        }
     }
 
     /// Creates a new vector by applying a function and filtering out `None` results.
@@ -265,15 +278,6 @@ impl<T: Clone> PersistentVector<T> {
         let mut items: Vec<T> = self.iter().cloned().collect();
         items.sort();
         Self::from_iter(items)
-    }
-
-    /// Applies a function to each element, accumulating the results.
-    ///
-    pub fn fold<B, F>(&self, init: B, f: F) -> B
-    where
-        F: Fn(B, &T) -> B,
-    {
-        self.iter().fold(init, f)
     }
 
     /// Creates a new vector by pairing elements from two vectors.
@@ -776,5 +780,21 @@ impl<T: Clone + Debug> Debug for PersistentVector<T> {
                 write!(f, "PersistentVector(Tree, len={})", self.len())
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod read_only_non_clone_tests {
+    use super::*;
+
+    struct NonClone(i32);
+
+    #[test]
+    fn non_clone_elements_support_read_only_methods() {
+        let v = PersistentVector::single(NonClone(42));
+        assert_eq!(v.first().map(|x| x.0), Some(42));
+        assert_eq!(v.last().map(|x| x.0), Some(42));
+        assert_eq!(v.try_get(0).map(|x| x.0), Ok(42));
+        assert_eq!(v.fold(0, |acc, x| acc + x.0), 42);
     }
 }

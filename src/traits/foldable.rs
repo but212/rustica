@@ -260,6 +260,10 @@ pub trait FoldableExt: Foldable {
     /// let no_match: Option<i32> = numbers.find(|&n| n > 10);
     /// assert_eq!(no_match, None);
     /// ```
+    #[deprecated(
+        since = "0.16.0",
+        note = "use Iterator::find for short-circuiting execution"
+    )]
     #[inline]
     fn find<F>(&self, mut pred: F) -> Option<Self::Source>
     where
@@ -301,6 +305,10 @@ pub trait FoldableExt: Foldable {
     /// let all_even: bool = mixed.all(|&n| n % 2 == 0);
     /// assert!(!all_even);
     /// ```
+    #[deprecated(
+        since = "0.16.0",
+        note = "use Iterator::all for short-circuiting execution"
+    )]
     #[inline]
     fn all<F>(&self, mut pred: F) -> bool
     where
@@ -333,6 +341,10 @@ pub trait FoldableExt: Foldable {
     /// let has_even: bool = odd_only.any(|&n| n % 2 == 0);
     /// assert!(!has_even);
     /// ```
+    #[deprecated(
+        since = "0.16.0",
+        note = "use Iterator::any for short-circuiting execution"
+    )]
     #[inline]
     fn any<F>(&self, mut pred: F) -> bool
     where
@@ -360,6 +372,11 @@ pub trait FoldableExt: Foldable {
     /// assert!(numbers.contains(&3));
     /// assert!(!numbers.contains(&10));
     /// ```
+    #[allow(deprecated)]
+    #[deprecated(
+        since = "0.16.0",
+        note = "use Iterator::contains or PartialEq checks for short-circuiting execution"
+    )]
     #[inline]
     fn contains(&self, value: &Self::Source) -> bool
     where
@@ -413,6 +430,10 @@ pub trait FoldableExt: Foldable {
     /// let unsorted: Vec<i32> = vec![1, 3, 2, 4, 5];
     /// assert!(!unsorted.is_sorted());
     /// ```
+    #[deprecated(
+        since = "0.16.0",
+        note = "use standard slice or Iterator sorting checks for short-circuiting execution"
+    )]
     #[inline]
     fn is_sorted(&self) -> bool
     where
@@ -455,11 +476,10 @@ pub trait FoldableExt: Foldable {
     where
         Self::Source: Clone,
     {
-        let mut out = Vec::new();
-        self.fold_left((), |_, x| {
-            out.push(x.clone());
-        });
-        out
+        self.fold_left(Vec::new(), |mut acc, x| {
+            acc.push(x.clone());
+            acc
+        })
     }
 
     /// Sums all elements in the foldable.

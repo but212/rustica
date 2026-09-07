@@ -300,6 +300,18 @@ impl<T> Id<T> {
         self.value
     }
 
+    /// Consumes the wrapper and returns the inner value.
+    #[inline(always)]
+    pub fn into_value(self) -> T {
+        self.value
+    }
+
+    /// Returns a reference to the inner value.
+    #[inline(always)]
+    pub const fn get(&self) -> &T {
+        &self.value
+    }
+
     /// Returns a mutable reference to the inner value.
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value

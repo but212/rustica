@@ -843,6 +843,14 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     }
 }
 
+impl<A: Send + Sync + Clone + 'static> AsyncM<AsyncM<A>> {
+    /// Flattens a nested AsyncM structure into a single AsyncM.
+    #[inline(always)]
+    pub fn join(self) -> AsyncM<A> {
+        self.bind(|nested| async move { nested })
+    }
+}
+
 #[cfg(any(test, feature = "quickcheck"))]
 impl<A: Arbitrary + Clone + 'static + Send + Sync> Arbitrary for AsyncM<A> {
     fn arbitrary(g: &mut Gen) -> Self {

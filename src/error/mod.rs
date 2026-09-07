@@ -37,4 +37,5 @@ pub use types::{
 };
 
 // Re-export error utility traits directly from the unified error module.
+pub use crate::context;
 pub use core::{WithError, sequence_with_error, traverse_validated};

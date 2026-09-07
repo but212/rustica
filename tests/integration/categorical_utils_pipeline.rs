@@ -29,3 +29,21 @@ fn test_data_processing_pipeline() {
     // Test with zero (should be filtered out)
     assert_eq!(process_data("0"), None);
 }
+
+#[test]
+fn test_prelude_reexports() {
+    use rustica::prelude::*;
+
+    fn _assert_binary_hkt<T: BinaryHKT>() {}
+    _assert_binary_hkt::<Validated<String, i32>>();
+
+    let choice_err = ChoiceError::EmptyInput;
+    assert_eq!(choice_err, ChoiceError::EmptyInput);
+
+    let val_err = ValidatedError::ExpectedValid;
+    assert_eq!(val_err, ValidatedError::ExpectedValid);
+
+    let ctx = context!("error code {}", 42);
+    let error = ComposableError::new("failed").with_context(ctx);
+    assert_eq!(error.context(), vec!["error code 42".to_string()]);
+}

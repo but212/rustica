@@ -85,6 +85,7 @@ impl<T> Choice<T> {
     }
 
     /// Returns a reference to the first (primary) value.
+    #[deprecated(since = "0.16.0", note = "use Choice::primary instead")]
     #[inline]
     pub fn first(&self) -> &T {
         &self.primary
@@ -162,7 +163,6 @@ impl<T> Choice<T> {
     pub fn try_flatten<I>(&self) -> Result<Choice<I>, ChoiceError>
     where
         T: IntoIterator<Item = I> + Clone,
-        I: Clone,
     {
         let primary_iter = self.primary.clone().into_iter();
         let mut primary_iter = primary_iter;
@@ -190,7 +190,6 @@ impl<T> Choice<T> {
     pub fn flatten<I>(&self) -> Option<Choice<I>>
     where
         T: IntoIterator<Item = I> + Clone,
-        I: Clone,
     {
         self.try_flatten().ok()
     }
@@ -477,7 +476,7 @@ impl<T> Semigroup for Choice<T> {
     }
 }
 
-impl<T: Clone> Choice<Option<T>> {
+impl<T> Choice<Option<T>> {
     /// Sequences a `Choice` of `Option`s into an `Option` of a `Choice`.
     pub fn sequence(self) -> Option<Choice<T>> {
         let primary = self.primary?;
@@ -619,7 +618,6 @@ mod unit_tests {
     #[test]
     fn choice_construction_and_filtering_preserve_values() {
         let c = Choice::new(1, vec![2, 3, 4]);
-        assert_eq!(*c.first(), 1);
         assert_eq!(*c.primary(), 1);
         assert_eq!(c.alternatives(), &[2, 3, 4]);
         assert_eq!(c.len(), 4);
@@ -632,7 +630,6 @@ mod unit_tests {
 
         assert_eq!(Choice::of_many(Vec::<i32>::new()), None);
         let evens = c.filter_values(|&x| x % 2 == 0).expect("should have evens");
-        assert_eq!(*evens.first(), 2);
         assert_eq!(evens.alternatives(), &[4]);
         assert_eq!(c.filter_values(|&x| x > 100), None);
     }

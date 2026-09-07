@@ -132,6 +132,12 @@ impl<T> Max<T> {
         self.0
     }
 
+    /// Consumes the wrapper and returns the contained value.
+    #[inline]
+    pub fn into_value(self) -> T {
+        self.0
+    }
+
     /// Returns a reference to the contained value.
     ///
     /// # Examples
@@ -193,7 +199,7 @@ impl<T> HKT for Max<T> {
     type Output<U> = Max<U>;
 }
 
-impl<T: Ord> Functor for Max<T> {
+impl<T> Functor for Max<T> {
     #[inline]
     fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where

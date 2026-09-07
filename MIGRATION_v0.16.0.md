@@ -86,3 +86,45 @@ Direct calls to `c.bind(f)` and `c.apply(v)` now emit compiler deprecation warni
   // New (0.16.0)
   let c = Choice::single(42);
   ```
+
+---
+
+## Semantic Changes in 0.16.0
+
+### 1. `Vec::alt` Monoidal Concatenation
+In Rustica 0.15.0 and earlier, `<Vec<T> as Alternative>::alt(a, b)` returned `a` if non-empty, otherwise `b` (first-success semantics).
+In 0.16.0, `Vec::alt` implements monoidal concatenation (`a.extend(b)`), conforming to the standard monoidal alternative definition.
+
+### 2. Transformer `apply` Polarity Inversion
+`ReaderT::apply` and `ContT::apply` previously took `self` as the value and the argument as the function container (`self.apply(functions)`).
+In 0.16.0, the polarity is inverted to standard Applicative convention: `self = function`, `other = value` (`functions.apply(values)`).
+
+---
+
+## Deprecations in 0.16.0 (Removal in 0.17.0)
+
+The following traits, functions, and methods are deprecated in 0.16.0 with compiler warnings and will be removed in 0.17.0:
+
+1. **`Iso`, `IsoExt`, `ComposedIso`, `InverseIso`, `ResultValidatedIso`**:
+   Use standard Rust `From`/`Into` and `TryFrom`/`TryInto` trait conversions instead.
+2. **`Bifunctor`**:
+   Use inherent `bimap`/`first`/`second` methods on types or standard tuple/Result pattern matching.
+3. **`FoldableExt` Search Methods**:
+   `find`, `all`, `any`, `contains`, `is_sorted` on `FoldableExt` traverse the entire structure. Migrate to Rust's standard `Iterator` equivalents (`iter().find(...)`, `iter().all(...)`, etc.) for genuine short-circuit evaluation.
+4. **`Alternative::many`**:
+   Use standard iterator combinators or repetition instead.
+5. **`FunctorExt::filter_map`, `try_map_or`, `try_map_or_else`**:
+   Use standard `Iterator::filter_map` or `fmap` with `unwrap_or`/`unwrap_or_else`.
+6. **`PureExt::pair_with`, `lift_other`, `combine_with`**:
+   Construct values directly and lift using `Pure::pure`.
+7. **`Monad::map_and_pure`, `try_bind`**:
+   Use `Functor::fmap` or explicit error handling inside `bind`.
+8. **`SemigroupExt::combine_all`, `combine_n` and `combine_all_values`, `combine_values`**:
+   Use standard iterator folds with `combine`.
+9. **`MonoidExt::is_empty_monoid`, `monoid::mconcat`, `monoid::power`**:
+   Compare with `Monoid::empty()`, or use `monoid::combine_all` and `monoid::repeat`.
+10. **`PersistentVector::unit`**:
+    Renamed to `PersistentVector::single(value)`.
+11. **`Choice::first`**:
+    Renamed to `Choice::primary()`.
+

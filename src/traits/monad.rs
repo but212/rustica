@@ -132,6 +132,7 @@ pub trait Monad: Applicative {
     }
 
     /// Performs a monadic map operation with a simpler function.
+    #[deprecated(since = "0.16.0", note = "use Functor::fmap instead")]
     #[inline]
     fn map_and_pure<U, F>(self, f: F) -> Self::Output<U>
     where
@@ -142,6 +143,10 @@ pub trait Monad: Applicative {
     }
 
     /// Applies a monadic function to a non-monadic value, with error handling.
+    #[deprecated(
+        since = "0.16.0",
+        note = "use bind with error handling inside the closure instead"
+    )]
     #[inline]
     fn try_bind<U: Clone, E, F>(self, default: U, mut f: F) -> Self::Output<U>
     where
@@ -175,7 +180,7 @@ impl<T> Monad for Option<T> {
 }
 
 // Implementation for Result
-impl<T, E: std::fmt::Debug + Clone> Monad for Result<T, E> {
+impl<T, E: Clone> Monad for Result<T, E> {
     #[inline]
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where

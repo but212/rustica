@@ -154,20 +154,20 @@ where
 impl<E, M, A> ReaderT<E, M, A>
 where
     E: Clone + 'static,
-    M: Monad<Source = A> + Clone + 'static,
-    A: Clone + 'static,
+    M: Monad<Source = A> + 'static,
+    A: 'static,
 {
     /// Maps the base monad while changing its contained type.
     pub fn fmap<B, F>(self, f: F) -> ReaderT<E, M::Output<B>, B>
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
-        B: Clone + 'static,
+        B: 'static,
         M::Output<B>: 'static,
     {
         let run = self.run_reader_fn;
         ReaderT::new(move |env| {
             let mapper = f.clone();
-            run(env).fmap(move |value| mapper(value.clone()))
+            run(env).fmap(mapper)
         })
     }
 
@@ -175,14 +175,14 @@ where
     pub fn bind<B, F>(self, f: F) -> ReaderT<E, M::Output<B>, B>
     where
         F: Fn(A) -> ReaderT<E, M::Output<B>, B> + Clone + Send + Sync + 'static,
-        B: Clone + 'static,
+        B: 'static,
         M::Output<B>: 'static,
     {
         let run = self.run_reader_fn;
         ReaderT::new(move |env: E| {
             let next_env = env.clone();
             let next = f.clone();
-            run(env).bind(move |value| next(value.clone()).run_reader(next_env.clone()))
+            run(env).bind(move |value| next(value).run_reader(next_env.clone()))
         })
     }
 
@@ -191,11 +191,12 @@ where
         self, other: ReaderT<E, M::Output<B>, B>, f: F,
     ) -> ReaderT<E, M::Output<C>, C>
     where
+        A: Clone,
+        B: Clone,
         M: HKT<Output<A> = M>,
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
-        B: Clone + 'static,
-        C: Clone + 'static,
-        M::Output<B>: Clone + 'static,
+        C: 'static,
+        M::Output<B>: 'static,
         M::Output<C>: 'static,
     {
         let left = self.run_reader_fn;
@@ -210,18 +211,17 @@ where
         })
     }
 
-    /// Applies a reader-held function to this reader's value.
-    pub fn apply<B, Func>(
-        self, functions: ReaderT<E, M::Output<Func>, Func>,
-    ) -> ReaderT<E, M::Output<B>, B>
+    /// Applies a reader-held function to a reader-held value.
+    pub fn apply<B, C>(self, values: ReaderT<E, M::Output<B>, B>) -> ReaderT<E, M::Output<C>, C>
     where
-        M: HKT<Output<A> = M>,
-        Func: Fn(A) -> B + Clone + Send + Sync + 'static,
+        A: Clone + Fn(B) -> C + Send + Sync + 'static,
         B: Clone + 'static,
-        M::Output<Func>: Clone + 'static,
+        M: HKT<Output<A> = M>,
+        C: 'static,
         M::Output<B>: 'static,
+        M::Output<C>: 'static,
     {
-        self.combine(functions, |value, function| function(value))
+        self.combine(values, |function, value| function(value))
     }
 }
 
@@ -293,7 +293,7 @@ mod tests {
 
         let functions: FunctionReader =
             ReaderT::new(|_| Some((|n| format!("value={n}")) as Formatter));
-        let applied: ReaderT<i32, Option<String>, String> = value.apply(functions);
+        let applied: ReaderT<i32, Option<String>, String> = functions.apply(value);
         assert_eq!(applied.run_reader(7), Some("value=7".to_owned()));
     }
 }
