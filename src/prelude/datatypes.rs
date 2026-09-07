@@ -26,7 +26,7 @@
 //!
 //! let x = Id::new(42);
 //! let y = x.fmap(|n| n + 1);
-//! assert_eq!(y.unwrap(), 43);
+//! assert_eq!(y.into_inner(), 43);
 //!
 //! let v: Validated<&str, i32> = Validated::valid(5);
 //! assert!(v.is_valid());

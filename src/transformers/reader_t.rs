@@ -114,13 +114,6 @@ where
         ReaderT::new(move |env| pure(transform(select(&env))))
     }
 
-    /// Runs and returns the base monad.
-    #[deprecated(since = "0.15.0", note = "use `run_reader()` instead")]
-    #[inline]
-    pub fn unwrap_with(self, env: E) -> M {
-        self.run_reader(env)
-    }
-
     /// Returns a reusable binary-reader lifting function.
     #[allow(clippy::type_complexity)]
     pub fn lift2<B, C, F, CombineFn>(

@@ -227,22 +227,6 @@ impl<T> Sum<T> {
     }
 }
 
-impl<T: Clone> Sum<T> {
-    /// Unwraps the sum value.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap(&self) -> T {
-        self.0.clone()
-    }
-
-    /// Unwraps the sum value or returns a default.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap_or(&self, _default: T) -> T {
-        self.0.clone()
-    }
-}
-
 impl<T> AsRef<T> for Sum<T> {
     #[inline]
     fn as_ref(&self) -> &T {
