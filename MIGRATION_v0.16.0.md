@@ -33,6 +33,7 @@ This guide describes the new features, deprecations, and migration steps for Rus
 | `Validated::errors` | Deprecated in 0.16.0; migrate to zero-copy `error_slice(&self)` or `iter_errors(&self)`. |
 | `Validated::as_ref` | Removed in 0.16.0: redundant duplicate of `as_option()`; migrate to `Validated::as_option(&self) -> Option<&A>`. |
 | `datatypes::validated` submodules | Breaking change: submodules `accessors`, `conversions`, `recovery`, `async_ops` consolidated into `core`, `iter`, `combinators`, `traits`. Import from `datatypes::validated` directly. |
+| `pvec` module | Breaking change: `rustica::pvec` is now gated behind the `pvec` feature flag (disabled by default, included in `full`). Enable with `features = ["pvec"]` or `features = ["full"]`. |
 
 ---
 
@@ -73,6 +74,31 @@ use rustica::datatypes::validated::conversions::*;
 
 // New (0.16.0)
 use rustica::datatypes::validated::{NonEmptyErrors, Validated};
+```
+
+---
+
+## `PersistentVector` (`pvec`) Feature Flag Isolation
+
+In 0.16.0, the `pvec` persistent vector module was isolated behind an optional `pvec` Cargo feature flag to reduce compile times and eliminate RRB-tree/SmallVec dependencies for crates needing only pure functional abstractions and monad transformers.
+
+`pvec` is **disabled by default** in 0.16.0, but remains included in the `full` feature bundle.
+
+### Migration
+
+If your crate uses `rustica::pvec` or `PersistentVector`, enable the feature in `Cargo.toml`:
+
+```toml
+# In Cargo.toml
+[dependencies]
+rustica = { version = "0.16.0", features = ["pvec"] }
+```
+
+Or enable the `full` feature bundle:
+
+```toml
+[dependencies]
+rustica = { version = "0.16.0", features = ["full"] }
 ```
 
 ---

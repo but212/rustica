@@ -85,9 +85,10 @@
 //!
 //! Rustica provides several feature flags to customize the library for your needs:
 //!
-//! - `full`: Enables all optional features (`async` + `serde`)
+//! - `full`: Enables all optional features (`async` + `serde` + `pvec`)
 //! - `async`: Enables async monad implementation (`AsyncM`)
 //! - `serde`: Enables serialization/deserialization support
+//! - `pvec`: Enables persistent vector implementation (`PersistentVector`)
 //!
 //! ## Structure
 //!
@@ -97,7 +98,7 @@
 //! - `datatypes`: Implementations of various functional data types
 //! - `transformers`: Monad transformers and related utilities
 //! - `error`: Composable error handling utilities
-//! - `pvec`: Persistent vector implementation with structural sharing
+//! - `pvec`: Persistent vector implementation with structural sharing (requires `pvec` feature)
 //! - `category`: Category theory abstractions and function composition
 //! - `prelude`: A convenient module that re-exports commonly used items
 
@@ -116,6 +117,7 @@ pub mod traits;
 ///
 /// A high-performance, immutable vector implementation that preserves
 /// previous versions through structural sharing.
+#[cfg(feature = "pvec")]
 pub mod pvec;
 
 /// Implementations of functional data types.

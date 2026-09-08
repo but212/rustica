@@ -38,9 +38,14 @@ default = []
 serde = ["dep:serde", "smallvec/serde", "serde/rc"]
 async = ["futures", "tokio"]
 quickcheck = ["dep:quickcheck"]
-full = ["async", "serde", "quickcheck"]
+pvec = []
+full = ["async", "serde", "quickcheck", "pvec"]
 develop = ["full"]
 
 [[bench]]
 name = "datatypes_benchmarks"
 harness = false
+
+[[example]]
+name = "form_validation"
+required-features = ["pvec"]

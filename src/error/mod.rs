@@ -1,7 +1,7 @@
 //! # Unified Error Handling System
 //!
 //! Rustica provides standard Result<T, E> and std::error::Error as its primary error model,
-//! and provides [ContextError<E>] as a lightweight abstraction for context accumulation.
+//! and provides [`ContextError<E>`](crate::error::ContextError) as a lightweight abstraction for context accumulation.
 //!
 //! Legacy composable error types and HKT error abstractions (ComposableError, WithError)
 //! are deprecated in 0.16.0 and scheduled for complete removal in 0.18.0.
