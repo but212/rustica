@@ -197,15 +197,16 @@ impl<'a, T1, T2> Future for Join2<'a, T1, T2> {
             this.fut2 = None;
         }
         match (this.res1.as_ref(), this.res2.as_ref()) {
-            (Some(_), Some(_)) => Poll::Ready((this.res1.take().unwrap(), this.res2.take().unwrap())),
+            (Some(_), Some(_)) => {
+                Poll::Ready((this.res1.take().unwrap(), this.res2.take().unwrap()))
+            },
             _ => Poll::Pending,
         }
     }
 }
 
 async fn join2<'a, T1: Send + 'a, T2: Send + 'a>(
-    fut1: impl Future<Output = T1> + Send + 'a,
-    fut2: impl Future<Output = T2> + Send + 'a,
+    fut1: impl Future<Output = T1> + Send + 'a, fut2: impl Future<Output = T2> + Send + 'a,
 ) -> (T1, T2) {
     Join2 {
         fut1: Some(Box::pin(fut1)),
