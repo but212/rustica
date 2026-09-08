@@ -70,6 +70,7 @@ use rustica::prelude::*;
 - **`Reader<E, A>`**: Environment inspection and dependency passing.
 - **`Writer<W, A>`**: Pure logging with monoidal log accumulation (`log`, `into_log`).
 - **`Cont<R, A>`**: Continuation-passing style computation (`run`).
+- **`Free<F, A>`**: Free monad separating AST construction from interpretation with stack-safe iterative trampoline execution (`run`, `try_run`, `fold_map`).
 - **`PersistentVector<T>`**: Immutable vector with relaxed Radix Balanced (RRB) tree structural sharing.
 
 ### 3. Optics

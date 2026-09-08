@@ -15,6 +15,7 @@
 //! - [`Id`]: Identity functor
 //! - [`IO`]: Side-effectful computations
 //! - [`Cont`]: Continuation-passing style
+//! - [`Free`]: Free monad for DSL construction and evaluation
 //! - [`Lens`, `Prism`]: Optics for immutable data access; `Iso` values can
 //!   be lifted with `Lens::from_iso` and `Prism::from_iso`
 //!
@@ -38,7 +39,8 @@
 pub use crate::datatypes::async_monad::AsyncM;
 pub use crate::datatypes::choice::Choice;
 pub use crate::datatypes::cont::Cont;
-pub use crate::datatypes::error::{ChoiceError, ValidatedError};
+pub use crate::datatypes::error::{ChoiceError, FreeError, ValidatedError};
+pub use crate::datatypes::free::Free;
 pub use crate::datatypes::id::Id;
 pub use crate::datatypes::io::IO;
 pub use crate::datatypes::lens::Lens;

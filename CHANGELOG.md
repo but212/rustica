@@ -16,12 +16,20 @@
 - **PVec Reversal and Height Reset**: Fixed order reversal and height loss bugs in `pop_front_from_tree` within `src/pvec/tree.rs`.
 - **Vec Alternative Monoidal Semantics**: Changed `<Vec<T> as Alternative>::alt` from first-non-empty semantics to monoidal concatenation (`self.extend(other)`).
 
+### Free Monad (`Free<F, A>`)
+
+- Added `Free<F, A>` to separate program description from execution.
+- Evaluates left-associated chains iteratively in `run` and `try_run`, avoiding call stack overflows.
+- Added `FreeError<E>` to handle interpreter errors and downcast mismatches without panicking in `try_run`.
+- Made `Drop` and `fmt::Debug` iterative to prevent stack overflows on deep trees.
+- Added `Free::fold_map` to convert a `Free` program into `IO<A>`.
+
 ### Trait Bounds & Structural Cleanup
 
 - **Over-Constrained Bounds Relaxed**: Removed unnecessary `E: Debug`, `E: Clone`, and `S: Default` bounds from `Result`, `State`, and `PersistentVector`.
 - **Applicative Polarity Rectified**: Inverted `apply` argument polarity on `ContT` and `ReaderT` (`fn.apply(val)`) to match standard functional programming Applicative conventions.
 - **Rust API Guidelines Receiver Alignment**: Aligned method receivers with official Rust API Guidelines (C-CONV, C-BUILDER, C-GETTER). Renamed consuming conversions to `into_*` (`StateT::into_state`, `ContT::into_cont`, `WithError::into_result`), builder method to `with_error_code`, and consuming execution runners to `IO::try_run*`. Converted `Writer::log` from consuming to borrowed `&self` (breaking; use `Writer::into_log(self)` to consume). Converted `Choice::flatten` and `Choice::try_flatten` from borrowed `&self` to consuming `self` (breaking; eliminates `T: Clone` requirement, callers needing borrow can use `.clone().flatten()` or `flatten_cloned`). Added consuming `Choice::filter`.
-- **Prelude Exports**: Added missing prelude exports for `BinaryHKT`, `ChoiceError`, `ValidatedError`, and the `context!` macro.
+- **Prelude Exports**: Added missing prelude exports for `BinaryHKT`, `ChoiceError`, `ValidatedError`, `Free`, `FreeError`, and the `context!` macro.
 - **Ergonomic Aliases**: Added `Id::get`, `Id::into_value`, `into_value` on wrappers (`First`, `Last`, `Min`, `Max`, `Product`, `Sum`), `eval` on `Predicate`, `single` on `PersistentVector`, and `AsyncM::join`.
 
 ### Deprecations (Planned for Removal in 0.17.0)
