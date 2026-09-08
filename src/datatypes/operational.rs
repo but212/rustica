@@ -141,10 +141,7 @@ type TryContFn<H, E> = Box<dyn FnOnce(AnyBox) -> TryProgram<H, AnyBox, E> + Send
 
 enum Node<H, A, E> {
     Pure(A),
-    Suspend(
-        TryStepFn<H, E>,
-        Box<dyn FnOnce(AnyBox) -> A + Send + Sync>,
-    ),
+    Suspend(TryStepFn<H, E>, Box<dyn FnOnce(AnyBox) -> A + Send + Sync>),
     Bind(
         Box<TryProgram<H, AnyBox, E>>,
         Box<dyn FnOnce(AnyBox) -> TryProgram<H, A, E> + Send + Sync>,

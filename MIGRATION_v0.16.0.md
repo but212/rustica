@@ -16,9 +16,17 @@ This guide describes the new features, deprecations, and migration steps for Rus
 | `impl Applicative for Choice<T>` | Deprecated in 0.16.0. |
 | `impl Monad for Choice<T>` | Deprecated in 0.16.0. |
 | `StateT::to_state` | Deprecated in 0.16.0; renamed to `StateT::into_state` (C-CONV). |
+| `StateT::try_run_state*` / `try_eval_state*` / `try_exec_state*` | Modernized in 0.16.0 to return standard `Result`. Added `try_*_context` variants; deprecated `try_*_with_context`. |
+| `ReaderT::try_run_reader` | Modernized in 0.16.0 to return standard `Result`. Added `try_run_reader_context`; deprecated `try_run_reader_with_context`. |
 | `ContT::to_cont` | Deprecated in 0.16.0; renamed to `ContT::into_cont` (C-CONV). |
 | `WithError::to_result` | Deprecated in 0.16.0; renamed to `WithError::into_result` (C-CONV). |
 | `ComposableError::set_code` | Deprecated in 0.16.0; renamed to `ComposableError::with_error_code` (C-BUILDER). |
+| `ContextError<E>` | New slim standard context error wrapper (replaces `ComposableError` without HKT/SmallVec/error_code overhead). |
+| `ComposableError<E>` | Deprecated in 0.16.0; migrate to `ContextError<E>`. Scheduled for removal in 0.18.0. |
+| `ComposableResult<T, E>` | Deprecated in 0.16.0; migrate to standard `Result<T, ContextError<E>>`. Scheduled for removal in 0.18.0. |
+| `BoxedComposableError<E>` / `BoxedComposableResult<T, E>` | Deprecated in 0.16.0; migrate to standard `Result<T, Box<ContextError<E>>>`. Scheduled for removal in 0.18.0. |
+| `WithError<E>` / `sequence_with_error` | Deprecated in 0.16.0; migrate to standard `Result` combinators or `Iterator::collect`. Scheduled for removal in 0.18.0. |
+| `with_context_result` | Updated to return standard `Result<T, ContextError<E>>` directly. |
 | `Writer::log` | Breaking change: signature changed from `log(self) -> W` to `log(&self) -> &W` (C-GETTER). Migrate value consumption to `Writer::into_log(self)`. |
 | `Choice::flatten` / `try_flatten` | Breaking change: receiver changed from `&self` to `self` to eliminate `Clone` bounds. Use `flatten_cloned(&self)` or `c.clone().flatten()` to preserve borrow semantics. |
 | `Choice::filter` | New consuming filter eliminating `Clone` bounds; `Choice::filter_values(&self)` is deprecated. |
@@ -235,3 +243,25 @@ The following traits, functions, and methods are deprecated in 0.16.0 with compi
     Use consuming `Choice::filter` or explicit iteration/filtering.
 18. **`Validated::errors`**:
     Migrate to zero-copy `Validated::error_slice` or `Validated::iter_errors`.
+
+---
+
+## Scheduled Removals in 0.18.0 (Error System Transition)
+
+To provide an extended transition period from `ComposableError` to standard `Result` and `ContextError`, the following APIs are deprecated in 0.16.0 and scheduled for removal in 0.18.0:
+
+1. **`ComposableError<E>` and `ComposableResult<T, E>`**:
+   Migrate to standard `Result<T, E>` or `Result<T, ContextError<E>>`.
+2. **`BoxedComposableError<E>` and `BoxedComposableResult<T, E>`**:
+   Migrate to standard `Result<T, Box<ContextError<E>>>`.
+3. **`WithError<E>` and `sequence_with_error`**:
+   Migrate to standard `Result` combinators and `Iterator::collect`.
+4. **`IO` Composable Runners**:
+   `try_run_composable`, `try_run_composable_with_context`, `try_get_composable_with_context`, `sequence_composable`, and `ComposableErrorCollection`.
+   Migrate to `try_run()` and `try_run_context(...)`.
+5. **`State` / `StateT` / `ReaderT` Composable Runners**:
+   `try_run_state_with_context`, `try_eval_state_with_context`, `try_exec_state_with_context`, `try_run_reader_with_context`.
+   Migrate to `try_*_context(...)`.
+6. **Standalone Context Helpers**:
+   `extract_context` and `format_error_chain`.
+   Migrate to inherent methods `ContextError::context()` and `ContextError::error_chain()`.

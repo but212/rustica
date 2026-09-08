@@ -12,7 +12,7 @@ Rustica provides pragmatic functional programming and category theory abstractio
 - **Type Classes**: `Functor`, `Applicative`, `Monad`, `Pure`, and `Foldable`
 - **Data Types**: `Choice` (statically non-empty priority/fallback collection), `Validated`, `Id`, and `IO`
 - **Monad Transformers**: `StateT`, `ReaderT`, and `ContT`
-- **Error Handling**: Context accumulation via `ComposableError` and `Validated`
+- **Error Handling**: Context accumulation via `ContextError` and failure accumulation via `Validated`
 - **Persistent Collections**: Immutable RRB-tree `PersistentVector`
 - **Design Guidelines**: Strict adherence to Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
 

@@ -1,4 +1,4 @@
-use rustica::error::{accumulate_context, format_error_chain, with_context_result};
+use rustica::error::{ContextError, accumulate_context, with_context_result};
 
 fn parse_config(content: &str) -> Result<i32, &'static str> {
     content.parse::<i32>().map_err(|_| "Invalid number format")
@@ -20,9 +20,7 @@ fn process_data(connection: &str, value: i32) -> Result<String, &'static str> {
     }
 }
 
-fn run_pipeline(
-    config_str: &str,
-) -> Result<String, Box<rustica::error::ComposableError<&'static str>>> {
+fn run_pipeline(config_str: &str) -> Result<String, ContextError<&'static str>> {
     let cfg = with_context_result(
         parse_config(config_str),
         "Failed to parse configuration file",
@@ -38,7 +36,7 @@ fn main() {
     let config_str = "not_a_number";
     match run_pipeline(config_str) {
         Ok(message) => println!("Success: {}", message),
-        Err(err) => println!("Error occurred:\n{}\n", format_error_chain(&err)),
+        Err(err) => println!("Error occurred:\n{}\n", err.error_chain()),
     }
 
     println!("=== Example 2: Successful Pipeline ===\n");
@@ -46,7 +44,7 @@ fn main() {
     let config_str = "200";
     match run_pipeline(config_str) {
         Ok(message) => println!("Success: {}\n", message),
-        Err(err) => println!("Error occurred:\n{}\n", format_error_chain(&err)),
+        Err(err) => println!("Error occurred:\n{}\n", err.error_chain()),
     }
 
     println!("=== Example 3: Bulk Context Accumulation ===\n");
@@ -65,6 +63,6 @@ fn main() {
 
     println!(
         "Bulk accumulated error analysis:\n{}",
-        format_error_chain(&chained_error)
+        chained_error.error_chain()
     );
 }
