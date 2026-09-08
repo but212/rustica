@@ -158,7 +158,7 @@ Specialized guidelines for Rustica's categorical and persistent abstractions:
 - **Multi-shot Computations (Documented Exception)**:
   - When the execution pipeline is wrapped in an `Arc<dyn Fn...>`, allowing the same computation to be executed multiple times with different continuations, `&self` is permitted.
   - Must document receiver rationale under a dedicated **Receiver Semantics** section in rustdoc.
-  - `Cont::run(&self, k: FN) -> R`
+  - `Cont::run(&self, k: FN) -> R`, `Free::run(&self, interp: Interp) -> A`, `Free::try_run(&self, interp: Interp) -> Result<A, FreeError<E>>`
 
 ### 7.3 Persistent Data Structures
 

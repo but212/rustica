@@ -24,6 +24,7 @@
 //! - `writer` - Computations that produce a log alongside a value
 //! - `state` - Stateful computations with get/put operations
 //! - `cont` - Continuation-passing style computations
+//! - `free` - Free monad for DSL construction and deferred interpretation
 //!
 //! ## Optics
 //!
@@ -47,6 +48,7 @@ pub mod async_monad;
 pub mod choice;
 pub mod cont;
 pub mod error;
+pub mod free;
 pub mod id;
 pub mod io;
 pub mod lens;
