@@ -20,10 +20,10 @@ use super::node::{
 use smallvec::SmallVec;
 use std::sync::Arc;
 
-/// An RRB tree structure for efficient persistent vector operations.
+/// An RRB tree structure for persistent vector operations.
 ///
-/// The RRB tree combines the root tree structure with head and tail buffers
-/// for optimal performance on common operations like `push_back` and `push_front`.
+/// Combines a root tree structure with head and tail buffers for $O(1)$
+/// amortized front and back insertions.
 ///
 /// # Structure
 ///
@@ -36,7 +36,7 @@ use std::sync::Arc;
 /// - `len` equals `head.len() + tree_size + tail.len()`
 /// - `height` reflects the depth of the tree (0 for leaf-only)
 /// - Buffers are flushed to the tree when they reach capacity
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug)]
 pub struct RRBTree<T> {
     /// The root node of the tree structure.
     ///
@@ -65,45 +65,47 @@ pub struct RRBTree<T> {
 
 /// Read-only methods that don't require Clone
 impl<T> RRBTree<T> {
-    /// Gets a reference to the element at the specified index.
-    pub fn get(&self, index: usize) -> Option<&T> {
+    /// Returns the leaf slice containing `index` and the offset within that slice.
+    pub(crate) fn get_leaf_slice(&self, index: usize) -> Option<(&[T], usize)> {
         if index >= self.len {
             return None;
         }
 
         if index < self.head.len() {
-            return self.head.get(index);
+            return Some((self.head.as_slice(), index));
         }
 
         let adjusted_index = index - self.head.len();
         let tree_size = self.len - self.head.len() - self.tail.len();
 
         if adjusted_index < tree_size {
-            self.get_from_tree(adjusted_index)
+            let mut current_node = &self.root;
+            let mut remaining_index = adjusted_index;
+
+            loop {
+                match current_node.as_ref() {
+                    RRBNode::Leaf { elements } => {
+                        return Some((elements.as_slice(), remaining_index));
+                    },
+                    RRBNode::Branch { children, .. } => {
+                        let (child_idx, sub_index) =
+                            current_node.find_child_relaxed(remaining_index)?;
+
+                        current_node = children.get(child_idx)?;
+                        remaining_index = sub_index;
+                    },
+                }
+            }
         } else {
             let tail_index = adjusted_index - tree_size;
-            self.tail.get(tail_index)
+            Some((self.tail.as_slice(), tail_index))
         }
     }
 
-    fn get_from_tree(&self, index: usize) -> Option<&T> {
-        let mut current_node = &self.root;
-        let mut remaining_index = index;
-
-        loop {
-            match current_node.as_ref() {
-                RRBNode::Leaf { elements } => {
-                    return elements.get(remaining_index);
-                },
-                RRBNode::Branch { children, .. } => {
-                    let (child_idx, sub_index) =
-                        current_node.find_child_relaxed(remaining_index)?;
-
-                    current_node = children.get(child_idx)?;
-                    remaining_index = sub_index;
-                },
-            }
-        }
+    /// Gets a reference to the element at the specified index.
+    pub fn get(&self, index: usize) -> Option<&T> {
+        let (slice, offset) = self.get_leaf_slice(index)?;
+        slice.get(offset)
     }
 
     /// Builds a tree by consuming its input without intermediate allocations.

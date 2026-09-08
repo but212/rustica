@@ -12,17 +12,13 @@ use super::tree::RRBTree;
 
 pub(crate) const ADAPTIVE_INLINE_SIZE: usize = 64;
 
-/// A persistent, immutable vector data structure.
+/// An immutable vector data structure with structural sharing.
 ///
-/// `PersistentVector` provides an efficient implementation of an immutable vector
-/// that supports structural sharing. Operations like `push_back`, `push_front`,
-/// and `update` return new vectors that share structure with the original,
-/// making them efficient in both time and space.
+/// Operations like `push_back`, `push_front`, and `update` return new vectors
+/// that share unchanged nodes with the original.
 ///
-/// The implementation uses an adaptive strategy: small vectors are stored inline
-/// for optimal performance, while larger vectors use an RRB (Relaxed Radix Balanced)
-/// tree structure that provides logarithmic time complexity for most operations.
-///
+/// Storage is adaptive: vectors with $\le 64$ elements reside in inline storage,
+/// while larger vectors use an RRB (Relaxed Radix Balanced) tree.
 #[derive(Clone)]
 pub struct PersistentVector<T> {
     pub(crate) inner: VectorImpl<T>,
@@ -32,7 +28,7 @@ pub struct PersistentVector<T> {
 ///
 /// Uses an adaptive strategy where small vectors are stored inline
 /// and larger vectors use a tree structure.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug)]
 pub(crate) enum VectorImpl<T> {
     /// Inline storage for small vectors.
     Inline {
@@ -53,6 +49,15 @@ impl<T> VectorImpl<T> {
 
 impl<T: PartialEq> PartialEq for PersistentVector<T> {
     fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+        if let (VectorImpl::Tree { tree: t1 }, VectorImpl::Tree { tree: t2 }) =
+            (&self.inner, &other.inner)
+            && Arc::ptr_eq(t1, t2)
+        {
+            return true;
+        }
         self.iter().eq(other.iter())
     }
 }
@@ -208,7 +213,6 @@ impl<T: Clone> PersistentVector<T> {
     pub fn map<U, F>(&self, f: F) -> PersistentVector<U>
     where
         F: Fn(&T) -> U,
-        U: Clone,
     {
         PersistentVector::from_iter(self.iter().map(f))
     }
@@ -224,7 +228,7 @@ impl<T: Clone> PersistentVector<T> {
 
     /// Creates a new vector by applying a function and filtering out `None` results.
     ///
-    pub fn filter_map<U: Clone, F>(&self, f: F) -> PersistentVector<U>
+    pub fn filter_map<U, F>(&self, f: F) -> PersistentVector<U>
     where
         F: Fn(&T) -> Option<U>,
     {
@@ -242,7 +246,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let doubled = vec.flat_map(|&x| vec![x, x]);
     /// assert_eq!(doubled.to_vec(), vec![1, 1, 2, 2, 3, 3]);
     /// ```
-    pub fn flat_map<U: Clone, F, I>(&self, f: F) -> PersistentVector<U>
+    pub fn flat_map<U, F, I>(&self, f: F) -> PersistentVector<U>
     where
         F: Fn(&T) -> I,
         I: IntoIterator<Item = U>,
@@ -362,8 +366,8 @@ impl<T: Clone> PersistentVector<T> {
 
         let mut iter = self.iter();
         PersistentVector::from_iter(std::iter::from_fn(move || {
-            let chunk: Vec<T> = iter.by_ref().take(size).cloned().collect();
-            (!chunk.is_empty()).then(|| PersistentVector::from_iter(chunk))
+            let chunk: PersistentVector<T> = iter.by_ref().take(size).cloned().collect();
+            (!chunk.is_empty()).then_some(chunk)
         }))
     }
 
@@ -633,6 +637,13 @@ impl<T: Clone> PersistentVector<T> {
             return Some(Self::inline(new_elements));
         }
 
+        if index == 0 {
+            return self.pop_front().map(|(v, _)| v);
+        }
+        if index == self.len() - 1 {
+            return self.pop_back().map(|(v, _)| v);
+        }
+
         let (left, right) = self.split_at(index);
         let right_without_first = right.split_at(1).1;
         Some(left.concat(&right_without_first))
@@ -724,9 +735,7 @@ impl<T: Clone> IntoIterator for PersistentVector<T> {
     type IntoIter = PersistentVectorIntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PersistentVectorIntoIter {
-            iter: self.into_vec().into_iter(),
-        }
+        PersistentVectorIntoIter::new(self)
     }
 }
 
@@ -768,6 +777,22 @@ mod read_only_non_clone_tests {
         assert_eq!(v.fold(0, |acc, x| acc + x.0), 42);
     }
 
+    #[test]
+    fn mapping_supports_non_clone_output_type() {
+        let v = PersistentVector::from_slice(&[1, 2, 3]);
+        let mapped = v.map(|&x| NonClone(x));
+        assert_eq!(mapped.len(), 3);
+        assert_eq!(mapped.get(1).map(|x| x.0), Some(2));
+
+        let filtered = v.filter_map(|&x| (x > 1).then_some(NonClone(x)));
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered.get(0).map(|x| x.0), Some(2));
+
+        let flattened = v.flat_map(|&x| [NonClone(x), NonClone(x * 10)]);
+        assert_eq!(flattened.len(), 6);
+        assert_eq!(flattened.get(1).map(|x| x.0), Some(10));
+    }
+
     #[derive(Debug, PartialEq, Eq)]
     struct NonCloneDebug(i32);
 
@@ -806,5 +831,44 @@ mod read_only_non_clone_tests {
         let removed = v.remove(2).expect("valid index");
         assert_eq!(removed.to_vec(), vec![1, 2, 3, 4]);
         assert!(matches!(removed.inner, VectorImpl::Inline { .. }));
+    }
+
+    #[test]
+    fn test_eq_fast_path() {
+        let v1: PersistentVector<i32> = (0..100).collect();
+        let v2 = v1.clone();
+        assert_eq!(v1, v2);
+
+        let v3: PersistentVector<i32> = (0..99).collect();
+        assert_ne!(v1, v3);
+    }
+
+    #[test]
+    fn test_chunk_direct() {
+        let v: PersistentVector<i32> = (0..10).collect();
+        let chunks = v.chunk(3);
+        assert_eq!(chunks.len(), 4);
+        assert_eq!(chunks[0].to_vec(), vec![0, 1, 2]);
+        assert_eq!(chunks[1].to_vec(), vec![3, 4, 5]);
+        assert_eq!(chunks[2].to_vec(), vec![6, 7, 8]);
+        assert_eq!(chunks[3].to_vec(), vec![9]);
+
+        let empty = PersistentVector::<i32>::new().chunk(5);
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn test_lazy_into_iter_interleaved() {
+        let v: PersistentVector<i32> = (0..200).collect();
+        let mut it = v.into_iter();
+        assert_eq!(it.next(), Some(0));
+        assert_eq!(it.next_back(), Some(199));
+        assert_eq!(it.next(), Some(1));
+        assert_eq!(it.next_back(), Some(198));
+        assert_eq!(it.len(), 196);
+
+        let remaining: Vec<i32> = it.collect();
+        assert_eq!(remaining.len(), 196);
+        assert_eq!(remaining, (2..198).collect::<Vec<_>>());
     }
 }

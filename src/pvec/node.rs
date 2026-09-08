@@ -52,7 +52,7 @@ pub(crate) const SMALL_SIZE_TABLE_SIZE: usize = 8;
 /// - Branch nodes use `SmallVec` with inline storage for up to 8 children
 /// - Leaf nodes use `SmallVec` with inline storage for up to 64 elements
 /// - Size tables (when present) also use `SmallVec` with inline storage
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug)]
 pub enum RRBNode<T> {
     /// A branch node containing child nodes.
     ///
@@ -63,7 +63,7 @@ pub enum RRBNode<T> {
         ///
         /// The number of children is bounded by `BRANCHING_FACTOR` (32).
         children: SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
-        /// Size table containing cumulative sizes of each subtree.
+        /// Size table containing the size of each child subtree.
         sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>,
     },
     /// A leaf node containing actual data elements.
