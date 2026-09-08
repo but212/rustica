@@ -165,6 +165,106 @@ impl<E, A> Validated<E, A> {
             None => Validated::Valid(C::from_iter(values)),
         }
     }
+
+    // --- Recovery Operations ---
+
+    /// Attempts recovery for accumulated errors, in order.
+    ///
+    /// Unlike fail-fast `Result::or_else`, this method feeds each accumulated error to the
+    /// recovery function. Errors are processed left-to-right. If any recovery returns
+    /// `Validated::Valid(v)`, evaluation stops early and that `Valid(v)` is returned.
+    /// If no recovery returns `Valid`, all errors produced by recoveries are accumulated.
+    pub fn recover_all<F>(self, mut recovery: F) -> Self
+    where
+        F: FnMut(E) -> Self,
+    {
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(errors) => {
+                let mut accumulated = Vec::new();
+
+                for error in errors {
+                    match recovery(error) {
+                        Validated::Valid(v) => return Validated::Valid(v),
+                        Validated::Invalid(more_errors) => {
+                            accumulated.extend(more_errors);
+                        },
+                    }
+                }
+
+                Validated::invalid_many(accumulated)
+            },
+        }
+    }
+
+    /// Recovers with a function that receives all errors at once.
+    pub fn recover_all_at_once<F>(self, recovery: F) -> Self
+    where
+        F: FnOnce(Vec<E>) -> Self,
+    {
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(errors) => recovery(errors.into_iter().collect()),
+        }
+    }
+
+    /// Attempts to recover from errors with a fallback value.
+    #[inline]
+    pub fn recover_with(self, default: A) -> Self {
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(_) => Validated::Valid(default),
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+impl<E, A> Validated<E, A> {
+    /// Maps an async function over the valid value, taking ownership.
+    pub async fn fmap_valid_async<B, F, Fut>(self, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(A) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = B> + Send,
+        B: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => {
+                let result = f(x).await;
+                Validated::Valid(result)
+            },
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
+    }
+
+    /// Maps an async function over the error values, taking ownership.
+    pub async fn fmap_invalid_async<G, F, Fut>(self, f: F) -> Validated<G, A>
+    where
+        F: Fn(E) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = G> + Send,
+        G: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(x),
+            Validated::Invalid(es) => {
+                let futures = es.into_iter().map(f);
+                let results = futures::future::join_all(futures).await;
+                Validated::invalid_many(results)
+            },
+        }
+    }
+
+    /// Chains an async validation operation, taking ownership.
+    pub async fn and_then_async<B, F, Fut>(self, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(A) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = Validated<E, B>> + Send,
+        B: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => f(x).await,
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -219,5 +319,36 @@ mod tests {
     fn combine_errors_returns_none_for_two_valid_values() {
         let result = Validated::<&str, i32>::valid(1).combine_errors(Validated::valid(2));
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_recovery_combinators() {
+        let invalid: Validated<String, i32> =
+            Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
+
+        let recovered = invalid.clone().recover_with(0);
+        assert_eq!(recovered.unwrap(), 0);
+
+        let early_recovery = invalid.clone().recover_all(|e| {
+            if e == "e2" {
+                Validated::valid(99)
+            } else {
+                Validated::invalid(e)
+            }
+        });
+        assert_eq!(early_recovery.unwrap(), 99);
+
+        let batch_recovery = invalid.clone().recover_all_at_once(|errs| {
+            if errs.len() == 2 {
+                Validated::valid(100)
+            } else {
+                Validated::invalid("unhandled".to_string())
+            }
+        });
+        assert_eq!(batch_recovery.unwrap(), 100);
+
+        let accumulated: Validated<String, i32> =
+            invalid.recover_all(|e| Validated::invalid(format!("r:{e}")));
+        assert_eq!(accumulated.error_slice(), &["r:e1", "r:e2"]);
     }
 }
