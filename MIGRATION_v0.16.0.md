@@ -34,6 +34,9 @@ This guide describes the new features, deprecations, and migration steps for Rus
 | `Validated::as_ref` | Removed in 0.16.0: redundant duplicate of `as_option()`; migrate to `Validated::as_option(&self) -> Option<&A>`. |
 | `datatypes::validated` submodules | Breaking change: submodules `accessors`, `conversions`, `recovery`, `async_ops` consolidated into `core`, `iter`, `combinators`, `traits`. Import from `datatypes::validated` directly. |
 | `pvec` module | Breaking change: `rustica::pvec` is now gated behind the `pvec` feature flag (disabled by default, included in `full`). Enable with `features = ["pvec"]` or `features = ["full"]`. |
+| `IO::run_async` | Deprecated in 0.16.0; scheduled for removal in 0.18.0. Offload blocking IO directly using runtime task spawning. |
+| `futures` dependency | Removed entirely in 0.16.0; core async monad primitives now use pure `std::future`. |
+| `tokio` dependency | Reduced to `rt` feature only for `IO::run_async`; `AsyncM` now uses pure `std` `join2` without `tokio::join!`. |
 
 ---
 
@@ -291,3 +294,26 @@ To provide an extended transition period from `ComposableError` to standard `Res
 6. **Standalone Context Helpers**:
    `extract_context` and `format_error_chain`.
    Migrate to inherent methods `ContextError::context()` and `ContextError::error_chain()`.
+7. **`IO::run_async`**:
+   Offload blocking IO operations directly using runtime task spawning APIs (such as `tokio::task::spawn_blocking`).
+
+---
+
+## Async Dependency Decoupling & `IO::run_async` Deprecation
+
+In 0.16.0, Rustica eliminated the `futures` dependency and decoupled the core async abstractions from runtime macros:
+
+1. **Elimination of `futures`**: `AsyncM` and `Validated` async operations no longer depend on `futures` or `futures-util`. Standard library primitives (`std::future::Future`, `Box::pin`, `std::panic::catch_unwind`) are used instead.
+2. **Pure `std` Join in `AsyncM`**: `AsyncM::apply` and `AsyncM::zip_with` execute concurrently using a safe internal `Join2` implementation, removing all runtime-bound `tokio::join!` macro usage from the core monad.
+3. **Sequential `Validated::fmap_invalid_async`**: Async error transformations in `Validated` are now evaluated sequentially in order without external concurrency dependencies.
+4. **`IO::run_async` Deprecation**: `IO::run_async` is marked deprecated in 0.16.0 and scheduled for removal in 0.18.0. Tokio production dependency is trimmed to `rt` feature only for this method.
+
+**Migration for `IO::run_async`**:
+
+```rust
+// Old (0.15.0)
+let value = io.run_async().await;
+
+// Recommended (0.16.0+)
+let value = tokio::task::spawn_blocking(move || io.run()).await.unwrap();
+```

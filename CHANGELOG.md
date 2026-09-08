@@ -69,6 +69,7 @@
   - Deprecated `ComposableResult<T, E>` in favor of standard `Result<T, ContextError<E>>` (scheduled for removal in 0.18.0).
   - Deprecated `BoxedComposableError<E>` and `BoxedComposableResult<T, E>` in favor of standard `Result<T, Box<ContextError<E>>>` (scheduled for removal in 0.18.0).
   - Deprecated `WithError<E>` and `sequence_with_error` in favor of standard `Result` combinators and `Iterator::collect` (scheduled for removal in 0.18.0).
+  - Deprecated `IO::run_async` in favor of runtime task spawning APIs (scheduled for removal in 0.18.0).
 
 ### Error System Slimdown (0.16.0)
 
@@ -76,6 +77,14 @@
 - **Introduced `ContextError<E>`**: A minimal, standard-aligned context accumulation wrapper replacing `ComposableError<E>` without HKT, `SmallVec`, or application-specific error code metadata.
 - **Context API Updates**: `with_context_result` returns standard `Result<T, ContextError<E>>` directly. Lazy context evaluation via `context!` macro and `accumulate_context` are preserved and streamlined.
 - **Modernized Effect Runners**: `IO::try_run*`, `State::try_*_state*`, `StateT::try_*_state*`, and `ReaderT::try_run_reader*` return standard `Result` and provide `_context` methods for attaching context, deprecating old composable error runner variants.
+
+### Async Primitives & Dependency Decoupling (0.16.0)
+
+- **Eliminated `futures` Dependency**: Removed `futures` and its sub-crates completely from production dependencies. `AsyncM` and `Validated` async combinators now use standard library async primitives (`std::future::Future`, `Box::pin`, `std::panic::catch_unwind`).
+- **Executor-Agnostic Core Async**: Replaced `tokio::join!` in `AsyncM::apply` and `AsyncM::zip_with` with a zero-dependency, cooperative standard future join (`Join2`).
+- **Sequential Error Mapping**: `Validated::fmap_invalid_async` now executes error transformations sequentially in order without external concurrency dependencies.
+- **`IO::run_async` Deprecation**: Deprecated `IO::run_async` in 0.16.0 with removal scheduled for 0.18.0. Tokio production dependency is trimmed to `rt` feature only for this method.
+- **NOTICE Cleanup**: Removed obsolete third-party entries (`futures`, `rayon`, `lazy_static`) from `NOTICE`.
 
 ## [0.15.0]
 
