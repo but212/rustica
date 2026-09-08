@@ -25,7 +25,6 @@ This guide describes the new features, deprecations, and migration steps for Rus
 | `Validated::errors` | Deprecated in 0.16.0; migrate to zero-copy `error_slice(&self)` or `iter_errors(&self)`. |
 | `Validated::as_ref` | Removed in 0.16.0: redundant duplicate of `as_option()`; migrate to `Validated::as_option(&self) -> Option<&A>`. |
 | `datatypes::validated` submodules | Breaking change: submodules `accessors`, `conversions`, `recovery`, `async_ops` consolidated into `core`, `iter`, `combinators`, `traits`. Import from `datatypes::validated` directly. |
-| `Free<F, A>` | Added Free monad with iterative trampoline evaluation (`run`, `try_run`), fallible error channel (`FreeError`), and natural transformation to IO (`fold_map`). |
 
 ---
 
@@ -193,35 +192,6 @@ In 0.16.0, receiver conventions have been strictly aligned with official Rust AP
   // let flat = nested.clone().flatten();
   // let flat = nested.flatten_cloned();
   ```
-
----
-
-## Free Monad (`Free<F, A>`)
-
-`Free<F, A>` separates program description from execution:
-
-- Evaluates left-associated sequences iteratively via a heap stack in `run` and `try_run`, avoiding stack overflow.
-- `try_run` returns `FreeError<E>` on interpreter error or downcast failure:
-
-  ```rust
-  use rustica::datatypes::error::FreeError;
-  use rustica::datatypes::free::{AnyValue, Free};
-  use std::sync::Arc;
-
-  #[derive(Clone, Debug)]
-  enum Command {
-      Get,
-  }
-
-  let prog: Free<Command, i32> = Free::lift_f(Command::Get);
-  let result = prog.try_run(|cmd| match cmd {
-      Command::Get => Ok(Arc::new(42_i32) as AnyValue),
-  });
-  assert_eq!(result, Ok(42));
-  ```
-
-- `fold_map` converts a `Free` program into `IO<A>`.
-- `Drop` and `Debug` are iterative to prevent call-stack overflow on deep chains.
 
 ---
 

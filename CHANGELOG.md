@@ -19,10 +19,21 @@
 ### Free Monad (`Free<F, A>`)
 
 - Added `Free<F, A>` to separate program description from execution.
+- Renamed internal AST variants to `Free::Suspend` and `Free::Bind`, aligning with `Monad::bind` trait conventions.
+- Standardized effect constructor to `Free::suspend` (removed `lift_f`), and provided `is_suspend` and `is_bind` state predicates.
 - Evaluates left-associated chains iteratively in `run` and `try_run`, avoiding call stack overflows.
 - Added `FreeError<E>` to handle interpreter errors and downcast mismatches without panicking in `try_run`.
 - Made `Drop` and `fmt::Debug` iterative to prevent stack overflows on deep trees.
 - Added `Free::fold_map` to convert a `Free` program into `IO<A>`.
+
+### Operational Monad (`Program<H, A>`, `TryProgram<H, A, E>`)
+
+- Added statically-typed operational monads in `rustica::datatypes::operational` (`Program`, `TryProgram`).
+- Bound each `Command` to its exact output type (`Command::Output`), enforcing 100% compile-time type safety on interpreter handlers (`Handler<C>`, `TryHandler<C, E>`) with zero dynamic downcasting (`AnyValue`).
+- Unified execution engine on `TryProgram` with `Program` providing a zero-cost infallible wrapper.
+- Implemented stack-safe trampoline execution (`run`, `try_run`) and custom iterative `Drop` preventing stack overflows on deep un-evaluated chains.
+- Added constructor extension methods on `Command` (`cmd.suspend::<H>()`, `cmd.try_suspend::<H, E>()`) and freestanding helpers (`operational::suspend`, `operational::try_suspend`).
+- Re-exported `Command`, `Handler`, `Program`, `TryHandler`, and `TryProgram` in `rustica::prelude::datatypes`.
 
 ### Trait Bounds & Structural Cleanup
 

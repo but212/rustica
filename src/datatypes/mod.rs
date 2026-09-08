@@ -25,6 +25,7 @@
 //! - `state` - Stateful computations with get/put operations
 //! - `cont` - Continuation-passing style computations
 //! - `free` - Free monad for DSL construction and deferred interpretation
+//! - `operational` - Statically-typed operational monad with command-handler dispatch
 //!
 //! ## Optics
 //!
@@ -52,6 +53,7 @@ pub mod free;
 pub mod id;
 pub mod io;
 pub mod lens;
+pub mod operational;
 pub mod prism;
 pub mod reader;
 pub mod state;

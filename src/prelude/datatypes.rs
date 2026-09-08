@@ -15,7 +15,8 @@
 //! - [`Id`]: Identity functor
 //! - [`IO`]: Side-effectful computations
 //! - [`Cont`]: Continuation-passing style
-//! - [`Free`]: Free monad for DSL construction and evaluation
+//! - [`Free`]: Free monad for DSL construction, AST inspection (`Clone`), and natural transformations (`fold_map`)
+//! - [`Program`, `TryProgram`]: Statically-typed operational monads with zero-downcast command handlers
 //! - [`Lens`, `Prism`]: Optics for immutable data access; `Iso` values can
 //!   be lifted with `Lens::from_iso` and `Prism::from_iso`
 //!
@@ -44,6 +45,7 @@ pub use crate::datatypes::free::Free;
 pub use crate::datatypes::id::Id;
 pub use crate::datatypes::io::IO;
 pub use crate::datatypes::lens::Lens;
+pub use crate::datatypes::operational::{Command, Handler, Program, TryHandler, TryProgram};
 pub use crate::datatypes::prism::Prism;
 pub use crate::datatypes::reader::Reader;
 pub use crate::datatypes::state::State;

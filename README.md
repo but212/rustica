@@ -71,6 +71,7 @@ use rustica::prelude::*;
 - **`Writer<W, A>`**: Pure logging with monoidal log accumulation (`log`, `into_log`).
 - **`Cont<R, A>`**: Continuation-passing style computation (`run`).
 - **`Free<F, A>`**: Free monad separating AST construction from interpretation with stack-safe iterative trampoline execution (`run`, `try_run`, `fold_map`).
+- **`Program<H, A>` / `TryProgram<H, A, E>`**: Statically-typed operational monads binding domain `Command`s to handler traits (`Handler<C>`, `TryHandler<C, E>`) with zero-downcast compile-time type enforcement and stack-safe execution.
 - **`PersistentVector<T>`**: Immutable vector with relaxed Radix Balanced (RRB) tree structural sharing.
 
 ### 3. Optics
