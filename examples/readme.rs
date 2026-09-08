@@ -1,3 +1,4 @@
+#[cfg(feature = "pvec")]
 fn pvec_example() {
     use rustica::pvec::PersistentVector;
     use rustica::pvec::pvec;
@@ -67,6 +68,7 @@ fn io_operations() {
 }
 
 fn main() {
+    #[cfg(feature = "pvec")]
     pvec_example();
     basic_usage();
     state_management();

@@ -1,6 +1,6 @@
 [package]
 name = "rustica"
-version = "0.15.0"
+version = "0.16.0"
 authors = ["jeong-il suk <wjddlf211@naver.com>"]
 edition = "2024"
 rust-version = "1.88.0"
@@ -17,30 +17,31 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-futures = { version = "0.3", optional = true }
 smallvec = "1.14.0"
-tokio = { version = "1", features = [
-    "macros",
-    "rt-multi-thread",
-    "time",
-], optional = true }
+tokio = { version = "1", features = ["rt"], optional = true }
 quickcheck = { version = "1.0", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
 serde_json = "1.0.143"
-criterion = { version = "0.8", features = ["html_reports"] }
+criterion = { version = "0.8", default-features = false }
 
 [features]
 default = []
 serde = ["dep:serde", "smallvec/serde", "serde/rc"]
-async = ["futures", "tokio"]
+async = ["dep:tokio"]
 quickcheck = ["dep:quickcheck"]
-full = ["async", "serde", "quickcheck"]
+pvec = []
+full = ["async", "serde", "quickcheck", "pvec"]
 develop = ["full"]
 
 [[bench]]
 name = "datatypes_benchmarks"
 harness = false
+
+[[example]]
+name = "form_validation"
+required-features = ["pvec"]

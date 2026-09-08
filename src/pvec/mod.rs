@@ -102,7 +102,7 @@ mod tests {
     #[test]
     fn test_pvec_lifecycle_and_persistence() {
         let empty: PersistentVector<i32> = PersistentVector::new();
-        let single = PersistentVector::unit(42);
+        let single = PersistentVector::single(42);
         let mac = crate::pvec![1, 2, 3];
         assert!(empty.is_empty());
         assert_eq!(single.len(), 1);
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn unequal_height_concat_preserves_operand_order() {
-        let short = PersistentVector::unit(0);
+        let short = PersistentVector::single(0);
         let long: PersistentVector<usize> = (1..130).collect();
         assert_eq!(short.concat(&long).to_vec(), (0..130).collect::<Vec<_>>());
         assert_eq!(
@@ -248,7 +248,7 @@ mod tests {
         assert_eq!(v3.remove(100), None);
 
         // 3. Single element
-        let single = PersistentVector::unit(42);
+        let single = PersistentVector::single(42);
         let removed_single = single.remove(0).expect("should succeed");
         assert_eq!(removed_single.len(), 0);
         assert_eq!(removed_single.to_vec(), Vec::<i32>::new());

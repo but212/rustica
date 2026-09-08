@@ -135,13 +135,87 @@
 //! });
 //! ```
 
-use futures::{Future, FutureExt};
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
-use std::{panic, pin::Pin, sync::Arc};
+use std::{
+    any::Any,
+    future::Future,
+    panic::{AssertUnwindSafe, catch_unwind},
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
 /// A type alias for an asynchronous computation that can be sent between threads.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+struct CatchUnwind<F> {
+    future: F,
+}
+
+impl<F> CatchUnwind<F> {
+    fn new(future: F) -> Self {
+        Self { future }
+    }
+}
+
+impl<F: Future> Future for CatchUnwind<F> {
+    type Output = Result<F::Output, Box<dyn Any + Send>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: Pinning is structural for `future`. `CatchUnwind` does not move `future`,
+        // does not implement `Drop`, and is `Unpin` only if `F: Unpin`.
+        let future = unsafe { self.map_unchecked_mut(|s| &mut s.future) };
+
+        catch_unwind(AssertUnwindSafe(|| future.poll(cx))).map_or_else(
+            |panic_err| Poll::Ready(Err(panic_err)),
+            |poll_res| poll_res.map(Ok),
+        )
+    }
+}
+
+struct Join2<'a, T1, T2> {
+    fut1: Option<BoxFuture<'a, T1>>,
+    fut2: Option<BoxFuture<'a, T2>>,
+    res1: Option<T1>,
+    res2: Option<T2>,
+}
+
+impl<'a, T1, T2> Unpin for Join2<'a, T1, T2> {}
+
+impl<'a, T1, T2> Future for Join2<'a, T1, T2> {
+    type Output = (T1, T2);
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        if let Some(Poll::Ready(val)) = this.fut1.as_mut().map(|fut| fut.as_mut().poll(cx)) {
+            this.res1 = Some(val);
+            this.fut1 = None;
+        }
+        if let Some(Poll::Ready(val)) = this.fut2.as_mut().map(|fut| fut.as_mut().poll(cx)) {
+            this.res2 = Some(val);
+            this.fut2 = None;
+        }
+        match (this.res1.as_ref(), this.res2.as_ref()) {
+            (Some(_), Some(_)) => {
+                Poll::Ready((this.res1.take().unwrap(), this.res2.take().unwrap()))
+            },
+            _ => Poll::Pending,
+        }
+    }
+}
+
+async fn join2<'a, T1: Send + 'a, T2: Send + 'a>(
+    fut1: impl Future<Output = T1> + Send + 'a, fut2: impl Future<Output = T2> + Send + 'a,
+) -> (T1, T2) {
+    Join2 {
+        fut1: Some(Box::pin(fut1)),
+        fut2: Some(Box::pin(fut2)),
+        res1: None,
+        res2: None,
+    }
+    .await
+}
 
 /// Internal representation of AsyncM, optimized for pure values.
 #[derive(Clone)]
@@ -285,7 +359,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
         F: Future<Output = A> + Send + 'static,
     {
         AsyncM {
-            inner: AsyncMInner::Effect(Arc::new(move || f().boxed())),
+            inner: AsyncMInner::Effect(Arc::new(move || Box::pin(f()))),
         }
     }
 
@@ -415,7 +489,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 inner: AsyncMInner::Effect(Arc::new(move || {
                     let f = f.clone();
                     let value = Arc::clone(&value);
-                    async move { f((*value).clone()).await }.boxed()
+                    Box::pin(async move { f((*value).clone()).await })
                 })),
             };
         }
@@ -426,15 +500,14 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
             inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
                 let inner = inner.clone();
-                async move {
+                Box::pin(async move {
                     let a = if let AsyncMInner::Effect(run) = &inner {
                         run().await
                     } else {
                         unreachable!()
                     };
                     f(a).await
-                }
-                .boxed()
+                })
             })),
         }
     }
@@ -492,15 +565,14 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 inner: AsyncMInner::Effect(Arc::new(move || {
                     let f = f.clone();
                     let value = Arc::clone(&value);
-                    async move {
+                    Box::pin(async move {
                         let next = f((*value).clone()).await;
                         // Inline next monad execution
                         match &next.inner {
                             AsyncMInner::Pure(v) => (**v).clone(),
                             AsyncMInner::Effect(run) => run().await,
                         }
-                    }
-                    .boxed()
+                    })
                 })),
             };
         }
@@ -511,7 +583,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
             inner: AsyncMInner::Effect(Arc::new(move || {
                 let f = f.clone();
                 let inner = inner.clone();
-                async move {
+                Box::pin(async move {
                     let a = if let AsyncMInner::Effect(run) = &inner {
                         run().await
                     } else {
@@ -522,8 +594,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                         AsyncMInner::Pure(v) => (**v).clone(),
                         AsyncMInner::Effect(run) => run().await,
                     }
-                }
-                .boxed()
+                })
             })),
         }
     }
@@ -580,9 +651,9 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 let self_inner = self_inner.clone();
                 let mf_inner = mf_inner.clone();
 
-                async move {
+                Box::pin(async move {
                     // Optimized concurrent execution
-                    let (value, func) = tokio::join!(
+                    let (value, func) = join2(
                         async {
                             match &self_inner {
                                 AsyncMInner::Pure(v) => (**v).clone(),
@@ -594,11 +665,11 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                                 AsyncMInner::Pure(f) => (**f).clone(),
                                 AsyncMInner::Effect(run) => run().await,
                             }
-                        }
-                    );
+                        },
+                    )
+                    .await;
                     func(value)
-                }
-                .boxed()
+                })
             })),
         }
     }
@@ -661,13 +732,12 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 let f = f.clone();
                 let default_value = Arc::clone(&default_value);
 
-                async move {
+                Box::pin(async move {
                     match f().await {
                         Ok(value) => value,
                         Err(_) => (*default_value).clone(),
                     }
-                }
-                .boxed()
+                })
             })),
         }
     }
@@ -721,8 +791,8 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 let other_inner = other.inner.clone();
                 let f = f.clone();
 
-                async move {
-                    let (a, b) = tokio::join!(
+                Box::pin(async move {
+                    let (a, b) = join2(
                         async {
                             match &self_inner {
                                 AsyncMInner::Pure(v) => (**v).clone(),
@@ -734,11 +804,11 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                                 AsyncMInner::Pure(v) => (**v).clone(),
                                 AsyncMInner::Effect(run) => run().await,
                             }
-                        }
-                    );
+                        },
+                    )
+                    .await;
                     f(a, b)
-                }
-                .boxed()
+                })
             })),
         }
     }
@@ -821,25 +891,32 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 let inner = self.inner.clone();
                 let default = default.clone();
 
-                async move {
+                Box::pin(async move {
                     // Use std::panic::catch_unwind to handle panics
-                    let result = panic::AssertUnwindSafe(async {
+                    let task = CatchUnwind::new(async {
                         match &inner {
                             AsyncMInner::Pure(value) => (**value).clone(),
                             AsyncMInner::Effect(run) => run().await,
                         }
-                    })
-                    .catch_unwind()
-                    .await;
+                    });
+
+                    let result = task.await;
 
                     match result {
                         Ok(value) => value,
                         Err(_) => default,
                     }
-                }
-                .boxed()
+                })
             })),
         }
+    }
+}
+
+impl<A: Send + Sync + Clone + 'static> AsyncM<AsyncM<A>> {
+    /// Flattens a nested AsyncM structure into a single AsyncM.
+    #[inline(always)]
+    pub fn join(self) -> AsyncM<A> {
+        self.bind(|nested| async move { nested })
     }
 }
 
@@ -1010,5 +1087,17 @@ mod unit_tests {
         handle.abort();
         let error = handle.await.expect_err("task should be cancelled");
         assert!(error.is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn recover_with_handles_panic_and_returns_default() {
+        let faulty = AsyncM::<i32>::new(|| async {
+            panic!("intended panic for recovery test");
+        });
+        let recovered = faulty.recover_with(999);
+        assert_eq!(recovered.try_get().await, 999);
+
+        let success = AsyncM::pure(42).recover_with(999);
+        assert_eq!(success.try_get().await, 42);
     }
 }

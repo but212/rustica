@@ -5,51 +5,50 @@
 [![CI](https://github.com/but212/rustica/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/but212/rustica/actions/workflows/rust.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Rustica brings pragmatic functional-programming and category-theory abstractions to Rust.
+Rustica provides pragmatic functional programming and category theory abstractions for Rust.
 
 ## Overview
 
-Rustica provides:
-
 - **Type Classes**: `Functor`, `Applicative`, `Monad`, `Pure`, and `Foldable`
-- **Data Types**: `Choice` (guaranteed non-empty priority/fallback collection), `Validated`, `Id`, and `IO`
+- **Data Types**: `Choice` (statically non-empty priority/fallback collection), `Validated`, `Id`, and `IO`
 - **Monad Transformers**: `StateT`, `ReaderT`, and `ContT`
-- **Pure Functional Style**: Immutable data and explicit effects
-- **Error Handling**: Context accumulation with `ComposableError` and `Validated`
+- **Error Handling**: Context accumulation via `ContextError` and failure accumulation via `Validated`
 - **Persistent Collections**: Immutable RRB-tree `PersistentVector`
+- **Design Guidelines**: Strict adherence to Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
 
 ### Recommended Use Cases
 
-**Excellent for:**
-
-- Domain modeling with compile-time impossible state elimination
-- Complex validation and error accumulation (`Validated`)
-- Side-effect isolation (`IO`, `State`, `Reader`)
-- Learning category theory and functional programming concepts in Rust
-
-**Avoid for:**
-
-- Low-level, allocation-critical embedded kernel routines
+- **Domain Modeling**: Eliminate impossible states at compile time
+- **Validation**: Accumulate multiple errors without early termination (`Validated`)
+- **Effect Isolation**: Manage state, dependencies, and I/O explicitly (`IO`, `State`, `Reader`)
+- **Persistent Data**: High-performance immutable collections with structural sharing (`PersistentVector`)
 
 ---
 
 ## Getting Started
 
-Add Rustica to your `Cargo.toml`:
+Add Rustica to `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.15.0"
+rustica = "0.16.0"
 ```
 
-For full features including `async`, `serde`, and `quickcheck`:
+Enable all features (`async`, `serde`, `quickcheck`, and `pvec`):
 
 ```toml
 [dependencies]
-rustica = { version = "0.15.0", features = ["full"] }
+rustica = { version = "0.16.0", features = ["full"] }
 ```
 
-Import common traits and types through the prelude:
+Or enable persistent vector support selectively:
+
+```toml
+[dependencies]
+rustica = { version = "0.16.0", features = ["pvec"] }
+```
+
+Import common traits and types:
 
 ```rust
 use rustica::prelude::*;
@@ -57,55 +56,49 @@ use rustica::prelude::*;
 
 ---
 
-## Features & Core Types
+## Core Features and Types
 
 ### 1. Functional Type Classes
 
-- **`Functor`** - Structure-preserving mapping (`fmap`)
-- **`Pure`** - Context-lifting (`pure`)
-- **`Applicative`** - Multi-argument context application (`apply`, `lift2`, `lift3`)
-- **`Monad`** - Sequential monadic chaining (`bind`, `join`)
-- **`Foldable`** - Folding and aggregation (`fold_left`, `fold_right`)
-- **`Semigroup` / `Monoid`** - Associative combination and identity elements
+- **`Functor`**: Structure-preserving mapping (`fmap`)
+- **`Pure`**: Context lifting (`pure`)
+- **`Applicative`**: Multi-argument application (`apply`, `lift2`, `lift3`)
+- **`Monad`**: Sequential chaining (`bind`, `join`)
+- **`Foldable`**: Traversal and aggregation (`fold_left`, `fold_right`)
+- **`Semigroup` / `Monoid`**: Associative combination and identity elements
 
 ### 2. Core Data Types
 
-- **`Choice<T>`**: Statically non-empty collection with priority and fallback semantics. Provides `try_each`, `try_each_validated`, and `first_match` to reliably execute fallback logic in priority order.
-- **`Validated<E, T>`**: Accumulates all validation errors into `NonEmptyErrors<E>` without early termination.
-- **`Id<T>`**: The identity functor/monad with inherent comonad methods (`extract`, `duplicate`, `extend`).
-- **`IO<A>`**: Pure description of side-effectful computations.
-- **`State<S, A>`**: Stateful computations with pure transitions.
-- **`Reader<E, A>`**: Dependency injection and environment passing.
-- **`Writer<W, A>`**: Computations that produce an accumulated log.
-- **`Cont<R, A>`**: Continuation-passing style computations.
-- **`PersistentVector<T>`**: High-performance persistent immutable vector with structural sharing.
+- **`Choice<T>`**: Statically non-empty priority/fallback collection. Provides `try_each`, `try_each_validated`, and `first_match` for deterministic fallback execution.
+- **`Validated<E, T>`**: Accumulates all validation errors into `NonEmptyErrors<E>`.
+- **`Id<T>`**: Identity functor and monad with comonad operations (`extract`, `duplicate`, `extend`).
+- **`IO<A>`**: Cold, side-effectful computations evaluated via `run` or `try_run`.
+- **`State<S, A>`**: Pure state transitions (`run_state`, `eval_state`, `exec_state`).
+- **`Reader<E, A>`**: Environment inspection and dependency passing.
+- **`Writer<W, A>`**: Pure logging with monoidal log accumulation (`log`, `into_log`).
+- **`Cont<R, A>`**: Continuation-passing style computation (`run`).
+- **`Free<F, A>`**: Free monad separating AST construction from interpretation with stack-safe iterative trampoline execution (`run`, `try_run`, `fold_map`).
+- **`Program<H, A>` / `TryProgram<H, A, E>`**: Statically-typed operational monads binding domain `Command`s to handler traits (`Handler<C>`, `TryHandler<C, E>`) with zero-downcast compile-time type enforcement and stack-safe execution.
+- **`PersistentVector<T>`**: Immutable vector with relaxed Radix Balanced (RRB) tree structural sharing (requires `pvec` feature).
 
 ### 3. Optics
 
-- **`Lens`**: Functional getters and setters for product types. Build one from an `Iso` with `Lens::from_iso`.
-- **`Prism`**: Pattern matching and traversal optics for sum types. Build one from an `Iso` with `Prism::from_iso`.
+- **`Lens`**: Pure getters and setters for product types.
+- **`Prism`**: Pattern matching and traversal optics for sum types.
 
 ---
 
-## Migration from 0.13 to 0.14
+## Migration Guides
 
-`0.14.0` removes redundant types (`Maybe`, `Either`), single-implementation
-traits (`Category`, `Arrow`, `Comonad`, `Evaluate`), and speculative wrappers
-(`ErrorPipeline`, `ErrorCategory`, `Memoizer`). `ReaderT` and `StateT` enforce
-base-monad value types at compile time; standard `Result`, `Iterator`, and
-`From` APIs replace duplicate error helpers.
-
-See [MIGRATION_v0.14.0.md](MIGRATION_v0.14.0.md) for the migration guide.
-
-The 0.15.0 migration guide is documented in [MIGRATION_v0.15.0.md](MIGRATION_v0.15.0.md).
-The 0.16.0 migration guide is documented in [MIGRATION_v0.16.0.md](MIGRATION_v0.16.0.md).
+- [0.16.0 Migration Guide](MIGRATION_v0.16.0.md) (Choice fallback semantics, Rust API receiver alignment, Applicative polarity)
+- [0.16.0 Migration Guide](MIGRATION_v0.15.0.md) (RRB tree integrity, unwrap panic context)
+- [0.14.0 Migration Guide](MIGRATION_v0.14.0.md) (Surface reduction, compile-time base monad enforcement)
 
 ---
 
 ## Development and CI
 
-Rustica requires Rust 1.88.0 or newer. Before opening a pull request, run CI's
-core checks:
+Rustica requires Rust 1.88.0 or newer.
 
 ```bash
 cargo fmt --all -- --check
@@ -114,15 +107,7 @@ cargo test --all-features --locked
 cargo package --all-features --locked
 ```
 
-Pull requests run read-only quality, platform, and MSRV checks. Weekly or
-manual workflows run nightly tests, unused-dependency checks, and Miri.
-Benchmarks are available locally through Cargo's benchmark tooling and are not
-run as part of CI.
-
-`v*` tags create releases after validating the tag version, Cargo metadata, and
-matching `CHANGELOG.md` section. The protected `crates-io` environment controls
-publishing, and releases receive SLSA provenance. Report vulnerabilities as
-instructed in [SECURITY.md](.github/SECURITY.md).
+Pull requests run read-only quality, platform, and MSRV checks. Releases are published automatically from verified `v*` tags with SLSA provenance. Report vulnerabilities per [SECURITY.md](.github/SECURITY.md).
 
 ---
 
@@ -154,4 +139,4 @@ assert_eq!(sum, Validated::valid(30));
 
 ## License
 
-Licensed under the Apache License, Version 2.0.
+Licensed under Apache License, Version 2.0.

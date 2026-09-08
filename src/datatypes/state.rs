@@ -170,7 +170,9 @@
 //! the named tests in this module.
 //!
 use crate::datatypes::id::Id;
-use crate::error::{ComposableError, ComposableResult, IntoErrorContext};
+#[allow(deprecated)]
+use crate::error::{ComposableError, ComposableResult};
+use crate::error::{ContextError, IntoErrorContext};
 use crate::traits::hkt::HKT;
 use crate::transformers::StateT;
 // Migration note: AppError-based helpers were replaced by
@@ -341,37 +343,16 @@ where
         (value, next_state)
     }
 
-    /// Runs the state computation with an initial state, consuming self.
-    #[inline]
-    #[deprecated(since = "0.15.0", note = "use `run_state` instead")]
-    pub fn run_state_owned(self, s: S) -> (A, S) {
-        self.run_state(s)
-    }
-
     /// Runs the state computation and returns only the final value.
     #[inline]
     pub fn eval_state(self, s: S) -> A {
         self.run_state(s).0
     }
 
-    /// Runs the state computation and returns only the final value, consuming self.
-    #[inline]
-    #[deprecated(since = "0.15.0", note = "use `eval_state` instead")]
-    pub fn eval_state_owned(self, s: S) -> A {
-        self.eval_state(s)
-    }
-
     /// Runs the state computation and returns only the final state.
     #[inline]
     pub fn exec_state(self, s: S) -> S {
         self.run_state(s).1
-    }
-
-    /// Runs the state computation and returns only the final state, consuming self.
-    #[inline]
-    #[deprecated(since = "0.15.0", note = "use `exec_state` instead")]
-    pub fn exec_state_owned(self, s: S) -> S {
-        self.exec_state(s)
     }
 
     /// Maps a function over the value produced by a state computation.
@@ -857,22 +838,18 @@ where
 }
 
 impl<
-    S: Clone + Default + Send + Sync + 'static,
+    S: Clone + Send + Sync + 'static,
     A: Clone + Send + Sync + 'static,
     Err: Clone + Send + Sync + 'static,
 > State<S, Result<A, Err>>
 {
-    /// Runs the state computation and converts the result to a `ComposableResult`.
-    ///
-    /// This method runs the state computation and returns a tuple containing the result
-    /// wrapped in a [`ComposableResult`] and the final state.
+    /// Runs the state computation, returning the standard Result and final state.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use rustica::datatypes::state::State;
     ///
-    /// // Create a state computation that might fail
     /// let state = State::new(|s: i32| {
     ///     if s > 0 {
     ///         (Ok(s * 2), s + 1)
@@ -886,17 +863,65 @@ impl<
     /// assert_eq!(final_state, 6);
     ///
     /// let (result, final_state) = state.try_run_state(-1);
-    /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err().core_error(), &"Value must be positive");
+    /// assert_eq!(result, Err("Value must be positive"));
     /// assert_eq!(final_state, -1);
     /// ```
-    pub fn try_run_state(self, s: S) -> (ComposableResult<A, Err>, S) {
+    pub fn try_run_state(self, s: S) -> (Result<A, Err>, S) {
+        self.run_state(s)
+    }
+
+    /// Runs the state computation, attaching context to any failure.
+    pub fn try_run_state_context<C>(self, s: S, context: C) -> (Result<A, ContextError<Err>>, S)
+    where
+        C: IntoErrorContext,
+    {
         let (result, final_state) = self.run_state(s);
-        let transformed_result = result.map_err(ComposableError::new);
-        (transformed_result, final_state)
+        let transformed = result.map_err(|e| crate::error::with_context(e, context));
+        (transformed, final_state)
+    }
+
+    /// Runs the state computation and returns only the value as a standard `Result`.
+    pub fn try_eval_state(self, s: S) -> Result<A, Err> {
+        let (result, _) = self.try_run_state(s);
+        result
+    }
+
+    /// Runs the state computation with context and returns only the value.
+    pub fn try_eval_state_context<C>(self, s: S, context: C) -> Result<A, ContextError<Err>>
+    where
+        C: IntoErrorContext,
+    {
+        let (result, _) = self.try_run_state_context(s, context);
+        result
+    }
+
+    /// Runs the state computation and returns only the final state as a standard `Result`.
+    pub fn try_exec_state(self, s: S) -> Result<S, Err> {
+        let (result, final_state) = self.try_run_state(s);
+        match result {
+            Ok(_) => Ok(final_state),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Runs the state computation with context and returns only the final state.
+    pub fn try_exec_state_context<C>(self, s: S, context: C) -> Result<S, ContextError<Err>>
+    where
+        C: IntoErrorContext,
+    {
+        let (result, final_state) = self.try_run_state_context(s, context);
+        match result {
+            Ok(_) => Ok(final_state),
+            Err(error) => Err(error),
+        }
     }
 
     /// Runs the state computation with context and returns a `ComposableResult`.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_run_state_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
     pub fn try_run_state_with_context<C>(self, s: S, context: C) -> (ComposableResult<A, Err>, S)
     where
         C: IntoErrorContext,
@@ -908,13 +933,12 @@ impl<
         (transformed_result, final_state)
     }
 
-    /// Runs the state computation and returns only the value as a `ComposableResult`.
-    pub fn try_eval_state(self, s: S) -> ComposableResult<A, Err> {
-        let (result, _) = self.try_run_state(s);
-        result
-    }
-
     /// Runs the state computation with context and returns only the value as a `ComposableResult`.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_eval_state_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
     pub fn try_eval_state_with_context<C>(self, s: S, context: C) -> ComposableResult<A, Err>
     where
         C: IntoErrorContext,
@@ -923,16 +947,12 @@ impl<
         result
     }
 
-    /// Runs the state computation and returns only the final state as a `ComposableResult`.
-    pub fn try_exec_state(self, s: S) -> ComposableResult<S, Err> {
-        let (result, final_state) = self.try_run_state(s);
-        match result {
-            Ok(_) => Ok(final_state),
-            Err(error) => Err(error),
-        }
-    }
-
     /// Runs the state computation with context and returns only the final state as a `ComposableResult`.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_exec_state_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
     pub fn try_exec_state_with_context<C>(self, s: S, context: C) -> ComposableResult<S, Err>
     where
         C: IntoErrorContext,
@@ -1012,14 +1032,6 @@ mod tests {
         let add_state = State::new(|s: i32| (move |x: i32| x + s, s + 1));
         let val_state = State::new(|s: i32| (s * 2, s + 2));
         assert_eq!(add_state.apply(val_state).run_state(5), (17, 8));
-
-        #[allow(deprecated)]
-        {
-            let s = State::new(|x: i32| (x * 2, x + 1));
-            assert_eq!(s.clone().run_state_owned(5), (10, 6));
-            assert_eq!(s.clone().eval_state_owned(5), 10);
-            assert_eq!(s.exec_state_owned(5), 6);
-        }
     }
 
     #[test]
@@ -1032,16 +1044,39 @@ mod tests {
             }
         });
 
-        let (res1, s1) = fallible.clone().try_run_state_with_context(5, "ctx");
+        let (res1, s1) = fallible.clone().try_run_state(5);
         assert_eq!(res1, Ok(50));
         assert_eq!(s1, 6);
 
-        let (res2, s2) = fallible.clone().try_run_state_with_context(-1, "ctx");
-        assert!(res2.is_err());
-        assert_eq!(res2.unwrap_err().context(), vec!["ctx".to_string()]);
+        let (res2, s2) = fallible.clone().try_run_state(-1);
+        assert_eq!(res2, Err("negative"));
         assert_eq!(s2, -1);
-        assert!(fallible.clone().try_eval_state(-1).is_err());
-        assert_eq!(fallible.try_exec_state(5), Ok(6));
+
+        let (res_ctx, s_ctx) = fallible.clone().try_run_state_context(-1, "ctx");
+        assert!(res_ctx.is_err());
+        assert_eq!(res_ctx.unwrap_err().context(), vec!["ctx".to_string()]);
+        assert_eq!(s_ctx, -1);
+
+        assert_eq!(fallible.clone().try_eval_state(5), Ok(50));
+        assert_eq!(fallible.clone().try_eval_state(-1), Err("negative"));
+        assert_eq!(fallible.clone().try_exec_state(5), Ok(6));
+        assert_eq!(fallible.clone().try_exec_state(-1), Err("negative"));
+
+        #[allow(deprecated)]
+        {
+            let (dep_res, _) = fallible.clone().try_run_state_with_context(5, "ctx");
+            assert_eq!(dep_res, Ok(50));
+            assert!(
+                fallible
+                    .clone()
+                    .try_eval_state_with_context(-1, "ctx")
+                    .is_err()
+            );
+            assert_eq!(
+                fallible.clone().try_exec_state_with_context(5, "ctx"),
+                Ok(6)
+            );
+        }
     }
 
     #[test]

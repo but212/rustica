@@ -5,7 +5,9 @@
 
 use super::MonadTransformer;
 use crate::datatypes::id::Id;
-use crate::error::{ComposableError, ComposableResult, IntoErrorContext};
+#[allow(deprecated)]
+use crate::error::{ComposableError, ComposableResult};
+use crate::error::{ContextError, IntoErrorContext};
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::monad::Monad;
@@ -120,14 +122,14 @@ where
 impl<S, M, A> StateT<S, M, A>
 where
     S: Clone + 'static,
-    M: Monad<Source = (S, A)> + Clone + 'static,
-    A: Clone + 'static,
+    M: Monad<Source = (S, A)> + 'static,
+    A: 'static,
 {
     /// Maps the value while preserving the produced state.
     pub fn fmap<B, F>(self, f: F) -> StateT<S, M::Output<(S, B)>, B>
     where
         F: Fn(A) -> B + Clone + Send + Sync + 'static,
-        B: Clone + 'static,
+        B: 'static,
         M::Output<(S, B)>: 'static,
     {
         let run = self.run_state_fn;
@@ -144,7 +146,7 @@ where
     pub fn bind<B, F>(self, f: F) -> StateT<S, M::Output<(S, B)>, B>
     where
         F: Fn(A) -> StateT<S, M::Output<(S, B)>, B> + Clone + Send + Sync + 'static,
-        B: Clone + 'static,
+        B: 'static,
         M::Output<(S, B)>: 'static,
     {
         let run = self.run_state_fn;
@@ -162,8 +164,9 @@ where
         self, other: StateT<S, M::Output<(S, B)>, B>, f: F,
     ) -> StateT<S, M::Output<(S, C)>, C>
     where
-        B: Clone + 'static,
-        C: Clone + 'static,
+        A: Clone,
+        B: 'static,
+        C: 'static,
         F: Fn(A, B) -> C + Clone + Send + Sync + 'static,
         M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
         M::Output<(S, C)>: 'static,
@@ -189,9 +192,9 @@ where
         self, other: StateT<S, M::Output<(S, B)>, B>,
     ) -> StateT<S, M::Output<(S, C)>, C>
     where
-        A: Fn(B) -> C,
-        B: Clone + 'static,
-        C: Clone + 'static,
+        A: Clone + Fn(B) -> C,
+        B: 'static,
+        C: 'static,
         M::Output<(S, B)>: Functor<Source = (S, B), Output<(S, C)> = M::Output<(S, C)>> + 'static,
         M::Output<(S, C)>: 'static,
     {
@@ -219,10 +222,26 @@ where
     E: Clone + 'static,
     A: Clone + 'static,
 {
-    pub fn try_run_state(self, state: S) -> ComposableResult<(S, A), E> {
-        self.run_state(state).map_err(ComposableError::new)
+    /// Runs the state transition, returning the standard Result.
+    pub fn try_run_state(self, state: S) -> Result<(S, A), E> {
+        self.run_state(state)
     }
 
+    /// Runs the state transition, attaching context to any failure.
+    pub fn try_run_state_context<C>(self, state: S, context: C) -> Result<(S, A), ContextError<E>>
+    where
+        C: IntoErrorContext,
+    {
+        self.run_state(state)
+            .map_err(|e| crate::error::with_context(e, context))
+    }
+
+    /// Runs the state computation with context and returns a `ComposableResult`.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_run_state_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
     pub fn try_run_state_with_context<C>(self, state: S, context: C) -> ComposableResult<(S, A), E>
     where
         C: IntoErrorContext,
@@ -241,10 +260,26 @@ where
         StateT::new(move |state| run(state).map_err(&f))
     }
 
-    pub fn try_eval_state(self, state: S) -> ComposableResult<A, E> {
+    /// Evaluates the state transition, returning only the value.
+    pub fn try_eval_state(self, state: S) -> Result<A, E> {
         self.try_run_state(state).map(|(_, value)| value)
     }
 
+    /// Evaluates the state transition with context, returning only the value.
+    pub fn try_eval_state_context<C>(self, state: S, context: C) -> Result<A, ContextError<E>>
+    where
+        C: IntoErrorContext,
+    {
+        self.try_run_state_context(state, context)
+            .map(|(_, value)| value)
+    }
+
+    /// Evaluates the state computation with context and returns a `ComposableResult`.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_eval_state_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
     pub fn try_eval_state_with_context<C>(self, state: S, context: C) -> ComposableResult<A, E>
     where
         C: IntoErrorContext,
@@ -253,8 +288,32 @@ where
             .map(|(_, value)| value)
     }
 
-    pub fn try_exec_state(self, state: S) -> ComposableResult<S, E> {
+    /// Executes the state transition, returning only the final state.
+    pub fn try_exec_state(self, state: S) -> Result<S, E> {
         self.try_run_state(state)
+            .map(|(final_state, _)| final_state)
+    }
+
+    /// Executes the state transition with context, returning only the final state.
+    pub fn try_exec_state_context<C>(self, state: S, context: C) -> Result<S, ContextError<E>>
+    where
+        C: IntoErrorContext,
+    {
+        self.try_run_state_context(state, context)
+            .map(|(final_state, _)| final_state)
+    }
+
+    /// Executes the state computation with context and returns a `ComposableResult`.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_exec_state_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
+    pub fn try_exec_state_with_context<C>(self, state: S, context: C) -> ComposableResult<S, E>
+    where
+        C: IntoErrorContext,
+    {
+        self.try_run_state_with_context(state, context)
             .map(|(final_state, _)| final_state)
     }
 }
@@ -265,8 +324,14 @@ where
     A: Clone + Send + Sync + 'static,
 {
     /// Converts to `State`, preserving its public `(value, state)` result order.
-    pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
+    pub fn into_state(self) -> crate::datatypes::state::State<S, A> {
         self.into()
+    }
+
+    /// Converts to `State`, preserving its public `(value, state)` result order.
+    #[deprecated(since = "0.16.0", note = "Use `into_state` instead.")]
+    pub fn to_state(self) -> crate::datatypes::state::State<S, A> {
+        self.into_state()
     }
 
     /// Converts from `State` into the canonical `(state, value)` transformer form.
@@ -333,10 +398,67 @@ mod tests {
             ("abc!".to_owned(), 3)
         );
 
+        let state_from_into = transformed.clone().into_state();
+        assert_eq!(
+            state_from_into.run_state("rust".to_owned()),
+            (4, "rust!".to_owned())
+        );
+
+        #[allow(deprecated)]
         let state_again = transformed.to_state();
         assert_eq!(
             state_again.run_state("rust".to_owned()),
             (4, "rust!".to_owned())
         );
+    }
+
+    #[test]
+    fn fallible_state_t_runners() {
+        let fallible: StateT<i32, Result<(i32, i32), &'static str>, i32> = StateT::new(|s| {
+            if s > 0 {
+                Ok((s + 1, s * 10))
+            } else {
+                Err("negative")
+            }
+        });
+
+        let res1 = fallible.clone().try_run_state(5);
+        assert_eq!(res1, Ok((6, 50)));
+
+        let res2 = fallible.clone().try_run_state(-1);
+        assert_eq!(res2, Err("negative"));
+
+        let res_ctx = fallible.clone().try_run_state_context(-1, "step failed");
+        assert!(res_ctx.is_err());
+        let err = res_ctx.unwrap_err();
+        assert_eq!(err.error(), &"negative");
+        assert_eq!(err.contexts_raw(), &["step failed"]);
+
+        assert_eq!(fallible.clone().try_eval_state(5), Ok(50));
+        assert_eq!(fallible.clone().try_eval_state(-1), Err("negative"));
+        assert_eq!(fallible.clone().try_exec_state(5), Ok(6));
+        assert_eq!(fallible.clone().try_exec_state(-1), Err("negative"));
+
+        let eval_ctx = fallible.clone().try_eval_state_context(-1, "eval ctx");
+        assert_eq!(eval_ctx.unwrap_err().contexts_raw(), &["eval ctx"]);
+
+        let exec_ctx = fallible.clone().try_exec_state_context(-1, "exec ctx");
+        assert_eq!(exec_ctx.unwrap_err().contexts_raw(), &["exec ctx"]);
+
+        #[allow(deprecated)]
+        {
+            let dep_res = fallible.clone().try_run_state_with_context(5, "ctx");
+            assert_eq!(dep_res, Ok((6, 50)));
+            assert!(
+                fallible
+                    .clone()
+                    .try_eval_state_with_context(-1, "ctx")
+                    .is_err()
+            );
+            assert_eq!(
+                fallible.clone().try_exec_state_with_context(5, "ctx"),
+                Ok(6)
+            );
+        }
     }
 }

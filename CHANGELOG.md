@@ -4,16 +4,93 @@
 
 ### Priority & Fallback Semantics (`Choice<T>`)
 
-- **Semantic Fallback Execution**: Added `Choice::try_each`, `Choice::try_each_validated`, and `Choice::first_match` execution primitives to guide AI coding agents and human developers in writing robust priority-fallback logic.
+- **Semantic Fallback Execution**: Added `Choice::try_each`, `Choice::try_each_validated`, and `Choice::first_match` fallback execution primitives.
 - **Error Accumulation Synergy**: `Choice::try_each_validated` accumulates errors across all alternatives into `Validated<E, R>` upon total failure.
-- **Category-Theory Deprecations**: Deprecated `Choice::bind` and `Choice::apply`, along with `impl Pure`, `impl Applicative`, and `impl Monad` for `Choice<T>` since 0.16.0, realigning `Choice` with its intended purpose as a priority/fallback collection.
-- **Documentation Overhaul**: Rewrote `Choice<T>` Rustdoc with explicit primary/fallback domain guidance and runnable doctests.
+- **Category-Theory Deprecations**: Deprecated `Choice::bind`, `Choice::apply`, and `Pure`, `Applicative`, and `Monad` implementations for `Choice<T>` to align with priority/fallback semantics.
+- **Documentation Overhaul**: Updated `Choice<T>` rustdoc with primary/fallback domain guidance and runnable doctests.
+
+### Bug Fixes & Soundness
+
+- **AsRef Panic Removal**: Removed panicking `AsRef` implementations from `First` and `Last` in favor of non-panicking `get()` and `into_value()`.
+- **IO::delay Reactor Nesting**: Resolved Tokio thread panics caused by nested `block_on` runtime invocations in `IO::delay`.
+- **PVec Reversal and Height Reset**: Fixed order reversal and height loss bugs in `pop_front_from_tree` within `src/pvec/tree.rs`.
+- **Vec Alternative Monoidal Semantics**: Changed `<Vec<T> as Alternative>::alt` from first-non-empty semantics to monoidal concatenation (`self.extend(other)`).
+
+### Free Monad (`Free<F, A>`)
+
+- Added `Free<F, A>` to separate program description from execution.
+- Renamed internal AST variants to `Free::Suspend` and `Free::Bind`, aligning with `Monad::bind` trait conventions.
+- Standardized effect constructor to `Free::suspend` (removed `lift_f`), and provided `is_suspend` and `is_bind` state predicates.
+- Evaluated left-associated chains iteratively in `run` and `try_run` to prevent stack overflows.
+- Added `FreeError<E>` to handle interpreter errors and downcast mismatches without panicking in `try_run`.
+- Made `Drop` and `fmt::Debug` iterative to prevent stack overflows on deep trees.
+- Added `Free::fold_map` to convert a `Free` program into `IO<A>`.
+
+### Operational Monad (`Program<H, A>`, `TryProgram<H, A, E>`)
+
+- Added statically-typed operational monads in `rustica::datatypes::operational` (`Program`, `TryProgram`).
+- Bound each `Command` to its exact output type (`Command::Output`), enforcing 100% compile-time type safety on interpreter handlers (`Handler<C>`, `TryHandler<C, E>`) with zero dynamic downcasting (`AnyValue`).
+- Unified execution engine on `TryProgram` with `Program` providing a zero-cost infallible wrapper.
+- Implemented stack-safe trampoline execution (`run`, `try_run`) and custom iterative `Drop` preventing stack overflows on deep un-evaluated chains.
+- Added constructor extension methods on `Command` (`cmd.suspend::<H>()`, `cmd.try_suspend::<H, E>()`) and freestanding helpers (`operational::suspend`, `operational::try_suspend`).
+- Re-exported `Command`, `Handler`, `Program`, `TryHandler`, and `TryProgram` in `rustica::prelude::datatypes`.
+
+### Trait Bounds & Structural Cleanup
+
+- **Feature Flag Isolation (`pvec`)**: Gated `PersistentVector` behind the optional `pvec` Cargo feature flag (disabled by default, included in `full` and `develop`) to minimize baseline compile times and dependencies.
+- **Over-Constrained Bounds Relaxed**: Removed unnecessary `E: Debug`, `E: Clone`, and `S: Default` bounds from `Result`, `State`, and `PersistentVector`.
+- **Applicative Polarity Rectified**: Inverted `apply` argument polarity on `ContT` and `ReaderT` (`fn.apply(val)`) to match standard functional programming Applicative conventions.
+- **Rust API Guidelines Receiver Alignment**: Aligned method receivers with official Rust API Guidelines (C-CONV, C-BUILDER, C-GETTER). Renamed consuming conversions to `into_*` (`StateT::into_state`, `ContT::into_cont`, `WithError::into_result`), builder method to `with_error_code`, and consuming execution runners to `IO::try_run*`. Converted `Writer::log` from consuming to borrowed `&self` (breaking; use `Writer::into_log(self)` to consume). Converted `Choice::flatten` and `Choice::try_flatten` from borrowed `&self` to consuming `self` (breaking; eliminates `T: Clone` requirement; use `.clone().flatten()` or `flatten_cloned` for borrows). Added consuming `Choice::filter`.
+- **Prelude Exports**: Added missing prelude exports for `BinaryHKT`, `ChoiceError`, `ValidatedError`, `Free`, `FreeError`, and the `context!` macro.
+- **Ergonomic Aliases**: Added `Id::get`, `Id::into_value`, `into_value` on wrappers (`First`, `Last`, `Min`, `Max`, `Product`, `Sum`), `eval` on `Predicate`, `single` on `PersistentVector`, and `AsyncM::join`.
+
+### Deprecations (Planned for Removal in 0.17.0)
+
+- **`Iso` Family**: Deprecated `Iso`, `IsoExt`, `ComposedIso`, `InverseIso`, and `ResultValidatedIso` in favor of standard `From`/`Into` and `TryFrom`/`TryInto`.
+- **`Bifunctor`**: Deprecated `Bifunctor` trait in favor of inherent `bimap`/`first`/`second` methods and standard Rust pattern matching.
+- **`FoldableExt` Search Methods**: Deprecated non-short-circuiting linear traversal methods on `FoldableExt` (`find`, `all`, `any`, `contains`, `is_sorted`) in favor of Rust's standard `Iterator` equivalents.
+- **`Alternative::many`**: Deprecated `Alternative::many` in favor of standard iterator combinators or explicit repetition.
+- **`FunctorExt` Combinators**: Deprecated `filter_map`, `try_map_or`, and `try_map_or_else` on `FunctorExt` in favor of standard `Iterator::filter_map` or `fmap` with `unwrap_or`/`unwrap_or_else`.
+- **`PureExt` Combinators**: Deprecated `pair_with`, `lift_other`, and `combine_with` on `PureExt` in favor of direct value construction and `Pure::pure`.
+- **`Monad` Methods**: Deprecated `map_and_pure` and `try_bind` on `Monad` in favor of `Functor::fmap` or explicit error handling inside `bind`.
+- **`SemigroupExt` / Helpers**: Deprecated `SemigroupExt::combine_all`, `combine_n` and standalone functions `combine_all_values`, `combine_values` in favor of standard iterator folds with `combine`.
+- **`MonoidExt` / Helpers**: Deprecated `MonoidExt::is_empty_monoid`, `monoid::mconcat`, and `monoid::power` in favor of comparison with `Monoid::empty()`, `monoid::combine_all`, and `monoid::repeat`.
+- **Type Construction & Accessor Renames**:
+  - Deprecated `PersistentVector::unit` in favor of `PersistentVector::single`.
+  - Deprecated `Choice::first` in favor of `Choice::primary`.
+  - Deprecated `StateT::to_state` in favor of `StateT::into_state` (C-CONV).
+  - Deprecated `ContT::to_cont` in favor of `ContT::into_cont` (C-CONV).
+  - Deprecated `WithError::to_result` in favor of `WithError::into_result` (C-CONV).
+  - Deprecated `ComposableError::set_code` in favor of `ComposableError::with_error_code` (C-BUILDER).
+  - Deprecated `IO::try_get*` runner family in favor of `IO::try_run*` (C-GETTER).
+  - Deprecated `Choice::filter_values` in favor of consuming `Choice::filter`.
+  - Deprecated `Validated::errors` in favor of `Validated::error_slice` or `iter_errors`.
+  - Deprecated `ComposableError<E>` in favor of `ContextError<E>` (scheduled for removal in 0.18.0).
+  - Deprecated `ComposableResult<T, E>` in favor of standard `Result<T, ContextError<E>>` (scheduled for removal in 0.18.0).
+  - Deprecated `BoxedComposableError<E>` and `BoxedComposableResult<T, E>` in favor of standard `Result<T, Box<ContextError<E>>>` (scheduled for removal in 0.18.0).
+  - Deprecated `WithError<E>` and `sequence_with_error` in favor of standard `Result` combinators and `Iterator::collect` (scheduled for removal in 0.18.0).
+  - Deprecated `IO::run_async` in favor of runtime task spawning APIs (scheduled for removal in 0.18.0).
+
+### Error System Slimdown
+
+- **Standard Rust Result & Error First**: Adopted `Result<T, E>` and `std::error::Error` as primary error primitives.
+- **Introduced `ContextError<E>`**: A minimal context accumulation wrapper replacing `ComposableError<E>` without HKT, `SmallVec`, or application-specific error code metadata.
+- **Context API Updates**: `with_context_result` returns standard `Result<T, ContextError<E>>` directly. Preserved lazy context evaluation via `context!` macro and `accumulate_context`.
+- **Modernized Effect Runners**: `IO::try_run*`, `State::try_*_state*`, `StateT::try_*_state*`, and `ReaderT::try_run_reader*` return standard `Result` and provide `_context` methods for attaching context, deprecating old composable error runner variants.
+
+### Async Primitives & Dependency Decoupling
+
+- **Eliminated `futures` Dependency**: Removed `futures` and sub-crates from production dependencies; `AsyncM` and `Validated` async combinators now use standard library async primitives (`std::future::Future`, `Box::pin`, `std::panic::catch_unwind`).
+- **Executor-Agnostic Core Async**: Replaced `tokio::join!` in `AsyncM::apply` and `AsyncM::zip_with` with a zero-dependency, cooperative standard future join (`Join2`).
+- **Sequential Error Mapping**: `Validated::fmap_invalid_async` now executes error transformations sequentially without external concurrency dependencies.
+- **`IO::run_async` Deprecation**: Deprecated `IO::run_async` (scheduled for removal in 0.18.0). Tokio production dependency is trimmed to `rt` feature only for this method.
+- **NOTICE Cleanup**: Removed obsolete third-party entries (`futures`, `rayon`, `lazy_static`) from `NOTICE`.
 
 ## [0.15.0]
 
 ### Bug Fixes
 
-- **IO::delay Tokio Reactor Panic**: Fixed `IO::delay` to construct `tokio::time::sleep` inside an `async` block evaluated by `TOKIO_RUNTIME.block_on`, eliminating reactor panics when called outside an active Tokio runtime.
+- **IO::delay Tokio Reactor Panic**: Fixed `IO::delay` to construct `tokio::time::sleep` inside an `async` block evaluated by `TOKIO_RUNTIME.block_on`, eliminating reactor panics outside an active Tokio runtime.
 - **PVec Uniform-Height Tree Invariant**: Implemented recursive, height-aware front and back leaf insertion (`push_front_leaf_recursive`, `push_back_leaf_recursive`) and height-aligned concatenation in `RRBTree`, eliminating depth corruption and data loss on height $\ge 2$ trees.
 - **PVec Index Routing**: Fixed capacity calculation in `calculate_adjusted_index` to properly scale by tree height (`LEAF_CAPACITY * BRANCHING_FACTOR.pow(height)`), preventing tree corruption for vectors with >2048 elements.
 - **PVec Branch Traversal**: Made `RRBNode::update` height-aware using relaxed/regular branch navigation; deleted height-blind `find_child` and dead `RRBNode::get`; routed `pop_from_tree` to `get_from_tree`.
@@ -24,101 +101,91 @@
 ### Contract Integrity & Laws
 
 - **Receiver Unification & Move Semantics**:
-  - Consolidated dual borrowed/owned API duplication (`foo(&self)` vs `foo_owned(self)`) across traits, effect types, and wrappers in favor of idiomatic owned `self` signatures (`foo(self)`).
-  - Maintained backwards compatibility during the 0.15.0 migration period by marking `*_owned` method variants on core effect types (`IO::run_owned`, `IO::run_async_owned`, `Writer::run_owned`, `Writer::unwrap_owned`, `State::run_state_owned`, `State::eval_state_owned`, `State::exec_state_owned`, `Reader::run_reader_owned`, `Validated::unwrap_owned`, `Validated::unwrap_invalid_owned`, `Validated::combine_errors_owned`, `Validated::sequence_owned`, `Validated::collect_owned`, `Validated::from_option_owned`, `Validated::from_option_with_owned`, `Validated::fmap_invalid_owned`, `MonadError::catch_owned`) as `#[deprecated]`, forwarding directly to their unified counterparts.
-  - Generalized `Alternative::alt(self, other: Self) -> Self` and `Alternative::many(self)` to owned receivers, eliminating spurious `T: Clone` bounds.
-  - Generalized `Bifunctor::first(self, f)`, `second(self, g)`, and `bimap(self, f, g)` to owned receivers with `FnMut(Source) -> C`, removing 4 `Clone` bounds.
-  - Migrated `StateT` and `ReaderT` methods (`run_state`, `run_reader`, `fmap`, `bind`, `combine`, `apply`, etc.) to owned receivers and owned other arguments.
-  - Generalized `Foldable::fold_left<U, F>(&self, init: U, mut f: F) -> U` and `fold_right` to consume the accumulator by value, enabling zero-copy folding over non-`Clone` accumulators (`U: !Clone`).
-  - Generalized `Iso::forward(&self, from: Self::From) -> Self::To` and `backward(&self, to: Self::To) -> Self::From` to accept values by move instead of reference.
-  - Effect types: `IO::run(self) -> A` and `IO::run_async(self) -> A` now support move-only / non-`Clone` types; `State::run_state(self, s)`, `eval_state`, `exec_state`, `Reader::run_reader(self, env)`, and `Writer::run(self)`, `into_value(self)` consume `self`.
-  - `Validated`: Consolidated `combine_errors(self, other)`, `fmap_invalid(self, f)`, `sequence(values: Vec<Self>, f)`, `unwrap(self)`, `unwrap_invalid(self)`, `unwrap_or(self, default)`, and async methods to owned receivers.
+  - Consolidated dual borrowed/owned APIs into unified owned `self` signatures (`foo(self)`).
+  - Deprecated `*_owned` variants on core effect types (`IO::run_owned`, `IO::run_async_owned`, `Writer::run_owned`, `Writer::unwrap_owned`, `State::run_state_owned`, `State::eval_state_owned`, `State::exec_state_owned`, `Reader::run_reader_owned`, `Validated::unwrap_owned`, `Validated::unwrap_invalid_owned`, `Validated::combine_errors_owned`, `Validated::sequence_owned`, `Validated::collect_owned`, `Validated::from_option_owned`, `Validated::from_option_with_owned`, `Validated::fmap_invalid_owned`, `MonadError::catch_owned`), forwarding to unified counterparts.
+  - Generalized `Alternative::alt`, `Alternative::many`, `Bifunctor` methods (`first`, `second`, `bimap`), `StateT`, `ReaderT`, and `Validated` methods (`combine_errors`, `fmap_invalid`, `sequence`, `unwrap`, `unwrap_invalid`, `unwrap_or`, and async methods) to owned receivers, eliminating spurious `Clone` bounds.
+  - Generalized `Foldable::fold_left` and `fold_right` to consume the accumulator by value, enabling zero-copy folding over non-`Clone` accumulators (`U: !Clone`).
+  - Generalized `Iso::forward` and `backward` to accept values by move.
+  - Effect types: `IO::run(self)` and `IO::run_async(self)` support move-only types; `State::run_state(self, s)`, `eval_state`, `exec_state`, `Reader::run_reader(self, env)`, `Writer::run(self)`, and `into_value(self)` consume `self`.
   - Stripped unnecessary `Clone` bounds from `Functor::fmap` result type `B`, `Monad::bind` target type `U`, and `IO::run`/`Writer::unwrap` output types.
-- **Validated Semigroup Accumulation**: `Validated<E, A>: Semigroup` now requires `A: Semigroup` and accumulates valid components `(Valid(a1), Valid(a2)) => Valid(a1.combine(a2))`, while errors take precedence. `Alternative` is omitted because `NonEmptyErrors` lacks an empty identity element.
+- **Validated Semigroup Accumulation**: `Validated<E, A>: Semigroup` now requires `A: Semigroup` and accumulates valid components `(Valid(a1), Valid(a2)) => Valid(a1.combine(a2))`, with errors taking precedence. `Alternative` is omitted because `NonEmptyErrors` lacks an empty identity element.
 - **Product Monoid Law**: Introduced `One` trait (`rustica::traits::one::One`) implemented for all numeric primitives (`u8`..`u128`, `usize`, `i8`..`i128`, `isize`, `f32`, `f64`), enabling `Product<i8>: Monoid`.
-- **IO Cold Computation**: Removed `IO::new_async` cold-computation caching bug; made `IO::delay` instantiate fresh sleep operations per run. Pure `fmap`, `bind`, and `apply` paths now also defer callbacks until each run (always produce `Effect` representation, even from pure inputs).
-- **AsyncM Cold Computation**: Pure `apply` and `zip_with` paths now defer callbacks until each `try_get` evaluation and remain repeatable.
+- **IO Cold Computation**: Eliminated `IO::new_async` cold-computation caching bug; made `IO::delay` instantiate fresh sleep operations per run. Pure `fmap`, `bind`, and `apply` paths defer callbacks until each run (always producing `Effect` representation).
+- **AsyncM Cold Computation**: Pure `apply` and `zip_with` paths defer callbacks until each `try_get` evaluation and remain repeatable.
 - **Choice Flattening**: `Choice::flatten` returns `Option<Choice<I>>` instead of panicking on empty iterators.
 - **Prelude Exports**: Re-exported `compose` macro in `prelude::category` and `lift` function in `prelude::transformers`.
 - **BinaryHKT Separation**: Removed runtime mapping methods `map_second` and `map_second_owned` from `BinaryHKT` to preserve pure type-constructor boundaries.
 
 ### Structural Pruning & Cleanup
 
-- **Wrapper & Value Accessors**: Added idiomatic `into_inner()` and `get()` accessors across all wrapper types (`Sum`, `Product`, `Min`, `Max`, `First`, `Last`), and marked `unwrap()` and `unwrap_or()` as `#[deprecated]`; added `into_value()` on `Writer` and marked `unwrap()` as `#[deprecated]`; marked `Thunk` wrapper as `#[deprecated]` in favor of standard closures; removed unused `A: Debug` bound from `IO::sequence_composable`.
-- **Transformer Simplification**: Removed manual `*_with` forwarding combinators (`fmap_with`, `bind_with`, `combine_with`, `apply_with`) from `StateT` and `ReaderT`; marked `ReaderT::unwrap_with` as `#[deprecated]` in favor of `run_reader`; made `ReaderT::lift2` an associated function.
-- **Hollow Traits Deprecation**: Marked `MonadPlus` (migrated to `Alternative`) and `ErrorMapper` (migrated to `Result::map_err` / `Option::ok_or`) as `#[deprecated]`.
-- **Applicative / Bifunctor / Foldable**: Marked `Applicative::ap2` as `#[deprecated]` in favor of `lift2`; added default implementations for `Bifunctor::first` and `second` via `bimap`; simplified `Monad::map_and_pure` to delegate to `fmap`; simplified `Foldable::fold_monoid` to delegate to `fold_map`.
+- **Wrapper & Value Accessors**: Added idiomatic `into_inner()` and `get()` accessors across wrapper types (`Sum`, `Product`, `Min`, `Max`, `First`, `Last`), deprecating `unwrap()` and `unwrap_or()`; added `into_value()` on `Writer`, deprecating `unwrap()`; deprecated `Thunk` in favor of closures; removed unused `A: Debug` bound from `IO::sequence_composable`.
+- **Transformer Simplification**: Removed manual `*_with` forwarding combinators (`fmap_with`, `bind_with`, `combine_with`, `apply_with`) from `StateT` and `ReaderT`; deprecated `ReaderT::unwrap_with` in favor of `run_reader`; made `ReaderT::lift2` an associated function.
+- **Hollow Traits Deprecation**: Deprecated `MonadPlus` (migrated to `Alternative`) and `ErrorMapper` (migrated to `Result::map_err` / `Option::ok_or`).
+- **Applicative / Bifunctor / Foldable**: Deprecated `Applicative::ap2` in favor of `lift2`; added default implementations for `Bifunctor::first` and `second` via `bimap`; simplified `Monad::map_and_pure` to delegate to `fmap`; simplified `Foldable::fold_monoid` to delegate to `fold_map`.
 - **PVec Optimization**: Replaced $O(n \log n)$ shared-tree fallback in `into_vec` with $O(n)$ iterator collect; generalized `update_size_table_after_removal`; bounded concatenation branches to 32 children while preserving structural sharing.
-- **Optics & Predicate**: Removed `IsoLens`/`IsoPrism` in favor of `Lens::from_iso`/`Prism::from_iso`; marked `compose` as `#[deprecated]` on `Lens` and `Prism` in favor of fluent `then`; stored thread-safe closures in `Predicate` via `Arc`.
-- **Redundant API Removal & Deprecation**: Removed `FunctionCategory::lift` in favor of `FunctionCategory::arrow`; marked `Id::unwrap`, `Id::unwrap_or`, and `Writer::exec` as `#[deprecated]` in favor of `Id::into_inner` and `Writer::log`.
-- **Utils Deprecation**: Marked `rustica::utils` module and its helpers (`pipeline_option`, `pipeline_result`, `transform_chain`) as `#[deprecated]` in favor of standard `Iterator::try_fold` and `Option::map` / `Functor::fmap`.
+- **Optics & Predicate**: Replaced `IsoLens`/`IsoPrism` with `Lens::from_iso`/`Prism::from_iso`; deprecated `compose` on `Lens` and `Prism` in favor of `then`; stored thread-safe closures in `Predicate` via `Arc`.
+- **Redundant API Removal & Deprecation**: Removed `FunctionCategory::lift` in favor of `FunctionCategory::arrow`; deprecated `Id::unwrap`, `Id::unwrap_or`, and `Writer::exec` in favor of `Id::into_inner` and `Writer::log`.
+- **Utils Deprecation**: Deprecated `rustica::utils` module and its helpers (`pipeline_option`, `pipeline_result`, `transform_chain`) in favor of standard `Iterator::try_fold` and `Option::map` / `Functor::fmap`.
 
 ## [0.14.0]
 
-### Documentation Correctness - 0.14.0
+### Documentation Correctness
 
 - Documented `Min<T>` and `Max<T>` as `Semigroup` wrappers without a generic `Monoid` identity. Use `semigroup::combine_all_values` for empty-capable reductions or provide a domain-specific extremum.
 
-### Bug Fixes - 0.14.0
+### Bug Fixes
 
 - Fixed `PersistentVector::concat` ordering across unequal-height RRB trees.
 - Fixed `PersistentVector::pop_back` to drain the front head buffer after the tree is exhausted.
 
-### Tests - 0.14.0
+### Tests
 
 - Added regressions for unequal-height `PersistentVector::concat`, full head/tree `pop_back` draining, and `FoldableExt::fold_option` short-circuiting.
 - Added compile-fail contracts for removed unlawful implementations and phantom marker wrappers.
 
-### Changed - 0.14.0
+### Changed
 
-- Generalized `pipeline_result` from `Vec<Func>` to any `IntoIterator<Item = Func>`, matching `pipeline_option`; `Vec` still works.
+- Generalized `pipeline_result` from `Vec<Func>` to any `IntoIterator<Item = Func>`, matching `pipeline_option`.
 
-### CI/CD and Security - 0.14.0
+### CI/CD and Security
 
 - Added least-privilege workflow permissions, pinned external actions, and `actionlint`/`zizmor` checks.
-- Declared the MSRV through Cargo's `package.rust-version` metadata and added a dedicated check.
+- Declared MSRV through `package.rust-version` with a dedicated CI check.
 - Hardened releases with locked packaging, exact CHANGELOG validation, a protected crates.io environment, and verified SLSA verifier downloads.
-- Added trusted benchmark regression reporting with a 20% slowdown threshold; pull-request benchmark jobs remain read-only.
+- Added trusted benchmark regression reporting with a 20% slowdown threshold.
 - Added repository ownership, security reporting, pull-request, and issue templates under `.github/`.
 
-### Breaking Changes - 0.14.0
+### Breaking Changes
 
-- **Lawful Algebraic Trait Surface**
+- **Lawful Algebraic Trait Surface**:
   - Removed `Monoid` for `Min<T>`/`Max<T>`; use `Semigroup::combine` with an explicit extremum or `combine_all_values` for empty-capable reductions.
   - Removed `MonadPlus` for `Result<T, E>` because arbitrary `E` has no lawful zero; use `Result::or_else`.
   - Removed unused `HKTType`/`PureType` phantom wrappers; use `HKT`, `Pure`, or `PureExt`.
-
-- **Transformer State and Type Invariants**
+- **Transformer State and Type Invariants**:
   - `ReaderT<E, M, A>` requires `M: HKT<Source = A>`; type-changing operations return `M::Output<B>`, and the unsafe bind conversion was removed.
   - `StateT<S, M, A>` has one executable representation, requires `M: HKT<Source = (S, A)>`, and threads state left-to-right.
   - `StateT` no longer exposes `Pure` or `LiftM`; `MonadTransformer::BaseMonad` is the base family containing `A`, not `(S, A)`.
-
-- **Error and Conversion API**
+- **Error and Conversion API**:
   - Removed impossible `ChoiceError::EmptyChoice`, `PVecError::InvalidRange`, and `IOError::ValueNotSet` variants.
   - Removed `ErrorOps`, `sequence`, `traverse`, and redundant free error-conversion functions; use `Result`/`Iterator` methods and `From`.
   - `Validated` converts from owned or borrowed `Result` through `From`; lossy conversion is `into_result_first_error`.
   - Replaced panicking `NonEmptyErrors` `FromIterator` with `NonEmptyErrors::try_from_iter`, returning `Option` for empty-capable input.
   - Removed panicking `Choice` conversions from `Vec`, slices, and iterators. Use `Choice::of_many` for `Option` or `TryFrom` for `Result<Choice<T>, ChoiceError>`; empty input returns `ChoiceError::EmptyInput`.
-
-- **Dead Utilities Removed**
+- **Dead Utilities Removed**:
   - Removed empty `utils::categorical_utils`, the `utils::functions::id` alias, and unused `ReaderCombineFn`/`ContFn` aliases.
-
-- **Duplicate Functional Data Types Removed**
-  - Removed `Maybe<T>` in favor of standard `Option<T>` (which retains `Functor`, `Applicative`, `Monad`, and `Foldable` implementations).
+- **Duplicate Functional Data Types Removed**:
+  - Removed `Maybe<T>` in favor of standard `Option<T>`.
   - Removed `Either<L, R>`, `EitherError`, `ResultEitherIso`, and `Either` conversion helpers in favor of `Result<R, L>` or the external `either` crate.
-
-- **Single-Implementation Traits Removed**
-  - Removed `Category`/`Arrow`; `FunctionCategory` now exposes morphism operations as inherent associated functions: `identity_morphism`, `compose_morphisms`, `arrow`, `first`, `second`, `split`, and `combine_morphisms`. `function!`, `compose!`, and `pipe!` no longer require trait imports.
-  - Removed `Comonad`; `Id<T>` now provides `extract`, `duplicate`, and `extend` inherently.
+- **Single-Implementation Traits Removed**:
+  - Removed `Category`/`Arrow`; `FunctionCategory` exposes morphism operations as inherent associated functions: `identity_morphism`, `compose_morphisms`, `arrow`, `first`, `second`, `split`, and `combine_morphisms`. `function!`, `compose!`, and `pipe!` no longer require trait imports.
+  - Removed `Comonad`; `Id<T>` provides `extract`, `duplicate`, and `extend` inherently.
   - Removed `Evaluate`/`EvaluateExt`; `Thunk` and `IO` expose `Thunk::evaluate` and `IO::run` inherently.
-
-- **Redundant Wrappers & Pipelines Removed**
+- **Redundant Wrappers & Pipelines Removed**:
   - Removed `ErrorPipeline`/`error_pipeline` in favor of standard `Result` combinators, `ErrorCategory` in favor of `Result`/`Validated`, `Pipeline<T>` from `rustica::utils::transform_utils`, and `Memoizer` in favor of dedicated caching crates (`lru`, `moka`).
-
-- **Collection Iterator Helpers Removed**
+- **Collection Iterator Helpers Removed**:
   - Removed `PersistentVector::take`/`skip`; use iterator adapters or `PersistentVector::split_at`.
 
-### Maintenance - 0.14.0
+### Maintenance
 
 - Added central compile-fail removal contract doctests in `src/lib.rs`.
 - Updated all doc examples and benchmarks to the 0.14.0 API.
@@ -127,576 +194,375 @@
 
 ## [0.13.0]
 
-### Maintenance - 0.13.0
+### Maintenance
 
 - Relaxed owned error-conversion helpers to accept non-`Clone` values and simplified `Result` sequencing/pipelines with iterator combinators.
 - Kept `ErrorPipeline` behavior unchanged; migrate to native `Result` combinators before its planned 0.14.0 removal.
 
-### Breaking Changes - 0.13.0
+### Breaking Changes
 
-- **`Choice<T>` Impossible-State Elimination**
+- **`Choice<T>` Impossible-State Elimination**:
   - Redesigned `Choice<T>` as `{ primary: T, alternatives: SmallVec<[T; 7]> }`, making empty choices impossible at compile time. `first()` returns `&T`; removed `new_empty()`; added `single()`, `of_many()` (`Option<Choice<T>>`), and `filter_values()`.
   - Implemented `Pure`, `Functor`, `Applicative`, `Monad`, `Semigroup`, `IntoIterator`, and `Foldable` for `Choice<T>`.
-
-- **`NonEmptyErrors<E>` Invariant Preservation**
+- **`NonEmptyErrors<E>` Invariant Preservation**:
   - Removed `NonEmptyErrors::remove()` so error collections cannot become empty.
-
-- **Dead Code and Speculative Helpers Removed**
-  - Removed the 0-impl `Traversable` trait and dead utilities `const_fn`, `compose`, `pipe`, `flip`, `fold_with`, `bimap_result`, `fan_out`, `compose_all`, `lift_option`, and `transform_all`.
+- **Dead Code and Speculative Helpers Removed**:
+  - Removed 0-impl `Traversable` trait and dead utilities: `const_fn`, `compose`, `pipe`, `flip`, `fold_with`, `bimap_result`, `fan_out`, `compose_all`, `lift_option`, and `transform_all`.
   - Re-exported `id` directly from `std::convert::identity`.
-
-- **Deprecations (0.14.0 Complete Removal Notice)**
+- **Deprecations (0.14.0 Removal Notice)**:
   - Deprecated `Maybe<T>` (use `Option<T>`), `Either<L, R>` (use `Result<R, L>` or `either`), one-implementation traits (`Comonad`, `Arrow`, `Category`, `Evaluate`, `EvaluateExt`), speculative wrappers (`ErrorCategory`, `ErrorPipeline`, `Pipeline<T>`, `Memoizer`), and `PersistentVector::{take, skip}`.
+- **`Validated<E, A>` Non-Empty Error Invariant**:
+  - `Invalid` stores `NonEmptyErrors<E>`; `invalid_many` rejects empty input, while `try_invalid_many` supports it. Serde rejects empty invalid arrays without changing the JSON representation. Removed `invalid_vec` and `error_buffer_mut`.
+- **Legacy and Redundant APIs Removed**:
+  - Removed legacy `Choice` mutation/iteration helpers, `PersistentVector` cache-policy constructors, `ResultExt`, `try_pipeline`, `compose_when`, stdlib-equivalent categorical collection helpers, `SemigroupExtAdapter`, and `combine_all_owned`.
+- **Semigroup Repetition Contract**:
+  - `SemigroupExt::combine_n` and `combine_n_owned` require `NonZeroUsize`, eliminating zero-count states.
 
-- **`Validated<E, A>` Non-Empty Error Invariant**
-  - `Invalid` now stores `NonEmptyErrors<E>`; `invalid_many` rejects empty input, while `try_invalid_many` supports it. Serde rejects empty invalid arrays without changing the JSON representation. Removed `invalid_vec` and `error_buffer_mut`.
+### Changed
 
-- **Legacy and Redundant APIs Removed**
-  - Removed legacy `Choice` mutation/iteration helpers, `PersistentVector` cache-policy constructors, `ResultExt`, `try_pipeline`, `compose_when`, stdlib-equivalent categorical collection helpers, `SemigroupExtAdapter`, and `combine_all_owned`. Use documented conversion functions and standard `Option`/`Result`/`Iterator` APIs.
-
-- **Semigroup Repetition Contract**
-  - `SemigroupExt::combine_n` and `combine_n_owned` now require `NonZeroUsize`, eliminating zero-count states.
-
-### Changed - 0.13.0
-
-- Removed confirmed redundant clones across all targets; strict `clippy::redundant_clone` passes. `FoldableExt::to_vec` now appends into one accumulator (O(n), formerly O(n²)).
+- Eliminated redundant clones across all targets; strict `clippy::redundant_clone` passes. `FoldableExt::to_vec` appends into one accumulator ($O(n)$, formerly $O(n^2)$).
 - `PersistentVector` builds owned trees leaf-by-leaf, shares one recursive builder, and moves uniquely owned leaves during consuming conversion. Vec/Choice applicatives write directly to final collections; error display and owned panic payloads avoid clones.
 - `ReaderT`/`StateT` callback adapters borrow `dyn Fn` callbacks; `ReaderT::lift2` returns an opaque callable. Memoizer insertion uses move replacement, named `InsertOutcome`, and limits `V: Clone` to owned-copy APIs; zero-capacity caches stay disabled.
 - Validated paths share an `ErrorAccumulator` while preserving error order/accumulation; `traverse_validated` no longer requires `E: Clone`.
-- Single-value `Either`/`Validated` iterators use `Option::IntoIter`; Tokio uses `std::sync::LazyLock`; `rayon`/`lazy_static` are not normal runtime dependencies, `quickcheck` is optional, and `serde_json` is dev-only.
+- Single-value `Either`/`Validated` iterators use `Option::IntoIter`; Tokio uses `std::sync::LazyLock`; `rayon`/`lazy_static` removed from runtime dependencies, `quickcheck` is optional, and `serde_json` is dev-only.
 
-### Fixed - 0.13.0
+### Fixed
 
-- Fixed owned semigroup repetition that could duplicate the accumulated value and owned `Validated` conversion that mishandled singleton errors.
+- Fixed owned semigroup repetition that duplicated accumulated values and owned `Validated` conversion that mishandled singleton errors.
 
 See [MIGRATION_v0.13.0.md](MIGRATION_v0.13.0.md) for migration details.
 
 ## [0.12.0]
 
-### Breaking Changes - 0.12.0
+### Breaking Changes
 
-- **`Choice<T>` Typeclass Cleanup**
-  - Removed deprecated methods and functions
+- **`Choice<T>` Typeclass Cleanup**: Removed deprecated methods and functions.
 
 ## [0.11.1]
 
-### Added - 0.11.1
+### Added
 
-- **`Lens<S, A>` Composition Methods**
-  - Added `compose()` and fluent `then()` for type-safe nested lens access; e.g. `address_lens.compose(street_lens)` creates a lens from Person to street.
-- **`Prism<S, A>` Composition Methods**
-  - Added `compose()` and fluent `then()` for type-safe nested sum-type access; e.g. `outer_prism.compose(inner_prism)` creates a prism from Outer to inner value.
+- **`Lens<S, A>` Composition**: Added `compose()` and fluent `then()` for type-safe nested lens access (e.g. `address_lens.compose(street_lens)`).
+- **`Prism<S, A>` Composition**: Added `compose()` and fluent `then()` for type-safe nested sum-type access (e.g. `outer_prism.compose(inner_prism)`).
 
 ### Performance Optimizations
 
-- **`Validated<E, A>` SmallVec Capacity Reduced**
-  - Changed inline error storage from `SmallVec<[E; 8]>` to `[E; 4]`, preserving common-case performance while halving stack usage.
+- **`Validated<E, A>` SmallVec Capacity**: Changed inline error storage from `SmallVec<[E; 8]>` to `[E; 4]`, halving stack usage while preserving common-case performance.
 
-### Fixed - 0.11.1
+### Fixed
 
-- **Memoizer::with_capacity(0) Behavior**
-  - Zero capacity now creates a disabled cache instead of an unbounded one.
+- **Memoizer Zero Capacity**: `Memoizer::with_capacity(0)` creates a disabled cache instead of an unbounded one.
 
 ## [0.11.0]
 
-### Breaking Changes - 0.11.0
+### Breaking Changes
 
-- **`utils::hkt_utils::map_result` Consolidated**
-  - Consolidated into `categorical_utils`; `hkt_utils::map_result` remains a backward-compatible re-export. Prefer `categorical_utils::map_result`, which accepts `FnOnce` instead of `Fn`.
-- **`Validated<E, A>` Typeclass Cleanup**
-  - Removed `Monoid` (no lawful identity for accumulation), `AsRef<A>` (it panicked on `Invalid`), `MonadPlus`, and `Alternative`; use `Validated::valid(...)`, `Validated::as_ref()`/pattern matching, or `recover_all`, `recover_all_at_once`, and `sequence_owned` as appropriate.
-- **`Either<L, R>` Typeclass Cleanup**
-  - Removed `MonadPlus`; use `Alternative` for choice semantics.
-- **`Choice<T>` Typeclass Cleanup**
-  - Removed duplicate `MonadPlus`; migrate `mzero()` → `Alternative::empty_alt()` and `mplus()` → `alt()`. `Foldable` no longer requires `T: Clone`.
-- **`utils::error_utils` Module Removed**
-  - Moved `WithError`, `ResultExt`, `sequence`, `traverse`, and related utilities to `crate::error`; migrate `rustica::utils::error_utils::*` to `rustica::error::*` or `rustica::prelude::error::*`.
-- **Identity Trait and Implementations**
-  - Removed deprecated `Identity` and `traits::identity`, including implementations for `Id`, `Maybe`, `Either`, `Validated`, `Choice`, `PersistentVector`, `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, and `Writer`.
-- **Legacy `AppError` Utilities**
-  - Removed `AppError`, `error()`, and `error_with_context()`; route public error construction through `crate::error::ComposableError` and its context helpers.
+- **`utils::hkt_utils::map_result` Consolidated**: Consolidated into `categorical_utils` (which accepts `FnOnce` instead of `Fn`); `hkt_utils::map_result` remains a backward-compatible re-export.
+- **`Validated<E, A>` Typeclass Cleanup**: Removed `Monoid` (no lawful identity for accumulation), `AsRef<A>` (panicked on `Invalid`), `MonadPlus`, and `Alternative`; use `Validated::valid(...)`, `Validated::as_ref()`/pattern matching, or `recover_all`, `recover_all_at_once`, and `sequence_owned`.
+- **`Either<L, R>` Typeclass Cleanup**: Removed `MonadPlus`; use `Alternative` for choice semantics.
+- **`Choice<T>` Typeclass Cleanup**: Removed duplicate `MonadPlus`; migrate `mzero()` → `Alternative::empty_alt()` and `mplus()` → `alt()`. `Foldable` no longer requires `T: Clone`.
+- **`utils::error_utils` Module Relocated**: Moved `WithError`, `ResultExt`, `sequence`, `traverse`, and related utilities to `crate::error`; migrate imports to `rustica::error::*` or `rustica::prelude::error::*`.
+- **Identity Trait Removed**: Removed deprecated `Identity` and `traits::identity`, including implementations for `Id`, `Maybe`, `Either`, `Validated`, `Choice`, `PersistentVector`, `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, and `Writer`.
+- **Legacy `AppError` Utilities Removed**: Removed `AppError`, `error()`, and `error_with_context()`; route error construction through `crate::error::ComposableError` and context helpers.
 
-### Changed - 0.11.0
+### Changed
 
-- **Core Error Helper Cleanup**
-  - `Either::to_result` / `from_result` now delegate to `crate::error::{either_to_result, result_to_either}`
-  - `IO::try_get`, `IO::try_get_with_context`, and `Maybe::try_unwrap` now return `ComposableResult` for consistency
-
-- **Error Prelude Consolidation**
-  - `prelude::error` re-exports unified error module: `ComposableError`, `ComposableResult`, boxed variants, context utilities, `WithError`, `ResultExt`
-
-- **`Choice<T>` Documentation Clarification**
-  - `Semigroup::combine` and `Alternative::alt` share the same "merge alternatives" behavior for `Choice<T>`
-  - `flatten()` panics when the primary iterator is empty; use `try_flatten()` for a safe alternative
-
-- **`Choice<T>` Safe Methods Signature Changes**
-  - `try_remove_alternative()`, `try_flatten()`, and `try_swap_with_alternative()` now return `ChoiceError`-based `Result`s instead of `&'static str`; added non-panicking `try_first()`. Migrate to `ChoiceError` variants.
-- **`Either<L, R>` Safe Methods Added**
-  - Added `try_unwrap_left()`, `try_unwrap_right()`, `try_left_ref()`, and `try_right_ref()`, returning `Result<_, EitherError>` instead of panicking.
-- **`Validated<E, A>` Safe Methods Added**
-  - Added `try_unwrap()`, `try_unwrap_invalid()`, and `try_valid_ref()`, returning `Result<_, ValidatedError>` instead of panicking.
-- **New Error Types in `datatypes::error`**
-  - Added structured `ChoiceError` (`NoAlternatives`, `IndexOutOfBounds`, `EmptyPrimaryIterator`, `EmptyChoice`), `EitherError` (`ExpectedLeft`, `ExpectedRight`), and `ValidatedError` (`ExpectedValid`, `ExpectedInvalid`).
-- **Unused Trait Modules Removed**
-  - Removed unused placeholder modules `contravariant_functor`, `natural_transformation`, `profunctor`, and `representable`.
-
-- **`Validated<E, A>` Performance and API Improvements**
-  - `iter_errors()` now matches `iter_errors_mut()` with `ErrorsIter`; `collect()`/`collect_owned()` require only `C: FromIterator<A>`; direct `extend()` removes iterator overhead.
-  - Added zero-copy `as_option()`/`into_option()` while retaining `to_option()` (`A: Clone`), and async owned `fmap_valid_async_owned()`, `fmap_invalid_async_owned()`, and `and_then_async_owned()` using `FnOnce` to avoid clones.
-- **`PersistentVector<T>` Performance and API Improvements**
-  - Stack-based traversal reduces full iteration from O(n log n) to O(n); `fold_right` uses `DoubleEndedIterator`; and `get()`, indexing, borrowed iteration, and `Foldable` no longer require `T: Clone`.
-  - Added independent front/back cursors for efficient bidirectional `.rev()` chains.
-
-- **`Memoizer` Improvements**
-  - Added bounded O(1) LRU eviction via `with_capacity(max)`, statistics (`stats`, `hit_rate`, `reset_stats`, `max_capacity`), manual/fallible operations (`insert`/`try_insert`, `get_or_try_compute`, `touch`/`try_touch`), and `MemoizerError`-returning `try_*` methods for lock poisoning.
-  - Added `len`/`try_len`, `is_empty`/`try_is_empty`, `contains_key`/`try_contains_key`, `remove`/`try_remove`, `get`/`try_get`, `reserve`/`try_reserve`, `shrink_to_fit`/`try_shrink_to_fit`, `keys`/`try_keys`, `values`/`try_values`, `capacity`/`try_capacity`, and `clear`/`try_clear`.
-  - Fixed optimistic computation to return a concurrently cached value, disabled capacity-zero caches, and clarified `get()` versus `peek()` LRU semantics.
+- **Core Error Helper Cleanup**: `Either::to_result` / `from_result` delegate to `crate::error::{either_to_result, result_to_either}`. `IO::try_get`, `IO::try_get_with_context`, and `Maybe::try_unwrap` return `ComposableResult`.
+- **Error Prelude Consolidation**: `prelude::error` re-exports unified error module: `ComposableError`, `ComposableResult`, boxed variants, context utilities, `WithError`, `ResultExt`.
+- **`Choice<T>` Clarifications & Signatures**: Documented that `Semigroup::combine` and `Alternative::alt` share the same "merge alternatives" behavior. `flatten()` panics on empty primary iterators (use `try_flatten()` for safe alternative). `try_remove_alternative()`, `try_flatten()`, and `try_swap_with_alternative()` return `Result<_, ChoiceError>`; added non-panicking `try_first()`.
+- **Safe Extraction Methods Added**:
+  - `Either<L, R>`: Added `try_unwrap_left()`, `try_unwrap_right()`, `try_left_ref()`, and `try_right_ref()`, returning `Result<_, EitherError>`.
+  - `Validated<E, A>`: Added `try_unwrap()`, `try_unwrap_invalid()`, and `try_valid_ref()`, returning `Result<_, ValidatedError>`.
+- **New Structured Error Types**: Added `ChoiceError` (`NoAlternatives`, `IndexOutOfBounds`, `EmptyPrimaryIterator`, `EmptyChoice`), `EitherError` (`ExpectedLeft`, `ExpectedRight`), and `ValidatedError` (`ExpectedValid`, `ExpectedInvalid`) in `datatypes::error`.
+- **Unused Placeholder Modules Removed**: Removed `contravariant_functor`, `natural_transformation`, `profunctor`, and `representable`.
+- **`Validated<E, A>` Optimizations**: Aligned `iter_errors()` with `iter_errors_mut()` using `ErrorsIter`; `collect()`/`collect_owned()` require only `C: FromIterator<A>`; direct `extend()` removes iterator overhead; added zero-copy `as_option()`/`into_option()`; added async owned `fmap_valid_async_owned()`, `fmap_invalid_async_owned()`, and `and_then_async_owned()` using `FnOnce`.
+- **`PersistentVector<T>` Optimizations**: Reduced full iteration from $O(n \log n)$ to $O(n)$ via stack traversal; `fold_right` uses `DoubleEndedIterator`; removed `T: Clone` requirement from `get()`, indexing, borrowed iteration, and `Foldable`; added bidirectional front/back cursors.
+- **`Memoizer` Improvements**: Added bounded $O(1)$ LRU eviction via `with_capacity(max)`, statistics (`stats`, `hit_rate`, `reset_stats`, `max_capacity`), manual/fallible operations (`insert`/`try_insert`, `get_or_try_compute`, `touch`/`try_touch`), map methods (`len`, `contains_key`, `remove`, `get`, `reserve`, `shrink_to_fit`, `keys`, `values`, `capacity`, `clear` and fallible `try_*` variants for lock poisoning). Fixed optimistic computation and clarified `get()` vs `peek()` LRU semantics.
 
 ## [0.10.2]
 
-### Deprecated - 0.10.2
+### Deprecated
 
-- **`Choice<T>` Utility Methods**
-  - Deprecated until v0.12.0: `has_alternatives()` (use `!alternatives().is_empty()`), `to_vec()` (use `Into::<Vec<T>>::into()` or `.iter().cloned().collect()`), `find_first()` (use `iter().find()`), `dedup()`/`dedup_by_key()` (use external iteration), `fold()` (use `Foldable::fold_left`/`fold_right`), `to_map_with_key()` (use `iter().map().collect()`), `add_alternatives()` (use `Semigroup::combine()` or Monoid operations), `remove_alternative()`/`try_remove_alternative()` (use `filter_values()`), `filter()` (use `filter_values()`), `fmap_alternatives()` (use `fmap()` or external iteration), `flatten_sorted()` (use `flatten()` then sort), `iter_alternatives()` (use `alternatives().iter()`), `swap_with_alternative()`/`try_swap_with_alternative()` (use external patterns), and `bind_lazy()` (use `bind()` with `into_iter()` or `flat_map`).
-- **Legacy Error Utilities (`utils::error_utils`)**
-  - Deprecated in favor of `crate::error`: `result_to_either()` → `crate::error::result_to_either()`, `either_to_result()` → `crate::error::either_to_result()`, `ResultExt::to_validated()` → `crate::error::result_to_validated()`, `ResultExt::to_either()` → `crate::error::result_to_either()`, and `ResultExt::bimap()` → `crate::error::ErrorOps::bimap_result()`.
-  - Deprecated `AppError<M, C>` and `error()`/`error_with_context()` in favor of `ComposableError` and `ComposableError::new(...).with_context(...)`.
+- **`Choice<T>` Utility Methods**: Deprecated until v0.12.0: `has_alternatives()` (use `!alternatives().is_empty()`), `to_vec()` (use `Into::<Vec<T>>::into()` or `.iter().cloned().collect()`), `find_first()` (use `iter().find()`), `dedup()`/`dedup_by_key()` (use external iteration), `fold()` (use `Foldable::fold_left`/`fold_right`), `to_map_with_key()` (use `iter().map().collect()`), `add_alternatives()` (use `Semigroup::combine()` or Monoid operations), `remove_alternative()`/`try_remove_alternative()` (use `filter_values()`), `filter()` (use `filter_values()`), `fmap_alternatives()` (use `fmap()` or external iteration), `flatten_sorted()` (use `flatten()` then sort), `iter_alternatives()` (use `alternatives().iter()`), `swap_with_alternative()`/`try_swap_with_alternative()` (use external patterns), and `bind_lazy()` (use `bind()` with `into_iter()` or `flat_map`).
+- **Legacy Error Utilities (`utils::error_utils`)**: Deprecated in favor of `crate::error`: `result_to_either()` → `crate::error::result_to_either()`, `either_to_result()` → `crate::error::either_to_result()`, `ResultExt::to_validated()` → `crate::error::result_to_validated()`, `ResultExt::to_either()` → `crate::error::result_to_either()`, and `ResultExt::bimap()` → `crate::error::ErrorOps::bimap_result()`. Deprecated `AppError<M, C>` and `error()`/`error_with_context()` in favor of `ComposableError`.
 
-### Breaking Changes - 0.10.2
+### Breaking Changes
 
-- **Composable Error Helpers Replace `AppError` in Core Datatypes/Transformers**
-  - `State`, `Maybe`, `IO`, `ReaderT`, and `StateT` `try_*` helpers now return `ComposableResult`/`ComposableError`. Legacy types, constructors, and examples were removed; migrate to `core_error()` and `context()` (context stacks compare as `Vec<String>`).
-- **`src/error` Module API Changes**
-  - Removed redundant `with_context_result_boxed()`; use `with_context_result()`.
-  - `ErrorPipeline::finish()` now returns `Result<T, Box<ComposableError<E>>>` instead of `Result<T, ComposableError<E>>`, enabling deep buffering without large `Result` values or stack-overflow risk.
-- **`Validated` Error Handling API Changes**
-  - Removed its `ErrorOps` implementation because `ErrorOps::recover` conflicts with accumulation; use `recover_all` or `recover_all_at_once` in `src/datatypes/validated/core.rs`.
+- **Composable Error Helpers**: `State`, `Maybe`, `IO`, `ReaderT`, and `StateT` `try_*` helpers return `ComposableResult`/`ComposableError`. Removed legacy types, constructors, and examples; migrate to `core_error()` and `context()`.
+- **`src/error` Module API Changes**: Removed redundant `with_context_result_boxed()` in favor of `with_context_result()`. `ErrorPipeline::finish()` returns `Result<T, Box<ComposableError<E>>>` instead of `Result<T, ComposableError<E>>`.
+- **`Validated` Error Handling**: Removed `ErrorOps` implementation due to accumulation conflict; use `recover_all` or `recover_all_at_once`.
 
-### Changed - 0.10.2
+### Changed
 
-- **`Choice<T>` Refocused on Core Categorical Operations**
-  - Retained the essential Functor/Applicative/Monad/MonadPlus API: `new`, `new_empty`, `first`, `alternatives`, `len`, `is_empty`, `filter_values`, `flatten`, `try_flatten`, `of_many`, `iter`, and trait implementations; deprecated utility methods to reduce the surface.
-- **`Choice<T>` Memory Management Optimization**
-  - Replaced `Arc<SmallVec<[T; 8]>>` with directly owned `SmallVec<[T; 8]>`, eliminating reference-counting/copy-on-write overhead and broken `Arc::try_unwrap` paths. This improves `filter`/`map`/`bind`, reduces small-choice memory by ~40%, and preserves stack storage/cache locality for ≤8 items.
-- **`AsyncM` Performance Optimization**
-  - Added Cats Effect/ZIO-inspired Pure and Pure+Pure fast paths (including `apply`/`zip_with`), aggressive inlining, and an `AsyncMInner` Pure/Lazy enum. Specialized `fmap`, `bind`, `apply`, and `zip_with` paths reduce `Arc` cloning and lazy-only matching.
-- **`IO` Changes**
-  - **Breaking Change**: `apply` now follows the Applicative pattern `IO<A>.apply(IO<Fn(A) -> B>) -> IO<B>`; the former `IO<A>.apply(Fn(A) -> IO<B>)` alias for `bind` was removed.
-  - Added AsyncM-inspired Pure+Pure and mixed Pure/Effect fast paths, aggressive inlining, optimized `new`/`run`/`pure`/`fmap`/`bind`/`apply`/`is_pure`/`is_effect`, and Pure-vs-Effect benchmarks.
-- **`src/error` Module Performance Optimization**
-  - Removed `with_context()` closure overhead via inline matching and buffered contexts in `SmallVec<[String; 4]>` rather than transforming each `Result<T, E>` immediately. `map`, `and_then`, `recover`, and `map_error` preserve buffers; `finish()` returns `Result<T, Box<ComposableError<E>>>`.
-  - Standardized context functions on `Into<String>`; `ComposableError` keeps O(1) `push()` storage and backward-compatible most-recent-first ordering while preserving categorical correctness.
-- **`Validated` Error Accumulation Optimizations**
-  - Added reusable `ErrorAccumulator` storage backed by `SmallVec<[E; 8]>`, owned `combine_errors_owned`/`sequence_owned`/`collect_owned` variants, zero-copy `error_slice`/`error_buffer_mut` accessors, and iterator improvements without `Clone` bounds. Documented the borrowed/owned split and added regression tests.
+- **`Choice<T>` Categorical API Focus**: Retained essential Functor/Applicative/Monad/MonadPlus API (`new`, `new_empty`, `first`, `alternatives`, `len`, `is_empty`, `filter_values`, `flatten`, `try_flatten`, `of_many`, `iter`); deprecated auxiliary utility methods.
+- **`Choice<T>` Memory Optimization**: Replaced `Arc<SmallVec<[T; 8]>>` with owned `SmallVec<[T; 8]>`, removing reference-counting overhead and broken `try_unwrap` paths while reducing small-choice memory by ~40%.
+- **`AsyncM` Optimization**: Added Pure and Pure+Pure fast paths (including `apply`/`zip_with`), inlining, and `AsyncMInner` Pure/Lazy enum, reducing `Arc` cloning.
+- **`IO` Applicative Signature & Optimization**:
+  - **Breaking**: Changed `apply` to standard Applicative `IO<A>.apply(IO<Fn(A) -> B>) -> IO<B>`, removing former `bind` alias `IO<A>.apply(Fn(A) -> IO<B>)`.
+  - Added Pure+Pure and mixed Pure/Effect fast paths, inlining, and optimized runners.
+- **Error Performance**: Inline context matching and buffering in `SmallVec<[String; 4]>` in `src/error`; standardized context inputs on `Into<String>`.
+- **`Validated` Accumulation Optimization**: Reusable `ErrorAccumulator` backed by `SmallVec<[E; 8]>`, owned `combine_errors_owned`/`sequence_owned`/`collect_owned` variants, zero-copy `error_slice`/`error_buffer_mut` accessors, and non-`Clone` iterators.
 
 ## [0.10.1]
 
-### Breaking Changes - 0.10.1
+### Breaking Changes
 
-- **Identity Trait Deprecation**
-  - Deprecated `Identity` because of design flaws; `Functor` now extends `HKT` directly, and `id()` moved to `utils::functions`. Added `MIGRATION_v0.11.0.md`.
+- **Identity Trait Deprecation**: Deprecated `Identity` in favor of `Functor` directly extending `HKT`; moved `id()` to `utils::functions` (scheduled for removal in v0.12.0; use `unwrap()`, `as_ref()`, or `Comonad::extract()`). Added `MIGRATION_v0.11.0.md`.
 
-### Added - 0.10.1
+### Added
 
-- **Function Utilities**
-  - Added `utils::functions::{id, const_fn}`.
-- **Documentation**
-  - Documented `PersistentVector`, added `pipe` to `utils::transform_utils`, and added the migration guide.
-- **Enhanced IO Monad Error Handling**
-  - Integrated `src/error` with `try_get_composable()`, `try_get_composable_with_context()`, `into_error_pipeline()`, `recover()`, `recover_with()`, and `sequence_composable()`.
-  - Added `ComposableError` context stacking and preserved full error chains/context through IO; `ErrorPipeline` provides type-safe transformations after `Result` extraction while retaining `try_get()` compatibility.
+- Added `utils::functions::{id, const_fn}`.
+- Documented `PersistentVector`, added `pipe` to `utils::transform_utils`, and added migration guide.
+- Integrated `src/error` with `IO`: added `try_get_composable()`, `try_get_composable_with_context()`, `into_error_pipeline()`, `recover()`, `recover_with()`, and `sequence_composable()`. Full error chains and context are preserved through IO.
 
-### Changed - 0.10.1
+### Changed
 
-- **IO Error Semantics**
-  - Updated ComposableError documentation, recovery guidance, and Quick Start examples.
+- Updated `ComposableError` documentation, recovery guidance, and Quick Start examples.
 
-### Fixed - 0.10.1
+### Fixed
 
-- **Category Theory Compliance**
-  - `Functor` now extends only `HKT`, separating value extraction from functor operations.
-- **compose function order**
-  - Fixed compose order in tests.
-- **Error Handling Doctests**
-  - Fixed `map_error` doctests by removing problematic methods and improving examples.
-
-### Deprecated - 0.10.1
-
-- **Identity Trait**
-  - Deprecated until v0.12.0; use `unwrap()`, `as_ref()`, or `Comonad::extract()`.
+- Category Theory Compliance: `Functor` extends only `HKT`, separating value extraction from functor operations.
+- Fixed compose function order in tests.
+- Fixed `map_error` doctests by removing problematic methods.
 
 ## [0.10.0]
 
-### Added - 0.10.0
+### Added
 
-- **Wrapper From/Into trait implementation**
-  - Added direct `From<T>`/`Into<T>` support for `Sum<T>`, `Product<T>`, `Min<T>`, `Max<T>`, and `Value<T>`, plus `From<Option<T>>` for `First<T>` and `Last<T>`.
-- **Monoid utility function**
-  - Added `fold_with`, which converts iterator items via `From<T>`, uses the first item when present, and `Monoid::empty()` for empty input.
-- **Function Category implementation**
-  - Added `FunctionCategory` implementing `Category` and `Arrow` for Rust functions.
+- Added `From<T>`/`Into<T>` for `Sum<T>`, `Product<T>`, `Min<T>`, `Max<T>`, and `Value<T>`, plus `From<Option<T>>` for `First<T>` and `Last<T>`.
+- Added `fold_with` monoid utility converting iterator items via `From<T>` (falling back to `Monoid::empty()`).
+- Added `FunctionCategory` implementing `Category` and `Arrow` for Rust functions.
 
-### Changed - 0.10.0
+### Changed
 
-- **Category trait inheritance removed from HKT**
-  - `Category` now handles morphism composition independently; `HKT` remains focused on type constructors.
-- **Increased default stack size for `Validated` from 4 to 8 elements** to reduce heap allocation.
-- **Change and simplify `PersistentVector`**
-  - Removed `with_cache_policy`, `from_slice_with_cache_policy`, `with_chunk_size`, `ChunkIter`, and the `pvec` feature; chunk size is fixed at 64.
-- **MSRV updated to 1.88.0**
+- Separated `Category` morphism composition from `HKT` type constructors.
+- Increased default stack size for `Validated` from 4 to 8 elements to reduce heap allocations.
+- Simplified `PersistentVector`: removed `with_cache_policy`, `from_slice_with_cache_policy`, `with_chunk_size`, `ChunkIter`, and the `pvec` feature; chunk size is fixed at 64.
+- Updated MSRV to 1.88.0.
 
-### Removed - 0.10.0
+### Removed
 
-- [BREAKING CHANGE] Removed `Foldable` implementations from monoid wrappers, `Composable`, `Value`, and `PersistentVector::to_arc()`; use `Arc::new(vector)` for standard Arc wrapping.
+- **[Breaking]**: Removed `Foldable` implementations from monoid wrappers, `Composable`, `Value`, and `PersistentVector::to_arc()`; use `Arc::new(vector)` directly.
 
 ## [0.9.0]
 
-### Added - 0.9.0
+### Added
 
-- **Prism structural sharing optimization methods**
-  - Added `modify` method to `Prism` for structural sharing optimization: returns the original structure if the value is unchanged after transformation, avoiding unnecessary allocations and copies.
-  - Added `set_if_different` method to `Prism`: only creates a new structure if the new value differs from the current value.
-  - Both methods require `S: Clone` and `A: PartialEq` constraints for efficient comparison and sharing.
-  - Enhanced documentation with practical usage examples.
+- Added `modify` and `set_if_different` to `Prism` for structural sharing optimization (requires `S: Clone` and `A: PartialEq`).
 
-### Change - 0.9.0
+### Breaking Changes
 
-#### BREAKING CHANGES - 0.9.0
+- Redesigned `Applicative` trait to align with category theory:
+  - `apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>` where `Self::Source: Fn(&T) -> B` (function is in applicative context `F(A -> B)`).
+  - `lift2<B, C, F>(&self, f: F, fb: &Self::Output<B>) -> Self::Output<C>` (function parameter comes first).
+  - `lift3<B, C, D, F>(&self, f: F, fb: &Self::Output<B>, fc: &Self::Output<C>) -> Self::Output<D>` (function parameter comes first).
 
-- **Complete redesign of `Applicative` trait** to align with mathematical definition from category theory
-- **Method signature changes**:
-  - `apply<T, B>(&self, value: &Self::Output<T>) -> Self::Output<B>` where `Self::Source: Fn(&T) -> B`
-    - Function is now IN the applicative context (F(A->B)), value is the parameter
-  - `lift2<B, C, F>(&self, f: F, fb: &Self::Output<B>) -> Self::Output<C>`
-    - Function parameter now comes FIRST (matches Haskell/Cats convention)
-  - `lift3<B, C, D, F>(&self, f: F, fb: &Self::Output<B>, fc: &Self::Output<C>) -> Self::Output<D>`
-    - Function parameter now comes FIRST
+### Removed
 
-### Removed - 0.9.0
-
-- remove quickcheck in full feature flag
+- Removed `quickcheck` from `full` feature flag.
 
 ## [0.8.0]
 
-### Changed - 0.8.0
+### Changed
 
-- Upgraded to Rust 2024 edition with minimum supported version 1.87.0
+- Upgraded to Rust 2024 edition (MSRV 1.87.0).
+- Clarified `Choice` filter semantics: `filter` applies only to alternatives (preserving primary), while `filter_value` applies to all values including primary.
 
-- **`Choice` Filter Methods Clarification** (`src/datatypes/choice.rs`)
-  - Established clear division of responsibilities between filter methods:
-    - `filter`: Only applies the predicate to alternative values, always preserves the primary value
-    - `filter_value`: Applies the predicate to all values including primary
-  - Updated documentation and tests to reflect this design decision
+### Removed
 
-### Removed - 0.8.0
+- Removed `IdentityExt` trait from `traits/identity.rs`.
 
-- removed `IdentityExt` trait from `traits/identity.rs`
+### Fixed
 
-### Fixed - 0.8.0
-
-- **`Choice::flatten()` Ordering Logic** (`src/datatypes/choice.rs`)
-
-  - Corrected the implementation of `flatten` to match its documentation. The new alternatives now correctly consist of the remaining items from the primary iterator, followed by the items from the alternatives' iterators.
-
-- **`IsoLens` API and Constraint Refinements** (`src/datatypes/iso_lens.rs`)
-
-  - **API Consistency:** The `set` method signature was changed from `set(&self, _s: &S, a: &A) -> S` to `set(&self, a: &A) -> S`, removing the redundant `_s` parameter as the `Iso`'s `backward` method inherently reconstructs `S` from `A`.
-  - **Type Constraints:** The `S: Clone` and `A: Clone` type constraints were moved to the main `impl<S, A, L> IsoLens<S, A, L>` block, enhancing generality and removing redundancy from individual methods.
-  - **`modify` Method:** The `modify` method was updated to use the new `set` signature and its closure signature was corrected to `F: FnOnce(A) -> A` for accurate ownership transfer.
-  - Documentation examples were updated to reflect these API changes.
-  - **Documentation Clarity:** Added a "Semantic Note" to `IsoLens` documentation, explaining how the `Iso`'s target type `A` (typically `(FocusType, S_Context)`) enables traditional lens behavior by allowing reconstruction of `S` while preserving non-focused parts.
-  - **Ergonomic Helper (`set_focus`):** Introduced `set_focus(&self, s: &S, new_focus_value: &FocusType) -> S` method for `IsoLens<S, (FocusType, S), L>`. This provides a more direct way to update the focused part, reducing boilerplate for common use cases.
-  - **Ergonomic Helper (`modify_focus`):** Added `modify_focus<F>(&self, s: &S, f: F) -> S` method for `IsoLens<S, (FocusType, S), L>`, where `F: FnOnce(FocusType) -> FocusType`. This complements `set_focus` by allowing direct, efficient transformation of the focused part.
-
-- **`Validated` Datatype Refinement & Enhancement**
-  - **Documentation Overhaul:**
-    - Added a comprehensive, real-world "User Registration" example to demonstrate applicative validation for forms.
-    - Included detailed explanations for type parameter constraints (e.g., why `E: Clone` is often needed) and the behavior of trait implementations like `Alternative::empty`.
-  - **API Safety and Ergonomics:**
-    - Introduced `into_value()` and `into_error_payload()` as safe, non-panicking methods to consume a `Validated` instance and extract its contents.
-    - Added `unwrap_invalid_owned()` for ownership-based, panicking extraction of errors.
-    - Clarified the distinction between `invalid_vec` (panics on empty input) and `invalid_many` (handles empty input gracefully) with improved documentation and examples.
-  - **Performance Optimization:**
-    - Added `fmap_invalid_owned`, an ownership-taking variant of `fmap_invalid`, to avoid unnecessary cloning of the `Valid` value.
-    - Added `value()` and `error_payload()` methods to provide non-cloning, read-only access to the contained data.
-- **`Validated` Test Suite Refactoring & API Cleanup**
-
-  - The test suite for `Validated` (`tests/datatypes/test_validated.rs`) has been completely refactored into a modular structure for improved clarity, maintainability, and coverage.
-  - Trait law tests, panic tests, scenario tests, and property-based tests are now organized into distinct modules.
-  - Removed the `std_error` feature and its associated helper methods (`first_error_source`, `iter_error_sources`) to streamline the API.
-
-- **`Sum` Wrapper Refinement** (`src/datatypes/wrapper/sum.rs`)
-  - Internal implementation details of the `Sum` wrapper have been encapsulated.
-  - Direct construction via `new` and direct access to the `inner` value are no longer part of the public API, promoting the use of trait-based operations (e.g., `Monoid::empty()`, `Semigroup::combine()`).
-  - Enhanced performance-related documentation with more diverse examples and clearer explanations of its use as a monoidal accumulator.
+- Fixed `Choice::flatten()` ordering: alternatives consist of remaining items from primary iterator followed by items from alternatives' iterators.
+- Refined `IsoLens`: changed `set` signature to `set(&self, a: &A) -> S` (removing redundant `_s`), moved `Clone` bounds to impl block, corrected `modify` closure to `FnOnce(A) -> A`, and added `set_focus` and `modify_focus` helpers.
+- Enhanced `Validated`: added safe `into_value()` and `into_error_payload()` accessors, panicking `unwrap_invalid_owned()`, zero-copy `fmap_invalid_owned()`, and non-cloning `value()` and `error_payload()`; removed `std_error` feature and source helpers.
+- Modularized `Validated` test suite (`tests/datatypes/test_validated.rs`) into distinct trait law, panic, scenario, and property test modules.
+- Encapsulated `Sum` wrapper internals: removed direct `new` and `inner` access in favor of monoid trait operations.
 
 ## [0.7.1]
 
-### Added - 0.7.1
+### Added
 
-- **Thread-safe Memoizer**
-  - Introduced `Memoizer<K, V>` in `wrapper/memoizer.rs` as a new, ergonomic, and efficient thread-safe memoization utility.
-  - Uses `RwLock<HashMap<K, V>>` for concurrent caching of pure function results.
-  - Provides a unified API (`get_or_compute`, `clear`) for safe, concurrent memoization.
-  - Includes comprehensive documentation and doctests for both single-threaded and multi-threaded use cases.
-  - Deprecated the old `ThreadSafeMemoizeFn` in favor of this new implementation.
-- **Path Caching for PersistentVector Tree**
-  - Implemented path/range caching in the internal tree structure for `PersistentVector`.
-  - Added `get_with_path` and `get_by_path` methods to `Node<T>` to record and utilize traversal paths and ranges for efficient repeated access.
-  - The tree’s `get_with_cache` now records and reuses traversal paths, improving cache hit performance for repeated or nearby accesses.
-  - Added validation logic `validate_cache_path` to ensure cached paths/ranges are only used when still valid for the current tree structure.
-  - Tree modifications (push, update, split, etc.) automatically invalidate the cache to prevent stale accesses.
+- **Thread-safe Memoizer**: Introduced `Memoizer<K, V>` in `wrapper/memoizer.rs` using `RwLock<HashMap<K, V>>` (`get_or_compute`, `clear`), deprecating `ThreadSafeMemoizeFn`.
+- **PersistentVector Path Caching**: Implemented path/range caching in RRB tree via `Node::get_with_path` and `get_by_path`; `get_with_cache` reuses traversal paths and invalidates cache on tree modifications.
 
-### Changed - 0.7.1
+### Changed
 
-- **Writer Monad Refactoring**
-  - Replaced the recursive LogThunk structure with direct log accumulation in the Writer struct.
-  - Eliminated risk of stack overflow and memory leaks from deep thunk chains.
-  - Simplified log combination logic to use immediate Monoid operations.
+- **Writer Monad Refactoring**: Replaced recursive `LogThunk` with direct log accumulation in `Writer`, eliminating stack overflow risks and using immediate `Monoid` combination.
 
-### Improvements & Bug Fixes - 0.7.1
+### Fixed
 
-- Added validation logic for path/ranges cache in PersistentVector tree.
-  - Now, when the tree structure changes or if the cached path/ranges are no longer valid, the cache is safely treated as a miss.
-  - Introduced the `validate_cache_path` method, which ensures that the cached path and ranges match the current tree structure before using the cache in `get_with_cache`.
-  - Tree-modifying operations (such as push, update, etc.) continue to invalidate the cache to ensure consistency.
+- Added `validate_cache_path` to `PersistentVector` tree to verify cached path and ranges against tree structure, safely treating stale entries as cache misses.
 
 ## [0.7.0]
 
-### Added - 0.7.0
+### Added
 
-- Added `iso_lens.rs` and `iso_prism.rs` for Iso-based optics (Lens/Prism) with lawful composition, full documentation, and doctest examples.
-- `IsoLens` and `IsoPrism` now support lawful composition for deep, type-safe focusing into nested product/sum types.
-- **MonadPlus** and **Alternative** traits implemented for core datatypes:
-  - `Maybe<T>`, `Either<L, R>`, `Validated<E, A>`, `Choice<T>`: All now support monadic choice, failure, and error accumulation where appropriate.
-  - `Alternative` trait: Supported for `Maybe<T>`, `Either<L, R>` (with `L: Default`), `Validated<E, A>` (with `E: Default`).
-- `Choice<T>::flatten_sorted()`: Flattens and sorts alternatives; see below for example.
-- Iterator support (`IntoIterator`) for all core datatypes: `Maybe`, `Validated`, `Id`, `Writer`, `Either` (including left/right iterators). All implementations are documented and tested for idiomatic Rust usage.
+- Added `iso_lens.rs` and `iso_prism.rs` for Iso-based optics (`Lens`/`Prism`) with lawful composition.
+- Implemented `MonadPlus` and `Alternative` for `Maybe<T>`, `Either<L, R>`, `Validated<E, A>`, and `Choice<T>`.
+- Added `Choice<T>::flatten_sorted()` to flatten and sort alternatives.
+- Implemented `IntoIterator` for `Maybe`, `Validated`, `Id`, `Writer`, and `Either`.
+- Enhanced `NaturalTransformation` trait with documentation, `transform_owned`, and `identity_nat`.
 
-  Example:
+### Breaking Changes
 
-  ```rust
-  let nested = Choice::new(vec![3, 1], vec![vec![5, 2], vec![4]]);
-  let flat = nested.flatten_sorted();
-  assert_eq!(*flat.first().unwrap(), 3);
-  assert_eq!(flat.alternatives(), &[1, 2, 4, 5]);
-  ```
+- **Unified Transformer-to-Base Conversions via `From`**:
+  - Removed `to_state`, `to_state_t`, `from_state_t`, `to_reader`, `from_reader`, `to_cont`, `from_cont` from `State`, `Reader`, and `Cont`.
+  - Standardized conversions via `From`/`Into`:
+    - `From<ReaderT<E, Id<A>, A>> for Reader<E, A>`
+    - `From<StateT<S, Id<(A, S)>, A>> for State<S, A>`
+    - `From<ContT<R, Id<R>, A>> for Cont<R, A>`
+  - Migration example:
 
-### Changed - 0.7.0
+    ```rust
+    let base: State<i32, i32> = State::from(state_t);
+    let cont: Cont<i32, i32> = cont_t.into();
+    let reader: Reader<i32, i32> = reader_t.into();
+    ```
 
-- **[Breaking] Changed `Choice<T>::flatten()` behavior:**
-  - Now preserves original order; sorting is provided by `flatten_sorted()`.
-- **[Breaking] Refactored `Validated` datatype:**
-  - Unified invalid cases, now uses iterators for error accumulation.
-- **[Breaking] Removed `to_state`, `to_state_t`, `from_state_t`, `to_reader`, `from_reader`, `to_cont`, `from_cont` methods from State/Reader/Cont:**
-  - All transformer-to-base conversions are now handled via the `From` trait (see below for migration).
-- **[Breaking] Removed WriterT transformer:**
-  - The WriterT transformer and all related code have been deleted.
-  - WriterT is rarely useful in practical Rust code; most logging/accumulation use-cases are better served by explicit fields or iterators.
-  - If monadic logging is needed, consider direct accumulation patterns or external loggers instead.
-- **[Breaking] Refactored the `prelude` module:**
-  - Prelude is now split into multiple logical modules: `traits`, `traits_ext`, `datatypes`, `wrapper`, `transformer`, and `utils` under `src/prelude/`.
-  - Added `prelude::traits_ext` for extension traits (e.g., `EvaluateExt`, `FunctorExt`, etc.).
-  - Users can now selectively import only the needed prelude components, improving ergonomics and compile times.
-  - Top-level `prelude` now re-exports all submodules for convenience.
-- **Enhanced `NaturalTransformation` trait:**
-  - Added documentation, usage examples, and improved ergonomics.
-
-## [Unifying Transformer Conversions]
-
-### Breaking Change: Unified Transformer-to-Base Conversions via `From` Trait
-
-- All conversions from transformer types to their respective base types are now standardized using the `From` trait:
-  - `From<ReaderT<E, Id<A>, A>> for Reader<E, A>`
-  - `From<StateT<S, Id<(A, S)>, A>> for State<S, A>`
-  - `From<ContT<R, Id<R>, A>> for Cont<R, A>`
-- Legacy conversion methods such as `to_reader`, `from_reader`, `to_state`, `from_state`, `to_cont`, `from_cont` have **all been removed** from the codebase.
-- This change ensures a clear, unified, and idiomatic Rust API for all monad/transformer conversions.
-
-#### Migration Guide
-
-- To convert from a transformer to a base type, use the `From` trait or `.into()`:
-
-  ```rust
-  let base: State<i32, i32> = State::from(state_t);
-  let cont: Cont<i32, i32> = cont_t.into();
-  let reader: Reader<i32, i32> = reader_t.into();
-  ```
-
-- Update any code using the removed methods to use the `From` trait or `.into()` instead.
+- Changed `Choice<T>::flatten()` to preserve original order (use `flatten_sorted()` for sorting).
+- Refactored `Validated` to unify invalid cases using iterator-based error accumulation.
+- Removed `WriterT` transformer.
+- Refactored `prelude` into submodules (`traits`, `traits_ext`, `datatypes`, `wrapper`, `transformer`, `utils`).
 
 ## [0.6.4] - 2025-04-18
 
-### Changed - 0.6.4
+### Changed
 
-- **Continuation Monad (`Cont`) Refactored**
-  - `Cont` is now implemented as a thin wrapper over the more general `ContT` (Continuation Monad Transformer).
-  - All core logic and methods (`new`, `run`, `pure`, `bind`, `fmap`, `apply`, `call_cc`, etc.) delegate to `ContT` for improved modularity and code reuse.
-  - This refactor enables seamless integration with other monads and makes the continuation monad implementation more idiomatic and extensible.
-  - The public API remains mostly unchanged, but closure signatures for `Cont::new` are now more ergonomic and consistent with transformer usage.
-  - Comprehensive documentation and tests updated to reflect the new structure.
+- Reimplemented `Cont` as a thin wrapper delegating core operations (`new`, `run`, `pure`, `bind`, `fmap`, `apply`, `call_cc`) to `ContT`; updated closure signatures for `Cont::new` to match transformer conventions.
 
 ## [0.6.3] - 2025-04-17
 
-### Added - 0.6.3
+### Added
 
-- **Continuation Monad Transformer (`ContT`)**
-  - Introduced `ContT<R, M, A>`, a monad transformer version of the continuation monad.
-  - Provides core methods: `new`, `run`, `pure`, `bind`, `fmap`, `apply`, `call_cc`, and `lift`.
-  - Implements the `MonadTransformer` trait for seamless integration with other monads.
-  - Comprehensive documentation and usage examples included.
-  - Fixes and improvements for trait bounds and closure handling for safe, idiomatic Rust.
+- Introduced `ContT<R, M, A>` (Continuation Monad Transformer) with core methods (`new`, `run`, `pure`, `bind`, `fmap`, `apply`, `call_cc`, `lift`) and `MonadTransformer` implementation.
 
 ## [0.6.2] - 2025-04-17
 
-### Added - 0.6.2
+### Added
 
-- **Flexible caching policy system for PersistentVector**
-  - Added `CachePolicy` with `AlwaysCache`, `NeverCache`, `EvenIndexCache`, dynamic `with_cache_policy`/`from_slice_with_cache_policy` APIs, and custom-strategy documentation.
+- Added `CachePolicy` (`AlwaysCache`, `NeverCache`, `EvenIndexCache`) and dynamic cache policy constructors (`with_cache_policy`, `from_slice_with_cache_policy`) for `PersistentVector`.
+- Added `is_empty_monoid()`, `repeat`, `mconcat`, and `power` to `Monoid`; implemented `Comonad` for `Option`, `Result`, and `Maybe`.
+- Added `ResultValidatedIso` and converted `Iso` static methods to instance methods.
 
-### Changed - 0.6.2
+### Changed
 
-- **Persistent Vector Improvements**
-  - Optimized performance/memory, refactored API/docs, added `Index<usize>`/`IntoIterator`, and expanded indexing, iteration, and edge-case tests.
-- **Error Handling Standardization**
-  - Unified errors around `AppError` from `error_utils.rs`, replaced most panics with composable `Result`s, and added contextual error documentation.
-- **Monoid & Comonad Enhancements**
-  - Added `is_empty_monoid()`, `repeat`, `mconcat`, and `power`; implemented `Comonad` for `Option`, `Result`, and `Maybe`.
-- **Iso Trait Enhancements**
-  - Added `ResultValidatedIso` and changed static methods to instance methods for composability.
+- Optimized `PersistentVector` memory and performance; added `Index<usize>` and `IntoIterator`.
+- Standardized error handling around `AppError` from `error_utils.rs`, replacing panics with composable `Result`s.
+- Refactored `IO<A>` around `Arc<dyn Fn()>`; `delay` uses `std::thread::sleep` and `delay_efficient` uses `spin_sleep`.
+- Consolidated `cache`, `chunk`, and `memory` into `memory.rs`.
 
-### Fixed - 0.6.2
+### Fixed
 
-- SmallVec slice initialization now uses a compatibility-preserving loop.
-
-### Refactored - 0.6.2
-
-- Unified `cache`, `chunk`, and `memory` in `memory.rs`; removed dead code and improved formatting.
-
-### IO Monad Improvements - 0.6.2
-
-- Refactored `IO<A>` around `Arc<dyn Fn()>`; `pure`, `delay`, and `delay_efficient` minimize repeated-run cloning. `delay_efficient` uses `spin_sleep`, while `delay` uses `std::thread::sleep`.
-- Documented blocking/spinning trade-offs, async/await extensions, error handling, and large-chain performance; improved doctests.
+- Fixed `SmallVec` slice initialization with compatibility-preserving loop.
 
 ## [0.6.1]
 
-### Added - 0.6.1
+### Added
 
-- Added inline storage for PersistentVector vectors ≤8 elements (up to 97% faster empty creation and ~5% faster pushes), plus `pop_back`, `to_arc`, expanded docs/doctests/README guidance, and async-feature `par_map` via Rayon.
+- Added inline storage for `PersistentVector` with $\le 8$ elements, `pop_back`, `to_arc`, and Rayon-based `par_map`.
 
 ## [0.6.0]
 
-### Added - 0.6.0
+### Added
 
-- Added `pvec` and `wrapper::memoize` modules with `MemoizeFn`, `MemoizeReader`, collection support, wrapper memory optimization, and `Identity`/`Functor` implementations for `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, and `Value`; added `Monoid` for `Min`/`Max`.
+- Added `pvec` and `wrapper::memoize` modules (`MemoizeFn`, `MemoizeReader`); added `Identity`/`Functor` for `First`, `Last`, `Max`, `Min`, `Product`, `Sum`, `Value`; added `Monoid` for `Min`/`Max`.
 - Added `DOCTEST_GUIDELINE.md`, `PERFORMANCE.md`, and `TUTORIAL.md`.
-- Added `MaybeError`, `WithError`/`MaybeExt`, `to_standard_result()`, `try_unwrap()` (`Result<T, AppError>` with context), `to_result<E>()`, and comprehensive Maybe error tests.
-- Added Scala Cats-style Reader/ReaderT conversions: `to_reader_t`, `to_reader`, `from_reader`, and `pure`.
+- Added `MaybeError`, `WithError`/`MaybeExt`, `to_standard_result()`, `try_unwrap()`, and `to_result<E>()`.
+- Added Cats-style Reader/ReaderT conversions: `to_reader_t`, `to_reader`, `from_reader`, and `pure`.
 
-### Changed - 0.6.0
+### Changed
 
-- Removed `transformers`/`advanced` feature flags; refactored `Reader` over `ReaderT`; removed `Id::map`; removed `Arc` from `Lens`/`Prism`.
+- Removed `transformers` and `advanced` feature flags; refactored `Reader` over `ReaderT`; removed `Id::map`; removed `Arc` from `Lens`/`Prism`.
 - Simplified `Maybe`: removed `map`/`map_or_else`, renamed `map_or` to `fmap_or`; renamed `Either::map_left`/`map_right` to `fmap_left`/`fmap_right`.
-- Simplified `Choice` around ownership-based operations: removed duplicate/reference variants, made `swap_with_alternative`/`add_alternative` the defaults, and removed `change_first`, `all_values`, `find_alternative`, and `from_iterator`.
-- Standardized Maybe error handling, messages, context, and `Maybe`/`Option`/`Result` conversions.
+- Simplified `Choice` around ownership operations: removed duplicate/reference variants, made `swap_with_alternative`/`add_alternative` defaults, and removed `change_first`, `all_values`, `find_alternative`, and `from_iterator`.
 
-### Removed - 0.6.0
+### Removed
 
-- Removed `BoxedFn` (`wrapper/boxed_fn.rs`) and Choice helpers `replace_alternatives_with_first`, `with_ordered_alternatives`/`_owned`, `with_unique_alternatives`/`_owned`, `partition`, `group_by`, `match_choice`/`_owned`, and `zip`.
+- Removed `BoxedFn` (`wrapper/boxed_fn.rs`) and `Choice` helpers (`replace_alternatives_with_first`, `with_ordered_alternatives`/`_owned`, `with_unique_alternatives`/`_owned`, `partition`, `group_by`, `match_choice`/`_owned`, `zip`).
 
 ## [0.5.4] - 2025-03-24
 
-### Added - 0.5.4
+### Added
 
-- Implemented `StateT` with `get`/`put`/`modify`, `bind_with`/`fmap_with`, type aliases (`StateValueMapper`, `StateCombiner`), tests, and usage documentation.
+- Implemented `StateT` with `get`/`put`/`modify`, `bind_with`/`fmap_with`, type aliases (`StateValueMapper`, `StateCombiner`), tests, and documentation.
 - Added `Alternative`, `Distributive`, `Divisible`, `Iso`, `NaturalTransform`, and `Representable` traits.
 
-### Changed - 0.5.4
+### Changed
 
-- Optimized `Choice` with `Arc`-based shared structure, reducing internal cloning and updating related methods, docs, and examples.
+- Optimized `Choice` with `Arc`-based shared structure to reduce cloning.
 
 ## [0.5.3] - 2025-03-16
 
-### Changed - 0.5.3
+### Changed
 
-- Enhanced `Choice` data structure:
-  - Modified `first()` method to return `Option<&T>` instead of `&T` for better safety
-  - Added support for handling empty `Choice` instances
-  - Added `add_alternatives_owned` method to add multiple alternatives at once
-  - Added `filter` method to filter alternatives based on a predicate
-  - Added `change_first` method to replace the primary value
-  - Added `swap_with_alternative` and `swap_with_alternative_owned` methods to replace primary with alternative
-  - Added `replace_alternatives_with_first` and `replace_alternatives_with_first_owned` methods
-  - Updated tests and documentation for new methods
-  - Improved consistency with Rust's ownership patterns
+- **`Choice` Enhancements**:
+  - Changed `first()` to return `Option<&T>` instead of `&T` to safely handle empty choices.
+  - Added `add_alternatives_owned`, `filter`, `change_first`, `swap_with_alternative`, `swap_with_alternative_owned`, `replace_alternatives_with_first`, and `replace_alternatives_with_first_owned`.
 
 ## [0.5.2] - 2025-03-09
 
-### Changed - 0.5.2
+### Changed
 
-- Updated docs.rs configuration to use `all-features = true` for more standard feature documentation
+- Configured docs.rs with `all-features = true`.
 
 ## [0.5.1] - 2025-03-09
 
-### Added - 0.5.1
+### Added
 
-- Added `From`/`Into` implementation for `Id` type
-- Added implementations of `Semigroup`, `Monoid`, `Foldable`, and `Composable` traits for `Id` type
-- Added configuration for docs.rs to display documentation for all features (`full`)
+- Implemented `From`/`Into`, `Semigroup`, `Monoid`, `Foldable`, and `Composable` for `Id`.
+- Added docs.rs configuration to display documentation for all features (`full`).
 
 ## [0.5.0] - 2025-03-09
 
-### Added - 0.5.0
+### Added
 
-- Added Wrapper Type: `boxed_fn`, `first`, `last`, `product`, `sum`, `value`, `thunk`, `min`, `max`
-- Added Utilities: `hkt_utils`, `transform_utils`
-- Added implementations of functional traits for standard library types (`Option`, `Result`, `Vec`)
-- Added ownership-based methods to traits (`fmap_owned`, `bind_owned`, `join_owned`, etc.)
-- Added feature flags for customizing imports: `async`, `advanced`, `transformers`, and `full`
+- Added wrapper types: `boxed_fn`, `first`, `last`, `product`, `sum`, `value`, `thunk`, `min`, `max`.
+- Added utilities: `hkt_utils`, `transform_utils`.
+- Implemented functional traits for standard types (`Option`, `Result`, `Vec`).
+- Added ownership-based trait methods (`fmap_owned`, `bind_owned`, `join_owned`, etc.).
+- Added feature flags: `async`, `advanced`, `transformers`, and `full`.
 
 ## [0.4.0] - 2025-02-26
 
-### Added - 0.4.0
+### Added
 
-- Implemented `StateT` with `get`/`put`/`modify`, `bind_with`/`fmap_with`, type aliases (`StateValueMapper`, `StateCombiner`), tests, and usage documentation.
+- Implemented `StateT` with `get`/`put`/`modify`, `bind_with`/`fmap_with`, type aliases (`StateValueMapper`, `StateCombiner`), tests, and documentation.
 - Added `Alternative`, `Distributive`, `Divisible`, `Iso`, `NaturalTransform`, and `Representable` traits.
 
-### Changed - 0.4.0
+### Changed
 
-- Optimized `Choice` with `Arc`-based shared structure, reducing internal cloning and updating related methods, docs, and examples.
+- Optimized `Choice` with `Arc`-based shared structure to reduce cloning.
 
 ## [0.3.2] - 2025-02-18
 
-### Added - 0.3.2
+### Added
 
-- New `Choice` data type for alternative computations
-- Property-based tests for category laws
-  - Added tests for Applicative laws (identity, composition, homomorphism, interchange, naturality)
-  - Added tests for Bifunctor laws (identity, composition)
+- Added `Choice` data type for alternative computations.
+- Added property-based tests for Applicative and Bifunctor laws.
 
-### Changed - 0.3.2
+### Changed
 
-- Reorganized project structure
-  - Renamed `monads` directory to `datatypes` for better organization
-  - Renamed `category` directory to `traits` for better organization
+- Reorganized project structure: renamed `monads/` to `datatypes/` and `category/` to `traits/`.
 
 ## [0.3.1] - 2025-02-13
 
-### Changed - 0.3.1
+### Changed
 
 - Modified `lift2` and `lift3` to accept tuples for function types.
-- Modified category Morphism definitions.
-- Modified Free monad to be work in progress.
-- Refactored FnType methods into FnTrait and added documentation.
+- Updated category morphism definitions.
+- Marked `Free` monad as work in progress.
+- Refactored `FnType` methods into `FnTrait`.
 
-### Removed - 0.3.1
+### Removed
 
 - Removed unnecessary function types.
 
 ## [0.3.0] - 2025-02-10
 
-### Added - 0.3.0
+### Added
 
-- Implemented Free Monad
-- Integrated SendSyncFn, SendSyncFnTrait, ContravariantFn, ExtendFn, MonadFn, and ApplyFn with FnType and FnTrait
-- Implemented Arrow and Category
+- Implemented Free Monad.
+- Integrated `SendSyncFn`, `SendSyncFnTrait`, `ContravariantFn`, `ExtendFn`, `MonadFn`, and `ApplyFn` with `FnType` and `FnTrait`.
+- Implemented `Arrow` and `Category`.

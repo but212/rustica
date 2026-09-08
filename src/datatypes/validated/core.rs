@@ -3,6 +3,7 @@
 //! This module provides the fundamental `Validated<E, A>` type for accumulating
 //! validation errors, along with its associated methods and helper types.
 
+use crate::datatypes::error::ValidatedError;
 use smallvec::{SmallVec, smallvec};
 
 /// A non-empty collection of validation errors.
@@ -48,10 +49,20 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
-    pub(crate) fn into_vec(self) -> ErrorVec<E> {
+    pub fn try_from_slice(slice: &[E]) -> Option<Self>
+    where
+        E: Clone,
+    {
+        (!slice.is_empty()).then_some(Self(slice.to_vec().into()))
+    }
+
+    /// Converts the non-empty error collection into a regular vector.
+    #[inline]
+    pub fn into_vec(self) -> ErrorVec<E> {
         self.0
     }
 
+    /// Returns a slice over the errors.
     #[inline]
     pub fn as_slice(&self) -> &[E] {
         &self.0
@@ -290,5 +301,251 @@ impl<E, A> Validated<E, A> {
                 .into_non_empty()
                 .expect("Validated errors cannot be empty"),
         )
+    }
+
+    // --- Value Extraction and Safe Unwrapping ---
+
+    /// Consumes `self` and returns `Ok(A)` if `Valid(A)`, or `Err(NonEmptyErrors<E>)` if `Invalid(errors)`.
+    #[inline]
+    pub fn into_value(self) -> Result<A, NonEmptyErrors<E>> {
+        match self {
+            Validated::Valid(a) => Ok(a),
+            Validated::Invalid(es) => Err(es),
+        }
+    }
+
+    /// Consumes `self` and returns `Ok(NonEmptyErrors<E>)` if `Invalid(errors)`, or `Err(A)` if `Valid(A)`.
+    #[inline]
+    pub fn into_error_payload(self) -> Result<NonEmptyErrors<E>, A> {
+        match self {
+            Validated::Valid(a) => Err(a),
+            Validated::Invalid(es) => Ok(es),
+        }
+    }
+
+    /// Safely extracts the valid value.
+    ///
+    /// This is the safe alternative to `unwrap()` that returns
+    /// a proper error type instead of panicking.
+    #[inline]
+    pub fn try_unwrap(self) -> Result<A, ValidatedError> {
+        match self {
+            Validated::Valid(a) => Ok(a),
+            Validated::Invalid(_) => Err(ValidatedError::ExpectedValid),
+        }
+    }
+
+    /// Safely extracts the error collection.
+    ///
+    /// This is the safe alternative to `unwrap_invalid()` that returns
+    /// a proper error type instead of panicking.
+    #[inline]
+    pub fn try_unwrap_invalid(self) -> Result<NonEmptyErrors<E>, ValidatedError> {
+        match self {
+            Validated::Invalid(es) => Ok(es),
+            Validated::Valid(_) => Err(ValidatedError::ExpectedInvalid),
+        }
+    }
+
+    /// Safely gets a reference to the valid value.
+    #[inline]
+    pub fn try_valid_ref(&self) -> Result<&A, ValidatedError> {
+        match self {
+            Validated::Valid(a) => Ok(a),
+            Validated::Invalid(_) => Err(ValidatedError::ExpectedValid),
+        }
+    }
+
+    /// Unwraps a valid value or panics.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this is invalid.
+    #[inline]
+    pub fn unwrap(self) -> A
+    where
+        E: std::fmt::Debug,
+    {
+        match self {
+            Validated::Valid(value) => value,
+            Validated::Invalid(e) => {
+                panic!("Called Validated::unwrap() on an Invalid value: {e:?}")
+            },
+        }
+    }
+
+    /// Unwraps a valid value or returns a default.
+    #[inline]
+    pub fn unwrap_or(self, default: A) -> A {
+        match self {
+            Validated::Valid(x) => x,
+            _ => default,
+        }
+    }
+
+    /// Unwraps an invalid error collection or panics with a message.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this is `Valid`.
+    #[inline]
+    pub fn unwrap_invalid(self) -> NonEmptyErrors<E>
+    where
+        A: std::fmt::Debug,
+    {
+        match self {
+            Validated::Invalid(es) => es,
+            Validated::Valid(a) => {
+                panic!("Called Validated::unwrap_invalid() on a Valid value: {a:?}")
+            },
+        }
+    }
+
+    // --- Option Views and Conversions ---
+
+    /// Returns a reference to the valid value as an Option, without cloning.
+    #[inline]
+    pub fn as_option(&self) -> Option<&A> {
+        match self {
+            Validated::Valid(x) => Some(x),
+            Validated::Invalid(_) => None,
+        }
+    }
+
+    /// Converts to Option by consuming self, without cloning.
+    #[inline]
+    pub fn into_option(self) -> Option<A> {
+        match self {
+            Validated::Valid(x) => Some(x),
+            Validated::Invalid(_) => None,
+        }
+    }
+
+    /// Converts to Option by cloning the inner valid value.
+    #[inline]
+    pub fn to_option(&self) -> Option<A>
+    where
+        A: Clone,
+    {
+        match self {
+            Validated::Valid(x) => Some(x.clone()),
+            _ => None,
+        }
+    }
+
+    // --- Standard Conversions ---
+
+    /// Converts to fail-fast `Result`, explicitly keeping only the first error.
+    #[inline]
+    pub fn into_result_first_error(self) -> Result<A, E> {
+        match self {
+            Self::Valid(value) => Ok(value),
+            Self::Invalid(errors) => Err(errors
+                .into_iter()
+                .next()
+                .expect("Validated errors cannot be empty")),
+        }
+    }
+
+    /// Constructs a `Validated` from an `Option`, using the provided error when `None`.
+    #[inline]
+    pub fn from_option(option: Option<A>, error: E) -> Self {
+        match option {
+            Some(value) => Self::Valid(value),
+            None => Self::invalid(error),
+        }
+    }
+
+    /// Constructs a `Validated` from an `Option`, generating an error via a closure when `None`.
+    #[inline]
+    pub fn from_option_with<F>(option: Option<A>, error_fn: F) -> Self
+    where
+        F: FnOnce() -> E,
+    {
+        match option {
+            Some(value) => Self::Valid(value),
+            None => Self::invalid(error_fn()),
+        }
+    }
+}
+
+impl<E, A> From<Result<A, E>> for Validated<E, A> {
+    #[inline]
+    fn from(result: Result<A, E>) -> Self {
+        match result {
+            Ok(value) => Self::Valid(value),
+            Err(error) => Self::invalid(error),
+        }
+    }
+}
+
+impl<E: Clone, A: Clone> From<&Result<A, E>> for Validated<E, A> {
+    #[inline]
+    fn from(result: &Result<A, E>) -> Self {
+        result.clone().into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn non_empty_errors_fallible_construction() {
+        assert_eq!(NonEmptyErrors::<String>::try_from_iter(Vec::new()), None);
+
+        let errors = NonEmptyErrors::try_from_iter(["first".to_string(), "second".to_string()])
+            .expect("non-empty input should construct errors");
+        assert_eq!(errors.as_slice(), ["first", "second"]);
+    }
+
+    #[test]
+    fn test_safe_unwrapping() {
+        let valid: Validated<&str, i32> = Validated::valid(42);
+        assert_eq!(valid.try_valid_ref(), Ok(&42));
+        assert_eq!(valid.clone().try_unwrap(), Ok(42));
+        assert_eq!(
+            valid.try_unwrap_invalid(),
+            Err(ValidatedError::ExpectedInvalid)
+        );
+
+        let invalid: Validated<&str, i32> = Validated::invalid("err");
+        assert_eq!(invalid.try_valid_ref(), Err(ValidatedError::ExpectedValid));
+        assert_eq!(
+            invalid.clone().try_unwrap(),
+            Err(ValidatedError::ExpectedValid)
+        );
+        assert!(invalid.try_unwrap_invalid().is_ok());
+    }
+
+    #[test]
+    #[should_panic(expected = "Called Validated::unwrap() on an Invalid value:")]
+    fn unwrap_rejects_invalid_values() {
+        Validated::<&str, i32>::invalid("error").unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Called Validated::unwrap_invalid() on a Valid value:")]
+    fn unwrap_invalid_rejects_valid_values() {
+        Validated::<&str, i32>::valid(42).unwrap_invalid();
+    }
+
+    #[test]
+    fn test_option_and_result_conversions() {
+        let valid: Validated<&str, i32> = Ok(42).into();
+        assert_eq!(valid.as_option(), Some(&42));
+        assert_eq!(valid.clone().into_option(), Some(42));
+        assert_eq!(valid.to_option(), Some(42));
+        assert_eq!(valid.into_result_first_error(), Ok(42));
+
+        let res: Result<i32, &str> = Err("err");
+        let invalid = Validated::from(&res);
+        assert_eq!(invalid.as_option(), None);
+        assert_eq!(invalid.into_result_first_error(), Err("err"));
+
+        let from_some = Validated::from_option(Some(10), "err");
+        assert_eq!(from_some, Validated::valid(10));
+        let from_none: Validated<&str, i32> = Validated::from_option_with(None, || "dynamic_err");
+        assert_eq!(from_none, Validated::invalid("dynamic_err"));
     }
 }

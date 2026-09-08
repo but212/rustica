@@ -142,6 +142,7 @@
 //! composition and variant-specific behavior are covered by
 //! `tests/datatypes/test_prism.rs`.
 
+#[allow(deprecated)]
 use crate::traits::iso::Iso;
 use std::marker::PhantomData;
 
@@ -618,21 +619,6 @@ where
         )
     }
 
-    /// Composes two prisms together.
-    #[deprecated(since = "0.15.0", note = "use `then()` instead")]
-    #[inline]
-    pub fn compose<B, PreviewFn2, ReviewFn2>(
-        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
-    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
-    where
-        A: Clone,
-        B: Clone,
-        PreviewFn2: Fn(&A) -> Option<B>,
-        ReviewFn2: Fn(&B) -> A,
-    {
-        self.then(other)
-    }
-
     /// Sets the focused value with structural sharing optimization.
     ///
     /// This method sets the focused value to a new value, but only creates a new structure
@@ -711,6 +697,11 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     ///
     /// The underlying isomorphism maps every source to a focus, so preview
     /// always succeeds.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Iso is deprecated; construct prisms directly with Prism::new or closures instead"
+    )]
+    #[allow(deprecated)]
     #[inline]
     pub fn from_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
@@ -731,6 +722,11 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     /// This is the direct replacement for the removed `IsoPrism`: the iso's
     /// `forward` map decides whether the case matches, and `backward` receives
     /// `Some(focus)` when reviewing a focused value.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Iso is deprecated; construct prisms directly with Prism::new or closures instead"
+    )]
+    #[allow(deprecated)]
     #[inline]
     pub fn from_option_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
@@ -830,48 +826,6 @@ mod unit_tests {
                 message: "OK".into()
             }
         );
-    }
-
-    #[derive(Clone, Copy)]
-    struct IdentityIso;
-
-    impl crate::traits::iso::Iso<i32, i32> for IdentityIso {
-        fn forward(&self, from: i32) -> i32 {
-            from
-        }
-
-        fn backward(&self, to: i32) -> i32 {
-            to
-        }
-    }
-
-    #[test]
-    fn from_iso_induces_a_prism() {
-        let prism = Prism::from_iso(IdentityIso);
-
-        assert_eq!(prism.preview(&42), Some(42));
-        assert_eq!(prism.review(&7), 7);
-    }
-
-    struct OptionIso;
-
-    impl crate::traits::iso::Iso<i32, Option<i32>> for OptionIso {
-        fn forward(&self, from: i32) -> Option<i32> {
-            (from >= 0).then_some(from)
-        }
-
-        fn backward(&self, to: Option<i32>) -> i32 {
-            to.unwrap_or_default()
-        }
-    }
-
-    #[test]
-    fn option_iso_induces_a_prism_without_double_wrapping() {
-        let prism = Prism::from_option_iso(OptionIso);
-
-        assert_eq!(prism.preview(&42), Some(42));
-        assert_eq!(prism.preview(&-1), None);
-        assert_eq!(prism.review(&7), 7);
     }
 
     #[test]

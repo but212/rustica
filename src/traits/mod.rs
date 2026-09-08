@@ -31,13 +31,6 @@ pub mod functor;
 pub mod monad;
 /// Error handling within monadic contexts.
 pub mod monad_error;
-#[allow(deprecated)]
-pub mod monad_plus;
-
-#[allow(deprecated)]
-pub use monad_error::ErrorMapper;
-#[allow(deprecated)]
-pub use monad_plus::MonadPlus;
 
 /// Mapping over two-type data structures.
 pub mod bifunctor;
@@ -60,6 +53,12 @@ pub mod alternative;
 /// Isomorphism between types.
 ///
 /// This module provides the Iso trait which represents isomorphisms between types.
+///
+/// # Deprecation Warning
+///
+/// This module is deprecated and will be removed in a future version.
+/// Use standard From/Into conversions instead.
+#[allow(deprecated)]
 pub mod iso;
 
 /// Multiplicative identity element.

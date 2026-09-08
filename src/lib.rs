@@ -20,7 +20,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rustica = "0.15.0"
+//! rustica = "0.16.0"
 //! ```
 //!
 //! Import common traits and types through the prelude:
@@ -85,9 +85,11 @@
 //!
 //! Rustica provides several feature flags to customize the library for your needs:
 //!
-//! - `full`: Enables all optional features (`async` + `serde`)
-//! - `async`: Enables async monad implementation (`AsyncM`)
+//! - `full`: Enables all optional features (`async`, `serde`, `quickcheck`, `pvec`)
+//! - `async`: Enables async monadic operations (`AsyncM`, `Validated` async combinators)
 //! - `serde`: Enables serialization/deserialization support
+//! - `pvec`: Enables persistent vector implementation (`PersistentVector`)
+//! - `quickcheck`: Enables arbitrary generation for property-based testing
 //!
 //! ## Structure
 //!
@@ -97,219 +99,9 @@
 //! - `datatypes`: Implementations of various functional data types
 //! - `transformers`: Monad transformers and related utilities
 //! - `error`: Composable error handling utilities
-//! - `pvec`: Persistent vector implementation with structural sharing
+//! - `pvec`: Persistent vector implementation with structural sharing (requires `pvec` feature)
 //! - `category`: Category theory abstractions and function composition
 //! - `prelude`: A convenient module that re-exports commonly used items
-//!
-//! ## API Removal Contract Tests
-//!
-//! The following doctests verify at compile time that deprecated and redundant APIs
-//! removed in 0.14.0 or in the unreleased breaking changes can no longer be imported or called:
-//!
-//! ```compile_fail
-//! // Maybe has been removed in 0.14.0 (use Option instead)
-//! use rustica::datatypes::maybe::Maybe;
-//! ```
-//!
-//! ```compile_fail
-//! // Either has been removed in 0.14.0 (use Result or either crate instead)
-//! use rustica::datatypes::either::Either;
-//! ```
-//!
-//! ```compile_fail
-//! // Comonad trait has been removed in 0.14.0 (use Id inherent methods)
-//! use rustica::traits::comonad::Comonad;
-//! ```
-//!
-//! ```compile_fail
-//! // Arrow trait has been removed in 0.14.0 (use FunctionCategory inherent methods)
-//! use rustica::traits::arrow::Arrow;
-//! ```
-//!
-//! ```compile_fail
-//! // Category trait has been removed in 0.14.0 (use FunctionCategory inherent methods)
-//! use rustica::traits::category::Category;
-//! ```
-//!
-//! ```compile_fail
-//! // Evaluate trait has been removed in 0.14.0 (use Thunk::evaluate or IO::run)
-//! use rustica::traits::evaluate::Evaluate;
-//! ```
-//!
-//! ```compile_fail
-//! // Memoizer wrapper has been removed in 0.14.0
-//! use rustica::datatypes::wrapper::memoizer::Memoizer;
-//! ```
-//!
-//! ```compile_fail
-//! // ErrorPipeline has been removed in 0.14.0
-//! use rustica::error::ErrorPipeline;
-//! ```
-//!
-//! ```compile_fail
-//! // Pipeline<T> has been removed in 0.14.0
-//! use rustica::utils::transform_utils::Pipeline;
-//! ```
-//!
-//! ```compile_fail
-//! // IsoLens has been removed in the unreleased breaking changes
-//! use rustica::datatypes::iso_lens::IsoLens;
-//! ```
-//!
-//! ```compile_fail
-//! // IsoPrism has been removed in the unreleased breaking changes
-//! use rustica::datatypes::iso_prism::IsoPrism;
-//! ```
-//!
-//! ```compile_fail
-//! // PersistentVector::take has been removed in 0.14.0
-//! use rustica::pvec::PersistentVector;
-//! let v = PersistentVector::<i32>::new();
-//! let _ = v.take(1);
-//! ```
-//!
-//! ```compile_fail
-//! // PersistentVector::skip has been removed in 0.14.0
-//! use rustica::pvec::PersistentVector;
-//! let v = PersistentVector::<i32>::new();
-//! let _ = v.skip(1);
-//! ```
-//!
-//! ```compile_fail
-//! // ReaderT now rejects a base monad whose source is not its value type.
-//! use rustica::transformers::ReaderT;
-//! let _: Option<ReaderT<(), Option<i32>, String>> = None;
-//! ```
-//!
-//! ```compile_fail
-//! // Min and Max are semigroups; they do not provide a fabricated Monoid identity.
-//! use rustica::datatypes::wrapper::min::Min;
-//! use rustica::traits::monoid::Monoid;
-//! let _ = Min::<i32>::empty();
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::datatypes::wrapper::max::Max;
-//! use rustica::traits::monoid::Monoid;
-//! let _ = Max::<i32>::empty();
-//! ```
-//!
-//! ```compile_fail
-//! // Result has no lawful Alternative empty for an arbitrary error type.
-//! use rustica::traits::alternative::Alternative;
-//! let _: Result<i32, String> = Result::<i32, String>::empty_alt();
-//! ```
-//!
-//! ```compile_fail
-//! // HKTType was an unused phantom wrapper; use HKT directly.
-//! use rustica::traits::hkt::HKTType;
-//! ```
-//!
-//! ```compile_fail
-//! // PureType was an unused phantom wrapper; use Pure or PureExt directly.
-//! use rustica::traits::pure::PureType;
-//! ```
-//!
-//! ```compile_fail
-//! // StateT no longer exposes non-executable Pure/LiftM variants.
-//! use rustica::transformers::StateT;
-//! let _: StateT<i32, Option<(i32, i32)>, i32> = StateT::Pure(1);
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::transformers::StateT;
-//! let _: StateT<i32, Option<(i32, i32)>, i32> = StateT::LiftM(Some((0, 1)));
-//! ```
-//!
-//! ```compile_fail
-//! // Impossible error variants were removed.
-//! use rustica::datatypes::error::ChoiceError;
-//! let _ = ChoiceError::EmptyChoice;
-//! ```
-//!
-//! ```compile_fail
-//! // Choice construction is fallible when the input may be empty.
-//! use rustica::datatypes::choice::Choice;
-//! let _: Choice<i32> = vec![].into();
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::datatypes::choice::Choice;
-//! let _: Choice<i32> = std::iter::empty().collect();
-//! ```
-//!
-//! ```compile_fail
-//! // NonEmptyErrors no longer panics through FromIterator on empty input.
-//! use rustica::datatypes::validated::NonEmptyErrors;
-//! let _: NonEmptyErrors<i32> = std::iter::empty().collect();
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::pvec::PVecError;
-//! let _ = PVecError::InvalidRange { start: 2, end: 1 };
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::datatypes::io::IOError;
-//! let _ = IOError::ValueNotSet;
-//! ```
-//!
-//! ```compile_fail
-//! // Result already provides the former ErrorOps operations.
-//! use rustica::error::ErrorOps;
-//! ```
-//!
-//! ```compile_fail
-//! // Use Iterator::collect instead of stdlib wrappers.
-//! use rustica::error::sequence;
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::error::traverse;
-//! ```
-//!
-//! ```compile_fail
-//! // Use From and map_err for error conversions.
-//! use rustica::error::result_to_validated;
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::error::wrap_in_composable_result;
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::datatypes::validated::Validated;
-//! let _ = Validated::<&str, i32>::from_result_owned(Ok(1));
-//! ```
-//!
-//! ```compile_fail
-//! // Empty/stdlib-only utility modules and orphan aliases were removed.
-//! use rustica::utils::categorical_utils;
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::utils::functions::id;
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::datatypes::cont::ContFn;
-//! ```
-//!
-//! ```compile_fail
-//! use rustica::transformers::reader_t::ReaderCombineFn;
-//! ```
-//!
-//! ```compile_fail
-//! // FunctionCategory::lift was removed in 0.15.0; use arrow instead.
-//! use rustica::category::function_category::FunctionCategory;
-//! let _ = FunctionCategory::lift(|x: i32| x + 1);
-//! ```
-//! ```compile_fail
-//! // Validated has no lawful Monad implementation; convert to Result via into_value()
-//! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::monad::Monad;
-//! let _: Validated<&str, i32> = Validated::valid(1).bind(|x| Validated::valid(x + 1));
-//! ```
 
 /// Core traits for functional programming abstractions.
 ///
@@ -326,6 +118,7 @@ pub mod traits;
 ///
 /// A high-performance, immutable vector implementation that preserves
 /// previous versions through structural sharing.
+#[cfg(feature = "pvec")]
 pub mod pvec;
 
 /// Implementations of functional data types.
@@ -350,10 +143,3 @@ pub mod error;
 
 /// Convenient re-exports of commonly used items.
 pub mod prelude;
-
-/// Deprecated utility helpers.
-#[deprecated(
-    since = "0.15.0",
-    note = "use standard iterator, `Option`, and `Result` operations instead"
-)]
-pub mod utils;

@@ -5,7 +5,7 @@
 //! encapsulating the effects within a monadic context.
 //!
 //! **Execution model**: `IO` is a *cold* (lazy) computation. Creating an `IO` does not perform effects.
-//! Effects happen when you call [`IO::run`], [`IO::try_get`], or other methods that evaluate the
+//! Effects happen when you call [`IO::run`], [`IO::try_run`], or other methods that evaluate the
 //! computation. If you evaluate the same `IO` multiple times, its effects will run multiple times.
 //!
 //! ## Quick Start
@@ -27,7 +27,9 @@
 //!
 //! Functional-programming laws for `fmap`, `apply`, and `bind` are covered by the datatype tests.
 //!
+#[allow(deprecated)]
 use crate::error::{BoxedComposableResult, ComposableError, ComposableResult};
+use crate::error::{ContextError, IntoErrorContext};
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 use std::any::Any;
@@ -41,9 +43,11 @@ use std::time::Duration;
 pub type IOMorphism<A> = Arc<dyn Fn() -> A + Send + Sync + 'static>;
 
 /// Type alias for composable error collection results.
-///
-/// This alias encapsulates the complex type used for collecting multiple ComposableError
-/// instances in sequence operations, improving readability and maintainability.
+#[deprecated(
+    since = "0.16.0",
+    note = "ComposableError is scheduled for removal in 0.18.0."
+)]
+#[allow(deprecated)]
 pub type ComposableErrorCollection<E> = smallvec::SmallVec<[Box<ComposableError<E>>; 4]>;
 
 /// A custom error type for IO operations
@@ -114,19 +118,6 @@ pub enum IO<A> {
     Effect(IOMorphism<A>),
 }
 
-#[cfg(feature = "async")]
-use std::sync::LazyLock;
-#[cfg(feature = "async")]
-use tokio::runtime::{Builder, Runtime};
-
-#[cfg(feature = "async")]
-static TOKIO_RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
-    Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio runtime")
-});
-
 impl<O: Send + Sync + 'static> IO<O> {
     /// Creates a new IO operation from a function.
     ///
@@ -156,19 +147,22 @@ impl<O: Send + Sync + 'static> IO<O> {
         }
     }
 
-    /// Runs the IO operation and returns the result, consuming the IO.
-    #[inline(always)]
-    #[deprecated(since = "0.15.0", note = "use `run` instead")]
-    pub fn run_owned(self) -> O {
-        self.run()
-    }
-
     /// Runs the IO operation asynchronously.
     ///
     /// This method is available when the `async` feature is enabled.
     /// It executes the encapsulated synchronous function in a non-blocking way
     /// by using `tokio::task::spawn_blocking`.
+    ///
+    /// # Deprecation
+    ///
+    /// Deprecated since 0.16.0. Scheduled for removal in 0.18.0.
+    /// Offload blocking IO computations directly using your runtime's task spawning API
+    /// (such as `tokio::task::spawn_blocking`).
     #[cfg(feature = "async")]
+    #[deprecated(
+        since = "0.16.0",
+        note = "Scheduled for removal in 0.18.0. Offload blocking IO computations directly using your runtime's task spawning API."
+    )]
     pub async fn run_async(self) -> O {
         let handle = tokio::runtime::Handle::current();
         match handle.spawn_blocking(move || self.run()).await {
@@ -176,13 +170,6 @@ impl<O: Send + Sync + 'static> IO<O> {
             Err(error) if error.is_panic() => std::panic::resume_unwind(error.into_panic()),
             Err(error) => panic!("Failed to run blocking task: {error}"),
         }
-    }
-
-    /// Runs the IO operation asynchronously, consuming the IO.
-    #[cfg(feature = "async")]
-    #[deprecated(since = "0.15.0", note = "use `run_async` instead")]
-    pub async fn run_async_owned(self) -> O {
-        self.run_async().await
     }
 
     /// Checks if this IO operation is pure (contains a value without side effects).
@@ -249,16 +236,36 @@ impl<O: Send + Sync + 'static> IO<O> {
         self.bind(f)
     }
 
-    /// Tries to get the value from this IO operation.
-    pub fn try_get(self) -> ComposableResult<O, IOError> {
+    /// Tries to run this IO operation, catching any panics and returning a standard `Result`.
+    pub fn try_run(self) -> Result<O, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
-            Err(e) => Err(ComposableError::new(IOError::Other(panic_message(e)))),
+            Err(e) => Err(IOError::Other(panic_message(e))),
         }
     }
 
-    /// Tries to get the value from this IO operation with context.
-    pub fn try_get_with_context<C: Into<String>>(self, context: C) -> ComposableResult<O, IOError> {
+    /// Tries to run this IO operation, attaching context to any failure.
+    pub fn try_run_context<C>(self, context: C) -> Result<O, ContextError<IOError>>
+    where
+        C: IntoErrorContext,
+    {
+        self.try_run()
+            .map_err(|e| crate::error::with_context(e, context))
+    }
+
+    /// Tries to get the value from this IO operation.
+    #[deprecated(since = "0.16.0", note = "Use `try_run` instead.")]
+    pub fn try_get(self) -> Result<O, IOError> {
+        self.try_run()
+    }
+
+    /// Tries to run this IO operation with context, catching any panics.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_run_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
+    pub fn try_run_with_context<C: Into<String>>(self, context: C) -> ComposableResult<O, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => {
@@ -268,8 +275,20 @@ impl<O: Send + Sync + 'static> IO<O> {
         }
     }
 
-    /// Tries to get the value using ComposableError for rich error context.
-    pub fn try_get_composable(self) -> BoxedComposableResult<O, IOError> {
+    /// Tries to get the value from this IO operation with context.
+    #[deprecated(since = "0.16.0", note = "Use `try_run_context` instead.")]
+    #[allow(deprecated)]
+    pub fn try_get_with_context<C: Into<String>>(self, context: C) -> ComposableResult<O, IOError> {
+        self.try_run_with_context(context)
+    }
+
+    /// Tries to run this IO operation, returning a boxed ComposableError for rich error context.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_run` or `try_run_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
+    pub fn try_run_composable(self) -> BoxedComposableResult<O, IOError> {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run())) {
             Ok(value) => Ok(value),
             Err(e) => Err(Box::new(ComposableError::new(IOError::Other(
@@ -278,12 +297,36 @@ impl<O: Send + Sync + 'static> IO<O> {
         }
     }
 
+    /// Tries to get the value using ComposableError for rich error context.
+    #[deprecated(since = "0.16.0", note = "Use `try_run` or `try_run_context` instead.")]
+    #[allow(deprecated)]
+    pub fn try_get_composable(self) -> BoxedComposableResult<O, IOError> {
+        self.try_run_composable()
+    }
+
+    /// Tries to run this IO operation with composable error context.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_run_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
+    pub fn try_run_composable_with_context<S: Into<String>>(
+        self, context: S,
+    ) -> BoxedComposableResult<O, IOError> {
+        self.try_run_composable()
+            .map_err(|e| Box::new(e.with_context(context.into())))
+    }
+
     /// Tries to get the value with composable error context.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_run_composable_with_context` instead."
+    )]
+    #[allow(deprecated)]
     pub fn try_get_composable_with_context<S: Into<String>>(
         self, context: S,
     ) -> BoxedComposableResult<O, IOError> {
-        self.try_get_composable()
-            .map_err(|e| Box::new(e.with_context(context.into())))
+        self.try_run_composable_with_context(context)
     }
 
     /// Creates an IO operation that executes conditionally based on a predicate.
@@ -303,13 +346,18 @@ impl<O: Send + Sync + 'static> IO<O> {
     }
 
     /// Sequences multiple IO operations, collecting errors with ComposableError.
+    #[deprecated(
+        since = "0.16.0",
+        note = "ComposableErrorCollection is scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
     pub fn sequence_composable<I>(ios: I) -> Result<Vec<O>, ComposableErrorCollection<IOError>>
     where
         I: IntoIterator<Item = IO<O>>,
     {
         let (successes, failures): (Vec<_>, Vec<_>) = ios
             .into_iter()
-            .map(|io| io.try_get_composable())
+            .map(|io| io.try_run_composable())
             .partition(Result::is_ok);
 
         if failures.is_empty() {
@@ -337,21 +385,22 @@ impl<A: Send + Sync + Clone + 'static> IO<A> {
     }
 
     /// Recovers from an error using a fallback IO operation.
+    #[allow(deprecated)]
     pub fn recover<F>(self, recovery: F) -> Self
     where
         F: Fn(Box<ComposableError<IOError>>) -> IO<A> + Send + Sync + 'static,
     {
         let this = self;
-        IO::new(move || match this.clone().try_get_composable() {
+        IO::new(move || match this.clone().try_run() {
             Ok(value) => value,
-            Err(error) => recovery(error).run(),
+            Err(error) => recovery(Box::new(ComposableError::new(error))).run(),
         })
     }
 
     /// Recovers from an error using a simple fallback value.
     pub fn recover_with(self, default_value: A) -> Self {
         let this = self;
-        IO::new(move || match this.clone().try_get_composable() {
+        IO::new(move || match this.clone().try_run() {
             Ok(value) => value,
             Err(_) => default_value.clone(),
         })
@@ -360,12 +409,7 @@ impl<A: Send + Sync + Clone + 'static> IO<A> {
     /// Creates an IO operation that completes after a specified duration.
     #[cfg(feature = "async")]
     pub fn delay(duration: Duration, a: A) -> Self {
-        IO::new(move || {
-            TOKIO_RUNTIME.block_on(async {
-                tokio::time::sleep(duration).await;
-            });
-            a.clone()
-        })
+        Self::delay_sync(duration, a)
     }
 
     /// Creates a new IO operation that waits for a specified duration before completing (synchronous).
@@ -444,7 +488,7 @@ mod tests {
     #[test]
     fn test_io_resilience_and_recovery() {
         let risky: IO<i32> = IO::new(|| panic!("boom"));
-        let result = risky.try_get_with_context("critical task");
+        let result = risky.try_run_context("critical task");
         assert!(result.is_err());
         assert!(
             result
@@ -480,7 +524,7 @@ mod unit_tests {
     use std::sync::Arc;
 
     #[cfg(feature = "async")]
-    use super::{TOKIO_RUNTIME, panic_message};
+    use super::panic_message;
 
     #[test]
     fn effect_combinators_remain_cold_and_repeatable() {
@@ -549,35 +593,44 @@ mod unit_tests {
 
         let failed: IO<i32> = IO::new(|| panic!("failed operation"));
         assert_eq!(IO::pure(100).run(), 100);
-        assert_eq!(IO::pure(100).try_get_composable(), Ok(100));
-        assert_eq!(IO::new(|| 200).try_get_composable(), Ok(200));
-        let panicking: IO<i32> = IO::new(|| panic!("failure"));
-        assert!(panicking.try_get_composable().is_err());
+
+        #[allow(deprecated)]
+        {
+            assert_eq!(IO::pure(100).try_run_composable(), Ok(100));
+            assert_eq!(IO::new(|| 200).try_run_composable(), Ok(200));
+            let panicking: IO<i32> = IO::new(|| panic!("failure"));
+            assert!(panicking.try_run_composable().is_err());
+        }
 
         assert!(
             failed
-                .try_get()
+                .try_run()
                 .unwrap_err()
                 .to_string()
                 .contains("failed operation")
         );
-        let result = IO::sequence_composable(vec![
-            IO::pure(1),
-            IO::new(|| panic!("error 1")),
-            IO::pure(3),
-            IO::new(|| panic!("error 2")),
-        ]);
-        let errors = result.unwrap_err();
-        assert_eq!(errors.len(), 2);
-        assert!(errors[0].error_chain().contains("error 1"));
-        assert!(errors[1].error_chain().contains("error 2"));
+        #[allow(deprecated)]
+        {
+            let result = IO::sequence_composable(vec![
+                IO::pure(1),
+                IO::new(|| panic!("error 1")),
+                IO::pure(3),
+                IO::new(|| panic!("error 2")),
+            ]);
+            let errors = result.unwrap_err();
+            assert_eq!(errors.len(), 2);
+            assert!(errors[0].error_chain().contains("error 1"));
+            assert!(errors[1].error_chain().contains("error 2"));
+        }
     }
 
     #[cfg(feature = "async")]
     #[test]
+    #[allow(deprecated)]
     fn run_async_preserves_panics_from_the_blocking_operation() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            TOKIO_RUNTIME.block_on(IO::new(|| panic!("run_async panic")).run_async())
+            rt.block_on(IO::new(|| panic!("run_async panic")).run_async())
         }));
 
         let payload = result.expect_err("run_async should propagate the operation panic");
@@ -592,10 +645,38 @@ mod unit_tests {
         assert_eq!(result, 42);
     }
 
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_io_delay_inside_tokio_context_does_not_panic() {
+        use std::time::Duration;
+        let result = IO::delay(Duration::from_millis(1), 42).run();
+        assert_eq!(result, 42);
+    }
+
     #[test]
-    fn run_owned_works() {
+    fn test_try_run_and_deprecated_try_get() {
+        let ok_io = IO::pure(10);
+        assert_eq!(ok_io.try_run(), Ok(10));
+
+        let ok_io_ctx = IO::pure(20);
+        assert_eq!(ok_io_ctx.try_run_context("ctx"), Ok(20));
+
+        let err_io: IO<i32> = IO::new(|| panic!("boom"));
+        assert!(err_io.try_run().is_err());
+
+        let err_io_ctx: IO<i32> = IO::new(|| panic!("boom with ctx"));
+        let err = err_io_ctx.try_run_context("critical_step").unwrap_err();
+        assert_eq!(err.context(), vec!["critical_step"]);
+
         #[allow(deprecated)]
-        let val = IO::new(|| 42).run_owned();
-        assert_eq!(val, 42);
+        {
+            assert_eq!(IO::pure(10).try_get(), Ok(10));
+            assert_eq!(IO::pure(20).try_run_with_context("ctx"), Ok(20));
+            assert_eq!(IO::pure(20).try_get_with_context("ctx"), Ok(20));
+            assert_eq!(IO::pure(30).try_run_composable(), Ok(30));
+            assert_eq!(IO::pure(30).try_get_composable(), Ok(30));
+            assert_eq!(IO::pure(40).try_run_composable_with_context("ctx"), Ok(40));
+            assert_eq!(IO::pure(40).try_get_composable_with_context("ctx"), Ok(40));
+        }
     }
 }

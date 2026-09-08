@@ -9,6 +9,7 @@ use crate::datatypes::validated::{
     core::{ErrorAccumulator, Validated},
 };
 use crate::traits::applicative::Applicative;
+#[allow(deprecated)]
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
@@ -125,6 +126,7 @@ impl<E, A> BinaryHKT for Validated<E, A> {
 /// let result = invalid.bimap(|v: i32| v * 2, |e: &str| format!("New-{}", e));
 /// assert_eq!(result, Validated::invalid_many(vec!["New-e1".to_string(), "New-e2".to_string()]));
 /// ```
+#[allow(deprecated)]
 impl<E, A> Bifunctor for Validated<E, A> {
     fn bimap<C, D, F, G>(self, mut f: F, g: G) -> Self::BinaryOutput<C, D>
     where

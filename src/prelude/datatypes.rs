@@ -15,6 +15,8 @@
 //! - [`Id`]: Identity functor
 //! - [`IO`]: Side-effectful computations
 //! - [`Cont`]: Continuation-passing style
+//! - [`Free`]: Free monad for DSL construction, AST inspection (`Clone`), and natural transformations (`fold_map`)
+//! - [`Program`, `TryProgram`]: Statically-typed operational monads with zero-downcast command handlers
 //! - [`Lens`, `Prism`]: Optics for immutable data access; `Iso` values can
 //!   be lifted with `Lens::from_iso` and `Prism::from_iso`
 //!
@@ -26,7 +28,7 @@
 //!
 //! let x = Id::new(42);
 //! let y = x.fmap(|n| n + 1);
-//! assert_eq!(y.unwrap(), 43);
+//! assert_eq!(y.into_inner(), 43);
 //!
 //! let v: Validated<&str, i32> = Validated::valid(5);
 //! assert!(v.is_valid());
@@ -38,9 +40,12 @@
 pub use crate::datatypes::async_monad::AsyncM;
 pub use crate::datatypes::choice::Choice;
 pub use crate::datatypes::cont::Cont;
+pub use crate::datatypes::error::{ChoiceError, FreeError, ValidatedError};
+pub use crate::datatypes::free::Free;
 pub use crate::datatypes::id::Id;
 pub use crate::datatypes::io::IO;
 pub use crate::datatypes::lens::Lens;
+pub use crate::datatypes::operational::{Command, Handler, Program, TryHandler, TryProgram};
 pub use crate::datatypes::prism::Prism;
 pub use crate::datatypes::reader::Reader;
 pub use crate::datatypes::state::State;

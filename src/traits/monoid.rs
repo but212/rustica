@@ -169,22 +169,7 @@ where
 /// This trait is automatically implemented for all types that implement Monoid.
 pub trait MonoidExt: Monoid + crate::traits::semigroup::SemigroupExt {
     /// Checks if this monoid value is equal to the identity element.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the value equals the identity element, `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::monoid::{Monoid, MonoidExt};
-    /// let empty_string = String::empty();
-    /// assert!(empty_string.is_empty_monoid());
-    /// let non_empty = String::from("Hello");
-    /// assert!(!non_empty.is_empty_monoid());
-    /// let empty_vec: Vec<i32> = Vec::empty();
-    /// assert!(empty_vec.is_empty_monoid());
-    /// ```
+    #[deprecated(since = "0.16.0", note = "compare directly with Monoid::empty()")]
     #[inline]
     fn is_empty_monoid(&self) -> bool
     where
@@ -289,6 +274,7 @@ where
 /// let result = monoid::mconcat(&empty);
 /// assert_eq!(result, String::empty());
 /// ```
+#[deprecated(since = "0.16.0", note = "use monoid::combine_all instead")]
 #[inline]
 pub fn mconcat<M>(values: &[M]) -> M
 where
@@ -342,6 +328,7 @@ where
 /// assert_eq!(monoid::power(nums.clone(), 1), vec![1, 2]);
 /// assert_eq!(monoid::power(nums.clone(), 3), vec![1, 2, 1, 2, 1, 2]);
 /// ```
+#[deprecated(since = "0.16.0", note = "use monoid::repeat instead")]
 #[inline]
 pub fn power<M>(value: M, exponent: usize) -> M
 where
