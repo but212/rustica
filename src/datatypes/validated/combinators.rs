@@ -237,6 +237,9 @@ impl<E, A> Validated<E, A> {
     }
 
     /// Maps an async function over the error values, taking ownership.
+    ///
+    /// Error transformations are executed sequentially in order without external
+    /// concurrency dependencies.
     pub async fn fmap_invalid_async<G, F, Fut>(self, f: F) -> Validated<G, A>
     where
         F: Fn(E) -> Fut + Send + 'static,
@@ -246,8 +249,10 @@ impl<E, A> Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
             Validated::Invalid(es) => {
-                let futures = es.into_iter().map(f);
-                let results = futures::future::join_all(futures).await;
+                let mut results = Vec::with_capacity(es.len());
+                for err in es {
+                    results.push(f(err).await);
+                }
                 Validated::invalid_many(results)
             },
         }
@@ -350,5 +355,15 @@ mod tests {
         let accumulated: Validated<String, i32> =
             invalid.recover_all(|e| Validated::invalid(format!("r:{e}")));
         assert_eq!(accumulated.error_slice(), &["r:e1", "r:e2"]);
+    }
+
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_fmap_invalid_async_sequential() {
+        let invalid: Validated<i32, String> = Validated::invalid_many([1, 2, 3]);
+        let mapped = invalid
+            .fmap_invalid_async(|e| async move { format!("err_{}", e * 10) })
+            .await;
+        assert_eq!(mapped.error_slice(), &["err_10", "err_20", "err_30"]);
     }
 }

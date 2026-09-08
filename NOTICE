@@ -25,7 +25,6 @@ compliance reviews explicit.
 
 MIT OR Apache-2.0
 
-- futures
 - rayon
 - smallvec
 - lazy_static
@@ -53,10 +52,6 @@ Copyright (c) 2010 The Rust Project Developers
 
 quickcheck:
 Copyright (c) 2015 Andrew Gallant
-
-futures:
-Copyright (c) 2016 Alex Crichton
-Copyright (c) 2017 The Tokio Authors
 
 tokio:
 Copyright (c) Tokio Contributors
