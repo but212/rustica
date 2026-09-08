@@ -103,14 +103,9 @@
 //! - Using applicative validation for form validation
 //!
 //! Please refer to the documentation of individual functions in this module.
-pub mod accessors;
-#[cfg(feature = "async")]
-pub mod async_ops;
 pub mod combinators;
-pub mod conversions;
 pub mod core;
 pub mod iter;
-pub mod recovery;
 pub mod traits;
 
 pub use core::{NonEmptyErrors, Validated};
@@ -188,7 +183,7 @@ mod tests {
         assert!(invalid.is_invalid());
 
         let result: Result<i32, &str> = Err("error");
-        assert_eq!(Validated::from(&result), invalid);
+        assert_eq!(Validated::from(result), invalid);
 
         let some = Some(42);
         assert_eq!(

@@ -23,6 +23,49 @@ This guide describes the new features, deprecations, and migration steps for Rus
 | `Choice::flatten` / `try_flatten` | Breaking change: receiver changed from `&self` to `self` to eliminate `Clone` bounds. Use `flatten_cloned(&self)` or `c.clone().flatten()` to preserve borrow semantics. |
 | `Choice::filter` | New consuming filter eliminating `Clone` bounds; `Choice::filter_values(&self)` is deprecated. |
 | `Validated::errors` | Deprecated in 0.16.0; migrate to zero-copy `error_slice(&self)` or `iter_errors(&self)`. |
+| `Validated::as_ref` | Removed in 0.16.0: redundant duplicate of `as_option()`; migrate to `Validated::as_option(&self) -> Option<&A>`. |
+| `datatypes::validated` submodules | Breaking change: submodules `accessors`, `conversions`, `recovery`, `async_ops` consolidated into `core`, `iter`, `combinators`, `traits`. Import from `datatypes::validated` directly. |
+
+---
+
+## `Validated` Module Consolidation and Breaking Removals
+
+In 0.16.0, the `datatypes::validated` module was consolidated from 9 fragmented files into 4 cohesive submodules:
+
+- `core`: types, constructors, safe extractors/unwraps, option views, and Result/Option conversions
+- `iter`: slice views, error payloads, and iterators
+- `combinators`: error mapping, sequencing, collection, recovery, and async combinators
+- `traits`: type class instances
+
+### 1. Removal of Redundant `Validated::as_ref`
+
+The inherent method `Validated::as_ref(&self) -> Option<&A>` was removed. It was identical in behavior to `Validated::as_option(&self) -> Option<&A>` while causing naming confusion with the standard `AsRef` trait.
+
+**Migration**:
+
+```rust
+// Old (0.15.0)
+let opt = validated.as_ref();
+
+// New (0.16.0)
+let opt = validated.as_option();
+```
+
+### 2. Submodule Consolidation
+
+The legacy submodules `rustica::datatypes::validated::{accessors, conversions, recovery, async_ops}` were removed.
+
+**Migration**:
+Import types directly from `rustica::datatypes::validated::*` (or the prelude `rustica::prelude::datatypes::*`):
+
+```rust
+// Old (0.15.0)
+use rustica::datatypes::validated::accessors::*;
+use rustica::datatypes::validated::conversions::*;
+
+// New (0.16.0)
+use rustica::datatypes::validated::{NonEmptyErrors, Validated};
+```
 
 ---
 
