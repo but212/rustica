@@ -380,7 +380,7 @@ impl<T: Clone> PersistentVector<T> {
                     self.transition_to_tree().push_back(value)
                 }
             },
-            VectorImpl::Tree { tree: _ } => self.tree_push_back(value),
+            VectorImpl::Tree { tree } => Self::tree(tree.push_back(value)),
         }
     }
 
@@ -398,7 +398,7 @@ impl<T: Clone> PersistentVector<T> {
                     self.transition_to_tree().push_front(value)
                 }
             },
-            VectorImpl::Tree { tree: _ } => self.tree_push_front(value),
+            VectorImpl::Tree { tree } => Self::tree(tree.push_front(value)),
         }
     }
 
@@ -480,28 +480,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Pushes a value to the back of a tree-based vector.
-    fn tree_push_back(&self, value: T) -> Self {
-        match &self.inner {
-            VectorImpl::Tree { tree } => {
-                let new_tree = tree.push_back(value);
-                Self::tree(new_tree)
-            },
-            _ => unreachable!(),
-        }
-    }
-
-    /// Pushes a value to the front of a tree-based vector.
-    fn tree_push_front(&self, value: T) -> Self {
-        match &self.inner {
-            VectorImpl::Tree { tree } => {
-                let new_tree = tree.push_front(value);
-                Self::tree(new_tree)
-            },
-            _ => unreachable!(),
-        }
-    }
-
     /// Creates a new vector by concatenating this vector with another.
     ///
     pub fn concat(&self, other: &Self) -> Self {
@@ -520,20 +498,9 @@ impl<T: Clone> PersistentVector<T> {
                 let merged_tree = tree.concat(&right_tree);
                 Self::tree(merged_tree)
             },
-            (VectorImpl::Tree { .. }, VectorImpl::Tree { .. }) => {
-                let left_tree = self.ensure_tree();
-                let right_tree = other.ensure_tree();
-                let merged_tree = left_tree.concat(&right_tree);
-                Self::tree(merged_tree)
+            (VectorImpl::Tree { tree: left }, VectorImpl::Tree { tree: right }) => {
+                Self::tree(left.concat(right))
             },
-        }
-    }
-
-    /// Ensures the vector is in tree form, converting if necessary.
-    fn ensure_tree(&self) -> RRBTree<T> {
-        match &self.inner {
-            VectorImpl::Inline { elements } => RRBTree::from_elements(elements.iter().cloned()),
-            VectorImpl::Tree { tree } => (**tree).clone(),
         }
     }
 
@@ -635,6 +602,14 @@ impl<T: Clone> PersistentVector<T> {
             return self.push_front(value);
         }
 
+        if let VectorImpl::Inline { elements } = &self.inner
+            && elements.len() < ADAPTIVE_INLINE_SIZE
+        {
+            let mut new_elements = elements.clone();
+            new_elements.insert(index, value);
+            return Self::inline(new_elements);
+        }
+
         let (left, right) = self.split_at(index);
         left.push_back(value).concat(&right)
     }
@@ -650,6 +625,12 @@ impl<T: Clone> PersistentVector<T> {
 
         if self.len() == 1 {
             return Some(Self::new());
+        }
+
+        if let VectorImpl::Inline { elements } = &self.inner {
+            let mut new_elements = elements.clone();
+            new_elements.remove(index);
+            return Some(Self::inline(new_elements));
         }
 
         let (left, right) = self.split_at(index);
@@ -720,8 +701,9 @@ impl<T> FromIterator<T> for PersistentVector<T> {
 
 impl<T: Clone> Extend<T> for PersistentVector<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        let current = std::mem::take(self);
-        *self = current.into_iter().chain(iter).collect();
+        for item in iter {
+            *self = self.push_back(item);
+        }
     }
 }
 
@@ -765,21 +747,9 @@ impl<T> std::ops::Index<usize> for PersistentVector<T> {
     }
 }
 
-impl<T: Clone + Debug> Debug for PersistentVector<T> {
+impl<T: Debug> Debug for PersistentVector<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.inner {
-            VectorImpl::Inline { elements } => {
-                write!(
-                    f,
-                    "PersistentVector(Inline, len={}, elements={:?})",
-                    self.len(),
-                    elements.as_slice()
-                )
-            },
-            VectorImpl::Tree { .. } => {
-                write!(f, "PersistentVector(Tree, len={})", self.len())
-            },
-        }
+        f.debug_list().entries(self.iter()).finish()
     }
 }
 
@@ -796,5 +766,45 @@ mod read_only_non_clone_tests {
         assert_eq!(v.last().map(|x| x.0), Some(42));
         assert_eq!(v.try_get(0).map(|x| x.0), Ok(42));
         assert_eq!(v.fold(0, |acc, x| acc + x.0), 42);
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct NonCloneDebug(i32);
+
+    #[test]
+    fn test_debug_non_clone() {
+        let v = PersistentVector::single(NonCloneDebug(42));
+        assert_eq!(format!("{v:?}"), "[NonCloneDebug(42)]");
+    }
+
+    #[test]
+    fn test_debug_tree_elements() {
+        let v: PersistentVector<i32> = (0..100).collect();
+        let expected = format!("{:?}", (0..100).collect::<Vec<_>>());
+        assert_eq!(format!("{v:?}"), expected);
+    }
+
+    #[test]
+    fn test_extend_preserves_elements() {
+        let mut v: PersistentVector<i32> = (0..1000).collect();
+        v.extend(1000..1005);
+        assert_eq!(v.len(), 1005);
+        assert_eq!(v.to_vec(), (0..1005).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn test_inline_insert_fast_path() {
+        let v = PersistentVector::from_slice(&[1, 2, 4, 5]);
+        let inserted = v.insert(2, 3);
+        assert_eq!(inserted.to_vec(), vec![1, 2, 3, 4, 5]);
+        assert!(matches!(inserted.inner, VectorImpl::Inline { .. }));
+    }
+
+    #[test]
+    fn test_inline_remove_fast_path() {
+        let v = PersistentVector::from_slice(&[1, 2, 99, 3, 4]);
+        let removed = v.remove(2).expect("valid index");
+        assert_eq!(removed.to_vec(), vec![1, 2, 3, 4]);
+        assert!(matches!(removed.inner, VectorImpl::Inline { .. }));
     }
 }

@@ -89,7 +89,6 @@ impl<T> RRBTree<T> {
     fn get_from_tree(&self, index: usize) -> Option<&T> {
         let mut current_node = &self.root;
         let mut remaining_index = index;
-        let mut current_height = self.height;
 
         loop {
             match current_node.as_ref() {
@@ -102,7 +101,6 @@ impl<T> RRBTree<T> {
 
                     current_node = children.get(child_idx)?;
                     remaining_index = sub_index;
-                    current_height = current_height.saturating_sub(1);
                 },
             }
         }
@@ -242,7 +240,7 @@ impl<T: Clone> RRBTree<T> {
         let tree_size = self.len - self.head.len() - self.tail.len();
 
         if adjusted_index < tree_size {
-            let new_root = self.root.update(adjusted_index, value, self.height);
+            let new_root = self.root.update(adjusted_index, value);
             Self {
                 root: Arc::new(new_root),
                 tail: self.tail.clone(),
@@ -570,19 +568,7 @@ impl<T: Clone> RRBTree<T> {
             },
             (RRBNode::Leaf { .. }, RRBNode::Branch { .. })
             | (RRBNode::Branch { .. }, RRBNode::Leaf { .. }) => {
-                let left_as_branch = match left.as_ref() {
-                    RRBNode::Leaf { .. } => vec![left.clone()],
-                    RRBNode::Branch { children, .. } => children.iter().cloned().collect(),
-                };
-
-                let right_as_branch = match right.as_ref() {
-                    RRBNode::Leaf { .. } => vec![right.clone()],
-                    RRBNode::Branch { children, .. } => children.iter().cloned().collect(),
-                };
-
-                let mut all_children = left_as_branch;
-                all_children.extend(right_as_branch);
-                Self::pack_children(all_children)
+                unreachable!("nodes at equal tree height must both be leaves or both branches")
             },
         }
     }
@@ -626,42 +612,23 @@ impl<T: Clone> RRBTree<T> {
     }
 
     fn pop_from_tree(&self) -> Option<(Self, T)> {
-        if self.len == 0 {
-            return None;
-        }
-
         let tree_size = self.len - self.head.len() - self.tail.len();
-        if tree_size == 0 {
-            return None;
+        if tree_size > 0
+            && let Some((new_root, popped)) = self.root.pop_back()
+        {
+            let new_height = if tree_size == 1 { 0 } else { self.height };
+            return Some((
+                Self {
+                    root: Arc::new(new_root),
+                    tail: self.tail.clone(),
+                    head: self.head.clone(),
+                    height: new_height,
+                    len: self.len - 1,
+                },
+                popped,
+            ));
         }
-
-        let last_tree_index = tree_size - 1;
-        let last_element = self.get_from_tree(last_tree_index)?.clone();
-
-        let (new_root, new_height) = if tree_size == 1 {
-            (
-                Arc::new(RRBNode::Leaf {
-                    elements: SmallVec::new(),
-                }),
-                0,
-            )
-        } else {
-            match self.root.pop_back() {
-                Some((new_root, _)) => (Arc::new(new_root), self.height),
-                None => (self.root.clone(), self.height),
-            }
-        };
-
-        Some((
-            Self {
-                root: new_root,
-                tail: self.tail.clone(),
-                head: self.head.clone(),
-                height: new_height,
-                len: self.len - 1,
-            },
-            last_element,
-        ))
+        None
     }
 
     pub fn pop_front(&self) -> Option<(Self, T)> {
@@ -1095,5 +1062,19 @@ mod tests {
         let (tree4, popped) = tree3.pop_front().unwrap();
         assert_eq!(popped, 66);
         assert!(tree4.pop_front().is_none());
+    }
+
+    #[test]
+    fn pop_back_from_tree_single_pass() {
+        let mut tree = RRBTree::from_elements(0..128);
+        assert!(tree.tail.is_empty());
+        for expected in (0..128).rev() {
+            let (next, popped) = tree.pop_back().expect("non-empty");
+            assert_eq!(popped, expected);
+            assert_eq!(next.len, expected as usize);
+            tree = next;
+        }
+        assert_eq!(tree.len, 0);
+        assert!(tree.pop_back().is_none());
     }
 }
