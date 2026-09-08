@@ -34,11 +34,18 @@ Add Rustica to `Cargo.toml`:
 rustica = "0.15.0"
 ```
 
-Enable all features (`async`, `serde`, and `quickcheck`):
+Enable all features (`async`, `serde`, `quickcheck`, and `pvec`):
 
 ```toml
 [dependencies]
 rustica = { version = "0.15.0", features = ["full"] }
+```
+
+Or enable persistent vector support selectively:
+
+```toml
+[dependencies]
+rustica = { version = "0.15.0", features = ["pvec"] }
 ```
 
 Import common traits and types:
@@ -72,7 +79,7 @@ use rustica::prelude::*;
 - **`Cont<R, A>`**: Continuation-passing style computation (`run`).
 - **`Free<F, A>`**: Free monad separating AST construction from interpretation with stack-safe iterative trampoline execution (`run`, `try_run`, `fold_map`).
 - **`Program<H, A>` / `TryProgram<H, A, E>`**: Statically-typed operational monads binding domain `Command`s to handler traits (`Handler<C>`, `TryHandler<C, E>`) with zero-downcast compile-time type enforcement and stack-safe execution.
-- **`PersistentVector<T>`**: Immutable vector with relaxed Radix Balanced (RRB) tree structural sharing.
+- **`PersistentVector<T>`**: Immutable vector with relaxed Radix Balanced (RRB) tree structural sharing (requires `pvec` feature).
 
 ### 3. Optics
 

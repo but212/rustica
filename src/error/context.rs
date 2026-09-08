@@ -1,6 +1,6 @@
 //! # Slim Error Context Management and ContextError
 //!
-//! This module provides the standard ContextError<E> wrapper for context accumulation,
+//! This module provides the standard `ContextError<E>` wrapper for context accumulation,
 //! along with lightweight context utilities (ErrorContext, IntoErrorContext, LazyContext).
 
 use std::fmt::{Debug, Display};
@@ -8,7 +8,7 @@ use std::fmt::{Debug, Display};
 /// A slim, standard-aligned error context wrapper.
 ///
 /// Rustica provides standard Result<T, E> and std::error::Error as primary primitives,
-/// and adds ContextError<E> as the minimal abstraction for context accumulation.
+/// and adds `ContextError<E>` as the minimal abstraction for context accumulation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextError<E> {
     error: E,
@@ -235,7 +235,7 @@ where
     ContextError::new(error).with_context(context)
 }
 
-/// Adds context to a Result, converting the error variant to ContextError<E>.
+/// Adds context to a Result, converting the error variant to `ContextError<E>`.
 #[inline]
 pub fn with_context_result<T, E, C>(result: Result<T, E>, context: C) -> Result<T, ContextError<E>>
 where
