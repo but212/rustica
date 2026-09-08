@@ -29,15 +29,15 @@
 //!
 //! impl CalcOp {
 //!     fn add(n: i32) -> Free<Self, ()> {
-//!         Free::lift_f(Self::Add(n))
+//!         Free::suspend(Self::Add(n))
 //!     }
 //!
 //!     fn multiply(n: i32) -> Free<Self, ()> {
-//!         Free::lift_f(Self::Multiply(n))
+//!         Free::suspend(Self::Multiply(n))
 //!     }
 //!
 //!     fn get() -> Free<Self, i32> {
-//!         Free::lift_f(Self::Get)
+//!         Free::suspend(Self::Get)
 //!     }
 //! }
 //!
@@ -48,7 +48,7 @@
 //!
 //! // Interpret the program with state.
 //! // NOTE: The interpreter must return an AnyValue matching the exact return type expected
-//! // by each lifted command (e.g., () for Add/Multiply, i32 for Get).
+//! // by each suspended command (e.g., () for Add/Multiply, i32 for Get).
 //! let mut current = 0;
 //! let result: i32 = program.run(|op| match op {
 //!     CalcOp::Add(n) => {
@@ -102,12 +102,12 @@ pub enum Free<F, A> {
     /// A pure computation returning an immediate value.
     Pure(A),
     /// A suspended effect command with a leaf continuation mapping the interpreter's output to `A`.
-    Lift(
+    Suspend(
         F,
         Arc<dyn Fn(AnyValue) -> Result<A, &'static str> + Send + Sync + 'static>,
     ),
     /// A sequenced computation: the left sub-computation followed by a continuation.
-    FlatMap(
+    Bind(
         Arc<Free<F, AnyValue>>,
         Arc<dyn Fn(AnyValue) -> Free<F, A> + Send + Sync + 'static>,
     ),
@@ -120,7 +120,7 @@ impl<F, A> Free<F, A> {
         Free::Pure(val)
     }
 
-    /// Lifts an effect command into a `Free` computation.
+    /// Suspends an effect command into a `Free` computation.
     ///
     /// The interpreter is expected to return an [`AnyValue`] containing a value of type `A`.
     ///
@@ -129,11 +129,11 @@ impl<F, A> Free<F, A> {
     /// Panics during evaluation via [`run`](Self::run) if the interpreter returns a value whose
     /// type does not match `A`. For safe error handling without panics, use [`try_run`](Self::try_run).
     #[inline]
-    pub fn lift_f(effect: F) -> Self
+    pub fn suspend(effect: F) -> Self
     where
         A: Send + Sync + Clone + 'static,
     {
-        Free::Lift(
+        Free::Suspend(
             effect,
             Arc::new(|any_val: AnyValue| {
                 any_val
@@ -144,22 +144,13 @@ impl<F, A> Free<F, A> {
         )
     }
 
-    /// Alias for [`lift_f`](Self::lift_f).
-    #[inline]
-    pub fn suspend(effect: F) -> Self
-    where
-        A: Send + Sync + Clone + 'static,
-    {
-        Self::lift_f(effect)
-    }
-
     /// Suspends an effect command with a custom continuation function.
     #[inline]
     pub fn suspend_with<Cont>(effect: F, cont: Cont) -> Self
     where
         Cont: Fn(AnyValue) -> A + Send + Sync + 'static,
     {
-        Free::Lift(effect, Arc::new(move |any_val| Ok(cont(any_val))))
+        Free::Suspend(effect, Arc::new(move |any_val| Ok(cont(any_val))))
     }
 
     /// Converts this `Free` value into a type-erased `Free<F, AnyValue>`.
@@ -171,9 +162,9 @@ impl<F, A> Free<F, A> {
     {
         match self {
             Free::Pure(a) => Free::Pure(Arc::new(a.clone()) as AnyValue),
-            Free::Lift(cmd, cont) => {
+            Free::Suspend(cmd, cont) => {
                 let cont_clone = Arc::clone(cont);
-                Free::Lift(
+                Free::Suspend(
                     cmd.clone(),
                     Arc::new(move |res| {
                         let a = cont_clone(res)?;
@@ -186,9 +177,9 @@ impl<F, A> Free<F, A> {
                     }),
                 )
             },
-            Free::FlatMap(sub, cont) => {
+            Free::Bind(sub, cont) => {
                 let cont_clone = Arc::clone(cont);
-                Free::FlatMap(
+                Free::Bind(
                     Arc::clone(sub),
                     Arc::new(move |res| cont_clone(res).into_any()),
                 )
@@ -206,10 +197,10 @@ impl<F, A> Free<F, A> {
     {
         match self {
             Free::Pure(a) => Free::Pure(f(a.clone())),
-            Free::Lift(cmd, cont) => {
+            Free::Suspend(cmd, cont) => {
                 let f_arc = Arc::new(f);
                 let cont_clone = Arc::clone(cont);
-                Free::Lift(
+                Free::Suspend(
                     cmd.clone(),
                     Arc::new(move |res| cont_clone(res).map(|a| f_arc(a))),
                 )
@@ -236,7 +227,7 @@ impl<F, A> Free<F, A> {
     /// Sequences another `Free` computation from the result of this computation.
     ///
     /// If `self` is `Free::Pure(a)`, `f(a)` is evaluated immediately without allocating
-    /// an intermediate `FlatMap` node. Otherwise, a structural `FlatMap` node is created,
+    /// an intermediate `Bind` node. Otherwise, a structural `Bind` node is created,
     /// enabling stack-safe trampoline evaluation in [`run`](Self::run).
     pub fn bind<B, Next>(&self, f: Next) -> Free<F, B>
     where
@@ -249,7 +240,7 @@ impl<F, A> Free<F, A> {
             Free::Pure(a) => f(a.clone()),
             other => {
                 let f_arc = Arc::new(f);
-                Free::FlatMap(
+                Free::Bind(
                     Arc::new(other.into_any()),
                     Arc::new(move |any_val: AnyValue| {
                         let a = any_val
@@ -355,7 +346,7 @@ impl<F, A> Free<F, A> {
 
         loop {
             match cur {
-                Free::FlatMap(ref sub, ref cont) => {
+                Free::Bind(ref sub, ref cont) => {
                     stack.push(Arc::clone(cont));
                     cur = (**sub).clone();
                 },
@@ -372,21 +363,21 @@ impl<F, A> Free<F, A> {
                             });
                     },
                 },
-                Free::Lift(ref cmd, ref cont) => {
+                Free::Suspend(ref cmd, ref cont) => {
                     let effect_res = interp(cmd.clone()).map_err(FreeError::Interpreter)?;
-                    let any_box = cont(effect_res).map_err(|expected| FreeError::TypeMismatch { expected })?;
+                    let any_box = cont(effect_res)
+                        .map_err(|expected| FreeError::TypeMismatch { expected })?;
                     match stack.pop() {
                         Some(cont) => {
                             cur = cont(any_box);
-                        }
+                        },
                         None => {
-                            return any_box
-                                .downcast_ref::<A>()
-                                .cloned()
-                                .ok_or(FreeError::TypeMismatch {
+                            return any_box.downcast_ref::<A>().cloned().ok_or(
+                                FreeError::TypeMismatch {
                                     expected: std::any::type_name::<A>(),
-                                });
-                        }
+                                },
+                            );
+                        },
                     }
                 },
             }
@@ -455,14 +446,14 @@ impl<F, A> Free<F, A> {
 
     /// Returns `true` if this computation is a suspended leaf effect command.
     #[inline]
-    pub const fn is_lift(&self) -> bool {
-        matches!(self, Free::Lift(_, _))
+    pub const fn is_suspend(&self) -> bool {
+        matches!(self, Free::Suspend(_, _))
     }
 
-    /// Returns `true` if this computation is suspended (either `Lift` or `FlatMap`).
+    /// Returns `true` if this computation is a sequenced continuation node.
     #[inline]
     pub const fn is_bind(&self) -> bool {
-        matches!(self, Free::Lift(_, _) | Free::FlatMap(_, _))
+        matches!(self, Free::Bind(_, _))
     }
 
     /// Returns a reference to the inner value if it is pure.
@@ -470,7 +461,7 @@ impl<F, A> Free<F, A> {
     pub fn as_pure(&self) -> Option<&A> {
         match self {
             Free::Pure(a) => Some(a),
-            Free::Lift(_, _) | Free::FlatMap(_, _) => None,
+            Free::Suspend(_, _) | Free::Bind(_, _) => None,
         }
     }
 
@@ -482,7 +473,7 @@ impl<F, A> Free<F, A> {
     {
         match self {
             Free::Pure(a) => Some(a.clone()),
-            Free::Lift(_, _) | Free::FlatMap(_, _) => None,
+            Free::Suspend(_, _) | Free::Bind(_, _) => None,
         }
     }
 }
@@ -491,15 +482,15 @@ impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for Free<F, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Free::Pure(a) => f.debug_tuple("Pure").field(a).finish(),
-            Free::Lift(cmd, _) => f
-                .debug_tuple("Lift")
+            Free::Suspend(cmd, _) => f
+                .debug_tuple("Suspend")
                 .field(cmd)
                 .field(&"<continuation>")
                 .finish(),
-            Free::FlatMap(sub, _) => {
+            Free::Bind(sub, _) => {
                 let mut depth = 1usize;
                 let mut cur: &Free<F, AnyValue> = sub;
-                while let Free::FlatMap(next, _) = cur {
+                while let Free::Bind(next, _) = cur {
                     depth += 1;
                     cur = next;
                     if depth > 10 {
@@ -507,16 +498,16 @@ impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for Free<F, A> {
                     }
                 }
                 if depth > 10 {
-                    while let Free::FlatMap(next, _) = cur {
+                    while let Free::Bind(next, _) = cur {
                         depth += 1;
                         cur = next;
                     }
-                    f.debug_tuple("FlatMap")
+                    f.debug_tuple("Bind")
                         .field(&format_args!("depth: {depth}"))
                         .field(&"<continuation>")
                         .finish()
                 } else {
-                    f.debug_tuple("FlatMap")
+                    f.debug_tuple("Bind")
                         .field(sub)
                         .field(&"<continuation>")
                         .finish()
@@ -535,11 +526,11 @@ impl<F, A: Default> Default for Free<F, A> {
 
 impl<F, A> Drop for Free<F, A> {
     fn drop(&mut self) {
-        if let Free::FlatMap(sub, _) = self {
+        if let Free::Bind(sub, _) = self {
             let mut cur = Arc::clone(sub);
             *sub = Arc::new(Free::Pure(Arc::new(()) as AnyValue));
             while let Ok(mut node) = Arc::try_unwrap(cur) {
-                if let Free::FlatMap(ref mut next, _) = node {
+                if let Free::Bind(ref mut next, _) = node {
                     let next_arc = Arc::clone(next);
                     *next = Arc::new(Free::Pure(Arc::new(()) as AnyValue));
                     cur = next_arc;
@@ -565,6 +556,7 @@ mod tests {
     fn test_pure_value() {
         let computation: Free<TestCmd, i32> = Free::pure(42);
         assert!(computation.is_pure());
+        assert!(!computation.is_suspend());
         assert!(!computation.is_bind());
         assert_eq!(computation.as_pure(), Some(&42));
         assert_eq!(computation.into_pure(), Some(42));
@@ -585,10 +577,10 @@ mod tests {
     }
 
     #[test]
-    fn test_lift_f_and_run() {
-        let program = Free::<TestCmd, ()>::lift_f(TestCmd::Increment(10))
-            .bind(|_: ()| Free::<TestCmd, ()>::lift_f(TestCmd::Increment(25)))
-            .bind(|_: ()| Free::<TestCmd, i32>::lift_f(TestCmd::Fetch));
+    fn test_suspend_and_run() {
+        let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
+            .bind(|_: ()| Free::<TestCmd, ()>::suspend(TestCmd::Increment(25)))
+            .bind(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let mut counter = 0;
         let final_value: i32 = program.run(|cmd| match cmd {
@@ -604,8 +596,8 @@ mod tests {
 
     #[test]
     fn test_try_run_success_and_error() {
-        let program = Free::<TestCmd, ()>::lift_f(TestCmd::Increment(5))
-            .bind(|_: ()| Free::<TestCmd, i32>::lift_f(TestCmd::Fetch));
+        let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
+            .bind(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let mut counter = 0;
         let res: Result<i32, FreeError<()>> = program.try_run(|cmd| match cmd {
@@ -617,8 +609,8 @@ mod tests {
         });
         assert_eq!(res, Ok(5));
 
-        let failing_program = Free::<TestCmd, ()>::lift_f(TestCmd::Increment(5))
-            .bind(|_: ()| Free::<TestCmd, i32>::lift_f(TestCmd::Fetch));
+        let failing_program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
+            .bind(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
         let err_res: Result<i32, FreeError<&'static str>> =
             failing_program.try_run(|cmd| match cmd {
                 TestCmd::Increment(_) => Err("error during increment"),
@@ -630,13 +622,50 @@ mod tests {
         );
 
         // Counterexample for P3: Type mismatch returns Err(FreeError::TypeMismatch) instead of panicking
-        let mismatch_program = Free::<TestCmd, ()>::lift_f(TestCmd::Increment(5));
+        let mismatch_program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5));
         let type_err: Result<(), FreeError<()>> =
             mismatch_program.try_run(|_| Ok(Arc::new(7_i64) as AnyValue));
         assert!(matches!(
             type_err,
             Err(FreeError::TypeMismatch { expected: "()" })
         ));
+    }
+
+    #[test]
+    fn test_runtime_type_mismatch_in_pipeline() {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        let side_effect_count = Arc::new(AtomicU32::new(0));
+        let count_clone = Arc::clone(&side_effect_count);
+
+        // AST construction carries static types Free<TestCmd, ()> and Free<TestCmd, i32>
+        let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
+            .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+
+        // Interpreter author accidentally returns String instead of expected i32
+        // Notice this compiles without any compiler error!
+        let res: Result<i32, FreeError<()>> = program.try_run(move |cmd| match cmd {
+            TestCmd::Increment(_) => {
+                count_clone.fetch_add(1, Ordering::SeqCst);
+                Ok(Arc::new(()) as AnyValue)
+            }
+            TestCmd::Fetch => Ok(Arc::new(String::from("wrong_type")) as AnyValue),
+        });
+
+        // Verifies: 1) First step already ran and executed its side effect at runtime
+        assert_eq!(side_effect_count.load(Ordering::SeqCst), 1);
+        // Verifies: 2) Error is only detected at runtime when Fetch continuation downcasts AnyValue
+        assert!(matches!(
+            res,
+            Err(FreeError::TypeMismatch { expected }) if expected == std::any::type_name::<i32>()
+        ));
+    }
+
+    #[test]
+    #[should_panic(expected = "Free interpretation type mismatch: expected return type i32")]
+    fn test_run_panics_on_runtime_type_mismatch() {
+        let program = Free::<TestCmd, i32>::suspend(TestCmd::Fetch);
+        // Compiles successfully, but panics at runtime during downcasting
+        let _: i32 = program.run(|_| Arc::new("wrong_type") as AnyValue);
     }
 
     #[test]
@@ -684,7 +713,7 @@ mod tests {
     fn test_left_nested_stack_safety() {
         let mut p: Free<TestCmd, ()> = Free::pure(());
         for _ in 0..25_000 {
-            p = p.then(Free::lift_f(TestCmd::Increment(1)));
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
         }
 
         let mut count = 0;
@@ -700,9 +729,9 @@ mod tests {
 
     #[test]
     fn test_arc_clone_and_multiple_runs() {
-        let program = Free::<TestCmd, ()>::lift_f(TestCmd::Increment(10))
-            .then(Free::<TestCmd, ()>::lift_f(TestCmd::Increment(20)))
-            .then(Free::<TestCmd, i32>::lift_f(TestCmd::Fetch));
+        let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
+            .then(Free::<TestCmd, ()>::suspend(TestCmd::Increment(20)))
+            .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         // Run 1: with normal counter
         let mut c1 = 0;
@@ -753,8 +782,8 @@ mod tests {
 
     #[test]
     fn test_fold_map_to_io() {
-        let program = Free::<TestCmd, ()>::lift_f(TestCmd::Increment(5))
-            .then(Free::<TestCmd, i32>::lift_f(TestCmd::Fetch));
+        let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
+            .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let io_comp = program.fold_map(|cmd| {
             IO::new(move || match cmd {
@@ -772,19 +801,19 @@ mod tests {
         let pure_val: Free<TestCmd, i32> = Free::pure(99);
         assert_eq!(format!("{pure_val:?}"), "Pure(99)");
 
-        let bound: Free<TestCmd, ()> = Free::lift_f(TestCmd::Increment(1));
+        let bound: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
         assert_eq!(
             format!("{bound:?}"),
-            "Lift(Increment(1), \"<continuation>\")"
+            "Suspend(Increment(1), \"<continuation>\")"
         );
     }
 
     #[test]
     fn test_deep_debug_format_stack_safety() {
         // Counterexample for P2: 50,000-deep spine Debug formatting must not overflow the stack
-        let mut p: Free<TestCmd, ()> = Free::lift_f(TestCmd::Increment(1));
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
         for _ in 0..50_000 {
-            p = p.then(Free::lift_f(TestCmd::Increment(1)));
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
         }
         let debug_str = format!("{p:?}");
         assert!(debug_str.contains("depth: 50000"));

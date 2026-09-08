@@ -154,7 +154,7 @@ Specialized guidelines for Rustica's categorical and persistent abstractions:
 
 - **Single-shot Computations**:
   - Evaluates side effects or state transitions by consuming the computation descriptor: `self` receiver.
-  - `IO::run(self) -> O`, `State::run_state(self, s: S) -> (A, S)`
+  - `IO::run(self) -> O`, `State::run_state(self, s: S) -> (A, S)`, `Program::run(self, handler: &mut H) -> A`, `TryProgram::try_run(self, handler: &mut H) -> Result<A, E>`
 - **Multi-shot Computations (Documented Exception)**:
   - When the execution pipeline is wrapped in an `Arc<dyn Fn...>`, allowing the same computation to be executed multiple times with different continuations, `&self` is permitted.
   - Must document receiver rationale under a dedicated **Receiver Semantics** section in rustdoc.
