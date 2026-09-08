@@ -52,7 +52,7 @@ pub(crate) const SMALL_SIZE_TABLE_SIZE: usize = 8;
 /// - Branch nodes use `SmallVec` with inline storage for up to 8 children
 /// - Leaf nodes use `SmallVec` with inline storage for up to 64 elements
 /// - Size tables (when present) also use `SmallVec` with inline storage
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug)]
 pub enum RRBNode<T> {
     /// A branch node containing child nodes.
     ///
@@ -63,7 +63,7 @@ pub enum RRBNode<T> {
         ///
         /// The number of children is bounded by `BRANCHING_FACTOR` (32).
         children: SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
-        /// Size table containing cumulative sizes of each subtree.
+        /// Size table containing the size of each child subtree.
         sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>,
     },
     /// A leaf node containing actual data elements.
@@ -108,14 +108,7 @@ impl<T> RRBNode<T> {
 
 /// Node transformation and update methods
 impl<T: Clone> RRBNode<T> {
-    pub fn create_branch_result(
-        children: SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
-        sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>, popped: T,
-    ) -> Option<(Self, T)> {
-        Some((RRBNode::Branch { children, sizes }, popped))
-    }
-
-    pub fn update(&self, index: usize, value: T, current_height: usize) -> Self {
+    pub fn update(&self, index: usize, value: T) -> Self {
         match self {
             RRBNode::Leaf { elements } => {
                 let mut new_elements = elements.clone();
@@ -131,8 +124,7 @@ impl<T: Clone> RRBNode<T> {
 
                 if let Some((child_index, sub_index)) = found {
                     if let Some(child) = children.get(child_index) {
-                        let child_height = current_height.saturating_sub(1);
-                        let updated_child = child.update(sub_index, value, child_height);
+                        let updated_child = child.update(sub_index, value);
                         let mut new_children = children.clone();
                         new_children[child_index] = Arc::new(updated_child);
                         RRBNode::Branch {
@@ -159,35 +151,6 @@ impl<T: Clone> RRBNode<T> {
             children: children.into(),
             sizes,
         }
-    }
-
-    pub fn update_size_table_after_removal(
-        sizes: &SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>, index: usize,
-    ) -> SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> {
-        let mut new_sizes = sizes.clone();
-        if index < new_sizes.len() {
-            new_sizes.remove(index);
-        }
-        new_sizes
-    }
-
-    pub fn update_size_table_after_update(
-        sizes: &SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>, index: usize, new_size: usize,
-    ) -> SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> {
-        let mut new_sizes = sizes.clone();
-        if index < new_sizes.len() {
-            new_sizes[index] = new_size;
-        }
-        new_sizes
-    }
-
-    pub fn create_empty_leaf_result<U>(popped: U) -> Option<(Self, U)> {
-        Some((
-            RRBNode::Leaf {
-                elements: SmallVec::new(),
-            },
-            popped,
-        ))
     }
 
     fn append_size(
@@ -325,20 +288,35 @@ impl<T: Clone> RRBNode<T> {
 
                     if new_child.calculate_size() == 0 {
                         new_children.pop();
-                        let new_sizes =
-                            Self::update_size_table_after_removal(sizes, last_child_index);
-
-                        if new_children.is_empty() {
-                            return Self::create_empty_leaf_result(popped);
+                        let mut new_sizes = sizes.clone();
+                        if last_child_index < new_sizes.len() {
+                            new_sizes.remove(last_child_index);
                         }
 
-                        Self::create_branch_result(new_children, new_sizes, popped)
+                        if new_children.is_empty() {
+                            return Some((
+                                RRBNode::Leaf {
+                                    elements: SmallVec::new(),
+                                },
+                                popped,
+                            ));
+                        }
+
+                        Some((
+                            RRBNode::Branch {
+                                children: new_children,
+                                sizes: new_sizes,
+                            },
+                            popped,
+                        ))
                     } else {
                         new_children[last_child_index] = Arc::new(new_child);
 
                         let new_size = new_children[last_child_index].calculate_size();
-                        let new_sizes =
-                            Self::update_size_table_after_update(sizes, last_child_index, new_size);
+                        let mut new_sizes = sizes.clone();
+                        if last_child_index < new_sizes.len() {
+                            new_sizes[last_child_index] = new_size;
+                        }
 
                         Some((
                             RRBNode::Branch {
@@ -463,18 +441,35 @@ impl<T: Clone> RRBNode<T> {
 
                     if new_child.calculate_size() == 0 {
                         new_children.remove(0);
-                        let new_sizes = Self::update_size_table_after_removal(sizes, 0);
-
-                        if new_children.is_empty() {
-                            return Self::create_empty_leaf_result(popped);
+                        let mut new_sizes = sizes.clone();
+                        if !new_sizes.is_empty() {
+                            new_sizes.remove(0);
                         }
 
-                        Self::create_branch_result(new_children, new_sizes, popped)
+                        if new_children.is_empty() {
+                            return Some((
+                                RRBNode::Leaf {
+                                    elements: SmallVec::new(),
+                                },
+                                popped,
+                            ));
+                        }
+
+                        Some((
+                            RRBNode::Branch {
+                                children: new_children,
+                                sizes: new_sizes,
+                            },
+                            popped,
+                        ))
                     } else {
                         new_children[0] = Arc::new(new_child);
 
                         let new_size = new_children[0].calculate_size();
-                        let new_sizes = Self::update_size_table_after_update(sizes, 0, new_size);
+                        let mut new_sizes = sizes.clone();
+                        if !new_sizes.is_empty() {
+                            new_sizes[0] = new_size;
+                        }
 
                         Some((
                             RRBNode::Branch {

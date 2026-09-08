@@ -21,7 +21,7 @@ Rustica provides pragmatic functional programming and category theory abstractio
 - **Domain Modeling**: Eliminate impossible states at compile time
 - **Validation**: Accumulate multiple errors without early termination (`Validated`)
 - **Effect Isolation**: Manage state, dependencies, and I/O explicitly (`IO`, `State`, `Reader`)
-- **Persistent Data**: High-performance immutable collections with structural sharing (`PersistentVector`)
+- **Persistent Data**: Immutable collections with structural sharing (`PersistentVector`)
 
 ---
 

@@ -14,6 +14,14 @@
 - **AsRef Panic Removal**: Removed panicking `AsRef` implementations from `First` and `Last` in favor of non-panicking `get()` and `into_value()`.
 - **IO::delay Reactor Nesting**: Resolved Tokio thread panics caused by nested `block_on` runtime invocations in `IO::delay`.
 - **PVec Reversal and Height Reset**: Fixed order reversal and height loss bugs in `pop_front_from_tree` within `src/pvec/tree.rs`.
+- **PVec Single-Pass Tree Pop**: Optimized `pop_from_tree` in `src/pvec/tree.rs` to consume popped values directly from `root.pop_back()`, removing redundant $O(\log n)$ tree lookups and duplicate clones.
+- **PVec Structural Sharing in `Extend`**: Preserved structural sharing in `Extend::extend` via amortized $O(1)$ tail pushes (`push_back`), eliminating full-vector heap reallocations and tree rebuilds.
+- **PVec Debug Trait Bound & Formatting**: Relaxed `Debug` bound on `PersistentVector<T>` from `T: Clone + Debug` to `T: Debug`, enabling non-clone element formatting and standardizing output to list format (`[...]`).
+- **PVec Invariants & Inline Fast-Paths**: Enforced uniform branch height in `concat_nodes` via `unreachable!`, and added direct in-place `SmallVec` fast-paths for `insert` and `remove` on `Inline` vectors ($\le 64$ elements).
+- **PVec Projection Bound Relaxation**: Removed unnecessary `U: Clone` bound from `PersistentVector::map`, `filter_map`, and `flat_map`.
+- **PVec Lazy Value Iteration**: Replaced eager full-vector heap allocation in `PersistentVectorIntoIter` with on-demand leaf streaming.
+- **PVec Equivalence and Removal Fast-Paths**: Added length and `Arc::ptr_eq` short-circuits to `PartialEq::eq`, $O(1)$ boundary removal (`pop_front`/`pop_back`) in `PersistentVector::remove`, and direct collection in `PersistentVector::chunk`.
+- **PVec Internal Derives & Error Cleanup**: Removed unused `PartialEq, Eq, PartialOrd, Ord, Hash` derives from internal `VectorImpl`, `RRBTree`, and `RRBNode`; deprecated `PVecError::is_index_out_of_bounds` in favor of pattern matching.
 - **Vec Alternative Monoidal Semantics**: Changed `<Vec<T> as Alternative>::alt` from first-non-empty semantics to monoidal concatenation (`self.extend(other)`).
 
 ### Free Monad (`Free<F, A>`)

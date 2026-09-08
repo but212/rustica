@@ -1,43 +1,33 @@
 //! Persistent vector implementation using RRB (Relaxed Radix Balanced) trees.
 //!
-//! This module provides a persistent, immutable vector data structure that supports
-//! efficient operations for insertion, deletion, and random access. The implementation
-//! uses RRB trees which maintain logarithmic performance characteristics while
-//! supporting efficient concatenation and splitting operations.
+//! Provides an immutable vector data structure with structural sharing, supporting
+//! logarithmic-time updates, access, splitting, and concatenation.
 //!
-//! # Key Features
+//! # Characteristics
 //!
-//! - **Persistence**: All operations return new vectors, leaving the original unchanged
-//! - **Structural Sharing**: Modified vectors share structure with originals, minimizing memory usage
-//! - **Adaptive Storage**: Small vectors (≤64 elements) use inline storage for optimal performance
-//! - **Efficient Operations**: O(log n) for most operations including random access, update, and split
-//! - **Bounded Branches**: Every RRB branch contains at most 32 children, including after concatenation
+//! - **Structural Sharing**: Modifications return new vectors sharing unchanged tree nodes.
+//! - **Adaptive Storage**: Vectors with $\le 64$ elements reside in inline `SmallVec` storage without heap allocation.
+//! - **Tree Invariant**: Branch nodes contain at most 32 children.
+//! - **Lazy Iteration**: `IntoIterator` yields owned values by streaming leaves on demand without full-vector heap allocation.
 //!
 //! # When to Use
 //!
 //! Use `PersistentVector` when you need:
-//! - Immutable data structures with efficient updates
-//! - Version history or undo/redo functionality
-//! - Safe sharing across threads without locks
+//! - Immutable data structures with version history or undo/redo
+//! - Thread-safe sharing without locks
 //! - Functional programming patterns
 //!
-//! For mutable use cases where persistence isn't needed, prefer `Vec<T>`.
+//! For standard mutable sequences, prefer `Vec<T>`.
 //!
-//! # Error Handling Policy
+//! # Error Handling
 //!
-//! This module follows a dual approach to error handling:
-//!
-//! - **Total functions** (e.g., `update`, `get`): Return a default value or `Option`
-//!   when operations cannot complete. This supports functional programming patterns
-//!   where operations should always succeed.
-//!
-//! - **Fallible functions** (e.g., `try_update`, `try_get`): Return `Result` with
-//!   detailed error information via `PVecError`.
+//! - Total functions (`get`, `update`): Return `Option` or the unchanged vector.
+//! - Fallible functions (`try_get`, `try_update`): Return `Result<_, PVecError>`.
 //!
 //! | Operation | Total Version | Fallible Version |
 //! |-----------|---------------|------------------|
 //! | Get element | `get()` → `Option<&T>` | `try_get()` → `Result<&T, PVecError>` |
-//! | Update element | `update()` → `Self` (clone on error) | `try_update()` → `Result<Self, PVecError>` |
+//! | Update element | `update()` → `Self` | `try_update()` → `Result<Self, PVecError>` |
 //!
 //! # Examples
 //!
