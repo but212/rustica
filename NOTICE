@@ -25,9 +25,7 @@ compliance reviews explicit.
 
 MIT OR Apache-2.0
 
-- rayon
 - smallvec
-- lazy_static
 - serde
 - serde_json
 - criterion
@@ -46,9 +44,6 @@ Unlicense/MIT
 
 For convenience, the MIT license text is reproduced below. The Apache-2.0
 terms covering these crates are already provided in the LICENSE file.
-
-rayon:
-Copyright (c) 2010 The Rust Project Developers
 
 quickcheck:
 Copyright (c) 2015 Andrew Gallant
