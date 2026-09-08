@@ -647,7 +647,7 @@ mod tests {
             TestCmd::Increment(_) => {
                 count_clone.fetch_add(1, Ordering::SeqCst);
                 Ok(Arc::new(()) as AnyValue)
-            }
+            },
             TestCmd::Fetch => Ok(Arc::new(String::from("wrong_type")) as AnyValue),
         });
 

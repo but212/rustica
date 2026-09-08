@@ -5,7 +5,9 @@
 //! relationship part of the type instead of a convention maintained by callers.
 
 use super::MonadTransformer;
-use crate::error::{ComposableError, ComposableResult, IntoErrorContext};
+#[allow(deprecated)]
+use crate::error::{ComposableError, ComposableResult};
+use crate::error::{ContextError, IntoErrorContext};
 use crate::traits::hkt::HKT;
 use crate::traits::monad::Monad;
 use std::marker::PhantomData;
@@ -231,10 +233,26 @@ where
     Err: Clone + 'static,
     A: Clone + 'static,
 {
-    pub fn try_run_reader(self, env: E) -> ComposableResult<A, Err> {
-        self.run_reader(env).map_err(ComposableError::new)
+    /// Runs the reader computation, returning the standard Result.
+    pub fn try_run_reader(self, env: E) -> Result<A, Err> {
+        self.run_reader(env)
     }
 
+    /// Runs the reader computation, attaching context to any failure.
+    pub fn try_run_reader_context<C>(self, env: E, context: C) -> Result<A, ContextError<Err>>
+    where
+        C: IntoErrorContext,
+    {
+        self.run_reader(env)
+            .map_err(|e| crate::error::with_context(e, context))
+    }
+
+    /// Runs the reader computation with context and returns a `ComposableResult`.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Use `try_run_reader_context` instead. Scheduled for removal in 0.18.0."
+    )]
+    #[allow(deprecated)]
     pub fn try_run_reader_with_context<C>(self, env: E, context: C) -> ComposableResult<A, Err>
     where
         C: IntoErrorContext,
@@ -295,6 +313,36 @@ mod tests {
             ReaderT::new(|_| Some((|n| format!("value={n}")) as Formatter));
         let applied: ReaderT<i32, Option<String>, String> = functions.apply(value);
         assert_eq!(applied.run_reader(7), Some("value=7".to_owned()));
+    }
+
+    #[test]
+    fn fallible_reader_t_runners() {
+        let fallible: ReaderT<i32, Result<i32, &'static str>, i32> = ReaderT::new(|env| {
+            if env > 0 {
+                Ok(env * 10)
+            } else {
+                Err("negative")
+            }
+        });
+
+        let res1 = fallible.clone().try_run_reader(5);
+        assert_eq!(res1, Ok(50));
+
+        let res2 = fallible.clone().try_run_reader(-1);
+        assert_eq!(res2, Err("negative"));
+
+        let res_ctx = fallible.clone().try_run_reader_context(-1, "reader step");
+        assert!(res_ctx.is_err());
+        let err = res_ctx.unwrap_err();
+        assert_eq!(err.error(), &"negative");
+        assert_eq!(err.contexts_raw(), &["reader step"]);
+
+        #[allow(deprecated)]
+        {
+            let dep_res = fallible.clone().try_run_reader_with_context(5, "ctx");
+            assert_eq!(dep_res, Ok(50));
+            assert!(fallible.try_run_reader_with_context(-1, "ctx").is_err());
+        }
     }
 }
 

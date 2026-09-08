@@ -6,6 +6,11 @@
 use crate::datatypes::validated::{Validated, core::ErrorAccumulator};
 use crate::traits::hkt::HKT;
 
+/// Trait for types that can map their error variant and convert to a standard Result.
+#[deprecated(
+    since = "0.16.0",
+    note = "Use standard Result combinators or Iterator::collect instead. WithError is scheduled for removal in 0.18.0."
+)]
 pub trait WithError<E>: HKT {
     type Success;
     type ErrorOutput<G>;
@@ -17,6 +22,7 @@ pub trait WithError<E>: HKT {
     fn into_result(self) -> Result<Self::Success, E>;
 
     #[deprecated(since = "0.16.0", note = "Use `into_result` instead.")]
+    #[allow(deprecated)]
     fn to_result(self) -> Result<Self::Success, E>
     where
         Self: Sized,
@@ -47,6 +53,12 @@ where
     }
 }
 
+/// Sequences a collection of items supporting `WithError` into a `Result`.
+#[deprecated(
+    since = "0.16.0",
+    note = "Use Iterator::collect or standard Result combinators instead. sequence_with_error is scheduled for removal in 0.18.0."
+)]
+#[allow(deprecated)]
 #[inline]
 pub fn sequence_with_error<C, T, E>(collection: Vec<C>) -> Result<Vec<T>, E>
 where
@@ -59,6 +71,7 @@ where
         .collect()
 }
 
+#[allow(deprecated)]
 impl<T, E> WithError<E> for Result<T, E> {
     type Success = T;
     type ErrorOutput<G> = Result<T, G>;
@@ -78,6 +91,7 @@ impl<T, E> WithError<E> for Result<T, E> {
     }
 }
 
+#[allow(deprecated)]
 impl<T, E> WithError<E> for Validated<E, T> {
     type Success = T;
     type ErrorOutput<G> = Validated<G, T>;
@@ -133,6 +147,7 @@ mod tests {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod unit_tests {
     use super::sequence_with_error;
     use crate::datatypes::validated::Validated;

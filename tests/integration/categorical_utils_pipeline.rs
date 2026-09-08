@@ -44,6 +44,12 @@ fn test_prelude_reexports() {
     assert_eq!(val_err, ValidatedError::ExpectedValid);
 
     let ctx = context!("error code {}", 42);
-    let error = ComposableError::new("failed").with_context(ctx);
-    assert_eq!(error.context(), vec!["error code 42".to_string()]);
+    let ctx_err = ContextError::new("failed").with_context(ctx);
+    assert_eq!(ctx_err.context(), vec!["error code 42".to_string()]);
+
+    #[allow(deprecated)]
+    {
+        let error = ComposableError::new("failed").with_context("deprecated ctx");
+        assert_eq!(error.context(), vec!["deprecated ctx".to_string()]);
+    }
 }

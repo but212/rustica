@@ -64,6 +64,17 @@
   - Deprecated `IO::try_get*` runner family in favor of `IO::try_run*` (C-GETTER).
   - Deprecated `Choice::filter_values` in favor of consuming `Choice::filter`.
   - Deprecated `Validated::errors` in favor of `Validated::error_slice` or `iter_errors`.
+  - Deprecated `ComposableError<E>` in favor of `ContextError<E>` (scheduled for removal in 0.18.0).
+  - Deprecated `ComposableResult<T, E>` in favor of standard `Result<T, ContextError<E>>` (scheduled for removal in 0.18.0).
+  - Deprecated `BoxedComposableError<E>` and `BoxedComposableResult<T, E>` in favor of standard `Result<T, Box<ContextError<E>>>` (scheduled for removal in 0.18.0).
+  - Deprecated `WithError<E>` and `sequence_with_error` in favor of standard `Result` combinators and `Iterator::collect` (scheduled for removal in 0.18.0).
+
+### Error System Slimdown (0.16.0)
+
+- **Standard Rust Result & Error First**: Rustica now treats `Result<T, E>` and `std::error::Error` as primary error primitives.
+- **Introduced `ContextError<E>`**: A minimal, standard-aligned context accumulation wrapper replacing `ComposableError<E>` without HKT, `SmallVec`, or application-specific error code metadata.
+- **Context API Updates**: `with_context_result` returns standard `Result<T, ContextError<E>>` directly. Lazy context evaluation via `context!` macro and `accumulate_context` are preserved and streamlined.
+- **Modernized Effect Runners**: `IO::try_run*`, `State::try_*_state*`, `StateT::try_*_state*`, and `ReaderT::try_run_reader*` return standard `Result` and provide `_context` methods for attaching context, deprecating old composable error runner variants.
 
 ## [0.15.0]
 
