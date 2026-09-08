@@ -152,7 +152,17 @@ impl<O: Send + Sync + 'static> IO<O> {
     /// This method is available when the `async` feature is enabled.
     /// It executes the encapsulated synchronous function in a non-blocking way
     /// by using `tokio::task::spawn_blocking`.
+    ///
+    /// # Deprecation
+    ///
+    /// Deprecated since 0.16.0. Scheduled for removal in 0.18.0.
+    /// Offload blocking IO computations directly using your runtime's task spawning API
+    /// (such as `tokio::task::spawn_blocking`).
     #[cfg(feature = "async")]
+    #[deprecated(
+        since = "0.16.0",
+        note = "Scheduled for removal in 0.18.0. Offload blocking IO computations directly using your runtime's task spawning API."
+    )]
     pub async fn run_async(self) -> O {
         let handle = tokio::runtime::Handle::current();
         match handle.spawn_blocking(move || self.run()).await {
@@ -616,6 +626,7 @@ mod unit_tests {
 
     #[cfg(feature = "async")]
     #[test]
+    #[allow(deprecated)]
     fn run_async_preserves_panics_from_the_blocking_operation() {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

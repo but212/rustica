@@ -85,10 +85,11 @@
 //!
 //! Rustica provides several feature flags to customize the library for your needs:
 //!
-//! - `full`: Enables all optional features (`async` + `serde` + `pvec`)
-//! - `async`: Enables async monad implementation (`AsyncM`)
+//! - `full`: Enables all optional features (`async`, `serde`, `quickcheck`, `pvec`)
+//! - `async`: Enables async monadic operations (`AsyncM`, `Validated` async combinators)
 //! - `serde`: Enables serialization/deserialization support
 //! - `pvec`: Enables persistent vector implementation (`PersistentVector`)
+//! - `quickcheck`: Enables arbitrary generation for property-based testing
 //!
 //! ## Structure
 //!

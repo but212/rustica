@@ -174,6 +174,48 @@ impl<F: Future> Future for CatchUnwind<F> {
     }
 }
 
+struct Join2<'a, T1, T2> {
+    fut1: Option<BoxFuture<'a, T1>>,
+    fut2: Option<BoxFuture<'a, T2>>,
+    res1: Option<T1>,
+    res2: Option<T2>,
+}
+
+impl<'a, T1, T2> Unpin for Join2<'a, T1, T2> {}
+
+impl<'a, T1, T2> Future for Join2<'a, T1, T2> {
+    type Output = (T1, T2);
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        if let Some(Poll::Ready(val)) = this.fut1.as_mut().map(|fut| fut.as_mut().poll(cx)) {
+            this.res1 = Some(val);
+            this.fut1 = None;
+        }
+        if let Some(Poll::Ready(val)) = this.fut2.as_mut().map(|fut| fut.as_mut().poll(cx)) {
+            this.res2 = Some(val);
+            this.fut2 = None;
+        }
+        match (this.res1.as_ref(), this.res2.as_ref()) {
+            (Some(_), Some(_)) => Poll::Ready((this.res1.take().unwrap(), this.res2.take().unwrap())),
+            _ => Poll::Pending,
+        }
+    }
+}
+
+async fn join2<'a, T1: Send + 'a, T2: Send + 'a>(
+    fut1: impl Future<Output = T1> + Send + 'a,
+    fut2: impl Future<Output = T2> + Send + 'a,
+) -> (T1, T2) {
+    Join2 {
+        fut1: Some(Box::pin(fut1)),
+        fut2: Some(Box::pin(fut2)),
+        res1: None,
+        res2: None,
+    }
+    .await
+}
+
 /// Internal representation of AsyncM, optimized for pure values.
 #[derive(Clone)]
 enum AsyncMInner<A> {
@@ -610,7 +652,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
 
                 Box::pin(async move {
                     // Optimized concurrent execution
-                    let (value, func) = tokio::join!(
+                    let (value, func) = join2(
                         async {
                             match &self_inner {
                                 AsyncMInner::Pure(v) => (**v).clone(),
@@ -622,8 +664,9 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                                 AsyncMInner::Pure(f) => (**f).clone(),
                                 AsyncMInner::Effect(run) => run().await,
                             }
-                        }
-                    );
+                        },
+                    )
+                    .await;
                     func(value)
                 })
             })),
@@ -748,7 +791,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                 let f = f.clone();
 
                 Box::pin(async move {
-                    let (a, b) = tokio::join!(
+                    let (a, b) = join2(
                         async {
                             match &self_inner {
                                 AsyncMInner::Pure(v) => (**v).clone(),
@@ -760,8 +803,9 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
                                 AsyncMInner::Pure(v) => (**v).clone(),
                                 AsyncMInner::Effect(run) => run().await,
                             }
-                        }
-                    );
+                        },
+                    )
+                    .await;
                     f(a, b)
                 })
             })),
