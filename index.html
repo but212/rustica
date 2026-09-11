@@ -7,90 +7,32 @@
       name="description"
       content="Rustica - A comprehensive functional programming library for Rust ecosystem"
     />
-    <meta
-      name="keywords"
-      content="Rust, Functional Programming, Category Theory, Monad, Type Classes"
-    />
-    <meta name="author" content="Jeong-il Suk" />
-
-    <!-- Open Graph Metadata -->
-    <meta
-      property="og:title"
-      content="Rustica - Functional Programming Library for Rust"
-    />
-    <meta
-      property="og:description"
-      content="Powerful abstractions from category theory and functional programming for the Rust ecosystem"
-    />
-    <meta property="og:url" content="https://but212.github.io/rustica/" />
-    <meta property="og:type" content="website" />
-
     <title>Rustica - Functional Programming Library for Rust</title>
-
-    <!-- Resource Preloading -->
-    <link rel="preload" href="./styles/styles.css" as="style" />
-    <link rel="preload" href="./styles/pages/index-pages.css" as="style" />
-    <link
-      rel="preload"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-      as="style"
-    />
-
     <link rel="stylesheet" href="./styles/styles.css" />
-    <link rel="stylesheet" href="./styles/pages/index-pages.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-    />
   </head>
   <body>
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
-    <header class="site-header" role="banner">
-      <div class="container">
-        <h1 class="site-title">Rustica</h1>
-        <p class="site-tagline">
-          A comprehensive functional programming library for Rust
-        </p>
-        <nav class="quick-links" aria-label="Quick links">
-          <ul class="badges-list">
-            <li>
-              <a href="https://crates.io/crates/rustica" class="badge crates">
-                <i class="fas fa-cube" aria-hidden="true"></i> crates.io
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://docs.rs/rustica/latest/rustica/"
-                class="badge docs"
-              >
-                <i class="fas fa-book" aria-hidden="true"></i> Documentation
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://github.com/but212/rustica/blob/main/LICENSE"
-                class="badge license"
-              >
-                <i class="fas fa-balance-scale" aria-hidden="true"></i>
-                Apache-2.0
-              </a>
-            </li>
-            <li>
-              <a href="https://github.com/but212/rustica" class="badge github">
-                <i class="fa-brands fa-github" aria-hidden="true"></i> GitHub
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
+    <header>
+      <h1>Rustica</h1>
+      <p>A comprehensive functional programming library for Rust</p>
+      <nav>
+        <ul>
+          <li><a href="https://crates.io/crates/rustica">crates.io</a></li>
+          <li>
+            <a href="https://docs.rs/rustica/latest/rustica/">Documentation</a>
+          </li>
+          <li>
+            <a href="https://github.com/but212/rustica/blob/main/LICENSE"
+              >Apache-2.0</a
+            >
+          </li>
+          <li><a href="https://github.com/but212/rustica">GitHub</a></li>
+        </ul>
+      </nav>
     </header>
 
-    <main id="main-content" class="container">
-      <article class="intro">
-        <h2>
-          <i class="fas fa-lightbulb" aria-hidden="true"></i> Introduction
-        </h2>
+    <main>
+      <article>
+        <h2>Introduction</h2>
         <p>
           Rustica brings powerful abstractions from category theory and
           functional programming to the Rust ecosystem, providing a rich set of
@@ -98,81 +40,64 @@
           programming languages.
         </p>
         <p>
-          Whether you're coming from Haskell, Scala, or other functional
+          Whether you are coming from Haskell, Scala, or other functional
           languages, or just want to explore functional programming in Rust,
           Rustica provides the tools you need for composable, type-safe code.
         </p>
       </article>
 
-      <article class="getting-started">
-        <h2>
-          <i class="fas fa-rocket" aria-hidden="true"></i> Getting Started
-        </h2>
+      <article>
+        <h2>Getting Started</h2>
         <p>Add Rustica to your <code>Cargo.toml</code>:</p>
         <pre><code>[dependencies]
 rustica = "0.7.1"</code></pre>
         <p>Import the prelude to get started:</p>
         <pre><code>use rustica::prelude::*;</code></pre>
-        <p>
-          <strong>Quick Example:</strong> Transform data with functional style
-        </p>
+        <p>Quick Example: Transform data with functional style</p>
         <pre><code>let value = Maybe::just(42);
 let doubled = value.fmap(|x| x * 2);
 assert_eq!(doubled, Maybe::just(84));</code></pre>
       </article>
 
-      <article class="features">
-        <h2><i class="fas fa-star" aria-hidden="true"></i> Key Features</h2>
-        <div class="feature-grid">
-          <div class="feature-card">
-            <h3>
-              <i class="fas fa-puzzle-piece" aria-hidden="true"></i> Type
-              Classes
-            </h3>
-            <p>
-              Core abstractions like <code>Functor</code>,
-              <code>Applicative</code>, and <code>Monad</code>
-            </p>
-          </div>
-          <div class="feature-card">
-            <h3>
-              <i class="fas fa-database" aria-hidden="true"></i> Data Types
-            </h3>
-            <p>
-              Functional data structures: <code>Maybe</code>,
-              <code>Either</code>, <code>Validated</code>, and more
-            </p>
-          </div>
-          <div class="feature-card">
-            <h3><i class="fas fa-link" aria-hidden="true"></i> Transformers</h3>
-            <p>
-              Monad transformers: <code>StateT</code>, <code>ReaderT</code>,
-              <code>WriterT</code>
-            </p>
-          </div>
-          <div class="feature-card">
-            <h3>
-              <i class="fas fa-shield-alt" aria-hidden="true"></i> Error
-              Handling
-            </h3>
-            <p>
-              Composable error handling with <code>Validated</code> and
-              <code>Either</code>
-            </p>
-          </div>
-          <div class="feature-card">
-            <h3>
-              <i class="fas fa-memory" aria-hidden="true"></i> Immutable Data
-            </h3>
-            <p>Persistent data structures with structural sharing</p>
-          </div>
-        </div>
+      <article>
+        <h2>Key Features</h2>
+        <section>
+          <h3>Type Classes</h3>
+          <p>
+            Core abstractions like <code>Functor</code>,
+            <code>Applicative</code>, and <code>Monad</code>
+          </p>
+        </section>
+        <section>
+          <h3>Data Types</h3>
+          <p>
+            Functional data structures: <code>Maybe</code>,
+            <code>Either</code>, <code>Validated</code>, and more
+          </p>
+        </section>
+        <section>
+          <h3>Transformers</h3>
+          <p>
+            Monad transformers: <code>StateT</code>, <code>ReaderT</code>,
+            <code>WriterT</code>
+          </p>
+        </section>
+        <section>
+          <h3>Error Handling</h3>
+          <p>
+            Composable error handling with <code>Validated</code> and
+            <code>Either</code>
+          </p>
+        </section>
+        <section>
+          <h3>Immutable Data</h3>
+          <p>Persistent data structures with structural sharing</p>
+        </section>
       </article>
 
-      <article class="examples">
-        <h2><i class="fas fa-code" aria-hidden="true"></i> Examples</h2>
-
-        <div class="example">
+      <article>
+        <h2>Examples</h2>
+        <section>
           <h3>Error Handling with Validated</h3>
           <p>Collect multiple validation errors:</p>
           <pre><code>let name = validate_name("A");           // Invalid
@@ -185,21 +110,21 @@ let format_user = |n: &String, e: &String| {
 let result = Validated::lift2(&name, &email, format_user);
 assert!(result.is_invalid());
 assert_eq!(result.unwrap_invalid().len(), 2); // Both errors collected</code></pre>
-        </div>
+        </section>
 
-        <div class="example">
+        <section>
           <h3>Composing Operations</h3>
           <p>Chain operations with monadic bind:</p>
-          <pre><code>let result: Either&lt;&str, i32> = Either::right(5)
+          <pre><code>let result: Either&lt;&str, i32&gt; = Either::right(5)
     .bind(|x| Either::right(x + 1))
     .bind(|x| Either::right(x * 2));
 
 assert_eq!(result, Either::right(12));</code></pre>
-        </div>
+        </section>
       </article>
 
-      <article class="feature-flags">
-        <h2><i class="fas fa-flag" aria-hidden="true"></i> Feature Flags</h2>
+      <article>
+        <h2>Feature Flags</h2>
         <ul>
           <li><code>full</code>: Enables all features</li>
           <li><code>pvec</code>: Persistent vector implementation</li>
@@ -208,36 +133,9 @@ assert_eq!(result, Either::right(12));</code></pre>
       </article>
     </main>
 
-    <footer class="site-footer" role="contentinfo">
-      <div class="container">
-        <p>&copy; 2025 Rustica - Functional Programming Library for Rust</p>
-        <p>Licensed under <a href="LICENSE">Apache License 2.0</a></p>
-        <div class="license-info">
-          <p>
-            Icons provided by
-            <a
-              href="https://github.com/FortAwesome/Font-Awesome/blob/6.x/LICENSE.txt"
-              >Font Awesome Free 6.0</a
-            >
-            under the following licenses:
-          </p>
-          <ul class="license-list">
-            <li>
-              Icons:
-              <a href="https://creativecommons.org/licenses/by/4.0/"
-                >CC BY 4.0</a
-              >
-            </li>
-            <li>
-              Fonts: <a href="https://scripts.sil.org/OFL">SIL OFL 1.1</a>
-            </li>
-            <li>
-              Code:
-              <a href="https://opensource.org/license/MIT">MIT License</a>
-            </li>
-          </ul>
-        </div>
-      </div>
+    <footer>
+      <p>&copy; 2025 Rustica - Functional Programming Library for Rust</p>
+      <p>Licensed under <a href="LICENSE">Apache License 2.0</a></p>
     </footer>
   </body>
 </html>
