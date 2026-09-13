@@ -21,20 +21,18 @@
 //! - **Lift**: Operations to promote values from the base monad to the transformer
 //! - **Stack**: The combination of transformers and base monad creates a "stack" of effects
 //!
-//! ## Transformer Stacks
+//! ## Transformer Concepts
 //!
-//! Transformers are typically used in stacks, with each transformer adding a new capability:
+//! Monad transformers add effects to a base monad. In Rustica, transformers like
+//! [`crate::transformers::ReaderT`], [`crate::transformers::StateT`], and [`crate::transformers::ContT`] wrap a base monad family implementing [`crate::traits::hkt::HKT`]
+//! and [`crate::traits::monad::Monad`]:
 //!
-//! ```text
-//! ReaderT<StateT<Option<_>>> = Environment + State + Optionality
-//! ```
+//! - `Option<T>`, `Result<T, E>`, or `Id<T>` serve as common base monads.
+//! - `ReaderT<E, M, A>` adds read-only environment access to base monad `M`.
+//! - `StateT<S, M, A>` adds state-threading to base monad `M`.
+//! - `ContT<R, M, A>` adds continuation-passing style to base monad `M`.
 //!
-//! In this example:
-//! - `Option<_>` is the base monad, providing optional computation
-//! - `StateT<_>` transforms it to add state management
-//! - `ReaderT<_>` adds environment access on top
-//!
-//! ## Available Transformers
+//! When multiple layers are used, each transformer layer wraps the inner monad type.
 //!
 //! This module provides the following monad transformers:
 //!

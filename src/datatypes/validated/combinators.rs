@@ -35,12 +35,73 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-    /// Maps a function over the error values if `Invalid`, consuming self.
+    /// Maps both the valid value and the error values simultaneously.
+    ///
+    /// If `Valid(a)`, applies `f` to produce `Valid(f(a))`.
+    /// If `Invalid(errors)`, applies `g` to each error in the collection.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(10);
+    /// let result = valid.bimap(|v| v * 2, |e| format!("Err: {e}"));
+    /// assert_eq!(result, Validated::valid(20));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("failed");
+    /// let result = invalid.bimap(|v| v * 2, |e| format!("Err: {e}"));
+    /// assert_eq!(result, Validated::invalid("Err: failed".to_string()));
+    /// ```
     #[inline]
-    #[deprecated(since = "0.15.0", note = "use `fmap_invalid` instead")]
-    pub fn fmap_invalid_owned<G, F>(self, f: F) -> Validated<G, A>
+    pub fn bimap<B, F, FnValid, FnErr>(self, mut f: FnValid, g: FnErr) -> Validated<F, B>
     where
-        F: FnMut(E) -> G,
+        FnValid: FnMut(A) -> B,
+        FnErr: FnMut(E) -> F,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::Invalid(es) => Validated::invalid_many(es.into_iter().map(g)),
+        }
+    }
+
+    /// Maps a function over the valid value if `Valid`, preserving errors if `Invalid`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(10);
+    /// assert_eq!(valid.map_valid(|v| v * 2), Validated::valid(20));
+    /// ```
+    #[inline]
+    pub fn map_valid<B, FnValid>(self, mut f: FnValid) -> Validated<E, B>
+    where
+        FnValid: FnMut(A) -> B,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::Invalid(es) => Validated::Invalid(es),
+        }
+    }
+
+    /// Maps a function over each error if `Invalid`, preserving the valid value if `Valid`.
+    ///
+    /// This is an inherent alias for [`Validated::fmap_invalid`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert_eq!(invalid.map_err(|e| format!("{e}!")), Validated::invalid("error!".to_string()));
+    /// ```
+    #[inline]
+    pub fn map_err<F, FnErr>(self, f: FnErr) -> Validated<F, A>
+    where
+        FnErr: FnMut(E) -> F,
     {
         self.fmap_invalid(f)
     }
@@ -76,13 +137,6 @@ impl<E, A> Validated<E, A> {
                 Some(Validated::Invalid(e1))
             },
         }
-    }
-
-    /// Combines errors from two `Validated` instances, consuming both.
-    #[inline]
-    #[deprecated(since = "0.15.0", note = "use `combine_errors` instead")]
-    pub fn combine_errors_owned(self, other: Self) -> Option<Self> {
-        self.combine_errors(other)
     }
 
     /// Sequences owned Validated values into a single Validated value.
@@ -183,25 +237,109 @@ impl<E, A> Validated<E, A> {
         }
     }
 
-    /// Sequences owned Validated values into a single Validated value.
-    #[inline]
-    #[deprecated(since = "0.15.0", note = "use `Validated::sequence` instead")]
-    pub fn sequence_owned<B, F>(values: Vec<Self>, f: F) -> Validated<E, B>
+    // --- Recovery Operations ---
+
+    /// Attempts recovery for accumulated errors, in order.
+    ///
+    /// Unlike fail-fast `Result::or_else`, this method feeds each accumulated error to the
+    /// recovery function. Errors are processed left-to-right. If any recovery returns
+    /// `Validated::Valid(v)`, evaluation stops early and that `Valid(v)` is returned.
+    /// If no recovery returns `Valid`, all errors produced by recoveries are accumulated.
+    pub fn recover_all<F>(self, mut recovery: F) -> Self
     where
-        F: FnOnce(Vec<A>) -> B,
+        F: FnMut(E) -> Self,
     {
-        Self::sequence(values, f)
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(errors) => {
+                let mut accumulated = Vec::new();
+
+                for error in errors {
+                    match recovery(error) {
+                        Validated::Valid(v) => return Validated::Valid(v),
+                        Validated::Invalid(more_errors) => {
+                            accumulated.extend(more_errors);
+                        },
+                    }
+                }
+
+                Validated::invalid_many(accumulated)
+            },
+        }
     }
 
-    /// Collects an iterator of Validated values into a single Validated value.
-    #[inline]
-    #[deprecated(since = "0.15.0", note = "use `Validated::collect` instead")]
-    pub fn collect_owned<I, C>(iter: I) -> Validated<E, C>
+    /// Recovers with a function that receives all errors at once.
+    pub fn recover_all_at_once<F>(self, recovery: F) -> Self
     where
-        I: IntoIterator<Item = Validated<E, A>>,
-        C: FromIterator<A>,
+        F: FnOnce(Vec<E>) -> Self,
     {
-        Self::collect(iter.into_iter())
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(errors) => recovery(errors.into_iter().collect()),
+        }
+    }
+
+    /// Attempts to recover from errors with a fallback value.
+    #[inline]
+    pub fn recover_with(self, default: A) -> Self {
+        match self {
+            Validated::Valid(v) => Validated::Valid(v),
+            Validated::Invalid(_) => Validated::Valid(default),
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+impl<E, A> Validated<E, A> {
+    /// Maps an async function over the valid value, taking ownership.
+    pub async fn fmap_valid_async<B, F, Fut>(self, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(A) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = B> + Send,
+        B: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => {
+                let result = f(x).await;
+                Validated::Valid(result)
+            },
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
+    }
+
+    /// Maps an async function over the error values, taking ownership.
+    ///
+    /// Error transformations are executed sequentially in order without external
+    /// concurrency dependencies.
+    pub async fn fmap_invalid_async<G, F, Fut>(self, f: F) -> Validated<G, A>
+    where
+        F: Fn(E) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = G> + Send,
+        G: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(x),
+            Validated::Invalid(es) => {
+                let mut results = Vec::with_capacity(es.len());
+                for err in es {
+                    results.push(f(err).await);
+                }
+                Validated::invalid_many(results)
+            },
+        }
+    }
+
+    /// Chains an async validation operation, taking ownership.
+    pub async fn and_then_async<B, F, Fut>(self, f: F) -> Validated<E, B>
+    where
+        F: FnOnce(A) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = Validated<E, B>> + Send,
+        B: Send + 'static,
+    {
+        match self {
+            Validated::Valid(x) => f(x).await,
+            Validated::Invalid(e) => Validated::Invalid(e),
+        }
     }
 }
 
@@ -260,24 +398,66 @@ mod tests {
     }
 
     #[test]
-    fn deprecated_owned_combinators_work() {
-        #[allow(deprecated)]
-        let mapped = Validated::<&str, i32>::invalid("e").fmap_invalid_owned(|e| format!("{e}!"));
-        assert_eq!(mapped.error_slice(), &["e!"]);
+    fn test_recovery_combinators() {
+        let invalid: Validated<String, i32> =
+            Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
 
-        #[allow(deprecated)]
-        let combined = Validated::<&str, i32>::invalid("e1")
-            .combine_errors_owned(Validated::invalid("e2"))
-            .unwrap();
-        assert_eq!(combined.error_slice(), &["e1", "e2"]);
+        let recovered = invalid.clone().recover_with(0);
+        assert_eq!(recovered.unwrap(), 0);
 
-        #[allow(deprecated)]
-        let seq = Validated::sequence_owned(vec![Validated::<&str, i32>::valid(1)], |v| v[0]);
-        assert_eq!(seq, Validated::valid(1));
+        let early_recovery = invalid.clone().recover_all(|e| {
+            if e == "e2" {
+                Validated::valid(99)
+            } else {
+                Validated::invalid(e)
+            }
+        });
+        assert_eq!(early_recovery.unwrap(), 99);
 
-        #[allow(deprecated)]
-        let collected: Validated<&str, Vec<i32>> =
-            Validated::collect_owned(vec![Validated::valid(10)]);
-        assert_eq!(collected, Validated::valid(vec![10]));
+        let batch_recovery = invalid.clone().recover_all_at_once(|errs| {
+            if errs.len() == 2 {
+                Validated::valid(100)
+            } else {
+                Validated::invalid("unhandled".to_string())
+            }
+        });
+        assert_eq!(batch_recovery.unwrap(), 100);
+
+        let accumulated: Validated<String, i32> =
+            invalid.recover_all(|e| Validated::invalid(format!("r:{e}")));
+        assert_eq!(accumulated.error_slice(), &["r:e1", "r:e2"]);
+    }
+
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_fmap_invalid_async_sequential() {
+        let invalid: Validated<i32, String> = Validated::invalid_many([1, 2, 3]);
+        let mapped = invalid
+            .fmap_invalid_async(|e| async move { format!("err_{}", e * 10) })
+            .await;
+        assert_eq!(mapped.error_slice(), &["err_10", "err_20", "err_30"]);
+    }
+
+    #[test]
+    fn test_inherent_bimap_and_mapping() {
+        let valid: Validated<&str, i32> = Validated::valid(10);
+        let mapped_val = valid.clone().map_valid(|v| v * 3);
+        assert_eq!(mapped_val, Validated::valid(30));
+
+        let bimapped_val = valid.bimap(|v| v + 5, |e| format!("E: {e}"));
+        assert_eq!(bimapped_val, Validated::valid(15));
+
+        let invalid: Validated<&str, i32> = Validated::invalid_many(["err1", "err2"]);
+        let mapped_err = invalid.clone().map_err(|e| format!("{e}!"));
+        assert_eq!(
+            mapped_err,
+            Validated::invalid_many(["err1!".to_string(), "err2!".to_string()])
+        );
+
+        let bimapped_err = invalid.bimap(|v| v * 2, |e| format!("E: {e}"));
+        assert_eq!(
+            bimapped_err,
+            Validated::invalid_many(["E: err1".to_string(), "E: err2".to_string()])
+        );
     }
 }

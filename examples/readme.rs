@@ -1,3 +1,4 @@
+#[cfg(feature = "pvec")]
 fn pvec_example() {
     use rustica::pvec::PersistentVector;
     use rustica::pvec::pvec;
@@ -24,10 +25,17 @@ fn basic_usage() {
     let processed = result.fmap(|s| s.to_uppercase());
     assert_eq!(processed, Ok("SUCCESS".to_string()));
 
-    // Using Choice for guaranteed non-empty alternatives
-    let choices = Choice::new(1, [2, 3]);
-    let results = choices.fmap(|x| x * 2);
-    assert_eq!(results.into_iter().collect::<Vec<_>>(), vec![2, 4, 6]);
+    // Choice: guaranteed non-empty priority/fallback execution
+    let endpoints = Choice::new("primary.api.com", ["backup1.api.com", "backup2.api.com"]);
+    assert_eq!(*endpoints.primary(), "primary.api.com");
+    let connected = endpoints.try_each(|ep| {
+        if *ep == "backup1.api.com" {
+            Ok("connected")
+        } else {
+            Err("unreachable")
+        }
+    });
+    assert_eq!(connected, Ok("connected"));
 
     // Using Validated for error accumulation
     let v1: Validated<&str, i32> = Validated::valid(10);
@@ -60,6 +68,7 @@ fn io_operations() {
 }
 
 fn main() {
+    #[cfg(feature = "pvec")]
     pvec_example();
     basic_usage();
     state_management();

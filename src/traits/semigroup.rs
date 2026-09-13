@@ -78,6 +78,10 @@ pub trait Semigroup: Sized {
 /// Extension methods for semigroups, providing additional functionality.
 pub trait SemigroupExt: Semigroup {
     /// Combines `self` with all the values in an iterator.
+    #[deprecated(
+        since = "0.16.0",
+        note = "use iterator fold with combine or combine_all_values instead"
+    )]
     #[inline]
     fn combine_all<I>(self, others: I) -> Self
     where
@@ -88,6 +92,7 @@ pub trait SemigroupExt: Semigroup {
     }
 
     /// Combines the semigroup value with itself a specified number of times.
+    #[deprecated(since = "0.16.0", note = "use an iterator fold with combine instead")]
     #[inline]
     fn combine_n(self, n: NonZeroUsize) -> Self
     where
@@ -220,6 +225,7 @@ impl<T: Semigroup> Semigroup for Option<T> {
 
 // Function to combine a sequence of semigroup values
 /// Combines a sequence of semigroup values into a single result.
+#[deprecated(since = "0.16.0", note = "use iterator fold with combine directly")]
 #[inline]
 pub fn combine_all_values<T, I>(values: I) -> Option<T>
 where
@@ -233,6 +239,7 @@ where
 
 // Function to combine a sequence of semigroup values with a provided initial value
 /// Combines a sequence of semigroup values, starting with an initial value.
+#[deprecated(since = "0.16.0", note = "use iterator fold with combine directly")]
 #[inline]
 pub fn combine_values<T, I>(initial: T, values: I) -> T
 where
@@ -244,20 +251,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{Semigroup, SemigroupExt, combine_all_values};
+    use super::Semigroup;
     use crate::datatypes::wrapper::sum::Sum;
-    use std::num::NonZeroUsize;
-
-    #[test]
-    fn combine_n_repeats_value() {
-        let n = NonZeroUsize::new(3).unwrap();
-        assert_eq!(Sum(2).combine_n(n), Sum(6));
-    }
 
     #[test]
     fn empty_sequence_is_option() {
         let values: Vec<Sum<i32>> = Vec::new();
-        assert_eq!(combine_all_values(values), None);
+        assert_eq!(values.into_iter().reduce(|acc, x| acc.combine(x)), None);
     }
 
     #[derive(Clone, Debug, PartialEq, Eq)]

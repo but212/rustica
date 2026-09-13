@@ -12,22 +12,26 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     // 64 is the inline/tree representation boundary.
     for size in [64usize, 65, 10_000] {
         group.throughput(Throughput::Elements(size as u64));
-        group.bench_with_input(BenchmarkId::new("push_back", size), &size, |b, &size| {
-            b.iter(|| {
-                let mut vec = PersistentVector::new();
-                for value in 0..size {
-                    vec = vec.push_back(black_box(value));
-                }
-                black_box(vec)
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("pvec_push_back", size),
+            &size,
+            |b, &size| {
+                b.iter(|| {
+                    let mut vec = PersistentVector::new();
+                    for value in 0..size {
+                        vec = vec.push_back(black_box(value));
+                    }
+                    black_box(vec)
+                });
+            },
+        );
     }
 
     for size in [1_000usize, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
         for direction in ["forward", "reverse"] {
             group.bench_with_input(
-                BenchmarkId::new(format!("iter_{direction}"), size),
+                BenchmarkId::new(format!("pvec_iter_{direction}"), size),
                 &size,
                 |b, &size| {
                     b.iter_batched_ref(
@@ -52,7 +56,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
         }
 
         group.bench_with_input(
-            BenchmarkId::new("indexed_access", size),
+            BenchmarkId::new("pvec_indexed_access", size),
             &size,
             |b, &size| {
                 b.iter_batched_ref(
@@ -73,7 +77,7 @@ pub fn pvec_benchmarks(c: &mut Criterion) {
     }
 
     for size in [1_000, 10_000] {
-        group.bench_with_input(BenchmarkId::new("update", size), &size, |b, &size| {
+        group.bench_with_input(BenchmarkId::new("pvec_update", size), &size, |b, &size| {
             let vec: PersistentVector<usize> = (0..size).collect();
             b.iter(|| {
                 let mut updated = vec.clone();

@@ -12,17 +12,13 @@ use super::tree::RRBTree;
 
 pub(crate) const ADAPTIVE_INLINE_SIZE: usize = 64;
 
-/// A persistent, immutable vector data structure.
+/// An immutable vector data structure with structural sharing.
 ///
-/// `PersistentVector` provides an efficient implementation of an immutable vector
-/// that supports structural sharing. Operations like `push_back`, `push_front`,
-/// and `update` return new vectors that share structure with the original,
-/// making them efficient in both time and space.
+/// Operations like `push_back`, `push_front`, and `update` return new vectors
+/// that share unchanged nodes with the original.
 ///
-/// The implementation uses an adaptive strategy: small vectors are stored inline
-/// for optimal performance, while larger vectors use an RRB (Relaxed Radix Balanced)
-/// tree structure that provides logarithmic time complexity for most operations.
-///
+/// Storage is adaptive: vectors with $\le 64$ elements reside in inline storage,
+/// while larger vectors use an RRB (Relaxed Radix Balanced) tree.
 #[derive(Clone)]
 pub struct PersistentVector<T> {
     pub(crate) inner: VectorImpl<T>,
@@ -32,7 +28,7 @@ pub struct PersistentVector<T> {
 ///
 /// Uses an adaptive strategy where small vectors are stored inline
 /// and larger vectors use a tree structure.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug)]
 pub(crate) enum VectorImpl<T> {
     /// Inline storage for small vectors.
     Inline {
@@ -53,6 +49,15 @@ impl<T> VectorImpl<T> {
 
 impl<T: PartialEq> PartialEq for PersistentVector<T> {
     fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+        if let (VectorImpl::Tree { tree: t1 }, VectorImpl::Tree { tree: t2 }) =
+            (&self.inner, &other.inner)
+            && Arc::ptr_eq(t1, t2)
+        {
+            return true;
+        }
         self.iter().eq(other.iter())
     }
 }
@@ -104,9 +109,16 @@ impl<T> PersistentVector<T> {
     }
 
     /// Creates a new persistent vector containing a single element.
-    ///
-    pub fn unit(value: T) -> Self {
+    #[inline]
+    pub fn single(value: T) -> Self {
         Self::inline(SmallVec::from_iter([value]))
+    }
+
+    /// Creates a new persistent vector containing a single element.
+    #[deprecated(since = "0.16.0", note = "use PersistentVector::single instead")]
+    #[inline]
+    pub fn unit(value: T) -> Self {
+        Self::single(value)
     }
 
     /// Returns the number of elements in the vector.
@@ -143,33 +155,6 @@ impl<T> PersistentVector<T> {
             VectorImpl::Tree { tree } => tree.as_ref().get(index),
         }
     }
-}
-
-impl<T: Clone> PersistentVector<T> {
-    /// Creates a persistent vector from a slice.
-    ///
-    pub fn from_slice(slice: &[T]) -> Self {
-        Self::from_iter(slice.iter().cloned())
-    }
-
-    /// Creates a new vector by applying a function to each element.
-    ///
-    pub fn map<U, F>(&self, f: F) -> PersistentVector<U>
-    where
-        F: Fn(&T) -> U,
-        U: Clone,
-    {
-        PersistentVector::from_iter(self.iter().map(f))
-    }
-
-    /// Creates a new vector containing only elements that match the predicate.
-    ///
-    pub fn filter<F>(&self, predicate: F) -> Self
-    where
-        F: Fn(&T) -> bool,
-    {
-        Self::from_iter(self.iter().filter(|x| predicate(x)).cloned())
-    }
 
     /// Gets a reference to the element at the specified index, returning an error if out of bounds.
     ///
@@ -192,7 +177,6 @@ impl<T: Clone> PersistentVector<T> {
     /// Gets a reference to the first element.
     ///
     /// Returns `None` if the vector is empty.
-    ///
     pub fn first(&self) -> Option<&T> {
         self.get(0)
     }
@@ -200,7 +184,6 @@ impl<T: Clone> PersistentVector<T> {
     /// Gets a reference to the last element.
     ///
     /// Returns `None` if the vector is empty.
-    ///
     pub fn last(&self) -> Option<&T> {
         if !self.is_empty() {
             self.get(self.len() - 1)
@@ -209,9 +192,43 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
+    /// Applies a function to each element, accumulating the results.
+    pub fn fold<B, F>(&self, init: B, f: F) -> B
+    where
+        F: Fn(B, &T) -> B,
+    {
+        self.iter().fold(init, f)
+    }
+}
+
+impl<T: Clone> PersistentVector<T> {
+    /// Creates a persistent vector from a slice.
+    ///
+    pub fn from_slice(slice: &[T]) -> Self {
+        Self::from_iter(slice.iter().cloned())
+    }
+
+    /// Creates a new vector by applying a function to each element.
+    ///
+    pub fn map<U, F>(&self, f: F) -> PersistentVector<U>
+    where
+        F: Fn(&T) -> U,
+    {
+        PersistentVector::from_iter(self.iter().map(f))
+    }
+
+    /// Creates a new vector containing only elements that match the predicate.
+    ///
+    pub fn filter<F>(&self, predicate: F) -> Self
+    where
+        F: Fn(&T) -> bool,
+    {
+        Self::from_iter(self.iter().filter(|x| predicate(x)).cloned())
+    }
+
     /// Creates a new vector by applying a function and filtering out `None` results.
     ///
-    pub fn filter_map<U: Clone, F>(&self, f: F) -> PersistentVector<U>
+    pub fn filter_map<U, F>(&self, f: F) -> PersistentVector<U>
     where
         F: Fn(&T) -> Option<U>,
     {
@@ -229,7 +246,7 @@ impl<T: Clone> PersistentVector<T> {
     /// let doubled = vec.flat_map(|&x| vec![x, x]);
     /// assert_eq!(doubled.to_vec(), vec![1, 1, 2, 2, 3, 3]);
     /// ```
-    pub fn flat_map<U: Clone, F, I>(&self, f: F) -> PersistentVector<U>
+    pub fn flat_map<U, F, I>(&self, f: F) -> PersistentVector<U>
     where
         F: Fn(&T) -> I,
         I: IntoIterator<Item = U>,
@@ -265,15 +282,6 @@ impl<T: Clone> PersistentVector<T> {
         let mut items: Vec<T> = self.iter().cloned().collect();
         items.sort();
         Self::from_iter(items)
-    }
-
-    /// Applies a function to each element, accumulating the results.
-    ///
-    pub fn fold<B, F>(&self, init: B, f: F) -> B
-    where
-        F: Fn(B, &T) -> B,
-    {
-        self.iter().fold(init, f)
     }
 
     /// Creates a new vector by pairing elements from two vectors.
@@ -358,8 +366,8 @@ impl<T: Clone> PersistentVector<T> {
 
         let mut iter = self.iter();
         PersistentVector::from_iter(std::iter::from_fn(move || {
-            let chunk: Vec<T> = iter.by_ref().take(size).cloned().collect();
-            (!chunk.is_empty()).then(|| PersistentVector::from_iter(chunk))
+            let chunk: PersistentVector<T> = iter.by_ref().take(size).cloned().collect();
+            (!chunk.is_empty()).then_some(chunk)
         }))
     }
 
@@ -376,7 +384,7 @@ impl<T: Clone> PersistentVector<T> {
                     self.transition_to_tree().push_back(value)
                 }
             },
-            VectorImpl::Tree { tree: _ } => self.tree_push_back(value),
+            VectorImpl::Tree { tree } => Self::tree(tree.push_back(value)),
         }
     }
 
@@ -394,7 +402,7 @@ impl<T: Clone> PersistentVector<T> {
                     self.transition_to_tree().push_front(value)
                 }
             },
-            VectorImpl::Tree { tree: _ } => self.tree_push_front(value),
+            VectorImpl::Tree { tree } => Self::tree(tree.push_front(value)),
         }
     }
 
@@ -476,28 +484,6 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
-    /// Pushes a value to the back of a tree-based vector.
-    fn tree_push_back(&self, value: T) -> Self {
-        match &self.inner {
-            VectorImpl::Tree { tree } => {
-                let new_tree = tree.push_back(value);
-                Self::tree(new_tree)
-            },
-            _ => unreachable!(),
-        }
-    }
-
-    /// Pushes a value to the front of a tree-based vector.
-    fn tree_push_front(&self, value: T) -> Self {
-        match &self.inner {
-            VectorImpl::Tree { tree } => {
-                let new_tree = tree.push_front(value);
-                Self::tree(new_tree)
-            },
-            _ => unreachable!(),
-        }
-    }
-
     /// Creates a new vector by concatenating this vector with another.
     ///
     pub fn concat(&self, other: &Self) -> Self {
@@ -516,20 +502,9 @@ impl<T: Clone> PersistentVector<T> {
                 let merged_tree = tree.concat(&right_tree);
                 Self::tree(merged_tree)
             },
-            (VectorImpl::Tree { .. }, VectorImpl::Tree { .. }) => {
-                let left_tree = self.ensure_tree();
-                let right_tree = other.ensure_tree();
-                let merged_tree = left_tree.concat(&right_tree);
-                Self::tree(merged_tree)
+            (VectorImpl::Tree { tree: left }, VectorImpl::Tree { tree: right }) => {
+                Self::tree(left.concat(right))
             },
-        }
-    }
-
-    /// Ensures the vector is in tree form, converting if necessary.
-    fn ensure_tree(&self) -> RRBTree<T> {
-        match &self.inner {
-            VectorImpl::Inline { elements } => RRBTree::from_elements(elements.iter().cloned()),
-            VectorImpl::Tree { tree } => (**tree).clone(),
         }
     }
 
@@ -631,6 +606,14 @@ impl<T: Clone> PersistentVector<T> {
             return self.push_front(value);
         }
 
+        if let VectorImpl::Inline { elements } = &self.inner
+            && elements.len() < ADAPTIVE_INLINE_SIZE
+        {
+            let mut new_elements = elements.clone();
+            new_elements.insert(index, value);
+            return Self::inline(new_elements);
+        }
+
         let (left, right) = self.split_at(index);
         left.push_back(value).concat(&right)
     }
@@ -646,6 +629,19 @@ impl<T: Clone> PersistentVector<T> {
 
         if self.len() == 1 {
             return Some(Self::new());
+        }
+
+        if let VectorImpl::Inline { elements } = &self.inner {
+            let mut new_elements = elements.clone();
+            new_elements.remove(index);
+            return Some(Self::inline(new_elements));
+        }
+
+        if index == 0 {
+            return self.pop_front().map(|(v, _)| v);
+        }
+        if index == self.len() - 1 {
+            return self.pop_back().map(|(v, _)| v);
         }
 
         let (left, right) = self.split_at(index);
@@ -716,8 +712,9 @@ impl<T> FromIterator<T> for PersistentVector<T> {
 
 impl<T: Clone> Extend<T> for PersistentVector<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        let current = std::mem::take(self);
-        *self = current.into_iter().chain(iter).collect();
+        for item in iter {
+            *self = self.push_back(item);
+        }
     }
 }
 
@@ -738,9 +735,7 @@ impl<T: Clone> IntoIterator for PersistentVector<T> {
     type IntoIter = PersistentVectorIntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PersistentVectorIntoIter {
-            iter: self.into_vec().into_iter(),
-        }
+        PersistentVectorIntoIter::new(self)
     }
 }
 
@@ -761,20 +756,119 @@ impl<T> std::ops::Index<usize> for PersistentVector<T> {
     }
 }
 
-impl<T: Clone + Debug> Debug for PersistentVector<T> {
+impl<T: Debug> Debug for PersistentVector<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.inner {
-            VectorImpl::Inline { elements } => {
-                write!(
-                    f,
-                    "PersistentVector(Inline, len={}, elements={:?})",
-                    self.len(),
-                    elements.as_slice()
-                )
-            },
-            VectorImpl::Tree { .. } => {
-                write!(f, "PersistentVector(Tree, len={})", self.len())
-            },
-        }
+        f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+#[cfg(test)]
+mod read_only_non_clone_tests {
+    use super::*;
+
+    struct NonClone(i32);
+
+    #[test]
+    fn non_clone_elements_support_read_only_methods() {
+        let v = PersistentVector::single(NonClone(42));
+        assert_eq!(v.first().map(|x| x.0), Some(42));
+        assert_eq!(v.last().map(|x| x.0), Some(42));
+        assert_eq!(v.try_get(0).map(|x| x.0), Ok(42));
+        assert_eq!(v.fold(0, |acc, x| acc + x.0), 42);
+    }
+
+    #[test]
+    fn mapping_supports_non_clone_output_type() {
+        let v = PersistentVector::from_slice(&[1, 2, 3]);
+        let mapped = v.map(|&x| NonClone(x));
+        assert_eq!(mapped.len(), 3);
+        assert_eq!(mapped.get(1).map(|x| x.0), Some(2));
+
+        let filtered = v.filter_map(|&x| (x > 1).then_some(NonClone(x)));
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered.get(0).map(|x| x.0), Some(2));
+
+        let flattened = v.flat_map(|&x| [NonClone(x), NonClone(x * 10)]);
+        assert_eq!(flattened.len(), 6);
+        assert_eq!(flattened.get(1).map(|x| x.0), Some(10));
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct NonCloneDebug(i32);
+
+    #[test]
+    fn test_debug_non_clone() {
+        let v = PersistentVector::single(NonCloneDebug(42));
+        assert_eq!(format!("{v:?}"), "[NonCloneDebug(42)]");
+    }
+
+    #[test]
+    fn test_debug_tree_elements() {
+        let v: PersistentVector<i32> = (0..100).collect();
+        let expected = format!("{:?}", (0..100).collect::<Vec<_>>());
+        assert_eq!(format!("{v:?}"), expected);
+    }
+
+    #[test]
+    fn test_extend_preserves_elements() {
+        let mut v: PersistentVector<i32> = (0..1000).collect();
+        v.extend(1000..1005);
+        assert_eq!(v.len(), 1005);
+        assert_eq!(v.to_vec(), (0..1005).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn test_inline_insert_fast_path() {
+        let v = PersistentVector::from_slice(&[1, 2, 4, 5]);
+        let inserted = v.insert(2, 3);
+        assert_eq!(inserted.to_vec(), vec![1, 2, 3, 4, 5]);
+        assert!(matches!(inserted.inner, VectorImpl::Inline { .. }));
+    }
+
+    #[test]
+    fn test_inline_remove_fast_path() {
+        let v = PersistentVector::from_slice(&[1, 2, 99, 3, 4]);
+        let removed = v.remove(2).expect("valid index");
+        assert_eq!(removed.to_vec(), vec![1, 2, 3, 4]);
+        assert!(matches!(removed.inner, VectorImpl::Inline { .. }));
+    }
+
+    #[test]
+    fn test_eq_fast_path() {
+        let v1: PersistentVector<i32> = (0..100).collect();
+        let v2 = v1.clone();
+        assert_eq!(v1, v2);
+
+        let v3: PersistentVector<i32> = (0..99).collect();
+        assert_ne!(v1, v3);
+    }
+
+    #[test]
+    fn test_chunk_direct() {
+        let v: PersistentVector<i32> = (0..10).collect();
+        let chunks = v.chunk(3);
+        assert_eq!(chunks.len(), 4);
+        assert_eq!(chunks[0].to_vec(), vec![0, 1, 2]);
+        assert_eq!(chunks[1].to_vec(), vec![3, 4, 5]);
+        assert_eq!(chunks[2].to_vec(), vec![6, 7, 8]);
+        assert_eq!(chunks[3].to_vec(), vec![9]);
+
+        let empty = PersistentVector::<i32>::new().chunk(5);
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn test_lazy_into_iter_interleaved() {
+        let v: PersistentVector<i32> = (0..200).collect();
+        let mut it = v.into_iter();
+        assert_eq!(it.next(), Some(0));
+        assert_eq!(it.next_back(), Some(199));
+        assert_eq!(it.next(), Some(1));
+        assert_eq!(it.next_back(), Some(198));
+        assert_eq!(it.len(), 196);
+
+        let remaining: Vec<i32> = it.collect();
+        assert_eq!(remaining.len(), 196);
+        assert_eq!(remaining, (2..198).collect::<Vec<_>>());
     }
 }

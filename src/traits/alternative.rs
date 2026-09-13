@@ -34,8 +34,8 @@
 //! let b = vec![3, 4];
 //! let empty: Vec<i32> = <Vec<i32> as Alternative>::empty_alt::<i32>();
 //!
-//! // alt combines alternatives
-//! assert_eq!(a.alt(b), vec![1, 2]);
+//! // alt combines alternatives (concatenation for Vec)
+//! assert_eq!(a.alt(b), vec![1, 2, 3, 4]);
 //! assert_eq!(empty.alt(vec![3, 4]), vec![3, 4]);
 //!
 //! // guard for conditional inclusion
@@ -128,6 +128,10 @@ pub trait Alternative: Applicative {
     /// assert_eq!(none.many(), None);
     /// assert_eq!(some.many(), Some(vec![42]));
     /// ```
+    #[deprecated(
+        since = "0.16.0",
+        note = "use standard repetition or Iterator combinators instead"
+    )]
     fn many(self) -> Self::Output<Vec<Self::Source>>;
 }
 
@@ -154,8 +158,9 @@ impl<T> Alternative for Vec<T> {
         Vec::new()
     }
 
-    fn alt(self, other: Self) -> Self {
-        if self.is_empty() { other } else { self }
+    fn alt(mut self, other: Self) -> Self {
+        self.extend(other);
+        self
     }
 
     fn guard(condition: bool) -> Self::Output<()> {
@@ -179,7 +184,7 @@ mod unit_tests {
     struct MoveOnly(i32);
 
     #[test]
-    fn option_and_vec_choose_the_first_available_value() {
+    fn option_and_vec_alternative_laws_hold() {
         let none: Option<i32> = None;
         let some = Some(42);
         assert_eq!(Alternative::alt(none, some), Some(42));
@@ -189,7 +194,7 @@ mod unit_tests {
         let first = vec![1];
         let second = vec![2];
         assert_eq!(Vec::<i32>::empty_alt().alt(first.clone()), first);
-        assert_eq!(first.alt(second), vec![1]);
+        assert_eq!(first.alt(second), vec![1, 2]);
     }
 
     #[test]

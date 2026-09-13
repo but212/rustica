@@ -132,6 +132,12 @@ impl<T> Max<T> {
         self.0
     }
 
+    /// Consumes the wrapper and returns the contained value.
+    #[inline]
+    pub fn into_value(self) -> T {
+        self.0
+    }
+
     /// Returns a reference to the contained value.
     ///
     /// # Examples
@@ -144,22 +150,6 @@ impl<T> Max<T> {
     #[inline]
     pub fn get(&self) -> &T {
         &self.0
-    }
-}
-
-impl<T: Clone> Max<T> {
-    /// Unwraps the max value.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap(&self) -> T {
-        self.0.clone()
-    }
-
-    /// Unwraps the max value or returns a default.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap_or(&self, _default: T) -> T {
-        self.0.clone()
     }
 }
 
@@ -209,7 +199,7 @@ impl<T> HKT for Max<T> {
     type Output<U> = Max<U>;
 }
 
-impl<T: Ord> Functor for Max<T> {
+impl<T> Functor for Max<T> {
     #[inline]
     fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where

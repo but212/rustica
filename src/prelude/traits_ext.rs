@@ -29,6 +29,7 @@
 
 pub use crate::traits::foldable::FoldableExt;
 pub use crate::traits::functor::FunctorExt;
+#[allow(deprecated)]
 pub use crate::traits::iso::IsoExt;
 pub use crate::traits::monoid::MonoidExt;
 pub use crate::traits::pure::PureExt;

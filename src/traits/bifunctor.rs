@@ -67,6 +67,7 @@
 //! - **Profunctor**: While a bifunctor is covariant in both arguments, a profunctor is
 //!   contravariant in its first argument and covariant in its second
 
+#[allow(deprecated)]
 use crate::traits::hkt::BinaryHKT;
 
 /// A bifunctor is a type constructor that takes two type arguments and can be mapped over both sides.
@@ -134,6 +135,11 @@ use crate::traits::hkt::BinaryHKT;
 /// 3. Type Conversion:
 ///    - Convert between different error types in error handling
 ///    - Transform data structures that contain two type parameters
+#[deprecated(
+    since = "0.16.0",
+    note = "use inherent bimap/first/second methods or standard Result/tuple mapping instead"
+)]
+#[allow(deprecated)]
 pub trait Bifunctor: BinaryHKT + Sized {
     /// Maps a function over `Self::Source`.
     ///
@@ -242,36 +248,4 @@ pub trait Bifunctor: BinaryHKT + Sized {
     where
         F: FnMut(Self::Source) -> C,
         G: FnMut(Self::Source2) -> D;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Bifunctor;
-    use crate::datatypes::validated::Validated;
-
-    #[derive(Debug, PartialEq)]
-    struct MoveOnly(i32);
-
-    #[test]
-    fn bifunctor_supports_move_only_types() {
-        let val: Validated<MoveOnly, MoveOnly> = Validated::valid(MoveOnly(10));
-        let mapped = val.bimap(|x| MoveOnly(x.0 * 2), |e| MoveOnly(e.0 + 1));
-        assert_eq!(mapped, Validated::valid(MoveOnly(20)));
-
-        let err: Validated<MoveOnly, MoveOnly> = Validated::invalid(MoveOnly(5));
-        let mapped_err = err.bimap(|x| MoveOnly(x.0 * 2), |e| MoveOnly(e.0 + 1));
-        assert_eq!(mapped_err, Validated::invalid(MoveOnly(6)));
-    }
-
-    #[test]
-    fn bifunctor_first_and_second() {
-        let val: Validated<String, i32> = Validated::valid(10);
-        assert_eq!(val.first(|x| x * 2), Validated::valid(20));
-
-        let err: Validated<String, i32> = Validated::invalid("fail".to_string());
-        assert_eq!(
-            err.second(|e| format!("{e}!")),
-            Validated::invalid("fail!".to_string())
-        );
-    }
 }

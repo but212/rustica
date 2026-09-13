@@ -47,7 +47,7 @@
 //! // Error accumulation - gets BOTH errors
 //! let errors = combine_validations(&-1, &3);
 //! assert!(errors.is_invalid());
-//! assert_eq!(errors.errors().len(), 2);
+//! assert_eq!(errors.error_slice().len(), 2);
 //! ```
 //!
 //! ## Type Class Implementations
@@ -103,14 +103,9 @@
 //! - Using applicative validation for form validation
 //!
 //! Please refer to the documentation of individual functions in this module.
-pub mod accessors;
-#[cfg(feature = "async")]
-pub mod async_ops;
 pub mod combinators;
-pub mod conversions;
 pub mod core;
 pub mod iter;
-pub mod recovery;
 pub mod traits;
 
 pub use core::{NonEmptyErrors, Validated};
@@ -119,9 +114,7 @@ pub use iter::*;
 #[cfg(test)]
 mod tests {
     use super::{NonEmptyErrors, Validated};
-    use crate::traits::{
-        applicative::Applicative, bifunctor::Bifunctor, functor::Functor, semigroup::Semigroup,
-    };
+    use crate::traits::{applicative::Applicative, functor::Functor, semigroup::Semigroup};
     use quickcheck_macros::quickcheck;
 
     // Core Algebraic Laws & Properties
@@ -133,7 +126,7 @@ mod tests {
         assert!(v.is_valid());
         assert!(i.is_invalid());
         assert_eq!(v.unwrap(), 42);
-        assert_eq!(i.errors(), &["err".to_string()]);
+        assert_eq!(i.error_slice(), &["err".to_string()]);
     }
 
     #[test]
@@ -180,12 +173,6 @@ mod tests {
             left.clone().combine(middle.clone()).combine(right.clone()),
             left.combine(middle.combine(right))
         );
-
-        let bifunctor = Validated::<String, i32>::invalid("error".into());
-        assert_eq!(
-            bifunctor.bimap(|x| x + 1, |e| format!("{e}!")),
-            Validated::invalid("error!".to_string())
-        );
     }
 
     #[test]
@@ -196,7 +183,7 @@ mod tests {
         assert!(invalid.is_invalid());
 
         let result: Result<i32, &str> = Err("error");
-        assert_eq!(Validated::from(&result), invalid);
+        assert_eq!(Validated::from(result), invalid);
 
         let some = Some(42);
         assert_eq!(
@@ -222,11 +209,11 @@ mod tests {
 
         let result =
             Validated::<String, i32>::lift3(|a, b, c| a + b + c, v1.clone(), v2.clone(), v3);
-        assert_eq!(result.errors(), &["e1".to_string(), "e2".to_string()]);
+        assert_eq!(result.error_slice(), &["e1".to_string(), "e2".to_string()]);
 
         let list = vec![v1.clone(), v2.clone(), Validated::valid(100)];
         let collected: Validated<String, Vec<i32>> = Validated::collect(list.into_iter());
-        assert_eq!(collected.errors().len(), 2);
+        assert_eq!(collected.error_slice().len(), 2);
 
         let combined = v1.combine_errors(v2).unwrap();
         assert_eq!(
@@ -307,8 +294,8 @@ mod tests {
             validate_email("bad"),
         );
 
-        assert_eq!(result.errors().len(), 3);
-        assert!(result.errors().contains(&"Name too short".to_string()));
+        assert_eq!(result.error_slice().len(), 3);
+        assert!(result.error_slice().contains(&"Name too short".to_string()));
 
         let success = Validated::<String, User>::lift3(
             |n, a, e| User {

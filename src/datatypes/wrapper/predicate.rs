@@ -168,6 +168,12 @@ impl<A> Predicate<A> {
         (self.func)(a)
     }
 
+    /// Evaluates the predicate on a value.
+    #[inline]
+    pub fn eval(&self, a: &A) -> bool {
+        (self.func)(a)
+    }
+
     /// Returns a predicate which is the union of this predicate and another.
     ///
     /// The union predicate evaluates to `true` if either this predicate or the `other` predicate

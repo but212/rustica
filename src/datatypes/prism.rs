@@ -142,6 +142,7 @@
 //! composition and variant-specific behavior are covered by
 //! `tests/datatypes/test_prism.rs`.
 
+#[allow(deprecated)]
 use crate::traits::iso::Iso;
 use std::marker::PhantomData;
 
@@ -618,21 +619,6 @@ where
         )
     }
 
-    /// Composes two prisms together.
-    #[deprecated(since = "0.15.0", note = "use `then()` instead")]
-    #[inline]
-    pub fn compose<B, PreviewFn2, ReviewFn2>(
-        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
-    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
-    where
-        A: Clone,
-        B: Clone,
-        PreviewFn2: Fn(&A) -> Option<B>,
-        ReviewFn2: Fn(&B) -> A,
-    {
-        self.then(other)
-    }
-
     /// Sets the focused value with structural sharing optimization.
     ///
     /// This method sets the focused value to a new value, but only creates a new structure
@@ -641,9 +627,8 @@ where
     ///
     /// # Design Notes
     ///
-    /// * If preview fails, a new structure is created with the given value
-    /// * This behavior ensures that the method always succeeds in "setting" the value
-    /// * The method assumes that if preview fails, you want to create the variant
+    /// * If preview fails (the focus is absent), the original structure is returned unchanged.
+    /// * This obeys the standard Prism laws (modifying an absent focus is a no-op).
     ///
     /// # Arguments
     ///
@@ -652,8 +637,8 @@ where
     ///
     /// # Returns
     ///
-    /// * The original structure if the current value equals the new value
-    /// * A new structure with the new value if they differ or if preview fails
+    /// * The original structure if the current value equals the new value or if preview fails
+    /// * A new structure with the new value if the focus is present and values differ
     ///
     /// # Examples
     ///
@@ -684,10 +669,10 @@ where
     /// let new_status = active_prism.set_if_different(status, "Bob".to_string());
     /// assert_eq!(new_status, Status::Active("Bob".to_string()));
     ///
-    /// // Preview fails - create new structure
+    /// // Preview fails - focus absent, returns original structure unchanged
     /// let inactive = Status::Inactive;
-    /// let now_active = active_prism.set_if_different(inactive, "Charlie".to_string());
-    /// assert_eq!(now_active, Status::Active("Charlie".to_string()));
+    /// let still_inactive = active_prism.set_if_different(inactive, "Charlie".to_string());
+    /// assert_eq!(still_inactive, Status::Inactive);
     /// ```
     pub fn set_if_different(&self, source: S, new_value: A) -> S
     where
@@ -701,7 +686,7 @@ where
                     self.review(&new_value) // Create new structure
                 }
             },
-            None => self.review(&new_value), // Preview failed, create new structure with the value
+            None => source, // Preview failed (focus absent), return original structure unchanged
         }
     }
 }
@@ -711,6 +696,11 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     ///
     /// The underlying isomorphism maps every source to a focus, so preview
     /// always succeeds.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Iso is deprecated; construct prisms directly with Prism::new or closures instead"
+    )]
+    #[allow(deprecated)]
     #[inline]
     pub fn from_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
@@ -731,6 +721,11 @@ impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
     /// This is the direct replacement for the removed `IsoPrism`: the iso's
     /// `forward` map decides whether the case matches, and `backward` receives
     /// `Some(focus)` when reviewing a focused value.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Iso is deprecated; construct prisms directly with Prism::new or closures instead"
+    )]
+    #[allow(deprecated)]
     #[inline]
     pub fn from_option_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
     where
@@ -832,48 +827,6 @@ mod unit_tests {
         );
     }
 
-    #[derive(Clone, Copy)]
-    struct IdentityIso;
-
-    impl crate::traits::iso::Iso<i32, i32> for IdentityIso {
-        fn forward(&self, from: i32) -> i32 {
-            from
-        }
-
-        fn backward(&self, to: i32) -> i32 {
-            to
-        }
-    }
-
-    #[test]
-    fn from_iso_induces_a_prism() {
-        let prism = Prism::from_iso(IdentityIso);
-
-        assert_eq!(prism.preview(&42), Some(42));
-        assert_eq!(prism.review(&7), 7);
-    }
-
-    struct OptionIso;
-
-    impl crate::traits::iso::Iso<i32, Option<i32>> for OptionIso {
-        fn forward(&self, from: i32) -> Option<i32> {
-            (from >= 0).then_some(from)
-        }
-
-        fn backward(&self, to: Option<i32>) -> i32 {
-            to.unwrap_or_default()
-        }
-    }
-
-    #[test]
-    fn option_iso_induces_a_prism_without_double_wrapping() {
-        let prism = Prism::from_option_iso(OptionIso);
-
-        assert_eq!(prism.preview(&42), Some(42));
-        assert_eq!(prism.preview(&-1), None);
-        assert_eq!(prism.review(&7), 7);
-    }
-
     #[test]
     fn complex_extraction_and_composition_work() {
         #[derive(Debug, Clone, PartialEq)]
@@ -946,5 +899,12 @@ mod unit_tests {
             active_prism().modify(value, |name| format!("{name}-away"))
         });
         assert_eq!(updated.status, Status::Active("online-away".into()));
+    }
+
+    #[test]
+    fn set_if_different_preserves_source_when_focus_is_absent() {
+        let inactive = Status::Inactive;
+        let result = active_prism().set_if_different(inactive.clone(), "Charlie".into());
+        assert_eq!(result, Status::Inactive);
     }
 }

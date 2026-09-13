@@ -1,3 +1,5 @@
+#![cfg(feature = "pvec")]
+
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 use rustica::pvec::PersistentVector;

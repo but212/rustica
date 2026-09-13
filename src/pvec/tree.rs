@@ -20,10 +20,10 @@ use super::node::{
 use smallvec::SmallVec;
 use std::sync::Arc;
 
-/// An RRB tree structure for efficient persistent vector operations.
+/// An RRB tree structure for persistent vector operations.
 ///
-/// The RRB tree combines the root tree structure with head and tail buffers
-/// for optimal performance on common operations like `push_back` and `push_front`.
+/// Combines a root tree structure with head and tail buffers for $O(1)$
+/// amortized front and back insertions.
 ///
 /// # Structure
 ///
@@ -36,7 +36,7 @@ use std::sync::Arc;
 /// - `len` equals `head.len() + tree_size + tail.len()`
 /// - `height` reflects the depth of the tree (0 for leaf-only)
 /// - Buffers are flushed to the tree when they reach capacity
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug)]
 pub struct RRBTree<T> {
     /// The root node of the tree structure.
     ///
@@ -65,51 +65,47 @@ pub struct RRBTree<T> {
 
 /// Read-only methods that don't require Clone
 impl<T> RRBTree<T> {
-    /// Gets a reference to the element at the specified index.
-    pub fn get(&self, index: usize) -> Option<&T> {
+    /// Returns the leaf slice containing `index` and the offset within that slice.
+    pub(crate) fn get_leaf_slice(&self, index: usize) -> Option<(&[T], usize)> {
         if index >= self.len {
             return None;
         }
 
         if index < self.head.len() {
-            return self.head.get(index);
+            return Some((self.head.as_slice(), index));
         }
 
         let adjusted_index = index - self.head.len();
         let tree_size = self.len - self.head.len() - self.tail.len();
 
         if adjusted_index < tree_size {
-            self.get_from_tree(adjusted_index)
+            let mut current_node = &self.root;
+            let mut remaining_index = adjusted_index;
+
+            loop {
+                match current_node.as_ref() {
+                    RRBNode::Leaf { elements } => {
+                        return Some((elements.as_slice(), remaining_index));
+                    },
+                    RRBNode::Branch { children, .. } => {
+                        let (child_idx, sub_index) =
+                            current_node.find_child_relaxed(remaining_index)?;
+
+                        current_node = children.get(child_idx)?;
+                        remaining_index = sub_index;
+                    },
+                }
+            }
         } else {
             let tail_index = adjusted_index - tree_size;
-            self.tail.get(tail_index)
+            Some((self.tail.as_slice(), tail_index))
         }
     }
 
-    fn get_from_tree(&self, index: usize) -> Option<&T> {
-        let mut current_node = &self.root;
-        let mut remaining_index = index;
-        let mut current_height = self.height;
-
-        loop {
-            match current_node.as_ref() {
-                RRBNode::Leaf { elements } => {
-                    return elements.get(remaining_index);
-                },
-                RRBNode::Branch { children, sizes } => {
-                    let (child_idx, sub_index) = if sizes.is_some() {
-                        current_node.find_child_relaxed(remaining_index)?
-                    } else {
-                        let child_height = current_height.saturating_sub(1);
-                        current_node.find_child_regular(remaining_index, child_height)?
-                    };
-
-                    current_node = children.get(child_idx)?;
-                    remaining_index = sub_index;
-                    current_height = current_height.saturating_sub(1);
-                },
-            }
-        }
+    /// Gets a reference to the element at the specified index.
+    pub fn get(&self, index: usize) -> Option<&T> {
+        let (slice, offset) = self.get_leaf_slice(index)?;
+        slice.get(offset)
     }
 
     /// Builds a tree by consuming its input without intermediate allocations.
@@ -180,10 +176,7 @@ impl<T> RRBTree<T> {
                 .iter()
                 .map(|child| child.calculate_size())
                 .collect();
-            next_level.push(Arc::new(RRBNode::Branch {
-                children,
-                sizes: Some(sizes),
-            }));
+            next_level.push(Arc::new(RRBNode::Branch { children, sizes }));
         }
         let (root, height) = Self::build_tree_recursive(next_level);
         (root, height + 1)
@@ -249,7 +242,7 @@ impl<T: Clone> RRBTree<T> {
         let tree_size = self.len - self.head.len() - self.tail.len();
 
         if adjusted_index < tree_size {
-            let new_root = self.root.update(adjusted_index, value, self.height);
+            let new_root = self.root.update(adjusted_index, value);
             Self {
                 root: Arc::new(new_root),
                 tail: self.tail.clone(),
@@ -312,7 +305,7 @@ impl<T: Clone> RRBTree<T> {
                     SmallVec::from_iter([self.root.calculate_size(), tail_leaf.calculate_size()]);
                 let new_root = Arc::new(RRBNode::Branch {
                     children: SmallVec::from_iter([self.root.clone(), tail_leaf]),
-                    sizes: Some(sizes),
+                    sizes,
                 });
                 Self {
                     root: new_root,
@@ -338,7 +331,7 @@ impl<T: Clone> RRBTree<T> {
                     ]);
                     let new_root = Arc::new(RRBNode::Branch {
                         children: SmallVec::from_iter([self.root.clone(), new_sibling]),
-                        sizes: Some(sizes),
+                        sizes,
                     });
                     Self {
                         root: new_root,
@@ -392,7 +385,7 @@ impl<T: Clone> RRBTree<T> {
                     SmallVec::from_iter([head_leaf.calculate_size(), self.root.calculate_size()]);
                 let new_root = Arc::new(RRBNode::Branch {
                     children: SmallVec::from_iter([head_leaf, self.root.clone()]),
-                    sizes: Some(sizes),
+                    sizes,
                 });
                 Self {
                     root: new_root,
@@ -418,7 +411,7 @@ impl<T: Clone> RRBTree<T> {
                     ]);
                     let new_root = Arc::new(RRBNode::Branch {
                         children: SmallVec::from_iter([new_sibling, self.root.clone()]),
-                        sizes: Some(sizes),
+                        sizes,
                     });
                     Self {
                         root: new_root,
@@ -491,7 +484,7 @@ impl<T: Clone> RRBTree<T> {
         while current_height < target_height {
             let new_root = RRBNode::Branch {
                 children: SmallVec::from_iter([current_root.clone()]),
-                sizes: Some(SmallVec::from_iter([current_root.calculate_size()])),
+                sizes: SmallVec::from_iter([current_root.calculate_size()]),
             };
             current_root = Arc::new(new_root);
             current_height += 1;
@@ -577,19 +570,7 @@ impl<T: Clone> RRBTree<T> {
             },
             (RRBNode::Leaf { .. }, RRBNode::Branch { .. })
             | (RRBNode::Branch { .. }, RRBNode::Leaf { .. }) => {
-                let left_as_branch = match left.as_ref() {
-                    RRBNode::Leaf { .. } => vec![left.clone()],
-                    RRBNode::Branch { children, .. } => children.iter().cloned().collect(),
-                };
-
-                let right_as_branch = match right.as_ref() {
-                    RRBNode::Leaf { .. } => vec![right.clone()],
-                    RRBNode::Branch { children, .. } => children.iter().cloned().collect(),
-                };
-
-                let mut all_children = left_as_branch;
-                all_children.extend(right_as_branch);
-                Self::pack_children(all_children)
+                unreachable!("nodes at equal tree height must both be leaves or both branches")
             },
         }
     }
@@ -633,42 +614,23 @@ impl<T: Clone> RRBTree<T> {
     }
 
     fn pop_from_tree(&self) -> Option<(Self, T)> {
-        if self.len == 0 {
-            return None;
-        }
-
         let tree_size = self.len - self.head.len() - self.tail.len();
-        if tree_size == 0 {
-            return None;
+        if tree_size > 0
+            && let Some((new_root, popped)) = self.root.pop_back()
+        {
+            let new_height = if tree_size == 1 { 0 } else { self.height };
+            return Some((
+                Self {
+                    root: Arc::new(new_root),
+                    tail: self.tail.clone(),
+                    head: self.head.clone(),
+                    height: new_height,
+                    len: self.len - 1,
+                },
+                popped,
+            ));
         }
-
-        let last_tree_index = tree_size - 1;
-        let last_element = self.get_from_tree(last_tree_index)?.clone();
-
-        let (new_root, new_height) = if tree_size == 1 {
-            (
-                Arc::new(RRBNode::Leaf {
-                    elements: SmallVec::new(),
-                }),
-                0,
-            )
-        } else {
-            match self.root.pop_back() {
-                Some((new_root, _)) => (Arc::new(new_root), self.height),
-                None => (self.root.clone(), self.height),
-            }
-        };
-
-        Some((
-            Self {
-                root: new_root,
-                tail: self.tail.clone(),
-                head: self.head.clone(),
-                height: new_height,
-                len: self.len - 1,
-            },
-            last_element,
-        ))
+        None
     }
 
     pub fn pop_front(&self) -> Option<(Self, T)> {
@@ -699,12 +661,13 @@ impl<T: Clone> RRBTree<T> {
         if tree_size > 0
             && let Some((new_root, popped_element)) = self.root.pop_front()
         {
+            let new_height = if tree_size == 1 { 0 } else { self.height };
             return Some((
                 Self {
                     root: Arc::new(new_root),
                     tail: self.tail.clone(),
                     head: self.head.clone(),
-                    height: self.height,
+                    height: new_height,
                     len: self.len - 1,
                 },
                 popped_element,
@@ -712,11 +675,8 @@ impl<T: Clone> RRBTree<T> {
         }
 
         if !self.tail.is_empty() {
-            let mut new_head = SmallVec::new();
-            for item in self.tail.iter().rev() {
-                new_head.push(item.clone());
-            }
-            let popped = new_head.pop()?;
+            let popped = self.tail[0].clone();
+            let new_head = self.tail[1..].iter().cloned().collect();
 
             Some((
                 Self {
@@ -796,7 +756,11 @@ impl<T: Clone> RRBTree<T> {
                 if path.is_empty() {
                     if let Some(first_child) = children.first() {
                         let next_height = current_height.saturating_sub(1);
-                        return self.split_along_path(&[], target_index, first_child, next_height);
+                        let (left_child, right_child) =
+                            self.split_along_path(&[], target_index, first_child, next_height);
+                        let left_branch = self.create_left_branch(children, 0, left_child);
+                        let right_branch = self.create_right_branch(children, 0, right_child);
+                        return (Arc::new(left_branch), Arc::new(right_branch));
                     } else {
                         let empty_leaf = Arc::new(RRBNode::Leaf {
                             elements: SmallVec::new(),
@@ -809,22 +773,15 @@ impl<T: Clone> RRBTree<T> {
                 let remaining_path = &path[1..];
 
                 if let Some(child) = children.get(child_index) {
-                    let child_height = current_height.saturating_sub(1);
-                    let adjusted_index = self.calculate_adjusted_index(
-                        target_index,
-                        child_index,
-                        sizes,
-                        child_height,
-                    );
+                    let adjusted_index =
+                        self.calculate_adjusted_index(target_index, child_index, sizes);
 
                     let next_height = current_height.saturating_sub(1);
                     let (left_child, right_child) =
                         self.split_along_path(remaining_path, adjusted_index, child, next_height);
 
-                    let left_branch =
-                        self.create_left_branch(children, child_index, left_child, sizes);
-                    let right_branch =
-                        self.create_right_branch(children, child_index, right_child, sizes);
+                    let left_branch = self.create_left_branch(children, child_index, left_child);
+                    let right_branch = self.create_right_branch(children, child_index, right_child);
 
                     (Arc::new(left_branch), Arc::new(right_branch))
                 } else {
@@ -842,8 +799,9 @@ impl<T: Clone> RRBTree<T> {
     ) -> (Arc<RRBNode<T>>, Arc<RRBNode<T>>) {
         match node.as_ref() {
             RRBNode::Leaf { elements } => {
-                let left_elements = SmallVec::from_iter(elements.iter().take(index).cloned());
-                let right_elements = SmallVec::from_iter(elements.iter().skip(index).cloned());
+                let split_idx = index.min(elements.len());
+                let left_elements = elements.iter().take(split_idx).cloned().collect();
+                let right_elements = elements.iter().skip(split_idx).cloned().collect();
 
                 (
                     Arc::new(RRBNode::Leaf {
@@ -861,7 +819,6 @@ impl<T: Clone> RRBTree<T> {
     fn create_left_branch(
         &self, original_children: &SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
         split_index: usize, new_child: Arc<RRBNode<T>>,
-        _sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
     ) -> RRBNode<T> {
         let mut left_children = Vec::new();
 
@@ -885,7 +842,6 @@ impl<T: Clone> RRBTree<T> {
     fn create_right_branch(
         &self, original_children: &SmallVec<[Arc<RRBNode<T>>; SMALL_BRANCH_SIZE]>,
         split_index: usize, new_child: Arc<RRBNode<T>>,
-        _sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>,
     ) -> RRBNode<T> {
         let mut right_children = Vec::new();
 
@@ -908,22 +864,13 @@ impl<T: Clone> RRBTree<T> {
 
     fn calculate_adjusted_index(
         &self, target_index: usize, child_index: usize,
-        sizes: &Option<SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>>, height: usize,
+        sizes: &SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>,
     ) -> usize {
-        if let Some(sizes) = sizes {
-            let mut cumulative = 0;
-            for i in 0..child_index {
-                cumulative += sizes.get(i).unwrap_or(&0);
-            }
-            target_index.saturating_sub(cumulative)
-        } else {
-            let child_capacity = if height == 0 {
-                LEAF_CAPACITY
-            } else {
-                LEAF_CAPACITY * BRANCHING_FACTOR.pow(height as u32)
-            };
-            target_index.saturating_sub(child_index * child_capacity)
+        let mut cumulative = 0;
+        for i in 0..child_index {
+            cumulative += sizes.get(i).unwrap_or(&0);
         }
+        target_index.saturating_sub(cumulative)
     }
 
     fn find_path_to_index(&self, index: usize) -> Vec<usize> {
@@ -934,17 +881,10 @@ impl<T: Clone> RRBTree<T> {
 
         while current_height > 0 {
             match current_node.as_ref() {
-                RRBNode::Branch { children, sizes } => {
-                    let (child_idx, sub_index) = if sizes.is_some() {
-                        current_node
-                            .find_child_relaxed(remaining_index)
-                            .unwrap_or((0, 0))
-                    } else {
-                        let child_height = current_height.saturating_sub(1);
-                        current_node
-                            .find_child_regular(remaining_index, child_height)
-                            .unwrap_or((0, 0))
-                    };
+                RRBNode::Branch { children, .. } => {
+                    let (child_idx, sub_index) = current_node
+                        .find_child_relaxed(remaining_index)
+                        .unwrap_or((0, 0));
 
                     path.push(child_idx);
                     remaining_index = sub_index;
@@ -1109,5 +1049,60 @@ mod tests {
         assert_eq!(merged.get(4095), Some(&4095));
         assert_eq!(merged.clone().into_vec(), (0..4096).collect::<Vec<_>>());
         assert_eq!(left.into_vec(), (0..2048).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn pop_front_from_tail_preserves_order() {
+        let mut tree = RRBTree::from_elements(0..67);
+        for i in 0..64 {
+            let (next, popped) = tree.pop_front().unwrap();
+            assert_eq!(popped, i);
+            tree = next;
+        }
+        let (tree2, popped) = tree.pop_front().unwrap();
+        assert_eq!(popped, 64);
+        assert_eq!(tree2.get(0), Some(&65));
+        assert_eq!(tree2.get(1), Some(&66));
+        let (tree3, popped) = tree2.pop_front().unwrap();
+        assert_eq!(popped, 65);
+        let (tree4, popped) = tree3.pop_front().unwrap();
+        assert_eq!(popped, 66);
+        assert!(tree4.pop_front().is_none());
+    }
+
+    #[test]
+    fn pop_back_from_tree_single_pass() {
+        let mut tree = RRBTree::from_elements(0..128);
+        assert!(tree.tail.is_empty());
+        for expected in (0..128).rev() {
+            let (next, popped) = tree.pop_back().expect("non-empty");
+            assert_eq!(popped, expected);
+            assert_eq!(next.len, expected as usize);
+            tree = next;
+        }
+        assert_eq!(tree.len, 0);
+        assert!(tree.pop_back().is_none());
+    }
+
+    #[test]
+    fn split_along_path_empty_path_preserves_sibling_children() {
+        let leaf1 = Arc::new(RRBNode::Leaf {
+            elements: smallvec::smallvec![1, 2, 3],
+        });
+        let leaf2 = Arc::new(RRBNode::Leaf {
+            elements: smallvec::smallvec![4, 5, 6],
+        });
+        let leaf3 = Arc::new(RRBNode::Leaf {
+            elements: smallvec::smallvec![7, 8, 9],
+        });
+        let branch = Arc::new(RRBNode::Branch {
+            children: smallvec::smallvec![leaf1, leaf2, leaf3],
+            sizes: smallvec::smallvec![3, 3, 3],
+        });
+        let tree = RRBTree::<i32>::empty();
+        let (left, right) = tree.split_along_path(&[], 2, &branch, 1);
+        assert_eq!(left.calculate_size() + right.calculate_size(), 9);
+        assert_eq!(left.calculate_size(), 2);
+        assert_eq!(right.calculate_size(), 7);
     }
 }

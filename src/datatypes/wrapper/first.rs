@@ -154,6 +154,12 @@ impl<T> First<T> {
         self.0
     }
 
+    /// Consumes the wrapper and returns the inner option.
+    #[inline]
+    pub fn into_value(self) -> Option<T> {
+        self.0
+    }
+
     /// Returns a reference to the inner option.
     ///
     /// # Examples
@@ -167,55 +173,6 @@ impl<T> First<T> {
     #[inline]
     pub fn get(&self) -> Option<&T> {
         self.0.as_ref()
-    }
-}
-
-impl<T: Clone> First<T> {
-    /// Unwraps the first value, panicking if None.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::first::First;
-    /// let first = First(Some(42));
-    /// assert_eq!(first.unwrap(), 42);
-    ///
-    /// let empty: First<i32> = First(None);
-    /// // empty.unwrap() would panic
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the inner value is None.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    pub fn unwrap(&self) -> T {
-        self.0.clone().unwrap()
-    }
-
-    /// Unwraps the first value or returns a default.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::first::First;
-    /// let first = First(Some(42));
-    /// let empty = First(None);
-    ///
-    /// assert_eq!(first.unwrap_or(0), 42);
-    /// assert_eq!(empty.unwrap_or(0), 0);
-    /// ```
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    pub fn unwrap_or(&self, default: T) -> T {
-        self.0.clone().unwrap_or(default)
-    }
-}
-
-impl<T> AsRef<T> for First<T> {
-    #[inline]
-    fn as_ref(&self) -> &T {
-        self.0
-            .as_ref()
-            .expect("called `as_ref()` on an empty `First`")
     }
 }
 

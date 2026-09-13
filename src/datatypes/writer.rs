@@ -17,7 +17,7 @@
 //!
 //! // Transform the value while preserving the log
 //! let doubled = writer1.fmap(|x| x * 2);
-//! assert_eq!(doubled.clone().unwrap(), 84);
+//! assert_eq!(doubled.clone().into_value(), 84);
 //! assert_eq!(doubled.log(), "Starting computation");
 //!
 //! // Chain computations, combining logs
@@ -25,7 +25,7 @@
 //!     .bind(|x| Writer::new("Step 2".to_string(), x + 5))
 //!     .bind(|x| Writer::new("Step 3".to_string(), x * 2));
 //!
-//! assert_eq!(result.clone().unwrap(), 30);
+//! assert_eq!(result.clone().into_value(), 30);
 //! assert_eq!(result.log(), "Step 1Step 2Step 3");
 //!
 //! // Add to log without changing the value
@@ -268,13 +268,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
         (self.log, self.value)
     }
 
-    /// Extracts both the value and the log from the Writer, consuming it.
-    #[deprecated(since = "0.15.0", note = "use `run()` instead")]
-    #[inline]
-    pub fn run_owned(self) -> (W, A) {
-        self.run()
-    }
-
     /// Extracts just the value from the Writer, discarding the log.
     ///
     /// This method consumes the Writer.
@@ -312,20 +305,6 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
         self.value
     }
 
-    /// Extracts just the value from the Writer, discarding the log.
-    #[deprecated(since = "0.15.0", note = "use `into_value()` instead")]
-    #[inline]
-    pub fn unwrap(self) -> A {
-        self.into_value()
-    }
-
-    /// Extracts just the value from the Writer, discarding the log.
-    #[deprecated(since = "0.15.0", note = "use `into_value()` instead")]
-    #[inline]
-    pub fn unwrap_owned(self) -> A {
-        self.into_value()
-    }
-
     /// Creates a new Writer with the given value and an empty log.
     ///
     /// This is a convenience method that creates a Writer with a value and the empty monoid
@@ -335,9 +314,7 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
         Self::new(W::empty(), value)
     }
 
-    /// Extracts just the log from the Writer, discarding the value.
-    ///
-    /// This method consumes the Writer.
+    /// Extracts the log by consuming the writer, discarding the computed value.
     ///
     /// # Examples
     ///
@@ -364,20 +341,30 @@ impl<W: Monoid + Clone, A> Writer<W, A> {
     ///
     /// let writer = Writer::new(Log(vec!["Log entry".to_string()]), 42);
     ///
-    /// // Extract just the log, discarding the value
-    /// let log = writer.log();
+    /// // Extract just the log, consuming the writer
+    /// let log = writer.into_log();
     /// assert_eq!(log, Log(vec!["Log entry".to_string()]));
     /// ```
     #[inline]
-    pub fn log(self) -> W {
+    pub fn into_log(self) -> W {
         self.log
     }
 
-    /// Extracts just the log from the Writer, discarding the value.
-    #[deprecated(since = "0.15.0", note = "use `log()` instead")]
+    /// Returns a reference to the log without consuming the writer.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::writer::Writer;
+    ///
+    /// let writer = Writer::new(vec!["Log entry".to_string()], 42);
+    /// assert_eq!(writer.log(), &vec!["Log entry".to_string()]);
+    /// // Writer is not consumed:
+    /// assert_eq!(writer.into_value(), 42);
+    /// ```
     #[inline]
-    pub fn exec(self) -> W {
-        self.log()
+    pub fn log(&self) -> &W {
+        &self.log
     }
 }
 
@@ -633,15 +620,15 @@ mod tests {
     fn test_writer_into_value() {
         let writer = Writer::new(Log(vec!["log".into()]), 42);
         assert_eq!(writer.into_value(), 42);
+    }
 
-        #[allow(deprecated)]
-        let (log, val) = Writer::new(Log(vec!["log".into()]), 42).run_owned();
-        assert_eq!(val, 42);
-        assert_eq!(log, Log(vec!["log".into()]));
-
-        #[allow(deprecated)]
-        let unwrapped = Writer::new(Log(vec!["log".into()]), 42).unwrap_owned();
-        assert_eq!(unwrapped, 42);
+    #[test]
+    fn test_writer_log_and_into_log() {
+        let writer = Writer::new(Log(vec!["entry".into()]), 100);
+        // Borrowed log inspection:
+        assert_eq!(writer.log(), &Log(vec!["entry".into()]));
+        // Writer can still be consumed after borrowed log call:
+        assert_eq!(writer.into_log(), Log(vec!["entry".into()]));
     }
 }
 

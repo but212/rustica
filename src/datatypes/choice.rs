@@ -1,7 +1,38 @@
 //! # Choice (`Choice<T>`)
 //!
-//! The `Choice<T>` datatype represents a primary value along with a list of alternative values,
-//! all of type `T`. It is statically guaranteed to never be empty.
+//! A non-empty ordered collection where the **primary** value is always tried first,
+//! and **alternatives** serve as fallback options tried in order when the primary fails.
+//!
+//! # When to Use
+//! Use `Choice<T>` when a function requires a guaranteed primary target and
+//! zero or more ordered fallback targets. The type makes priority and fallback
+//! semantics explicit and statically enforced.
+//!
+//! # Intended Usage
+//! ```rust
+//! use rustica::datatypes::choice::Choice;
+//!
+//! let endpoints = Choice::new("primary.api.com", ["backup1.api.com", "backup2.api.com"]);
+//!
+//! // Try connecting to each endpoint in priority order
+//! let result = endpoints.try_each(|ep| {
+//!     if *ep == "backup1.api.com" { Ok("connected") } else { Err("unreachable") }
+//! });
+//! assert_eq!(result, Ok("connected"));
+//!
+//! // Or find the first matching endpoint
+//! let matched = endpoints.first_match(|ep| ep.strip_prefix("backup"));
+//! assert_eq!(matched, Some("1.api.com"));
+//! ```
+//!
+//! # Priority Transformation and Combination
+//! Transformation via [`Functor`] and combination via [`Semigroup`] strictly preserve
+//! priority ordering:
+//! - `fmap` transforms `primary` and all `alternatives` preserving order.
+//! - `combine` chains another choice's values after the current alternatives.
+//!
+//! Monadic and applicative operations are deprecated since 0.16.0 in favor of clean
+//! priority/alternatives collection semantics.
 
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
@@ -10,11 +41,14 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
 use crate::datatypes::error::ChoiceError;
+use crate::datatypes::validated::Validated;
 use crate::prelude::traits::*;
 
-/// A type representing a primary value along with zero or more alternative values.
+/// A statically non-empty collection with priority and fallback semantics.
 ///
-/// `Choice<T>` is statically guaranteed to be non-empty.
+/// `primary` is the preferred value; `alternatives` are ordered fallbacks.
+/// Prefer using [`try_each`](Self::try_each) or [`first_match`](Self::first_match)
+/// to execute fallback logic in priority order rather than extracting raw values.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
@@ -51,6 +85,7 @@ impl<T> Choice<T> {
     }
 
     /// Returns a reference to the first (primary) value.
+    #[deprecated(since = "0.16.0", note = "use Choice::primary instead")]
     #[inline]
     pub fn first(&self) -> &T {
         &self.primary
@@ -89,7 +124,38 @@ impl<T> Choice<T> {
         })
     }
 
-    /// Filters values in the `Choice`. Returns `None` if all values are filtered out.
+    /// Filters values in the `Choice` by consuming it. Returns `None` if all values are filtered out.
+    ///
+    /// Unlike [`Self::filter_values`], this consuming version does not require `T: Clone`.
+    pub fn filter<F>(self, mut predicate: F) -> Option<Self>
+    where
+        F: FnMut(&T) -> bool,
+    {
+        let mut kept = SmallVec::<[T; 8]>::new();
+        if predicate(&self.primary) {
+            kept.push(self.primary);
+        }
+        for alt in self.alternatives {
+            if predicate(&alt) {
+                kept.push(alt);
+            }
+        }
+
+        if kept.is_empty() {
+            None
+        } else {
+            let mut iter = kept.into_iter();
+            let primary = iter.next().unwrap();
+            let alternatives = iter.collect();
+            Some(Self {
+                primary,
+                alternatives,
+            })
+        }
+    }
+
+    /// Filters values in the `Choice` by reference. Returns `None` if all values are filtered out.
+    #[deprecated(since = "0.16.0", note = "Use `filter` or iterate/filter explicitly.")]
     pub fn filter_values<F>(&self, mut predicate: F) -> Option<Self>
     where
         T: Clone,
@@ -124,22 +190,22 @@ impl<T> Choice<T> {
         std::iter::once(&self.primary).chain(self.alternatives.iter())
     }
 
-    /// Safely flattens a `Choice` of iterable items.
-    pub fn try_flatten<I>(&self) -> Result<Choice<I>, ChoiceError>
+    /// Safely flattens a `Choice` of iterable items by consuming it.
+    ///
+    /// Unlike [`Self::try_flatten_cloned`], this consuming version does not require `T: Clone`.
+    pub fn try_flatten<I>(self) -> Result<Choice<I>, ChoiceError>
     where
-        T: IntoIterator<Item = I> + Clone,
-        I: Clone,
+        T: IntoIterator<Item = I>,
     {
-        let primary_iter = self.primary.clone().into_iter();
-        let mut primary_iter = primary_iter;
+        let mut primary_iter = self.primary.into_iter();
 
         match primary_iter.next() {
             Some(first_item) => {
                 let alternatives = primary_iter
                     .chain(
                         self.alternatives
-                            .iter()
-                            .flat_map(|val| val.clone().into_iter()),
+                            .into_iter()
+                            .flat_map(IntoIterator::into_iter),
                     )
                     .collect::<SmallVec<[I; 7]>>();
 
@@ -152,13 +218,131 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Flattens a `Choice` of iterable items, returning `None` if the primary iterator is empty.
-    pub fn flatten<I>(&self) -> Option<Choice<I>>
+    /// Safely flattens a borrowed `Choice` of iterable items by cloning elements.
+    pub fn try_flatten_cloned<I>(&self) -> Result<Choice<I>, ChoiceError>
     where
         T: IntoIterator<Item = I> + Clone,
-        I: Clone,
+    {
+        self.clone().try_flatten()
+    }
+
+    /// Flattens a `Choice` of iterable items by consuming it, returning `None` if the primary iterator is empty.
+    ///
+    /// Unlike [`Self::flatten_cloned`], this consuming version does not require `T: Clone`.
+    pub fn flatten<I>(self) -> Option<Choice<I>>
+    where
+        T: IntoIterator<Item = I>,
     {
         self.try_flatten().ok()
+    }
+
+    /// Flattens a borrowed `Choice` of iterable items by cloning elements, returning `None` if the primary iterator is empty.
+    pub fn flatten_cloned<I>(&self) -> Option<Choice<I>>
+    where
+        T: IntoIterator<Item = I> + Clone,
+    {
+        self.try_flatten_cloned().ok()
+    }
+
+    /// Tries `f` on each value in priority order (primary first, then alternatives).
+    ///
+    /// Returns the first `Ok` result, short-circuiting on success so subsequent
+    /// alternatives are not evaluated. If all values fail, returns the last `Err`.
+    pub fn try_each<R, E, F>(&self, mut f: F) -> Result<R, E>
+    where
+        F: FnMut(&T) -> Result<R, E>,
+    {
+        let mut last_err = match f(&self.primary) {
+            Ok(res) => return Ok(res),
+            Err(err) => err,
+        };
+
+        for alt in &self.alternatives {
+            match f(alt) {
+                Ok(res) => return Ok(res),
+                Err(err) => last_err = err,
+            }
+        }
+
+        Err(last_err)
+    }
+
+    /// Tries `f` on each value in priority order, collecting all errors into [`Validated`] on total failure.
+    ///
+    /// Returns [`Validated::Valid`] on the first `Ok` result, short-circuiting on success.
+    /// If all values fail, returns [`Validated::Invalid`] containing every encountered error in order.
+    pub fn try_each_validated<R, E, F>(&self, mut f: F) -> Validated<E, R>
+    where
+        F: FnMut(&T) -> Result<R, E>,
+    {
+        let first_err = match f(&self.primary) {
+            Ok(res) => return Validated::Valid(res),
+            Err(err) => err,
+        };
+
+        let mut errors = SmallVec::<[E; 8]>::new();
+        errors.push(first_err);
+
+        for alt in &self.alternatives {
+            match f(alt) {
+                Ok(res) => return Validated::Valid(res),
+                Err(err) => errors.push(err),
+            }
+        }
+
+        Validated::invalid_many(errors)
+    }
+
+    /// Returns the first `Some` result from `f` applied in priority order.
+    ///
+    /// Short-circuits on the first `Some`, returning immediately without
+    /// evaluating remaining alternatives. Returns `None` if no value matches.
+    pub fn first_match<R, F>(&self, mut f: F) -> Option<R>
+    where
+        F: FnMut(&T) -> Option<R>,
+    {
+        if let Some(res) = f(&self.primary) {
+            return Some(res);
+        }
+        for alt in &self.alternatives {
+            if let Some(res) = f(alt) {
+                return Some(res);
+            }
+        }
+        None
+    }
+
+    /// Monadic bind for `Choice`.
+    ///
+    /// # Deprecated (since 0.16.0)
+    /// `Choice` is redefined as a non-empty priority/alternatives collection.
+    /// Monadic operations are deprecated and will be removed in a future release.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Choice is redefined as a non-empty priority/alternatives collection; Monad operations are deprecated."
+    )]
+    pub fn bind<U, F>(self, f: F) -> Choice<U>
+    where
+        F: FnMut(T) -> Choice<U>,
+    {
+        Monad::bind(self, f)
+    }
+
+    /// Applicative functor application for `Choice`.
+    ///
+    /// # Deprecated (since 0.16.0)
+    /// `Choice` is redefined as a non-empty priority/alternatives collection.
+    /// Applicative operations are deprecated and will be removed in a future release.
+    #[deprecated(
+        since = "0.16.0",
+        note = "Choice is redefined as a non-empty priority/alternatives collection; Applicative operations are deprecated."
+    )]
+    pub fn apply<A, B>(self, value: Choice<A>) -> Choice<B>
+    where
+        T: Fn(A) -> B,
+        A: Clone,
+    {
+        Applicative::apply(self, value)
     }
 }
 
@@ -167,6 +351,10 @@ impl<T> HKT for Choice<T> {
     type Output<U> = Choice<U>;
 }
 
+/// # Deprecated (since 0.16.0)
+///
+/// `Choice` is redefined as a non-empty priority/alternatives collection.
+/// Use [`Choice::single`] instead.
 impl<T> Pure for Choice<T> {
     fn pure<A>(value: A) -> Self::Output<A> {
         Choice::single(value)
@@ -185,6 +373,10 @@ impl<T> Functor for Choice<T> {
     }
 }
 
+/// # Deprecated (since 0.16.0)
+///
+/// `Choice` is redefined as a non-empty priority/alternatives collection.
+/// Applicative operations are deprecated and will be removed in a future release.
 impl<T> Applicative for Choice<T> {
     fn apply<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
     where
@@ -280,6 +472,10 @@ impl<T> Applicative for Choice<T> {
     }
 }
 
+/// # Deprecated (since 0.16.0)
+///
+/// `Choice` is redefined as a non-empty priority/alternatives collection.
+/// Monadic operations are deprecated and will be removed in a future release.
 impl<T> Monad for Choice<T> {
     #[inline]
     fn bind<U, F>(self, mut f: F) -> Self::Output<U>
@@ -330,7 +526,7 @@ impl<T> Semigroup for Choice<T> {
     }
 }
 
-impl<T: Clone> Choice<Option<T>> {
+impl<T> Choice<Option<T>> {
     /// Sequences a `Choice` of `Option`s into an `Option` of a `Choice`.
     pub fn sequence(self) -> Option<Choice<T>> {
         let primary = self.primary?;
@@ -441,20 +637,37 @@ mod unit_tests {
     use crate::prelude::*;
 
     #[test]
-    fn monad_laws_hold_for_choice() {
-        let m = Choice::new(1, vec![2]);
-        let f = |x: i32| Choice::new(x + 1, vec![]);
-        let g = |x: i32| Choice::new(x * 2, vec![]);
+    fn priority_and_transformation_contracts() {
+        // C-01: Non-empty single and multiple
+        let s = Choice::single(100);
+        assert_eq!(*s.primary(), 100);
+        assert_eq!(s.len(), 1);
+        assert!(!s.is_empty());
 
-        assert_eq!(Choice::<i32>::pure(10).bind(f), f(10));
-        assert_eq!(m.clone().bind(Choice::<i32>::pure), m);
-        assert_eq!(m.clone().bind(f).bind(g), m.bind(|x| f(x).bind(g)));
+        // C-03: Semigroup combine preserves priority order (primary + alts + other.primary + other.alts)
+        let c1 = Choice::new(1, vec![2]);
+        let c2 = Choice::new(3, vec![4, 5]);
+        let combined = c1.combine(c2);
+        assert_eq!(*combined.primary(), 1);
+        assert_eq!(combined.alternatives(), &[2, 3, 4, 5]);
+        assert_eq!(
+            combined.iter().copied().collect::<Vec<_>>(),
+            vec![1, 2, 3, 4, 5]
+        );
+
+        // C-04: Functor fmap preserves priority structure
+        let mapped = combined.clone().fmap(|x| x * 10);
+        assert_eq!(*mapped.primary(), 10);
+        assert_eq!(mapped.alternatives(), &[20, 30, 40, 50]);
+
+        // Foldable preserves priority order
+        let folded = combined.fold_left(0, |acc, &x| acc * 10 + x);
+        assert_eq!(folded, 12345);
     }
 
     #[test]
     fn choice_construction_and_filtering_preserve_values() {
         let c = Choice::new(1, vec![2, 3, 4]);
-        assert_eq!(*c.first(), 1);
         assert_eq!(*c.primary(), 1);
         assert_eq!(c.alternatives(), &[2, 3, 4]);
         assert_eq!(c.len(), 4);
@@ -466,9 +679,161 @@ mod unit_tests {
         assert_eq!(choice.iter().copied().collect::<Vec<_>>(), vec![10, 20, 30]);
 
         assert_eq!(Choice::of_many(Vec::<i32>::new()), None);
-        let evens = c.filter_values(|&x| x % 2 == 0).expect("should have evens");
-        assert_eq!(*evens.first(), 2);
+        let evens = c
+            .clone()
+            .filter(|&x| x % 2 == 0)
+            .expect("should have evens");
         assert_eq!(evens.alternatives(), &[4]);
-        assert_eq!(c.filter_values(|&x| x > 100), None);
+        assert_eq!(c.clone().filter(|&x| x > 100), None);
+
+        #[allow(deprecated)]
+        {
+            let evens = c.filter_values(|&x| x % 2 == 0).expect("should have evens");
+            assert_eq!(evens.alternatives(), &[4]);
+            assert_eq!(c.filter_values(|&x| x > 100), None);
+        }
+    }
+
+    #[test]
+    fn try_each_returns_first_success() {
+        let choices = Choice::new(1, [2, 3]);
+        let mut calls = Vec::new();
+        let res = choices.try_each(|&x| {
+            calls.push(x);
+            Ok::<_, &str>(x * 10)
+        });
+        assert_eq!(res, Ok(10));
+        assert_eq!(calls, vec![1]);
+    }
+
+    #[test]
+    fn try_each_falls_back_on_failure() {
+        let choices = Choice::new(1, [2, 3]);
+        let mut calls = Vec::new();
+        let res = choices.try_each(|&x| {
+            calls.push(x);
+            if x == 2 {
+                Ok::<_, &str>(x * 10)
+            } else {
+                Err("failed")
+            }
+        });
+        assert_eq!(res, Ok(20));
+        assert_eq!(calls, vec![1, 2]);
+    }
+
+    #[test]
+    fn try_each_returns_last_error() {
+        let choices = Choice::new(1, [2, 3]);
+        let mut calls = Vec::new();
+        let res = choices.try_each(|&x| {
+            calls.push(x);
+            Err::<i32, _>(format!("err_{}", x))
+        });
+        assert_eq!(res, Err("err_3".to_string()));
+        assert_eq!(calls, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn try_each_validated_collects_errors() {
+        let choices = Choice::new(1, [2, 3]);
+        let res: Validated<String, i32> =
+            choices.try_each_validated(|&x| Err(format!("err_{}", x)));
+        assert!(res.is_invalid());
+        if let Validated::Invalid(errs) = res {
+            let err_list: Vec<_> = errs.into_iter().collect();
+            assert_eq!(err_list, vec!["err_1", "err_2", "err_3"]);
+        } else {
+            panic!("expected invalid");
+        }
+
+        // Success on alternative
+        let ok_res: Validated<&str, i32> =
+            choices.try_each_validated(|&x| if x == 2 { Ok(200) } else { Err("fail") });
+        assert_eq!(ok_res, Validated::Valid(200));
+    }
+
+    #[test]
+    fn first_match_returns_primary() {
+        let choices = Choice::new(10, [20, 30]);
+        let mut calls = Vec::new();
+        let res = choices.first_match(|&x| {
+            calls.push(x);
+            if x >= 10 { Some(x * 2) } else { None }
+        });
+        assert_eq!(res, Some(20));
+        assert_eq!(calls, vec![10]); // Short-circuits on primary
+    }
+
+    #[test]
+    fn first_match_falls_back_and_returns_none() {
+        let choices = Choice::new(1, [2, 3]);
+        // Fallback to alternative
+        let res = choices.first_match(|&x| if x == 3 { Some(x * 100) } else { None });
+        assert_eq!(res, Some(300));
+
+        // Total failure returns None
+        let none_res = choices.first_match(|&x| if x > 100 { Some(x) } else { None });
+        assert_eq!(none_res, None);
+    }
+
+    #[test]
+    fn filter_and_flatten_consume_without_clone() {
+        #[derive(Debug, PartialEq, Eq)]
+        struct NoClone(i32);
+
+        let choice = Choice::new(NoClone(1), vec![NoClone(2), NoClone(3)]);
+        let filtered = choice.filter(|x| x.0 % 2 != 0).expect("keeps 1 and 3");
+        assert_eq!(filtered.primary(), &NoClone(1));
+        assert_eq!(filtered.alternatives(), &[NoClone(3)]);
+
+        let nested = Choice::new(vec![NoClone(10)], vec![vec![NoClone(20), NoClone(30)]]);
+        let flattened = nested.flatten().expect("flatten succeeds");
+        assert_eq!(flattened.primary(), &NoClone(10));
+        assert_eq!(flattened.alternatives(), &[NoClone(20), NoClone(30)]);
+
+        let empty_primary: Choice<Vec<NoClone>> = Choice::single(vec![]);
+        assert_eq!(
+            empty_primary.try_flatten(),
+            Err(crate::datatypes::error::ChoiceError::EmptyPrimaryIterator)
+        );
+    }
+
+    #[test]
+    fn flatten_cloned_and_try_flatten_cloned() {
+        let nested = Choice::new(vec![1, 2], vec![vec![3, 4]]);
+        let flattened = nested.flatten_cloned().unwrap();
+        assert_eq!(flattened.primary(), &1);
+        assert_eq!(flattened.alternatives(), &[2, 3, 4]);
+
+        let res = nested.try_flatten_cloned().unwrap();
+        assert_eq!(res.primary(), &1);
+        assert_eq!(res.alternatives(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn filter_values_clones_only_matching_elements() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static CLONE_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+        #[derive(Debug, PartialEq, Eq)]
+        struct Tracked(i32);
+
+        impl Clone for Tracked {
+            fn clone(&self) -> Self {
+                CLONE_COUNT.fetch_add(1, Ordering::SeqCst);
+                Tracked(self.0)
+            }
+        }
+
+        CLONE_COUNT.store(0, Ordering::SeqCst);
+        let c = Choice::new(Tracked(1), vec![Tracked(2), Tracked(3), Tracked(4)]);
+
+        #[allow(deprecated)]
+        let filtered = c.filter_values(|x| x.0 % 2 == 0);
+        assert!(filtered.is_some());
+        // Only Tracked(2) and Tracked(4) should have been cloned (2 times), not all 4 elements!
+        assert_eq!(CLONE_COUNT.load(Ordering::SeqCst), 2);
     }
 }

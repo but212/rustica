@@ -237,6 +237,11 @@ pub trait FunctorExt: Functor {
     /// );
     /// assert_eq!(result_with_default, Some("default".to_string()));
     /// ```
+    /// Transforms values with a fallible function, handling errors by providing a default value.
+    #[deprecated(
+        since = "0.16.0",
+        note = "use fmap with unwrap_or on the fallible result instead"
+    )]
     #[inline]
     fn try_map_or<B, E, F>(self, default: B, mut f: F) -> Self::Output<B>
     where
@@ -251,6 +256,10 @@ pub trait FunctorExt: Functor {
     }
 
     /// Transforms values with a fallible function, handling errors with a provided function.
+    #[deprecated(
+        since = "0.16.0",
+        note = "use fmap with unwrap_or_else on the fallible result instead"
+    )]
     #[inline]
     fn try_map_or_else<B, E, D, F>(self, mut default_fn: D, mut f: F) -> Self::Output<B>
     where
@@ -265,6 +274,10 @@ pub trait FunctorExt: Functor {
     }
 
     /// Transforms values with a function that might return None, filtering out None results.
+    #[deprecated(
+        since = "0.16.0",
+        note = "filtering is non-functorial; use standard Iterator::filter_map or Option/Result combinators instead"
+    )]
     fn filter_map<B, F>(self, f: F) -> Self::Output<B>
     where
         F: FnMut(Self::Source) -> Option<B>;
@@ -310,7 +323,7 @@ impl<T> FunctorExt for Option<T> {
     }
 }
 
-impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
+impl<A, E: Clone> Functor for Result<A, E> {
     #[inline]
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where
@@ -320,7 +333,7 @@ impl<A, E: std::fmt::Debug + Clone> Functor for Result<A, E> {
     }
 }
 
-impl<A, E: std::fmt::Debug + Clone> FunctorExt for Result<A, E>
+impl<A, E: Clone> FunctorExt for Result<A, E>
 where
     E: Default,
 {

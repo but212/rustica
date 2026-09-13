@@ -221,18 +221,6 @@ pub trait Applicative: Functor + Pure {
     {
         Self::lift2(|a, _| a, fa, fb)
     }
-
-    /// Deprecated alias for `lift2`.
-    #[deprecated(since = "0.15.0", note = "use `lift2()` instead")]
-    #[inline]
-    fn ap2<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
-    where
-        F: Fn(A, B) -> C,
-        A: Clone,
-        B: Clone,
-    {
-        Self::lift2(f, fa, fb)
-    }
 }
 
 // Implementation for Option
@@ -280,7 +268,7 @@ impl<A> Applicative for Option<A> {
 }
 
 // Implementation for Result
-impl<A, E: std::fmt::Debug + Clone> Applicative for Result<A, E> {
+impl<A, E: Clone> Applicative for Result<A, E> {
     #[inline]
     fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where

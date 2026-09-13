@@ -6,16 +6,29 @@
 use crate::datatypes::validated::{Validated, core::ErrorAccumulator};
 use crate::traits::hkt::HKT;
 
+/// Trait for types that can map their error variant and convert to a standard Result.
+#[deprecated(
+    since = "0.16.0",
+    note = "Use standard Result combinators or Iterator::collect instead. WithError is scheduled for removal in 0.18.0."
+)]
 pub trait WithError<E>: HKT {
     type Success;
     type ErrorOutput<G>;
 
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
     where
-        F: Fn(E) -> G,
-        G: Clone;
+        F: Fn(E) -> G;
 
-    fn to_result(self) -> Result<Self::Success, E>;
+    fn into_result(self) -> Result<Self::Success, E>;
+
+    #[deprecated(since = "0.16.0", note = "Use `into_result` instead.")]
+    #[allow(deprecated)]
+    fn to_result(self) -> Result<Self::Success, E>
+    where
+        Self: Sized,
+    {
+        self.into_result()
+    }
 }
 
 pub fn traverse_validated<A, B, E, F>(
@@ -40,6 +53,12 @@ where
     }
 }
 
+/// Sequences a collection of items supporting `WithError` into a `Result`.
+#[deprecated(
+    since = "0.16.0",
+    note = "Use Iterator::collect or standard Result combinators instead. sequence_with_error is scheduled for removal in 0.18.0."
+)]
+#[allow(deprecated)]
 #[inline]
 pub fn sequence_with_error<C, T, E>(collection: Vec<C>) -> Result<Vec<T>, E>
 where
@@ -48,11 +67,12 @@ where
 {
     collection
         .into_iter()
-        .map(|item| item.to_result().map(Into::into))
+        .map(|item| item.into_result().map(Into::into))
         .collect()
 }
 
-impl<T, E: Clone> WithError<E> for Result<T, E> {
+#[allow(deprecated)]
+impl<T, E> WithError<E> for Result<T, E> {
     type Success = T;
     type ErrorOutput<G> = Result<T, G>;
 
@@ -66,11 +86,12 @@ impl<T, E: Clone> WithError<E> for Result<T, E> {
         }
     }
 
-    fn to_result(self) -> Result<Self::Success, E> {
+    fn into_result(self) -> Result<Self::Success, E> {
         self
     }
 }
 
+#[allow(deprecated)]
 impl<T, E> WithError<E> for Validated<E, T> {
     type Success = T;
     type ErrorOutput<G> = Validated<G, T>;
@@ -78,7 +99,6 @@ impl<T, E> WithError<E> for Validated<E, T> {
     fn fmap_error<F, G>(self, f: F) -> Self::ErrorOutput<G>
     where
         F: Fn(E) -> G,
-        G: Clone,
     {
         match self {
             Validated::Valid(t) => Validated::Valid(t),
@@ -86,7 +106,7 @@ impl<T, E> WithError<E> for Validated<E, T> {
         }
     }
 
-    fn to_result(self) -> Result<Self::Success, E> {
+    fn into_result(self) -> Result<Self::Success, E> {
         match self {
             Validated::Valid(t) => Ok(t),
             Validated::Invalid(e) => Err(e
@@ -127,6 +147,7 @@ mod tests {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod unit_tests {
     use super::sequence_with_error;
     use crate::datatypes::validated::Validated;
@@ -158,5 +179,31 @@ mod unit_tests {
         ];
         let result: Result<Vec<i32>, &str> = sequence_with_error(validated);
         assert_eq!(result, Err("first"));
+    }
+
+    #[test]
+    fn with_error_into_result_and_deprecated_to_result() {
+        use super::WithError;
+
+        let res: Result<i32, &str> = Ok(10);
+        assert_eq!(res.into_result(), Ok(10));
+
+        let res_err: Result<i32, &str> = Err("err");
+        assert_eq!(res_err.into_result(), Err("err"));
+
+        let val_valid: Validated<&str, i32> = Validated::valid(20);
+        assert_eq!(val_valid.into_result(), Ok(20));
+
+        let val_invalid: Validated<&str, i32> = Validated::invalid("invalid");
+        assert_eq!(val_invalid.into_result(), Err("invalid"));
+
+        #[allow(deprecated)]
+        {
+            let res: Result<i32, &str> = Ok(10);
+            assert_eq!(res.to_result(), Ok(10));
+
+            let val_valid: Validated<&str, i32> = Validated::valid(20);
+            assert_eq!(val_valid.to_result(), Ok(20));
+        }
     }
 }

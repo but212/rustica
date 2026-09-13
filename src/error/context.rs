@@ -1,144 +1,260 @@
-//! # Error Context Management and Functional Pipelines
+//! # Slim Error Context Management and ContextError
 //!
-//! This module provides utilities for managing error context and creating
-//! functional error handling pipelines. It includes context accumulation,
-//! error transformation chains, and composable error handling patterns.
+//! This module provides the standard `ContextError<E>` wrapper for context accumulation,
+//! along with lightweight context utilities (ErrorContext, IntoErrorContext, LazyContext).
 
-use crate::error::types::{BoxedComposableResult, ComposableError, IntoErrorContext};
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
-/// Adds context to any error type, creating a ComposableError.
+/// A slim, standard-aligned error context wrapper.
 ///
-/// This function provides a convenient way to add contextual information
-/// to any error, wrapping it in a ComposableError structure that supports
-/// context accumulation and error chaining.
-///
-/// # Type Parameters
-///
-/// * `E`: The original error type
-/// * `C`: The context type (must implement IntoErrorContext)
-///
-/// # Arguments
-///
-/// * `error`: The error to add context to
-/// * `context`: The context information to add
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::with_context;
-///
-/// let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "file.txt");
-/// let contextual_error = with_context(io_error, "Failed to load configuration");
-///
-/// assert!(contextual_error.context().len() > 0);
-/// ```
+/// Rustica provides standard Result<T, E> and std::error::Error as primary primitives,
+/// and adds `ContextError<E>` as the minimal abstraction for context accumulation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContextError<E> {
+    error: E,
+    context: Vec<String>,
+}
+
+impl<E> ContextError<E> {
+    /// Creates a new ContextError wrapping the root error.
+    #[inline]
+    pub fn new(error: E) -> Self {
+        Self {
+            error,
+            context: Vec::new(),
+        }
+    }
+
+    /// Appends context information to this error.
+    #[inline]
+    pub fn with_context<C>(mut self, ctx: C) -> Self
+    where
+        C: IntoErrorContext,
+    {
+        self.context.push(ctx.into_error_context().into_message());
+        self
+    }
+
+    /// Appends multiple context strings to this error.
+    #[inline]
+    pub fn with_contexts<I>(mut self, contexts: I) -> Self
+    where
+        I: IntoIterator<Item = String>,
+    {
+        self.context.extend(contexts);
+        self
+    }
+
+    /// Returns a reference to the root error.
+    #[inline]
+    pub fn error(&self) -> &E {
+        &self.error
+    }
+
+    /// Consumes the wrapper and returns the underlying error.
+    #[inline]
+    pub fn into_error(self) -> E {
+        self.error
+    }
+
+    /// Returns the accumulated contexts with most recent first.
+    #[inline]
+    pub fn context(&self) -> Vec<String> {
+        self.context.iter().rev().cloned().collect()
+    }
+
+    /// Returns an iterator over context entries, most recent first.
+    #[inline]
+    pub fn context_iter(&self) -> std::iter::Rev<std::slice::Iter<'_, String>> {
+        self.context.iter().rev()
+    }
+
+    /// Returns a zero-allocation reference to the internal contexts slice in insertion order (oldest first).
+    #[inline]
+    pub fn contexts_raw(&self) -> &[String] {
+        &self.context
+    }
+
+    /// Maps the underlying error to a new type while preserving context.
+    #[inline]
+    pub fn map_error<F, T>(self, f: F) -> ContextError<T>
+    where
+        F: FnOnce(E) -> T,
+    {
+        ContextError {
+            error: f(self.error),
+            context: self.context,
+        }
+    }
+
+    /// Returns the full error chain formatted as most_recent -> ... -> error.
+    pub fn error_chain(&self) -> String
+    where
+        E: Display,
+    {
+        let mut chain = String::new();
+        self.write_chain(&mut chain)
+            .expect("writing to String cannot fail");
+        chain
+    }
+
+    /// Writes the error chain directly to a formatter or writer.
+    pub(crate) fn write_chain<W>(&self, out: &mut W) -> std::fmt::Result
+    where
+        W: std::fmt::Write,
+        E: Display,
+    {
+        for (i, ctx) in self.context.iter().rev().enumerate() {
+            if i > 0 {
+                out.write_str(" -> ")?;
+            }
+            out.write_str(ctx)?;
+        }
+
+        if !self.context.is_empty() {
+            out.write_str(" -> ")?;
+        }
+
+        write!(out, "{}", self.error)
+    }
+}
+
+impl<E: Display> Display for ContextError<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.write_chain(f)
+    }
+}
+
+impl<E: Debug + Display + std::error::Error + 'static> std::error::Error for ContextError<E> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
+    }
+}
+
+impl<E> From<E> for ContextError<E> {
+    #[inline]
+    fn from(error: E) -> Self {
+        Self::new(error)
+    }
+}
+
+/// A lightweight error context that can be attached to any error type.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct ErrorContext {
+    message: String,
+}
+
+impl ErrorContext {
+    /// Creates a new error context with the given message.
+    #[inline]
+    pub fn new<S: Into<String>>(message: S) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+
+    /// Returns the context message.
+    #[inline]
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// Consumes the context and returns its owned message without cloning.
+    #[inline]
+    pub fn into_message(self) -> String {
+        self.message
+    }
+}
+
+impl Display for ErrorContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for ErrorContext {}
+
+/// A trait for types that can provide error context information.
+pub trait IntoErrorContext {
+    /// Converts this value into an ErrorContext.
+    fn into_error_context(self) -> ErrorContext;
+}
+
+impl IntoErrorContext for String {
+    #[inline]
+    fn into_error_context(self) -> ErrorContext {
+        ErrorContext::new(self)
+    }
+}
+
+impl IntoErrorContext for &str {
+    #[inline]
+    fn into_error_context(self) -> ErrorContext {
+        ErrorContext::new(self)
+    }
+}
+
+impl IntoErrorContext for ErrorContext {
+    #[inline]
+    fn into_error_context(self) -> ErrorContext {
+        self
+    }
+}
+
+/// A lazy error context that is evaluated only when needed.
+#[repr(transparent)]
+pub struct LazyContext<F> {
+    generator: F,
+}
+
+impl<F> LazyContext<F> {
+    /// Creates a new lazy context with the given generator function.
+    #[inline]
+    pub fn new(generator: F) -> Self {
+        Self { generator }
+    }
+}
+
+impl<F> IntoErrorContext for LazyContext<F>
+where
+    F: FnOnce() -> String,
+{
+    #[inline]
+    fn into_error_context(self) -> ErrorContext {
+        ErrorContext::new((self.generator)())
+    }
+}
+
+/// Adds context to an error value, creating a ContextError.
 #[inline]
-pub fn with_context<E, C>(error: E, context: C) -> ComposableError<E>
+pub fn with_context<E, C>(error: E, context: C) -> ContextError<E>
 where
     C: IntoErrorContext,
 {
-    ComposableError::new(error).with_context(context)
+    ContextError::new(error).with_context(context)
 }
 
-/// Adds context to a Result, converting errors to ComposableError.
-///
-/// This function transforms a `Result<T, E>` into a `Result<T, ComposableError<E>>`,
-/// adding the specified context to any error that occurs. Success values pass
-/// through unchanged.
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The original error type
-/// * `C`: The context type (must implement IntoErrorContext)
-///
-/// # Arguments
-///
-/// * `result`: The Result to add context to
-/// * `context`: The context information to add
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::with_context_result;
-///
-/// fn parse_number(s: &str) -> Result<i32, std::num::ParseIntError> {
-///     s.parse()
-/// }
-///
-/// let result = parse_number("not_a_number");
-/// let contextual = with_context_result(result, "Failed to parse user input");
-///
-/// match contextual {
-///     Ok(_) => panic!("Expected error"),
-///     Err(composable) => {
-///         assert_eq!(composable.context().len(), 1);
-///         assert!(composable.context()[0].contains("Failed to parse user input"));
-///     }
-/// }
-/// ```
+/// Adds context to a Result, converting the error variant to `ContextError<E>`.
 #[inline]
-pub fn with_context_result<T, E, C>(result: Result<T, E>, context: C) -> BoxedComposableResult<T, E>
+pub fn with_context_result<T, E, C>(result: Result<T, E>, context: C) -> Result<T, ContextError<E>>
 where
     C: IntoErrorContext,
 {
-    result.map_err(|e| Box::new(with_context(e, context)))
+    result.map_err(|e| with_context(e, context))
 }
 
-/// Creates a context function that can be applied lazily.
-///
-/// This function returns a closure that, when called with an error,
-/// adds the specified context. This is useful for creating reusable
-/// context transformations and building error handling pipelines.
-///
-/// # Type Parameters
-///
-/// * `C`: The context type (must implement IntoErrorContext)
-///
-/// # Arguments
-///
-/// * `context`: The context information to add
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::context_fn;
-///
-/// let add_db_context = context_fn("Database operation failed");
-///
-/// let error = "Connection refused";
-/// let contextual_error = add_db_context(error);
-///
-/// assert_eq!(contextual_error.context().len(), 1);
-/// assert!(contextual_error.context()[0].contains("Database operation failed"));
-/// ```
+/// Creates a reusable context-attaching closure.
 #[inline]
-pub fn context_fn<E, C>(context: C) -> impl Fn(E) -> ComposableError<E>
+pub fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
 where
     C: IntoErrorContext + Clone,
 {
     move |error| with_context(error, context.clone())
 }
 
-/// Accumulates context from multiple sources into a single error.
-///
-/// This function takes an error and multiple context sources,
-/// creating a ComposableError with all context information
-/// accumulated in order.
-///
-/// # Type Parameters
-///
-/// * `E`: The error type
-/// * `I`: The iterator type for contexts
-/// * `C`: The context item type
-///
-/// # Arguments
-///
-/// * `error`: The base error
-/// * `contexts`: An iterator of context information
-///
-pub fn accumulate_context<E, I, C>(error: E, contexts: I) -> ComposableError<E>
+/// Accumulates context from multiple sources into a single ContextError.
+pub fn accumulate_context<E, I, C>(error: E, contexts: I) -> ContextError<E>
 where
     I: IntoIterator<Item = C>,
     C: IntoErrorContext,
@@ -148,25 +264,11 @@ where
         .map(|c| c.into_error_context().into_message())
         .collect();
 
-    ComposableError::new(error).with_contexts(context_strings)
+    ContextError::new(error).with_contexts(context_strings)
 }
 
-/// Creates a context accumulator function.
-///
-/// This returns a function that can accumulate multiple contexts
-/// onto an error. The returned function can be reused for multiple
-/// errors with the same context pattern.
-///
-/// # Type Parameters
-///
-/// * `I`: The iterator type for contexts
-/// * `C`: The context item type
-///
-/// # Arguments
-///
-/// * `contexts`: The contexts to accumulate
-///
-pub fn context_accumulator<E, I, C>(contexts: I) -> impl Fn(E) -> ComposableError<E>
+/// Creates a reusable context accumulator function.
+pub fn context_accumulator<E, I, C>(contexts: I) -> impl Fn(E) -> ContextError<E>
 where
     I: IntoIterator<Item = C> + Clone,
     C: IntoErrorContext + Clone,
@@ -175,47 +277,29 @@ where
 }
 
 /// Formats an error with its full context chain.
-///
-/// This function creates a human-readable string representation
-/// of an error and all its context information, formatted as
-/// a chain from most recent context to core error.
-///
-/// # Type Parameters
-///
-/// * `E`: The error type (must implement Display)
-///
-/// # Arguments
-///
-/// * `error`: The ComposableError to format
-///
-pub fn format_error_chain<E>(error: &ComposableError<E>) -> String
+#[deprecated(
+    since = "0.16.0",
+    note = "Use error.error_chain() instead. format_error_chain is scheduled for removal in 0.18.0."
+)]
+pub fn format_error_chain<E>(error: &ContextError<E>) -> String
 where
     E: Display,
 {
     error.error_chain()
 }
 
-/// Extracts all context information from a ComposableError.
-///
-/// This function returns a vector of all context strings in the
-/// order they were added (most recent first).
-///
-/// # Type Parameters
-///
-/// * `E`: The error type
-///
-/// # Arguments
-///
-/// * `error`: The ComposableError to extract context from
-///
-pub fn extract_context<E>(error: &ComposableError<E>) -> Vec<String> {
+/// Extracts all context information from a `ContextError` (most recent first).
+#[deprecated(
+    since = "0.16.0",
+    note = "Use error.context() or error.context_iter() instead. extract_context is scheduled for removal in 0.18.0."
+)]
+pub fn extract_context<E>(error: &ContextError<E>) -> Vec<String> {
     error.context()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{accumulate_context, context_accumulator, extract_context, format_error_chain};
-    use crate::error::ComposableError;
+    use super::*;
 
     #[test]
     fn accumulate_context_preserves_all_entries() {
@@ -241,8 +325,9 @@ mod tests {
     }
 
     #[test]
-    fn format_error_chain_includes_context_and_core_error() {
-        let error = ComposableError::new("file not found")
+    #[allow(deprecated)]
+    fn format_error_chain_renders_context_and_error() {
+        let error = ContextError::new("file not found")
             .with_context("failed to load config")
             .with_context("application startup failed");
 
@@ -253,8 +338,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn extract_context_returns_most_recent_first() {
-        let error = ComposableError::new("error")
+        let error = ContextError::new("error")
             .with_context("context 1")
             .with_context("context 2");
 

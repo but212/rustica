@@ -1,19 +1,18 @@
-use criterion::{BenchmarkId, Criterion};
+﻿use criterion::{BenchmarkId, Criterion};
 use rustica::context;
-use rustica::error::ComposableError;
+use rustica::error::ContextError;
 use std::hint::black_box;
 
 pub fn composable_error_benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("ComposableError");
+    let mut group = c.benchmark_group("ContextError");
 
-    // Two contexts fit inline; three exercise heap growth.
     for count in [2, 3, 50] {
         group.bench_with_input(
             BenchmarkId::new("context_accumulation", count),
             &count,
             |b, &count| {
                 b.iter(|| {
-                    let mut error = ComposableError::new("core error");
+                    let mut error = ContextError::new("core error");
                     for index in 0..count {
                         error = error.with_context(context!("context {index}"));
                     }
@@ -26,7 +25,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
             BenchmarkId::new("context_iteration", count),
             &count,
             |b, &count| {
-                let mut error = ComposableError::new("core error");
+                let mut error = ContextError::new("core error");
                 for index in 0..count {
                     error = error.with_context(context!("context {index}"));
                 }
@@ -40,7 +39,7 @@ pub fn composable_error_benchmarks(c: &mut Criterion) {
             BenchmarkId::new("error_chain_formatting", count),
             &count,
             |b, &count| {
-                let mut error = ComposableError::new("core error");
+                let mut error = ContextError::new("core error");
                 for index in 0..count {
                     error = error.with_context(context!("context {index}"));
                 }

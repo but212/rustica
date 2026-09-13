@@ -34,6 +34,10 @@ use std::fmt::{Debug, Display};
 ///
 /// assert_eq!(error_with_context.context().len(), 2);
 /// ```
+#[deprecated(
+    since = "0.16.0",
+    note = "Use ContextError<E> instead. ComposableError is scheduled for removal in 0.18.0."
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComposableError<E> {
     /// The core error that represents the root cause
@@ -45,6 +49,7 @@ pub struct ComposableError<E> {
     pub error_code: Option<u32>,
 }
 
+#[allow(deprecated)]
 impl<E> ComposableError<E> {
     /// Creates a new `ComposableError` with just the core error.
     ///
@@ -183,16 +188,31 @@ impl<E> ComposableError<E> {
         self.error_code
     }
 
-    /// Sets the error code.
+    /// Sets or updates the error code using builder chaining.
     ///
     /// # Arguments
     ///
     /// * `code`: The error code to set
     ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::error::ComposableError;
+    ///
+    /// let error = ComposableError::new("Not found").with_error_code(404);
+    /// assert_eq!(error.error_code(), Some(404));
+    /// ```
     #[inline]
-    pub fn set_code(mut self, code: u32) -> Self {
+    pub fn with_error_code(mut self, code: u32) -> Self {
         self.error_code = Some(code);
         self
+    }
+
+    /// Sets the error code.
+    #[deprecated(since = "0.16.0", note = "Use `with_error_code` instead.")]
+    #[inline]
+    pub fn set_code(self, code: u32) -> Self {
+        self.with_error_code(code)
     }
 
     /// Maps the core error to a new type.
@@ -264,12 +284,14 @@ impl<E> ComposableError<E> {
     }
 }
 
+#[allow(deprecated)]
 impl<E: Display> Display for ComposableError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.write_chain(f)
     }
 }
 
+#[allow(deprecated)]
 impl<E: Debug + Display> std::error::Error for ComposableError<E> {}
 
 /// Implements `From<E>` for idiomatic error conversion.
@@ -277,6 +299,7 @@ impl<E: Debug + Display> std::error::Error for ComposableError<E> {}
 /// This allows any error type `E` to be converted into a `ComposableError<E>`
 /// using the standard `into()` method, making error handling more ergonomic.
 ///
+#[allow(deprecated)]
 impl<E> From<E> for ComposableError<E> {
     #[inline]
     fn from(error: E) -> Self {
@@ -284,154 +307,36 @@ impl<E> From<E> for ComposableError<E> {
     }
 }
 
-/// A lightweight error context that can be attached to any error type.
-///
-/// `ErrorContext` provides a minimal way to add contextual information
-/// to errors without the full overhead of `ComposableError`. It's designed
-/// for cases where you need just a single context string.
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::error::ErrorContext;
-///
-/// let context = ErrorContext::new("Failed during startup");
-/// assert_eq!(context.message(), "Failed during startup");
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[repr(transparent)]
-pub struct ErrorContext {
-    message: String,
-}
-
-impl ErrorContext {
-    /// Creates a new error context with the given message.
-    ///
-    /// # Arguments
-    ///
-    /// * `message`: The context message
-    ///
-    #[inline]
-    pub fn new<S: Into<String>>(message: S) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-
-    /// Returns the context message.
-    ///
-    #[inline]
-    pub fn message(&self) -> &str {
-        &self.message
-    }
-
-    /// Consumes the context and returns its owned message without cloning.
-    #[inline]
-    pub fn into_message(self) -> String {
-        self.message
-    }
-}
-
-impl Display for ErrorContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl std::error::Error for ErrorContext {}
-
-/// A trait for types that can provide error context information.
-///
-/// This trait allows different types to be used as error context sources,
-/// enabling flexible error context composition.
-pub trait IntoErrorContext {
-    /// Converts this value into an `ErrorContext`.
-    fn into_error_context(self) -> ErrorContext;
-}
-
-impl IntoErrorContext for String {
-    #[inline]
-    fn into_error_context(self) -> ErrorContext {
-        ErrorContext::new(self)
-    }
-}
-
-impl IntoErrorContext for &str {
-    #[inline]
-    fn into_error_context(self) -> ErrorContext {
-        ErrorContext::new(self)
-    }
-}
-
-impl IntoErrorContext for ErrorContext {
-    #[inline]
-    fn into_error_context(self) -> ErrorContext {
-        self
-    }
-}
-
-/// A lazy error context that is evaluated only when needed.
-///
-/// This is used by the `context!` macro to avoid formatting costs
-/// when the error path is not taken.
-#[repr(transparent)]
-pub struct LazyContext<F> {
-    generator: F,
-}
-
-impl<F> LazyContext<F> {
-    /// Creates a new lazy context with the given generator function.
-    #[inline]
-    pub fn new(generator: F) -> Self {
-        Self { generator }
-    }
-}
-
-impl<F> IntoErrorContext for LazyContext<F>
-where
-    F: FnOnce() -> String,
-{
-    #[inline]
-    fn into_error_context(self) -> ErrorContext {
-        ErrorContext::new((self.generator)())
-    }
-}
+// Re-export core context utilities for backward compatibility
+pub use crate::error::context::{ErrorContext, IntoErrorContext, LazyContext};
 
 /// Convenience type alias for a Result with ComposableError.
-///
-/// This provides a more ergonomic way to work with Results that use
-/// ComposableError as the error type.
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The core error type
-///
+#[deprecated(
+    since = "0.16.0",
+    note = "Use Result<T, ContextError<E>> instead. ComposableResult is scheduled for removal in 0.18.0."
+)]
+#[allow(deprecated)]
 #[allow(clippy::result_large_err)]
 pub type ComposableResult<T, E> = Result<T, ComposableError<E>>;
 
 /// Convenience type alias for a boxed ComposableError to reduce size.
-///
-/// This helps avoid clippy warnings about large error types by boxing
-/// the ComposableError when it becomes too large.
-///
-/// # Type Parameters
-///
-/// * `E`: The core error type
+#[deprecated(
+    since = "0.16.0",
+    note = "Use Box<ContextError<E>> instead. BoxedComposableError is scheduled for removal in 0.18.0."
+)]
+#[allow(deprecated)]
 pub type BoxedComposableError<E> = Box<ComposableError<E>>;
 
 /// Convenience type alias for a Result with boxed ComposableError.
-///
-/// This provides a more memory-efficient way to work with Results that use
-/// ComposableError as the error type when the error is large.
-///
-/// # Type Parameters
-///
-/// * `T`: The success type
-/// * `E`: The core error type
+#[deprecated(
+    since = "0.16.0",
+    note = "Use Result<T, Box<ContextError<E>>> instead. BoxedComposableResult is scheduled for removal in 0.18.0."
+)]
+#[allow(deprecated)]
 pub type BoxedComposableResult<T, E> = Result<T, BoxedComposableError<E>>;
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use crate::context;
     use crate::error::{ComposableError, ErrorContext, with_context_result};
@@ -458,12 +363,20 @@ mod tests {
     fn set_code_and_map_core_preserve_error_metadata() {
         let error = ComposableError::new(42)
             .with_context("numeric")
-            .set_code(500)
+            .with_error_code(500)
             .map_core(|value| format!("code: {value}"));
 
         assert_eq!(error.core_error(), "code: 42");
         assert_eq!(error.context(), vec!["numeric"]);
         assert_eq!(error.error_code(), Some(500));
+
+        #[allow(deprecated)]
+        let error_deprecated = ComposableError::new(42)
+            .with_context("numeric")
+            .set_code(500)
+            .map_core(|value| format!("code: {value}"));
+
+        assert_eq!(error_deprecated.error_code(), Some(500));
     }
 
     #[test]
@@ -532,6 +445,7 @@ mod tests {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod unit_tests {
     use super::ComposableError;
 

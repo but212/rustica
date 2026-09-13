@@ -80,11 +80,6 @@ pub mod min;
 pub mod predicate;
 pub mod product;
 pub mod sum;
-#[allow(deprecated)]
-pub mod thunk;
-
-#[allow(deprecated)]
-pub use thunk::Thunk;
 
 #[cfg(test)]
 mod unit_tests {

@@ -9,10 +9,13 @@ use crate::datatypes::validated::{
     core::{ErrorAccumulator, Validated},
 };
 use crate::traits::applicative::Applicative;
+#[allow(deprecated)]
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
-use crate::traits::hkt::{BinaryHKT, HKT};
+#[allow(deprecated)]
+use crate::traits::hkt::BinaryHKT;
+use crate::traits::hkt::HKT;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
 #[cfg(any(test, feature = "quickcheck"))]
@@ -82,6 +85,7 @@ impl<E, A> Functor for Validated<E, A> {
     }
 }
 
+#[allow(deprecated)]
 impl<E, A> BinaryHKT for Validated<E, A> {
     type Source2 = E;
     type BinaryOutput<U, V> = Validated<V, U>;
@@ -125,6 +129,7 @@ impl<E, A> BinaryHKT for Validated<E, A> {
 /// let result = invalid.bimap(|v: i32| v * 2, |e: &str| format!("New-{}", e));
 /// assert_eq!(result, Validated::invalid_many(vec!["New-e1".to_string(), "New-e2".to_string()]));
 /// ```
+#[allow(deprecated)]
 impl<E, A> Bifunctor for Validated<E, A> {
     fn bimap<C, D, F, G>(self, mut f: F, g: G) -> Self::BinaryOutput<C, D>
     where

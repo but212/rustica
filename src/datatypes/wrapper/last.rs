@@ -176,6 +176,12 @@ impl<T> Last<T> {
         self.0
     }
 
+    /// Consumes the wrapper and returns the inner option.
+    #[inline]
+    pub fn into_value(self) -> Option<T> {
+        self.0
+    }
+
     /// Returns a reference to the inner option.
     ///
     /// # Examples
@@ -189,55 +195,6 @@ impl<T> Last<T> {
     #[inline]
     pub fn get(&self) -> Option<&T> {
         self.0.as_ref()
-    }
-}
-
-impl<T: Clone> Last<T> {
-    /// Unwraps the last value, panicking if None.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::last::Last;
-    /// let last = Last(Some(42));
-    /// assert_eq!(last.unwrap(), 42);
-    ///
-    /// let empty: Last<i32> = Last(None);
-    /// // empty.unwrap() would panic
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the inner value is None.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    pub fn unwrap(&self) -> T {
-        self.0.clone().unwrap()
-    }
-
-    /// Unwraps the last value or returns a default.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # use rustica::datatypes::wrapper::last::Last;
-    /// let last = Last(Some(42));
-    /// let empty = Last(None);
-    ///
-    /// assert_eq!(last.unwrap_or(0), 42);
-    /// assert_eq!(empty.unwrap_or(0), 0);
-    /// ```
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    pub fn unwrap_or(&self, default: T) -> T {
-        self.0.clone().unwrap_or(default)
-    }
-}
-
-impl<T> AsRef<T> for Last<T> {
-    #[inline]
-    fn as_ref(&self) -> &T {
-        self.0
-            .as_ref()
-            .expect("called `as_ref()` on an empty `Last`")
     }
 }
 

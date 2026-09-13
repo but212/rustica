@@ -28,8 +28,8 @@
 use smallvec::SmallVec;
 use std::sync::Arc;
 
-use super::core::{PersistentVector, VectorImpl};
-use super::node::{RRBNode, SMALL_BRANCH_SIZE};
+use super::core::{ADAPTIVE_INLINE_SIZE, PersistentVector, VectorImpl};
+use super::node::{LEAF_CAPACITY, RRBNode, SMALL_BRANCH_SIZE};
 use super::tree::RRBTree;
 
 /// Stack entry for tree traversal.
@@ -462,33 +462,136 @@ impl<'a, T> TreeIterState<'a, T> {
 
 /// An iterator that yields owned elements from a persistent vector.
 ///
-/// This iterator consumes the vector and yields owned values.
-///
-/// # Note
-///
-/// This iterator requires `T: Clone` because elements are cloned from the
-/// underlying storage to produce owned values.
-///
+/// This iterator consumes the vector and yields owned values lazily
+/// without eagerly materializing the entire vector as a `Vec<T>`.
 pub struct PersistentVectorIntoIter<T> {
-    pub(crate) iter: std::vec::IntoIter<T>,
+    state: IntoIterState<T>,
+    remaining: usize,
 }
 
-impl<T> Iterator for PersistentVectorIntoIter<T> {
+enum IntoIterState<T> {
+    Inline(smallvec::IntoIter<[T; ADAPTIVE_INLINE_SIZE]>),
+    Tree(Box<TreeIntoIterState<T>>),
+    Done,
+}
+
+struct TreeIntoIterState<T> {
+    tree: Arc<RRBTree<T>>,
+    front_index: usize,
+    front_leaf: SmallVec<[T; LEAF_CAPACITY]>,
+    front_pos: usize,
+    back_index: usize,
+    back_leaf: SmallVec<[T; LEAF_CAPACITY]>,
+}
+
+impl<T: Clone> PersistentVectorIntoIter<T> {
+    pub(crate) fn new(vector: PersistentVector<T>) -> Self {
+        let remaining = vector.len();
+        if remaining == 0 {
+            return Self {
+                state: IntoIterState::Done,
+                remaining: 0,
+            };
+        }
+
+        let state = match vector.inner {
+            VectorImpl::Inline { elements } => IntoIterState::Inline(elements.into_iter()),
+            VectorImpl::Tree { tree } => IntoIterState::Tree(Box::new(TreeIntoIterState {
+                front_index: 0,
+                front_leaf: SmallVec::new(),
+                front_pos: 0,
+                back_index: tree.len,
+                back_leaf: SmallVec::new(),
+                tree,
+            })),
+        };
+
+        Self { state, remaining }
+    }
+}
+
+impl<T: Clone> Iterator for PersistentVectorIntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+        if self.remaining == 0 {
+            return None;
+        }
+
+        match &mut self.state {
+            IntoIterState::Done => None,
+            IntoIterState::Inline(iter) => {
+                let item = iter.next();
+                if item.is_some() {
+                    self.remaining -= 1;
+                }
+                item
+            },
+            IntoIterState::Tree(ts) => {
+                if ts.front_pos < ts.front_leaf.len() {
+                    let item = ts.front_leaf[ts.front_pos].clone();
+                    ts.front_pos += 1;
+                    ts.front_index += 1;
+                    self.remaining -= 1;
+                    return Some(item);
+                }
+
+                ts.front_leaf.clear();
+                ts.front_pos = 0;
+                let (slice, offset) = ts.tree.get_leaf_slice(ts.front_index)?;
+                ts.front_leaf.extend(slice[offset..].iter().cloned());
+                if ts.front_leaf.is_empty() {
+                    return None;
+                }
+                let item = ts.front_leaf[0].clone();
+                ts.front_pos = 1;
+                ts.front_index += 1;
+                self.remaining -= 1;
+                Some(item)
+            },
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
+        (self.remaining, Some(self.remaining))
     }
 }
 
-impl<T> ExactSizeIterator for PersistentVectorIntoIter<T> {}
+impl<T: Clone> ExactSizeIterator for PersistentVectorIntoIter<T> {}
 
-impl<T> DoubleEndedIterator for PersistentVectorIntoIter<T> {
+impl<T: Clone> DoubleEndedIterator for PersistentVectorIntoIter<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.iter.next_back()
+        if self.remaining == 0 {
+            return None;
+        }
+
+        match &mut self.state {
+            IntoIterState::Done => None,
+            IntoIterState::Inline(iter) => {
+                let item = iter.next_back();
+                if item.is_some() {
+                    self.remaining -= 1;
+                }
+                item
+            },
+            IntoIterState::Tree(ts) => {
+                if let Some(item) = ts.back_leaf.pop() {
+                    ts.back_index -= 1;
+                    self.remaining -= 1;
+                    return Some(item);
+                }
+
+                if ts.back_index == 0 {
+                    return None;
+                }
+
+                let (slice, offset) = ts.tree.get_leaf_slice(ts.back_index - 1)?;
+                ts.back_leaf.extend(slice[..=offset].iter().cloned());
+                let item = ts.back_leaf.pop()?;
+                ts.back_index -= 1;
+                self.remaining -= 1;
+                Some(item)
+            },
+        }
     }
 }

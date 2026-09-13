@@ -151,6 +151,12 @@ impl<T> Product<T> {
         self.0
     }
 
+    /// Consumes the wrapper and returns the contained value.
+    #[inline]
+    pub fn into_value(self) -> T {
+        self.0
+    }
+
     /// Returns a reference to the contained value.
     ///
     /// # Examples
@@ -163,22 +169,6 @@ impl<T> Product<T> {
     #[inline]
     pub fn get(&self) -> &T {
         &self.0
-    }
-}
-
-impl<T: Clone> Product<T> {
-    /// Unwraps the product value.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap(&self) -> T {
-        self.0.clone()
-    }
-
-    /// Unwraps the product value or returns a default.
-    #[deprecated(since = "0.15.0", note = "use `into_inner()` or `get()` instead")]
-    #[inline]
-    pub fn unwrap_or(&self, _default: T) -> T {
-        self.0.clone()
     }
 }
 
@@ -272,7 +262,7 @@ impl<T> HKT for Product<T> {
     type Output<U> = Product<U>;
 }
 
-impl<T: Mul<Output = T>> Functor for Product<T> {
+impl<T> Functor for Product<T> {
     #[inline]
     fn fmap<U, F>(self, mut f: F) -> Self::Output<U>
     where
