@@ -627,9 +627,8 @@ where
     ///
     /// # Design Notes
     ///
-    /// * If preview fails, a new structure is created with the given value
-    /// * This behavior ensures that the method always succeeds in "setting" the value
-    /// * The method assumes that if preview fails, you want to create the variant
+    /// * If preview fails (the focus is absent), the original structure is returned unchanged.
+    /// * This obeys the standard Prism laws (modifying an absent focus is a no-op).
     ///
     /// # Arguments
     ///
@@ -638,8 +637,8 @@ where
     ///
     /// # Returns
     ///
-    /// * The original structure if the current value equals the new value
-    /// * A new structure with the new value if they differ or if preview fails
+    /// * The original structure if the current value equals the new value or if preview fails
+    /// * A new structure with the new value if the focus is present and values differ
     ///
     /// # Examples
     ///
@@ -670,10 +669,10 @@ where
     /// let new_status = active_prism.set_if_different(status, "Bob".to_string());
     /// assert_eq!(new_status, Status::Active("Bob".to_string()));
     ///
-    /// // Preview fails - create new structure
+    /// // Preview fails - focus absent, returns original structure unchanged
     /// let inactive = Status::Inactive;
-    /// let now_active = active_prism.set_if_different(inactive, "Charlie".to_string());
-    /// assert_eq!(now_active, Status::Active("Charlie".to_string()));
+    /// let still_inactive = active_prism.set_if_different(inactive, "Charlie".to_string());
+    /// assert_eq!(still_inactive, Status::Inactive);
     /// ```
     pub fn set_if_different(&self, source: S, new_value: A) -> S
     where
@@ -687,7 +686,7 @@ where
                     self.review(&new_value) // Create new structure
                 }
             },
-            None => self.review(&new_value), // Preview failed, create new structure with the value
+            None => source, // Preview failed (focus absent), return original structure unchanged
         }
     }
 }
@@ -900,5 +899,12 @@ mod unit_tests {
             active_prism().modify(value, |name| format!("{name}-away"))
         });
         assert_eq!(updated.status, Status::Active("online-away".into()));
+    }
+
+    #[test]
+    fn set_if_different_preserves_source_when_focus_is_absent() {
+        let inactive = Status::Inactive;
+        let result = active_prism().set_if_different(inactive.clone(), "Charlie".into());
+        assert_eq!(result, Status::Inactive);
     }
 }

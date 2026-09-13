@@ -35,8 +35,12 @@ This guide describes the new features, deprecations, and migration steps for Rus
 | `datatypes::validated` submodules | Breaking change: submodules `accessors`, `conversions`, `recovery`, `async_ops` consolidated into `core`, `iter`, `combinators`, `traits`. Import from `datatypes::validated` directly. |
 | `pvec` module | Breaking change: `rustica::pvec` is now gated behind the `pvec` feature flag (disabled by default, included in `full`). Enable with `features = ["pvec"]` or `features = ["full"]`. |
 | `IO::run_async` | Deprecated in 0.16.0; scheduled for removal in 0.18.0. Offload blocking IO directly using runtime task spawning. |
+| `IO::delay` | Deprecated in 0.16.0; scheduled for removal in 0.18.0. Use `IO::delay_sync` for synchronous delay, or runtime timer utilities in async code. |
+| `BinaryHKT` / `Bifunctor` | Deprecated in 0.16.0; use inherent `bimap`, `map_valid`, and `map_err` on `Validated`. |
+| `Prism::set_if_different` | Corrected to return `source` unchanged when focus is absent (Prism SetSet law). |
+| `Free::drop` | Iterative stack-safe drop without refcount churn. |
 | `futures` dependency | Removed entirely in 0.16.0; core async monad primitives now use pure `std::future`. |
-| `tokio` dependency | Reduced to `rt` feature only for `IO::run_async`; `AsyncM` now uses pure `std` `join2` without `tokio::join!`. |
+| `tokio` dependency | Reduced to `rt` feature only for `IO::run_async` (phased out in 0.18.0). |
 
 ---
 
@@ -238,8 +242,8 @@ The following traits, functions, and methods are deprecated in 0.16.0 with compi
 
 1. **`Iso`, `IsoExt`, `ComposedIso`, `InverseIso`, `ResultValidatedIso`**:
    Use standard Rust `From`/`Into` and `TryFrom`/`TryInto` trait conversions instead.
-2. **`Bifunctor`**:
-   Use inherent `bimap`/`first`/`second` methods on types or standard tuple/Result pattern matching.
+2. **`BinaryHKT`, `Bifunctor`**:
+   Use inherent `bimap`/`map_valid`/`map_err` methods on `Validated` or standard pattern matching.
 3. **`FoldableExt` Search Methods**:
    `find`, `all`, `any`, `contains`, `is_sorted` on `FoldableExt` traverse the entire structure. Migrate to Rust's standard `Iterator` equivalents (`iter().find(...)`, `iter().all(...)`, etc.) for genuine short-circuit evaluation.
 4. **`Alternative::many`**:
@@ -294,8 +298,8 @@ To provide an extended transition period from `ComposableError` to standard `Res
 6. **Standalone Context Helpers**:
    `extract_context` and `format_error_chain`.
    Migrate to inherent methods `ContextError::context()` and `ContextError::error_chain()`.
-7. **`IO::run_async`**:
-   Offload blocking IO operations directly using runtime task spawning APIs (such as `tokio::task::spawn_blocking`).
+7. **`IO::delay`**:
+   Scheduled for removal in 0.18.0. Migrate to `IO::delay_sync` for synchronous delay, or runtime timer utilities in async code.
 
 ---
 
@@ -317,3 +321,28 @@ let value = io.run_async().await;
 // Recommended (0.16.0+)
 let value = tokio::task::spawn_blocking(move || io.run()).await.unwrap();
 ```
+
+---
+
+## Invariant & Optics Behavioral Fixes
+
+### 1. `Prism::set_if_different` Alignment with Optics Laws
+
+In previous versions, `Prism::set_if_different` reconstructed a new structure using `review(&new_value)` when `preview(&source)` returned `None` (absent focus), mutating unrelated enum variants. In 0.16.0, `set_if_different` returns `source` unchanged when the focus is absent, satisfying the standard Prism PutPut law.
+
+### 2. `PersistentVector` Tree Integrity
+
+- **Split Data Conservation**: Fixed a bug where `split_along_path` dropped sibling branch nodes when the path was empty.
+- **Height Invariant**: `push_back_leaf_recursive` and `push_front_leaf_recursive` now recursively wrap intermediate branch levels to preserve exact height invariants for heights $\ge 3$.
+- **SmallVec Capacity**: Branch node inline capacity is raised to 32 (`SMALL_BRANCH_SIZE = 32`) to match `BRANCHING_FACTOR`.
+
+### 3. `BinaryHKT` and `Bifunctor` Deprecation
+
+`BinaryHKT` and `Bifunctor` are deprecated in 0.16.0. Use inherent methods directly on `Validated`:
+- `Validated::bimap(self, f, g)`: maps both valid value and errors
+- `Validated::map_valid(self, f)`: maps valid value
+- `Validated::map_err(self, g)`: maps errors (inherent alias for `fmap_invalid`)
+
+### 4. `IO::delay` Deprecation & `IO::delay_sync` Guidance
+
+`IO::delay` is deprecated in 0.16.0 (scheduled for removal in 0.18.0). Its misleading `#[cfg(feature = "async")]` gate has been removed. For synchronous delay, use explicit `IO::delay_sync(duration, value)`. For non-blocking delay in async code, use runtime sleep utilities directly alongside [`AsyncM`].

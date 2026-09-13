@@ -527,15 +527,15 @@ impl<F, A: Default> Default for Free<F, A> {
 impl<F, A> Drop for Free<F, A> {
     fn drop(&mut self) {
         if let Free::Bind(sub, _) = self {
-            let mut cur = Arc::clone(sub);
-            *sub = Arc::new(Free::Pure(Arc::new(()) as AnyValue));
-            while let Ok(mut node) = Arc::try_unwrap(cur) {
-                if let Free::Bind(ref mut next, _) = node {
-                    let next_arc = Arc::clone(next);
-                    *next = Arc::new(Free::Pure(Arc::new(()) as AnyValue));
-                    cur = next_arc;
-                } else {
-                    break;
+            let mut stack = Vec::new();
+            let first = std::mem::replace(sub, Arc::new(Free::Pure(Arc::new(()) as AnyValue)));
+            stack.push(first);
+
+            while let Some(arc) = stack.pop() {
+                if let Ok(Free::Bind(ref mut next, _)) = Arc::try_unwrap(arc) {
+                    let next_arc =
+                        std::mem::replace(next, Arc::new(Free::Pure(Arc::new(()) as AnyValue)));
+                    stack.push(next_arc);
                 }
             }
         }
@@ -817,5 +817,26 @@ mod tests {
         }
         let debug_str = format!("{p:?}");
         assert!(debug_str.contains("depth: 50000"));
+    }
+
+    #[test]
+    fn test_deep_free_drop_with_clones() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..30_000 {
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        let q = p.clone();
+        // Drop clone first, then original
+        drop(q);
+        drop(p);
+
+        // Now drop original first, then clone
+        let mut p2: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..30_000 {
+            p2 = p2.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        let q2 = p2.clone();
+        drop(p2);
+        drop(q2);
     }
 }

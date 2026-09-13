@@ -35,6 +35,77 @@ impl<E, A> Validated<E, A> {
         }
     }
 
+    /// Maps both the valid value and the error values simultaneously.
+    ///
+    /// If `Valid(a)`, applies `f` to produce `Valid(f(a))`.
+    /// If `Invalid(errors)`, applies `g` to each error in the collection.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(10);
+    /// let result = valid.bimap(|v| v * 2, |e| format!("Err: {e}"));
+    /// assert_eq!(result, Validated::valid(20));
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("failed");
+    /// let result = invalid.bimap(|v| v * 2, |e| format!("Err: {e}"));
+    /// assert_eq!(result, Validated::invalid("Err: failed".to_string()));
+    /// ```
+    #[inline]
+    pub fn bimap<B, F, FnValid, FnErr>(self, mut f: FnValid, g: FnErr) -> Validated<F, B>
+    where
+        FnValid: FnMut(A) -> B,
+        FnErr: FnMut(E) -> F,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::Invalid(es) => Validated::invalid_many(es.into_iter().map(g)),
+        }
+    }
+
+    /// Maps a function over the valid value if `Valid`, preserving errors if `Invalid`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let valid: Validated<&str, i32> = Validated::valid(10);
+    /// assert_eq!(valid.map_valid(|v| v * 2), Validated::valid(20));
+    /// ```
+    #[inline]
+    pub fn map_valid<B, FnValid>(self, mut f: FnValid) -> Validated<E, B>
+    where
+        FnValid: FnMut(A) -> B,
+    {
+        match self {
+            Validated::Valid(x) => Validated::Valid(f(x)),
+            Validated::Invalid(es) => Validated::Invalid(es),
+        }
+    }
+
+    /// Maps a function over each error if `Invalid`, preserving the valid value if `Valid`.
+    ///
+    /// This is an inherent alias for [`Validated::fmap_invalid`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let invalid: Validated<&str, i32> = Validated::invalid("error");
+    /// assert_eq!(invalid.map_err(|e| format!("{e}!")), Validated::invalid("error!".to_string()));
+    /// ```
+    #[inline]
+    pub fn map_err<F, FnErr>(self, f: FnErr) -> Validated<F, A>
+    where
+        FnErr: FnMut(E) -> F,
+    {
+        self.fmap_invalid(f)
+    }
+
     /// Combines errors from two `Validated` instances, consuming both.
     ///
     /// Returns `Some(Validated::Invalid(...))` with accumulated errors if either or both
@@ -365,5 +436,28 @@ mod tests {
             .fmap_invalid_async(|e| async move { format!("err_{}", e * 10) })
             .await;
         assert_eq!(mapped.error_slice(), &["err_10", "err_20", "err_30"]);
+    }
+
+    #[test]
+    fn test_inherent_bimap_and_mapping() {
+        let valid: Validated<&str, i32> = Validated::valid(10);
+        let mapped_val = valid.clone().map_valid(|v| v * 3);
+        assert_eq!(mapped_val, Validated::valid(30));
+
+        let bimapped_val = valid.bimap(|v| v + 5, |e| format!("E: {e}"));
+        assert_eq!(bimapped_val, Validated::valid(15));
+
+        let invalid: Validated<&str, i32> = Validated::invalid_many(["err1", "err2"]);
+        let mapped_err = invalid.clone().map_err(|e| format!("{e}!"));
+        assert_eq!(
+            mapped_err,
+            Validated::invalid_many(["err1!".to_string(), "err2!".to_string()])
+        );
+
+        let bimapped_err = invalid.bimap(|v| v * 2, |e| format!("E: {e}"));
+        assert_eq!(
+            bimapped_err,
+            Validated::invalid_many(["E: err1".to_string(), "E: err2".to_string()])
+        );
     }
 }

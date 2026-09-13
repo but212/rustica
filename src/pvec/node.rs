@@ -30,9 +30,9 @@ pub(crate) const BRANCHING_FACTOR: usize = 32;
 
 pub(crate) const LEAF_CAPACITY: usize = 64;
 
-pub(crate) const SMALL_BRANCH_SIZE: usize = 8;
+pub(crate) const SMALL_BRANCH_SIZE: usize = 32;
 
-pub(crate) const SMALL_SIZE_TABLE_SIZE: usize = 8;
+pub(crate) const SMALL_SIZE_TABLE_SIZE: usize = 32;
 
 /// A node in the RRB tree structure.
 ///
@@ -49,10 +49,11 @@ pub(crate) const SMALL_SIZE_TABLE_SIZE: usize = 8;
 ///
 /// # Memory Layout
 ///
-/// - Branch nodes use `SmallVec` with inline storage for up to 8 children
+/// - Branch nodes use `SmallVec` with inline storage for up to 32 children
 /// - Leaf nodes use `SmallVec` with inline storage for up to 64 elements
-/// - Size tables (when present) also use `SmallVec` with inline storage
+/// - Size tables (when present) also use `SmallVec` with inline storage for up to 32 entries
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum RRBNode<T> {
     /// A branch node containing child nodes.
     ///
@@ -216,14 +217,15 @@ impl<T: Clone> RRBNode<T> {
             }
         } else {
             if children.is_empty() {
-                let child = Arc::new(RRBNode::Branch {
-                    children: SmallVec::from_iter([leaf.clone()]),
-                    sizes: SmallVec::from_iter([leaf_size]),
-                });
-                return Ok(Arc::new(RRBNode::Branch {
-                    children: SmallVec::from_iter([child.clone()]),
-                    sizes: SmallVec::from_iter([child.calculate_size()]),
-                }));
+                let mut curr = leaf;
+                for _ in 0..height {
+                    let size = curr.calculate_size();
+                    curr = Arc::new(RRBNode::Branch {
+                        children: SmallVec::from_iter([curr]),
+                        sizes: SmallVec::from_iter([size]),
+                    });
+                }
+                return Ok(curr);
             }
 
             let last_idx = children.len() - 1;
@@ -370,14 +372,15 @@ impl<T: Clone> RRBNode<T> {
             }
         } else {
             if children.is_empty() {
-                let child = Arc::new(RRBNode::Branch {
-                    children: SmallVec::from_iter([leaf.clone()]),
-                    sizes: SmallVec::from_iter([leaf_size]),
-                });
-                return Ok(Arc::new(RRBNode::Branch {
-                    children: SmallVec::from_iter([child.clone()]),
-                    sizes: SmallVec::from_iter([child.calculate_size()]),
-                }));
+                let mut curr = leaf;
+                for _ in 0..height {
+                    let size = curr.calculate_size();
+                    curr = Arc::new(RRBNode::Branch {
+                        children: SmallVec::from_iter([curr]),
+                        sizes: SmallVec::from_iter([size]),
+                    });
+                }
+                return Ok(curr);
             }
 
             match Self::push_front_leaf_recursive(&children[0], leaf, height - 1) {
@@ -483,6 +486,71 @@ impl<T: Clone> RRBNode<T> {
                     None
                 }
             },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use smallvec::SmallVec;
+    use std::sync::Arc;
+
+    fn get_node_height<T>(node: &RRBNode<T>) -> usize {
+        match node {
+            RRBNode::Leaf { .. } => 0,
+            RRBNode::Branch { children, .. } => {
+                if let Some(first) = children.first() {
+                    1 + get_node_height(first)
+                } else {
+                    1
+                }
+            },
+        }
+    }
+
+    #[test]
+    fn test_push_back_leaf_recursive_height_invariant() {
+        let empty_branch = Arc::new(RRBNode::Branch {
+            children: SmallVec::new(),
+            sizes: SmallVec::new(),
+        });
+        let leaf = Arc::new(RRBNode::Leaf {
+            elements: SmallVec::from_iter([10, 20]),
+        });
+
+        for target_height in 1..=4 {
+            let res = RRBNode::push_back_leaf_recursive(&empty_branch, leaf.clone(), target_height)
+                .expect("should succeed");
+            assert_eq!(
+                get_node_height(&res),
+                target_height,
+                "Failed push_back for target_height {}",
+                target_height
+            );
+        }
+    }
+
+    #[test]
+    fn test_push_front_leaf_recursive_height_invariant() {
+        let empty_branch = Arc::new(RRBNode::Branch {
+            children: SmallVec::new(),
+            sizes: SmallVec::new(),
+        });
+        let leaf = Arc::new(RRBNode::Leaf {
+            elements: SmallVec::from_iter([10, 20]),
+        });
+
+        for target_height in 1..=4 {
+            let res =
+                RRBNode::push_front_leaf_recursive(&empty_branch, leaf.clone(), target_height)
+                    .expect("should succeed");
+            assert_eq!(
+                get_node_height(&res),
+                target_height,
+                "Failed push_front for target_height {}",
+                target_height
+            );
         }
     }
 }

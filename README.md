@@ -32,20 +32,9 @@ Add Rustica to `Cargo.toml`:
 ```toml
 [dependencies]
 rustica = "0.16.0"
-```
-
-Enable all features (`async`, `serde`, `quickcheck`, and `pvec`):
-
-```toml
-[dependencies]
-rustica = { version = "0.16.0", features = ["full"] }
-```
-
-Or enable persistent vector support selectively:
-
-```toml
-[dependencies]
-rustica = { version = "0.16.0", features = ["pvec"] }
+# Optional feature bundles:
+# rustica = { version = "0.16.0", features = ["pvec"] } # persistent vectors
+# rustica = { version = "0.16.0", features = ["full"] } # async, serde, quickcheck, pvec
 ```
 
 Import common traits and types:
@@ -90,8 +79,8 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
-- [0.16.0 Migration Guide](MIGRATION_v0.16.0.md) (Choice fallback semantics, Rust API receiver alignment, Applicative polarity)
-- [0.16.0 Migration Guide](MIGRATION_v0.15.0.md) (RRB tree integrity, unwrap panic context)
+- [0.16.0 Migration Guide](MIGRATION_v0.16.0.md) (Choice fallback semantics, Rust API receiver alignment, optics laws, Bifunctor deprecation)
+- [0.15.0 Migration Guide](MIGRATION_v0.15.0.md) (RRB tree integrity, unwrap panic context)
 - [0.14.0 Migration Guide](MIGRATION_v0.14.0.md) (Surface reduction, compile-time base monad enforcement)
 
 ---

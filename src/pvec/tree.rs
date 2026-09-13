@@ -756,7 +756,11 @@ impl<T: Clone> RRBTree<T> {
                 if path.is_empty() {
                     if let Some(first_child) = children.first() {
                         let next_height = current_height.saturating_sub(1);
-                        return self.split_along_path(&[], target_index, first_child, next_height);
+                        let (left_child, right_child) =
+                            self.split_along_path(&[], target_index, first_child, next_height);
+                        let left_branch = self.create_left_branch(children, 0, left_child);
+                        let right_branch = self.create_right_branch(children, 0, right_child);
+                        return (Arc::new(left_branch), Arc::new(right_branch));
                     } else {
                         let empty_leaf = Arc::new(RRBNode::Leaf {
                             elements: SmallVec::new(),
@@ -1078,5 +1082,27 @@ mod tests {
         }
         assert_eq!(tree.len, 0);
         assert!(tree.pop_back().is_none());
+    }
+
+    #[test]
+    fn split_along_path_empty_path_preserves_sibling_children() {
+        let leaf1 = Arc::new(RRBNode::Leaf {
+            elements: smallvec::smallvec![1, 2, 3],
+        });
+        let leaf2 = Arc::new(RRBNode::Leaf {
+            elements: smallvec::smallvec![4, 5, 6],
+        });
+        let leaf3 = Arc::new(RRBNode::Leaf {
+            elements: smallvec::smallvec![7, 8, 9],
+        });
+        let branch = Arc::new(RRBNode::Branch {
+            children: smallvec::smallvec![leaf1, leaf2, leaf3],
+            sizes: smallvec::smallvec![3, 3, 3],
+        });
+        let tree = RRBTree::<i32>::empty();
+        let (left, right) = tree.split_along_path(&[], 2, &branch, 1);
+        assert_eq!(left.calculate_size() + right.calculate_size(), 9);
+        assert_eq!(left.calculate_size(), 2);
+        assert_eq!(right.calculate_size(), 7);
     }
 }

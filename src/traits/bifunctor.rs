@@ -67,6 +67,7 @@
 //! - **Profunctor**: While a bifunctor is covariant in both arguments, a profunctor is
 //!   contravariant in its first argument and covariant in its second
 
+#[allow(deprecated)]
 use crate::traits::hkt::BinaryHKT;
 
 /// A bifunctor is a type constructor that takes two type arguments and can be mapped over both sides.
@@ -138,6 +139,7 @@ use crate::traits::hkt::BinaryHKT;
     since = "0.16.0",
     note = "use inherent bimap/first/second methods or standard Result/tuple mapping instead"
 )]
+#[allow(deprecated)]
 pub trait Bifunctor: BinaryHKT + Sized {
     /// Maps a function over `Self::Source`.
     ///

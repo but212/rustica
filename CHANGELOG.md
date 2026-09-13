@@ -23,6 +23,13 @@
 - **PVec Equivalence and Removal Fast-Paths**: Added length and `Arc::ptr_eq` short-circuits to `PartialEq::eq`, $O(1)$ boundary removal (`pop_front`/`pop_back`) in `PersistentVector::remove`, and direct collection in `PersistentVector::chunk`.
 - **PVec Internal Derives & Error Cleanup**: Removed unused `PartialEq, Eq, PartialOrd, Ord, Hash` derives from internal `VectorImpl`, `RRBTree`, and `RRBNode`; deprecated `PVecError::is_index_out_of_bounds` in favor of pattern matching.
 - **Vec Alternative Monoidal Semantics**: Changed `<Vec<T> as Alternative>::alt` from first-non-empty semantics to monoidal concatenation (`self.extend(other)`).
+- **Prism SetSet Law Compliance**: Corrected `Prism::set_if_different` to return `source` unchanged when focus is absent, adhering to optics laws.
+- **PVec Split Data Conservation**: Fixed data loss in `split_along_path` when encountering an empty path at a branch node, properly including sibling children in the right split branch.
+- **PVec Height Invariant**: Fixed `push_back_leaf_recursive` and `push_front_leaf_recursive` to recursively construct intermediate branch levels to maintain exact height invariants for target height $\ge 3$.
+- **PVec Branch Inline Capacity**: Raised branch node inline storage (`SMALL_BRANCH_SIZE` and `SMALL_SIZE_TABLE_SIZE`) from 8 to 32 to match `BRANCHING_FACTOR`.
+- **Free Stack-Safe Drop**: Optimized iterative `Drop` in `Free` using `std::mem::replace` to avoid reference churn and prevent recursive fallback on shared chains.
+- **Validated Inherent Mapping**: Added inherent `bimap`, `map_valid`, and `map_err` methods to `Validated<E, A>`; deprecated `BinaryHKT` and `Bifunctor`.
+- **IO Delay Guidance & Deprecation**: Documented OS thread-blocking behavior of `IO::delay` and deprecated it (scheduled for removal in 0.18.0) in favor of explicit `IO::delay_sync`.
 
 ### Free Monad (`Free<F, A>`)
 
@@ -55,7 +62,7 @@
 ### Deprecations (Planned for Removal in 0.17.0)
 
 - **`Iso` Family**: Deprecated `Iso`, `IsoExt`, `ComposedIso`, `InverseIso`, and `ResultValidatedIso` in favor of standard `From`/`Into` and `TryFrom`/`TryInto`.
-- **`Bifunctor`**: Deprecated `Bifunctor` trait in favor of inherent `bimap`/`first`/`second` methods and standard Rust pattern matching.
+- **`Bifunctor` & `BinaryHKT`**: Deprecated single-implementor traits in favor of inherent `bimap`, `map_valid`, and `map_err` methods on `Validated` and standard pattern matching.
 - **`FoldableExt` Search Methods**: Deprecated non-short-circuiting linear traversal methods on `FoldableExt` (`find`, `all`, `any`, `contains`, `is_sorted`) in favor of Rust's standard `Iterator` equivalents.
 - **`Alternative::many`**: Deprecated `Alternative::many` in favor of standard iterator combinators or explicit repetition.
 - **`FunctorExt` Combinators**: Deprecated `filter_map`, `try_map_or`, and `try_map_or_else` on `FunctorExt` in favor of standard `Iterator::filter_map` or `fmap` with `unwrap_or`/`unwrap_or_else`.

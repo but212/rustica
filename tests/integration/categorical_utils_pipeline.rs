@@ -34,7 +34,9 @@ fn test_data_processing_pipeline() {
 fn test_prelude_reexports() {
     use rustica::prelude::*;
 
+    #[allow(deprecated)]
     fn _assert_binary_hkt<T: BinaryHKT>() {}
+    #[allow(deprecated)]
     _assert_binary_hkt::<Validated<String, i32>>();
 
     let choice_err = ChoiceError::EmptyInput;

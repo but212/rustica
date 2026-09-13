@@ -95,12 +95,17 @@ pub trait HKT {
 /// `BinaryHKT` is useful when a type constructor has two type parameters:
 ///
 /// ```rust
+/// #![allow(deprecated)]
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::hkt::BinaryHKT;
 ///
 /// fn check_binary_hkt<T: BinaryHKT>() {}
 /// check_binary_hkt::<Validated<String, i32>>();
 /// ```
+#[deprecated(
+    since = "0.16.0",
+    note = "BinaryHKT is scheduled for removal; use inherent methods or std traits on types with multiple parameters instead"
+)]
 pub trait BinaryHKT: HKT {
     /// The second type parameter of this HKT.
     type Source2;

@@ -13,7 +13,9 @@ use crate::traits::applicative::Applicative;
 use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
-use crate::traits::hkt::{BinaryHKT, HKT};
+#[allow(deprecated)]
+use crate::traits::hkt::BinaryHKT;
+use crate::traits::hkt::HKT;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
 #[cfg(any(test, feature = "quickcheck"))]
@@ -83,6 +85,7 @@ impl<E, A> Functor for Validated<E, A> {
     }
 }
 
+#[allow(deprecated)]
 impl<E, A> BinaryHKT for Validated<E, A> {
     type Source2 = E;
     type BinaryOutput<U, V> = Validated<V, U>;

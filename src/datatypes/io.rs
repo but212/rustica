@@ -406,13 +406,27 @@ impl<A: Send + Sync + Clone + 'static> IO<A> {
         })
     }
 
-    /// Creates an IO operation that completes after a specified duration.
-    #[cfg(feature = "async")]
+    /// Creates an IO operation that completes after a specified duration (synchronous).
+    ///
+    /// # Warning
+    ///
+    /// This method blocks the calling OS thread using [`std::thread::sleep`].
+    /// In an asynchronous runtime (such as Tokio), executing this operation blocks worker
+    /// threads and can cause executor stalls. For synchronous delay, prefer [`IO::delay_sync`].
+    /// For non-blocking delay in async code, use runtime timer utilities with [`crate::datatypes::async_monad::AsyncM`].
+    #[deprecated(
+        since = "0.16.0",
+        note = "Scheduled for removal in 0.18.0. Use IO::delay_sync for synchronous delay, or runtime timer utilities in async code."
+    )]
     pub fn delay(duration: Duration, a: A) -> Self {
         Self::delay_sync(duration, a)
     }
 
     /// Creates a new IO operation that waits for a specified duration before completing (synchronous).
+    ///
+    /// # Warning
+    ///
+    /// This method blocks the calling OS thread using [`std::thread::sleep`].
     pub fn delay_sync(duration: Duration, a: A) -> Self {
         IO::new(move || {
             std::thread::sleep(duration);
@@ -639,6 +653,7 @@ mod unit_tests {
 
     #[cfg(feature = "async")]
     #[test]
+    #[allow(deprecated)]
     fn test_io_delay_runs_synchronously_without_reactor_panic() {
         use std::time::Duration;
         let result = IO::delay(Duration::from_millis(1), 42).run();
@@ -647,6 +662,7 @@ mod unit_tests {
 
     #[cfg(feature = "async")]
     #[tokio::test]
+    #[allow(deprecated)]
     async fn test_io_delay_inside_tokio_context_does_not_panic() {
         use std::time::Duration;
         let result = IO::delay(Duration::from_millis(1), 42).run();
