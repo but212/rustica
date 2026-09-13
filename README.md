@@ -118,6 +118,45 @@ let v1: Validated<&str, i32> = Validated::valid(10);
 let v2: Validated<&str, i32> = Validated::valid(20);
 let sum = Validated::<&str, i32>::lift2(|a, b| a + b, v1, v2);
 assert_eq!(sum, Validated::valid(30));
+
+// Statically typed Operational Monad (Program)
+use rustica::datatypes::operational::{Command, Handler, Program};
+
+struct Add(i32);
+impl Command for Add {
+    type Output = ();
+}
+struct Get;
+impl Command for Get {
+    type Output = i32;
+}
+
+struct Calculator(i32);
+impl Handler<Add> for Calculator {
+    fn handle(&mut self, cmd: Add) { self.0 += cmd.0; }
+}
+impl Handler<Get> for Calculator {
+    fn handle(&mut self, _cmd: Get) -> i32 { self.0 }
+}
+
+let program = Add(10).suspend().then(Add(5).suspend()).then(Get.suspend());
+let mut calc = Calculator(0);
+assert_eq!(program.run(&mut calc), 15);
+
+// Reusable AST with Free Monad
+use rustica::datatypes::free::{AnyValue, Free};
+use std::sync::Arc;
+
+#[derive(Clone, Debug, PartialEq)]
+enum Op { Log(&'static str) }
+
+let free_prog = Free::suspend(Op::Log("run1")).then(Free::suspend(Op::Log("run2")));
+let mut entries = Vec::new();
+free_prog.run(|op| {
+    match op { Op::Log(msg) => entries.push(msg) }
+    Arc::new(()) as AnyValue
+});
+assert_eq!(entries, vec!["run1", "run2"]);
 ```
 
 ---

@@ -1,9 +1,8 @@
 #[cfg(feature = "pvec")]
 fn pvec_example() {
-    use rustica::pvec::PersistentVector;
     use rustica::pvec::pvec;
 
-    let v1: PersistentVector<i32> = pvec![1, 2, 3, 4, 5];
+    let v1 = pvec![1, 2, 3, 4, 5];
     let v2 = v1.push_back(6);
     let v3 = v1.update(0, 10);
 
@@ -44,35 +43,61 @@ fn basic_usage() {
     assert_eq!(sum, Validated::valid(30));
 }
 
-#[allow(deprecated)]
-fn state_management() {
-    use rustica::datatypes::state::State;
+fn operational_monad_example() {
+    use rustica::datatypes::operational::{Command, Handler};
 
-    // A simple counter
-    let counter = State::new(|count: i32| (count + 1, count));
+    struct Add(i32);
+    impl Command for Add {
+        type Output = ();
+    }
+    struct Get;
+    impl Command for Get {
+        type Output = i32;
+    }
 
-    // Run the state computation
-    let (new_count, result) = counter.run_state(0);
-    assert_eq!(new_count, 1);
-    assert_eq!(result, 0);
+    struct Calc(i32);
+    impl Handler<Add> for Calc {
+        fn handle(&mut self, cmd: Add) {
+            self.0 += cmd.0;
+        }
+    }
+    impl Handler<Get> for Calc {
+        fn handle(&mut self, _cmd: Get) -> i32 {
+            self.0
+        }
+    }
+
+    let program = Add(5).suspend().then(Add(10).suspend()).then(Get.suspend());
+    let mut calc = Calc(0);
+    let result = program.run(&mut calc);
+    assert_eq!(result, 15);
 }
 
-#[allow(deprecated)]
-fn io_operations() {
-    use rustica::datatypes::io::IO;
+fn free_monad_example() {
+    use rustica::datatypes::free::{AnyValue, Free};
+    use std::sync::Arc;
 
-    // Pure IO description
-    let read_line = IO::new(|| "Hello from IO!".to_string());
+    #[derive(Clone, Debug, PartialEq)]
+    enum Cmd {
+        Log(&'static str),
+    }
 
-    // Execute the IO operation
-    let result = read_line.run();
-    assert_eq!(result, "Hello from IO!");
+    let program: Free<Cmd, ()> =
+        Free::<Cmd, ()>::suspend(Cmd::Log("step1")).then(Free::suspend(Cmd::Log("step2")));
+    let mut logs = Vec::new();
+    program.run(|cmd| {
+        match cmd {
+            Cmd::Log(msg) => logs.push(msg),
+        }
+        Arc::new(()) as AnyValue
+    });
+    assert_eq!(logs, vec!["step1", "step2"]);
 }
 
 fn main() {
     #[cfg(feature = "pvec")]
     pvec_example();
     basic_usage();
-    state_management();
-    io_operations();
+    operational_monad_example();
+    free_monad_example();
 }
