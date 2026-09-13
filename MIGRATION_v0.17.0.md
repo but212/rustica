@@ -17,7 +17,7 @@ Native `async`/`await` and `std::future::Future` supersede `AsyncM`:
 ## Migration Cheatsheet
 
 | `AsyncM<A>` Pattern | Native Rust Equivalent |
-|---|---|
+| --- | --- |
 | `AsyncM::pure(x)` / `AsyncM::new(async { x })` | `std::future::ready(x)` or `async move { x }` |
 | `comp.fmap(\|x\| x + 1)` | `async move { comp.await + 1 }` |
 | `comp.bind(\|x\| fetch(x))` | `async move { fetch(comp.await).await }` |
