@@ -1,4 +1,4 @@
-use criterion::Criterion;
+use crate::harness::Harness;
 use rustica::datatypes::lens::Lens;
 use std::hint::black_box;
 
@@ -8,8 +8,8 @@ struct Person {
     age: u32,
 }
 
-pub fn lens_benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Lens");
+pub fn lens_benchmarks(harness: &Harness) {
+    let mut group = harness.benchmark_group("Lens");
     let person = Person {
         name: "Alice".to_string(),
         age: 30,
@@ -20,21 +20,19 @@ pub fn lens_benchmarks(c: &mut Criterion) {
     );
 
     // Compare the structural-sharing fast path with the explicit always-update path.
-    group.bench_function("set_same_value", |b| {
-        b.iter(|| black_box(name_lens.set(black_box(person.clone()), "Alice".to_string())));
+    group.bench_fn("set_same_value", || {
+        black_box(name_lens.set(black_box(person.clone()), "Alice".to_string()));
     });
 
-    group.bench_function("set_always_same_value", |b| {
-        b.iter(|| black_box(name_lens.set_always(black_box(person.clone()), "Alice".to_string())));
+    group.bench_fn("set_always_same_value", || {
+        black_box(name_lens.set_always(black_box(person.clone()), "Alice".to_string()));
     });
 
-    group.bench_function("set_different_value", |b| {
-        b.iter(|| black_box(name_lens.set(black_box(person.clone()), "Bob".to_string())));
+    group.bench_fn("set_different_value", || {
+        black_box(name_lens.set(black_box(person.clone()), "Bob".to_string()));
     });
 
-    group.bench_function("modify_changed_value", |b| {
-        b.iter(|| black_box(name_lens.modify(black_box(person.clone()), |name| name + "!")));
+    group.bench_fn("modify_changed_value", || {
+        black_box(name_lens.modify(black_box(person.clone()), |name| name + "!"));
     });
-
-    group.finish();
 }

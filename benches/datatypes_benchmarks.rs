@@ -1,4 +1,7 @@
-use criterion::{criterion_group, criterion_main};
+#[path = "support/harness.rs"]
+pub mod harness;
+
+use harness::Harness;
 
 mod datatypes {
     #[cfg(feature = "async")]
@@ -22,48 +25,18 @@ use datatypes::lens::lens_benchmarks;
 use datatypes::pvec::pvec_benchmarks;
 use datatypes::validated::validated_benchmarks;
 
-#[cfg(all(not(feature = "async"), not(feature = "pvec")))]
-criterion_group!(
-    datatype_benches,
-    validated_benchmarks,
-    io_benchmarks,
-    lens_benchmarks,
-    composable_error_benchmarks,
-    lazy_error_benchmarks,
-);
+fn main() {
+    let harness = Harness::new();
 
-#[cfg(all(not(feature = "async"), feature = "pvec"))]
-criterion_group!(
-    datatype_benches,
-    validated_benchmarks,
-    io_benchmarks,
-    lens_benchmarks,
-    pvec_benchmarks,
-    composable_error_benchmarks,
-    lazy_error_benchmarks,
-);
+    validated_benchmarks(&harness);
+    io_benchmarks(&harness);
+    lens_benchmarks(&harness);
+    composable_error_benchmarks(&harness);
+    lazy_error_benchmarks(&harness);
 
-#[cfg(all(feature = "async", not(feature = "pvec")))]
-criterion_group!(
-    datatype_benches,
-    validated_benchmarks,
-    io_benchmarks,
-    lens_benchmarks,
-    composable_error_benchmarks,
-    lazy_error_benchmarks,
-    asyncm_benchmarks,
-);
+    #[cfg(feature = "pvec")]
+    pvec_benchmarks(&harness);
 
-#[cfg(all(feature = "async", feature = "pvec"))]
-criterion_group!(
-    datatype_benches,
-    validated_benchmarks,
-    io_benchmarks,
-    lens_benchmarks,
-    pvec_benchmarks,
-    composable_error_benchmarks,
-    lazy_error_benchmarks,
-    asyncm_benchmarks,
-);
-
-criterion_main!(datatype_benches);
+    #[cfg(feature = "async")]
+    asyncm_benchmarks(&harness);
+}
