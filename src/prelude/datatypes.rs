@@ -37,6 +37,7 @@
 //! See each type's documentation for more details and advanced usage.
 
 #[cfg(feature = "async")]
+#[allow(deprecated)]
 pub use crate::datatypes::async_monad::AsyncM;
 pub use crate::datatypes::choice::Choice;
 pub use crate::datatypes::cont::Cont;

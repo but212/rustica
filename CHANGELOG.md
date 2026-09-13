@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [0.17.0]
+
+### Deprecations
+
+- **`AsyncM`**: Deprecated `AsyncM<A>` and inherent methods (`new`, `pure`, `try_get`, `fmap`, `bind`, `apply`, `from_result_or_default`, `zip_with`, `zip`, `recover_with`, `join`) in favor of native `async`/`await` and `std::future::Future` (removal in `v0.18.0`; see [`MIGRATION_v0.17.0.md`](MIGRATION_v0.17.0.md)).
+- **Benchmarks**: Removed `benches/datatypes/async_monad.rs` after benchmarks confirmed native `async`/`await` is 2.3x–6.1x faster than boxed monadic chains.
+
 ## [0.16.0]
 
 ### Priority & Fallback Semantics (`Choice<T>`)

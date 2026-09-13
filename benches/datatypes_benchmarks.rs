@@ -4,8 +4,6 @@ pub mod harness;
 use harness::Harness;
 
 mod datatypes {
-    #[cfg(feature = "async")]
-    pub mod async_monad;
     pub mod composable_error;
     pub mod io;
     pub mod lazy_error;
@@ -15,8 +13,6 @@ mod datatypes {
     pub mod validated;
 }
 
-#[cfg(feature = "async")]
-use datatypes::async_monad::asyncm_benchmarks;
 use datatypes::composable_error::composable_error_benchmarks;
 use datatypes::io::io_benchmarks;
 use datatypes::lazy_error::lazy_error_benchmarks;
@@ -36,7 +32,4 @@ fn main() {
 
     #[cfg(feature = "pvec")]
     pvec_benchmarks(&harness);
-
-    #[cfg(feature = "async")]
-    asyncm_benchmarks(&harness);
 }
