@@ -10,17 +10,16 @@ Rustica provides pragmatic functional programming and category theory abstractio
 ## Overview
 
 - **Type Classes**: `Functor`, `Applicative`, `Monad`, `Pure`, and `Foldable`
-- **Data Types**: `Choice` (statically non-empty priority/fallback collection), `Validated`, `Id`, and `IO`
-- **Monad Transformers**: `StateT`, `ReaderT`, and `ContT`
+- **Data Types**: `Choice`, `Validated`, `Free`, and `Program` / `TryProgram`
 - **Error Handling**: Context accumulation via `ContextError` and failure accumulation via `Validated`
 - **Persistent Collections**: Immutable RRB-tree `PersistentVector`
-- **Design Guidelines**: Strict adherence to Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
+- **Design Guidelines**: Adherence to Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
 
 ### Recommended Use Cases
 
-- **Domain Modeling**: Eliminate impossible states at compile time
+- **Domain Modeling**: Eliminate impossible states with algebraic types (`Choice`, `Validated`)
 - **Validation**: Accumulate multiple errors without early termination (`Validated`)
-- **Effect Isolation**: Manage state, dependencies, and I/O explicitly (`IO`, `State`, `Reader`)
+- **Domain DSLs**: Construct inspectable ASTs (`Free`) or statically typed command pipelines (`Program`)
 - **Persistent Data**: Immutable collections with structural sharing (`PersistentVector`)
 
 ---
@@ -58,17 +57,13 @@ use rustica::prelude::*;
 
 ### 2. Core Data Types
 
-- **`Choice<T>`**: Statically non-empty priority/fallback collection. Provides `try_each`, `try_each_validated`, and `first_match` for deterministic fallback execution.
+- **`Choice<T>`**: Statically non-empty priority/fallback collection with deterministic fallback execution (`try_each`, `try_each_validated`).
 - **`Validated<E, T>`**: Accumulates all validation errors into `NonEmptyErrors<E>`.
-- **`Id<T>`**: Identity functor and monad with comonad operations (`extract`, `duplicate`, `extend`).
-- **`IO<A>`**: Cold, side-effectful computations evaluated via `run` or `try_run`.
-- **`State<S, A>`**: Pure state transitions (`run_state`, `eval_state`, `exec_state`).
-- **`Reader<E, A>`**: Environment inspection and dependency passing.
-- **`Writer<W, A>`**: Pure logging with monoidal log accumulation (`log`, `into_log`).
-- **`Cont<R, A>`**: Continuation-passing style computation (`run`).
 - **`Free<F, A>`**: Free monad separating AST construction from interpretation with stack-safe iterative trampoline execution (`run`, `try_run`, `fold_map`).
-- **`Program<H, A>` / `TryProgram<H, A, E>`**: Statically-typed operational monads binding domain `Command`s to handler traits (`Handler<C>`, `TryHandler<C, E>`) with zero-downcast compile-time type enforcement and stack-safe execution.
+- **`Program<H, A>` / `TryProgram<H, A, E>`**: Statically-typed operational monads binding domain commands to handlers with compile-time type enforcement.
 - **`PersistentVector<T>`**: Immutable vector with relaxed Radix Balanced (RRB) tree structural sharing (requires `pvec` feature).
+
+*(Note: `Id`, `State`, `Reader`, `Writer`, `Cont`, `IO`, and Monad Transformers are deprecated in 0.17.0 in favor of native Rust primitives; see [0.17.0 Migration Guide](MIGRATION_v0.17.0.md).)*
 
 ### 3. Optics
 
@@ -79,7 +74,7 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
-- [0.17.0 Migration Guide](MIGRATION_v0.17.0.md) (AsyncM deprecation in favor of native async/await)
+- [0.17.0 Migration Guide](MIGRATION_v0.17.0.md) (Deprecation of redundant FP abstractions in favor of native Rust primitives: Transformers, Effect Monads, FunctionCategory, Wrappers)
 - [0.16.0 Migration Guide](MIGRATION_v0.16.0.md) (Choice fallback semantics, Rust API receiver alignment, optics laws, Bifunctor deprecation)
 - [0.15.0 Migration Guide](MIGRATION_v0.15.0.md) (RRB tree integrity, unwrap panic context)
 - [0.14.0 Migration Guide](MIGRATION_v0.14.0.md) (Surface reduction, compile-time base monad enforcement)

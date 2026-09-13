@@ -85,6 +85,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::datatypes::error::FreeError;
+#[allow(deprecated)]
 use crate::datatypes::io::IO;
 
 /// Type alias for thread-safe type-erased values in the Free monad.
@@ -425,6 +426,7 @@ impl<F, A> Free<F, A> {
     /// Interprets this `Free` computation into an [`IO`] computation via a natural transformation.
     ///
     /// Returns a lazy [`IO`] computation whose effects run only when executed via [`IO::run`].
+    #[allow(deprecated)]
     pub fn fold_map<Morphism>(&self, interp: Morphism) -> IO<A>
     where
         F: Send + Sync + Clone + 'static,
@@ -543,6 +545,7 @@ impl<F, A> Drop for Free<F, A> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 

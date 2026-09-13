@@ -80,14 +80,19 @@
 //! For performance-critical code, consider using specialized combined monads
 //! instead of deep transformer stacks.
 
+#![allow(deprecated)]
+
 use crate::traits::monad::Monad;
 
 pub mod cont_t;
 pub mod reader_t;
 pub mod state_t;
 
+#[allow(deprecated)]
 pub use cont_t::ContT;
+#[allow(deprecated)]
 pub use reader_t::ReaderT;
+#[allow(deprecated)]
 pub use state_t::StateT;
 
 /// Trait for monad transformers.
@@ -157,6 +162,10 @@ pub use state_t::StateT;
 ///     }
 /// }
 /// ```
+#[deprecated(
+    since = "0.17.0",
+    note = "monad transformers are scheduled for removal in 0.18.0."
+)]
 pub trait MonadTransformer {
     /// The type of the base monad.
     ///
@@ -219,6 +228,10 @@ pub trait MonadTransformer {
 /// let result = reader_t_value.run_reader(Env);
 /// assert_eq!(result, Some(42));
 /// ```
+#[deprecated(
+    since = "0.17.0",
+    note = "monad transformers are scheduled for removal in 0.18.0."
+)]
 pub fn lift<T, M>(m: M) -> T
 where
     T: MonadTransformer<BaseMonad = M>,

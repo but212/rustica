@@ -46,6 +46,8 @@
 //! let xs = vec![42];
 //! assert_eq!(xs.many(), vec![vec![42]]);
 //! ```
+#![allow(deprecated)]
+
 use crate::traits::applicative::Applicative;
 
 /// A trait for types that provide an alternative computation strategy.
@@ -53,6 +55,10 @@ use crate::traits::applicative::Applicative;
 /// `Alternative` extends `Applicative` with operations for choice and failure.
 /// It represents applicative functors that also have a monoid structure.
 ///
+#[deprecated(
+    since = "0.17.0",
+    note = "use Option::or, Vec::extend, or bool::then_some / bool::then. Scheduled for removal in 0.18.0."
+)]
 pub trait Alternative: Applicative {
     /// Returns an empty value representing failure for the alternative computation.
     ///

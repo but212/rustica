@@ -27,6 +27,8 @@
 //!
 //! Functional-programming laws for `fmap`, `apply`, and `bind` are covered by the datatype tests.
 //!
+#![allow(deprecated)]
+
 #[allow(deprecated)]
 use crate::error::{BoxedComposableResult, ComposableError, ComposableResult};
 use crate::error::{ContextError, IntoErrorContext};
@@ -40,6 +42,10 @@ use std::time::Duration;
 ///
 /// This alias encapsulates the common pattern of `Arc<dyn Fn() -> A + Send + Sync + 'static>`
 /// used throughout the IO implementation, making the code more readable and maintainable.
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard synchronous functions, closures, or async/await. Scheduled for removal in 0.18.0."
+)]
 pub type IOMorphism<A> = Arc<dyn Fn() -> A + Send + Sync + 'static>;
 
 /// Type alias for composable error collection results.
@@ -51,6 +57,10 @@ pub type IOMorphism<A> = Arc<dyn Fn() -> A + Send + Sync + 'static>;
 pub type ComposableErrorCollection<E> = smallvec::SmallVec<[Box<ComposableError<E>>; 4]>;
 
 /// A custom error type for IO operations
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard error types or std::io::Error. Scheduled for removal in 0.18.0."
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IOError {
     /// The IO operation failed for some other reason
@@ -113,6 +123,10 @@ impl std::error::Error for IOError {}
 /// let transformed = io_operation.fmap(|x| x * 2);
 /// assert_eq!(transformed.run(), 84);
 /// ```
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard synchronous functions, closures, or async/await. Scheduled for removal in 0.18.0."
+)]
 pub enum IO<A> {
     Pure(A),
     Effect(IOMorphism<A>),

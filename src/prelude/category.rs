@@ -11,6 +11,7 @@
 /// - `function`: Macro for creating named function morphisms
 /// - `pipe`: Macro for creating function pipelines with left-to-right composition
 /// - `compose`: Macro for creating function composition
+#[allow(deprecated)]
 pub use crate::category::function_category::{
     FunctionCategory, FunctionMorphism, compose, function, pipe,
 };

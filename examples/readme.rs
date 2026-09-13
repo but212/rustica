@@ -44,6 +44,7 @@ fn basic_usage() {
     assert_eq!(sum, Validated::valid(30));
 }
 
+#[allow(deprecated)]
 fn state_management() {
     use rustica::datatypes::state::State;
 
@@ -56,6 +57,7 @@ fn state_management() {
     assert_eq!(result, 0);
 }
 
+#[allow(deprecated)]
 fn io_operations() {
     use rustica::datatypes::io::IO;
 

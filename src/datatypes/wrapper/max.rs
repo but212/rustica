@@ -56,6 +56,8 @@
 //! assert_eq!(result, Max(10)); // Overall maximum
 //! ```
 
+#![allow(deprecated)]
+
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::semigroup::Semigroup;
@@ -109,6 +111,10 @@ use std::fmt;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[deprecated(
+    since = "0.17.0",
+    note = "use std::cmp::max or Iterator::max directly. Scheduled for removal in 0.18.0."
+)]
 pub struct Max<T>(pub T);
 
 impl<T> Max<T> {

@@ -71,6 +71,8 @@
 //! let empty = Product::empty();
 //! assert_eq!(a.combine(empty), a); // 3 * 1 = 3
 //! ```
+#![allow(deprecated)]
+
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;
@@ -128,6 +130,10 @@ use std::ops::Mul;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[deprecated(
+    since = "0.17.0",
+    note = "use std::iter::Product or std::ops::Mul directly. Scheduled for removal in 0.18.0."
+)]
 pub struct Product<T>(pub T);
 
 impl<T> Product<T> {

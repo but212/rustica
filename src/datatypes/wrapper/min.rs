@@ -55,6 +55,8 @@
 //! let result = a.combine(b).combine(c);
 //! assert_eq!(result, Min(3)); // Overall minimum
 //! ```
+#![allow(deprecated)]
+
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::semigroup::Semigroup;
@@ -110,6 +112,10 @@ use std::fmt;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[deprecated(
+    since = "0.17.0",
+    note = "use std::cmp::min or Iterator::min directly. Scheduled for removal in 0.18.0."
+)]
 pub struct Min<T>(pub T);
 
 impl<T> Min<T> {

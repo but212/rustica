@@ -69,6 +69,8 @@
 //! assert_eq!(a.combine(empty), a);
 //! ```
 
+#![allow(deprecated)]
+
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;
@@ -158,6 +160,10 @@ use std::fmt;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(transparent)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[deprecated(
+    since = "0.17.0",
+    note = "use Option::or or Option::or_else with reversed operands. Scheduled for removal in 0.18.0."
+)]
 pub struct Last<T>(pub Option<T>);
 
 impl<T> Last<T> {

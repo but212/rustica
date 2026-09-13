@@ -82,6 +82,7 @@ pub mod product;
 pub mod sum;
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod unit_tests {
     use super::{
         first::First, last::Last, max::Max, min::Min, predicate::Predicate, product::Product,
@@ -116,6 +117,7 @@ mod unit_tests {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod law_tests {
     use super::{
         first::First, last::Last, max::Max, min::Min, predicate::Predicate, product::Product,

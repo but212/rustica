@@ -113,12 +113,18 @@
 //! Note that `Arc`'s reference counting is thread-safe, but the morphism type itself does not
 //! require `Send`/`Sync` bounds.
 
+#![allow(deprecated)]
+
 use std::sync::Arc;
 
 /// A concrete implementation of function category operations.
 ///
 /// This zero-sized type serves as a namespace for function category operations.
 /// All methods are implemented as inherent associated functions.
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard closures, function pointers, or iterator combinators. Scheduled for removal in 0.18.0."
+)]
 pub struct FunctionCategory;
 
 /// Type alias for function morphisms with static lifetime bounds.
@@ -126,10 +132,18 @@ pub struct FunctionCategory;
 /// This alias encapsulates the common pattern of `Arc<dyn Fn(A) -> B + 'static>`
 /// used throughout the function category implementation, making the code more
 /// readable and maintainable.
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard closures, function pointers, or iterator combinators. Scheduled for removal in 0.18.0."
+)]
 pub type FunctionMorphism<A, B> = Arc<dyn Fn(A) -> B + 'static>;
 
 /// Type alias for morphisms that operate on pairs, commonly used in arrow operations
 /// like `both` where the same transformation is applied to both elements of a tuple.
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard closures, function pointers, or iterator combinators. Scheduled for removal in 0.18.0."
+)]
 pub type PairMorphism<A, B> = FunctionMorphism<(A, A), (B, B)>;
 
 impl FunctionCategory {

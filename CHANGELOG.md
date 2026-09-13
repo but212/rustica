@@ -4,7 +4,13 @@
 
 ### Deprecations
 
-- **`AsyncM`**: Deprecated `AsyncM<A>` and inherent methods (`new`, `pure`, `try_get`, `fmap`, `bind`, `apply`, `from_result_or_default`, `zip_with`, `zip`, `recover_with`, `join`) in favor of native `async`/`await` and `std::future::Future` (removal in `v0.18.0`; see [`MIGRATION_v0.17.0.md`](MIGRATION_v0.17.0.md)).
+- **Monad Transformers**: Deprecated `StateT`, `ReaderT`, `ContT`, `MonadTransformer`, and `lift` in favor of standard language primitives (`&mut S`, reference borrowing `&Context`, `async/await`, closures). Scheduled for removal in `0.18.0`.
+- **Effect Monads**: Deprecated `State`, `Reader`, and `Cont` in favor of native Rust patterns (`&mut S`, `&Context`, closures). Scheduled for removal in `0.18.0`.
+- **Category Abstractions**: Deprecated `FunctionCategory`, `FunctionMorphism`, and `PairMorphism` in favor of zero-cost closures and iterator pipelines. Scheduled for removal in `0.18.0`.
+- **Side-Effect & Logging Types**: Deprecated `IO<A>` (and `IOMorphism`, `IOError`) and `Writer<W, A>` in favor of native execution and `&mut Buffer` / `tracing`. Scheduled for removal in `0.18.0`.
+- **Monoidal Wrappers & Utilities**: Deprecated `Id`, `First`, `Last`, `Min`, `Max`, `Sum`, `Product`, and `One` in favor of direct standard library equivalents (`Option::or`, `std::cmp::min`/`max`, `std::iter::Sum`/`Product`, numeric literals). Scheduled for removal in `0.18.0`.
+- **Redundant Traits & Combinators**: Deprecated `MonadError` in favor of `Result::or_else` / `?`, `Alternative` in favor of `Option::or` / `Vec::extend` / `bool::then_some`, `Choice::first_match` in favor of `Iterator::find_map`, and `FoldableExt` reduction helpers in favor of direct `Iterator` methods. Scheduled for removal in `0.18.0`.
+- **`AsyncM`**: Deprecated `AsyncM<A>` and inherent methods in favor of native `async`/`await` and `std::future::Future` (removal in `0.18.0`; see [`MIGRATION_v0.17.0.md`](MIGRATION_v0.17.0.md)).
 - **Benchmarks**: Removed `benches/datatypes/async_monad.rs` after benchmarks confirmed native `async`/`await` is 2.3x–6.1x faster than boxed monadic chains.
 
 ## [0.16.0]

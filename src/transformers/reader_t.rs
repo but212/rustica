@@ -1,8 +1,4 @@
-//! Reader monad transformer.
-//!
-//! `ReaderT<E, M, A>` represents an environment-dependent computation whose
-//! base monad `M` contains `A`. The `HKT<Source = A>` bound makes that
-//! relationship part of the type instead of a convention maintained by callers.
+#![allow(deprecated)]
 
 use super::MonadTransformer;
 #[allow(deprecated)]
@@ -16,6 +12,10 @@ use std::sync::Arc;
 type ReaderRun<E, M> = dyn Fn(E) -> M + Send + Sync;
 
 /// An environment-dependent computation in a base monad containing `A`.
+#[deprecated(
+    since = "0.17.0",
+    note = "pass environment/context by reference (&Context) or dependency injection. Scheduled for removal in 0.18.0."
+)]
 pub struct ReaderT<E, M, A>
 where
     M: HKT<Source = A>,
@@ -286,6 +286,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::ReaderT;
 

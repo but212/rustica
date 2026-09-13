@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::harness::Harness;
 use rustica::datatypes::io::IO;
 use std::hint::black_box;

@@ -297,6 +297,10 @@ impl<T> Choice<T> {
     ///
     /// Short-circuits on the first `Some`, returning immediately without
     /// evaluating remaining alternatives. Returns `None` if no value matches.
+    #[deprecated(
+        since = "0.17.0",
+        note = "use choice.iter().find_map(f) instead. Scheduled for removal in 0.18.0."
+    )]
     pub fn first_match<R, F>(&self, mut f: F) -> Option<R>
     where
         F: FnMut(&T) -> Option<R>,
@@ -632,6 +636,7 @@ impl<T: Arbitrary + Clone + 'static> Arbitrary for Choice<T> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod unit_tests {
     use super::Choice;
     use crate::prelude::*;

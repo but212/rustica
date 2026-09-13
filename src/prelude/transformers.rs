@@ -26,8 +26,13 @@
 //!
 //! See each transformer module for more advanced patterns and combinators.
 
+#[allow(deprecated)]
 pub use crate::transformers::MonadTransformer;
+#[allow(deprecated)]
 pub use crate::transformers::cont_t::ContT;
+#[allow(deprecated)]
 pub use crate::transformers::lift;
+#[allow(deprecated)]
 pub use crate::transformers::reader_t::ReaderT;
+#[allow(deprecated)]
 pub use crate::transformers::state_t::StateT;

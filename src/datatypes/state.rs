@@ -169,8 +169,9 @@
 //! `get`/`modify` helpers. Additional state-transition scenarios are covered by
 //! the named tests in this module.
 //!
+#![allow(deprecated)]
+
 use crate::datatypes::id::Id;
-#[allow(deprecated)]
 use crate::error::{ComposableError, ComposableResult};
 use crate::error::{ContextError, IntoErrorContext};
 use crate::traits::hkt::HKT;
@@ -181,6 +182,10 @@ use crate::transformers::StateT;
 use quickcheck::{Arbitrary, Gen};
 
 /// Type alias for the inner state transformer used in State monad
+#[deprecated(
+    since = "0.17.0",
+    note = "use mutable references (&mut S) or pure state functions Fn(S) -> (S, A). Scheduled for removal in 0.18.0."
+)]
 pub type StateInner<S, A> = StateT<S, Id<(S, A)>, A>;
 
 /// A monad that represents stateful computations.
@@ -236,6 +241,10 @@ pub type StateInner<S, A> = StateT<S, Id<(S, A)>, A>;
 /// let counter = State::new(|s: i32| (s, s * 2));
 /// assert_eq!(counter.run_state(5), (5, 10));
 /// ```
+#[deprecated(
+    since = "0.17.0",
+    note = "use mutable references (&mut S) or pure state functions Fn(S) -> (S, A). Scheduled for removal in 0.18.0."
+)]
 #[repr(transparent)]
 pub struct State<S, A> {
     /// The state transformation function

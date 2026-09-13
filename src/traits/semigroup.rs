@@ -250,6 +250,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::Semigroup;
     use crate::datatypes::wrapper::sum::Sum;
