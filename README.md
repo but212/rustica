@@ -14,6 +14,7 @@ Rustica provides functional programming and categorical abstractions for Rust.
 - **Error Handling**: `ContextError` (context accumulation) and `Validated` (failure accumulation)
 - **Collections**: Immutable RRB-tree `PersistentVector` (requires `pvec` feature)
 - **API Guidelines**: Adheres to Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
+- **Design Philosophy**: Architectural principles, trade-offs, and boundary guidelines (see [docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md))
 
 ### Recommended Use Cases
 

@@ -339,6 +339,7 @@ In previous versions, `Prism::set_if_different` reconstructed a new structure us
 ### 3. `BinaryHKT` and `Bifunctor` Deprecation
 
 `BinaryHKT` and `Bifunctor` are deprecated in 0.16.0. Use inherent methods directly on `Validated`:
+
 - `Validated::bimap(self, f, g)`: maps both valid value and errors
 - `Validated::map_valid(self, f)`: maps valid value
 - `Validated::map_err(self, g)`: maps errors (inherent alias for `fmap_invalid`)
