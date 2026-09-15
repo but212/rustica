@@ -4,13 +4,14 @@
 
 ### Deprecations
 
-- **Monad Transformers**: Deprecated `StateT`, `ReaderT`, `ContT`, `MonadTransformer`, and `lift` in favor of standard language primitives (`&mut S`, reference borrowing `&Context`, `async/await`, closures). Scheduled for removal in `0.18.0`.
-- **Effect Monads**: Deprecated `State`, `Reader`, and `Cont` in favor of native Rust patterns (`&mut S`, `&Context`, closures). Scheduled for removal in `0.18.0`.
-- **Category Abstractions**: Deprecated `FunctionCategory`, `FunctionMorphism`, and `PairMorphism` in favor of zero-cost closures and iterator pipelines. Scheduled for removal in `0.18.0`.
-- **Side-Effect & Logging Types**: Deprecated `IO<A>` (and `IOMorphism`, `IOError`) and `Writer<W, A>` in favor of native execution and `&mut Buffer` / `tracing`. Scheduled for removal in `0.18.0`.
-- **Monoidal Wrappers & Utilities**: Deprecated `Id`, `First`, `Last`, `Min`, `Max`, `Sum`, `Product`, and `One` in favor of direct standard library equivalents (`Option::or`, `std::cmp::min`/`max`, `std::iter::Sum`/`Product`, numeric literals). Scheduled for removal in `0.18.0`.
-- **Redundant Traits & Combinators**: Deprecated `MonadError` in favor of `Result::or_else` / `?`, `Alternative` in favor of `Option::or` / `Vec::extend` / `bool::then_some`, `Choice::first_match` in favor of `Iterator::find_map`, and `FoldableExt` reduction helpers in favor of direct `Iterator` methods. Scheduled for removal in `0.18.0`.
-- **`AsyncM`**: Deprecated `AsyncM<A>` and inherent methods in favor of native `async`/`await` and `std::future::Future` (removal in `0.18.0`; see [`MIGRATION_v0.17.0.md`](MIGRATION_v0.17.0.md)).
+- **Monad Transformers**: Deprecated `StateT`, `ReaderT`, `ContT`, `MonadTransformer`, and `lift` in favor of standard primitives (`&mut S`, `&Context`, `async`/`await`, closures). Removal in `0.18.0`.
+- **Effect Monads**: Deprecated `State`, `Reader`, and `Cont` in favor of native Rust patterns (`&mut S`, `&Context`, closures). Removal in `0.18.0`.
+- **Category Abstractions**: Deprecated `FunctionCategory`, `FunctionMorphism`, and `PairMorphism` in favor of closures and iterator pipelines. Removal in `0.18.0`.
+- **Side-Effect & Logging Types**: Deprecated `IO<A>` (`IOMorphism`, `IOError`) and `Writer<W, A>` in favor of native execution, `&mut Buffer`, and `tracing`. Removal in `0.18.0`.
+- **Monoidal Wrappers & Utilities**: Deprecated `Id`, `First`, `Last`, `Min`, `Max`, `Sum`, `Product`, and `One` in favor of std equivalents (`Option::or`, `cmp::min`/`max`, `iter::Sum`/`Product`, numeric literals). Removal in `0.18.0`.
+- **Redundant Traits & Combinators**: Deprecated `MonadError` (use `Result::or_else`/`?`), `Alternative` (use `Option::or`/`Vec::extend`/`bool::then_some`), `Choice::first_match` (use `Iterator::find_map`), and `FoldableExt` reduction helpers (use `Iterator` methods). Removal in `0.18.0`.
+- **`AsyncM`**: Deprecated `AsyncM<A>` in favor of `async`/`await` and `Future` (removal in `0.18.0`; see [`MIGRATION_v0.17.0.md`](MIGRATION_v0.17.0.md)).
+- **`Free::into_pure`**: Deprecated in favor of `Free::to_pure` to align with API Guidelines (C-CONV) for borrowing `&self` with cloned inner values. Removal in `0.18.0`.
 - **Benchmarks**: Removed `benches/datatypes/async_monad.rs` after benchmarks confirmed native `async`/`await` is 2.3x–6.1x faster than boxed monadic chains.
 
 ## [0.16.0]

@@ -1,26 +1,30 @@
 //! # Operational Monad
 //!
-//! The `operational` module provides statically-typed operational monads ([`Program`] and [`TryProgram`]).
+//! The `operational` module provides operational monads ([`Program`] and [`TryProgram`])
+//! where each [`Command`] statically declares its output type via [`Command::Output`].
 //!
-//! Unlike dynamic Free monads that rely on untyped closures returning `AnyValue`, `Program` and
-//! `TryProgram` bind each [`Command`] to its exact associated return type ([`Command::Output`]) at compile time.
-//! An interpreter implements [`Handler<C>`] (or [`TryHandler<C, E>`]), guaranteeing that
-//! returning an incorrect type is a **compile-time error**, making type mismatches unrepresentable.
+//! ## Type Safety Boundaries and Limitations
 //!
-//! ## When to use `Free` vs `Program`
+//! - **Handler interface**: The compiler enforces that [`Handler<C>::handle`] returns [`Command::Output`].
+//!   Implementing a handler with the wrong return type is a compile error.
+//! - **Trampoline evaluation**: Stack-safe execution requires intermediate type erasure via
+//!   [`Box<dyn Any>`]. While the public API prevents mismatched types from being constructed,
+//!   the execution engine relies on internal `.downcast::<T>().expect(...)` calls.
+//! - **Handler coupling**: `Program<H, A>` fixes the handler type `H` at construction. Chaining commands
+//!   requires `H` to implement `Handler<C>` for every command in the sequence.
 //!
-//! - Use [`Free`](crate::datatypes::free::Free) when you need an **inspectable, reusable AST** (`Clone`)
-//!   that can be transformed via natural transformations ([`fold_map`](crate::datatypes::free::Free::fold_map))
-//!   or evaluated multiple times across different interpreters.
-//! - Use [`Program`] / [`TryProgram`] when you need **zero-downcast, 100% compile-time type-safe execution**
-//!   where each command's return type is statically enforced on the interpreter handler.
+//! ## `Free` vs `Program`
 //!
-//! ## Quick Start
+//! - Use [`Free`](crate::datatypes::free::Free) for a cloneable AST that can be inspected,
+//!   transformed via [`fold_map`](crate::datatypes::free::Free::fold_map), or re-evaluated.
+//! - Use [`Program`] / [`TryProgram`] when command outputs should be checked against handler
+//!   trait signatures at the cost of tying the AST to a concrete handler type.
+//!
+//! ## Example
 //!
 //! ```rust
 //! use rustica::datatypes::operational::{Command, Handler, Program};
 //!
-//! // 1. Define commands with their exact static output types
 //! struct Add(i32);
 //! impl Command for Add {
 //!     type Output = ();
@@ -36,12 +40,10 @@
 //!     type Output = i32;
 //! }
 //!
-//! // 2. Build a statically-typed program using Command::suspend or Program::suspend
 //! let program = Add(5).suspend()
 //!     .then(Multiply(3).suspend())
 //!     .then(Get.suspend());
 //!
-//! // 3. Implement the interpreter handler
 //! struct Calculator {
 //!     current: i32,
 //! }
@@ -64,7 +66,6 @@
 //!     }
 //! }
 //!
-//! // 4. Run the program with complete stack safety and static type checking
 //! let mut calc = Calculator { current: 0 };
 //! let result = program.run(&mut calc);
 //! assert_eq!(result, 15);
@@ -146,18 +147,17 @@ enum Node<H, A, E> {
         Box<TryProgram<H, AnyBox, E>>,
         Box<dyn FnOnce(AnyBox) -> TryProgram<H, A, E> + Send + Sync>,
     ),
-    Done,
 }
 
 /// Core statically-typed fallible Operational Monad computation with domain error `E`.
 pub struct TryProgram<H, A, E> {
-    node: Node<H, A, E>,
+    node: Option<Node<H, A, E>>,
 }
 
 impl<H, A, E> TryProgram<H, A, E> {
     #[inline]
     fn take_node(&mut self) -> Node<H, A, E> {
-        std::mem::replace(&mut self.node, Node::Done)
+        self.node.take().expect("TryProgram node already consumed")
     }
 }
 
@@ -169,7 +169,7 @@ impl<H: 'static, E: Send + Sync + 'static> TryProgram<H, (), E> {
         H: TryHandler<C, E>,
     {
         TryProgram {
-            node: Node::Suspend(
+            node: Some(Node::Suspend(
                 Box::new(move |handler: &mut H| {
                     let out = handler.try_handle(cmd)?;
                     Ok(Box::new(out) as AnyBox)
@@ -179,7 +179,7 @@ impl<H: 'static, E: Send + Sync + 'static> TryProgram<H, (), E> {
                         .downcast::<C::Output>()
                         .expect("statically guaranteed command output type")
                 }),
-            ),
+            )),
         }
     }
 }
@@ -189,7 +189,7 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
     #[inline]
     pub fn pure(val: A) -> Self {
         TryProgram {
-            node: Node::Pure(val),
+            node: Some(Node::Pure(val)),
         }
     }
 
@@ -209,9 +209,10 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
         match self.take_node() {
             Node::Pure(a) => f(a),
             other => {
-                let any_prog: TryProgram<H, AnyBox, E> = TryProgram { node: other }.into_any();
+                let any_prog: TryProgram<H, AnyBox, E> =
+                    TryProgram { node: Some(other) }.into_any();
                 TryProgram {
-                    node: Node::Bind(
+                    node: Some(Node::Bind(
                         Box::new(any_prog),
                         Box::new(move |any_val: AnyBox| {
                             let a = *any_val
@@ -219,7 +220,7 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
                                 .expect("statically guaranteed bind parameter type");
                             f(a)
                         }),
-                    ),
+                    )),
                 }
             },
         }
@@ -233,14 +234,29 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
 
     fn into_any(mut self) -> TryProgram<H, AnyBox, E> {
         match self.take_node() {
-            Node::Pure(a) => TryProgram::pure(Box::new(a) as AnyBox),
+            Node::Pure(a) => {
+                let a_any = Box::new(a) as AnyBox;
+                match a_any.downcast::<AnyBox>() {
+                    Ok(already_boxed) => TryProgram::pure(*already_boxed),
+                    Err(boxed) => TryProgram::pure(boxed),
+                }
+            },
             Node::Suspend(runner, cont) => TryProgram {
-                node: Node::Suspend(runner, Box::new(move |res| Box::new(cont(res)) as AnyBox)),
+                node: Some(Node::Suspend(
+                    runner,
+                    Box::new(move |res| {
+                        let a = cont(res);
+                        let a_any = Box::new(a) as AnyBox;
+                        match a_any.downcast::<AnyBox>() {
+                            Ok(already_boxed) => *already_boxed,
+                            Err(boxed) => boxed,
+                        }
+                    }),
+                )),
             },
             Node::Bind(sub, cont) => TryProgram {
-                node: Node::Bind(sub, Box::new(move |res| cont(res).into_any())),
+                node: Some(Node::Bind(sub, Box::new(move |res| cont(res).into_any()))),
             },
-            Node::Done => TryProgram { node: Node::Done },
         }
     }
 
@@ -279,7 +295,6 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
                         },
                     }
                 },
-                Node::Done => unreachable!("TryProgram node consumed prematurely"),
             }
         }
     }
@@ -287,29 +302,29 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
     /// Returns `true` if the program is a pure value.
     #[inline]
     pub fn is_pure(&self) -> bool {
-        matches!(self.node, Node::Pure(_))
+        matches!(self.node, Some(Node::Pure(_)))
     }
 
     /// Returns `true` if the program is a suspended command.
     #[inline]
     pub fn is_suspend(&self) -> bool {
-        matches!(self.node, Node::Suspend(_, _))
+        matches!(self.node, Some(Node::Suspend(_, _)))
     }
 
     /// Returns `true` if the program is a sequenced bind node.
     #[inline]
     pub fn is_bind(&self) -> bool {
-        matches!(self.node, Node::Bind(_, _))
+        matches!(self.node, Some(Node::Bind(_, _)))
     }
 }
 
 /// Custom iterative Drop implementation to prevent stack overflows on deep un-evaluated chains.
 impl<H, A, E> Drop for TryProgram<H, A, E> {
     fn drop(&mut self) {
-        if let Node::Bind(ref mut sub, _) = self.node {
-            let mut cur = std::mem::replace(sub, Box::new(TryProgram { node: Node::Done }));
-            while let Node::Bind(ref mut next, _) = cur.node {
-                cur = std::mem::replace(next, Box::new(TryProgram { node: Node::Done }));
+        if let Some(Node::Bind(ref mut sub, _)) = self.node {
+            let mut cur = sub.take_node();
+            while let Node::Bind(ref mut next, _) = cur {
+                cur = next.take_node();
             }
         }
     }
@@ -401,10 +416,10 @@ impl<H, A: fmt::Debug> fmt::Debug for Program<H, A> {
 impl<H, A: fmt::Debug, E> fmt::Debug for TryProgram<H, A, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.node {
-            Node::Pure(a) => f.debug_tuple("Pure").field(a).finish(),
-            Node::Suspend(_, _) => f.debug_tuple("Suspend").field(&"<command>").finish(),
-            Node::Bind(_, _) => f.debug_tuple("Bind").field(&"<sub-computation>").finish(),
-            Node::Done => f.debug_tuple("Done").finish(),
+            Some(Node::Pure(a)) => f.debug_tuple("Pure").field(a).finish(),
+            Some(Node::Suspend(_, _)) => f.debug_tuple("Suspend").field(&"<command>").finish(),
+            Some(Node::Bind(_, _)) => f.debug_tuple("Bind").field(&"<sub-computation>").finish(),
+            None => f.debug_tuple("Consumed").finish(),
         }
     }
 }
@@ -594,5 +609,17 @@ mod tests {
 
         let try_bound = try_susp.bind(|_| TryProgram::pure(100));
         assert!(try_bound.is_bind());
+    }
+
+    #[test]
+    fn test_into_any_no_double_boxing() {
+        let prog: Program<CalcInterpreter, i32> = Add(10)
+            .suspend()
+            .bind(|_| Fetch.suspend())
+            .bind(|num| Program::pure(num * 2));
+
+        let mut handler = CalcInterpreter { current: 5 };
+        let res: i32 = prog.run(&mut handler);
+        assert_eq!(res, 30); // (5 + 10) * 2
     }
 }

@@ -1,20 +1,20 @@
 //! # Free Monad
 //!
-//! `Free<F, A>` represents a computation as a tree of commands `F`, separating the program
-//! definition from its execution.
+//! `Free<F, A>` represents a computation tree of commands `F`, separating program
+//! definition from execution.
 //!
 //! ## Execution and Stack Safety
 //!
 //! - **Evaluation**: Evaluated with [`run`](Free::run) or [`try_run`](Free::try_run). An internal
-//!   heap stack unwinds left-associated chains (`a.then(b).then(c)`), keeping call stack frames $O(1)$.
+//!   stack unwinds left-associated chains (`a.then(b).then(c)`), keeping call stack frames $O(1)$.
 //! - **Error handling**: [`try_run`](Free::try_run) returns [`FreeError`] on interpreter error or
 //!   downcast mismatch instead of panicking.
-//! - **Drop and Debug**: Traverses nested chains iteratively to prevent stack overflows when
-//!   dropping or formatting large programs.
-//! - **Reuse**: Backed by `Arc`, allowing programs to be cloned and evaluated multiple times.
+//! - **Drop and Debug**: Traverses nested chains iteratively to avoid stack overflow when
+//!   dropping or formatting deep programs.
+//! - **Reuse**: Backed by `Arc`, so programs can be cloned and run multiple times.
 //! - **IO conversion**: [`fold_map`](Free::fold_map) converts the program into a lazy [`IO`].
 //!
-//! ## Quick Start
+//! ## Example
 //!
 //! ```rust
 //! use rustica::datatypes::free::{AnyValue, Free};
@@ -41,14 +41,10 @@
 //!     }
 //! }
 //!
-//! // Build a computation sequence without executing side effects
 //! let program = CalcOp::add(5)
 //!     .then(CalcOp::multiply(3))
 //!     .then(CalcOp::get());
 //!
-//! // Interpret the program with state.
-//! // NOTE: The interpreter must return an AnyValue matching the exact return type expected
-//! // by each suspended command (e.g., () for Add/Multiply, i32 for Get).
 //! let mut current = 0;
 //! let result: i32 = program.run(|op| match op {
 //!     CalcOp::Add(n) => {
@@ -64,7 +60,7 @@
 //!
 //! assert_eq!(result, 15);
 //!
-//! // Because Free is Clone, the same program can be run again!
+//! // The same program can be evaluated again with different state
 //! let mut current2 = 10;
 //! let result2: i32 = program.run(|op| match op {
 //!     CalcOp::Add(n) => {
@@ -286,8 +282,7 @@ impl<F, A> Free<F, A> {
         A: Send + Sync + Clone + 'static,
         B: Send + Sync + Clone + 'static,
     {
-        let next_clone = next;
-        self.bind(move |_| next_clone.clone())
+        self.bind(move |_| next.clone())
     }
 
     /// Applies a function inside a `Free` computation to a value in another `Free` computation.
@@ -298,10 +293,9 @@ impl<F, A> Free<F, A> {
         T: Send + Sync + Clone + 'static,
         B: Send + Sync + Clone + 'static,
     {
-        let value_clone = value;
         self.bind(move |f| {
             let f_arc = Arc::new(f);
-            value_clone.fmap(move |t| f_arc(t))
+            value.fmap(move |t| f_arc(t))
         })
     }
 
@@ -315,11 +309,10 @@ impl<F, A> Free<F, A> {
         Func: Fn(A, T2) -> B + Send + Sync + 'static,
     {
         let f_arc = Arc::new(f);
-        let other_clone = other;
         self.bind(move |a| {
             let f_clone = Arc::clone(&f_arc);
             let a_clone = a.clone();
-            other_clone.fmap(move |b| f_clone(a_clone.clone(), b))
+            other.fmap(move |b| f_clone(a_clone.clone(), b))
         })
     }
 
@@ -369,8 +362,8 @@ impl<F, A> Free<F, A> {
                     let any_box = cont(effect_res)
                         .map_err(|expected| FreeError::TypeMismatch { expected })?;
                     match stack.pop() {
-                        Some(cont) => {
-                            cur = cont(any_box);
+                        Some(next_cont) => {
+                            cur = next_cont(any_box);
                         },
                         None => {
                             return any_box.downcast_ref::<A>().cloned().ok_or(
@@ -385,16 +378,14 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Evaluates the `Free` computation to completion using an effect interpreter.
+    /// Evaluates the computation using an effect interpreter.
     ///
-    /// Evaluation is performed using an iterative trampoline stack, ensuring $O(N)$ linear
-    /// execution time and $O(1)$ call stack depth without risking call stack overflow.
+    /// Evaluation unwinds chains iteratively, keeping call stack depth $O(1)$.
     ///
     /// # Panics
     ///
-    /// The interpreter must return an [`AnyValue`] matching the exact return type expected by
-    /// each effect. If a type mismatch occurs, execution panics with a descriptive error message.
-    /// To handle type mismatches gracefully as `Result`, use [`try_run`](Self::try_run).
+    /// Panics if the interpreter returns an [`AnyValue`] that does not match the expected type `A`.
+    /// Use [`try_run`](Self::try_run) to handle mismatches as a `Result`.
     pub fn run<Interp>(&self, mut interp: Interp) -> A
     where
         F: Send + Sync + Clone + 'static,
@@ -467,9 +458,12 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Extracts the inner value if it is pure.
+    /// Clones and extracts the inner value if it is pure.
+    ///
+    /// Following the Rustica API Guidelines (C-CONV), this method is named `to_pure`
+    /// because it clones the inner value from an immutable reference `&self`.
     #[inline]
-    pub fn into_pure(&self) -> Option<A>
+    pub fn to_pure(&self) -> Option<A>
     where
         A: Clone,
     {
@@ -477,6 +471,24 @@ impl<F, A> Free<F, A> {
             Free::Pure(a) => Some(a.clone()),
             Free::Suspend(_, _) | Free::Bind(_, _) => None,
         }
+    }
+
+    /// Extracts the inner value if it is pure.
+    ///
+    /// # Deprecation
+    ///
+    /// Renamed to [`to_pure`](Self::to_pure) to conform to Rust API Guidelines (C-CONV)
+    /// since it borrows `&self` and clones the inner value.
+    #[inline]
+    #[deprecated(
+        since = "0.17.0",
+        note = "renamed to `to_pure` per Rustica API Guidelines C-CONV"
+    )]
+    pub fn into_pure(&self) -> Option<A>
+    where
+        A: Clone,
+    {
+        self.to_pure()
     }
 }
 
@@ -562,13 +574,17 @@ mod tests {
         assert!(!computation.is_suspend());
         assert!(!computation.is_bind());
         assert_eq!(computation.as_pure(), Some(&42));
-        assert_eq!(computation.into_pure(), Some(42));
+        assert_eq!(computation.to_pure(), Some(42));
+        #[allow(deprecated)]
+        {
+            assert_eq!(computation.into_pure(), Some(42));
+        }
     }
 
     #[test]
     fn test_fmap() {
         let computation: Free<TestCmd, i32> = Free::pure(21).fmap(|x| x * 2);
-        assert_eq!(computation.into_pure(), Some(42));
+        assert_eq!(computation.to_pure(), Some(42));
     }
 
     #[test]
@@ -576,7 +592,7 @@ mod tests {
         let computation: Free<TestCmd, i32> = Free::pure(10)
             .bind(|x| Free::pure(x + 5))
             .flat_map(|x| Free::pure(x * 2));
-        assert_eq!(computation.into_pure(), Some(30));
+        assert_eq!(computation.to_pure(), Some(30));
     }
 
     #[test]
@@ -676,17 +692,17 @@ mod tests {
         let func: Free<TestCmd, fn(i32) -> i32> = Free::pure(|x: i32| x + 10);
         let val: Free<TestCmd, i32> = Free::pure(5);
         let applied = func.apply(val);
-        assert_eq!(applied.into_pure(), Some(15));
+        assert_eq!(applied.to_pure(), Some(15));
 
         let fa: Free<TestCmd, i32> = Free::pure(3);
         let fb: Free<TestCmd, i32> = Free::pure(4);
         let combined: Free<TestCmd, i32> = Free::<TestCmd, ()>::lift2(|a, b| a * b, fa, fb);
-        assert_eq!(combined.into_pure(), Some(12));
+        assert_eq!(combined.to_pure(), Some(12));
 
         let fa2: Free<TestCmd, i32> = Free::pure(3);
         let fb2: Free<TestCmd, i32> = Free::pure(4);
         let zipped = fa2.zip_with(fb2, |a, b| a + b);
-        assert_eq!(zipped.into_pure(), Some(7));
+        assert_eq!(zipped.to_pure(), Some(7));
     }
 
     #[test]
@@ -696,12 +712,12 @@ mod tests {
         let f = |x: i32| Free::pure(x * 3);
         let left: Free<TestCmd, i32> = Free::pure(a).bind(f);
         let right = f(a);
-        assert_eq!(left.into_pure(), right.into_pure());
+        assert_eq!(left.to_pure(), right.to_pure());
 
         // Right identity: m.bind(pure) == m
         let m: Free<TestCmd, i32> = Free::pure(42);
         let bound = m.bind(Free::pure);
-        assert_eq!(bound.into_pure(), Some(42));
+        assert_eq!(bound.to_pure(), Some(42));
 
         // Associativity: m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
         let g = |x: i32| Free::pure(x + 100);
@@ -709,7 +725,7 @@ mod tests {
         let m2: Free<TestCmd, i32> = Free::pure(5);
         let r1 = m1.bind(f).bind(g);
         let r2 = m2.bind(move |x| f(x).bind(g));
-        assert_eq!(r1.into_pure(), r2.into_pure());
+        assert_eq!(r1.to_pure(), r2.to_pure());
     }
 
     #[test]

@@ -5,21 +5,21 @@
 [![CI](https://github.com/but212/rustica/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/but212/rustica/actions/workflows/rust.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Rustica provides pragmatic functional programming and category theory abstractions for Rust.
+Rustica provides functional programming and categorical abstractions for Rust.
 
 ## Overview
 
-- **Type Classes**: `Functor`, `Applicative`, `Monad`, `Pure`, and `Foldable`
-- **Data Types**: `Choice`, `Validated`, `Free`, and `Program` / `TryProgram`
-- **Error Handling**: Context accumulation via `ContextError` and failure accumulation via `Validated`
-- **Persistent Collections**: Immutable RRB-tree `PersistentVector`
-- **Design Guidelines**: Adherence to Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
+- **Type Classes**: `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, `Semigroup`, `Monoid`
+- **Data Types**: `Choice`, `Validated`, `Free`, `Program` / `TryProgram`, `PersistentVector`
+- **Error Handling**: `ContextError` (context accumulation) and `Validated` (failure accumulation)
+- **Collections**: Immutable RRB-tree `PersistentVector` (requires `pvec` feature)
+- **API Guidelines**: Adheres to Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
 
 ### Recommended Use Cases
 
-- **Domain Modeling**: Eliminate impossible states with algebraic types (`Choice`, `Validated`)
-- **Validation**: Accumulate multiple errors without early termination (`Validated`)
-- **Domain DSLs**: Construct inspectable ASTs (`Free`) or statically typed command pipelines (`Program`)
+- **Domain Modeling**: Algebraic types (`Choice`, `Validated`) to represent states precisely
+- **Validation**: Accumulate multiple errors without early exit (`Validated`)
+- **Domain DSLs**: AST construction (`Free`) or typed command-handler dispatch (`Program`)
 - **Persistent Data**: Immutable collections with structural sharing (`PersistentVector`)
 
 ---
@@ -31,8 +31,8 @@ Add Rustica to `Cargo.toml`:
 ```toml
 [dependencies]
 rustica = "0.16.0"
-# Optional feature bundles:
-# rustica = { version = "0.16.0", features = ["pvec"] } # persistent vectors
+# Features:
+# rustica = { version = "0.16.0", features = ["pvec"] } # persistent vector
 # rustica = { version = "0.16.0", features = ["full"] } # async, serde, quickcheck, pvec
 ```
 
@@ -44,31 +44,31 @@ use rustica::prelude::*;
 
 ---
 
-## Core Features and Types
+## Core Features
 
 ### 1. Functional Type Classes
 
-- **`Functor`**: Structure-preserving mapping (`fmap`)
-- **`Pure`**: Context lifting (`pure`)
-- **`Applicative`**: Multi-argument application (`apply`, `lift2`, `lift3`)
-- **`Monad`**: Sequential chaining (`bind`, `join`)
-- **`Foldable`**: Traversal and aggregation (`fold_left`, `fold_right`)
-- **`Semigroup` / `Monoid`**: Associative combination and identity elements
+- **`Functor`**: `fmap`
+- **`Pure`**: `pure`
+- **`Applicative`**: `apply`, `lift2`, `lift3`
+- **`Monad`**: `bind`, `join`
+- **`Foldable`**: `fold_left`, `fold_right`
+- **`Semigroup` / `Monoid`**: `combine`, `empty`
 
 ### 2. Core Data Types
 
-- **`Choice<T>`**: Statically non-empty priority/fallback collection with deterministic fallback execution (`try_each`, `try_each_validated`).
-- **`Validated<E, T>`**: Accumulates all validation errors into `NonEmptyErrors<E>`.
-- **`Free<F, A>`**: Free monad separating AST construction from interpretation with stack-safe iterative trampoline execution (`run`, `try_run`, `fold_map`).
-- **`Program<H, A>` / `TryProgram<H, A, E>`**: Statically-typed operational monads binding domain commands to handlers with compile-time type enforcement.
-- **`PersistentVector<T>`**: Immutable vector with relaxed Radix Balanced (RRB) tree structural sharing (requires `pvec` feature).
+- **`Choice<T>`**: Non-empty priority/fallback collection (`try_each`, `try_each_validated`).
+- **`Validated<E, T>`**: Accumulates errors into `NonEmptyErrors<E>`.
+- **`Free<F, A>`**: Free monad with stack-safe iterative execution (`run`, `try_run`, `fold_map`).
+- **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation.
+- **`PersistentVector<T>`**: Immutable RRB-tree vector (`pvec` feature).
 
-*(Note: `Id`, `State`, `Reader`, `Writer`, `Cont`, `IO`, and Monad Transformers are deprecated in 0.17.0 in favor of native Rust primitives; see [0.17.0 Migration Guide](MIGRATION_v0.17.0.md).)*
+*(Note: `Id`, `State`, `Reader`, `Writer`, `Cont`, `IO`, and Monad Transformers are deprecated in 0.17.0 in favor of standard Rust primitives; see [0.17.0 Migration Guide](MIGRATION_v0.17.0.md).)*
 
 ### 3. Optics
 
-- **`Lens`**: Pure getters and setters for product types.
-- **`Prism`**: Pattern matching and traversal optics for sum types.
+- **`Lens`**: Getters and setters for product types.
+- **`Prism`**: Pattern matching optics for sum types.
 
 ---
 

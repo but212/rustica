@@ -189,7 +189,7 @@ let cloned = v.clone();
 
 ### 7. `State<S, A>` & `StateT<S, M, A>` -> Mutable References (`&mut S`) or Transition Functions
 
-In Rust, mutable references (`&mut S`) provide zero-cost, statically checked state tracking that outperforms boxed closure allocations.
+Mutable references (`&mut S`) provide zero-cost, statically checked state tracking without boxed closures.
 
 **Before (0.16.0):**
 
@@ -222,7 +222,7 @@ let (new_count, result) = step(0);
 
 ### 8. `Reader<E, A>` & `ReaderT<E, M, A>` -> Reference Borrowing (`&Context`)
 
-Rustica's `Reader` and `ReaderT` wrapped closures with `Id` or base monads. In idiomatic Rust, passing a reference to shared context (`&Context` / `&Config`) is simpler, idiomatic, and incurs no runtime cost.
+Borrowing shared context (`&Context` / `&Config`) is zero-cost and avoids closure-wrapping monads.
 
 **Before (0.16.0):**
 
@@ -251,7 +251,7 @@ let addr = get_address(&cfg);
 
 ### 9. `Cont<R, A>` & `ContT<R, M, A>` -> Native Control Flow / `async` / Callbacks
 
-Continuation passing style in Rust incurs high allocation overhead (`Arc<dyn Fn...>`). Standard Rust control flow (`return`, `?`), closures, and `async / await` natively provide coroutines and early exits.
+Language-level control flow (`return`, `?`), closures, and `async`/`await` provide coroutines and early exits without `Arc<dyn Fn...>` allocation.
 
 **Before (0.16.0):**
 
@@ -276,13 +276,13 @@ let res = with_computation(|x| x * 2);
 
 ### 10. `transformers` Subsystem (`MonadTransformer`, `lift`)
 
-The monad transformer architecture has been deprecated in its entirety. Instead of stacking `ReaderT<StateT<OptionT<...>>>`, compose results with standard Rust types (`Option`, `Result`) and native combinators (`?`, `and_then`, `map`).
+Deprecated in its entirety. Replace transformer stacks (`ReaderT<StateT<...>>`) with standard types (`Option`, `Result`) and native combinators (`?`, `and_then`, `map`).
 
 ---
 
 ### 11. `FunctionCategory` -> Standard Closures & Iterators
 
-`FunctionCategory` wrapped functions in `Arc<dyn Fn(A) -> B + 'static>`, adding heap allocation and dynamic dispatch to every composition. In Rust, closures are zero-cost and monomorphized.
+Standard closures are monomorphized and zero-cost, avoiding `Arc<dyn Fn...>` heap allocation and dynamic dispatch.
 
 **Before (0.16.0):**
 
@@ -312,8 +312,8 @@ assert_eq!(result, Some(12));
 ---
 
 ### 12. `IO<A>` -> Eager Functions or Closures
-
-Rust is an impure language where I/O side effects can execute directly without special monadic containment. For deferred evaluation, standard zero-cost closures (`|| ...`) or `async / await` provide superior ergonomics and performance.
+ 
+Direct side-effect execution requires no monadic wrapper in Rust. For deferred evaluation, zero-cost closures (`|| ...`) or `async`/`await` offer simpler ergonomics and higher performance.
 
 **Before (0.16.0):**
 
@@ -344,7 +344,7 @@ let result = compute();
 
 ### 13. `Writer<W, A>` -> Mutable Buffer or Tuples
 
-`Writer` combined logs immutably using monoid operations, causing $O(N^2)$ memory reallocation on chained operations. In Rust, taking a mutable borrow (`&mut Buffer`) provides $O(1)$ amortized appending and zero unnecessary copies.
+Immutable log combination incurs $O(N^2)$ reallocation. Borrowing `&mut Buffer` provides $O(1)$ amortized appends with zero copies.
 
 **Before (0.16.0):**
 
@@ -374,7 +374,7 @@ fn step2(x: i32) -> (i32, &'static str) { (x * 2, "step2") }
 
 ### 14. `MonadError<E>` -> `Result::or_else` / `Option::or_else` / `?` / `match`
 
-`MonadError::throw` and `MonadError::catch` duplicated standard Rust error handling idioms without offering unique capabilities.
+`MonadError::throw` and `catch` duplicate standard Rust error handling.
 
 **Before (0.16.0):**
 
@@ -396,7 +396,7 @@ let recovered = res.or_else(|_| Ok(0));
 
 ### 15. `Alternative` -> `Option::or` / `Vec::extend` / `bool::then_some`
 
-`Alternative::alt`, `empty_alt`, and `guard` duplicated standard library operations that are more explicit and zero-cost in idiomatic Rust.
+`Alternative::alt`, `empty_alt`, and `guard` duplicate standard library operations that are explicit and zero-cost.
 
 **Before (0.16.0):**
 
