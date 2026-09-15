@@ -39,6 +39,7 @@ pub use crate::datatypes::wrapper::last::Last;
 pub use crate::datatypes::wrapper::max::Max;
 #[allow(deprecated)]
 pub use crate::datatypes::wrapper::min::Min;
+#[allow(deprecated)]
 pub use crate::datatypes::wrapper::predicate::Predicate;
 #[allow(deprecated)]
 pub use crate::datatypes::wrapper::product::Product;
