@@ -3,10 +3,7 @@
 //! This module extends the existing `WithError` trait and provides
 //! foundational abstractions for composable, type-safe error management.
 
-use crate::datatypes::validated::{
-    NonEmptyErrors, Validated,
-    core::ErrorVec,
-};
+use crate::datatypes::validated::{NonEmptyErrors, Validated, core::ErrorVec};
 use crate::traits::hkt::HKT;
 
 /// Trait for types that can map their error variant and convert to a standard Result.

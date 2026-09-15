@@ -150,7 +150,6 @@ impl<'de, E: serde::Deserialize<'de>> serde::Deserialize<'de> for NonEmptyErrors
 /// of few errors while still supporting larger error collections efficiently.
 pub(crate) type ErrorVec<E> = SmallVec<[E; 4]>;
 
-
 /// A validation type that can accumulate multiple errors.
 ///
 /// Validated<E, A> represents either a valid value of type A or a collection of
@@ -216,7 +215,6 @@ impl<E, A> Validated<E, A> {
             first, iter,
         )))
     }
-
 
     // --- Value Extraction and Safe Unwrapping ---
 
