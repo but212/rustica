@@ -150,83 +150,6 @@ impl<'de, E: serde::Deserialize<'de>> serde::Deserialize<'de> for NonEmptyErrors
 /// of few errors while still supporting larger error collections efficiently.
 pub(crate) type ErrorVec<E> = SmallVec<[E; 4]>;
 
-/// Internal helper for efficiently accumulating validation errors.
-///
-/// `ErrorAccumulator` provides a unified interface for collecting errors from
-/// multiple `Validated` instances, with optimized paths for both owned and
-/// borrowed error collections.
-///
-/// # Performance Characteristics
-///
-/// - Stack-allocated for up to 4 errors (via `SmallVec`)
-/// - Heap allocation only when exceeding inline capacity
-/// - Zero-copy error transfer via `extend` when consuming `Validated` instances
-/// - Efficient cloning path via `extend_cloned` for borrowed references
-///
-/// # Type Parameters
-///
-/// * `E` - The error type being accumulated
-pub(crate) struct ErrorAccumulator<E> {
-    /// Internal buffer storing accumulated errors.
-    buffer: ErrorVec<E>,
-}
-
-impl<E> ErrorAccumulator<E> {
-    /// Creates a new empty error accumulator.
-    ///
-    /// The accumulator starts with inline storage for up to 4 errors.
-    #[inline]
-    pub(crate) fn new() -> Self {
-        Self {
-            buffer: ErrorVec::new(),
-        }
-    }
-
-    /// Creates a new error accumulator with pre-allocated capacity.
-    ///
-    /// Use this when you know approximately how many errors to expect,
-    /// to avoid reallocation during accumulation.
-    ///
-    /// # Arguments
-    ///
-    /// * `capacity` - The number of errors to pre-allocate space for
-    #[inline]
-    pub(crate) fn with_capacity(capacity: usize) -> Self {
-        Self {
-            buffer: ErrorVec::with_capacity(capacity),
-        }
-    }
-
-    #[inline]
-    pub(crate) fn into_non_empty(self) -> Option<NonEmptyErrors<E>> {
-        NonEmptyErrors::try_from_vec(self.buffer)
-    }
-
-    #[inline]
-    pub(crate) fn push(&mut self, error: E) {
-        self.buffer.push(error);
-    }
-
-    /// Extends the accumulator with errors, avoiding clones.
-    ///
-    /// This method is optimized for consuming `Validated::Invalid` instances
-    /// by draining their error collections directly into the accumulator.
-    ///
-    /// # Arguments
-    ///
-    /// * `errors` - The error collection to drain and append
-    #[inline]
-    pub(crate) fn extend<I: IntoIterator<Item = E>>(&mut self, errors: I) {
-        self.buffer.extend(errors);
-    }
-}
-
-impl<E> Extend<E> for ErrorAccumulator<E> {
-    #[inline]
-    fn extend<I: IntoIterator<Item = E>>(&mut self, iter: I) {
-        self.buffer.extend(iter);
-    }
-}
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -294,14 +217,6 @@ impl<E, A> Validated<E, A> {
         )))
     }
 
-    #[inline]
-    pub(crate) fn invalid_from_accumulator(accumulator: ErrorAccumulator<E>) -> Self {
-        Validated::Invalid(
-            accumulator
-                .into_non_empty()
-                .expect("Validated errors cannot be empty"),
-        )
-    }
 
     // --- Value Extraction and Safe Unwrapping ---
 

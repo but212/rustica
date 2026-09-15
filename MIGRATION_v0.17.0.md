@@ -33,6 +33,8 @@ This guide describes the deprecations, standard library replacements, and migrat
 | `Writer<W, A>` | 0.18.0 | `&mut Buffer`, `tracing`/`log`, tuple `(T, Log)` | $O(N^2)$ immutable buffer reallocations replaced by $O(1)$ amortized mutation. |
 | `MonadError<E>` trait | 0.18.0 | `Result::or_else`, `Option::or_else`, `?`, `match` | Duplicate of native Result/Option methods and language-level operators. |
 | `Alternative` trait | 0.18.0 | `Option::or`, `Vec::extend`, `bool::then_some` | Duplicate of standard Option, Vec, and bool primitives. |
+| `ErrorsIter<'a, E>`, `ErrorsIterMut<'a, E>` | 0.18.0 | `std::slice::Iter<'a, E>`, `std::slice::IterMut<'a, E>` | Custom enum with empty variants replaced by standard slice iterators. |
+| `Free::into_pure` | 0.18.0 | `Free::to_pure` | Aligns receiver semantics (`&self` with cloned inner) with C-CONV. |
 
 ---
 
@@ -412,4 +414,37 @@ let guard = Option::<i32>::guard(true);
 ```rust
 let chosen = Some(1).or(Some(2));
 let guard = true.then_some(());
+```
+
+---
+
+### 16. `ErrorsIter` / `ErrorsIterMut` -> `std::slice::Iter` / `IterMut`
+
+`Validated::iter_errors()` and `iter_errors_mut()` now directly return standard slice iterators.
+
+**Before (0.16.0):**
+
+```rust
+use rustica::datatypes::validated::iter::ErrorsIter;
+
+match validated.iter_errors() {
+    ErrorsIter::Empty => {},
+    ErrorsIter::Multi(mut it) => {
+        let first = it.next();
+    },
+}
+```
+
+**After (0.17.0+):**
+
+```rust
+// Direct standard iterator usage
+for err in validated.iter_errors() {
+    println!("{err}");
+}
+
+// Or borrow slice directly
+for err in validated.error_slice() {
+    println!("{err}");
+}
 ```

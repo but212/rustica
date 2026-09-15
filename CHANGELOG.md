@@ -13,6 +13,16 @@
 - **`AsyncM`**: Deprecated `AsyncM<A>` in favor of `async`/`await` and `Future` (removal in `0.18.0`; see [`MIGRATION_v0.17.0.md`](MIGRATION_v0.17.0.md)).
 - **`Free::into_pure`**: Deprecated in favor of `Free::to_pure` to align with API Guidelines (C-CONV) for borrowing `&self` with cloned inner values. Removal in `0.18.0`.
 - **Benchmarks**: Removed `benches/datatypes/async_monad.rs` after benchmarks confirmed native `async`/`await` is 2.3x–6.1x faster than boxed monadic chains.
+- **`ErrorsIter` / `ErrorsIterMut`**: Deprecated public enums in favor of standard slice iterators (`std::slice::Iter`, `std::slice::IterMut`). Removal in `0.18.0`.
+
+### Validated Improvements
+
+- **Single-Pass `sequence`**: Optimized `Validated::sequence` to partition into valid values and errors in a single pass, eliminating double-iteration and redundant intermediate allocations on the happy path.
+- **Slice Iterators for `iter_errors`**: Updated `Validated::iter_errors` and `Validated::iter_errors_mut` to return `std::slice::Iter` and `std::slice::IterMut` directly instead of custom `ErrorsIter`/`ErrorsIterMut` enums with empty variants.
+- **`ErrorAccumulator` Elimination**: Removed the internal zero-invariant `ErrorAccumulator` wrapper in favor of direct `ErrorVec<E>` usage with `NonEmptyErrors::try_from_vec`.
+- **`map_valid` Functor Delegation**: Delegated `Validated::map_valid` to `Functor::fmap` to eliminate duplicate pattern-matching logic.
+- **Allocation Optimization in `recover_all`**: Replaced intermediate `Vec<E>` in `Validated::recover_all` with stack-allocated `ErrorVec<E>` inline storage.
+
 
 ## [0.16.0]
 

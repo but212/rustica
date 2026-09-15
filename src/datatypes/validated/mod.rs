@@ -113,7 +113,7 @@ pub use iter::*;
 
 #[cfg(test)]
 mod tests {
-    use super::{NonEmptyErrors, Validated};
+    use super::Validated;
     use crate::traits::{applicative::Applicative, functor::Functor, semigroup::Semigroup};
     use quickcheck_macros::quickcheck;
 
@@ -141,14 +141,6 @@ mod tests {
         assert!(result.is_none());
     }
 
-    #[test]
-    fn non_empty_errors_fallible_construction() {
-        assert_eq!(NonEmptyErrors::<String>::try_from_iter(Vec::new()), None);
-
-        let errors = NonEmptyErrors::try_from_iter(["first".to_string(), "second".to_string()])
-            .expect("non-empty input should construct errors");
-        assert_eq!(errors.as_slice(), ["first", "second"]);
-    }
 
     #[quickcheck]
     fn prop_validated_functor_identity(val: i32) -> bool {

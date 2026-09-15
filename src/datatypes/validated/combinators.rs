@@ -1,5 +1,6 @@
-use super::core::ErrorAccumulator;
+use super::core::{ErrorVec, NonEmptyErrors};
 use crate::datatypes::validated::Validated;
+use crate::traits::functor::Functor;
 
 impl<E, A> Validated<E, A> {
     /// Maps a function over the error values if `Invalid`, or returns the `Valid` value.
@@ -67,6 +68,8 @@ impl<E, A> Validated<E, A> {
 
     /// Maps a function over the valid value if `Valid`, preserving errors if `Invalid`.
     ///
+    /// This is an inherent alias for [`Functor::fmap`].
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -76,14 +79,11 @@ impl<E, A> Validated<E, A> {
     /// assert_eq!(valid.map_valid(|v| v * 2), Validated::valid(20));
     /// ```
     #[inline]
-    pub fn map_valid<B, FnValid>(self, mut f: FnValid) -> Validated<E, B>
+    pub fn map_valid<B, FnValid>(self, f: FnValid) -> Validated<E, B>
     where
         FnValid: FnMut(A) -> B,
     {
-        match self {
-            Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::Invalid(es) => Validated::Invalid(es),
-        }
+        self.fmap(f)
     }
 
     /// Maps a function over each error if `Invalid`, preserving the valid value if `Valid`.
@@ -168,29 +168,20 @@ impl<E, A> Validated<E, A> {
     where
         F: FnOnce(Vec<A>) -> B,
     {
-        if values.is_empty() {
-            return Validated::Valid(f(Vec::new()));
-        }
+        let mut valid_values = Vec::with_capacity(values.len());
+        let mut errors = ErrorVec::new();
 
-        if values.iter().all(|v| matches!(v, Validated::Valid(_))) {
-            let valid_values: Vec<A> = values
-                .into_iter()
-                .filter_map(|v| match v {
-                    Validated::Valid(x) => Some(x),
-                    _ => None,
-                })
-                .collect();
-            return Validated::Valid(f(valid_values));
-        }
-
-        let mut acc = ErrorAccumulator::new();
         for value in values {
-            if let Validated::Invalid(es) = value {
-                acc.extend(es);
+            match value {
+                Validated::Valid(x) => valid_values.push(x),
+                Validated::Invalid(es) => errors.extend(es),
             }
         }
 
-        Validated::invalid_from_accumulator(acc)
+        match NonEmptyErrors::try_from_vec(errors) {
+            Some(errors) => Validated::Invalid(errors),
+            None => Validated::Valid(f(valid_values)),
+        }
     }
 
     /// Collects an iterator of Validated values into a single Validated value.
@@ -222,7 +213,7 @@ impl<E, A> Validated<E, A> {
         C: FromIterator<A>,
     {
         let mut values = Vec::new();
-        let mut errors = ErrorAccumulator::new();
+        let mut errors = ErrorVec::new();
 
         for item in iter {
             match item {
@@ -231,7 +222,7 @@ impl<E, A> Validated<E, A> {
             }
         }
 
-        match errors.into_non_empty() {
+        match NonEmptyErrors::try_from_vec(errors) {
             Some(errors) => Validated::Invalid(errors),
             None => Validated::Valid(C::from_iter(values)),
         }
@@ -252,7 +243,7 @@ impl<E, A> Validated<E, A> {
         match self {
             Validated::Valid(v) => Validated::Valid(v),
             Validated::Invalid(errors) => {
-                let mut accumulated = Vec::new();
+                let mut accumulated = ErrorVec::new();
 
                 for error in errors {
                     match recovery(error) {
@@ -263,7 +254,10 @@ impl<E, A> Validated<E, A> {
                     }
                 }
 
-                Validated::invalid_many(accumulated)
+                Validated::Invalid(
+                    NonEmptyErrors::try_from_vec(accumulated)
+                        .expect("recovery errors cannot be empty"),
+                )
             },
         }
     }
