@@ -141,7 +141,6 @@ mod tests {
         assert!(result.is_none());
     }
 
-
     #[quickcheck]
     fn prop_validated_functor_identity(val: i32) -> bool {
         let v: Validated<String, i32> = Validated::valid(val);

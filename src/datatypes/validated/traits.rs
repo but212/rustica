@@ -280,8 +280,7 @@ impl<E, A> Applicative for Validated<E, A> {
                 }
 
                 Validated::Invalid(
-                    NonEmptyErrors::try_from_vec(errors)
-                        .expect("Validated errors cannot be empty"),
+                    NonEmptyErrors::try_from_vec(errors).expect("Validated errors cannot be empty"),
                 )
             },
         }
@@ -306,8 +305,7 @@ impl<E, A> Applicative for Validated<E, A> {
                 }
 
                 Validated::Invalid(
-                    NonEmptyErrors::try_from_vec(errors)
-                        .expect("Validated errors cannot be empty"),
+                    NonEmptyErrors::try_from_vec(errors).expect("Validated errors cannot be empty"),
                 )
             },
         }
@@ -332,8 +330,7 @@ impl<E, A> Applicative for Validated<E, A> {
                 errors.extend(e2);
                 errors.extend(e3);
                 Validated::Invalid(
-                    NonEmptyErrors::try_from_vec(errors)
-                        .expect("Validated errors cannot be empty"),
+                    NonEmptyErrors::try_from_vec(errors).expect("Validated errors cannot be empty"),
                 )
             },
             (a, b, c) => {
@@ -350,8 +347,7 @@ impl<E, A> Applicative for Validated<E, A> {
                 }
 
                 Validated::Invalid(
-                    NonEmptyErrors::try_from_vec(errors)
-                        .expect("Validated errors cannot be empty"),
+                    NonEmptyErrors::try_from_vec(errors).expect("Validated errors cannot be empty"),
                 )
             },
         }
