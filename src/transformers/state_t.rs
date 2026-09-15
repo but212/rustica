@@ -1,9 +1,7 @@
-//! State monad transformer.
-//!
-//! The only representable state is an executable transition `S -> M`, where
-//! the base monad contains the canonical `(S, A)` pair.
+#![allow(deprecated)]
 
 use super::MonadTransformer;
+#[allow(deprecated)]
 use crate::datatypes::id::Id;
 #[allow(deprecated)]
 use crate::error::{ComposableError, ComposableResult};
@@ -17,6 +15,10 @@ use std::sync::Arc;
 type StateRun<S, M> = dyn Fn(S) -> M + Send + Sync;
 
 /// A state transition whose base monad contains `(state, value)`.
+#[deprecated(
+    since = "0.17.0",
+    note = "use mutable references (&mut S) or pure state functions Fn(S) -> (S, A). Scheduled for removal in 0.18.0."
+)]
 pub struct StateT<S, M, A>
 where
     M: HKT<Source = (S, A)>,
@@ -318,6 +320,7 @@ where
     }
 }
 
+#[allow(deprecated)]
 impl<S, A> StateT<S, Id<(S, A)>, A>
 where
     S: Clone + Send + Sync + 'static,
@@ -341,6 +344,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::StateT;
     use crate::datatypes::state::State;

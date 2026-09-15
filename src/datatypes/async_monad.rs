@@ -4,12 +4,17 @@
 //! type `A`.
 //! It provides a monadic-style interface for composing asynchronous operations in a functional programming style.
 //!
+//! **Deprecation Notice**: `AsyncM` is deprecated in 0.17.0 and scheduled for complete removal
+//! in 0.18.0. Use native Rust `async`/`await` and `std::future::Future` instead.
+//! Native async functions compile to zero-cost state machines without dynamic dispatch or allocation overhead.
+//!
 //! **Important**: `AsyncM` is a *cold* computation. If it was created with [`AsyncM::new`], the provided
 //! closure is invoked each time you call [`AsyncM::try_get`]. The result is not memoized.
 //!
 //! ## Quick Start
 //!
 //! ```rust
+//! # #![allow(deprecated)]
 //! use rustica::datatypes::async_monad::AsyncM;
 //!
 //! #[tokio::main]
@@ -99,6 +104,7 @@
 //!
 //! ### Infinite Recursion
 //! ```rust,no_run
+//! # #![allow(deprecated)]
 //! // DON'T: This creates infinite recursion
 //! let bad = AsyncM::new(|| async {
 //!     let inner = AsyncM::pure(42);
@@ -114,6 +120,7 @@
 //!
 //! ### Shared State Issues
 //! ```rust
+//! # #![allow(deprecated)]
 //! # use std::sync::{Arc, Mutex};
 //! # use rustica::datatypes::async_monad::AsyncM;
 //! // DON'T: Capturing mutable references
@@ -240,6 +247,7 @@ enum AsyncMInner<A> {
 /// # Examples
 ///
 /// ```rust
+/// # #![allow(deprecated)]
 /// use rustica::datatypes::async_monad::AsyncM;
 /// use tokio;
 ///
@@ -271,6 +279,7 @@ enum AsyncMInner<A> {
 /// Keep computations cold by constructing them first and executing them with [`try_get`](Self::try_get).
 ///
 /// ```rust
+/// # #![allow(deprecated)]
 /// # use std::sync::{Arc, Mutex};
 /// # use rustica::datatypes::async_monad::AsyncM;
 /// #[derive(Clone)]
@@ -313,12 +322,17 @@ enum AsyncMInner<A> {
 /// println!("Query result: {}", result.try_get().await);
 /// }
 /// ```
+#[deprecated(
+    since = "0.17.0",
+    note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+)]
 #[repr(transparent)]
 #[derive(Clone)]
 pub struct AsyncM<A> {
     inner: AsyncMInner<A>,
 }
 
+#[allow(deprecated)]
 impl<A: Send + Sync + 'static> AsyncM<A> {
     /// Creates a new async computation from a future-producing function.
     ///
@@ -337,6 +351,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     /// use std::time::Duration;
@@ -352,6 +367,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(delayed.try_get().await, 42);
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline(always)]
     pub fn new<G, F>(f: G) -> Self
     where
@@ -375,6 +394,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     ///
@@ -389,6 +409,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(async_string.try_get().await, "hello");
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline(always)]
     pub fn pure(value: A) -> Self
     where
@@ -416,6 +440,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     ///
@@ -428,6 +453,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result, 42);
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline(always)]
     pub async fn try_get(&self) -> A
     where
@@ -457,6 +486,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     ///
@@ -475,6 +505,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, "52");
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline(always)]
     pub fn fmap<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
@@ -530,6 +564,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     ///
@@ -551,6 +586,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 104);
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline(always)]
     pub fn bind<B, F, Fut>(self, f: F) -> AsyncM<B>
     where
@@ -615,6 +654,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     ///
@@ -630,6 +670,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, 84);
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline(always)]
     pub fn apply<B, F>(self, mf: AsyncM<F>) -> AsyncM<B>
     where
@@ -693,6 +737,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     ///
@@ -716,6 +761,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(failure.try_get().await, 0);
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     pub fn from_result_or_default<F, Fut, E>(f: F, default_value: A) -> AsyncM<A>
     where
@@ -755,6 +804,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     /// use std::time::Duration;
@@ -777,6 +827,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result.try_get().await, "hello 42");
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline(always)]
     pub fn zip_with<B, C, F>(self, other: AsyncM<B>, f: F) -> AsyncM<C>
     where
@@ -820,6 +874,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     ///
@@ -835,6 +890,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(str, "hello");
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     pub fn zip<B>(self, other: AsyncM<B>) -> AsyncM<(A, B)>
     where
@@ -859,6 +918,7 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     /// # Examples
     ///
     /// ```rust
+    /// # #![allow(deprecated)]
     /// use rustica::datatypes::async_monad::AsyncM;
     /// use tokio;
     ///
@@ -881,6 +941,10 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     ///     assert_eq!(result, 42);
     /// }
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     pub fn recover_with(self, default: A) -> AsyncM<A>
     where
@@ -912,8 +976,13 @@ impl<A: Send + Sync + 'static> AsyncM<A> {
     }
 }
 
+#[allow(deprecated)]
 impl<A: Send + Sync + Clone + 'static> AsyncM<AsyncM<A>> {
     /// Flattens a nested AsyncM structure into a single AsyncM.
+    #[deprecated(
+        since = "0.17.0",
+        note = "Use native async/await and std::future::Future instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline(always)]
     pub fn join(self) -> AsyncM<A> {
         self.bind(|nested| async move { nested })
@@ -921,6 +990,7 @@ impl<A: Send + Sync + Clone + 'static> AsyncM<AsyncM<A>> {
 }
 
 #[cfg(any(test, feature = "quickcheck"))]
+#[allow(deprecated)]
 impl<A: Arbitrary + Clone + 'static + Send + Sync> Arbitrary for AsyncM<A> {
     fn arbitrary(g: &mut Gen) -> Self {
         let value = A::arbitrary(g);
@@ -929,6 +999,7 @@ impl<A: Arbitrary + Clone + 'static + Send + Sync> Arbitrary for AsyncM<A> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::AsyncM;
 
@@ -1030,6 +1101,7 @@ mod tests {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod unit_tests {
     use super::AsyncM;
     use std::sync::{

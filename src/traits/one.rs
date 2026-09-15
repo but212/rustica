@@ -18,6 +18,10 @@
 /// assert_eq!(i32::one(), 1);
 /// assert_eq!(5 * i32::one(), 5);
 /// ```
+#[deprecated(
+    since = "0.17.0",
+    note = "use numeric literals or std::iter::Product directly. Scheduled for removal in 0.18.0."
+)]
 pub trait One: Sized {
     /// Returns the multiplicative identity element of `Self`.
     fn one() -> Self;

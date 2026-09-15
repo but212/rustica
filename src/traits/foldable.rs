@@ -471,6 +471,10 @@ pub trait FoldableExt: Foldable {
     /// let vec: Vec<i32> = option.to_vec();
     /// assert_eq!(vec, Vec::<i32>::new());
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "use Iterator::collect::<Vec<_>>() instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     fn to_vec(&self) -> Vec<Self::Source>
     where
@@ -496,6 +500,10 @@ pub trait FoldableExt: Foldable {
     /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
     /// assert_eq!(numbers.sum_values(), 10);
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "use Iterator::sum or Foldable::fold_left instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     fn sum_values(&self) -> Self::Source
     where
@@ -518,6 +526,10 @@ pub trait FoldableExt: Foldable {
     /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
     /// assert_eq!(numbers.product_values(), 24);
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "use Iterator::product or Foldable::fold_left instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     fn product_values(&self) -> Self::Source
     where
@@ -543,6 +555,10 @@ pub trait FoldableExt: Foldable {
     /// let empty: Vec<i32> = vec![];
     /// assert_eq!(empty.maximum(), None);
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "use Iterator::max instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     fn maximum(&self) -> Option<Self::Source>
     where
@@ -575,6 +591,10 @@ pub trait FoldableExt: Foldable {
     /// let empty: Vec<i32> = vec![];
     /// assert_eq!(empty.minimum(), None);
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "use Iterator::min instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     fn minimum(&self) -> Option<Self::Source>
     where
@@ -617,6 +637,10 @@ pub trait FoldableExt: Foldable {
     /// let sum = empty.reduce(|a, b| a + b);
     /// assert_eq!(sum, None);
     /// ```
+    #[deprecated(
+        since = "0.17.0",
+        note = "use Iterator::reduce instead. Scheduled for removal in 0.18.0."
+    )]
     #[inline]
     fn reduce<F>(&self, mut f: F) -> Option<Self::Source>
     where
@@ -711,6 +735,7 @@ impl<A, E: Clone> Foldable for Result<A, E> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod unit_tests {
     use super::{Foldable, FoldableExt};
     use crate::datatypes::wrapper::sum::Sum;

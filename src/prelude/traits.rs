@@ -39,6 +39,7 @@
 //!
 //! See each trait's documentation for more details and advanced usage.
 
+#[allow(deprecated)]
 pub use crate::traits::alternative::Alternative;
 pub use crate::traits::applicative::Applicative;
 #[allow(deprecated)]
@@ -51,8 +52,10 @@ pub use crate::traits::hkt::HKT;
 #[allow(deprecated)]
 pub use crate::traits::iso::Iso;
 pub use crate::traits::monad::Monad;
+#[allow(deprecated)]
 pub use crate::traits::monad_error::MonadError;
 pub use crate::traits::monoid::Monoid;
+#[allow(deprecated)]
 pub use crate::traits::one::One;
 pub use crate::traits::pure::Pure;
 pub use crate::traits::semigroup::Semigroup;

@@ -141,14 +141,21 @@
 //! assert_eq!(result1, 5);
 //! assert_eq!(result2, -1);
 //! ```
+#![allow(deprecated)]
+
 use crate::transformers::cont_t::ContT;
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 use std::sync::Arc;
 
+#[allow(deprecated)]
 use crate::datatypes::id::Id;
 
 /// Type alias for a function wrapped in Arc with Send + Sync bounds, commonly used in continuation operations
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard control flow, async/await, or callbacks. Scheduled for removal in 0.18.0."
+)]
 pub type ContFn2<A, B> = Arc<dyn Fn(A) -> B + Send + Sync>;
 
 /// The `Cont` monad represents computations in continuation-passing style.
@@ -177,6 +184,10 @@ pub type ContFn2<A, B> = Arc<dyn Fn(A) -> B + Send + Sync>;
 /// assert_eq!(result1, 5);
 /// assert_eq!(result2, -1);
 /// ```
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard control flow, async/await, or callbacks. Scheduled for removal in 0.18.0."
+)]
 #[repr(transparent)]
 pub struct Cont<R, A> {
     /// The state transformation function

@@ -29,6 +29,8 @@
 //! assert_eq!(result2, Id::new(86));
 //! ```
 
+#![allow(deprecated)]
+
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -37,9 +39,17 @@ use crate::traits::monad::Monad;
 use crate::transformers::MonadTransformer;
 
 /// Type alias for the core continuation transformer function type
+#[deprecated(
+    since = "0.17.0",
+    note = "use async/await, standard closures, or early return. Scheduled for removal in 0.18.0."
+)]
 pub type ContTFn<M, A> = dyn Fn(Arc<dyn Fn(A) -> M + Send + Sync>) -> M + Send + Sync;
 
 /// The continuation monad transformer: ContT<R, M, A> wraps a function `(A -> M<R>) -> M<R>`.
+#[deprecated(
+    since = "0.17.0",
+    note = "use async/await, standard closures, or early return. Scheduled for removal in 0.18.0."
+)]
 #[derive(Clone)]
 pub struct ContT<R, M, A> {
     pub run_cont: Arc<ContTFn<M, A>>,
@@ -349,6 +359,7 @@ impl<R, M, A> ContT<R, M, A> {
     }
 }
 
+#[allow(deprecated)]
 impl<R, A> ContT<R, crate::datatypes::id::Id<R>, A> {
     /// Converts this `ContT<R, Id<R>, A>` into a `Cont<R, A>`.
     ///

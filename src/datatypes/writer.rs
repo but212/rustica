@@ -106,6 +106,8 @@
 //!
 //! The log type must implement [`Monoid`]. The `tests` module exercises custom log types,
 //! ordered accumulation, and chained computations.
+#![allow(deprecated)]
+
 use crate::traits::applicative::Applicative;
 use crate::traits::functor::Functor;
 use crate::traits::hkt::HKT;
@@ -140,6 +142,10 @@ use quickcheck::{Arbitrary, Gen};
 ///
 /// - `W`: The log type, which must implement the Monoid trait
 /// - `A`: The value type
+#[deprecated(
+    since = "0.17.0",
+    note = "use mutable references (&mut Buffer), standard logging (tracing/log), or return a tuple (T, Log). Scheduled for removal in 0.18.0."
+)]
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Writer<W, A> {
@@ -526,6 +532,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::Writer;
     use crate::datatypes::wrapper::sum::Sum;

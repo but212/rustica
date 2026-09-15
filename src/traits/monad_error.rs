@@ -76,6 +76,8 @@
 //!
 //! assert_eq!(handled, Ok(0));
 //! ```
+#![allow(deprecated)]
+
 use crate::traits::monad::Monad;
 
 /// A trait for monads that can handle errors, extending the basic Monad trait.
@@ -107,6 +109,10 @@ use crate::traits::monad::Monad;
 /// 3. Associativity Catch Law:
 ///    m.catch(h1).catch(h2) == m.catch(e -> h1(e).catch(h2))
 ///    Nested catches can be rewritten as a single catch with a composed handler.
+#[deprecated(
+    since = "0.17.0",
+    note = "use std::result::Result methods (or_else, map_err), standard ? operator, or match. Scheduled for removal in 0.18.0."
+)]
 pub trait MonadError<E>: Monad {
     /// Creates a new instance in an error state.
     ///

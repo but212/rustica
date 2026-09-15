@@ -173,6 +173,8 @@
 //! drop(iter);
 //! assert_eq!(id.into_inner(), 43);
 //! ```
+#![allow(deprecated)]
+
 use crate::traits::{
     applicative::Applicative, foldable::Foldable, functor::Functor, hkt::HKT, monad::Monad,
     monoid::Monoid, pure::Pure, semigroup::Semigroup,
@@ -251,6 +253,10 @@ use quickcheck::{Arbitrary, Gen};
 #[repr(transparent)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[must_use = "This is a pure value wrapper which does nothing unless used"]
+#[deprecated(
+    since = "0.17.0",
+    note = "use plain values directly or std::convert::identity. Scheduled for removal in 0.18.0."
+)]
 pub struct Id<T> {
     value: T,
 }
@@ -649,6 +655,7 @@ impl<T: Clone + Arbitrary> Arbitrary for Id<T> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::Id;
     use crate::traits::{functor::Functor, monad::Monad};
@@ -680,6 +687,7 @@ mod tests {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod unit_tests {
     use super::Id;
     use crate::traits::{applicative::Applicative, functor::Functor, monad::Monad, pure::Pure};

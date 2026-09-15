@@ -37,17 +37,24 @@
 //! See each type's documentation for more details and advanced usage.
 
 #[cfg(feature = "async")]
+#[allow(deprecated)]
 pub use crate::datatypes::async_monad::AsyncM;
 pub use crate::datatypes::choice::Choice;
+#[allow(deprecated)]
 pub use crate::datatypes::cont::Cont;
 pub use crate::datatypes::error::{ChoiceError, FreeError, ValidatedError};
 pub use crate::datatypes::free::Free;
+#[allow(deprecated)]
 pub use crate::datatypes::id::Id;
+#[allow(deprecated)]
 pub use crate::datatypes::io::IO;
 pub use crate::datatypes::lens::Lens;
 pub use crate::datatypes::operational::{Command, Handler, Program, TryHandler, TryProgram};
 pub use crate::datatypes::prism::Prism;
+#[allow(deprecated)]
 pub use crate::datatypes::reader::Reader;
+#[allow(deprecated)]
 pub use crate::datatypes::state::State;
 pub use crate::datatypes::validated::{NonEmptyErrors, Validated};
+#[allow(deprecated)]
 pub use crate::datatypes::writer::Writer;

@@ -113,6 +113,8 @@
 //! the original reader. Its behavior is covered by
 //! `test_reader_transformation_pipeline` below.
 
+#![allow(deprecated)]
+
 use crate::datatypes::id::Id;
 use crate::transformers::ReaderT;
 #[cfg(any(test, feature = "quickcheck"))]
@@ -151,6 +153,10 @@ use quickcheck::{Arbitrary, Gen};
 ///
 /// Complex environment composition is covered by
 /// `test_reader_complex_environment` in the module tests.
+#[deprecated(
+    since = "0.17.0",
+    note = "pass environment by reference (&Context) or closure. Scheduled for removal in 0.18.0."
+)]
 #[repr(transparent)]
 pub struct Reader<E, A> {
     inner: ReaderT<E, Id<A>, A>,

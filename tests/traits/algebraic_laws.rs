@@ -73,6 +73,7 @@ fn vec_lift3_matches_cartesian_product() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn test_product_monoid_i8() {
     use rustica::datatypes::wrapper::product::Product;
     use rustica::traits::monoid::Monoid;

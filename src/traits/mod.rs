@@ -62,5 +62,7 @@ pub mod alternative;
 pub mod iso;
 
 /// Multiplicative identity element.
+#[allow(deprecated)]
 pub mod one;
+#[allow(deprecated)]
 pub use one::One;

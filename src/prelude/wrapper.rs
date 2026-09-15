@@ -31,12 +31,18 @@
 //!
 //! Wrapper types provide powerful abstractions when used with [`Monoid`], [`Semigroup`], etc.
 
+#[allow(deprecated)]
 pub use crate::datatypes::wrapper::first::First;
+#[allow(deprecated)]
 pub use crate::datatypes::wrapper::last::Last;
+#[allow(deprecated)]
 pub use crate::datatypes::wrapper::max::Max;
+#[allow(deprecated)]
 pub use crate::datatypes::wrapper::min::Min;
 pub use crate::datatypes::wrapper::predicate::Predicate;
+#[allow(deprecated)]
 pub use crate::datatypes::wrapper::product::Product;
+#[allow(deprecated)]
 pub use crate::datatypes::wrapper::sum::Sum;
 
 // Also re-export commonly used traits
