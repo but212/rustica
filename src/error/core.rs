@@ -3,7 +3,10 @@
 //! This module extends the existing `WithError` trait and provides
 //! foundational abstractions for composable, type-safe error management.
 
-use crate::datatypes::validated::{Validated, core::ErrorAccumulator};
+use crate::datatypes::validated::{
+    NonEmptyErrors, Validated,
+    core::ErrorVec,
+};
 use crate::traits::hkt::HKT;
 
 /// Trait for types that can map their error variant and convert to a standard Result.
@@ -38,7 +41,7 @@ where
     F: FnMut(A) -> Result<B, E>,
 {
     let mut values = Vec::new();
-    let mut errors = ErrorAccumulator::new();
+    let mut errors = ErrorVec::new();
 
     for item in collection {
         match f(item) {
@@ -47,7 +50,7 @@ where
         }
     }
 
-    match errors.into_non_empty() {
+    match NonEmptyErrors::try_from_vec(errors) {
         Some(errors) => Validated::Invalid(errors),
         None => Validated::Valid(values),
     }

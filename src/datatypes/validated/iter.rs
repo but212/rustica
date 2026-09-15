@@ -4,12 +4,20 @@ pub type Iter<'a, A> = std::option::IntoIter<&'a A>;
 pub type IterMut<'a, A> = std::option::IntoIter<&'a mut A>;
 pub type IntoIter<A> = std::option::IntoIter<A>;
 
-/// Iterator over errors in a Validated
+/// Iterator over errors in a Validated.
+///
+/// Prefer calling [`Validated::error_slice`] and slicing directly.
+#[deprecated(
+    since = "0.17.0",
+    note = "Use `validated.error_slice().iter()` or `validated.iter_errors()` which now returns `std::slice::Iter`."
+)]
+#[derive(Debug)]
 pub enum ErrorsIter<'a, E> {
     Empty,
     Multi(smallvec::alloc::slice::Iter<'a, E>),
 }
 
+#[allow(deprecated)]
 impl<'a, E> Iterator for ErrorsIter<'a, E> {
     type Item = &'a E;
 
@@ -21,12 +29,20 @@ impl<'a, E> Iterator for ErrorsIter<'a, E> {
     }
 }
 
-/// Mutable iterator over errors in a Validated
+/// Mutable iterator over errors in a Validated.
+///
+/// Prefer calling [`Validated::iter_errors_mut`] directly.
+#[deprecated(
+    since = "0.17.0",
+    note = "Use `validated.iter_errors_mut()` which now returns `std::slice::IterMut`."
+)]
+#[derive(Debug)]
 pub enum ErrorsIterMut<'a, E> {
     Empty,
     Multi(smallvec::alloc::slice::IterMut<'a, E>),
 }
 
+#[allow(deprecated)]
 impl<'a, E> Iterator for ErrorsIterMut<'a, E> {
     type Item = &'a mut E;
 
@@ -100,19 +116,16 @@ impl<E, A> Validated<E, A> {
 
     /// Returns an iterator over all errors if this is invalid, or an empty iterator if valid.
     #[inline]
-    pub fn iter_errors(&self) -> ErrorsIter<'_, E> {
-        match self {
-            Validated::Invalid(es) => ErrorsIter::Multi(es.iter()),
-            _ => ErrorsIter::Empty,
-        }
+    pub fn iter_errors(&self) -> std::slice::Iter<'_, E> {
+        self.error_slice().iter()
     }
 
     /// Returns a mutable iterator over the error(s) (0 or many).
     #[inline]
-    pub fn iter_errors_mut(&mut self) -> ErrorsIterMut<'_, E> {
+    pub fn iter_errors_mut(&mut self) -> std::slice::IterMut<'_, E> {
         match self {
-            Validated::Invalid(es) => ErrorsIterMut::Multi(es.iter_mut()),
-            _ => ErrorsIterMut::Empty,
+            Validated::Invalid(es) => es.iter_mut(),
+            _ => [].iter_mut(),
         }
     }
 

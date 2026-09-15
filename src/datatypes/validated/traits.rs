@@ -6,7 +6,7 @@
 
 use crate::datatypes::validated::{
     NonEmptyErrors,
-    core::{ErrorAccumulator, Validated},
+    core::{ErrorVec, Validated},
 };
 use crate::traits::applicative::Applicative;
 #[allow(deprecated)]
@@ -270,7 +270,7 @@ impl<E, A> Applicative for Validated<E, A> {
         match (self, value) {
             (Validated::Valid(f), Validated::Valid(x)) => Validated::Valid(f(x)),
             (a, b) => {
-                let mut errors = ErrorAccumulator::new();
+                let mut errors = ErrorVec::new();
 
                 if let Validated::Invalid(e) = a {
                     errors.extend(e);
@@ -279,7 +279,10 @@ impl<E, A> Applicative for Validated<E, A> {
                     errors.extend(e);
                 }
 
-                Validated::invalid_from_accumulator(errors)
+                Validated::Invalid(
+                    NonEmptyErrors::try_from_vec(errors)
+                        .expect("Validated errors cannot be empty"),
+                )
             },
         }
     }
@@ -293,7 +296,7 @@ impl<E, A> Applicative for Validated<E, A> {
         match (fa, fb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
             (a, b) => {
-                let mut errors = ErrorAccumulator::new();
+                let mut errors = ErrorVec::new();
 
                 if let Validated::Invalid(e) = a {
                     errors.extend(e);
@@ -302,7 +305,10 @@ impl<E, A> Applicative for Validated<E, A> {
                     errors.extend(e);
                 }
 
-                Validated::invalid_from_accumulator(errors)
+                Validated::Invalid(
+                    NonEmptyErrors::try_from_vec(errors)
+                        .expect("Validated errors cannot be empty"),
+                )
             },
         }
     }
@@ -321,14 +327,17 @@ impl<E, A> Applicative for Validated<E, A> {
                 Validated::Valid(f(a, b_val, c_val))
             },
             (Validated::Invalid(e1), Validated::Invalid(e2), Validated::Invalid(e3)) => {
-                let mut errors = ErrorAccumulator::with_capacity(e1.len() + e2.len() + e3.len());
+                let mut errors = ErrorVec::with_capacity(e1.len() + e2.len() + e3.len());
                 errors.extend(e1);
                 errors.extend(e2);
                 errors.extend(e3);
-                Validated::invalid_from_accumulator(errors)
+                Validated::Invalid(
+                    NonEmptyErrors::try_from_vec(errors)
+                        .expect("Validated errors cannot be empty"),
+                )
             },
             (a, b, c) => {
-                let mut errors = ErrorAccumulator::new();
+                let mut errors = ErrorVec::new();
 
                 if let Validated::Invalid(e) = a {
                     errors.extend(e);
@@ -340,7 +349,10 @@ impl<E, A> Applicative for Validated<E, A> {
                     errors.extend(e);
                 }
 
-                Validated::invalid_from_accumulator(errors)
+                Validated::Invalid(
+                    NonEmptyErrors::try_from_vec(errors)
+                        .expect("Validated errors cannot be empty"),
+                )
             },
         }
     }
