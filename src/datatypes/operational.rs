@@ -16,7 +16,7 @@
 //! ## `Free` vs `Program`
 //!
 //! - Use [`Free`](crate::datatypes::free::Free) for a cloneable AST that can be inspected,
-//!   transformed via [`fold_map`](crate::datatypes::free::Free::fold_map), or re-evaluated.
+//!   branched, or re-evaluated.
 //! - Use [`Program`] / [`TryProgram`] when command outputs should be checked against handler
 //!   trait signatures at the cost of tying the AST to a concrete handler type.
 //!

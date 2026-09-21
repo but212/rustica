@@ -55,10 +55,12 @@
 //! `Validated<E, A>` implements several type classes that enable its core functionality:
 //!
 //! - **Functor**: Maps functions over the valid value
-//! - **Bifunctor**: Maps functions over both the error and valid values
 //! - **Applicative**: Allows applying functions wrapped in `Validated` contexts
 //! - **Semigroup**: Combines error values when both `Validated` values are invalid
 //! - **Foldable**: Folds valid values (ignoring invalid ones)
+//!
+//! Inherent methods like [`bimap`](Validated::bimap), [`map_valid`](Validated::map_valid), and [`map_err`](Validated::map_err)
+//! provide dual-track mappings over both error and valid branches.
 //!
 //! ## Examples
 //!

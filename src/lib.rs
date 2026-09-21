@@ -9,10 +9,10 @@
 //! Rustica brings these concepts to Rust with a focus on pragmatism and performance, providing:
 //!
 //! - Type-safe functional abstractions like `Functor`, `Applicative`, and `Monad`
-//! - Practical data types such as `Validated`, `Choice`, and `Id`
+//! - Practical data types such as `Validated`, `Choice`, and operational monads
 //! - Optics for data manipulation via `Lens` and `Prism`
 //! - Composable operations for error handling and data transformation
-//! - Advanced monad transformers: `StateT`, `ReaderT`, `ContT`
+//! - Deferred computation via `Free` and `Program`
 //!
 //! ## Getting Started
 //!
@@ -20,7 +20,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rustica = "0.17.0"
+//! rustica = "0.18.0"
 //! ```
 //!
 //! Import common traits and types through the prelude:
@@ -86,7 +86,7 @@
 //! Rustica provides several feature flags to customize the library for your needs:
 //!
 //! - `full`: Enables all optional features (`async`, `serde`, `quickcheck`, `pvec`)
-//! - `async`: Enables async monadic operations (`AsyncM`, `Validated` async combinators)
+//! - `async`: Enables `Validated` async combinators
 //! - `serde`: Enables serialization/deserialization support
 //! - `pvec`: Enables persistent vector implementation (`PersistentVector`)
 //! - `quickcheck`: Enables arbitrary generation for property-based testing
@@ -97,10 +97,8 @@
 //!
 //! - `traits`: Fundamental traits for functional programming concepts
 //! - `datatypes`: Implementations of various functional data types
-//! - `transformers`: Monad transformers and related utilities
-//! - `error`: Composable error handling utilities
+//! - `error`: Context-aware error handling utilities
 //! - `pvec`: Persistent vector implementation with structural sharing (requires `pvec` feature)
-//! - `category`: Category theory abstractions and function composition
 //! - `prelude`: A convenient module that re-exports commonly used items
 
 /// Core traits for functional programming abstractions.
@@ -127,24 +125,6 @@ pub mod pvec;
 /// programming data types and containers, each with appropriate trait
 /// implementations.
 pub mod datatypes;
-
-/// Monad transformers and related utilities.
-///
-/// Monad transformers allow combining the effects of multiple monads,
-/// such as adding error handling to stateful computations or adding
-/// state to asynchronous operations.
-#[deprecated(
-    since = "0.17.0",
-    note = "monad transformers are scheduled for removal in 0.18.0. Use standard Rust control flow, &mut S, or context borrowing."
-)]
-pub mod transformers;
-
-/// Category theory abstractions.
-#[deprecated(
-    since = "0.17.0",
-    note = "use standard closures, function pointers, or iterator combinators. Scheduled for removal in 0.18.0."
-)]
-pub mod category;
 
 /// Error handling utilities.
 pub mod error;

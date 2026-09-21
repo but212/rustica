@@ -67,19 +67,27 @@ fn test_monoid_utilities() {
 }
 
 #[test]
-#[allow(deprecated)]
 fn test_validated_semigroup_accumulation() {
     use rustica::datatypes::validated::core::Validated;
-    use rustica::datatypes::wrapper::sum::Sum;
+    use rustica::traits::semigroup::Semigroup;
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    struct TestSum(i32);
+
+    impl Semigroup for TestSum {
+        fn combine(self, other: Self) -> Self {
+            TestSum(self.0 + other.0)
+        }
+    }
 
     // 1. Semigroup accumulates both valid payloads when both are Valid
-    let v1: Validated<String, Sum<i32>> = Validated::valid(Sum(10));
-    let v2: Validated<String, Sum<i32>> = Validated::valid(Sum(20));
-    assert_eq!(v1.combine(v2), Validated::valid(Sum(30)));
+    let v1: Validated<String, TestSum> = Validated::valid(TestSum(10));
+    let v2: Validated<String, TestSum> = Validated::valid(TestSum(20));
+    assert_eq!(v1.combine(v2), Validated::valid(TestSum(30)));
 
     // 2. Semigroup yields Invalid when one is Invalid (errors take precedence)
-    let v1: Validated<String, Sum<i32>> = Validated::valid(Sum(10));
-    let inv: Validated<String, Sum<i32>> = Validated::invalid("err1".to_string());
+    let v1: Validated<String, TestSum> = Validated::valid(TestSum(10));
+    let inv: Validated<String, TestSum> = Validated::invalid("err1".to_string());
     assert!(v1.clone().combine(inv.clone()).is_invalid());
     assert!(inv.combine(v1).is_invalid());
 }

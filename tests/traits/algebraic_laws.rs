@@ -73,16 +73,29 @@ fn vec_lift3_matches_cartesian_product() {
 }
 
 #[test]
-#[allow(deprecated)]
 fn test_product_monoid_i8() {
-    use rustica::datatypes::wrapper::product::Product;
     use rustica::traits::monoid::Monoid;
     use rustica::traits::semigroup::Semigroup;
 
-    let empty: Product<i8> = Product::empty();
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    struct TestProduct(i8);
+
+    impl Semigroup for TestProduct {
+        fn combine(self, other: Self) -> Self {
+            TestProduct(self.0 * other.0)
+        }
+    }
+
+    impl Monoid for TestProduct {
+        fn empty() -> Self {
+            TestProduct(1)
+        }
+    }
+
+    let empty: TestProduct = TestProduct::empty();
     assert_eq!(empty.0, 1i8);
 
-    let val = Product(5i8);
+    let val = TestProduct(5i8);
     assert_eq!(val.combine(empty), val);
     assert_eq!(empty.combine(val), val);
 }

@@ -74,46 +74,6 @@ pub trait HKT {
     type Output<NewType>: HKT<Source = NewType>;
 }
 
-/// A trait for higher-kinded types that have two type parameters.
-///
-/// This trait extends the `HKT` trait to allow for types that have a second type
-/// parameter, such as `Result<T, E>` or `Validated<E, T>`.
-///
-/// # Important: Type Parameter Mapping Convention
-///
-/// The mapping between lexical type parameters and `Source`/`Source2` follows
-/// the functional programming convention where the "success" or "right" value
-/// is the primary content (mapped by `Functor::fmap`):
-///
-/// | Type | `Source` (primary) | `Source2` (secondary) |
-/// |------|--------------------|-----------------------|
-/// | `Result<T, E>` | `T` (Ok value) | `E` (Err value) |
-/// | `Validated<E, T>` | `T` (Valid value) | `E` (Error value) |
-///
-/// # Examples
-///
-/// `BinaryHKT` is useful when a type constructor has two type parameters:
-///
-/// ```rust
-/// #![allow(deprecated)]
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::hkt::BinaryHKT;
-///
-/// fn check_binary_hkt<T: BinaryHKT>() {}
-/// check_binary_hkt::<Validated<String, i32>>();
-/// ```
-#[deprecated(
-    since = "0.16.0",
-    note = "BinaryHKT is scheduled for removal; use inherent methods or std traits on types with multiple parameters instead"
-)]
-pub trait BinaryHKT: HKT {
-    /// The second type parameter of this HKT.
-    type Source2;
-
-    /// The same HKT but with both type parameters replaced.
-    type BinaryOutput<Type1, Type2>: BinaryHKT<Source = Type1, Source2 = Type2>;
-}
-
 // Implementations for common Rust types
 
 impl<T> HKT for Option<T> {

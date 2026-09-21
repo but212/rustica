@@ -14,16 +14,7 @@
 //!
 //! ## Core Monadic Types
 //!
-//! - `id` - Identity functor/monad, the simplest container
 //! - `validated` - Accumulating error handling
-//!
-//! ## Effect Types
-//!
-//! - `io` - Encapsulates side effects for deferred execution
-//! - `reader` - Computations that read from a shared environment
-//! - `writer` - Computations that produce a log alongside a value
-//! - `state` - Stateful computations with get/put operations
-//! - `cont` - Continuation-passing style computations
 //! - `free` - Free monad for DSL construction and deferred interpretation
 //! - `operational` - Statically-typed operational monad with command-handler dispatch
 //!
@@ -32,35 +23,14 @@
 //! - `lens` - Bidirectional accessors for product types (structs)
 //! - `prism` - Bidirectional accessors for sum types (enums)
 //!
-//! Isomorphisms can also induce core lenses and prisms through `Lens::from_iso`
-//! and `Prism::from_iso`.
-//!
 //! ## Utility Types
 //!
 //! - `choice` - N-ary sum type for multiple alternatives
-//! - `wrapper` - Newtype wrapper for deriving trait implementations
-//!
-//! ## Async Support
-//!
-//! - `async_monad` - Async-aware monadic operations (requires `async` feature)
 
-#[cfg(feature = "async")]
-pub mod async_monad;
 pub mod choice;
-pub mod cont;
 pub mod error;
 pub mod free;
-pub mod id;
-pub mod io;
 pub mod lens;
 pub mod operational;
 pub mod prism;
-pub mod reader;
-pub mod state;
 pub mod validated;
-#[deprecated(
-    since = "0.17.0",
-    note = "use standard library Option, cmp, and iter operators directly. Scheduled for removal in 0.18.0."
-)]
-pub mod wrapper;
-pub mod writer;

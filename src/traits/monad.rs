@@ -130,34 +130,6 @@ pub trait Monad: Applicative {
     {
         self.bind(f)
     }
-
-    /// Performs a monadic map operation with a simpler function.
-    #[deprecated(since = "0.16.0", note = "use Functor::fmap instead")]
-    #[inline]
-    fn map_and_pure<U, F>(self, f: F) -> Self::Output<U>
-    where
-        F: FnMut(Self::Source) -> U,
-        Self: Sized,
-    {
-        self.fmap(f)
-    }
-
-    /// Applies a monadic function to a non-monadic value, with error handling.
-    #[deprecated(
-        since = "0.16.0",
-        note = "use bind with error handling inside the closure instead"
-    )]
-    #[inline]
-    fn try_bind<U: Clone, E, F>(self, default: U, mut f: F) -> Self::Output<U>
-    where
-        F: FnMut(Self::Source) -> Result<Self::Output<U>, E>,
-        Self: Sized,
-    {
-        self.bind(move |x| match f(x) {
-            Ok(m) => m,
-            Err(_) => Self::pure(default.clone()),
-        })
-    }
 }
 
 // Implementation for Option

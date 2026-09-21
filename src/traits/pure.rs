@@ -188,36 +188,6 @@ pub trait PureExt: Sized {
     {
         P::pure(self)
     }
-
-    /// Lift a pair of values into a context.
-    #[deprecated(since = "0.16.0", note = "Construct pairs or use Pure::pure directly")]
-    #[inline]
-    fn pair_with<P, U>(self, other: U) -> P::Output<(Self, U)>
-    where
-        P: Pure,
-    {
-        P::pure((self, other))
-    }
-
-    /// Lift another value into a context.
-    #[deprecated(since = "0.16.0", note = "Use Pure::pure directly")]
-    #[inline]
-    fn lift_other<P, U>(&self, other: U) -> P::Output<U>
-    where
-        P: Pure,
-    {
-        P::pure(other)
-    }
-
-    /// Combine two values into a new value and lift it into a context.
-    #[deprecated(since = "0.16.0", note = "Compute value and use Pure::pure directly")]
-    #[inline]
-    fn combine_with<P, U, V>(self, other: U, f: impl FnOnce(Self, U) -> V) -> P::Output<V>
-    where
-        P: Pure,
-    {
-        P::pure(f(self, other))
-    }
 }
 
 impl<T> PureExt for T {}

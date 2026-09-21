@@ -5,7 +5,6 @@ use harness::Harness;
 
 mod datatypes {
     pub mod composable_error;
-    pub mod io;
     pub mod lazy_error;
     pub mod lens;
     #[cfg(feature = "pvec")]
@@ -14,7 +13,6 @@ mod datatypes {
 }
 
 use datatypes::composable_error::composable_error_benchmarks;
-use datatypes::io::io_benchmarks;
 use datatypes::lazy_error::lazy_error_benchmarks;
 use datatypes::lens::lens_benchmarks;
 #[cfg(feature = "pvec")]
@@ -25,7 +23,6 @@ fn main() {
     let harness = Harness::new();
 
     validated_benchmarks(&harness);
-    io_benchmarks(&harness);
     lens_benchmarks(&harness);
     composable_error_benchmarks(&harness);
     lazy_error_benchmarks(&harness);

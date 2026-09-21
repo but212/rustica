@@ -60,11 +60,9 @@ use rustica::prelude::*;
 
 - **`Choice<T>`**: Non-empty priority/fallback collection (`try_each`, `try_each_validated`).
 - **`Validated<E, T>`**: Accumulates errors into `NonEmptyErrors<E>`.
-- **`Free<F, A>`**: Free monad with stack-safe iterative execution (`run`, `try_run`, `fold_map`).
+- **`Free<F, A>`**: Free monad with stack-safe iterative execution (`run`, `try_run`).
 - **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation.
 - **`PersistentVector<T>`**: Immutable RRB-tree vector (`pvec` feature).
-
-*(Note: `Id`, `State`, `Reader`, `Writer`, `Cont`, `IO`, and Monad Transformers are deprecated in 0.17.0 in favor of standard Rust primitives; see [0.17.0 Migration Guide](MIGRATION_v0.17.0.md).)*
 
 ### 3. Optics
 
@@ -75,8 +73,9 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
+- [0.18.0 Migration Guide](MIGRATION_v0.18.0.md) (Complete removal of deprecated modules: Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
 - [0.17.0 Migration Guide](MIGRATION_v0.17.0.md) (Deprecation of redundant FP abstractions in favor of native Rust primitives: Transformers, Effect Monads, FunctionCategory, Wrappers)
-- [0.17.0 Migration Guide](MIGRATION_v0.17.0.md) (Choice fallback semantics, Rust API receiver alignment, optics laws, Bifunctor deprecation)
+- [0.16.0 Migration Guide](MIGRATION_v0.16.0.md) (Choice fallback semantics, Rust API receiver alignment, optics laws, Bifunctor deprecation)
 - [0.15.0 Migration Guide](MIGRATION_v0.15.0.md) (RRB tree integrity, unwrap panic context)
 - [0.14.0 Migration Guide](MIGRATION_v0.14.0.md) (Surface reduction, compile-time base monad enforcement)
 

@@ -276,27 +276,6 @@ where
     move |error| accumulate_context(error, contexts.clone())
 }
 
-/// Formats an error with its full context chain.
-#[deprecated(
-    since = "0.16.0",
-    note = "Use error.error_chain() instead. format_error_chain is scheduled for removal in 0.18.0."
-)]
-pub fn format_error_chain<E>(error: &ContextError<E>) -> String
-where
-    E: Display,
-{
-    error.error_chain()
-}
-
-/// Extracts all context information from a `ContextError` (most recent first).
-#[deprecated(
-    since = "0.16.0",
-    note = "Use error.context() or error.context_iter() instead. extract_context is scheduled for removal in 0.18.0."
-)]
-pub fn extract_context<E>(error: &ContextError<E>) -> Vec<String> {
-    error.context()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -322,28 +301,5 @@ mod tests {
         assert_eq!(first.context().len(), 2);
         assert_eq!(second.context().len(), 2);
         assert_eq!(first.context(), second.context());
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn format_error_chain_renders_context_and_error() {
-        let error = ContextError::new("file not found")
-            .with_context("failed to load config")
-            .with_context("application startup failed");
-
-        assert_eq!(
-            format_error_chain(&error),
-            "application startup failed -> failed to load config -> file not found"
-        );
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn extract_context_returns_most_recent_first() {
-        let error = ContextError::new("error")
-            .with_context("context 1")
-            .with_context("context 2");
-
-        assert_eq!(extract_context(&error), vec!["context 2", "context 1"]);
     }
 }

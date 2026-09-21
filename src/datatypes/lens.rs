@@ -122,8 +122,6 @@
 //! composition and structural-sharing behavior is covered by
 //! `test_lens_composition_and_chaining` in `tests/datatypes/test_lens.rs`.
 
-#[allow(deprecated)]
-use crate::traits::iso::Iso;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -707,34 +705,6 @@ where
                 let new_a = set2(a, b);
                 set1(s, new_a)
             },
-        )
-    }
-}
-
-impl<S, A> Lens<S, A, fn(&S) -> A, fn(S, A) -> S>
-where
-    S: Clone,
-    A: Clone,
-{
-    /// Creates a lens induced by an isomorphism.
-    ///
-    /// The isomorphism's `forward` map becomes the lens getter and its
-    /// `backward` map reconstructs the source when setting a focus.
-    #[deprecated(
-        since = "0.16.0",
-        note = "Iso is deprecated; construct lenses directly with Lens::new or closures instead"
-    )]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn from_iso<I>(iso: I) -> Lens<S, A, impl Fn(&S) -> A, impl Fn(S, A) -> S>
-    where
-        I: Iso<S, A>,
-    {
-        let iso = Arc::new(iso);
-        let getter_iso = Arc::clone(&iso);
-        Lens::new(
-            move |source: &S| getter_iso.forward(source.clone()),
-            move |_source: S, focus: A| iso.backward(focus),
         )
     }
 }

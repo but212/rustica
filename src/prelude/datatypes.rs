@@ -3,32 +3,20 @@
 //!
 //! This module re-exports Rustica's core functional data types for expressive, type-safe programming.
 //! These types encode common functional programming patterns such as optionality, error handling,
-//! validation, state, dependency injection, and more.
+//! validation, optics, and deferred computation.
 //!
 //! ## Included Data Types
 //!
 //! - [`Validated`]: Error accumulation and validation
-//! - [`Choice`]: Non-deterministic computation with multiple alternatives
-//! - [`State`]: Composable stateful computations
-//! - [`Reader`]: Dependency injection/context passing
-//! - [`Writer`]: Output accumulation (logging, etc.)
-//! - [`Id`]: Identity functor
-//! - [`IO`]: Side-effectful computations
-//! - [`Cont`]: Continuation-passing style
-//! - [`Free`]: Free monad for DSL construction, AST inspection (`Clone`), and natural transformations (`fold_map`)
+//! - [`Choice`]: Non-empty collection with a primary value and prioritized alternatives
+//! - [`Free`]: Free monad for DSL construction, AST inspection (`Clone`), and stack-safe trampoline evaluation
 //! - [`Program`, `TryProgram`]: Statically-typed operational monads with zero-downcast command handlers
-//! - [`Lens`, `Prism`]: Optics for immutable data access; `Iso` values can
-//!   be lifted with `Lens::from_iso` and `Prism::from_iso`
+//! - [`Lens`, `Prism`]: Optics for immutable data access
 //!
 //! ## Usage Example
 //!
 //! ```rust
 //! use rustica::prelude::datatypes::*;
-//! use rustica::traits::functor::Functor;
-//!
-//! let x = Id::new(42);
-//! let y = x.fmap(|n| n + 1);
-//! assert_eq!(y.into_inner(), 43);
 //!
 //! let v: Validated<&str, i32> = Validated::valid(5);
 //! assert!(v.is_valid());
@@ -36,25 +24,10 @@
 //!
 //! See each type's documentation for more details and advanced usage.
 
-#[cfg(feature = "async")]
-#[allow(deprecated)]
-pub use crate::datatypes::async_monad::AsyncM;
 pub use crate::datatypes::choice::Choice;
-#[allow(deprecated)]
-pub use crate::datatypes::cont::Cont;
 pub use crate::datatypes::error::{ChoiceError, FreeError, ValidatedError};
 pub use crate::datatypes::free::Free;
-#[allow(deprecated)]
-pub use crate::datatypes::id::Id;
-#[allow(deprecated)]
-pub use crate::datatypes::io::IO;
 pub use crate::datatypes::lens::Lens;
 pub use crate::datatypes::operational::{Command, Handler, Program, TryHandler, TryProgram};
 pub use crate::datatypes::prism::Prism;
-#[allow(deprecated)]
-pub use crate::datatypes::reader::Reader;
-#[allow(deprecated)]
-pub use crate::datatypes::state::State;
 pub use crate::datatypes::validated::{NonEmptyErrors, Validated};
-#[allow(deprecated)]
-pub use crate::datatypes::writer::Writer;

@@ -9,12 +9,8 @@ use crate::datatypes::validated::{
     core::{ErrorVec, Validated},
 };
 use crate::traits::applicative::Applicative;
-#[allow(deprecated)]
-use crate::traits::bifunctor::Bifunctor;
 use crate::traits::foldable::Foldable;
 use crate::traits::functor::Functor;
-#[allow(deprecated)]
-use crate::traits::hkt::BinaryHKT;
 use crate::traits::hkt::HKT;
 use crate::traits::pure::Pure;
 use crate::traits::semigroup::Semigroup;
@@ -81,92 +77,6 @@ impl<E, A> Functor for Validated<E, A> {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
             Validated::Invalid(e) => Validated::Invalid(e),
-        }
-    }
-}
-
-#[allow(deprecated)]
-impl<E, A> BinaryHKT for Validated<E, A> {
-    type Source2 = E;
-    type BinaryOutput<U, V> = Validated<V, U>;
-}
-
-/// # Examples for `Bifunctor` on `Validated`
-///
-/// `Validated<E, A>` is a two-parameter type, but its `Invalid` case stores a *collection*
-/// of errors (`NonEmptyErrors<E>`), not a single `E`.
-///
-/// In Rustica's `BinaryHKT` encoding for `Validated<E, A>`:
-///
-/// - `Source` is the valid value type `A` (so `first` maps the `Valid` value)
-/// - `Source2` is the error element type `E` (so `second` maps *each* error)
-///
-/// `bimap(f, g)` therefore means:
-///
-/// - Apply `f` to the `Valid(A)` value
-/// - Apply `g` to each error element inside `Invalid(errors)`
-///
-/// ## `bimap`
-///
-/// ### Mapping over a `Valid` value (applies `f`)
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::bifunctor::Bifunctor;
-///
-/// let valid: Validated<&str, i32> = Validated::valid(10);
-/// // `f` is applied to the `Valid` value.
-/// let result = valid.bimap(|v: i32| v * 2, |e: &str| format!("Error: {}", e));
-/// assert_eq!(result, Validated::valid(20));
-/// ```
-///
-/// ### Mapping over an `Invalid` value (applies `g` to each error)
-/// ```rust
-/// use rustica::datatypes::validated::Validated;
-/// use rustica::traits::bifunctor::Bifunctor;
-///
-/// let invalid: Validated<&str, i32> = Validated::invalid_many(vec!["e1", "e2"]);
-/// // `g` is applied to each error element inside `Invalid(errors)`.
-/// let result = invalid.bimap(|v: i32| v * 2, |e: &str| format!("New-{}", e));
-/// assert_eq!(result, Validated::invalid_many(vec!["New-e1".to_string(), "New-e2".to_string()]));
-/// ```
-#[allow(deprecated)]
-impl<E, A> Bifunctor for Validated<E, A> {
-    fn bimap<C, D, F, G>(self, mut f: F, g: G) -> Self::BinaryOutput<C, D>
-    where
-        F: FnMut(Self::Source) -> C,
-        G: FnMut(Self::Source2) -> D,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::Invalid(es) => {
-                let mut transformed = es.into_iter().map(g);
-                let first = transformed.next().expect("invalid values have errors");
-                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
-            },
-        }
-    }
-
-    fn first<C, F>(self, mut f: F) -> Self::BinaryOutput<C, Self::Source2>
-    where
-        F: FnMut(Self::Source) -> C,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::Invalid(e) => Validated::Invalid(e),
-        }
-    }
-
-    fn second<D, G>(self, g: G) -> Self::BinaryOutput<Self::Source, D>
-    where
-        G: FnMut(Self::Source2) -> D,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => {
-                let mut transformed = es.into_iter().map(g);
-                let first = transformed.next().expect("invalid values have errors");
-                Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, transformed))
-            },
         }
     }
 }

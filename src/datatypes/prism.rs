@@ -142,8 +142,6 @@
 //! composition and variant-specific behavior are covered by
 //! `tests/datatypes/test_prism.rs`.
 
-#[allow(deprecated)]
-use crate::traits::iso::Iso;
 use std::marker::PhantomData;
 
 /// A `Prism` is an optic that allows focusing on a specific case of a sum type.
@@ -688,57 +686,6 @@ where
             },
             None => source, // Preview failed (focus absent), return original structure unchanged
         }
-    }
-}
-
-impl<S, A> Prism<S, A, fn(&S) -> Option<A>, fn(&A) -> S> {
-    /// Creates a prism from a total isomorphism.
-    ///
-    /// The underlying isomorphism maps every source to a focus, so preview
-    /// always succeeds.
-    #[deprecated(
-        since = "0.16.0",
-        note = "Iso is deprecated; construct prisms directly with Prism::new or closures instead"
-    )]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn from_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
-    where
-        S: Clone,
-        A: Clone,
-        I: Iso<S, A>,
-    {
-        let iso = std::sync::Arc::new(iso);
-        let preview_iso = std::sync::Arc::clone(&iso);
-        Prism::new(
-            move |source: &S| Some(preview_iso.forward(source.clone())),
-            move |focus: &A| iso.backward(focus.clone()),
-        )
-    }
-
-    /// Creates a prism from an option-valued isomorphism.
-    ///
-    /// This is the direct replacement for the removed `IsoPrism`: the iso's
-    /// `forward` map decides whether the case matches, and `backward` receives
-    /// `Some(focus)` when reviewing a focused value.
-    #[deprecated(
-        since = "0.16.0",
-        note = "Iso is deprecated; construct prisms directly with Prism::new or closures instead"
-    )]
-    #[allow(deprecated)]
-    #[inline]
-    pub fn from_option_iso<I>(iso: I) -> Prism<S, A, impl Fn(&S) -> Option<A>, impl Fn(&A) -> S>
-    where
-        S: Clone,
-        A: Clone,
-        I: Iso<S, Option<A>>,
-    {
-        let iso = std::sync::Arc::new(iso);
-        let preview_iso = std::sync::Arc::clone(&iso);
-        Prism::new(
-            move |source: &S| preview_iso.forward(source.clone()),
-            move |focus: &A| iso.backward(Some(focus.clone())),
-        )
     }
 }
 

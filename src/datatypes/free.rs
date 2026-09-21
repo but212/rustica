@@ -12,7 +12,6 @@
 //! - **Drop and Debug**: Traverses nested chains iteratively to avoid stack overflow when
 //!   dropping or formatting deep programs.
 //! - **Reuse**: Backed by `Arc`, so programs can be cloned and run multiple times.
-//! - **IO conversion**: [`fold_map`](Free::fold_map) converts the program into a lazy [`IO`].
 //!
 //! ## Example
 //!
@@ -81,8 +80,6 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::datatypes::error::FreeError;
-#[allow(deprecated)]
-use crate::datatypes::io::IO;
 
 /// Type alias for thread-safe type-erased values in the Free monad.
 pub type AnyValue = Arc<dyn Any + Send + Sync>;
@@ -414,23 +411,6 @@ impl<F, A> Free<F, A> {
         self.run_internal(interp)
     }
 
-    /// Interprets this `Free` computation into an [`IO`] computation via a natural transformation.
-    ///
-    /// Returns a lazy [`IO`] computation whose effects run only when executed via [`IO::run`].
-    #[allow(deprecated)]
-    pub fn fold_map<Morphism>(&self, interp: Morphism) -> IO<A>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        Morphism: Fn(F) -> IO<AnyValue> + Send + Sync + Clone + 'static,
-    {
-        let this = self.clone();
-        IO::new(move || {
-            let interp_clone = interp.clone();
-            this.run(move |cmd| interp_clone(cmd).run())
-        })
-    }
-
     /// Returns `true` if this computation is a pure value.
     #[inline]
     pub const fn is_pure(&self) -> bool {
@@ -471,24 +451,6 @@ impl<F, A> Free<F, A> {
             Free::Pure(a) => Some(a.clone()),
             Free::Suspend(_, _) | Free::Bind(_, _) => None,
         }
-    }
-
-    /// Extracts the inner value if it is pure.
-    ///
-    /// # Deprecation
-    ///
-    /// Renamed to [`to_pure`](Self::to_pure) to conform to Rust API Guidelines (C-CONV)
-    /// since it borrows `&self` and clones the inner value.
-    #[inline]
-    #[deprecated(
-        since = "0.17.0",
-        note = "renamed to `to_pure` per Rustica API Guidelines C-CONV"
-    )]
-    pub fn into_pure(&self) -> Option<A>
-    where
-        A: Clone,
-    {
-        self.to_pure()
     }
 }
 
@@ -575,10 +537,6 @@ mod tests {
         assert!(!computation.is_bind());
         assert_eq!(computation.as_pure(), Some(&42));
         assert_eq!(computation.to_pure(), Some(42));
-        #[allow(deprecated)]
-        {
-            assert_eq!(computation.into_pure(), Some(42));
-        }
     }
 
     #[test]
@@ -797,22 +755,6 @@ mod tests {
             TestCmd::Fetch => Arc::new(c_b) as AnyValue,
         });
         assert_eq!(res_b, 1030); // 30 + 1000
-    }
-
-    #[test]
-    fn test_fold_map_to_io() {
-        let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
-            .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
-
-        let io_comp = program.fold_map(|cmd| {
-            IO::new(move || match cmd {
-                TestCmd::Increment(_) => Arc::new(()) as AnyValue,
-                TestCmd::Fetch => Arc::new(42_i32) as AnyValue,
-            })
-        });
-
-        // Cold IO execution
-        assert_eq!(io_comp.run(), 42);
     }
 
     #[test]

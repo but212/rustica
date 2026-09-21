@@ -13,15 +13,6 @@ impl PVecError {
     pub const fn index_out_of_bounds(index: usize, len: usize) -> Self {
         Self::IndexOutOfBounds { index, len }
     }
-
-    #[deprecated(
-        since = "0.16.0",
-        note = "use pattern matching on `PVecError::IndexOutOfBounds` instead"
-    )]
-    #[inline]
-    pub const fn is_index_out_of_bounds(&self) -> bool {
-        matches!(self, Self::IndexOutOfBounds { .. })
-    }
 }
 
 impl fmt::Display for PVecError {

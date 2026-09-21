@@ -21,7 +21,7 @@
 //! assert_eq!(result, Ok("connected"));
 //!
 //! // Or find the first matching endpoint
-//! let matched = endpoints.first_match(|ep| ep.strip_prefix("backup"));
+//! let matched = endpoints.iter().find_map(|ep| ep.strip_prefix("backup"));
 //! assert_eq!(matched, Some("1.api.com"));
 //! ```
 //!
@@ -30,9 +30,6 @@
 //! priority ordering:
 //! - `fmap` transforms `primary` and all `alternatives` preserving order.
 //! - `combine` chains another choice's values after the current alternatives.
-//!
-//! Monadic and applicative operations are deprecated since 0.16.0 in favor of clean
-//! priority/alternatives collection semantics.
 
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
@@ -47,7 +44,7 @@ use crate::prelude::traits::*;
 /// A statically non-empty collection with priority and fallback semantics.
 ///
 /// `primary` is the preferred value; `alternatives` are ordered fallbacks.
-/// Prefer using [`try_each`](Self::try_each) or [`first_match`](Self::first_match)
+/// Prefer using [`try_each`](Self::try_each) or `iter().find_map()`
 /// to execute fallback logic in priority order rather than extracting raw values.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -81,13 +78,6 @@ impl<T> Choice<T> {
     /// Returns a reference to the primary value.
     #[inline]
     pub fn primary(&self) -> &T {
-        &self.primary
-    }
-
-    /// Returns a reference to the first (primary) value.
-    #[deprecated(since = "0.16.0", note = "use Choice::primary instead")]
-    #[inline]
-    pub fn first(&self) -> &T {
         &self.primary
     }
 
@@ -126,7 +116,7 @@ impl<T> Choice<T> {
 
     /// Filters values in the `Choice` by consuming it. Returns `None` if all values are filtered out.
     ///
-    /// Unlike [`Self::filter_values`], this consuming version does not require `T: Clone`.
+    /// Consumes `self` and does not require `T: Clone`.
     pub fn filter<F>(self, mut predicate: F) -> Option<Self>
     where
         F: FnMut(&T) -> bool,
@@ -138,36 +128,6 @@ impl<T> Choice<T> {
         for alt in self.alternatives {
             if predicate(&alt) {
                 kept.push(alt);
-            }
-        }
-
-        if kept.is_empty() {
-            None
-        } else {
-            let mut iter = kept.into_iter();
-            let primary = iter.next().unwrap();
-            let alternatives = iter.collect();
-            Some(Self {
-                primary,
-                alternatives,
-            })
-        }
-    }
-
-    /// Filters values in the `Choice` by reference. Returns `None` if all values are filtered out.
-    #[deprecated(since = "0.16.0", note = "Use `filter` or iterate/filter explicitly.")]
-    pub fn filter_values<F>(&self, mut predicate: F) -> Option<Self>
-    where
-        T: Clone,
-        F: FnMut(&T) -> bool,
-    {
-        let mut kept = SmallVec::<[T; 8]>::new();
-        if predicate(&self.primary) {
-            kept.push(self.primary.clone());
-        }
-        for alt in &self.alternatives {
-            if predicate(alt) {
-                kept.push(alt.clone());
             }
         }
 
@@ -292,77 +252,11 @@ impl<T> Choice<T> {
 
         Validated::invalid_many(errors)
     }
-
-    /// Returns the first `Some` result from `f` applied in priority order.
-    ///
-    /// Short-circuits on the first `Some`, returning immediately without
-    /// evaluating remaining alternatives. Returns `None` if no value matches.
-    #[deprecated(
-        since = "0.17.0",
-        note = "use choice.iter().find_map(f) instead. Scheduled for removal in 0.18.0."
-    )]
-    pub fn first_match<R, F>(&self, mut f: F) -> Option<R>
-    where
-        F: FnMut(&T) -> Option<R>,
-    {
-        if let Some(res) = f(&self.primary) {
-            return Some(res);
-        }
-        for alt in &self.alternatives {
-            if let Some(res) = f(alt) {
-                return Some(res);
-            }
-        }
-        None
-    }
-
-    /// Monadic bind for `Choice`.
-    ///
-    /// # Deprecated (since 0.16.0)
-    /// `Choice` is redefined as a non-empty priority/alternatives collection.
-    /// Monadic operations are deprecated and will be removed in a future release.
-    #[deprecated(
-        since = "0.16.0",
-        note = "Choice is redefined as a non-empty priority/alternatives collection; Monad operations are deprecated."
-    )]
-    pub fn bind<U, F>(self, f: F) -> Choice<U>
-    where
-        F: FnMut(T) -> Choice<U>,
-    {
-        Monad::bind(self, f)
-    }
-
-    /// Applicative functor application for `Choice`.
-    ///
-    /// # Deprecated (since 0.16.0)
-    /// `Choice` is redefined as a non-empty priority/alternatives collection.
-    /// Applicative operations are deprecated and will be removed in a future release.
-    #[deprecated(
-        since = "0.16.0",
-        note = "Choice is redefined as a non-empty priority/alternatives collection; Applicative operations are deprecated."
-    )]
-    pub fn apply<A, B>(self, value: Choice<A>) -> Choice<B>
-    where
-        T: Fn(A) -> B,
-        A: Clone,
-    {
-        Applicative::apply(self, value)
-    }
 }
 
 impl<T> HKT for Choice<T> {
     type Source = T;
     type Output<U> = Choice<U>;
-}
-
-/// # Deprecated (since 0.16.0)
-///
-/// `Choice` is redefined as a non-empty priority/alternatives collection.
-/// Use [`Choice::single`] instead.
-impl<T> Pure for Choice<T> {
-    fn pure<A>(value: A) -> Self::Output<A> {
-        Choice::single(value)
-    }
 }
 
 impl<T> Functor for Choice<T> {
@@ -373,151 +267,6 @@ impl<T> Functor for Choice<T> {
         Choice {
             primary: f(self.primary),
             alternatives: self.alternatives.into_iter().map(f).collect(),
-        }
-    }
-}
-
-/// # Deprecated (since 0.16.0)
-///
-/// `Choice` is redefined as a non-empty priority/alternatives collection.
-/// Applicative operations are deprecated and will be removed in a future release.
-impl<T> Applicative for Choice<T> {
-    fn apply<A, B>(self, value: Self::Output<A>) -> Self::Output<B>
-    where
-        Self::Source: Fn(A) -> B,
-        A: Clone,
-    {
-        let primary = (self.primary)(value.primary.clone());
-        let mut alternatives = SmallVec::<[B; 7]>::new();
-
-        for val_alt in &value.alternatives {
-            alternatives.push((self.primary)(val_alt.clone()));
-        }
-
-        for fn_alt in self.alternatives {
-            alternatives.push(fn_alt(value.primary.clone()));
-            for val_alt in &value.alternatives {
-                alternatives.push(fn_alt(val_alt.clone()));
-            }
-        }
-
-        Choice {
-            primary,
-            alternatives,
-        }
-    }
-
-    fn lift2<A, B, C, F>(f: F, fa: Self::Output<A>, fb: Self::Output<B>) -> Self::Output<C>
-    where
-        F: Fn(A, B) -> C,
-        A: Clone,
-        B: Clone,
-    {
-        let primary = f(fa.primary.clone(), fb.primary.clone());
-        let mut alternatives = SmallVec::<[C; 7]>::new();
-
-        for b in &fb.alternatives {
-            alternatives.push(f(fa.primary.clone(), b.clone()));
-        }
-
-        for a in fa.alternatives {
-            alternatives.push(f(a.clone(), fb.primary.clone()));
-            for b in &fb.alternatives {
-                alternatives.push(f(a.clone(), b.clone()));
-            }
-        }
-
-        Choice {
-            primary,
-            alternatives,
-        }
-    }
-
-    fn lift3<A, B, C, D, F>(
-        f: F, fa: Self::Output<A>, fb: Self::Output<B>, fc: Self::Output<C>,
-    ) -> Self::Output<D>
-    where
-        F: Fn(A, B, C) -> D,
-        A: Clone,
-        B: Clone,
-        C: Clone,
-    {
-        let primary = f(fa.primary.clone(), fb.primary.clone(), fc.primary.clone());
-        let mut alternatives = SmallVec::<[D; 7]>::new();
-
-        for c in &fc.alternatives {
-            alternatives.push(f(fa.primary.clone(), fb.primary.clone(), c.clone()));
-        }
-
-        for b in &fb.alternatives {
-            alternatives.push(f(fa.primary.clone(), b.clone(), fc.primary.clone()));
-            for c in &fc.alternatives {
-                alternatives.push(f(fa.primary.clone(), b.clone(), c.clone()));
-            }
-        }
-
-        for a in &fa.alternatives {
-            alternatives.push(f(a.clone(), fb.primary.clone(), fc.primary.clone()));
-            for c in &fc.alternatives {
-                alternatives.push(f(a.clone(), fb.primary.clone(), c.clone()));
-            }
-            for b in &fb.alternatives {
-                alternatives.push(f(a.clone(), b.clone(), fc.primary.clone()));
-                for c in &fc.alternatives {
-                    alternatives.push(f(a.clone(), b.clone(), c.clone()));
-                }
-            }
-        }
-
-        Choice {
-            primary,
-            alternatives,
-        }
-    }
-}
-
-/// # Deprecated (since 0.16.0)
-///
-/// `Choice` is redefined as a non-empty priority/alternatives collection.
-/// Monadic operations are deprecated and will be removed in a future release.
-impl<T> Monad for Choice<T> {
-    #[inline]
-    fn bind<U, F>(self, mut f: F) -> Self::Output<U>
-    where
-        F: FnMut(Self::Source) -> Self::Output<U>,
-    {
-        let primary_choice = f(self.primary);
-        let mut alternatives = primary_choice.alternatives;
-
-        for alt in self.alternatives {
-            let alt_choice = f(alt);
-            alternatives.push(alt_choice.primary);
-            alternatives.extend(alt_choice.alternatives);
-        }
-
-        Choice {
-            primary: primary_choice.primary,
-            alternatives,
-        }
-    }
-
-    #[inline]
-    fn join<U>(self) -> Self::Output<U>
-    where
-        Self::Source: Into<Self::Output<U>>,
-    {
-        let primary_choice: Self::Output<U> = self.primary.into();
-        let mut alternatives = primary_choice.alternatives;
-
-        for alt in self.alternatives {
-            let alt_choice: Self::Output<U> = alt.into();
-            alternatives.push(alt_choice.primary);
-            alternatives.extend(alt_choice.alternatives);
-        }
-
-        Choice {
-            primary: primary_choice.primary,
-            alternatives,
         }
     }
 }
@@ -690,13 +439,6 @@ mod unit_tests {
             .expect("should have evens");
         assert_eq!(evens.alternatives(), &[4]);
         assert_eq!(c.clone().filter(|&x| x > 100), None);
-
-        #[allow(deprecated)]
-        {
-            let evens = c.filter_values(|&x| x % 2 == 0).expect("should have evens");
-            assert_eq!(evens.alternatives(), &[4]);
-            assert_eq!(c.filter_values(|&x| x > 100), None);
-        }
     }
 
     #[test]
@@ -759,30 +501,6 @@ mod unit_tests {
     }
 
     #[test]
-    fn first_match_returns_primary() {
-        let choices = Choice::new(10, [20, 30]);
-        let mut calls = Vec::new();
-        let res = choices.first_match(|&x| {
-            calls.push(x);
-            if x >= 10 { Some(x * 2) } else { None }
-        });
-        assert_eq!(res, Some(20));
-        assert_eq!(calls, vec![10]); // Short-circuits on primary
-    }
-
-    #[test]
-    fn first_match_falls_back_and_returns_none() {
-        let choices = Choice::new(1, [2, 3]);
-        // Fallback to alternative
-        let res = choices.first_match(|&x| if x == 3 { Some(x * 100) } else { None });
-        assert_eq!(res, Some(300));
-
-        // Total failure returns None
-        let none_res = choices.first_match(|&x| if x > 100 { Some(x) } else { None });
-        assert_eq!(none_res, None);
-    }
-
-    #[test]
     fn filter_and_flatten_consume_without_clone() {
         #[derive(Debug, PartialEq, Eq)]
         struct NoClone(i32);
@@ -814,31 +532,5 @@ mod unit_tests {
         let res = nested.try_flatten_cloned().unwrap();
         assert_eq!(res.primary(), &1);
         assert_eq!(res.alternatives(), &[2, 3, 4]);
-    }
-
-    #[test]
-    fn filter_values_clones_only_matching_elements() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
-
-        static CLONE_COUNT: AtomicUsize = AtomicUsize::new(0);
-
-        #[derive(Debug, PartialEq, Eq)]
-        struct Tracked(i32);
-
-        impl Clone for Tracked {
-            fn clone(&self) -> Self {
-                CLONE_COUNT.fetch_add(1, Ordering::SeqCst);
-                Tracked(self.0)
-            }
-        }
-
-        CLONE_COUNT.store(0, Ordering::SeqCst);
-        let c = Choice::new(Tracked(1), vec![Tracked(2), Tracked(3), Tracked(4)]);
-
-        #[allow(deprecated)]
-        let filtered = c.filter_values(|x| x.0 % 2 == 0);
-        assert!(filtered.is_some());
-        // Only Tracked(2) and Tracked(4) should have been cloned (2 times), not all 4 elements!
-        assert_eq!(CLONE_COUNT.load(Ordering::SeqCst), 2);
     }
 }
