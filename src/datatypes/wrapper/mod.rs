@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 //! # Wrapper Types
 //!
 //! This module provides various wrapper types that implement functional programming patterns

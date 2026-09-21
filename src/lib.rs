@@ -133,9 +133,17 @@ pub mod datatypes;
 /// Monad transformers allow combining the effects of multiple monads,
 /// such as adding error handling to stateful computations or adding
 /// state to asynchronous operations.
+#[deprecated(
+    since = "0.17.0",
+    note = "monad transformers are scheduled for removal in 0.18.0. Use standard Rust control flow, &mut S, or context borrowing."
+)]
 pub mod transformers;
 
 /// Category theory abstractions.
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard closures, function pointers, or iterator combinators. Scheduled for removal in 0.18.0."
+)]
 pub mod category;
 
 /// Error handling utilities.

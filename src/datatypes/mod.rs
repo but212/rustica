@@ -58,5 +58,9 @@ pub mod prism;
 pub mod reader;
 pub mod state;
 pub mod validated;
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard library Option, cmp, and iter operators directly. Scheduled for removal in 0.18.0."
+)]
 pub mod wrapper;
 pub mod writer;
