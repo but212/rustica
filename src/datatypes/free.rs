@@ -176,7 +176,7 @@ impl<F, A> Free<F, A> {
                         let a = cont_clone(res)?;
                         let a_any = &a as &dyn Any;
                         if let Some(already_arc) = a_any.downcast_ref::<AnyValue>() {
-                            Ok(already_arc.clone())
+                            Ok(Arc::clone(already_arc))
                         } else {
                             Ok(Arc::new(a) as AnyValue)
                         }
@@ -320,7 +320,7 @@ impl<F, A> Free<F, A> {
         let f_arc = Arc::new(f);
         self.bind(move |a| {
             let f_clone = Arc::clone(&f_arc);
-            let a_clone = a.clone();
+            let a_clone = a;
             other.fmap(move |b| f_clone(a_clone.clone(), b))
         })
     }
@@ -349,9 +349,11 @@ impl<F, A> Free<F, A> {
 
         loop {
             match cur {
-                Free::Bind(ref sub, ref cont) => {
+                Free::Bind(ref mut sub, ref cont) => {
                     stack.push(Arc::clone(cont));
-                    cur = (**sub).clone();
+                    let sub_arc =
+                        std::mem::replace(sub, Arc::new(Free::Pure(Arc::new(()) as AnyValue)));
+                    cur = Arc::try_unwrap(sub_arc).unwrap_or_else(|a| (*a).clone());
                 },
                 Free::Pure(ref val) => match stack.pop() {
                     Some(cont) => {
@@ -745,7 +747,7 @@ mod tests {
         assert_eq!(r2, 130);
 
         // Branching: clone program and extend it in two different directions
-        let branch_a = program.clone().bind(|total: i32| Free::pure(total * 2));
+        let branch_a = program.bind(|total: i32| Free::pure(total * 2));
         let branch_b = program.bind(|total: i32| Free::pure(total + 1000));
 
         let mut c_a = 0;
@@ -811,5 +813,48 @@ mod tests {
         let q2 = p2.clone();
         drop(p2);
         drop(q2);
+    }
+
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[derive(Debug)]
+    struct CloneCountingCmd {
+        id: usize,
+        clones: Arc<AtomicUsize>,
+    }
+
+    impl Clone for CloneCountingCmd {
+        fn clone(&self) -> Self {
+            self.clones.fetch_add(1, Ordering::SeqCst);
+            Self {
+                id: self.id,
+                clones: Arc::clone(&self.clones),
+            }
+        }
+    }
+
+    #[test]
+    fn test_free_trampoline_unshared_bind_no_clone() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let cmd = CloneCountingCmd {
+            id: 10,
+            clones: Arc::clone(&counter),
+        };
+
+        // Chained Bind computation with 2 Bind layers
+        let prog: Free<CloneCountingCmd, i32> = Free::suspend(cmd)
+            .bind(|n: i32| Free::pure(n + 1))
+            .bind(|n: i32| Free::pure(n * 2));
+
+        counter.store(0, Ordering::SeqCst);
+
+        let result = prog.run(|c| Arc::new(c.id as i32) as AnyValue);
+        assert_eq!(result, 22);
+
+        // Before optimization, `(**sub).clone()` cloned the inner subcomputation tree,
+        // causing cmd to be cloned an extra time per Bind level (total 3).
+        // With Arc::try_unwrap, the subcomputation is moved without cloning,
+        // so cmd is cloned only once in into_any() and once in interp() (total 2).
+        assert_eq!(counter.load(Ordering::SeqCst), 2);
     }
 }

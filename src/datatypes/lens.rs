@@ -696,7 +696,7 @@ where
         let get2 = other.get;
         let set2 = other.set;
 
-        let get1_for_set = get1.clone();
+        let get1_for_set = Arc::clone(&get1);
 
         Lens::new(
             move |s: &S| get2(&get1(s)),

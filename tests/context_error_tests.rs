@@ -45,7 +45,7 @@ fn test_context_error_formatting() {
 #[test]
 fn test_lazy_context_evaluation() {
     let was_evaluated = Arc::new(AtomicBool::new(false));
-    let was_evaluated_clone = was_evaluated.clone();
+    let was_evaluated_clone = Arc::clone(&was_evaluated);
     let result: Result<i32, &str> = Ok(42);
 
     let res = with_context_result(
@@ -63,7 +63,7 @@ fn test_lazy_context_evaluation() {
 #[test]
 fn test_lazy_context_evaluation_on_error() {
     let was_evaluated = Arc::new(AtomicBool::new(false));
-    let was_evaluated_clone = was_evaluated.clone();
+    let was_evaluated_clone = Arc::clone(&was_evaluated);
     let result: Result<i32, &str> = Err("underlying error");
 
     let res = with_context_result(

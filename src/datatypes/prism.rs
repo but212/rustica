@@ -851,7 +851,7 @@ mod unit_tests {
     #[test]
     fn set_if_different_preserves_source_when_focus_is_absent() {
         let inactive = Status::Inactive;
-        let result = active_prism().set_if_different(inactive.clone(), "Charlie".into());
+        let result = active_prism().set_if_different(inactive, "Charlie".into());
         assert_eq!(result, Status::Inactive);
     }
 }

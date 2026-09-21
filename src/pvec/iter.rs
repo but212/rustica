@@ -479,7 +479,6 @@ struct TreeIntoIterState<T> {
     tree: Arc<RRBTree<T>>,
     front_index: usize,
     front_leaf: SmallVec<[T; LEAF_CAPACITY]>,
-    front_pos: usize,
     back_index: usize,
     back_leaf: SmallVec<[T; LEAF_CAPACITY]>,
 }
@@ -499,7 +498,6 @@ impl<T: Clone> PersistentVectorIntoIter<T> {
             VectorImpl::Tree { tree } => IntoIterState::Tree(Box::new(TreeIntoIterState {
                 front_index: 0,
                 front_leaf: SmallVec::new(),
-                front_pos: 0,
                 back_index: tree.len,
                 back_leaf: SmallVec::new(),
                 tree,
@@ -528,23 +526,15 @@ impl<T: Clone> Iterator for PersistentVectorIntoIter<T> {
                 item
             },
             IntoIterState::Tree(ts) => {
-                if ts.front_pos < ts.front_leaf.len() {
-                    let item = ts.front_leaf[ts.front_pos].clone();
-                    ts.front_pos += 1;
+                if let Some(item) = ts.front_leaf.pop() {
                     ts.front_index += 1;
                     self.remaining -= 1;
                     return Some(item);
                 }
 
-                ts.front_leaf.clear();
-                ts.front_pos = 0;
                 let (slice, offset) = ts.tree.get_leaf_slice(ts.front_index)?;
-                ts.front_leaf.extend(slice[offset..].iter().cloned());
-                if ts.front_leaf.is_empty() {
-                    return None;
-                }
-                let item = ts.front_leaf[0].clone();
-                ts.front_pos = 1;
+                ts.front_leaf.extend(slice[offset..].iter().rev().cloned());
+                let item = ts.front_leaf.pop()?;
                 ts.front_index += 1;
                 self.remaining -= 1;
                 Some(item)
@@ -593,5 +583,51 @@ impl<T: Clone> DoubleEndedIterator for PersistentVectorIntoIter<T> {
                 Some(item)
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[derive(Debug)]
+    struct CloneCounter {
+        val: usize,
+        clones: Arc<AtomicUsize>,
+    }
+
+    impl Clone for CloneCounter {
+        fn clone(&self) -> Self {
+            self.clones.fetch_add(1, Ordering::SeqCst);
+            Self {
+                val: self.val,
+                clones: Arc::clone(&self.clones),
+            }
+        }
+    }
+
+    #[test]
+    fn test_into_iter_clone_efficiency_tree() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let count = 200;
+        let items: Vec<_> = (0..count)
+            .map(|i| CloneCounter {
+                val: i,
+                clones: Arc::clone(&counter),
+            })
+            .collect();
+
+        let vec = PersistentVector::from_iter(items);
+        counter.store(0, Ordering::SeqCst);
+
+        let collected: Vec<_> = vec.into_iter().collect();
+        assert_eq!(collected.len(), count);
+        for (i, item) in collected.iter().enumerate() {
+            assert_eq!(item.val, i);
+        }
+
+        assert_eq!(counter.load(Ordering::SeqCst), count);
     }
 }

@@ -51,6 +51,9 @@
 
 ## PersistentVector
 
+> [!NOTE]
+> `PersistentVector` is deprecated in v0.18.0 and scheduled for removal in v0.19.0. Benchmarks are retained for historical comparison against standard collection baselines.
+
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `creation` | 4ns | 5ns | 5ns | 4ns | 12ns | 100 | - |

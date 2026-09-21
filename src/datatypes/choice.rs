@@ -461,7 +461,7 @@ mod unit_tests {
             .filter(|&x| x % 2 == 0)
             .expect("should have evens");
         assert_eq!(evens.alternatives(), &[4]);
-        assert_eq!(c.clone().filter(|&x| x > 100), None);
+        assert_eq!(c.filter(|&x| x > 100), None);
     }
 
     #[test]

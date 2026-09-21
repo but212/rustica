@@ -210,8 +210,63 @@ where
     }
 
     let mut result = value.clone();
-    for _ in 1..n {
+    for _ in 1..(n - 1) {
         result = result.combine(value.clone());
     }
-    result
+    result.combine(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[derive(Debug)]
+    struct CloneCounter {
+        val: i32,
+        clones: Arc<AtomicUsize>,
+    }
+
+    impl Clone for CloneCounter {
+        fn clone(&self) -> Self {
+            self.clones.fetch_add(1, Ordering::SeqCst);
+            Self {
+                val: self.val,
+                clones: Arc::clone(&self.clones),
+            }
+        }
+    }
+
+    impl Semigroup for CloneCounter {
+        fn combine(self, other: Self) -> Self {
+            Self {
+                val: self.val + other.val,
+                clones: self.clones,
+            }
+        }
+    }
+
+    impl Monoid for CloneCounter {
+        fn empty() -> Self {
+            Self {
+                val: 0,
+                clones: Arc::new(AtomicUsize::new(0)),
+            }
+        }
+    }
+
+    #[test]
+    fn test_repeat_clone_efficiency() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let item = CloneCounter {
+            val: 5,
+            clones: Arc::clone(&counter),
+        };
+
+        let res = repeat(item, 3);
+        assert_eq!(res.val, 15);
+        // For n = 3, optimal clone count is exactly 2 (n - 1).
+        assert_eq!(counter.load(Ordering::SeqCst), 2);
+    }
 }

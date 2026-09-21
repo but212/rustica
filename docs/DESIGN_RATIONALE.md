@@ -15,8 +15,7 @@ This is an intentional design trade-off rather than an impossibility: prioritizi
 ### Guiding Principles
 
 1. **Native Rust Primitives First:** Execution, state management, and control flow belong to Rust's native language features (`&mut`, `&`, `?`, `async`/`await`, and monomorphized closures). Rustica does not provide monadic wrappers where standard language constructs are already zero-cost and expressive.
-2. **Solve Unaddressed Domain Gaps:** Rustica focuses on capabilities absent from the standard library: multi-error accumulation (`Validated`), ordered fallback execution (`Choice`), persistent structural sharing (`PersistentVector`), and compositional optics (`Lens`, `Prism`).
-3. **Mechanical Sympathy:** All abstractions must respect Rust's affine types, borrow checker, and memory layouts without requiring hidden allocations or artificial `Clone` constraints.
+2. **Solve Unaddressed Domain Gaps:** Rustica focuses on capabilities absent from the standard library: multi-error accumulation (`Validated`), ordered fallback execution (`Choice`), persistent structural sharing (`PersistentVector`, deprecated in 0.18.0 for 0.19.0 removal), and compositional optics (`Lens`, `Prism`).
 
 ---
 
@@ -37,6 +36,7 @@ Pure functional programming assumes a garbage-collected runtime, pervasive lazin
 - **State threading:** Haskell's `State s a` threads state immutably as `s -> (a, s)`. In Rust, exclusive borrowing (`&mut S`) provides statically checked in-place mutation at zero cost. Simulating `State` forces snapshot cloning or awkward ownership transfers.
 - **Environment injection:** Haskell's `Reader e a` implicitly passes shared configuration. In Rust, immutable borrows (`&Context`) share context without allocation. Embedding references in monadic closures introduces lifetime parameters (`'a`), pushing implementations toward cloning owned environments.
 - **Log accumulation:** In Haskell, pure functions require a monadic wrapper (`Writer<W, A>`) to return a side-channel log alongside a value. Rust expresses this directly with a plain tuple `(A, W)`, a mutable reference (`&mut Buffer`), or structured logging without `bind` chains. Because `W::combine` returns a new value rather than mutating in place, monadic chaining also causes quadratic reallocations ($O(N^2)$) on contiguous buffers (`String`, `Vec`) that in-place mutation avoids.
+- **Minimizing redundant clones in consuming workflows:** When an API operates by ownership (such as `monoid::repeat(value, n)`, `PersistentVectorIntoIter`, or recursive trampolines in `Free`), operations consume owned values directly on the final combination step and unwrap uniquely owned pointers (`Arc::try_unwrap`) to eliminate redundant clones.
 
 ### 2.2 Type System Limitations
 
@@ -92,7 +92,7 @@ Rustica retains functional abstractions where they solve concrete engineering pr
 | --- | --- | --- |
 | **`Validated<T, E>`** | Multi-error domain validation | Unlike `Result` (which short-circuits on the first failure), accumulates all constraint violations. |
 | **`Choice<T>`** | Priority & fallback execution | Statically non-empty target sequences with integrated multi-target error diagnostics (`try_each`, `try_each_validated`). |
-| **`PersistentVector<T>`** (`pvec`) | Structural sharing for immutable collections | 32-way RRB-Tree enabling $O(\log n)$ updates and branch sharing without copying full buffers. |
+| **`PersistentVector<T>`** (`pvec`) | Structural sharing for immutable collections | 32-way RRB-Tree enabling $O(\log n)$ updates and branch sharing without copying full buffers. *(Deprecated in 0.18.0, removal in 0.19.0; migrate to `imbl`)* |
 | **`Free<F, A>`** | DSL AST construction & multi-pass analysis | Reusable, cloneable computation tree for inspectable and re-interpretable DSL ASTs. Fully supported alongside operational pipelines. |
 | **`Program<H, A>`** | Direct operational monad execution | Statically checked handler pipelines with compile-time command-to-output enforcement and trampoline evaluation. |
 | **Optics (`Lens`, `Prism`)** | Composable access into nested data | Pure, reusable paths for querying and immutably updating deeply nested structs and enum variants. |
@@ -117,7 +117,7 @@ This matrix provides a guide for choosing between standard Rust idioms and Rusti
 | Multi-field validation | `Result<T, Vec<E>>` (early bail) | `Result<T, E>` with `?` | `Validated<T, E>` |
 | Reusable DSL AST / Multi-run tree | Complex macro ASTs | Ad-hoc enum AST parser | `Free<F, A>` |
 | Static operational execution | Dynamic downcasting dispatch | Match loops over enums | `Program<H, A>` / `TryProgram<H, A, E>` |
-| Structural sharing | Full clone (`Vec::clone`) | `Arc<Vec<T>>` | `PersistentVector<T>` |
+| Structural sharing | Full clone (`Vec::clone`) | `Arc<Vec<T>>` or `imbl::Vector` | `PersistentVector<T>` *(deprecated in 0.18.0, removal in 0.19.0)* |
 | Nested struct updates | Manual clone-and-assign | In-place mutable setters | `Lens::set`, `Lens::then` |
 | Deep enum branching | Nested `match` blocks | `if let` matching | `Prism::preview`, `Prism::then` |
 

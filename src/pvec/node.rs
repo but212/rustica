@@ -560,8 +560,9 @@ mod tests {
         });
 
         for target_height in 1..=4 {
-            let res = RRBNode::push_back_leaf_recursive(&empty_branch, leaf.clone(), target_height)
-                .expect("should succeed");
+            let res =
+                RRBNode::push_back_leaf_recursive(&empty_branch, Arc::clone(&leaf), target_height)
+                    .expect("should succeed");
             assert_eq!(
                 get_node_height(&res),
                 target_height,
@@ -583,7 +584,7 @@ mod tests {
 
         for target_height in 1..=4 {
             let res =
-                RRBNode::push_front_leaf_recursive(&empty_branch, leaf.clone(), target_height)
+                RRBNode::push_front_leaf_recursive(&empty_branch, Arc::clone(&leaf), target_height)
                     .expect("should succeed");
             assert_eq!(
                 get_node_height(&res),

@@ -19,6 +19,11 @@
 
 ### Changed
 
+- **Clone Overhead Optimizations**:
+  - **`PersistentVectorIntoIter` Zero-Duplicate Leaf Yielding**: Eliminated double-cloning of tree leaf elements during `PersistentVector::into_iter()` forward iteration by buffering leaves in reverse order and popping items directly, reducing element clones from $2N$ to $N$ and removing internal index tracking state (`front_pos`).
+  - **`traits::monoid::repeat` Ownership Consumption**: Optimized `repeat` to consume the initial owned `value` on the final combination step, reducing clone count from $n$ to $n - 1$ for all $n \ge 1$.
+  - **`Free::run_internal` Unshared Subtree Evaluation**: Optimized trampoline loop with `std::mem::replace` and `Arc::try_unwrap`, eliminating redundant deep AST clones on unshared `Free::Bind` nodes during `run` and `try_run`.
+  - **Clippy Redundant Clone Cleanups**: Removed unneeded `.clone()` calls across `choice`, `free`, `prism`, `validated`, and benchmarks/examples (`clippy::redundant_clone`), and clarified reference-counted pointer cloning via `Arc::clone` and `Rc::clone` (`clippy::clone_on_ref_ptr`).
 - **PersistentVector $O(1)$ Append & Compaction**:
   - Wrapped `head` and `tail` in `Arc<SmallVec<[T; 32]>>`, sharing opposite buffers via pointer copy on push and eliminating whole-buffer duplication to achieve true amortized $O(1)$ appends.
   - Reduced `RRBTree` struct size to 40 bytes (from >1KB) and lowered branching/leaf capacity to 32.

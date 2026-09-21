@@ -62,7 +62,7 @@ where
 {
     fn clone(&self) -> Self {
         Parser {
-            parse_fn: self.parse_fn.clone(),
+            parse_fn: Rc::clone(&self.parse_fn),
         }
     }
 }

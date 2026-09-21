@@ -26,36 +26,21 @@ struct UserProfile {
     settings: Settings,
 }
 
-fn theme_mode_lens() -> Lens<
-    Theme,
-    String,
-    impl Fn(&Theme) -> String,
-    impl Fn(Theme, String) -> Theme,
-> {
-    Lens::new(
-        |t: &Theme| t.mode.clone(),
-        |t, mode| Theme { mode, ..t },
-    )
+fn theme_mode_lens()
+-> Lens<Theme, String, impl Fn(&Theme) -> String, impl Fn(Theme, String) -> Theme> {
+    Lens::new(|t: &Theme| t.mode.clone(), |t, mode| Theme { mode, ..t })
 }
 
-fn theme_font_size_lens() -> Lens<
-    Theme,
-    u32,
-    impl Fn(&Theme) -> u32,
-    impl Fn(Theme, u32) -> Theme,
-> {
+fn theme_font_size_lens() -> Lens<Theme, u32, impl Fn(&Theme) -> u32, impl Fn(Theme, u32) -> Theme>
+{
     Lens::new(
         |t: &Theme| t.font_size,
         |t, font_size| Theme { font_size, ..t },
     )
 }
 
-fn settings_theme_lens() -> Lens<
-    Settings,
-    Theme,
-    impl Fn(&Settings) -> Theme,
-    impl Fn(Settings, Theme) -> Settings,
-> {
+fn settings_theme_lens()
+-> Lens<Settings, Theme, impl Fn(&Settings) -> Theme, impl Fn(Settings, Theme) -> Settings> {
     Lens::new(
         |s: &Settings| s.theme.clone(),
         |s, theme| Settings { theme, ..s },
@@ -154,11 +139,7 @@ fn main() {
     // Lens that views u32 font size as CSS pixel string (e.g. "16px")
     let font_css_lens = theme_font_size_lens().fmap(
         |size: u32| format!("{size}px"),
-        |css: String| {
-            css.trim_end_matches("px")
-                .parse::<u32>()
-                .unwrap_or(12)
-        },
+        |css: String| css.trim_end_matches("px").parse::<u32>().unwrap_or(12),
     );
 
     let current_theme = Theme {
@@ -171,7 +152,10 @@ fn main() {
     assert_eq!(css_str, "16px");
 
     let resized_theme = font_css_lens.set(current_theme, "24px".to_string());
-    println!("  Set font size using CSS string: {}", resized_theme.font_size);
+    println!(
+        "  Set font size using CSS string: {}",
+        resized_theme.font_size
+    );
     assert_eq!(resized_theme.font_size, 24);
 
     println!("\n=== Lens Example Completed Successfully ===");

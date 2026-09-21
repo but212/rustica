@@ -23,27 +23,22 @@ enum AppNotification {
     SystemAlert(String),
 }
 
-fn running_progress_prism() -> Prism<
-    TaskStatus,
-    u8,
-    impl Fn(&TaskStatus) -> Option<u8>,
-    impl Fn(&u8) -> TaskStatus,
-> {
+fn running_progress_prism()
+-> Prism<TaskStatus, u8, impl Fn(&TaskStatus) -> Option<u8>, impl Fn(&u8) -> TaskStatus> {
     Prism::new(
         |status: &TaskStatus| match status {
             TaskStatus::Running { progress } => Some(*progress),
             _ => None,
         },
-        |progress: &u8| TaskStatus::Running { progress: *progress },
+        |progress: &u8| TaskStatus::Running {
+            progress: *progress,
+        },
     )
 }
 
-fn completed_result_prism() -> Prism<
-    TaskStatus,
-    String,
-    impl Fn(&TaskStatus) -> Option<String>,
-    impl Fn(&String) -> TaskStatus,
-> {
+fn completed_result_prism()
+-> Prism<TaskStatus, String, impl Fn(&TaskStatus) -> Option<String>, impl Fn(&String) -> TaskStatus>
+{
     Prism::new(
         |status: &TaskStatus| match status {
             TaskStatus::Completed(res) => Some(res.clone()),
@@ -109,7 +104,7 @@ fn main() {
     assert_eq!(advanced, TaskStatus::Running { progress: 60 });
 
     // Modifying a non-matching variant is a safe no-op
-    let untouched_queued = progress_prism.modify(queued.clone(), |p| p + 10);
+    let untouched_queued = progress_prism.modify(queued, |p| p + 10);
     assert_eq!(untouched_queued, TaskStatus::Queued);
     println!("  Modifying mismatched variant leaves it unchanged.");
 
