@@ -21,7 +21,7 @@ impl<T> TestFunctor<T> {
     }
 }
 
-impl<T: Arbitrary + 'static> Arbitrary for TestFunctor<T> {
+impl<T: Arbitrary> Arbitrary for TestFunctor<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         TestFunctor::new(T::arbitrary(g))
     }
