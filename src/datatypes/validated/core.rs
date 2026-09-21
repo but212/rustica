@@ -88,7 +88,7 @@ impl<E> NonEmptyErrors<E> {
     /// This is always `false`: constructing `NonEmptyErrors` requires at
     /// least one error, and its mutating methods preserve that invariant.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         false
     }
 
@@ -169,19 +169,19 @@ pub enum Validated<T, E> {
 impl<T, E> Validated<T, E> {
     /// Returns whether this `Validated` is valid.
     #[inline]
-    pub fn is_valid(&self) -> bool {
+    pub const fn is_valid(&self) -> bool {
         matches!(self, Validated::Valid(_))
     }
 
     /// Returns whether this `Validated` is invalid.
     #[inline]
-    pub fn is_invalid(&self) -> bool {
+    pub const fn is_invalid(&self) -> bool {
         !self.is_valid()
     }
 
     /// Creates a new valid instance.
     #[inline]
-    pub fn valid(x: T) -> Self {
+    pub const fn valid(x: T) -> Self {
         Validated::Valid(x)
     }
 
@@ -263,7 +263,7 @@ impl<T, E> Validated<T, E> {
 
     /// Safely gets a reference to the valid value.
     #[inline]
-    pub fn try_valid_ref(&self) -> Result<&T, ValidatedError> {
+    pub const fn try_valid_ref(&self) -> Result<&T, ValidatedError> {
         match self {
             Validated::Valid(a) => Ok(a),
             Validated::Invalid(_) => Err(ValidatedError::ExpectedValid),
@@ -319,7 +319,7 @@ impl<T, E> Validated<T, E> {
 
     /// Returns a reference to the valid value as an Option, without cloning.
     #[inline]
-    pub fn as_option(&self) -> Option<&T> {
+    pub const fn as_option(&self) -> Option<&T> {
         match self {
             Validated::Valid(x) => Some(x),
             Validated::Invalid(_) => None,

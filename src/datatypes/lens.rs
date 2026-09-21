@@ -242,7 +242,7 @@ where
     /// assert_eq!(updated, Point { x: 5.0, y: 3.0 });
     /// ```
     #[inline]
-    pub fn new(get: GetFn, set: SetFn) -> Self {
+    pub const fn new(get: GetFn, set: SetFn) -> Self {
         Lens {
             get,
             set,

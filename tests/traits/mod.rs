@@ -16,7 +16,7 @@ use std::marker::PhantomData;
 pub struct TestFunctor<T>(pub T, PhantomData<T>);
 
 impl<T> TestFunctor<T> {
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         TestFunctor(value, PhantomData)
     }
 }

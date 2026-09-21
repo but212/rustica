@@ -113,7 +113,7 @@ impl<T, E> Validated<T, E> {
 
     /// Returns a reference to the error collection if `Invalid`, otherwise `None`.
     #[inline]
-    pub fn error_payload(&self) -> Option<&NonEmptyErrors<E>> {
+    pub const fn error_payload(&self) -> Option<&NonEmptyErrors<E>> {
         match self {
             Validated::Valid(_) => None,
             Validated::Invalid(es) => Some(es),

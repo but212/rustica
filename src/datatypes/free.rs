@@ -122,7 +122,7 @@ pub enum Free<F, A> {
 impl<F, A> Free<F, A> {
     /// Creates a pure computation containing the given value.
     #[inline]
-    pub fn pure(val: A) -> Self {
+    pub const fn pure(val: A) -> Self {
         Free::Pure(val)
     }
 
@@ -445,7 +445,7 @@ impl<F, A> Free<F, A> {
 
     /// Returns a reference to the inner value if it is pure.
     #[inline]
-    pub fn as_pure(&self) -> Option<&A> {
+    pub const fn as_pure(&self) -> Option<&A> {
         match self {
             Free::Pure(a) => Some(a),
             Free::Suspend(_, _) | Free::Bind(_, _) => None,

@@ -285,7 +285,7 @@ where
     ///     |v: &i32| Result::Ok(*v),
     /// );
     /// ```
-    pub fn new(preview: PreviewFn, review: ReviewFn) -> Self {
+    pub const fn new(preview: PreviewFn, review: ReviewFn) -> Self {
         Prism {
             preview,
             review,
@@ -455,7 +455,7 @@ where
     /// assert_eq!(circle_prism.preview(&circle), Some(5.0));
     /// assert_eq!(circle_prism.preview(&rect), None);
     /// ```
-    pub fn for_case<P, R>(match_case: PreviewFn, make_case: ReviewFn) -> Self {
+    pub const fn for_case<P, R>(match_case: PreviewFn, make_case: ReviewFn) -> Self {
         Prism::new(match_case, make_case)
     }
 

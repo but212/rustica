@@ -67,7 +67,7 @@ impl<T> Choice<T> {
 
     /// Creates a single-value `Choice` with no alternatives.
     #[inline]
-    pub fn single(primary: T) -> Self {
+    pub const fn single(primary: T) -> Self {
         Self {
             primary,
             alternatives: Vec::new(),
@@ -76,7 +76,7 @@ impl<T> Choice<T> {
 
     /// Returns a reference to the primary value.
     #[inline]
-    pub fn primary(&self) -> &T {
+    pub const fn primary(&self) -> &T {
         &self.primary
     }
 
@@ -88,13 +88,13 @@ impl<T> Choice<T> {
 
     /// Returns the total number of values (1 primary + alternatives count).
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         1 + self.alternatives.len()
     }
 
     /// Returns whether the `Choice` is empty. Always `false`.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         false
     }
 

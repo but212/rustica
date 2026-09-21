@@ -188,7 +188,7 @@ impl<H: 'static, E: Send + Sync + 'static> TryProgram<H, (), E> {
 impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<H, A, E> {
     /// Wraps a pure value in a `TryProgram`.
     #[inline]
-    pub fn pure(val: A) -> Self {
+    pub const fn pure(val: A) -> Self {
         TryProgram {
             node: Some(Node::Pure(val)),
         }
@@ -302,19 +302,19 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
 
     /// Returns `true` if the program is a pure value.
     #[inline]
-    pub fn is_pure(&self) -> bool {
+    pub const fn is_pure(&self) -> bool {
         matches!(self.node, Some(Node::Pure(_)))
     }
 
     /// Returns `true` if the program is a suspended command.
     #[inline]
-    pub fn is_suspend(&self) -> bool {
+    pub const fn is_suspend(&self) -> bool {
         matches!(self.node, Some(Node::Suspend(_, _)))
     }
 
     /// Returns `true` if the program is a sequenced bind node.
     #[inline]
-    pub fn is_bind(&self) -> bool {
+    pub const fn is_bind(&self) -> bool {
         matches!(self.node, Some(Node::Bind(_, _)))
     }
 }
@@ -352,7 +352,7 @@ impl<H: 'static> Program<H, ()> {
 impl<H: 'static, A: Send + Sync + 'static> Program<H, A> {
     /// Wraps a pure value in a [`Program`].
     #[inline]
-    pub fn pure(val: A) -> Self {
+    pub const fn pure(val: A) -> Self {
         Program(TryProgram::pure(val))
     }
 
@@ -391,19 +391,19 @@ impl<H: 'static, A: Send + Sync + 'static> Program<H, A> {
 
     /// Returns `true` if the program is a pure value.
     #[inline]
-    pub fn is_pure(&self) -> bool {
+    pub const fn is_pure(&self) -> bool {
         self.0.is_pure()
     }
 
     /// Returns `true` if the program is a suspended command.
     #[inline]
-    pub fn is_suspend(&self) -> bool {
+    pub const fn is_suspend(&self) -> bool {
         self.0.is_suspend()
     }
 
     /// Returns `true` if the program is a sequenced bind node.
     #[inline]
-    pub fn is_bind(&self) -> bool {
+    pub const fn is_bind(&self) -> bool {
         self.0.is_bind()
     }
 }

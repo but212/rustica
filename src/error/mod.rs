@@ -62,7 +62,7 @@ pub struct ContextError<E> {
 impl<E> ContextError<E> {
     /// Creates a new ContextError wrapping the root error.
     #[inline]
-    pub fn new(error: E) -> Self {
+    pub const fn new(error: E) -> Self {
         Self {
             error,
             context: Vec::new(),
@@ -91,7 +91,7 @@ impl<E> ContextError<E> {
 
     /// Returns a reference to the root error.
     #[inline]
-    pub fn error(&self) -> &E {
+    pub const fn error(&self) -> &E {
         &self.error
     }
 
@@ -255,7 +255,7 @@ pub struct LazyContext<F> {
 impl<F> LazyContext<F> {
     /// Creates a new lazy context with the given generator function.
     #[inline]
-    pub fn new(generator: F) -> Self {
+    pub const fn new(generator: F) -> Self {
         Self { generator }
     }
 }
@@ -290,7 +290,7 @@ where
 
 /// Creates a reusable context-attaching closure.
 #[inline]
-pub fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
+pub const fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
 where
     C: IntoErrorContext + Clone,
 {
@@ -312,7 +312,7 @@ where
 }
 
 /// Creates a reusable context accumulator function.
-pub fn context_accumulator<E, I, C>(contexts: I) -> impl Fn(E) -> ContextError<E>
+pub const fn context_accumulator<E, I, C>(contexts: I) -> impl Fn(E) -> ContextError<E>
 where
     I: IntoIterator<Item = C> + Clone,
     C: IntoErrorContext + Clone,
