@@ -286,4 +286,3 @@ let lens = Lens::new(
 
 - `Handler`, `Program`, `TryHandler`, and `TryProgram` remain re-exported in the prelude.
 - `Vec<T>` does not implement `Monad` to prevent `join` method resolution from shadowing standard slice `[T]::join`. Monadic operations on `Vec` should use standard iterator combinators (`flat_map`).
-
