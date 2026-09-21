@@ -1,6 +1,6 @@
 # Rustica API Guidelines: Naming and Receiver Conventions
 
-This document establishes method naming conventions and self receiver design standards for the Rustica project, combining the official Rust API Guidelines (<https://rust-lang.github.io/api-guidelines/>) with functional programming and persistent data structure domain rules.
+Method naming conventions and receiver standards for Rustica, aligning the [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/) with functional and persistent data structure semantics.
 
 ---
 
@@ -8,143 +8,113 @@ This document establishes method naming conventions and self receiver design sta
 
 | Receiver | Ownership Semantics | Primary Use Cases | Constraints and Anti-patterns |
 | --- | --- | --- | --- |
-| `&self` | Immutable Borrow | Inspection, queries, pure calculations, structural sharing in persistent collections | No side effects; avoid forcing unnecessary Clone bounds |
-| `&mut self` | Exclusive Borrow | In-place internal state mutation, buffer reuse | Cannot transfer ownership out of the caller |
-| `self` | Ownership Move (Consume) | Type conversions, execution runners, termination, consuming builder chaining | Do not use for read-only queries (prevents instance dropping) |
+| `&self` | Immutable Borrow | Inspection, queries, pure calculations, persistent structural sharing | No side effects; avoid forcing unnecessary `Clone` bounds |
+| `&mut self` | Exclusive Borrow | In-place state mutation, buffer reuse | Cannot transfer ownership out of caller |
+| `self` | Ownership Move | Type conversions, execution runners, termination, consuming builders | Do not use for read-only queries |
 
 ---
 
 ## 2. Conversion Methods (C-CONV)
 
-Conversion method prefixes strictly correspond to the cost and ownership semantics of the receiver.
+Prefixes correspond strictly to receiver ownership and allocation cost:
 
-| Prefix | Receiver | Cost | Return Type | Description and Conventions |
+| Prefix | Receiver | Cost | Return Type | Conventions |
 | --- | --- | --- | --- | --- |
-| `as_*` | `&self` / `&mut self` | Free | Borrowed reference (`&U`, `&mut U`) | Borrows a view into internal data without allocation or copying (e.g., `as_slice(&self) -> &[T]`, `as_str(&self) -> &str`) |
-| `to_*` | `&self` | Expensive | Owned value (`U`) | Retains the original instance and produces a new value via cloning or heap reallocation (e.g., `to_string(&self) -> String`, `to_vec(&self) -> Vec<T>`) |
-| `into_*` | `self` | Variable (typically move only) | Owned value (`U`) | Consumes the original instance by value to unwrap or convert into another type (e.g., `into_inner(self) -> T`, `into_state(self) -> State<S, A>`) |
+| `as_*` | `&self` / `&mut self` | Free | Borrowed reference (`&U`, `&mut U`) | Borrows internal view without allocation or copy (`as_slice`, `as_str`) |
+| `to_*` | `&self` | Expensive | Owned value (`U`) | Clones or reallocates a new instance (`to_string`, `to_vec`, `to_pure`) |
+| `into_*` | `self` | Move only | Owned value (`U`) | Consumes instance to unwrap or convert (`into_value`, `into_result`) |
 
 ### Rules and Examples
 
-- **Never use `to_*` with a `self` receiver**: Methods taking `self` by value must be named `into_*`.
-  - [BAD] `StateT::to_state(self)` -> [GOOD] `StateT::into_state(self)`
-  - [BAD] `WithError::to_result(self)` -> [GOOD] `WithError::into_result(self)`
+- **Never use `to_*` with a `self` receiver**: By-value methods must use `into_*`.
+  - [BAD] `Validated::to_value(self)` -> [GOOD] `Validated::into_value(self)`
+  - [BAD] `Free::into_pure(&self)` -> [GOOD] `Free::to_pure(&self)` (borrowing with clone requires `to_*`)
 - **Never return an owned type from `as_*`**:
-  - [BAD] `as_option(&self) -> Option<T>` (when cloning `T`) -> [GOOD] `to_option(&self) -> Option<T>` or `as_option(&self) -> Option<&T>`
+  - [BAD] `as_option(&self) -> Option<T>` (cloning `T`) -> [GOOD] `to_option(&self) -> Option<T>` or `as_option(&self) -> Option<&T>`
 
 ---
 
 ## 3. Getters and Accessors (C-GETTER)
 
-Following Rust conventions, field getters omit the `get_` prefix.
+Field getters omit the `get_` prefix.
 
 ### 3.1 Standard Rules
 
-- **Bare identifier for getters**:
-  - `fn field(&self) -> &FieldType`
-  - [BAD] `fn get_name(&self) -> &str` -> [GOOD] `fn name(&self) -> &str`
-- **Mutable getters**:
-  - `fn field_mut(&mut self) -> &mut FieldType`
-  - E.g., `fn value_mut(&mut self) -> &mut T`
+- **Bare identifiers**: `fn field(&self) -> &FieldType` ([BAD] `fn get_name(&self)` -> [GOOD] `fn name(&self)`)
+- **Mutable getters**: `fn field_mut(&mut self) -> &mut FieldType`
 
 ### 3.2 Approved Exceptions for `get`
 
-The `get` prefix is reserved for operations that:
-
-1. **Query by index or key with potential failure**:
-   - `fn get(&self, index: usize) -> Option<&T>`
-   - `fn get_mut(&mut self, index: usize) -> Option<&mut T>`
-2. **Perform atomic/synchronization access**:
-   - `AtomicBool::get_mut(&mut self) -> &mut bool`
-3. **Perform fallible lookups**:
-   - `fn try_get(&self, key: &K) -> Result<&V, Error>`
+1. **Key/Index queries with failure**: `fn get(&self, index: usize) -> Option<&T>`
+2. **Atomic/synchronization access**: `AtomicBool::get_mut(&mut self) -> &mut bool`
+3. **Fallible lookups**: `fn try_get(&self, key: &K) -> Result<&V, Error>`
 
 ### 3.3 Execution Runners vs. Getters
 
-Methods that trigger side effects or evaluate computations must never be named `get` or `try_get`.
+Side-effect or computation triggers must never be named `get` or `try_get`:
 
-- [BAD] `IO::try_get(self)` -> [GOOD] `IO::try_run(self)`
-- `get` implies read-only observation; `run` implies evaluation and execution.
+- [BAD] `TryProgram::try_get(self, handler)` -> [GOOD] `TryProgram::try_run(self, handler)`
+- `get` implies observation; `run` implies evaluation.
 
 ---
 
 ## 4. Builders and Setters (C-BUILDER)
 
-Builder and mutator patterns are separated by receiver type:
-
 ### 4.1 Consuming Builders (Chaining)
 
-- **Prefix**: `with_*` (or domain-specific action)
-- **Receiver**: `mut self -> Self`
-- **Purpose**: Assembles immutable instances step-by-step, moving the previous state.
-- Example:
+- **Prefix**: `with_*` | **Receiver**: `mut self -> Self`
+- Assembles immutable instances step-by-step by moving state:
 
-  ```rust
-  impl ComposableError {
-      pub fn with_error_code(mut self, code: u32) -> Self {
-          self.error_code = Some(code);
-          self
-      }
-  }
-  ```
+```rust
+impl ComposableError {
+    pub fn with_error_code(mut self, code: u32) -> Self {
+        self.error_code = Some(code);
+        self
+    }
+}
+```
 
 ### 4.2 In-Place Mutators (Setters)
 
-- **Prefix**: `set_*`
-- **Receiver**: `&mut self -> ()`
-- **Purpose**: Modifies internal fields in-place on an already-bound mutable instance.
-- Example:
+- **Prefix**: `set_*` | **Receiver**: `&mut self -> ()`
+- Mutates internal fields in-place on a bound instance (`Configuration::set_timeout(&mut self, timeout: Duration)`).
 
-  ```rust
-  impl Configuration {
-      pub fn set_timeout(&mut self, timeout: Duration) {
-          self.timeout = timeout;
-      }
-  }
-  ```
+### 4.3 Borrowed Builders
 
-### 4.3 Non-Consuming Borrowed Builders
-
-- **Receiver**: `&mut self -> &mut Self`
-- Used primarily for large buffer assemblers or FFI struct builders.
+- **Receiver**: `&mut self -> &mut Self` (reserved for large buffer or FFI assemblers).
 
 ---
 
 ## 5. Iterators (C-ITER)
 
-Container types should provide the standard iterator triplet where applicable:
+Container types provide standard iterators where applicable:
 
 | Method | Receiver | Item Type | Description |
 | --- | --- | --- | --- |
 | `iter(&self)` | `&self` | `&'a T` | Traverses by immutable reference |
 | `iter_mut(&mut self)` | `&mut self` | `&'a mut T` | Traverses by mutable reference |
-| `into_iter(self)` | `self` | `T` | Consumes container by value (`IntoIterator` implementation) |
+| `into_iter(self)` | `self` | `T` | Consumes container by value (`IntoIterator`) |
 
-- **Domain-Specific Iterators**:
-  - `keys(&self) -> Keys<'_>`, `values(&self) -> Values<'_>`
-  - `iter_errors(&self) -> IterErrors<'_>` (traverses dedicated components)
+- **Domain Iterators**: `keys(&self) -> Keys<'_>`, `values(&self) -> Values<'_>`, `iter_errors(&self) -> std::slice::Iter<'_, E>`
 
 ---
 
 ## 6. Predicates and Boolean Queries (C-PREDICATE)
 
-Methods returning `bool` inspect state and must always borrow via `&self`:
+Boolean inspection methods always borrow via `&self`:
 
-- `is_*`: State or variant queries (`is_empty(&self)`, `is_valid(&self)`, `is_pure(&self)`)
-- `has_*`: Component presence queries (`has_alternatives(&self)`)
-- `can_*`: Capability/feasibility checks (`can_retry(&self)`)
-- `contains`: Element or key containment checks (`contains(&self, item: &T)`)
+- `is_*`: State/variant query (`is_empty`, `is_valid`, `is_pure`)
+- `has_*`: Component presence (`has_alternatives`)
+- `can_*`: Capability check (`can_retry`)
+- `contains`: Key or element containment (`contains(&self, item: &T)`)
 
 ---
 
 ## 7. Functional Programming and Domain Extensions
 
-Specialized guidelines for Rustica's categorical and persistent abstractions:
-
 ### 7.1 Structural Flattening and Filtering (`flatten`, `filter`)
 
-- Operations that transform collections by structure should prefer **consuming `self` receivers** as the primary API.
-- Using `&self` as the default forces a `T: Clone` bound, preventing use with move-only types.
+- Structural transforms prefer **consuming `self`** to avoid forcing `T: Clone`:
   - Primary (consuming): `fn flatten<I>(self) -> Option<Self::Output<I>> where T: IntoIterator<Item = I>`
   - Borrowed companion: `fn flatten_cloned<I>(&self) -> ... where T: Clone`
   - Primary (consuming): `fn filter<F>(self, predicate: F) -> Option<Self>`
@@ -152,28 +122,23 @@ Specialized guidelines for Rustica's categorical and persistent abstractions:
 
 ### 7.2 Monadic and Effect Computation Runners
 
-- **Single-shot Computations**:
-  - Evaluates side effects or state transitions by consuming the computation descriptor: `self` receiver.
-  - `IO::run(self) -> O`, `State::run_state(self, s: S) -> (A, S)`, `Program::run(self, handler: &mut H) -> A`, `TryProgram::try_run(self, handler: &mut H) -> Result<A, E>`
-- **Multi-shot Computations (Documented Exception)**:
-  - When the execution pipeline is wrapped in an `Arc<dyn Fn...>`, allowing the same computation to be executed multiple times with different continuations, `&self` is permitted.
-  - Must document receiver rationale under a dedicated **Receiver Semantics** section in rustdoc.
-  - `Cont::run(&self, k: FN) -> R`, `Free::run(&self, interp: Interp) -> A`, `Free::try_run(&self, interp: Interp) -> Result<A, FreeError<E>>`
+- **Single-shot**: Consumes computation descriptor (`self`):
+  - `Program::run(self, handler: &mut H) -> A`, `TryProgram::try_run(self, handler: &mut H) -> Result<A, E>`
+- **Multi-shot (Documented Exception)**: Borrows `&self` when the pipeline is wrapped in `Arc<dyn Fn...>` and reusable across continuations:
+  - `Free::run(&self, interp: Interp) -> A`, `Free::try_run(&self, interp: Interp) -> Result<A, FreeError<E>>`
+  - Must document receiver rationale under **Receiver Semantics** in rustdoc.
 
 ### 7.3 Persistent Data Structures
 
-- Persistent collections (`PersistentVector`, `RRBTree`) return newly allocated roots with structural sharing (via `Arc`) rather than mutating in place.
-- Therefore, mutation-like verbs use **`&self -> Self`** instead of `&mut self`.
-  - `fn push_back(&self, value: T) -> Self`
-  - `fn update(&self, index: usize, value: T) -> Self`
+Persistent collections return new roots with structural sharing (`Arc`) rather than mutating in place; mutation-like verbs use **`&self -> Self`**:
+
+- `fn push_back(&self, value: T) -> Self`
+- `fn update(&self, index: usize, value: T) -> Self`
 
 ### 7.4 Optics (Lens, Prism)
 
-- Optics are reusable first-class functional references; access and modification operations borrow `&self`:
-  - `Lens::get(&self, source: &S) -> A`
-  - `Lens::set(&self, source: S, value: A) -> S`
-- Composition of optics transfers unboxed closures into the combined optic, requiring `self`:
-  - `Lens::then(self, other: Lens<A, B>) -> Lens<S, B>`
+- Optics access and modification borrow `&self` (`Lens::get(&self, source: &S) -> A`, `Lens::set(&self, source: S, value: A) -> S`).
+- Composition transfers unboxed closures, requiring `self` (`Lens::then(self, other: Lens<A, B>) -> Lens<S, B>`).
 
 ---
 
@@ -181,8 +146,8 @@ Specialized guidelines for Rustica's categorical and persistent abstractions:
 
 | Pattern | Check | Correct Convention |
 | --- | --- | --- |
-| **Consuming Conversion** | Takes `self`, produces another type | `into_*` (`into_state`, `into_log`, `into_result`) |
-| **Cloned Conversion** | Takes `&self`, produces owned instance | `to_*` (`to_vec`, `to_string`, `to_option`) |
+| **Consuming Conversion** | Takes `self`, produces another type | `into_*` (`into_value`, `into_errors`, `into_result`) |
+| **Cloned Conversion** | Takes `&self`, produces owned instance | `to_*` (`to_vec`, `to_string`, `to_option`, `to_pure`) |
 | **Borrowed View** | Takes `&self`, borrows inner structure | `as_*` (`as_slice`, `as_str`, `as_bytes`) |
 | **Field Getter** | Inspects field value | `field(&self)`, `field_mut(&mut self)` (no `get_`) |
 | **Key/Index Lookup** | Fallible query by key or position | `get(&self, key)` |

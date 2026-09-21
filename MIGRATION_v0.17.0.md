@@ -13,6 +13,7 @@ This guide describes the deprecations, standard library replacements, and migrat
 | `Max<T>` | 0.18.0 | `std::cmp::max`, `Iterator::max` | Standard comparison function and iterator reductions. |
 | `Sum<T>` | 0.18.0 | `std::iter::Sum`, `+`, `Iterator::sum` | Standard library arithmetic and iterator summation. |
 | `Product<T>` | 0.18.0 | `std::iter::Product`, `*`, `Iterator::product` | Standard library arithmetic and iterator product. |
+| `Predicate<A>` | 0.18.0 | Standard closures `\|x\| ...`, `\|\|`, `&&`, `!` | `Arc<dyn Fn>` dynamic dispatch overhead replaced by zero-cost closures. |
 | `One` trait | 0.18.0 | Numeric literals (`1`, `1.0`), `Iterator::product` | Multiplicative identity provided natively by standard numeric types. |
 | `Choice::first_match` | 0.18.0 | `choice.iter().find_map(f)` | Standard iterator short-circuiting combinator. |
 | `FoldableExt::to_vec` | 0.18.0 | `Iterator::collect::<Vec<_>>()` | Idiomatic collection conversion. |
@@ -314,7 +315,7 @@ assert_eq!(result, Some(12));
 ---
 
 ### 12. `IO<A>` -> Eager Functions or Closures
- 
+
 Direct side-effect execution requires no monadic wrapper in Rust. For deferred evaluation, zero-cost closures (`|| ...`) or `async`/`await` offer simpler ergonomics and higher performance.
 
 **Before (0.16.0):**
@@ -447,4 +448,42 @@ for err in validated.iter_errors() {
 for err in validated.error_slice() {
     println!("{err}");
 }
+```
+
+---
+
+### 17. `Predicate<A>` -> Standard Closures & Boolean Operators
+
+`Predicate<A>` wraps `Arc<dyn Fn(&A) -> bool + Send + Sync>` and allocates new `Arc` closures on combination (`union`, `intersection`, `diff`, `negate`). Replace with zero-cost standard Rust closures and language-level boolean operators (`||`, `&&`, `!`).
+
+**Before (0.16.0):**
+
+```rust
+use rustica::datatypes::wrapper::predicate::Predicate;
+
+let is_even = Predicate::new(|x: &i32| *x % 2 == 0);
+let is_positive = Predicate::new(|x: &i32| *x > 0);
+
+let even_or_positive = is_even.union(&is_positive);
+let even_and_positive = is_even.intersection(&is_positive);
+let odd = is_even.negate();
+
+assert!(even_or_positive.contains(&2));
+assert!(even_and_positive.contains(&2));
+assert!(odd.contains(&3));
+```
+
+**After (0.17.0+):**
+
+```rust
+let is_even = |x: &i32| *x % 2 == 0;
+let is_positive = |x: &i32| *x > 0;
+
+let even_or_positive = |x: &i32| is_even(x) || is_positive(x);
+let even_and_positive = |x: &i32| is_even(x) && is_positive(x);
+let odd = |x: &i32| !is_even(x);
+
+assert!(even_or_positive(&2));
+assert!(even_and_positive(&2));
+assert!(odd(&3));
 ```

@@ -427,7 +427,7 @@ impl<A: Send + Sync + Clone + 'static> IO<A> {
     /// This method blocks the calling OS thread using [`std::thread::sleep`].
     /// In an asynchronous runtime (such as Tokio), executing this operation blocks worker
     /// threads and can cause executor stalls. For synchronous delay, prefer [`IO::delay_sync`].
-    /// For non-blocking delay in async code, use runtime timer utilities with [`crate::datatypes::async_monad::AsyncM`].
+    /// For non-blocking delay in async code, use runtime timer utilities (such as `tokio::time::sleep`).
     #[deprecated(
         since = "0.16.0",
         note = "Scheduled for removal in 0.18.0. Use IO::delay_sync for synchronous delay, or runtime timer utilities in async code."

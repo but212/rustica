@@ -89,6 +89,8 @@
 //!
 //! This module is ideal for use cases where sets are defined by properties or conditions rather than explicit enumeration.
 
+#![allow(deprecated)]
+
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;
 use crate::traits::semigroup::Semigroup;
@@ -102,6 +104,10 @@ use std::sync::Arc;
 /// like AND, OR, NOT, and difference.
 #[repr(transparent)]
 #[derive(Clone)]
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard closures (|x| ...) or boolean operators directly. Scheduled for removal in 0.18.0."
+)]
 pub struct Predicate<A> {
     func: Arc<dyn Fn(&A) -> bool + Send + Sync>,
 }

@@ -9,6 +9,7 @@ use rustica::datatypes::wrapper::first::First;
 use rustica::datatypes::wrapper::last::Last;
 use rustica::datatypes::wrapper::max::Max;
 use rustica::datatypes::wrapper::min::Min;
+use rustica::datatypes::wrapper::predicate::Predicate;
 use rustica::datatypes::wrapper::product::Product;
 use rustica::datatypes::wrapper::sum::Sum;
 use rustica::traits::foldable::FoldableExt;
@@ -354,4 +355,68 @@ fn test_c14_alternative_parity_with_option_or_vec_extend_bool_then() {
     let mut std_concat = vec_a.clone();
     std_concat.extend(vec_b.clone());
     assert_eq!(vec_a.alt(vec_b), std_concat);
+}
+
+#[test]
+fn test_c15_predicate_parity_with_closures_and_bool_ops() {
+    let is_even_pred = Predicate::new(|x: &i32| *x % 2 == 0);
+    let is_positive_pred = Predicate::new(|x: &i32| *x > 0);
+
+    let is_even_fn = |x: &i32| *x % 2 == 0;
+    let is_positive_fn = |x: &i32| *x > 0;
+
+    let test_values = [-4, -3, 0, 1, 4];
+
+    for &x in &test_values {
+        // C-01: Contains / eval parity
+        assert_eq!(is_even_pred.contains(&x), is_even_fn(&x));
+        assert_eq!(is_even_pred.eval(&x), is_even_fn(&x));
+
+        // C-02: Union / BitOr parity vs ||
+        let union_pred = is_even_pred.union(&is_positive_pred);
+        let bitor_pred = is_even_pred.clone() | is_positive_pred.clone();
+        let or_fn = |v: &i32| is_even_fn(v) || is_positive_fn(v);
+        assert_eq!(union_pred.contains(&x), or_fn(&x));
+        assert_eq!(bitor_pred.contains(&x), or_fn(&x));
+
+        // C-03: Intersection / BitAnd parity vs &&
+        let inter_pred = is_even_pred.intersection(&is_positive_pred);
+        let bitand_pred = is_even_pred.clone() & is_positive_pred.clone();
+        let and_fn = |v: &i32| is_even_fn(v) && is_positive_fn(v);
+        assert_eq!(inter_pred.contains(&x), and_fn(&x));
+        assert_eq!(bitand_pred.contains(&x), and_fn(&x));
+
+        // C-04: Difference / Sub parity vs && !
+        let diff_pred = is_even_pred.diff(&is_positive_pred);
+        let sub_pred = is_even_pred.clone() - is_positive_pred.clone();
+        let diff_fn = |v: &i32| is_even_fn(v) && !is_positive_fn(v);
+        assert_eq!(diff_pred.contains(&x), diff_fn(&x));
+        assert_eq!(sub_pred.contains(&x), diff_fn(&x));
+
+        // C-05: Negation / Not parity vs !
+        let neg_pred = is_even_pred.negate();
+        let not_pred = !is_even_pred.clone();
+        let not_fn = |v: &i32| !is_even_fn(v);
+        assert_eq!(neg_pred.contains(&x), not_fn(&x));
+        assert_eq!(not_pred.contains(&x), not_fn(&x));
+
+        // C-06: Semigroup & Monoid parity
+        let combined_pred = is_even_pred.clone().combine(is_positive_pred.clone());
+        assert_eq!(combined_pred.contains(&x), or_fn(&x));
+
+        let empty_pred = Predicate::<i32>::empty();
+        let empty_fn = |_: &i32| false;
+        assert_eq!(empty_pred.contains(&x), empty_fn(&x));
+        assert_eq!(
+            is_even_pred
+                .clone()
+                .combine(empty_pred.clone())
+                .contains(&x),
+            is_even_fn(&x)
+        );
+        assert_eq!(
+            empty_pred.combine(is_even_pred.clone()).contains(&x),
+            is_even_fn(&x)
+        );
+    }
 }

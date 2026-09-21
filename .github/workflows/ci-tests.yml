@@ -52,6 +52,18 @@ jobs:
             cargo test --locked --verbose
           fi
 
+      - name: Run form_validation Example
+        if: matrix.features == '--all-features'
+        run: cargo run --example form_validation --features pvec --locked
+
+      - name: Run dsl_interpretation Example
+        if: matrix.features == '--all-features'
+        run: cargo run --example dsl_interpretation --locked
+
+      - name: Run readme Example
+        if: matrix.features == '--all-features'
+        run: cargo run --example readme --locked
+
   msrv:
     name: Test declared MSRV
     runs-on: ubuntu-latest
@@ -161,3 +173,26 @@ jobs:
         env:
           TOOLCHAIN: ${{ env.NIGHTLY_TOOLCHAIN }}
         run: cargo "+$TOOLCHAIN" miri test --lib --locked bind_owns_strings_without_aliasing_or_double_drop
+
+  bench:
+    name: Benchmark Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Compile Benchmarks
+        run: cargo bench --no-run --all-features --locked
+
+      - name: Run Datatypes Benchmark
+        run: cargo bench --bench datatypes_benchmarks --features pvec --locked
