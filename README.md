@@ -4,6 +4,7 @@
 [![Documentation](https://docs.rs/rustica/badge.svg)](https://docs.rs/rustica)
 [![CI](https://github.com/but212/rustica/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/but212/rustica/actions/workflows/rust.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/but212/rustica)
 
 Rustica provides functional programming and categorical abstractions for Rust.
 
