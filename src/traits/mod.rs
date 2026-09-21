@@ -18,6 +18,8 @@
 //! If you're new to functional programming, start with Functor, Applicative, and Monad
 //! which form the foundation of most functional programming patterns.
 
+#![allow(deprecated)]
+
 /// Higher-kinded type abstractions for generic programming.
 pub mod hkt;
 /// Creation of values in a computational context.

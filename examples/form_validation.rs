@@ -5,7 +5,6 @@
 
 use rustica::datatypes::validated::Validated;
 use rustica::pvec::{PersistentVector, pvec};
-use rustica::traits::applicative::Applicative;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct User {
@@ -43,19 +42,11 @@ fn validate_user(username: &str, email: &str, age: u32) -> Validated<User, Strin
     let e = validate_email(email);
     let a = validate_age(age);
 
-    // Combine username and email first
-    let user_base = Validated::<(String, String), String>::lift2(|u, e| (u, e), u, e);
-
-    // Combine with age to construct User
-    Validated::<User, String>::lift2(
-        |(u, e), a| User {
-            username: u,
-            email: e,
-            age: a,
-        },
-        user_base,
-        a,
-    )
+    u.zip_with3(e, a, |username, email, age| User {
+        username,
+        email,
+        age,
+    })
 }
 
 fn main() {
@@ -103,5 +94,20 @@ fn main() {
         for (i, u) in history_v2.iter().enumerate() {
             println!("  User #{}: {} ({})", i + 1, u.username, u.email);
         }
+    }
+
+    // Case 4: Batch Validation with std FromIterator (collect)
+    println!("\n4. Batch validation of multiple registrations via standard collect:");
+    let batch = vec![
+        validate_user("alice", "alice@example.com", 25),
+        validate_user("bob", "bob@example.com", 32),
+        validate_user("charlie", "charlie@example.com", 21),
+    ];
+    let collected: Validated<Vec<User>, String> = batch.into_iter().collect();
+    match collected {
+        Validated::Valid(users) => println!("  All {} users validly registered!", users.len()),
+        Validated::Invalid(errors) => {
+            println!("  Batch failed with errors: {:?}", errors.as_slice())
+        },
     }
 }

@@ -52,6 +52,8 @@
 //! assert_eq!(value.as_deref(), Some("hkt"));
 //! ```
 
+#![allow(deprecated)]
+
 /// A trait for types that can be treated as higher-kinded types.
 ///
 /// In category theory, a functor is a mapping between categories. In Rust terms,
@@ -66,6 +68,10 @@
 /// * `Source` - The type contained in this HKT
 /// * `Output<U>` - The same HKT but containing type U instead of Source
 ///
+#[deprecated(
+    since = "0.18.0",
+    note = "HKT simulation traits are scheduled for removal in 0.19.0 in favor of standard concrete types and inherent methods."
+)]
 pub trait HKT {
     /// The type contained in this HKT.
     type Source;

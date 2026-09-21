@@ -114,6 +114,7 @@ pub use core::{NonEmptyErrors, Validated};
 pub use iter::*;
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::Validated;
     use crate::traits::{applicative::Applicative, functor::Functor, semigroup::Semigroup};

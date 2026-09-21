@@ -34,6 +34,38 @@ impl<'a, T, E> IntoIterator for &'a mut Validated<T, E> {
     }
 }
 
+impl<T, E, C> FromIterator<Validated<T, E>> for Validated<C, E>
+where
+    C: FromIterator<T>,
+{
+    /// Collects an iterator of `Validated<T, E>` into `Validated<C, E>`.
+    ///
+    /// If all items are `Valid`, collects all inner values into container `C`.
+    /// If any items are `Invalid`, accumulates all errors across all items in encounter order.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let items = vec![Validated::<i32, &str>::valid(1), Validated::valid(2)];
+    /// let collected: Validated<Vec<i32>, &str> = items.into_iter().collect();
+    /// assert_eq!(collected, Validated::valid(vec![1, 2]));
+    ///
+    /// let mixed = vec![
+    ///     Validated::<i32, &str>::valid(1),
+    ///     Validated::invalid("err1"),
+    ///     Validated::invalid("err2"),
+    /// ];
+    /// let failed: Validated<Vec<i32>, &str> = mixed.into_iter().collect();
+    /// assert_eq!(failed.error_slice(), &["err1", "err2"]);
+    /// ```
+    #[inline]
+    fn from_iter<I: IntoIterator<Item = Validated<T, E>>>(iter: I) -> Self {
+        Validated::<T, E>::collect(iter.into_iter())
+    }
+}
+
 impl<T, E> Validated<T, E> {
     /// Returns an iterator over the valid value (0 or 1 item).
     #[inline]

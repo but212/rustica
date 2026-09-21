@@ -40,6 +40,8 @@
 //! assert_eq!(combined.to_vec(), vec![1, 2, 3, 4, 5]);
 //! ```
 
+#![allow(deprecated)]
+
 use crate::traits::{
     foldable::Foldable, functor::Functor, hkt::HKT, monoid::Monoid, semigroup::Semigroup,
 };

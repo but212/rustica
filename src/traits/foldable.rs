@@ -58,6 +58,8 @@
 //! - **Monoid**: `Foldable` frequently uses monoid operations to combine elements during folding,
 //!   making Monoid a natural companion trait.
 
+#![allow(deprecated)]
+
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;
 
@@ -68,6 +70,10 @@ use crate::traits::monoid::Monoid;
 /// The trait is implemented on types that implement `HKT`, where:
 /// * `Source` is the type of elements in the foldable structure
 /// * `Output<T>` represents the structure containing elements of type `T`
+#[deprecated(
+    since = "0.18.0",
+    note = "Foldable is scheduled for removal in 0.19.0. Use standard Iterator::fold or inherent methods instead."
+)]
 pub trait Foldable: HKT {
     /// Left-associative fold of a structure.
     ///

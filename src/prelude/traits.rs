@@ -37,6 +37,8 @@
 //!
 //! See each trait's documentation for more details and advanced usage.
 
+#![allow(deprecated)]
+
 pub use crate::traits::applicative::Applicative;
 pub use crate::traits::foldable::Foldable;
 pub use crate::traits::functor::Functor;

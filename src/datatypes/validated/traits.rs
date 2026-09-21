@@ -4,6 +4,8 @@
 //! Like `Result<T, E>`, the success value is the first type parameter and the error
 //! collection is the second type parameter.
 
+#![allow(deprecated)]
+
 use crate::datatypes::validated::{
     NonEmptyErrors,
     core::{ErrorVec, Validated},

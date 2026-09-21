@@ -93,6 +93,7 @@ fn test_validated_semigroup_accumulation() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn test_result_and_vec_with_non_clone_types() {
     use rustica::traits::applicative::Applicative;
     use rustica::traits::foldable::Foldable;
@@ -166,4 +167,62 @@ fn test_prelude_exports_handler() {
 
     let mut h = MyHandler;
     assert_eq!(h.handle(MyCmd), 42);
+}
+
+#[test]
+fn test_validated_from_iterator_and_zip() {
+    use rustica::datatypes::validated::Validated;
+    use std::collections::BTreeSet;
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct MoveOnly(i32);
+
+    // 1. FromIterator: all valid
+    let valids: Vec<Validated<i32, &str>> = vec![
+        Validated::valid(1),
+        Validated::valid(2),
+        Validated::valid(3),
+    ];
+    let collected: Validated<Vec<i32>, &str> = valids.into_iter().collect();
+    assert_eq!(collected, Validated::valid(vec![1, 2, 3]));
+
+    // 2. FromIterator: BTreeSet
+    let valids: Vec<Validated<i32, &str>> = vec![
+        Validated::valid(1),
+        Validated::valid(2),
+        Validated::valid(2),
+    ];
+    let collected_set: Validated<BTreeSet<i32>, &str> = valids.into_iter().collect();
+    let expected_set: BTreeSet<i32> = [1, 2].into_iter().collect();
+    assert_eq!(collected_set, Validated::valid(expected_set));
+
+    // 3. FromIterator: multiple errors accumulated
+    let mixed: Vec<Validated<i32, &str>> = vec![
+        Validated::valid(1),
+        Validated::invalid("err1"),
+        Validated::valid(2),
+        Validated::invalid("err2"),
+    ];
+    let collected_err: Validated<Vec<i32>, &str> = mixed.into_iter().collect();
+    assert!(collected_err.is_invalid());
+    assert_eq!(collected_err.error_slice(), &["err1", "err2"]);
+
+    // 4. Inherent zip and zip_with on move-only types
+    let m1 = Validated::<MoveOnly, &str>::valid(MoveOnly(10));
+    let m2 = Validated::<MoveOnly, &str>::valid(MoveOnly(20));
+    let zipped = m1.zip_with(m2, |a, b| MoveOnly(a.0 + b.0));
+    assert_eq!(zipped, Validated::valid(MoveOnly(30)));
+
+    // 5. Inherent lift2 on move-only types
+    let m1 = Validated::<MoveOnly, &str>::valid(MoveOnly(5));
+    let m2 = Validated::<MoveOnly, &str>::valid(MoveOnly(15));
+    let lifted = Validated::lift2(|a: MoveOnly, b: MoveOnly| MoveOnly(a.0 + b.0), m1, m2);
+    assert_eq!(lifted, Validated::valid(MoveOnly(20)));
+
+    // 6. Inherent zip3 and zip_with3 on move-only types
+    let m1 = Validated::<MoveOnly, &str>::valid(MoveOnly(1));
+    let m2 = Validated::<MoveOnly, &str>::valid(MoveOnly(2));
+    let m3 = Validated::<MoveOnly, &str>::valid(MoveOnly(3));
+    let zipped3 = m1.zip_with3(m2, m3, |a, b, c| MoveOnly(a.0 + b.0 + c.0));
+    assert_eq!(zipped3, Validated::valid(MoveOnly(6)));
 }

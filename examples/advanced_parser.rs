@@ -119,7 +119,7 @@ where
     {
         Parser::new(move |input| {
             let results = self.parse(input)?;
-            let mapped = results.fmap(|(res, rem)| (f(res), rem));
+            let mapped = results.map(|(res, rem)| (f(res), rem));
             Some(mapped)
         })
     }

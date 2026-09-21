@@ -11,6 +11,7 @@ fn pvec_example() {
     assert_eq!(v3.get(0), Some(&10));
 }
 
+#[allow(deprecated)]
 fn basic_usage() {
     use rustica::prelude::*;
 

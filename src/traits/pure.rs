@@ -41,6 +41,8 @@
 //! assert_eq!(vec, vec![42]);
 //! ```
 
+#![allow(deprecated)]
+
 use crate::traits::hkt::HKT;
 
 /// A trait for types that can lift values into a higher-kinded context.
@@ -97,6 +99,10 @@ use crate::traits::hkt::HKT;
 /// // Using our Pure implementation
 /// let wrapped: MyWrapper<i32> = MyWrapper::<()>::pure(42);
 /// ```
+#[deprecated(
+    since = "0.18.0",
+    note = "Pure is scheduled for removal in 0.19.0. Use inherent constructors (e.g., Validated::valid, Choice::single, Option::Some, Ok) instead."
+)]
 pub trait Pure: HKT {
     /// Lift a value into a context, consuming the value.
     ///

@@ -76,6 +76,8 @@
 //!    The order of binding operations should not matter.
 //!
 
+#![allow(deprecated)]
+
 use crate::traits::applicative::Applicative;
 
 /// A trait for monads, which are applicative functors that support sequencing of operations.
@@ -110,6 +112,10 @@ use crate::traits::applicative::Applicative;
 /// 5. Join Consistency:
 ///    m.bind(f) == m.fmap(f).join()
 ///    Binding can be decomposed into fmap followed by join.
+#[deprecated(
+    since = "0.18.0",
+    note = "Monad is scheduled for removal in 0.19.0. Use inherent and_then methods, ?, or Iterator::flat_map instead."
+)]
 pub trait Monad: Applicative {
     /// Applies a function that returns a monadic value to the contents of this monad, consuming self.
     fn bind<U, F>(self, f: F) -> Self::Output<U>

@@ -251,22 +251,45 @@ impl<T> Choice<T> {
 
         Validated::invalid_many(errors)
     }
-}
 
-impl<T> HKT for Choice<T> {
-    type Source = T;
-    type Output<U> = Choice<U>;
-}
-
-impl<T> Functor for Choice<T> {
-    fn fmap<B, F>(self, mut f: F) -> Self::Output<B>
+    /// Maps a function over all options in this `Choice`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::choice::Choice;
+    ///
+    /// let choice = Choice::new(1, [2, 3]);
+    /// let doubled = choice.map(|x| x * 2);
+    /// assert_eq!(*doubled.primary(), 2);
+    /// assert_eq!(doubled.alternatives(), &[4, 6]);
+    /// ```
+    #[inline]
+    pub fn map<B, F>(self, mut f: F) -> Choice<B>
     where
-        F: FnMut(Self::Source) -> B,
+        F: FnMut(T) -> B,
     {
         Choice {
             primary: f(self.primary),
             alternatives: self.alternatives.into_iter().map(f).collect(),
         }
+    }
+}
+
+#[allow(deprecated)]
+impl<T> HKT for Choice<T> {
+    type Source = T;
+    type Output<U> = Choice<U>;
+}
+
+#[allow(deprecated)]
+impl<T> Functor for Choice<T> {
+    #[inline]
+    fn fmap<B, F>(self, f: F) -> Self::Output<B>
+    where
+        F: FnMut(Self::Source) -> B,
+    {
+        self.map(f)
     }
 }
 
@@ -322,6 +345,7 @@ impl<T: Display> Display for Choice<T> {
     }
 }
 
+#[allow(deprecated)]
 impl<T> Foldable for Choice<T> {
     fn fold_left<B, F>(&self, initial: B, mut f: F) -> B
     where

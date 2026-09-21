@@ -122,6 +122,107 @@ impl<T, E> Validated<T, E> {
         }
     }
 
+    /// Combines two `Validated` values using a binary function, accumulating all errors if any.
+    ///
+    /// If both are `Valid`, invokes `f(a, b)` and returns `Valid`.
+    /// If either or both are `Invalid`, accumulates all errors in encounter order.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let v1: Validated<i32, &str> = Validated::valid(10);
+    /// let v2: Validated<i32, &str> = Validated::valid(20);
+    /// assert_eq!(v1.zip_with(v2, |a, b| a + b), Validated::valid(30));
+    ///
+    /// let e1: Validated<i32, &str> = Validated::invalid("err1");
+    /// let e2: Validated<i32, &str> = Validated::invalid("err2");
+    /// let res = e1.zip_with(e2, |a, b| a + b);
+    /// assert_eq!(res.error_slice(), &["err1", "err2"]);
+    /// ```
+    #[inline]
+    pub fn zip_with<U, R, F>(self, other: Validated<U, E>, f: F) -> Validated<R, E>
+    where
+        F: FnOnce(T, U) -> R,
+    {
+        match (self, other) {
+            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
+            (Validated::Valid(_), Validated::Invalid(es)) => Validated::Invalid(es),
+            (Validated::Invalid(es), Validated::Valid(_)) => Validated::Invalid(es),
+            (Validated::Invalid(mut es1), Validated::Invalid(es2)) => {
+                es1.extend(es2);
+                Validated::Invalid(es1)
+            },
+        }
+    }
+
+    /// Combines two `Validated` values into a pair, accumulating all errors if any.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let v1: Validated<i32, &str> = Validated::valid(1);
+    /// let v2: Validated<&str, &str> = Validated::valid("ok");
+    /// assert_eq!(v1.zip(v2), Validated::valid((1, "ok")));
+    /// ```
+    #[inline]
+    pub fn zip<U>(self, other: Validated<U, E>) -> Validated<(T, U), E> {
+        self.zip_with(other, |a, b| (a, b))
+    }
+
+    /// Combines three `Validated` values using a ternary function, accumulating all errors if any.
+    #[inline]
+    pub fn zip_with3<T2, T3, R, F>(
+        self, second: Validated<T2, E>, third: Validated<T3, E>, f: F,
+    ) -> Validated<R, E>
+    where
+        F: FnOnce(T, T2, T3) -> R,
+    {
+        self.zip(second).zip_with(third, |(a, b), c| f(a, b, c))
+    }
+
+    /// Combines three `Validated` values into a 3-tuple, accumulating all errors if any.
+    #[inline]
+    pub fn zip3<T2, T3>(
+        self, second: Validated<T2, E>, third: Validated<T3, E>,
+    ) -> Validated<(T, T2, T3), E> {
+        self.zip_with3(second, third, |a, b, c| (a, b, c))
+    }
+
+    /// Lifts a binary function over two `Validated` values, accumulating all errors if any.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let v1: Validated<i32, &str> = Validated::valid(10);
+    /// let v2: Validated<i32, &str> = Validated::valid(20);
+    /// let sum = Validated::lift2(|a, b| a + b, v1, v2);
+    /// assert_eq!(sum, Validated::valid(30));
+    /// ```
+    #[inline]
+    pub fn lift2<T1, T2, F>(f: F, v1: Validated<T1, E>, v2: Validated<T2, E>) -> Validated<T, E>
+    where
+        F: FnOnce(T1, T2) -> T,
+    {
+        v1.zip_with(v2, f)
+    }
+
+    /// Lifts a ternary function over three `Validated` values, accumulating all errors if any.
+    #[inline]
+    pub fn lift3<T1, T2, T3, F>(
+        f: F, v1: Validated<T1, E>, v2: Validated<T2, E>, v3: Validated<T3, E>,
+    ) -> Validated<T, E>
+    where
+        F: FnOnce(T1, T2, T3) -> T,
+    {
+        v1.zip_with3(v2, v3, f)
+    }
+
     /// Combines errors from two `Validated` instances, consuming both.
     ///
     /// Returns `Some(Validated::Invalid(...))` with accumulated errors if either or both

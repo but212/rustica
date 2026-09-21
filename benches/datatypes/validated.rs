@@ -1,6 +1,5 @@
 use crate::harness::Harness;
 use rustica::datatypes::validated::Validated;
-use rustica::traits::functor::Functor;
 use std::hint::black_box;
 
 pub fn validated_benchmarks(harness: &Harness) {
@@ -41,7 +40,7 @@ pub fn validated_benchmarks(harness: &Harness) {
 
     group.bench_fn("validated_map", || {
         let value = Validated::<i32, String>::valid(42);
-        black_box(value.fmap(|value| value + 1));
+        black_box(value.map(|value| value + 1));
     });
 
     group.bench_fn("result_map", || {

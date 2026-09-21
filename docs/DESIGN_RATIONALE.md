@@ -96,7 +96,7 @@ Rustica retains functional abstractions where they solve concrete engineering pr
 | **`Free<F, A>`** | DSL AST construction & multi-pass analysis | Reusable, cloneable computation tree for inspectable and re-interpretable DSL ASTs. Fully supported alongside operational pipelines. |
 | **`Program<H, A>`** | Direct operational monad execution | Statically checked handler pipelines with compile-time command-to-output enforcement and trampoline evaluation. |
 | **Optics (`Lens`, `Prism`)** | Composable access into nested data | Pure, reusable paths for querying and immutably updating deeply nested structs and enum variants. |
-| **Algebraic Traits (`Semigroup`, `Monoid`, `Functor`, `Applicative`, `Monad`, `Foldable`)** | Generic combination and traversal interfaces | Shared vocabulary for combining and mapping across unrelated types, enabling uniform generic code over `Validated`, `Choice`, and user types while respecting ownership rules. |
+| **Algebraic Traits (`Semigroup`, `Monoid`)** | Generic combination and identity interfaces | Associative combination across concrete types (`*`), powering error accumulation in `Validated` and fallback chains in `Choice` without GAT or HKT complexity. *(Functor, Applicative, Monad, Foldable, Pure, HKT deprecated in 0.18.0 for 0.19.0 removal).* |
 
 ---
 

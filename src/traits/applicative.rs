@@ -93,6 +93,8 @@
 //!
 //! - Use **Monad** when operations depend on the results of previous operations.
 //!
+#![allow(deprecated)]
+
 use crate::traits::functor::Functor;
 use crate::traits::pure::Pure;
 
@@ -140,6 +142,10 @@ use crate::traits::pure::Pure;
 /// A minimal application example appears in the module documentation; the individual
 /// combinators document their own idiomatic usage. Law checks belong in tests rather than
 /// in this trait's documentation.
+#[deprecated(
+    since = "0.18.0",
+    note = "Applicative is scheduled for removal in 0.19.0. Use inherent zip/zip_with or Iterator::collect::<Validated<C, E>>() instead."
+)]
 pub trait Applicative: Functor + Pure {
     /// Applies a function wrapped in the applicative context to a value.
     ///

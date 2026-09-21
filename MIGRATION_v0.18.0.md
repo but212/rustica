@@ -243,6 +243,16 @@ let lens = Lens::new(
 - **Trait Bound Relaxation**:
   - Removed `E: Clone` bound from `Result<T, E>` implementations of `Pure`, `Functor`, `Applicative`, `Monad`, and `Foldable`.
   - Removed `T: Clone` bound from `Monoid for Vec<T>`.
+- **Categorical Trait Deprecations (Removal in v0.19.0)**:
+  - `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, and `HKT` are deprecated in 0.18.0 and scheduled for deletion in 0.19.0.
+  - Direct replacements:
+    - `Functor::fmap` → Inherent `map` on `Validated`/`Choice`, or `Iterator::map`.
+    - `Applicative::apply` / `lift2` → Inherent `Validated::zip_with`, `zip`, `zip_with3`, `lift2`, `lift3` (free of `Clone` bounds).
+    - `Applicative::traverse` → Standard Rust `iter.collect::<Validated<Vec<T>, E>>()`.
+    - `Monad::bind` / `join` → Inherent `and_then`, native `?`, or `Iterator::flat_map`.
+    - `Foldable::fold_left` / `fold_right` → Standard `Iterator::fold` or `Iterator::rfold`.
+    - `Pure::pure` → Concrete constructors (`Validated::valid`, `Choice::single`, `Some`, `Ok`).
+  - `Semigroup` and `Monoid` are fully preserved as core algebraic abstractions.
 
 ---
 

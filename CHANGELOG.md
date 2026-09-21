@@ -2,8 +2,15 @@
 
 ## [Unreleased]
 
+### Deprecations
+
+- **Pseudo-HKT & Categorical Traits**: Deprecated `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, and `HKT` in favor of inherent methods, standard library iterators, and `FromIterator`. Scheduled for removal in `v0.19.0`. `Semigroup` and `Monoid` remain fully supported as core algebraic traits.
+
 ### Added
 
+- **Validated FromIterator**: Added `impl<T, E, C> FromIterator<Validated<T, E>> for Validated<C, E>` enabling standard `iter.collect::<Validated<Vec<T>, E>>()` with full error accumulation.
+- **Validated Inherent Zip Combinators**: Added inherent `zip`, `zip_with`, `zip3`, `zip_with3`, `lift2`, and `lift3` on `Validated` without any `Clone` bounds.
+- **Choice Inherent Mapping**: Added inherent `Choice::map` method.
 - **PersistentVector In-Place Mutation**: Added `push_back_mut` and `push_front_mut` providing zero-allocation appends when buffers are unshared (`Arc::make_mut`).
 - **Validated Combinators**: Added inherent sync `and_then`, inherent `map`, and `map_err` to `Validated<T, E>`.
 - **Optics & Law Test Coverage**: Added comprehensive `Prism` law verification test suite covering preview/review consistency and sequential composition (`tests/datatypes/test_prism.rs`), along with functor, applicative, and monad law coverage.

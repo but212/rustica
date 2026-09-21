@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 mod algebraic_laws;
 mod choice_and_iteration;
 mod merging_laws;

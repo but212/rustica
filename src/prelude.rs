@@ -35,6 +35,8 @@
 //!
 //! See each submodule for more detailed documentation and examples.
 
+#![allow(deprecated)]
+
 pub mod datatypes;
 pub mod error;
 pub mod traits;

@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use super::TestFunctor;
 use quickcheck_macros::quickcheck;
 use rustica::datatypes::choice::Choice;

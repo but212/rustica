@@ -54,6 +54,8 @@
 //! Implementations preserve identity and composition. Exhaustive law checks live in
 //! `tests/traits/algebraic_laws.rs`; the quick-start example above shows normal usage.
 
+#![allow(deprecated)]
+
 use crate::prelude::*;
 
 /// A trait for functors, which are type constructors that support mapping over values.
@@ -97,6 +99,10 @@ use crate::prelude::*;
 /// let mapped_none = opt_none.fmap(|x: i32| x.to_string());
 /// assert_eq!(mapped_none, None);
 /// ```
+#[deprecated(
+    since = "0.18.0",
+    note = "Functor is scheduled for removal in 0.19.0. Use inherent map methods on types or standard Iterator::map instead."
+)]
 pub trait Functor: HKT {
     /// Maps a function over the values in a functor, consuming it.
     ///

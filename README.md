@@ -10,7 +10,7 @@ Rustica provides functional programming and categorical abstractions for Rust.
 
 ## Overview
 
-- **Type Classes**: `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, `Semigroup`, `Monoid`
+- **Algebraic Traits**: `Semigroup`, `Monoid` (associative combination and empty identities)
 - **Data Types**: `Choice`, `Validated`, `Free`, `Program` / `TryProgram`, `PersistentVector`
 - **Error Handling**: `ContextError` (context accumulation) and `Validated` (failure accumulation)
 - **Collections**: Immutable RRB-tree `PersistentVector` (requires `pvec` feature)
@@ -48,14 +48,11 @@ use rustica::prelude::*;
 
 ## Core Features
 
-### 1. Functional Type Classes
+### 1. Algebraic Structures
 
-- **`Functor`**: `fmap`
-- **`Pure`**: `pure`
-- **`Applicative`**: `apply`, `lift2`, `lift3`
-- **`Monad`**: `bind`, `join`
-- **`Foldable`**: `fold_left`, `fold_right`
-- **`Semigroup` / `Monoid`**: `combine`, `empty`
+- **`Semigroup`**: `combine`
+- **`Monoid`**: `empty`, `combine_all`
+- *(Deprecated in 0.18.0, removal in 0.19.0)*: `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, `HKT` (migrated to inherent methods and standard Rust iterators).
 
 ### 2. Core Data Types
 
@@ -102,9 +99,10 @@ PRs run read-only quality, platform, and MSRV checks. Releases publish automatic
 ```rust
 use rustica::prelude::*;
 
-// Functor mapping over Option
-let opt = Some(42);
-assert_eq!(opt.fmap(|x| x * 2), Some(84));
+// Semigroup combination
+let left = vec![1, 2];
+let right = vec![3, 4];
+assert_eq!(left.combine(right), vec![1, 2, 3, 4]);
 
 // Choice: guaranteed non-empty priority/fallback execution
 let endpoints = Choice::new("primary.api.com", ["backup1.api.com", "backup2.api.com"]);
@@ -114,11 +112,14 @@ let connected = endpoints.try_each(|ep| {
 });
 assert_eq!(connected, Ok("connected"));
 
-// Error accumulation with Validated
+// Error accumulation with Validated (inherent zip & collect)
 let v1: Validated<i32, &str> = Validated::valid(10);
 let v2: Validated<i32, &str> = Validated::valid(20);
-let sum = Validated::<i32, &str>::lift2(|a, b| a + b, v1, v2);
-assert_eq!(sum, Validated::valid(30));
+assert_eq!(v1.zip_with(v2, |a, b| a + b), Validated::valid(30));
+
+let items = vec![Validated::<i32, &str>::valid(1), Validated::valid(2)];
+let collected: Validated<Vec<i32>, &str> = items.into_iter().collect();
+assert_eq!(collected, Validated::valid(vec![1, 2]));
 
 // Statically typed Operational Monad (Program)
 use rustica::datatypes::operational::{Command, Handler, Program};
