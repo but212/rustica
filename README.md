@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/rustica.svg)](https://crates.io/crates/rustica)
 [![Documentation](https://docs.rs/rustica/badge.svg)](https://docs.rs/rustica)
 [![CI](https://github.com/but212/rustica/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/but212/rustica/actions/workflows/rust.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 
 Rustica provides functional programming and categorical abstractions for Rust.
 
@@ -13,15 +13,15 @@ Rustica provides functional programming and categorical abstractions for Rust.
 - **Data Types**: `Choice`, `Validated`, `Free`, `Program` / `TryProgram`, `PersistentVector`
 - **Error Handling**: `ContextError` (context accumulation) and `Validated` (failure accumulation)
 - **Collections**: Immutable RRB-tree `PersistentVector` (requires `pvec` feature)
-- **API Guidelines**: Adheres to Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
-- **Design Philosophy**: Architectural principles, trade-offs, and boundary guidelines (see [docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md))
+- **API Guidelines**: Follows Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
+- **Design Philosophy**: Architectural trade-offs and boundary guidelines (see [docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md))
 
 ### Recommended Use Cases
 
-- **Domain Modeling**: Algebraic types (`Choice`, `Validated`) to represent states precisely
-- **Validation**: Accumulate multiple errors without early exit (`Validated`)
+- **Domain Modeling**: Precise state representation via algebraic types (`Choice`, `Validated`)
+- **Validation**: Error accumulation without early return (`Validated`)
 - **Domain DSLs**: AST construction (`Free`) or typed command-handler dispatch (`Program`)
-- **Persistent Data**: Immutable collections with structural sharing (`PersistentVector`)
+- **Persistent Data**: Structural sharing via immutable collections (`PersistentVector`)
 
 ---
 
@@ -73,11 +73,11 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
-- [0.18.0 Migration Guide](MIGRATION_v0.18.0.md) (Complete removal of deprecated modules: Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
-- [0.17.0 Migration Guide](MIGRATION_v0.17.0.md) (Deprecation of redundant FP abstractions in favor of native Rust primitives: Transformers, Effect Monads, FunctionCategory, Wrappers)
-- [0.16.0 Migration Guide](MIGRATION_v0.16.0.md) (Choice fallback semantics, Rust API receiver alignment, optics laws, Bifunctor deprecation)
-- [0.15.0 Migration Guide](MIGRATION_v0.15.0.md) (RRB tree integrity, unwrap panic context)
-- [0.14.0 Migration Guide](MIGRATION_v0.14.0.md) (Surface reduction, compile-time base monad enforcement)
+- [0.18.0 Migration Guide](MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
+- [0.17.0 Migration Guide](MIGRATION_v0.17.0.md): Deprecation of redundant FP abstractions in favor of native Rust primitives
+- [0.16.0 Migration Guide](MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation
+- [0.15.0 Migration Guide](MIGRATION_v0.15.0.md): RRB tree integrity and panic context
+- [0.14.0 Migration Guide](MIGRATION_v0.14.0.md): Surface reduction and compile-time base monad enforcement
 
 ---
 
@@ -92,7 +92,7 @@ cargo test --all-features --locked
 cargo package --all-features --locked
 ```
 
-Pull requests run read-only quality, platform, and MSRV checks. Releases are published automatically from verified `v*` tags with SLSA provenance. Report vulnerabilities per [SECURITY.md](.github/SECURITY.md).
+PRs run read-only quality, platform, and MSRV checks. Releases publish automatically from verified `v*` tags with SLSA provenance. Report vulnerabilities via [SECURITY.md](.github/SECURITY.md).
 
 ---
 
@@ -150,7 +150,8 @@ use std::sync::Arc;
 #[derive(Clone, Debug, PartialEq)]
 enum Op { Log(&'static str) }
 
-let free_prog = Free::suspend(Op::Log("run1")).then(Free::suspend(Op::Log("run2")));
+let free_prog: Free<Op, ()> =
+    Free::<Op, ()>::suspend(Op::Log("run1")).then(Free::suspend(Op::Log("run2")));
 let mut entries = Vec::new();
 free_prog.run(|op| {
     match op { Op::Log(msg) => entries.push(msg) }
