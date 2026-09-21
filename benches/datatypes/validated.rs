@@ -26,7 +26,7 @@ pub fn validated_benchmarks(harness: &Harness) {
         group.bench_batched(
             &name,
             || {
-                let left = Validated::<i32, String>::invalid("left".to_string());
+                let left = Validated::<i32, String>::valid(0);
                 let right = Validated::<i32, String>::invalid_many(
                     (0..error_count).map(|index| format!("error_{index}")),
                 );

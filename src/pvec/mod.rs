@@ -48,6 +48,8 @@
 //! assert_eq!(vec.get(6), Some(&6));
 //! ```
 
+#![allow(deprecated)]
+
 pub mod core;
 pub mod error;
 pub mod iter;
@@ -74,6 +76,10 @@ pub use iter::{PersistentVectorIntoIter, PersistentVectorIter};
 /// let vec = pvec![1, 2, 3, 4, 5];
 /// ```
 #[macro_export]
+#[deprecated(
+    since = "0.18.0",
+    note = "pvec! is deprecated in favor of specialized persistent collection crates like `imbl`. It will be removed in v0.19.0."
+)]
 macro_rules! pvec {
     () => { $crate::pvec::PersistentVector::new() };
     ($($x:expr),+ $(,)?) => {
@@ -147,9 +153,10 @@ mod tests {
         assert_eq!(vec.last(), Some(&3));
         assert_eq!(vec[1], 2);
 
-        let updated = vec.update(1, 20).update(10, 999);
+        let updated = vec.update(1, 20);
         assert_eq!(updated[1], 20);
         assert_eq!(updated.len(), 3);
+        assert!(vec.try_update(10, 999).is_err());
 
         let (vec2, val) = vec.pop_back().expect("Should pop 3");
         assert_eq!(val, 3);

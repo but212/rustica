@@ -20,6 +20,10 @@ pub(crate) const ADAPTIVE_INLINE_SIZE: usize = 32;
 /// Storage is adaptive: vectors with $\le 32$ elements reside in inline storage,
 /// while larger vectors use an RRB (Relaxed Radix Balanced) tree.
 #[derive(Clone)]
+#[deprecated(
+    since = "0.18.0",
+    note = "PersistentVector is deprecated in favor of specialized persistent collection crates like `imbl`. It will be removed in v0.19.0."
+)]
 pub struct PersistentVector<T> {
     pub(crate) inner: VectorImpl<T>,
 }
@@ -484,14 +488,18 @@ impl<T: Clone> PersistentVector<T> {
     /// let updated = vec.update(1, 42);
     /// assert_eq!(updated.to_vec(), vec![1, 42, 3]);
     /// assert_eq!(vec.to_vec(), vec![1, 2, 3]); // Original unchanged
-    ///
-    /// // Out of bounds returns clone (no panic)
-    /// let same = vec.update(100, 999);
-    /// assert_eq!(same.to_vec(), vec![1, 2, 3]);
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index >= self.len()`.
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.len() {
-            return self.clone();
+            panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                self.len(),
+                index
+            );
         }
 
         match &self.inner {
@@ -503,6 +511,31 @@ impl<T: Clone> PersistentVector<T> {
             VectorImpl::Tree { tree } => {
                 let new_tree = tree.update(index, value);
                 Self::tree(new_tree)
+            },
+        }
+    }
+
+    /// Updates the element at the specified index in-place, returning the previous value.
+    ///
+    /// When this vector has a single owner, this avoids cloning buffer structures.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index >= self.len()`.
+    pub fn update_mut(&mut self, index: usize, value: T) -> T {
+        if index >= self.len() {
+            panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                self.len(),
+                index
+            );
+        }
+
+        match &mut self.inner {
+            VectorImpl::Inline { elements } => std::mem::replace(&mut elements[index], value),
+            VectorImpl::Tree { tree } => {
+                let tree_mut = Arc::make_mut(tree);
+                tree_mut.update_mut(index, value)
             },
         }
     }
@@ -553,17 +586,30 @@ impl<T: Clone> PersistentVector<T> {
 
         match &self.inner {
             VectorImpl::Inline { elements } => {
-                if let Some(last) = elements.last().cloned() {
-                    let mut new_elements = elements.clone();
-                    new_elements.pop();
-                    Some((Self::inline(new_elements), last))
-                } else {
-                    None
-                }
+                let mut new_elements = elements.clone();
+                let last = new_elements.pop()?;
+                Some((Self::inline(new_elements), last))
             },
             VectorImpl::Tree { tree } => tree
                 .pop_back()
                 .map(|(new_tree, value)| (Self::tree(new_tree), value)),
+        }
+    }
+
+    /// Removes and returns the last element in-place when unshared.
+    ///
+    /// Returns `None` if the vector is empty.
+    pub fn pop_back_mut(&mut self) -> Option<T> {
+        if self.is_empty() {
+            return None;
+        }
+
+        match &mut self.inner {
+            VectorImpl::Inline { elements } => elements.pop(),
+            VectorImpl::Tree { tree } => {
+                let tree_mut = Arc::make_mut(tree);
+                tree_mut.pop_back_mut()
+            },
         }
     }
 
@@ -588,16 +634,40 @@ impl<T: Clone> PersistentVector<T> {
 
         match &self.inner {
             VectorImpl::Inline { elements } => {
-                if let Some(first) = elements.first().cloned() {
-                    let new_elements = SmallVec::from_iter(elements.iter().skip(1).cloned());
-                    Some((Self::inline(new_elements), first))
-                } else {
+                let mut new_elements = elements.clone();
+                if new_elements.is_empty() {
                     None
+                } else {
+                    let first = new_elements.remove(0);
+                    Some((Self::inline(new_elements), first))
                 }
             },
             VectorImpl::Tree { tree } => tree
                 .pop_front()
                 .map(|(new_tree, value)| (Self::tree(new_tree), value)),
+        }
+    }
+
+    /// Removes and returns the first element in-place when unshared.
+    ///
+    /// Returns `None` if the vector is empty.
+    pub fn pop_front_mut(&mut self) -> Option<T> {
+        if self.is_empty() {
+            return None;
+        }
+
+        match &mut self.inner {
+            VectorImpl::Inline { elements } => {
+                if elements.is_empty() {
+                    None
+                } else {
+                    Some(elements.remove(0))
+                }
+            },
+            VectorImpl::Tree { tree } => {
+                let tree_mut = Arc::make_mut(tree);
+                tree_mut.pop_front_mut()
+            },
         }
     }
 
@@ -747,7 +817,7 @@ impl<T> FromIterator<T> for PersistentVector<T> {
 impl<T: Clone> Extend<T> for PersistentVector<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         for item in iter {
-            *self = self.push_back(item);
+            self.push_back_mut(item);
         }
     }
 }

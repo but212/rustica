@@ -35,9 +35,9 @@ class BenchmarkReportTests(TestCase):
 Compiling rustica v0.17.0
 Finished `bench` profile [optimized] target(s)
  Running benches/datatypes_benchmarks.rs
-Validated/invalid_many/4                 ... mean:      248ns min:      200ns max:      3.1µs (100 iters)
-PersistentVector/pvec_push_back/64       ... mean:    9.238µs min:      7.2µs max:     28.8µs (100 iters) [6.93 M elem/s]
-Lens/set_same_value                      ... mean:      226ns min:      100ns max:      1.5µs (100 iters)
+Validated/invalid_many/4                 ... mean:     212ns median:     210ns p95:     220ns min:     200ns max:     440ns (100 iters)
+PersistentVector/pvec_push_back/64       ... mean:   8.335µs median:    8.21µs p95:    8.73µs min:    8.01µs max:   12.67µs (100 iters) [7.68 M elem/s]
+Lens/set_same_value                      ... mean:     202ns min:     180ns max:     380ns (100 iters)
 """
         entries = parse_benchmark_output(sample_output)
         self.assertEqual(len(entries), 3)
@@ -47,9 +47,11 @@ Lens/set_same_value                      ... mean:      226ns min:      100ns ma
             BenchmarkEntry(
                 group="Validated",
                 name="invalid_many/4",
-                mean="248ns",
+                mean="212ns",
+                median="210ns",
+                p95="220ns",
                 min="200ns",
-                max="3.1µs",
+                max="440ns",
                 iters=100,
                 throughput="-",
             ),
@@ -59,11 +61,13 @@ Lens/set_same_value                      ... mean:      226ns min:      100ns ma
             BenchmarkEntry(
                 group="PersistentVector",
                 name="pvec_push_back/64",
-                mean="9.238µs",
-                min="7.2µs",
-                max="28.8µs",
+                mean="8.335µs",
+                median="8.21µs",
+                p95="8.73µs",
+                min="8.01µs",
+                max="12.67µs",
                 iters=100,
-                throughput="6.93 M elem/s",
+                throughput="7.68 M elem/s",
             ),
         )
         self.assertEqual(
@@ -71,9 +75,11 @@ Lens/set_same_value                      ... mean:      226ns min:      100ns ma
             BenchmarkEntry(
                 group="Lens",
                 name="set_same_value",
-                mean="226ns",
-                min="100ns",
-                max="1.5µs",
+                mean="202ns",
+                median="-",
+                p95="-",
+                min="180ns",
+                max="380ns",
                 iters=100,
                 throughput="-",
             ),
@@ -88,29 +94,33 @@ Lens/set_same_value                      ... mean:      226ns min:      100ns ma
             BenchmarkEntry(
                 group="Validated",
                 name="validated_map",
-                mean="77ns",
+                mean="4ns",
+                median="0ns",
+                p95="10ns",
                 min="0ns",
-                max="3µs",
+                max="10ns",
                 iters=100,
                 throughput="-",
             ),
             BenchmarkEntry(
                 group="PersistentVector",
                 name="pvec_push_back/64",
-                mean="9.238µs",
-                min="7.2µs",
-                max="28.8µs",
+                mean="8.335µs",
+                median="8.21µs",
+                p95="8.73µs",
+                min="8.01µs",
+                max="12.67µs",
                 iters=100,
-                throughput="6.93 M elem/s",
+                throughput="7.68 M elem/s",
             ),
         ]
         markdown = render_markdown_report(entries, title="Benchmark Results")
         self.assertIn("# Benchmark Results", markdown)
         self.assertIn("## Validated", markdown)
         self.assertIn("## PersistentVector", markdown)
-        self.assertIn("| Benchmark | Mean | Min | Max | Iterations | Throughput |", markdown)
-        self.assertIn("| `validated_map` | 77ns | 0ns | 3µs | 100 | - |", markdown)
-        self.assertIn("| `pvec_push_back/64` | 9.238µs | 7.2µs | 28.8µs | 100 | 6.93 M elem/s |", markdown)
+        self.assertIn("| Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |", markdown)
+        self.assertIn("| `validated_map` | 4ns | 0ns | 10ns | 0ns | 10ns | 100 | - |", markdown)
+        self.assertIn("| `pvec_push_back/64` | 8.335µs | 8.21µs | 8.73µs | 8.01µs | 12.67µs | 100 | 7.68 M elem/s |", markdown)
 
     def test_resolve_input_with_explicit_file(self) -> None:
         from benchmark_report import resolve_input

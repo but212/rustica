@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 #[cfg(feature = "pvec")]
 fn pvec_example() {
     use rustica::pvec::pvec;

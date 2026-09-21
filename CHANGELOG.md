@@ -5,6 +5,7 @@
 ### Deprecations
 
 - **Pseudo-HKT & Categorical Traits**: Deprecated `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, and `HKT` in favor of inherent methods, standard library iterators, and `FromIterator`. Scheduled for removal in `v0.19.0`. `Semigroup` and `Monoid` remain fully supported as core algebraic traits.
+- **PersistentVector**: Deprecated `pvec::PersistentVector` and the `pvec` module/macro in favor of specialized persistent collection crates like `imbl`. Scheduled for removal in `v0.19.0`.
 
 ### Added
 

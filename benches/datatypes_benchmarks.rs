@@ -1,7 +1,12 @@
+#![allow(deprecated)]
+
 #[path = "support/harness.rs"]
 pub mod harness;
 
-use harness::Harness;
+use harness::{Harness, TrackingAllocator};
+
+#[global_allocator]
+static GLOBAL: TrackingAllocator = TrackingAllocator;
 
 mod datatypes {
     pub mod composable_error;

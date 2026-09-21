@@ -1,4 +1,5 @@
 #![cfg(feature = "pvec")]
+#![allow(deprecated)]
 
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
@@ -349,4 +350,66 @@ fn test_pvec_in_place_push_mut() {
 
     assert_eq!(pvec.len(), 10_000);
     assert_eq!(pvec.to_vec(), std_vec);
+}
+
+#[test]
+fn test_pvec_extend() {
+    let mut pvec: PersistentVector<i32> = PersistentVector::new();
+    pvec.extend(0..10_000);
+    assert_eq!(pvec.len(), 10_000);
+    assert_eq!(pvec.to_vec(), (0..10_000).collect::<Vec<_>>());
+
+    pvec.extend(10_000..20_000);
+    assert_eq!(pvec.len(), 20_000);
+    assert_eq!(pvec.to_vec(), (0..20_000).collect::<Vec<_>>());
+}
+
+#[test]
+fn test_pvec_update_mut() {
+    let mut pvec: PersistentVector<i32> = (0..2_000).collect();
+    let old_val = pvec.update_mut(500, 9999);
+    assert_eq!(old_val, 500);
+    assert_eq!(pvec.get(500), Some(&9999));
+
+    // Inline update_mut
+    let mut inline_pvec: PersistentVector<i32> = (0..10).collect();
+    let old_inline = inline_pvec.update_mut(3, 42);
+    assert_eq!(old_inline, 3);
+    assert_eq!(inline_pvec.get(3), Some(&42));
+}
+
+#[test]
+#[should_panic(expected = "index out of bounds")]
+fn test_pvec_update_out_of_bounds_panics() {
+    let pvec: PersistentVector<i32> = (0..10).collect();
+    let _ = pvec.update(10, 999);
+}
+
+#[test]
+#[should_panic(expected = "index out of bounds")]
+fn test_pvec_update_mut_out_of_bounds_panics() {
+    let mut pvec: PersistentVector<i32> = (0..10).collect();
+    pvec.update_mut(10, 999);
+}
+
+#[test]
+fn test_pvec_pop_mut() {
+    let mut pvec: PersistentVector<i32> = (0..100).collect();
+    assert_eq!(pvec.pop_back_mut(), Some(99));
+    assert_eq!(pvec.pop_front_mut(), Some(0));
+    assert_eq!(pvec.len(), 98);
+
+    let mut empty: PersistentVector<i32> = PersistentVector::new();
+    assert_eq!(empty.pop_back_mut(), None);
+    assert_eq!(empty.pop_front_mut(), None);
+}
+
+#[test]
+fn test_pvec_size_of_regression() {
+    let size = std::mem::size_of::<PersistentVector<usize>>();
+    assert!(
+        size <= 300,
+        "PersistentVector<usize> size should be <= 300 bytes, but was {} bytes",
+        size
+    );
 }

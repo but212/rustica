@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![cfg_attr(test, allow(deprecated))]
 
 /// Core traits for functional programming abstractions.
 ///
@@ -16,6 +17,10 @@ pub mod traits;
 /// A high-performance, immutable vector implementation that preserves
 /// previous versions through structural sharing.
 #[cfg(feature = "pvec")]
+#[deprecated(
+    since = "0.18.0",
+    note = "PersistentVector is deprecated in favor of specialized persistent collection crates like `imbl`. It will be removed in v0.19.0."
+)]
 pub mod pvec;
 
 /// Implementations of functional data types.

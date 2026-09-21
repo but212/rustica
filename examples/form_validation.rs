@@ -3,6 +3,8 @@
 //! Demonstrates error accumulation with `Validated`, immutable history
 //! tracking with `PersistentVector`, and functional composition.
 
+#![allow(deprecated)]
+
 use rustica::datatypes::validated::Validated;
 use rustica::pvec::{PersistentVector, pvec};
 

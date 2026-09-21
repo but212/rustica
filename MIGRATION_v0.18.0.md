@@ -31,6 +31,7 @@ This guide details all removals and breaking changes in Rustica 0.18.0, with con
 | `Free::into_pure` | `Free::to_pure` |
 | `Lens::from_iso`, `Prism::from_iso` | `Lens::new` or `Prism::new` directly with closures |
 | `Command` in `rustica::prelude::*` | Explicit import: `use rustica::datatypes::operational::Command;` |
+| `pvec::PersistentVector` (deprecated, removal in v0.19.0) | `imbl::Vector` or standard `Vec<T>` |
 
 ---
 
@@ -256,7 +257,10 @@ let lens = Lens::new(
 
 ---
 
-## 10. PersistentVector Performance & Rebalancing
+## 10. PersistentVector Deprecation & Optimizations
+
+> [!WARNING]
+> `pvec::PersistentVector` and the `pvec` module/macro are **deprecated in v0.18.0** and scheduled for **complete removal in v0.19.0**. Users requiring persistent collections should migrate to dedicated persistent data structure crates such as [`imbl`](https://crates.io/crates/imbl) (`imbl::Vector`), or use standard `Vec<T>`.
 
 - **Buffer Pointer Sharing**: `head` and `tail` in `RRBTree<T>` are now wrapped in `Arc<SmallVec<[T; 32]>>`. `push_back(&self)` and `push_front(&self)` share opposite buffers via $O(1)$ pointer copy (`Arc::clone`) without duplicating up to 128 elements, guaranteeing true amortized $O(1)$ complexity.
 - **In-Place Mutation**: Added `push_back_mut(&mut self, value)` and `push_front_mut(&mut self, value)` using `Arc::make_mut` to allow zero-allocation mutations when buffers are unshared.

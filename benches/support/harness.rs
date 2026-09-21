@@ -11,6 +11,8 @@ use std::time::{Duration, Instant};
 pub const DEFAULT_WARMUP_ITERS: usize = 10;
 /// Default number of measurement iterations.
 pub const DEFAULT_MEASURE_ITERS: usize = 100;
+/// Default number of routine repetitions per timing sample to amortize timer overhead.
+pub const DEFAULT_BATCH_ITERS: usize = 10;
 
 /// Throughput metric for annotated benchmarks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,6 +21,33 @@ pub enum Throughput {
     Elements(u64),
     /// Number of bytes processed per operation.
     Bytes(u64),
+    /// Memory usage in bytes.
+    Memory(u64),
+}
+
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// A global tracking allocator to measure heap memory allocations.
+pub struct TrackingAllocator;
+static CURRENT_ALLOCATED: AtomicUsize = AtomicUsize::new(0);
+
+unsafe impl GlobalAlloc for TrackingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        CURRENT_ALLOCATED.fetch_add(layout.size(), Ordering::SeqCst);
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        CURRENT_ALLOCATED.fetch_sub(layout.size(), Ordering::SeqCst);
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+/// Returns the current number of allocated heap bytes.
+#[must_use]
+pub fn current_allocated_bytes() -> usize {
+    CURRENT_ALLOCATED.load(Ordering::SeqCst)
 }
 
 /// A collection of benchmark measurements for a single benchmark group.
@@ -26,6 +55,7 @@ pub struct BenchGroup<'a> {
     name: &'a str,
     warmup_iters: usize,
     measure_iters: usize,
+    batch_iters: usize,
     throughput: Option<Throughput>,
 }
 
@@ -37,8 +67,27 @@ impl<'a> BenchGroup<'a> {
             name,
             warmup_iters: DEFAULT_WARMUP_ITERS,
             measure_iters: DEFAULT_MEASURE_ITERS,
+            batch_iters: DEFAULT_BATCH_ITERS,
             throughput: None,
         }
+    }
+
+    /// Sets the number of batch iterations per timing sample to amortize timer overhead.
+    pub fn batch_iters(&mut self, batch_iters: usize) -> &mut Self {
+        self.batch_iters = batch_iters.max(1);
+        self
+    }
+
+    /// Sets the number of measurement samples.
+    pub fn measure_iters(&mut self, measure_iters: usize) -> &mut Self {
+        self.measure_iters = measure_iters.max(1);
+        self
+    }
+
+    /// Sets the number of warmup samples.
+    pub fn warmup_iters(&mut self, warmup_iters: usize) -> &mut Self {
+        self.warmup_iters = warmup_iters;
+        self
     }
 
     /// Sets the throughput annotation for subsequent benchmarks in this group.
@@ -59,15 +108,20 @@ impl<'a> BenchGroup<'a> {
         F: FnMut(),
     {
         for _ in 0..self.warmup_iters {
-            routine();
+            for _ in 0..self.batch_iters {
+                routine();
+            }
         }
 
         let mut durations = Vec::with_capacity(self.measure_iters);
+        let batch_u32 = self.batch_iters as u32;
         for _ in 0..self.measure_iters {
             let start = Instant::now();
-            routine();
+            for _ in 0..self.batch_iters {
+                routine();
+            }
             let elapsed = start.elapsed();
-            durations.push(elapsed);
+            durations.push(elapsed / batch_u32);
         }
 
         self.report_results(bench_name, &durations);
@@ -81,15 +135,20 @@ impl<'a> BenchGroup<'a> {
     {
         let full_name = format!("{bench_name}/{input}");
         for _ in 0..self.warmup_iters {
-            routine(input);
+            for _ in 0..self.batch_iters {
+                routine(input);
+            }
         }
 
         let mut durations = Vec::with_capacity(self.measure_iters);
+        let batch_u32 = self.batch_iters as u32;
         for _ in 0..self.measure_iters {
             let start = Instant::now();
-            routine(input);
+            for _ in 0..self.batch_iters {
+                routine(input);
+            }
             let elapsed = start.elapsed();
-            durations.push(elapsed);
+            durations.push(elapsed / batch_u32);
         }
 
         self.report_results(&full_name, &durations);
@@ -103,19 +162,24 @@ impl<'a> BenchGroup<'a> {
         R: FnMut(&mut I),
     {
         for _ in 0..self.warmup_iters {
-            let mut state = setup();
-            routine(&mut state);
-            black_box(state);
+            let mut states: Vec<I> = (0..self.batch_iters).map(|_| setup()).collect();
+            for state in &mut states {
+                routine(state);
+                black_box(state);
+            }
         }
 
         let mut durations = Vec::with_capacity(self.measure_iters);
+        let batch_u32 = self.batch_iters as u32;
         for _ in 0..self.measure_iters {
-            let mut state = setup();
+            let mut states: Vec<I> = (0..self.batch_iters).map(|_| setup()).collect();
             let start = Instant::now();
-            routine(&mut state);
+            for state in &mut states {
+                routine(state);
+            }
             let elapsed = start.elapsed();
-            durations.push(elapsed);
-            black_box(state);
+            black_box(&states);
+            durations.push(elapsed / batch_u32);
         }
 
         self.report_results(bench_name, &durations);
@@ -129,8 +193,23 @@ impl<'a> BenchGroup<'a> {
         let total: Duration = durations.iter().copied().sum();
         let count = durations.len() as u32;
         let mean = total / count;
-        let min = durations.iter().copied().min().unwrap_or_default();
-        let max = durations.iter().copied().max().unwrap_or_default();
+
+        let mut sorted = durations.to_vec();
+        sorted.sort();
+
+        let min = sorted[0];
+        let max = sorted[sorted.len() - 1];
+
+        let median = if sorted.len() % 2 == 1 {
+            sorted[sorted.len() / 2]
+        } else {
+            (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2
+        };
+
+        let p95_idx = ((sorted.len() as f64 * 0.95).ceil() as usize)
+            .saturating_sub(1)
+            .min(sorted.len() - 1);
+        let p95 = sorted[p95_idx];
 
         let throughput_str = match self.throughput {
             Some(Throughput::Elements(elements)) => {
@@ -151,14 +230,23 @@ impl<'a> BenchGroup<'a> {
                     String::new()
                 }
             },
+            Some(Throughput::Memory(bytes)) => {
+                if bytes >= 1024 * 1024 {
+                    format!(" [{:.2} MB memory]", bytes as f64 / (1024.0 * 1024.0))
+                } else {
+                    format!(" [{:.2} KB memory]", bytes as f64 / 1024.0)
+                }
+            },
             None => String::new(),
         };
 
         println!(
-            "{}/{:<30} ... mean: {:>10?} min: {:>10?} max: {:>10?} ({} iters){}",
+            "{}/{:<30} ... mean: {:>9?} median: {:>9?} p95: {:>9?} min: {:>9?} max: {:>9?} ({} iters){}",
             self.name,
             bench_name,
             mean,
+            median,
+            p95,
             min,
             max,
             durations.len(),

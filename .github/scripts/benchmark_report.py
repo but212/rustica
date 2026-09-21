@@ -10,7 +10,7 @@ import sys
 
 
 LINE_REGEX = re.compile(
-    r"^([A-Za-z0-9_]+)/([^\s]+)\s+\.\.\.\s+mean:\s*([^\s]+)\s+min:\s*([^\s]+)\s+max:\s*([^\s]+)\s+\((\d+)\s+iters\)(?:\s+\[(.*?)\])?$"
+    r"^([A-Za-z0-9_]+)/([^\s]+)\s+\.\.\.\s+mean:\s*([^\s]+)(?:\s+median:\s*([^\s]+)\s+p95:\s*([^\s]+))?\s+min:\s*([^\s]+)\s+max:\s*([^\s]+)\s+\((\d+)\s+iters\)(?:\s+\[(.*?)\])?$"
 )
 
 
@@ -22,6 +22,8 @@ class BenchmarkEntry:
     min: str
     max: str
     iters: int
+    median: str = "-"
+    p95: str = "-"
     throughput: str = "-"
 
 
@@ -31,7 +33,7 @@ def parse_benchmark_output(text: str) -> list[BenchmarkEntry]:
         line = line.strip()
         match = LINE_REGEX.match(line)
         if match:
-            group, name, mean, min_val, max_val, iters, throughput = match.groups()
+            group, name, mean, median, p95, min_val, max_val, iters, throughput = match.groups()
             entries.append(
                 BenchmarkEntry(
                     group=group,
@@ -40,6 +42,8 @@ def parse_benchmark_output(text: str) -> list[BenchmarkEntry]:
                     min=min_val,
                     max=max_val,
                     iters=int(iters),
+                    median=median if median else "-",
+                    p95=p95 if p95 else "-",
                     throughput=throughput if throughput else "-",
                 )
             )
@@ -70,11 +74,11 @@ def render_markdown_report(
     for group_name, group_entries in groups.items():
         lines.append(f"## {group_name}")
         lines.append("")
-        lines.append("| Benchmark | Mean | Min | Max | Iterations | Throughput |")
-        lines.append("| :--- | :--- | :--- | :--- | :--- | :--- |")
+        lines.append("| Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |")
+        lines.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
         for e in group_entries:
             lines.append(
-                f"| `{e.name}` | {e.mean} | {e.min} | {e.max} | {e.iters} | {e.throughput} |"
+                f"| `{e.name}` | {e.mean} | {e.median} | {e.p95} | {e.min} | {e.max} | {e.iters} | {e.throughput} |"
             )
         lines.append("")
 

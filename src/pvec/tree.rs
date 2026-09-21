@@ -236,7 +236,10 @@ impl<T: Clone> RRBTree<T> {
 impl<T: Clone> RRBTree<T> {
     pub fn update(&self, index: usize, value: T) -> Self {
         if index >= self.len {
-            return self.clone();
+            panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                self.len, index
+            );
         }
 
         if index < self.head.len() {
@@ -276,6 +279,32 @@ impl<T: Clone> RRBTree<T> {
                 height: self.height,
                 len: self.len,
             }
+        }
+    }
+
+    pub fn update_mut(&mut self, index: usize, value: T) -> T {
+        if index >= self.len {
+            panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                self.len, index
+            );
+        }
+
+        if index < self.head.len() {
+            let head_mut = Arc::make_mut(&mut self.head);
+            return std::mem::replace(&mut head_mut[index], value);
+        }
+
+        let adjusted_index = index - self.head.len();
+        let tree_size = self.len - self.head.len() - self.tail.len();
+
+        if adjusted_index < tree_size {
+            let root_mut = Arc::make_mut(&mut self.root);
+            root_mut.update_mut(adjusted_index, value)
+        } else {
+            let tail_index = adjusted_index - tree_size;
+            let tail_mut = Arc::make_mut(&mut self.tail);
+            std::mem::replace(&mut tail_mut[tail_index], value)
         }
     }
 
@@ -723,6 +752,23 @@ impl<T: Clone> RRBTree<T> {
         None
     }
 
+    pub fn pop_back_mut(&mut self) -> Option<T> {
+        if self.len == 0 {
+            return None;
+        }
+
+        if !self.tail.is_empty() {
+            let tail_mut = Arc::make_mut(&mut self.tail);
+            let popped = tail_mut.pop()?;
+            self.len -= 1;
+            Some(popped)
+        } else {
+            let (new_tree, popped) = self.pop_back()?;
+            *self = new_tree;
+            Some(popped)
+        }
+    }
+
     pub fn pop_front(&self) -> Option<(Self, T)> {
         if self.len == 0 {
             return None;
@@ -782,6 +828,23 @@ impl<T: Clone> RRBTree<T> {
             ))
         } else {
             None
+        }
+    }
+
+    pub fn pop_front_mut(&mut self) -> Option<T> {
+        if self.len == 0 {
+            return None;
+        }
+
+        if !self.head.is_empty() {
+            let head_mut = Arc::make_mut(&mut self.head);
+            let popped = head_mut.remove(0);
+            self.len -= 1;
+            Some(popped)
+        } else {
+            let (new_tree, popped) = self.pop_front()?;
+            *self = new_tree;
+            Some(popped)
         }
     }
 

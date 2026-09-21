@@ -154,6 +154,46 @@ impl<T: Clone> RRBNode<T> {
         }
     }
 
+    pub fn update_mut(&mut self, index: usize, value: T) -> T {
+        match self {
+            RRBNode::Leaf { elements } => {
+                if index < elements.len() {
+                    std::mem::replace(&mut elements[index], value)
+                } else {
+                    panic!(
+                        "index out of bounds: the len is {} but the index is {}",
+                        elements.len(),
+                        index
+                    );
+                }
+            },
+            RRBNode::Branch { children, sizes } => {
+                let mut found = None;
+                let mut cumulative = 0;
+                for (i, &size) in sizes.iter().enumerate() {
+                    if index < cumulative + size {
+                        found = Some((i, index - cumulative));
+                        break;
+                    }
+                    cumulative += size;
+                }
+
+                if let Some((child_index, sub_index)) = found {
+                    if let Some(child_arc) = children.get_mut(child_index) {
+                        Arc::make_mut(child_arc).update_mut(sub_index, value)
+                    } else {
+                        panic!(
+                            "index out of bounds: child index {} out of range",
+                            child_index
+                        );
+                    }
+                } else {
+                    panic!("index out of bounds in RRB tree branch");
+                }
+            },
+        }
+    }
+
     fn append_size(
         sizes: &SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]>, new_size: usize,
     ) -> SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> {
