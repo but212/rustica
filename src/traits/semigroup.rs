@@ -8,27 +8,15 @@
 //!
 //! ```rust
 //! use rustica::traits::semigroup::Semigroup;
-//! use rustica::datatypes::wrapper::{
-//! product::Product,
-//!     sum::Sum
-//! };
 //!
-//! // Using the Sum wrapper for addition
-//! let a = Sum(5);
-//! let b = Sum(10);
+//! let a = vec![1, 2];
+//! let b = vec![3, 4];
 //! let combined = a.combine(b);
-//! assert_eq!(combined, Sum(15));
-//!
-//! // Using the Product wrapper for multiplication
-//! let x = Product(2);
-//! let y = Product(3);
-//! let multiplied = x.combine(y);
-//! assert_eq!(multiplied, Product(6));
+//! assert_eq!(combined, vec![1, 2, 3, 4]);
 //! ```
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
-use std::num::NonZeroUsize;
 
 /// A trait for semigroups, which are algebraic structures with an associative binary operation.
 /// A semigroup consists of a set together with a binary operation that combines two elements
@@ -52,8 +40,6 @@ use std::num::NonZeroUsize;
 /// The trait provides:
 /// - `combine`: Combines two values by consuming them
 ///
-/// Additional helper methods like `combine_n` are provided by `SemigroupExt`.
-///
 pub trait Semigroup: Sized {
     /// Combines two values by consuming them to produce a new value.
     ///
@@ -74,41 +60,6 @@ pub trait Semigroup: Sized {
     /// ```
     fn combine(self, other: Self) -> Self;
 }
-
-/// Extension methods for semigroups, providing additional functionality.
-pub trait SemigroupExt: Semigroup {
-    /// Combines `self` with all the values in an iterator.
-    #[deprecated(
-        since = "0.16.0",
-        note = "use iterator fold with combine or combine_all_values instead"
-    )]
-    #[inline]
-    fn combine_all<I>(self, others: I) -> Self
-    where
-        I: IntoIterator<Item = Self>,
-        Self: Sized,
-    {
-        others.into_iter().fold(self, |acc, x| acc.combine(x))
-    }
-
-    /// Combines the semigroup value with itself a specified number of times.
-    #[deprecated(since = "0.16.0", note = "use an iterator fold with combine instead")]
-    #[inline]
-    fn combine_n(self, n: NonZeroUsize) -> Self
-    where
-        Self: Clone,
-    {
-        let seed = self.clone();
-        let mut acc = self;
-        for _ in 1..n.get() {
-            acc = acc.combine(seed.clone());
-        }
-        acc
-    }
-}
-
-// Default implementation for all types implementing Semigroup
-impl<T: Semigroup> SemigroupExt for T {}
 
 // Standard library implementations
 
@@ -223,41 +174,22 @@ impl<T: Semigroup> Semigroup for Option<T> {
     }
 }
 
-// Function to combine a sequence of semigroup values
-/// Combines a sequence of semigroup values into a single result.
-#[deprecated(since = "0.16.0", note = "use iterator fold with combine directly")]
-#[inline]
-pub fn combine_all_values<T, I>(values: I) -> Option<T>
-where
-    T: Semigroup,
-    I: IntoIterator<Item = T>,
-{
-    let mut iter = values.into_iter();
-    let first = iter.next()?;
-    Some(iter.fold(first, |acc, x| acc.combine(x)))
-}
-
-// Function to combine a sequence of semigroup values with a provided initial value
-/// Combines a sequence of semigroup values, starting with an initial value.
-#[deprecated(since = "0.16.0", note = "use iterator fold with combine directly")]
-#[inline]
-pub fn combine_values<T, I>(initial: T, values: I) -> T
-where
-    T: Semigroup,
-    I: IntoIterator<Item = T>,
-{
-    values.into_iter().fold(initial, |acc, x| acc.combine(x))
-}
-
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::Semigroup;
-    use crate::datatypes::wrapper::sum::Sum;
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct TestSum(i32);
+
+    impl Semigroup for TestSum {
+        fn combine(self, other: Self) -> Self {
+            TestSum(self.0 + other.0)
+        }
+    }
 
     #[test]
     fn empty_sequence_is_option() {
-        let values: Vec<Sum<i32>> = Vec::new();
+        let values: Vec<TestSum> = Vec::new();
         assert_eq!(values.into_iter().reduce(|acc, x| acc.combine(x)), None);
     }
 

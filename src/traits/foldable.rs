@@ -32,7 +32,7 @@
 //! ## Examples
 //!
 //! ```rust
-//! use rustica::traits::foldable::{Foldable, FoldableExt};
+//! use rustica::traits::foldable::Foldable;
 //! use rustica::traits::monoid::Monoid;
 //!
 //! // Example with Vec
@@ -42,11 +42,6 @@
 //!
 //! // `Option` and `Result` also fold their successful value, returning the initial
 //! // accumulator for `None` or `Err`.
-//!
-//! // Using extension methods
-//! assert_eq!(numbers.sum_values(), 15);
-//! assert_eq!(numbers.any(|&x| x > 10), false);
-//! assert_eq!(numbers.all(|&x| x < 10), true);
 //! ```
 //!
 //! ## Relationship with Other Functional Traits
@@ -65,7 +60,6 @@
 
 use crate::traits::hkt::HKT;
 use crate::traits::monoid::Monoid;
-use std::ops::{Add, Mul};
 
 /// A `Foldable` type is a data structure that can be "folded" into a summary value.
 ///
@@ -170,11 +164,11 @@ pub trait Foldable: HKT {
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::prelude::*;
+    /// use rustica::traits::foldable::Foldable;
     ///
-    /// let numbers = vec![1, 2, 3, 4];
-    /// let result: Sum<i32> = numbers.fold_map(|n| Sum(*n));
-    /// assert_eq!(result, Sum(10));
+    /// let words = vec!["hello", " ", "world"];
+    /// let result: String = words.fold_map(|s| s.to_string());
+    /// assert_eq!(result, "hello world");
     /// ```
     #[inline]
     fn fold_map<M: Monoid, F>(&self, mut f: F) -> M
@@ -200,10 +194,10 @@ pub trait Foldable: HKT {
     /// # Examples
     ///
     /// ```rust
-    /// use rustica::prelude::*;
+    /// use rustica::traits::foldable::Foldable;
     ///
-    /// let numbers = vec![Sum(1), Sum(2), Sum(3), Sum(4)];
-    /// assert_eq!(numbers.fold_monoid::<Sum<i32>>(), Sum(10));
+    /// let words = vec!["hello".to_string(), " ".to_string(), "world".to_string()];
+    /// assert_eq!(words.fold_monoid::<String>(), "hello world");
     /// ```
     #[inline]
     fn fold_monoid<M: Monoid>(&self) -> M
@@ -230,159 +224,6 @@ pub trait Foldable: HKT {
     #[inline]
     fn is_empty(&self) -> bool {
         self.length() == 0
-    }
-}
-
-/// Extension methods for the `Foldable` trait.
-///
-/// This trait provides additional utility methods for all types that implement `Foldable`.
-pub trait FoldableExt: Foldable {
-    /// Finds the first element in the foldable that satisfies the predicate.
-    ///
-    /// # Arguments
-    ///
-    /// * `pred` - A predicate function that returns true for the element to find
-    ///
-    /// # Returns
-    ///
-    /// * `Some(element)` if an element satisfying the predicate is found
-    /// * `None` if no element satisfies the predicate
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-    /// let first_even: Option<i32> = numbers.find(|&n| n % 2 == 0);
-    /// assert_eq!(first_even, Some(2));
-    ///
-    /// let no_match: Option<i32> = numbers.find(|&n| n > 10);
-    /// assert_eq!(no_match, None);
-    /// ```
-    #[deprecated(
-        since = "0.16.0",
-        note = "use Iterator::find for short-circuiting execution"
-    )]
-    #[inline]
-    fn find<F>(&self, mut pred: F) -> Option<Self::Source>
-    where
-        F: FnMut(&Self::Source) -> bool,
-        Self::Source: Clone,
-    {
-        self.fold_left(None, |acc, x| {
-            if acc.is_some() {
-                acc
-            } else if pred(x) {
-                Some(x.clone())
-            } else {
-                None
-            }
-        })
-    }
-
-    /// Tests whether all elements in the foldable satisfy the predicate.
-    ///
-    /// # Arguments
-    ///
-    /// * `pred` - A predicate function
-    ///
-    /// # Returns
-    ///
-    /// `true` if all elements satisfy the predicate, or if the foldable is empty;
-    /// `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![2, 4, 6, 8];
-    /// let all_even: bool = numbers.all(|&n| n % 2 == 0);
-    /// assert!(all_even);
-    ///
-    /// let mixed: Vec<i32> = vec![2, 4, 5, 8];
-    /// let all_even: bool = mixed.all(|&n| n % 2 == 0);
-    /// assert!(!all_even);
-    /// ```
-    #[deprecated(
-        since = "0.16.0",
-        note = "use Iterator::all for short-circuiting execution"
-    )]
-    #[inline]
-    fn all<F>(&self, mut pred: F) -> bool
-    where
-        F: FnMut(&Self::Source) -> bool,
-    {
-        self.fold_left(true, |acc, x| acc && pred(x))
-    }
-
-    /// Tests whether any element in the foldable satisfies the predicate.
-    ///
-    /// # Arguments
-    ///
-    /// * `pred` - A predicate function
-    ///
-    /// # Returns
-    ///
-    /// `true` if any element satisfies the predicate; `false` if no element
-    /// satisfies the predicate or if the foldable is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![1, 3, 5, 6];
-    /// let has_even: bool = numbers.any(|&n| n % 2 == 0);
-    /// assert!(has_even);
-    ///
-    /// let odd_only: Vec<i32> = vec![1, 3, 5, 7];
-    /// let has_even: bool = odd_only.any(|&n| n % 2 == 0);
-    /// assert!(!has_even);
-    /// ```
-    #[deprecated(
-        since = "0.16.0",
-        note = "use Iterator::any for short-circuiting execution"
-    )]
-    #[inline]
-    fn any<F>(&self, mut pred: F) -> bool
-    where
-        F: FnMut(&Self::Source) -> bool,
-    {
-        self.fold_left(false, |acc, x| acc || pred(x))
-    }
-
-    /// Tests whether the foldable contains a specific value.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to search for
-    ///
-    /// # Returns
-    ///
-    /// `true` if the value is found; `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-    /// assert!(numbers.contains(&3));
-    /// assert!(!numbers.contains(&10));
-    /// ```
-    #[allow(deprecated)]
-    #[deprecated(
-        since = "0.16.0",
-        note = "use Iterator::contains or PartialEq checks for short-circuiting execution"
-    )]
-    #[inline]
-    fn contains(&self, value: &Self::Source) -> bool
-    where
-        Self::Source: PartialEq,
-    {
-        self.any(|x| x == value)
     }
 
     /// Folds over a structure with an optional monoidal value.
@@ -412,250 +253,7 @@ pub trait FoldableExt: Foldable {
             f(x).map(|value| acc.combine(value))
         })
     }
-
-    /// Checks if the foldable is sorted.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the foldable is sorted in ascending order; `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let sorted: Vec<i32> = vec![1, 2, 3, 4, 5];
-    /// assert!(sorted.is_sorted());
-    ///
-    /// let unsorted: Vec<i32> = vec![1, 3, 2, 4, 5];
-    /// assert!(!unsorted.is_sorted());
-    /// ```
-    #[deprecated(
-        since = "0.16.0",
-        note = "use standard slice or Iterator sorting checks for short-circuiting execution"
-    )]
-    #[inline]
-    fn is_sorted(&self) -> bool
-    where
-        Self::Source: Clone + Ord,
-    {
-        self.fold_left((true, None), |(is_sorted, prev), curr| {
-            if !is_sorted {
-                (false, Some(curr.clone()))
-            } else {
-                match prev {
-                    None => (true, Some(curr.clone())),
-                    Some(p) => (p <= *curr, Some(curr.clone())),
-                }
-            }
-        })
-        .0
-    }
-
-    /// Converts a foldable structure to a Vec.
-    ///
-    /// # Returns
-    ///
-    /// A Vec containing all elements from the foldable structure.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let option: Option<i32> = Some(42);
-    /// let vec: Vec<i32> = option.to_vec();
-    /// assert_eq!(vec, vec![42]);
-    ///
-    /// let option: Option<i32> = None;
-    /// let vec: Vec<i32> = option.to_vec();
-    /// assert_eq!(vec, Vec::<i32>::new());
-    /// ```
-    #[deprecated(
-        since = "0.17.0",
-        note = "use Iterator::collect::<Vec<_>>() instead. Scheduled for removal in 0.18.0."
-    )]
-    #[inline]
-    fn to_vec(&self) -> Vec<Self::Source>
-    where
-        Self::Source: Clone,
-    {
-        self.fold_left(Vec::new(), |mut acc, x| {
-            acc.push(x.clone());
-            acc
-        })
-    }
-
-    /// Sums all elements in the foldable.
-    ///
-    /// # Returns
-    ///
-    /// The sum of all elements.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
-    /// assert_eq!(numbers.sum_values(), 10);
-    /// ```
-    #[deprecated(
-        since = "0.17.0",
-        note = "use Iterator::sum or Foldable::fold_left instead. Scheduled for removal in 0.18.0."
-    )]
-    #[inline]
-    fn sum_values(&self) -> Self::Source
-    where
-        Self::Source: Add<Output = Self::Source> + Default + Clone,
-    {
-        self.fold_left(Self::Source::default(), |acc, x| acc + x.clone())
-    }
-
-    /// Multiplies all elements in the foldable.
-    ///
-    /// # Returns
-    ///
-    /// The product of all elements.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
-    /// assert_eq!(numbers.product_values(), 24);
-    /// ```
-    #[deprecated(
-        since = "0.17.0",
-        note = "use Iterator::product or Foldable::fold_left instead. Scheduled for removal in 0.18.0."
-    )]
-    #[inline]
-    fn product_values(&self) -> Self::Source
-    where
-        Self::Source: Mul<Output = Self::Source> + From<u8> + Clone,
-    {
-        self.fold_left(Self::Source::from(1), |acc, x| acc * x.clone())
-    }
-
-    /// Finds the maximum element in the foldable.
-    ///
-    /// # Returns
-    ///
-    /// `Some(max)` with the maximum element, or `None` if the foldable is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![4, 2, 7, 1, 5];
-    /// assert_eq!(numbers.maximum(), Some(7));
-    ///
-    /// let empty: Vec<i32> = vec![];
-    /// assert_eq!(empty.maximum(), None);
-    /// ```
-    #[deprecated(
-        since = "0.17.0",
-        note = "use Iterator::max instead. Scheduled for removal in 0.18.0."
-    )]
-    #[inline]
-    fn maximum(&self) -> Option<Self::Source>
-    where
-        Self::Source: Ord + Clone,
-    {
-        self.fold_left(None, |max, x| match max {
-            None => Some(x.clone()),
-            Some(current_max) => Some(if *x > current_max {
-                x.clone()
-            } else {
-                current_max
-            }),
-        })
-    }
-
-    /// Finds the minimum element in the foldable.
-    ///
-    /// # Returns
-    ///
-    /// `Some(min)` with the minimum element, or `None` if the foldable is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![4, 2, 7, 1, 5];
-    /// assert_eq!(numbers.minimum(), Some(1));
-    ///
-    /// let empty: Vec<i32> = vec![];
-    /// assert_eq!(empty.minimum(), None);
-    /// ```
-    #[deprecated(
-        since = "0.17.0",
-        note = "use Iterator::min instead. Scheduled for removal in 0.18.0."
-    )]
-    #[inline]
-    fn minimum(&self) -> Option<Self::Source>
-    where
-        Self::Source: Ord + Clone,
-    {
-        self.fold_left(None, |min, x| match min {
-            None => Some(x.clone()),
-            Some(current_min) => Some(if *x < current_min {
-                x.clone()
-            } else {
-                current_min
-            }),
-        })
-    }
-
-    /// Uses a combining function to reduce the elements of the structure to a single value.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F`: The type of the combining function
-    ///
-    /// # Arguments
-    ///
-    /// * `f`: The combining function
-    ///
-    /// # Returns
-    ///
-    /// `Some(result)` with the reduced value, or `None` if the foldable is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::foldable::FoldableExt;
-    ///
-    /// let numbers: Vec<i32> = vec![1, 2, 3, 4];
-    /// let sum = numbers.reduce(|a, b| a + b);
-    /// assert_eq!(sum, Some(10));
-    ///
-    /// let empty: Vec<i32> = vec![];
-    /// let sum = empty.reduce(|a, b| a + b);
-    /// assert_eq!(sum, None);
-    /// ```
-    #[deprecated(
-        since = "0.17.0",
-        note = "use Iterator::reduce instead. Scheduled for removal in 0.18.0."
-    )]
-    #[inline]
-    fn reduce<F>(&self, mut f: F) -> Option<Self::Source>
-    where
-        F: FnMut(&Self::Source, &Self::Source) -> Self::Source,
-        Self::Source: Clone,
-    {
-        self.fold_left(None, |acc, x| match acc {
-            None => Some(x.clone()),
-            Some(a) => Some(f(&a, x)),
-        })
-    }
 }
-
-// Implement FoldableExt for all types implementing Foldable
-impl<T: Foldable> FoldableExt for T {}
 
 // Implement Foldable for Vec
 impl<A> Foldable for Vec<A> {
@@ -735,18 +333,36 @@ impl<A, E: Clone> Foldable for Result<A, E> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod unit_tests {
-    use super::{Foldable, FoldableExt};
-    use crate::datatypes::wrapper::sum::Sum;
+    use super::Foldable;
+    use crate::traits::monoid::Monoid;
+    use crate::traits::semigroup::Semigroup;
     use std::cell::Cell;
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    struct TestSum(i32);
+
+    impl Semigroup for TestSum {
+        fn combine(self, other: Self) -> Self {
+            TestSum(self.0 + other.0)
+        }
+    }
+
+    impl Monoid for TestSum {
+        fn empty() -> Self {
+            TestSum(0)
+        }
+    }
 
     #[test]
     fn folds_combine_values_and_preserve_empty_initial_values() {
-        assert_eq!(vec![1, 2, 3, 4].fold_map(|n: &i32| Sum(*n)), Sum(10));
         assert_eq!(
-            vec![Sum(1), Sum(2), Sum(3), Sum(4)].fold_monoid::<Sum<i32>>(),
-            Sum(10)
+            vec![1, 2, 3, 4].fold_map(|n: &i32| TestSum(*n)),
+            TestSum(10)
+        );
+        assert_eq!(
+            vec![TestSum(1), TestSum(2), TestSum(3), TestSum(4)].fold_monoid::<TestSum>(),
+            TestSum(10)
         );
         assert_eq!(Some(42).fold_left(0, |_, value| value * 2), 84);
         assert_eq!(None::<i32>.fold_left(100, |acc, _| acc), 100);
@@ -759,7 +375,11 @@ mod unit_tests {
         let visited = Cell::new(0);
         let result = vec![1, 2, 3].fold_option(|value| {
             visited.set(visited.get() + 1);
-            if *value == 1 { None } else { Some(Sum(*value)) }
+            if *value == 1 {
+                None
+            } else {
+                Some(TestSum(*value))
+            }
         });
         assert_eq!(result, None);
         assert_eq!(visited.get(), 1);

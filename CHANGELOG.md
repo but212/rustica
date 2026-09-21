@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Removed (Breaking Changes)
+
+- **Monad Transformers**: Completely removed `transformers/` module including `StateT`, `ReaderT`, `ContT`, `MonadTransformer`, and `lift`. Use native Rust control flow, `&mut S`, context passing, or `async`/`await`.
+- **Effect Monads**: Completely removed `Id`, `State`, `Reader`, `Writer`, `Cont`, and `IO`. Use standard Rust primitives (`&mut S`, `&Context`, standard I/O, closures).
+- **Category Abstractions**: Completely removed `category/` module (`FunctionCategory`, `FunctionMorphism`, `PairMorphism`, `function!`, `pipe!`, `compose!`). Use closures and iterator combinators.
+- **Monoidal Wrappers**: Completely removed `datatypes/wrapper/` (`First`, `Last`, `Min`, `Max`, `Sum`, `Product`, `Predicate`). Use standard library types and iterators (`Option::or`, `cmp::min`/`max`, `Iterator::sum`/`product`).
+- **Async Monad**: Completely removed `AsyncM<A>`. Use native Rust `async`/`await` and `Future` combinators (`async` feature is preserved for `Validated` async combinators).
+- **Legacy Error Types & Traits**: Completely removed `ComposableError`, `ComposableResult`, `BoxedComposableError`, `BoxedComposableResult`, `WithError`, `sequence_with_error`, `format_error_chain`, and `extract_context`. Use [`ContextError`](crate::error::ContextError) and `Result`.
+- **Redundant Traits**: Completely removed `Alternative`, `Bifunctor`, `BinaryHKT`, `Iso`, `MonadError`, and `One`.
+- **Optics from_iso**: Removed `Lens::from_iso`, `Prism::from_iso`, and `Prism::from_option_iso`. Construct lenses/prisms with closures or inherent constructors.
+- **Free Methods**: Removed `Free::fold_map` (and its `IO` dependency) and `Free::into_pure`. Use `Free::run`/`Free::try_run` and `Free::to_pure`.
+- **Choice Legacy APIs**: Removed `Choice::first`, `Choice::filter_values`, `Choice::first_match`, `Choice::bind`, `Choice::apply`, and `Pure`/`Applicative`/`Monad` implementations. Use priority/fallback methods (`Choice::primary`, `Choice::filter`, `Choice::try_each`, `Iterator::find_map`).
+- **Trait Extension Removal**: Completely removed hollow extension traits (`FunctorExt`, `SemigroupExt`, `MonoidExt`, `PureExt`, and `FoldableExt`). `fold_option` is now a default method directly on the [`Foldable`](crate::traits::foldable::Foldable) trait, and `prelude::traits_ext` has been removed.
+- **Validated Iterators**: Removed `Validated::errors`, `ErrorsIter`, and `ErrorsIterMut`. Use `Validated::error_slice()` and `Validated::iter_errors()`.
+- **PersistentVector**: Removed `PersistentVector::unit` (use `single`) and `PVecError::is_index_out_of_bounds`.
+- **Tests & Benchmarks**: Removed `tests/migration_std_replacements.rs`, `tests/integration/categorical_utils_pipeline.rs`, and `benches/datatypes/io.rs`.
+
+See [`MIGRATION_v0.18.0.md`](MIGRATION_v0.18.0.md) for detailed replacement mappings and migration examples.
+
 ## [0.17.0]
 
 ### Deprecations

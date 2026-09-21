@@ -12,7 +12,6 @@
 //! - **Monad**: Chaining computations in a context
 //! - **Monoid/Semigroup**: Algebraic structures for combination and identity
 //! - **Foldable/Traversable**: Folding and traversing data structures
-//! - **Alternative**: Choice and failure in computations
 //! - **etc.**: Other Type Classes
 //!
 //! ## Usage Example
@@ -30,32 +29,19 @@
 //! let bound = m.bind(|n| Some(n + 1));
 //! assert_eq!(bound, Some(6));
 //!
-//! // Monoid: combine
-//! use rustica::prelude::wrapper::Sum;
-//! let a = Sum(3);
-//! let b = Sum(4);
-//! assert_eq!(a.combine(b), Sum(7));
+//! // Semigroup: combine
+//! let a = vec![1, 2];
+//! let b = vec![3, 4];
+//! assert_eq!(a.combine(b), vec![1, 2, 3, 4]);
 //! ```
 //!
 //! See each trait's documentation for more details and advanced usage.
 
-#[allow(deprecated)]
-pub use crate::traits::alternative::Alternative;
 pub use crate::traits::applicative::Applicative;
-#[allow(deprecated)]
-pub use crate::traits::bifunctor::Bifunctor;
 pub use crate::traits::foldable::Foldable;
 pub use crate::traits::functor::Functor;
-#[allow(deprecated)]
-pub use crate::traits::hkt::BinaryHKT;
 pub use crate::traits::hkt::HKT;
-#[allow(deprecated)]
-pub use crate::traits::iso::Iso;
 pub use crate::traits::monad::Monad;
-#[allow(deprecated)]
-pub use crate::traits::monad_error::MonadError;
 pub use crate::traits::monoid::Monoid;
-#[allow(deprecated)]
-pub use crate::traits::one::One;
 pub use crate::traits::pure::Pure;
 pub use crate::traits::semigroup::Semigroup;

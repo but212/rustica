@@ -29,11 +29,6 @@ pub mod applicative;
 pub mod functor;
 /// Sequential computation with context binding.
 pub mod monad;
-/// Error handling within monadic contexts.
-pub mod monad_error;
-
-/// Mapping over two-type data structures.
-pub mod bifunctor;
 
 /// Reduction of data structures to a single value.
 ///
@@ -42,39 +37,6 @@ pub mod foldable;
 /// Combinable types with identity elements.
 ///
 /// This module provides the Monoid trait, which extends Semigroup to add an identity element.
-/// The MonoidExt trait adds extension methods to all types implementing Monoid.
 pub mod monoid;
 /// Combinable types without identity elements.
 pub mod semigroup;
-
-/// Choice between alternative computations.
-pub mod alternative;
-
-/// Isomorphism between types.
-///
-/// This module provides the Iso trait which represents isomorphisms between types.
-///
-/// # Deprecation Warning
-///
-/// This module is deprecated and will be removed in a future version.
-/// Use standard From/Into conversions instead.
-#[deprecated(
-    since = "0.17.0",
-    note = "use standard From/Into conversions instead. Scheduled for removal in 0.18.0."
-)]
-#[allow(deprecated)]
-pub mod iso;
-
-/// Multiplicative identity element.
-#[deprecated(
-    since = "0.17.0",
-    note = "use numeric literals or std::iter::Product directly. Scheduled for removal in 0.18.0."
-)]
-#[allow(deprecated)]
-pub mod one;
-#[deprecated(
-    since = "0.17.0",
-    note = "use numeric literals or std::iter::Product directly. Scheduled for removal in 0.18.0."
-)]
-#[allow(deprecated)]
-pub use one::One;

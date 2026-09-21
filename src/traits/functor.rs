@@ -47,7 +47,6 @@
 //! The module contains:
 //!
 //! - The core `Functor` trait that defines mapping operations
-//! - Extension methods in `FunctorExt` for additional utility
 //! - Implementations for standard Rust types like `Option`, `Result`, and `Vec`
 //!
 //! ## Functor Laws
@@ -144,145 +143,6 @@ pub trait Functor: HKT {
     }
 }
 
-/// Extension trait for functors providing additional utility methods.
-///
-/// This trait extends the basic `Functor` trait with additional operations that
-/// are common in functional programming but not essential to the functor concept.
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::traits::functor::{Functor, FunctorExt};
-/// use rustica::traits::hkt::HKT;
-///
-/// // Using FunctorExt methods with Option
-/// let some_value: Option<i32> = Some(42);
-///
-/// // Using inspect to perform side effects without changing the value
-/// let logged: Option<i32> = some_value.inspect(|x| {
-///     println!("Value: {}", x);
-/// });
-/// assert_eq!(logged, Some(42));
-///
-/// // Using inspect_err on Result (should do nothing for Ok variant)
-/// let ok_value: Result<i32, &str> = Ok(42);
-/// let result = ok_value.inspect_err(|e| panic!("Should not be called for Ok: {}", e));
-/// assert_eq!(result, Ok(42));
-///
-/// // Using filter_map to transform and potentially filter out values
-/// let filter_mapped: Option<String> = some_value.filter_map(|x| {
-///     if x > 40 {
-///         Some(x.to_string())
-///     } else {
-///         None
-///     }
-/// });
-/// assert_eq!(filter_mapped, Some("42".to_string()));
-///
-/// // Working with vectors
-/// let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-/// let even_squared: Vec<i32> = numbers.filter_map(|x| {
-///     if x % 2 == 0 {
-///         Some(x * x)
-///     } else {
-///         None
-///     }
-/// });
-/// assert_eq!(even_squared, vec![4, 16]);
-/// ```
-pub trait FunctorExt: Functor {
-    /// Transforms values with a fallible function, handling errors by providing a default value.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A function that may fail
-    /// * `default` - A default value to use in case of failure
-    ///
-    /// # Returns
-    ///
-    /// A new functor with transformed values or defaults in case of errors
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::traits::functor::{Functor, FunctorExt};
-    /// use rustica::traits::hkt::HKT;
-    ///
-    /// let some_value: Option<i32> = Some(42);
-    ///
-    /// // Using try_map_or with a fallible function
-    /// let result: Option<String> = some_value.try_map_or(
-    ///     "default".to_string(),
-    ///     |x| -> Result<String, &str> {
-    ///         if x > 0 {
-    ///             Ok(x.to_string())
-    ///         } else {
-    ///             Err("negative number")
-    ///         }
-    ///     }
-    /// );
-    /// assert_eq!(result, Some("42".to_string()));
-    ///
-    /// // With a value that causes an error
-    /// let negative: Option<i32> = Some(-10);
-    /// let result_with_default: Option<String> = negative.try_map_or(
-    ///     "default".to_string(),
-    ///     |x| -> Result<String, &str> {
-    ///         if x > 0 {
-    ///             Ok(x.to_string())
-    ///         } else {
-    ///             Err("negative number")
-    ///         }
-    ///     }
-    /// );
-    /// assert_eq!(result_with_default, Some("default".to_string()));
-    /// ```
-    /// Transforms values with a fallible function, handling errors by providing a default value.
-    #[deprecated(
-        since = "0.16.0",
-        note = "use fmap with unwrap_or on the fallible result instead"
-    )]
-    #[inline]
-    fn try_map_or<B, E, F>(self, default: B, mut f: F) -> Self::Output<B>
-    where
-        F: FnMut(Self::Source) -> Result<B, E>,
-        B: Clone,
-        Self: Sized,
-    {
-        self.fmap(move |a| match f(a) {
-            Ok(b) => b,
-            Err(_) => default.clone(),
-        })
-    }
-
-    /// Transforms values with a fallible function, handling errors with a provided function.
-    #[deprecated(
-        since = "0.16.0",
-        note = "use fmap with unwrap_or_else on the fallible result instead"
-    )]
-    #[inline]
-    fn try_map_or_else<B, E, D, F>(self, mut default_fn: D, mut f: F) -> Self::Output<B>
-    where
-        F: FnMut(Self::Source) -> Result<B, E>,
-        D: FnMut(E) -> B,
-        Self: Sized,
-    {
-        self.fmap(move |a| match f(a) {
-            Ok(b) => b,
-            Err(e) => default_fn(e),
-        })
-    }
-
-    /// Transforms values with a function that might return None, filtering out None results.
-    #[deprecated(
-        since = "0.16.0",
-        note = "filtering is non-functorial; use standard Iterator::filter_map or Option/Result combinators instead"
-    )]
-    fn filter_map<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: FnMut(Self::Source) -> Option<B>;
-}
-
 impl<T> Functor for Vec<T> {
     #[inline]
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
@@ -290,16 +150,6 @@ impl<T> Functor for Vec<T> {
         F: FnMut(Self::Source) -> B,
     {
         self.into_iter().map(f).collect()
-    }
-}
-
-impl<T> FunctorExt for Vec<T> {
-    #[inline]
-    fn filter_map<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: FnMut(Self::Source) -> Option<B>,
-    {
-        self.into_iter().filter_map(f).collect()
     }
 }
 
@@ -313,16 +163,6 @@ impl<T> Functor for Option<T> {
     }
 }
 
-impl<T> FunctorExt for Option<T> {
-    #[inline]
-    fn filter_map<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: FnMut(Self::Source) -> Option<B>,
-    {
-        self.and_then(f)
-    }
-}
-
 impl<A, E: Clone> Functor for Result<A, E> {
     #[inline]
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
@@ -330,25 +170,6 @@ impl<A, E: Clone> Functor for Result<A, E> {
         F: FnMut(Self::Source) -> B,
     {
         self.map(f)
-    }
-}
-
-impl<A, E: Clone> FunctorExt for Result<A, E>
-where
-    E: Default,
-{
-    #[inline]
-    fn filter_map<B, F>(self, mut f: F) -> Self::Output<B>
-    where
-        F: FnMut(Self::Source) -> Option<B>,
-    {
-        match self {
-            Ok(value) => match f(value) {
-                Some(b) => Ok(b),
-                None => Err(E::default()),
-            },
-            Err(e) => Err(e),
-        }
     }
 }
 

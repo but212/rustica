@@ -24,9 +24,3 @@ pub use crate::error::{
     context_accumulator, context_fn, split_validated_errors, traverse_validated, with_context,
     with_context_result,
 };
-
-#[allow(deprecated)]
-pub use crate::error::{
-    BoxedComposableError, BoxedComposableResult, ComposableError, ComposableResult, WithError,
-    extract_context, format_error_chain, sequence_with_error,
-};

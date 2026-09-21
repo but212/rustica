@@ -4,56 +4,6 @@ pub type Iter<'a, A> = std::option::IntoIter<&'a A>;
 pub type IterMut<'a, A> = std::option::IntoIter<&'a mut A>;
 pub type IntoIter<A> = std::option::IntoIter<A>;
 
-/// Iterator over errors in a Validated.
-///
-/// Prefer calling [`Validated::error_slice`] and slicing directly.
-#[deprecated(
-    since = "0.17.0",
-    note = "Use `validated.error_slice().iter()` or `validated.iter_errors()` which now returns `std::slice::Iter`."
-)]
-#[derive(Debug)]
-pub enum ErrorsIter<'a, E> {
-    Empty,
-    Multi(smallvec::alloc::slice::Iter<'a, E>),
-}
-
-#[allow(deprecated)]
-impl<'a, E> Iterator for ErrorsIter<'a, E> {
-    type Item = &'a E;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            ErrorsIter::Empty => None,
-            ErrorsIter::Multi(it) => it.next(),
-        }
-    }
-}
-
-/// Mutable iterator over errors in a Validated.
-///
-/// Prefer calling [`Validated::iter_errors_mut`] directly.
-#[deprecated(
-    since = "0.17.0",
-    note = "Use `validated.iter_errors_mut()` which now returns `std::slice::IterMut`."
-)]
-#[derive(Debug)]
-pub enum ErrorsIterMut<'a, E> {
-    Empty,
-    Multi(smallvec::alloc::slice::IterMut<'a, E>),
-}
-
-#[allow(deprecated)]
-impl<'a, E> Iterator for ErrorsIterMut<'a, E> {
-    type Item = &'a mut E;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            ErrorsIterMut::Empty => None,
-            ErrorsIterMut::Multi(it) => it.next(),
-        }
-    }
-}
-
 impl<E, A> IntoIterator for Validated<E, A> {
     type Item = A;
     type IntoIter = IntoIter<A>;
@@ -137,16 +87,6 @@ impl<E, A> Validated<E, A> {
             Validated::Invalid(es) => Some(es),
         }
     }
-
-    /// Returns all errors if this is invalid, or an empty collection if valid.
-    #[deprecated(since = "0.16.0", note = "Use `error_slice` or `iter_errors` instead.")]
-    #[inline]
-    pub fn errors(&self) -> Vec<E>
-    where
-        E: Clone,
-    {
-        self.iter_errors().cloned().collect()
-    }
 }
 
 #[cfg(test)]
@@ -177,10 +117,5 @@ mod tests {
             err.push('!');
         }
         assert_eq!(invalid.error_slice(), &["e1!", "e2!"]);
-
-        #[allow(deprecated)]
-        {
-            assert_eq!(invalid.errors(), vec!["e1!".to_string(), "e2!".to_string()]);
-        }
     }
 }

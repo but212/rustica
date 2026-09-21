@@ -114,13 +114,6 @@ impl<T> PersistentVector<T> {
         Self::inline(SmallVec::from_iter([value]))
     }
 
-    /// Creates a new persistent vector containing a single element.
-    #[deprecated(since = "0.16.0", note = "use PersistentVector::single instead")]
-    #[inline]
-    pub fn unit(value: T) -> Self {
-        Self::single(value)
-    }
-
     /// Returns the number of elements in the vector.
     ///
     pub fn len(&self) -> usize {
