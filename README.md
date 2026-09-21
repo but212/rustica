@@ -34,7 +34,7 @@ Add Rustica to `Cargo.toml`:
 [dependencies]
 rustica = "0.17.0"
 # Features:
-# rustica = { version = "0.17.0", features = ["pvec"] } # persistent vector
+# rustica = { version = "0.17.0", features = ["pvec"] } # persistent vector (deprecated in 0.18.0)
 # rustica = { version = "0.17.0", features = ["full"] } # async, serde, quickcheck, pvec
 ```
 

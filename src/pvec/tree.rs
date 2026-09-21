@@ -918,7 +918,7 @@ impl<T: Clone> RRBTree<T> {
                         let empty_leaf = Arc::new(RRBNode::Leaf {
                             elements: SmallVec::new(),
                         });
-                        return (empty_leaf.clone(), empty_leaf);
+                        return (Arc::clone(&empty_leaf), empty_leaf);
                     }
                 }
 
@@ -941,7 +941,7 @@ impl<T: Clone> RRBTree<T> {
                     let empty_leaf = Arc::new(RRBNode::Leaf {
                         elements: SmallVec::new(),
                     });
-                    (empty_leaf.clone(), empty_leaf)
+                    (Arc::clone(&empty_leaf), empty_leaf)
                 }
             },
         }
@@ -976,7 +976,7 @@ impl<T: Clone> RRBTree<T> {
         let mut left_children = Vec::new();
 
         for i in 0..split_index {
-            left_children.push(original_children[i].clone());
+            left_children.push(Arc::clone(&original_children[i]));
         }
 
         if new_child.calculate_size() > 0 {
@@ -1003,7 +1003,7 @@ impl<T: Clone> RRBTree<T> {
         }
 
         for i in (split_index + 1)..original_children.len() {
-            right_children.push(original_children[i].clone());
+            right_children.push(Arc::clone(&original_children[i]));
         }
 
         if right_children.is_empty() {
@@ -1201,7 +1201,7 @@ mod tests {
         assert_eq!(merged.get(2047), Some(&2047));
         assert_eq!(merged.get(2048), Some(&2048));
         assert_eq!(merged.get(4095), Some(&4095));
-        assert_eq!(merged.clone().into_vec(), (0..4096).collect::<Vec<_>>());
+        assert_eq!(&merged.into_vec(), &(0..4096).collect::<Vec<_>>());
         assert_eq!(left.into_vec(), (0..2048).collect::<Vec<_>>());
     }
 

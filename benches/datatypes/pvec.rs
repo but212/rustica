@@ -180,7 +180,7 @@ pub fn pvec_benchmarks(harness: &Harness) {
 
     group.bench_fn("pop_back", || {
         let vec: PersistentVector<usize> = (0..1_000).collect();
-        let mut current = vec.clone();
+        let mut current = vec;
         for _ in 0..100 {
             current = match current.pop_back() {
                 Some((next, _)) => next,

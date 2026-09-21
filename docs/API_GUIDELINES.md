@@ -130,6 +130,9 @@ Boolean inspection methods always borrow via `&self`:
 
 ### 7.3 Persistent Data Structures
 
+> [!WARNING]
+> `PersistentVector` and the `pvec` module are deprecated in v0.18.0 and scheduled for complete removal in v0.19.0. Use standard `Vec<T>` or dedicated persistent collection crates such as `imbl::Vector`.
+
 Persistent collections return new roots with structural sharing (`Arc`) rather than mutating in place; mutation-like verbs use **`&self -> Self`**:
 
 - `fn push_back(&self, value: T) -> Self`
@@ -156,3 +159,5 @@ Persistent collections return new roots with structural sharing (`Arc`) rather t
 | **Predicate** | Boolean state query | `is_*`, `has_*`, `can_*`, `contains` (always `&self`) |
 | **Computation Runner** | Evaluates effect or state computation | `run(self)`, `try_run(self)` (distinct from `get`) |
 | **Collection Flatten/Filter** | Structural consumption without `Clone` | Primary `flatten(self)`, `filter(self)` |
+| **Repeated Combining** | Consumes owned argument on final step | `repeat(value, n)` (avoids trailing `.clone()`) |
+| **Consuming Iterators** | Yields owned items without secondary buffer clone | `into_iter().next()` (`pop()` from reverse leaf buffer) |

@@ -279,9 +279,9 @@ mod tests {
 
         let result = Validated::<User, String>::lift3(
             |n, a, e| User {
-                name: n.clone(),
+                name: n,
                 age: a,
-                email: e.clone(),
+                email: e,
             },
             validate_name("A"),
             validate_age(10),
@@ -293,9 +293,9 @@ mod tests {
 
         let success = Validated::<User, String>::lift3(
             |n, a, e| User {
-                name: n.clone(),
+                name: n,
                 age: a,
-                email: e.clone(),
+                email: e,
             },
             validate_name("John"),
             validate_age(25),
