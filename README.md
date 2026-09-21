@@ -13,7 +13,7 @@ Rustica provides functional programming and categorical abstractions for Rust.
 - **Algebraic Traits**: `Semigroup`, `Monoid` (associative combination and empty identities)
 - **Data Types**: `Choice`, `Validated`, `Free`, `Program` / `TryProgram`, `PersistentVector`
 - **Error Handling**: `ContextError` (context accumulation) and `Validated` (failure accumulation)
-- **Collections**: Immutable RRB-tree `PersistentVector` (requires `pvec` feature)
+- **Collections**: Immutable RRB-tree `PersistentVector` (requires `pvec` feature; deprecated in 0.18.0, removal in 0.19.0)
 - **API Guidelines**: Follows Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
 - **Design Philosophy**: Architectural trade-offs and boundary guidelines (see [docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md))
 
@@ -22,7 +22,7 @@ Rustica provides functional programming and categorical abstractions for Rust.
 - **Domain Modeling**: Precise state representation via algebraic types (`Choice`, `Validated`)
 - **Validation**: Error accumulation without early return (`Validated`)
 - **Domain DSLs**: AST construction (`Free`) or typed command-handler dispatch (`Program`)
-- **Persistent Data**: Structural sharing via immutable collections (`PersistentVector`)
+- **Persistent Data**: Structural sharing via immutable collections (`PersistentVector`, deprecated in 0.18.0; migrate to `imbl`)
 
 ---
 
@@ -60,7 +60,7 @@ use rustica::prelude::*;
 - **`Validated<T, E>`**: Accumulates errors into `NonEmptyErrors<E>`.
 - **`Free<F, A>`**: Free monad with stack-safe iterative execution (`run`, `try_run`).
 - **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation.
-- **`PersistentVector<T>`**: Immutable RRB-tree vector (`pvec` feature).
+- **`PersistentVector<T>`**: Immutable RRB-tree vector (`pvec` feature; deprecated in 0.18.0, removal in 0.19.0 - migrate to `imbl`).
 
 ### 3. Optics
 
