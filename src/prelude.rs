@@ -45,18 +45,36 @@
 //!
 //! See each submodule for more detailed documentation and examples.
 
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard closures, function pointers, or iterator combinators. Scheduled for removal in 0.18.0."
+)]
+#[allow(deprecated)]
 pub mod category;
 pub mod datatypes;
 pub mod error;
 pub mod traits;
 pub mod traits_ext;
+#[deprecated(
+    since = "0.17.0",
+    note = "monad transformers are scheduled for removal in 0.18.0. Use standard Rust control flow, &mut S, or context borrowing."
+)]
+#[allow(deprecated)]
 pub mod transformers;
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard library Option, cmp, and iter operators directly. Scheduled for removal in 0.18.0."
+)]
+#[allow(deprecated)]
 pub mod wrapper;
 
+#[allow(deprecated)]
 pub use category::*;
 pub use datatypes::*;
 pub use error::*;
 pub use traits::*;
 pub use traits_ext::*;
+#[allow(deprecated)]
 pub use transformers::*;
+#[allow(deprecated)]
 pub use wrapper::*;

@@ -58,11 +58,23 @@ pub mod alternative;
 ///
 /// This module is deprecated and will be removed in a future version.
 /// Use standard From/Into conversions instead.
+#[deprecated(
+    since = "0.17.0",
+    note = "use standard From/Into conversions instead. Scheduled for removal in 0.18.0."
+)]
 #[allow(deprecated)]
 pub mod iso;
 
 /// Multiplicative identity element.
+#[deprecated(
+    since = "0.17.0",
+    note = "use numeric literals or std::iter::Product directly. Scheduled for removal in 0.18.0."
+)]
 #[allow(deprecated)]
 pub mod one;
+#[deprecated(
+    since = "0.17.0",
+    note = "use numeric literals or std::iter::Product directly. Scheduled for removal in 0.18.0."
+)]
 #[allow(deprecated)]
 pub use one::One;
