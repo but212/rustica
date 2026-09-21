@@ -32,6 +32,8 @@
   - Reordered type parameters to `Validated<T, E>` (from `Validated<E, A>`), aligning type layout with standard `Result<T, E>`.
   - Aligned `bimap(f_val, g_err)` argument order with `(T, E)`.
   - Relaxed async method bounds by removing unnecessary `'static` constraints.
+- **Choice Formatting & Test Arbitrary**: `Display` now streams the primary and alternatives directly instead of allocating an intermediate `Vec<String>` plus joined `String`. The `quickcheck` `Arbitrary` impl drops redundant `Clone + 'static` bounds and adds a `shrink` over alternatives. Added regression coverage for `sequence` and `Display` output.
+- **Choice Flatten Fallback & Error Rename (Breaking)**: `flatten`/`try_flatten` now concatenate every non-empty inner iterable in priority order, so alternatives are consulted when the primary iterable yields nothing; the error is returned only when all iterables are empty. `ChoiceError::EmptyPrimaryIterator` is renamed to `EmptyFlatten` (predicate `is_empty_flatten`) to match the new semantics.
 - **Choice Stack Optimization**: Replaced `SmallVec<[T; 7]>` in `Choice<T>::alternatives` with `Vec<T>`, significantly reducing stack size and preventing stack overflow in nested structures.
 - **Minimal Trait Bounds**:
   - Removed unnecessary `E: Clone` bound from `Result<T, E>` implementations of `Pure`, `Functor`, `Applicative`, `Monad`, and `Foldable`.

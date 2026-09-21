@@ -152,28 +152,27 @@ impl<T> Choice<T> {
     /// Safely flattens a `Choice` of iterable items by consuming it.
     ///
     /// Unlike [`Self::try_flatten_cloned`], this consuming version does not require `T: Clone`.
+    ///
+    /// Items are concatenated in priority order: the first yielded item becomes the new
+    /// primary, followed by the primary iterable's remaining items and then the items of
+    /// each alternative's iterable. Returns [`ChoiceError::EmptyFlatten`] when every
+    /// iterable is empty.
     pub fn try_flatten<I>(self) -> Result<Choice<I>, ChoiceError>
     where
         T: IntoIterator<Item = I>,
     {
-        let mut primary_iter = self.primary.into_iter();
+        let mut flattened = self.primary.into_iter().chain(
+            self.alternatives
+                .into_iter()
+                .flat_map(IntoIterator::into_iter),
+        );
 
-        match primary_iter.next() {
-            Some(first_item) => {
-                let alternatives = primary_iter
-                    .chain(
-                        self.alternatives
-                            .into_iter()
-                            .flat_map(IntoIterator::into_iter),
-                    )
-                    .collect::<Vec<I>>();
-
-                Ok(Choice {
-                    primary: first_item,
-                    alternatives,
-                })
-            },
-            None => Err(ChoiceError::EmptyPrimaryIterator),
+        match flattened.next() {
+            Some(primary) => Ok(Choice {
+                primary,
+                alternatives: flattened.collect(),
+            }),
+            None => Err(ChoiceError::EmptyFlatten),
         }
     }
 
@@ -337,9 +336,12 @@ impl<T> IntoIterator for Choice<T> {
 impl<T: Display> Display for Choice<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.primary)?;
-        if !self.alternatives.is_empty() {
-            let alt_strs: Vec<String> = self.alternatives.iter().map(|a| a.to_string()).collect();
-            write!(f, " | {}", alt_strs.as_slice().join(", "))?;
+        let mut alternatives = self.alternatives.iter();
+        if let Some(first) = alternatives.next() {
+            write!(f, " | {first}")?;
+            for alternative in alternatives {
+                write!(f, ", {alternative}")?;
+            }
         }
         Ok(())
     }
@@ -399,11 +401,19 @@ impl<T: Default> Default for Choice<T> {
 }
 
 #[cfg(any(test, feature = "quickcheck"))]
-impl<T: Arbitrary + Clone + 'static> Arbitrary for Choice<T> {
+impl<T: Arbitrary> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         let primary: T = Arbitrary::arbitrary(g);
         let alternatives: Vec<T> = Arbitrary::arbitrary(g);
         Choice::new(primary, alternatives)
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        let primary = self.primary.clone();
+        Box::new(self.alternatives.shrink().map(move |alternatives| Choice {
+            primary: primary.clone(),
+            alternatives,
+        }))
     }
 }
 
@@ -541,8 +551,16 @@ mod unit_tests {
         let empty_primary: Choice<Vec<NoClone>> = Choice::single(vec![]);
         assert_eq!(
             empty_primary.try_flatten(),
-            Err(crate::datatypes::error::ChoiceError::EmptyPrimaryIterator)
+            Err(crate::datatypes::error::ChoiceError::EmptyFlatten)
         );
+    }
+
+    #[test]
+    fn try_flatten_uses_alternatives_when_primary_is_empty() {
+        let nested = Choice::new(Vec::<i32>::new(), vec![vec![1, 2], vec![3]]);
+        let flattened = nested.try_flatten().expect("alternatives supply items");
+        assert_eq!(flattened.primary(), &1);
+        assert_eq!(flattened.alternatives(), &[2, 3]);
     }
 
     #[test]
@@ -555,6 +573,24 @@ mod unit_tests {
         let res = nested.try_flatten_cloned().unwrap();
         assert_eq!(res.primary(), &1);
         assert_eq!(res.alternatives(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn sequence_is_all_or_nothing() {
+        let all_some = Choice::new(Some(1), vec![Some(2), Some(3)]);
+        assert_eq!(all_some.sequence(), Some(Choice::new(1, vec![2, 3])));
+
+        let primary_none = Choice::new(None, vec![Some(2)]);
+        assert_eq!(primary_none.sequence(), None);
+
+        let alternative_none = Choice::new(Some(1), vec![Some(2), None]);
+        assert_eq!(alternative_none.sequence(), None);
+    }
+
+    #[test]
+    fn display_renders_priority_then_alternatives() {
+        assert_eq!(Choice::single(1).to_string(), "1");
+        assert_eq!(Choice::new(1, [2, 3]).to_string(), "1 | 2, 3");
     }
 
     #[test]

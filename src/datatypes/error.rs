@@ -17,7 +17,7 @@
 //! use rustica::datatypes::choice::Choice;
 //!
 //! let choice: Choice<Vec<i32>> = Choice::single(vec![]);
-//! assert_eq!(choice.try_flatten(), Err(ChoiceError::EmptyPrimaryIterator));
+//! assert_eq!(choice.try_flatten(), Err(ChoiceError::EmptyFlatten));
 //! ```
 
 use std::fmt::{self, Display};
@@ -29,21 +29,21 @@ use std::fmt::{self, Display};
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ChoiceError {
-    /// Primary value iterator was empty during flatten operation.
+    /// Every inner iterable was empty during a flatten operation.
     ///
-    /// This error occurs when calling `flatten` on a Choice where
-    /// the primary value produces an empty iterator.
-    EmptyPrimaryIterator,
+    /// This error occurs when calling `flatten` on a `Choice` where neither the
+    /// primary value nor any alternative produces an item.
+    EmptyFlatten,
 
     /// Input contained no values when constructing a `Choice`.
     EmptyInput,
 }
 
 impl ChoiceError {
-    /// Returns `true` if this is an `EmptyPrimaryIterator` error.
+    /// Returns `true` if this is an `EmptyFlatten` error.
     #[inline]
-    pub const fn is_empty_primary_iterator(&self) -> bool {
-        matches!(self, ChoiceError::EmptyPrimaryIterator)
+    pub const fn is_empty_flatten(&self) -> bool {
+        matches!(self, ChoiceError::EmptyFlatten)
     }
 
     /// Returns `true` if this is an `EmptyInput` error.
@@ -56,10 +56,9 @@ impl ChoiceError {
 impl Display for ChoiceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChoiceError::EmptyPrimaryIterator => write!(
-                f,
-                "Choice::flatten(): primary value produced empty iterator"
-            ),
+            ChoiceError::EmptyFlatten => {
+                write!(f, "Choice::flatten(): no inner iterable produced an item")
+            },
             ChoiceError::EmptyInput => write!(f, "Choice construction requires at least one value"),
         }
     }
@@ -183,8 +182,8 @@ mod tests {
     #[test]
     fn test_choice_error_display() {
         assert_eq!(
-            ChoiceError::EmptyPrimaryIterator.to_string(),
-            "Choice::flatten(): primary value produced empty iterator"
+            ChoiceError::EmptyFlatten.to_string(),
+            "Choice::flatten(): no inner iterable produced an item"
         );
         assert_eq!(
             ChoiceError::EmptyInput.to_string(),
@@ -206,7 +205,7 @@ mod tests {
 
     #[test]
     fn test_choice_error_predicates() {
-        assert!(ChoiceError::EmptyPrimaryIterator.is_empty_primary_iterator());
+        assert!(ChoiceError::EmptyFlatten.is_empty_flatten());
     }
 
     #[test]

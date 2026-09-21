@@ -199,6 +199,8 @@ let lens = Lens::new(
 - Replace `choice.first_match(predicate)` with `choice.iter().find_map(predicate)`.
 - Replace `choice.filter_values(predicate)` with `choice.filter(predicate)` (consumes `self`; clone the `Choice` first if it is reused).
 - Monadic `bind` and `apply` are removed; `Choice` is purely a non-empty fallback/priority collection. Use `try_each` or `try_each_validated`.
+- **Flatten Fallback (Breaking)**: `flatten`/`try_flatten` now concatenate all non-empty inner iterables in priority order; alternatives are consulted when the primary iterable is empty. They error only when every iterable is empty.
+- **Error Rename (Breaking)**: `ChoiceError::EmptyPrimaryIterator` is renamed to `ChoiceError::EmptyFlatten`, and `is_empty_primary_iterator()` to `is_empty_flatten()`, reflecting the all-iterables-empty condition.
 
 ---
 
