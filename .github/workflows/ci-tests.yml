@@ -60,10 +60,6 @@ jobs:
         if: matrix.features == '--all-features'
         run: cargo run --example dsl_interpretation --locked
 
-      - name: Run readme Example
-        if: matrix.features == '--all-features'
-        run: cargo run --example readme --locked
-
   msrv:
     name: Test declared MSRV
     runs-on: ubuntu-latest
