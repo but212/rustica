@@ -1,70 +1,70 @@
 # Benchmark Results
 
-> Generated on 2026-09-21 08:41:08 UTC, Commit: `9085a9c`
+> Generated on 2026-09-21 08:46:47 UTC, Commit: `519b338`
 
 ## Validated
 
 | Benchmark | Mean | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `invalid_many/4` | 246ns | 200ns | 2.2µs | 100 | - |
-| `combine_errors/4` | 700ns | 600ns | 2µs | 100 | - |
-| `invalid_many/5` | 404ns | 300ns | 500ns | 100 | - |
-| `combine_errors/5` | 771ns | 700ns | 2.2µs | 100 | - |
-| `validated_map` | 50ns | 0ns | 1.6µs | 100 | - |
-| `result_map` | 34ns | 0ns | 100ns | 100 | - |
-| `sequence_valid/10` | 184ns | 100ns | 300ns | 100 | - |
-| `sequence_mixed/10` | 1.338µs | 1.3µs | 1.7µs | 100 | - |
-| `sequence_valid/100` | 461ns | 400ns | 500ns | 100 | - |
-| `sequence_mixed/100` | 6.896µs | 5.5µs | 14µs | 100 | - |
-| `iter_errors_slice/10` | 37ns | 0ns | 100ns | 100 | - |
+| `invalid_many/4` | 66ns | 61ns | 217ns | 100 | - |
+| `combine_errors/4` | 273ns | 214ns | 609ns | 100 | - |
+| `invalid_many/5` | 124ns | 90ns | 239ns | 100 | - |
+| `combine_errors/5` | 227ns | 204ns | 675ns | 100 | - |
+| `validated_map` | 22ns | 21ns | 52ns | 100 | - |
+| `result_map` | 23ns | 21ns | 51ns | 100 | - |
+| `sequence_valid/10` | 58ns | 55ns | 131ns | 100 | - |
+| `sequence_mixed/10` | 265ns | 255ns | 328ns | 100 | - |
+| `sequence_valid/100` | 154ns | 140ns | 252ns | 100 | - |
+| `sequence_mixed/100` | 2.325µs | 2.256µs | 2.516µs | 100 | - |
+| `iter_errors_slice/10` | 27ns | 25ns | 66ns | 100 | - |
 
 ## Lens
 
 | Benchmark | Mean | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `set_same_value` | 218ns | 200ns | 1.5µs | 100 | - |
-| `set_always_same_value` | 153ns | 100ns | 1.4µs | 100 | - |
-| `set_different_value` | 212ns | 100ns | 1.6µs | 100 | - |
-| `modify_changed_value` | 310ns | 200ns | 1.7µs | 100 | - |
+| `set_same_value` | 64ns | 62ns | 100ns | 100 | - |
+| `set_always_same_value` | 47ns | 45ns | 88ns | 100 | - |
+| `set_different_value` | 61ns | 59ns | 110ns | 100 | - |
+| `modify_changed_value` | 81ns | 79ns | 114ns | 100 | - |
 
 ## ContextError
 
 | Benchmark | Mean | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `context_accumulation/2` | 271ns | 200ns | 1.6µs | 100 | - |
-| `context_iteration/2` | 282ns | 200ns | 1.6µs | 100 | - |
-| `context_accumulation/3` | 372ns | 300ns | 1.7µs | 100 | - |
-| `context_iteration/3` | 382ns | 300ns | 1.7µs | 100 | - |
-| `context_accumulation/50` | 8.379µs | 7.7µs | 17.5µs | 100 | - |
-| `context_iteration/50` | 8.496µs | 7.7µs | 18µs | 100 | - |
-| `error_chain_formatting/3` | 750ns | 600ns | 2.1µs | 100 | - |
-| `error_chain_formatting/50` | 10.136µs | 9µs | 20.1µs | 100 | - |
+| `context_accumulation/2` | 113ns | 109ns | 180ns | 100 | - |
+| `context_iteration/2` | 111ns | 109ns | 136ns | 100 | - |
+| `context_accumulation/3` | 154ns | 150ns | 174ns | 100 | - |
+| `context_iteration/3` | 151ns | 148ns | 175ns | 100 | - |
+| `context_accumulation/50` | 3.488µs | 2.828µs | 15.121µs | 100 | - |
+| `context_iteration/50` | 3.248µs | 2.947µs | 12.068µs | 100 | - |
+| `error_chain_formatting/3` | 440ns | 293ns | 929ns | 100 | - |
+| `error_chain_formatting/50` | 3.074µs | 2.551µs | 26.5µs | 100 | - |
 
 ## LazyError
 
 | Benchmark | Mean | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `happy_path_lazy` | 36ns | 0ns | 100ns | 100 | - |
-| `happy_path_eager` | 37ns | 0ns | 100ns | 100 | - |
-| `error_path_lazy` | 171ns | 100ns | 1.5µs | 100 | - |
-| `error_path_eager` | 175ns | 100ns | 1.5µs | 100 | - |
+| `happy_path_lazy` | 23ns | 21ns | 56ns | 100 | - |
+| `happy_path_eager` | 27ns | 22ns | 109ns | 100 | - |
+| `error_path_lazy` | 74ns | 60ns | 112ns | 100 | - |
+| `error_path_eager` | 75ns | 59ns | 123ns | 100 | - |
 
 ## PersistentVector
 
 | Benchmark | Mean | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `creation` | 36ns | 0ns | 100ns | 100 | - |
-| `pvec_push_back/64` | 9.238µs | 7.4µs | 12µs | 100 | 6.93 M elem/s |
-| `pvec_push_back/65` | 8.609µs | 8.1µs | 9.9µs | 100 | 7.55 M elem/s |
-| `pvec_push_back/10000` | 2.398393ms | 2.3059ms | 3.6957ms | 100 | 4.17 M elem/s |
-| `pvec_iter_forward/1000` | 4.265µs | 4.2µs | 4.3µs | 100 | 234.47 M elem/s |
-| `pvec_iter_reverse/1000` | 4.522µs | 4.5µs | 4.6µs | 100 | 221.14 M elem/s |
-| `pvec_indexed_access/1000` | 14.909µs | 14.7µs | 15.6µs | 100 | 67.07 M elem/s |
-| `pvec_iter_forward/100000` | 464.692µs | 419.2µs | 778.5µs | 100 | 215.20 M elem/s |
-| `pvec_iter_reverse/100000` | 498.012µs | 439.5µs | 840.8µs | 100 | 200.80 M elem/s |
-| `pvec_indexed_access/100000` | 3.092922ms | 2.7538ms | 3.9316ms | 100 | 32.33 M elem/s |
-| `pvec_update/1000` | 6.442µs | 6.2µs | 7.7µs | 100 | - |
-| `pvec_update/10000` | 7.277µs | 7µs | 8.5µs | 100 | - |
-| `pop_back` | 75.725µs | 70.6µs | 220.8µs | 100 | - |
-| `pvec_sharing` | 13.534µs | 12.5µs | 15.2µs | 100 | - |
-| `std_vec_copying` | 39.486µs | 16.8µs | 158.5µs | 100 | - |
+| `creation` | 29ns | 23ns | 82ns | 100 | - |
+| `pvec_push_back/64` | 6.141µs | 6.037µs | 9.23µs | 100 | 10.42 M elem/s |
+| `pvec_push_back/65` | 6.417µs | 6.308µs | 6.578µs | 100 | 10.13 M elem/s |
+| `pvec_push_back/10000` | 1.491495ms | 1.4837ms | 1.529642ms | 100 | 6.70 M elem/s |
+| `pvec_iter_forward/1000` | 3.266µs | 3.003µs | 5.855µs | 100 | 306.18 M elem/s |
+| `pvec_iter_reverse/1000` | 3.285µs | 2.918µs | 9.455µs | 100 | 304.41 M elem/s |
+| `pvec_indexed_access/1000` | 15.826µs | 11.57µs | 22.387µs | 100 | 63.19 M elem/s |
+| `pvec_iter_forward/100000` | 335.244µs | 302.838µs | 572.877µs | 100 | 298.29 M elem/s |
+| `pvec_iter_reverse/100000` | 320.346µs | 311.907µs | 401.137µs | 100 | 312.16 M elem/s |
+| `pvec_indexed_access/100000` | 2.650537ms | 2.380907ms | 2.942152ms | 100 | 37.73 M elem/s |
+| `pvec_update/1000` | 6.857µs | 6.081µs | 17.462µs | 100 | - |
+| `pvec_update/10000` | 7.036µs | 6.692µs | 9.414µs | 100 | - |
+| `pop_back` | 67.352µs | 65.446µs | 93.487µs | 100 | - |
+| `pvec_sharing` | 11.018µs | 10.364µs | 22.018µs | 100 | - |
+| `std_vec_copying` | 2.705µs | 2.161µs | 12.037µs | 100 | - |
