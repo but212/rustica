@@ -163,7 +163,7 @@ impl<T> Functor for Option<T> {
     }
 }
 
-impl<A, E: Clone> Functor for Result<A, E> {
+impl<A, E> Functor for Result<A, E> {
     #[inline]
     fn fmap<B, F>(self, f: F) -> Self::Output<B>
     where

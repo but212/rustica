@@ -30,7 +30,7 @@ fn validate_email(email: &str) -> Validated<String, String> {
     }
 }
 
-fn validate_age(age: u32) -> Validated<String, u32> {
+fn validate_age(age: u32) -> Validated<u32, String> {
     if age >= 18 {
         Validated::valid(age)
     } else {
@@ -38,16 +38,16 @@ fn validate_age(age: u32) -> Validated<String, u32> {
     }
 }
 
-fn validate_user(username: &str, email: &str, age: u32) -> Validated<String, User> {
+fn validate_user(username: &str, email: &str, age: u32) -> Validated<User, String> {
     let u = validate_username(username);
     let e = validate_email(email);
     let a = validate_age(age);
 
     // Combine username and email first
-    let user_base = Validated::<String, (String, String)>::lift2(|u, e| (u, e), u, e);
+    let user_base = Validated::<(String, String), String>::lift2(|u, e| (u, e), u, e);
 
     // Combine with age to construct User
-    Validated::<String, User>::lift2(
+    Validated::<User, String>::lift2(
         |(u, e), a| User {
             username: u,
             email: e,

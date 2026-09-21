@@ -1,12 +1,12 @@
 use crate::datatypes::validated::core::{NonEmptyErrors, Validated};
 
-pub type Iter<'a, A> = std::option::IntoIter<&'a A>;
-pub type IterMut<'a, A> = std::option::IntoIter<&'a mut A>;
-pub type IntoIter<A> = std::option::IntoIter<A>;
+pub type Iter<'a, T> = std::option::IntoIter<&'a T>;
+pub type IterMut<'a, T> = std::option::IntoIter<&'a mut T>;
+pub type IntoIter<T> = std::option::IntoIter<T>;
 
-impl<E, A> IntoIterator for Validated<E, A> {
-    type Item = A;
-    type IntoIter = IntoIter<A>;
+impl<T, E> IntoIterator for Validated<T, E> {
+    type Item = T;
+    type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
@@ -16,28 +16,28 @@ impl<E, A> IntoIterator for Validated<E, A> {
     }
 }
 
-impl<'a, E, A> IntoIterator for &'a Validated<E, A> {
-    type Item = &'a A;
-    type IntoIter = Iter<'a, A>;
+impl<'a, T, E> IntoIterator for &'a Validated<T, E> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'a, E, A> IntoIterator for &'a mut Validated<E, A> {
-    type Item = &'a mut A;
-    type IntoIter = IterMut<'a, A>;
+impl<'a, T, E> IntoIterator for &'a mut Validated<T, E> {
+    type Item = &'a mut T;
+    type IntoIter = IterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
     }
 }
 
-impl<E, A> Validated<E, A> {
+impl<T, E> Validated<T, E> {
     /// Returns an iterator over the valid value (0 or 1 item).
     #[inline]
-    pub fn iter(&self) -> Iter<'_, A> {
+    pub fn iter(&self) -> Iter<'_, T> {
         match self {
             Validated::Valid(a) => Some(a).into_iter(),
             _ => None.into_iter(),
@@ -46,7 +46,7 @@ impl<E, A> Validated<E, A> {
 
     /// Returns a mutable iterator over the valid value (0 or 1 item).
     #[inline]
-    pub fn iter_mut(&mut self) -> IterMut<'_, A> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         match self {
             Validated::Valid(a) => Some(a).into_iter(),
             _ => None.into_iter(),
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_valid_iterators() {
-        let mut v: Validated<&str, i32> = Validated::valid(42);
+        let mut v: Validated<i32, &str> = Validated::valid(42);
         assert_eq!(v.iter().next(), Some(&42));
         if let Some(item) = v.iter_mut().next() {
             *item = 43;
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_invalid_iterators_and_slices() {
-        let mut invalid: Validated<String, i32> =
+        let mut invalid: Validated<i32, String> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
 
         assert_eq!(invalid.error_slice(), &["e1", "e2"]);

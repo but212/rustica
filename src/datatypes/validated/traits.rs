@@ -1,8 +1,8 @@
 //! Trait implementations for `Validated`.
 //!
-//! `Validated<E, A>` represents either a `Valid(A)` or an `Invalid(NonEmptyErrors<E>)`.
-//! In other words, an invalid value carries a *collection* of errors (often used to
-//! accumulate multiple validation failures).
+//! `Validated<T, E>` represents either a `Valid(T)` or an `Invalid(NonEmptyErrors<E>)`.
+//! Like `Result<T, E>`, the success value is the first type parameter and the error
+//! collection is the second type parameter.
 
 use crate::datatypes::validated::{
     NonEmptyErrors,
@@ -17,9 +17,9 @@ use crate::traits::semigroup::Semigroup;
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
-impl<E, A> HKT for Validated<E, A> {
-    type Source = A;
-    type Output<T> = Validated<E, T>;
+impl<T, E> HKT for Validated<T, E> {
+    type Source = T;
+    type Output<U> = Validated<U, E>;
 }
 
 /// # Examples for `Pure` on `Validated`
@@ -33,12 +33,12 @@ impl<E, A> HKT for Validated<E, A> {
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::pure::Pure;
 ///
-/// let valid: Validated<&str, i32> = <Validated<&str, i32> as Pure>::pure(10);
+/// let valid: Validated<i32, &str> = <Validated<i32, &str> as Pure>::pure(10);
 /// assert_eq!(valid, Validated::valid(10));
 /// ```
-impl<E, A> Pure for Validated<E, A> {
+impl<T, E> Pure for Validated<T, E> {
     #[inline]
-    fn pure<T>(x: T) -> Self::Output<T> {
+    fn pure<U>(x: U) -> Self::Output<U> {
         Validated::Valid(x)
     }
 }
@@ -52,7 +52,7 @@ impl<E, A> Pure for Validated<E, A> {
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::functor::Functor;
 ///
-/// let valid: Validated<&str, i32> = Validated::valid(10);
+/// let valid: Validated<i32, &str> = Validated::valid(10);
 /// let mapped = valid.fmap(|x: i32| x * 2);
 /// assert_eq!(mapped, Validated::valid(20));
 /// ```
@@ -62,13 +62,11 @@ impl<E, A> Pure for Validated<E, A> {
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::functor::Functor;
 ///
-/// let invalid: Validated<&str, i32> = Validated::invalid("error");
+/// let invalid: Validated<i32, &str> = Validated::invalid("error");
 /// let mapped = invalid.fmap(|x: i32| x * 2);
 /// assert_eq!(mapped, Validated::invalid("error"));
 /// ```
-///
-/// The functor identity and composition laws are verified by unit tests.
-impl<E, A> Functor for Validated<E, A> {
+impl<T, E> Functor for Validated<T, E> {
     #[inline]
     fn fmap<B, F>(self, mut f: F) -> Self::Output<B>
     where
@@ -97,8 +95,8 @@ impl<E, A> Functor for Validated<E, A> {
 /// use rustica::traits::applicative::Applicative;
 /// use rustica::traits::pure::Pure;
 ///
-/// let valid_fn: Validated<&str, fn(i32) -> i32> = Validated::valid(|x: i32| x * 2);
-/// let valid_val: Validated<&str, i32> = Validated::valid(10);
+/// let valid_fn: Validated<fn(i32) -> i32, &str> = Validated::valid(|x: i32| x * 2);
+/// let valid_val: Validated<i32, &str> = Validated::valid(10);
 /// assert_eq!(Applicative::apply(valid_fn, valid_val), Validated::valid(20));
 /// ```
 ///
@@ -108,8 +106,8 @@ impl<E, A> Functor for Validated<E, A> {
 /// use rustica::traits::applicative::Applicative;
 /// use rustica::traits::pure::Pure;
 ///
-/// let invalid_fn: Validated<&str, fn(i32) -> i32> = Validated::invalid("fn_error");
-/// let valid_val: Validated<&str, i32> = Validated::valid(10);
+/// let invalid_fn: Validated<fn(i32) -> i32, &str> = Validated::invalid("fn_error");
+/// let valid_val: Validated<i32, &str> = Validated::valid(10);
 /// assert_eq!(Applicative::apply(invalid_fn, valid_val), Validated::invalid("fn_error"));
 /// ```
 ///
@@ -119,29 +117,26 @@ impl<E, A> Functor for Validated<E, A> {
 /// use rustica::traits::applicative::Applicative;
 /// use rustica::traits::pure::Pure;
 ///
-/// let valid_fn: Validated<&str, fn(i32) -> i32> = Validated::valid(|x: i32| x * 2);
-/// let invalid_val: Validated<&str, i32> = Validated::invalid("val_error");
+/// let valid_fn: Validated<fn(i32) -> i32, &str> = Validated::valid(|x: i32| x * 2);
+/// let invalid_val: Validated<i32, &str> = Validated::invalid("val_error");
 /// assert_eq!(Applicative::apply(valid_fn, invalid_val), Validated::invalid("val_error"));
 /// ```
 ///
-/// ### Invalid function, Invalid value (error accumulation)
+/// ### Invalid function, Invalid value (Error Accumulation)
 /// ```rust
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::applicative::Applicative;
 /// use rustica::traits::pure::Pure;
-/// use smallvec::smallvec;
 ///
-/// let invalid_fn: Validated<String, fn(i32) -> i32> = Validated::invalid("fn_error".to_string());
-/// let invalid_val: Validated<String, i32> = Validated::invalid("val_error".to_string());
-/// // The apply implementation accumulates errors in this order:
-/// // first the errors from the function (self), then the errors from the value (value)
+/// let invalid_fn: Validated<fn(i32) -> i32, String> = Validated::invalid("fn_error".to_string());
+/// let invalid_val: Validated<i32, String> = Validated::invalid("val_error".to_string());
 /// let expected_errors = Validated::invalid_many(["fn_error".to_string(), "val_error".to_string()]);
 /// assert_eq!(Applicative::apply(invalid_fn, invalid_val), expected_errors);
 ///
 /// // lift2
-/// let v1: Validated<&str, i32> = Validated::valid(10);
-/// let v2: Validated<&str, i32> = Validated::valid(20);
-/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
+/// let v1: Validated<i32, &str> = Validated::valid(10);
+/// let v2: Validated<i32, &str> = Validated::valid(20);
+/// let result = <Validated<i32, &str> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
 /// assert_eq!(result, Validated::valid(30));
 /// ```
 ///
@@ -149,33 +144,28 @@ impl<E, A> Functor for Validated<E, A> {
 /// ```rust
 /// use rustica::datatypes::validated::Validated;
 /// use rustica::traits::applicative::Applicative;
-/// use smallvec::smallvec;
 ///
-/// let v1: Validated<&str, i32> = Validated::valid(10);
-/// let v2: Validated<&str, i32> = Validated::invalid("error_b");
-/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
+/// let v1: Validated<i32, &str> = Validated::valid(10);
+/// let v2: Validated<i32, &str> = Validated::invalid("error_b");
+/// let result = <Validated<i32, &str> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
 /// assert_eq!(result, Validated::invalid("error_b"));
 ///
-/// let v3: Validated<&str, i32> = Validated::invalid("error_a");
-/// let v4: Validated<&str, i32> = Validated::valid(20);
-/// let result2 = <Validated<&str, i32> as Applicative>::lift2(|a: i32, b: i32| a + b, v3, v4);
+/// let v3: Validated<i32, &str> = Validated::invalid("error_a");
+/// let v4: Validated<i32, &str> = Validated::valid(20);
+/// let result2 = <Validated<i32, &str> as Applicative>::lift2(|a: i32, b: i32| a + b, v3, v4);
 /// assert_eq!(result2, Validated::invalid("error_a"));
 ///
 /// // Combining two `Invalid` values (error accumulation)
-/// let v1: Validated<&str, i32> = Validated::invalid("error1");
-/// let v2: Validated<&str, i32> = Validated::invalid("error2");
-/// let result = <Validated<&str, i32> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
-/// // The order of errors in lift2 is left argument's errors then right argument's errors.
+/// let v1: Validated<i32, &str> = Validated::invalid("error1");
+/// let v2: Validated<i32, &str> = Validated::invalid("error2");
+/// let result = <Validated<i32, &str> as Applicative>::lift2(|a: i32, b: i32| a + b, v1, v2);
 /// assert_eq!(result, Validated::invalid_many(["error1", "error2"]));
 /// ```
-///
-///
-/// Applicative laws and error ordering are verified by unit tests.
-impl<E, A> Applicative for Validated<E, A> {
-    fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
+impl<T, E> Applicative for Validated<T, E> {
+    fn apply<U, B>(self, value: Self::Output<U>) -> Self::Output<B>
     where
-        Self::Source: Fn(T) -> B,
-        T: Clone,
+        Self::Source: Fn(U) -> B,
+        U: Clone,
     {
         match (self, value) {
             (Validated::Valid(f), Validated::Valid(x)) => Validated::Valid(f(x)),
@@ -196,11 +186,11 @@ impl<E, A> Applicative for Validated<E, A> {
         }
     }
 
-    fn lift2<T, U, C, F>(f: F, fa: Self::Output<T>, fb: Self::Output<U>) -> Self::Output<C>
+    fn lift2<U, V, C, F>(f: F, fa: Self::Output<U>, fb: Self::Output<V>) -> Self::Output<C>
     where
-        F: Fn(T, U) -> C,
-        T: Clone,
+        F: Fn(U, V) -> C,
         U: Clone,
+        V: Clone,
     {
         match (fa, fb) {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
@@ -221,14 +211,14 @@ impl<E, A> Applicative for Validated<E, A> {
         }
     }
 
-    fn lift3<T, U, V, C, F>(
-        f: F, fa: Self::Output<T>, fb: Self::Output<U>, fc: Self::Output<V>,
+    fn lift3<U, V, W, C, F>(
+        f: F, fa: Self::Output<U>, fb: Self::Output<V>, fc: Self::Output<W>,
     ) -> Self::Output<C>
     where
-        F: Fn(T, U, V) -> C,
-        T: Clone,
+        F: Fn(U, V, W) -> C,
         U: Clone,
         V: Clone,
+        W: Clone,
     {
         match (fa, fb, fc) {
             (Validated::Valid(a), Validated::Valid(b_val), Validated::Valid(c_val)) => {
@@ -271,26 +261,26 @@ impl<E, A> Applicative for Validated<E, A> {
 /// use rustica::traits::foldable::Foldable;
 ///
 /// // Folding a Valid value with fold_left
-/// let valid = Validated::<&str, i32>::valid(42);
+/// let valid = Validated::<i32, &str>::valid(42);
 /// let doubled = valid.fold_left(0, |_, x| x * 2);
 /// assert_eq!(doubled, 84);
 ///
 /// // Folding an Invalid value with fold_left returns the initial value
-/// let invalid = Validated::<&str, i32>::invalid("error");
+/// let invalid = Validated::<i32, &str>::invalid("error");
 /// let result = invalid.fold_left(100, |_, x| x + 1);
 /// assert_eq!(result, 100);
 ///
 /// // Folding a Valid value with fold_right
-/// let valid = Validated::<&str, i32>::valid(42);
+/// let valid = Validated::<i32, &str>::valid(42);
 /// let doubled = valid.fold_right(0, |x, _| x * 2);
 /// assert_eq!(doubled, 84);
 ///
 /// // Folding an Invalid value with fold_right returns the initial value
-/// let invalid = Validated::<&str, i32>::invalid("error");
+/// let invalid = Validated::<i32, &str>::invalid("error");
 /// let result = invalid.fold_right(100, |x, _| x + 1);
 /// assert_eq!(result, 100);
 /// ```
-impl<E, A> Foldable for Validated<E, A> {
+impl<T, E> Foldable for Validated<T, E> {
     #[inline]
     fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where
@@ -317,10 +307,10 @@ impl<E, A> Foldable for Validated<E, A> {
 /// # Semigroup for `Validated`
 ///
 /// Combines two `Validated` values:
-/// - If both are `Valid`, their inner values are combined using `A::combine`.
+/// - If both are `Valid`, their inner values are combined using `T::combine`.
 /// - If one is `Invalid` and one is `Valid`, the `Invalid` is returned (errors take precedence).
 /// - If both are `Invalid`, their error collections are concatenated.
-impl<E, A: Semigroup> Semigroup for Validated<E, A> {
+impl<T: Semigroup, E> Semigroup for Validated<T, E> {
     fn combine(self, other: Self) -> Self {
         match (self, other) {
             (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine(a2)),
@@ -335,13 +325,13 @@ impl<E, A: Semigroup> Semigroup for Validated<E, A> {
 }
 
 #[cfg(any(test, feature = "quickcheck"))]
-impl<E, A> Arbitrary for Validated<E, A>
+impl<T, E> Arbitrary for Validated<T, E>
 where
+    T: Arbitrary,
     E: Arbitrary,
-    A: Arbitrary,
 {
     fn arbitrary(g: &mut Gen) -> Self {
-        let x = A::arbitrary(g);
+        let x = T::arbitrary(g);
         let y = E::arbitrary(g);
         if bool::arbitrary(g) {
             Validated::valid(x)

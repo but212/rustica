@@ -308,7 +308,7 @@ impl<A> Foldable for Option<A> {
 }
 
 // Implement Foldable for Result
-impl<A, E: Clone> Foldable for Result<A, E> {
+impl<A, E> Foldable for Result<A, E> {
     #[inline]
     fn fold_left<U, F>(&self, init: U, mut f: F) -> U
     where

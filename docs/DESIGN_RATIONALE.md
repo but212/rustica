@@ -90,9 +90,11 @@ Rustica retains functional abstractions where they solve concrete engineering pr
 
 | Component | Target Problem | Standard Library Contrast |
 | --- | --- | --- |
-| **`Validated<E, A>`** | Multi-error domain validation | Unlike `Result` (which short-circuits on the first failure), accumulates all constraint violations. |
+| **`Validated<T, E>`** | Multi-error domain validation | Unlike `Result` (which short-circuits on the first failure), accumulates all constraint violations. |
 | **`Choice<T>`** | Priority & fallback execution | Statically non-empty target sequences with integrated multi-target error diagnostics (`try_each`, `try_each_validated`). |
 | **`PersistentVector<T>`** (`pvec`) | Structural sharing for immutable collections | 32-way RRB-Tree enabling $O(\log n)$ updates and branch sharing without copying full buffers. |
+| **`Free<F, A>`** | DSL AST construction & multi-pass analysis | Reusable, cloneable computation tree for inspectable and re-interpretable DSL ASTs. Fully supported alongside operational pipelines. |
+| **`Program<H, A>`** | Direct operational monad execution | Statically checked handler pipelines with compile-time command-to-output enforcement and trampoline evaluation. |
 | **Optics (`Lens`, `Prism`)** | Composable access into nested data | Pure, reusable paths for querying and immutably updating deeply nested structs and enum variants. |
 | **Algebraic Traits (`Semigroup`, `Monoid`, `Functor`, `Applicative`, `Monad`, `Foldable`)** | Generic combination and traversal interfaces | Shared vocabulary for combining and mapping across unrelated types, enabling uniform generic code over `Validated`, `Choice`, and user types while respecting ownership rules. |
 
@@ -112,7 +114,9 @@ This matrix provides a guide for choosing between standard Rust idioms and Rusti
 | Monoidal reduction | `Sum`, `Product`, `Min`, `Max` | `Iterator::sum`, `product`, `min`, `max` | *— not provided; use standard idiom* |
 | Primary / fallback tasks | Nested loops / `Choice::bind` | `Iterator::find_map` | `Choice::try_each` |
 | Fallback with full audit | Manual error accumulation loops | Explicit error vectors | `Choice::try_each_validated` |
-| Multi-field validation | `Result<T, Vec<E>>` (early bail) | `Result<T, E>` with `?` | `Validated<E, A>` |
+| Multi-field validation | `Result<T, Vec<E>>` (early bail) | `Result<T, E>` with `?` | `Validated<T, E>` |
+| Reusable DSL AST / Multi-run tree | Complex macro ASTs | Ad-hoc enum AST parser | `Free<F, A>` |
+| Static operational execution | Dynamic downcasting dispatch | Match loops over enums | `Program<H, A>` / `TryProgram<H, A, E>` |
 | Structural sharing | Full clone (`Vec::clone`) | `Arc<Vec<T>>` | `PersistentVector<T>` |
 | Nested struct updates | Manual clone-and-assign | In-place mutable setters | `Lens::set`, `Lens::then` |
 | Deep enum branching | Nested `match` blocks | `if let` matching | `Prism::preview`, `Prism::then` |

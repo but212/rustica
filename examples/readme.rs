@@ -37,9 +37,9 @@ fn basic_usage() {
     assert_eq!(connected, Ok("connected"));
 
     // Using Validated for error accumulation
-    let v1: Validated<&str, i32> = Validated::valid(10);
-    let v2: Validated<&str, i32> = Validated::valid(20);
-    let sum = Validated::<&str, i32>::lift2(|a, b| a + b, v1, v2);
+    let v1: Validated<i32, &str> = Validated::valid(10);
+    let v2: Validated<i32, &str> = Validated::valid(20);
+    let sum = Validated::<i32, &str>::lift2(|a, b| a + b, v1, v2);
     assert_eq!(sum, Validated::valid(30));
 }
 

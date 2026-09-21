@@ -17,7 +17,7 @@ pub fn validated_benchmarks(harness: &Harness) {
                     .collect::<Vec<_>>()
             },
             |errors| {
-                black_box(Validated::<String, i32>::invalid_many(std::mem::take(
+                black_box(Validated::<i32, String>::invalid_many(std::mem::take(
                     errors,
                 )));
             },
@@ -27,8 +27,8 @@ pub fn validated_benchmarks(harness: &Harness) {
         group.bench_batched(
             &name,
             || {
-                let left = Validated::<String, i32>::invalid("left".to_string());
-                let right = Validated::<String, i32>::invalid_many(
+                let left = Validated::<i32, String>::invalid("left".to_string());
+                let right = Validated::<i32, String>::invalid_many(
                     (0..error_count).map(|index| format!("error_{index}")),
                 );
                 (left, right)
@@ -40,7 +40,7 @@ pub fn validated_benchmarks(harness: &Harness) {
     }
 
     group.bench_fn("validated_map", || {
-        let value = Validated::<String, i32>::valid(42);
+        let value = Validated::<i32, String>::valid(42);
         black_box(value.fmap(|value| value + 1));
     });
 
@@ -56,7 +56,7 @@ pub fn validated_benchmarks(harness: &Harness) {
             &name_valid,
             || {
                 (0..size)
-                    .map(Validated::<String, i32>::valid)
+                    .map(Validated::<i32, String>::valid)
                     .collect::<Vec<_>>()
             },
             |values| {
@@ -90,7 +90,7 @@ pub fn validated_benchmarks(harness: &Harness) {
 
     // Benchmark iter_errors slice traversal
     let invalid_sample =
-        Validated::<String, i32>::invalid_many((0..10).map(|i| format!("err_{i}")));
+        Validated::<i32, String>::invalid_many((0..10).map(|i| format!("err_{i}")));
     group.bench_fn("iter_errors_slice/10", || {
         let mut count = 0;
         for err in invalid_sample.iter_errors() {

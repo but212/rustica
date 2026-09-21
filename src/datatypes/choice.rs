@@ -33,7 +33,6 @@
 
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
-use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
@@ -50,7 +49,7 @@ use crate::prelude::traits::*;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
     pub(crate) primary: T,
-    pub(crate) alternatives: SmallVec<[T; 7]>,
+    pub(crate) alternatives: Vec<T>,
 }
 
 impl<T> Choice<T> {
@@ -71,7 +70,7 @@ impl<T> Choice<T> {
     pub fn single(primary: T) -> Self {
         Self {
             primary,
-            alternatives: SmallVec::new(),
+            alternatives: Vec::new(),
         }
     }
 
@@ -121,7 +120,7 @@ impl<T> Choice<T> {
     where
         F: FnMut(&T) -> bool,
     {
-        let mut kept = SmallVec::<[T; 8]>::new();
+        let mut kept = Vec::new();
         if predicate(&self.primary) {
             kept.push(self.primary);
         }
@@ -167,7 +166,7 @@ impl<T> Choice<T> {
                             .into_iter()
                             .flat_map(IntoIterator::into_iter),
                     )
-                    .collect::<SmallVec<[I; 7]>>();
+                    .collect::<Vec<I>>();
 
                 Ok(Choice {
                     primary: first_item,
@@ -231,7 +230,7 @@ impl<T> Choice<T> {
     ///
     /// Returns [`Validated::Valid`] on the first `Ok` result, short-circuiting on success.
     /// If all values fail, returns [`Validated::Invalid`] containing every encountered error in order.
-    pub fn try_each_validated<R, E, F>(&self, mut f: F) -> Validated<E, R>
+    pub fn try_each_validated<R, E, F>(&self, mut f: F) -> Validated<R, E>
     where
         F: FnMut(&T) -> Result<R, E>,
     {
@@ -240,7 +239,7 @@ impl<T> Choice<T> {
             Err(err) => err,
         };
 
-        let mut errors = SmallVec::<[E; 8]>::new();
+        let mut errors = Vec::new();
         errors.push(first_err);
 
         for alt in &self.alternatives {
@@ -283,7 +282,7 @@ impl<T> Choice<Option<T>> {
     /// Sequences a `Choice` of `Option`s into an `Option` of a `Choice`.
     pub fn sequence(self) -> Option<Choice<T>> {
         let primary = self.primary?;
-        let mut alternatives = SmallVec::<[T; 7]>::with_capacity(self.alternatives.len());
+        let mut alternatives = Vec::with_capacity(self.alternatives.len());
         for alt in self.alternatives {
             alternatives.push(alt?);
         }
@@ -305,7 +304,7 @@ impl<'a, T> IntoIterator for &'a Choice<T> {
 
 impl<T> IntoIterator for Choice<T> {
     type Item = T;
-    type IntoIter = std::iter::Chain<std::iter::Once<T>, smallvec::IntoIter<[T; 7]>>;
+    type IntoIter = std::iter::Chain<std::iter::Once<T>, std::vec::IntoIter<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         std::iter::once(self.primary).chain(self.alternatives)
@@ -317,7 +316,7 @@ impl<T: Display> Display for Choice<T> {
         write!(f, "{}", self.primary)?;
         if !self.alternatives.is_empty() {
             let alt_strs: Vec<String> = self.alternatives.iter().map(|a| a.to_string()).collect();
-            write!(f, " | {}", alt_strs.join(", "))?;
+            write!(f, " | {}", alt_strs.as_slice().join(", "))?;
         }
         Ok(())
     }
@@ -370,7 +369,7 @@ impl<T: Default> Default for Choice<T> {
     fn default() -> Self {
         Self {
             primary: T::default(),
-            alternatives: SmallVec::new(),
+            alternatives: Vec::new(),
         }
     }
 }
@@ -484,7 +483,7 @@ mod unit_tests {
     #[test]
     fn try_each_validated_collects_errors() {
         let choices = Choice::new(1, [2, 3]);
-        let res: Validated<String, i32> =
+        let res: Validated<i32, String> =
             choices.try_each_validated(|&x| Err(format!("err_{}", x)));
         assert!(res.is_invalid());
         if let Validated::Invalid(errs) = res {
@@ -495,7 +494,7 @@ mod unit_tests {
         }
 
         // Success on alternative
-        let ok_res: Validated<&str, i32> =
+        let ok_res: Validated<i32, &str> =
             choices.try_each_validated(|&x| if x == 2 { Ok(200) } else { Err("fail") });
         assert_eq!(ok_res, Validated::Valid(200));
     }
@@ -532,5 +531,12 @@ mod unit_tests {
         let res = nested.try_flatten_cloned().unwrap();
         assert_eq!(res.primary(), &1);
         assert_eq!(res.alternatives(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn test_choice_stack_size_compactness() {
+        use std::mem::size_of;
+        type Large = [u8; 1024];
+        assert!(size_of::<Choice<Large>>() < 1100);
     }
 }

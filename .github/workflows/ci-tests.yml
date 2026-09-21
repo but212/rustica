@@ -5,7 +5,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings -A deprecated"
+  RUSTFLAGS: "-D warnings"
   NIGHTLY_TOOLCHAIN: nightly-2026-08-20
 
 permissions:
@@ -142,7 +142,7 @@ jobs:
         run: cargo "+$TOOLCHAIN" udeps --all-targets --all-features --locked
 
   miri:
-    name: Miri transformer ownership
+    name: Miri operational ownership
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -172,7 +172,7 @@ jobs:
       - name: Run targeted Miri tests
         env:
           TOOLCHAIN: ${{ env.NIGHTLY_TOOLCHAIN }}
-        run: cargo "+$TOOLCHAIN" miri test --lib --locked bind_owns_strings_without_aliasing_or_double_drop
+        run: cargo "+$TOOLCHAIN" miri test --lib --locked test_operational_miri_ownership_and_drop
 
   bench:
     name: Benchmark Smoke Test

@@ -60,7 +60,7 @@ use rustica::prelude::*;
 ### 2. Core Data Types
 
 - **`Choice<T>`**: Non-empty priority/fallback collection (`try_each`, `try_each_validated`).
-- **`Validated<E, T>`**: Accumulates errors into `NonEmptyErrors<E>`.
+- **`Validated<T, E>`**: Accumulates errors into `NonEmptyErrors<E>`.
 - **`Free<F, A>`**: Free monad with stack-safe iterative execution (`run`, `try_run`).
 - **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation.
 - **`PersistentVector<T>`**: Immutable RRB-tree vector (`pvec` feature).
@@ -115,9 +115,9 @@ let connected = endpoints.try_each(|ep| {
 assert_eq!(connected, Ok("connected"));
 
 // Error accumulation with Validated
-let v1: Validated<&str, i32> = Validated::valid(10);
-let v2: Validated<&str, i32> = Validated::valid(20);
-let sum = Validated::<&str, i32>::lift2(|a, b| a + b, v1, v2);
+let v1: Validated<i32, &str> = Validated::valid(10);
+let v2: Validated<i32, &str> = Validated::valid(20);
+let sum = Validated::<i32, &str>::lift2(|a, b| a + b, v1, v2);
 assert_eq!(sum, Validated::valid(30));
 
 // Statically typed Operational Monad (Program)

@@ -276,3 +276,77 @@ fn qc_pvec_differential(initial_size: usize, operations: Vec<(u8, usize, i32)>) 
 
     TestResult::from_bool(pvec.to_vec() == std_vec)
 }
+
+#[test]
+fn test_large_scale_split_concat_height_bounded() {
+    let n = 40_000;
+    let mut pvec: PersistentVector<usize> = (0..n).collect();
+    let std_vec: Vec<usize> = (0..n).collect();
+
+    // Perform repeated split-concat cycles at varying offsets across tree levels
+    for offset in [50, 1024, 2048, 5000, 16384, 20000, 32768, 38000, 39950] {
+        let (left, right) = pvec.split_at(offset);
+        assert_eq!(left.len(), offset);
+        assert_eq!(right.len(), n - offset);
+        assert_eq!(left.to_vec(), std_vec[..offset]);
+        assert_eq!(right.to_vec(), std_vec[offset..]);
+
+        pvec = left.concat(&right);
+        assert_eq!(pvec.len(), n);
+        assert_eq!(pvec.to_vec(), std_vec);
+    }
+}
+
+#[test]
+fn test_concat_disparate_sizes() {
+    // 1. Very small (inline) + Very large (height 3)
+    let small: PersistentVector<i32> = (0..5).collect();
+    let large: PersistentVector<i32> = (5..50_005).collect();
+    let merged = small.concat(&large);
+    assert_eq!(merged.len(), 50_005);
+    assert_eq!(merged.get(0), Some(&0));
+    assert_eq!(merged.get(4), Some(&4));
+    assert_eq!(merged.get(5), Some(&5));
+    assert_eq!(merged.get(50_004), Some(&50_004));
+    assert_eq!(merged.to_vec(), (0..50_005).collect::<Vec<_>>());
+
+    // 2. Very large (height 3) + Very small (inline)
+    let merged_rev = large.concat(&small);
+    assert_eq!(merged_rev.len(), 50_005);
+    assert_eq!(merged_rev.get(0), Some(&5));
+    assert_eq!(merged_rev.get(49_999), Some(&50_004));
+    assert_eq!(merged_rev.get(50_000), Some(&0));
+    assert_eq!(merged_rev.get(50_004), Some(&4));
+
+    // 3. Medium (height 2) + Large (height 3)
+    let med: PersistentVector<i32> = (0..1_000).collect();
+    let large2: PersistentVector<i32> = (1_000..25_000).collect();
+    let merged_med = med.concat(&large2);
+    assert_eq!(merged_med.len(), 25_000);
+    assert_eq!(merged_med.to_vec(), (0..25_000).collect::<Vec<_>>());
+
+    let merged_med_rev = large2.concat(&med);
+    assert_eq!(merged_med_rev.len(), 25_000);
+    let mut expected_med_rev: Vec<i32> = (1_000..25_000).collect();
+    expected_med_rev.extend(0..1_000);
+    assert_eq!(merged_med_rev.to_vec(), expected_med_rev);
+}
+
+#[test]
+fn test_pvec_in_place_push_mut() {
+    let mut pvec: PersistentVector<i32> = PersistentVector::new();
+    let mut std_vec: Vec<i32> = Vec::new();
+
+    for i in 0..5_000 {
+        pvec.push_back_mut(i);
+        std_vec.push(i);
+    }
+
+    for i in 1..=5_000 {
+        pvec.push_front_mut(-i);
+        std_vec.insert(0, -i);
+    }
+
+    assert_eq!(pvec.len(), 10_000);
+    assert_eq!(pvec.to_vec(), std_vec);
+}

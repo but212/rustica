@@ -21,13 +21,16 @@ This guide details all removals and breaking changes in Rustica 0.18.0, with con
 | `error::ComposableError` & related types | `ContextError` (`rustica::error::ContextError`) |
 | `error::WithError` & `sequence_with_error` | Standard `Result` combinators or `Iterator::collect` |
 | `traits::Alternative` | `Option::or`, `Vec::extend`, `bool::then_some` |
-| `traits::Bifunctor`, `BinaryHKT` | Inherent `Validated::bimap`, `map_valid`, `map_err` |
+| `traits::Bifunctor`, `BinaryHKT` | Inherent `Validated::bimap`, `map`, `map_err` |
+| `Validated<E, A>` (type parameter order) | `Validated<T, E>` matching standard `Result<T, E>` |
+| `Validated::map_valid` / `fmap_invalid` | `Validated::map` / `Validated::map_err` |
 | `traits::Iso` | Standard `From` / `Into` conversions |
 | `traits::MonadError` | `Result::or_else`, `?` operator |
 | `traits::One` | Numeric literals (`1`) or `Iterator::product` |
 | `Free::fold_map` | `Free::run` or `Free::try_run` with trampoline evaluation |
 | `Free::into_pure` | `Free::to_pure` |
 | `Lens::from_iso`, `Prism::from_iso` | `Lens::new` or `Prism::new` directly with closures |
+| `Command` in `rustica::prelude::*` | Explicit import: `use rustica::datatypes::operational::Command;` |
 
 ---
 
@@ -200,9 +203,24 @@ let lens = Lens::new(
 
 ## 8. Validated
 
+- **Type Parameter Swap**: `Validated<E, A>` is now `Validated<T, E>` to match the standard library's `Result<T, E>` conventions:
+
+  ```rust
+  // Before (0.17.0)
+  let v: Validated<&str, i32> = Validated::valid(42);
+
+  // After (0.18.0)
+  let v: Validated<i32, &str> = Validated::valid(42);
+  ```
+
+- **Inherent Mapping & Sequencing**:
+  - `validated.bimap(f_val, g_err)` now takes the value transformer first and error transformer second, matching `Validated<T, E>`.
+  - Inherent `validated.map(f)` replaces `map_valid(f)`.
+  - Inherent `validated.map_err(g)` replaces `fmap_invalid(g)`.
+  - Inherent sync `validated.and_then(f)` provides monadic chaining for dependent validation steps without requiring conversion to `Result`.
 - Replace `validated.errors()` with `validated.error_slice()`.
 - Replace `ErrorsIter` / `ErrorsIterMut` with standard slice iteration (`validated.iter_errors()`).
-- `BinaryHKT` and `Bifunctor` traits are removed; call inherent `validated.bimap(...)`, `validated.map_valid(...)`, and `validated.map_err(...)` directly.
+- `BinaryHKT` and `Bifunctor` traits are removed; call inherent `validated.bimap(...)`, `validated.map(...)`, and `validated.map_err(...)` directly.
 
 ---
 
@@ -222,3 +240,34 @@ let lens = Lens::new(
   ```
 
 - `prelude::traits_ext` has been deleted; all core traits (`Functor`, `Applicative`, `Monad`, `Monoid`, `Semigroup`, `Foldable`, `Pure`, `HKT`) are available directly via `rustica::prelude::*` or `rustica::prelude::traits::*`.
+- **Trait Bound Relaxation**:
+  - Removed `E: Clone` bound from `Result<T, E>` implementations of `Pure`, `Functor`, `Applicative`, `Monad`, and `Foldable`.
+  - Removed `T: Clone` bound from `Monoid for Vec<T>`.
+
+---
+
+## 10. PersistentVector Performance & Rebalancing
+
+- **Buffer Pointer Sharing**: `head` and `tail` in `RRBTree<T>` are now wrapped in `Arc<SmallVec<[T; 32]>>`. `push_back(&self)` and `push_front(&self)` share opposite buffers via $O(1)$ pointer copy (`Arc::clone`) without duplicating up to 128 elements, guaranteeing true amortized $O(1)$ complexity.
+- **In-Place Mutation**: Added `push_back_mut(&mut self, value)` and `push_front_mut(&mut self, value)` using `Arc::make_mut` to allow zero-allocation mutations when buffers are unshared.
+- **Bagwell-Rompf RRB Rebalancing**: `concat` now rebalances internal and leaf nodes along boundary spines (`pack_children_balanced`, `pack_leaves_balanced`), enforcing a minimum occupancy of $\ge 16$ items per node for $N > 32$ and preventing unary tree degradation.
+
+---
+
+## 11. Choice Stack Optimization
+
+- The internal storage for `Choice<T>::alternatives` has been migrated from `SmallVec<[T; 7]>` to `Vec<T>`. This reduces the default stack size of `Choice<T>` from over 56 bytes per instance down to 24 bytes, preventing stack overflows when nesting priority choices.
+
+---
+
+## 12. Prelude & Name Collisions
+
+- `Command` has been removed from `rustica::prelude::*` to prevent shadowing `std::process::Command`. When defining commands for the operational monad, import it explicitly:
+
+  ```rust
+  use rustica::datatypes::operational::Command;
+  ```
+
+- `Handler`, `Program`, `TryHandler`, and `TryProgram` remain re-exported in the prelude.
+- `Vec<T>` does not implement `Monad` to prevent `join` method resolution from shadowing standard slice `[T]::join`. Monadic operations on `Vec` should use standard iterator combinators (`flat_map`).
+

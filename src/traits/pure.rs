@@ -131,7 +131,7 @@ impl<T> Pure for Option<T> {
     }
 }
 
-impl<T, E: Clone> Pure for Result<T, E> {
+impl<T, E> Pure for Result<T, E> {
     #[inline]
     fn pure<U>(value: U) -> Self::Output<U> {
         Ok(value)

@@ -152,7 +152,7 @@ impl<T> Monad for Option<T> {
 }
 
 // Implementation for Result
-impl<T, E: Clone> Monad for Result<T, E> {
+impl<T, E> Monad for Result<T, E> {
     #[inline]
     fn bind<U, F>(self, f: F) -> Self::Output<U>
     where

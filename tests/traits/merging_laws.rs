@@ -81,13 +81,89 @@ fn test_validated_semigroup_accumulation() {
     }
 
     // 1. Semigroup accumulates both valid payloads when both are Valid
-    let v1: Validated<String, TestSum> = Validated::valid(TestSum(10));
-    let v2: Validated<String, TestSum> = Validated::valid(TestSum(20));
+    let v1: Validated<TestSum, String> = Validated::valid(TestSum(10));
+    let v2: Validated<TestSum, String> = Validated::valid(TestSum(20));
     assert_eq!(v1.combine(v2), Validated::valid(TestSum(30)));
 
     // 2. Semigroup yields Invalid when one is Invalid (errors take precedence)
-    let v1: Validated<String, TestSum> = Validated::valid(TestSum(10));
-    let inv: Validated<String, TestSum> = Validated::invalid("err1".to_string());
+    let v1: Validated<TestSum, String> = Validated::valid(TestSum(10));
+    let inv: Validated<TestSum, String> = Validated::invalid("err1".to_string());
     assert!(v1.clone().combine(inv.clone()).is_invalid());
     assert!(inv.combine(v1).is_invalid());
+}
+
+#[test]
+fn test_result_and_vec_with_non_clone_types() {
+    use rustica::traits::applicative::Applicative;
+    use rustica::traits::foldable::Foldable;
+    use rustica::traits::functor::Functor;
+    use rustica::traits::monad::Monad;
+    use rustica::traits::monoid::Monoid;
+    use rustica::traits::pure::Pure;
+
+    #[allow(dead_code)]
+    struct NonCloneErr(String);
+    #[allow(dead_code)]
+    struct MoveOnly(i32);
+
+    // 1. Pure for Result with non-clone error
+    let r: Result<i32, NonCloneErr> = <Result<i32, NonCloneErr> as Pure>::pure(42);
+    assert_eq!(r.ok(), Some(42));
+
+    // 2. Functor for Result with non-clone error
+    let r: Result<i32, NonCloneErr> = Ok(10);
+    let mapped = r.fmap(|x| x * 2);
+    assert_eq!(mapped.ok(), Some(20));
+
+    // 3. Applicative for Result with non-clone error
+    let fn_res: Result<fn(i32) -> i32, NonCloneErr> = Ok(|x| x + 5);
+    let val_res: Result<i32, NonCloneErr> = Ok(10);
+    let applied = fn_res.apply(val_res);
+    assert_eq!(applied.ok(), Some(15));
+
+    // 4. Monad for Result with non-clone error
+    let r: Result<i32, NonCloneErr> = Ok(10);
+    let bound = r.bind(|x| Ok(x + 1));
+    assert_eq!(bound.ok(), Some(11));
+
+    // 5. Foldable for Result with non-clone error
+    let r: Result<i32, NonCloneErr> = Ok(10);
+    assert_eq!(r.fold_left(0, |acc, x| acc + x), 10);
+
+    // 6. Monoid for Vec with move-only type
+    let empty_vec: Vec<MoveOnly> = Vec::<MoveOnly>::empty();
+    assert!(empty_vec.is_empty());
+}
+
+#[test]
+fn test_prelude_does_not_shadow_std_command_or_slice_join() {
+    use rustica::prelude::*;
+    use std::process::Command;
+    let _cmd = Command::new("echo");
+    let _v: Validated<i32, &str> = Validated::valid(1);
+
+    // Verify std slice join works without method resolution conflict
+    let words: Vec<String> = vec!["a".into(), "b".into()];
+    assert_eq!(words.join(","), "a,b");
+}
+
+#[test]
+fn test_prelude_exports_handler() {
+    use rustica::datatypes::operational::Command as OpCommand;
+    use rustica::prelude::*;
+
+    struct MyCmd;
+    impl OpCommand for MyCmd {
+        type Output = i32;
+    }
+
+    struct MyHandler;
+    impl Handler<MyCmd> for MyHandler {
+        fn handle(&mut self, _cmd: MyCmd) -> i32 {
+            42
+        }
+    }
+
+    let mut h = MyHandler;
+    assert_eq!(h.handle(MyCmd), 42);
 }

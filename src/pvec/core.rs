@@ -10,14 +10,14 @@ use super::error::PVecError;
 use super::iter::{PersistentVectorIntoIter, PersistentVectorIter};
 use super::tree::RRBTree;
 
-pub(crate) const ADAPTIVE_INLINE_SIZE: usize = 64;
+pub(crate) const ADAPTIVE_INLINE_SIZE: usize = 32;
 
 /// An immutable vector data structure with structural sharing.
 ///
 /// Operations like `push_back`, `push_front`, and `update` return new vectors
 /// that share unchanged nodes with the original.
 ///
-/// Storage is adaptive: vectors with $\le 64$ elements reside in inline storage,
+/// Storage is adaptive: vectors with $\le 32$ elements reside in inline storage,
 /// while larger vectors use an RRB (Relaxed Radix Balanced) tree.
 #[derive(Clone)]
 pub struct PersistentVector<T> {
@@ -381,6 +381,28 @@ impl<T: Clone> PersistentVector<T> {
         }
     }
 
+    /// Appends an element to the back of this vector in-place when unshared.
+    ///
+    /// When this vector has a single owner, this avoids cloning buffer structures,
+    /// achieving $O(1)$ amortized append.
+    pub fn push_back_mut(&mut self, value: T) {
+        match &mut self.inner {
+            VectorImpl::Inline { elements } => {
+                if elements.len() < ADAPTIVE_INLINE_SIZE {
+                    elements.push(value);
+                } else {
+                    let mut tree = self.transition_to_tree();
+                    tree.push_back_mut(value);
+                    *self = tree;
+                }
+            },
+            VectorImpl::Tree { tree } => {
+                let tree_mut = Arc::make_mut(tree);
+                tree_mut.push_back_mut(value);
+            },
+        }
+    }
+
     /// Creates a new vector with an element added to the beginning.
     ///
     pub fn push_front(&self, value: T) -> Self {
@@ -396,6 +418,25 @@ impl<T: Clone> PersistentVector<T> {
                 }
             },
             VectorImpl::Tree { tree } => Self::tree(tree.push_front(value)),
+        }
+    }
+
+    /// Prepends an element to the front of this vector in-place when unshared.
+    pub fn push_front_mut(&mut self, value: T) {
+        match &mut self.inner {
+            VectorImpl::Inline { elements } => {
+                if elements.len() < ADAPTIVE_INLINE_SIZE {
+                    elements.insert(0, value);
+                } else {
+                    let mut tree = self.transition_to_tree();
+                    tree.push_front_mut(value);
+                    *self = tree;
+                }
+            },
+            VectorImpl::Tree { tree } => {
+                let tree_mut = Arc::make_mut(tree);
+                tree_mut.push_front_mut(value);
+            },
         }
     }
 

@@ -13,6 +13,18 @@
 //!   dropping or formatting deep programs.
 //! - **Reuse**: Backed by `Arc`, so programs can be cloned and run multiple times.
 //!
+//! ## Architectural Role: `Free` vs `Program`
+//!
+//! Rustica provides two distinct mechanisms for command-oriented programming:
+//!
+//! - **`Free<F, A>` (DSL AST Engine)**: Construct pure, inspectable, and cloneable
+//!   computation trees. Backed by `Arc`, a `Free` AST can be traversed across multiple passes,
+//!   transformed, inspected, or interpreted by different backends (e.g., dry-run simulator vs real execution).
+//!   It is fully supported and intentionally designed for reusable DSLs.
+//! - **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**:
+//!   Statically couples commands to a specific handler `H` at compile time, eliminating runtime
+//!   downcasts in the user handler interface with trampoline evaluation.
+//!
 //! ## Example
 //!
 //! ```rust

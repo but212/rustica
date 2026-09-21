@@ -7,7 +7,7 @@
 //! # Error Types
 //!
 //! - [`ChoiceError`] - Errors for `Choice<T>` operations
-//! - [`ValidatedError`] - Errors for `Validated<E, A>` operations
+//! - [`ValidatedError`] - Errors for `Validated<T, E>` operations
 //! - [`FreeError`] - Errors for `Free<F, A>` evaluation operations
 //!
 //! # Examples
@@ -67,7 +67,7 @@ impl Display for ChoiceError {
 
 impl std::error::Error for ChoiceError {}
 
-/// Errors that can occur during `Validated<E, A>` operations.
+/// Errors that can occur during `Validated<T, E>` operations.
 ///
 /// This enum represents error conditions for [`Validated`](super::validated::Validated)
 /// operations that would otherwise panic.

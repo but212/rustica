@@ -54,11 +54,11 @@
 //! use rustica::datatypes::validated::Validated;
 //!
 //! // Two independent validations
-//! let v1: Validated<String, i32> = Validated::valid(5);
-//! let v2: Validated<String, i32> = Validated::valid(10);
+//! let v1: Validated<i32, String> = Validated::valid(5);
+//! let v2: Validated<i32, String> = Validated::valid(10);
 //!
 //! // Combine them with a function
-//! let result = Validated::<String, i32>::lift2(|a: i32, b: i32| a + b, v1, v2);
+//! let result = Validated::<i32, String>::lift2(|a: i32, b: i32| a + b, v1, v2);
 //! ```
 //!
 //! ### 2. Sequencing Operations
@@ -268,7 +268,7 @@ impl<A> Applicative for Option<A> {
 }
 
 // Implementation for Result
-impl<A, E: Clone> Applicative for Result<A, E> {
+impl<A, E> Applicative for Result<A, E> {
     #[inline]
     fn apply<T, B>(self, value: Self::Output<T>) -> Self::Output<B>
     where

@@ -104,7 +104,7 @@ pub trait Monoid: Semigroup {
 }
 
 // Implement Monoid for Vec
-impl<T: Clone> Monoid for Vec<T> {
+impl<T> Monoid for Vec<T> {
     fn empty() -> Self {
         Vec::new()
     }

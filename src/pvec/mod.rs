@@ -6,7 +6,7 @@
 //! # Characteristics
 //!
 //! - **Structural Sharing**: Modifications return new vectors sharing unchanged tree nodes.
-//! - **Adaptive Storage**: Vectors with $\le 64$ elements reside in inline `SmallVec` storage without heap allocation.
+//! - **Adaptive Storage**: Vectors with $\le 32$ elements reside in inline `SmallVec` storage without heap allocation.
 //! - **Tree Invariant**: Branch nodes contain at most 32 children.
 //! - **Lazy Iteration**: `IntoIterator` yields owned values by streaming leaves on demand without full-vector heap allocation.
 //!

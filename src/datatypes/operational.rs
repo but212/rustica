@@ -13,12 +13,13 @@
 //! - **Handler coupling**: `Program<H, A>` fixes the handler type `H` at construction. Chaining commands
 //!   requires `H` to implement `Handler<C>` for every command in the sequence.
 //!
-//! ## `Free` vs `Program`
+//! ## Architectural Role: `Program` vs `Free`
 //!
-//! - Use [`Free`](crate::datatypes::free::Free) for a cloneable AST that can be inspected,
-//!   branched, or re-evaluated.
+//! - Use [`Free`](crate::datatypes::free::Free) for an inspectable, cloneable DSL AST that can be
+//!   transformed, analyzed across multiple passes, or evaluated by different backends. `Free` is
+//!   first-class and maintained for AST-centric architectures.
 //! - Use [`Program`] / [`TryProgram`] when command outputs should be checked against handler
-//!   trait signatures at the cost of tying the AST to a concrete handler type.
+//!   trait signatures at compile time for static operational execution pipelines.
 //!
 //! ## Example
 //!
@@ -621,5 +622,35 @@ mod tests {
         let mut handler = CalcInterpreter { current: 5 };
         let res: i32 = prog.run(&mut handler);
         assert_eq!(res, 30); // (5 + 10) * 2
+    }
+
+    #[test]
+    fn test_operational_miri_ownership_and_drop() {
+        struct StrCmd(String);
+        impl Command for StrCmd {
+            type Output = String;
+        }
+        struct StrHandler;
+        impl Handler<StrCmd> for StrHandler {
+            fn handle(&mut self, cmd: StrCmd) -> String {
+                format!("{}_handled", cmd.0)
+            }
+        }
+
+        // 1. Program dropped without running
+        let prog = StrCmd("first".to_string())
+            .suspend::<StrHandler>()
+            .bind(|s| StrCmd(format!("{s}_second")).suspend())
+            .bind(|s| Program::pure(format!("{s}_done")));
+        drop(prog);
+
+        // 2. Program run to completion
+        let prog2 = StrCmd("init".to_string())
+            .suspend()
+            .bind(|s| Program::pure(format!("{s}_mid")))
+            .bind(|s| StrCmd(s).suspend());
+        let mut h = StrHandler;
+        let res = prog2.run(&mut h);
+        assert_eq!(res, "init_handled_mid_handled");
     }
 }

@@ -28,7 +28,7 @@ use std::sync::Arc;
 /// A branching factor of 32 means the tree height grows as log₃₂(n).
 pub(crate) const BRANCHING_FACTOR: usize = 32;
 
-pub(crate) const LEAF_CAPACITY: usize = 64;
+pub(crate) const LEAF_CAPACITY: usize = 32;
 
 pub(crate) const SMALL_BRANCH_SIZE: usize = 32;
 
@@ -50,7 +50,7 @@ pub(crate) const SMALL_SIZE_TABLE_SIZE: usize = 32;
 /// # Memory Layout
 ///
 /// - Branch nodes use `SmallVec` with inline storage for up to 32 children
-/// - Leaf nodes use `SmallVec` with inline storage for up to 64 elements
+/// - Leaf nodes use `SmallVec` with inline storage for up to 32 elements
 /// - Size tables (when present) also use `SmallVec` with inline storage for up to 32 entries
 #[derive(Clone, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -74,7 +74,7 @@ pub enum RRBNode<T> {
     Leaf {
         /// The elements stored in this leaf.
         ///
-        /// The number of elements is bounded by `LEAF_CAPACITY` (64).
+        /// The number of elements is bounded by `LEAF_CAPACITY` (32).
         elements: SmallVec<[T; LEAF_CAPACITY]>,
     },
 }
@@ -103,6 +103,18 @@ impl<T> RRBNode<T> {
         match self {
             RRBNode::Leaf { elements } => elements.len(),
             RRBNode::Branch { sizes, .. } => sizes.iter().sum(),
+        }
+    }
+
+    pub fn make_relaxed(children: Vec<Arc<RRBNode<T>>>) -> Self {
+        let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = children
+            .iter()
+            .map(|child| child.calculate_size())
+            .collect();
+
+        RRBNode::Branch {
+            children: children.into(),
+            sizes,
         }
     }
 }
@@ -139,18 +151,6 @@ impl<T: Clone> RRBNode<T> {
                     self.clone()
                 }
             },
-        }
-    }
-
-    pub fn make_relaxed(children: Vec<Arc<RRBNode<T>>>) -> Self {
-        let sizes: SmallVec<[usize; SMALL_SIZE_TABLE_SIZE]> = children
-            .iter()
-            .map(|child| child.calculate_size())
-            .collect();
-
-        RRBNode::Branch {
-            children: children.into(),
-            sizes,
         }
     }
 

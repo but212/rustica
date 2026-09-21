@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Added
+
+- **PersistentVector In-Place Mutation**: Added `push_back_mut` and `push_front_mut` providing zero-allocation appends when buffers are unshared (`Arc::make_mut`).
+- **Validated Combinators**: Added inherent sync `and_then`, inherent `map`, and `map_err` to `Validated<T, E>`.
+- **Optics & Law Test Coverage**: Added comprehensive `Prism` law verification test suite covering preview/review consistency and sequential composition (`tests/datatypes/test_prism.rs`), along with functor, applicative, and monad law coverage.
+- **CI / Miri Soundness**: Added `test_operational_miri_ownership_and_drop` verifying memory soundness of trampoline evaluation under Miri.
+
+### Changed
+
+- **PersistentVector $O(1)$ Append & Compaction**:
+  - Wrapped `head` and `tail` in `Arc<SmallVec<[T; 32]>>`, sharing opposite buffers via pointer copy on push and eliminating whole-buffer duplication to achieve true amortized $O(1)$ appends.
+  - Reduced `RRBTree` struct size to 40 bytes (from >1KB) and lowered branching/leaf capacity to 32.
+  - Implemented Bagwell-Rompf RRB rebalancing (`pack_children_balanced`, `pack_leaves_balanced`, spine merging) in `concat`, guaranteeing minimum $\ge 16$ item occupancy for $N > 32$ and bounded logarithmic height growth.
+- **Validated Type Parameter Alignment**:
+  - Reordered type parameters to `Validated<T, E>` (from `Validated<E, A>`), aligning type layout with standard `Result<T, E>`.
+  - Aligned `bimap(f_val, g_err)` argument order with `(T, E)`.
+  - Relaxed async method bounds by removing unnecessary `'static` constraints.
+- **Choice Stack Optimization**: Replaced `SmallVec<[T; 7]>` in `Choice<T>::alternatives` with `Vec<T>`, significantly reducing stack size and preventing stack overflow in nested structures.
+- **Minimal Trait Bounds**:
+  - Removed unnecessary `E: Clone` bound from `Result<T, E>` implementations of `Pure`, `Functor`, `Applicative`, `Monad`, and `Foldable`.
+  - Removed unnecessary `T: Clone` bound from `Monoid for Vec<T>`.
+- **Prelude Collision Prevention**: Removed `Command` from prelude to avoid shadowing `std::process::Command` (import via `rustica::datatypes::operational::Command`). Restored `Handler` alongside `Program`, `TryHandler`, and `TryProgram`.
+
 ### Removed (Breaking Changes)
 
 - **Monad Transformers**: Completely removed `transformers/` module including `StateT`, `ReaderT`, `ContT`, `MonadTransformer`, and `lift`. Use native Rust control flow, `&mut S`, context passing, or `async`/`await`.
@@ -15,8 +38,9 @@
 - **Free Methods**: Removed `Free::fold_map` (and its `IO` dependency) and `Free::into_pure`. Use `Free::run`/`Free::try_run` and `Free::to_pure`.
 - **Choice Legacy APIs**: Removed `Choice::first`, `Choice::filter_values`, `Choice::first_match`, `Choice::bind`, `Choice::apply`, and `Pure`/`Applicative`/`Monad` implementations. Use priority/fallback methods (`Choice::primary`, `Choice::filter`, `Choice::try_each`, `Iterator::find_map`).
 - **Trait Extension Removal**: Completely removed hollow extension traits (`FunctorExt`, `SemigroupExt`, `MonoidExt`, `PureExt`, and `FoldableExt`). `fold_option` is now a default method directly on the [`Foldable`](crate::traits::foldable::Foldable) trait, and `prelude::traits_ext` has been removed.
-- **Validated Iterators**: Removed `Validated::errors`, `ErrorsIter`, and `ErrorsIterMut`. Use `Validated::error_slice()` and `Validated::iter_errors()`.
+- **Validated Iterators & Obsolete Methods**: Removed `Validated::errors`, `ErrorsIter`, `ErrorsIterMut`, `Validated::map_valid` (use `map`), and `Validated::fmap_invalid` (use `map_err`).
 - **PersistentVector**: Removed `PersistentVector::unit` (use `single`) and `PVecError::is_index_out_of_bounds`.
+- **Vec Monad Omission**: Omitted `impl<T> Monad for Vec<T>` to avoid method resolution conflict with standard slice `[T]::join`.
 - **Tests & Benchmarks**: Removed `tests/migration_std_replacements.rs`, `tests/integration/categorical_utils_pipeline.rs`, and `benches/datatypes/io.rs`.
 
 See [`MIGRATION_v0.18.0.md`](MIGRATION_v0.18.0.md) for detailed replacement mappings and migration examples.
