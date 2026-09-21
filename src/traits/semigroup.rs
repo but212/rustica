@@ -40,8 +40,6 @@ use std::hash::Hash;
 /// The trait provides:
 /// - `combine`: Combines two values by consuming them
 ///
-/// Additional helper methods like `combine_n` are provided by `SemigroupExt`.
-///
 pub trait Semigroup: Sized {
     /// Combines two values by consuming them to produce a new value.
     ///
@@ -62,12 +60,6 @@ pub trait Semigroup: Sized {
     /// ```
     fn combine(self, other: Self) -> Self;
 }
-
-/// Extension methods for semigroups, providing additional functionality.
-pub trait SemigroupExt: Semigroup {}
-
-// Default implementation for all types implementing Semigroup
-impl<T: Semigroup> SemigroupExt for T {}
 
 // Standard library implementations
 

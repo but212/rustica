@@ -14,7 +14,7 @@
 - **Optics from_iso**: Removed `Lens::from_iso`, `Prism::from_iso`, and `Prism::from_option_iso`. Construct lenses/prisms with closures or inherent constructors.
 - **Free Methods**: Removed `Free::fold_map` (and its `IO` dependency) and `Free::into_pure`. Use `Free::run`/`Free::try_run` and `Free::to_pure`.
 - **Choice Legacy APIs**: Removed `Choice::first`, `Choice::filter_values`, `Choice::first_match`, `Choice::bind`, `Choice::apply`, and `Pure`/`Applicative`/`Monad` implementations. Use priority/fallback methods (`Choice::primary`, `Choice::filter`, `Choice::try_each`, `Iterator::find_map`).
-- **Trait Extension Reductions**: Removed redundant helper methods from `FoldableExt`, `FunctorExt`, `Monad`, `PureExt`, `SemigroupExt`, and `MonoidExt` in favor of standard library `Iterator` and type inherent methods.
+- **Trait Extension Removal**: Completely removed hollow extension traits (`FunctorExt`, `SemigroupExt`, `MonoidExt`, `PureExt`, and `FoldableExt`). `fold_option` is now a default method directly on the [`Foldable`](crate::traits::foldable::Foldable) trait, and `prelude::traits_ext` has been removed.
 - **Validated Iterators**: Removed `Validated::errors`, `ErrorsIter`, and `ErrorsIterMut`. Use `Validated::error_slice()` and `Validated::iter_errors()`.
 - **PersistentVector**: Removed `PersistentVector::unit` (use `single`) and `PVecError::is_index_out_of_bounds`.
 - **Tests & Benchmarks**: Removed `tests/migration_std_replacements.rs`, `tests/integration/categorical_utils_pipeline.rs`, and `benches/datatypes/io.rs`.

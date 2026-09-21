@@ -10,7 +10,6 @@
 //!
 //! - **Datatypes**: Core functional types (Validated, Choice, Free, etc.)
 //! - **Traits**: Functor, Applicative, Monad, Monoid, and many more
-//! - **Trait Extensions**: Ergonomic extension traits for functional operations
 //! - **Error handling**: Context-aware error handling (see `prelude::error`)
 //!
 //! ## Usage Example
@@ -39,9 +38,7 @@
 pub mod datatypes;
 pub mod error;
 pub mod traits;
-pub mod traits_ext;
 
 pub use datatypes::*;
 pub use error::*;
 pub use traits::*;
-pub use traits_ext::*;

@@ -203,3 +203,22 @@ let lens = Lens::new(
 - Replace `validated.errors()` with `validated.error_slice()`.
 - Replace `ErrorsIter` / `ErrorsIterMut` with standard slice iteration (`validated.iter_errors()`).
 - `BinaryHKT` and `Bifunctor` traits are removed; call inherent `validated.bimap(...)`, `validated.map_valid(...)`, and `validated.map_err(...)` directly.
+
+---
+
+## 9. Traits & Extension Traits
+
+- The empty marker extension traits `FunctorExt`, `SemigroupExt`, `MonoidExt`, `PureExt`, and `FoldableExt` have been removed.
+- `Foldable::fold_option` is now a default method directly on the `Foldable` trait:
+
+  ```rust
+  // Before (0.17.0)
+  use rustica::traits::foldable::{Foldable, FoldableExt};
+  let result = vec![1, 2, 3].fold_option(|&x| Some(TestSum(x)));
+
+  // After (0.18.0)
+  use rustica::traits::foldable::Foldable;
+  let result = vec![1, 2, 3].fold_option(|&x| Some(TestSum(x)));
+  ```
+
+- `prelude::traits_ext` has been deleted; all core traits (`Functor`, `Applicative`, `Monad`, `Monoid`, `Semigroup`, `Foldable`, `Pure`, `HKT`) are available directly via `rustica::prelude::*` or `rustica::prelude::traits::*`.

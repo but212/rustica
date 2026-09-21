@@ -23,10 +23,6 @@
 //! assert_eq!(s1.clone().combine(empty.clone()), s1.clone());
 //! assert_eq!(empty.combine(s2.clone()), s2);
 //! ```
-//!
-//! ## Extension Trait
-//!
-//! The `MonoidExt` trait adds extension methods to all types implementing Monoid.
 
 use crate::traits::semigroup::Semigroup;
 
@@ -163,13 +159,6 @@ where
         None => M::empty(),
     }
 }
-
-/// A trait providing extension methods for monoid operations
-///
-/// This trait is automatically implemented for all types that implement Monoid.
-pub trait MonoidExt: Monoid + crate::traits::semigroup::SemigroupExt {}
-
-impl<T: Monoid> MonoidExt for T {}
 
 /// Creates a monoid by repeating an element a specified number of times.
 ///

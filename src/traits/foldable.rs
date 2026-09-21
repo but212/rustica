@@ -32,7 +32,7 @@
 //! ## Examples
 //!
 //! ```rust
-//! use rustica::traits::foldable::{Foldable, FoldableExt};
+//! use rustica::traits::foldable::Foldable;
 //! use rustica::traits::monoid::Monoid;
 //!
 //! // Example with Vec
@@ -225,12 +225,7 @@ pub trait Foldable: HKT {
     fn is_empty(&self) -> bool {
         self.length() == 0
     }
-}
 
-/// Extension methods for the `Foldable` trait.
-///
-/// This trait provides additional utility methods for all types that implement `Foldable`.
-pub trait FoldableExt: Foldable {
     /// Folds over a structure with an optional monoidal value.
     ///
     /// This is a more powerful version of fold that stops invoking `f` after `None` is encountered.
@@ -259,9 +254,6 @@ pub trait FoldableExt: Foldable {
         })
     }
 }
-
-// Implement FoldableExt for all types implementing Foldable
-impl<T: Foldable> FoldableExt for T {}
 
 // Implement Foldable for Vec
 impl<A> Foldable for Vec<A> {
@@ -342,7 +334,7 @@ impl<A, E: Clone> Foldable for Result<A, E> {
 
 #[cfg(test)]
 mod unit_tests {
-    use super::{Foldable, FoldableExt};
+    use super::Foldable;
     use crate::traits::monoid::Monoid;
     use crate::traits::semigroup::Semigroup;
     use std::cell::Cell;

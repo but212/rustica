@@ -47,7 +47,6 @@
 //! The module contains:
 //!
 //! - The core `Functor` trait that defines mapping operations
-//! - Extension methods in `FunctorExt` for additional utility
 //! - Implementations for standard Rust types like `Option`, `Result`, and `Vec`
 //!
 //! ## Functor Laws
@@ -143,11 +142,6 @@ pub trait Functor: HKT {
         self.fmap(|_| ())
     }
 }
-
-/// Extension trait for functors providing additional utility methods.
-pub trait FunctorExt: Functor {}
-
-impl<T: Functor> FunctorExt for T {}
 
 impl<T> Functor for Vec<T> {
     #[inline]

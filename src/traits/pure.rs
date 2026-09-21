@@ -40,11 +40,6 @@
 //! let vec: Vec<i32> = <Vec<i32> as Pure>::pure(value);
 //! assert_eq!(vec, vec![42]);
 //! ```
-//!
-//! # Extension Traits
-//!
-//! `PureExt` provides value-oriented helpers such as `to_pure`, `pair_with`, and
-//! `lift_other`. Each method documents one concise invocation below its definition.
 
 use crate::traits::hkt::HKT;
 
@@ -156,38 +151,3 @@ impl<T> Pure for Box<T> {
         Box::new(value)
     }
 }
-
-/// Extension trait providing a more ergonomic way to use Pure.
-///
-/// This trait allows calling methods like `to_pure` directly on values, making it more
-/// convenient to lift values into higher-kinded contexts and work with them.
-///
-/// # Examples
-///
-/// Using `to_pure` to lift a value into Option:
-/// ```rust
-/// use rustica::traits::hkt::HKT;
-/// use rustica::traits::pure::{Pure, PureExt};
-///
-/// let value: i32 = 42;
-/// let option: Option<i32> = value.to_pure::<Option<i32>>();
-/// assert_eq!(option, Some(42));
-/// ```
-pub trait PureExt: Sized {
-    /// Lift a value into a context, consuming the value.
-    ///
-    /// # Type Parameters
-    /// * `P`: The higher-kinded type to lift into, implementing `Pure`
-    ///
-    /// # Returns
-    /// The value wrapped in the higher-kinded context
-    #[inline]
-    fn to_pure<P>(self) -> P::Output<Self>
-    where
-        P: Pure,
-    {
-        P::pure(self)
-    }
-}
-
-impl<T> PureExt for T {}

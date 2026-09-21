@@ -37,7 +37,6 @@ pub mod foldable;
 /// Combinable types with identity elements.
 ///
 /// This module provides the Monoid trait, which extends Semigroup to add an identity element.
-/// The MonoidExt trait adds extension methods to all types implementing Monoid.
 pub mod monoid;
 /// Combinable types without identity elements.
 pub mod semigroup;
