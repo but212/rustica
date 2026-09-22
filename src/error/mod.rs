@@ -249,7 +249,7 @@ where
 
 /// Creates a reusable context-attaching closure.
 #[inline]
-pub fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
+pub const fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
 where
     C: IntoErrorContext + Clone,
 {

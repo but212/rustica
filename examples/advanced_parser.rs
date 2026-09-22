@@ -484,7 +484,7 @@ pub fn sql_parser() -> Parser<char, SqlQuery> {
 // 3. Prism: Sum-Type Traversal for AST Statements
 // ============================================================================
 
-pub fn select_query_prism() -> Prism<
+pub const fn select_query_prism() -> Prism<
     SqlQuery,
     SelectStatement,
     impl Fn(&SqlQuery) -> Option<SelectStatement>,
@@ -499,7 +499,7 @@ pub fn select_query_prism() -> Prism<
     )
 }
 
-pub fn insert_query_prism() -> Prism<
+pub const fn insert_query_prism() -> Prism<
     SqlQuery,
     InsertStatement,
     impl Fn(&SqlQuery) -> Option<InsertStatement>,
@@ -645,7 +645,7 @@ pub fn validate_select_query(
 // ============================================================================
 
 #[allow(clippy::type_complexity)]
-pub fn select_columns_lens() -> Lens<
+pub const fn select_columns_lens() -> Lens<
     SelectStatement,
     Vec<String>,
     impl Fn(&SelectStatement) -> Vec<String>,
@@ -658,7 +658,7 @@ pub fn select_columns_lens() -> Lens<
 }
 
 #[allow(clippy::type_complexity)]
-pub fn select_table_lens() -> Lens<
+pub const fn select_table_lens() -> Lens<
     SelectStatement,
     String,
     impl Fn(&SelectStatement) -> String,

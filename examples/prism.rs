@@ -23,7 +23,7 @@ enum AppNotification {
     SystemAlert(String),
 }
 
-fn running_progress_prism()
+const fn running_progress_prism()
 -> Prism<TaskStatus, u8, impl Fn(&TaskStatus) -> Option<u8>, impl Fn(u8) -> TaskStatus> {
     Prism::new(
         |status: &TaskStatus| match status {
@@ -34,7 +34,7 @@ fn running_progress_prism()
     )
 }
 
-fn completed_result_prism()
+const fn completed_result_prism()
 -> Prism<TaskStatus, String, impl Fn(&TaskStatus) -> Option<String>, impl Fn(String) -> TaskStatus>
 {
     Prism::new(
@@ -46,7 +46,7 @@ fn completed_result_prism()
     )
 }
 
-fn notification_task_prism() -> Prism<
+const fn notification_task_prism() -> Prism<
     AppNotification,
     TaskStatus,
     impl Fn(&AppNotification) -> Option<TaskStatus>,

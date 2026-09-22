@@ -26,20 +26,20 @@ struct UserProfile {
     settings: Settings,
 }
 
-fn theme_mode_lens()
+const fn theme_mode_lens()
 -> Lens<Theme, String, impl Fn(&Theme) -> String, impl Fn(Theme, String) -> Theme> {
     Lens::new(|t: &Theme| t.mode.clone(), |t, mode| Theme { mode, ..t })
 }
 
-fn theme_font_size_lens() -> Lens<Theme, u32, impl Fn(&Theme) -> u32, impl Fn(Theme, u32) -> Theme>
-{
+const fn theme_font_size_lens()
+-> Lens<Theme, u32, impl Fn(&Theme) -> u32, impl Fn(Theme, u32) -> Theme> {
     Lens::new(
         |t: &Theme| t.font_size,
         |t, font_size| Theme { font_size, ..t },
     )
 }
 
-fn settings_theme_lens()
+const fn settings_theme_lens()
 -> Lens<Settings, Theme, impl Fn(&Settings) -> Theme, impl Fn(Settings, Theme) -> Settings> {
     Lens::new(
         |s: &Settings| s.theme.clone(),
@@ -47,7 +47,7 @@ fn settings_theme_lens()
     )
 }
 
-fn user_settings_lens() -> Lens<
+const fn user_settings_lens() -> Lens<
     UserProfile,
     Settings,
     impl Fn(&UserProfile) -> Settings,
