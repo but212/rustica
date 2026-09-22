@@ -47,7 +47,7 @@ use crate::prelude::traits::*;
 pub enum ChoiceError {
     /// Every inner iterable was empty during a flatten operation.
     ///
-    /// This error occurs when calling `flatten` on a `Choice` where neither the
+    /// This error occurs when calling `try_flatten` on a `Choice` where neither the
     /// primary value nor any alternative produces an item.
     EmptyFlatten,
 
@@ -73,7 +73,10 @@ impl Display for ChoiceError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ChoiceError::EmptyFlatten => {
-                write!(f, "Choice::flatten(): no inner iterable produced an item")
+                write!(
+                    f,
+                    "Choice::try_flatten(): no inner iterable produced an item"
+                )
             },
             ChoiceError::EmptyInput => write!(f, "Choice construction requires at least one value"),
         }
@@ -158,29 +161,21 @@ impl<T> Choice<T> {
     /// Filters values in the `Choice` by consuming it. Returns `None` if all values are filtered out.
     ///
     /// Consumes `self` and does not require `T: Clone`.
-    pub fn filter<F>(self, mut predicate: F) -> Option<Self>
+    pub fn filter<F>(mut self, mut predicate: F) -> Option<Self>
     where
         F: FnMut(&T) -> bool,
     {
-        let mut kept = Vec::new();
         if predicate(&self.primary) {
-            kept.push(self.primary);
-        }
-        for alt in self.alternatives {
-            if predicate(&alt) {
-                kept.push(alt);
-            }
-        }
-
-        if kept.is_empty() {
-            None
+            self.alternatives.retain(predicate);
+            Some(self)
         } else {
-            let mut iter = kept.into_iter();
-            let primary = iter.next().unwrap();
-            let alternatives = iter.collect();
+            let idx = self.alternatives.iter().position(&mut predicate)?;
+            let primary = self.alternatives.remove(idx);
+            self.alternatives.drain(..idx);
+            self.alternatives.retain(predicate);
             Some(Self {
                 primary,
-                alternatives,
+                alternatives: self.alternatives,
             })
         }
     }
@@ -226,7 +221,7 @@ impl<T> Choice<T> {
         self.clone().try_flatten()
     }
 
-    /// Flattens a `Choice` of iterable items by consuming it, returning `None` if the primary iterator is empty.
+    /// Flattens a `Choice` of iterable items by consuming it, returning `None` if all inner iterables are empty.
     ///
     /// Unlike [`Self::flatten_cloned`], this consuming version does not require `T: Clone`.
     pub fn flatten<I>(self) -> Option<Choice<I>>
@@ -236,7 +231,7 @@ impl<T> Choice<T> {
         self.try_flatten().ok()
     }
 
-    /// Flattens a borrowed `Choice` of iterable items by cloning elements, returning `None` if the primary iterator is empty.
+    /// Flattens a borrowed `Choice` of iterable items by cloning elements, returning `None` if all inner iterables are empty.
     pub fn flatten_cloned<I>(&self) -> Option<Choice<I>>
     where
         T: IntoIterator<Item = I> + Clone,
@@ -345,14 +340,9 @@ impl<T> Semigroup for Choice<T> {
 impl<T> Choice<Option<T>> {
     /// Sequences a `Choice` of `Option`s into an `Option` of a `Choice`.
     pub fn sequence(self) -> Option<Choice<T>> {
-        let primary = self.primary?;
-        let mut alternatives = Vec::with_capacity(self.alternatives.len());
-        for alt in self.alternatives {
-            alternatives.push(alt?);
-        }
         Some(Choice {
-            primary,
-            alternatives,
+            primary: self.primary?,
+            alternatives: self.alternatives.into_iter().collect::<Option<Vec<T>>>()?,
         })
     }
 }
@@ -411,8 +401,16 @@ impl<T> Foldable for Choice<T> {
 impl<T> TryFrom<Vec<T>> for Choice<T> {
     type Error = ChoiceError;
 
-    fn try_from(values: Vec<T>) -> Result<Self, Self::Error> {
-        Self::of_many(values).ok_or(ChoiceError::EmptyInput)
+    fn try_from(mut values: Vec<T>) -> Result<Self, Self::Error> {
+        if values.is_empty() {
+            Err(ChoiceError::EmptyInput)
+        } else {
+            let primary = values.remove(0);
+            Ok(Self {
+                primary,
+                alternatives: values,
+            })
+        }
     }
 }
 
@@ -451,11 +449,21 @@ impl<T: Arbitrary> Arbitrary for Choice<T> {
     }
 
     fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
-        let primary = self.primary.clone();
-        Box::new(self.alternatives.shrink().map(move |alternatives| Choice {
-            primary: primary.clone(),
-            alternatives,
-        }))
+        let primary_shrinks = self.primary.shrink().map({
+            let alternatives = self.alternatives.clone();
+            move |primary| Choice {
+                primary,
+                alternatives: alternatives.clone(),
+            }
+        });
+        let alt_shrinks = self.alternatives.shrink().map({
+            let primary = self.primary.clone();
+            move |alternatives| Choice {
+                primary: primary.clone(),
+                alternatives,
+            }
+        });
+        Box::new(primary_shrinks.chain(alt_shrinks))
     }
 }
 
@@ -643,7 +651,7 @@ mod unit_tests {
     fn test_choice_error_display() {
         assert_eq!(
             ChoiceError::EmptyFlatten.to_string(),
-            "Choice::flatten(): no inner iterable produced an item"
+            "Choice::try_flatten(): no inner iterable produced an item"
         );
         assert_eq!(
             ChoiceError::EmptyInput.to_string(),
@@ -657,5 +665,57 @@ mod unit_tests {
         assert!(!ChoiceError::EmptyFlatten.is_empty_input());
         assert!(ChoiceError::EmptyInput.is_empty_input());
         assert!(!ChoiceError::EmptyInput.is_empty_flatten());
+    }
+
+    #[test]
+    fn arbitrary_shrinks_primary_value() {
+        use quickcheck::Arbitrary;
+        let c = Choice::single(100i32);
+        let shrunk: Vec<Choice<i32>> = c.shrink().collect();
+        assert!(
+            !shrunk.is_empty(),
+            "Arbitrary::shrink must yield candidates for primary value"
+        );
+        assert!(shrunk.iter().any(|s| *s.primary() < 100));
+    }
+
+    #[test]
+    fn filter_in_place_evaluates_predicate_once() {
+        let c = Choice::new(1, vec![3, 4, 5, 6]);
+        let mut evaluated = Vec::new();
+        let filtered = c.filter(|&x| {
+            evaluated.push(x);
+            x % 2 == 0
+        });
+        assert_eq!(evaluated, vec![1, 3, 4, 5, 6]);
+        let res = filtered.expect("filtered result");
+        assert_eq!(*res.primary(), 4);
+        assert_eq!(res.alternatives(), &[6]);
+
+        // When primary matches, alts are filtered without re-evaluating primary
+        let c2 = Choice::new(2, vec![3, 4]);
+        let mut eval2 = Vec::new();
+        let filtered2 = c2.filter(|&x| {
+            eval2.push(x);
+            x % 2 == 0
+        });
+        assert_eq!(eval2, vec![2, 3, 4]);
+        let res2 = filtered2.expect("filtered result");
+        assert_eq!(*res2.primary(), 2);
+        assert_eq!(res2.alternatives(), &[4]);
+
+        // When nothing matches, returns None
+        let c3 = Choice::new(1, vec![3, 5]);
+        assert_eq!(c3.filter(|&x| x % 2 == 0), None);
+    }
+
+    #[test]
+    fn try_from_vec_reuses_allocation() {
+        let mut v = Vec::with_capacity(64);
+        v.extend([10, 20, 30, 40]);
+        let choice = Choice::try_from(v).expect("conversion succeeds");
+        assert_eq!(*choice.primary(), 10);
+        assert_eq!(choice.alternatives(), &[20, 30, 40]);
+        assert_eq!(choice.alternatives.capacity(), 64);
     }
 }

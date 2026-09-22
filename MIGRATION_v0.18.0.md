@@ -246,7 +246,8 @@ let status = prism.review("Alice".to_string()); // owned value, zero unnecessary
 - Replace `choice.filter_values(predicate)` with `choice.filter(predicate)` (consumes `self`; clone the `Choice` first if it is reused).
 - Monadic `bind` and `apply` are removed; `Choice` is purely a non-empty fallback/priority collection. Use `try_each` or `try_each_validated`.
 - **Flatten Fallback (Breaking)**: `flatten`/`try_flatten` now concatenate all non-empty inner iterables in priority order; alternatives are consulted when the primary iterable is empty. They error only when every iterable is empty.
-- **Error Rename (Breaking)**: `ChoiceError::EmptyPrimaryIterator` is renamed to `ChoiceError::EmptyFlatten`, and `is_empty_primary_iterator()` to `is_empty_flatten()`, reflecting the all-iterables-empty condition.
+- **Error Rename & Display (Breaking)**: `ChoiceError::EmptyPrimaryIterator` is renamed to `ChoiceError::EmptyFlatten`, `is_empty_primary_iterator()` to `is_empty_flatten()`, and its `Display` implementation formats as `"Choice::try_flatten(): no inner iterable produced an item"`.
+- **In-Place Filtering & Zero-Allocation Conversions**: `Choice::filter` now operates in-place with exact-once predicate evaluation without heap reallocation. `TryFrom<Vec<T>>` preserves the input vector's preallocated capacity.
 
 ---
 
