@@ -3,8 +3,68 @@
 //! This module provides the fundamental `Validated<T, E>` type for accumulating
 //! validation errors, along with its associated methods and helper types.
 
-use crate::datatypes::error::ValidatedError;
 use smallvec::{SmallVec, smallvec};
+use std::fmt::{self, Display};
+
+/// Errors that can occur during `Validated<T, E>` operations.
+///
+/// This enum represents error conditions for [`Validated`]
+/// operations that would otherwise panic.
+///
+/// # Examples
+///
+/// ```rust
+/// use rustica::datatypes::validated::ValidatedError;
+///
+/// let err = ValidatedError::ExpectedValid;
+/// assert_eq!(
+///     err.to_string(),
+///     "Validated::unwrap(): called on Invalid variant"
+/// );
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ValidatedError {
+    /// Expected Valid variant but got Invalid.
+    ///
+    /// This error occurs when expecting a `Validated::Valid` value
+    /// but encountering a `Validated::Invalid` value.
+    ExpectedValid,
+
+    /// Expected Invalid variant but got Valid.
+    ///
+    /// This error occurs when expecting a `Validated::Invalid` value
+    /// but encountering a `Validated::Valid` value.
+    ExpectedInvalid,
+}
+
+impl ValidatedError {
+    /// Returns `true` if this is an `ExpectedValid` error.
+    #[inline]
+    pub const fn is_expected_valid(&self) -> bool {
+        matches!(self, ValidatedError::ExpectedValid)
+    }
+
+    /// Returns `true` if this is an `ExpectedInvalid` error.
+    #[inline]
+    pub const fn is_expected_invalid(&self) -> bool {
+        matches!(self, ValidatedError::ExpectedInvalid)
+    }
+}
+
+impl Display for ValidatedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ValidatedError::ExpectedValid => {
+                write!(f, "Validated::unwrap(): called on Invalid variant")
+            },
+            ValidatedError::ExpectedInvalid => {
+                write!(f, "Validated::unwrap_invalid(): called on Valid variant")
+            },
+        }
+    }
+}
+
+impl std::error::Error for ValidatedError {}
 
 /// A non-empty collection of validation errors.
 ///
@@ -461,5 +521,25 @@ mod tests {
         assert_eq!(from_some, Validated::valid(10));
         let from_none: Validated<i32, &str> = Validated::from_option_with(None, || "dynamic_err");
         assert_eq!(from_none, Validated::invalid("dynamic_err"));
+    }
+
+    #[test]
+    fn test_validated_error_display() {
+        assert_eq!(
+            ValidatedError::ExpectedValid.to_string(),
+            "Validated::unwrap(): called on Invalid variant"
+        );
+        assert_eq!(
+            ValidatedError::ExpectedInvalid.to_string(),
+            "Validated::unwrap_invalid(): called on Valid variant"
+        );
+    }
+
+    #[test]
+    fn test_validated_error_predicates() {
+        assert!(ValidatedError::ExpectedValid.is_expected_valid());
+        assert!(!ValidatedError::ExpectedValid.is_expected_invalid());
+        assert!(ValidatedError::ExpectedInvalid.is_expected_invalid());
+        assert!(!ValidatedError::ExpectedInvalid.is_expected_valid());
     }
 }

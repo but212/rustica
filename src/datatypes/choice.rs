@@ -36,9 +36,51 @@ use quickcheck::{Arbitrary, Gen};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
-use crate::datatypes::error::ChoiceError;
 use crate::datatypes::validated::Validated;
 use crate::prelude::traits::*;
+
+/// Errors that can occur during `Choice<T>` operations.
+///
+/// This enum represents error conditions for [`Choice`]
+/// operations that would otherwise panic.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ChoiceError {
+    /// Every inner iterable was empty during a flatten operation.
+    ///
+    /// This error occurs when calling `flatten` on a `Choice` where neither the
+    /// primary value nor any alternative produces an item.
+    EmptyFlatten,
+
+    /// Input contained no values when constructing a `Choice`.
+    EmptyInput,
+}
+
+impl ChoiceError {
+    /// Returns `true` if this is an `EmptyFlatten` error.
+    #[inline]
+    pub const fn is_empty_flatten(&self) -> bool {
+        matches!(self, ChoiceError::EmptyFlatten)
+    }
+
+    /// Returns `true` if this is an `EmptyInput` error.
+    #[inline]
+    pub const fn is_empty_input(&self) -> bool {
+        matches!(self, ChoiceError::EmptyInput)
+    }
+}
+
+impl Display for ChoiceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChoiceError::EmptyFlatten => {
+                write!(f, "Choice::flatten(): no inner iterable produced an item")
+            },
+            ChoiceError::EmptyInput => write!(f, "Choice construction requires at least one value"),
+        }
+    }
+}
+
+impl std::error::Error for ChoiceError {}
 
 /// A statically non-empty collection with priority and fallback semantics.
 ///
@@ -461,7 +503,7 @@ mod unit_tests {
         assert!(!c.is_empty());
 
         let empty: Result<Choice<i32>, _> = Vec::new().try_into();
-        assert_eq!(empty, Err(crate::datatypes::error::ChoiceError::EmptyInput));
+        assert_eq!(empty, Err(ChoiceError::EmptyInput));
         let choice: Choice<i32> = vec![10, 20, 30].try_into().unwrap();
         assert_eq!(choice.iter().copied().collect::<Vec<_>>(), vec![10, 20, 30]);
 
@@ -549,10 +591,7 @@ mod unit_tests {
         assert_eq!(flattened.alternatives(), &[NoClone(20), NoClone(30)]);
 
         let empty_primary: Choice<Vec<NoClone>> = Choice::single(vec![]);
-        assert_eq!(
-            empty_primary.try_flatten(),
-            Err(crate::datatypes::error::ChoiceError::EmptyFlatten)
-        );
+        assert_eq!(empty_primary.try_flatten(), Err(ChoiceError::EmptyFlatten));
     }
 
     #[test]
@@ -598,5 +637,25 @@ mod unit_tests {
         use std::mem::size_of;
         type Large = [u8; 1024];
         assert!(size_of::<Choice<Large>>() < 1100);
+    }
+
+    #[test]
+    fn test_choice_error_display() {
+        assert_eq!(
+            ChoiceError::EmptyFlatten.to_string(),
+            "Choice::flatten(): no inner iterable produced an item"
+        );
+        assert_eq!(
+            ChoiceError::EmptyInput.to_string(),
+            "Choice construction requires at least one value"
+        );
+    }
+
+    #[test]
+    fn test_choice_error_predicates() {
+        assert!(ChoiceError::EmptyFlatten.is_empty_flatten());
+        assert!(!ChoiceError::EmptyFlatten.is_empty_input());
+        assert!(ChoiceError::EmptyInput.is_empty_input());
+        assert!(!ChoiceError::EmptyInput.is_empty_flatten());
     }
 }

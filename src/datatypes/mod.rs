@@ -28,9 +28,19 @@
 //! - `choice` - N-ary sum type for multiple alternatives
 
 pub mod choice;
-pub mod error;
 pub mod free;
 pub mod lens;
 pub mod operational;
 pub mod prism;
 pub mod validated;
+
+pub use choice::ChoiceError;
+pub use free::FreeError;
+pub use validated::ValidatedError;
+
+// Backward-compatibility alias for former datatypes::error module
+pub mod error {
+    pub use crate::datatypes::choice::ChoiceError;
+    pub use crate::datatypes::free::FreeError;
+    pub use crate::datatypes::validated::ValidatedError;
+}

@@ -25,9 +25,9 @@
 //! See each type's documentation for more details and advanced usage.
 
 pub use crate::datatypes::choice::Choice;
-pub use crate::datatypes::error::{ChoiceError, FreeError, ValidatedError};
 pub use crate::datatypes::free::Free;
 pub use crate::datatypes::lens::Lens;
 pub use crate::datatypes::operational::{Handler, Program, TryHandler, TryProgram};
 pub use crate::datatypes::prism::Prism;
 pub use crate::datatypes::validated::{NonEmptyErrors, Validated};
+pub use crate::datatypes::{ChoiceError, FreeError, ValidatedError};

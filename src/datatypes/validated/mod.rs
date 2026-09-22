@@ -110,7 +110,7 @@ pub mod core;
 pub mod iter;
 pub mod traits;
 
-pub use core::{NonEmptyErrors, Validated};
+pub use core::{NonEmptyErrors, Validated, ValidatedError};
 pub use iter::*;
 
 #[cfg(test)]
