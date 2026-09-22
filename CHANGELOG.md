@@ -4,98 +4,82 @@
 
 ### Deprecations
 
-- **Prism::set_if_different**: Deprecated `Prism::set_if_different` in favor of standard unconditional `Prism::set`. Sum-type reconstruction via `review` is an $O(1)$ move; checking equality of focus payloads incurs redundant clones.
-- **Pseudo-HKT & Categorical Traits**: Deprecated `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, and `HKT` in favor of inherent methods, standard library iterators, and `FromIterator`. Scheduled for removal in `v0.19.0`. `Semigroup` and `Monoid` remain fully supported as core algebraic traits.
-- **PersistentVector**: Deprecated `pvec::PersistentVector` and the `pvec` module/macro in favor of specialized persistent collection crates like `imbl`. Scheduled for removal in `v0.19.0`.
+- **`Prism::set_if_different`**: Deprecated in favor of unconditional `Prism::set`. Sum-type reconstruction via `review` is $O(1)$; equality checks incur redundant clones.
+- **Pseudo-HKT & Categorical Traits**: Deprecated `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, and `HKT` in favor of inherent methods, standard iterators, and `FromIterator` (scheduled for removal in `v0.19.0`). `Semigroup` and `Monoid` remain supported.
+- **`PersistentVector`**: Deprecated `pvec::PersistentVector` and the `pvec` module/macro in favor of external crates like `imbl` (scheduled for removal in `v0.19.0`).
 
 ### Added
 
-- **Prism::set**: Added standard unconditional `Prism::set(&self, source: S, new_value: A) -> S` that updates the focused variant if present without equality comparison overhead.
-
-- **Validated FromIterator**: Added `impl<T, E, C> FromIterator<Validated<T, E>> for Validated<C, E>` enabling standard `iter.collect::<Validated<Vec<T>, E>>()` with full error accumulation.
-- **Validated Inherent Zip Combinators**: Added inherent `zip`, `zip_with`, `zip3`, `zip_with3`, `lift2`, and `lift3` on `Validated` without any `Clone` bounds.
-- **Choice Inherent Mapping**: Added inherent `Choice::map` method.
-- **Validated Combinators**: Added inherent sync `and_then`, inherent `map`, and `map_err` to `Validated<T, E>`.
-- **Optics & Law Test Coverage**: Added comprehensive `Prism` and `Lens` law verification test suites covering preview/review consistency, GetSet/SetGet/SetSet QuickCheck laws, non-`Clone` type support, and sequential composition (`tests/datatypes/test_prism.rs`, `tests/datatypes/test_lens.rs`), along with functor, applicative, and monad law coverage.
-- **NonEmptyErrors Algebraic & Equality Traits**: Implemented `Semigroup for NonEmptyErrors<E>`, along with standard slice and vector comparisons: `PartialEq<[E]>`, `PartialEq<&[E]>`, `PartialEq<Vec<E>>`, and `PartialEq<[E; N]>`.
-- **CI / Miri Soundness**: Added `test_operational_miri_ownership_and_drop` verifying memory soundness of trampoline evaluation under Miri.
+- **`Prism::set`**: Unconditional variant update `Prism::set(&self, source: S, new_value: A) -> S` without equality comparison overhead.
+- **`Validated` `FromIterator`**: `impl<T, E, C> FromIterator<Validated<T, E>> for Validated<C, E>`, enabling `iter.collect::<Validated<Vec<T>, E>>()` with error accumulation.
+- **`Validated` Inherent Combinators**: Inherent sync `and_then`, `map`, `map_err`, `zip`, `zip_with`, `zip3`, `zip_with3`, `lift2`, and `lift3` without `Clone` bounds.
+- **`Choice::map`**: Inherent mapping method.
+- **Optics & Law Verification**: Law verification test suites for `Prism` and `Lens` (preview/review consistency, GetSet/SetGet/SetSet, non-`Clone` support, sequential composition) in `tests/datatypes/test_prism.rs` and `tests/datatypes/test_lens.rs`, plus functor, applicative, and monad laws.
+- **`NonEmptyErrors` Algebraic & Comparison Traits**: `Semigroup` implementation and `PartialEq` across `[E]`, `&[E]`, `Vec<E>`, and `[E; N]`.
+- **CI / Miri**: `test_operational_miri_ownership_and_drop` verifying trampoline evaluation soundness under Miri.
 
 ### Fixed
 
-- **Free Monad Trait Object Downcast**: Fixed `Free::into_any` in `free.rs` which attempted speculative downcasts on `AnyValue` payloads (`Free::Suspend`), stripping the outer box and triggering runtime panics during evaluation. Symmetrically boxes all node payloads into `AnyValue`, and added direct `AnyValue` support in `Free::suspend`.
-- **Operational Monad Trait Object Downcast**: Fixed `TryProgram::into_any` in `operational.rs` which incorrectly attempted speculative downcasts on `Box<dyn Any + Send + Sync>` payloads (`Node::Pure` and `Node::Suspend`), stripping the outer box and triggering runtime panics during evaluation. Symmetrically boxes all node payloads into `AnyBox`.
+- **Free Monad Downcast**: `Free::into_any` in `free.rs` no longer strips outer boxes during speculative `AnyValue` downcasts on `Free::Suspend`. Node payloads are symmetrically boxed into `AnyValue`, and `Free::suspend` supports `AnyValue` directly.
+- **Operational Monad Downcast**: `TryProgram::into_any` in `operational.rs` no longer strips outer boxes during speculative downcasts on `Box<dyn Any + Send + Sync>` payloads (`Node::Pure`, `Node::Suspend`). Node payloads are symmetrically boxed into `AnyBox`.
 
 ### Changed
 
-- **Prism Lean Modification & Zero-Cost Moves**:
-  - Refactored `Prism::modify` to drop unnecessary `A: Clone + PartialEq` bounds, eliminating redundant intermediate clones and enabling modification on non-`Clone` / non-`PartialEq` types.
-  - Corrected module doc comments and law signatures from `review(&a)` to `review(a)`. Purged nonexistent `PreviewRef` claim.
-- **Prism Debug Representation & PartialEq Removal (Breaking)**:
-  - Removed `#[derive(PartialEq)]` from `Prism` (closures cannot implement mathematical equality in Rust).
-  - Replaced derived `Debug` with manual `std::fmt::Debug` implementation that formats all prisms non-exhaustively without demanding debug bounds on closures (matching `Lens`).
-- **Lens Minimal Trait Bounds & Non-`Clone` Support**:
-  - Removed spurious `S: Clone, A: Clone` bounds from `impl<S, A, GetFn, SetFn> Lens`, enabling lens construction and modification on non-`Clone` structs and fields.
-  - Removed spurious `B: Clone` bounds from `Lens::fmap` and `Lens::then`.
-- **Lens Single-Evaluation in `modify`**:
-  - Optimized `modify` to invoke the user's getter closure exactly once per modification by cloning `current` once in memory for equality comparison against `new_value`, eliminating redundant duplicate getter executions.
-  - Scoped trait requirement on `modify` to `A: Clone + PartialEq`. Non-`Clone` types use `modify_always`.
-- **Lens Debug & PartialEq Representation**:
-  - Removed unusable `#[derive(PartialEq)]` from `Lens` (closures cannot implement mathematical equality in Rust).
-  - Replaced derived `Debug` with a manual `std::fmt::Debug` implementation that formats all lenses without demanding debug bounds on closures.
-- **Prism Owned Review Semantics (Breaking)**:
-  - Migrated `ReviewFn` from `Fn(&A) -> S` to `Fn(A) -> S`, and `Prism::review(&self, a: &A) -> S` to `Prism::review(&self, a: A) -> S`.
-  - Enables direct passing of enum variant constructors (e.g. `Prism::new(..., Status::Active)`).
-  - Eliminates forced cloning in `review`, `modify`, `set_if_different`, and sequential optic composition (`Prism::then`).
-  - Removed spurious `A: Clone` and `B: Clone` bounds from `Prism::then`.
+- **`Prism` Bounds & Owned Review (Breaking)**:
+  - Migrated `ReviewFn` to `Fn(A) -> S` and `review` to `review(&self, a: A) -> S`, enabling direct enum constructors and eliminating forced clones in `review`, `modify`, `set_if_different`, and `Prism::then`.
+  - Removed `A: Clone + PartialEq` bounds from `Prism::modify` and spurious `A: Clone, B: Clone` bounds from `Prism::then`.
+  - Removed `#[derive(PartialEq)]` and replaced derived `Debug` with manual `std::fmt::Debug`.
+  - Corrected doc comments and law signatures to `review(a)`.
+- **`Lens` Bounds & Single-Evaluation**:
+  - Removed spurious `S: Clone, A: Clone` bounds from `Lens` and `B: Clone` bounds from `fmap`/`then`.
+  - `Lens::modify` evaluates the getter once per call. Scoped `modify` to `A: Clone + PartialEq`; non-`Clone` types use `modify_always`.
+  - Removed `#[derive(PartialEq)]` and replaced derived `Debug` with manual `std::fmt::Debug`.
 - **Clone Overhead Optimizations**:
-  - **`traits::monoid::repeat` Ownership Consumption**: Optimized `repeat` to consume the initial owned `value` on the final combination step, reducing clone count from $n$ to $n - 1$ for all $n \ge 1$.
-  - **`Free::run_internal` Unshared Subtree Evaluation**: Optimized trampoline loop with `std::mem::replace` and `Arc::try_unwrap`, eliminating redundant deep AST clones on unshared `Free::Bind` nodes during `run` and `try_run`.
-  - **Clippy Redundant Clone Cleanups**: Removed unneeded `.clone()` calls across `choice`, `free`, `prism`, `validated`, and benchmarks/examples (`clippy::redundant_clone`), and clarified reference-counted pointer cloning via `Arc::clone` and `Rc::clone` (`clippy::clone_on_ref_ptr`).
-- **Validated Type Parameter Alignment & Combinator Contracts**:
-  - Reordered type parameters to `Validated<T, E>` (from `Validated<E, A>`), aligning type layout with standard `Result<T, E>`.
-  - Aligned `bimap(f_val, g_err)` argument order with `(T, E)`.
-  - Relaxed async method bounds by removing unnecessary `'static` constraints.
-  - **`combine_errors` Total Return Type (Breaking)**: Changed `combine_errors` to return `Option<NonEmptyErrors<E>>` instead of `Option<Validated<T, E>>`. Eliminates impossible `Some(Validated::Valid(_))` states and phantom generic parameters.
-  - **`NonEmptyErrors::into_vec` Vector Contract (Breaking)**: `NonEmptyErrors::into_vec` now returns standard `std::vec::Vec<E>` instead of leaking crate-private `SmallVec<[E; 4]>`, and `try_from_slice` constructs inline without intermediate heap allocations.
-  - **`Applicative::lift2` Zero-Allocation**: Delegated `Applicative::lift2` directly to `fa.zip_with(fb, f)`.
-- **Choice Formatting & Test Arbitrary**: `Display` now streams the primary and alternatives directly instead of allocating an intermediate `Vec<String>` plus joined `String`. The `quickcheck` `Arbitrary` impl chains primary shrink candidates before alternative shrink candidates, enabling minimal counterexample discovery.
-- **Choice In-Place Filtering & Zero-Allocation Conversions**:
-  - `Choice::filter` now operates in-place using `Vec::retain`, `position`, and prefix draining, eliminating temporary vector allocations and evaluating the predicate exactly once per element in traversal order.
-  - `TryFrom<Vec<T>> for Choice<T>` extracts the primary value via `values.remove(0)`, preserving the input vector's allocated capacity for `alternatives`.
-  - `Choice<Option<T>>::sequence` now collects directly into `Option<Vec<T>>` via standard iterator collection.
-- **Choice Flatten Fallback & Error Alignment (Breaking)**: `flatten`/`try_flatten` now concatenate every non-empty inner iterable in priority order, consulting alternatives when the primary iterable yields nothing; the error is returned only when all iterables are empty. `ChoiceError::EmptyPrimaryIterator` is renamed to `EmptyFlatten` (predicate `is_empty_flatten`, Display formatted as `Choice::try_flatten(): no inner iterable produced an item`), and documentation is synchronized across all flatten variants.
-- **Choice Stack Optimization**: Replaced `SmallVec<[T; 7]>` in `Choice<T>::alternatives` with `Vec<T>`, significantly reducing stack size and preventing stack overflow in nested structures.
+  - `traits::monoid::repeat`: Consumes owned initial value on final combination step, reducing clone count from $n$ to $n - 1$ ($n \ge 1$).
+  - `Free::run_internal`: Optimized trampoline with `std::mem::replace` and `Arc::try_unwrap`, eliminating deep AST clones on unshared `Free::Bind` nodes during `run`/`try_run`.
+  - Redundant clone cleanups across `choice`, `free`, `prism`, `validated`, examples, and benchmarks.
+- **`Validated` Alignment & Contracts (Breaking)**:
+  - Reordered type parameters to `Validated<T, E>` (matching `Result<T, E>`). Aligned `bimap(f_val, g_err)` argument order with `(T, E)`.
+  - Removed `'static` constraints on async methods.
+  - `combine_errors` returns `Option<NonEmptyErrors<E>>` instead of `Option<Validated<T, E>>`.
+  - `NonEmptyErrors::into_vec` returns `Vec<E>` instead of `SmallVec<[E; 4]>`; `try_from_slice` constructs inline without heap allocations.
+  - `Applicative::lift2` delegates directly to `fa.zip_with(fb, f)`.
+- **`Choice` Optimizations & Semantics (Breaking)**:
+  - `Choice<T>::alternatives` stores `Vec<T>` instead of `SmallVec<[T; 7]>`, reducing stack size.
+  - `Display` streams directly without intermediate vector allocation.
+  - `Choice::filter` operates in-place via `retain`, `position`, and prefix draining.
+  - `TryFrom<Vec<T>>` preserves allocated capacity; `sequence` collects into `Option<Vec<T>>`.
+  - `flatten`/`try_flatten` concatenate non-empty inner iterables in priority order, falling back to alternatives. Renamed `ChoiceError::EmptyPrimaryIterator` to `EmptyFlatten`.
+  - `quickcheck::Arbitrary` chains primary before alternative shrink candidates.
 - **Minimal Trait Bounds**:
-  - Removed unnecessary `E: Clone` bound from `Result<T, E>` implementations of `Pure`, `Functor`, `Applicative`, `Monad`, and `Foldable`.
-  - Removed unnecessary `T: Clone` bound from `Monoid for Vec<T>`.
-- **ContextError Newest-First Temporal Congruence (Breaking)**:
-  - Standardized context entry storage and iteration on newest-first ordering.
-  - Aligned `contexts_raw(&self) -> &[String]`, `context_iter(&self) -> std::slice::Iter<'_, String>`, and `context(&self) -> Vec<String>` so that index `0` / the first item yielded is consistently the most recent context entry, matching `Display` and `error_chain()`.
-  - Generalized `ContextError::with_contexts` to accept any `I: IntoIterator<Item = C> where C: IntoErrorContext` (e.g. `[&str; N]`), streaming items directly into the context stack without intermediate vector allocation.
-  - Streamlined `IntoErrorContext::into_error_context` to return `String` directly and added support for `&String`.
-  - Optimized `context_accumulator` to pre-evaluate context strings once on construction rather than repeatedly allocating on every error site.
-- **Prelude Collision Prevention**: Removed `Command` from prelude to avoid shadowing `std::process::Command` (import via `rustica::datatypes::operational::Command`). Restored `Handler` alongside `Program`, `TryHandler`, and `TryProgram`.
+  - Removed `E: Clone` bound from `Result<T, E>` implementations of `Pure`, `Functor`, `Applicative`, `Monad`, and `Foldable`.
+  - Removed `T: Clone` bound from `Monoid for Vec<T>`.
+- **`ContextError` Newest-First Ordering (Breaking)**:
+  - Storage and iteration standardized to newest-first (`contexts_raw`, `context_iter`, `context`), matching `Display` and `error_chain()`.
+  - `ContextError::with_contexts` accepts any `IntoIterator<Item: IntoErrorContext>`, streaming directly into the context stack.
+  - `IntoErrorContext::into_error_context` returns `String` directly; added `&String` support.
+  - `context_accumulator` pre-evaluates context strings on construction.
+- **Prelude Exports**: Removed `Command` from prelude to avoid shadowing `std::process::Command` (available via `rustica::datatypes::operational::Command`). Restored `Handler` alongside `Program`, `TryHandler`, and `TryProgram`.
 
 ### Removed (Breaking Changes)
 
-- **Error Submodule Stubs & Intermediary Types**: Removed circular compatibility modules `rustica::error::{context, convert, core}` and the ephemeral wrapper type `ErrorContext`.
-- **Orphaned Validated Error Helpers**: Removed `collect_errors`, `split_validated_errors`, and `traverse_validated` from `rustica::error` and `rustica::prelude::error`. Use standard `Validated::try_invalid_many`, `FromIterator` collection (`collection.into_iter().map(|x| Validated::from(f(x))).collect()`), and `into_result_first_error`.
-
-- **Prism::for_case**: Removed dead, unreferenced `Prism::for_case<P, R>` constructor whose generic parameters `<P, R>` were orphaned from `S` and `A`. Use `Prism::new`.
-- **Monad Transformers**: Completely removed `transformers/` module including `StateT`, `ReaderT`, `ContT`, `MonadTransformer`, and `lift`. Use native Rust control flow, `&mut S`, context passing, or `async`/`await`.
-- **Effect Monads**: Completely removed `Id`, `State`, `Reader`, `Writer`, `Cont`, and `IO`. Use standard Rust primitives (`&mut S`, `&Context`, standard I/O, closures).
-- **Category Abstractions**: Completely removed `category/` module (`FunctionCategory`, `FunctionMorphism`, `PairMorphism`, `function!`, `pipe!`, `compose!`). Use closures and iterator combinators.
-- **Monoidal Wrappers**: Completely removed `datatypes/wrapper/` (`First`, `Last`, `Min`, `Max`, `Sum`, `Product`, `Predicate`). Use standard library types and iterators (`Option::or`, `cmp::min`/`max`, `Iterator::sum`/`product`).
-- **Async Monad**: Completely removed `AsyncM<A>`. Use native Rust `async`/`await` and `Future` combinators (`async` feature is preserved for `Validated` async combinators).
-- **Legacy Error Types & Traits**: Completely removed `ComposableError`, `ComposableResult`, `BoxedComposableError`, `BoxedComposableResult`, `WithError`, `sequence_with_error`, `format_error_chain`, and `extract_context`. Use [`ContextError`](crate::error::ContextError) and `Result`.
-- **Redundant Traits**: Completely removed `Alternative`, `Bifunctor`, `BinaryHKT`, `Iso`, `MonadError`, and `One`.
-- **Optics from_iso**: Removed `Lens::from_iso`, `Prism::from_iso`, and `Prism::from_option_iso`. Construct lenses/prisms with closures or inherent constructors.
-- **Free Methods**: Removed `Free::fold_map` (and its `IO` dependency) and `Free::into_pure`. Use `Free::run`/`Free::try_run` and `Free::to_pure`.
-- **Choice Legacy APIs**: Removed `Choice::first`, `Choice::filter_values`, `Choice::first_match`, `Choice::bind`, `Choice::apply`, and `Pure`/`Applicative`/`Monad` implementations. Use priority/fallback methods (`Choice::primary`, `Choice::filter`, `Choice::try_each`, `Iterator::find_map`).
-- **Trait Extension Removal**: Completely removed hollow extension traits (`FunctorExt`, `SemigroupExt`, `MonoidExt`, `PureExt`, and `FoldableExt`). `fold_option` is now a default method directly on the [`Foldable`](crate::traits::foldable::Foldable) trait, and `prelude::traits_ext` has been removed.
-- **Validated Iterators & Obsolete Methods**: Removed `Validated::errors`, `ErrorsIter`, `ErrorsIterMut`, `Validated::map_valid` (use `map`), and `Validated::fmap_invalid` (use `map_err`).
-- **Validated Lossy Unwrappers & ValidatedError**: Removed `Validated::try_unwrap`, `try_unwrap_invalid`, `try_valid_ref`, and the unit error type `ValidatedError`. Value and error extraction is unified around non-lossy accessors (`into_value`, `into_error_payload`, `as_option`). Removed `ValidatedError` from `datatypes` and `prelude`.
-- **Vec Monad Omission**: Omitted `impl<T> Monad for Vec<T>` to avoid method resolution conflict with standard slice `[T]::join`.
+- **Error Compatibility Stubs**: Removed `rustica::error::{context, convert, core}` and `ErrorContext`.
+- **`Validated` Helpers**: Removed `collect_errors`, `split_validated_errors`, and `traverse_validated` from `rustica::error` and `rustica::prelude::error`. Use `Validated::try_invalid_many`, `FromIterator` collection, or `into_result_first_error`.
+- **`Prism::for_case`**: Removed dead `Prism::for_case<P, R>` constructor. Use `Prism::new`.
+- **Monad Transformers**: Removed `transformers/` module (`StateT`, `ReaderT`, `ContT`, `MonadTransformer`, `lift`). Use native Rust control flow, `&mut S`, context passing, or `async`/`await`.
+- **Effect Monads**: Removed `Id`, `State`, `Reader`, `Writer`, `Cont`, and `IO`. Use standard primitives (`&mut S`, `&Context`, standard I/O, closures).
+- **Category Abstractions**: Removed `category/` module (`FunctionCategory`, `FunctionMorphism`, `PairMorphism`, `function!`, `pipe!`, `compose!`). Use closures and iterator combinators.
+- **Monoidal Wrappers**: Removed `datatypes/wrapper/` (`First`, `Last`, `Min`, `Max`, `Sum`, `Product`, `Predicate`). Use standard types and iterators (`Option::or`, `cmp::min`/`max`, `Iterator::sum`/`product`).
+- **`AsyncM`**: Removed `AsyncM<A>`. Use native `async`/`await` and `Future` combinators (`async` feature preserved for `Validated`).
+- **Legacy Error Types**: Removed `ComposableError`, `ComposableResult`, `BoxedComposableError`, `BoxedComposableResult`, `WithError`, `sequence_with_error`, `format_error_chain`, and `extract_context`. Use [`ContextError`](crate::error::ContextError) and `Result`.
+- **Redundant Traits**: Removed `Alternative`, `Bifunctor`, `BinaryHKT`, `Iso`, `MonadError`, and `One`.
+- **Optics from_iso**: Removed `Lens::from_iso`, `Prism::from_iso`, and `Prism::from_option_iso`. Construct via closures or inherent constructors.
+- **`Free` Methods**: Removed `Free::fold_map` and `Free::into_pure`. Use `Free::run`/`Free::try_run` and `Free::to_pure`.
+- **`Choice` Legacy APIs**: Removed `Choice::first`, `Choice::filter_values`, `Choice::first_match`, `Choice::bind`, `Choice::apply`, and `Pure`/`Applicative`/`Monad` implementations. Use `Choice::primary`, `Choice::filter`, `Choice::try_each`, or `Iterator::find_map`.
+- **Extension Traits**: Removed `FunctorExt`, `SemigroupExt`, `MonoidExt`, `PureExt`, `FoldableExt`, and `prelude::traits_ext`. `fold_option` is a default method on [`Foldable`](crate::traits::foldable::Foldable).
+- **`Validated` Iterators & Deprecated Methods**: Removed `Validated::errors`, `ErrorsIter`, `ErrorsIterMut`, `Validated::map_valid` (use `map`), and `Validated::fmap_invalid` (use `map_err`).
+- **`Validated` Lossy Unwrappers & `ValidatedError`**: Removed `Validated::try_unwrap`, `try_unwrap_invalid`, `try_valid_ref`, and `ValidatedError`. Extraction uses non-lossy accessors (`into_value`, `into_error_payload`, `as_option`).
+- **`Vec` Monad**: Omitted `impl<T> Monad for Vec<T>` to prevent conflict with standard `[T]::join`.
 - **Tests & Benchmarks**: Removed `tests/migration_std_replacements.rs`, `tests/integration/categorical_utils_pipeline.rs`, and `benches/datatypes/io.rs`.
 
 See [`MIGRATION_v0.18.0.md`](MIGRATION_v0.18.0.md) for detailed replacement mappings and migration examples.
