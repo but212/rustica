@@ -189,6 +189,3 @@ jobs:
 
       - name: Compile Benchmarks
         run: cargo bench --no-run --all-features --locked
-
-      - name: Run Datatypes Benchmark
-        run: cargo bench --bench datatypes_benchmarks --features pvec --locked

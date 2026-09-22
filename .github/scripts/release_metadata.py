@@ -33,6 +33,8 @@ def main() -> int:
     version = sys.argv[1]
     changelog_path = Path(sys.argv[2]) if len(sys.argv) == 3 else Path("CHANGELOG.md")
     body = extract_release_body(version, changelog_path.read_text(encoding="utf-8"))
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     print(body)
     return 0
 

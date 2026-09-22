@@ -1,14 +1,26 @@
 name: SLSA Provenance Generator
 
 on:
+  workflow_call:
+    inputs:
+      tag_name:
+        description: "Release tag name (e.g. v0.17.0)"
+        required: true
+        type: string
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag name (e.g. v0.17.0)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: slsa-${{ github.event.release.tag_name }}
+  group: slsa-${{ inputs.tag_name || github.event.release.tag_name || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -25,7 +37,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ inputs.tag_name || github.event.release.tag_name || github.ref_name }}
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -97,7 +109,7 @@ jobs:
           curl -fsSL --retry 3 \
             "https://github.com/slsa-framework/slsa-verifier/releases/download/v${VERIFIER_VERSION}/slsa-verifier-linux-amd64" \
             -o slsa-verifier
-          echo "9883E4C7FD0FEAD95815DE1533DB62D1AE19DAF9D333B359E192FC65FFB401B2  slsa-verifier" | sha256sum --check --status
+          echo "92b28eb2db998f9a6a048336928b29a38cb100076cd587e443ca0a2543d7c93d  slsa-verifier" | sha256sum --check --status
           chmod +x slsa-verifier
           ./slsa-verifier --version | grep -F "$VERIFIER_VERSION" > /dev/null
 
@@ -110,13 +122,13 @@ jobs:
       - name: Download provenance
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.tag_name || github.event.release.tag_name || github.ref_name }}
         run: gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" -p "*.intoto.jsonl" -D provenance
 
       - name: Verify provenance
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.tag_name || github.event.release.tag_name || github.ref_name }}
         run: |
           set -euo pipefail
           mapfile -t PROVENANCE_FILES < <(find provenance -name "*.intoto.jsonl" -type f -print)

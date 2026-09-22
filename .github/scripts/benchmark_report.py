@@ -158,6 +158,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Force running cargo bench locally instead of using an existing artifact.",
     )
 
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parent.parent.parent
 

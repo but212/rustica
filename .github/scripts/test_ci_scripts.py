@@ -28,6 +28,11 @@ class ReleaseMetadataTests(TestCase):
         with self.assertRaisesRegex(ValueError, "empty"):
             extract_release_body("1.2.3", "## [1.2.3] - 2026-08-20\n\n## [1.2.2]")
 
+    def test_unicode_heading_and_body(self) -> None:
+        unicode_body = "- Fixed: 2.3x–6.1x faster (n \u2265 1)"
+        changelog = f"## [1.2.3] - 2026-08-20\n\n{unicode_body}\n\n## [1.2.2]"
+        self.assertEqual(extract_release_body("1.2.3", changelog), unicode_body)
+
 
 class BenchmarkReportTests(TestCase):
     def test_parse_entries_with_and_without_throughput(self) -> None:

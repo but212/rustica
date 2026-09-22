@@ -42,3 +42,18 @@ jobs:
       group: release-${{ github.ref }}
       cancel-in-progress: false
     uses: ./.github/workflows/publish-release.yml
+
+  provenance:
+    name: SLSA Provenance
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [publish]
+    permissions:
+      actions: read # required by the SLSA generator reusable workflow
+      id-token: write # required to sign the provenance
+      contents: write # required to upload provenance to the release
+    concurrency:
+      group: slsa-${{ github.ref }}
+      cancel-in-progress: false
+    uses: ./.github/workflows/generator-generic-ossf-slsa3-publish.yml
+    with:
+      tag_name: ${{ github.ref_name }}
