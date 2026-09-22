@@ -189,6 +189,10 @@ impl<F, A> Free<F, A> {
         Free::Suspend(
             effect,
             Arc::new(|any_val: AnyValue| {
+                let any_ref = &any_val as &dyn Any;
+                if let Some(val) = any_ref.downcast_ref::<A>() {
+                    return Ok(val.clone());
+                }
                 any_val
                     .downcast_ref::<A>()
                     .cloned()
@@ -221,12 +225,7 @@ impl<F, A> Free<F, A> {
                     cmd.clone(),
                     Arc::new(move |res| {
                         let a = cont_clone(res)?;
-                        let a_any = &a as &dyn Any;
-                        if let Some(already_arc) = a_any.downcast_ref::<AnyValue>() {
-                            Ok(Arc::clone(already_arc))
-                        } else {
-                            Ok(Arc::new(a) as AnyValue)
-                        }
+                        Ok(Arc::new(a) as AnyValue)
                     }),
                 )
             },
@@ -508,10 +507,7 @@ impl<F, A> Free<F, A> {
     where
         A: Clone,
     {
-        match self {
-            Free::Pure(a) => Some(a.clone()),
-            Free::Suspend(_, _) | Free::Bind(_, _) => None,
-        }
+        self.as_pure().cloned()
     }
 }
 
@@ -919,5 +915,37 @@ mod tests {
             mismatch.to_string(),
             "Free interpretation type mismatch: expected return type i32"
         );
+    }
+
+    #[test]
+    fn test_anyvalue_pure_payload() {
+        let val: AnyValue = Arc::new(42_i32);
+        let prog: Free<TestCmd, AnyValue> = Free::pure(val);
+        let res = prog.run(|_| Arc::new(()));
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_anyvalue_command_output() {
+        let prog: Free<TestCmd, AnyValue> = Free::suspend(TestCmd::Fetch);
+        let res = prog.run(|_| Arc::new(84_i32) as AnyValue);
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 84);
+    }
+
+    #[test]
+    fn test_anyvalue_suspend_with() {
+        let val: AnyValue = Arc::new(42_i32);
+        let prog: Free<TestCmd, AnyValue> =
+            Free::suspend_with(TestCmd::Fetch, move |_| Arc::clone(&val));
+        let res = prog.run(|_| Arc::new(()));
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_anyvalue_bind_transformation() {
+        let prog: Free<TestCmd, AnyValue> = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
+            .bind(|_| Free::pure(Arc::new(99_i32) as AnyValue));
+        let res = prog.run(|_| Arc::new(()) as AnyValue);
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 99);
     }
 }

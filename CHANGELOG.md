@@ -22,6 +22,7 @@
 
 ### Fixed
 
+- **Free Monad Trait Object Downcast**: Fixed `Free::into_any` in `free.rs` which attempted speculative downcasts on `AnyValue` payloads (`Free::Suspend`), stripping the outer box and triggering runtime panics during evaluation. Symmetrically boxes all node payloads into `AnyValue`, and added direct `AnyValue` support in `Free::suspend`.
 - **Operational Monad Trait Object Downcast**: Fixed `TryProgram::into_any` in `operational.rs` which incorrectly attempted speculative downcasts on `Box<dyn Any + Send + Sync>` payloads (`Node::Pure` and `Node::Suspend`), stripping the outer box and triggering runtime panics during evaluation. Symmetrically boxes all node payloads into `AnyBox`.
 
 ### Changed
