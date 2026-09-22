@@ -6,8 +6,6 @@ use std::hint::black_box;
 enum Status {
     Active(String),
     Inactive,
-    #[allow(dead_code)]
-    Pending(u32),
 }
 
 pub fn prism_benchmarks(harness: &Harness) {

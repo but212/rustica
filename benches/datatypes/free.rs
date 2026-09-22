@@ -6,18 +6,12 @@ use std::sync::Arc;
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum CalcOp {
     Add(i32),
-    Multiply(i32),
     Get,
 }
 
 impl CalcOp {
     fn add(n: i32) -> Free<Self, ()> {
         Free::suspend(Self::Add(n))
-    }
-
-    #[allow(dead_code)]
-    fn multiply(n: i32) -> Free<Self, ()> {
-        Free::suspend(Self::Multiply(n))
     }
 
     fn get() -> Free<Self, i32> {
@@ -47,10 +41,6 @@ pub fn free_benchmarks(harness: &Harness) {
             let result: i32 = program.run(|op| match op {
                 CalcOp::Add(n) => {
                     state += n;
-                    Arc::new(()) as AnyValue
-                },
-                CalcOp::Multiply(n) => {
-                    state *= n;
                     Arc::new(()) as AnyValue
                 },
                 CalcOp::Get => Arc::new(state) as AnyValue,

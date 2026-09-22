@@ -7,12 +7,6 @@ impl Command for Add {
     type Output = ();
 }
 
-#[allow(dead_code)]
-struct Multiply(i32);
-impl Command for Multiply {
-    type Output = ();
-}
-
 struct Get;
 impl Command for Get {
     type Output = i32;
@@ -25,12 +19,6 @@ struct Calculator {
 impl Handler<Add> for Calculator {
     fn handle(&mut self, cmd: Add) {
         self.current += cmd.0;
-    }
-}
-
-impl Handler<Multiply> for Calculator {
-    fn handle(&mut self, cmd: Multiply) {
-        self.current *= cmd.0;
     }
 }
 

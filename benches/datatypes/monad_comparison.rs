@@ -67,7 +67,7 @@ fn run_operational(depth: usize) -> i32 {
 fn run_native(depth: usize) -> i32 {
     let mut state = 0;
     for _ in 0..depth.saturating_sub(1) {
-        state += 1;
+        state = black_box(state + 1);
     }
     state
 }

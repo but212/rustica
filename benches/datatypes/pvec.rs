@@ -168,7 +168,7 @@ pub fn pvec_benchmarks(harness: &Harness) {
         let bench_name_mut = format!("pvec_update_mut/{size}");
         group.bench_batched(
             &bench_name_mut,
-            || base_vec.clone(),
+            || (0..size).collect::<PersistentVector<usize>>(),
             |vec| {
                 for index in (0..size).step_by(size / 10) {
                     vec.update_mut(black_box(index), black_box(index * 2));
@@ -177,6 +177,8 @@ pub fn pvec_benchmarks(harness: &Harness) {
             },
         );
     }
+
+    group.reset_sampling();
 
     group.bench_fn("pop_back", || {
         let vec: PersistentVector<usize> = (0..1_000).collect();

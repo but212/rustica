@@ -19,8 +19,6 @@ pub const DEFAULT_BATCH_ITERS: usize = 10;
 pub enum Throughput {
     /// Number of elements processed per operation.
     Elements(u64),
-    /// Number of bytes processed per operation.
-    Bytes(u64),
     /// Memory usage in bytes.
     Memory(u64),
 }
@@ -87,6 +85,14 @@ impl<'a> BenchGroup<'a> {
     /// Sets the number of warmup samples.
     pub fn warmup_iters(&mut self, warmup_iters: usize) -> &mut Self {
         self.warmup_iters = warmup_iters;
+        self
+    }
+
+    /// Resets iteration and warmup parameters back to defaults.
+    pub fn reset_sampling(&mut self) -> &mut Self {
+        self.warmup_iters = DEFAULT_WARMUP_ITERS;
+        self.measure_iters = DEFAULT_MEASURE_ITERS;
+        self.batch_iters = DEFAULT_BATCH_ITERS;
         self
     }
 
@@ -217,15 +223,6 @@ impl<'a> BenchGroup<'a> {
                 if mean_secs > 0.0 {
                     let elem_per_sec = elements as f64 / mean_secs;
                     format!(" [{:.2} M elem/s]", elem_per_sec / 1_000_000.0)
-                } else {
-                    String::new()
-                }
-            },
-            Some(Throughput::Bytes(bytes)) => {
-                let mean_secs = mean.as_secs_f64();
-                if mean_secs > 0.0 {
-                    let mb_per_sec = (bytes as f64 / (1024.0 * 1024.0)) / mean_secs;
-                    format!(" [{mb_per_sec:.2} MB/s]")
                 } else {
                     String::new()
                 }
