@@ -1,12 +1,9 @@
 //! User Registration & Validation Example
 //!
-//! Demonstrates error accumulation with `Validated`, immutable history
-//! tracking with `PersistentVector`, and functional composition.
-
-#![allow(deprecated)]
+//! Demonstrates error accumulation with `Validated`, history
+//! tracking, and functional composition.
 
 use rustica::datatypes::validated::Validated;
-use rustica::pvec::{PersistentVector, pvec};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct User {
@@ -79,17 +76,18 @@ fn main() {
 
     println!();
 
-    // Case 3: Persistent Immutable History with PersistentVector
-    println!("3. Storing users in PersistentVector (immutable history):");
-    let mut history: PersistentVector<User> = pvec![];
+    // Case 3: Registration History Tracking with Vec
+    println!("3. Storing users in registration history:");
+    let mut history: Vec<User> = Vec::new();
 
     if let Validated::Valid(user1) = valid_result {
-        history = history.push_back(user1);
+        history.push(user1);
     }
 
     let second_valid = validate_user("corro", "corro@example.com", 30);
     if let Validated::Valid(user2) = second_valid {
-        let history_v2 = history.push_back(user2);
+        let mut history_v2 = history.clone();
+        history_v2.push(user2);
 
         println!("  Initial history count: {}", history.len());
         println!("  Updated history count: {}", history_v2.len());
