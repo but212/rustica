@@ -205,14 +205,17 @@ let lens = Lens::new(
 - **Single Evaluation in `modify`**: `Lens::modify` now evaluates `self.get(&source)` exactly once, comparing `current == new_value` via an in-memory clone of `current` rather than calling `self.get(&source)` a second time. `modify` requires `A: Clone + PartialEq`; for non-`Clone` focus types, use `modify_always`.
 - **Debug & PartialEq**: `Lens` no longer derives `PartialEq` (as closures in Rust do not implement equality) and implements `Debug` unconditionally without constraining closure fields.
 
-### Prism Owned Review Semantics (Breaking)
+### Prism Owned Review Semantics & Lean Operations (Breaking)
 
 `Prism` review operations and constructors now use owned values (`A`) instead of borrowed references (`&A`):
 
 - `ReviewFn` bound changed from `Fn(&A) -> S` to `Fn(A) -> S`.
 - `review(&self, a: &A) -> S` changed to `review(&self, a: A) -> S`.
 - Enum variant constructors (e.g. `Status::Active`) can now be passed directly to `Prism::new` without closure wrappers.
-- `modify`, `set_if_different`, and sequential optic composition (`Prism::then`) avoid intermediate clones.
+- `modify` now takes `FnOnce(A) -> A` without `Clone` or `PartialEq` bounds, eliminating double cloning and supporting non-`Clone` types.
+- Standard unconditional `set(&self, source: S, new_value: A) -> S` is added. `set_if_different` is deprecated in favor of `set`.
+- `Prism::for_case<P, R>` is removed; use `Prism::new`.
+- `Prism` no longer derives `PartialEq` (closures cannot implement equality) and implements `Debug` unconditionally without closure debug bounds (matching `Lens`).
 - `Prism::then` drops the spurious `A: Clone` and `B: Clone` bounds.
 
 ```rust
@@ -225,6 +228,7 @@ let prism = Prism::new(
     |name: &String| Status::Active(name.clone()), // required &String closure and clone
 );
 let status = prism.review(&"Alice".to_string()); // required reference
+let updated = prism.set_if_different(status, "Bob".to_string()); // required PartialEq
 
 // After (0.18.0)
 let prism = Prism::new(
@@ -235,6 +239,7 @@ let prism = Prism::new(
     Status::Active, // direct constructor passing
 );
 let status = prism.review("Alice".to_string()); // owned value, zero unnecessary clones
+let updated = prism.set(status, "Bob".to_string()); // unconditional zero-cost variant set
 ```
 
 ---

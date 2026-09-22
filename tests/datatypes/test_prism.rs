@@ -116,3 +116,54 @@ fn test_string_prism_review_preview() {
     let s = p.review(original.clone());
     assert_eq!(p.preview(&s), Some(original));
 }
+
+#[test]
+fn test_prism_debug_format() {
+    let p = active_prism();
+    assert_eq!(format!("{p:?}"), "Prism { .. }");
+}
+
+#[test]
+fn test_prism_modify_without_clone_or_partial_eq() {
+    struct NonClonePayload(i32);
+    enum Container {
+        Item(NonClonePayload),
+        Empty,
+    }
+
+    let prism = Prism::new(
+        |c: &Container| match c {
+            Container::Item(item) => Some(NonClonePayload(item.0)),
+            Container::Empty => None,
+        },
+        Container::Item,
+    );
+
+    let updated = prism.modify(Container::Item(NonClonePayload(10)), |payload| {
+        NonClonePayload(payload.0 + 5)
+    });
+
+    match updated {
+        Container::Item(payload) => assert_eq!(payload.0, 15),
+        Container::Empty => panic!("Expected Container::Item"),
+    }
+
+    let empty = prism.modify(Container::Empty, |p| p);
+    assert!(matches!(empty, Container::Empty));
+}
+
+#[test]
+fn test_prism_set() {
+    let p = active_prism();
+
+    // Matching variant is updated
+    let s1 = TestStatus::Active(10);
+    assert_eq!(p.set(s1, 20), TestStatus::Active(20));
+
+    // Non-matching variant is preserved
+    let s2 = TestStatus::Pending;
+    assert_eq!(p.set(s2.clone(), 99), s2);
+
+    let s3 = TestStatus::Completed("done".to_string());
+    assert_eq!(p.set(s3.clone(), 99), s3);
+}

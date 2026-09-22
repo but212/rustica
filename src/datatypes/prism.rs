@@ -85,7 +85,6 @@
 //! - **Composable**: Enables creating complex data access pipelines
 //! - **Preview**: Attempts to extract a focus value from a structure
 //! - **Review**: Constructs a structure from a focus value
-//! - **PreviewRef**: Non-cloning variant of preview when appropriate
 //! - **Modify**: Applies a function to the focus if it exists
 //!
 //! # Key Features
@@ -122,17 +121,18 @@
 //!
 //! For any prism `p`, structure `s`, and focus value `a` where `p.preview(s) = Some(a)`:
 //!
-//! `p.review(&a)` constructs a value that, when previewed, yields the same focus:
-//! `p.preview(&p.review(&a)) == Some(a)`
+//! `p.review(a)` constructs a value that, when previewed, yields the same focus:
+//! `p.preview(&p.review(a)) == Some(a)`
 //!
 //! If the focus type `A` contains exactly the information needed to reconstruct the matched case,
-//! this typically implies `p.review(&a) == s`.
+//! this typically implies `p.review(a) == s`.
 //!
 //! ### Second Law: Review-Preview
 //!
 //! For any prism `p` and focus value `a`:
 //!
-//! `p.preview(&p.review(&a)) == Some(a)`
+//! `p.preview(&p.review(a)) == Some(a)`
+
 //!
 //! If we review a value and then successfully preview it, we get back the original value.
 //!
@@ -216,7 +216,7 @@ use std::marker::PhantomData;
 ///
 /// Complex variant extraction and nested composition are covered by
 /// `tests/datatypes/test_prism.rs`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct Prism<S, A, PreviewFn, ReviewFn>
 where
     PreviewFn: Fn(&S) -> Option<A>,
@@ -227,6 +227,16 @@ where
     /// Function that constructs a value of type S from A
     review: ReviewFn,
     _phantom: PhantomData<(S, A)>,
+}
+
+impl<S, A, PreviewFn, ReviewFn> std::fmt::Debug for Prism<S, A, PreviewFn, ReviewFn>
+where
+    PreviewFn: Fn(&S) -> Option<A>,
+    ReviewFn: Fn(A) -> S,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Prism").finish_non_exhaustive()
+    }
 }
 
 impl<S, A, PreviewFn, ReviewFn> Prism<S, A, PreviewFn, ReviewFn>
@@ -397,86 +407,11 @@ where
         (self.review)(a)
     }
 
-    /// Creates a Prism for a specific case of a sum type.
-    /// This is a convenience method that is equivalent to calling `new`.
-    ///
-    /// This method is provided as a more semantically clear alternative to `new`
-    /// when working specifically with enum variants. It has identical performance
-    /// characteristics to the `new` method.
-    ///
-    /// # Design Notes
-    ///
-    /// * This method exists purely for semantic clarity
-    /// * Use this when you specifically want to emphasize that you're creating a prism
-    ///   for an enum variant
-    /// * Functionally identical to `new` but with a more domain-specific name
-    /// * The explicit type parameters can help with type inference in complex scenarios
-    ///
-    /// # Arguments
-    ///
-    /// * `match_case` - A function that matches and extracts the case we're interested in
-    /// * `make_case` - A function that constructs the sum type from our case
-    ///
-    /// # Type Parameters
-    ///
-    /// * `P` - The sum type (often inferred)
-    /// * `R` - The focus type (often inferred)
-    /// * `PreviewFn` - Type of the preview function: `Fn(&S) -> Option<A>`
-    /// * `ReviewFn` - Type of the review function: `Fn(A) -> S`
-    ///
-    /// # Examples
-    ///
-    /// Creating prisms for different enum variants:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Shape {
-    ///     Circle(f64),  // radius
-    ///     Rectangle(f64, f64),  // width, height
-    ///     Triangle(f64, f64, f64),  // sides
-    /// }
-    ///
-    /// // Create prisms for each variant
-    /// let circle_prism = Prism::for_case::<Shape, f64>(
-    ///     |s: &Shape| match s {
-    ///         Shape::Circle(r) => Some(*r),
-    ///         _ => None,
-    ///     },
-    ///     Shape::Circle,
-    /// );
-    ///
-    /// // Test shapes
-    /// let circle = Shape::Circle(5.0);
-    /// let rect = Shape::Rectangle(4.0, 3.0);
-    ///
-    /// // Circle prism works only on circles
-    /// assert_eq!(circle_prism.preview(&circle), Some(5.0));
-    /// assert_eq!(circle_prism.preview(&rect), None);
-    /// ```
-    pub const fn for_case<P, R>(match_case: PreviewFn, make_case: ReviewFn) -> Self {
-        Prism::new(match_case, make_case)
-    }
-
-    /// Modifies the focused value using a transformation function with structural sharing optimization.
+    /// Modifies the focused value using a transformation function.
     ///
     /// This method applies a transformation function to the focused value (if it exists) and
-    /// returns a new structure. If the transformation doesn't change the value, the original
-    /// structure is returned unchanged, providing structural sharing optimization.
-    ///
-    /// # Structural Sharing Benefits
-    ///
-    /// This method provides significant performance benefits when:
-    /// - The transformation function often returns the same value
-    /// - The structure S is large and expensive to clone/construct
-    /// - Memory pressure is a concern in your application
-    ///
-    /// # Design Notes
-    ///
-    /// * Requires `A: PartialEq` to compare values for structural sharing
-    /// * If preview fails, the original structure is returned unchanged
-    /// * The transformation function is called only when preview succeeds
+    /// returns a new structure. If preview fails (focus absent), the original structure
+    /// is returned unchanged.
     ///
     /// # Arguments
     ///
@@ -485,8 +420,8 @@ where
     ///
     /// # Returns
     ///
-    /// * The original structure if preview fails or the value is unchanged after transformation
-    /// * A new structure if the value was successfully transformed to a different value
+    /// * The original structure if preview fails
+    /// * A new structure with the transformed focus value if preview succeeds
     ///
     /// # Examples
     ///
@@ -510,12 +445,8 @@ where
     /// let counter = Counter::Value(5);
     ///
     /// // Increment the value
-    /// let incremented = value_prism.modify(counter.clone(), |x| x + 1);
+    /// let incremented = value_prism.modify(counter, |x| x + 1);
     /// assert_eq!(incremented, Counter::Value(6));
-    ///
-    /// // No change - structural sharing applied
-    /// let unchanged = value_prism.modify(counter.clone(), |x| x);
-    /// // unchanged is the original structure returned without reconstruction
     ///
     /// // Preview fails - original structure returned
     /// let empty = Counter::Empty;
@@ -525,18 +456,10 @@ where
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
         F: FnOnce(A) -> A,
-        A: PartialEq + Clone,
     {
         match self.preview(&source) {
-            Some(current_value) => {
-                let new_value = f(current_value.clone());
-                if new_value == current_value {
-                    source // Return original structure (structural sharing)
-                } else {
-                    self.review(new_value) // Create new structure
-                }
-            },
-            None => source, // Preview failed, return original structure
+            Some(current_value) => self.review(f(current_value)),
+            None => source,
         }
     }
 
@@ -615,26 +538,20 @@ where
         )
     }
 
-    /// Sets the focused value with structural sharing optimization.
+    /// Sets the focused value to a new value.
     ///
-    /// This method sets the focused value to a new value, but only creates a new structure
-    /// if the new value is different from the current value. If the values are equal,
-    /// the original structure is returned unchanged.
-    ///
-    /// # Design Notes
-    ///
-    /// * If preview fails (the focus is absent), the original structure is returned unchanged.
-    /// * This obeys the standard Prism laws (modifying an absent focus is a no-op).
+    /// If the focus is present, constructs a new structure with the new value.
+    /// If the focus is absent, returns the original structure unchanged.
     ///
     /// # Arguments
     ///
-    /// * `source` - The source structure to potentially modify
+    /// * `source` - The source structure to potentially update
     /// * `new_value` - The new value to set
     ///
     /// # Returns
     ///
-    /// * The original structure if the current value equals the new value or if preview fails
-    /// * A new structure with the new value if the focus is present and values differ
+    /// * A new structure with the new value if the focus is present
+    /// * The original structure unchanged if preview fails (focus absent)
     ///
     /// # Examples
     ///
@@ -656,34 +573,35 @@ where
     /// );
     ///
     /// let status = Status::Active("Alice".to_string());
+    /// let updated = active_prism.set(status, "Bob".to_string());
+    /// assert_eq!(updated, Status::Active("Bob".to_string()));
     ///
-    /// // Set to same value - structural sharing
-    /// let same_status = active_prism.set_if_different(status.clone(), "Alice".to_string());
-    /// // same_status is the original structure returned without reconstruction
-    ///
-    /// // Set to different value - new structure created
-    /// let new_status = active_prism.set_if_different(status, "Bob".to_string());
-    /// assert_eq!(new_status, Status::Active("Bob".to_string()));
-    ///
-    /// // Preview fails - focus absent, returns original structure unchanged
     /// let inactive = Status::Inactive;
-    /// let still_inactive = active_prism.set_if_different(inactive, "Charlie".to_string());
+    /// let still_inactive = active_prism.set(inactive, "Charlie".to_string());
     /// assert_eq!(still_inactive, Status::Inactive);
     /// ```
+    pub fn set(&self, source: S, new_value: A) -> S {
+        match self.preview(&source) {
+            Some(_) => self.review(new_value),
+            None => source,
+        }
+    }
+
+    /// Sets the focused value with structural sharing optimization.
+    ///
+    /// # Deprecated
+    ///
+    /// Use [`Prism::set`] instead. Sum-type reconstruction via `review` is an $O(1)$ move;
+    /// equality-checking focus payloads incurs redundant allocations.
+    #[deprecated(
+        since = "0.19.0",
+        note = "Use `set` instead; equality-checking structural sharing incurs redundant allocations"
+    )]
     pub fn set_if_different(&self, source: S, new_value: A) -> S
     where
         A: PartialEq,
     {
-        match self.preview(&source) {
-            Some(current_value) => {
-                if new_value == current_value {
-                    source // Return original structure (structural sharing)
-                } else {
-                    self.review(new_value) // Create new structure
-                }
-            },
-            None => source, // Preview failed (focus absent), return original structure unchanged
-        }
+        self.set(source, new_value)
     }
 }
 
@@ -761,7 +679,7 @@ mod unit_tests {
             Status::Inactive
         );
         assert_eq!(
-            error_prism().set_if_different(error, (200, "OK".into())),
+            error_prism().set(error, (200, "OK".into())),
             Status::Error {
                 code: 200,
                 message: "OK".into()
@@ -844,6 +762,14 @@ mod unit_tests {
     }
 
     #[test]
+    fn set_preserves_source_when_focus_is_absent() {
+        let inactive = Status::Inactive;
+        let result = active_prism().set(inactive, "Charlie".into());
+        assert_eq!(result, Status::Inactive);
+    }
+
+    #[test]
+    #[allow(deprecated)]
     fn set_if_different_preserves_source_when_focus_is_absent() {
         let inactive = Status::Inactive;
         let result = active_prism().set_if_different(inactive, "Charlie".into());

@@ -3,8 +3,8 @@
 //! Demonstrates bidirectional functional accessors (optics) for sum types:
 //! - Selectively previewing (extracting) specific enum variants
 //! - Reviewing (constructing) enum instances from variant payloads
-//! - Modifying variant payloads with structural sharing optimization
-//! - Conditional updates via `set_if_different`
+//! - Modifying variant payloads with zero-cost moves
+//! - Updating variant values via `set`
 //! - Composing prisms to navigate and transform nested sum types
 
 use rustica::datatypes::prism::Prism;
@@ -113,17 +113,13 @@ fn main() {
 
     println!();
 
-    // Stage 3: Conditional Updates via `set_if_different`
-    println!("3. Conditional Updates via set_if_different:");
-    let updated_running = progress_prism.set_if_different(running.clone(), 90);
+    // Stage 3: Updates via `set`
+    println!("3. Updates via set:");
+    let updated_running = progress_prism.set(running.clone(), 90);
     println!("  Updated running progress: {:?}", updated_running);
     assert_eq!(updated_running, TaskStatus::Running { progress: 90 });
 
-    let same_running = progress_prism.set_if_different(running.clone(), 45);
-    assert_eq!(same_running, running);
-    println!("  Setting identical value returns original instance unchanged.");
-
-    let still_completed = progress_prism.set_if_different(completed.clone(), 100);
+    let still_completed = progress_prism.set(completed.clone(), 100);
     assert_eq!(still_completed, completed);
     println!("  Attempting to set absent variant returns original structure.");
 

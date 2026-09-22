@@ -6,7 +6,6 @@
 use crate::traits::semigroup::Semigroup;
 use smallvec::{SmallVec, smallvec};
 
-
 /// A non-empty collection of validation errors.
 ///
 /// The private buffer prevents callers from constructing or clearing an empty
@@ -414,7 +413,10 @@ mod tests {
         assert_eq!(valid.into_error_payload(), Err(42));
 
         let invalid: Validated<i32, &str> = Validated::invalid("err");
-        assert_eq!(invalid.clone().into_value(), Err(NonEmptyErrors::new("err")));
+        assert_eq!(
+            invalid.clone().into_value(),
+            Err(NonEmptyErrors::new("err"))
+        );
         assert_eq!(invalid.into_error_payload(), Ok(NonEmptyErrors::new("err")));
     }
 

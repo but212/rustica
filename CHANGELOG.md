@@ -4,10 +4,13 @@
 
 ### Deprecations
 
+- **Prism::set_if_different**: Deprecated `Prism::set_if_different` in favor of standard unconditional `Prism::set`. Sum-type reconstruction via `review` is an $O(1)$ move; checking equality of focus payloads incurs redundant clones.
 - **Pseudo-HKT & Categorical Traits**: Deprecated `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, and `HKT` in favor of inherent methods, standard library iterators, and `FromIterator`. Scheduled for removal in `v0.19.0`. `Semigroup` and `Monoid` remain fully supported as core algebraic traits.
 - **PersistentVector**: Deprecated `pvec::PersistentVector` and the `pvec` module/macro in favor of specialized persistent collection crates like `imbl`. Scheduled for removal in `v0.19.0`.
 
 ### Added
+
+- **Prism::set**: Added standard unconditional `Prism::set(&self, source: S, new_value: A) -> S` that updates the focused variant if present without equality comparison overhead.
 
 - **Validated FromIterator**: Added `impl<T, E, C> FromIterator<Validated<T, E>> for Validated<C, E>` enabling standard `iter.collect::<Validated<Vec<T>, E>>()` with full error accumulation.
 - **Validated Inherent Zip Combinators**: Added inherent `zip`, `zip_with`, `zip3`, `zip_with3`, `lift2`, and `lift3` on `Validated` without any `Clone` bounds.
@@ -19,6 +22,12 @@
 
 ### Changed
 
+- **Prism Lean Modification & Zero-Cost Moves**:
+  - Refactored `Prism::modify` to drop unnecessary `A: Clone + PartialEq` bounds, eliminating redundant intermediate clones and enabling modification on non-`Clone` / non-`PartialEq` types.
+  - Corrected module doc comments and law signatures from `review(&a)` to `review(a)`. Purged nonexistent `PreviewRef` claim.
+- **Prism Debug Representation & PartialEq Removal (Breaking)**:
+  - Removed `#[derive(PartialEq)]` from `Prism` (closures cannot implement mathematical equality in Rust).
+  - Replaced derived `Debug` with manual `std::fmt::Debug` implementation that formats all prisms non-exhaustively without demanding debug bounds on closures (matching `Lens`).
 - **Lens Minimal Trait Bounds & Non-`Clone` Support**:
   - Removed spurious `S: Clone, A: Clone` bounds from `impl<S, A, GetFn, SetFn> Lens`, enabling lens construction and modification on non-`Clone` structs and fields.
   - Removed spurious `B: Clone` bounds from `Lens::fmap` and `Lens::then`.
@@ -58,6 +67,7 @@
 
 ### Removed (Breaking Changes)
 
+- **Prism::for_case**: Removed dead, unreferenced `Prism::for_case<P, R>` constructor whose generic parameters `<P, R>` were orphaned from `S` and `A`. Use `Prism::new`.
 - **Monad Transformers**: Completely removed `transformers/` module including `StateT`, `ReaderT`, `ContT`, `MonadTransformer`, and `lift`. Use native Rust control flow, `&mut S`, context passing, or `async`/`await`.
 - **Effect Monads**: Completely removed `Id`, `State`, `Reader`, `Writer`, `Cont`, and `IO`. Use standard Rust primitives (`&mut S`, `&Context`, standard I/O, closures).
 - **Category Abstractions**: Completely removed `category/` module (`FunctionCategory`, `FunctionMorphism`, `PairMorphism`, `function!`, `pipe!`, `compose!`). Use closures and iterator combinators.

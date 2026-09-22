@@ -207,10 +207,7 @@ mod tests {
         assert_eq!(collected.error_slice().len(), 2);
 
         let combined = v1.combine_errors(v2).unwrap();
-        assert_eq!(
-            combined.as_slice(),
-            &["e1".to_string(), "e2".to_string()]
-        );
+        assert_eq!(combined.as_slice(), &["e1".to_string(), "e2".to_string()]);
     }
 
     // Interop, unwrap and recovery

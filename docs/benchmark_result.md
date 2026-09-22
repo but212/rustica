@@ -35,6 +35,8 @@
 | `preview_miss` | 5ns | 4ns | 5ns | 3ns | 154ns | 100 | - |
 | `modify_same_value` | 71ns | 70ns | 82ns | 67ns | 90ns | 100 | - |
 | `modify_different_value` | 128ns | 125ns | 140ns | 101ns | 309ns | 100 | - |
+| `set_hit` | 85ns | 84ns | 89ns | 80ns | 190ns | 100 | - |
+| `set_miss` | 28ns | 27ns | 30ns | 25ns | 75ns | 100 | - |
 | `set_if_different_same` | 70ns | 70ns | 72ns | 68ns | 77ns | 100 | - |
 | `set_if_different_changed` | 90ns | 88ns | 93ns | 84ns | 244ns | 100 | - |
 
