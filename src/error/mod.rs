@@ -19,8 +19,6 @@
 
 use std::fmt::{Debug, Display};
 
-use crate::datatypes::validated::{NonEmptyErrors, Validated, core::ErrorVec};
-
 /// Creates a lazy error context that is only evaluated when an error occurs.
 ///
 /// This macro avoids the runtime cost of formatting context strings when
@@ -38,21 +36,11 @@ macro_rules! context {
 
 pub use crate::context;
 
-// Backward-compatibility aliases for former submodules
-pub mod context {
-    pub use super::*;
-}
-pub mod convert {
-    pub use super::*;
-}
-pub mod core {
-    pub use super::*;
-}
-
 /// A slim, standard-aligned error context wrapper.
 ///
 /// Rustica provides standard Result<T, E> and std::error::Error as primary primitives,
 /// and adds `ContextError<E>` as the minimal abstraction for context accumulation.
+/// Context entries are stored in newest-first order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextError<E> {
     error: E,
@@ -69,23 +57,30 @@ impl<E> ContextError<E> {
         }
     }
 
-    /// Appends context information to this error.
+    /// Appends context information to this error, placing it at the front of the context stack.
     #[inline]
     pub fn with_context<C>(mut self, ctx: C) -> Self
     where
         C: IntoErrorContext,
     {
-        self.context.push(ctx.into_error_context().into_message());
+        self.context.insert(0, ctx.into_error_context());
         self
     }
 
-    /// Appends multiple context strings to this error.
+    /// Appends multiple context entries in encounter order (last item is most recent).
     #[inline]
-    pub fn with_contexts<I>(mut self, contexts: I) -> Self
+    pub fn with_contexts<I, C>(mut self, contexts: I) -> Self
     where
-        I: IntoIterator<Item = String>,
+        I: IntoIterator<Item = C>,
+        C: IntoErrorContext,
     {
-        self.context.extend(contexts);
+        let mut new_contexts: Vec<String> = contexts
+            .into_iter()
+            .map(IntoErrorContext::into_error_context)
+            .collect();
+        new_contexts.reverse();
+        new_contexts.append(&mut self.context);
+        self.context = new_contexts;
         self
     }
 
@@ -104,16 +99,16 @@ impl<E> ContextError<E> {
     /// Returns the accumulated contexts with most recent first.
     #[inline]
     pub fn context(&self) -> Vec<String> {
-        self.context.iter().rev().cloned().collect()
+        self.context.clone()
     }
 
     /// Returns an iterator over context entries, most recent first.
     #[inline]
-    pub fn context_iter(&self) -> std::iter::Rev<std::slice::Iter<'_, String>> {
-        self.context.iter().rev()
+    pub fn context_iter(&self) -> std::slice::Iter<'_, String> {
+        self.context.iter()
     }
 
-    /// Returns a zero-allocation reference to the internal contexts slice in insertion order (oldest first).
+    /// Returns a zero-allocation reference to the internal contexts slice (most recent first).
     #[inline]
     pub fn contexts_raw(&self) -> &[String] {
         &self.context
@@ -148,7 +143,7 @@ impl<E> ContextError<E> {
         W: std::fmt::Write,
         E: Display,
     {
-        for (i, ctx) in self.context.iter().rev().enumerate() {
+        for (i, ctx) in self.context.iter().enumerate() {
             if i > 0 {
                 out.write_str(" -> ")?;
             }
@@ -182,71 +177,35 @@ impl<E> From<E> for ContextError<E> {
     }
 }
 
-/// A lightweight error context that can be attached to any error type.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[repr(transparent)]
-pub struct ErrorContext {
-    message: String,
-}
-
-impl ErrorContext {
-    /// Creates a new error context with the given message.
-    #[inline]
-    pub fn new<S: Into<String>>(message: S) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-
-    /// Returns the context message.
-    #[inline]
-    pub fn message(&self) -> &str {
-        &self.message
-    }
-
-    /// Consumes the context and returns its owned message without cloning.
-    #[inline]
-    pub fn into_message(self) -> String {
-        self.message
-    }
-}
-
-impl Display for ErrorContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl std::error::Error for ErrorContext {}
-
 /// A trait for types that can provide error context information.
 pub trait IntoErrorContext {
-    /// Converts this value into an ErrorContext.
-    fn into_error_context(self) -> ErrorContext;
+    /// Converts this value into an error context string.
+    fn into_error_context(self) -> String;
 }
 
 impl IntoErrorContext for String {
     #[inline]
-    fn into_error_context(self) -> ErrorContext {
-        ErrorContext::new(self)
+    fn into_error_context(self) -> String {
+        self
     }
 }
 
 impl IntoErrorContext for &str {
     #[inline]
-    fn into_error_context(self) -> ErrorContext {
-        ErrorContext::new(self)
+    fn into_error_context(self) -> String {
+        self.to_string()
     }
 }
 
-impl IntoErrorContext for ErrorContext {
+impl IntoErrorContext for &String {
     #[inline]
-    fn into_error_context(self) -> ErrorContext {
-        self
+    fn into_error_context(self) -> String {
+        self.clone()
     }
 }
 
 /// A lazy error context that is evaluated only when needed.
+#[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct LazyContext<F> {
     generator: F,
@@ -265,8 +224,8 @@ where
     F: FnOnce() -> String,
 {
     #[inline]
-    fn into_error_context(self) -> ErrorContext {
-        ErrorContext::new((self.generator)())
+    fn into_error_context(self) -> String {
+        (self.generator)()
     }
 }
 
@@ -290,7 +249,7 @@ where
 
 /// Creates a reusable context-attaching closure.
 #[inline]
-pub const fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
+pub fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
 where
     C: IntoErrorContext + Clone,
 {
@@ -303,65 +262,20 @@ where
     I: IntoIterator<Item = C>,
     C: IntoErrorContext,
 {
-    let context_strings: Vec<String> = contexts
-        .into_iter()
-        .map(|c| c.into_error_context().into_message())
-        .collect();
-
-    ContextError::new(error).with_contexts(context_strings)
+    ContextError::new(error).with_contexts(contexts)
 }
 
 /// Creates a reusable context accumulator function.
-pub const fn context_accumulator<E, I, C>(contexts: I) -> impl Fn(E) -> ContextError<E>
+pub fn context_accumulator<E, I, C>(contexts: I) -> impl Fn(E) -> ContextError<E>
 where
-    I: IntoIterator<Item = C> + Clone,
-    C: IntoErrorContext + Clone,
+    I: IntoIterator<Item = C>,
+    C: IntoErrorContext,
 {
-    move |error| accumulate_context(error, contexts.clone())
-}
-
-/// Collects zero or more errors into `Validated`.
-pub fn collect_errors<E, I>(errors: I) -> Validated<(), E>
-where
-    I: IntoIterator<Item = E>,
-{
-    let errors: Vec<E> = errors.into_iter().collect();
-    if errors.is_empty() {
-        Validated::Valid(())
-    } else {
-        Validated::invalid_many(errors)
-    }
-}
-
-/// Expands accumulated errors into individual fail-fast results.
-pub fn split_validated_errors<T, E>(validated: Validated<T, E>) -> Vec<Result<T, E>> {
-    match validated {
-        Validated::Valid(value) => vec![Ok(value)],
-        Validated::Invalid(errors) => errors.into_iter().map(Err).collect(),
-    }
-}
-
-/// Traverses a collection with a fallible function, accumulating all errors into `Validated`.
-pub fn traverse_validated<A, B, E, F>(
-    collection: impl IntoIterator<Item = A>, mut f: F,
-) -> Validated<Vec<B>, E>
-where
-    F: FnMut(A) -> Result<B, E>,
-{
-    let mut values = Vec::new();
-    let mut errors = ErrorVec::new();
-
-    for item in collection {
-        match f(item) {
-            Ok(value) => values.push(value),
-            Err(error) => errors.push(error),
-        }
-    }
-
-    match NonEmptyErrors::try_from_vec(errors) {
-        Some(errors) => Validated::Invalid(errors),
-        None => Validated::Valid(values),
-    }
+    let pre_evaluated: Vec<String> = contexts
+        .into_iter()
+        .map(IntoErrorContext::into_error_context)
+        .collect();
+    move |error| ContextError::new(error).with_contexts(pre_evaluated.clone())
 }
 
 #[cfg(test)]
@@ -377,6 +291,7 @@ mod tests {
 
         assert_eq!(error.context().len(), 3);
         assert_eq!(error.context()[0], "operation failed");
+        assert_eq!(error.contexts_raw(), error.context().as_slice());
     }
 
     #[test]
@@ -389,39 +304,27 @@ mod tests {
         assert_eq!(first.context().len(), 2);
         assert_eq!(second.context().len(), 2);
         assert_eq!(first.context(), second.context());
+        assert_eq!(first.context()[0], "user operation failed");
     }
 
     #[test]
-    fn error_conversions_preserve_non_clone_values() {
-        struct NoClone(&'static str);
-        let collected = collect_errors([NoClone("error")]);
-        assert_eq!(collected.error_slice()[0].0, "error");
-        let split = split_validated_errors(Validated::<(), NoClone>::invalid(NoClone("split")));
-        let mut split = split.into_iter();
-        assert!(matches!(split.next(), Some(Err(NoClone("split")))));
-        assert!(split.next().is_none());
+    fn into_error_context_implementations() {
+        let s = String::from("owned");
+        let ref_s = &s;
+        let str_literal = "literal";
+        let lazy = LazyContext::new(|| "lazy".to_string());
+
+        assert_eq!(ref_s.into_error_context(), "owned");
+        assert_eq!(s.into_error_context(), "owned");
+        assert_eq!(str_literal.into_error_context(), "literal");
+        assert_eq!(lazy.into_error_context(), "lazy");
     }
 
     #[test]
-    fn traverse_validated_accumulates_errors_in_input_order() {
-        let result = traverse_validated([1, 2, 3], |value| {
-            if value % 2 == 0 {
-                Ok(value * 10)
-            } else {
-                Err(format!("odd:{value}"))
-            }
-        });
-
-        assert_eq!(
-            result,
-            Validated::invalid_many(["odd:1".to_string(), "odd:3".to_string()])
-        );
-    }
-
-    #[test]
-    fn traverse_validated_keeps_all_successes() {
-        let result = traverse_validated([1, 2, 3], |value| Ok::<_, String>(value * 10));
-
-        assert_eq!(result, Validated::valid(vec![10, 20, 30]));
+    fn context_fn_attaches_context() {
+        let attach = context_fn("step failed");
+        let err = attach("io timeout");
+        assert_eq!(err.error(), &"io timeout");
+        assert_eq!(err.context(), vec!["step failed".to_string()]);
     }
 }

@@ -134,6 +134,30 @@ fn test_context_error_raw_slice() {
 
     assert_eq!(
         err.contexts_raw(),
-        &["first".to_string(), "second".to_string()]
+        &["second".to_string(), "first".to_string()]
+    );
+    assert_eq!(
+        err.context(),
+        vec!["second".to_string(), "first".to_string()]
+    );
+}
+
+#[test]
+fn test_with_contexts_heterogeneous_and_ref_string() {
+    let err = ContextError::new("core").with_contexts(["step 1", "step 2"]);
+    assert_eq!(
+        err.contexts_raw(),
+        &["step 2".to_string(), "step 1".to_string()]
+    );
+
+    let owned = String::from("by ref");
+    let err2 = err.with_context(&owned);
+    assert_eq!(
+        err2.contexts_raw(),
+        &[
+            "by ref".to_string(),
+            "step 2".to_string(),
+            "step 1".to_string()
+        ]
     );
 }

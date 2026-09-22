@@ -20,7 +20,6 @@
 
 pub use crate::context;
 pub use crate::error::{
-    ContextError, ErrorContext, IntoErrorContext, LazyContext, accumulate_context, collect_errors,
-    context_accumulator, context_fn, split_validated_errors, traverse_validated, with_context,
-    with_context_result,
+    ContextError, IntoErrorContext, LazyContext, accumulate_context, context_accumulator,
+    context_fn, with_context, with_context_result,
 };

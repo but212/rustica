@@ -68,9 +68,18 @@
 - **Minimal Trait Bounds**:
   - Removed unnecessary `E: Clone` bound from `Result<T, E>` implementations of `Pure`, `Functor`, `Applicative`, `Monad`, and `Foldable`.
   - Removed unnecessary `T: Clone` bound from `Monoid for Vec<T>`.
+- **ContextError Newest-First Temporal Congruence (Breaking)**:
+  - Standardized context entry storage and iteration on newest-first ordering.
+  - Aligned `contexts_raw(&self) -> &[String]`, `context_iter(&self) -> std::slice::Iter<'_, String>`, and `context(&self) -> Vec<String>` so that index `0` / the first item yielded is consistently the most recent context entry, matching `Display` and `error_chain()`.
+  - Generalized `ContextError::with_contexts` to accept any `I: IntoIterator<Item = C> where C: IntoErrorContext` (e.g. `[&str; N]`), streaming items directly into the context stack without intermediate vector allocation.
+  - Streamlined `IntoErrorContext::into_error_context` to return `String` directly and added support for `&String`.
+  - Optimized `context_accumulator` to pre-evaluate context strings once on construction rather than repeatedly allocating on every error site.
 - **Prelude Collision Prevention**: Removed `Command` from prelude to avoid shadowing `std::process::Command` (import via `rustica::datatypes::operational::Command`). Restored `Handler` alongside `Program`, `TryHandler`, and `TryProgram`.
 
 ### Removed (Breaking Changes)
+
+- **Error Submodule Stubs & Intermediary Types**: Removed circular compatibility modules `rustica::error::{context, convert, core}` and the ephemeral wrapper type `ErrorContext`.
+- **Orphaned Validated Error Helpers**: Removed `collect_errors`, `split_validated_errors`, and `traverse_validated` from `rustica::error` and `rustica::prelude::error`. Use standard `Validated::try_invalid_many`, `FromIterator` collection (`collection.into_iter().map(|x| Validated::from(f(x))).collect()`), and `into_result_first_error`.
 
 - **Prism::for_case**: Removed dead, unreferenced `Prism::for_case<P, R>` constructor whose generic parameters `<P, R>` were orphaned from `S` and `A`. Use `Prism::new`.
 - **Monad Transformers**: Completely removed `transformers/` module including `StateT`, `ReaderT`, `ContT`, `MonadTransformer`, and `lift`. Use native Rust control flow, `&mut S`, context passing, or `async`/`await`.
