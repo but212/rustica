@@ -225,7 +225,7 @@ impl<T, E> Validated<T, E> {
 
     /// Combines errors from two `Validated` instances, consuming both.
     ///
-    /// Returns `Some(Validated::Invalid(...))` with accumulated errors if either or both
+    /// Returns `Some(NonEmptyErrors<E>)` with accumulated errors if either or both
     /// instances are `Invalid`. Returns `None` if both instances are `Valid` (meaning there
     /// are no validation errors to combine).
     ///
@@ -237,21 +237,21 @@ impl<T, E> Validated<T, E> {
     /// let invalid1: Validated<i32, &str> = Validated::invalid("error1");
     /// let invalid2: Validated<i32, &str> = Validated::invalid("error2");
     /// let combined = invalid1.combine_errors(invalid2).unwrap();
-    /// assert_eq!(combined.error_slice(), &["error1", "error2"]);
+    /// assert_eq!(combined.as_slice(), &["error1", "error2"]);
     ///
     /// let valid1: Validated<i32, &str> = Validated::valid(1);
     /// let valid2: Validated<i32, &str> = Validated::valid(2);
     /// assert_eq!(valid1.combine_errors(valid2), None);
     /// ```
     #[inline]
-    pub fn combine_errors(self, other: Self) -> Option<Self> {
+    pub fn combine_errors(self, other: Self) -> Option<NonEmptyErrors<E>> {
         match (self, other) {
             (Validated::Valid(_), Validated::Valid(_)) => None,
-            (Validated::Valid(_), invalid @ Validated::Invalid(_)) => Some(invalid),
-            (invalid @ Validated::Invalid(_), Validated::Valid(_)) => Some(invalid),
+            (Validated::Valid(_), Validated::Invalid(es)) => Some(es),
+            (Validated::Invalid(es), Validated::Valid(_)) => Some(es),
             (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
                 e1.extend(e2);
-                Some(Validated::Invalid(e1))
+                Some(e1)
             },
         }
     }
@@ -463,21 +463,21 @@ mod tests {
                 .clone()
                 .combine_errors(other.clone())
                 .unwrap()
-                .error_slice(),
+                .as_slice(),
             &["error1", "error2", "error3"]
         );
         assert_eq!(
             Validated::valid(1)
                 .combine_errors(other)
                 .unwrap()
-                .error_slice(),
+                .as_slice(),
             &["error2", "error3"]
         );
         assert_eq!(
             invalid
                 .combine_errors(Validated::valid(1))
                 .unwrap()
-                .error_slice(),
+                .as_slice(),
             &["error1"]
         );
     }

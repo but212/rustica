@@ -30,4 +30,4 @@ pub use crate::datatypes::lens::Lens;
 pub use crate::datatypes::operational::{Handler, Program, TryHandler, TryProgram};
 pub use crate::datatypes::prism::Prism;
 pub use crate::datatypes::validated::{NonEmptyErrors, Validated};
-pub use crate::datatypes::{ChoiceError, FreeError, ValidatedError};
+pub use crate::datatypes::{ChoiceError, FreeError};

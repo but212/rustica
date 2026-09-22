@@ -24,6 +24,9 @@ This guide details all removals and breaking changes in Rustica 0.18.0, with con
 | `traits::Bifunctor`, `BinaryHKT` | Inherent `Validated::bimap`, `map`, `map_err` |
 | `Validated<E, A>` (type parameter order) | `Validated<T, E>` matching standard `Result<T, E>` |
 | `Validated::map_valid` / `fmap_invalid` | `Validated::map` / `Validated::map_err` |
+| `Validated::combine_errors` | Returns `Option<NonEmptyErrors<E>>` (eliminates impossible `Some(Valid)` state) |
+| `NonEmptyErrors::into_vec` | Returns `std::vec::Vec<E>` instead of `SmallVec<[E; 4]>` |
+| `Validated::try_unwrap*` / `ValidatedError` | `into_value`, `into_error_payload`, `as_option` (preserves domain error fidelity) |
 | `traits::Iso` | Standard `From` / `Into` conversions |
 | `traits::MonadError` | `Result::or_else`, `?` operator |
 | `traits::One` | Numeric literals (`1`) or `Iterator::product` |
@@ -264,6 +267,26 @@ let status = prism.review("Alice".to_string()); // owned value, zero unnecessary
   - Inherent `validated.map(f)` replaces `map_valid(f)`.
   - Inherent `validated.map_err(g)` replaces `fmap_invalid(g)`.
   - Inherent sync `validated.and_then(f)` provides monadic chaining for dependent validation steps without requiring conversion to `Result`.
+- **`combine_errors` Return Type (Breaking)**:
+  `Validated::combine_errors(self, other)` now returns `Option<NonEmptyErrors<E>>` instead of `Option<Validated<T, E>>`. This eliminates impossible `Some(Validated::Valid(_))` states and phantoms from the API:
+
+  ```rust
+  // Before (0.17.0)
+  let combined: Option<Validated<i32, &str>> = v1.combine_errors(v2);
+  let errors = combined.unwrap().error_slice();
+
+  // After (0.18.0)
+  let combined: Option<NonEmptyErrors<&str>> = v1.combine_errors(v2);
+  let errors = combined.unwrap().as_slice();
+  ```
+
+- **`NonEmptyErrors::into_vec` (Breaking)**:
+  `NonEmptyErrors::into_vec` now returns standard `std::vec::Vec<E>` instead of leaking crate-internal `SmallVec<[E; 4]>`. `NonEmptyErrors` also implements `PartialEq<[E]>`, `PartialEq<Vec<E>>`, and `Semigroup`.
+- **Removal of `ValidatedError` and Lossy `try_unwrap*` (Breaking)**:
+  `try_unwrap`, `try_unwrap_invalid`, `try_valid_ref`, and the unit error type `ValidatedError` have been removed. Use non-lossy accessors that preserve domain error fidelity:
+  - Replace `validated.try_unwrap()` with `validated.into_value() -> Result<T, NonEmptyErrors<E>>`.
+  - Replace `validated.try_unwrap_invalid()` with `validated.into_error_payload() -> Result<NonEmptyErrors<E>, T>`.
+  - Replace `validated.try_valid_ref()` with `validated.as_option() -> Option<&T>`.
 - Replace `validated.errors()` with `validated.error_slice()`.
 - Replace `ErrorsIter` / `ErrorsIterMut` with standard slice iteration (`validated.iter_errors()`).
 - `BinaryHKT` and `Bifunctor` traits are removed; call inherent `validated.bimap(...)`, `validated.map(...)`, and `validated.map_err(...)` directly.

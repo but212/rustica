@@ -3,68 +3,9 @@
 //! This module provides the fundamental `Validated<T, E>` type for accumulating
 //! validation errors, along with its associated methods and helper types.
 
+use crate::traits::semigroup::Semigroup;
 use smallvec::{SmallVec, smallvec};
-use std::fmt::{self, Display};
 
-/// Errors that can occur during `Validated<T, E>` operations.
-///
-/// This enum represents error conditions for [`Validated`]
-/// operations that would otherwise panic.
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::validated::ValidatedError;
-///
-/// let err = ValidatedError::ExpectedValid;
-/// assert_eq!(
-///     err.to_string(),
-///     "Validated::unwrap(): called on Invalid variant"
-/// );
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ValidatedError {
-    /// Expected Valid variant but got Invalid.
-    ///
-    /// This error occurs when expecting a `Validated::Valid` value
-    /// but encountering a `Validated::Invalid` value.
-    ExpectedValid,
-
-    /// Expected Invalid variant but got Valid.
-    ///
-    /// This error occurs when expecting a `Validated::Invalid` value
-    /// but encountering a `Validated::Valid` value.
-    ExpectedInvalid,
-}
-
-impl ValidatedError {
-    /// Returns `true` if this is an `ExpectedValid` error.
-    #[inline]
-    pub const fn is_expected_valid(&self) -> bool {
-        matches!(self, ValidatedError::ExpectedValid)
-    }
-
-    /// Returns `true` if this is an `ExpectedInvalid` error.
-    #[inline]
-    pub const fn is_expected_invalid(&self) -> bool {
-        matches!(self, ValidatedError::ExpectedInvalid)
-    }
-}
-
-impl Display for ValidatedError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ValidatedError::ExpectedValid => {
-                write!(f, "Validated::unwrap(): called on Invalid variant")
-            },
-            ValidatedError::ExpectedInvalid => {
-                write!(f, "Validated::unwrap_invalid(): called on Valid variant")
-            },
-        }
-    }
-}
-
-impl std::error::Error for ValidatedError {}
 
 /// A non-empty collection of validation errors.
 ///
@@ -113,13 +54,13 @@ impl<E> NonEmptyErrors<E> {
     where
         E: Clone,
     {
-        (!slice.is_empty()).then_some(Self(slice.to_vec().into()))
+        (!slice.is_empty()).then_some(Self(slice.iter().cloned().collect()))
     }
 
     /// Converts the non-empty error collection into a regular vector.
     #[inline]
-    pub fn into_vec(self) -> ErrorVec<E> {
-        self.0
+    pub fn into_vec(self) -> Vec<E> {
+        self.0.into_vec()
     }
 
     /// Returns a slice over the errors.
@@ -171,9 +112,35 @@ impl<E> std::ops::Deref for NonEmptyErrors<E> {
     }
 }
 
-impl<E: PartialEq> PartialEq<ErrorVec<E>> for NonEmptyErrors<E> {
-    fn eq(&self, other: &ErrorVec<E>) -> bool {
+impl<E: PartialEq> PartialEq<[E]> for NonEmptyErrors<E> {
+    fn eq(&self, other: &[E]) -> bool {
+        self.as_slice() == other
+    }
+}
+
+impl<E: PartialEq> PartialEq<&[E]> for NonEmptyErrors<E> {
+    fn eq(&self, other: &&[E]) -> bool {
+        self.as_slice() == *other
+    }
+}
+
+impl<E: PartialEq> PartialEq<Vec<E>> for NonEmptyErrors<E> {
+    fn eq(&self, other: &Vec<E>) -> bool {
         self.as_slice() == other.as_slice()
+    }
+}
+
+impl<E: PartialEq, const N: usize> PartialEq<[E; N]> for NonEmptyErrors<E> {
+    fn eq(&self, other: &[E; N]) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl<E> Semigroup for NonEmptyErrors<E> {
+    #[inline]
+    fn combine(mut self, other: Self) -> Self {
+        self.extend(other);
+        self
     }
 }
 
@@ -294,39 +261,6 @@ impl<T, E> Validated<T, E> {
         match self {
             Validated::Valid(a) => Err(a),
             Validated::Invalid(es) => Ok(es),
-        }
-    }
-
-    /// Safely extracts the valid value.
-    ///
-    /// This is the safe alternative to `unwrap()` that returns
-    /// a proper error type instead of panicking.
-    #[inline]
-    pub fn try_unwrap(self) -> Result<T, ValidatedError> {
-        match self {
-            Validated::Valid(a) => Ok(a),
-            Validated::Invalid(_) => Err(ValidatedError::ExpectedValid),
-        }
-    }
-
-    /// Safely extracts the error collection.
-    ///
-    /// This is the safe alternative to `unwrap_invalid()` that returns
-    /// a proper error type instead of panicking.
-    #[inline]
-    pub fn try_unwrap_invalid(self) -> Result<NonEmptyErrors<E>, ValidatedError> {
-        match self {
-            Validated::Invalid(es) => Ok(es),
-            Validated::Valid(_) => Err(ValidatedError::ExpectedInvalid),
-        }
-    }
-
-    /// Safely gets a reference to the valid value.
-    #[inline]
-    pub const fn try_valid_ref(&self) -> Result<&T, ValidatedError> {
-        match self {
-            Validated::Valid(a) => Ok(a),
-            Validated::Invalid(_) => Err(ValidatedError::ExpectedValid),
         }
     }
 
@@ -474,22 +408,38 @@ mod tests {
     }
 
     #[test]
-    fn test_safe_unwrapping() {
+    fn test_value_and_error_extraction() {
         let valid: Validated<i32, &str> = Validated::valid(42);
-        assert_eq!(valid.try_valid_ref(), Ok(&42));
-        assert_eq!(valid.clone().try_unwrap(), Ok(42));
-        assert_eq!(
-            valid.try_unwrap_invalid(),
-            Err(ValidatedError::ExpectedInvalid)
-        );
+        assert_eq!(valid.clone().into_value(), Ok(42));
+        assert_eq!(valid.into_error_payload(), Err(42));
 
         let invalid: Validated<i32, &str> = Validated::invalid("err");
-        assert_eq!(invalid.try_valid_ref(), Err(ValidatedError::ExpectedValid));
-        assert_eq!(
-            invalid.clone().try_unwrap(),
-            Err(ValidatedError::ExpectedValid)
-        );
-        assert!(invalid.try_unwrap_invalid().is_ok());
+        assert_eq!(invalid.clone().into_value(), Err(NonEmptyErrors::new("err")));
+        assert_eq!(invalid.into_error_payload(), Ok(NonEmptyErrors::new("err")));
+    }
+
+    #[test]
+    fn test_non_empty_errors_contracts() {
+        let errors = NonEmptyErrors::new("first".to_string());
+        let vec_out: Vec<String> = errors.clone().into_vec();
+        assert_eq!(vec_out, vec!["first".to_string()]);
+
+        // PartialEq contracts
+        assert_eq!(errors, vec!["first".to_string()]);
+        assert_eq!(errors, ["first".to_string()][..]);
+        assert_eq!(errors, &["first".to_string()][..]);
+        assert_eq!(errors, ["first".to_string()]);
+
+        // Semigroup contract
+        let other = NonEmptyErrors::new("second".to_string());
+        let combined = errors.combine(other);
+        assert_eq!(combined.as_slice(), &["first", "second"]);
+
+        // try_from_slice contract
+        let slice = ["a", "b"];
+        let from_slice = NonEmptyErrors::try_from_slice(&slice).unwrap();
+        assert_eq!(from_slice.as_slice(), &["a", "b"]);
+        assert_eq!(NonEmptyErrors::<&str>::try_from_slice(&[]), None);
     }
 
     #[test]
@@ -521,25 +471,5 @@ mod tests {
         assert_eq!(from_some, Validated::valid(10));
         let from_none: Validated<i32, &str> = Validated::from_option_with(None, || "dynamic_err");
         assert_eq!(from_none, Validated::invalid("dynamic_err"));
-    }
-
-    #[test]
-    fn test_validated_error_display() {
-        assert_eq!(
-            ValidatedError::ExpectedValid.to_string(),
-            "Validated::unwrap(): called on Invalid variant"
-        );
-        assert_eq!(
-            ValidatedError::ExpectedInvalid.to_string(),
-            "Validated::unwrap_invalid(): called on Valid variant"
-        );
-    }
-
-    #[test]
-    fn test_validated_error_predicates() {
-        assert!(ValidatedError::ExpectedValid.is_expected_valid());
-        assert!(!ValidatedError::ExpectedValid.is_expected_invalid());
-        assert!(ValidatedError::ExpectedInvalid.is_expected_invalid());
-        assert!(!ValidatedError::ExpectedInvalid.is_expected_valid());
     }
 }

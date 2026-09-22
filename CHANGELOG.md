@@ -14,6 +14,7 @@
 - **Choice Inherent Mapping**: Added inherent `Choice::map` method.
 - **Validated Combinators**: Added inherent sync `and_then`, inherent `map`, and `map_err` to `Validated<T, E>`.
 - **Optics & Law Test Coverage**: Added comprehensive `Prism` and `Lens` law verification test suites covering preview/review consistency, GetSet/SetGet/SetSet QuickCheck laws, non-`Clone` type support, and sequential composition (`tests/datatypes/test_prism.rs`, `tests/datatypes/test_lens.rs`), along with functor, applicative, and monad law coverage.
+- **NonEmptyErrors Algebraic & Equality Traits**: Implemented `Semigroup for NonEmptyErrors<E>`, along with standard slice and vector comparisons: `PartialEq<[E]>`, `PartialEq<&[E]>`, `PartialEq<Vec<E>>`, and `PartialEq<[E; N]>`.
 - **CI / Miri Soundness**: Added `test_operational_miri_ownership_and_drop` verifying memory soundness of trampoline evaluation under Miri.
 
 ### Changed
@@ -36,10 +37,13 @@
   - **`traits::monoid::repeat` Ownership Consumption**: Optimized `repeat` to consume the initial owned `value` on the final combination step, reducing clone count from $n$ to $n - 1$ for all $n \ge 1$.
   - **`Free::run_internal` Unshared Subtree Evaluation**: Optimized trampoline loop with `std::mem::replace` and `Arc::try_unwrap`, eliminating redundant deep AST clones on unshared `Free::Bind` nodes during `run` and `try_run`.
   - **Clippy Redundant Clone Cleanups**: Removed unneeded `.clone()` calls across `choice`, `free`, `prism`, `validated`, and benchmarks/examples (`clippy::redundant_clone`), and clarified reference-counted pointer cloning via `Arc::clone` and `Rc::clone` (`clippy::clone_on_ref_ptr`).
-- **Validated Type Parameter Alignment**:
+- **Validated Type Parameter Alignment & Combinator Contracts**:
   - Reordered type parameters to `Validated<T, E>` (from `Validated<E, A>`), aligning type layout with standard `Result<T, E>`.
   - Aligned `bimap(f_val, g_err)` argument order with `(T, E)`.
   - Relaxed async method bounds by removing unnecessary `'static` constraints.
+  - **`combine_errors` Total Return Type (Breaking)**: Changed `combine_errors` to return `Option<NonEmptyErrors<E>>` instead of `Option<Validated<T, E>>`. Eliminates impossible `Some(Validated::Valid(_))` states and phantom generic parameters.
+  - **`NonEmptyErrors::into_vec` Vector Contract (Breaking)**: `NonEmptyErrors::into_vec` now returns standard `std::vec::Vec<E>` instead of leaking crate-private `SmallVec<[E; 4]>`, and `try_from_slice` constructs inline without intermediate heap allocations.
+  - **`Applicative::lift2` Zero-Allocation**: Delegated `Applicative::lift2` directly to `fa.zip_with(fb, f)`.
 - **Choice Formatting & Test Arbitrary**: `Display` now streams the primary and alternatives directly instead of allocating an intermediate `Vec<String>` plus joined `String`. The `quickcheck` `Arbitrary` impl drops redundant `Clone + 'static` bounds and adds a `shrink` over alternatives. Added regression coverage for `sequence` and `Display` output.
 - **Choice Flatten Fallback & Error Rename (Breaking)**: `flatten`/`try_flatten` now concatenate every non-empty inner iterable in priority order, so alternatives are consulted when the primary iterable yields nothing; the error is returned only when all iterables are empty. `ChoiceError::EmptyPrimaryIterator` is renamed to `EmptyFlatten` (predicate `is_empty_flatten`) to match the new semantics.
 - **Choice Stack Optimization**: Replaced `SmallVec<[T; 7]>` in `Choice<T>::alternatives` with `Vec<T>`, significantly reducing stack size and preventing stack overflow in nested structures.
@@ -62,6 +66,7 @@
 - **Choice Legacy APIs**: Removed `Choice::first`, `Choice::filter_values`, `Choice::first_match`, `Choice::bind`, `Choice::apply`, and `Pure`/`Applicative`/`Monad` implementations. Use priority/fallback methods (`Choice::primary`, `Choice::filter`, `Choice::try_each`, `Iterator::find_map`).
 - **Trait Extension Removal**: Completely removed hollow extension traits (`FunctorExt`, `SemigroupExt`, `MonoidExt`, `PureExt`, and `FoldableExt`). `fold_option` is now a default method directly on the [`Foldable`](crate::traits::foldable::Foldable) trait, and `prelude::traits_ext` has been removed.
 - **Validated Iterators & Obsolete Methods**: Removed `Validated::errors`, `ErrorsIter`, `ErrorsIterMut`, `Validated::map_valid` (use `map`), and `Validated::fmap_invalid` (use `map_err`).
+- **Validated Lossy Unwrappers & ValidatedError**: Removed `Validated::try_unwrap`, `try_unwrap_invalid`, `try_valid_ref`, and the unit error type `ValidatedError`. Value and error extraction is unified around non-lossy accessors (`into_value`, `into_error_payload`, `as_option`). Removed `ValidatedError` from `datatypes` and `prelude`.
 - **Vec Monad Omission**: Omitted `impl<T> Monad for Vec<T>` to avoid method resolution conflict with standard slice `[T]::join`.
 - **Tests & Benchmarks**: Removed `tests/migration_std_replacements.rs`, `tests/integration/categorical_utils_pipeline.rs`, and `benches/datatypes/io.rs`.
 

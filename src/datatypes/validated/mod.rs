@@ -10,9 +10,6 @@
 //!
 //! ```rust
 //! use rustica::datatypes::validated::Validated;
-//! use rustica::traits::applicative::Applicative;
-//! use rustica::traits::functor::Functor;
-//! use rustica::traits::pure::Pure;
 //!
 //! // Create validation functions
 //! let validate_positive = |x: &i32| -> Validated<i32, String> {
@@ -110,7 +107,7 @@ pub mod core;
 pub mod iter;
 pub mod traits;
 
-pub use core::{NonEmptyErrors, Validated, ValidatedError};
+pub use core::{NonEmptyErrors, Validated};
 pub use iter::*;
 
 #[cfg(test)]
@@ -211,7 +208,7 @@ mod tests {
 
         let combined = v1.combine_errors(v2).unwrap();
         assert_eq!(
-            combined.error_slice(),
+            combined.as_slice(),
             &["e1".to_string(), "e2".to_string()]
         );
     }

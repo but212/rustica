@@ -36,11 +36,9 @@ pub mod validated;
 
 pub use choice::ChoiceError;
 pub use free::FreeError;
-pub use validated::ValidatedError;
 
 // Backward-compatibility alias for former datatypes::error module
 pub mod error {
     pub use crate::datatypes::choice::ChoiceError;
     pub use crate::datatypes::free::FreeError;
-    pub use crate::datatypes::validated::ValidatedError;
 }

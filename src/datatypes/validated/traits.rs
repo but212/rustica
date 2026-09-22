@@ -194,23 +194,7 @@ impl<T, E> Applicative for Validated<T, E> {
         U: Clone,
         V: Clone,
     {
-        match (fa, fb) {
-            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
-            (a, b) => {
-                let mut errors = ErrorVec::new();
-
-                if let Validated::Invalid(e) = a {
-                    errors.extend(e);
-                }
-                if let Validated::Invalid(e) = b {
-                    errors.extend(e);
-                }
-
-                Validated::Invalid(
-                    NonEmptyErrors::try_from_vec(errors).expect("Validated errors cannot be empty"),
-                )
-            },
-        }
+        fa.zip_with(fb, f)
     }
 
     fn lift3<U, V, W, C, F>(
