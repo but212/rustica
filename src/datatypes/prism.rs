@@ -20,7 +20,7 @@
 //!         Status::Active(name) => Some(name.clone()),
 //!         _ => None,
 //!     },
-//!     |name: &String| Status::Active(name.clone()),
+//!     Status::Active,
 //! );
 //!
 //! let pending_prism = Prism::new(
@@ -28,7 +28,7 @@
 //!         Status::Pending(days) => Some(*days),
 //!         _ => None,
 //!     },
-//!     |days: &u32| Status::Pending(*days),
+//!     Status::Pending,
 //! );
 //!
 //! let active_user = Status::Active("Alice".to_string());
@@ -40,7 +40,7 @@
 //! assert_eq!(pending_prism.preview(&pending_user), Some(7));
 //!
 //! // Construct enum variants
-//! let new_active = active_prism.review(&"Bob".to_string());
+//! let new_active = active_prism.review("Bob".to_string());
 //! assert_eq!(new_active, Status::Active("Bob".to_string()));
 //!
 //! // Transform specific variants
@@ -169,7 +169,7 @@ use std::marker::PhantomData;
 /// * `S` - The source type (the sum type, typically an enum)
 /// * `A` - The focus type (the case we're interested in, typically a variant's content)
 /// * `PreviewFn` - The function type for extracting a value (`Fn(&S) -> Option<A>`)
-/// * `ReviewFn` - The function type for constructing a sum type (`Fn(&A) -> S`)
+/// * `ReviewFn` - The function type for constructing a sum type (`Fn(A) -> S`)
 ///
 /// # Design Notes
 ///
@@ -198,7 +198,7 @@ use std::marker::PhantomData;
 ///         Status::Active(name) => Some(name.clone()),
 ///         _ => None,
 ///     },
-///     |name: &String| Status::Active(name.clone()),
+///     Status::Active,
 /// );
 ///
 /// // Usage examples
@@ -210,7 +210,7 @@ use std::marker::PhantomData;
 /// assert_eq!(active_prism.preview(&inactive_status), None);
 ///
 /// // Review (construct)
-/// let new_active = active_prism.review(&"Bob".to_string());
+/// let new_active = active_prism.review("Bob".to_string());
 /// assert!(matches!(new_active, Status::Active(name) if name == "Bob"));
 /// ```
 ///
@@ -220,7 +220,7 @@ use std::marker::PhantomData;
 pub struct Prism<S, A, PreviewFn, ReviewFn>
 where
     PreviewFn: Fn(&S) -> Option<A>,
-    ReviewFn: Fn(&A) -> S,
+    ReviewFn: Fn(A) -> S,
 {
     /// Function that attempts to extract a value of type A from S
     preview: PreviewFn,
@@ -232,7 +232,7 @@ where
 impl<S, A, PreviewFn, ReviewFn> Prism<S, A, PreviewFn, ReviewFn>
 where
     PreviewFn: Fn(&S) -> Option<A>,
-    ReviewFn: Fn(&A) -> S,
+    ReviewFn: Fn(A) -> S,
 {
     /// Creates a new Prism with the given preview and review functions.
     ///
@@ -261,7 +261,7 @@ where
     /// # Type Parameters
     ///
     /// * `PreviewFn` - Type of the preview function: `Fn(&S) -> Option<A>`
-    /// * `ReviewFn` - Type of the review function: `Fn(&A) -> S`
+    /// * `ReviewFn` - Type of the review function: `Fn(A) -> S`
     ///
     /// # Examples
     ///
@@ -282,7 +282,7 @@ where
     ///         Result::Ok(v) => Some(*v),
     ///         Result::Err(_) => None,
     ///     },
-    ///     |v: &i32| Result::Ok(*v),
+    ///     Result::Ok,
     /// );
     /// ```
     pub const fn new(preview: PreviewFn, review: ReviewFn) -> Self {
@@ -334,7 +334,7 @@ where
     ///         Message::Text(t) => Some(t.clone()),
     ///         _ => None,
     ///     },
-    ///     |t: &String| Message::Text(t.clone()),
+    ///     Message::Text,
     /// );
     ///
     /// let text_msg = Message::Text("Hello".to_string());
@@ -387,13 +387,13 @@ where
     ///         Message::Text(t) => Some(t.clone()),
     ///         _ => None,
     ///     },
-    ///     |t: &String| Message::Text(t.clone()),
+    ///     Message::Text,
     /// );
     ///
-    /// let msg = text_prism.review(&"Hello, world!".to_string());
+    /// let msg = text_prism.review("Hello, world!".to_string());
     /// assert!(matches!(msg, Message::Text(t) if t == "Hello, world!"));
     /// ```
-    pub fn review(&self, a: &A) -> S {
+    pub fn review(&self, a: A) -> S {
         (self.review)(a)
     }
 
@@ -422,7 +422,7 @@ where
     /// * `P` - The sum type (often inferred)
     /// * `R` - The focus type (often inferred)
     /// * `PreviewFn` - Type of the preview function: `Fn(&S) -> Option<A>`
-    /// * `ReviewFn` - Type of the review function: `Fn(&A) -> S`
+    /// * `ReviewFn` - Type of the review function: `Fn(A) -> S`
     ///
     /// # Examples
     ///
@@ -444,7 +444,7 @@ where
     ///         Shape::Circle(r) => Some(*r),
     ///         _ => None,
     ///     },
-    ///     |r: &f64| Shape::Circle(*r),
+    ///     Shape::Circle,
     /// );
     ///
     /// // Test shapes
@@ -504,7 +504,7 @@ where
     ///         Counter::Value(v) => Some(*v),
     ///         _ => None,
     ///     },
-    ///     |v: &i32| Counter::Value(*v),
+    ///     Counter::Value,
     /// );
     ///
     /// let counter = Counter::Value(5);
@@ -533,7 +533,7 @@ where
                 if new_value == current_value {
                     source // Return original structure (structural sharing)
                 } else {
-                    self.review(&new_value) // Create new structure
+                    self.review(new_value) // Create new structure
                 }
             },
             None => source, // Preview failed, return original structure
@@ -576,7 +576,7 @@ where
     ///         Outer::Nested(inner) => Some(inner.clone()),
     ///         _ => None,
     ///     },
-    ///     |i: &Inner| Outer::Nested(i.clone()),
+    ///     Outer::Nested,
     /// );
     ///
     /// let value_prism = Prism::new(
@@ -584,7 +584,7 @@ where
     ///         Inner::Value(v) => Some(*v),
     ///         _ => None,
     ///     },
-    ///     |v: &i32| Inner::Value(*v),
+    ///     Inner::Value,
     /// );
     ///
     /// // Chain to create a prism from Outer to i32
@@ -593,18 +593,16 @@ where
     /// let data = Outer::Nested(Inner::Value(42));
     /// assert_eq!(deep_prism.preview(&data), Some(42));
     ///
-    /// let constructed = deep_prism.review(&100);
+    /// let constructed = deep_prism.review(100);
     /// assert_eq!(constructed, Outer::Nested(Inner::Value(100)));
     /// ```
     #[inline]
     pub fn then<B, PreviewFn2, ReviewFn2>(
         self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
-    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(&B) -> S>
+    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(B) -> S>
     where
-        A: Clone,
-        B: Clone,
         PreviewFn2: Fn(&A) -> Option<B>,
-        ReviewFn2: Fn(&B) -> A,
+        ReviewFn2: Fn(B) -> A,
     {
         let preview1 = self.preview;
         let review1 = self.review;
@@ -613,7 +611,7 @@ where
 
         Prism::new(
             move |s: &S| preview1(s).and_then(|a| preview2(&a)),
-            move |b: &B| review1(&review2(b)),
+            move |b: B| review1(review2(b)),
         )
     }
 
@@ -654,7 +652,7 @@ where
     ///         Status::Active(name) => Some(name.clone()),
     ///         _ => None,
     ///     },
-    ///     |name: &String| Status::Active(name.clone()),
+    ///     Status::Active,
     /// );
     ///
     /// let status = Status::Active("Alice".to_string());
@@ -681,7 +679,7 @@ where
                 if new_value == current_value {
                     source // Return original structure (structural sharing)
                 } else {
-                    self.review(&new_value) // Create new structure
+                    self.review(new_value) // Create new structure
                 }
             },
             None => source, // Preview failed (focus absent), return original structure unchanged
@@ -705,7 +703,7 @@ mod unit_tests {
         Status,
         String,
         Box<dyn Fn(&Status) -> Option<String>>,
-        Box<dyn Fn(&String) -> Status>,
+        Box<dyn Fn(String) -> Status>,
     >;
     fn active_prism() -> ActivePrism {
         Prism::new(
@@ -713,14 +711,14 @@ mod unit_tests {
                 Status::Active(name) => Some(name.clone()),
                 _ => None,
             }),
-            Box::new(|name| Status::Active(name.clone())),
+            Box::new(Status::Active),
         )
     }
     type ErrorPrism = Prism<
         Status,
         (u32, String),
         Box<dyn Fn(&Status) -> Option<(u32, String)>>,
-        Box<dyn Fn(&(u32, String)) -> Status>,
+        Box<dyn Fn((u32, String)) -> Status>,
     >;
     fn error_prism() -> ErrorPrism {
         Prism::new(
@@ -728,10 +726,7 @@ mod unit_tests {
                 Status::Error { code, message } => Some((*code, message.clone())),
                 _ => None,
             }),
-            Box::new(|value| Status::Error {
-                code: value.0,
-                message: value.1.clone(),
-            }),
+            Box::new(|(code, message)| Status::Error { code, message }),
         )
     }
 
@@ -741,9 +736,9 @@ mod unit_tests {
         let target = Status::Active("Alice".into());
         assert_eq!(prism.preview(&target), Some("Alice".into()));
         assert_eq!(prism.preview(&Status::Inactive), None);
-        assert_eq!(prism.review(&"Bob".into()), Status::Active("Bob".into()));
+        assert_eq!(prism.review("Bob".into()), Status::Active("Bob".into()));
         assert_eq!(
-            prism.preview(&prism.review(&"LawCheck".into())),
+            prism.preview(&prism.review("LawCheck".into())),
             Some("LawCheck".into())
         );
 
@@ -787,14 +782,14 @@ mod unit_tests {
                 ConfigValue::Dictionary(map) => Some(map.clone()),
                 _ => None,
             },
-            |map: &HashMap<String, ConfigValue>| ConfigValue::Dictionary(map.clone()),
+            ConfigValue::Dictionary,
         );
         let mut values = HashMap::new();
         values.insert("name".into(), ConfigValue::String("Alice".into()));
         values.insert("age".into(), ConfigValue::Integer(30));
         let mut updated_values = values.clone();
         updated_values.insert("theme".into(), ConfigValue::String("dark".into()));
-        let updated = dict.review(&updated_values);
+        let updated = dict.review(updated_values);
         let new_values = dict.preview(&updated).unwrap();
         assert_eq!(new_values.len(), 3);
         assert!(new_values.contains_key("theme"));
@@ -814,18 +809,18 @@ mod unit_tests {
                 Outer::Nested(inner) => Some(inner.clone()),
                 _ => None,
             },
-            |inner: &Inner| Outer::Nested(inner.clone()),
+            Outer::Nested,
         );
         let inner = Prism::new(
             |value: &Inner| match value {
                 Inner::Val(value) => Some(*value),
                 Inner::Empty => None,
             },
-            |value: &i32| Inner::Val(*value),
+            Inner::Val,
         );
         let deep = outer.then(inner);
         assert_eq!(deep.preview(&Outer::Nested(Inner::Val(42))), Some(42));
-        assert_eq!(deep.review(&100), Outer::Nested(Inner::Val(100)));
+        assert_eq!(deep.review(100), Outer::Nested(Inner::Val(100)));
         assert_eq!(deep.preview(&Outer::Nested(Inner::Empty)), None);
         assert_eq!(deep.preview(&Outer::Other), None);
 

@@ -30,6 +30,7 @@ This guide details all removals and breaking changes in Rustica 0.18.0, with con
 | `Free::fold_map` | `Free::run` or `Free::try_run` with trampoline evaluation |
 | `Free::into_pure` | `Free::to_pure` |
 | `Lens::from_iso`, `Prism::from_iso` | `Lens::new` or `Prism::new` directly with closures |
+| `Prism::review(&self, a: &A)` | `Prism::review(&self, a: A)` (owned focus semantics) |
 | `Command` in `rustica::prelude::*` | Explicit import: `use rustica::datatypes::operational::Command;` |
 | `pvec::PersistentVector` (deprecated, removal in v0.19.0) | `imbl::Vector` or standard `Vec<T>` |
 
@@ -178,6 +179,8 @@ Also, `Free::into_pure` has been removed in favor of `Free::to_pure` (following 
 
 ## 6. Optics (Lens & Prism)
 
+### Removal of `from_iso` Constructors
+
 `from_iso` constructors have been removed because the `Iso` trait was removed:
 
 ```rust
@@ -189,6 +192,38 @@ let lens = Lens::new(
     |s: &Source| s.to_focus(),
     |mut s: Source, focus| { s.set_focus(focus); s },
 );
+```
+
+### Prism Owned Review Semantics (Breaking)
+
+`Prism` review operations and constructors now use owned values (`A`) instead of borrowed references (`&A`):
+
+- `ReviewFn` bound changed from `Fn(&A) -> S` to `Fn(A) -> S`.
+- `review(&self, a: &A) -> S` changed to `review(&self, a: A) -> S`.
+- Enum variant constructors (e.g. `Status::Active`) can now be passed directly to `Prism::new` without closure wrappers.
+- `modify`, `set_if_different`, and sequential optic composition (`Prism::then`) avoid intermediate clones.
+- `Prism::then` drops the spurious `A: Clone` and `B: Clone` bounds.
+
+```rust
+// Before (0.17.0)
+let prism = Prism::new(
+    |s: &Status| match s {
+        Status::Active(name) => Some(name.clone()),
+        _ => None,
+    },
+    |name: &String| Status::Active(name.clone()), // required &String closure and clone
+);
+let status = prism.review(&"Alice".to_string()); // required reference
+
+// After (0.18.0)
+let prism = Prism::new(
+    |s: &Status| match s {
+        Status::Active(name) => Some(name.clone()),
+        _ => None,
+    },
+    Status::Active, // direct constructor passing
+);
+let status = prism.review("Alice".to_string()); // owned value, zero unnecessary clones
 ```
 
 ---

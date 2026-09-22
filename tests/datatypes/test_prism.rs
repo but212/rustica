@@ -9,25 +9,25 @@ enum TestStatus {
 }
 
 fn active_prism()
--> Prism<TestStatus, i32, impl Fn(&TestStatus) -> Option<i32>, impl Fn(&i32) -> TestStatus> {
+-> Prism<TestStatus, i32, impl Fn(&TestStatus) -> Option<i32>, impl Fn(i32) -> TestStatus> {
     Prism::new(
         |s: &TestStatus| match s {
             TestStatus::Active(n) => Some(*n),
             _ => None,
         },
-        |n: &i32| TestStatus::Active(*n),
+        TestStatus::Active,
     )
 }
 
 fn completed_prism()
--> Prism<TestStatus, String, impl Fn(&TestStatus) -> Option<String>, impl Fn(&String) -> TestStatus>
+-> Prism<TestStatus, String, impl Fn(&TestStatus) -> Option<String>, impl Fn(String) -> TestStatus>
 {
     Prism::new(
         |s: &TestStatus| match s {
             TestStatus::Completed(msg) => Some(msg.clone()),
             _ => None,
         },
-        |msg: &String| TestStatus::Completed(msg.clone()),
+        TestStatus::Completed,
     )
 }
 
@@ -36,7 +36,7 @@ fn completed_prism()
 #[quickcheck]
 fn test_prism_review_preview_law(a: i32) -> bool {
     let p = active_prism();
-    let constructed = p.review(&a);
+    let constructed = p.review(a);
     p.preview(&constructed) == Some(a)
 }
 
@@ -47,7 +47,7 @@ fn test_prism_preview_review_law() {
     let p = active_prism();
     let s = TestStatus::Active(42);
     if let Some(focus) = p.preview(&s) {
-        assert_eq!(p.review(&focus), s);
+        assert_eq!(p.review(focus), s);
     } else {
         panic!("preview should have succeeded");
     }
@@ -87,13 +87,13 @@ fn test_prism_composition() {
             Outer::Inner(status) => Some(status.clone()),
             _ => None,
         },
-        |status: &TestStatus| Outer::Inner(status.clone()),
+        Outer::Inner,
     );
 
     let composed = outer_prism.then(active_prism());
 
     // Review through composition
-    let built = composed.review(&99);
+    let built = composed.review(99);
     assert_eq!(built, Outer::Inner(TestStatus::Active(99)));
 
     // Preview through composition
@@ -113,6 +113,6 @@ fn test_prism_composition() {
 fn test_string_prism_review_preview() {
     let p = completed_prism();
     let original = "Hello Rustica".to_string();
-    let s = p.review(&original);
+    let s = p.review(original.clone());
     assert_eq!(p.preview(&s), Some(original));
 }

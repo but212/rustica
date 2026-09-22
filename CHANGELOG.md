@@ -18,6 +18,11 @@
 
 ### Changed
 
+- **Prism Owned Review Semantics (Breaking)**:
+  - Migrated `ReviewFn` from `Fn(&A) -> S` to `Fn(A) -> S`, and `Prism::review(&self, a: &A) -> S` to `Prism::review(&self, a: A) -> S`.
+  - Enables direct passing of enum variant constructors (e.g. `Prism::new(..., Status::Active)`).
+  - Eliminates forced cloning in `review`, `modify`, `set_if_different`, and sequential optic composition (`Prism::then`).
+  - Removed spurious `A: Clone` and `B: Clone` bounds from `Prism::then`.
 - **Clone Overhead Optimizations**:
   - **`traits::monoid::repeat` Ownership Consumption**: Optimized `repeat` to consume the initial owned `value` on the final combination step, reducing clone count from $n$ to $n - 1$ for all $n \ge 1$.
   - **`Free::run_internal` Unshared Subtree Evaluation**: Optimized trampoline loop with `std::mem::replace` and `Arc::try_unwrap`, eliminating redundant deep AST clones on unshared `Free::Bind` nodes during `run` and `try_run`.

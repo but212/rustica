@@ -21,7 +21,7 @@ pub fn prism_benchmarks(harness: &Harness) {
             Status::Active(name) => Some(name.clone()),
             _ => None,
         },
-        |name: &String| Status::Active(name.clone()),
+        Status::Active,
     );
 
     group.bench_fn("preview_hit", || {

@@ -24,27 +24,25 @@ enum AppNotification {
 }
 
 fn running_progress_prism()
--> Prism<TaskStatus, u8, impl Fn(&TaskStatus) -> Option<u8>, impl Fn(&u8) -> TaskStatus> {
+-> Prism<TaskStatus, u8, impl Fn(&TaskStatus) -> Option<u8>, impl Fn(u8) -> TaskStatus> {
     Prism::new(
         |status: &TaskStatus| match status {
             TaskStatus::Running { progress } => Some(*progress),
             _ => None,
         },
-        |progress: &u8| TaskStatus::Running {
-            progress: *progress,
-        },
+        |progress: u8| TaskStatus::Running { progress },
     )
 }
 
 fn completed_result_prism()
--> Prism<TaskStatus, String, impl Fn(&TaskStatus) -> Option<String>, impl Fn(&String) -> TaskStatus>
+-> Prism<TaskStatus, String, impl Fn(&TaskStatus) -> Option<String>, impl Fn(String) -> TaskStatus>
 {
     Prism::new(
         |status: &TaskStatus| match status {
             TaskStatus::Completed(res) => Some(res.clone()),
             _ => None,
         },
-        |res: &String| TaskStatus::Completed(res.clone()),
+        TaskStatus::Completed,
     )
 }
 
@@ -52,14 +50,14 @@ fn notification_task_prism() -> Prism<
     AppNotification,
     TaskStatus,
     impl Fn(&AppNotification) -> Option<TaskStatus>,
-    impl Fn(&TaskStatus) -> AppNotification,
+    impl Fn(TaskStatus) -> AppNotification,
 > {
     Prism::new(
         |notif: &AppNotification| match notif {
             AppNotification::Task(status) => Some(status.clone()),
             _ => None,
         },
-        |status: &TaskStatus| AppNotification::Task(status.clone()),
+        AppNotification::Task,
     )
 }
 
@@ -85,11 +83,11 @@ fn main() {
     println!("  Preview successfully extracted progress: Some(45)");
     println!("  Preview on non-matching variant safely returned None");
 
-    let new_running = progress_prism.review(&75);
+    let new_running = progress_prism.review(75);
     println!("  Reviewed new TaskStatus from progress: {:?}", new_running);
     assert_eq!(new_running, TaskStatus::Running { progress: 75 });
 
-    let new_completed = completed_prism.review(&"Export complete".to_string());
+    let new_completed = completed_prism.review("Export complete".to_string());
     assert_eq!(
         new_completed,
         TaskStatus::Completed("Export complete".to_string())
@@ -159,7 +157,7 @@ fn main() {
         AppNotification::Task(TaskStatus::Running { progress: 50 })
     );
 
-    let constructed_notif = notification_progress_prism.review(&80);
+    let constructed_notif = notification_progress_prism.review(80);
     println!(
         "  Constructed deep structure via review: {:?}",
         constructed_notif
