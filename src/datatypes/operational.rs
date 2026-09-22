@@ -156,6 +156,12 @@ pub struct TryProgram<H, A, E> {
 }
 
 impl<H, A, E> TryProgram<H, A, E> {
+    /// Takes ownership of the node, transiently leaving `None` behind.
+    ///
+    /// Invariant: `node` is `Some` on every externally observable value; `None` exists only
+    /// inside this method and the iterative [`Drop`] implementation. Since `node` is private,
+    /// `TryProgram` is not `Clone`, and every consuming method takes `self` by value, no safe
+    /// caller can reach a consumed node twice, so the `expect` below asserts an unreachable state.
     #[inline]
     fn take_node(&mut self) -> Node<H, A, E> {
         self.node.take().expect("TryProgram node already consumed")

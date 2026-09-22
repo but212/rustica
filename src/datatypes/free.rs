@@ -17,9 +17,12 @@
 //!
 //! Rustica provides two distinct mechanisms for command-oriented programming:
 //!
-//! - **`Free<F, A>` (DSL AST Engine)**: Construct pure, inspectable, and cloneable
-//!   computation trees. Backed by `Arc`, a `Free` AST can be traversed across multiple passes,
-//!   transformed, inspected, or interpreted by different backends (e.g., dry-run simulator vs real execution).
+//! - **`Free<F, A>` (DSL AST Engine)**: Construct cloneable computation trees.
+//!   Backed by `Arc`, a `Free` AST can be cloned and interpreted by different backends
+//!   (e.g., dry-run simulator vs real execution). Node shape is inspectable via
+//!   [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), and [`is_bind`](Free::is_bind);
+//!   `Suspend` exposes its effect command `F` and `Pure` exposes its value `A`. Continuations
+//!   are opaque, so no structural fold over the tree is provided.
 //!   It is fully supported and intentionally designed for reusable DSLs.
 //! - **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**:
 //!   Statically couples commands to a specific handler `H` at compile time, eliminating runtime
