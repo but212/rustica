@@ -8,8 +8,8 @@ description = "Rustica is a functional programming library for the Rust language
 license = "Apache-2.0"
 repository = "https://github.com/but212/rustica"
 readme = "README.md"
-keywords = ["functional", "immutable", "monad", "persistent", "data-structures"]
-categories = ["data-structures", "rust-patterns", "algorithms"]
+keywords = ["functional", "data-structures"]
+categories = ["data-structures"]
 documentation = "https://docs.rs/rustica"
 
 [package.metadata.docs.rs]
