@@ -20,6 +20,10 @@
 - **NonEmptyErrors Algebraic & Equality Traits**: Implemented `Semigroup for NonEmptyErrors<E>`, along with standard slice and vector comparisons: `PartialEq<[E]>`, `PartialEq<&[E]>`, `PartialEq<Vec<E>>`, and `PartialEq<[E; N]>`.
 - **CI / Miri Soundness**: Added `test_operational_miri_ownership_and_drop` verifying memory soundness of trampoline evaluation under Miri.
 
+### Fixed
+
+- **Operational Monad Trait Object Downcast**: Fixed `TryProgram::into_any` in `operational.rs` which incorrectly attempted speculative downcasts on `Box<dyn Any + Send + Sync>` payloads (`Node::Pure` and `Node::Suspend`), stripping the outer box and triggering runtime panics during evaluation. Symmetrically boxes all node payloads into `AnyBox`.
+
 ### Changed
 
 - **Prism Lean Modification & Zero-Cost Moves**:

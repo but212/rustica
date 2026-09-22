@@ -235,24 +235,11 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
 
     fn into_any(mut self) -> TryProgram<H, AnyBox, E> {
         match self.take_node() {
-            Node::Pure(a) => {
-                let a_any = Box::new(a) as AnyBox;
-                match a_any.downcast::<AnyBox>() {
-                    Ok(already_boxed) => TryProgram::pure(*already_boxed),
-                    Err(boxed) => TryProgram::pure(boxed),
-                }
-            },
+            Node::Pure(a) => TryProgram::pure(Box::new(a) as AnyBox),
             Node::Suspend(runner, cont) => TryProgram {
                 node: Some(Node::Suspend(
                     runner,
-                    Box::new(move |res| {
-                        let a = cont(res);
-                        let a_any = Box::new(a) as AnyBox;
-                        match a_any.downcast::<AnyBox>() {
-                            Ok(already_boxed) => *already_boxed,
-                            Err(boxed) => boxed,
-                        }
-                    }),
+                    Box::new(move |res| Box::new(cont(res)) as AnyBox),
                 )),
             },
             Node::Bind(sub, cont) => TryProgram {
@@ -652,5 +639,42 @@ mod tests {
         let mut h = StrHandler;
         let res = prog2.run(&mut h);
         assert_eq!(res, "init_handled_mid_handled");
+    }
+
+    #[test]
+    fn test_anybox_pure_payload() {
+        let val: Box<dyn Any + Send + Sync> = Box::new(42_i32);
+        let prog: Program<CalcInterpreter, Box<dyn Any + Send + Sync>> = Program::pure(val);
+        let mut calc = CalcInterpreter { current: 0 };
+        let res = prog.run(&mut calc);
+        assert_eq!(*res.downcast::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_anybox_command_output() {
+        struct BoxCmd(i32);
+        impl Command for BoxCmd {
+            type Output = Box<dyn Any + Send + Sync>;
+        }
+        struct BoxHandler;
+        impl Handler<BoxCmd> for BoxHandler {
+            fn handle(&mut self, cmd: BoxCmd) -> Box<dyn Any + Send + Sync> {
+                Box::new(cmd.0 * 2)
+            }
+        }
+        let prog: Program<BoxHandler, Box<dyn Any + Send + Sync>> = BoxCmd(21).suspend();
+        let mut handler = BoxHandler;
+        let res = prog.run(&mut handler);
+        assert_eq!(*res.downcast::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_anybox_bind_transformation() {
+        let prog: Program<CalcInterpreter, Box<dyn Any + Send + Sync>> = Add(10)
+            .suspend()
+            .bind(|_| Program::pure(Box::new(99_i32) as Box<dyn Any + Send + Sync>));
+        let mut calc = CalcInterpreter { current: 0 };
+        let res = prog.run(&mut calc);
+        assert_eq!(*res.downcast::<i32>().unwrap(), 99);
     }
 }
