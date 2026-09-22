@@ -30,6 +30,8 @@ This guide details all removals and breaking changes in Rustica 0.18.0, with con
 | `Free::fold_map` | `Free::run` or `Free::try_run` with trampoline evaluation |
 | `Free::into_pure` | `Free::to_pure` |
 | `Lens::from_iso`, `Prism::from_iso` | `Lens::new` or `Prism::new` directly with closures |
+| `Lens` `impl` & method bounds | Removed spurious `S: Clone, A: Clone, B: Clone`; supports non-`Clone` types |
+| `Lens` `PartialEq` derive | Removed (closures cannot be equated). Unconditional `Debug` provided |
 | `Prism::review(&self, a: &A)` | `Prism::review(&self, a: A)` (owned focus semantics) |
 | `Command` in `rustica::prelude::*` | Explicit import: `use rustica::datatypes::operational::Command;` |
 | `pvec::PersistentVector` (deprecated, removal in v0.19.0) | `imbl::Vector` or standard `Vec<T>` |
@@ -193,6 +195,12 @@ let lens = Lens::new(
     |mut s: Source, focus| { s.set_focus(focus); s },
 );
 ```
+
+### Lens Trait Bound Relaxation & Single-Evaluation Modify
+
+- **Non-`Clone` Support**: The `Lens` struct `impl` block no longer enforces `S: Clone` or `A: Clone`, and `then`/`fmap` no longer require `B: Clone`. Lenses can now be constructed and manipulated over non-`Clone` domain models.
+- **Single Evaluation in `modify`**: `Lens::modify` now evaluates `self.get(&source)` exactly once, comparing `current == new_value` via an in-memory clone of `current` rather than calling `self.get(&source)` a second time. `modify` requires `A: Clone + PartialEq`; for non-`Clone` focus types, use `modify_always`.
+- **Debug & PartialEq**: `Lens` no longer derives `PartialEq` (as closures in Rust do not implement equality) and implements `Debug` unconditionally without constraining closure fields.
 
 ### Prism Owned Review Semantics (Breaking)
 

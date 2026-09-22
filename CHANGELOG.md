@@ -13,11 +13,20 @@
 - **Validated Inherent Zip Combinators**: Added inherent `zip`, `zip_with`, `zip3`, `zip_with3`, `lift2`, and `lift3` on `Validated` without any `Clone` bounds.
 - **Choice Inherent Mapping**: Added inherent `Choice::map` method.
 - **Validated Combinators**: Added inherent sync `and_then`, inherent `map`, and `map_err` to `Validated<T, E>`.
-- **Optics & Law Test Coverage**: Added comprehensive `Prism` law verification test suite covering preview/review consistency and sequential composition (`tests/datatypes/test_prism.rs`), along with functor, applicative, and monad law coverage.
+- **Optics & Law Test Coverage**: Added comprehensive `Prism` and `Lens` law verification test suites covering preview/review consistency, GetSet/SetGet/SetSet QuickCheck laws, non-`Clone` type support, and sequential composition (`tests/datatypes/test_prism.rs`, `tests/datatypes/test_lens.rs`), along with functor, applicative, and monad law coverage.
 - **CI / Miri Soundness**: Added `test_operational_miri_ownership_and_drop` verifying memory soundness of trampoline evaluation under Miri.
 
 ### Changed
 
+- **Lens Minimal Trait Bounds & Non-`Clone` Support**:
+  - Removed spurious `S: Clone, A: Clone` bounds from `impl<S, A, GetFn, SetFn> Lens`, enabling lens construction and modification on non-`Clone` structs and fields.
+  - Removed spurious `B: Clone` bounds from `Lens::fmap` and `Lens::then`.
+- **Lens Single-Evaluation in `modify`**:
+  - Optimized `modify` to invoke the user's getter closure exactly once per modification by cloning `current` once in memory for equality comparison against `new_value`, eliminating redundant duplicate getter executions.
+  - Scoped trait requirement on `modify` to `A: Clone + PartialEq`. Non-`Clone` types use `modify_always`.
+- **Lens Debug & PartialEq Representation**:
+  - Removed unusable `#[derive(PartialEq)]` from `Lens` (closures cannot implement mathematical equality in Rust).
+  - Replaced derived `Debug` with a manual `std::fmt::Debug` implementation that formats all lenses without demanding debug bounds on closures.
 - **Prism Owned Review Semantics (Breaking)**:
   - Migrated `ReviewFn` from `Fn(&A) -> S` to `Fn(A) -> S`, and `Prism::review(&self, a: &A) -> S` to `Prism::review(&self, a: A) -> S`.
   - Enables direct passing of enum variant constructors (e.g. `Prism::new(..., Status::Active)`).

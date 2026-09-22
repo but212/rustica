@@ -142,6 +142,8 @@ Persistent collections return new roots with structural sharing (`Arc`) rather t
 
 - Optics access and modification borrow `&self` (`Lens::get(&self, source: &S) -> A`, `Lens::set(&self, source: S, value: A) -> S`).
 - Composition transfers unboxed closures, requiring `self` (`Lens::then(self, other: Lens<A, B>) -> Lens<S, B>`).
+- Optics operate on value ownership without imposing unnecessary `Clone` bounds on structures or focuses; `modify` performs single-evaluation equality checks when `A: Clone + PartialEq`.
+- Closures do not implement mathematical equality; optics omit `PartialEq` derive and provide manual `Debug` formatting.
 
 ---
 

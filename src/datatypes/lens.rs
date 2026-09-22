@@ -122,6 +122,7 @@
 //! composition and structural-sharing behavior is covered by
 //! `test_lens_composition_and_chaining` in `tests/datatypes/test_lens.rs`.
 
+use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -140,7 +141,6 @@ use std::sync::Arc;
 ///
 /// # Design Notes
 ///
-/// - Requires both the structure and focused part to be `Clone`
 /// - Functions are stored directly to avoid boxing overhead and enable better compiler optimizations
 /// - Implements structural sharing optimization when `A` implements `PartialEq`
 /// - Provides variants without equality checks (`set_always`, `modify_always`) for types without `PartialEq`
@@ -179,7 +179,7 @@ use std::sync::Arc;
 /// let modified = name_lens.modify(person, |name| format!("Ms. {}", name));
 /// assert_eq!(modified.name, "Ms. Alice");
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct Lens<S, A, GetFn, SetFn>
 where
     GetFn: Fn(&S) -> A,
@@ -190,10 +190,18 @@ where
     _phantom: PhantomData<(S, A)>,
 }
 
+impl<S, A, GetFn, SetFn> fmt::Debug for Lens<S, A, GetFn, SetFn>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Lens").finish_non_exhaustive()
+    }
+}
+
 impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn>
 where
-    S: Clone,
-    A: Clone,
     GetFn: Fn(&S) -> A,
     SetFn: Fn(S, A) -> S,
 {
@@ -474,11 +482,15 @@ where
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
         F: Fn(A) -> A,
-        A: PartialEq,
+        A: Clone + PartialEq,
     {
         let current = self.get(&source);
-        let new_value = f(current);
-        self.set(source, new_value)
+        let new_value = f(current.clone());
+        if current == new_value {
+            source
+        } else {
+            self.set_always(source, new_value)
+        }
     }
 
     /// Modifies the focused part using a function without checking equality.
@@ -614,7 +626,6 @@ where
     #[inline]
     pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
     where
-        B: Clone,
         F: Fn(A) -> B,
         G: Fn(B) -> A,
     {
@@ -687,7 +698,6 @@ where
         self, other: Lens<A, B, GetFn2, SetFn2>,
     ) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
     where
-        B: Clone,
         GetFn2: Fn(&A) -> B,
         SetFn2: Fn(A, B) -> A,
     {
