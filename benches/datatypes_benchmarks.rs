@@ -17,8 +17,6 @@ mod datatypes {
     pub mod monad_comparison;
     pub mod operational;
     pub mod prism;
-    #[cfg(feature = "pvec")]
-    pub mod pvec;
     pub mod validated;
 }
 
@@ -30,8 +28,6 @@ use datatypes::lens::lens_benchmarks;
 use datatypes::monad_comparison::monad_comparison_benchmarks;
 use datatypes::operational::operational_benchmarks;
 use datatypes::prism::prism_benchmarks;
-#[cfg(feature = "pvec")]
-use datatypes::pvec::pvec_benchmarks;
 use datatypes::validated::validated_benchmarks;
 
 fn main() {
@@ -46,7 +42,4 @@ fn main() {
     monad_comparison_benchmarks(&harness);
     composable_error_benchmarks(&harness);
     lazy_error_benchmarks(&harness);
-
-    #[cfg(feature = "pvec")]
-    pvec_benchmarks(&harness);
 }
