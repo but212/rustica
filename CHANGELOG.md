@@ -12,7 +12,6 @@
 - **Validated FromIterator**: Added `impl<T, E, C> FromIterator<Validated<T, E>> for Validated<C, E>` enabling standard `iter.collect::<Validated<Vec<T>, E>>()` with full error accumulation.
 - **Validated Inherent Zip Combinators**: Added inherent `zip`, `zip_with`, `zip3`, `zip_with3`, `lift2`, and `lift3` on `Validated` without any `Clone` bounds.
 - **Choice Inherent Mapping**: Added inherent `Choice::map` method.
-- **PersistentVector In-Place Mutation**: Added `push_back_mut` and `push_front_mut` providing zero-allocation appends when buffers are unshared (`Arc::make_mut`).
 - **Validated Combinators**: Added inherent sync `and_then`, inherent `map`, and `map_err` to `Validated<T, E>`.
 - **Optics & Law Test Coverage**: Added comprehensive `Prism` law verification test suite covering preview/review consistency and sequential composition (`tests/datatypes/test_prism.rs`), along with functor, applicative, and monad law coverage.
 - **CI / Miri Soundness**: Added `test_operational_miri_ownership_and_drop` verifying memory soundness of trampoline evaluation under Miri.
@@ -20,14 +19,9 @@
 ### Changed
 
 - **Clone Overhead Optimizations**:
-  - **`PersistentVectorIntoIter` Zero-Duplicate Leaf Yielding**: Eliminated double-cloning of tree leaf elements during `PersistentVector::into_iter()` forward iteration by buffering leaves in reverse order and popping items directly, reducing element clones from $2N$ to $N$ and removing internal index tracking state (`front_pos`).
   - **`traits::monoid::repeat` Ownership Consumption**: Optimized `repeat` to consume the initial owned `value` on the final combination step, reducing clone count from $n$ to $n - 1$ for all $n \ge 1$.
   - **`Free::run_internal` Unshared Subtree Evaluation**: Optimized trampoline loop with `std::mem::replace` and `Arc::try_unwrap`, eliminating redundant deep AST clones on unshared `Free::Bind` nodes during `run` and `try_run`.
   - **Clippy Redundant Clone Cleanups**: Removed unneeded `.clone()` calls across `choice`, `free`, `prism`, `validated`, and benchmarks/examples (`clippy::redundant_clone`), and clarified reference-counted pointer cloning via `Arc::clone` and `Rc::clone` (`clippy::clone_on_ref_ptr`).
-- **PersistentVector $O(1)$ Append & Compaction**:
-  - Wrapped `head` and `tail` in `Arc<SmallVec<[T; 32]>>`, sharing opposite buffers via pointer copy on push and eliminating whole-buffer duplication to achieve true amortized $O(1)$ appends.
-  - Reduced `RRBTree` struct size to 40 bytes (from >1KB) and lowered branching/leaf capacity to 32.
-  - Implemented Bagwell-Rompf RRB rebalancing (`pack_children_balanced`, `pack_leaves_balanced`, spine merging) in `concat`, guaranteeing minimum $\ge 16$ item occupancy for $N > 32$ and bounded logarithmic height growth.
 - **Validated Type Parameter Alignment**:
   - Reordered type parameters to `Validated<T, E>` (from `Validated<E, A>`), aligning type layout with standard `Result<T, E>`.
   - Aligned `bimap(f_val, g_err)` argument order with `(T, E)`.
@@ -54,7 +48,6 @@
 - **Choice Legacy APIs**: Removed `Choice::first`, `Choice::filter_values`, `Choice::first_match`, `Choice::bind`, `Choice::apply`, and `Pure`/`Applicative`/`Monad` implementations. Use priority/fallback methods (`Choice::primary`, `Choice::filter`, `Choice::try_each`, `Iterator::find_map`).
 - **Trait Extension Removal**: Completely removed hollow extension traits (`FunctorExt`, `SemigroupExt`, `MonoidExt`, `PureExt`, and `FoldableExt`). `fold_option` is now a default method directly on the [`Foldable`](crate::traits::foldable::Foldable) trait, and `prelude::traits_ext` has been removed.
 - **Validated Iterators & Obsolete Methods**: Removed `Validated::errors`, `ErrorsIter`, `ErrorsIterMut`, `Validated::map_valid` (use `map`), and `Validated::fmap_invalid` (use `map_err`).
-- **PersistentVector**: Removed `PersistentVector::unit` (use `single`) and `PVecError::is_index_out_of_bounds`.
 - **Vec Monad Omission**: Omitted `impl<T> Monad for Vec<T>` to avoid method resolution conflict with standard slice `[T]::join`.
 - **Tests & Benchmarks**: Removed `tests/migration_std_replacements.rs`, `tests/integration/categorical_utils_pipeline.rs`, and `benches/datatypes/io.rs`.
 
