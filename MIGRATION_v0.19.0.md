@@ -11,12 +11,13 @@ This guide details all removals and breaking changes in Rustica 0.19.0, with con
 | `pvec::*`, `PersistentVector<T>`, `pvec!` macro | `imbl::Vector` or standard `std::vec::Vec<T>` |
 | `pvec` Cargo feature | Remove from `Cargo.toml`; `full` feature bundle no longer includes it |
 | `traits::HKT` | Native generic types and inherent methods |
-| `traits::Functor` / `fmap` | Inherent `map` on `Validated` / `Choice`, or `Iterator::map` |
+| `traits::Functor` / `fmap` | Inherent `map` (or inherent `fmap` alias preserved on `Choice` and `Validated`), or `Iterator::map` |
 | `traits::Pure` / `pure` | Concrete constructors (`Validated::valid`, `Choice::single`, `Some`, `Ok`) |
-| `traits::Applicative` / `apply`, `lift2`, `lift3` | Inherent `Validated::zip_with`, `zip`, `lift2`, `lift3` |
+| `traits::Applicative` / `apply`, `lift2`, `lift3` | Inherent `Validated::apply`, `zip_with`, `zip`, `lift2`, `lift3` |
 | `traits::Foldable` / `fold_left`, `fold_right` | Standard `Iterator::fold`, `Iterator::rfold` |
 | `traits::Monad` / `bind`, `join` | Inherent `and_then`, native `?` operator, or `Iterator::flat_map` |
 | `Prism::set_if_different` | Inherent `Prism::set` ($O(1)$ unconditional move reconstruction) |
+| `datatypes::validated::{combinators, traits}` | Internalized; import from `datatypes::validated::*` or `...::core::*` |
 
 ---
 
@@ -77,6 +78,9 @@ let c = Choice::single(10).fmap(|x| x * 2);
 // After (0.19.0)
 let v = Validated::<i32, &str>::valid(10).map(|x| x * 2);
 let c = Choice::single(10).map(|x| x * 2);
+// Inherent `fmap` alias is also preserved directly on `Choice` and `Validated`:
+let v = Validated::<i32, &str>::valid(10).fmap(|x| x * 2);
+let c = Choice::single(10).fmap(|x| x * 2);
 // Or on standard Option/Result/Iterator:
 let opt = Some(10).map(|x| x * 2);
 ```
@@ -108,6 +112,11 @@ let sum = Validated::<i32, &str>::lift2(|a, b| a + b, v1, v2);
 let v1: Validated<i32, &str> = Validated::valid(10);
 let v2: Validated<i32, &str> = Validated::valid(20);
 let sum = v1.zip_with(v2, |a, b| a + b);
+
+// Inherent `apply` is also preserved directly on `Validated`:
+let f: Validated<fn(i32) -> i32, &str> = Validated::valid(|x| x + 10);
+let v = Validated::<i32, &str>::valid(20);
+let res = f.apply(v);
 
 // For collections:
 let items = vec![Validated::<i32, &str>::valid(1), Validated::valid(2)];
@@ -164,3 +173,14 @@ let updated = prism.set(status, "Bob".to_string());
 - `Monoid`
 
 All concrete types (`Validated`, `Choice`, `Free`, `Lens`, `Prism`, `Program`, `TryProgram`) and error utilities (`ContextError`, `context!`) remain available as before.
+
+---
+
+## 5. Validated Submodule Consolidation
+
+Following the removal of categorical simulation traits, the empty submodules `rustica::datatypes::validated::combinators` and `rustica::datatypes::validated::traits` have been internalized:
+- Trait implementations (`Semigroup`, `Arbitrary`) now reside directly within `core.rs`.
+- Inherent combinators continue to be methods on `Validated`.
+- Canonical imports remain `rustica::datatypes::validated::{Validated, NonEmptyErrors}` and `rustica::prelude::*`.
+- `rustica::datatypes::validated::core::*` and `rustica::datatypes::validated::iter::*` remain public modules.
+

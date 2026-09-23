@@ -99,10 +99,9 @@
 //! - Using applicative validation for form validation
 //!
 //! Please refer to the documentation of individual functions in this module.
-pub mod combinators;
+mod combinators;
 pub mod core;
 pub mod iter;
-pub mod traits;
 
 pub use core::{NonEmptyErrors, Validated};
 pub use iter::*;
@@ -162,6 +161,26 @@ mod tests {
         assert_eq!(
             left.clone().combine(middle.clone()).combine(right.clone()),
             left.combine(middle.combine(right))
+        );
+    }
+
+    #[test]
+    fn test_validated_inherent_fmap_and_apply() {
+        let val = Validated::<i32, String>::valid(10);
+        assert_eq!(val.clone().fmap(|x| x * 2), val.clone().map(|x| x * 2));
+
+        let inv = Validated::<i32, String>::invalid("err".into());
+        assert_eq!(inv.clone().fmap(|x| x * 2), inv.clone().map(|x| x * 2));
+
+        let func: Validated<fn(i32) -> i32, String> = Validated::valid(|x| x + 5);
+        assert_eq!(func.apply(val), Validated::valid(15));
+
+        let err_func: Validated<fn(i32) -> i32, String> = Validated::invalid("fn_err".into());
+        let err_val: Validated<i32, String> = Validated::invalid("val_err".into());
+        let applied = err_func.apply(err_val);
+        assert_eq!(
+            applied.error_slice(),
+            &["fn_err".to_string(), "val_err".to_string()]
         );
     }
 

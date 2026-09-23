@@ -310,6 +310,17 @@ impl<T> Choice<T> {
             alternatives: self.alternatives.into_iter().map(f).collect(),
         }
     }
+
+    /// Functional alias for [`map`](Self::map).
+    ///
+    /// Transforms the primary value and all alternatives preserving priority order.
+    #[inline]
+    pub fn fmap<B, F>(self, f: F) -> Choice<B>
+    where
+        F: FnMut(T) -> B,
+    {
+        self.map(f)
+    }
 }
 
 impl<T> Semigroup for Choice<T> {
@@ -455,10 +466,13 @@ mod unit_tests {
             vec![1, 2, 3, 4, 5]
         );
 
-        // Inherent map preserves priority structure
+        // Inherent map and fmap preserve priority structure
         let mapped = combined.clone().map(|x| x * 10);
         assert_eq!(*mapped.primary(), 10);
         assert_eq!(mapped.alternatives(), &[20, 30, 40, 50]);
+
+        let fmapped = combined.clone().fmap(|x| x * 10);
+        assert_eq!(mapped, fmapped);
 
         // Iterator fold preserves priority order
         let folded = combined.iter().fold(0, |acc, &x| acc * 10 + x);
