@@ -782,14 +782,14 @@ impl TryHandler<ProjectColumns, &'static str> for InMemoryDb {
 pub fn build_query_program(stmt: CheckedSelect) -> TryProgram<InMemoryDb, Vec<Row>, &'static str> {
     ScanTable { table: stmt.table }
         .try_suspend()
-        .bind(move |rows| {
+        .and_then(move |rows| {
             FilterRows {
                 rows,
                 condition: stmt.where_clause,
             }
             .try_suspend()
         })
-        .bind(move |filtered| {
+        .and_then(move |filtered| {
             ProjectColumns {
                 rows: filtered,
                 columns: stmt.columns,

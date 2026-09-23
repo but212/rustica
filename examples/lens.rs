@@ -134,12 +134,12 @@ fn main() {
 
     println!();
 
-    // Stage 4: Bidirectional Type Transformation with `fmap`
-    println!("4. Type Transformation via `fmap`:");
-    // Lens that views u32 font size as CSS pixel string (e.g. "16px")
-    let font_css_lens = theme_font_size_lens().fmap(
-        |size: u32| format!("{size}px"),
-        |css: String| css.trim_end_matches("px").parse::<u32>().unwrap_or(12),
+    // Stage 4: Bidirectional Type Transformation with `iso_map`
+    println!("4. Type Transformation via `iso_map`:");
+    // `to_le_bytes` / `from_le_bytes` are exact inverses, so the lens laws hold
+    let font_bytes_lens = theme_font_size_lens().iso_map(
+        |size: u32| size.to_le_bytes(),
+        |bytes: [u8; 4]| u32::from_le_bytes(bytes),
     );
 
     let current_theme = Theme {
@@ -147,15 +147,12 @@ fn main() {
         font_size: 16,
     };
 
-    let css_str = font_css_lens.get(&current_theme);
-    println!("  Viewed font size as CSS string: {}", css_str);
-    assert_eq!(css_str, "16px");
+    let font_bytes = font_bytes_lens.get(&current_theme);
+    println!("  Viewed font size as bytes: {:?}", font_bytes);
+    assert_eq!(font_bytes, 16u32.to_le_bytes());
 
-    let resized_theme = font_css_lens.set(current_theme, "24px".to_string());
-    println!(
-        "  Set font size using CSS string: {}",
-        resized_theme.font_size
-    );
+    let resized_theme = font_bytes_lens.set(current_theme, 24u32.to_le_bytes());
+    println!("  Set font size using bytes: {}", resized_theme.font_size);
     assert_eq!(resized_theme.font_size, 24);
 
     println!("\n=== Lens Example Completed Successfully ===");

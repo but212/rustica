@@ -243,7 +243,7 @@ impl<F, A> Free<F, A> {
     }
 
     /// Maps a function over the pure value of the `Free` monad.
-    pub fn fmap<B, Func>(&self, f: Func) -> Free<F, B>
+    pub fn map<B, Func>(&self, f: Func) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
         A: Send + Sync + Clone + 'static,
@@ -262,21 +262,25 @@ impl<F, A> Free<F, A> {
             },
             other => {
                 let f_arc = Arc::new(f);
-                other.bind(move |a| Free::Pure(f_arc(a)))
+                other.and_then(move |a| Free::Pure(f_arc(a)))
             },
         }
     }
 
-    /// Alias for [`fmap`](Self::fmap).
+    /// Functional alias for [`map`](Self::map).
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `map` instead; scheduled for removal in 0.20.0"
+    )]
     #[inline]
-    pub fn map<B, Func>(&self, f: Func) -> Free<F, B>
+    pub fn fmap<B, Func>(&self, f: Func) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
         A: Send + Sync + Clone + 'static,
         B: Send + Sync + Clone + 'static,
         Func: Fn(A) -> B + Send + Sync + 'static,
     {
-        self.fmap(f)
+        self.map(f)
     }
 
     /// Sequences another `Free` computation from the result of this computation.
@@ -284,7 +288,7 @@ impl<F, A> Free<F, A> {
     /// If `self` is `Free::Pure(a)`, `f(a)` is evaluated immediately without allocating
     /// an intermediate `Bind` node. Otherwise, a structural `Bind` node is created,
     /// enabling stack-safe trampoline evaluation in [`run`](Self::run).
-    pub fn bind<B, Next>(&self, f: Next) -> Free<F, B>
+    pub fn and_then<B, Next>(&self, f: Next) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
         A: Send + Sync + Clone + 'static,
@@ -308,7 +312,27 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Alias for [`bind`](Self::bind).
+    /// Alias for [`and_then`](Self::and_then).
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `and_then` instead; scheduled for removal in 0.20.0"
+    )]
+    #[inline]
+    pub fn bind<B, Next>(&self, f: Next) -> Free<F, B>
+    where
+        F: Send + Sync + Clone + 'static,
+        A: Send + Sync + Clone + 'static,
+        B: Send + Sync + Clone + 'static,
+        Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
+    {
+        self.and_then(f)
+    }
+
+    /// Alias for [`and_then`](Self::and_then).
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `and_then` instead; scheduled for removal in 0.20.0"
+    )]
     #[inline]
     pub fn flat_map<B, Next>(&self, f: Next) -> Free<F, B>
     where
@@ -317,19 +341,7 @@ impl<F, A> Free<F, A> {
         B: Send + Sync + Clone + 'static,
         Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
     {
-        self.bind(f)
-    }
-
-    /// Alias for [`bind`](Self::bind).
-    #[inline]
-    pub fn and_then<B, Next>(&self, f: Next) -> Free<F, B>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        B: Send + Sync + Clone + 'static,
-        Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
-    {
-        self.bind(f)
+        self.and_then(f)
     }
 
     /// Sequences another `Free` computation, discarding the result of the current computation.
@@ -340,7 +352,7 @@ impl<F, A> Free<F, A> {
         A: Send + Sync + Clone + 'static,
         B: Send + Sync + Clone + 'static,
     {
-        self.bind(move |_| next.clone())
+        self.and_then(move |_| next.clone())
     }
 
     /// Applies a function inside a `Free` computation to a value in another `Free` computation.
@@ -351,9 +363,9 @@ impl<F, A> Free<F, A> {
         T: Send + Sync + Clone + 'static,
         B: Send + Sync + Clone + 'static,
     {
-        self.bind(move |f| {
+        self.and_then(move |f| {
             let f_arc = Arc::new(f);
-            value.fmap(move |t| f_arc(t))
+            value.map(move |t| f_arc(t))
         })
     }
 
@@ -367,10 +379,10 @@ impl<F, A> Free<F, A> {
         Func: Fn(A, T2) -> B + Send + Sync + 'static,
     {
         let f_arc = Arc::new(f);
-        self.bind(move |a| {
+        self.and_then(move |a| {
             let f_clone = Arc::clone(&f_arc);
             let a_clone = a;
-            other.fmap(move |b| f_clone(a_clone.clone(), b))
+            other.map(move |b| f_clone(a_clone.clone(), b))
         })
     }
 
@@ -599,24 +611,34 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_fmap() {
         let computation: Free<TestCmd, i32> = Free::pure(21).fmap(|x| x * 2);
         assert_eq!(computation.to_pure(), Some(42));
+
+        let mapped: Free<TestCmd, i32> = Free::pure(21).map(|x| x * 2);
+        assert_eq!(mapped.to_pure(), Some(42));
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_bind_sequence() {
         let computation: Free<TestCmd, i32> = Free::pure(10)
             .bind(|x| Free::pure(x + 5))
             .flat_map(|x| Free::pure(x * 2));
         assert_eq!(computation.to_pure(), Some(30));
+
+        let and_then_comp: Free<TestCmd, i32> = Free::pure(10)
+            .and_then(|x| Free::pure(x + 5))
+            .and_then(|x| Free::pure(x * 2));
+        assert_eq!(and_then_comp.to_pure(), Some(30));
     }
 
     #[test]
     fn test_suspend_and_run() {
         let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
-            .bind(|_: ()| Free::<TestCmd, ()>::suspend(TestCmd::Increment(25)))
-            .bind(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+            .and_then(|_: ()| Free::<TestCmd, ()>::suspend(TestCmd::Increment(25)))
+            .and_then(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let mut counter = 0;
         let final_value: i32 = program.run(|cmd| match cmd {
@@ -633,7 +655,7 @@ mod tests {
     #[test]
     fn test_try_run_success_and_error() {
         let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
-            .bind(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+            .and_then(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let mut counter = 0;
         let res: Result<i32, FreeError<()>> = program.try_run(|cmd| match cmd {
@@ -646,7 +668,7 @@ mod tests {
         assert_eq!(res, Ok(5));
 
         let failing_program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
-            .bind(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+            .and_then(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
         let err_res: Result<i32, FreeError<&'static str>> =
             failing_program.try_run(|cmd| match cmd {
                 TestCmd::Increment(_) => Err("error during increment"),
@@ -723,6 +745,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_monad_laws() {
         // Left identity: pure(a).bind(f) == f(a)
         let a = 7;
@@ -731,10 +754,15 @@ mod tests {
         let right = f(a);
         assert_eq!(left.to_pure(), right.to_pure());
 
+        // and_then obeys left identity
+        let left_and_then: Free<TestCmd, i32> = Free::pure(a).and_then(f);
+        assert_eq!(left_and_then.to_pure(), right.to_pure());
+
         // Right identity: m.bind(pure) == m
         let m: Free<TestCmd, i32> = Free::pure(42);
         let bound = m.bind(Free::pure);
         assert_eq!(bound.to_pure(), Some(42));
+        assert_eq!(m.and_then(Free::pure).to_pure(), Some(42));
 
         // Associativity: m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
         let g = |x: i32| Free::pure(x + 100);
@@ -743,6 +771,10 @@ mod tests {
         let r1 = m1.bind(f).bind(g);
         let r2 = m2.bind(move |x| f(x).bind(g));
         assert_eq!(r1.to_pure(), r2.to_pure());
+
+        let r1_and_then = m1.and_then(f).and_then(g);
+        let r2_and_then = m2.and_then(move |x| f(x).and_then(g));
+        assert_eq!(r1_and_then.to_pure(), r2_and_then.to_pure());
     }
 
     #[test]
@@ -792,8 +824,8 @@ mod tests {
         assert_eq!(r2, 130);
 
         // Branching: clone program and extend it in two different directions
-        let branch_a = program.bind(|total: i32| Free::pure(total * 2));
-        let branch_b = program.bind(|total: i32| Free::pure(total + 1000));
+        let branch_a = program.and_then(|total: i32| Free::pure(total * 2));
+        let branch_b = program.and_then(|total: i32| Free::pure(total + 1000));
 
         let mut c_a = 0;
         let res_a: i32 = branch_a.run(|cmd| match cmd {
@@ -888,8 +920,8 @@ mod tests {
 
         // Chained Bind computation with 2 Bind layers
         let prog: Free<CloneCountingCmd, i32> = Free::suspend(cmd)
-            .bind(|n: i32| Free::pure(n + 1))
-            .bind(|n: i32| Free::pure(n * 2));
+            .and_then(|n: i32| Free::pure(n + 1))
+            .and_then(|n: i32| Free::pure(n * 2));
 
         counter.store(0, Ordering::SeqCst);
 
@@ -946,7 +978,7 @@ mod tests {
     #[test]
     fn test_anyvalue_bind_transformation() {
         let prog: Free<TestCmd, AnyValue> = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
-            .bind(|_| Free::pure(Arc::new(99_i32) as AnyValue));
+            .and_then(|_| Free::pure(Arc::new(99_i32) as AnyValue));
         let res = prog.run(|_| Arc::new(()) as AnyValue);
         assert_eq!(*res.downcast_ref::<i32>().unwrap(), 99);
     }

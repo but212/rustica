@@ -201,15 +201,28 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
     }
 
     /// Transforms the inner value using a pure function.
+    pub fn map<B: Send + Sync + 'static, F>(self, f: F) -> TryProgram<H, B, E>
+    where
+        F: FnOnce(A) -> B + Send + Sync + 'static,
+    {
+        self.and_then(move |a| TryProgram::pure(f(a)))
+    }
+
+    /// Functional alias for [`map`](Self::map).
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `map` instead; scheduled for removal in 0.20.0"
+    )]
+    #[inline]
     pub fn fmap<B: Send + Sync + 'static, F>(self, f: F) -> TryProgram<H, B, E>
     where
         F: FnOnce(A) -> B + Send + Sync + 'static,
     {
-        self.bind(move |a| TryProgram::pure(f(a)))
+        self.map(f)
     }
 
     /// Sequences another fallible computation from the result of this one.
-    pub fn bind<B: Send + Sync + 'static, F>(mut self, f: F) -> TryProgram<H, B, E>
+    pub fn and_then<B: Send + Sync + 'static, F>(mut self, f: F) -> TryProgram<H, B, E>
     where
         F: FnOnce(A) -> TryProgram<H, B, E> + Send + Sync + 'static,
     {
@@ -233,10 +246,23 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
         }
     }
 
+    /// Alias for [`and_then`](Self::and_then).
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `and_then` instead; scheduled for removal in 0.20.0"
+    )]
+    #[inline]
+    pub fn bind<B: Send + Sync + 'static, F>(self, f: F) -> TryProgram<H, B, E>
+    where
+        F: FnOnce(A) -> TryProgram<H, B, E> + Send + Sync + 'static,
+    {
+        self.and_then(f)
+    }
+
     /// Sequences another computation, ignoring the output of the current one.
     #[inline]
     pub fn then<B: Send + Sync + 'static>(self, next: TryProgram<H, B, E>) -> TryProgram<H, B, E> {
-        self.bind(move |_| next)
+        self.and_then(move |_| next)
     }
 
     fn into_any(mut self) -> TryProgram<H, AnyBox, E> {
@@ -351,26 +377,52 @@ impl<H: 'static, A: Send + Sync + 'static> Program<H, A> {
 
     /// Transforms the inner value using a pure function.
     #[inline]
+    pub fn map<B: Send + Sync + 'static, F>(self, f: F) -> Program<H, B>
+    where
+        F: FnOnce(A) -> B + Send + Sync + 'static,
+    {
+        Program(self.0.map(f))
+    }
+
+    /// Functional alias for [`map`](Self::map).
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `map` instead; scheduled for removal in 0.20.0"
+    )]
+    #[inline]
     pub fn fmap<B: Send + Sync + 'static, F>(self, f: F) -> Program<H, B>
     where
         F: FnOnce(A) -> B + Send + Sync + 'static,
     {
-        Program(self.0.fmap(f))
+        self.map(f)
     }
 
     /// Sequences another computation from the result of this one.
+    #[inline]
+    pub fn and_then<B: Send + Sync + 'static, F>(self, f: F) -> Program<H, B>
+    where
+        F: FnOnce(A) -> Program<H, B> + Send + Sync + 'static,
+    {
+        Program(self.0.and_then(move |a| f(a).0))
+    }
+
+    /// Alias for [`and_then`](Self::and_then).
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `and_then` instead; scheduled for removal in 0.20.0"
+    )]
     #[inline]
     pub fn bind<B: Send + Sync + 'static, F>(self, f: F) -> Program<H, B>
     where
         F: FnOnce(A) -> Program<H, B> + Send + Sync + 'static,
     {
-        Program(self.0.bind(move |a| f(a).0))
+        self.and_then(f)
     }
 
     /// Sequences another computation, ignoring the output of the current one.
     #[inline]
     pub fn then<B: Send + Sync + 'static>(self, next: Program<H, B>) -> Program<H, B> {
-        self.bind(move |_| next)
+        self.and_then(move |_| next)
     }
 
     /// Evaluates the program to completion with stack safety using the provided handler.
@@ -477,7 +529,7 @@ mod tests {
             .suspend()
             .then(Multiply(3).suspend())
             .then(Fetch.suspend())
-            .bind(|num| Add(num).suspend()) // 30 + 30 = 60
+            .and_then(|num| Add(num).suspend()) // 30 + 30 = 60
             .then(Stringify.suspend());
 
         let mut interpreter = CalcInterpreter { current: 0 };
@@ -486,6 +538,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_monad_laws() {
         // Left identity: pure(a).bind(f) == f(a)
         let a = 42;
@@ -494,10 +547,16 @@ mod tests {
         let mut interp = CalcInterpreter { current: 0 };
         assert_eq!(left.run(&mut interp), 84);
 
+        let left_and_then = Program::<CalcInterpreter, i32>::pure(a).and_then(f);
+        assert_eq!(left_and_then.run(&mut interp), 84);
+
         // Right identity: m.bind(pure) == m
         let m = Program::<CalcInterpreter, i32>::pure(100);
         let right = m.bind(Program::pure);
         assert_eq!(right.run(&mut interp), 100);
+
+        let m2 = Program::<CalcInterpreter, i32>::pure(100);
+        assert_eq!(m2.and_then(Program::pure).run(&mut interp), 100);
     }
 
     #[test]
@@ -573,6 +632,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_predicates_and_debug() {
         let pure_p: Program<CalcInterpreter, i32> = Program::pure(42);
         assert!(pure_p.is_pure());
@@ -592,6 +652,10 @@ mod tests {
         assert!(bound_p.is_bind());
         assert_eq!(format!("{bound_p:?}"), "Bind(\"<sub-computation>\")");
 
+        let and_then_p: Program<CalcInterpreter, i32> =
+            Add(1).suspend().and_then(|_| Program::pure(10));
+        assert!(and_then_p.is_bind());
+
         // TryProgram predicates
         let try_pure: TryProgram<FallibleCalc, i32, &str> = TryProgram::pure(99);
         assert!(try_pure.is_pure());
@@ -603,14 +667,18 @@ mod tests {
 
         let try_bound = try_susp.bind(|_| TryProgram::pure(100));
         assert!(try_bound.is_bind());
+
+        let try_and_then: TryProgram<FallibleCalc, i32, &str> =
+            Add(1).try_suspend().and_then(|_| TryProgram::pure(100));
+        assert!(try_and_then.is_bind());
     }
 
     #[test]
     fn test_into_any_no_double_boxing() {
         let prog: Program<CalcInterpreter, i32> = Add(10)
             .suspend()
-            .bind(|_| Fetch.suspend())
-            .bind(|num| Program::pure(num * 2));
+            .and_then(|_| Fetch.suspend())
+            .and_then(|num| Program::pure(num * 2));
 
         let mut handler = CalcInterpreter { current: 5 };
         let res: i32 = prog.run(&mut handler);
@@ -633,15 +701,15 @@ mod tests {
         // 1. Program dropped without running
         let prog = StrCmd("first".to_string())
             .suspend::<StrHandler>()
-            .bind(|s| StrCmd(format!("{s}_second")).suspend())
-            .bind(|s| Program::pure(format!("{s}_done")));
+            .and_then(|s| StrCmd(format!("{s}_second")).suspend())
+            .and_then(|s| Program::pure(format!("{s}_done")));
         drop(prog);
 
         // 2. Program run to completion
         let prog2 = StrCmd("init".to_string())
             .suspend()
-            .bind(|s| Program::pure(format!("{s}_mid")))
-            .bind(|s| StrCmd(s).suspend());
+            .and_then(|s| Program::pure(format!("{s}_mid")))
+            .and_then(|s| StrCmd(s).suspend());
         let mut h = StrHandler;
         let res = prog2.run(&mut h);
         assert_eq!(res, "init_handled_mid_handled");
@@ -678,9 +746,33 @@ mod tests {
     fn test_anybox_bind_transformation() {
         let prog: Program<CalcInterpreter, Box<dyn Any + Send + Sync>> = Add(10)
             .suspend()
-            .bind(|_| Program::pure(Box::new(99_i32) as Box<dyn Any + Send + Sync>));
+            .and_then(|_| Program::pure(Box::new(99_i32) as Box<dyn Any + Send + Sync>));
         let mut calc = CalcInterpreter { current: 0 };
         let res = prog.run(&mut calc);
         assert_eq!(*res.downcast::<i32>().unwrap(), 99);
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_operational_map_and_deprecated_fmap() {
+        let mut interp = CalcInterpreter { current: 0 };
+
+        // Infallible Program map and fmap
+        let p_map: Program<CalcInterpreter, i32> = Program::pure(10).map(|x| x * 3);
+        assert_eq!(p_map.run(&mut interp), 30);
+
+        let p_fmap: Program<CalcInterpreter, i32> = Program::pure(10).fmap(|x| x * 3);
+        assert_eq!(p_fmap.run(&mut interp), 30);
+
+        // Fallible TryProgram map and fmap
+        let mut try_interp = FallibleCalc {
+            current: 0,
+            should_fail: false,
+        };
+        let tp_map: TryProgram<FallibleCalc, i32, &str> = TryProgram::pure(7).map(|x| x + 3);
+        assert_eq!(tp_map.try_run(&mut try_interp), Ok(10));
+
+        let tp_fmap: TryProgram<FallibleCalc, i32, &str> = TryProgram::pure(7).fmap(|x| x + 3);
+        assert_eq!(tp_fmap.try_run(&mut try_interp), Ok(10));
     }
 }

@@ -2,12 +2,19 @@
 
 ## [0.19.0]
 
+### Added
+
+- **Inherent `map` & `and_then` on Operational Monads**: Added inherent `map` and `and_then` methods on `Program` and `TryProgram` matching standard Rust monadic chaining conventions.
+- **`Free` Primary `map` & `and_then`**: Elevated inherent `map` and `and_then` to primary methods on `Free`.
+- **`Lens` Inherent `iso_map`**: Added inherent `Lens::iso_map` for bidirectional (isomorphic) type transformations.
+
 ### Changed
 
 - **`Lens::modify` Compatibility**: Relaxed the focus bound from `Clone + PartialEq` to `PartialEq`, restoring `modify` support for non-`Clone` focus types. Equality checks may evaluate the getter more than once; the getter call count is not guaranteed.
 
 ### Deprecated
 
+- **Redundant Functional Aliases & Cloned Forwarders**: Deprecated `fmap` (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`; `Lens::fmap` in favor of `Lens::iso_map`), `bind` and `flat_map` (`Free`, `Program`, `TryProgram`), and `try_flatten_cloned` and `flatten_cloned` (`Choice`) in favor of idiomatic Rust conventions (`map`, `and_then`, and explicit `.clone()`; scheduled for removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
 - **`async` Feature & `Validated` Async Combinators**: Deprecated `async` Cargo feature flag and `Validated::map_async`, `Validated::map_err_async`, and `Validated::and_then_async` in favor of native `async`/`await` and pattern matching (removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
 - **`tokio` Dev-Dependency**: Deprecated `tokio` in `[dev-dependencies]` (scheduled for removal in `0.20.0` alongside async combinator tests).
 

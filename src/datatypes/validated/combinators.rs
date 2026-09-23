@@ -34,6 +34,10 @@ impl<T, E> Validated<T, E> {
     /// Functional alias for [`map`](Self::map).
     ///
     /// Maps a function over the valid value if `Valid`, or returns the `Invalid` value unchanged.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `map` instead; scheduled for removal in 0.20.0"
+    )]
     #[inline]
     pub fn fmap<U, F>(self, f: F) -> Validated<U, E>
     where

@@ -560,18 +560,18 @@ where
         self.set_always(source, new_value)
     }
 
-    /// Maps a function over the focused part, creating a new lens.
+    /// Maps the focused part through an isomorphism, creating a new lens.
     ///
-    /// This allows for transforming the type of the focused part while maintaining
-    /// the lens laws. The transformation must be bidirectional, meaning you need
-    /// to provide both forward and backward transformations. This operation enables
-    /// lens composition with type transformation.
+    /// This transforms the type of the focused part from `A` to `B` using a pair of
+    /// mutually inverse functions. Unlike a functorial `map`, the result is a lawful
+    /// lens only when `f` and `g` form an isomorphism: `g(f(a)) == a` for all `a: A`
+    /// and `f(g(b)) == b` for all `b: B`.
     ///
     /// # Implementation Notes
     ///
-    /// * The transformations must be consistent with each other to maintain lens laws
-    /// * For all values x: g(f(x)) should be approximately equal to x (within reasonable bounds)
-    /// * The resulting lens is a proper lens if the transformation functions maintain the lens laws
+    /// * `f` and `g` must be exact mutual inverses to preserve the lens laws
+    /// * If the two directions are not inverses, the resulting lens violates the
+    ///   GetSet and/or SetGet laws
     ///
     /// # Arguments
     ///
@@ -590,7 +590,7 @@ where
     ///
     /// # Examples
     ///
-    /// Basic type conversion example:
+    /// Lossless type conversion using an exact isomorphism (`u32` little-endian bytes):
     ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
@@ -605,29 +605,43 @@ where
     ///     |p: Person, age: u32| Person { age },
     /// );
     ///
-    /// // Create a lens that views age as a string
-    /// let age_string_lens = age_lens.fmap(
-    ///     |n| n.to_string(),
-    ///     |s| s.parse().unwrap_or(0),
+    /// // `to_le_bytes` / `from_le_bytes` are exact inverses, so the lens laws hold
+    /// let age_bytes_lens = age_lens.iso_map(
+    ///     |n: u32| n.to_le_bytes(),
+    ///     |b: [u8; 4]| u32::from_le_bytes(b),
     /// );
     ///
     /// let person = Person { age: 30 };
     ///
-    /// // Use the transformed lens to get a string representation
-    /// assert_eq!(age_string_lens.get(&person), "30");
+    /// // Use the transformed lens to get the byte representation
+    /// assert_eq!(age_bytes_lens.get(&person), 30u32.to_le_bytes());
     ///
-    /// // Use the transformed lens to set from a string
-    /// let updated = age_string_lens.set(person, "42".to_string());
+    /// // Use the transformed lens to set from bytes
+    /// let updated = age_bytes_lens.set(person, 42u32.to_le_bytes());
     /// assert_eq!(updated.age, 42);
     /// ```
     #[inline]
-    pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    pub fn iso_map<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
     where
         F: Fn(A) -> B,
         G: Fn(B) -> A,
     {
         // Use self's get and set directly without attempting to clone
         Lens::new(move |s| f((self.get)(s)), move |s, b| (self.set)(s, g(b)))
+    }
+
+    /// Functional alias for [`iso_map`](Self::iso_map).
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `iso_map` instead; scheduled for removal in 0.20.0"
+    )]
+    #[inline]
+    pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    where
+        F: Fn(A) -> B,
+        G: Fn(B) -> A,
+    {
+        self.iso_map(f, g)
     }
 
     /// Composes two lenses to create a new lens that focuses on a nested structure.
@@ -861,11 +875,24 @@ mod unit_tests {
         let point = Point { x: 10.0, y: 20.0 };
         assert_eq!(x_lens().set_always(point.clone(), 10.0).x, 10.0);
         assert_eq!(x_lens().modify_always(point, |x| x).x, 10.0);
-        let string_lens = x_lens().fmap(|x| x.to_string(), |s| s.parse::<f64>().unwrap_or(0.0));
-        assert_eq!(string_lens.get(&Point { x: 10.0, y: 20.0 }), "10");
+        // `to_bits` / `from_bits` are exact inverses, so the lens laws hold
+        let bits_lens = x_lens().iso_map(|x: f64| x.to_bits(), f64::from_bits);
         assert_eq!(
-            string_lens.set(Point { x: 10.0, y: 20.0 }, "25.5".into()).x,
+            bits_lens.get(&Point { x: 10.0, y: 20.0 }),
+            10.0f64.to_bits()
+        );
+        assert_eq!(
+            bits_lens
+                .set(Point { x: 10.0, y: 20.0 }, 25.5f64.to_bits())
+                .x,
             25.5
+        );
+
+        #[allow(deprecated)]
+        let deprecated_fmap_lens = x_lens().fmap(|x: f64| x.to_bits(), f64::from_bits);
+        assert_eq!(
+            deprecated_fmap_lens.get(&Point { x: 10.0, y: 20.0 }),
+            10.0f64.to_bits()
         );
     }
 }

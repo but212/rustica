@@ -11,7 +11,7 @@ This guide details all removals and breaking changes in Rustica 0.19.0, with con
 | `pvec::*`, `PersistentVector<T>`, `pvec!` macro | `imbl::Vector` or standard `std::vec::Vec<T>` |
 | `pvec` Cargo feature | Remove from `Cargo.toml`; `full` feature bundle no longer includes it |
 | `traits::HKT` | Native generic types and inherent methods |
-| `traits::Functor` / `fmap` | Inherent `map` (or inherent `fmap` alias preserved on `Choice` and `Validated`), or `Iterator::map` |
+| `traits::Functor` / `fmap` | Inherent `map` (`fmap` alias deprecated in 0.19.0; removal in 0.20.0), or `Iterator::map` |
 | `traits::Pure` / `pure` | Concrete constructors (`Validated::valid`, `Choice::single`, `Some`, `Ok`) |
 | `traits::Applicative` / `apply`, `lift2`, `lift3` | Inherent `Validated::apply`, `zip_with`, `zip`, `lift2`, `lift3` |
 | `traits::Foldable` / `fold_left`, `fold_right` | Standard `Iterator::fold`, `Iterator::rfold` |
@@ -19,6 +19,10 @@ This guide details all removals and breaking changes in Rustica 0.19.0, with con
 | `Prism::set_if_different` | Inherent `Prism::set` ($O(1)$ unconditional move reconstruction) |
 | `datatypes::validated::{combinators, traits}` | Internalized; import from `datatypes::validated::*` or `...::core::*` |
 | `async` feature, `Validated::*_async` | Deprecated in 0.19.0 (removal in 0.20.0); native `match` / `async`/`await` |
+| `fmap` (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`) | Deprecated in 0.19.0 (removal in 0.20.0); use `map` |
+| `Lens::fmap` | Deprecated in 0.19.0 (removal in 0.20.0); use `Lens::iso_map` |
+| `bind`, `flat_map` (`Free`, `Program`, `TryProgram`) | Deprecated in 0.19.0 (removal in 0.20.0); use `and_then` |
+| `Choice::try_flatten_cloned`, `flatten_cloned` | Deprecated in 0.19.0 (removal in 0.20.0); use `.clone().try_flatten()`, `.clone().flatten()` |
 
 ---
 
@@ -79,9 +83,7 @@ let c = Choice::single(10).fmap(|x| x * 2);
 // After (0.19.0)
 let v = Validated::<i32, &str>::valid(10).map(|x| x * 2);
 let c = Choice::single(10).map(|x| x * 2);
-// Inherent `fmap` alias is also preserved directly on `Choice` and `Validated`:
-let v = Validated::<i32, &str>::valid(10).fmap(|x| x * 2);
-let c = Choice::single(10).fmap(|x| x * 2);
+// Note: inherent `fmap` is deprecated in 0.19.0 in favor of standard `map`.
 // Or on standard Option/Result/Iterator:
 let opt = Some(10).map(|x| x * 2);
 ```
@@ -243,3 +245,37 @@ let mapped_err = match invalid {
 ### `tokio` Dev-Dependency
 
 `tokio` in `[dev-dependencies]` is deprecated in 0.19.0 (retained exclusively to run unit tests for deprecated `Validated` async combinators) and scheduled for removal in 0.20.0 alongside those tests.
+
+### Datatypes Redundant Aliases & Cloned Forwarders
+
+In 0.19.0, redundant functional aliases (`fmap`, `bind`, `flat_map`) and implicit clone forwarders (`flatten_cloned`, `try_flatten_cloned`) are deprecated and scheduled for removal in 0.20.0 to align Rustica with standard Rust naming conventions (`map`, `and_then`). Optics are the exception: `Lens::fmap` migrates to `Lens::iso_map`, because `Lens` is not a functor and the transformation must be an isomorphism to preserve the lens laws.
+
+| Type | Deprecated Method | Direct Replacement |
+| --- | --- | --- |
+| `Choice<T>` | `fmap(f)` | `map(f)` |
+| `Choice<T>` | `try_flatten_cloned()` | `.clone().try_flatten()` |
+| `Choice<T>` | `flatten_cloned()` | `.clone().flatten()` |
+| `Validated<T, E>` | `fmap(f)` | `map(f)` |
+| `Lens<S, A, ...>` | `fmap(f, g)` | `iso_map(f, g)` |
+| `Free<F, A>` | `fmap(f)` | `map(f)` |
+| `Free<F, A>` | `bind(f)`, `flat_map(f)` | `and_then(f)` |
+| `Program<H, A>` | `fmap(f)` | `map(f)` |
+| `Program<H, A>` | `bind(f)` | `and_then(f)` |
+| `TryProgram<H, A, E>` | `fmap(f)` | `map(f)` |
+| `TryProgram<H, A, E>` | `bind(f)` | `and_then(f)` |
+
+#### Migration Examples
+
+```rust
+// Before (0.18.0)
+let c = choice.fmap(|x| x * 2);
+let f = free_comp.bind(|x| Free::pure(x + 1));
+let flat = choice.flatten_cloned();
+let age = age_lens.fmap(|n: u32| n.to_le_bytes(), |b: [u8; 4]| u32::from_le_bytes(b));
+
+// After (0.19.0)
+let c = choice.map(|x| x * 2);
+let f = free_comp.and_then(|x| Free::pure(x + 1));
+let flat = choice.clone().flatten();
+let age = age_lens.iso_map(|n: u32| n.to_le_bytes(), |b: [u8; 4]| u32::from_le_bytes(b));
+```
