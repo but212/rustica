@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag name (e.g. v0.18.0)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: Quality
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-quality.yml
+
+  tests:
+    name: Tests
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-tests.yml
+
+  publish:
+    name: Publish
+    needs: [quality, tests]
+    permissions:
+      contents: write # required by the release job after crates.io approval
+      id-token: write # required by crates.io Trusted Publishing
+    uses: ./.github/workflows/publish-release.yml
+
+  provenance:
+    name: SLSA Provenance
+    needs: [publish]
+    permissions:
+      actions: read # required by the SLSA generator reusable workflow
+      id-token: write # required to sign the provenance
+      contents: write # required to upload provenance to the release
+    concurrency:
+      group: slsa-${{ github.ref }}
+      cancel-in-progress: false
+    uses: ./.github/workflows/generator-generic-ossf-slsa3-publish.yml
+    with:
+      tag_name: ${{ inputs.tag_name || github.ref_name }}
