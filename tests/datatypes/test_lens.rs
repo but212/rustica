@@ -1,7 +1,7 @@
 use quickcheck_macros::quickcheck;
 use rustica::datatypes::lens::Lens;
+use std::cell::Cell;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct TestPerson {
@@ -78,26 +78,31 @@ fn test_lens_non_clone_struct() {
     assert_eq!(id_lens.get(&modified), 100);
 }
 
-// Contract C-02: Single getter execution in modify
 #[test]
-fn test_modify_calls_getter_exactly_once() {
-    static GET_COUNT: AtomicUsize = AtomicUsize::new(0);
+fn test_modify_supports_non_clone_partial_eq_focus() {
+    #[derive(PartialEq)]
+    struct Focus(u8);
 
-    let lens = Lens::new(
-        |p: &TestPerson| {
-            GET_COUNT.fetch_add(1, Ordering::SeqCst);
-            p.name.clone()
-        },
-        |p, name| TestPerson { name, ..p },
-    );
+    let lens = Lens::new(|source: &u8| Focus(*source), |_source, Focus(value)| value);
+    assert_eq!(lens.modify(41, |Focus(value)| Focus(value + 1)), 42);
+}
 
+#[test]
+fn test_modify_applies_transform_once() {
+    let lens = name_lens();
+    let transform_count = Cell::new(0);
     let person = TestPerson {
         name: "Alice".into(),
         age: 30,
     };
 
-    let _ = lens.modify(person, |name| format!("Dr. {}", name));
-    assert_eq!(GET_COUNT.load(Ordering::SeqCst), 1);
+    let updated = lens.modify(person, |name| {
+        transform_count.set(transform_count.get() + 1);
+        format!("Dr. {name}")
+    });
+
+    assert_eq!(updated.name, "Dr. Alice");
+    assert_eq!(transform_count.get(), 1);
 }
 
 // Contract C-03: Structural sharing preservation when unchanged

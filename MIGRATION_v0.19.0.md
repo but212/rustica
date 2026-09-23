@@ -153,7 +153,7 @@ let folded = choice.iter().fold(0, |acc, &x| acc + x);
 
 ---
 
-## 3. Optics (`Prism::set_if_different`)
+## 3. Optics (`Lens` and `Prism`)
 
 `Prism::set_if_different` has been removed. Reconstructing an enum variant via `review` is an $O(1)$ pointer/variant move; equality-checking payloads introduced unnecessary `PartialEq` bounds and redundant cloning.
 
@@ -164,6 +164,10 @@ let updated = prism.set_if_different(status, "Bob".to_string());
 // After (0.19.0)
 let updated = prism.set(status, "Bob".to_string());
 ```
+
+### `Lens::modify` Non-`Clone` Focus Support
+
+`Lens::modify` now requires only `A: PartialEq`, restoring support for focus types that do not implement `Clone`. Compared with 0.18.0, equality checking may evaluate the getter more than once; callers must not rely on its invocation count.
 
 ---
 

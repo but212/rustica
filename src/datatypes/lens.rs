@@ -429,7 +429,8 @@ where
     /// This is a convenience method that combines `get` and `set` operations.
     /// If the modification doesn't change the focused part (as determined by
     /// equality comparison), the original structure is returned to enable
-    /// structural sharing.
+    /// structural sharing. The getter may be evaluated more than once; its
+    /// invocation count is not guaranteed.
     ///
     /// # Requirements
     ///
@@ -482,15 +483,11 @@ where
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
         F: Fn(A) -> A,
-        A: Clone + PartialEq,
+        A: PartialEq,
     {
         let current = self.get(&source);
-        let new_value = f(current.clone());
-        if current == new_value {
-            source
-        } else {
-            self.set_always(source, new_value)
-        }
+        let new_value = f(current);
+        self.set(source, new_value)
     }
 
     /// Modifies the focused part using a function without checking equality.

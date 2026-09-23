@@ -2,6 +2,10 @@
 
 ## [0.19.0]
 
+### Changed
+
+- **`Lens::modify` Compatibility**: Relaxed the focus bound from `Clone + PartialEq` to `PartialEq`, restoring `modify` support for non-`Clone` focus types. Equality checks may evaluate the getter more than once; the getter call count is not guaranteed.
+
 ### Deprecated
 
 - **`async` Feature & `Validated` Async Combinators**: Deprecated `async` Cargo feature flag and `Validated::map_async`, `Validated::map_err_async`, and `Validated::and_then_async` in favor of native `async`/`await` and pattern matching (removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
