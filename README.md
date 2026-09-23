@@ -34,7 +34,7 @@ Add Rustica to `Cargo.toml`:
 [dependencies]
 rustica = "0.18.0"
 # Features:
-# rustica = { version = "0.18.0", features = ["full"] } # async, serde, quickcheck
+# rustica = { version = "0.18.0", features = ["full"] } # async (deprecated in 0.19.0), serde, quickcheck
 ```
 
 Import common traits and types:

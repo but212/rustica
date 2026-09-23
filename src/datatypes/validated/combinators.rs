@@ -428,6 +428,10 @@ impl<T, E> Validated<T, E> {
 #[cfg(feature = "async")]
 impl<T, E> Validated<T, E> {
     /// Maps an async function over the valid value, taking ownership.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use native async/await and pattern matching; scheduled for removal in 0.20.0"
+    )]
     pub async fn map_async<U, F, Fut>(self, f: F) -> Validated<U, E>
     where
         F: FnOnce(T) -> Fut,
@@ -443,6 +447,10 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Maps an async function over the error values, taking ownership.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use native async/await and pattern matching or iteration; scheduled for removal in 0.20.0"
+    )]
     pub async fn map_err_async<F, G, Fut>(self, f: G) -> Validated<T, F>
     where
         G: Fn(E) -> Fut,
@@ -461,6 +469,10 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Chains an async validation operation, taking ownership.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use native async/await and pattern matching; scheduled for removal in 0.20.0"
+    )]
     pub async fn and_then_async<U, F, Fut>(self, f: F) -> Validated<U, E>
     where
         F: FnOnce(T) -> Fut,
@@ -560,6 +572,7 @@ mod tests {
 
     #[cfg(feature = "async")]
     #[tokio::test]
+    #[allow(deprecated)]
     async fn test_map_err_async_sequential() {
         let invalid: Validated<String, i32> = Validated::invalid_many([1, 2, 3]);
         let mapped = invalid

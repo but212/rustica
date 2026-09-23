@@ -22,6 +22,7 @@ quickcheck = { version = "1.0", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [dev-dependencies]
+# Deprecated in 0.19.0: tokio is used only for Validated async combinator unit tests; scheduled for removal in 0.20.0
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
@@ -30,8 +31,10 @@ serde_json = "1.0"
 [features]
 default = []
 serde = ["dep:serde", "smallvec/serde", "serde/rc"]
+# Deprecated in 0.19.0: async combinators are scheduled for removal in 0.20.0 in favor of native async/await
 async = []
 quickcheck = ["dep:quickcheck"]
+# Note: async feature will be dropped from full bundle in 0.20.0
 full = ["async", "serde", "quickcheck"]
 develop = ["full"]
 

@@ -18,6 +18,7 @@ This guide details all removals and breaking changes in Rustica 0.19.0, with con
 | `traits::Monad` / `bind`, `join` | Inherent `and_then`, native `?` operator, or `Iterator::flat_map` |
 | `Prism::set_if_different` | Inherent `Prism::set` ($O(1)$ unconditional move reconstruction) |
 | `datatypes::validated::{combinators, traits}` | Internalized; import from `datatypes::validated::*` or `...::core::*` |
+| `async` feature, `Validated::*_async` | Deprecated in 0.19.0 (removal in 0.20.0); native `match` / `async`/`await` |
 
 ---
 
@@ -57,7 +58,7 @@ rustica = { version = "0.18.0", features = ["pvec"] }
 rustica = "0.19.0"
 ```
 
-The `full` feature bundle now expands to `["async", "serde", "quickcheck"]`.
+The `full` feature bundle now expands to `["async", "serde", "quickcheck"]` (note: `async` is deprecated and scheduled to be dropped from `full` in 0.20.0).
 
 ---
 
@@ -183,4 +184,57 @@ Following the removal of categorical simulation traits, the empty submodules `ru
 - Inherent combinators continue to be methods on `Validated`.
 - Canonical imports remain `rustica::datatypes::validated::{Validated, NonEmptyErrors}` and `rustica::prelude::*`.
 - `rustica::datatypes::validated::core::*` and `rustica::datatypes::validated::iter::*` remain public modules.
+
+---
+
+## 6. Deprecations (Scheduled for Removal in 0.20.0)
+
+### `async` Feature Flag & `Validated` Async Combinators
+
+The `async` Cargo feature flag and the three async combinators on `Validated` (`map_async`, `map_err_async`, and `and_then_async`) are deprecated in 0.19.0 and scheduled for removal in 0.20.0.
+
+In accordance with Rustica's design rationale ([docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md)), native Rust control flow (`async`/`await` and pattern matching) is preferred over specialized async combinators. Furthermore, `Validated` async combinators rely purely on `std::future::Future` without an external runtime, making a dedicated feature flag redundant.
+
+#### Migration to Native Async Control Flow
+
+Replace `Validated` async combinators with native `match` expressions or standard control flow:
+
+```rust
+// Before (0.18.0 / 0.19.0 deprecated)
+let mapped = validated.map_async(|x| async move { fetch_data(x).await }).await;
+
+// After (Native async/await pattern matching)
+let mapped = match validated {
+    Validated::Valid(x) => Validated::Valid(fetch_data(x).await),
+    Validated::Invalid(errs) => Validated::Invalid(errs),
+};
+
+// Before (0.18.0 / 0.19.0 deprecated)
+let chained = validated.and_then_async(|x| async move { validate_remote(x).await }).await;
+
+// After (Native async/await pattern matching)
+let chained = match validated {
+    Validated::Valid(x) => validate_remote(x).await,
+    Validated::Invalid(errs) => Validated::Invalid(errs),
+};
+
+// Before (0.18.0 / 0.19.0 deprecated)
+let mapped_err = invalid.map_err_async(|e| async move { format_err_async(e).await }).await;
+
+// After (Sequential async iteration)
+let mapped_err = match invalid {
+    Validated::Valid(x) => Validated::Valid(x),
+    Validated::Invalid(errs) => {
+        let mut results = Vec::with_capacity(errs.len());
+        for err in errs {
+            results.push(format_err_async(err).await);
+        }
+        Validated::invalid_many(results)
+    },
+};
+```
+
+### `tokio` Dev-Dependency
+
+`tokio` in `[dev-dependencies]` is deprecated in 0.19.0 (retained exclusively to run unit tests for deprecated `Validated` async combinators) and scheduled for removal in 0.20.0 alongside those tests.
 
