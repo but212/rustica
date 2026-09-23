@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 #[path = "support/harness.rs"]
 pub mod harness;
 

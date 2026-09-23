@@ -26,9 +26,9 @@
 //! ```
 //!
 //! # Priority Transformation and Combination
-//! Transformation via [`Functor`] and combination via [`Semigroup`] strictly preserve
+//! Transformation via [`map`](Choice::map) and combination via [`Semigroup`] strictly preserve
 //! priority ordering:
-//! - `fmap` transforms `primary` and all `alternatives` preserving order.
+//! - `map` transforms `primary` and all `alternatives` preserving order.
 //! - `combine` chains another choice's values after the current alternatives.
 
 #[cfg(any(test, feature = "quickcheck"))]
@@ -312,23 +312,6 @@ impl<T> Choice<T> {
     }
 }
 
-#[allow(deprecated)]
-impl<T> HKT for Choice<T> {
-    type Source = T;
-    type Output<U> = Choice<U>;
-}
-
-#[allow(deprecated)]
-impl<T> Functor for Choice<T> {
-    #[inline]
-    fn fmap<B, F>(self, f: F) -> Self::Output<B>
-    where
-        F: FnMut(Self::Source) -> B,
-    {
-        self.map(f)
-    }
-}
-
 impl<T> Semigroup for Choice<T> {
     fn combine(mut self, other: Self) -> Self {
         self.alternatives.push(other.primary);
@@ -376,25 +359,6 @@ impl<T: Display> Display for Choice<T> {
             }
         }
         Ok(())
-    }
-}
-
-#[allow(deprecated)]
-impl<T> Foldable for Choice<T> {
-    fn fold_left<B, F>(&self, initial: B, mut f: F) -> B
-    where
-        F: FnMut(B, &Self::Source) -> B,
-    {
-        let acc = f(initial, &self.primary);
-        self.alternatives.iter().fold(acc, f)
-    }
-
-    fn fold_right<B, F>(&self, initial: B, mut f: F) -> B
-    where
-        F: FnMut(&Self::Source, B) -> B,
-    {
-        let acc = self.alternatives.iter().rev().fold(initial, |a, v| f(v, a));
-        f(&self.primary, acc)
     }
 }
 
@@ -468,7 +432,6 @@ impl<T: Arbitrary> Arbitrary for Choice<T> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod unit_tests {
     use super::Choice;
     use crate::prelude::*;
@@ -492,13 +455,13 @@ mod unit_tests {
             vec![1, 2, 3, 4, 5]
         );
 
-        // C-04: Functor fmap preserves priority structure
-        let mapped = combined.clone().fmap(|x| x * 10);
+        // Inherent map preserves priority structure
+        let mapped = combined.clone().map(|x| x * 10);
         assert_eq!(*mapped.primary(), 10);
         assert_eq!(mapped.alternatives(), &[20, 30, 40, 50]);
 
-        // Foldable preserves priority order
-        let folded = combined.fold_left(0, |acc, &x| acc * 10 + x);
+        // Iterator fold preserves priority order
+        let folded = combined.iter().fold(0, |acc, &x| acc * 10 + x);
         assert_eq!(folded, 12345);
     }
 

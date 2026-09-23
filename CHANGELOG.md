@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.19.0]
+
+### Removed
+
+- **Persistent Collections (`pvec`)**: Completely removed `rustica::pvec` module, `PersistentVector<T>`, `pvec!` macro, and the `pvec` Cargo feature flag. Persistent collections should migrate to dedicated external crates like `imbl` (`imbl::Vector`) or standard `std::vec::Vec<T>` (see `MIGRATION_v0.19.0.md`).
+- **Pseudo-HKT & Categorical Simulation Traits**: Removed `HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, and `Foldable` traits from `rustica::traits`. Concrete types (`Validated`, `Choice`, `Free`, etc.) now exclusively provide inherent methods (`map`, `zip_with`, `lift2`, etc.) and standard `Iterator` / `FromIterator` implementations. Core algebraic traits `Semigroup` and `Monoid` remain fully supported.
+- **`Prism::set_if_different`**: Removed redundant method in favor of unconditional $O(1)$ variant reconstruction via `Prism::set`.
+
 ## [0.18.0]
 
 ### Deprecations

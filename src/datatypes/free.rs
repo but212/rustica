@@ -579,7 +579,6 @@ impl<F, A> Drop for Free<F, A> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::*;
 

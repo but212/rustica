@@ -47,17 +47,14 @@
 //! assert_eq!(errors.error_slice().len(), 2);
 //! ```
 //!
-//! ## Type Class Implementations
+//! ## Trait Implementations
 //!
-//! `Validated<T, E>` implements several type classes that enable its core functionality:
+//! `Validated<T, E>` implements algebraic traits and provides inherent functional methods:
 //!
-//! - **Functor**: Maps functions over the valid value
-//! - **Applicative**: Allows applying functions wrapped in `Validated` contexts
-//! - **Semigroup**: Combines error values when both `Validated` values are invalid
-//! - **Foldable**: Folds valid values (ignoring invalid ones)
+//! - **Semigroup**: Combines inner values when both are valid via `T::combine`, or concatenates error collections when invalid
 //!
-//! Inherent methods like [`bimap`](Validated::bimap), [`map`](Validated::map), and [`map_err`](Validated::map_err)
-//! provide dual-track mappings over both error and valid branches.
+//! Inherent methods like [`bimap`](Validated::bimap), [`map`](Validated::map), [`map_err`](Validated::map_err),
+//! [`zip`](Validated::zip), and [`zip_with`](Validated::zip_with) provide dual-track mappings and applicative combinations without trait bounds.
 //!
 //! ## Examples
 //!
@@ -111,10 +108,9 @@ pub use core::{NonEmptyErrors, Validated};
 pub use iter::*;
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::Validated;
-    use crate::traits::{applicative::Applicative, functor::Functor, semigroup::Semigroup};
+    use crate::traits::semigroup::Semigroup;
     use quickcheck_macros::quickcheck;
 
     // Core Algebraic Laws & Properties
@@ -144,18 +140,21 @@ mod tests {
     #[quickcheck]
     fn prop_validated_functor_identity(val: i32) -> bool {
         let v: Validated<i32, String> = Validated::valid(val);
-        v.clone().fmap(|x| x) == v
+        v.clone().map(|x| x) == v
     }
 
     #[test]
     fn test_validated_typeclass_laws() {
         let value = Validated::<i32, String>::valid(10);
-        let mapped = value.fmap(|x| x + 1).fmap(|x| x * 2);
+        let mapped = value.map(|x| x + 1).map(|x| x * 2);
         assert_eq!(mapped, Validated::valid(22));
 
         let function: Validated<fn(i32) -> i32, String> = Validated::valid(|x| x * 2);
         let argument = Validated::<i32, String>::valid(10);
-        assert_eq!(function.apply(argument), Validated::valid(20));
+        assert_eq!(
+            function.zip_with(argument, |f, x| f(x)),
+            Validated::valid(20)
+        );
 
         let left = Validated::<String, String>::invalid("a".into());
         let middle = Validated::<String, String>::invalid("b".into());

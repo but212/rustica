@@ -93,45 +93,10 @@ fn test_validated_semigroup_accumulation() {
 }
 
 #[test]
-#[allow(deprecated)]
-fn test_result_and_vec_with_non_clone_types() {
-    use rustica::traits::applicative::Applicative;
-    use rustica::traits::foldable::Foldable;
-    use rustica::traits::functor::Functor;
-    use rustica::traits::monad::Monad;
-    use rustica::traits::monoid::Monoid;
-    use rustica::traits::pure::Pure;
-
-    #[allow(dead_code)]
-    struct NonCloneErr(String);
+fn test_vec_monoid_with_move_only_type() {
     #[allow(dead_code)]
     struct MoveOnly(i32);
 
-    // 1. Pure for Result with non-clone error
-    let r: Result<i32, NonCloneErr> = <Result<i32, NonCloneErr> as Pure>::pure(42);
-    assert_eq!(r.ok(), Some(42));
-
-    // 2. Functor for Result with non-clone error
-    let r: Result<i32, NonCloneErr> = Ok(10);
-    let mapped = r.fmap(|x| x * 2);
-    assert_eq!(mapped.ok(), Some(20));
-
-    // 3. Applicative for Result with non-clone error
-    let fn_res: Result<fn(i32) -> i32, NonCloneErr> = Ok(|x| x + 5);
-    let val_res: Result<i32, NonCloneErr> = Ok(10);
-    let applied = fn_res.apply(val_res);
-    assert_eq!(applied.ok(), Some(15));
-
-    // 4. Monad for Result with non-clone error
-    let r: Result<i32, NonCloneErr> = Ok(10);
-    let bound = r.bind(|x| Ok(x + 1));
-    assert_eq!(bound.ok(), Some(11));
-
-    // 5. Foldable for Result with non-clone error
-    let r: Result<i32, NonCloneErr> = Ok(10);
-    assert_eq!(r.fold_left(0, |acc, x| acc + x), 10);
-
-    // 6. Monoid for Vec with move-only type
     let empty_vec: Vec<MoveOnly> = Vec::<MoveOnly>::empty();
     assert!(empty_vec.is_empty());
 }

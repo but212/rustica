@@ -37,8 +37,6 @@
 | `modify_different_value` | 105ns | 109ns | 120ns | 89ns | 257ns | 100 | - |
 | `set_hit` | 88ns | 91ns | 98ns | 71ns | 231ns | 100 | - |
 | `set_miss` | 25ns | 25ns | 32ns | 21ns | 39ns | 100 | - |
-| `set_if_different_same` | 87ns | 91ns | 99ns | 71ns | 109ns | 100 | - |
-| `set_if_different_changed` | 83ns | 78ns | 97ns | 71ns | 229ns | 100 | - |
 
 ## Free
 

@@ -11,9 +11,9 @@ Rustica provides functional programming and categorical abstractions for Rust.
 ## Overview
 
 - **Algebraic Traits**: `Semigroup`, `Monoid` (associative combination and empty identities)
-- **Data Types**: `Choice`, `Validated`, `Free`, `Program` / `TryProgram`, `PersistentVector`
+- **Data Types**: `Choice`, `Validated`, `Free`, `Program` / `TryProgram`
 - **Error Handling**: `ContextError` (context accumulation) and `Validated` (failure accumulation)
-- **Collections**: Immutable RRB-tree `PersistentVector` (requires `pvec` feature; deprecated in 0.18.0, removal in 0.19.0)
+- **Optics**: `Lens` (product types) and `Prism` (sum types)
 - **API Guidelines**: Follows Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
 - **Design Philosophy**: Architectural trade-offs and boundary guidelines (see [docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md))
 
@@ -22,7 +22,7 @@ Rustica provides functional programming and categorical abstractions for Rust.
 - **Domain Modeling**: Precise state representation via algebraic types (`Choice`, `Validated`)
 - **Validation**: Error accumulation without early return (`Validated`)
 - **Domain DSLs**: AST construction (`Free`) or typed command-handler dispatch (`Program`)
-- **Persistent Data**: Structural sharing via immutable collections (`PersistentVector`, deprecated in 0.18.0; migrate to `imbl`)
+- **Optics**: Ergonomic immutable access and transformation for complex structs and enums (`Lens`, `Prism`)
 
 ---
 
@@ -34,8 +34,7 @@ Add Rustica to `Cargo.toml`:
 [dependencies]
 rustica = "0.18.0"
 # Features:
-# rustica = { version = "0.18.0", features = ["pvec"] } # persistent vector (deprecated in 0.18.0)
-# rustica = { version = "0.18.0", features = ["full"] } # async, serde, quickcheck, pvec
+# rustica = { version = "0.18.0", features = ["full"] } # async, serde, quickcheck
 ```
 
 Import common traits and types:
@@ -52,7 +51,6 @@ use rustica::prelude::*;
 
 - **`Semigroup`**: `combine`
 - **`Monoid`**: `empty`, `combine_all`
-- *(Deprecated in 0.18.0, removal in 0.19.0)*: `Functor`, `Applicative`, `Monad`, `Pure`, `Foldable`, `HKT` (migrated to inherent methods and standard Rust iterators).
 
 ### 2. Core Data Types
 
@@ -60,19 +58,18 @@ use rustica::prelude::*;
 - **`Validated<T, E>`**: Accumulates errors into `NonEmptyErrors<E>`.
 - **`Free<F, A>`**: Free monad with stack-safe iterative execution (`run`, `try_run`).
 - **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation.
-- **`PersistentVector<T>`**: Immutable RRB-tree vector (`pvec` feature; deprecated in 0.18.0, removal in 0.19.0 - migrate to `imbl`).
 
 ### 3. Optics
 
 - **`Lens`**: Getters and setters for product types.
-- **`Prism`**: Pattern matching optics for sum types.
+- **`Prism`**: Pattern matching optics for sum types (`preview`, `review`, `set`, `modify`).
 
 ---
 
 ## Migration Guides
 
+- [0.19.0 Migration Guide](MIGRATION_v0.19.0.md): Removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
 - [0.18.0 Migration Guide](MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
-- [0.18.0 Migration Guide](MIGRATION_v0.18.0.md): Deprecation of redundant FP abstractions in favor of native Rust primitives
 - [0.16.0 Migration Guide](MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation
 - [0.15.0 Migration Guide](MIGRATION_v0.15.0.md): RRB tree integrity and panic context
 - [0.14.0 Migration Guide](MIGRATION_v0.14.0.md): Surface reduction and compile-time base monad enforcement
