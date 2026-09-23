@@ -130,13 +130,8 @@ Boolean inspection methods always borrow via `&self`:
 
 ### 7.3 Persistent Data Structures
 
-> [!WARNING]
-> `PersistentVector` and the `pvec` module are deprecated in v0.18.0 and scheduled for complete removal in v0.19.0. Use standard `Vec<T>` or dedicated persistent collection crates such as `imbl::Vector`.
-
-Persistent collections return new roots with structural sharing (`Arc`) rather than mutating in place; mutation-like verbs use **`&self -> Self`**:
-
-- `fn push_back(&self, value: T) -> Self`
-- `fn update(&self, index: usize, value: T) -> Self`
+> [!NOTE]
+> `PersistentVector` and the `pvec` module were removed in v0.19.0. Rustica delegates persistent collections to dedicated specialized crates such as [`imbl`](https://crates.io/crates/imbl) (`imbl::Vector`) or standard `std::vec::Vec<T>`.
 
 ### 7.4 Optics (Lens, Prism)
 

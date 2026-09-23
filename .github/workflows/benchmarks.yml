@@ -34,7 +34,7 @@ jobs:
       - name: Run benchmarks
         shell: bash
         run: |
-          cargo bench --bench datatypes_benchmarks --features pvec --locked | tee benchmark_raw.txt
+          cargo bench --bench datatypes_benchmarks --locked | tee benchmark_raw.txt
 
       - name: Generate benchmark report
         run: python3 .github/scripts/benchmark_report.py --input benchmark_raw.txt --output benchmark_report.md

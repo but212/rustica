@@ -586,23 +586,6 @@ where
             None => source,
         }
     }
-
-    /// Sets the focused value with structural sharing optimization.
-    ///
-    /// # Deprecated
-    ///
-    /// Use [`Prism::set`] instead. Sum-type reconstruction via `review` is an $O(1)$ move;
-    /// equality-checking focus payloads incurs redundant allocations.
-    #[deprecated(
-        since = "0.19.0",
-        note = "Use `set` instead; equality-checking structural sharing incurs redundant allocations"
-    )]
-    pub fn set_if_different(&self, source: S, new_value: A) -> S
-    where
-        A: PartialEq,
-    {
-        self.set(source, new_value)
-    }
 }
 
 #[cfg(test)]
@@ -765,14 +748,6 @@ mod unit_tests {
     fn set_preserves_source_when_focus_is_absent() {
         let inactive = Status::Inactive;
         let result = active_prism().set(inactive, "Charlie".into());
-        assert_eq!(result, Status::Inactive);
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn set_if_different_preserves_source_when_focus_is_absent() {
-        let inactive = Status::Inactive;
-        let result = active_prism().set_if_different(inactive, "Charlie".into());
         assert_eq!(result, Status::Inactive);
     }
 }

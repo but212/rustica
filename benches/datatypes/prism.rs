@@ -45,18 +45,4 @@ pub fn prism_benchmarks(harness: &Harness) {
     group.bench_fn("set_miss", || {
         black_box(active_prism.set(black_box(inactive_status.clone()), "Bob".to_string()));
     });
-
-    #[allow(deprecated)]
-    group.bench_fn("set_if_different_same", || {
-        black_box(
-            active_prism.set_if_different(black_box(active_status.clone()), "Alice".to_string()),
-        );
-    });
-
-    #[allow(deprecated)]
-    group.bench_fn("set_if_different_changed", || {
-        black_box(
-            active_prism.set_if_different(black_box(active_status.clone()), "Bob".to_string()),
-        );
-    });
 }

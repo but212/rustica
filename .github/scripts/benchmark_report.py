@@ -133,7 +133,7 @@ class BenchmarkRunner:
             return None
 
     def execute_cargo_bench(self) -> str:
-        cmd = ["cargo", "bench", "--bench", "datatypes_benchmarks", "--features", "pvec", "--locked"]
+        cmd = ["cargo", "bench", "--bench", "datatypes_benchmarks", "--locked"]
         print(f"Executing: {' '.join(cmd)}")
         res = subprocess.run(
             cmd,

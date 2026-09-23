@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [0.19.0]
+
+### Deprecated
+
+- **`async` Feature & `Validated` Async Combinators**: Deprecated `async` Cargo feature flag and `Validated::map_async`, `Validated::map_err_async`, and `Validated::and_then_async` in favor of native `async`/`await` and pattern matching (removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
+- **`tokio` Dev-Dependency**: Deprecated `tokio` in `[dev-dependencies]` (scheduled for removal in `0.20.0` alongside async combinator tests).
+
+### Removed
+
+- **Persistent Collections (`pvec`)**: Completely removed `rustica::pvec` module, `PersistentVector<T>`, `pvec!` macro, and the `pvec` Cargo feature flag. Persistent collections should migrate to dedicated external crates like `imbl` (`imbl::Vector`) or standard `std::vec::Vec<T>` (see `MIGRATION_v0.19.0.md`).
+- **Pseudo-HKT & Categorical Simulation Traits**: Removed `HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, and `Foldable` traits from `rustica::traits`. Concrete types (`Validated`, `Choice`, `Free`, etc.) now exclusively provide inherent methods (`map`, `zip_with`, `lift2`, etc.) and standard `Iterator` / `FromIterator` implementations. Core algebraic traits `Semigroup` and `Monoid` remain fully supported.
+- **`Prism::set_if_different`**: Removed redundant method in favor of unconditional $O(1)$ variant reconstruction via `Prism::set`.
+
 ## [0.18.0]
 
 ### Deprecations

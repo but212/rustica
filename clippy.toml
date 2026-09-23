@@ -7,7 +7,7 @@ enum-variant-size-threshold = 150
 cognitive-complexity-threshold = 20
 
 # Documentation-related configurations
-doc-valid-idents = ["PersistentVector", "HKT", "Functor", "Applicative", "Monad", "fmap", "Monoid", "Semigroup", "Foldable"]
+doc-valid-idents = ["Monoid", "Semigroup", "fmap"]
 
 # Reasonable defaults for type and array sizes
 array-size-threshold = 8

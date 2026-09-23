@@ -54,7 +54,7 @@ jobs:
 
       - name: Run form_validation Example
         if: matrix.features == '--all-features'
-        run: cargo run --example form_validation --features pvec --locked
+        run: cargo run --example form_validation --locked
 
       - name: Run dsl_interpretation Example
         if: matrix.features == '--all-features'

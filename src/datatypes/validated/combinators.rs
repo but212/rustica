@@ -31,6 +31,17 @@ impl<T, E> Validated<T, E> {
         }
     }
 
+    /// Functional alias for [`map`](Self::map).
+    ///
+    /// Maps a function over the valid value if `Valid`, or returns the `Invalid` value unchanged.
+    #[inline]
+    pub fn fmap<U, F>(self, f: F) -> Validated<U, E>
+    where
+        F: FnMut(T) -> U,
+    {
+        self.map(f)
+    }
+
     /// Maps a function over each error value if `Invalid`, or returns the `Valid` value unchanged.
     ///
     /// # Type Parameters
@@ -171,6 +182,34 @@ impl<T, E> Validated<T, E> {
     #[inline]
     pub fn zip<U>(self, other: Validated<U, E>) -> Validated<(T, U), E> {
         self.zip_with(other, |a, b| (a, b))
+    }
+
+    /// Applies a function wrapped in `Validated` to a value wrapped in `Validated`,
+    /// accumulating all errors if any.
+    ///
+    /// If both are `Valid`, applies `f(a)`. If either or both are `Invalid`,
+    /// accumulates all errors in encounter order.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::validated::Validated;
+    ///
+    /// let f: Validated<fn(i32) -> i32, &str> = Validated::valid(|x| x * 2);
+    /// let v: Validated<i32, &str> = Validated::valid(10);
+    /// assert_eq!(f.apply(v), Validated::valid(20));
+    ///
+    /// let err_fn: Validated<fn(i32) -> i32, &str> = Validated::invalid("fn error");
+    /// let err_val: Validated<i32, &str> = Validated::invalid("val error");
+    /// let result = err_fn.apply(err_val);
+    /// assert_eq!(result.error_slice(), &["fn error", "val error"]);
+    /// ```
+    #[inline]
+    pub fn apply<A, B>(self, value: Validated<A, E>) -> Validated<B, E>
+    where
+        T: FnOnce(A) -> B,
+    {
+        self.zip_with(value, |f, a| f(a))
     }
 
     /// Combines three `Validated` values using a ternary function, accumulating all errors if any.
@@ -389,6 +428,10 @@ impl<T, E> Validated<T, E> {
 #[cfg(feature = "async")]
 impl<T, E> Validated<T, E> {
     /// Maps an async function over the valid value, taking ownership.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use native async/await and pattern matching; scheduled for removal in 0.20.0"
+    )]
     pub async fn map_async<U, F, Fut>(self, f: F) -> Validated<U, E>
     where
         F: FnOnce(T) -> Fut,
@@ -404,6 +447,10 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Maps an async function over the error values, taking ownership.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use native async/await and pattern matching or iteration; scheduled for removal in 0.20.0"
+    )]
     pub async fn map_err_async<F, G, Fut>(self, f: G) -> Validated<T, F>
     where
         G: Fn(E) -> Fut,
@@ -422,6 +469,10 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Chains an async validation operation, taking ownership.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use native async/await and pattern matching; scheduled for removal in 0.20.0"
+    )]
     pub async fn and_then_async<U, F, Fut>(self, f: F) -> Validated<U, E>
     where
         F: FnOnce(T) -> Fut,
@@ -521,6 +572,7 @@ mod tests {
 
     #[cfg(feature = "async")]
     #[tokio::test]
+    #[allow(deprecated)]
     async fn test_map_err_async_sequential() {
         let invalid: Validated<String, i32> = Validated::invalid_many([1, 2, 3]);
         let mapped = invalid
