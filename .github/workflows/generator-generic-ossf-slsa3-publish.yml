@@ -91,6 +91,7 @@ jobs:
     with:
       base64-subjects: ${{ needs.build.outputs.digests }}
       upload-assets: true
+      upload-tag-name: ${{ inputs.tag_name || github.event.release.tag_name || github.ref_name }}
 
   verify:
     name: Verify SLSA provenance

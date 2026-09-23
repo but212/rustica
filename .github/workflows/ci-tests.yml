@@ -54,11 +54,11 @@ jobs:
 
       - name: Run form_validation Example
         if: matrix.features == '--all-features'
-        run: cargo run --example form_validation --locked
+        run: cargo run --example form_validation --locked --all-features
 
       - name: Run dsl_interpretation Example
         if: matrix.features == '--all-features'
-        run: cargo run --example dsl_interpretation --locked
+        run: cargo run --example dsl_interpretation --locked --all-features
 
   msrv:
     name: Test declared MSRV
