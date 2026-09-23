@@ -13,6 +13,7 @@ use smallvec::{SmallVec, smallvec};
 /// The private buffer prevents callers from constructing or clearing an empty
 /// error collection while retaining the compact `SmallVec` representation.
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+#[repr(transparent)]
 pub struct NonEmptyErrors<E>(ErrorVec<E>);
 
 impl<E> NonEmptyErrors<E> {
