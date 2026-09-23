@@ -170,6 +170,7 @@ let updated = prism.set(status, "Bob".to_string());
 ## 4. Prelude Changes
 
 `rustica::prelude::*` and `rustica::prelude::traits::*` now re-export exclusively the algebraic traits:
+
 - `Semigroup`
 - `Monoid`
 
@@ -180,6 +181,7 @@ All concrete types (`Validated`, `Choice`, `Free`, `Lens`, `Prism`, `Program`, `
 ## 5. Validated Submodule Consolidation
 
 Following the removal of categorical simulation traits, the empty submodules `rustica::datatypes::validated::combinators` and `rustica::datatypes::validated::traits` have been internalized:
+
 - Trait implementations (`Semigroup`, `Arbitrary`) now reside directly within `core.rs`.
 - Inherent combinators continue to be methods on `Validated`.
 - Canonical imports remain `rustica::datatypes::validated::{Validated, NonEmptyErrors}` and `rustica::prelude::*`.
@@ -237,4 +239,3 @@ let mapped_err = match invalid {
 ### `tokio` Dev-Dependency
 
 `tokio` in `[dev-dependencies]` is deprecated in 0.19.0 (retained exclusively to run unit tests for deprecated `Validated` async combinators) and scheduled for removal in 0.20.0 alongside those tests.
-
