@@ -76,7 +76,7 @@ class ReleaseMetadataTests(TestCase):
 class BenchmarkReportTests(TestCase):
     def test_parse_entries_with_and_without_throughput(self) -> None:
         sample_output = """
-Compiling rustica v0.17.0
+Compiling rustica v0.18.0
 Finished `bench` profile [optimized] target(s)
  Running benches/datatypes_benchmarks.rs
 Validated/invalid_many/4                 ... mean:     212ns median:     210ns p95:     220ns min:     200ns max:     440ns (100 iters)
@@ -131,7 +131,7 @@ Lens/set_same_value                      ... mean:     202ns min:     180ns max:
 
     def test_parse_empty_or_non_benchmark_output_raises(self) -> None:
         with self.assertRaisesRegex(ValueError, "No benchmark results found in input text"):
-            BenchmarkReport.from_raw_text("Compiling rustica v0.17.0\nFinished bench profile\n")
+            BenchmarkReport.from_raw_text("Compiling rustica v0.18.0\nFinished bench profile\n")
 
     def test_render_markdown_report_structure(self) -> None:
         entries = [

@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       tag_name:
-        description: "Release tag name (e.g. v0.17.0)"
+        description: "Release tag name (e.g. v0.18.0)"
         required: true
         type: string
   release:
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag name (e.g. v0.17.0)"
+        description: "Release tag name (e.g. v0.18.0)"
         required: true
         type: string
 
