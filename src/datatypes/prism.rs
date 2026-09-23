@@ -197,7 +197,6 @@ use std::marker::PhantomData;
 ///
 /// Complex variant extraction and nested composition are covered by
 /// `tests/datatypes/test_prism.rs`.
-#[derive(Clone)]
 pub struct Prism<S, A, PreviewFn, ReviewFn>
 where
     PreviewFn: Fn(&S) -> Option<A>,
@@ -208,6 +207,20 @@ where
     /// Function that constructs a value of type S from A
     review: ReviewFn,
     _phantom: PhantomData<(S, A)>,
+}
+
+impl<S, A, PreviewFn, ReviewFn> Clone for Prism<S, A, PreviewFn, ReviewFn>
+where
+    PreviewFn: Fn(&S) -> Option<A> + Clone,
+    ReviewFn: Fn(A) -> S + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            preview: self.preview.clone(),
+            review: self.review.clone(),
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<S, A, PreviewFn, ReviewFn> std::fmt::Debug for Prism<S, A, PreviewFn, ReviewFn>
@@ -863,10 +876,12 @@ mod unit_tests {
         assert_eq!(result, Status::Inactive);
     }
 
+    type ConstStatusPrism =
+        Prism<Status, String, fn(&Status) -> Option<String>, fn(String) -> Status>;
+
     #[test]
     fn prism_is_const_constructible() {
-        const fn make_prism()
-        -> Prism<Status, String, fn(&Status) -> Option<String>, fn(String) -> Status> {
+        const fn make_prism() -> ConstStatusPrism {
             Prism::new(
                 |s: &Status| match s {
                     Status::Active(name) => Some(name.clone()),
@@ -875,12 +890,7 @@ mod unit_tests {
                 Status::Active,
             )
         }
-        const CONST_PRISM: Prism<
-            Status,
-            String,
-            fn(&Status) -> Option<String>,
-            fn(String) -> Status,
-        > = make_prism();
+        const CONST_PRISM: ConstStatusPrism = make_prism();
         let target = Status::Active("Const".into());
         assert_eq!(CONST_PRISM.preview(&target), Some("Const".into()));
     }

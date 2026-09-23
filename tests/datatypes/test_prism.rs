@@ -153,6 +153,35 @@ fn test_prism_modify_without_clone_or_partial_eq() {
 }
 
 #[test]
+fn test_prism_clone_without_clone_types() {
+    struct NonClonePayload(i32);
+    enum Container {
+        Item(NonClonePayload),
+    }
+
+    let prism = Prism::new(
+        |c: &Container| match c {
+            Container::Item(item) => Some(NonClonePayload(item.0)),
+        },
+        Container::Item,
+    );
+    let cloned = Clone::clone(&prism);
+
+    let updated = prism.modify(Container::Item(NonClonePayload(10)), |payload| {
+        NonClonePayload(payload.0 + 1)
+    });
+    let cloned_updated = cloned.modify(Container::Item(NonClonePayload(20)), |payload| {
+        NonClonePayload(payload.0 + 2)
+    });
+
+    assert!(matches!(updated, Container::Item(NonClonePayload(11))));
+    assert!(matches!(
+        cloned_updated,
+        Container::Item(NonClonePayload(22))
+    ));
+}
+
+#[test]
 fn test_prism_set() {
     let p = active_prism();
 
