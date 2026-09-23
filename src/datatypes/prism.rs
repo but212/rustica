@@ -114,27 +114,8 @@
 //!
 //! ## Type Class Laws
 //!
-//! Prisms must satisfy the following laws to be considered well-behaved. See the documentation for
-//! the specific functions (`preview`, `review`) for examples demonstrating these laws.
-//!
-//! ### First Law: Preview-Review
-//!
-//! For any prism `p`, structure `s`, and focus value `a` where `p.preview(s) = Some(a)`:
-//!
-//! `p.review(a)` constructs a value that, when previewed, yields the same focus:
-//! `p.preview(&p.review(a)) == Some(a)`
-//!
-//! If the focus type `A` contains exactly the information needed to reconstruct the matched case,
-//! this typically implies `p.review(a) == s`.
-//!
-//! ### Second Law: Review-Preview
-//!
-//! For any prism `p` and focus value `a`:
-//!
-//! `p.preview(&p.review(a)) == Some(a)`
-
-//!
-//! If we review a value and then successfully preview it, we get back the original value.
+//! Prisms must satisfy the Preview-Review and Review-Preview laws to be well-behaved.
+//! See the type-level [`Prism`] documentation for full definitions and invariants.
 //!
 //! # Examples
 //!
@@ -254,11 +235,8 @@ where
     ///
     /// # Implementation Notes
     ///
-    /// For a well-behaved prism, the provided functions should satisfy these conditions:
-    ///
-    /// 1. If `preview(s)` returns `Some(a)`, then `preview(review(a))` should also return `Some(a)`.
-    /// 2. If `preview(s)` returns `Some(a)`, the result of `review(a)` when viewed through the
-    ///    prism should be equivalent to the original `s`.
+    /// For a well-behaved prism, the provided functions should satisfy the
+    /// Preview-Review and Review-Preview laws documented on [`Prism`].
     ///
     /// Typical implementations use pattern matching in the preview function to extract
     /// data from a specific enum variant, and construct that variant in the review function.
@@ -413,6 +391,20 @@ where
     /// returns a new structure. If preview fails (focus absent), the original structure
     /// is returned unchanged.
     ///
+    /// # Warning: Lossy Reconstruction
+    ///
+    /// When preview succeeds, the returned structure is constructed via `review(f(preview(&source)))`.
+    /// If the prism's focus type `A` does not capture all fields of the variant in `S` (such as
+    /// secondary metadata, tags, or untracked fields), those non-focus fields are reconstructed
+    /// with whatever default values `review` provides, rather than being preserved from `source`.
+    ///
+    /// To preserve non-focus variant data from `source`, use [`Prism::modify_with`].
+    ///
+    /// # Performance Note: Focus Cloning
+    ///
+    /// Because `preview` borrows `&S`, extracting the focus value `A` generally involves a clone
+    /// within the preview closure even though `source` is owned by `modify`.
+    ///
     /// # Arguments
     ///
     /// * `source` - The source structure to modify
@@ -459,6 +451,61 @@ where
     {
         match self.preview(&source) {
             Some(current_value) => self.review(f(current_value)),
+            None => source,
+        }
+    }
+
+    /// Modifies the focused value while preserving non-focus data from `source`.
+    ///
+    /// This method applies `modify_fn(source, f(current_value))` when the focus is present,
+    /// allowing non-focus variant data (e.g. metadata, tags, extra fields) in `source` to be
+    /// preserved rather than discarded by `review`.
+    ///
+    /// If preview fails (focus absent), `source` is returned unchanged without invoking `modify_fn` or `f`.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source structure to modify
+    /// * `modify_fn` - A function `(S, A) -> S` that updates the focused variant while preserving `source`
+    /// * `f` - Transformation function for the focus value
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::prism::Prism;
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Tagged {
+    ///     Item { value: i32, tag: String },
+    ///     Empty,
+    /// }
+    ///
+    /// let prism = Prism::new(
+    ///     |t: &Tagged| match t {
+    ///         Tagged::Item { value, .. } => Some(*value),
+    ///         Tagged::Empty => None,
+    ///     },
+    ///     |value| Tagged::Item { value, tag: String::new() },
+    /// );
+    ///
+    /// let original = Tagged::Item { value: 1, tag: "important".into() };
+    /// let updated = prism.modify_with(
+    ///     original,
+    ///     |t, new_value| match t {
+    ///         Tagged::Item { tag, .. } => Tagged::Item { value: new_value, tag },
+    ///         Tagged::Empty => Tagged::Empty,
+    ///     },
+    ///     |v| v + 1,
+    /// );
+    /// assert_eq!(updated, Tagged::Item { value: 2, tag: "important".into() });
+    /// ```
+    pub fn modify_with<M, F>(&self, source: S, modify_fn: M, f: F) -> S
+    where
+        M: FnOnce(S, A) -> S,
+        F: FnOnce(A) -> A,
+    {
+        match self.preview(&source) {
+            Some(current_value) => modify_fn(source, f(current_value)),
             None => source,
         }
     }
@@ -543,6 +590,20 @@ where
     /// If the focus is present, constructs a new structure with the new value.
     /// If the focus is absent, returns the original structure unchanged.
     ///
+    /// # Warning: Lossy Reconstruction
+    ///
+    /// When preview succeeds, the returned structure is constructed via `review(new_value)`.
+    /// If the prism's focus type `A` does not capture all fields of the variant in `S` (such as
+    /// secondary metadata, tags, or untracked fields), those non-focus fields are reconstructed
+    /// with whatever default values `review` provides, rather than being preserved from `source`.
+    ///
+    /// To preserve non-focus variant data from `source`, use [`Prism::set_with`].
+    ///
+    /// # Performance Note: Focus Cloning
+    ///
+    /// Because `preview` borrows `&S`, checking if the variant matches may invoke clone operations
+    /// depending on the prism's preview closure, even though `source` is owned by `set`.
+    ///
     /// # Arguments
     ///
     /// * `source` - The source structure to potentially update
@@ -585,6 +646,57 @@ where
             Some(_) => self.review(new_value),
             None => source,
         }
+    }
+
+    /// Sets the focused value to a new value while preserving non-focus data from `source`.
+    ///
+    /// This method applies `modify_fn(source, new_value)` when the focus is present,
+    /// allowing non-focus variant data (e.g. metadata, tags, extra fields) in `source` to be
+    /// preserved rather than discarded by `review`.
+    ///
+    /// If preview fails (focus absent), `source` is returned unchanged without invoking `modify_fn`.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source structure to potentially update
+    /// * `modify_fn` - A function `(S, A) -> S` that updates the focused variant while preserving `source`
+    /// * `new_value` - The new value to set
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::prism::Prism;
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// enum Tagged {
+    ///     Item { value: i32, tag: String },
+    ///     Empty,
+    /// }
+    ///
+    /// let prism = Prism::new(
+    ///     |t: &Tagged| match t {
+    ///         Tagged::Item { value, .. } => Some(*value),
+    ///         Tagged::Empty => None,
+    ///     },
+    ///     |value| Tagged::Item { value, tag: String::new() },
+    /// );
+    ///
+    /// let original = Tagged::Item { value: 1, tag: "preserved".into() };
+    /// let updated = prism.set_with(
+    ///     original,
+    ///     |t, new_value| match t {
+    ///         Tagged::Item { tag, .. } => Tagged::Item { value: new_value, tag },
+    ///         Tagged::Empty => Tagged::Empty,
+    ///     },
+    ///     99,
+    /// );
+    /// assert_eq!(updated, Tagged::Item { value: 99, tag: "preserved".into() });
+    /// ```
+    pub fn set_with<M>(&self, source: S, modify_fn: M, new_value: A) -> S
+    where
+        M: FnOnce(S, A) -> S,
+    {
+        self.modify_with(source, modify_fn, |_| new_value)
     }
 }
 
@@ -749,5 +861,193 @@ mod unit_tests {
         let inactive = Status::Inactive;
         let result = active_prism().set(inactive, "Charlie".into());
         assert_eq!(result, Status::Inactive);
+    }
+
+    #[test]
+    fn prism_is_const_constructible() {
+        const fn make_prism()
+        -> Prism<Status, String, fn(&Status) -> Option<String>, fn(String) -> Status> {
+            Prism::new(
+                |s: &Status| match s {
+                    Status::Active(name) => Some(name.clone()),
+                    _ => None,
+                },
+                Status::Active,
+            )
+        }
+        const CONST_PRISM: Prism<
+            Status,
+            String,
+            fn(&Status) -> Option<String>,
+            fn(String) -> Status,
+        > = make_prism();
+        let target = Status::Active("Const".into());
+        assert_eq!(CONST_PRISM.preview(&target), Some("Const".into()));
+    }
+
+    #[test]
+    fn prism_is_send_and_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+
+        assert_send::<Prism<Status, String, fn(&Status) -> Option<String>, fn(String) -> Status>>();
+        assert_sync::<Prism<Status, String, fn(&Status) -> Option<String>, fn(String) -> Status>>();
+
+        let prism = Prism::new(
+            |s: &Status| match s {
+                Status::Active(name) => Some(name.clone()),
+                _ => None,
+            },
+            Status::Active,
+        );
+        let handle = std::thread::spawn(move || {
+            let s = Status::Active("ThreadSafe".into());
+            prism.preview(&s)
+        });
+        assert_eq!(handle.join().unwrap(), Some("ThreadSafe".into()));
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    enum TaggedItem {
+        Entry { id: u32, tag: String },
+        None,
+    }
+
+    fn tagged_prism()
+    -> Prism<TaggedItem, u32, impl Fn(&TaggedItem) -> Option<u32>, impl Fn(u32) -> TaggedItem> {
+        Prism::new(
+            |item: &TaggedItem| match item {
+                TaggedItem::Entry { id, .. } => Some(*id),
+                TaggedItem::None => None,
+            },
+            |id| TaggedItem::Entry {
+                id,
+                tag: String::new(),
+            },
+        )
+    }
+
+    #[test]
+    fn modify_with_and_set_with_preserve_non_focus_data() {
+        let prism = tagged_prism();
+        let item = TaggedItem::Entry {
+            id: 10,
+            tag: "important".into(),
+        };
+
+        let modify_fn = |item, new_id| match item {
+            TaggedItem::Entry { tag, .. } => TaggedItem::Entry { id: new_id, tag },
+            TaggedItem::None => TaggedItem::None,
+        };
+
+        // modify_with preserves tag
+        let modified = prism.modify_with(item.clone(), modify_fn, |id| id + 5);
+        assert_eq!(
+            modified,
+            TaggedItem::Entry {
+                id: 15,
+                tag: "important".into()
+            }
+        );
+
+        // set_with preserves tag
+        let updated = prism.set_with(item, modify_fn, 99);
+        assert_eq!(
+            updated,
+            TaggedItem::Entry {
+                id: 99,
+                tag: "important".into()
+            }
+        );
+    }
+
+    #[test]
+    fn modify_with_and_set_with_return_source_when_focus_absent() {
+        let prism = tagged_prism();
+        let absent = TaggedItem::None;
+
+        let modify_fn = |item, new_id| match item {
+            TaggedItem::Entry { tag, .. } => TaggedItem::Entry { id: new_id, tag },
+            TaggedItem::None => TaggedItem::None,
+        };
+
+        let modified = prism.modify_with(absent.clone(), modify_fn, |id| id + 1);
+        assert_eq!(modified, TaggedItem::None);
+
+        let updated = prism.set_with(absent, modify_fn, 100);
+        assert_eq!(updated, TaggedItem::None);
+    }
+
+    #[test]
+    fn then_composition_creates_valid_prism() {
+        #[derive(Clone, Debug, PartialEq)]
+        enum Wrapper {
+            Item { inner: TaggedItem, meta: String },
+            Nothing,
+        }
+
+        let wrapper_prism = Prism::new(
+            |w: &Wrapper| match w {
+                Wrapper::Item { inner, .. } => Some(inner.clone()),
+                Wrapper::Nothing => None,
+            },
+            |inner| Wrapper::Item {
+                inner,
+                meta: String::new(),
+            },
+        );
+
+        let composed = wrapper_prism.then(tagged_prism());
+
+        let source = Wrapper::Item {
+            inner: TaggedItem::Entry {
+                id: 42,
+                tag: "inner_tag".into(),
+            },
+            meta: "outer_meta".into(),
+        };
+
+        // preview works
+        assert_eq!(composed.preview(&source), Some(42));
+        assert_eq!(composed.preview(&Wrapper::Nothing), None);
+
+        // review works
+        let constructed = composed.review(100);
+        assert_eq!(
+            constructed,
+            Wrapper::Item {
+                inner: TaggedItem::Entry {
+                    id: 100,
+                    tag: String::new()
+                },
+                meta: String::new()
+            }
+        );
+
+        // modify on composed prism works
+        let modified = composed.modify(source.clone(), |id| id + 1);
+        assert_eq!(
+            modified,
+            Wrapper::Item {
+                inner: TaggedItem::Entry {
+                    id: 43,
+                    tag: String::new()
+                },
+                meta: String::new()
+            }
+        );
+
+        // set on composed prism works
+        let updated = composed.set(source, 777);
+        assert_eq!(
+            updated,
+            Wrapper::Item {
+                inner: TaggedItem::Entry {
+                    id: 777,
+                    tag: String::new()
+                },
+                meta: String::new()
+            }
+        );
     }
 }
