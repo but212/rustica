@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 import re
@@ -26,114 +26,143 @@ class BenchmarkEntry:
     p95: str = "-"
     throughput: str = "-"
 
+    @classmethod
+    def from_line(cls, line: str) -> BenchmarkEntry | None:
+        match = LINE_REGEX.match(line.strip())
+        if not match:
+            return None
+        group, name, mean, median, p95, min_val, max_val, iters, throughput = match.groups()
+        return cls(
+            group=group,
+            name=name,
+            mean=mean,
+            median=median or "-",
+            p95=p95 or "-",
+            min=min_val,
+            max=max_val,
+            iters=int(iters),
+            throughput=throughput or "-",
+        )
 
-def parse_benchmark_output(text: str) -> list[BenchmarkEntry]:
-    entries: list[BenchmarkEntry] = []
-    for line in text.splitlines():
-        line = line.strip()
-        match = LINE_REGEX.match(line)
-        if match:
-            group, name, mean, median, p95, min_val, max_val, iters, throughput = match.groups()
-            entries.append(
-                BenchmarkEntry(
-                    group=group,
-                    name=name,
-                    mean=mean,
-                    min=min_val,
-                    max=max_val,
-                    iters=int(iters),
-                    median=median if median else "-",
-                    p95=p95 if p95 else "-",
-                    throughput=throughput if throughput else "-",
-                )
+    def to_markdown_row(self) -> str:
+        return (
+            f"| `{self.name}` | {self.mean} | {self.median} | {self.p95} | "
+            f"{self.min} | {self.max} | {self.iters} | {self.throughput} |"
+        )
+
+
+@dataclass
+class BenchmarkReport:
+    entries: list[BenchmarkEntry]
+    title: str = "Benchmark Results"
+    commit_hash: str | None = None
+    generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self) -> None:
+        if not self.entries:
+            raise ValueError("No benchmark results found in input text")
+
+    @classmethod
+    def from_raw_text(
+        cls,
+        text: str,
+        title: str = "Benchmark Results",
+        commit_hash: str | None = None,
+    ) -> BenchmarkReport:
+        parsed = [
+            entry
+            for line in text.splitlines()
+            if (entry := BenchmarkEntry.from_line(line)) is not None
+        ]
+        return cls(entries=parsed, title=title, commit_hash=commit_hash)
+
+    def _grouped_entries(self) -> dict[str, list[BenchmarkEntry]]:
+        groups: dict[str, list[BenchmarkEntry]] = {}
+        for entry in self.entries:
+            groups.setdefault(entry.group, []).append(entry)
+        return groups
+
+    def to_markdown(self) -> str:
+        now_utc = self.generated_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+        meta = [f"Generated on {now_utc}"]
+        if self.commit_hash:
+            meta.append(f"Commit: `{self.commit_hash}`")
+
+        lines: list[str] = [
+            f"# {self.title}",
+            "",
+            f"> {', '.join(meta)}",
+            "",
+        ]
+
+        for group_name, entries in self._grouped_entries().items():
+            lines.extend([
+                f"## {group_name}",
+                "",
+                "| Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |",
+                "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+                *(entry.to_markdown_row() for entry in entries),
+                "",
+            ])
+
+        return "\n".join(lines).rstrip() + "\n"
+
+    def write_to(self, output_path: Path) -> None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(self.to_markdown(), encoding="utf-8")
+
+
+@dataclass(frozen=True)
+class BenchmarkRunner:
+    repo_dir: Path
+    candidate_files: tuple[str, ...] = ("benchmark_raw.txt", "benchmark_result.txt")
+
+    def get_commit_hash(self) -> str | None:
+        try:
+            res = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=self.repo_dir,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=True,
             )
+            return res.stdout.strip()
+        except Exception:
+            return None
 
-    if not entries:
-        raise ValueError("No benchmark results found in input text")
-    return entries
-
-
-def render_markdown_report(
-    entries: list[BenchmarkEntry],
-    title: str = "Benchmark Results",
-    commit_hash: str | None = None,
-) -> str:
-    groups: dict[str, list[BenchmarkEntry]] = {}
-    for entry in entries:
-        groups.setdefault(entry.group, []).append(entry)
-
-    now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    lines: list[str] = [f"# {title}", ""]
-
-    meta_parts = [f"Generated on {now_utc}"]
-    if commit_hash:
-        meta_parts.append(f"Commit: `{commit_hash}`")
-    lines.append(f"> {', '.join(meta_parts)}")
-    lines.append("")
-
-    for group_name, group_entries in groups.items():
-        lines.append(f"## {group_name}")
-        lines.append("")
-        lines.append("| Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |")
-        lines.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
-        for e in group_entries:
-            lines.append(
-                f"| `{e.name}` | {e.mean} | {e.median} | {e.p95} | {e.min} | {e.max} | {e.iters} | {e.throughput} |"
-            )
-        lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def get_git_commit_hash(repo_dir: Path) -> str | None:
-    try:
+    def execute_cargo_bench(self) -> str:
+        cmd = ["cargo", "bench", "--bench", "datatypes_benchmarks", "--features", "pvec", "--locked"]
+        print(f"Executing: {' '.join(cmd)}")
         res = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=repo_dir,
+            cmd,
+            cwd=self.repo_dir,
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             check=True,
         )
-        return res.stdout.strip()
-    except Exception:
-        return None
+        return res.stdout
 
+    def resolve_raw_output(self, input_path: Path | None, force_run: bool) -> str:
+        if force_run:
+            return self.execute_cargo_bench()
 
-def run_cargo_bench(repo_dir: Path) -> str:
-    cmd = ["cargo", "bench", "--bench", "datatypes_benchmarks", "--features", "pvec", "--locked"]
-    print(f"Executing: {' '.join(cmd)}")
-    res = subprocess.run(
-        cmd,
-        cwd=repo_dir,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=True,
-    )
-    return res.stdout
+        if input_path:
+            if not input_path.exists():
+                raise FileNotFoundError(f"Specified input file does not exist: {input_path}")
+            return input_path.read_text(encoding="utf-8")
 
+        for filename in self.candidate_files:
+            candidate = self.repo_dir / filename
+            if candidate.exists():
+                print(f"Using existing benchmark artifact: {candidate}")
+                return candidate.read_text(encoding="utf-8")
 
-def resolve_input(repo_dir: Path, input_path: Path | None, force_run: bool) -> str:
-    if force_run:
-        return run_cargo_bench(repo_dir)
-
-    if input_path:
-        if not input_path.exists():
-            raise FileNotFoundError(f"Specified input file does not exist: {input_path}")
-        return input_path.read_text(encoding="utf-8")
-
-    candidate_files = ["benchmark_raw.txt", "benchmark_result.txt"]
-    for filename in candidate_files:
-        candidate = repo_dir / filename
-        if candidate.exists():
-            print(f"Using existing benchmark artifact: {candidate}")
-            return candidate.read_text(encoding="utf-8")
-
-    print("No benchmark raw artifact found. Running cargo bench locally...")
-    return run_cargo_bench(repo_dir)
+        print("No benchmark raw artifact found. Running cargo bench locally...")
+        return self.execute_cargo_bench()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -143,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         "-i",
         type=Path,
         default=None,
-        help="Path to raw benchmark output file. If omitted, checks for benchmark_raw.txt or runs cargo bench.",
+        help="Path to raw benchmark output file. If omitted, checks artifacts or runs cargo bench.",
     )
     parser.add_argument(
         "--output",
@@ -167,18 +196,18 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parent.parent.parent
 
     try:
-        raw_text = resolve_input(repo_root, args.input, args.run)
-        entries = parse_benchmark_output(raw_text)
-        commit = get_git_commit_hash(repo_root)
-        markdown = render_markdown_report(entries, commit_hash=commit)
+        runner = BenchmarkRunner(repo_root)
+        raw_text = runner.resolve_raw_output(args.input, args.run)
 
-        output_path = args.output
-        if not output_path.is_absolute():
-            output_path = repo_root / output_path
+        report = BenchmarkReport.from_raw_text(
+            text=raw_text,
+            commit_hash=runner.get_commit_hash(),
+        )
 
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(markdown, encoding="utf-8")
-        print(f"Successfully generated benchmark report at: {output_path} ({len(entries)} benchmarks)")
+        output_path = args.output if args.output.is_absolute() else repo_root / args.output
+        report.write_to(output_path)
+
+        print(f"Successfully generated benchmark report at: {output_path} ({len(report.entries)} benchmarks)")
         return 0
     except Exception as err:
         print(f"Error: {err}", file=sys.stderr)
