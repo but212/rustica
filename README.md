@@ -57,7 +57,7 @@ use rustica::prelude::*;
 - **`Choice<T>`**: Non-empty priority/fallback collection (`try_each`, `try_each_validated`).
 - **`Validated<T, E>`**: Accumulates errors into `NonEmptyErrors<E>`.
 - **`Free<F, A>`**: Free monad with stack-safe iterative execution (`run`, `try_run`).
-- **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation.
+- **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation and destruction of deep `then` chains.
 
 ### 3. Optics
 

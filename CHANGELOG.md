@@ -12,6 +12,10 @@
 
 - **`Lens::modify` Compatibility**: Relaxed the focus bound from `Clone + PartialEq` to `PartialEq`, restoring `modify` support for non-`Clone` focus types. Equality checks may evaluate the getter more than once; the getter call count is not guaranteed.
 
+### Fixed
+
+- **Operational Monad Stack Safety**: Represented `then` sequencing explicitly so deep left- and right-associated `Program` and `TryProgram` chains can be evaluated and dropped without recursive stack growth.
+
 ### Deprecated
 
 - **Redundant Functional Aliases & Cloned Forwarders**: Deprecated `fmap` (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`; `Lens::fmap` in favor of `Lens::iso_map`), `bind` and `flat_map` (`Free`, `Program`, `TryProgram`), and `try_flatten_cloned` and `flatten_cloned` (`Choice`) in favor of idiomatic Rust conventions (`map`, `and_then`, and explicit `.clone()`; scheduled for removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).

@@ -148,6 +148,12 @@ enum Node<H, A, E> {
         Box<TryProgram<H, AnyBox, E>>,
         Box<dyn FnOnce(AnyBox) -> TryProgram<H, A, E> + Send + Sync>,
     ),
+    Then(Box<TryProgram<H, AnyBox, E>>, Box<TryProgram<H, A, E>>),
+}
+
+enum TryFrame<H, E> {
+    Bind(TryContFn<H, E>),
+    Then(TryProgram<H, AnyBox, E>),
 }
 
 /// Core statically-typed fallible Operational Monad computation with domain error `E`.
@@ -261,12 +267,33 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
 
     /// Sequences another computation, ignoring the output of the current one.
     #[inline]
-    pub fn then<B: Send + Sync + 'static>(self, next: TryProgram<H, B, E>) -> TryProgram<H, B, E> {
-        self.and_then(move |_| next)
+    pub fn then<B: Send + Sync + 'static>(
+        mut self, next: TryProgram<H, B, E>,
+    ) -> TryProgram<H, B, E> {
+        match self.take_node() {
+            Node::Pure(_) => next,
+            node => {
+                let previous = TryProgram { node: Some(node) }.into_any();
+                TryProgram {
+                    node: Some(Node::Then(Box::new(previous), Box::new(next))),
+                }
+            },
+        }
     }
 
     fn into_any(mut self) -> TryProgram<H, AnyBox, E> {
-        match self.take_node() {
+        let mut then_subs = Vec::new();
+        let node = loop {
+            match self.take_node() {
+                Node::Then(sub, next) => {
+                    then_subs.push(sub);
+                    self = *next;
+                },
+                node => break node,
+            }
+        };
+
+        let mut erased = match node {
             Node::Pure(a) => TryProgram::pure(Box::new(a) as AnyBox),
             Node::Suspend(runner, cont) => TryProgram {
                 node: Some(Node::Suspend(
@@ -277,23 +304,38 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
             Node::Bind(sub, cont) => TryProgram {
                 node: Some(Node::Bind(sub, Box::new(move |res| cont(res).into_any()))),
             },
+            Node::Then(_, _) => unreachable!("Then nodes are collected above"),
+        };
+
+        for sub in then_subs.into_iter().rev() {
+            erased = TryProgram {
+                node: Some(Node::Then(sub, Box::new(erased))),
+            };
         }
+        erased
     }
 
     /// Evaluates the fallible program to completion with stack safety using the provided handler.
     pub fn try_run(self, handler: &mut H) -> Result<A, E> {
         let mut cur: TryProgram<H, AnyBox, E> = self.into_any();
-        let mut stack: Vec<TryContFn<H, E>> = Vec::new();
+        let mut stack: Vec<TryFrame<H, E>> = Vec::new();
 
         loop {
             match cur.take_node() {
                 Node::Bind(sub, cont) => {
-                    stack.push(cont);
+                    stack.push(TryFrame::Bind(cont));
+                    cur = *sub;
+                },
+                Node::Then(sub, next) => {
+                    stack.push(TryFrame::Then(*next));
                     cur = *sub;
                 },
                 Node::Pure(val) => match stack.pop() {
-                    Some(cont) => {
+                    Some(TryFrame::Bind(cont)) => {
                         cur = cont(val);
+                    },
+                    Some(TryFrame::Then(next)) => {
+                        cur = next;
                     },
                     None => {
                         return Ok(*val
@@ -305,8 +347,11 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
                     let res = runner(handler)?;
                     let val = cont(res);
                     match stack.pop() {
-                        Some(next_cont) => {
+                        Some(TryFrame::Bind(next_cont)) => {
                             cur = next_cont(val);
+                        },
+                        Some(TryFrame::Then(next)) => {
+                            cur = next;
                         },
                         None => {
                             return Ok(*val
@@ -334,17 +379,58 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
     /// Returns `true` if the program is a sequenced bind node.
     #[inline]
     pub const fn is_bind(&self) -> bool {
-        matches!(self.node, Some(Node::Bind(_, _)))
+        matches!(self.node, Some(Node::Bind(_, _) | Node::Then(_, _)))
+    }
+}
+
+fn drop_any_program<H, E>(mut program: TryProgram<H, AnyBox, E>) {
+    let mut pending = Vec::new();
+    if let Some(node) = program.node.take() {
+        pending.push(node);
+    }
+
+    while let Some(node) = pending.pop() {
+        match node {
+            Node::Bind(mut sub, cont) => {
+                if let Some(node) = sub.node.take() {
+                    pending.push(node);
+                }
+                drop(cont);
+            },
+            Node::Then(mut sub, mut next) => {
+                if let Some(node) = sub.node.take() {
+                    pending.push(node);
+                }
+                if let Some(node) = next.node.take() {
+                    pending.push(node);
+                }
+            },
+            Node::Pure(value) => drop(value),
+            Node::Suspend(runner, cont) => drop((runner, cont)),
+        }
     }
 }
 
 /// Custom iterative Drop implementation to prevent stack overflows on deep un-evaluated chains.
 impl<H, A, E> Drop for TryProgram<H, A, E> {
     fn drop(&mut self) {
-        if let Some(Node::Bind(ref mut sub, _)) = self.node {
-            let mut cur = sub.take_node();
-            while let Node::Bind(ref mut next, _) = cur {
-                cur = next.take_node();
+        let mut cur = self.node.take();
+        while let Some(node) = cur {
+            match node {
+                Node::Then(sub, next) => {
+                    drop_any_program(*sub);
+                    let mut next = *next;
+                    cur = next.node.take();
+                },
+                Node::Bind(sub, cont) => {
+                    drop_any_program(*sub);
+                    drop(cont);
+                    return;
+                },
+                node => {
+                    drop(node);
+                    return;
+                },
             }
         }
     }
@@ -422,7 +508,7 @@ impl<H: 'static, A: Send + Sync + 'static> Program<H, A> {
     /// Sequences another computation, ignoring the output of the current one.
     #[inline]
     pub fn then<B: Send + Sync + 'static>(self, next: Program<H, B>) -> Program<H, B> {
-        self.and_then(move |_| next)
+        Program(self.0.then(next.0))
     }
 
     /// Evaluates the program to completion with stack safety using the provided handler.
@@ -464,7 +550,9 @@ impl<H, A: fmt::Debug, E> fmt::Debug for TryProgram<H, A, E> {
         match &self.node {
             Some(Node::Pure(a)) => f.debug_tuple("Pure").field(a).finish(),
             Some(Node::Suspend(_, _)) => f.debug_tuple("Suspend").field(&"<command>").finish(),
-            Some(Node::Bind(_, _)) => f.debug_tuple("Bind").field(&"<sub-computation>").finish(),
+            Some(Node::Bind(_, _) | Node::Then(_, _)) => {
+                f.debug_tuple("Bind").field(&"<sub-computation>").finish()
+            },
             None => f.debug_tuple("Consumed").finish(),
         }
     }
@@ -574,13 +662,31 @@ mod tests {
 
     #[test]
     fn test_deep_chain_drop_stack_safety() {
-        // Critical verification for Finding 1 [P1]:
-        // Dropping a 50,000-deep un-evaluated left-associated chain must NOT cause a stack overflow!
         let mut p: Program<CalcInterpreter, ()> = Program::pure(());
         for _ in 0..50_000 {
             p = p.then(Add(1).suspend());
         }
-        // Explicit drop to verify iterative Drop safety
+        drop(p);
+    }
+
+    #[test]
+    fn test_deep_right_associated_chain_run_stack_safety() {
+        let mut p: Program<CalcInterpreter, ()> = Program::pure(());
+        for _ in 0..25_000 {
+            p = Add(1).suspend().then(p);
+        }
+
+        let mut interp = CalcInterpreter { current: 0 };
+        p.run(&mut interp);
+        assert_eq!(interp.current, 25_000);
+    }
+
+    #[test]
+    fn test_deep_right_associated_chain_drop_stack_safety() {
+        let mut p: Program<CalcInterpreter, ()> = Program::pure(());
+        for _ in 0..50_000 {
+            p = Add(1).suspend().then(p);
+        }
         drop(p);
     }
 
