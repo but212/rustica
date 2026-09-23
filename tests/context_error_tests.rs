@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 #[test]
 fn test_context_error_creation() {
     let err = ContextError::new("file not found");
-    assert_eq!(err.error(), &"file not found");
+    assert_eq!(*err.error(), "file not found");
     assert_eq!(err.into_error(), "file not found");
 }
 
@@ -16,7 +16,7 @@ fn test_context_error_stack() {
         .with_context("query failed")
         .with_context("user lookup failed");
 
-    assert_eq!(err.error(), &"db connection failed");
+    assert_eq!(*err.error(), "db connection failed");
     assert_eq!(
         err.context(),
         vec!["user lookup failed".to_string(), "query failed".to_string()]
@@ -77,7 +77,7 @@ fn test_lazy_context_evaluation_on_error() {
     assert!(was_evaluated.load(Ordering::SeqCst));
     match res {
         Err(err) => {
-            assert_eq!(err.error(), &"underlying error");
+            assert_eq!(*err.error(), "underlying error");
             assert_eq!(err.context(), vec!["Context evaluated: yes".to_string()]);
         },
         Ok(_) => panic!("expected error"),
@@ -87,12 +87,12 @@ fn test_lazy_context_evaluation_on_error() {
 #[test]
 fn test_with_context_and_accumulate() {
     let err = with_context("disk full", "save document");
-    assert_eq!(err.error(), &"disk full");
+    assert_eq!(*err.error(), "disk full");
     assert_eq!(err.context(), vec!["save document".to_string()]);
 
     let accumulated =
         accumulate_context("network timeout", ["attempt 1 failed", "attempt 2 failed"]);
-    assert_eq!(accumulated.error(), &"network timeout");
+    assert_eq!(*accumulated.error(), "network timeout");
     assert_eq!(
         accumulated.context(),
         vec![
@@ -110,7 +110,7 @@ fn test_context_error_map_error_and_from() {
     assert_eq!(mapped.context(), vec!["not found".to_string()]);
 
     let from_err: ContextError<&str> = "raw error".into();
-    assert_eq!(from_err.error(), &"raw error");
+    assert_eq!(*from_err.error(), "raw error");
     assert!(from_err.context().is_empty());
 }
 

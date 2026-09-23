@@ -41,10 +41,10 @@ impl Display for ParseError {
             "Parse error at position {}: {}",
             self.position, self.message
         )?;
-        if let Some(ref exp) = self.expected {
+        if let Some(exp) = &self.expected {
             write!(f, " (expected: {})", exp)?;
         }
-        if let Some(ref found) = self.found {
+        if let Some(found) = &self.found {
             write!(f, " (found: '{}')", found)?;
         }
         Ok(())
