@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo package --locked --all-features
-          mapfile -t CRATE_FILES < <(find target/package -name "*.crate" -type f -print)
+          mapfile -t CRATE_FILES < <(find target/package -maxdepth 1 -name "*.crate" -type f -print)
           if [ "${#CRATE_FILES[@]}" -ne 1 ]; then
             echo "::error::Expected exactly one .crate file, found ${#CRATE_FILES[@]}"
             printf '  %s\n' "${CRATE_FILES[@]}"
@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t CRATE_FILES < <(find release-artifacts -name "*.crate" -type f -print)
+          mapfile -t CRATE_FILES < <(find release-artifacts -maxdepth 1 -name "*.crate" -type f -print)
           if [ "${#CRATE_FILES[@]}" -ne 1 ]; then
             echo "::error::Expected exactly one .crate artifact, found ${#CRATE_FILES[@]}"
             exit 1
@@ -143,3 +143,5 @@ jobs:
               --source-tag="$RELEASE_TAG" \
               "$artifact"
           done
+
+

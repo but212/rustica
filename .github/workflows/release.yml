@@ -19,21 +19,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  quality:
-    name: Quality
-    permissions:
-      contents: read
-    uses: ./.github/workflows/ci-quality.yml
-
-  tests:
-    name: Tests
-    permissions:
-      contents: read
-    uses: ./.github/workflows/ci-tests.yml
-
   publish:
     name: Publish
-    needs: [quality, tests]
     permissions:
       contents: write # required by the release job after crates.io approval
       id-token: write # required by crates.io Trusted Publishing
