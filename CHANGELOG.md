@@ -10,7 +10,9 @@
 
 ### Changed
 
-- **`Lens::modify` Compatibility**: Relaxed the focus bound from `Clone + PartialEq` to `PartialEq`, restoring `modify` support for non-`Clone` focus types. Equality checks may evaluate the getter more than once; the getter call count is not guaranteed.
+- **`Lens::modify` & `modify_always` `FnOnce` Support**: Relaxed transformation closures from `Fn(A) -> A` to `FnOnce(A) -> A`, allowing move closures to transform focused fields. Focus bound on `modify` remains `A: PartialEq` (relaxing the 0.18.0 `Clone + PartialEq` bound).
+- **`Lens` Manual `Clone` Implementation**: Replaced `#[derive(Clone)]` with a manual `impl Clone for Lens` requiring only `GetFn: Clone, SetFn: Clone`, allowing lenses targeting non-`Clone` structs or focuses to be cloned.
+- **`Lens` `PhantomData` Auto-Trait Decoupling**: Updated `_phantom: PhantomData<(S, A)>` to `PhantomData<fn(S) -> A>`, preventing `!Send`/`!Sync` auto-trait leakage from `S` or `A`.
 
 ### Fixed
 

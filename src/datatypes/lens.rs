@@ -72,14 +72,14 @@
 //! - OCaml's `Lenses` and `Optics` modules
 //! - PureScript's optics libraries
 //!
-//! ## Type Class Implementations
+//! ## Core Operations
 //!
-//! Lenses implement several functional programming abstractions:
+//! Lenses provide functional accessors for product types:
 //!
-//! - **Getter**: The ability to retrieve a component from a larger structure
-//! - **Setter**: The ability to update a component in an immutable structure
-//! - **Functor Mapping**: The ability to apply a function over the focused component
-//! - **Composable**: Lenses can be composed to access nested structures
+//! - **Getter**: Retrieve a component from a larger structure
+//! - **Setter**: Update a component immutably
+//! - **Modifier**: Transform a component via a function
+//! - **Composable**: Compose lenses sequentially to access nested structures
 //!
 //! ## Basic Usage
 //!
@@ -87,7 +87,7 @@
 //! fields. Their laws and boundary behavior are covered by the tests in
 //! `tests/datatypes/test_lens.rs`.
 //!
-//! ## Type Class Laws
+//! ## Lens Laws
 //!
 //! Lenses follow three fundamental laws that ensure their correct behavior. See the documentation
 //! for the specific functions (`get`, `set`) for examples demonstrating these laws.
@@ -119,7 +119,7 @@
 //! ## Nested lenses
 //!
 //! Compose lenses to update nested data while preserving unrelated fields. The
-//! composition and structural-sharing behavior is covered by
+//! composition and equality short-circuiting behavior is covered by
 //! `test_lens_composition_and_chaining` in `tests/datatypes/test_lens.rs`.
 
 use std::fmt;
@@ -141,7 +141,7 @@ use std::marker::PhantomData;
 /// # Design Notes
 ///
 /// - Functions are stored directly to avoid boxing overhead and enable better compiler optimizations
-/// - Implements structural sharing optimization when `A` implements `PartialEq`
+/// - Short-circuits updates when `A: PartialEq` and new value equals current value (`==`)
 /// - Provides variants without equality checks (`set_always`, `modify_always`) for types without `PartialEq`
 ///
 /// # Examples
@@ -178,7 +178,6 @@ use std::marker::PhantomData;
 /// let modified = name_lens.modify(person, |name| format!("Ms. {}", name));
 /// assert_eq!(modified.name, "Ms. Alice");
 /// ```
-#[derive(Clone)]
 pub struct Lens<S, A, GetFn, SetFn>
 where
     GetFn: Fn(&S) -> A,
@@ -186,7 +185,21 @@ where
 {
     get: GetFn,
     set: SetFn,
-    _phantom: PhantomData<(S, A)>,
+    _phantom: PhantomData<fn(S) -> A>,
+}
+
+impl<S, A, GetFn, SetFn> Clone for Lens<S, A, GetFn, SetFn>
+where
+    GetFn: Fn(&S) -> A + Clone,
+    SetFn: Fn(S, A) -> S + Clone,
+{
+    fn clone(&self) -> Self {
+        Lens {
+            get: self.get.clone(),
+            set: self.set.clone(),
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<S, A, GetFn, SetFn> fmt::Debug for Lens<S, A, GetFn, SetFn>
@@ -305,9 +318,14 @@ where
     /// Sets the focused part to a new value, returning a new whole structure.
     ///
     /// This operation creates a new structure rather than modifying the existing one.
-    /// If the new value is equal to the current value, the original structure is
-    /// returned to enable structural sharing, which is an important optimization for
-    /// larger data structures.
+    /// If the new value is equal to the current value according to `PartialEq::eq` (`==`),
+    /// the original structure is returned unchanged as a short-circuiting optimization.
+    ///
+    /// # Equivalence Note
+    ///
+    /// Short-circuiting is governed strictly by `==`. For types with non-trivial equivalence
+    /// relations (such as IEEE 754 floats where `0.0 == -0.0`), setting an equivalent value
+    /// preserves the existing representation in `source`.
     ///
     /// # Requirements
     ///
@@ -326,7 +344,7 @@ where
     ///
     /// # Examples
     ///
-    /// Basic usage with structural sharing optimization:
+    /// Basic usage with equality short-circuiting:
     ///
     /// ```rust
     /// use rustica::datatypes::lens::Lens;
@@ -474,14 +492,14 @@ where
     /// assert_eq!(older.age, 31);
     /// assert_eq!(older.name, "Alice");
     ///
-    /// // No change when applying identity function - structural sharing in action
+    /// // No change when applying identity function - equality short-circuiting in action
     /// let same = age_lens.modify(user.clone(), |age| age);
     /// assert_eq!(same, user); // Same value due to no change
     /// ```
     #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
-        F: Fn(A) -> A,
+        F: FnOnce(A) -> A,
         A: PartialEq,
     {
         let current = self.get(&source);
@@ -552,7 +570,7 @@ where
     #[inline]
     pub fn modify_always<F>(&self, source: S, f: F) -> S
     where
-        F: Fn(A) -> A,
+        F: FnOnce(A) -> A,
     {
         let current = self.get(&source);
         let new_value = f(current);
@@ -792,7 +810,7 @@ mod unit_tests {
     }
 
     #[test]
-    fn basic_lens_operations_obey_lens_laws() {
+    fn test_basic_operations() {
         #[derive(Clone, Debug, PartialEq)]
         struct NameAge {
             name: String,
@@ -811,6 +829,61 @@ mod unit_tests {
         assert_eq!(age.get(&person), 30);
         assert_eq!(name.set(person.clone(), "Bob".into()).name, "Bob");
         assert_eq!(age.modify(person, |value| value + 1).age, 31);
+    }
+
+    #[test]
+    fn test_modify_move_closure() {
+        struct MoveOnly(String);
+        let move_only = MoveOnly("suffix".into());
+
+        #[derive(Clone, Debug, PartialEq)]
+        struct Item {
+            name: String,
+        }
+        let item_lens = Lens::new(|i: &Item| i.name.clone(), |_i, name| Item { name });
+
+        let item = Item {
+            name: "prefix_".into(),
+        };
+        // Closure moves `move_only` by value, requiring FnOnce
+        let updated = item_lens.modify(item, move |mut s| {
+            s.push_str(&move_only.0);
+            s
+        });
+        assert_eq!(updated.name, "prefix_suffix");
+    }
+
+    #[test]
+    fn test_lens_clonable_without_target_clone() {
+        struct NonCloneStruct {
+            val: u32,
+        }
+        let lens = Lens::new(|s: &NonCloneStruct| s.val, |_s, val| NonCloneStruct { val });
+        // Manual Clone impl allows cloning Lens even when NonCloneStruct does not implement Clone
+        let cloned = lens.clone();
+        let s = NonCloneStruct { val: 42 };
+        assert_eq!(cloned.get(&s), 42);
+    }
+
+    #[test]
+    fn test_set_always_bypasses_equality_check() {
+        let address = Rc::new(Address {
+            street: "Main St".into(),
+            city: "Metropolis".into(),
+        });
+        let person = Person {
+            name: "Bob".into(),
+            address: Rc::clone(&address),
+        };
+        let lens = address_lens();
+
+        // `set` detects equality and short-circuits (returns same Rc)
+        let same = lens.set(person.clone(), (*address).clone());
+        assert!(Rc::ptr_eq(&person.address, &same.address));
+
+        // `set_always` does NOT check equality; always constructs a new instance
+        let force_new = lens.set_always(person.clone(), (*address).clone());
+        assert!(!Rc::ptr_eq(&person.address, &force_new.address));
     }
 
     #[test]
