@@ -27,20 +27,24 @@ struct UserProfile {
 }
 
 const fn theme_mode_lens()
--> Lens<Theme, String, impl Fn(&Theme) -> String, impl Fn(Theme, String) -> Theme> {
+-> Lens<Theme, String, impl Fn(&Theme) -> String + Clone, impl Fn(Theme, String) -> Theme + Clone> {
     Lens::new(|t: &Theme| t.mode.clone(), |t, mode| Theme { mode, ..t })
 }
 
 const fn theme_font_size_lens()
--> Lens<Theme, u32, impl Fn(&Theme) -> u32, impl Fn(Theme, u32) -> Theme> {
+-> Lens<Theme, u32, impl Fn(&Theme) -> u32 + Clone, impl Fn(Theme, u32) -> Theme + Clone> {
     Lens::new(
         |t: &Theme| t.font_size,
         |t, font_size| Theme { font_size, ..t },
     )
 }
 
-const fn settings_theme_lens()
--> Lens<Settings, Theme, impl Fn(&Settings) -> Theme, impl Fn(Settings, Theme) -> Settings> {
+const fn settings_theme_lens() -> Lens<
+    Settings,
+    Theme,
+    impl Fn(&Settings) -> Theme + Clone,
+    impl Fn(Settings, Theme) -> Settings + Clone,
+> {
     Lens::new(
         |s: &Settings| s.theme.clone(),
         |s, theme| Settings { theme, ..s },
@@ -50,8 +54,8 @@ const fn settings_theme_lens()
 const fn user_settings_lens() -> Lens<
     UserProfile,
     Settings,
-    impl Fn(&UserProfile) -> Settings,
-    impl Fn(UserProfile, Settings) -> UserProfile,
+    impl Fn(&UserProfile) -> Settings + Clone,
+    impl Fn(UserProfile, Settings) -> UserProfile + Clone,
 > {
     Lens::new(
         |u: &UserProfile| u.settings.clone(),

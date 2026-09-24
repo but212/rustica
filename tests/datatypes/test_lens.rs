@@ -143,8 +143,13 @@ fn test_lens_debug_formatting() {
 #[test]
 fn test_lens_composition_and_chaining() {
     #[derive(Clone, Debug, PartialEq)]
+    struct ZipCode {
+        code: u32,
+    }
+    #[derive(Clone, Debug, PartialEq)]
     struct Address {
         city: String,
+        zip: ZipCode,
     }
     #[derive(Clone, Debug, PartialEq)]
     struct Company {
@@ -155,17 +160,66 @@ fn test_lens_composition_and_chaining() {
         |c: &Company| c.address.clone(),
         |_c, address| Company { address },
     );
-    let address_city_lens = Lens::new(|a: &Address| a.city.clone(), |_a, city| Address { city });
+    let address_city_lens = Lens::new(
+        |a: &Address| a.city.clone(),
+        |a, city| Address { city, ..a },
+    );
+    let address_zip_lens = Lens::new(|a: &Address| a.zip.clone(), |a, zip| Address { zip, ..a });
+    let zip_code_lens = Lens::new(|z: &ZipCode| z.code, |_z, code| ZipCode { code });
 
-    let company_city_lens = company_address_lens.then(address_city_lens);
+    // 2-level composition
+    let company_city_lens = company_address_lens.clone().then(address_city_lens);
 
     let company = Company {
         address: Address {
             city: "Metropolis".into(),
+            zip: ZipCode { code: 10001 },
         },
     };
 
     assert_eq!(company_city_lens.get(&company), "Metropolis");
-    let moved = company_city_lens.set(company, "Gotham".into());
+    let moved = company_city_lens.set(company.clone(), "Gotham".into());
     assert_eq!(moved.address.city, "Gotham");
+
+    // Verification of Contract C-03: Composed lens cloneability
+    let cloned_lens = company_city_lens.clone();
+    assert_eq!(cloned_lens.get(&moved), "Gotham");
+
+    // Verification of Contract C-02: Multi-level (3-level) composition chaining without heap allocation
+    let company_zip_code_lens = company_address_lens
+        .then(address_zip_lens)
+        .then(zip_code_lens);
+
+    assert_eq!(company_zip_code_lens.get(&company), 10001);
+    let rezipped = company_zip_code_lens.set(company, 90210);
+    assert_eq!(rezipped.address.zip.code, 90210);
+}
+
+#[test]
+fn test_iso_map_then_composition() {
+    #[derive(Clone, Debug, PartialEq)]
+    struct Inner {
+        value: u32,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    struct Outer {
+        inner: Inner,
+    }
+
+    let outer_inner = Lens::new(|o: &Outer| o.inner.clone(), |_o, inner| Outer { inner });
+    let inner_val = Lens::new(|i: &Inner| i.value, |_i, value| Inner { value });
+
+    let mapped = outer_inner.iso_map(|i: Inner| i, |i: Inner| i);
+    let composed = mapped.then(inner_val);
+
+    let outer = Outer {
+        inner: Inner { value: 42 },
+    };
+
+    assert_eq!(composed.get(&outer), 42);
+    let updated = composed.set(outer, 100);
+    assert_eq!(updated.inner.value, 100);
+
+    let cloned = composed.clone();
+    assert_eq!(cloned.get(&updated), 100);
 }

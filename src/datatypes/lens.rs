@@ -124,7 +124,6 @@
 
 use std::fmt;
 use std::marker::PhantomData;
-use std::sync::Arc;
 
 /// A lens is a first-class reference to a subpart of some data type.
 /// It provides a way to view, modify and transform a part of a larger structure.
@@ -621,12 +620,15 @@ where
     /// assert_eq!(updated.age, 42);
     /// ```
     #[inline]
-    pub fn iso_map<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    pub fn iso_map<B, F, G>(
+        self, f: F, g: G,
+    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
     where
-        F: Fn(A) -> B,
-        G: Fn(B) -> A,
+        F: Fn(A) -> B + Clone,
+        G: Fn(B) -> A + Clone,
+        GetFn: Clone,
+        SetFn: Clone,
     {
-        // Use self's get and set directly without attempting to clone
         Lens::new(move |s| f((self.get)(s)), move |s, b| (self.set)(s, g(b)))
     }
 
@@ -636,10 +638,14 @@ where
         note = "use `iso_map` instead; scheduled for removal in 0.20.0"
     )]
     #[inline]
-    pub fn fmap<B, F, G>(self, f: F, g: G) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    pub fn fmap<B, F, G>(
+        self, f: F, g: G,
+    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
     where
-        F: Fn(A) -> B,
-        G: Fn(B) -> A,
+        F: Fn(A) -> B + Clone,
+        G: Fn(B) -> A + Clone,
+        GetFn: Clone,
+        SetFn: Clone,
     {
         self.iso_map(f, g)
     }
@@ -707,17 +713,19 @@ where
     #[inline]
     pub fn then<B, GetFn2, SetFn2>(
         self, other: Lens<A, B, GetFn2, SetFn2>,
-    ) -> Lens<S, B, impl Fn(&S) -> B, impl Fn(S, B) -> S>
+    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
     where
-        GetFn2: Fn(&A) -> B,
-        SetFn2: Fn(A, B) -> A,
+        GetFn: Clone,
+        SetFn: Clone,
+        GetFn2: Fn(&A) -> B + Clone,
+        SetFn2: Fn(A, B) -> A + Clone,
     {
-        let get1 = Arc::new(self.get);
+        let get1 = self.get;
         let set1 = self.set;
         let get2 = other.get;
         let set2 = other.set;
 
-        let get1_for_set = Arc::clone(&get1);
+        let get1_for_set = get1.clone();
 
         Lens::new(
             move |s: &S| get2(&get1(s)),
@@ -751,39 +759,35 @@ mod unit_tests {
         address: Rc<Address>,
     }
 
-    type PointXLens =
-        Lens<Point, f64, Box<dyn Fn(&Point) -> f64>, Box<dyn Fn(Point, f64) -> Point>>;
-    fn x_lens() -> PointXLens {
-        Lens::new(
-            Box::new(|p: &Point| p.x),
-            Box::new(|p: Point, x| Point { x, ..p }),
-        )
+    fn x_lens()
+    -> Lens<Point, f64, impl Fn(&Point) -> f64 + Clone, impl Fn(Point, f64) -> Point + Clone> {
+        Lens::new(|p: &Point| p.x, |p: Point, x| Point { x, ..p })
     }
-    type AddressLens = Lens<
+
+    fn street_lens() -> Lens<
         Address,
         String,
-        Box<dyn Fn(&Address) -> String>,
-        Box<dyn Fn(Address, String) -> Address>,
-    >;
-    fn street_lens() -> AddressLens {
+        impl Fn(&Address) -> String + Clone,
+        impl Fn(Address, String) -> Address + Clone,
+    > {
         Lens::new(
-            Box::new(|a: &Address| a.street.clone()),
-            Box::new(|a, street| Address { street, ..a }),
+            |a: &Address| a.street.clone(),
+            |a, street| Address { street, ..a },
         )
     }
-    type PersonAddressLens = Lens<
+
+    fn address_lens() -> Lens<
         Person,
         Address,
-        Box<dyn Fn(&Person) -> Address>,
-        Box<dyn Fn(Person, Address) -> Person>,
-    >;
-    fn address_lens() -> PersonAddressLens {
+        impl Fn(&Person) -> Address + Clone,
+        impl Fn(Person, Address) -> Person + Clone,
+    > {
         Lens::new(
-            Box::new(|p: &Person| (*p.address).clone()),
-            Box::new(|p, address| Person {
+            |p: &Person| (*p.address).clone(),
+            |p, address| Person {
                 address: Rc::new(address),
                 ..p
-            }),
+            },
         )
     }
 

@@ -15,6 +15,8 @@
 ### Fixed
 
 - **Operational Monad Stack Safety**: Represented `then` sequencing explicitly so deep left- and right-associated `Program` and `TryProgram` chains can be evaluated and dropped without recursive stack growth.
+- **`Lens::then` Closure `Clone` Bounds**: Removed `Arc` and heap allocation from `Lens::then`. Composition now requires `GetFn: Clone`, `SetFn: Clone`, `GetFn2: Clone`, and `SetFn2: Clone`, returning `impl Fn(...) + Clone`.
+- **`Lens::iso_map` & `fmap` Pipeline Composability**: Added `+ Clone` bounds and return types to `Lens::iso_map` and `Lens::fmap` (`F: Clone`, `G: Clone`, `GetFn: Clone`, `SetFn: Clone`), enabling composition with `Lens::then`.
 
 ### Deprecated
 

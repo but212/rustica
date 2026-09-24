@@ -171,6 +171,12 @@ let updated = prism.set(status, "Bob".to_string());
 
 `Lens::modify` now requires only `A: PartialEq`, restoring support for focus types that do not implement `Clone`. Compared with 0.18.0, equality checking may evaluate the getter more than once; callers must not rely on its invocation count.
 
+### `Lens::then` & `Lens::iso_map` `Clone` Bounds
+
+`Lens::then` no longer uses `Arc` for internal getter sharing. Sequential composition requires closure accessors to implement `Clone` (`GetFn: Clone`, `SetFn: Clone`, `GetFn2: Clone`, `SetFn2: Clone`).
+
+`Lens::iso_map` and deprecated `Lens::fmap` similarly require `Clone` on mapping functions and input accessors (`F: Clone`, `G: Clone`, `GetFn: Clone`, `SetFn: Clone`), returning closures with `+ Clone` to allow subsequent composition with `then`.
+
 ---
 
 ## 4. Prelude Changes
