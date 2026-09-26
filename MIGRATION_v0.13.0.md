@@ -1,29 +1,22 @@
-# Rustica 0.13 migration
+# Rustica 0.13.0 Migration Guide
 
-This release removes compatibility shims and no-op configuration:
+This release removes legacy compatibility shims and redundant configurations:
 
-- `Choice::{remove_alternative, try_remove_alternative, iter_alternatives,
-  try_swap_with_alternative}`. Use `alternatives()`/`alternatives().iter()` or
-  compose a new `Choice` with `filter_values`.
-- `Choice::new_empty`: `Choice<T>` now statically guarantees a non-empty primary
-  value (`first(&self) -> &T`). Use `Choice::single(value)` or `Choice::of_many(iter)` (returns `Option<Choice<T>>`).
+- `Choice::{remove_alternative, try_remove_alternative, iter_alternatives, try_swap_with_alternative}`: Use `alternatives()` or compose a new `Choice` with `filter_values`.
+- `Choice::new_empty`: `Choice<T>` statically guarantees a non-empty primary value (`first(&self) -> &T`). Use `Choice::single(value)` or `Choice::of_many(iter)` (returns `Option<Choice<T>>`).
 - `NonEmptyErrors::remove`: Removed to preserve the non-empty invariant of error collections.
 - `Traversable` trait: Removed (0 implementations).
 - Dead utility functions removed: `const_fn`, `compose`, `pipe`, `flip`, `fold_with`, `bimap_result`, `fan_out`, `compose_all`, `lift_option`, `transform_all`.
-- `id` function: Re-exported from `std::convert::identity`.
-- `PersistentVector::{with_cache_policy, from_slice_with_cache_policy}`.
-- `ResultExt` and its `to_validated`, `to_either`, `bimap`, and
-  `unwrap_or_default` methods. Use the conversion functions and inherent
-  `Result` methods.
-- `try_pipeline` and `compose_when`; use `pipeline_result` and `then_if`.
-- `Validated::invalid_vec` and `Validated::error_buffer_mut`.
-- `map_option`, `map_result`, `flat_map_option`, `flat_map_result`,
-  `filter_map_collect`, `sequence_options`, and `sequence_results`; use the
-  corresponding `Option`/`Result`/`Iterator` standard-library methods.
+- `id` function: Re-exported directly from `std::convert::identity`.
+- `PersistentVector::{with_cache_policy, from_slice_with_cache_policy}`: Removed.
+- `ResultExt` and its `to_validated`, `to_either`, `bimap`, and `unwrap_or_default` methods: Use standard conversion functions and inherent `Result` methods.
+- `try_pipeline` and `compose_when`: Use `pipeline_result` and `then_if`.
+- `Validated::invalid_vec` and `Validated::error_buffer_mut`: Removed.
+- `map_option`, `map_result`, `flat_map_option`, `flat_map_result`, `filter_map_collect`, `sequence_options`, and `sequence_results`: Use corresponding standard library methods on `Option`, `Result`, and `Iterator`.
 
-## Lean maintenance (non-breaking)
+## Maintenance (Non-Breaking)
 
-These changes preserve public names, return types, ordering, and fail-fast behavior:
+These internal optimizations preserve public signatures, return types, ordering, and fail-fast behavior:
 
 - Owned error conversions no longer require `Clone` for values that are moved:
   `validated_to_result`, `result_to_validated`, `either_to_validated`,

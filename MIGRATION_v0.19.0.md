@@ -35,7 +35,7 @@ The entire `rustica::pvec` module, `PersistentVector<T>`, and the `pvec!` macro 
 
 ### Migration Path
 
-Users requiring persistent collections with structural sharing should migrate to dedicated persistent data structure crates such as [`imbl`](https://crates.io/crates/imbl) (`imbl::Vector`), or standard `std::vec::Vec<T>`:
+Migrate persistent collections with structural sharing to dedicated crates such as [`imbl`](https://crates.io/crates/imbl) (`imbl::Vector`) or standard `std::vec::Vec<T>`:
 
 ```rust
 // Before (0.18.0)
@@ -65,15 +65,15 @@ rustica = { version = "0.18.0", features = ["pvec"] }
 rustica = "0.19.0"
 ```
 
-The `full` feature bundle now expands to `["async", "serde", "quickcheck"]` (note: `async` is deprecated and scheduled to be dropped from `full` in 0.20.0).
+The `full` feature bundle now expands to `["async", "serde", "quickcheck"]` (`async` is deprecated and scheduled for removal in 0.20.0).
 
 ---
 
 ## 2. Categorical Simulation Traits
 
-The simulated higher-kinded type and category theory traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, and `Foldable`) have been removed in favor of native Rust idioms and inherent methods on concrete types.
+Simulated higher-kinded type and category traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`) are removed in favor of native Rust idioms and inherent methods on concrete types.
 
-The core algebraic traits **`Semigroup`** and **`Monoid`** are fully preserved.
+Core algebraic traits **`Semigroup`** and **`Monoid`** remain fully supported.
 
 ### Mapping (`Functor::fmap` → `map`)
 
@@ -160,7 +160,7 @@ let folded = choice.iter().fold(0, |acc, &x| acc + x);
 
 ## 3. Optics (`Lens` and `Prism`)
 
-`Prism::set_if_different` has been removed. Reconstructing an enum variant via `review` is an $O(1)$ pointer/variant move; equality-checking payloads introduced unnecessary `PartialEq` bounds and redundant cloning.
+`Prism::set_if_different` has been removed. Enum variant reconstruction via `review` is an $O(1)$ variant move; equality checks incurred unnecessary `PartialEq` bounds and redundant cloning.
 
 ```rust
 // Before (0.18.0)
@@ -172,15 +172,15 @@ let updated = prism.set(status, "Bob".to_string());
 
 ### `Lens::modify` Non-`Clone` Focus & `FnOnce` Support
 
-`Lens::modify` requires only `A: PartialEq`, restoring support for focus types that do not implement `Clone`. Transformation closures on `modify` and `modify_always` now take `F: FnOnce(A) -> A` instead of `Fn`, allowing closures that move captured state.
+`Lens::modify` requires only `A: PartialEq`, restoring support for non-`Clone` focus types. Transformation closures on `modify` and `modify_always` accept `F: FnOnce(A) -> A`, allowing closures that move captured state.
 
 ### `Lens::then` & `Lens::iso_map` `Clone` Bounds
 
-`Lens::then` no longer uses `Arc` for internal getter sharing. Sequential composition requires closure accessors to implement `Clone` (`GetFn: Clone`, `SetFn: Clone`, `GetFn2: Clone`, `SetFn2: Clone`).
+`Lens::then` eliminates `Arc` allocation for getter sharing. Sequential composition requires closure accessors to implement `Clone` (`GetFn: Clone`, `SetFn: Clone`, `GetFn2: Clone`, `SetFn2: Clone`).
 
-`Lens::iso_map` and deprecated `Lens::fmap` similarly require `Clone` on mapping functions and input accessors (`F: Clone`, `G: Clone`, `GetFn: Clone`, `SetFn: Clone`), returning closures with `+ Clone` to allow subsequent composition with `then`.
+`Lens::iso_map` and deprecated `Lens::fmap` similarly require `Clone` on mapping functions and input accessors (`F: Clone`, `G: Clone`, `GetFn: Clone`, `SetFn: Clone`), returning closures with `+ Clone` to allow composition with `then`.
 
-`Lens` itself now implements `Clone` manually without imposing `S: Clone` or `A: Clone` bounds on target types.
+`Lens` implements `Clone` manually without imposing `S: Clone` or `A: Clone` bounds on target types.
 
 ---
 
@@ -197,10 +197,10 @@ All concrete types (`Validated`, `Choice`, `Free`, `Lens`, `Prism`, `Program`, `
 
 ## 5. Validated Submodule Consolidation
 
-Following the removal of categorical simulation traits, the empty submodules `rustica::datatypes::validated::combinators` and `rustica::datatypes::validated::traits` have been internalized:
+Following categorical trait removal, the empty submodules `rustica::datatypes::validated::combinators` and `rustica::datatypes::validated::traits` have been internalized:
 
 - Trait implementations (`Semigroup`, `Arbitrary`) now reside directly within `core.rs`.
-- Inherent combinators continue to be methods on `Validated`.
+- Inherent combinators continue as methods on `Validated`.
 - Canonical imports remain `rustica::datatypes::validated::{Validated, NonEmptyErrors}` and `rustica::prelude::*`.
 - `rustica::datatypes::validated::core::*` and `rustica::datatypes::validated::iter::*` remain public modules.
 
@@ -210,9 +210,9 @@ Following the removal of categorical simulation traits, the empty submodules `ru
 
 ### `async` Feature Flag & `Validated` Async Combinators
 
-The `async` Cargo feature flag and the three async combinators on `Validated` (`map_async`, `map_err_async`, and `and_then_async`) are deprecated in 0.19.0 and scheduled for removal in 0.20.0.
+The `async` Cargo feature flag and three async combinators on `Validated` (`map_async`, `map_err_async`, and `and_then_async`) are deprecated in 0.19.0 and scheduled for removal in 0.20.0.
 
-In accordance with Rustica's design rationale ([docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md)), native Rust control flow (`async`/`await` and pattern matching) is preferred over specialized async combinators. Furthermore, `Validated` async combinators rely purely on `std::future::Future` without an external runtime, making a dedicated feature flag redundant.
+Per Rustica's design rationale ([docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md)), native Rust control flow (`async`/`await` and pattern matching) replaces specialized async combinators. Because `Validated` async combinators rely purely on `std::future::Future` without an external runtime, the dedicated feature flag is redundant.
 
 #### Migration to Native Async Control Flow
 
@@ -293,9 +293,9 @@ let age = age_lens.iso_map(|n: u32| n.to_le_bytes(), |b: [u8; 4]| u32::from_le_b
 
 ---
 
-## 4. Free Monad Restructuring (`enum` → `struct`, `Then` AST Node, Internalized Erasure)
+## 7. Free Monad Restructuring (`enum` → `struct`, `Then` AST Node, Internalized Erasure)
 
-In 0.19.0, `Free<F, A>` was converted from a public enum to an opaque struct backed by an internal `Node` enum. This represents computation trees as an explicit DSL AST engine:
+`Free<F, A>` is now an opaque struct backed by an internal `Node` enum, representing computation trees as an explicit DSL AST engine:
 
 - **Explicit `Then` Node:** Value-independent sequencing `left.then(right)` now builds a direct `Node::Then` AST node rather than wrapping the next computation in an opaque continuation closure (`and_then`).
 - **Short-circuiting:** `Pure(_).then(next)` short-circuits directly to `next` without allocating an intermediate `Then` node.
