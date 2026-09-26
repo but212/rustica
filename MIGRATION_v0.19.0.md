@@ -21,6 +21,8 @@ This guide details all removals and breaking changes in Rustica 0.19.0, with con
 | `Free::into_any` | Private implementation detail; internal type-erasure is fully encapsulated |
 | `ContStack<F>` | Removed (internal trampoline uses `Vec<Frame<F>>`) |
 | `datatypes::validated::{combinators, traits}` | Internalized; import from `datatypes::validated::*` or `...::core::*` |
+| `smallvec` dependency | Removed; `NonEmptyErrors` now internally uses standard `std::vec::Vec<E>` (smaller stack size, standard `IntoIter`) |
+| `Validated::to_option` | Deprecated in 0.19.0 (removal in 0.20.0); use `.as_option().cloned()` |
 | `async` feature, `Validated::*_async` | Deprecated in 0.19.0 (removal in 0.20.0); native `match` / `async`/`await` |
 | `fmap` (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`) | Deprecated in 0.19.0 (removal in 0.20.0); use `map` |
 | `Lens::fmap` | Deprecated in 0.19.0 (removal in 0.20.0); use `Lens::iso_map` |
@@ -356,4 +358,3 @@ impl Command for LocalCmd {
 // If you need cross-thread execution or AST sharing, use Free instead:
 // Free<F, A> is backed by Arc and remains fully Send + Sync when F and A are Send + Sync.
 ```
-

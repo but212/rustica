@@ -21,6 +21,7 @@
 - **`Lens::modify` & `modify_always` `FnOnce` Support**: Relaxed closures from `Fn(A) -> A` to `FnOnce(A) -> A` to allow move closures. Focus bound on `modify` remains `A: PartialEq` (relaxing 0.18.0 `Clone + PartialEq`).
 - **`Lens` Manual `Clone` Implementation**: Replaced `#[derive(Clone)]` with manual `impl Clone for Lens` requiring only `GetFn: Clone, SetFn: Clone`, allowing lenses targeting non-`Clone` structs or targets to be cloned.
 - **`Lens` `PhantomData` Auto-Trait Decoupling**: Changed `_phantom: PhantomData<(S, A)>` to `PhantomData<fn(S) -> A>`, preventing `!Send`/`!Sync` auto-trait leakage from `S` or `A`.
+- **`NonEmptyErrors` Standard `Vec` Storage (Breaking for `smallvec` consumers)**: Removed the `smallvec` dependency; `NonEmptyErrors<E>` now stores errors in `std::vec::Vec<E>`, shrinking its stack size and using the standard `std::vec::IntoIter`. `Validated::sequence` now delegates to `Validated::collect`.
 
 ### Fixed
 
@@ -35,6 +36,7 @@
 ### Deprecated
 
 - **Redundant Functional Aliases & Cloned Forwarders**: Deprecated `fmap` (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`; `Lens::fmap` in favor of `Lens::iso_map`), `bind` and `flat_map` (`Free`, `Program`, `TryProgram`), and `try_flatten_cloned` and `flatten_cloned` (`Choice`) in favor of idiomatic Rust conventions (`map`, `and_then`, and explicit `.clone()`; removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
+- **`Validated::to_option`**: Deprecated in favor of `as_option().cloned()` (removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
 - **`async` Feature & `Validated` Async Combinators**: Deprecated `async` Cargo feature flag and `Validated::map_async`, `Validated::map_err_async`, and `Validated::and_then_async` in favor of native `async`/`await` and pattern matching (removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
 - **`tokio` Dev-Dependency**: Deprecated `tokio` in `[dev-dependencies]` (removal in `0.20.0` alongside async combinator tests).
 
