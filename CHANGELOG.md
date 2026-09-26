@@ -17,6 +17,7 @@
 - **`Free::then` Pure Short-Circuiting**: `Pure(_).then(next)` short-circuits directly to `next` without allocating an intermediate `Then` AST node.
 - **`Free::into_any` Internalization (Breaking)**: Lowered `Free::into_any` from public API to a private crate implementation detail with $O(1)$ fast-path clone for already-erased `Free<F, AnyValue>` computations, preventing accidental external double-erasure.
 - **`Free` Trampoline Frame Separation**: Split dynamic continuation evaluation and static AST traversal into explicit `Frame::BindCont` and `Frame::ThenNext` evaluation frames.
+- **Operational Monad Direct Node Loop Ownership**: Updated `TryProgram::try_run` trampoline loop to own `Node<H, AnyBox, E>` directly across iterations, eliminating per-step `Option::take()` extraction and unneeded unwrap defensive checks during evaluation.
 - **`Lens::modify` & `modify_always` `FnOnce` Support**: Relaxed transformation closures from `Fn(A) -> A` to `FnOnce(A) -> A`, allowing move closures to transform focused fields. Focus bound on `modify` remains `A: PartialEq` (relaxing the 0.18.0 `Clone + PartialEq` bound).
 - **`Lens` Manual `Clone` Implementation**: Replaced `#[derive(Clone)]` with a manual `impl Clone for Lens` requiring only `GetFn: Clone, SetFn: Clone`, allowing lenses targeting non-`Clone` structs or focuses to be cloned.
 - **`Lens` `PhantomData` Auto-Trait Decoupling**: Updated `_phantom: PhantomData<(S, A)>` to `PhantomData<fn(S) -> A>`, preventing `!Send`/`!Sync` auto-trait leakage from `S` or `A`.
@@ -27,6 +28,7 @@
 - **`Free` Double-Erasure Elimination**: Eliminated double boxing (`Arc<Arc<dyn Any>>`) when nesting `Free<F, AnyValue>` sequencing chains.
 - **`Free` Iterative Drop & Construction Complexity**: Explicit stack-safe iterative traversal for both `Bind` and `Then` spines using `Arc::into_inner`. Guaranteed $O(n)$ construction for right-nested `then()` sequences.
 - **Operational Monad Stack Safety**: Represented `then` sequencing explicitly so deep left- and right-associated `Program` and `TryProgram` chains can be evaluated and dropped without recursive stack growth.
+- **Operational Monad `const fn` Capability Verification**: Added compile-time `const fn` evaluation tests (`prog_flags`, `try_prog_flags`) verifying `Program::pure`, `TryProgram::pure`, and their predicate accessors retain `pub const fn` capability against future regression.
 - **`Lens::then` Closure `Clone` Bounds**: Removed `Arc` and heap allocation from `Lens::then`. Composition now requires `GetFn: Clone`, `SetFn: Clone`, `GetFn2: Clone`, and `SetFn2: Clone`, returning `impl Fn(...) + Clone`.
 - **`Lens::iso_map` & `fmap` Pipeline Composability**: Added `+ Clone` bounds and return types to `Lens::iso_map` and `Lens::fmap` (`F: Clone`, `G: Clone`, `GetFn: Clone`, `SetFn: Clone`), enabling composition with `Lens::then`.
 

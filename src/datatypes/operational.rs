@@ -317,25 +317,25 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
 
     /// Evaluates the fallible program to completion with stack safety using the provided handler.
     pub fn try_run(self, handler: &mut H) -> Result<A, E> {
-        let mut cur: TryProgram<H, AnyBox, E> = self.into_any();
+        let mut cur: Node<H, AnyBox, E> = self.into_any().take_node();
         let mut stack: Vec<TryFrame<H, E>> = Vec::new();
 
         loop {
-            match cur.take_node() {
-                Node::Bind(sub, cont) => {
+            match cur {
+                Node::Bind(mut sub, cont) => {
                     stack.push(TryFrame::Bind(cont));
-                    cur = *sub;
+                    cur = sub.take_node();
                 },
-                Node::Then(sub, next) => {
+                Node::Then(mut sub, next) => {
                     stack.push(TryFrame::Then(*next));
-                    cur = *sub;
+                    cur = sub.take_node();
                 },
                 Node::Pure(val) => match stack.pop() {
                     Some(TryFrame::Bind(cont)) => {
-                        cur = cont(val);
+                        cur = cont(val).take_node();
                     },
-                    Some(TryFrame::Then(next)) => {
-                        cur = next;
+                    Some(TryFrame::Then(mut next)) => {
+                        cur = next.take_node();
                     },
                     None => {
                         return Ok(*val
@@ -348,10 +348,10 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
                     let val = cont(res);
                     match stack.pop() {
                         Some(TryFrame::Bind(next_cont)) => {
-                            cur = next_cont(val);
+                            cur = next_cont(val).take_node();
                         },
-                        Some(TryFrame::Then(next)) => {
-                            cur = next;
+                        Some(TryFrame::Then(mut next)) => {
+                            cur = next.take_node();
                         },
                         None => {
                             return Ok(*val
@@ -545,6 +545,10 @@ impl<H, A: fmt::Debug> fmt::Debug for Program<H, A> {
     }
 }
 
+// Invariant: This Debug implementation is intentionally non-recursive on sub-computations
+// (`Bind` and `Then`), outputting summary text rather than traversing child nodes.
+// If structural subtree traversal is added in the future, a bounded recursion budget
+// (e.g., MAX_DEBUG_RECURSION) must be introduced to avoid stack overflow on deep/alternating chains.
 impl<H, A: fmt::Debug, E> fmt::Debug for TryProgram<H, A, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.node {
@@ -880,5 +884,29 @@ mod tests {
 
         let tp_fmap: TryProgram<FallibleCalc, i32, &str> = TryProgram::pure(7).fmap(|x| x + 3);
         assert_eq!(tp_fmap.try_run(&mut try_interp), Ok(10));
+    }
+
+    #[test]
+    fn test_const_fn_capability() {
+        const fn prog_flags<H: 'static, A: Send + Sync + 'static>(
+            p: &Program<H, A>,
+        ) -> (bool, bool, bool) {
+            (p.is_pure(), p.is_suspend(), p.is_bind())
+        }
+        const fn try_prog_flags<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static>(
+            p: &TryProgram<H, A, E>,
+        ) -> (bool, bool, bool) {
+            (p.is_pure(), p.is_suspend(), p.is_bind())
+        }
+
+        const fn make_prog() -> Program<CalcInterpreter, i32> {
+            Program::pure(42)
+        }
+        const fn make_try_prog() -> TryProgram<FallibleCalc, i32, &'static str> {
+            TryProgram::pure(42)
+        }
+
+        assert_eq!(prog_flags(&make_prog()), (true, false, false));
+        assert_eq!(try_prog_flags(&make_try_prog()), (true, false, false));
     }
 }
