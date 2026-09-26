@@ -56,7 +56,7 @@ use rustica::prelude::*;
 
 - **`Choice<T>`**: Non-empty priority/fallback collection (`try_each`, `try_each_validated`).
 - **`Validated<T, E>`**: Accumulates errors into `NonEmptyErrors<E>`.
-- **`Free<F, A>`**: Free monad with stack-safe iterative execution (`run`, `try_run`).
+- **`Free<F, A>`**: Free monad DSL AST engine with explicit `Then` sequencing, stack-safe iterative execution (`run`, `try_run`), and bounded `Debug`/`Drop`.
 - **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation and destruction of deep `then` chains.
 
 ### 3. Optics
@@ -68,7 +68,7 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
-- [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
+- [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
 - [0.18.0 Migration Guide](./MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
 - [0.17.0 Migration Guide](./MIGRATION_v0.17.0.md): Deprecation of monad transformers, effect monads, category morphisms, and wrapper types in favor of standard library idioms
 - [0.16.0 Migration Guide](./MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation

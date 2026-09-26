@@ -17,6 +17,9 @@ This guide details all removals and breaking changes in Rustica 0.19.0, with con
 | `traits::Foldable` / `fold_left`, `fold_right` | Standard `Iterator::fold`, `Iterator::rfold` |
 | `traits::Monad` / `bind`, `join` | Inherent `and_then`, native `?` operator, or `Iterator::flat_map` |
 | `Prism::set_if_different` | Inherent `Prism::set` ($O(1)$ unconditional move reconstruction) |
+| `enum Free<F, A> { Pure, Suspend, Bind }` | Opaque `struct Free<F, A>` with constructors (`Free::pure`, `Free::suspend`) and accessors (`is_*`, `as_*`) |
+| `Free::into_any` | Private implementation detail; internal type-erasure is fully encapsulated |
+| `ContStack<F>` | Removed (internal trampoline uses `Vec<Frame<F>>`) |
 | `datatypes::validated::{combinators, traits}` | Internalized; import from `datatypes::validated::*` or `...::core::*` |
 | `async` feature, `Validated::*_async` | Deprecated in 0.19.0 (removal in 0.20.0); native `match` / `async`/`await` |
 | `fmap` (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`) | Deprecated in 0.19.0 (removal in 0.20.0); use `map` |
@@ -286,4 +289,38 @@ let c = choice.map(|x| x * 2);
 let f = free_comp.and_then(|x| Free::pure(x + 1));
 let flat = choice.clone().flatten();
 let age = age_lens.iso_map(|n: u32| n.to_le_bytes(), |b: [u8; 4]| u32::from_le_bytes(b));
+```
+
+---
+
+## 4. Free Monad Restructuring (`enum` → `struct`, `Then` AST Node, Internalized Erasure)
+
+In 0.19.0, `Free<F, A>` was converted from a public enum to an opaque struct backed by an internal `Node` enum. This represents computation trees as an explicit DSL AST engine:
+
+- **Explicit `Then` Node:** Value-independent sequencing `left.then(right)` now builds a direct `Node::Then` AST node rather than wrapping the next computation in an opaque continuation closure (`and_then`).
+- **Short-circuiting:** `Pure(_).then(next)` short-circuits directly to `next` without allocating an intermediate `Then` node.
+- **Inspectability Accessors:** Direct enum pattern matching (`match free { Free::Pure(..) => ... }`) is removed. Inspect AST shape via `is_pure()`, `is_suspend()`, `is_bind()`, `is_then()`, `as_pure()`, `as_suspend()`, and `as_then()`. All accessors are `pub const fn`.
+- **Internalized Erasure:** `Free::into_any` is now a private implementation detail, eliminating double-erasure risks (`Arc<Arc<dyn Any>>`) with $O(1)$ fast-path cloning for already erased trees.
+- **`ContStack<F>` Removed:** The orphaned type alias `ContStack<F>` is removed.
+
+### Migration Path
+
+```rust
+// Before (0.18.0) - Pattern matching on public enum
+match free_val {
+    Free::Pure(val) => println!("Pure: {val}"),
+    Free::Suspend(cmd, _) => println!("Suspend"),
+    Free::Bind(..) => println!("Bind"),
+}
+
+// After (0.19.0) - Inherent inspectability methods
+if let Some(val) = free_val.as_pure() {
+    println!("Pure: {val}");
+} else if let Some(cmd) = free_val.as_suspend() {
+    println!("Suspend: {cmd:?}");
+} else if let Some((left, right)) = free_val.as_then() {
+    println!("Then sequencing");
+} else if free_val.is_bind() {
+    println!("Dynamic bind continuation");
+}
 ```

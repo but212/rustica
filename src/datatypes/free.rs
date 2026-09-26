@@ -8,7 +8,7 @@
 //! - **Evaluation**: Evaluated with [`run`](Free::run) or [`try_run`](Free::try_run). An internal
 //!   stack unwinds left-associated chains (`a.then(b).then(c)`), keeping call stack frames $O(1)$.
 //! - **Error handling**: [`try_run`](Free::try_run) returns [`FreeError`] on interpreter error or
-//!   downcast mismatch instead of panicking.
+//!   interpreter-originated downcast mismatch instead of panicking.
 //! - **Drop and Debug**: Traverses nested chains iteratively to avoid stack overflow when
 //!   dropping or formatting deep programs.
 //! - **Reuse**: Backed by `Arc`, so programs can be cloned and run multiple times.
@@ -20,9 +20,10 @@
 //! - **`Free<F, A>` (DSL AST Engine)**: Construct cloneable computation trees.
 //!   Backed by `Arc`, a `Free` AST can be cloned and interpreted by different backends
 //!   (e.g., dry-run simulator vs real execution). Node shape is inspectable via
-//!   [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), and [`is_bind`](Free::is_bind);
-//!   `Suspend` exposes its effect command `F` and `Pure` exposes its value `A`. Continuations
-//!   are opaque, so no structural fold over the tree is provided.
+//!   [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), [`is_bind`](Free::is_bind),
+//!   and [`is_then`](Free::is_then); effect commands can be inspected via [`as_suspend`](Free::as_suspend),
+//!   pure values via [`as_pure`](Free::as_pure), and static sequencing trees via [`as_then`](Free::as_then).
+//!   Dynamic continuations (`Bind`) remain opaque. Stack safety applies to `Bind` and `Then` AST spines.
 //!   It is fully supported and intentionally designed for reusable DSLs.
 //! - **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**:
 //!   Statically couples commands to a specific handler `H` at compile time, eliminating runtime
@@ -31,7 +32,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use rustica::datatypes::free::{AnyValue, Free};
+//! use rustica::datatypes::free::{any_value, AnyValue, Free};
 //! use std::sync::Arc;
 //!
 //! #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,13 +64,13 @@
 //! let result: i32 = program.run(|op| match op {
 //!     CalcOp::Add(n) => {
 //!         current += n;
-//!         Arc::new(()) as AnyValue
+//!         any_value(())
 //!     }
 //!     CalcOp::Multiply(n) => {
 //!         current *= n;
-//!         Arc::new(()) as AnyValue
+//!         any_value(())
 //!     }
-//!     CalcOp::Get => Arc::new(current) as AnyValue,
+//!     CalcOp::Get => any_value(current),
 //! });
 //!
 //! assert_eq!(result, 15);
@@ -79,13 +80,13 @@
 //! let result2: i32 = program.run(|op| match op {
 //!     CalcOp::Add(n) => {
 //!         current2 += n;
-//!         Arc::new(()) as AnyValue
+//!         any_value(())
 //!     }
 //!     CalcOp::Multiply(n) => {
 //!         current2 *= n;
-//!         Arc::new(()) as AnyValue
+//!         any_value(())
 //!     }
-//!     CalcOp::Get => Arc::new(current2) as AnyValue,
+//!     CalcOp::Get => any_value(current2),
 //! });
 //! assert_eq!(result2, 45); // (10 + 5) * 3 = 45
 //! ```
@@ -146,15 +147,36 @@ impl<E: std::error::Error + 'static> std::error::Error for FreeError<E> {
 /// Type alias for thread-safe type-erased values in the Free monad.
 pub type AnyValue = Arc<dyn Any + Send + Sync>;
 
+/// Wraps a value into an [`AnyValue`] for effect interpreter return values.
+///
+/// Reduces boilerplate when returning values from effect interpreters in [`Free::run`]
+/// and [`Free::try_run`], avoiding repeated `Arc::new(x) as AnyValue`.
+///
+/// # Example
+///
+/// ```rust
+/// use rustica::datatypes::free::{any_value, AnyValue};
+///
+/// let val: AnyValue = any_value(42_i32);
+/// assert_eq!(*val.downcast_ref::<i32>().unwrap(), 42);
+/// ```
+#[inline]
+pub fn any_value<T: Any + Send + Sync>(v: T) -> AnyValue {
+    Arc::new(v)
+}
+
 /// Type alias for a continuation function in the Free monad trampoline.
 pub type ContFn<F> = Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>;
 
-/// Type alias for the continuation stack used in iterative trampoline evaluation.
-pub type ContStack<F> = Vec<ContFn<F>>;
+/// Evaluation frame used in iterative trampoline execution.
+enum Frame<F> {
+    BindCont(ContFn<F>),
+    ThenNext(Arc<Free<F, AnyValue>>),
+}
 
-/// The `Free` monad represents a computation tree separating AST construction from interpretation.
+/// Internal AST node representation for [`Free`].
 #[derive(Clone)]
-pub enum Free<F, A> {
+enum Node<F, A> {
     /// A pure computation returning an immediate value.
     Pure(A),
     /// A suspended effect command with a leaf continuation mapping the interpreter's output to `A`.
@@ -167,13 +189,54 @@ pub enum Free<F, A> {
         Arc<Free<F, AnyValue>>,
         Arc<dyn Fn(AnyValue) -> Free<F, A> + Send + Sync + 'static>,
     ),
+    /// A value-independent sequenced computation: left sub-computation followed by right sub-computation.
+    Then(Arc<Free<F, AnyValue>>, Arc<Free<F, AnyValue>>),
+}
+
+/// The `Free` monad represents a computation tree separating AST construction from interpretation.
+#[derive(Clone)]
+pub struct Free<F, A> {
+    node: Option<Node<F, A>>,
+}
+
+#[inline]
+fn unwrap_arc<T: Clone>(arc: Arc<T>) -> T {
+    Arc::try_unwrap(arc).unwrap_or_else(|a| (*a).clone())
 }
 
 impl<F, A> Free<F, A> {
+    #[inline]
+    const fn from_node(node: Node<F, A>) -> Self {
+        Self { node: Some(node) }
+    }
+
+    #[inline]
+    fn node(&self) -> &Node<F, A> {
+        self.node.as_ref().expect("Free node already consumed")
+    }
+
+    #[inline]
+    fn take_node(&mut self) -> Node<F, A> {
+        self.node.take().expect("Free node already consumed")
+    }
+
+    fn push_node_children(node: Node<F, A>, stack: &mut Vec<Arc<Free<F, AnyValue>>>) {
+        match node {
+            Node::Pure(_) | Node::Suspend(_, _) => {},
+            Node::Bind(sub, _) => {
+                stack.push(sub);
+            },
+            Node::Then(left, right) => {
+                stack.push(right);
+                stack.push(left);
+            },
+        }
+    }
+
     /// Creates a pure computation containing the given value.
     #[inline]
     pub const fn pure(val: A) -> Self {
-        Free::Pure(val)
+        Self::from_node(Node::Pure(val))
     }
 
     /// Suspends an effect command into a `Free` computation.
@@ -183,13 +246,14 @@ impl<F, A> Free<F, A> {
     /// # Panics
     ///
     /// Panics during evaluation via [`run`](Self::run) if the interpreter returns a value whose
-    /// type does not match `A`. For safe error handling without panics, use [`try_run`](Self::try_run).
+    /// type does not match `A`. For safe error handling without panics on interpreter-originated
+    /// mismatches, use [`try_run`](Self::try_run).
     #[inline]
     pub fn suspend(effect: F) -> Self
     where
         A: Send + Sync + Clone + 'static,
     {
-        Free::Suspend(
+        Self::from_node(Node::Suspend(
             effect,
             Arc::new(|any_val: AnyValue| {
                 let any_ref = &any_val as &dyn Any;
@@ -201,7 +265,7 @@ impl<F, A> Free<F, A> {
                     .cloned()
                     .ok_or_else(std::any::type_name::<A>)
             }),
-        )
+        ))
     }
 
     /// Suspends an effect command with a custom continuation function.
@@ -210,34 +274,46 @@ impl<F, A> Free<F, A> {
     where
         Cont: Fn(AnyValue) -> A + Send + Sync + 'static,
     {
-        Free::Suspend(effect, Arc::new(move |any_val| Ok(cont(any_val))))
+        Self::from_node(Node::Suspend(
+            effect,
+            Arc::new(move |any_val| Ok(cont(any_val))),
+        ))
     }
 
     /// Converts this `Free` value into a type-erased `Free<F, AnyValue>`.
     #[inline]
-    pub fn into_any(&self) -> Free<F, AnyValue>
+    #[allow(clippy::wrong_self_convention)]
+    fn into_any(&self) -> Free<F, AnyValue>
     where
         F: Send + Sync + Clone + 'static,
         A: Send + Sync + Clone + 'static,
     {
-        match self {
-            Free::Pure(a) => Free::Pure(Arc::new(a.clone()) as AnyValue),
-            Free::Suspend(cmd, cont) => {
+        // Double-erasure defense: if self is already Free<F, AnyValue>, do an O(1) Arc clone directly.
+        if let Some(erased) = (self as &dyn Any).downcast_ref::<Free<F, AnyValue>>() {
+            return erased.clone();
+        }
+
+        match self.node() {
+            Node::Pure(a) => Free::from_node(Node::Pure(Arc::new(a.clone()) as AnyValue)),
+            Node::Suspend(cmd, cont) => {
                 let cont_clone = Arc::clone(cont);
-                Free::Suspend(
+                Free::from_node(Node::Suspend(
                     cmd.clone(),
                     Arc::new(move |res| {
                         let a = cont_clone(res)?;
                         Ok(Arc::new(a) as AnyValue)
                     }),
-                )
+                ))
             },
-            Free::Bind(sub, cont) => {
+            Node::Bind(sub, cont) => {
                 let cont_clone = Arc::clone(cont);
-                Free::Bind(
+                Free::from_node(Node::Bind(
                     Arc::clone(sub),
                     Arc::new(move |res| cont_clone(res).into_any()),
-                )
+                ))
+            },
+            Node::Then(left, right) => {
+                Free::from_node(Node::Then(Arc::clone(left), Arc::clone(right)))
             },
         }
     }
@@ -250,19 +326,19 @@ impl<F, A> Free<F, A> {
         B: Send + Sync + Clone + 'static,
         Func: Fn(A) -> B + Send + Sync + 'static,
     {
-        match self {
-            Free::Pure(a) => Free::Pure(f(a.clone())),
-            Free::Suspend(cmd, cont) => {
+        match self.node() {
+            Node::Pure(a) => Free::pure(f(a.clone())),
+            Node::Suspend(cmd, cont) => {
                 let f_arc = Arc::new(f);
                 let cont_clone = Arc::clone(cont);
-                Free::Suspend(
+                Free::from_node(Node::Suspend(
                     cmd.clone(),
                     Arc::new(move |res| cont_clone(res).map(|a| f_arc(a))),
-                )
+                ))
             },
-            other => {
+            _ => {
                 let f_arc = Arc::new(f);
-                other.and_then(move |a| Free::Pure(f_arc(a)))
+                self.and_then(move |a| Free::pure(f_arc(a)))
             },
         }
     }
@@ -285,7 +361,7 @@ impl<F, A> Free<F, A> {
 
     /// Sequences another `Free` computation from the result of this computation.
     ///
-    /// If `self` is `Free::Pure(a)`, `f(a)` is evaluated immediately without allocating
+    /// If `self` is pure, `f(a)` is evaluated immediately without allocating
     /// an intermediate `Bind` node. Otherwise, a structural `Bind` node is created,
     /// enabling stack-safe trampoline evaluation in [`run`](Self::run).
     pub fn and_then<B, Next>(&self, f: Next) -> Free<F, B>
@@ -295,19 +371,24 @@ impl<F, A> Free<F, A> {
         B: Send + Sync + Clone + 'static,
         Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
     {
-        match self {
-            Free::Pure(a) => f(a.clone()),
-            other => {
+        match self.node() {
+            Node::Pure(a) => f(a.clone()),
+            _ => {
                 let f_arc = Arc::new(f);
-                Free::Bind(
-                    Arc::new(other.into_any()),
+                let sub = Arc::new(self.into_any());
+                Free::from_node(Node::Bind(
+                    sub,
                     Arc::new(move |any_val: AnyValue| {
+                        let any_ref = &any_val as &dyn Any;
+                        if let Some(val) = any_ref.downcast_ref::<A>() {
+                            return f_arc(val.clone());
+                        }
                         let a = any_val
                             .downcast_ref::<A>()
                             .expect("Free bind downcast failed");
                         f_arc(a.clone())
                     }),
-                )
+                ))
             },
         }
     }
@@ -345,6 +426,9 @@ impl<F, A> Free<F, A> {
     }
 
     /// Sequences another `Free` computation, discarding the result of the current computation.
+    ///
+    /// Constructs a structural `Then` AST node representing value-independent sequencing.
+    /// If `self` is a pure computation, `next` is returned immediately without allocating a `Then` node.
     #[inline]
     pub fn then<B>(&self, next: Free<F, B>) -> Free<F, B>
     where
@@ -352,7 +436,12 @@ impl<F, A> Free<F, A> {
         A: Send + Sync + Clone + 'static,
         B: Send + Sync + Clone + 'static,
     {
-        self.and_then(move |_| next.clone())
+        if self.is_pure() {
+            return next;
+        }
+        let left = Arc::new(self.into_any());
+        let right = Arc::new(next.into_any());
+        Free::from_node(Node::Then(left, right))
     }
 
     /// Applies a function inside a `Free` computation to a value in another `Free` computation.
@@ -381,8 +470,7 @@ impl<F, A> Free<F, A> {
         let f_arc = Arc::new(f);
         self.and_then(move |a| {
             let f_clone = Arc::clone(&f_arc);
-            let a_clone = a;
-            other.map(move |b| f_clone(a_clone.clone(), b))
+            other.map(move |b| f_clone(a.clone(), b))
         })
     }
 
@@ -405,22 +493,31 @@ impl<F, A> Free<F, A> {
         A: Send + Sync + Clone + 'static,
         Interp: FnMut(F) -> Result<AnyValue, E>,
     {
-        let mut cur: Free<F, AnyValue> = self.into_any();
-        let mut stack: ContStack<F> = Vec::new();
+        let mut cur: Node<F, AnyValue> = self.into_any().take_node();
+        let mut stack: Vec<Frame<F>> = Vec::new();
 
         loop {
             match cur {
-                Free::Bind(ref mut sub, ref cont) => {
-                    stack.push(Arc::clone(cont));
-                    let sub_arc =
-                        std::mem::replace(sub, Arc::new(Free::Pure(Arc::new(()) as AnyValue)));
-                    cur = Arc::try_unwrap(sub_arc).unwrap_or_else(|a| (*a).clone());
+                Node::Bind(sub, cont) => {
+                    stack.push(Frame::BindCont(cont));
+                    cur = unwrap_arc(sub).take_node();
                 },
-                Free::Pure(ref val) => match stack.pop() {
-                    Some(cont) => {
-                        cur = cont(Arc::clone(val));
+                Node::Then(left, right) => {
+                    stack.push(Frame::ThenNext(right));
+                    cur = unwrap_arc(left).take_node();
+                },
+                Node::Pure(val) => match stack.pop() {
+                    Some(Frame::BindCont(cont)) => {
+                        cur = cont(val).take_node();
+                    },
+                    Some(Frame::ThenNext(next_comp)) => {
+                        cur = unwrap_arc(next_comp).take_node();
                     },
                     None => {
+                        let any_ref = &val as &dyn Any;
+                        if let Some(a_ref) = any_ref.downcast_ref::<A>() {
+                            return Ok(a_ref.clone());
+                        }
                         return val
                             .downcast_ref::<A>()
                             .cloned()
@@ -429,15 +526,22 @@ impl<F, A> Free<F, A> {
                             });
                     },
                 },
-                Free::Suspend(ref cmd, ref cont) => {
+                Node::Suspend(cmd, cont) => {
                     let effect_res = interp(cmd.clone()).map_err(FreeError::Interpreter)?;
                     let any_box = cont(effect_res)
                         .map_err(|expected| FreeError::TypeMismatch { expected })?;
                     match stack.pop() {
-                        Some(next_cont) => {
-                            cur = next_cont(any_box);
+                        Some(Frame::BindCont(next_cont)) => {
+                            cur = next_cont(any_box).take_node();
+                        },
+                        Some(Frame::ThenNext(next_comp)) => {
+                            cur = unwrap_arc(next_comp).take_node();
                         },
                         None => {
+                            let any_ref = &any_box as &dyn Any;
+                            if let Some(a_ref) = any_ref.downcast_ref::<A>() {
+                                return Ok(a_ref.clone());
+                            }
                             return any_box.downcast_ref::<A>().cloned().ok_or(
                                 FreeError::TypeMismatch {
                                     expected: std::any::type_name::<A>(),
@@ -457,7 +561,7 @@ impl<F, A> Free<F, A> {
     /// # Panics
     ///
     /// Panics if the interpreter returns an [`AnyValue`] that does not match the expected type `A`.
-    /// Use [`try_run`](Self::try_run) to handle mismatches as a `Result`.
+    /// Use [`try_run`](Self::try_run) to handle interpreter-originated mismatches as a `Result`.
     pub fn run<Interp>(&self, mut interp: Interp) -> A
     where
         F: Send + Sync + Clone + 'static,
@@ -476,7 +580,8 @@ impl<F, A> Free<F, A> {
     /// Evaluates the `Free` computation with a fallible effect interpreter.
     ///
     /// Returns `Err(FreeError::Interpreter(e))` if the interpreter returns an error, or
-    /// `Err(FreeError::TypeMismatch)` if the effect payload does not match the expected type.
+    /// `Err(FreeError::TypeMismatch)` if the effect payload returned by the interpreter does
+    /// not match the expected type (returning `Err` instead of panicking on interpreter-originated mismatches).
     pub fn try_run<Interp, E>(&self, interp: Interp) -> Result<A, FreeError<E>>
     where
         F: Send + Sync + Clone + 'static,
@@ -489,27 +594,33 @@ impl<F, A> Free<F, A> {
     /// Returns `true` if this computation is a pure value.
     #[inline]
     pub const fn is_pure(&self) -> bool {
-        matches!(self, Free::Pure(_))
+        matches!(self.node.as_ref(), Some(Node::Pure(_)))
     }
 
     /// Returns `true` if this computation is a suspended leaf effect command.
     #[inline]
     pub const fn is_suspend(&self) -> bool {
-        matches!(self, Free::Suspend(_, _))
+        matches!(self.node.as_ref(), Some(Node::Suspend(_, _)))
     }
 
     /// Returns `true` if this computation is a sequenced continuation node.
     #[inline]
     pub const fn is_bind(&self) -> bool {
-        matches!(self, Free::Bind(_, _))
+        matches!(self.node.as_ref(), Some(Node::Bind(_, _)))
+    }
+
+    /// Returns `true` if this computation is a value-independent sequencing node.
+    #[inline]
+    pub const fn is_then(&self) -> bool {
+        matches!(self.node.as_ref(), Some(Node::Then(_, _)))
     }
 
     /// Returns a reference to the inner value if it is pure.
     #[inline]
     pub const fn as_pure(&self) -> Option<&A> {
-        match self {
-            Free::Pure(a) => Some(a),
-            Free::Suspend(_, _) | Free::Bind(_, _) => None,
+        match self.node.as_ref() {
+            Some(Node::Pure(a)) => Some(a),
+            _ => None,
         }
     }
 
@@ -524,66 +635,154 @@ impl<F, A> Free<F, A> {
     {
         self.as_pure().cloned()
     }
+
+    /// Returns a reference to the inner effect command if this computation is a suspended leaf effect.
+    #[inline]
+    pub const fn as_suspend(&self) -> Option<&F> {
+        match self.node.as_ref() {
+            Some(Node::Suspend(cmd, _)) => Some(cmd),
+            _ => None,
+        }
+    }
+
+    /// Returns references to the left and right sub-computations if this is a `Then` sequencing node.
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    pub fn as_then(&self) -> Option<(&Free<F, AnyValue>, &Free<F, AnyValue>)> {
+        match self.node.as_ref() {
+            Some(Node::Then(left, right)) => Some((left.as_ref(), right.as_ref())),
+            _ => None,
+        }
+    }
+}
+
+const MAX_DEBUG_RECURSION: usize = 8;
+
+struct DebugFree<'a, F, A>(&'a Free<F, A>, usize);
+
+impl<'a, F: fmt::Debug, A: fmt::Debug> fmt::Debug for DebugFree<'a, F, A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt_free(self.0, f, self.1)
+    }
+}
+
+fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
+    free: &Free<F, A>, f: &mut fmt::Formatter<'_>, depth: usize,
+) -> fmt::Result {
+    let node = free.node();
+    if depth >= MAX_DEBUG_RECURSION {
+        return match node {
+            Node::Pure(_) => write!(f, "Pure(..)"),
+            Node::Suspend(cmd, _) => f.debug_tuple("Suspend").field(cmd).field(&"..").finish(),
+            Node::Bind(_, _) => write!(f, "Bind(..)"),
+            Node::Then(_, _) => write!(f, "Then(..)"),
+        };
+    }
+
+    match node {
+        Node::Pure(a) => f.debug_tuple("Pure").field(a).finish(),
+        Node::Suspend(cmd, _) => f
+            .debug_tuple("Suspend")
+            .field(cmd)
+            .field(&"<continuation>")
+            .finish(),
+        Node::Bind(sub, _) => {
+            let mut spine_depth = 1usize;
+            let mut cur: &Free<F, AnyValue> = sub;
+            while let Some(Node::Bind(next, _)) = cur.node.as_ref() {
+                spine_depth += 1;
+                cur = next;
+                if spine_depth > 10 {
+                    break;
+                }
+            }
+            if spine_depth > 10 {
+                while let Some(Node::Bind(next, _)) = cur.node.as_ref() {
+                    spine_depth += 1;
+                    cur = next;
+                }
+                f.debug_tuple("Bind")
+                    .field(&format_args!("depth: {spine_depth}"))
+                    .field(&"<continuation>")
+                    .finish()
+            } else {
+                f.debug_tuple("Bind")
+                    .field(&DebugFree(sub, depth + 1))
+                    .field(&"<continuation>")
+                    .finish()
+            }
+        },
+        Node::Then(left, right) => {
+            let mut left_depth = 1usize;
+            let mut cur = left;
+            while let Some(Node::Then(next, _)) = cur.node.as_ref() {
+                left_depth += 1;
+                cur = next;
+                if left_depth > 10 {
+                    break;
+                }
+            }
+            if left_depth > 10 {
+                while let Some(Node::Then(next, _)) = cur.node.as_ref() {
+                    left_depth += 1;
+                    cur = next;
+                }
+            }
+
+            let mut right_depth = 1usize;
+            let mut cur = right;
+            while let Some(Node::Then(_, next)) = cur.node.as_ref() {
+                right_depth += 1;
+                cur = next;
+                if right_depth > 10 {
+                    break;
+                }
+            }
+            if right_depth > 10 {
+                while let Some(Node::Then(_, next)) = cur.node.as_ref() {
+                    right_depth += 1;
+                    cur = next;
+                }
+            }
+
+            let max_depth = left_depth.max(right_depth);
+            if max_depth > 10 {
+                f.debug_tuple("Then")
+                    .field(&format_args!("depth: {max_depth}"))
+                    .finish()
+            } else {
+                f.debug_tuple("Then")
+                    .field(&DebugFree(left, depth + 1))
+                    .field(&DebugFree(right, depth + 1))
+                    .finish()
+            }
+        },
+    }
 }
 
 impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for Free<F, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Free::Pure(a) => f.debug_tuple("Pure").field(a).finish(),
-            Free::Suspend(cmd, _) => f
-                .debug_tuple("Suspend")
-                .field(cmd)
-                .field(&"<continuation>")
-                .finish(),
-            Free::Bind(sub, _) => {
-                let mut depth = 1usize;
-                let mut cur: &Free<F, AnyValue> = sub;
-                while let Free::Bind(next, _) = cur {
-                    depth += 1;
-                    cur = next;
-                    if depth > 10 {
-                        break;
-                    }
-                }
-                if depth > 10 {
-                    while let Free::Bind(next, _) = cur {
-                        depth += 1;
-                        cur = next;
-                    }
-                    f.debug_tuple("Bind")
-                        .field(&format_args!("depth: {depth}"))
-                        .field(&"<continuation>")
-                        .finish()
-                } else {
-                    f.debug_tuple("Bind")
-                        .field(sub)
-                        .field(&"<continuation>")
-                        .finish()
-                }
-            },
-        }
+        fmt_free(self, f, 0)
     }
 }
 
 impl<F, A: Default> Default for Free<F, A> {
     #[inline]
     fn default() -> Self {
-        Free::Pure(A::default())
+        Free::pure(A::default())
     }
 }
 
 impl<F, A> Drop for Free<F, A> {
     fn drop(&mut self) {
-        if let Free::Bind(sub, _) = self {
-            let mut stack = Vec::new();
-            let first = std::mem::replace(sub, Arc::new(Free::Pure(Arc::new(()) as AnyValue)));
-            stack.push(first);
+        if let Some(node) = self.node.take() {
+            let mut stack: Vec<Arc<Free<F, AnyValue>>> = Vec::new();
+            Self::push_node_children(node, &mut stack);
 
             while let Some(arc) = stack.pop() {
-                if let Ok(Free::Bind(ref mut next, _)) = Arc::try_unwrap(arc) {
-                    let next_arc =
-                        std::mem::replace(next, Arc::new(Free::Pure(Arc::new(()) as AnyValue)));
-                    stack.push(next_arc);
+                if let Some(child_node) = Arc::into_inner(arc).and_then(|mut free| free.node.take())
+                {
+                    Free::<F, AnyValue>::push_node_children(child_node, &mut stack);
                 }
             }
         }
@@ -679,7 +878,6 @@ mod tests {
             Err(FreeError::Interpreter("error during increment"))
         );
 
-        // Counterexample for P3: Type mismatch returns Err(FreeError::TypeMismatch) instead of panicking
         let mismatch_program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5));
         let type_err: Result<(), FreeError<()>> =
             mismatch_program.try_run(|_| Ok(Arc::new(7_i64) as AnyValue));
@@ -862,7 +1060,6 @@ mod tests {
 
     #[test]
     fn test_deep_debug_format_stack_safety() {
-        // Counterexample for P2: 50,000-deep spine Debug formatting must not overflow the stack
         let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
         for _ in 0..50_000 {
             p = p.then(Free::suspend(TestCmd::Increment(1)));
@@ -981,5 +1178,343 @@ mod tests {
             .and_then(|_| Free::pure(Arc::new(99_i32) as AnyValue));
         let res = prog.run(|_| Arc::new(()) as AnyValue);
         assert_eq!(*res.downcast_ref::<i32>().unwrap(), 99);
+    }
+
+    #[test]
+    fn test_any_value_helper() {
+        let val: AnyValue = any_value(42_i32);
+        assert_eq!(*val.downcast_ref::<i32>().unwrap(), 42);
+
+        let unit_val: AnyValue = any_value(());
+        assert!(unit_val.downcast_ref::<()>().is_some());
+    }
+
+    #[test]
+    fn test_then_semantic_equivalence() {
+        use std::sync::atomic::{AtomicI32, Ordering};
+        let p_then = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
+            .then(Free::<TestCmd, ()>::suspend(TestCmd::Increment(10)))
+            .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+
+        let p_bind = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
+            .and_then(|_| Free::<TestCmd, ()>::suspend(TestCmd::Increment(10)))
+            .and_then(|_| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+
+        let state_then = Arc::new(AtomicI32::new(0));
+        let s_t = Arc::clone(&state_then);
+        let res_then: i32 = p_then.run(|cmd| match cmd {
+            TestCmd::Increment(n) => {
+                s_t.fetch_add(n, Ordering::SeqCst);
+                any_value(())
+            },
+            TestCmd::Fetch => any_value(s_t.load(Ordering::SeqCst)),
+        });
+
+        let state_bind = Arc::new(AtomicI32::new(0));
+        let s_b = Arc::clone(&state_bind);
+        let res_bind: i32 = p_bind.run(|cmd| match cmd {
+            TestCmd::Increment(n) => {
+                s_b.fetch_add(n, Ordering::SeqCst);
+                any_value(())
+            },
+            TestCmd::Fetch => any_value(s_b.load(Ordering::SeqCst)),
+        });
+
+        assert_eq!(res_then, 15);
+        assert_eq!(res_bind, 15);
+        assert_eq!(
+            state_then.load(Ordering::SeqCst),
+            state_bind.load(Ordering::SeqCst)
+        );
+    }
+
+    #[test]
+    fn test_then_is_then_not_bind() {
+        let p1: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        let p2: Free<TestCmd, i32> = Free::suspend(TestCmd::Fetch);
+        let chained = p1.then(p2);
+        assert!(chained.is_then());
+        assert!(!chained.is_bind());
+        assert!(!chained.is_pure());
+        assert!(!chained.is_suspend());
+    }
+
+    #[test]
+    fn test_then_pure_shortcircuit() {
+        let p_pure = Free::<TestCmd, ()>::pure(());
+        let p_suspend = Free::<TestCmd, i32>::suspend(TestCmd::Fetch);
+        let chained = p_pure.then(p_suspend);
+        assert!(chained.is_suspend());
+        assert!(!chained.is_then());
+        assert_eq!(chained.as_suspend(), Some(&TestCmd::Fetch));
+    }
+
+    #[test]
+    fn test_no_double_erasure_pure() {
+        let val: AnyValue = any_value(42_i32);
+        let prog: Free<TestCmd, AnyValue> = Free::pure(val);
+        let erased: Free<TestCmd, AnyValue> = prog.into_any();
+        let res = erased.run(|_| any_value(()));
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_no_double_erasure_then_chain() {
+        let val: AnyValue = any_value(42_i32);
+        let p1: Free<TestCmd, AnyValue> = Free::suspend(TestCmd::Fetch);
+        let p2: Free<TestCmd, AnyValue> = Free::pure(val);
+        let chain = p1.then(p2);
+        let res = chain.run(|_| any_value(100_i32));
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_then_construction_linearity() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let cmd = CloneCountingCmd {
+            id: 1,
+            clones: Arc::clone(&counter),
+        };
+
+        // Measure n = 1000
+        counter.store(0, Ordering::SeqCst);
+        let mut p1000: Free<CloneCountingCmd, ()> = Free::suspend(cmd.clone());
+        for _ in 0..1000 {
+            p1000 = p1000.then(Free::<CloneCountingCmd, ()>::suspend(cmd.clone()));
+        }
+        let clones_1000 = counter.load(Ordering::SeqCst);
+
+        // Measure n = 2000
+        counter.store(0, Ordering::SeqCst);
+        let mut p2000: Free<CloneCountingCmd, ()> = Free::suspend(cmd.clone());
+        for _ in 0..2000 {
+            p2000 = p2000.then(Free::<CloneCountingCmd, ()>::suspend(cmd.clone()));
+        }
+        let clones_2000 = counter.load(Ordering::SeqCst);
+
+        let ratio = clones_2000 as f64 / clones_1000 as f64;
+        assert!(
+            (1.8..=2.2).contains(&ratio),
+            "Expected linear scaling (~2.0), got ratio: {ratio}"
+        );
+    }
+
+    #[test]
+    fn test_deep_then_drop() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..50_000 {
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        drop(p);
+    }
+
+    #[test]
+    fn test_mixed_bind_then_drop() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for i in 0..20_000 {
+            if i % 2 == 0 {
+                p = p.then(Free::suspend(TestCmd::Increment(1)));
+            } else {
+                p = p.and_then(|_| Free::suspend(TestCmd::Increment(1)));
+            }
+        }
+        drop(p);
+    }
+
+    #[test]
+    fn test_deep_then_debug() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..50_000 {
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        let debug_str = format!("{p:?}");
+        assert!(debug_str.contains("Then(depth: 50000)"));
+    }
+
+    #[test]
+    fn test_deep_then_run() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..25_000 {
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        let mut count = 0;
+        p.run(|cmd| match cmd {
+            TestCmd::Increment(n) => {
+                count += n;
+                any_value(())
+            },
+            TestCmd::Fetch => any_value(count),
+        });
+        assert_eq!(count, 25_001);
+    }
+
+    #[test]
+    fn test_then_clone_reuse() {
+        let prog = Free::<TestCmd, ()>::suspend(TestCmd::Increment(7))
+            .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+
+        let prog_clone = prog.clone();
+
+        let mut c1 = 0;
+        let r1: i32 = prog.run(|cmd| match cmd {
+            TestCmd::Increment(n) => {
+                c1 += n;
+                any_value(())
+            },
+            TestCmd::Fetch => any_value(c1),
+        });
+
+        let mut c2 = 100;
+        let r2: i32 = prog_clone.run(|cmd| match cmd {
+            TestCmd::Increment(n) => {
+                c2 += n;
+                any_value(())
+            },
+            TestCmd::Fetch => any_value(c2),
+        });
+
+        assert_eq!(r1, 7);
+        assert_eq!(r2, 107);
+    }
+
+    #[test]
+    fn test_deep_then_drop_with_clones() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..30_000 {
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        let q = p.clone();
+        drop(q);
+        drop(p);
+
+        let mut p2: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..30_000 {
+            p2 = p2.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        let q2 = p2.clone();
+        drop(p2);
+        drop(q2);
+    }
+
+    #[test]
+    fn test_accessors() {
+        let p_pure: Free<TestCmd, i32> = Free::pure(42);
+        assert!(p_pure.is_pure());
+        assert_eq!(p_pure.as_pure(), Some(&42));
+        assert_eq!(p_pure.as_suspend(), None);
+        assert!(p_pure.as_then().is_none());
+
+        let p_suspend: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(5));
+        assert!(p_suspend.is_suspend());
+        assert_eq!(p_suspend.as_suspend(), Some(&TestCmd::Increment(5)));
+        assert_eq!(p_suspend.as_pure(), None);
+        assert!(p_suspend.as_then().is_none());
+
+        let p_then = p_suspend.then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+        assert!(p_then.is_then());
+        assert!(p_then.as_then().is_some());
+        assert_eq!(p_then.as_pure(), None);
+        assert_eq!(p_then.as_suspend(), None);
+
+        let p_bind = p_suspend.and_then(|_| Free::pure(10));
+        assert!(p_bind.is_bind());
+        assert_eq!(p_bind.as_pure(), None);
+        assert_eq!(p_bind.as_suspend(), None);
+        assert!(p_bind.as_then().is_none());
+    }
+
+    #[test]
+    fn test_monad_laws_effectful() {
+        use std::sync::Mutex;
+        let trace1 = Arc::new(Mutex::new(Vec::new()));
+        let t1 = Arc::clone(&trace1);
+        let f = |x: i32| {
+            Free::<TestCmd, ()>::suspend(TestCmd::Increment(x)).and_then(move |_| Free::pure(x * 2))
+        };
+
+        // Left identity: pure(a).and_then(f) vs f(a)
+        let left = Free::<TestCmd, i32>::pure(5).and_then(f);
+        let right = f(5);
+
+        let mut c1 = 0;
+        let r_left = left.run(|cmd| match cmd {
+            TestCmd::Increment(n) => {
+                c1 += n;
+                t1.lock().unwrap().push(format!("inc({n})"));
+                any_value(())
+            },
+            TestCmd::Fetch => any_value(c1),
+        });
+
+        let trace2 = Arc::new(Mutex::new(Vec::new()));
+        let t2 = Arc::clone(&trace2);
+        let mut c2 = 0;
+        let r_right = right.run(|cmd| match cmd {
+            TestCmd::Increment(n) => {
+                c2 += n;
+                t2.lock().unwrap().push(format!("inc({n})"));
+                any_value(())
+            },
+            TestCmd::Fetch => any_value(c2),
+        });
+
+        assert_eq!(r_left, r_right);
+        assert_eq!(*trace1.lock().unwrap(), *trace2.lock().unwrap());
+    }
+
+    #[test]
+    fn test_mixed_bind_then_debug() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for i in 0..50_000 {
+            p = if i % 2 == 0 {
+                p.then(Free::suspend(TestCmd::Increment(1)))
+            } else {
+                p.and_then(|_| Free::suspend(TestCmd::Increment(1)))
+            };
+        }
+        let debug_str = format!("{p:?}");
+        assert!(!debug_str.is_empty());
+    }
+
+    #[test]
+    fn test_zigzag_then_debug() {
+        let x: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        let y: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(2));
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(0));
+        for _ in 0..25_000 {
+            p = x.clone().then(p).then(y.clone());
+        }
+        let debug_str = format!("{p:?}");
+        assert!(!debug_str.is_empty());
+    }
+
+    #[test]
+    fn test_const_fn_accessors() {
+        const fn inspect_pure(x: &Free<u8, u8>) -> bool {
+            x.is_pure()
+        }
+        const fn inspect_suspend(x: &Free<u8, u8>) -> bool {
+            x.is_suspend()
+        }
+        const fn inspect_bind(x: &Free<u8, u8>) -> bool {
+            x.is_bind()
+        }
+        const fn inspect_then(x: &Free<u8, u8>) -> bool {
+            x.is_then()
+        }
+        const fn inspect_as_pure(x: &Free<u8, u8>) -> Option<&u8> {
+            x.as_pure()
+        }
+        const fn inspect_as_suspend(x: &Free<u8, u8>) -> Option<&u8> {
+            x.as_suspend()
+        }
+
+        let p: Free<u8, u8> = Free::pure(42);
+        assert!(inspect_pure(&p));
+        assert!(!inspect_suspend(&p));
+        assert!(!inspect_bind(&p));
+        assert!(!inspect_then(&p));
+        assert_eq!(inspect_as_pure(&p), Some(&42));
+        assert_eq!(inspect_as_suspend(&p), None);
     }
 }

@@ -6,16 +6,26 @@
 
 - **Inherent `map` & `and_then` on Operational Monads**: Added inherent `map` and `and_then` methods on `Program` and `TryProgram` matching standard Rust monadic chaining conventions.
 - **`Free` Primary `map` & `and_then`**: Elevated inherent `map` and `and_then` to primary methods on `Free`.
+- **`Free` Structural `Then` AST Node**: Added explicit `Node::Then` variant and `then()` method constructing actual AST sequencing nodes rather than hiding computation inside closures.
+- **`Free` Inspectability Accessors**: Added `Free::is_then`, `Free::as_then`, and `Free::as_suspend`, completing full structural inspection alongside `is_pure`, `is_suspend`, `is_bind`, and `as_pure`.
+- **Const Evaluation on `Free` Accessors**: Restored `pub const fn` on `Free::is_pure`, `Free::is_suspend`, `Free::is_bind`, `Free::is_then`, `Free::as_pure`, and `Free::as_suspend`.
 - **`Lens` Inherent `iso_map`**: Added inherent `Lens::iso_map` for bidirectional (isomorphic) type transformations.
 
 ### Changed
 
+- **`Free<F, A>` Public Representation (Breaking)**: Converted `Free` from a `pub enum` to an opaque `pub struct Free<F, A>` backed by an internal private `Node` enum. Direct pattern matching on `Free::Pure`, `Free::Suspend`, and `Free::Bind` is replaced with constructors (`Free::pure`, `Free::suspend`, `Free::suspend_with`) and inspectability accessors (`is_pure`, `is_suspend`, `is_bind`, `is_then`, `as_pure`, `as_suspend`, `as_then`).
+- **`Free::then` Pure Short-Circuiting**: `Pure(_).then(next)` short-circuits directly to `next` without allocating an intermediate `Then` AST node.
+- **`Free::into_any` Internalization (Breaking)**: Lowered `Free::into_any` from public API to a private crate implementation detail with $O(1)$ fast-path clone for already-erased `Free<F, AnyValue>` computations, preventing accidental external double-erasure.
+- **`Free` Trampoline Frame Separation**: Split dynamic continuation evaluation and static AST traversal into explicit `Frame::BindCont` and `Frame::ThenNext` evaluation frames.
 - **`Lens::modify` & `modify_always` `FnOnce` Support**: Relaxed transformation closures from `Fn(A) -> A` to `FnOnce(A) -> A`, allowing move closures to transform focused fields. Focus bound on `modify` remains `A: PartialEq` (relaxing the 0.18.0 `Clone + PartialEq` bound).
 - **`Lens` Manual `Clone` Implementation**: Replaced `#[derive(Clone)]` with a manual `impl Clone for Lens` requiring only `GetFn: Clone, SetFn: Clone`, allowing lenses targeting non-`Clone` structs or focuses to be cloned.
 - **`Lens` `PhantomData` Auto-Trait Decoupling**: Updated `_phantom: PhantomData<(S, A)>` to `PhantomData<fn(S) -> A>`, preventing `!Send`/`!Sync` auto-trait leakage from `S` or `A`.
 
 ### Fixed
 
+- **`Free` Stack Safety on Arbitrary Mixed / Zigzag Spines**: Replaced per-variant linear spine recursion in `Debug` with a global recursion budget (`MAX_DEBUG_RECURSION = 8`), preventing `STATUS_STACK_OVERFLOW` on alternating `Then`/`Bind` chains (50k+) or zigzag trees (25k+) while preserving $O(1)$ spine depth summarization for homogeneous chains.
+- **`Free` Double-Erasure Elimination**: Eliminated double boxing (`Arc<Arc<dyn Any>>`) when nesting `Free<F, AnyValue>` sequencing chains.
+- **`Free` Iterative Drop & Construction Complexity**: Explicit stack-safe iterative traversal for both `Bind` and `Then` spines using `Arc::into_inner`. Guaranteed $O(n)$ construction for right-nested `then()` sequences.
 - **Operational Monad Stack Safety**: Represented `then` sequencing explicitly so deep left- and right-associated `Program` and `TryProgram` chains can be evaluated and dropped without recursive stack growth.
 - **`Lens::then` Closure `Clone` Bounds**: Removed `Arc` and heap allocation from `Lens::then`. Composition now requires `GetFn: Clone`, `SetFn: Clone`, `GetFn2: Clone`, and `SetFn2: Clone`, returning `impl Fn(...) + Clone`.
 - **`Lens::iso_map` & `fmap` Pipeline Composability**: Added `+ Clone` bounds and return types to `Lens::iso_map` and `Lens::fmap` (`F: Clone`, `G: Clone`, `GetFn: Clone`, `SetFn: Clone`), enabling composition with `Lens::then`.
@@ -28,6 +38,8 @@
 
 ### Removed
 
+- **`Free::into_any` Public Method (Breaking)**: Removed from public API to protect internal type-erasure invariants.
+- **`ContStack<F>` Type Alias (Breaking)**: Removed orphaned continuation stack type alias.
 - **Persistent Collections (`pvec`)**: Completely removed `rustica::pvec` module, `PersistentVector<T>`, `pvec!` macro, and the `pvec` Cargo feature flag. Persistent collections should migrate to dedicated external crates like `imbl` (`imbl::Vector`) or standard `std::vec::Vec<T>` (see `MIGRATION_v0.19.0.md`).
 - **Pseudo-HKT & Categorical Simulation Traits**: Removed `HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, and `Foldable` traits from `rustica::traits`. Concrete types (`Validated`, `Choice`, `Free`, etc.) now exclusively provide inherent methods (`map`, `zip_with`, `lift2`, etc.) and standard `Iterator` / `FromIterator` implementations. Core algebraic traits `Semigroup` and `Monoid` remain fully supported.
 - **`Prism::set_if_different`**: Removed redundant method in favor of unconditional $O(1)$ variant reconstruction via `Prism::set`.
