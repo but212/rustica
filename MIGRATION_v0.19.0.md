@@ -304,6 +304,7 @@ let age = age_lens.iso_map(|n: u32| n.to_le_bytes(), |b: [u8; 4]| u32::from_le_b
 - **Short-circuiting:** `Pure(_).then(next)` short-circuits directly to `next` without allocating an intermediate `Then` node.
 - **Inspectability Accessors:** Direct enum pattern matching (`match free { Free::Pure(..) => ... }`) is removed. Inspect AST shape via `is_pure()`, `is_suspend()`, `is_bind()`, `is_then()`, `as_pure()`, `as_suspend()`, and `as_then()`. All accessors are `pub const fn`.
 - **Internalized Erasure:** `Free::into_any` is now a private implementation detail, eliminating double-erasure risks (`Arc<Arc<dyn Any>>`) with $O(1)$ fast-path cloning for already erased trees.
+- **`repr(transparent)` Attribute:** `Free<F, A>` is marked `#[repr(transparent)]`, specifying the same layout and ABI as `Option<Node<F, A>>`.
 - **`ContStack<F>` Removed:** The orphaned type alias `ContStack<F>` is removed.
 
 ### Migration Path
@@ -337,6 +338,8 @@ if let Some(val) = free_val.as_pure() {
 ### Rationale
 
 `Program` is an ownership-driven (`Box`), single-threaded operational pipeline evaluated with `run(&mut H)`. Removing `Send + Sync` allows `Program` to seamlessly handle thread-local state (`Rc`, `RefCell`) without concurrency overhead or compiler rejection.
+
+Additionally, `TryProgram<H, A, E>` is marked `#[repr(transparent)]`, matching the layout of its inner node option.
 
 If cross-thread computation sharing or multi-threaded DSL AST analysis is required, use [`Free<F, A>`](crate::datatypes::free::Free), which is backed by `Arc` and designed for concurrent inspection and multi-pass evaluation.
 

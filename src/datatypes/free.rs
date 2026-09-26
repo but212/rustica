@@ -195,6 +195,7 @@ enum Node<F, A> {
 
 /// The `Free` monad represents a computation tree separating AST construction from interpretation.
 #[derive(Clone)]
+#[repr(transparent)]
 pub struct Free<F, A> {
     node: Option<Node<F, A>>,
 }

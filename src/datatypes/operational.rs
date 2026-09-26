@@ -159,6 +159,7 @@ enum TryFrame<H, E> {
 }
 
 /// Core statically-typed fallible Operational Monad computation with domain error `E`.
+#[repr(transparent)]
 pub struct TryProgram<H, A, E> {
     node: Option<Node<H, A, E>>,
 }

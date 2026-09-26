@@ -66,8 +66,8 @@ impl<E> NonEmptyErrors<E> {
 
     /// Returns a slice over the errors.
     #[inline]
-    pub fn as_slice(&self) -> &[E] {
-        &self.0
+    pub const fn as_slice(&self) -> &[E] {
+        self.0.as_slice()
     }
 
     #[inline]
@@ -81,7 +81,7 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -510,5 +510,28 @@ mod tests {
         assert_eq!(from_some, Validated::valid(10));
         let from_none: Validated<i32, &str> = Validated::from_option_with(None, || "dynamic_err");
         assert_eq!(from_none, Validated::invalid("dynamic_err"));
+    }
+
+    #[test]
+    fn test_const_fn_capability() {
+        const fn inspect_errors<'a, E>(errs: &'a NonEmptyErrors<E>) -> (&'a [E], usize, bool) {
+            (errs.as_slice(), errs.len(), errs.is_empty())
+        }
+
+        const fn inspect_validated<'a, T, E>(v: &'a Validated<T, E>) -> (bool, bool, Option<&'a T>) {
+            (v.is_valid(), v.is_invalid(), v.as_option())
+        }
+
+        let errors = NonEmptyErrors::new("err");
+        let (slice, len, is_empty) = inspect_errors(&errors);
+        assert_eq!(slice, &["err"]);
+        assert_eq!(len, 1);
+        assert!(!is_empty);
+
+        let valid: Validated<i32, &str> = Validated::valid(42);
+        let (is_valid, is_invalid, opt) = inspect_validated(&valid);
+        assert!(is_valid);
+        assert!(!is_invalid);
+        assert_eq!(opt, Some(&42));
     }
 }

@@ -127,8 +127,8 @@ impl<T> Choice<T> {
 
     /// Returns a slice containing all alternative values.
     #[inline]
-    pub fn alternatives(&self) -> &[T] {
-        &self.alternatives
+    pub const fn alternatives(&self) -> &[T] {
+        self.alternatives.as_slice()
     }
 
     /// Returns the total number of values (1 primary + alternatives count).
@@ -709,5 +709,19 @@ mod unit_tests {
         assert_eq!(*choice.primary(), 10);
         assert_eq!(choice.alternatives(), &[20, 30, 40]);
         assert_eq!(choice.alternatives.capacity(), 64);
+    }
+
+    #[test]
+    fn test_const_fn_capability() {
+        const fn inspect_choice<'a, T>(c: &'a Choice<T>) -> (&'a T, &'a [T], usize, bool) {
+            (c.primary(), c.alternatives(), c.len(), c.is_empty())
+        }
+
+        let c = Choice::single(42);
+        let (p, alts, len, is_empty) = inspect_choice(&c);
+        assert_eq!(*p, 42);
+        assert_eq!(alts, &[]);
+        assert_eq!(len, 1);
+        assert!(!is_empty);
     }
 }

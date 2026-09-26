@@ -9,6 +9,8 @@
 - **`Free` Structural `Then` AST Node**: Added explicit `Node::Then` variant and `then()` constructor for structural AST sequencing instead of closure capture.
 - **`Free` Inspectability Accessors**: Added `Free::is_then`, `Free::as_then`, and `Free::as_suspend`, completing structural inspection alongside `is_pure`, `is_suspend`, `is_bind`, and `as_pure`.
 - **Const Evaluation on `Free` Accessors**: Restored `pub const fn` on `Free::is_pure`, `Free::is_suspend`, `Free::is_bind`, `Free::is_then`, `Free::as_pure`, and `Free::as_suspend`.
+- **`const fn` on Inherent Accessors**: Marked `Choice::alternatives`, `NonEmptyErrors::as_slice`, `NonEmptyErrors::len`, `Validated::error_slice`, and `ContextError::contexts_raw` as `pub const fn`.
+- **`repr(transparent)` on `Free` and `TryProgram`**: Applied `#[repr(transparent)]` to `Free<F, A>` and `TryProgram<H, A, E>`, specifying layout identity with their single inner field.
 - **`Lens` Inherent `iso_map`**: Added inherent `Lens::iso_map` for bidirectional type transformations.
 
 ### Changed
@@ -29,7 +31,7 @@
 - **`Free` Double-Erasure Elimination**: Eliminated double boxing (`Arc<Arc<dyn Any>>`) when nesting `Free<F, AnyValue>` sequencing chains.
 - **`Free` Iterative Drop & Construction Complexity**: Implemented stack-safe iterative traversal for `Bind` and `Then` spines using `Arc::into_inner`, ensuring $O(n)$ construction for right-nested `then()` sequences.
 - **Operational Monad Stack Safety**: Represented `then` sequencing explicitly so deep left- and right-associated `Program` and `TryProgram` chains evaluate and drop without recursive stack growth.
-- **Operational Monad `const fn` Capability Verification**: Added compile-time `const fn` tests (`prog_flags`, `try_prog_flags`) verifying `Program::pure`, `TryProgram::pure`, and predicate accessors retain `pub const fn` capability.
+- **`const fn` Verification Tests**: Added unit tests verifying `pub const fn` evaluation on `Operational`, `Choice`, `NonEmptyErrors`, `Validated`, and `ContextError`.
 - **`Lens::then` Closure `Clone` Bounds**: Removed `Arc` and heap allocation from `Lens::then`. Composition now requires `Clone` on getters/setters and returns `impl Fn(...) + Clone`.
 - **`Lens::iso_map` & `fmap` Pipeline Composability**: Added `+ Clone` bounds and return types to `Lens::iso_map` and `Lens::fmap` (`F: Clone`, `G: Clone`, `GetFn: Clone`, `SetFn: Clone`), enabling composition with `Lens::then`.
 
