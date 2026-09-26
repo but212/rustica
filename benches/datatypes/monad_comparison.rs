@@ -64,10 +64,25 @@ fn run_operational(depth: usize) -> i32 {
     full.run(&mut calc)
 }
 
-fn run_native(depth: usize) -> i32 {
-    let mut state = 0;
+#[derive(Clone, Copy)]
+enum DslOp {
+    Add(i32),
+    Get,
+}
+
+fn run_dsl_loop(depth: usize) -> i32 {
+    let mut ops = Vec::with_capacity(depth);
     for _ in 0..depth.saturating_sub(1) {
-        state = black_box(state + 1);
+        ops.push(DslOp::Add(1));
+    }
+    ops.push(DslOp::Get);
+
+    let mut state = 0;
+    for op in ops {
+        match op {
+            DslOp::Add(n) => state += n,
+            DslOp::Get => return state,
+        }
     }
     state
 }
@@ -84,8 +99,8 @@ pub fn monad_comparison_benchmarks(harness: &Harness) {
             black_box(run_operational(depth));
         });
 
-        group.bench_with_input("native_loop", &depth, |&depth| {
-            black_box(run_native(depth));
+        group.bench_with_input("dsl_loop", &depth, |&depth| {
+            black_box(run_dsl_loop(depth));
         });
     }
 }
