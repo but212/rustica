@@ -518,7 +518,9 @@ mod tests {
             (errs.as_slice(), errs.len(), errs.is_empty())
         }
 
-        const fn inspect_validated<'a, T, E>(v: &'a Validated<T, E>) -> (bool, bool, Option<&'a T>) {
+        const fn inspect_validated<'a, T, E>(
+            v: &'a Validated<T, E>,
+        ) -> (bool, bool, Option<&'a T>) {
             (v.is_valid(), v.is_invalid(), v.as_option())
         }
 
