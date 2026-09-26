@@ -713,7 +713,7 @@ mod unit_tests {
 
     #[test]
     fn test_const_fn_capability() {
-        const fn inspect_choice<'a, T>(c: &'a Choice<T>) -> (&'a T, &'a [T], usize, bool) {
+        const fn inspect_choice<T>(c: &Choice<T>) -> (&T, &[T], usize, bool) {
             (c.primary(), c.alternatives(), c.len(), c.is_empty())
         }
 

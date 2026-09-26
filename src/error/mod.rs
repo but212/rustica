@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_const_fn_capability() {
-        const fn inspect_error<'a, E>(err: &'a ContextError<E>) -> (&'a E, &'a [String]) {
+        const fn inspect_error<E>(err: &ContextError<E>) -> (&E, &[String]) {
             (err.error(), err.contexts_raw())
         }
 

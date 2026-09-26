@@ -514,13 +514,11 @@ mod tests {
 
     #[test]
     fn test_const_fn_capability() {
-        const fn inspect_errors<'a, E>(errs: &'a NonEmptyErrors<E>) -> (&'a [E], usize, bool) {
+        const fn inspect_errors<E>(errs: &NonEmptyErrors<E>) -> (&[E], usize, bool) {
             (errs.as_slice(), errs.len(), errs.is_empty())
         }
 
-        const fn inspect_validated<'a, T, E>(
-            v: &'a Validated<T, E>,
-        ) -> (bool, bool, Option<&'a T>) {
+        const fn inspect_validated<T, E>(v: &Validated<T, E>) -> (bool, bool, Option<&T>) {
             (v.is_valid(), v.is_invalid(), v.as_option())
         }
 

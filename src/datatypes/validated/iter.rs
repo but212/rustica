@@ -153,13 +153,11 @@ mod tests {
 
     #[test]
     fn test_const_fn_capability() {
-        const fn inspect_error_slice<'a, T, E>(v: &'a Validated<T, E>) -> &'a [E] {
+        const fn inspect_error_slice<T, E>(v: &Validated<T, E>) -> &[E] {
             v.error_slice()
         }
 
-        const fn inspect_error_payload<'a, T, E>(
-            v: &'a Validated<T, E>,
-        ) -> Option<&'a NonEmptyErrors<E>> {
+        const fn inspect_error_payload<T, E>(v: &Validated<T, E>) -> Option<&NonEmptyErrors<E>> {
             v.error_payload()
         }
 
