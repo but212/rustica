@@ -6,23 +6,21 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/but212/rustica)
 
-Rustica provides functional programming and categorical abstractions for Rust.
+Rustica provides functional programming and categorical abstractions for Rust, designed for zero-cost domain modeling where standard library primitives leave gaps.
 
 ## Overview
 
-- **Algebraic Traits**: `Semigroup`, `Monoid` (associative combination and empty identities)
-- **Data Types**: `Choice`, `Validated`, `Free`, `Program` / `TryProgram`
-- **Error Handling**: `ContextError` (context accumulation) and `Validated` (failure accumulation)
-- **Optics**: `Lens` (product types) and `Prism` (sum types)
-- **API Guidelines**: Follows Rust API Guidelines (see [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md))
-- **Design Philosophy**: Architectural trade-offs and boundary guidelines (see [docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md))
-
 ### Recommended Use Cases
 
-- **Domain Modeling**: Precise state representation via algebraic types (`Choice`, `Validated`)
-- **Validation**: Error accumulation without early return (`Validated`)
-- **Domain DSLs**: AST construction (`Free`) or typed command-handler dispatch (`Program`)
-- **Optics**: Ergonomic immutable access and transformation for complex structs and enums (`Lens`, `Prism`)
+- **Domain Modeling**: Precise state representation via algebraic types (`Choice`, `Validated`).
+- **Validation**: Multi-error accumulation without early return (`Validated`).
+- **Domain DSLs**: AST construction (`Free`) or statically typed command dispatch (`Program` / `TryProgram`).
+- **Optics**: Ergonomic immutable access and transformation for complex structs and enums (`Lens`, `Prism`).
+
+Architecture and conventions:
+
+- **Design Philosophy**: Architectural trade-offs and boundary guidelines ([docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md)).
+- **API Guidelines**: Naming, receiver standards, and ownership conventions ([docs/API_GUIDELINES.md](docs/API_GUIDELINES.md)).
 
 ---
 
@@ -37,6 +35,9 @@ rustica = "0.18.0"
 # rustica = { version = "0.18.0", features = ["full"] } # async (deprecated in 0.19.0), serde, quickcheck
 ```
 
+> [!NOTE]
+> The current released version on crates.io is `0.18.0`. Ongoing breaking changes and modernization for the upcoming `0.19.0` release are documented in the [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md).
+
 Import common traits and types:
 
 ```rust
@@ -49,20 +50,20 @@ use rustica::prelude::*;
 
 ### 1. Algebraic Structures
 
-- **`Semigroup`**: `combine`
-- **`Monoid`**: `empty`, `combine_all`
+- **`Semigroup`**: Associative combination via `combine`.
+- **`Monoid`**: Identity elements and empty sequence aggregation via `empty` and `combine_all`.
 
 ### 2. Core Data Types
 
-- **`Choice<T>`**: Non-empty priority/fallback collection (`try_each`, `try_each_validated`).
-- **`Validated<T, E>`**: Accumulates errors into `NonEmptyErrors<E>`.
-- **`Free<F, A>`**: Free monad DSL AST engine with explicit `Then` sequencing, stack-safe iterative execution (`run`, `try_run`), and bounded `Debug`/`Drop`.
-- **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation and destruction of deep `then` chains.
+- **`Choice<T>`**: Guaranteed non-empty priority and fallback execution sequence (`try_each`, `try_each_validated`).
+- **`Validated<T, E>`**: Multi-error accumulation into `NonEmptyErrors<E>` with applicative zip and iterator collection.
+- **`Free<F, A>`**: Free monad DSL AST engine with explicit `Then` sequencing, bounded recursion, and stack-safe iterative execution (`run`, `try_run`).
+- **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation.
 
 ### 3. Optics
 
-- **`Lens`**: Getters and setters for product types.
-- **`Prism`**: Pattern matching optics for sum types (`preview`, `review`, `set`, `modify`).
+- **`Lens`**: Composable getters, setters, and modifiers for product types (`get`, `set`, `modify`, `then`).
+- **`Prism`**: Pattern matching optics for sum types (`preview`, `review`, `set`, `modify`, `then`).
 
 ---
 
