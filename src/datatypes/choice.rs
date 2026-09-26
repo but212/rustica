@@ -720,7 +720,7 @@ mod unit_tests {
         let c = Choice::single(42);
         let (p, alts, len, is_empty) = inspect_choice(&c);
         assert_eq!(*p, 42);
-        assert_eq!(alts, &[]);
+        assert_eq!(alts, &[] as &[i32]);
         assert_eq!(len, 1);
         assert!(!is_empty);
     }
