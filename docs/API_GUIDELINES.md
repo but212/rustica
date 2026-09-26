@@ -30,7 +30,7 @@ Prefixes correspond strictly to receiver ownership and allocation cost:
   - [BAD] `Validated::to_value(self)` -> [GOOD] `Validated::into_value(self)`
   - [BAD] `Free::into_pure(&self)` -> [GOOD] `Free::to_pure(&self)` (borrowing with clone requires `to_*`)
 - **Never return an owned type from `as_*`**:
-  - [BAD] `as_option(&self) -> Option<T>` (cloning `T`) -> [GOOD] `to_option(&self) -> Option<T>` or `as_option(&self) -> Option<&T>`
+  - [BAD] `as_option(&self) -> Option<T>` (cloning `T`) -> [GOOD] `as_option(&self) -> Option<&T>` with `.cloned()` at the call site
 
 ---
 
@@ -137,7 +137,7 @@ Boolean inspection methods always borrow via `&self`:
 
 - Optics access and modification borrow `&self` (`Lens::get(&self, source: &S) -> A`, `Lens::set(&self, source: S, value: A) -> S`).
 - Composition transfers unboxed closures, requiring `self` (`Lens::then(self, other: Lens<A, B>) -> Lens<S, B>`).
-- Optics operate on value ownership without imposing unnecessary `Clone` bounds on structures or focuses; `modify` performs single-evaluation equality checks when `A: Clone + PartialEq`.
+- Optics operate on value ownership without imposing unnecessary `Clone` bounds on structures or focuses; `modify` requires `A: PartialEq` and may evaluate the getter more than once for its equality check.
 - Closures do not implement mathematical equality; optics omit `PartialEq` derive and provide manual `Debug` formatting.
 
 ---
@@ -147,7 +147,7 @@ Boolean inspection methods always borrow via `&self`:
 | Pattern | Check | Correct Convention |
 | --- | --- | --- |
 | **Consuming Conversion** | Takes `self`, produces another type | `into_*` (`into_value`, `into_errors`, `into_result`) |
-| **Cloned Conversion** | Takes `&self`, produces owned instance | `to_*` (`to_vec`, `to_string`, `to_option`, `to_pure`) |
+| **Cloned Conversion** | Takes `&self`, produces owned instance | `to_*` (`to_vec`, `to_string`, `to_pure`) |
 | **Borrowed View** | Takes `&self`, borrows inner structure | `as_*` (`as_slice`, `as_str`, `as_bytes`) |
 | **Field Getter** | Inspects field value | `field(&self)`, `field_mut(&mut self)` (no `get_`) |
 | **Key/Index Lookup** | Fallible query by key or position | `get(&self, key)` |

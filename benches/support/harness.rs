@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 /// Default number of warmup iterations before measurement.
 pub const DEFAULT_WARMUP_ITERS: usize = 10;
 /// Default number of measurement iterations.
-pub const DEFAULT_MEASURE_ITERS: usize = 100;
+pub const DEFAULT_MEASURE_ITERS: usize = 1000;
 /// Default number of routine repetitions per timing sample to amortize timer overhead.
 pub const DEFAULT_BATCH_ITERS: usize = 10;
 

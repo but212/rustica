@@ -84,7 +84,7 @@ fn run_operational_monad_example() {
         quantity: 1,
     }
     .suspend()
-    .bind(|in_stock| {
+    .and_then(|in_stock| {
         if in_stock {
             ChargeCard {
                 card_number: "4111-xxxx-xxxx-1111",
@@ -95,13 +95,13 @@ fn run_operational_monad_example() {
             Program::pure(Err("out of stock"))
         }
     })
-    .bind(|charge_res| match charge_res {
+    .and_then(|charge_res| match charge_res {
         Ok(tx_id) => SendReceipt {
             email: "user@example.com",
             tx_id: tx_id.clone(),
         }
         .suspend()
-        .fmap(move |_| Ok(tx_id)),
+        .map(move |_| Ok(tx_id)),
         Err(e) => Program::pure(Err(e)),
     });
 

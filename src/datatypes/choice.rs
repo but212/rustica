@@ -127,8 +127,8 @@ impl<T> Choice<T> {
 
     /// Returns a slice containing all alternative values.
     #[inline]
-    pub fn alternatives(&self) -> &[T] {
-        &self.alternatives
+    pub const fn alternatives(&self) -> &[T] {
+        self.alternatives.as_slice()
     }
 
     /// Returns the total number of values (1 primary + alternatives count).
@@ -214,6 +214,10 @@ impl<T> Choice<T> {
     }
 
     /// Safely flattens a borrowed `Choice` of iterable items by cloning elements.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `.clone().try_flatten()` instead; scheduled for removal in 0.20.0"
+    )]
     pub fn try_flatten_cloned<I>(&self) -> Result<Choice<I>, ChoiceError>
     where
         T: IntoIterator<Item = I> + Clone,
@@ -232,10 +236,15 @@ impl<T> Choice<T> {
     }
 
     /// Flattens a borrowed `Choice` of iterable items by cloning elements, returning `None` if all inner iterables are empty.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `.clone().flatten()` instead; scheduled for removal in 0.20.0"
+    )]
     pub fn flatten_cloned<I>(&self) -> Option<Choice<I>>
     where
         T: IntoIterator<Item = I> + Clone,
     {
+        #[allow(deprecated)]
         self.try_flatten_cloned().ok()
     }
 
@@ -314,6 +323,10 @@ impl<T> Choice<T> {
     /// Functional alias for [`map`](Self::map).
     ///
     /// Transforms the primary value and all alternatives preserving priority order.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `map` instead; scheduled for removal in 0.20.0"
+    )]
     #[inline]
     pub fn fmap<B, F>(self, f: F) -> Choice<B>
     where
@@ -471,6 +484,7 @@ mod unit_tests {
         assert_eq!(*mapped.primary(), 10);
         assert_eq!(mapped.alternatives(), &[20, 30, 40, 50]);
 
+        #[allow(deprecated)]
         let fmapped = combined.clone().fmap(|x| x * 10);
         assert_eq!(mapped, fmapped);
 
@@ -588,6 +602,7 @@ mod unit_tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn flatten_cloned_and_try_flatten_cloned() {
         let nested = Choice::new(vec![1, 2], vec![vec![3, 4]]);
         let flattened = nested.flatten_cloned().unwrap();
@@ -694,5 +709,19 @@ mod unit_tests {
         assert_eq!(*choice.primary(), 10);
         assert_eq!(choice.alternatives(), &[20, 30, 40]);
         assert_eq!(choice.alternatives.capacity(), 64);
+    }
+
+    #[test]
+    fn test_const_fn_capability() {
+        const fn inspect_choice<T>(c: &Choice<T>) -> (&T, &[T], usize, bool) {
+            (c.primary(), c.alternatives(), c.len(), c.is_empty())
+        }
+
+        let c = Choice::single(42);
+        let (p, alts, len, is_empty) = inspect_choice(&c);
+        assert_eq!(*p, 42);
+        assert_eq!(alts, &[] as &[i32]);
+        assert_eq!(len, 1);
+        assert!(!is_empty);
     }
 }

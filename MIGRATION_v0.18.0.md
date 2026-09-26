@@ -203,7 +203,7 @@ let result = io_prog.run();
 let result = program.run(|cmd| interpret(cmd));
 ```
 
-Also, `Free::into_pure` has been removed in favor of `Free::to_pure` (following Rust API Guidelines C-CONV).
+`Free::into_pure` was removed in favor of `Free::to_pure` per Rust API Guidelines (C-CONV).
 
 ---
 
@@ -211,7 +211,7 @@ Also, `Free::into_pure` has been removed in favor of `Free::to_pure` (following 
 
 ### Removal of `from_iso` Constructors
 
-`from_iso` constructors have been removed because the `Iso` trait was removed:
+`from_iso` constructors were removed following the removal of the `Iso` trait:
 
 ```rust
 // Before (0.17.0)

@@ -165,6 +165,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_validated_inherent_fmap_and_apply() {
         let val = Validated::<i32, String>::valid(10);
         assert_eq!(val.clone().fmap(|x| x * 2), val.clone().map(|x| x * 2));

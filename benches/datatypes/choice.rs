@@ -17,9 +17,9 @@ pub fn choice_benchmarks(harness: &Harness) {
     );
 
     group.bench_fn("try_each_primary_hit", || {
-        let res: Result<&str, &str> = choice_endpoints.try_each(|ep| {
-            if *ep == "primary.api.com" {
-                Ok(*ep)
+        let res: Result<&str, &str> = choice_endpoints.try_each(|&ep| {
+            if ep == "primary.api.com" {
+                Ok(ep)
             } else {
                 Err("mismatch")
             }
@@ -28,9 +28,9 @@ pub fn choice_benchmarks(harness: &Harness) {
     });
 
     group.bench_fn("try_each_alt_hit", || {
-        let res: Result<&str, &str> = choice_endpoints.try_each(|ep| {
-            if *ep == "backup5.api.com" {
-                Ok(*ep)
+        let res: Result<&str, &str> = choice_endpoints.try_each(|&ep| {
+            if ep == "backup5.api.com" {
+                Ok(ep)
             } else {
                 Err("mismatch")
             }

@@ -41,10 +41,10 @@ impl Display for ParseError {
             "Parse error at position {}: {}",
             self.position, self.message
         )?;
-        if let Some(ref exp) = self.expected {
+        if let Some(exp) = &self.expected {
             write!(f, " (expected: {})", exp)?;
         }
-        if let Some(ref found) = self.found {
+        if let Some(found) = &self.found {
             write!(f, " (found: '{}')", found)?;
         }
         Ok(())
@@ -782,14 +782,14 @@ impl TryHandler<ProjectColumns, &'static str> for InMemoryDb {
 pub fn build_query_program(stmt: CheckedSelect) -> TryProgram<InMemoryDb, Vec<Row>, &'static str> {
     ScanTable { table: stmt.table }
         .try_suspend()
-        .bind(move |rows| {
+        .and_then(move |rows| {
             FilterRows {
                 rows,
                 condition: stmt.where_clause,
             }
             .try_suspend()
         })
-        .bind(move |filtered| {
+        .and_then(move |filtered| {
             ProjectColumns {
                 rows: filtered,
                 columns: stmt.columns,

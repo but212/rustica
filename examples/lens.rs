@@ -27,20 +27,24 @@ struct UserProfile {
 }
 
 const fn theme_mode_lens()
--> Lens<Theme, String, impl Fn(&Theme) -> String, impl Fn(Theme, String) -> Theme> {
+-> Lens<Theme, String, impl Fn(&Theme) -> String + Clone, impl Fn(Theme, String) -> Theme + Clone> {
     Lens::new(|t: &Theme| t.mode.clone(), |t, mode| Theme { mode, ..t })
 }
 
 const fn theme_font_size_lens()
--> Lens<Theme, u32, impl Fn(&Theme) -> u32, impl Fn(Theme, u32) -> Theme> {
+-> Lens<Theme, u32, impl Fn(&Theme) -> u32 + Clone, impl Fn(Theme, u32) -> Theme + Clone> {
     Lens::new(
         |t: &Theme| t.font_size,
         |t, font_size| Theme { font_size, ..t },
     )
 }
 
-const fn settings_theme_lens()
--> Lens<Settings, Theme, impl Fn(&Settings) -> Theme, impl Fn(Settings, Theme) -> Settings> {
+const fn settings_theme_lens() -> Lens<
+    Settings,
+    Theme,
+    impl Fn(&Settings) -> Theme + Clone,
+    impl Fn(Settings, Theme) -> Settings + Clone,
+> {
     Lens::new(
         |s: &Settings| s.theme.clone(),
         |s, theme| Settings { theme, ..s },
@@ -50,8 +54,8 @@ const fn settings_theme_lens()
 const fn user_settings_lens() -> Lens<
     UserProfile,
     Settings,
-    impl Fn(&UserProfile) -> Settings,
-    impl Fn(UserProfile, Settings) -> UserProfile,
+    impl Fn(&UserProfile) -> Settings + Clone,
+    impl Fn(UserProfile, Settings) -> UserProfile + Clone,
 > {
     Lens::new(
         |u: &UserProfile| u.settings.clone(),
@@ -134,12 +138,12 @@ fn main() {
 
     println!();
 
-    // Stage 4: Bidirectional Type Transformation with `fmap`
-    println!("4. Type Transformation via `fmap`:");
-    // Lens that views u32 font size as CSS pixel string (e.g. "16px")
-    let font_css_lens = theme_font_size_lens().fmap(
-        |size: u32| format!("{size}px"),
-        |css: String| css.trim_end_matches("px").parse::<u32>().unwrap_or(12),
+    // Stage 4: Bidirectional Type Transformation with `iso_map`
+    println!("4. Type Transformation via `iso_map`:");
+    // `to_le_bytes` / `from_le_bytes` are exact inverses, so the lens laws hold
+    let font_bytes_lens = theme_font_size_lens().iso_map(
+        |size: u32| size.to_le_bytes(),
+        |bytes: [u8; 4]| u32::from_le_bytes(bytes),
     );
 
     let current_theme = Theme {
@@ -147,15 +151,12 @@ fn main() {
         font_size: 16,
     };
 
-    let css_str = font_css_lens.get(&current_theme);
-    println!("  Viewed font size as CSS string: {}", css_str);
-    assert_eq!(css_str, "16px");
+    let font_bytes = font_bytes_lens.get(&current_theme);
+    println!("  Viewed font size as bytes: {:?}", font_bytes);
+    assert_eq!(font_bytes, 16u32.to_le_bytes());
 
-    let resized_theme = font_css_lens.set(current_theme, "24px".to_string());
-    println!(
-        "  Set font size using CSS string: {}",
-        resized_theme.font_size
-    );
+    let resized_theme = font_bytes_lens.set(current_theme, 24u32.to_le_bytes());
+    println!("  Set font size using bytes: {}", resized_theme.font_size);
     assert_eq!(resized_theme.font_size, 24);
 
     println!("\n=== Lens Example Completed Successfully ===");

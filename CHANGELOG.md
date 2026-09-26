@@ -2,16 +2,53 @@
 
 ## [0.19.0]
 
+### Added
+
+- **Inherent `map` & `and_then` on Operational Monads**: Added inherent `map` and `and_then` on `Program` and `TryProgram` matching standard Rust monadic chaining conventions.
+- **`Free` Primary `map` & `and_then`**: Elevated `map` and `and_then` to primary inherent methods on `Free`.
+- **`Free` Structural `Then` AST Node**: Added explicit `Node::Then` variant and `then()` constructor for structural AST sequencing instead of closure capture.
+- **`Free` Inspectability Accessors**: Added `Free::is_then`, `Free::as_then`, and `Free::as_suspend`, completing structural inspection alongside `is_pure`, `is_suspend`, `is_bind`, and `as_pure`.
+- **Const Evaluation on `Free` Accessors**: Restored `pub const fn` on `Free::is_pure`, `Free::is_suspend`, `Free::is_bind`, `Free::is_then`, `Free::as_pure`, and `Free::as_suspend`.
+- **`const fn` on Inherent Accessors**: Marked `Choice::alternatives`, `NonEmptyErrors::as_slice`, `NonEmptyErrors::len`, `Validated::error_slice`, and `ContextError::contexts_raw` as `pub const fn`.
+- **`repr(transparent)` on `Free` and `TryProgram`**: Applied `#[repr(transparent)]` to `Free<F, A>` and `TryProgram<H, A, E>`, specifying layout identity with their single inner field.
+- **`Lens` Inherent `iso_map`**: Added inherent `Lens::iso_map` for bidirectional type transformations.
+
+### Changed
+
+- **`Free<F, A>` Public Representation (Breaking)**: Converted `Free` from `pub enum` to opaque `struct Free<F, A>` backed by private `Node`. Replaced pattern matching on `Pure`, `Suspend`, and `Bind` with constructors (`pure`, `suspend`, `suspend_with`) and accessors (`is_pure`, `is_suspend`, `is_bind`, `is_then`, `as_pure`, `as_suspend`, `as_then`).
+- **`Free::then` Pure Short-Circuiting**: `Pure(_).then(next)` short-circuits directly to `next` without allocating an intermediate `Then` node.
+- **`Free::into_any` Internalization (Breaking)**: Made `Free::into_any` private with an $O(1)$ fast-path clone for erased `Free<F, AnyValue>` computations, preventing external double-erasure.
+- **`Free` Trampoline Frame Separation**: Split continuation evaluation and static AST traversal into explicit `Frame::BindCont` and `Frame::ThenNext` frames.
+- **Operational Monad `Send + Sync` Decoupling (Breaking)**: Removed `Send + Sync` constraints from `Command`, `Command::Output`, `Program<H, A>`, `TryProgram<H, A, E>`, and internal continuation closures. `Program` and `TryProgram` are now single-threaded, local execution pipelines (`Box`-backed) supporting `Rc` and `RefCell` without concurrency overhead. Cross-thread AST sharing remains supported via `Free` (`Arc`-backed).
+- **`Lens::modify` & `modify_always` `FnOnce` Support**: Relaxed closures from `Fn(A) -> A` to `FnOnce(A) -> A` to allow move closures. Focus bound on `modify` remains `A: PartialEq` (relaxing 0.18.0 `Clone + PartialEq`).
+- **`Lens` Manual `Clone` Implementation**: Replaced `#[derive(Clone)]` with manual `impl Clone for Lens` requiring only `GetFn: Clone, SetFn: Clone`, allowing lenses targeting non-`Clone` structs or targets to be cloned.
+- **`Lens` `PhantomData` Auto-Trait Decoupling**: Changed `_phantom: PhantomData<(S, A)>` to `PhantomData<fn(S) -> A>`, preventing `!Send`/`!Sync` auto-trait leakage from `S` or `A`.
+- **`NonEmptyErrors` Standard `Vec` Storage (Breaking for `smallvec` consumers)**: Removed the `smallvec` dependency; `NonEmptyErrors<E>` now stores errors in `std::vec::Vec<E>`, shrinking its stack size and using the standard `std::vec::IntoIter`. `Validated::sequence` now delegates to `Validated::collect`.
+
+### Fixed
+
+- **`Free` Stack Safety on Arbitrary Mixed / Zigzag Spines**: Replaced per-variant linear recursion in `Debug` with bounded budget (`MAX_DEBUG_RECURSION = 8`), preventing `STATUS_STACK_OVERFLOW` on alternating `Then`/`Bind` chains (50k+) or zigzag trees (25k+) while preserving $O(1)$ depth summaries for homogeneous spines.
+- **`Free` Double-Erasure Elimination**: Eliminated double boxing (`Arc<Arc<dyn Any>>`) when nesting `Free<F, AnyValue>` sequencing chains.
+- **`Free` Iterative Drop & Construction Complexity**: Implemented stack-safe iterative traversal for `Bind` and `Then` spines using `Arc::into_inner`, ensuring $O(n)$ construction for right-nested `then()` sequences.
+- **Operational Monad Stack Safety**: Represented `then` sequencing explicitly so deep left- and right-associated `Program` and `TryProgram` chains evaluate and drop without recursive stack growth.
+- **`const fn` Verification Tests**: Added unit tests verifying `pub const fn` evaluation on `Operational`, `Choice`, `NonEmptyErrors`, `Validated`, and `ContextError`.
+- **`Lens::then` Closure `Clone` Bounds**: Removed `Arc` and heap allocation from `Lens::then`. Composition now requires `Clone` on getters/setters and returns `impl Fn(...) + Clone`.
+- **`Lens::iso_map` & `fmap` Pipeline Composability**: Added `+ Clone` bounds and return types to `Lens::iso_map` and `Lens::fmap` (`F: Clone`, `G: Clone`, `GetFn: Clone`, `SetFn: Clone`), enabling composition with `Lens::then`.
+
 ### Deprecated
 
+- **Redundant Functional Aliases & Cloned Forwarders**: Deprecated `fmap` (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`; `Lens::fmap` in favor of `Lens::iso_map`), `bind` and `flat_map` (`Free`, `Program`, `TryProgram`), and `try_flatten_cloned` and `flatten_cloned` (`Choice`) in favor of idiomatic Rust conventions (`map`, `and_then`, and explicit `.clone()`; removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
+- **`Validated::to_option`**: Deprecated in favor of `as_option().cloned()` (removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
 - **`async` Feature & `Validated` Async Combinators**: Deprecated `async` Cargo feature flag and `Validated::map_async`, `Validated::map_err_async`, and `Validated::and_then_async` in favor of native `async`/`await` and pattern matching (removal in `0.20.0`; see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
-- **`tokio` Dev-Dependency**: Deprecated `tokio` in `[dev-dependencies]` (scheduled for removal in `0.20.0` alongside async combinator tests).
+- **`tokio` Dev-Dependency**: Deprecated `tokio` in `[dev-dependencies]` (removal in `0.20.0` alongside async combinator tests).
 
 ### Removed
 
-- **Persistent Collections (`pvec`)**: Completely removed `rustica::pvec` module, `PersistentVector<T>`, `pvec!` macro, and the `pvec` Cargo feature flag. Persistent collections should migrate to dedicated external crates like `imbl` (`imbl::Vector`) or standard `std::vec::Vec<T>` (see `MIGRATION_v0.19.0.md`).
-- **Pseudo-HKT & Categorical Simulation Traits**: Removed `HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, and `Foldable` traits from `rustica::traits`. Concrete types (`Validated`, `Choice`, `Free`, etc.) now exclusively provide inherent methods (`map`, `zip_with`, `lift2`, etc.) and standard `Iterator` / `FromIterator` implementations. Core algebraic traits `Semigroup` and `Monoid` remain fully supported.
-- **`Prism::set_if_different`**: Removed redundant method in favor of unconditional $O(1)$ variant reconstruction via `Prism::set`.
+- **`Free::into_any` Public Method (Breaking)**: Removed from public API to protect internal type-erasure invariants.
+- **`ContStack<F>` Type Alias (Breaking)**: Removed orphaned continuation stack type alias.
+- **Persistent Collections (`pvec`)**: Removed `rustica::pvec` module, `PersistentVector<T>`, `pvec!` macro, and `pvec` Cargo feature flag. Migrate to external crates like `imbl` (`imbl::Vector`) or standard `Vec<T>` (see [`MIGRATION_v0.19.0.md`](MIGRATION_v0.19.0.md)).
+- **Pseudo-HKT & Categorical Simulation Traits**: Removed `HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, and `Foldable` traits from `rustica::traits`. Concrete types (`Validated`, `Choice`, `Free`, etc.) exclusively provide inherent methods (`map`, `zip_with`, `lift2`, etc.) and standard `Iterator`/`FromIterator` implementations. Core algebraic traits `Semigroup` and `Monoid` remain fully supported.
+- **`Prism::set_if_different`**: Removed in favor of unconditional $O(1)$ variant reconstruction via `Prism::set`.
 
 ## [0.18.0]
 
@@ -33,8 +70,8 @@
 
 ### Fixed
 
-- **Free Monad Downcast**: `Free::into_any` in `free.rs` no longer strips outer boxes during speculative `AnyValue` downcasts on `Free::Suspend`. Node payloads are symmetrically boxed into `AnyValue`, and `Free::suspend` supports `AnyValue` directly.
-- **Operational Monad Downcast**: `TryProgram::into_any` in `operational.rs` no longer strips outer boxes during speculative downcasts on `Box<dyn Any + Send + Sync>` payloads (`Node::Pure`, `Node::Suspend`). Node payloads are symmetrically boxed into `AnyBox`.
+- **Free Monad Downcast**: `Free::into_any` in `free.rs` preserves outer boxes during speculative `AnyValue` downcasts on `Free::Suspend`, symmetrically boxing node payloads into `AnyValue` with direct `Free::suspend` support.
+- **Operational Monad Downcast**: `TryProgram::into_any` in `operational.rs` preserves outer boxes during speculative downcasts on `Box<dyn Any + Send + Sync>` payloads (`Node::Pure`, `Node::Suspend`), symmetrically boxing node payloads into `AnyBox`.
 
 ### Changed
 
@@ -50,9 +87,9 @@
 - **Clone Overhead Optimizations**:
   - `traits::monoid::repeat`: Consumes owned initial value on final combination step, reducing clone count from $n$ to $n - 1$ ($n \ge 1$).
   - `Free::run_internal`: Optimized trampoline with `std::mem::replace` and `Arc::try_unwrap`, eliminating deep AST clones on unshared `Free::Bind` nodes during `run`/`try_run`.
-  - Redundant clone cleanups across `choice`, `free`, `prism`, `validated`, examples, and benchmarks.
+  - Cleaned up redundant clones across `choice`, `free`, `prism`, `validated`, examples, and benchmarks.
 - **`Validated` Alignment & Contracts (Breaking)**:
-  - Reordered type parameters to `Validated<T, E>` (matching `Result<T, E>`). Aligned `bimap(f_val, g_err)` argument order with `(T, E)`.
+  - Reordered type parameters to `Validated<T, E>` (matching `Result<T, E>`) and aligned `bimap(f_val, g_err)` argument order with `(T, E)`.
   - Removed `'static` constraints on async methods.
   - `combine_errors` returns `Option<NonEmptyErrors<E>>` instead of `Option<Validated<T, E>>`.
   - `NonEmptyErrors::into_vec` returns `Vec<E>` instead of `SmallVec<[E; 4]>`; `try_from_slice` constructs inline without heap allocations.
@@ -68,7 +105,7 @@
   - Removed `E: Clone` bound from `Result<T, E>` implementations of `Pure`, `Functor`, `Applicative`, `Monad`, and `Foldable`.
   - Removed `T: Clone` bound from `Monoid for Vec<T>`.
 - **`ContextError` Newest-First Ordering (Breaking)**:
-  - Storage and iteration standardized to newest-first (`contexts_raw`, `context_iter`, `context`), matching `Display` and `error_chain()`.
+  - Standardized storage and iteration to newest-first (`contexts_raw`, `context_iter`, `context`), matching `Display` and `error_chain()`.
   - `ContextError::with_contexts` accepts any `IntoIterator<Item: IntoErrorContext>`, streaming directly into the context stack.
   - `IntoErrorContext::into_error_context` returns `String` directly; added `&String` support.
   - `context_accumulator` pre-evaluates context strings on construction.
@@ -84,7 +121,7 @@
 - **Category Abstractions**: Removed `category/` module (`FunctionCategory`, `FunctionMorphism`, `PairMorphism`, `function!`, `pipe!`, `compose!`). Use closures and iterator combinators.
 - **Monoidal Wrappers**: Removed `datatypes/wrapper/` (`First`, `Last`, `Min`, `Max`, `Sum`, `Product`, `Predicate`). Use standard types and iterators (`Option::or`, `cmp::min`/`max`, `Iterator::sum`/`product`).
 - **`AsyncM`**: Removed `AsyncM<A>`. Use native `async`/`await` and `Future` combinators (`async` feature preserved for `Validated`).
-- **Legacy Error Types**: Removed `ComposableError`, `ComposableResult`, `BoxedComposableError`, `BoxedComposableResult`, `WithError`, `sequence_with_error`, `format_error_chain`, and `extract_context`. Use [`ContextError`](crate::error::ContextError) and `Result`.
+- **Legacy Error Types**: Removed `ComposableError`, `ComposableResult`, `BoxedComposableError`, `BoxedComposableResult`, `WithError`, `sequence_with_error`, `format_error_chain`, and `extract_context`. Use `ContextError` and `Result`.
 - **Redundant Traits**: Removed `Alternative`, `Bifunctor`, `BinaryHKT`, `Iso`, `MonadError`, and `One`.
 - **Optics from_iso**: Removed `Lens::from_iso`, `Prism::from_iso`, and `Prism::from_option_iso`. Construct via closures or inherent constructors.
 - **`Free` Methods**: Removed `Free::fold_map` and `Free::into_pure`. Use `Free::run`/`Free::try_run` and `Free::to_pure`.

@@ -6,23 +6,23 @@
 use crate::traits::semigroup::Semigroup;
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
-use smallvec::{SmallVec, smallvec};
 
 /// A non-empty collection of validation errors.
 ///
 /// The private buffer prevents callers from constructing or clearing an empty
-/// error collection while retaining the compact `SmallVec` representation.
+/// error collection while retaining the standard `Vec` representation.
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
-pub struct NonEmptyErrors<E>(ErrorVec<E>);
+#[repr(transparent)]
+pub struct NonEmptyErrors<E>(Vec<E>);
 
 impl<E> NonEmptyErrors<E> {
     #[inline]
     pub fn new(first: E) -> Self {
-        Self(smallvec![first])
+        Self(vec![first])
     }
 
     #[inline]
-    pub(crate) fn try_from_vec(errors: ErrorVec<E>) -> Option<Self> {
+    pub(crate) fn try_from_vec(errors: Vec<E>) -> Option<Self> {
         (!errors.is_empty()).then_some(Self(errors))
     }
 
@@ -44,7 +44,7 @@ impl<E> NonEmptyErrors<E> {
     where
         I: IntoIterator<Item = E>,
     {
-        let mut errors = ErrorVec::new();
+        let mut errors = Vec::new();
         errors.push(first);
         errors.extend(rest);
         Self(errors)
@@ -55,19 +55,19 @@ impl<E> NonEmptyErrors<E> {
     where
         E: Clone,
     {
-        (!slice.is_empty()).then_some(Self(slice.iter().cloned().collect()))
+        (!slice.is_empty()).then_some(Self(slice.to_vec()))
     }
 
     /// Converts the non-empty error collection into a regular vector.
     #[inline]
     pub fn into_vec(self) -> Vec<E> {
-        self.0.into_vec()
+        self.0
     }
 
     /// Returns a slice over the errors.
     #[inline]
-    pub fn as_slice(&self) -> &[E] {
-        &self.0
+    pub const fn as_slice(&self) -> &[E] {
+        self.0.as_slice()
     }
 
     #[inline]
@@ -81,7 +81,7 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -150,7 +150,7 @@ impl<E> IntoIterator for NonEmptyErrors<E> {
     type IntoIter = std::vec::IntoIter<E>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_vec().into_iter()
+        self.0.into_iter()
     }
 }
 
@@ -164,19 +164,13 @@ impl<E: serde::Serialize> serde::Serialize for NonEmptyErrors<E> {
 #[cfg(feature = "serde")]
 impl<'de, E: serde::Deserialize<'de>> serde::Deserialize<'de> for NonEmptyErrors<E> {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let errors = ErrorVec::<E>::deserialize(deserializer)?;
+        let errors = Vec::<E>::deserialize(deserializer)?;
         if errors.is_empty() {
             return Err(serde::de::Error::custom("Validated errors cannot be empty"));
         }
         Ok(Self(errors))
     }
 }
-
-/// Type alias for the internal error collection.
-///
-/// Uses `SmallVec` with inline capacity of 4 to optimize for the common case
-/// of few errors while still supporting larger error collections efficiently.
-pub(crate) type ErrorVec<E> = SmallVec<[E; 4]>;
 
 /// A validation type that can accumulate multiple errors.
 ///
@@ -190,7 +184,6 @@ pub enum Validated<T, E> {
     /// Represents a valid value of type T.
     Valid(T),
     /// Represents an invalid state with multiple errors of type E.
-    /// Uses SmallVec for better performance with small error counts.
     Invalid(NonEmptyErrors<E>),
 }
 
@@ -331,6 +324,10 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Converts to Option by cloning the inner valid value.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `as_option().cloned()` instead; scheduled for removal in 0.20.0"
+    )]
     #[inline]
     pub fn to_option(&self) -> Option<T>
     where
@@ -496,6 +493,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_option_and_result_conversions() {
         let valid: Validated<i32, &str> = Ok(42).into();
         assert_eq!(valid.as_option(), Some(&42));
@@ -512,5 +510,28 @@ mod tests {
         assert_eq!(from_some, Validated::valid(10));
         let from_none: Validated<i32, &str> = Validated::from_option_with(None, || "dynamic_err");
         assert_eq!(from_none, Validated::invalid("dynamic_err"));
+    }
+
+    #[test]
+    fn test_const_fn_capability() {
+        const fn inspect_errors<E>(errs: &NonEmptyErrors<E>) -> (&[E], usize, bool) {
+            (errs.as_slice(), errs.len(), errs.is_empty())
+        }
+
+        const fn inspect_validated<T, E>(v: &Validated<T, E>) -> (bool, bool, Option<&T>) {
+            (v.is_valid(), v.is_invalid(), v.as_option())
+        }
+
+        let errors = NonEmptyErrors::new("err");
+        let (slice, len, is_empty) = inspect_errors(&errors);
+        assert_eq!(slice, &["err"]);
+        assert_eq!(len, 1);
+        assert!(!is_empty);
+
+        let valid: Validated<i32, &str> = Validated::valid(42);
+        let (is_valid, is_invalid, opt) = inspect_validated(&valid);
+        assert!(is_valid);
+        assert!(!is_invalid);
+        assert_eq!(opt, Some(&42));
     }
 }

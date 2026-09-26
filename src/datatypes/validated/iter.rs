@@ -89,7 +89,7 @@ impl<T, E> Validated<T, E> {
     ///
     /// When this `Validated` is `Valid`, an empty slice is returned.
     #[inline]
-    pub fn error_slice(&self) -> &[E] {
+    pub const fn error_slice(&self) -> &[E] {
         match self {
             Validated::Valid(_) => &[],
             Validated::Invalid(es) => es.as_slice(),
@@ -149,5 +149,24 @@ mod tests {
             err.push('!');
         }
         assert_eq!(invalid.error_slice(), &["e1!", "e2!"]);
+    }
+
+    #[test]
+    fn test_const_fn_capability() {
+        const fn inspect_error_slice<T, E>(v: &Validated<T, E>) -> &[E] {
+            v.error_slice()
+        }
+
+        const fn inspect_error_payload<T, E>(v: &Validated<T, E>) -> Option<&NonEmptyErrors<E>> {
+            v.error_payload()
+        }
+
+        let valid: Validated<i32, &'static str> = Validated::valid(42);
+        assert_eq!(inspect_error_slice(&valid), &[] as &[&'static str]);
+        assert!(inspect_error_payload(&valid).is_none());
+
+        let invalid: Validated<i32, &'static str> = Validated::invalid("fail");
+        assert_eq!(inspect_error_slice(&invalid), &["fail"]);
+        assert!(inspect_error_payload(&invalid).is_some());
     }
 }

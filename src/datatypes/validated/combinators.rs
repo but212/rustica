@@ -1,4 +1,4 @@
-use super::core::{ErrorVec, NonEmptyErrors};
+use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
 
 impl<T, E> Validated<T, E> {
@@ -34,6 +34,10 @@ impl<T, E> Validated<T, E> {
     /// Functional alias for [`map`](Self::map).
     ///
     /// Maps a function over the valid value if `Valid`, or returns the `Invalid` value unchanged.
+    #[deprecated(
+        since = "0.19.0",
+        note = "use `map` instead; scheduled for removal in 0.20.0"
+    )]
     #[inline]
     pub fn fmap<U, F>(self, f: F) -> Validated<U, E>
     where
@@ -324,19 +328,9 @@ impl<T, E> Validated<T, E> {
     where
         F: FnOnce(Vec<T>) -> U,
     {
-        let mut valid_values = Vec::with_capacity(values.len());
-        let mut errors = ErrorVec::new();
-
-        for value in values {
-            match value {
-                Validated::Valid(x) => valid_values.push(x),
-                Validated::Invalid(es) => errors.extend(es),
-            }
-        }
-
-        match NonEmptyErrors::try_from_vec(errors) {
-            Some(errors) => Validated::Invalid(errors),
-            None => Validated::Valid(f(valid_values)),
+        match Self::collect::<_, Vec<T>>(values.into_iter()) {
+            Validated::Valid(valid_values) => Validated::Valid(f(valid_values)),
+            Validated::Invalid(errors) => Validated::Invalid(errors),
         }
     }
 
@@ -360,7 +354,7 @@ impl<T, E> Validated<T, E> {
         C: FromIterator<T>,
     {
         let mut values = Vec::new();
-        let mut errors = ErrorVec::new();
+        let mut errors = Vec::new();
 
         for item in iter {
             match item {
@@ -385,7 +379,7 @@ impl<T, E> Validated<T, E> {
         match self {
             Validated::Valid(v) => Validated::Valid(v),
             Validated::Invalid(errors) => {
-                let mut accumulated = ErrorVec::new();
+                let mut accumulated = Vec::new();
 
                 for error in errors {
                     match recovery(error) {
@@ -396,9 +390,16 @@ impl<T, E> Validated<T, E> {
                     }
                 }
 
+                // Invariant: `errors` (NonEmptyErrors) has ≥1 element,
+                // and each recovery call returning Invalid yields NonEmptyErrors (≥1 element).
+                // Thus `accumulated` is guaranteed to be non-empty at this point.
+                debug_assert!(
+                    !accumulated.is_empty(),
+                    "NonEmptyErrors invariant violated: accumulated errors empty after processing non-empty input"
+                );
                 Validated::Invalid(
                     NonEmptyErrors::try_from_vec(accumulated)
-                        .expect("recovery errors cannot be empty"),
+                        .expect("invariant: accumulated errors non-empty (see debug_assert above)"),
                 )
             },
         }

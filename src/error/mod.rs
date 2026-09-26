@@ -110,8 +110,8 @@ impl<E> ContextError<E> {
 
     /// Returns a zero-allocation reference to the internal contexts slice (most recent first).
     #[inline]
-    pub fn contexts_raw(&self) -> &[String] {
-        &self.context
+    pub const fn contexts_raw(&self) -> &[String] {
+        self.context.as_slice()
     }
 
     /// Maps the underlying error to a new type while preserving context.
@@ -326,5 +326,17 @@ mod tests {
         let err = attach("io timeout");
         assert_eq!(err.error(), &"io timeout");
         assert_eq!(err.context(), vec!["step failed".to_string()]);
+    }
+
+    #[test]
+    fn test_const_fn_capability() {
+        const fn inspect_error<E>(err: &ContextError<E>) -> (&E, &[String]) {
+            (err.error(), err.contexts_raw())
+        }
+
+        let err = ContextError::new("root error");
+        let (root, ctxs) = inspect_error(&err);
+        assert_eq!(*root, "root error");
+        assert_eq!(ctxs, &[] as &[String]);
     }
 }
