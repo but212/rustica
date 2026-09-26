@@ -26,6 +26,7 @@ This guide details all removals and breaking changes in Rustica 0.19.0, with con
 | `Lens::fmap` | Deprecated in 0.19.0 (removal in 0.20.0); use `Lens::iso_map` |
 | `bind`, `flat_map` (`Free`, `Program`, `TryProgram`) | Deprecated in 0.19.0 (removal in 0.20.0); use `and_then` |
 | `Choice::try_flatten_cloned`, `flatten_cloned` | Deprecated in 0.19.0 (removal in 0.20.0); use `.clone().try_flatten()`, `.clone().flatten()` |
+| `Command: Send + Sync`, `Program: Send + Sync` | `Command: 'static`, `Program: 'static` (Single-threaded `Box` pipeline; use `Free` for cross-thread sharing) |
 
 ---
 
@@ -324,3 +325,35 @@ if let Some(val) = free_val.as_pure() {
     println!("Dynamic bind continuation");
 }
 ```
+
+---
+
+## 8. Operational Monad Thread-Safety Constraints (`Send + Sync` Removal)
+
+`Command`, `Command::Output`, `Program<H, A>`, and `TryProgram<H, A, E>` previously required `Send + Sync + 'static`. In 0.19.0, the `Send + Sync` bounds have been removed, retaining only `'static`.
+
+### Rationale
+
+`Program` is an ownership-driven (`Box`), single-threaded operational pipeline evaluated with `run(&mut H)`. Removing `Send + Sync` allows `Program` to seamlessly handle thread-local state (`Rc`, `RefCell`) without concurrency overhead or compiler rejection.
+
+If cross-thread computation sharing or multi-threaded DSL AST analysis is required, use [`Free<F, A>`](crate::datatypes::free::Free), which is backed by `Arc` and designed for concurrent inspection and multi-pass evaluation.
+
+### Migration Path
+
+Most existing code requires no changes unless `Program` instances were explicitly passed across thread boundaries:
+
+```rust
+// In 0.19.0, single-threaded types like Rc/RefCell work directly in Command/Output:
+use rustica::datatypes::operational::{Command, Handler, Program};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+struct LocalCmd(Rc<RefCell<Vec<i32>>>);
+impl Command for LocalCmd {
+    type Output = ();
+}
+
+// If you need cross-thread execution or AST sharing, use Free instead:
+// Free<F, A> is backed by Arc and remains fully Send + Sync when F and A are Send + Sync.
+```
+

@@ -16,10 +16,12 @@
 //! ## Architectural Role: `Program` vs `Free`
 //!
 //! - Use [`Free`](crate::datatypes::free::Free) for an inspectable, cloneable DSL AST that can be
-//!   transformed, analyzed across multiple passes, or evaluated by different backends. `Free` is
-//!   first-class and maintained for AST-centric architectures.
-//! - Use [`Program`] / [`TryProgram`] when command outputs should be checked against handler
-//!   trait signatures at compile time for static operational execution pipelines.
+//!   transformed, analyzed across multiple passes, or evaluated across threads or backends. Backed by
+//!   [`Arc`](std::sync::Arc), `Free` is first-class and maintained for concurrent or AST-centric architectures.
+//! - Use [`Program`] / [`TryProgram`] for ownership-driven ([`Box`]), single-threaded operational execution
+//!   pipelines. Without `Send + Sync` constraints, it seamlessly supports local state types such as
+//!   [`Rc`](std::rc::Rc) and [`RefCell`](std::cell::RefCell) while checking command outputs against handler
+//!   signatures at compile time.
 //!
 //! ## Example
 //!
@@ -77,9 +79,9 @@ use std::convert::Infallible;
 use std::fmt;
 
 /// A domain command with an associated static output type.
-pub trait Command: Send + Sync + 'static {
+pub trait Command: 'static {
     /// The exact return type produced by executing this command.
-    type Output: Send + Sync + 'static;
+    type Output: 'static;
 
     /// Suspends this command into a statically-typed infallible [`Program`].
     #[inline]
@@ -92,7 +94,7 @@ pub trait Command: Send + Sync + 'static {
 
     /// Suspends this command into a statically-typed fallible [`TryProgram`].
     #[inline]
-    fn try_suspend<H: TryHandler<Self, E> + 'static, E: Send + Sync + 'static>(
+    fn try_suspend<H: TryHandler<Self, E> + 'static, E: 'static>(
         self,
     ) -> TryProgram<H, Self::Output, E>
     where
@@ -130,23 +132,23 @@ pub fn suspend<H: Handler<C> + 'static, C: Command>(cmd: C) -> Program<H, C::Out
 
 /// Standalone helper to suspend a command into a fallible [`TryProgram`].
 #[inline]
-pub fn try_suspend<H: TryHandler<C, E> + 'static, C: Command, E: Send + Sync + 'static>(
+pub fn try_suspend<H: TryHandler<C, E> + 'static, C: Command, E: 'static>(
     cmd: C,
 ) -> TryProgram<H, C::Output, E> {
     TryProgram::suspend(cmd)
 }
 
 // Internal type-erased step representation for trampoline evaluation
-type AnyBox = Box<dyn Any + Send + Sync>;
-type TryStepFn<H, E> = Box<dyn FnOnce(&mut H) -> Result<AnyBox, E> + Send + Sync>;
-type TryContFn<H, E> = Box<dyn FnOnce(AnyBox) -> TryProgram<H, AnyBox, E> + Send + Sync>;
+type AnyBox = Box<dyn Any>;
+type TryStepFn<H, E> = Box<dyn FnOnce(&mut H) -> Result<AnyBox, E>>;
+type TryContFn<H, E> = Box<dyn FnOnce(AnyBox) -> TryProgram<H, AnyBox, E>>;
 
 enum Node<H, A, E> {
     Pure(A),
-    Suspend(TryStepFn<H, E>, Box<dyn FnOnce(AnyBox) -> A + Send + Sync>),
+    Suspend(TryStepFn<H, E>, Box<dyn FnOnce(AnyBox) -> A>),
     Bind(
         Box<TryProgram<H, AnyBox, E>>,
-        Box<dyn FnOnce(AnyBox) -> TryProgram<H, A, E> + Send + Sync>,
+        Box<dyn FnOnce(AnyBox) -> TryProgram<H, A, E>>,
     ),
     Then(Box<TryProgram<H, AnyBox, E>>, Box<TryProgram<H, A, E>>),
 }
@@ -174,7 +176,7 @@ impl<H, A, E> TryProgram<H, A, E> {
     }
 }
 
-impl<H: 'static, E: Send + Sync + 'static> TryProgram<H, (), E> {
+impl<H: 'static, E: 'static> TryProgram<H, (), E> {
     /// Suspends a statically-typed command into a `TryProgram`.
     pub fn suspend<C>(cmd: C) -> TryProgram<H, C::Output, E>
     where
@@ -197,7 +199,7 @@ impl<H: 'static, E: Send + Sync + 'static> TryProgram<H, (), E> {
     }
 }
 
-impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<H, A, E> {
+impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     /// Wraps a pure value in a `TryProgram`.
     #[inline]
     pub const fn pure(val: A) -> Self {
@@ -207,9 +209,9 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
     }
 
     /// Transforms the inner value using a pure function.
-    pub fn map<B: Send + Sync + 'static, F>(self, f: F) -> TryProgram<H, B, E>
+    pub fn map<B: 'static, F>(self, f: F) -> TryProgram<H, B, E>
     where
-        F: FnOnce(A) -> B + Send + Sync + 'static,
+        F: FnOnce(A) -> B + 'static,
     {
         self.and_then(move |a| TryProgram::pure(f(a)))
     }
@@ -220,17 +222,17 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
         note = "use `map` instead; scheduled for removal in 0.20.0"
     )]
     #[inline]
-    pub fn fmap<B: Send + Sync + 'static, F>(self, f: F) -> TryProgram<H, B, E>
+    pub fn fmap<B: 'static, F>(self, f: F) -> TryProgram<H, B, E>
     where
-        F: FnOnce(A) -> B + Send + Sync + 'static,
+        F: FnOnce(A) -> B + 'static,
     {
         self.map(f)
     }
 
     /// Sequences another fallible computation from the result of this one.
-    pub fn and_then<B: Send + Sync + 'static, F>(mut self, f: F) -> TryProgram<H, B, E>
+    pub fn and_then<B: 'static, F>(mut self, f: F) -> TryProgram<H, B, E>
     where
-        F: FnOnce(A) -> TryProgram<H, B, E> + Send + Sync + 'static,
+        F: FnOnce(A) -> TryProgram<H, B, E> + 'static,
     {
         match self.take_node() {
             Node::Pure(a) => f(a),
@@ -258,18 +260,16 @@ impl<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static> TryProgram<
         note = "use `and_then` instead; scheduled for removal in 0.20.0"
     )]
     #[inline]
-    pub fn bind<B: Send + Sync + 'static, F>(self, f: F) -> TryProgram<H, B, E>
+    pub fn bind<B: 'static, F>(self, f: F) -> TryProgram<H, B, E>
     where
-        F: FnOnce(A) -> TryProgram<H, B, E> + Send + Sync + 'static,
+        F: FnOnce(A) -> TryProgram<H, B, E> + 'static,
     {
         self.and_then(f)
     }
 
     /// Sequences another computation, ignoring the output of the current one.
     #[inline]
-    pub fn then<B: Send + Sync + 'static>(
-        mut self, next: TryProgram<H, B, E>,
-    ) -> TryProgram<H, B, E> {
+    pub fn then<B: 'static>(mut self, next: TryProgram<H, B, E>) -> TryProgram<H, B, E> {
         match self.take_node() {
             Node::Pure(_) => next,
             node => {
@@ -395,6 +395,9 @@ fn drop_any_program<H, E>(mut program: TryProgram<H, AnyBox, E>) {
                 if let Some(node) = sub.node.take() {
                     pending.push(node);
                 }
+                // Continuations are opaque `FnOnce` captures and may own nested `TryProgram`
+                // values (e.g. `and_then(move |_| captured_prog)`); dropping them recurses into
+                // those values' `Drop`. Stack safety here covers the explicit AST spine only.
                 drop(cont);
             },
             Node::Then(mut sub, mut next) => {
@@ -412,6 +415,10 @@ fn drop_any_program<H, E>(mut program: TryProgram<H, AnyBox, E>) {
 }
 
 /// Custom iterative Drop implementation to prevent stack overflows on deep un-evaluated chains.
+///
+/// Note: Stack safety applies to explicit AST spines (`Then` and `Bind` node sequences). It does not
+/// prevent call-stack recursion if continuations capture deeply-nested `TryProgram` instances
+/// inside opaque `FnOnce` closures (e.g., `and_then(move |_| captured_prog)`).
 impl<H, A, E> Drop for TryProgram<H, A, E> {
     fn drop(&mut self) {
         let mut cur = self.node.take();
@@ -424,6 +431,9 @@ impl<H, A, E> Drop for TryProgram<H, A, E> {
                 },
                 Node::Bind(sub, cont) => {
                     drop_any_program(*sub);
+                    // Continuations are opaque `FnOnce` captures and may own nested `TryProgram`
+                    // values (e.g. `and_then(move |_| captured_prog)`); dropping them recurses into
+                    // those values' `Drop`. Stack safety here covers the explicit AST spine only.
                     drop(cont);
                     return;
                 },
@@ -454,7 +464,7 @@ impl<H: 'static> Program<H, ()> {
     }
 }
 
-impl<H: 'static, A: Send + Sync + 'static> Program<H, A> {
+impl<H: 'static, A: 'static> Program<H, A> {
     /// Wraps a pure value in a [`Program`].
     #[inline]
     pub const fn pure(val: A) -> Self {
@@ -463,9 +473,9 @@ impl<H: 'static, A: Send + Sync + 'static> Program<H, A> {
 
     /// Transforms the inner value using a pure function.
     #[inline]
-    pub fn map<B: Send + Sync + 'static, F>(self, f: F) -> Program<H, B>
+    pub fn map<B: 'static, F>(self, f: F) -> Program<H, B>
     where
-        F: FnOnce(A) -> B + Send + Sync + 'static,
+        F: FnOnce(A) -> B + 'static,
     {
         Program(self.0.map(f))
     }
@@ -476,18 +486,18 @@ impl<H: 'static, A: Send + Sync + 'static> Program<H, A> {
         note = "use `map` instead; scheduled for removal in 0.20.0"
     )]
     #[inline]
-    pub fn fmap<B: Send + Sync + 'static, F>(self, f: F) -> Program<H, B>
+    pub fn fmap<B: 'static, F>(self, f: F) -> Program<H, B>
     where
-        F: FnOnce(A) -> B + Send + Sync + 'static,
+        F: FnOnce(A) -> B + 'static,
     {
         self.map(f)
     }
 
     /// Sequences another computation from the result of this one.
     #[inline]
-    pub fn and_then<B: Send + Sync + 'static, F>(self, f: F) -> Program<H, B>
+    pub fn and_then<B: 'static, F>(self, f: F) -> Program<H, B>
     where
-        F: FnOnce(A) -> Program<H, B> + Send + Sync + 'static,
+        F: FnOnce(A) -> Program<H, B> + 'static,
     {
         Program(self.0.and_then(move |a| f(a).0))
     }
@@ -498,16 +508,16 @@ impl<H: 'static, A: Send + Sync + 'static> Program<H, A> {
         note = "use `and_then` instead; scheduled for removal in 0.20.0"
     )]
     #[inline]
-    pub fn bind<B: Send + Sync + 'static, F>(self, f: F) -> Program<H, B>
+    pub fn bind<B: 'static, F>(self, f: F) -> Program<H, B>
     where
-        F: FnOnce(A) -> Program<H, B> + Send + Sync + 'static,
+        F: FnOnce(A) -> Program<H, B> + 'static,
     {
         self.and_then(f)
     }
 
     /// Sequences another computation, ignoring the output of the current one.
     #[inline]
-    pub fn then<B: Send + Sync + 'static>(self, next: Program<H, B>) -> Program<H, B> {
+    pub fn then<B: 'static>(self, next: Program<H, B>) -> Program<H, B> {
         Program(self.0.then(next.0))
     }
 
@@ -827,8 +837,8 @@ mod tests {
 
     #[test]
     fn test_anybox_pure_payload() {
-        let val: Box<dyn Any + Send + Sync> = Box::new(42_i32);
-        let prog: Program<CalcInterpreter, Box<dyn Any + Send + Sync>> = Program::pure(val);
+        let val: Box<dyn Any> = Box::new(42_i32);
+        let prog: Program<CalcInterpreter, Box<dyn Any>> = Program::pure(val);
         let mut calc = CalcInterpreter { current: 0 };
         let res = prog.run(&mut calc);
         assert_eq!(*res.downcast::<i32>().unwrap(), 42);
@@ -838,15 +848,15 @@ mod tests {
     fn test_anybox_command_output() {
         struct BoxCmd(i32);
         impl Command for BoxCmd {
-            type Output = Box<dyn Any + Send + Sync>;
+            type Output = Box<dyn Any>;
         }
         struct BoxHandler;
         impl Handler<BoxCmd> for BoxHandler {
-            fn handle(&mut self, cmd: BoxCmd) -> Box<dyn Any + Send + Sync> {
+            fn handle(&mut self, cmd: BoxCmd) -> Box<dyn Any> {
                 Box::new(cmd.0 * 2)
             }
         }
-        let prog: Program<BoxHandler, Box<dyn Any + Send + Sync>> = BoxCmd(21).suspend();
+        let prog: Program<BoxHandler, Box<dyn Any>> = BoxCmd(21).suspend();
         let mut handler = BoxHandler;
         let res = prog.run(&mut handler);
         assert_eq!(*res.downcast::<i32>().unwrap(), 42);
@@ -854,9 +864,9 @@ mod tests {
 
     #[test]
     fn test_anybox_bind_transformation() {
-        let prog: Program<CalcInterpreter, Box<dyn Any + Send + Sync>> = Add(10)
+        let prog: Program<CalcInterpreter, Box<dyn Any>> = Add(10)
             .suspend()
-            .and_then(|_| Program::pure(Box::new(99_i32) as Box<dyn Any + Send + Sync>));
+            .and_then(|_| Program::pure(Box::new(99_i32) as Box<dyn Any>));
         let mut calc = CalcInterpreter { current: 0 };
         let res = prog.run(&mut calc);
         assert_eq!(*res.downcast::<i32>().unwrap(), 99);
@@ -888,12 +898,10 @@ mod tests {
 
     #[test]
     fn test_const_fn_capability() {
-        const fn prog_flags<H: 'static, A: Send + Sync + 'static>(
-            p: &Program<H, A>,
-        ) -> (bool, bool, bool) {
+        const fn prog_flags<H: 'static, A: 'static>(p: &Program<H, A>) -> (bool, bool, bool) {
             (p.is_pure(), p.is_suspend(), p.is_bind())
         }
-        const fn try_prog_flags<H: 'static, A: Send + Sync + 'static, E: Send + Sync + 'static>(
+        const fn try_prog_flags<H: 'static, A: 'static, E: 'static>(
             p: &TryProgram<H, A, E>,
         ) -> (bool, bool, bool) {
             (p.is_pure(), p.is_suspend(), p.is_bind())
@@ -908,5 +916,57 @@ mod tests {
 
         assert_eq!(prog_flags(&make_prog()), (true, false, false));
         assert_eq!(try_prog_flags(&make_try_prog()), (true, false, false));
+    }
+
+    #[test]
+    fn test_rc_refcell_command_pipeline() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        struct LocalPushCmd(Rc<RefCell<Vec<i32>>>, i32);
+        impl Command for LocalPushCmd {
+            type Output = Rc<RefCell<Vec<i32>>>;
+        }
+
+        struct LocalHandler;
+        impl Handler<LocalPushCmd> for LocalHandler {
+            fn handle(&mut self, cmd: LocalPushCmd) -> Rc<RefCell<Vec<i32>>> {
+                cmd.0.borrow_mut().push(cmd.1);
+                cmd.0
+            }
+        }
+
+        let shared = Rc::new(RefCell::new(vec![1]));
+        let prog: Program<LocalHandler, Rc<RefCell<Vec<i32>>>> =
+            LocalPushCmd(Rc::clone(&shared), 2)
+                .suspend()
+                .and_then(|rc| LocalPushCmd(rc, 3).suspend());
+
+        let mut handler = LocalHandler;
+        let result = prog.run(&mut handler);
+        assert_eq!(*result.borrow(), vec![1, 2, 3]);
+        assert_eq!(*shared.borrow(), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_rc_error_try_program() {
+        use std::rc::Rc;
+
+        struct FailCmd;
+        impl Command for FailCmd {
+            type Output = ();
+        }
+
+        struct FailHandler;
+        impl TryHandler<FailCmd, Rc<String>> for FailHandler {
+            fn try_handle(&mut self, _cmd: FailCmd) -> Result<(), Rc<String>> {
+                Err(Rc::new("rc_err".to_string()))
+            }
+        }
+
+        let prog: TryProgram<FailHandler, (), Rc<String>> = FailCmd.try_suspend();
+        let mut handler = FailHandler;
+        let res = prog.try_run(&mut handler);
+        assert_eq!(res, Err(Rc::new("rc_err".to_string())));
     }
 }

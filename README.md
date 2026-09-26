@@ -58,7 +58,7 @@ use rustica::prelude::*;
 - **`Choice<T>`**: Guaranteed non-empty priority and fallback execution sequence (`try_each`, `try_each_validated`).
 - **`Validated<T, E>`**: Multi-error accumulation into `NonEmptyErrors<E>` with applicative zip and iterator collection.
 - **`Free<F, A>`**: Free monad DSL AST engine with explicit `Then` sequencing, bounded recursion, and stack-safe iterative execution (`run`, `try_run`).
-- **`Program<H, A>` / `TryProgram<H, A, E>`**: Operational monads with compile-time handler signatures and stack-safe trampoline evaluation.
+- **`Program<H, A>` / `TryProgram<H, A, E>`**: Single-threaded operational monads (`Box`-backed) with compile-time handler signatures, native `Rc`/`RefCell` support, and stack-safe trampoline evaluation.
 
 ### 3. Optics
 
@@ -69,7 +69,7 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
-- [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
+- [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
 - [0.18.0 Migration Guide](./MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
 - [0.17.0 Migration Guide](./MIGRATION_v0.17.0.md): Deprecation of monad transformers, effect monads, category morphisms, and wrapper types in favor of standard library idioms
 - [0.16.0 Migration Guide](./MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation

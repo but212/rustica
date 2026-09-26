@@ -17,7 +17,7 @@
 - **`Free::then` Pure Short-Circuiting**: `Pure(_).then(next)` short-circuits directly to `next` without allocating an intermediate `Then` node.
 - **`Free::into_any` Internalization (Breaking)**: Made `Free::into_any` private with an $O(1)$ fast-path clone for erased `Free<F, AnyValue>` computations, preventing external double-erasure.
 - **`Free` Trampoline Frame Separation**: Split continuation evaluation and static AST traversal into explicit `Frame::BindCont` and `Frame::ThenNext` frames.
-- **Operational Monad Direct Node Loop Ownership**: Trampoline loop in `TryProgram::try_run` owns `Node<H, AnyBox, E>` directly across iterations, eliminating per-step `Option::take()` and defensive unwraps.
+- **Operational Monad `Send + Sync` Decoupling (Breaking)**: Removed `Send + Sync` constraints from `Command`, `Command::Output`, `Program<H, A>`, `TryProgram<H, A, E>`, and internal continuation closures. `Program` and `TryProgram` are now single-threaded, local execution pipelines (`Box`-backed) supporting `Rc` and `RefCell` without concurrency overhead. Cross-thread AST sharing remains supported via `Free` (`Arc`-backed).
 - **`Lens::modify` & `modify_always` `FnOnce` Support**: Relaxed closures from `Fn(A) -> A` to `FnOnce(A) -> A` to allow move closures. Focus bound on `modify` remains `A: PartialEq` (relaxing 0.18.0 `Clone + PartialEq`).
 - **`Lens` Manual `Clone` Implementation**: Replaced `#[derive(Clone)]` with manual `impl Clone for Lens` requiring only `GetFn: Clone, SetFn: Clone`, allowing lenses targeting non-`Clone` structs or targets to be cloned.
 - **`Lens` `PhantomData` Auto-Trait Decoupling**: Changed `_phantom: PhantomData<(S, A)>` to `PhantomData<fn(S) -> A>`, preventing `!Send`/`!Sync` auto-trait leakage from `S` or `A`.

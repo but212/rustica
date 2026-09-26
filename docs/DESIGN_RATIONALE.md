@@ -74,7 +74,7 @@ Rustica maintains functional abstractions strictly where they solve concrete eng
 | **`Validated<T, E>`** | Multi-error domain validation | Unlike `Result` (which short-circuits on first failure), accumulates all constraint violations. |
 | **`Choice<T>`** | Priority & fallback execution | Statically non-empty target sequences with integrated multi-target error diagnostics (`try_each`, `try_each_validated`). |
 | **`Free<F, A>`** | DSL AST construction & multi-pass analysis | Reusable, inspectable computation tree for multi-pass interpretation and AST analysis with explicit `Then` sequencing and encapsulated type-erasure. |
-| **`Program<H, A>`** | Direct operational monad execution | Statically checked handler pipelines with compile-time command-to-output enforcement and trampoline evaluation. |
+| **`Program<H, A>`** | Direct operational monad execution | Statically checked, single-threaded (`Box`-backed) handler pipelines with compile-time command-to-output enforcement, `Rc`/`RefCell` support, and trampoline evaluation. |
 | **Optics (`Lens`, `Prism`)** | Composable access into nested data | Pure, reusable paths for querying and immutably updating deeply nested structs and enum variants. |
 | **Algebraic Traits (`Semigroup`, `Monoid`)** | Generic combination and identity interfaces | Associative combination across concrete types, powering error accumulation in `Validated` and fallback chains in `Choice`. *(Categorical simulation traits removed in 0.19.0 in favor of native Rust idioms).* |
 
