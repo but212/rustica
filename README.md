@@ -35,9 +35,6 @@ rustica = "0.19.0"
 # rustica = { version = "0.19.0", features = ["full"] } # async (deprecated in 0.19.0), serde, quickcheck
 ```
 
-> [!NOTE]
-> The current released version on crates.io is `0.19.0`. Ongoing breaking changes and modernization for the upcoming `0.19.0` release are documented in the [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md).
-
 Import common traits and types:
 
 ```rust
