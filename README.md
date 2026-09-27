@@ -30,13 +30,13 @@ Add Rustica to `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.18.0"
+rustica = "0.19.0"
 # Features:
-# rustica = { version = "0.18.0", features = ["full"] } # async (deprecated in 0.19.0), serde, quickcheck
+# rustica = { version = "0.19.0", features = ["full"] } # async (deprecated in 0.19.0), serde, quickcheck
 ```
 
 > [!NOTE]
-> The current released version on crates.io is `0.18.0`. Ongoing breaking changes and modernization for the upcoming `0.19.0` release are documented in the [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md).
+> The current released version on crates.io is `0.19.0`. Ongoing breaking changes and modernization for the upcoming `0.19.0` release are documented in the [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md).
 
 Import common traits and types:
 
@@ -70,7 +70,7 @@ use rustica::prelude::*;
 ## Migration Guides
 
 - [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
-- [0.18.0 Migration Guide](./MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
+- [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
 - [0.17.0 Migration Guide](./MIGRATION_v0.17.0.md): Deprecation of monad transformers, effect monads, category morphisms, and wrapper types in favor of standard library idioms
 - [0.16.0 Migration Guide](./MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation
 - [0.15.0 Migration Guide](./MIGRATION_v0.15.0.md): RRB tree integrity and panic context
