@@ -217,19 +217,6 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         self.and_then(move |a| TryProgram::pure(f(a)))
     }
 
-    /// Functional alias for [`map`](Self::map).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `map` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn fmap<B: 'static, F>(self, f: F) -> TryProgram<H, B, E>
-    where
-        F: FnOnce(A) -> B + 'static,
-    {
-        self.map(f)
-    }
-
     /// Sequences another fallible computation from the result of this one.
     pub fn and_then<B: 'static, F>(mut self, f: F) -> TryProgram<H, B, E>
     where
@@ -253,19 +240,6 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
                 }
             },
         }
-    }
-
-    /// Alias for [`and_then`](Self::and_then).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `and_then` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn bind<B: 'static, F>(self, f: F) -> TryProgram<H, B, E>
-    where
-        F: FnOnce(A) -> TryProgram<H, B, E> + 'static,
-    {
-        self.and_then(f)
     }
 
     /// Sequences another computation, ignoring the output of the current one.
@@ -481,19 +455,6 @@ impl<H: 'static, A: 'static> Program<H, A> {
         Program(self.0.map(f))
     }
 
-    /// Functional alias for [`map`](Self::map).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `map` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn fmap<B: 'static, F>(self, f: F) -> Program<H, B>
-    where
-        F: FnOnce(A) -> B + 'static,
-    {
-        self.map(f)
-    }
-
     /// Sequences another computation from the result of this one.
     #[inline]
     pub fn and_then<B: 'static, F>(self, f: F) -> Program<H, B>
@@ -501,19 +462,6 @@ impl<H: 'static, A: 'static> Program<H, A> {
         F: FnOnce(A) -> Program<H, B> + 'static,
     {
         Program(self.0.and_then(move |a| f(a).0))
-    }
-
-    /// Alias for [`and_then`](Self::and_then).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `and_then` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn bind<B: 'static, F>(self, f: F) -> Program<H, B>
-    where
-        F: FnOnce(A) -> Program<H, B> + 'static,
-    {
-        self.and_then(f)
     }
 
     /// Sequences another computation, ignoring the output of the current one.
@@ -641,21 +589,17 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_monad_laws() {
         // Left identity: pure(a).bind(f) == f(a)
         let a = 42;
         let f = |x: i32| Program::<CalcInterpreter, i32>::pure(x * 2);
-        let left = Program::<CalcInterpreter, i32>::pure(a).bind(f);
+        let left = Program::<CalcInterpreter, i32>::pure(a).and_then(f);
         let mut interp = CalcInterpreter { current: 0 };
         assert_eq!(left.run(&mut interp), 84);
 
-        let left_and_then = Program::<CalcInterpreter, i32>::pure(a).and_then(f);
-        assert_eq!(left_and_then.run(&mut interp), 84);
-
         // Right identity: m.bind(pure) == m
         let m = Program::<CalcInterpreter, i32>::pure(100);
-        let right = m.bind(Program::pure);
+        let right = m.and_then(Program::pure);
         assert_eq!(right.run(&mut interp), 100);
 
         let m2 = Program::<CalcInterpreter, i32>::pure(100);
@@ -753,7 +697,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_predicates_and_debug() {
         let pure_p: Program<CalcInterpreter, i32> = Program::pure(42);
         assert!(pure_p.is_pure());
@@ -767,7 +710,7 @@ mod tests {
         assert!(!susp_p.is_bind());
         assert_eq!(format!("{susp_p:?}"), "Suspend(\"<command>\")");
 
-        let bound_p = susp_p.bind(|_| Program::pure(10));
+        let bound_p = susp_p.and_then(|_| Program::pure(10));
         assert!(!bound_p.is_pure());
         assert!(!bound_p.is_suspend());
         assert!(bound_p.is_bind());
@@ -786,7 +729,7 @@ mod tests {
         let try_susp: TryProgram<FallibleCalc, (), &str> = Add(1).try_suspend();
         assert!(try_susp.is_suspend());
 
-        let try_bound = try_susp.bind(|_| TryProgram::pure(100));
+        let try_bound = try_susp.and_then(|_| TryProgram::pure(100));
         assert!(try_bound.is_bind());
 
         let try_and_then: TryProgram<FallibleCalc, i32, &str> =
@@ -871,30 +814,6 @@ mod tests {
         let mut calc = CalcInterpreter { current: 0 };
         let res = prog.run(&mut calc);
         assert_eq!(*res.downcast::<i32>().unwrap(), 99);
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_operational_map_and_deprecated_fmap() {
-        let mut interp = CalcInterpreter { current: 0 };
-
-        // Infallible Program map and fmap
-        let p_map: Program<CalcInterpreter, i32> = Program::pure(10).map(|x| x * 3);
-        assert_eq!(p_map.run(&mut interp), 30);
-
-        let p_fmap: Program<CalcInterpreter, i32> = Program::pure(10).fmap(|x| x * 3);
-        assert_eq!(p_fmap.run(&mut interp), 30);
-
-        // Fallible TryProgram map and fmap
-        let mut try_interp = FallibleCalc {
-            current: 0,
-            should_fail: false,
-        };
-        let tp_map: TryProgram<FallibleCalc, i32, &str> = TryProgram::pure(7).map(|x| x + 3);
-        assert_eq!(tp_map.try_run(&mut try_interp), Ok(10));
-
-        let tp_fmap: TryProgram<FallibleCalc, i32, &str> = TryProgram::pure(7).fmap(|x| x + 3);
-        assert_eq!(tp_fmap.try_run(&mut try_interp), Ok(10));
     }
 
     #[test]

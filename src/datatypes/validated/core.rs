@@ -323,22 +323,6 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Converts to Option by cloning the inner valid value.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `as_option().cloned()` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn to_option(&self) -> Option<T>
-    where
-        T: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
     // --- Standard Conversions ---
 
     /// Converts to fail-fast `Result`, explicitly keeping only the first error.
@@ -493,12 +477,11 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_option_and_result_conversions() {
         let valid: Validated<i32, &str> = Ok(42).into();
         assert_eq!(valid.as_option(), Some(&42));
         assert_eq!(valid.clone().into_option(), Some(42));
-        assert_eq!(valid.to_option(), Some(42));
+        assert_eq!(valid.as_option().cloned(), Some(42));
         assert_eq!(valid.into_result_first_error(), Ok(42));
 
         let res: Result<i32, &str> = Err("err");

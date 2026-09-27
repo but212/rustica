@@ -344,22 +344,6 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Functional alias for [`map`](Self::map).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `map` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn fmap<B, Func>(&self, f: Func) -> Free<F, B>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        B: Send + Sync + Clone + 'static,
-        Func: Fn(A) -> B + Send + Sync + 'static,
-    {
-        self.map(f)
-    }
-
     /// Sequences another `Free` computation from the result of this computation.
     ///
     /// If `self` is pure, `f(a)` is evaluated immediately without allocating
@@ -392,38 +376,6 @@ impl<F, A> Free<F, A> {
                 ))
             },
         }
-    }
-
-    /// Alias for [`and_then`](Self::and_then).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `and_then` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn bind<B, Next>(&self, f: Next) -> Free<F, B>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        B: Send + Sync + Clone + 'static,
-        Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
-    {
-        self.and_then(f)
-    }
-
-    /// Alias for [`and_then`](Self::and_then).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `and_then` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn flat_map<B, Next>(&self, f: Next) -> Free<F, B>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        B: Send + Sync + Clone + 'static,
-        Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
-    {
-        self.and_then(f)
     }
 
     /// Sequences another `Free` computation, discarding the result of the current computation.
@@ -811,30 +763,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
-    fn test_fmap() {
-        let computation: Free<TestCmd, i32> = Free::pure(21).fmap(|x| x * 2);
-        assert_eq!(computation.to_pure(), Some(42));
-
-        let mapped: Free<TestCmd, i32> = Free::pure(21).map(|x| x * 2);
-        assert_eq!(mapped.to_pure(), Some(42));
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_bind_sequence() {
-        let computation: Free<TestCmd, i32> = Free::pure(10)
-            .bind(|x| Free::pure(x + 5))
-            .flat_map(|x| Free::pure(x * 2));
-        assert_eq!(computation.to_pure(), Some(30));
-
-        let and_then_comp: Free<TestCmd, i32> = Free::pure(10)
-            .and_then(|x| Free::pure(x + 5))
-            .and_then(|x| Free::pure(x * 2));
-        assert_eq!(and_then_comp.to_pure(), Some(30));
-    }
-
-    #[test]
     fn test_suspend_and_run() {
         let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
             .and_then(|_: ()| Free::<TestCmd, ()>::suspend(TestCmd::Increment(25)))
@@ -944,12 +872,11 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_monad_laws() {
         // Left identity: pure(a).bind(f) == f(a)
         let a = 7;
         let f = |x: i32| Free::pure(x * 3);
-        let left: Free<TestCmd, i32> = Free::pure(a).bind(f);
+        let left: Free<TestCmd, i32> = Free::pure(a).and_then(f);
         let right = f(a);
         assert_eq!(left.to_pure(), right.to_pure());
 
@@ -959,7 +886,7 @@ mod tests {
 
         // Right identity: m.bind(pure) == m
         let m: Free<TestCmd, i32> = Free::pure(42);
-        let bound = m.bind(Free::pure);
+        let bound = m.and_then(Free::pure);
         assert_eq!(bound.to_pure(), Some(42));
         assert_eq!(m.and_then(Free::pure).to_pure(), Some(42));
 
@@ -967,8 +894,8 @@ mod tests {
         let g = |x: i32| Free::pure(x + 100);
         let m1: Free<TestCmd, i32> = Free::pure(5);
         let m2: Free<TestCmd, i32> = Free::pure(5);
-        let r1 = m1.bind(f).bind(g);
-        let r2 = m2.bind(move |x| f(x).bind(g));
+        let r1 = m1.and_then(f).and_then(g);
+        let r2 = m2.and_then(move |x| f(x).and_then(g));
         assert_eq!(r1.to_pure(), r2.to_pure());
 
         let r1_and_then = m1.and_then(f).and_then(g);

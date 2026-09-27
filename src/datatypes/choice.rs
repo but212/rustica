@@ -188,7 +188,7 @@ impl<T> Choice<T> {
 
     /// Safely flattens a `Choice` of iterable items by consuming it.
     ///
-    /// Unlike [`Self::try_flatten_cloned`], this consuming version does not require `T: Clone`.
+    /// This consuming version does not require `T: Clone`.
     ///
     /// Items are concatenated in priority order: the first yielded item becomes the new
     /// primary, followed by the primary iterable's remaining items and then the items of
@@ -213,39 +213,14 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Safely flattens a borrowed `Choice` of iterable items by cloning elements.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `.clone().try_flatten()` instead; scheduled for removal in 0.20.0"
-    )]
-    pub fn try_flatten_cloned<I>(&self) -> Result<Choice<I>, ChoiceError>
-    where
-        T: IntoIterator<Item = I> + Clone,
-    {
-        self.clone().try_flatten()
-    }
-
     /// Flattens a `Choice` of iterable items by consuming it, returning `None` if all inner iterables are empty.
     ///
-    /// Unlike [`Self::flatten_cloned`], this consuming version does not require `T: Clone`.
+    /// This consuming version does not require `T: Clone`.
     pub fn flatten<I>(self) -> Option<Choice<I>>
     where
         T: IntoIterator<Item = I>,
     {
         self.try_flatten().ok()
-    }
-
-    /// Flattens a borrowed `Choice` of iterable items by cloning elements, returning `None` if all inner iterables are empty.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `.clone().flatten()` instead; scheduled for removal in 0.20.0"
-    )]
-    pub fn flatten_cloned<I>(&self) -> Option<Choice<I>>
-    where
-        T: IntoIterator<Item = I> + Clone,
-    {
-        #[allow(deprecated)]
-        self.try_flatten_cloned().ok()
     }
 
     /// Tries `f` on each value in priority order (primary first, then alternatives).
@@ -318,21 +293,6 @@ impl<T> Choice<T> {
             primary: f(self.primary),
             alternatives: self.alternatives.into_iter().map(f).collect(),
         }
-    }
-
-    /// Functional alias for [`map`](Self::map).
-    ///
-    /// Transforms the primary value and all alternatives preserving priority order.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `map` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn fmap<B, F>(self, f: F) -> Choice<B>
-    where
-        F: FnMut(T) -> B,
-    {
-        self.map(f)
     }
 }
 
@@ -479,14 +439,10 @@ mod unit_tests {
             vec![1, 2, 3, 4, 5]
         );
 
-        // Inherent map and fmap preserve priority structure
+        // Inherent map preserves priority structure
         let mapped = combined.clone().map(|x| x * 10);
         assert_eq!(*mapped.primary(), 10);
         assert_eq!(mapped.alternatives(), &[20, 30, 40, 50]);
-
-        #[allow(deprecated)]
-        let fmapped = combined.clone().fmap(|x| x * 10);
-        assert_eq!(mapped, fmapped);
 
         // Iterator fold preserves priority order
         let folded = combined.iter().fold(0, |acc, &x| acc * 10 + x);
@@ -599,19 +555,6 @@ mod unit_tests {
         let flattened = nested.try_flatten().expect("alternatives supply items");
         assert_eq!(flattened.primary(), &1);
         assert_eq!(flattened.alternatives(), &[2, 3]);
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn flatten_cloned_and_try_flatten_cloned() {
-        let nested = Choice::new(vec![1, 2], vec![vec![3, 4]]);
-        let flattened = nested.flatten_cloned().unwrap();
-        assert_eq!(flattened.primary(), &1);
-        assert_eq!(flattened.alternatives(), &[2, 3, 4]);
-
-        let res = nested.try_flatten_cloned().unwrap();
-        assert_eq!(res.primary(), &1);
-        assert_eq!(res.alternatives(), &[2, 3, 4]);
     }
 
     #[test]

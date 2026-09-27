@@ -650,24 +650,6 @@ where
         Lens::new(move |s| f((self.get)(s)), move |s, b| (self.set)(s, g(b)))
     }
 
-    /// Functional alias for [`iso_map`](Self::iso_map).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `iso_map` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn fmap<B, F, G>(
-        self, f: F, g: G,
-    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
-    where
-        F: Fn(A) -> B + Clone,
-        G: Fn(B) -> A + Clone,
-        GetFn: Clone,
-        SetFn: Clone,
-    {
-        self.iso_map(f, g)
-    }
-
     /// Composes two lenses to create a new lens that focuses on a nested structure.
     ///
     /// Given a lens from `S` to `A` and a lens from `A` to `B`, this creates a new
@@ -963,13 +945,6 @@ mod unit_tests {
                 .set(Point { x: 10.0, y: 20.0 }, 25.5f64.to_bits())
                 .x,
             25.5
-        );
-
-        #[allow(deprecated)]
-        let deprecated_fmap_lens = x_lens().fmap(|x: f64| x.to_bits(), f64::from_bits);
-        assert_eq!(
-            deprecated_fmap_lens.get(&Point { x: 10.0, y: 20.0 }),
-            10.0f64.to_bits()
         );
     }
 }
