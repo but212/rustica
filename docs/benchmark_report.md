@@ -1,100 +1,100 @@
 # Benchmark Results
 
-> Generated on 2026-09-22 04:07:07 UTC, Commit: `45915bc`
+> Generated on 2026-09-26 16:13:31 UTC, Commit: `6943c31`
 
 ## Validated
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `invalid_many/4` | 69ns | 69ns | 69ns | 68ns | 114ns | 100 | - |
-| `combine_errors/4` | 204ns | 194ns | 247ns | 191ns | 380ns | 100 | - |
-| `invalid_many/5` | 118ns | 103ns | 142ns | 102ns | 942ns | 100 | - |
-| `combine_errors/5` | 251ns | 237ns | 244ns | 235ns | 1.213µs | 100 | - |
-| `validated_map` | 2ns | 2ns | 2ns | 2ns | 9ns | 100 | - |
-| `result_map` | 2ns | 2ns | 2ns | 2ns | 8ns | 100 | - |
-| `sequence_valid/10` | 68ns | 66ns | 90ns | 52ns | 101ns | 100 | - |
-| `sequence_mixed/10` | 384ns | 374ns | 380ns | 371ns | 1.386µs | 100 | - |
-| `sequence_valid/100` | 163ns | 157ns | 202ns | 145ns | 293ns | 100 | - |
-| `sequence_mixed/100` | 3.272µs | 3.229µs | 3.335µs | 3.207µs | 4.371µs | 100 | - |
-| `iter_errors_slice/10` | 5ns | 5ns | 7ns | 3ns | 16ns | 100 | - |
+| `invalid_many/4` | 63ns | 63ns | 65ns | 61ns | 130ns | 1000 | - |
+| `combine_errors/4` | 153ns | 152ns | 160ns | 137ns | 1.633µs | 1000 | - |
+| `invalid_many/5` | 93ns | 93ns | 95ns | 89ns | 191ns | 1000 | - |
+| `combine_errors/5` | 184ns | 168ns | 259ns | 152ns | 1.626µs | 1000 | - |
+| `validated_map` | 3ns | 4ns | 5ns | 2ns | 63ns | 1000 | - |
+| `result_map` | 3ns | 3ns | 4ns | 2ns | 16ns | 1000 | - |
+| `sequence_valid/10` | 98ns | 90ns | 153ns | 86ns | 2.131µs | 1000 | - |
+| `sequence_mixed/10` | 190ns | 188ns | 194ns | 182ns | 381ns | 1000 | - |
+| `sequence_valid/100` | 295ns | 282ns | 331ns | 240ns | 2.074µs | 1000 | - |
+| `sequence_mixed/100` | 2.077µs | 2.047µs | 2.08µs | 1.998µs | 5.017µs | 1000 | - |
+| `iter_errors_slice/10` | 5ns | 5ns | 7ns | 4ns | 62ns | 1000 | - |
 
 ## Lens
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `set_same_value` | 96ns | 88ns | 98ns | 69ns | 1.032µs | 100 | - |
-| `set_always_same_value` | 54ns | 54ns | 60ns | 43ns | 203ns | 100 | - |
-| `set_different_value` | 94ns | 85ns | 99ns | 65ns | 1.023µs | 100 | - |
-| `modify_changed_value` | 120ns | 103ns | 139ns | 101ns | 1.133µs | 100 | - |
+| `set_same_value` | 51ns | 47ns | 82ns | 46ns | 115ns | 1000 | - |
+| `set_always_same_value` | 33ns | 30ns | 52ns | 29ns | 1.461µs | 1000 | - |
+| `set_different_value` | 48ns | 46ns | 78ns | 46ns | 111ns | 1000 | - |
+| `modify_changed_value` | 81ns | 78ns | 83ns | 74ns | 1.5µs | 1000 | - |
 
 ## Prism
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `preview_hit` | 40ns | 38ns | 48ns | 31ns | 178ns | 100 | - |
-| `preview_miss` | 3ns | 3ns | 4ns | 3ns | 13ns | 100 | - |
-| `modify_same_value` | 59ns | 56ns | 71ns | 56ns | 186ns | 100 | - |
-| `modify_different_value` | 105ns | 109ns | 120ns | 89ns | 257ns | 100 | - |
-| `set_hit` | 88ns | 91ns | 98ns | 71ns | 231ns | 100 | - |
-| `set_miss` | 25ns | 25ns | 32ns | 21ns | 39ns | 100 | - |
+| `preview_hit` | 29ns | 28ns | 36ns | 28ns | 87ns | 1000 | - |
+| `preview_miss` | 5ns | 4ns | 5ns | 2ns | 1.478µs | 1000 | - |
+| `modify_same_value` | 47ns | 42ns | 64ns | 41ns | 93ns | 1000 | - |
+| `modify_different_value` | 78ns | 74ns | 98ns | 66ns | 1.307µs | 1000 | - |
+| `set_hit` | 53ns | 47ns | 81ns | 46ns | 1.203µs | 1000 | - |
+| `set_miss` | 19ns | 21ns | 25ns | 15ns | 77ns | 1000 | - |
 
 ## Free
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `build_chain/10` | 4.186µs | 4.157µs | 4.175µs | 4.142µs | 4.972µs | 100 | - |
-| `build_and_run/10` | 7.159µs | 6.856µs | 7.843µs | 6.818µs | 8.226µs | 100 | - |
-| `build_chain/100` | 47.377µs | 48.092µs | 51.081µs | 41.803µs | 57.36µs | 100 | - |
-| `build_and_run/100` | 88.684µs | 87.853µs | 92.265µs | 86.885µs | 110.723µs | 100 | - |
+| `build_chain/10` | 1.385µs | 1.372µs | 1.396µs | 1.342µs | 2.604µs | 1000 | - |
+| `build_and_run/10` | 2.123µs | 2.101µs | 2.143µs | 2.045µs | 4.007µs | 1000 | - |
+| `build_chain/100` | 15.709µs | 15.532µs | 16.516µs | 15.398µs | 19.232µs | 1000 | - |
+| `build_and_run/100` | 22.684µs | 22.434µs | 23.446µs | 22.274µs | 29.29µs | 1000 | - |
 
 ## Operational
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `build_chain/10` | 1.36µs | 1.314µs | 1.482µs | 1.203µs | 3.253µs | 100 | - |
-| `build_and_run/10` | 1.963µs | 1.915µs | 2.097µs | 1.769µs | 3.578µs | 100 | - |
-| `build_chain/100` | 15.223µs | 14.964µs | 16.706µs | 14.384µs | 17.138µs | 100 | - |
-| `build_and_run/100` | 15.475µs | 15.342µs | 16.244µs | 15.27µs | 16.598µs | 100 | - |
+| `build_chain/10` | 1.248µs | 1.236µs | 1.25µs | 1.209µs | 2.378µs | 1000 | - |
+| `build_and_run/10` | 1.395µs | 1.381µs | 1.433µs | 1.337µs | 2.388µs | 1000 | - |
+| `build_chain/100` | 13.62µs | 13.458µs | 14.382µs | 13.372µs | 17.773µs | 1000 | - |
+| `build_and_run/100` | 15.267µs | 15.091µs | 16.041µs | 14.922µs | 20.282µs | 1000 | - |
 
 ## Choice
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `try_each_primary_hit` | 3ns | 3ns | 3ns | 3ns | 11ns | 100 | - |
-| `try_each_alt_hit` | 8ns | 8ns | 8ns | 8ns | 33ns | 100 | - |
-| `try_each_all_fail` | 5ns | 3ns | 4ns | 2ns | 212ns | 100 | - |
-| `filter_keep_all` | 42ns | 34ns | 42ns | 31ns | 815ns | 100 | - |
-| `filter_keep_some` | 39ns | 39ns | 47ns | 32ns | 61ns | 100 | - |
+| `try_each_primary_hit` | 4ns | 4ns | 5ns | 2ns | 20ns | 1000 | - |
+| `try_each_alt_hit` | 10ns | 11ns | 12ns | 6ns | 66ns | 1000 | - |
+| `try_each_all_fail` | 4ns | 4ns | 5ns | 2ns | 6ns | 1000 | - |
+| `filter_keep_all` | 29ns | 26ns | 38ns | 22ns | 183ns | 1000 | - |
+| `filter_keep_some` | 25ns | 24ns | 30ns | 23ns | 109ns | 1000 | - |
 
 ## MonadComparison
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `free_build_and_run/10` | 8.087µs | 8.008µs | 8.639µs | 7.962µs | 9.496µs | 100 | - |
-| `program_build_and_run/10` | 1.465µs | 1.456µs | 1.464µs | 1.448µs | 2.29µs | 100 | - |
-| `native_loop/10` | 11ns | 11ns | 13ns | 9ns | 35ns | 100 | - |
-| `free_build_and_run/100` | 88.701µs | 87.527µs | 104.403µs | 75.562µs | 140.16µs | 100 | - |
-| `program_build_and_run/100` | 14.348µs | 14.37µs | 15.043µs | 13.104µs | 16.9µs | 100 | - |
-| `native_loop/100` | 141ns | 128ns | 160ns | 116ns | 1.232µs | 100 | - |
+| `free_build_and_run/10` | 2.344µs | 2.304µs | 2.363µs | 2.253µs | 6.212µs | 1000 | - |
+| `program_build_and_run/10` | 1.43µs | 1.414µs | 1.448µs | 1.379µs | 3.061µs | 1000 | - |
+| `dsl_loop/10` | 33ns | 26ns | 50ns | 25ns | 1.125µs | 1000 | - |
+| `free_build_and_run/100` | 22.414µs | 22.162µs | 23.181µs | 21.957µs | 27.064µs | 1000 | - |
+| `program_build_and_run/100` | 15.261µs | 15.096µs | 16.015µs | 14.985µs | 19.338µs | 1000 | - |
+| `dsl_loop/100` | 132ns | 116ns | 187ns | 114ns | 1.326µs | 1000 | - |
 
 ## ContextError
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `context_accumulation/2` | 165ns | 164ns | 175ns | 109ns | 454ns | 100 | - |
-| `context_iteration/2` | 128ns | 97ns | 169ns | 96ns | 1.03µs | 100 | - |
-| `context_accumulation/3` | 148ns | 132ns | 222ns | 132ns | 798ns | 100 | - |
-| `context_iteration/3` | 212ns | 224ns | 241ns | 152ns | 250ns | 100 | - |
-| `context_accumulation/50` | 2.659µs | 2.592µs | 2.653µs | 2.55µs | 5.26µs | 100 | - |
-| `context_iteration/50` | 2.646µs | 2.571µs | 2.692µs | 2.515µs | 5.056µs | 100 | - |
-| `error_chain_formatting/3` | 326ns | 284ns | 423ns | 274ns | 1.143µs | 100 | - |
-| `error_chain_formatting/50` | 3.429µs | 3.394µs | 3.681µs | 3.27µs | 5.254µs | 100 | - |
+| `context_accumulation/2` | 110ns | 104ns | 187ns | 103ns | 1.195µs | 1000 | - |
+| `context_iteration/2` | 110ns | 103ns | 190ns | 102ns | 1.379µs | 1000 | - |
+| `context_accumulation/3` | 152ns | 145ns | 150ns | 144ns | 1.708µs | 1000 | - |
+| `context_iteration/3` | 151ns | 143ns | 150ns | 143ns | 1.289µs | 1000 | - |
+| `context_accumulation/50` | 2.938µs | 2.911µs | 2.962µs | 2.859µs | 4.673µs | 1000 | - |
+| `context_iteration/50` | 3.017µs | 2.949µs | 3.238µs | 2.908µs | 8.512µs | 1000 | - |
+| `error_chain_formatting/3` | 268ns | 257ns | 279ns | 243ns | 1.739µs | 1000 | - |
+| `error_chain_formatting/50` | 3.485µs | 3.448µs | 3.5µs | 3.398µs | 5.562µs | 1000 | - |
 
 ## LazyError
 
 | Benchmark | Mean | Median | P95 | Min | Max | Iterations | Throughput |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `happy_path_lazy` | 4ns | 3ns | 4ns | 2ns | 149ns | 100 | - |
-| `happy_path_eager` | 57ns | 55ns | 77ns | 41ns | 241ns | 100 | - |
-| `error_path_lazy` | 110ns | 111ns | 115ns | 90ns | 134ns | 100 | - |
-| `error_path_eager` | 108ns | 108ns | 116ns | 92ns | 118ns | 100 | - |
+| `happy_path_lazy` | 4ns | 4ns | 5ns | 2ns | 20ns | 1000 | - |
+| `happy_path_eager` | 67ns | 47ns | 89ns | 46ns | 1.624µs | 1000 | - |
+| `error_path_lazy` | 77ns | 69ns | 119ns | 68ns | 1.994µs | 1000 | - |
+| `error_path_eager` | 76ns | 69ns | 119ns | 68ns | 1.718µs | 1000 | - |
