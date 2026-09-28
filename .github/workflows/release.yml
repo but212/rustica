@@ -91,13 +91,13 @@ jobs:
             --title "Release v$RELEASE_VERSION" \
             --notes-file release-notes.md
 
-  provenance:
+  attestation:
     name: Artifact Attestation
     needs: [release]
     permissions:
       id-token: write # required to sign the attestation
       attestations: write # required to create GitHub artifact attestations
       contents: read
-    uses: ./.github/workflows/generator-generic-ossf-slsa3-publish.yml
+    uses: ./.github/workflows/artifact-attestations.yml
     with:
       tag_name: ${{ github.ref_name }}
