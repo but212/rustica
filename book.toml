@@ -2,10 +2,10 @@
 authors = ["but212"]
 language = "en"
 src = "docs"
-title = "Rustica Documentation"
+title = "Rustica"
 
 [output.html]
-default-theme = "rust"
-preferred-dark-theme = "rust"
+default-theme = "light"
+preferred-dark-theme = "coal"
 git-repository-url = "https://github.com/but212/rustica"
 git-repository-icon = "fab-github"
