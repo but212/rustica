@@ -110,6 +110,11 @@ pub use iter::*;
 mod tests {
     use super::Validated;
     use crate::traits::semigroup::Semigroup;
+    use alloc::format;
+    use alloc::string::String;
+    use alloc::string::ToString;
+    use alloc::vec;
+    use alloc::vec::Vec;
     use quickcheck_macros::quickcheck;
 
     // Core Algebraic Laws & Properties
@@ -127,12 +132,13 @@ mod tests {
     #[test]
     #[should_panic(expected = "requires at least one error")]
     fn invalid_many_rejects_empty_input() {
-        let _: Validated<(), String> = Validated::invalid_many(std::iter::empty());
+        let _: Validated<(), String> = Validated::invalid_many(core::iter::empty());
     }
 
     #[test]
     fn try_invalid_many_reports_empty_input() {
-        let result: Option<Validated<(), String>> = Validated::try_invalid_many(std::iter::empty());
+        let result: Option<Validated<(), String>> =
+            Validated::try_invalid_many(core::iter::empty());
         assert!(result.is_none());
     }
 

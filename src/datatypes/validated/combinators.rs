@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
 
@@ -414,6 +416,9 @@ impl<T, E> Validated<T, E> {
 #[cfg(test)]
 mod tests {
     use super::Validated;
+    use alloc::string::{String, ToString};
+    use alloc::vec::Vec;
+    use alloc::{format, vec};
 
     #[test]
     fn sequence_covers_accumulation_and_empty_input() {

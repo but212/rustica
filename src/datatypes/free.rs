@@ -91,9 +91,10 @@
 //! assert_eq!(result2, 45); // (10 + 5) * 3 = 45
 //! ```
 
-use std::any::Any;
-use std::fmt::{self, Display};
-use std::sync::Arc;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::any::Any;
+use core::fmt::{self, Display};
 
 /// Errors that can occur during [`Free`] evaluation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -135,8 +136,8 @@ impl<E: Display> Display for FreeError<E> {
     }
 }
 
-impl<E: std::error::Error + 'static> std::error::Error for FreeError<E> {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl<E: core::error::Error + 'static> core::error::Error for FreeError<E> {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
             FreeError::Interpreter(e) => Some(e),
             FreeError::TypeMismatch { .. } => None,
@@ -264,7 +265,7 @@ impl<F, A> Free<F, A> {
                 any_val
                     .downcast_ref::<A>()
                     .cloned()
-                    .ok_or_else(std::any::type_name::<A>)
+                    .ok_or_else(core::any::type_name::<A>)
             }),
         ))
     }
@@ -475,7 +476,7 @@ impl<F, A> Free<F, A> {
                             .downcast_ref::<A>()
                             .cloned()
                             .ok_or(FreeError::TypeMismatch {
-                                expected: std::any::type_name::<A>(),
+                                expected: core::any::type_name::<A>(),
                             });
                     },
                 },
@@ -497,7 +498,7 @@ impl<F, A> Free<F, A> {
                             }
                             return any_box.downcast_ref::<A>().cloned().ok_or(
                                 FreeError::TypeMismatch {
-                                    expected: std::any::type_name::<A>(),
+                                    expected: core::any::type_name::<A>(),
                                 },
                             );
                         },
@@ -521,7 +522,7 @@ impl<F, A> Free<F, A> {
         A: Send + Sync + Clone + 'static,
         Interp: FnMut(F) -> AnyValue,
     {
-        match self.run_internal(|cmd| Ok::<_, std::convert::Infallible>(interp(cmd))) {
+        match self.run_internal(|cmd| Ok::<_, core::convert::Infallible>(interp(cmd))) {
             Ok(val) => val,
             Err(FreeError::TypeMismatch { expected }) => {
                 panic!("Free interpretation type mismatch: expected return type {expected}")
@@ -744,6 +745,11 @@ impl<F, A> Drop for Free<F, A> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{
+        format,
+        string::{String, ToString},
+    };
+
     use super::*;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -818,7 +824,7 @@ mod tests {
 
     #[test]
     fn test_runtime_type_mismatch_in_pipeline() {
-        use std::sync::atomic::{AtomicU32, Ordering};
+        use core::sync::atomic::{AtomicU32, Ordering};
         let side_effect_count = Arc::new(AtomicU32::new(0));
         let count_clone = Arc::clone(&side_effect_count);
 
@@ -841,7 +847,7 @@ mod tests {
         // Verifies: 2) Error is only detected at runtime when Fetch continuation downcasts AnyValue
         assert!(matches!(
             res,
-            Err(FreeError::TypeMismatch { expected }) if expected == std::any::type_name::<i32>()
+            Err(FreeError::TypeMismatch { expected }) if expected == core::any::type_name::<i32>()
         ));
     }
 
@@ -1017,7 +1023,7 @@ mod tests {
         drop(q2);
     }
 
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
     #[derive(Debug)]
     struct CloneCountingCmd {
@@ -1119,7 +1125,7 @@ mod tests {
 
     #[test]
     fn test_then_semantic_equivalence() {
-        use std::sync::atomic::{AtomicI32, Ordering};
+        use core::sync::atomic::{AtomicI32, Ordering};
         let p_then = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
             .then(Free::<TestCmd, ()>::suspend(TestCmd::Increment(10)))
             .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
@@ -1353,9 +1359,7 @@ mod tests {
 
     #[test]
     fn test_monad_laws_effectful() {
-        use std::sync::Mutex;
-        let trace1 = Arc::new(Mutex::new(Vec::new()));
-        let t1 = Arc::clone(&trace1);
+        let mut trace1 = Vec::new();
         let f = |x: i32| {
             Free::<TestCmd, ()>::suspend(TestCmd::Increment(x)).and_then(move |_| Free::pure(x * 2))
         };
@@ -1368,26 +1372,25 @@ mod tests {
         let r_left = left.run(|cmd| match cmd {
             TestCmd::Increment(n) => {
                 c1 += n;
-                t1.lock().unwrap().push(format!("inc({n})"));
+                trace1.push(format!("inc({n})"));
                 any_value(())
             },
             TestCmd::Fetch => any_value(c1),
         });
 
-        let trace2 = Arc::new(Mutex::new(Vec::new()));
-        let t2 = Arc::clone(&trace2);
+        let mut trace2 = Vec::new();
         let mut c2 = 0;
         let r_right = right.run(|cmd| match cmd {
             TestCmd::Increment(n) => {
                 c2 += n;
-                t2.lock().unwrap().push(format!("inc({n})"));
+                trace2.push(format!("inc({n})"));
                 any_value(())
             },
             TestCmd::Fetch => any_value(c2),
         });
 
         assert_eq!(r_left, r_right);
-        assert_eq!(*trace1.lock().unwrap(), *trace2.lock().unwrap());
+        assert_eq!(trace1, trace2);
     }
 
     #[test]

@@ -74,9 +74,12 @@
 //! assert_eq!(result, 15);
 //! ```
 
-use std::any::Any;
-use std::convert::Infallible;
-use std::fmt;
+use core::any::Any;
+use core::convert::Infallible;
+use core::fmt;
+
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 /// A domain command with an associated static output type.
 pub trait Command: 'static {
@@ -523,6 +526,10 @@ impl<H, A: fmt::Debug, E> fmt::Debug for TryProgram<H, A, E> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::ToString;
+    use alloc::vec;
+    use alloc::{format, string::String};
+
     use super::*;
 
     struct Add(i32);
@@ -840,8 +847,8 @@ mod tests {
 
     #[test]
     fn test_rc_refcell_command_pipeline() {
-        use std::cell::RefCell;
-        use std::rc::Rc;
+        use alloc::rc::Rc;
+        use core::cell::RefCell;
 
         struct LocalPushCmd(Rc<RefCell<Vec<i32>>>, i32);
         impl Command for LocalPushCmd {
@@ -870,7 +877,7 @@ mod tests {
 
     #[test]
     fn test_rc_error_try_program() {
-        use std::rc::Rc;
+        use alloc::rc::Rc;
 
         struct FailCmd;
         impl Command for FailCmd {

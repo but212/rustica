@@ -122,8 +122,8 @@
 //! composition and equality short-circuiting behavior is covered by
 //! `test_lens_composition_and_chaining` in `tests/datatypes/test_lens.rs`.
 
-use std::fmt;
-use std::marker::PhantomData;
+use core::fmt;
+use core::marker::PhantomData;
 
 /// A lens is a first-class reference to a subpart of some data type.
 /// It provides a way to view, modify and transform a part of a larger structure.
@@ -741,7 +741,8 @@ where
 #[cfg(test)]
 mod unit_tests {
     use super::Lens;
-    use std::rc::Rc;
+    use alloc::rc::Rc;
+    use alloc::string::String;
 
     #[derive(Clone, Debug, PartialEq)]
     struct Point {

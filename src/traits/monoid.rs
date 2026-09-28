@@ -24,6 +24,8 @@
 //! assert_eq!(empty.combine(s2.clone()), s2);
 //! ```
 
+use alloc::{string::String, vec::Vec};
+
 use crate::traits::semigroup::Semigroup;
 
 /// A Monoid is a Semigroup with an identity element.
@@ -219,8 +221,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use alloc::sync::Arc;
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
     #[derive(Debug)]
     struct CloneCounter {

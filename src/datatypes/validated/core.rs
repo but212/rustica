@@ -4,6 +4,8 @@
 //! validation errors, along with its associated methods and helper types.
 
 use crate::traits::semigroup::Semigroup;
+use alloc::vec;
+use alloc::vec::Vec;
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
@@ -71,12 +73,12 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<'_, E> {
+    pub fn iter(&self) -> core::slice::Iter<'_, E> {
         self.0.iter()
     }
 
     #[inline]
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, E> {
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, E> {
         self.0.iter_mut()
     }
 
@@ -105,7 +107,7 @@ impl<E> NonEmptyErrors<E> {
     }
 }
 
-impl<E> std::ops::Deref for NonEmptyErrors<E> {
+impl<E> core::ops::Deref for NonEmptyErrors<E> {
     type Target = [E];
 
     fn deref(&self) -> &Self::Target {
@@ -147,7 +149,7 @@ impl<E> Semigroup for NonEmptyErrors<E> {
 
 impl<E> IntoIterator for NonEmptyErrors<E> {
     type Item = E;
-    type IntoIter = std::vec::IntoIter<E>;
+    type IntoIter = alloc::vec::IntoIter<E>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -266,7 +268,7 @@ impl<T, E> Validated<T, E> {
     #[inline]
     pub fn unwrap(self) -> T
     where
-        E: std::fmt::Debug,
+        E: core::fmt::Debug,
     {
         match self {
             Validated::Valid(value) => value,
@@ -293,7 +295,7 @@ impl<T, E> Validated<T, E> {
     #[inline]
     pub fn unwrap_invalid(self) -> NonEmptyErrors<E>
     where
-        T: std::fmt::Debug,
+        T: core::fmt::Debug,
     {
         match self {
             Validated::Invalid(es) => es,
@@ -415,6 +417,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::{String, ToString};
+
     use super::*;
 
     #[test]

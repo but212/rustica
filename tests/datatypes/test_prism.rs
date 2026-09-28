@@ -196,3 +196,13 @@ fn test_prism_set() {
     let s3 = TestStatus::Completed("done".to_string());
     assert_eq!(p.set(s3.clone(), 99), s3);
 }
+
+#[test]
+fn prism_cross_thread_usage() {
+    let prism = active_prism();
+    let handle = std::thread::spawn(move || {
+        let s = TestStatus::Active(42);
+        prism.preview(&s)
+    });
+    assert_eq!(handle.join().unwrap(), Some(42));
+}

@@ -123,7 +123,7 @@
 //! composition and variant-specific behavior are covered by
 //! `tests/datatypes/test_prism.rs`.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// A `Prism` is an optic that allows focusing on a specific case of a sum type.
 ///
@@ -223,12 +223,12 @@ where
     }
 }
 
-impl<S, A, PreviewFn, ReviewFn> std::fmt::Debug for Prism<S, A, PreviewFn, ReviewFn>
+impl<S, A, PreviewFn, ReviewFn> core::fmt::Debug for Prism<S, A, PreviewFn, ReviewFn>
 where
     PreviewFn: Fn(&S) -> Option<A>,
     ReviewFn: Fn(A) -> S,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Prism").finish_non_exhaustive()
     }
 }
@@ -715,9 +715,10 @@ where
 
 #[cfg(test)]
 mod unit_tests {
+    use alloc::{boxed::Box, collections::BTreeMap, format, string::String};
+
     use super::Prism;
     use crate::datatypes::lens::Lens;
-    use std::collections::HashMap;
 
     #[derive(Clone, Debug, PartialEq)]
     enum Status {
@@ -801,7 +802,7 @@ mod unit_tests {
         enum ConfigValue {
             Integer(i64),
             String(String),
-            Dictionary(HashMap<String, ConfigValue>),
+            Dictionary(BTreeMap<String, ConfigValue>),
         }
         let dict = Prism::new(
             |value: &ConfigValue| match value {
@@ -810,7 +811,7 @@ mod unit_tests {
             },
             ConfigValue::Dictionary,
         );
-        let mut values = HashMap::new();
+        let mut values = BTreeMap::new();
         values.insert("name".into(), ConfigValue::String("Alice".into()));
         values.insert("age".into(), ConfigValue::Integer(30));
         let mut updated_values = values.clone();
@@ -897,11 +898,8 @@ mod unit_tests {
 
     #[test]
     fn prism_is_send_and_sync() {
-        fn assert_send<T: Send>() {}
-        fn assert_sync<T: Sync>() {}
-
-        assert_send::<Prism<Status, String, fn(&Status) -> Option<String>, fn(String) -> Status>>();
-        assert_sync::<Prism<Status, String, fn(&Status) -> Option<String>, fn(String) -> Status>>();
+        fn assert_send<T: Send>(_val: &T) {}
+        fn assert_sync<T: Sync>(_val: &T) {}
 
         let prism = Prism::new(
             |s: &Status| match s {
@@ -910,11 +908,9 @@ mod unit_tests {
             },
             Status::Active,
         );
-        let handle = std::thread::spawn(move || {
-            let s = Status::Active("ThreadSafe".into());
-            prism.preview(&s)
-        });
-        assert_eq!(handle.join().unwrap(), Some("ThreadSafe".into()));
+
+        assert_send(&prism);
+        assert_sync(&prism);
     }
 
     #[derive(Clone, Debug, PartialEq)]

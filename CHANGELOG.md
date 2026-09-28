@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [0.20.0]
+
+### Changed
+
+- **`no_std` Support**: Unconditional `#![no_std]` with `extern crate alloc`. Replaced internal `std::` paths with `core::` and `alloc::`. Direct zero-config interop with both `std` and `no_std` targets.
+
+### Removed
+
+- **Deprecated Aliases (Breaking)**: Removed `fmap`, `bind`, `flat_map` across all datatypes (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`), `Lens::fmap` (use `Lens::iso_map`), `Choice::{flatten_cloned, try_flatten_cloned}`, and `Validated::to_option`.
+- **`async` Feature & Combinators (Breaking)**: Removed `async` feature, `Validated::{map_async, map_err_async, and_then_async}`, and `tokio` dev-dependency. Use native `match` / `async`/`await`.
+- **`HashMap` / `HashSet` Semigroup (Breaking)**: Removed `Semigroup for HashMap` and `Semigroup for HashSet` for pure `no_std` compliance. Migrate to `BTreeMap` / `BTreeSet` or local wrappers (see [`MIGRATION_v0.20.0.md`](MIGRATION_v0.20.0.md)).
+
 ## [0.19.0]
 
 ### Added

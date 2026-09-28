@@ -17,7 +17,7 @@
 //! assert!(result.is_err());
 //! ```
 
-use std::fmt::{Debug, Display};
+use core::fmt::{Debug, Display};
 
 /// Creates a lazy error context that is only evaluated when an error occurs.
 ///
@@ -33,6 +33,11 @@ macro_rules! context {
         $crate::error::LazyContext::new(move || format!($($arg)*))
     };
 }
+
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 pub use crate::context;
 
@@ -104,7 +109,7 @@ impl<E> ContextError<E> {
 
     /// Returns an iterator over context entries, most recent first.
     #[inline]
-    pub fn context_iter(&self) -> std::slice::Iter<'_, String> {
+    pub fn context_iter(&self) -> core::slice::Iter<'_, String> {
         self.context.iter()
     }
 
@@ -138,9 +143,9 @@ impl<E> ContextError<E> {
     }
 
     /// Writes the error chain directly to a formatter or writer.
-    pub(crate) fn write_chain<W>(&self, out: &mut W) -> std::fmt::Result
+    pub(crate) fn write_chain<W>(&self, out: &mut W) -> core::fmt::Result
     where
-        W: std::fmt::Write,
+        W: core::fmt::Write,
         E: Display,
     {
         for (i, ctx) in self.context.iter().enumerate() {
@@ -159,13 +164,13 @@ impl<E> ContextError<E> {
 }
 
 impl<E: Display> Display for ContextError<E> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.write_chain(f)
     }
 }
 
-impl<E: Debug + Display + std::error::Error + 'static> std::error::Error for ContextError<E> {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl<E: Debug + Display + core::error::Error + 'static> core::error::Error for ContextError<E> {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         Some(&self.error)
     }
 }
@@ -281,6 +286,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec;
 
     #[test]
     fn accumulate_context_preserves_all_entries() {

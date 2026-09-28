@@ -32,9 +32,12 @@
 //! - `combine` chains another choice's values after the current alternatives.
 
 #[cfg(any(test, feature = "quickcheck"))]
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use core::fmt::{Debug, Display, Formatter};
+use core::hash::Hash;
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
-use std::fmt::{Debug, Display, Formatter};
-use std::hash::Hash;
 
 use crate::datatypes::validated::Validated;
 use crate::prelude::traits::*;
@@ -70,7 +73,7 @@ impl ChoiceError {
 }
 
 impl Display for ChoiceError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             ChoiceError::EmptyFlatten => {
                 write!(
@@ -83,7 +86,7 @@ impl Display for ChoiceError {
     }
 }
 
-impl std::error::Error for ChoiceError {}
+impl core::error::Error for ChoiceError {}
 
 /// A statically non-empty collection with priority and fallback semantics.
 ///
@@ -183,7 +186,7 @@ impl<T> Choice<T> {
     /// Returns an iterator over all values (primary first, followed by alternatives).
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &T> {
-        std::iter::once(&self.primary).chain(self.alternatives.iter())
+        core::iter::once(&self.primary).chain(self.alternatives.iter())
     }
 
     /// Safely flattens a `Choice` of iterable items by consuming it.
@@ -316,24 +319,24 @@ impl<T> Choice<Option<T>> {
 
 impl<'a, T> IntoIterator for &'a Choice<T> {
     type Item = &'a T;
-    type IntoIter = std::iter::Chain<std::iter::Once<&'a T>, std::slice::Iter<'a, T>>;
+    type IntoIter = core::iter::Chain<core::iter::Once<&'a T>, core::slice::Iter<'a, T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        std::iter::once(&self.primary).chain(self.alternatives.iter())
+        core::iter::once(&self.primary).chain(self.alternatives.iter())
     }
 }
 
 impl<T> IntoIterator for Choice<T> {
     type Item = T;
-    type IntoIter = std::iter::Chain<std::iter::Once<T>, std::vec::IntoIter<T>>;
+    type IntoIter = core::iter::Chain<core::iter::Once<T>, alloc::vec::IntoIter<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        std::iter::once(self.primary).chain(self.alternatives)
+        core::iter::once(self.primary).chain(self.alternatives)
     }
 }
 
 impl<T: Display> Display for Choice<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.primary)?;
         let mut alternatives = self.alternatives.iter();
         if let Some(first) = alternatives.next() {
@@ -419,6 +422,9 @@ impl<T: Arbitrary> Arbitrary for Choice<T> {
 mod unit_tests {
     use super::Choice;
     use crate::prelude::*;
+    use alloc::string::ToString;
+    use alloc::vec;
+    use alloc::{format, string::String, vec::Vec};
 
     #[test]
     fn priority_and_transformation_contracts() {
@@ -577,7 +583,7 @@ mod unit_tests {
 
     #[test]
     fn test_choice_stack_size_compactness() {
-        use std::mem::size_of;
+        use core::mem::size_of;
         type Large = [u8; 1024];
         assert!(size_of::<Choice<Large>>() < 1100);
     }
