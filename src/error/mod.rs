@@ -30,8 +30,14 @@ use core::fmt::{Debug, Display};
 #[macro_export]
 macro_rules! context {
     ($($arg:tt)*) => {
-        $crate::error::LazyContext::new(move || format!($($arg)*))
+        $crate::error::LazyContext::new(move || $crate::error::__macro_support::format!($($arg)*))
     };
+}
+
+/// Re-exports used by [`context!`]; not a stable public API.
+#[doc(hidden)]
+pub mod __macro_support {
+    pub use alloc::format;
 }
 
 use alloc::{
@@ -324,6 +330,23 @@ mod tests {
         assert_eq!(s.into_error_context(), "owned");
         assert_eq!(str_literal.into_error_context(), "literal");
         assert_eq!(lazy.into_error_context(), "lazy");
+    }
+
+    #[test]
+    fn context_macro_formats_without_caller_side_format_macro() {
+        // This crate is `#![no_std]`, so `format!` is not in scope here. The exported
+        // macro must resolve formatting through `$crate`, not through the call site.
+        let lazy = crate::context!("value {}", 7);
+        let error = with_context_result::<(), &str, _>(Err("root"), lazy).unwrap_err();
+
+        assert_eq!(error.context(), vec!["value 7".to_string()]);
+    }
+
+    #[test]
+    fn context_macro_defers_formatting_until_error_path() {
+        let lazy = crate::context!("value {}", 7);
+        let ok: Result<(), ContextError<&str>> = with_context_result(Ok(()), lazy);
+        assert!(ok.is_ok());
     }
 
     #[test]
