@@ -18,6 +18,12 @@ Removals, breaking changes, and direct replacement patterns for Rustica 0.20.0.
 | `Validated::to_option` | Removed | `as_option().cloned()` |
 | `async` feature, `Validated::*_async` | Removed | Native `match` / `async`/`await` |
 | `tokio` dev-dependency | Removed | Native test runners |
+| `Validated::recover_all` | Deprecated | `recover_all_at_once`, `recover_with` |
+| `ContextError::context` | Deprecated | `ContextError::to_contexts` |
+| `ContextError::contexts_raw` | Deprecated | `ContextError::contexts` |
+| `ContextError::Display` | Changed | Formats context chain only; root error via `source()` |
+| `Prism::then` | Changed | Requires `Clone` bounds on closures; returns `+ Clone` |
+| `Validated::sequence` | Changed | Accepts generic `IntoIterator<Item = Self>` |
 
 ---
 
@@ -126,3 +132,68 @@ let res = match validated {
     Validated::Invalid(errs) => Validated::Invalid(errs),
 };
 ```
+
+---
+
+## 4. `ContextError` Alignment
+
+### Getter Naming
+
+To align with Rust API naming guidelines, accessors now distinguish borrowed from cloned data:
+
+- `err.contexts()` returns `&[String]` (zero-allocation view; replaces `contexts_raw()`).
+- `err.to_contexts()` returns `Vec<String>` (cloned vector; replaces `context()`).
+
+`err.context()` and `err.contexts_raw()` remain as deprecated shims for 0.20.0.
+
+### `Display` Formatting
+
+`Display` now formats only the accumulated context chain (`ctx1 -> ctx2`), delegating root error presentation to `Error::source()`. Standard error reporters (`anyhow`, `eyre`) traversing `source()` no longer print the root error twice.
+
+When no context entries exist, `Display` falls back to the root error so output is never empty.
+
+---
+
+## 5. `Prism::then` Closure `Clone` Bounds
+
+`Prism::then` now requires `Clone` on input preview/review closures and returns `+ Clone` closures, matching `Lens::then`:
+
+```rust
+// Helper functions creating Prisms used with `.then()` must declare `+ Clone`:
+fn my_prism() -> Prism<S, A, impl Fn(&S) -> Option<A> + Clone, impl Fn(A) -> S + Clone> {
+    Prism::new(|s| ..., |a| ...)
+}
+```
+
+This guarantees that composed prisms can be cloned via `Prism::clone`.
+
+---
+
+## 6. `Validated` Changes
+
+### `recover_all` Deprecation
+
+`Validated::recover_all` is deprecated because short-circuiting on the first recovered error silently discards other unrecovered errors in an applicative error collection.
+
+Migrate to `recover_all_at_once` (to inspect all errors together) or `recover_with` (for fallback values):
+
+```rust
+// Before (0.19.0)
+let recovered = invalid.recover_all(|e| match e { ... });
+
+// After (0.20.0): batch recovery
+let recovered = invalid.recover_all_at_once(|errs| {
+    if errs.iter().all(|e| is_recoverable(e)) {
+        Validated::valid(default_val)
+    } else {
+        Validated::invalid_many(errs)
+    }
+});
+
+// Or simple fallback:
+let recovered = invalid.recover_with(default_val);
+```
+
+### `sequence` Input Relaxation
+
+`Validated::sequence` now accepts any `IntoIterator<Item = Validated<T, E>>` instead of requiring an allocated `Vec`. Existing call sites passing `Vec` continue to compile without change.

@@ -23,8 +23,12 @@ enum AppNotification {
     SystemAlert(String),
 }
 
-const fn running_progress_prism()
--> Prism<TaskStatus, u8, impl Fn(&TaskStatus) -> Option<u8>, impl Fn(u8) -> TaskStatus> {
+const fn running_progress_prism() -> Prism<
+    TaskStatus,
+    u8,
+    impl Fn(&TaskStatus) -> Option<u8> + Clone,
+    impl Fn(u8) -> TaskStatus + Clone,
+> {
     Prism::new(
         |status: &TaskStatus| match status {
             TaskStatus::Running { progress } => Some(*progress),
@@ -34,9 +38,12 @@ const fn running_progress_prism()
     )
 }
 
-const fn completed_result_prism()
--> Prism<TaskStatus, String, impl Fn(&TaskStatus) -> Option<String>, impl Fn(String) -> TaskStatus>
-{
+const fn completed_result_prism() -> Prism<
+    TaskStatus,
+    String,
+    impl Fn(&TaskStatus) -> Option<String> + Clone,
+    impl Fn(String) -> TaskStatus + Clone,
+> {
     Prism::new(
         |status: &TaskStatus| match status {
             TaskStatus::Completed(res) => Some(res.clone()),
@@ -49,8 +56,8 @@ const fn completed_result_prism()
 const fn notification_task_prism() -> Prism<
     AppNotification,
     TaskStatus,
-    impl Fn(&AppNotification) -> Option<TaskStatus>,
-    impl Fn(TaskStatus) -> AppNotification,
+    impl Fn(&AppNotification) -> Option<TaskStatus> + Clone,
+    impl Fn(TaskStatus) -> AppNotification + Clone,
 > {
     Prism::new(
         |notif: &AppNotification| match notif {

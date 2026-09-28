@@ -8,8 +8,12 @@ enum TestStatus {
     Completed(String),
 }
 
-fn active_prism()
--> Prism<TestStatus, i32, impl Fn(&TestStatus) -> Option<i32>, impl Fn(i32) -> TestStatus> {
+fn active_prism() -> Prism<
+    TestStatus,
+    i32,
+    impl Fn(&TestStatus) -> Option<i32> + Clone,
+    impl Fn(i32) -> TestStatus + Clone,
+> {
     Prism::new(
         |s: &TestStatus| match s {
             TestStatus::Active(n) => Some(*n),
@@ -19,9 +23,12 @@ fn active_prism()
     )
 }
 
-fn completed_prism()
--> Prism<TestStatus, String, impl Fn(&TestStatus) -> Option<String>, impl Fn(String) -> TestStatus>
-{
+fn completed_prism() -> Prism<
+    TestStatus,
+    String,
+    impl Fn(&TestStatus) -> Option<String> + Clone,
+    impl Fn(String) -> TestStatus + Clone,
+> {
     Prism::new(
         |s: &TestStatus| match s {
             TestStatus::Completed(msg) => Some(msg.clone()),

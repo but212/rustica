@@ -107,22 +107,39 @@ impl<E> ContextError<E> {
         self.error
     }
 
+    /// Returns a zero-allocation reference to the internal contexts slice (most recent first).
+    #[inline]
+    pub const fn contexts(&self) -> &[String] {
+        self.context.as_slice()
+    }
+
+    /// Returns a cloned vector of contexts (most recent first).
+    #[inline]
+    pub fn to_contexts(&self) -> Vec<String> {
+        self.context.clone()
+    }
+
     /// Returns the accumulated contexts with most recent first.
+    #[deprecated(
+        since = "0.20.0",
+        note = "renamed to `to_contexts()` for Rust API naming conventions"
+    )]
     #[inline]
     pub fn context(&self) -> Vec<String> {
-        self.context.clone()
+        self.to_contexts()
+    }
+
+    /// Returns a reference to the internal contexts slice.
+    #[deprecated(since = "0.20.0", note = "renamed to `contexts()`")]
+    #[inline]
+    pub const fn contexts_raw(&self) -> &[String] {
+        self.contexts()
     }
 
     /// Returns an iterator over context entries, most recent first.
     #[inline]
     pub fn context_iter(&self) -> core::slice::Iter<'_, String> {
         self.context.iter()
-    }
-
-    /// Returns a zero-allocation reference to the internal contexts slice (most recent first).
-    #[inline]
-    pub const fn contexts_raw(&self) -> &[String] {
-        self.context.as_slice()
     }
 
     /// Maps the underlying error to a new type while preserving context.
@@ -154,6 +171,12 @@ impl<E> ContextError<E> {
         W: core::fmt::Write,
         E: Display,
     {
+        if self.context.is_empty() {
+            // No context — fall back to displaying the error directly
+            // so Display is never empty.
+            return write!(out, "{}", self.error);
+        }
+
         for (i, ctx) in self.context.iter().enumerate() {
             if i > 0 {
                 out.write_str(" -> ")?;
@@ -161,11 +184,7 @@ impl<E> ContextError<E> {
             out.write_str(ctx)?;
         }
 
-        if !self.context.is_empty() {
-            out.write_str(" -> ")?;
-        }
-
-        write!(out, "{}", self.error)
+        Ok(())
     }
 }
 

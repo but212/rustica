@@ -2,9 +2,27 @@
 
 ## [0.20.0]
 
+### Added
+
+- **`ContextError` Standard Getters**: Added `ContextError::contexts` (borrowed slice) and `ContextError::to_contexts` (cloned `Vec`) adhering to Rust API naming conventions.
+
 ### Changed
 
 - **`no_std` Support**: Unconditional `#![no_std]` with `extern crate alloc`. Replaced internal `std::` paths with `core::` and `alloc::`. Direct zero-config interop with both `std` and `no_std` targets.
+- **`ContextError::Display` Output**: `Display` formats only the context chain (`ctx1 -> ctx2`), delegating root error presentation to `Error::source()` to prevent double-printing in standard error reporters.
+- **`Prism::then` Closure `Clone` Bounds (Breaking)**: Added `+ Clone` bounds to input functions and returned closures in `Prism::then`, matching `Lens::then` and ensuring composed prisms implement `Clone`.
+- **`Validated::sequence` Collection Input**: Generalized input from `Vec<Self>` to generic `IntoIterator<Item = Self>`.
+
+### Deprecated
+
+- **`Validated::recover_all`**: Deprecated due to semantic conflict with applicative validation (short-circuits on first success, dropping other errors). Use `recover_all_at_once` or `recover_with`.
+- **`ContextError::{context, contexts_raw}`**: Deprecated in favor of `to_contexts()` and `contexts()`.
+
+### Fixed
+
+- **`Validated::collect` Redundant Allocation**: Guarded value accumulator to skip pushing valid items once an invalid result is encountered.
+- **`Validated::recover_all_at_once` Allocation**: Replaced `errors.into_iter().collect()` with direct `errors.into_vec()`.
+- **`Choice::combine` Simplification**: Simplified `Choice::combine` to `self.alternatives.extend(other)` via existing `IntoIterator`.
 
 ### Removed
 

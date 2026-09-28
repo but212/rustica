@@ -301,8 +301,7 @@ impl<T> Choice<T> {
 
 impl<T> Semigroup for Choice<T> {
     fn combine(mut self, other: Self) -> Self {
-        self.alternatives.push(other.primary);
-        self.alternatives.extend(other.alternatives);
+        self.alternatives.extend(other);
         self
     }
 }

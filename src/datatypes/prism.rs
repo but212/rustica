@@ -582,10 +582,12 @@ where
     #[inline]
     pub fn then<B, PreviewFn2, ReviewFn2>(
         self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
-    ) -> Prism<S, B, impl Fn(&S) -> Option<B>, impl Fn(B) -> S>
+    ) -> Prism<S, B, impl Fn(&S) -> Option<B> + Clone, impl Fn(B) -> S + Clone>
     where
-        PreviewFn2: Fn(&A) -> Option<B>,
-        ReviewFn2: Fn(B) -> A,
+        PreviewFn: Clone,
+        ReviewFn: Clone,
+        PreviewFn2: Fn(&A) -> Option<B> + Clone,
+        ReviewFn2: Fn(B) -> A + Clone,
     {
         let preview1 = self.preview;
         let review1 = self.review;
@@ -919,8 +921,12 @@ mod unit_tests {
         None,
     }
 
-    fn tagged_prism()
-    -> Prism<TaggedItem, u32, impl Fn(&TaggedItem) -> Option<u32>, impl Fn(u32) -> TaggedItem> {
+    fn tagged_prism() -> Prism<
+        TaggedItem,
+        u32,
+        impl Fn(&TaggedItem) -> Option<u32> + Clone,
+        impl Fn(u32) -> TaggedItem + Clone,
+    > {
         Prism::new(
             |item: &TaggedItem| match item {
                 TaggedItem::Entry { id, .. } => Some(*id),

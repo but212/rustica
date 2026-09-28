@@ -34,11 +34,11 @@ fn test_context_error_formatting() {
 
     assert_eq!(
         err.error_chain(),
-        "application start failed -> database error -> connection refused"
+        "application start failed -> database error"
     );
     assert_eq!(
         format!("{err}"),
-        "application start failed -> database error -> connection refused"
+        "application start failed -> database error"
     );
 }
 
