@@ -1,0 +1,12 @@
+[book]
+authors = ["but212"]
+language = "en"
+multilingual = false
+src = "docs"
+title = "Rustica Documentation"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "rust"
+git-repository-url = "https://github.com/but212/rustica"
+git-repository-icon = "fa-github"
