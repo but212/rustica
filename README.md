@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/but212/rustica)
 
-Rustica provides zero-cost functional and categorical abstractions for Rust with unconditional `#![no_std]` support.
+Rustica provides zero-cost functional and categorical abstractions.
 
 ## Overview
 
