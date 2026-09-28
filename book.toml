@@ -1,7 +1,6 @@
 [book]
 authors = ["but212"]
 language = "en"
-multilingual = false
 src = "docs"
 title = "Rustica Documentation"
 
