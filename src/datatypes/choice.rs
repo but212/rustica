@@ -32,9 +32,12 @@
 //! - `combine` chains another choice's values after the current alternatives.
 
 #[cfg(any(test, feature = "quickcheck"))]
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use core::fmt::{Debug, Display, Formatter};
+use core::hash::Hash;
+#[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
-use std::fmt::{Debug, Display, Formatter};
-use std::hash::Hash;
 
 use crate::datatypes::validated::Validated;
 use crate::prelude::traits::*;
@@ -70,7 +73,7 @@ impl ChoiceError {
 }
 
 impl Display for ChoiceError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             ChoiceError::EmptyFlatten => {
                 write!(
@@ -83,7 +86,7 @@ impl Display for ChoiceError {
     }
 }
 
-impl std::error::Error for ChoiceError {}
+impl core::error::Error for ChoiceError {}
 
 /// A statically non-empty collection with priority and fallback semantics.
 ///
@@ -183,12 +186,12 @@ impl<T> Choice<T> {
     /// Returns an iterator over all values (primary first, followed by alternatives).
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &T> {
-        std::iter::once(&self.primary).chain(self.alternatives.iter())
+        core::iter::once(&self.primary).chain(self.alternatives.iter())
     }
 
     /// Safely flattens a `Choice` of iterable items by consuming it.
     ///
-    /// Unlike [`Self::try_flatten_cloned`], this consuming version does not require `T: Clone`.
+    /// This consuming version does not require `T: Clone`.
     ///
     /// Items are concatenated in priority order: the first yielded item becomes the new
     /// primary, followed by the primary iterable's remaining items and then the items of
@@ -213,39 +216,14 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Safely flattens a borrowed `Choice` of iterable items by cloning elements.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `.clone().try_flatten()` instead; scheduled for removal in 0.20.0"
-    )]
-    pub fn try_flatten_cloned<I>(&self) -> Result<Choice<I>, ChoiceError>
-    where
-        T: IntoIterator<Item = I> + Clone,
-    {
-        self.clone().try_flatten()
-    }
-
     /// Flattens a `Choice` of iterable items by consuming it, returning `None` if all inner iterables are empty.
     ///
-    /// Unlike [`Self::flatten_cloned`], this consuming version does not require `T: Clone`.
+    /// This consuming version does not require `T: Clone`.
     pub fn flatten<I>(self) -> Option<Choice<I>>
     where
         T: IntoIterator<Item = I>,
     {
         self.try_flatten().ok()
-    }
-
-    /// Flattens a borrowed `Choice` of iterable items by cloning elements, returning `None` if all inner iterables are empty.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `.clone().flatten()` instead; scheduled for removal in 0.20.0"
-    )]
-    pub fn flatten_cloned<I>(&self) -> Option<Choice<I>>
-    where
-        T: IntoIterator<Item = I> + Clone,
-    {
-        #[allow(deprecated)]
-        self.try_flatten_cloned().ok()
     }
 
     /// Tries `f` on each value in priority order (primary first, then alternatives).
@@ -319,21 +297,6 @@ impl<T> Choice<T> {
             alternatives: self.alternatives.into_iter().map(f).collect(),
         }
     }
-
-    /// Functional alias for [`map`](Self::map).
-    ///
-    /// Transforms the primary value and all alternatives preserving priority order.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `map` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn fmap<B, F>(self, f: F) -> Choice<B>
-    where
-        F: FnMut(T) -> B,
-    {
-        self.map(f)
-    }
 }
 
 impl<T> Semigroup for Choice<T> {
@@ -356,24 +319,24 @@ impl<T> Choice<Option<T>> {
 
 impl<'a, T> IntoIterator for &'a Choice<T> {
     type Item = &'a T;
-    type IntoIter = std::iter::Chain<std::iter::Once<&'a T>, std::slice::Iter<'a, T>>;
+    type IntoIter = core::iter::Chain<core::iter::Once<&'a T>, core::slice::Iter<'a, T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        std::iter::once(&self.primary).chain(self.alternatives.iter())
+        core::iter::once(&self.primary).chain(self.alternatives.iter())
     }
 }
 
 impl<T> IntoIterator for Choice<T> {
     type Item = T;
-    type IntoIter = std::iter::Chain<std::iter::Once<T>, std::vec::IntoIter<T>>;
+    type IntoIter = core::iter::Chain<core::iter::Once<T>, alloc::vec::IntoIter<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        std::iter::once(self.primary).chain(self.alternatives)
+        core::iter::once(self.primary).chain(self.alternatives)
     }
 }
 
 impl<T: Display> Display for Choice<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.primary)?;
         let mut alternatives = self.alternatives.iter();
         if let Some(first) = alternatives.next() {
@@ -459,6 +422,9 @@ impl<T: Arbitrary> Arbitrary for Choice<T> {
 mod unit_tests {
     use super::Choice;
     use crate::prelude::*;
+    use alloc::string::ToString;
+    use alloc::vec;
+    use alloc::{format, string::String, vec::Vec};
 
     #[test]
     fn priority_and_transformation_contracts() {
@@ -479,14 +445,10 @@ mod unit_tests {
             vec![1, 2, 3, 4, 5]
         );
 
-        // Inherent map and fmap preserve priority structure
+        // Inherent map preserves priority structure
         let mapped = combined.clone().map(|x| x * 10);
         assert_eq!(*mapped.primary(), 10);
         assert_eq!(mapped.alternatives(), &[20, 30, 40, 50]);
-
-        #[allow(deprecated)]
-        let fmapped = combined.clone().fmap(|x| x * 10);
-        assert_eq!(mapped, fmapped);
 
         // Iterator fold preserves priority order
         let folded = combined.iter().fold(0, |acc, &x| acc * 10 + x);
@@ -602,19 +564,6 @@ mod unit_tests {
     }
 
     #[test]
-    #[allow(deprecated)]
-    fn flatten_cloned_and_try_flatten_cloned() {
-        let nested = Choice::new(vec![1, 2], vec![vec![3, 4]]);
-        let flattened = nested.flatten_cloned().unwrap();
-        assert_eq!(flattened.primary(), &1);
-        assert_eq!(flattened.alternatives(), &[2, 3, 4]);
-
-        let res = nested.try_flatten_cloned().unwrap();
-        assert_eq!(res.primary(), &1);
-        assert_eq!(res.alternatives(), &[2, 3, 4]);
-    }
-
-    #[test]
     fn sequence_is_all_or_nothing() {
         let all_some = Choice::new(Some(1), vec![Some(2), Some(3)]);
         assert_eq!(all_some.sequence(), Some(Choice::new(1, vec![2, 3])));
@@ -634,7 +583,7 @@ mod unit_tests {
 
     #[test]
     fn test_choice_stack_size_compactness() {
-        use std::mem::size_of;
+        use core::mem::size_of;
         type Large = [u8; 1024];
         assert!(size_of::<Choice<Large>>() < 1100);
     }

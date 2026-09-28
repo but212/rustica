@@ -4,7 +4,7 @@
 //! - Viewing, updating, and modifying fields immutably
 //! - Composing lenses to navigate and modify deeply nested structures
 //! - Structural sharing when updates result in identical values
-//! - Bidirectional type mapping (`fmap`)
+//! - Bidirectional type mapping (`iso_map`)
 
 use rustica::datatypes::lens::Lens;
 

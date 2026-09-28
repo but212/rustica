@@ -1,7 +1,7 @@
 use quickcheck_macros::quickcheck;
 use rustica::traits::monoid::Monoid;
 use rustica::traits::semigroup::Semigroup;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 // --- Basic Scalar Laws (String) ---
 
@@ -13,7 +13,7 @@ fn string_monoid_laws(a: String, b: String, c: String) -> bool {
     identity && associativity
 }
 
-// --- Collection Laws (Vec, HashMap, HashSet) ---
+// --- Collection Laws (Vec, BTreeMap, BTreeSet) ---
 
 #[quickcheck]
 fn vec_monoid_laws(a: Vec<i32>, b: Vec<i32>, c: Vec<i32>) -> bool {
@@ -25,17 +25,17 @@ fn vec_monoid_laws(a: Vec<i32>, b: Vec<i32>, c: Vec<i32>) -> bool {
 
 #[test]
 fn test_map_set_merging() {
-    // 1. HashMap: Overlapping keys should combine values
-    let mut a = HashMap::new();
+    // 1. BTreeMap: Overlapping keys should combine values
+    let mut a = BTreeMap::new();
     a.insert("k", "v1".to_string());
-    let mut b = HashMap::new();
+    let mut b = BTreeMap::new();
     b.insert("k", "v2".to_string());
     assert_eq!(a.combine(b).get("k").unwrap(), "v1v2");
 
-    // 2. HashSet: Semigroup combination is Union
-    let mut s1 = HashSet::new();
+    // 2. BTreeSet: Semigroup combination is Union
+    let mut s1 = BTreeSet::new();
     s1.insert(1);
-    let mut s2 = HashSet::new();
+    let mut s2 = BTreeSet::new();
     s2.insert(2);
     let combined = s1.combine(s2);
     assert!(combined.contains(&1) && combined.contains(&2));

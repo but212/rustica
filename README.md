@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/but212/rustica)
 
-Rustica provides functional programming and categorical abstractions for Rust, designed for zero-cost domain modeling where standard library primitives leave gaps.
+Rustica provides zero-cost functional and categorical abstractions for Rust with unconditional `#![no_std]` support.
 
 ## Overview
 
@@ -31,8 +31,8 @@ Add Rustica to `Cargo.toml`:
 ```toml
 [dependencies]
 rustica = "0.19.0"
-# Features:
-# rustica = { version = "0.19.0", features = ["full"] } # async (deprecated in 0.19.0), serde, quickcheck
+# Optional feature bundle:
+# rustica = { version = "0.19.0", features = ["full"] } # serde, quickcheck
 ```
 
 Import common traits and types:
@@ -66,8 +66,9 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
+- [0.20.0 Migration Guide](./MIGRATION_v0.20.0.md): `no_std` migration, removal of deprecated APIs and `HashMap`/`HashSet` Semigroup impls
 - [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
-- [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
+- [0.18.0 Migration Guide](./MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
 - [0.17.0 Migration Guide](./MIGRATION_v0.17.0.md): Deprecation of monad transformers, effect monads, category morphisms, and wrapper types in favor of standard library idioms
 - [0.16.0 Migration Guide](./MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation
 - [0.15.0 Migration Guide](./MIGRATION_v0.15.0.md): RRB tree integrity and panic context

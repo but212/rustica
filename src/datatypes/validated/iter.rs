@@ -1,8 +1,8 @@
 use crate::datatypes::validated::core::{NonEmptyErrors, Validated};
 
-pub type Iter<'a, T> = std::option::IntoIter<&'a T>;
-pub type IterMut<'a, T> = std::option::IntoIter<&'a mut T>;
-pub type IntoIter<T> = std::option::IntoIter<T>;
+pub type Iter<'a, T> = core::option::IntoIter<&'a T>;
+pub type IterMut<'a, T> = core::option::IntoIter<&'a mut T>;
+pub type IntoIter<T> = core::option::IntoIter<T>;
 
 impl<T, E> IntoIterator for Validated<T, E> {
     type Item = T;
@@ -98,13 +98,13 @@ impl<T, E> Validated<T, E> {
 
     /// Returns an iterator over all errors if this is invalid, or an empty iterator if valid.
     #[inline]
-    pub fn iter_errors(&self) -> std::slice::Iter<'_, E> {
+    pub fn iter_errors(&self) -> core::slice::Iter<'_, E> {
         self.error_slice().iter()
     }
 
     /// Returns a mutable iterator over the error(s) (0 or many).
     #[inline]
-    pub fn iter_errors_mut(&mut self) -> std::slice::IterMut<'_, E> {
+    pub fn iter_errors_mut(&mut self) -> core::slice::IterMut<'_, E> {
         match self {
             Validated::Invalid(es) => es.iter_mut(),
             _ => [].iter_mut(),
@@ -124,6 +124,9 @@ impl<T, E> Validated<T, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::string::String;
+    use alloc::vec;
+    use alloc::{string::ToString, vec::Vec};
 
     #[test]
     fn test_valid_iterators() {

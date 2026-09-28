@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
 
@@ -29,21 +31,6 @@ impl<T, E> Validated<T, E> {
             Validated::Valid(x) => Validated::Valid(f(x)),
             Validated::Invalid(es) => Validated::Invalid(es),
         }
-    }
-
-    /// Functional alias for [`map`](Self::map).
-    ///
-    /// Maps a function over the valid value if `Valid`, or returns the `Invalid` value unchanged.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `map` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn fmap<U, F>(self, f: F) -> Validated<U, E>
-    where
-        F: FnMut(T) -> U,
-    {
-        self.map(f)
     }
 
     /// Maps a function over each error value if `Invalid`, or returns the `Valid` value unchanged.
@@ -426,69 +413,12 @@ impl<T, E> Validated<T, E> {
     }
 }
 
-#[cfg(feature = "async")]
-impl<T, E> Validated<T, E> {
-    /// Maps an async function over the valid value, taking ownership.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use native async/await and pattern matching; scheduled for removal in 0.20.0"
-    )]
-    pub async fn map_async<U, F, Fut>(self, f: F) -> Validated<U, E>
-    where
-        F: FnOnce(T) -> Fut,
-        Fut: std::future::Future<Output = U>,
-    {
-        match self {
-            Validated::Valid(x) => {
-                let result = f(x).await;
-                Validated::Valid(result)
-            },
-            Validated::Invalid(e) => Validated::Invalid(e),
-        }
-    }
-
-    /// Maps an async function over the error values, taking ownership.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use native async/await and pattern matching or iteration; scheduled for removal in 0.20.0"
-    )]
-    pub async fn map_err_async<F, G, Fut>(self, f: G) -> Validated<T, F>
-    where
-        G: Fn(E) -> Fut,
-        Fut: std::future::Future<Output = F>,
-    {
-        match self {
-            Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => {
-                let mut results = Vec::with_capacity(es.len());
-                for err in es {
-                    results.push(f(err).await);
-                }
-                Validated::invalid_many(results)
-            },
-        }
-    }
-
-    /// Chains an async validation operation, taking ownership.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use native async/await and pattern matching; scheduled for removal in 0.20.0"
-    )]
-    pub async fn and_then_async<U, F, Fut>(self, f: F) -> Validated<U, E>
-    where
-        F: FnOnce(T) -> Fut,
-        Fut: std::future::Future<Output = Validated<U, E>>,
-    {
-        match self {
-            Validated::Valid(x) => f(x).await,
-            Validated::Invalid(e) => Validated::Invalid(e),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::Validated;
+    use alloc::string::{String, ToString};
+    use alloc::vec::Vec;
+    use alloc::{format, vec};
 
     #[test]
     fn sequence_covers_accumulation_and_empty_input() {
@@ -569,17 +499,6 @@ mod tests {
         let accumulated: Validated<i32, String> =
             invalid.recover_all(|e| Validated::invalid(format!("r:{e}")));
         assert_eq!(accumulated.error_slice(), &["r:e1", "r:e2"]);
-    }
-
-    #[cfg(feature = "async")]
-    #[tokio::test]
-    #[allow(deprecated)]
-    async fn test_map_err_async_sequential() {
-        let invalid: Validated<String, i32> = Validated::invalid_many([1, 2, 3]);
-        let mapped = invalid
-            .map_err_async(|e| async move { format!("err_{}", e * 10) })
-            .await;
-        assert_eq!(mapped.error_slice(), &["err_10", "err_20", "err_30"]);
     }
 
     #[test]

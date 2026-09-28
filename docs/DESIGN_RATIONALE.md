@@ -8,7 +8,7 @@ This document defines the architectural trade-offs and boundary principles gover
 
 Rustica provides functional programming abstractions designed to work with, rather than against, the Rust language model.
 
-Directly porting Haskell-style category-theoretic and monadic patterns into Rust introduces severe structural friction: monomorphized combinator chains inflate compile times, `dyn Fn` traits force heap allocations, and closure environments leak lifetime parameters into public signatures. Rustica rejects dogmatic category theory in favor of zero-cost performance and standard idiom alignment (see §2.6).
+Directly porting Haskell-style category-theoretic and monadic patterns into Rust introduces severe structural friction: `dyn Fn` traits force heap allocations, and closure environments leak lifetime parameters into public signatures. Rustica rejects dogmatic category theory in favor of zero-cost performance and standard idiom alignment (see §2.6).
 
 ### Guiding Principles
 
@@ -25,7 +25,7 @@ Pure functional programming assumes a garbage-collected runtime, pervasive lazin
 | --- | --- | --- |
 | **1. Ownership & Lifetimes** | Affine moves vs. persistent garbage-collected values | Explicit borrowing (`&Context`), exclusive mutation (`&mut S`), amortized buffers |
 | **2. Type System** | GAT simulation vs. native Higher-Kinded Types & currying | Inherent methods, standard closures, concrete generic types |
-| **3. Compilation & Runtime** | Monomorphization explosion vs. `dyn Fn` / No TCO | Zero-cost inline closures, iterative traversal loops |
+| **3. Runtime Constraints** | Dynamic dispatch (`dyn Fn`) / No TCO | Zero-cost inline closures, iterative traversal loops |
 | **4. Syntactic Ergonomics** | Nested closure callbacks vs. native operators | Native `?` error propagation, `async`/`await`, pattern matching |
 | **5. Ecosystem Cohesion** | Bespoke functional wrappers vs. standard vocabulary | Direct interoperability with `Option`, `Result`, `Iterator`, and `Future` |
 
@@ -40,9 +40,9 @@ Pure functional programming assumes a garbage-collected runtime, pervasive lazin
 - **Absence of Higher-Kinded Types (HKT):** Rust lacks first-class type constructors (`F<_>`). While Generic Associated Types (GATs) simulate unary type constructors, multi-parameter transformer stacks break down under verbose turbofish annotations and brittle type inference.
 - **Absence of Currying:** Rust functions have fixed arity. Emulating partial application via manual closure wrapping or combinatorial macros (`lift2`, `lift3`) introduces syntactic clutter without architectural benefit.
 
-### 2.3 Compilation and Runtime Constraints
+### 2.3 Runtime Constraints
 
-- **Monomorphization vs. Dynamic Dispatch:** Deep functional combinator chains force a compromise between compile-time bloat (unique closure monomorphization risking recursive type limits) and runtime penalty (heap-allocated `dyn Fn` vtables).
+- **Dynamic Dispatch and Heap Allocation:** Functional combinator chains often rely on heap-allocated `dyn Fn` vtables to compose closures, incurring runtime allocation overhead.
 - **Absence of Tail Call Optimization (TCO):** Rust does not guarantee TCO. Unbounded monadic recursion (`bind` chains in `IO`, `Free`, or `Cont`) causes runtime stack exhaustion, requiring explicit trampolines or iterative evaluation loops.
 
 ### 2.4 Syntactic Ergonomics and Control Flow

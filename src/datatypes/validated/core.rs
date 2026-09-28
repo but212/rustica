@@ -4,6 +4,8 @@
 //! validation errors, along with its associated methods and helper types.
 
 use crate::traits::semigroup::Semigroup;
+use alloc::vec;
+use alloc::vec::Vec;
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
@@ -71,12 +73,12 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<'_, E> {
+    pub fn iter(&self) -> core::slice::Iter<'_, E> {
         self.0.iter()
     }
 
     #[inline]
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, E> {
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, E> {
         self.0.iter_mut()
     }
 
@@ -105,7 +107,7 @@ impl<E> NonEmptyErrors<E> {
     }
 }
 
-impl<E> std::ops::Deref for NonEmptyErrors<E> {
+impl<E> core::ops::Deref for NonEmptyErrors<E> {
     type Target = [E];
 
     fn deref(&self) -> &Self::Target {
@@ -147,7 +149,7 @@ impl<E> Semigroup for NonEmptyErrors<E> {
 
 impl<E> IntoIterator for NonEmptyErrors<E> {
     type Item = E;
-    type IntoIter = std::vec::IntoIter<E>;
+    type IntoIter = alloc::vec::IntoIter<E>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -266,7 +268,7 @@ impl<T, E> Validated<T, E> {
     #[inline]
     pub fn unwrap(self) -> T
     where
-        E: std::fmt::Debug,
+        E: core::fmt::Debug,
     {
         match self {
             Validated::Valid(value) => value,
@@ -293,7 +295,7 @@ impl<T, E> Validated<T, E> {
     #[inline]
     pub fn unwrap_invalid(self) -> NonEmptyErrors<E>
     where
-        T: std::fmt::Debug,
+        T: core::fmt::Debug,
     {
         match self {
             Validated::Invalid(es) => es,
@@ -320,22 +322,6 @@ impl<T, E> Validated<T, E> {
         match self {
             Validated::Valid(x) => Some(x),
             Validated::Invalid(_) => None,
-        }
-    }
-
-    /// Converts to Option by cloning the inner valid value.
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `as_option().cloned()` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn to_option(&self) -> Option<T>
-    where
-        T: Clone,
-    {
-        match self {
-            Validated::Valid(x) => Some(x.clone()),
-            _ => None,
         }
     }
 
@@ -431,6 +417,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::{String, ToString};
+
     use super::*;
 
     #[test]
@@ -493,12 +481,11 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_option_and_result_conversions() {
         let valid: Validated<i32, &str> = Ok(42).into();
         assert_eq!(valid.as_option(), Some(&42));
         assert_eq!(valid.clone().into_option(), Some(42));
-        assert_eq!(valid.to_option(), Some(42));
+        assert_eq!(valid.as_option().cloned(), Some(42));
         assert_eq!(valid.into_result_first_error(), Ok(42));
 
         let res: Result<i32, &str> = Err("err");

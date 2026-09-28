@@ -1,0 +1,72 @@
+name: Artifact Attestation Generator
+
+on:
+  workflow_call:
+    inputs:
+      tag_name:
+        description: "Release tag name (e.g. v0.19.0)"
+        required: true
+        type: string
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag name (e.g. v0.19.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: attestation-${{ inputs.tag_name || github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  attest:
+    name: Generate and verify artifact attestations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      id-token: write # required for Sigstore keyless signing
+      attestations: write # required to create GitHub artifact attestations
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.tag_name || github.event.release.tag_name || github.ref_name }}
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+
+      - name: Create .crate package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo package --locked --all-features
+          mapfile -t CRATE_FILES < <(find target/package -maxdepth 1 -name "*.crate" -type f -print)
+          if [ "${#CRATE_FILES[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one .crate file, found ${#CRATE_FILES[@]}"
+            printf '  %s\n' "${CRATE_FILES[@]}"
+            exit 1
+          fi
+          mkdir -p release-artifacts
+          cp -- "${CRATE_FILES[0]}" release-artifacts/
+
+      - name: Attest crate artifact
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "release-artifacts/*.crate"
+
+      - name: Verify attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for artifact in release-artifacts/*.crate; do
+            gh attestation verify "$artifact" --owner "$GITHUB_REPOSITORY_OWNER"
+          done

@@ -91,9 +91,10 @@
 //! assert_eq!(result2, 45); // (10 + 5) * 3 = 45
 //! ```
 
-use std::any::Any;
-use std::fmt::{self, Display};
-use std::sync::Arc;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::any::Any;
+use core::fmt::{self, Display};
 
 /// Errors that can occur during [`Free`] evaluation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -135,8 +136,8 @@ impl<E: Display> Display for FreeError<E> {
     }
 }
 
-impl<E: std::error::Error + 'static> std::error::Error for FreeError<E> {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl<E: core::error::Error + 'static> core::error::Error for FreeError<E> {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
             FreeError::Interpreter(e) => Some(e),
             FreeError::TypeMismatch { .. } => None,
@@ -264,7 +265,7 @@ impl<F, A> Free<F, A> {
                 any_val
                     .downcast_ref::<A>()
                     .cloned()
-                    .ok_or_else(std::any::type_name::<A>)
+                    .ok_or_else(core::any::type_name::<A>)
             }),
         ))
     }
@@ -344,22 +345,6 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Functional alias for [`map`](Self::map).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `map` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn fmap<B, Func>(&self, f: Func) -> Free<F, B>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        B: Send + Sync + Clone + 'static,
-        Func: Fn(A) -> B + Send + Sync + 'static,
-    {
-        self.map(f)
-    }
-
     /// Sequences another `Free` computation from the result of this computation.
     ///
     /// If `self` is pure, `f(a)` is evaluated immediately without allocating
@@ -392,38 +377,6 @@ impl<F, A> Free<F, A> {
                 ))
             },
         }
-    }
-
-    /// Alias for [`and_then`](Self::and_then).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `and_then` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn bind<B, Next>(&self, f: Next) -> Free<F, B>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        B: Send + Sync + Clone + 'static,
-        Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
-    {
-        self.and_then(f)
-    }
-
-    /// Alias for [`and_then`](Self::and_then).
-    #[deprecated(
-        since = "0.19.0",
-        note = "use `and_then` instead; scheduled for removal in 0.20.0"
-    )]
-    #[inline]
-    pub fn flat_map<B, Next>(&self, f: Next) -> Free<F, B>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        B: Send + Sync + Clone + 'static,
-        Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
-    {
-        self.and_then(f)
     }
 
     /// Sequences another `Free` computation, discarding the result of the current computation.
@@ -523,7 +476,7 @@ impl<F, A> Free<F, A> {
                             .downcast_ref::<A>()
                             .cloned()
                             .ok_or(FreeError::TypeMismatch {
-                                expected: std::any::type_name::<A>(),
+                                expected: core::any::type_name::<A>(),
                             });
                     },
                 },
@@ -545,7 +498,7 @@ impl<F, A> Free<F, A> {
                             }
                             return any_box.downcast_ref::<A>().cloned().ok_or(
                                 FreeError::TypeMismatch {
-                                    expected: std::any::type_name::<A>(),
+                                    expected: core::any::type_name::<A>(),
                                 },
                             );
                         },
@@ -569,7 +522,7 @@ impl<F, A> Free<F, A> {
         A: Send + Sync + Clone + 'static,
         Interp: FnMut(F) -> AnyValue,
     {
-        match self.run_internal(|cmd| Ok::<_, std::convert::Infallible>(interp(cmd))) {
+        match self.run_internal(|cmd| Ok::<_, core::convert::Infallible>(interp(cmd))) {
             Ok(val) => val,
             Err(FreeError::TypeMismatch { expected }) => {
                 panic!("Free interpretation type mismatch: expected return type {expected}")
@@ -792,6 +745,11 @@ impl<F, A> Drop for Free<F, A> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{
+        format,
+        string::{String, ToString},
+    };
+
     use super::*;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -808,30 +766,6 @@ mod tests {
         assert!(!computation.is_bind());
         assert_eq!(computation.as_pure(), Some(&42));
         assert_eq!(computation.to_pure(), Some(42));
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_fmap() {
-        let computation: Free<TestCmd, i32> = Free::pure(21).fmap(|x| x * 2);
-        assert_eq!(computation.to_pure(), Some(42));
-
-        let mapped: Free<TestCmd, i32> = Free::pure(21).map(|x| x * 2);
-        assert_eq!(mapped.to_pure(), Some(42));
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_bind_sequence() {
-        let computation: Free<TestCmd, i32> = Free::pure(10)
-            .bind(|x| Free::pure(x + 5))
-            .flat_map(|x| Free::pure(x * 2));
-        assert_eq!(computation.to_pure(), Some(30));
-
-        let and_then_comp: Free<TestCmd, i32> = Free::pure(10)
-            .and_then(|x| Free::pure(x + 5))
-            .and_then(|x| Free::pure(x * 2));
-        assert_eq!(and_then_comp.to_pure(), Some(30));
     }
 
     #[test]
@@ -890,7 +824,7 @@ mod tests {
 
     #[test]
     fn test_runtime_type_mismatch_in_pipeline() {
-        use std::sync::atomic::{AtomicU32, Ordering};
+        use core::sync::atomic::{AtomicU32, Ordering};
         let side_effect_count = Arc::new(AtomicU32::new(0));
         let count_clone = Arc::clone(&side_effect_count);
 
@@ -913,7 +847,7 @@ mod tests {
         // Verifies: 2) Error is only detected at runtime when Fetch continuation downcasts AnyValue
         assert!(matches!(
             res,
-            Err(FreeError::TypeMismatch { expected }) if expected == std::any::type_name::<i32>()
+            Err(FreeError::TypeMismatch { expected }) if expected == core::any::type_name::<i32>()
         ));
     }
 
@@ -944,12 +878,11 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_monad_laws() {
         // Left identity: pure(a).bind(f) == f(a)
         let a = 7;
         let f = |x: i32| Free::pure(x * 3);
-        let left: Free<TestCmd, i32> = Free::pure(a).bind(f);
+        let left: Free<TestCmd, i32> = Free::pure(a).and_then(f);
         let right = f(a);
         assert_eq!(left.to_pure(), right.to_pure());
 
@@ -959,7 +892,7 @@ mod tests {
 
         // Right identity: m.bind(pure) == m
         let m: Free<TestCmd, i32> = Free::pure(42);
-        let bound = m.bind(Free::pure);
+        let bound = m.and_then(Free::pure);
         assert_eq!(bound.to_pure(), Some(42));
         assert_eq!(m.and_then(Free::pure).to_pure(), Some(42));
 
@@ -967,8 +900,8 @@ mod tests {
         let g = |x: i32| Free::pure(x + 100);
         let m1: Free<TestCmd, i32> = Free::pure(5);
         let m2: Free<TestCmd, i32> = Free::pure(5);
-        let r1 = m1.bind(f).bind(g);
-        let r2 = m2.bind(move |x| f(x).bind(g));
+        let r1 = m1.and_then(f).and_then(g);
+        let r2 = m2.and_then(move |x| f(x).and_then(g));
         assert_eq!(r1.to_pure(), r2.to_pure());
 
         let r1_and_then = m1.and_then(f).and_then(g);
@@ -1090,7 +1023,7 @@ mod tests {
         drop(q2);
     }
 
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
     #[derive(Debug)]
     struct CloneCountingCmd {
@@ -1192,7 +1125,7 @@ mod tests {
 
     #[test]
     fn test_then_semantic_equivalence() {
-        use std::sync::atomic::{AtomicI32, Ordering};
+        use core::sync::atomic::{AtomicI32, Ordering};
         let p_then = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
             .then(Free::<TestCmd, ()>::suspend(TestCmd::Increment(10)))
             .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
@@ -1426,9 +1359,7 @@ mod tests {
 
     #[test]
     fn test_monad_laws_effectful() {
-        use std::sync::Mutex;
-        let trace1 = Arc::new(Mutex::new(Vec::new()));
-        let t1 = Arc::clone(&trace1);
+        let mut trace1 = Vec::new();
         let f = |x: i32| {
             Free::<TestCmd, ()>::suspend(TestCmd::Increment(x)).and_then(move |_| Free::pure(x * 2))
         };
@@ -1441,26 +1372,25 @@ mod tests {
         let r_left = left.run(|cmd| match cmd {
             TestCmd::Increment(n) => {
                 c1 += n;
-                t1.lock().unwrap().push(format!("inc({n})"));
+                trace1.push(format!("inc({n})"));
                 any_value(())
             },
             TestCmd::Fetch => any_value(c1),
         });
 
-        let trace2 = Arc::new(Mutex::new(Vec::new()));
-        let t2 = Arc::clone(&trace2);
+        let mut trace2 = Vec::new();
         let mut c2 = 0;
         let r_right = right.run(|cmd| match cmd {
             TestCmd::Increment(n) => {
                 c2 += n;
-                t2.lock().unwrap().push(format!("inc({n})"));
+                trace2.push(format!("inc({n})"));
                 any_value(())
             },
             TestCmd::Fetch => any_value(c2),
         });
 
         assert_eq!(r_left, r_right);
-        assert_eq!(*trace1.lock().unwrap(), *trace2.lock().unwrap());
+        assert_eq!(trace1, trace2);
     }
 
     #[test]

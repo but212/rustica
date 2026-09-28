@@ -116,7 +116,6 @@ Boolean inspection methods always borrow via `&self`:
 
 - Structural transforms prefer **consuming `self`** to avoid forcing `T: Clone`:
   - Primary (consuming): `fn flatten<I>(self) -> Option<Self::Output<I>> where T: IntoIterator<Item = I>`
-  - Borrowed companion: `fn flatten_cloned<I>(&self) -> ... where T: Clone`
   - Primary (consuming): `fn filter<F>(self, predicate: F) -> Option<Self>`
   - Borrowed companion: `fn filter_values<F>(&self, predicate: F) -> ... where T: Clone`
 

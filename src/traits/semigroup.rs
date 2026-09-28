@@ -15,8 +15,9 @@
 //! assert_eq!(combined, vec![1, 2, 3, 4]);
 //! ```
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::hash::Hash;
+use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::string::String;
+use alloc::vec::Vec;
 
 /// A trait for semigroups, which are algebraic structures with an associative binary operation.
 /// A semigroup consists of a set together with a binary operation that combines two elements
@@ -71,31 +72,6 @@ impl Semigroup for String {
 }
 
 impl<T> Semigroup for Vec<T> {
-    #[inline]
-    fn combine(mut self, other: Self) -> Self {
-        self.extend(other);
-        self
-    }
-}
-
-impl<K: Eq + Hash, V: Semigroup> Semigroup for HashMap<K, V> {
-    #[inline]
-    fn combine(mut self, other: Self) -> Self {
-        for (k, v) in other {
-            match self.remove(&k) {
-                Some(existing) => {
-                    self.insert(k, existing.combine(v));
-                },
-                None => {
-                    self.insert(k, v);
-                },
-            }
-        }
-        self
-    }
-}
-
-impl<T: Eq + Hash> Semigroup for HashSet<T> {
     #[inline]
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
@@ -176,6 +152,8 @@ impl<T: Semigroup> Semigroup for Option<T> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{borrow::ToOwned, vec::Vec};
+
     use super::Semigroup;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
