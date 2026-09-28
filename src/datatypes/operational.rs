@@ -17,10 +17,10 @@
 //!
 //! - Use [`Free`](crate::datatypes::free::Free) for an inspectable, cloneable DSL AST that can be
 //!   transformed, analyzed across multiple passes, or evaluated across threads or backends. Backed by
-//!   [`Arc`](std::sync::Arc), `Free` is first-class and maintained for concurrent or AST-centric architectures.
+//!   [`Arc`](alloc::sync::Arc), `Free` is first-class and maintained for concurrent or AST-centric architectures.
 //! - Use [`Program`] / [`TryProgram`] for ownership-driven ([`Box`]), single-threaded operational execution
 //!   pipelines. Without `Send + Sync` constraints, it seamlessly supports local state types such as
-//!   [`Rc`](std::rc::Rc) and [`RefCell`](std::cell::RefCell) while checking command outputs against handler
+//!   [`Rc`](alloc::rc::Rc) and [`RefCell`](core::cell::RefCell) while checking command outputs against handler
 //!   signatures at compile time.
 //!
 //! ## Example
