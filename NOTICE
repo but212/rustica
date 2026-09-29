@@ -25,14 +25,8 @@ compliance reviews explicit.
 
 MIT OR Apache-2.0
 
-- smallvec
 - serde
 - serde_json
-- criterion
-
-MIT
-
-- tokio
 
 Unlicense OR MIT
 
@@ -47,12 +41,6 @@ terms covering these crates are already provided in the LICENSE file.
 
 quickcheck:
 Copyright (c) 2015 Andrew Gallant
-
-tokio:
-Copyright (c) Tokio Contributors
-
-smallvec:
-Copyright (c) 2018 The Servo Project Developers
 
 MIT License
 
