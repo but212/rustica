@@ -66,13 +66,13 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
-- [0.20.0 Migration Guide](./MIGRATION_v0.20.0.md): `no_std` migration, removal of deprecated APIs and `HashMap`/`HashSet` Semigroup impls
-- [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
-- [0.18.0 Migration Guide](./MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
-- [0.17.0 Migration Guide](./MIGRATION_v0.17.0.md): Deprecation of monad transformers, effect monads, category morphisms, and wrapper types in favor of standard library idioms
-- [0.16.0 Migration Guide](./MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation
-- [0.15.0 Migration Guide](./MIGRATION_v0.15.0.md): RRB tree integrity and panic context
-- [0.14.0 Migration Guide](./MIGRATION_v0.14.0.md): Surface reduction and compile-time base monad enforcement
+- [0.20.0 Migration Guide](./docs/migration/MIGRATION_v0.20.0.md): `no_std` migration, removal of deprecated APIs and `HashMap`/`HashSet` Semigroup impls
+- [0.19.0 Migration Guide](./docs/migration/MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
+- [0.18.0 Migration Guide](./docs/migration/MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
+- [0.17.0 Migration Guide](./docs/migration/MIGRATION_v0.17.0.md): Deprecation of monad transformers, effect monads, category morphisms, and wrapper types in favor of standard library idioms
+- [0.16.0 Migration Guide](./docs/migration/MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation
+- [0.15.0 Migration Guide](./docs/migration/MIGRATION_v0.15.0.md): RRB tree integrity and panic context
+- [0.14.0 Migration Guide](./docs/migration/MIGRATION_v0.14.0.md): Surface reduction and compile-time base monad enforcement
 
 ---
 
