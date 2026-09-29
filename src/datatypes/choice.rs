@@ -172,6 +172,11 @@ impl<T> Choice<T> {
             self.alternatives.retain(predicate);
             Some(self)
         } else {
+            // `position` evaluates `alternatives[..=idx]` and stops at the first match.
+            // Removing the match and draining everything before it discards exactly the
+            // already-visited prefix, so the `retain` below only touches unvisited elements
+            // and the predicate still runs exactly once per value (same as the branch above).
+            // Reordering these three steps silently double-evaluates the prefix.
             let idx = self.alternatives.iter().position(&mut predicate)?;
             let primary = self.alternatives.remove(idx);
             self.alternatives.drain(..idx);
@@ -424,6 +429,7 @@ mod unit_tests {
     use alloc::string::ToString;
     use alloc::vec;
     use alloc::{format, string::String, vec::Vec};
+    use quickcheck_macros::quickcheck;
 
     #[test]
     fn priority_and_transformation_contracts() {
@@ -452,6 +458,34 @@ mod unit_tests {
         // Iterator fold preserves priority order
         let folded = combined.iter().fold(0, |acc, &x| acc * 10 + x);
         assert_eq!(folded, 12345);
+    }
+
+    /// `Choice<T>` implements `Semigroup` but not `Monoid`: there is no identity, because
+    /// appending an empty alternatives list is not representable. So associativity is the
+    /// only law available here.
+    ///
+    /// Living in the crate's own `cfg(test)` module means the library's
+    /// `impl Arbitrary for Choice` is compiled in, so this runs in every CI leg rather than
+    /// only under `--features quickcheck`.
+    #[quickcheck]
+    fn choice_semigroup_associativity(a: Choice<i32>, b: Choice<i32>, c: Choice<i32>) -> bool {
+        a.clone().combine(b.clone()).combine(c.clone()) == a.combine(b.combine(c))
+    }
+
+    #[test]
+    fn choice_combine_handles_empty_alternatives() {
+        let single = Choice::single(0);
+
+        // A primary-only operand must not be dropped, and must land after the alternatives
+        // it is combined with.
+        assert_eq!(
+            single.clone().combine(Choice::single(1)),
+            Choice::new(0, vec![1])
+        );
+        assert_eq!(
+            Choice::new(0, vec![2]).combine(single),
+            Choice::new(0, vec![2, 0])
+        );
     }
 
     #[test]
