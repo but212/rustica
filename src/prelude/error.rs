@@ -15,7 +15,10 @@
 //!
 //! let result = with_context_result(fallible(), "while running example");
 //! assert!(result.is_err());
-//! assert_eq!(result.unwrap_err().context(), vec!["while running example".to_string()]);
+//! assert_eq!(
+//!     result.unwrap_err().contexts(),
+//!     ["while running example"].as_slice()
+//! );
 //! ```
 
 pub use crate::context;

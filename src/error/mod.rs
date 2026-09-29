@@ -311,7 +311,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::vec;
 
     #[test]
     fn accumulate_context_preserves_all_entries() {
@@ -320,9 +319,9 @@ mod tests {
             ["step 1 failed", "step 2 failed", "operation failed"],
         );
 
-        assert_eq!(error.context().len(), 3);
-        assert_eq!(error.context()[0], "operation failed");
-        assert_eq!(error.contexts_raw(), error.context().as_slice());
+        assert_eq!(error.contexts().len(), 3);
+        assert_eq!(error.contexts()[0], "operation failed");
+        assert_eq!(error.contexts(), error.to_contexts().as_slice());
     }
 
     #[test]
@@ -332,10 +331,10 @@ mod tests {
         let first = accumulator("connection timeout");
         let second = accumulator("query failed");
 
-        assert_eq!(first.context().len(), 2);
-        assert_eq!(second.context().len(), 2);
-        assert_eq!(first.context(), second.context());
-        assert_eq!(first.context()[0], "user operation failed");
+        assert_eq!(first.contexts().len(), 2);
+        assert_eq!(second.contexts().len(), 2);
+        assert_eq!(first.contexts(), second.contexts());
+        assert_eq!(first.contexts()[0], "user operation failed");
     }
 
     #[test]
@@ -358,7 +357,7 @@ mod tests {
         let lazy = crate::context!("value {}", 7);
         let error = with_context_result::<(), &str, _>(Err("root"), lazy).unwrap_err();
 
-        assert_eq!(error.context(), vec!["value 7".to_string()]);
+        assert_eq!(error.contexts(), ["value 7"].as_slice());
     }
 
     #[test]
@@ -373,13 +372,13 @@ mod tests {
         let attach = context_fn("step failed");
         let err = attach("io timeout");
         assert_eq!(err.error(), &"io timeout");
-        assert_eq!(err.context(), vec!["step failed".to_string()]);
+        assert_eq!(err.contexts(), ["step failed"].as_slice());
     }
 
     #[test]
     fn test_const_fn_capability() {
         const fn inspect_error<E>(err: &ContextError<E>) -> (&E, &[String]) {
-            (err.error(), err.contexts_raw())
+            (err.error(), err.contexts())
         }
 
         let err = ContextError::new("root error");

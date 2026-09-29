@@ -23,6 +23,7 @@
 - **`Validated::collect` Redundant Allocation**: Guarded value accumulator to skip pushing valid items once an invalid result is encountered.
 - **`Validated::recover_all_at_once` Allocation**: Replaced `errors.into_iter().collect()` with direct `errors.into_vec()`.
 - **`Choice::combine` Simplification**: Simplified `Choice::combine` to `self.alternatives.extend(other)` via existing `IntoIterator`.
+- **Prelude Error Example**: The `prelude::error` quick-start example asserted against the deprecated `ContextError::context()`; it now uses the zero-allocation `ContextError::contexts()`.
 
 ### Removed
 

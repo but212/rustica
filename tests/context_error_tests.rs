@@ -18,8 +18,8 @@ fn test_context_error_stack() {
 
     assert_eq!(*err.error(), "db connection failed");
     assert_eq!(
-        err.context(),
-        vec!["user lookup failed".to_string(), "query failed".to_string()]
+        err.contexts(),
+        ["user lookup failed", "query failed"].as_slice()
     );
 
     let collected: Vec<_> = err.context_iter().map(String::as_str).collect();
@@ -78,7 +78,7 @@ fn test_lazy_context_evaluation_on_error() {
     match res {
         Err(err) => {
             assert_eq!(*err.error(), "underlying error");
-            assert_eq!(err.context(), vec!["Context evaluated: yes".to_string()]);
+            assert_eq!(err.contexts(), ["Context evaluated: yes"].as_slice());
         },
         Ok(_) => panic!("expected error"),
     }
@@ -88,17 +88,14 @@ fn test_lazy_context_evaluation_on_error() {
 fn test_with_context_and_accumulate() {
     let err = with_context("disk full", "save document");
     assert_eq!(*err.error(), "disk full");
-    assert_eq!(err.context(), vec!["save document".to_string()]);
+    assert_eq!(err.contexts(), ["save document"].as_slice());
 
     let accumulated =
         accumulate_context("network timeout", ["attempt 1 failed", "attempt 2 failed"]);
     assert_eq!(*accumulated.error(), "network timeout");
     assert_eq!(
-        accumulated.context(),
-        vec![
-            "attempt 2 failed".to_string(),
-            "attempt 1 failed".to_string()
-        ]
+        accumulated.contexts(),
+        ["attempt 2 failed", "attempt 1 failed"].as_slice()
     );
 }
 
@@ -107,11 +104,11 @@ fn test_context_error_map_error_and_from() {
     let err = ContextError::new(404).with_context("not found");
     let mapped = err.map_error(|code| format!("HTTP {code}"));
     assert_eq!(mapped.error(), "HTTP 404");
-    assert_eq!(mapped.context(), vec!["not found".to_string()]);
+    assert_eq!(mapped.contexts(), ["not found"].as_slice());
 
     let from_err: ContextError<&str> = "raw error".into();
     assert_eq!(*from_err.error(), "raw error");
-    assert!(from_err.context().is_empty());
+    assert!(from_err.contexts().is_empty());
 }
 
 #[test]
@@ -127,37 +124,20 @@ fn test_context_error_source_chain() {
 }
 
 #[test]
-fn test_context_error_raw_slice() {
+fn test_context_error_contexts_slice() {
     let err = ContextError::new("core")
         .with_context("first")
         .with_context("second");
 
-    assert_eq!(
-        err.contexts_raw(),
-        &["second".to_string(), "first".to_string()]
-    );
-    assert_eq!(
-        err.context(),
-        vec!["second".to_string(), "first".to_string()]
-    );
+    assert_eq!(err.contexts(), ["second", "first"].as_slice());
 }
 
 #[test]
 fn test_with_contexts_heterogeneous_and_ref_string() {
     let err = ContextError::new("core").with_contexts(["step 1", "step 2"]);
-    assert_eq!(
-        err.contexts_raw(),
-        &["step 2".to_string(), "step 1".to_string()]
-    );
+    assert_eq!(err.contexts(), ["step 2", "step 1"].as_slice());
 
     let owned = String::from("by ref");
     let err2 = err.with_context(&owned);
-    assert_eq!(
-        err2.contexts_raw(),
-        &[
-            "by ref".to_string(),
-            "step 2".to_string(),
-            "step 1".to_string()
-        ]
-    );
+    assert_eq!(err2.contexts(), ["by ref", "step 2", "step 1"].as_slice());
 }
