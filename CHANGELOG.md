@@ -20,6 +20,8 @@
 
 ### Fixed
 
+- **`Free::run` Command Move Optimization**: Passed owned commands directly to interpreter closures (`interp(cmd)`), eliminating redundant per-step clones on uniquely owned AST nodes.
+- **Benchmark Suite Harness & Profiling**: Added cumulative heap allocation delta tracking (`bench_memory`) across `Free`, `Operational`, and `MonadComparison`; migrated benchmark depth arrays to `static` storage to satisfy CI quality gates; removed obsolete `SmallVec` 4/5-split benchmarks from `Validated`.
 - **`Validated::collect` Redundant Allocation**: Guarded value accumulator to skip pushing valid items once an invalid result is encountered.
 - **`Validated::recover_all_at_once` Allocation**: Replaced `errors.into_iter().collect()` with direct `errors.into_vec()`.
 - **`Choice::combine` Simplification**: Simplified `Choice::combine` to `self.alternatives.extend(other)` via existing `IntoIterator`.

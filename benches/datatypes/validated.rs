@@ -5,43 +5,6 @@ use std::hint::black_box;
 pub fn validated_benchmarks(harness: &Harness) {
     let mut group = harness.benchmark_group("Validated");
 
-    // Four errors fit inline; five require heap storage.
-    for error_count in [4, 5] {
-        let name = format!("invalid_many/{error_count}");
-        group.bench_batched(
-            &name,
-            || {
-                (0..error_count)
-                    .map(|index| format!("error_{index}"))
-                    .collect::<Vec<_>>()
-            },
-            |errors| {
-                black_box(Validated::<i32, String>::invalid_many(std::mem::take(
-                    errors,
-                )));
-            },
-        );
-
-        let name = format!("combine_errors/{error_count}");
-        group.bench_batched(
-            &name,
-            || {
-                let left_count = 2;
-                let right_count = error_count - left_count;
-                let left = Validated::<i32, String>::invalid_many(
-                    (0..left_count).map(|index| format!("left_err_{index}")),
-                );
-                let right = Validated::<i32, String>::invalid_many(
-                    (0..right_count).map(|index| format!("right_err_{index}")),
-                );
-                (left, right)
-            },
-            |(left, right)| {
-                black_box(left.clone().combine_errors(right.clone()));
-            },
-        );
-    }
-
     group.bench_fn("validated_map", || {
         let value = Validated::<i32, String>::valid(42);
         black_box(value.map(|value| value + 1));

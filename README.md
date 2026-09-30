@@ -6,21 +6,15 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/but212/rustica)
 
-Rustica provides zero-cost functional and categorical abstractions.
+Rustica provides zero-cost functional abstractions for idiomatic Rust.
 
 ## Overview
 
-### Recommended Use Cases
-
-- **Domain Modeling**: Precise state representation via algebraic types (`Choice`, `Validated`).
-- **Validation**: Multi-error accumulation without early return (`Validated`).
-- **Domain DSLs**: AST construction (`Free`) or statically typed command dispatch (`Program` / `TryProgram`).
-- **Optics**: Ergonomic immutable access and transformation for complex structs and enums (`Lens`, `Prism`).
-
-Architecture and conventions:
-
-- **Design Philosophy**: Architectural trade-offs and boundary guidelines ([docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md)).
-- **API Guidelines**: Naming, receiver standards, and ownership conventions ([docs/API_GUIDELINES.md](docs/API_GUIDELINES.md)).
+- **Domain Modeling & Validation**: Multi-error accumulation (`Validated`) and prioritized fallback execution (`Choice`).
+- **Interpreter ASTs**: Free monad computation graphs (`Free`) and statically typed operational dispatch (`Program` / `TryProgram`).
+- **Optics**: Composable inspection and modification for product and sum types (`Lens`, `Prism`).
+- **Architectural Trade-offs**: Design rationale and boundaries in [docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md).
+- **Conventions & Standards**: Receiver and naming conventions in [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md).
 
 ---
 

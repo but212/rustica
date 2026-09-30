@@ -29,15 +29,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// A global tracking allocator to measure heap memory allocations.
 pub struct TrackingAllocator;
 static CURRENT_ALLOCATED: AtomicUsize = AtomicUsize::new(0);
+static TOTAL_ALLOCATED: AtomicUsize = AtomicUsize::new(0);
 
 unsafe impl GlobalAlloc for TrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        CURRENT_ALLOCATED.fetch_add(layout.size(), Ordering::SeqCst);
+        CURRENT_ALLOCATED.fetch_add(layout.size(), Ordering::Relaxed);
+        TOTAL_ALLOCATED.fetch_add(layout.size(), Ordering::Relaxed);
         unsafe { System.alloc(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        CURRENT_ALLOCATED.fetch_sub(layout.size(), Ordering::SeqCst);
+        CURRENT_ALLOCATED.fetch_sub(layout.size(), Ordering::Relaxed);
         unsafe { System.dealloc(ptr, layout) }
     }
 }
@@ -45,7 +47,13 @@ unsafe impl GlobalAlloc for TrackingAllocator {
 /// Returns the current number of allocated heap bytes.
 #[must_use]
 pub fn current_allocated_bytes() -> usize {
-    CURRENT_ALLOCATED.load(Ordering::SeqCst)
+    CURRENT_ALLOCATED.load(Ordering::Relaxed)
+}
+
+/// Returns the cumulative number of allocated heap bytes.
+#[must_use]
+pub fn total_allocated_bytes() -> usize {
+    TOTAL_ALLOCATED.load(Ordering::Relaxed)
 }
 
 /// A collection of benchmark measurements for a single benchmark group.
@@ -191,35 +199,51 @@ impl<'a> BenchGroup<'a> {
         self.report_results(bench_name, &durations);
     }
 
-    fn report_results(&self, bench_name: &str, durations: &[Duration]) {
-        if durations.is_empty() {
-            return;
+    /// Runs a benchmark measuring heap memory allocation delta.
+    pub fn bench_memory<S, I, R>(&mut self, bench_name: &str, mut setup: S, mut routine: R)
+    where
+        S: FnMut() -> I,
+        R: FnMut(&mut I),
+    {
+        for _ in 0..self.warmup_iters {
+            let mut state = setup();
+            routine(&mut state);
+            black_box(state);
         }
 
-        let total: Duration = durations.iter().copied().sum();
-        let count = durations.len() as u32;
-        let mean = total / count;
+        let mut deltas = Vec::with_capacity(self.measure_iters);
+        for _ in 0..self.measure_iters {
+            let mut state = setup();
+            let before = total_allocated_bytes();
+            routine(&mut state);
+            let after = total_allocated_bytes();
+            black_box(&state);
+            deltas.push(after.saturating_sub(before));
+            drop(state);
+        }
 
-        let mut sorted = durations.to_vec();
-        sorted.sort();
+        self.report_memory_results(bench_name, &deltas);
+    }
 
-        let min = sorted[0];
-        let max = sorted[sorted.len() - 1];
-
-        let median = if sorted.len() % 2 == 1 {
-            sorted[sorted.len() / 2]
-        } else {
-            (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2
+    fn report_memory_results(&self, bench_name: &str, deltas: &[usize]) {
+        let Some(stats) = summarize_bytes(deltas) else {
+            return;
         };
 
-        let p95_idx = ((sorted.len() as f64 * 0.95).ceil() as usize)
-            .saturating_sub(1)
-            .min(sorted.len() - 1);
-        let p95 = sorted[p95_idx];
+        println!(
+            "{}/{:<30} ... mean: {:>9} B  median: {:>9} B  p95: {:>9} B  min: {:>9} B  max: {:>9} B  ({} iters)",
+            self.name, bench_name, stats.mean, stats.median, stats.p95, stats.min, stats.max, stats.count
+        );
+    }
+
+    fn report_results(&self, bench_name: &str, durations: &[Duration]) {
+        let Some(stats) = summarize_durations(durations) else {
+            return;
+        };
 
         let throughput_str = match self.throughput {
             Some(Throughput::Elements(elements)) => {
-                let mean_secs = mean.as_secs_f64();
+                let mean_secs = stats.mean.as_secs_f64();
                 if mean_secs > 0.0 {
                     let elem_per_sec = elements as f64 / mean_secs;
                     format!(" [{:.2} M elem/s]", elem_per_sec / 1_000_000.0)
@@ -241,15 +265,91 @@ impl<'a> BenchGroup<'a> {
             "{}/{:<30} ... mean: {:>9?} median: {:>9?} p95: {:>9?} min: {:>9?} max: {:>9?} ({} iters){}",
             self.name,
             bench_name,
-            mean,
-            median,
-            p95,
-            min,
-            max,
-            durations.len(),
+            stats.mean,
+            stats.median,
+            stats.p95,
+            stats.min,
+            stats.max,
+            stats.count,
             throughput_str
         );
     }
+}
+
+/// Statistical summary of benchmark samples.
+#[derive(Debug, Clone, Copy)]
+pub struct Summary<T> {
+    pub mean: T,
+    pub median: T,
+    pub p95: T,
+    pub min: T,
+    pub max: T,
+    pub count: usize,
+}
+
+fn summarize_durations(durations: &[Duration]) -> Option<Summary<Duration>> {
+    if durations.is_empty() {
+        return None;
+    }
+    let count = durations.len();
+    let total: Duration = durations.iter().copied().sum();
+    let mean = total / count as u32;
+
+    let mut sorted = durations.to_vec();
+    sorted.sort();
+
+    let min = sorted[0];
+    let max = sorted[count - 1];
+    let median = if count % 2 == 1 {
+        sorted[count / 2]
+    } else {
+        (sorted[count / 2 - 1] + sorted[count / 2]) / 2
+    };
+    let p95_idx = ((count as f64 * 0.95).ceil() as usize)
+        .saturating_sub(1)
+        .min(count - 1);
+    let p95 = sorted[p95_idx];
+
+    Some(Summary {
+        mean,
+        median,
+        p95,
+        min,
+        max,
+        count,
+    })
+}
+
+fn summarize_bytes(deltas: &[usize]) -> Option<Summary<usize>> {
+    if deltas.is_empty() {
+        return None;
+    }
+    let count = deltas.len();
+    let mean = deltas.iter().sum::<usize>() / count;
+
+    let mut sorted = deltas.to_vec();
+    sorted.sort();
+
+    let min = sorted[0];
+    let max = sorted[count - 1];
+    let median = if count % 2 == 1 {
+        sorted[count / 2]
+    } else {
+        (sorted[count / 2 - 1] + sorted[count / 2]) / 2
+    };
+    let p95_idx = ((count as f64 * 0.95).ceil() as usize)
+        .saturating_sub(1)
+        .min(count - 1);
+    let p95 = sorted[p95_idx];
+
+    Some(Summary {
+        mean,
+        median,
+        p95,
+        min,
+        max,
+        count,
+    })
 }
 
 /// Benchmark harness entry point.
