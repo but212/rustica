@@ -8,7 +8,6 @@ static GLOBAL: TrackingAllocator = TrackingAllocator;
 
 mod datatypes {
     pub mod choice;
-    pub mod composable_error;
     pub mod context_error;
     pub mod free;
     pub mod lens;
@@ -19,7 +18,6 @@ mod datatypes {
 }
 
 use datatypes::choice::choice_benchmarks;
-use datatypes::composable_error::composable_error_benchmarks;
 use datatypes::context_error::context_error_benchmarks;
 use datatypes::free::free_benchmarks;
 use datatypes::lens::lens_benchmarks;
@@ -38,6 +36,5 @@ fn main() {
     operational_benchmarks(&harness);
     choice_benchmarks(&harness);
     monad_comparison_benchmarks(&harness);
-    composable_error_benchmarks(&harness);
     context_error_benchmarks(&harness);
 }

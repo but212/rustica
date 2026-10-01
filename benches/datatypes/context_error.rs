@@ -5,6 +5,36 @@ use std::hint::black_box;
 
 static DEPTH_COUNTS: [usize; 3] = [5, 20, 50];
 
+fn bench_context_operations(group: &mut BenchGroup) {
+    for count in [2, 3, 50] {
+        group.bench_with_input("context_accumulation", &count, |&count| {
+            let mut error = ContextError::new("core error");
+            for index in 0..count {
+                error = error.with_context(context!("context {index}"));
+            }
+            black_box(error);
+        });
+
+        group.bench_with_input("context_iteration", &count, |&count| {
+            let mut error = ContextError::new("core error");
+            for index in 0..count {
+                error = error.with_context(context!("context {index}"));
+            }
+            black_box(error.context_iter().count());
+        });
+    }
+
+    for count in [3, 50] {
+        let mut error = ContextError::new("core error");
+        for index in 0..count {
+            error = error.with_context(context!("context {index}"));
+        }
+        group.bench_with_input("error_chain_formatting", &count, move |_| {
+            black_box(error.error_chain());
+        });
+    }
+}
+
 fn bench_lazy_context(group: &mut BenchGroup) {
     group.bench_fn("happy_path_lazy", || {
         let result: Result<i32, &str> = Ok(black_box(42));
@@ -119,6 +149,7 @@ fn bench_bottlenecks_memory(group: &mut BenchGroup) {
 
 pub fn context_error_benchmarks(harness: &Harness) {
     let mut group = harness.benchmark_group("ContextError");
+    bench_context_operations(&mut group);
     bench_lazy_context(&mut group);
     bench_bottlenecks_timing(&mut group);
     bench_bottlenecks_memory(&mut group);
