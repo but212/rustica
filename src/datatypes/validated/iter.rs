@@ -38,10 +38,7 @@ impl<T, E, C> FromIterator<Validated<T, E>> for Validated<C, E>
 where
     C: FromIterator<T>,
 {
-    /// Collects an iterator of `Validated<T, E>` into `Validated<C, E>`.
-    ///
-    /// If all items are `Valid`, collects all inner values into container `C`.
-    /// If any items are `Invalid`, accumulates all errors across all items in encounter order.
+    /// Collects an iterator into `Validated<C, E>`, accumulating all errors if any are invalid.
     ///
     /// # Examples
     ///
@@ -67,7 +64,7 @@ where
 }
 
 impl<T, E> Validated<T, E> {
-    /// Returns an iterator over the valid value (0 or 1 item).
+    /// Returns an iterator over the valid value.
     #[inline]
     pub fn iter(&self) -> Iter<'_, T> {
         match self {
@@ -76,7 +73,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Returns a mutable iterator over the valid value (0 or 1 item).
+    /// Returns a mutable iterator over the valid value.
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         match self {
@@ -85,9 +82,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Returns a slice view over the accumulated errors without cloning.
-    ///
-    /// When this `Validated` is `Valid`, an empty slice is returned.
+    /// Returns accumulated errors as a slice, or an empty slice if valid.
     #[inline]
     pub const fn error_slice(&self) -> &[E] {
         match self {
@@ -96,13 +91,13 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Returns an iterator over all errors if this is invalid, or an empty iterator if valid.
+    /// Returns an iterator over the errors, or an empty iterator if valid.
     #[inline]
     pub fn iter_errors(&self) -> core::slice::Iter<'_, E> {
         self.error_slice().iter()
     }
 
-    /// Returns a mutable iterator over the error(s) (0 or many).
+    /// Returns a mutable iterator over the errors, or an empty iterator if valid.
     #[inline]
     pub fn iter_errors_mut(&mut self) -> core::slice::IterMut<'_, E> {
         match self {
@@ -111,7 +106,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Returns a reference to the error collection if `Invalid`, otherwise `None`.
+    /// Returns a reference to the errors if invalid, otherwise `None`.
     #[inline]
     pub const fn error_payload(&self) -> Option<&NonEmptyErrors<E>> {
         match self {

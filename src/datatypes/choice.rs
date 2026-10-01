@@ -11,30 +11,24 @@ use quickcheck::{Arbitrary, Gen};
 use crate::datatypes::validated::Validated;
 use crate::prelude::traits::*;
 
-/// Errors that can occur during `Choice<T>` operations.
-///
-/// This enum represents error conditions for [`Choice`]
-/// operations that would otherwise panic.
+/// Errors produced by [`Choice`] operations.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ChoiceError {
-    /// Every inner iterable was empty during a flatten operation.
-    ///
-    /// This error occurs when calling `try_flatten` on a `Choice` where neither the
-    /// primary value nor any alternative produces an item.
+    /// Inner iterables produced no items during [`Choice::try_flatten`].
     EmptyFlatten,
 
-    /// Input contained no values when constructing a `Choice`.
+    /// Input was empty during construction.
     EmptyInput,
 }
 
 impl ChoiceError {
-    /// Returns `true` if this is an `EmptyFlatten` error.
+    /// Returns `true` if this is [`EmptyFlatten`](Self::EmptyFlatten).
     #[inline]
     pub const fn is_empty_flatten(&self) -> bool {
         matches!(self, ChoiceError::EmptyFlatten)
     }
 
-    /// Returns `true` if this is an `EmptyInput` error.
+    /// Returns `true` if this is [`EmptyInput`](Self::EmptyInput).
     #[inline]
     pub const fn is_empty_input(&self) -> bool {
         matches!(self, ChoiceError::EmptyInput)
@@ -59,9 +53,8 @@ impl core::error::Error for ChoiceError {}
 
 /// A statically non-empty collection with priority and fallback semantics.
 ///
-/// `primary` is the preferred value; `alternatives` are ordered fallbacks.
-/// Prefer using [`try_each`](Self::try_each) or `iter().find_map()`
-/// to execute fallback logic in priority order rather than extracting raw values.
+/// `primary` is tried first; `alternatives` are ordered fallbacks.
+/// Prefer [`try_each`](Self::try_each) or `iter().find_map()` over extracting raw values.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Choice<T> {
@@ -70,7 +63,7 @@ pub struct Choice<T> {
 }
 
 impl<T> Choice<T> {
-    /// Creates a new `Choice` with a primary value and a collection of alternatives.
+    /// Creates a `Choice` with a primary value and alternatives.
     #[inline]
     pub fn new<I>(primary: T, alternatives: I) -> Self
     where
@@ -97,25 +90,25 @@ impl<T> Choice<T> {
         &self.primary
     }
 
-    /// Returns a slice containing all alternative values.
+    /// Returns a slice of alternative values.
     #[inline]
     pub const fn alternatives(&self) -> &[T] {
         self.alternatives.as_slice()
     }
 
-    /// Returns the total number of values (1 primary + alternatives count).
+    /// Returns the total number of values (primary plus alternatives).
     #[inline]
     pub const fn len(&self) -> usize {
         1 + self.alternatives.len()
     }
 
-    /// Returns whether the `Choice` is empty. Always `false`.
+    /// Returns `false`; a `Choice` is statically non-empty.
     #[inline]
     pub const fn is_empty(&self) -> bool {
         false
     }
 
-    /// Creates a `Choice` from an iterator if it yields at least one element.
+    /// Creates a `Choice` from an iterator yielding at least one element.
     #[inline]
     pub fn of_many<I>(many: I) -> Option<Self>
     where
@@ -130,9 +123,9 @@ impl<T> Choice<T> {
         })
     }
 
-    /// Filters values in the `Choice` by consuming it. Returns `None` if all values are filtered out.
+    /// Retains values matching `predicate`, consuming `self`.
     ///
-    /// Consumes `self` and does not require `T: Clone`.
+    /// Returns `None` if all values are filtered out. Does not require `T: Clone`.
     pub fn filter<F>(mut self, mut predicate: F) -> Option<Self>
     where
         F: FnMut(&T) -> bool,
@@ -141,11 +134,8 @@ impl<T> Choice<T> {
             self.alternatives.retain(predicate);
             Some(self)
         } else {
-            // `position` evaluates `alternatives[..=idx]` and stops at the first match.
-            // Removing the match and draining everything before it discards exactly the
-            // already-visited prefix, so the `retain` below only touches unvisited elements
-            // and the predicate still runs exactly once per value (same as the branch above).
-            // Reordering these three steps silently double-evaluates the prefix.
+            // Drain the visited prefix through `idx` so `retain` only inspects unvisited
+            // values; `predicate` runs exactly once per element. Reordering double-evaluates.
             let idx = self.alternatives.iter().position(&mut predicate)?;
             let primary = self.alternatives.remove(idx);
             self.alternatives.drain(..idx);
@@ -157,20 +147,16 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Returns an iterator over all values (primary first, followed by alternatives).
+    /// Returns an iterator over all values in priority order.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         core::iter::once(&self.primary).chain(self.alternatives.iter())
     }
 
-    /// Safely flattens a `Choice` of iterable items by consuming it.
+    /// Flattens nested iterables in priority order, consuming `self`.
     ///
-    /// This consuming version does not require `T: Clone`.
-    ///
-    /// Items are concatenated in priority order: the first yielded item becomes the new
-    /// primary, followed by the primary iterable's remaining items and then the items of
-    /// each alternative's iterable. Returns [`ChoiceError::EmptyFlatten`] when every
-    /// iterable is empty.
+    /// The first yielded item becomes the new primary. Returns [`ChoiceError::EmptyFlatten`]
+    /// if every iterable is empty. Does not require `T: Clone`.
     pub fn try_flatten<I>(self) -> Result<Choice<I>, ChoiceError>
     where
         T: IntoIterator<Item = I>,
@@ -190,9 +176,9 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Flattens a `Choice` of iterable items by consuming it, returning `None` if all inner iterables are empty.
+    /// Flattens nested iterables in priority order, returning `None` if all are empty.
     ///
-    /// This consuming version does not require `T: Clone`.
+    /// Consumes `self` without requiring `T: Clone`.
     pub fn flatten<I>(self) -> Option<Choice<I>>
     where
         T: IntoIterator<Item = I>,
@@ -200,10 +186,9 @@ impl<T> Choice<T> {
         self.try_flatten().ok()
     }
 
-    /// Tries `f` on each value in priority order (primary first, then alternatives).
+    /// Evaluates `f` in priority order, short-circuiting on the first `Ok`.
     ///
-    /// Returns the first `Ok` result, short-circuiting on success so subsequent
-    /// alternatives are not evaluated. If all values fail, returns the last `Err`.
+    /// Returns the first `Ok`, or the last `Err` if all values fail.
     pub fn try_each<R, E, F>(&self, mut f: F) -> Result<R, E>
     where
         F: FnMut(&T) -> Result<R, E>,
@@ -223,10 +208,10 @@ impl<T> Choice<T> {
         Err(last_err)
     }
 
-    /// Tries `f` on each value in priority order, collecting all errors into [`Validated`] on total failure.
+    /// Evaluates `f` in priority order, short-circuiting on the first `Ok`.
     ///
-    /// Returns [`Validated::Valid`] on the first `Ok` result, short-circuiting on success.
-    /// If all values fail, returns [`Validated::Invalid`] containing every encountered error in order.
+    /// Returns [`Validated::Valid`] on success, or [`Validated::Invalid`] collecting
+    /// all errors in order if all values fail.
     pub fn try_each_validated<R, E, F>(&self, mut f: F) -> Validated<R, E>
     where
         F: FnMut(&T) -> Result<R, E>,
@@ -249,7 +234,7 @@ impl<T> Choice<T> {
         Validated::invalid_many(errors)
     }
 
-    /// Maps a function over all options in this `Choice`.
+    /// Maps `f` over all values in priority order.
     ///
     /// # Examples
     ///
@@ -281,7 +266,7 @@ impl<T> Semigroup for Choice<T> {
 }
 
 impl<T> Choice<Option<T>> {
-    /// Sequences a `Choice` of `Option`s into an `Option` of a `Choice`.
+    /// Transposes a `Choice<Option<T>>` into `Option<Choice<T>>`.
     pub fn sequence(self) -> Option<Choice<T>> {
         Some(Choice {
             primary: self.primary?,
@@ -364,10 +349,7 @@ impl<T: Default> Default for Choice<T> {
     }
 }
 
-/// Indexes elements by priority order.
-///
-/// Index `0` returns the `primary` value, and index `n` (for `n >= 1`) returns
-/// the fallback alternative at `alternatives[n - 1]`.
+/// Indexes elements in priority order (`0` is primary, `1..` are alternatives).
 ///
 /// # Panics
 ///
@@ -391,7 +373,7 @@ impl<T> core::ops::Index<usize> for Choice<T> {
     }
 }
 
-/// Appends items after existing alternatives, preserving the primary value and order.
+/// Appends items to alternatives, preserving the primary value and order.
 impl<T> Extend<T> for Choice<T> {
     #[inline]
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
@@ -399,7 +381,7 @@ impl<T> Extend<T> for Choice<T> {
     }
 }
 
-/// Appends cloned references after existing alternatives, preserving the primary value and order.
+/// Appends cloned items to alternatives, preserving the primary value and order.
 impl<'a, T: Clone> Extend<&'a T> for Choice<T> {
     #[inline]
     fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
@@ -472,13 +454,8 @@ mod unit_tests {
         assert_eq!(folded, 12345);
     }
 
-    /// `Choice<T>` implements `Semigroup` but not `Monoid`: there is no identity, because
-    /// appending an empty alternatives list is not representable. So associativity is the
-    /// only law available here.
-    ///
-    /// Living in the crate's own `cfg(test)` module means the library's
-    /// `impl Arbitrary for Choice` is compiled in, so this runs in every CI leg rather than
-    /// only under `--features quickcheck`.
+    // `Choice` has no identity element (always non-empty), so only associativity holds.
+    // Compiled in `cfg(test)` to run in all CI legs without `--features quickcheck`.
     #[quickcheck]
     fn choice_semigroup_associativity(a: Choice<i32>, b: Choice<i32>, c: Choice<i32>) -> bool {
         a.clone().combine(b.clone()).combine(c.clone()) == a.combine(b.combine(c))
@@ -488,8 +465,7 @@ mod unit_tests {
     fn choice_combine_handles_empty_alternatives() {
         let single = Choice::single(0);
 
-        // A primary-only operand must not be dropped, and must land after the alternatives
-        // it is combined with.
+        // Primary-only operand must not be dropped and must follow existing alternatives.
         assert_eq!(
             single.clone().combine(Choice::single(1)),
             Choice::new(0, vec![1])
@@ -678,7 +654,7 @@ mod unit_tests {
         assert_eq!(*res.primary(), 4);
         assert_eq!(res.alternatives(), &[6]);
 
-        // When primary matches, alts are filtered without re-evaluating primary
+        // When primary matches, alternatives are filtered without re-evaluating primary
         let c2 = Choice::new(2, vec![3, 4]);
         let mut eval2 = Vec::new();
         let filtered2 = c2.filter(|&x| {

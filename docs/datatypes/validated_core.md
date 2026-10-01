@@ -1,3 +1,3 @@
 # Validated Core
-
-Fundamental `Validated<T, E>` type, associated methods, and helper types for accumulating validation errors.
+ 
+`Validated<T, E>` core type, methods, and error accumulation types.

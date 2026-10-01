@@ -7,12 +7,12 @@ use core::fmt;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-/// A domain command with an associated static output type.
+/// Domain command with an associated static output type.
 pub trait Command: 'static {
-    /// The exact return type produced by executing this command.
+    /// Return type produced by executing this command.
     type Output: 'static;
 
-    /// Suspends this command into a statically-typed infallible [`Program`].
+    /// Suspends this command into an infallible [`Program`].
     #[inline]
     fn suspend<H: Handler<Self> + 'static>(self) -> Program<H, Self::Output>
     where
@@ -21,7 +21,7 @@ pub trait Command: 'static {
         Program::suspend(self)
     }
 
-    /// Suspends this command into a statically-typed fallible [`TryProgram`].
+    /// Suspends this command into a fallible [`TryProgram`].
     #[inline]
     fn try_suspend<H: TryHandler<Self, E> + 'static, E: 'static>(
         self,
@@ -33,19 +33,19 @@ pub trait Command: 'static {
     }
 }
 
-/// An infallible handler for a specific command `C`.
+/// Infallible handler for command `C`.
 pub trait Handler<C: Command> {
-    /// Interprets command `C`, producing its statically-typed output.
+    /// Interprets command `C`, producing its output.
     fn handle(&mut self, cmd: C) -> C::Output;
 }
 
-/// A fallible handler for a specific command `C` with error type `E`.
+/// Fallible handler for command `C` with error type `E`.
 pub trait TryHandler<C: Command, E> {
-    /// Interprets command `C`, returning either its output or an error of type `E`.
+    /// Interprets command `C`, returning its output or an error of type `E`.
     fn try_handle(&mut self, cmd: C) -> Result<C::Output, E>;
 }
 
-// Infallible handlers automatically implement TryHandler with Infallible error
+// Infallible handlers automatically implement TryHandler with Infallible error.
 impl<H: Handler<C>, C: Command> TryHandler<C, Infallible> for H {
     #[inline]
     fn try_handle(&mut self, cmd: C) -> Result<C::Output, Infallible> {
@@ -53,13 +53,13 @@ impl<H: Handler<C>, C: Command> TryHandler<C, Infallible> for H {
     }
 }
 
-/// Standalone helper to suspend a command into an infallible [`Program`].
+/// Suspends a command into an infallible [`Program`].
 #[inline]
 pub fn suspend<H: Handler<C> + 'static, C: Command>(cmd: C) -> Program<H, C::Output> {
     Program::suspend(cmd)
 }
 
-/// Standalone helper to suspend a command into a fallible [`TryProgram`].
+/// Suspends a command into a fallible [`TryProgram`].
 #[inline]
 pub fn try_suspend<H: TryHandler<C, E> + 'static, C: Command, E: 'static>(
     cmd: C,
@@ -67,7 +67,7 @@ pub fn try_suspend<H: TryHandler<C, E> + 'static, C: Command, E: 'static>(
     TryProgram::suspend(cmd)
 }
 
-// Internal type-erased step representation for trampoline evaluation
+// Internal type-erased step representation for trampoline evaluation.
 type AnyBox = Box<dyn Any>;
 type TryStepFn<H, E> = Box<dyn FnOnce(&mut H) -> Result<AnyBox, E>>;
 type TryContFn<H, E> = Box<dyn FnOnce(AnyBox) -> TryProgram<H, AnyBox, E>>;
@@ -87,19 +87,16 @@ enum TryFrame<H, E> {
     Then(TryProgram<H, AnyBox, E>),
 }
 
-/// Core statically-typed fallible Operational Monad computation with domain error `E`.
+/// Fallible Operational Monad computation with domain error `E`.
 #[repr(transparent)]
 pub struct TryProgram<H, A, E> {
     node: Option<Node<H, A, E>>,
 }
 
 impl<H, A, E> TryProgram<H, A, E> {
-    /// Takes ownership of the node, transiently leaving `None` behind.
+    /// Takes ownership of the node, leaving `None` transiently.
     ///
-    /// Invariant: `node` is `Some` on every externally observable value; `None` exists only
-    /// inside this method and the iterative [`Drop`] implementation. Since `node` is private,
-    /// `TryProgram` is not `Clone`, and every consuming method takes `self` by value, no safe
-    /// caller can reach a consumed node twice, so the `expect` below asserts an unreachable state.
+    /// Invariant: `node` is `Some` on all observable values; private ownership ensures unreachable panic.
     #[inline]
     fn take_node(&mut self) -> Node<H, A, E> {
         self.node.take().expect("TryProgram node already consumed")
@@ -107,7 +104,7 @@ impl<H, A, E> TryProgram<H, A, E> {
 }
 
 impl<H: 'static, E: 'static> TryProgram<H, (), E> {
-    /// Suspends a statically-typed command into a `TryProgram`.
+    /// Suspends a command into a `TryProgram`.
     pub fn suspend<C>(cmd: C) -> TryProgram<H, C::Output, E>
     where
         C: Command,
@@ -138,7 +135,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         }
     }
 
-    /// Transforms the inner value using a pure function.
+    /// Transforms the inner value with `f`.
     pub fn map<B: 'static, F>(self, f: F) -> TryProgram<H, B, E>
     where
         F: FnOnce(A) -> B + 'static,
@@ -146,7 +143,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         self.and_then(move |a| TryProgram::pure(f(a)))
     }
 
-    /// Sequences another fallible computation from the result of this one.
+    /// Sequences another computation from the result of `self`.
     pub fn and_then<B: 'static, F>(mut self, f: F) -> TryProgram<H, B, E>
     where
         F: FnOnce(A) -> TryProgram<H, B, E> + 'static,
@@ -171,7 +168,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         }
     }
 
-    /// Sequences another computation, ignoring the output of the current one.
+    /// Sequences `next` after `self`, discarding `self`'s output.
     #[inline]
     pub fn then<B: 'static>(mut self, next: TryProgram<H, B, E>) -> TryProgram<H, B, E> {
         match self.take_node() {
@@ -219,7 +216,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         erased
     }
 
-    /// Evaluates the fallible program to completion with stack safety using the provided handler.
+    /// Evaluates the program using `handler` with stack safety.
     pub fn try_run(self, handler: &mut H) -> Result<A, E> {
         let mut cur: Node<H, AnyBox, E> = self.into_any().take_node();
         let mut stack: Vec<TryFrame<H, E>> = Vec::new();
@@ -268,19 +265,19 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         }
     }
 
-    /// Returns `true` if the program is a pure value.
+    /// Returns `true` if the computation is a pure value.
     #[inline]
     pub const fn is_pure(&self) -> bool {
         matches!(self.node, Some(Node::Pure(_)))
     }
 
-    /// Returns `true` if the program is a suspended command.
+    /// Returns `true` if the computation is a suspended command.
     #[inline]
     pub const fn is_suspend(&self) -> bool {
         matches!(self.node, Some(Node::Suspend(_, _)))
     }
 
-    /// Returns `true` if the program is a sequenced bind node.
+    /// Returns `true` if the computation is a sequenced continuation node.
     #[inline]
     pub const fn is_bind(&self) -> bool {
         matches!(self.node, Some(Node::Bind(_, _) | Node::Then(_, _)))
@@ -299,9 +296,7 @@ fn drop_any_program<H, E>(mut program: TryProgram<H, AnyBox, E>) {
                 if let Some(node) = sub.node.take() {
                     pending.push(node);
                 }
-                // Continuations are opaque `FnOnce` captures and may own nested `TryProgram`
-                // values (e.g. `and_then(move |_| captured_prog)`); dropping them recurses into
-                // those values' `Drop`. Stack safety here covers the explicit AST spine only.
+                // Stack safety covers the explicit AST spine; captured closures may recurse on drop.
                 drop(cont);
             },
             Node::Then(mut sub, mut next) => {
@@ -318,11 +313,9 @@ fn drop_any_program<H, E>(mut program: TryProgram<H, AnyBox, E>) {
     }
 }
 
-/// Custom iterative Drop implementation to prevent stack overflows on deep un-evaluated chains.
+/// Iterative `Drop` implementation preventing stack overflows on deep un-evaluated chains.
 ///
-/// Note: Stack safety applies to explicit AST spines (`Then` and `Bind` node sequences). It does not
-/// prevent call-stack recursion if continuations capture deeply-nested `TryProgram` instances
-/// inside opaque `FnOnce` closures (e.g., `and_then(move |_| captured_prog)`).
+/// Stack safety applies to explicit AST spines (`Then` and `Bind`), not closures capturing nested programs.
 impl<H, A, E> Drop for TryProgram<H, A, E> {
     fn drop(&mut self) {
         let mut cur = self.node.take();
@@ -335,9 +328,7 @@ impl<H, A, E> Drop for TryProgram<H, A, E> {
                 },
                 Node::Bind(sub, cont) => {
                     drop_any_program(*sub);
-                    // Continuations are opaque `FnOnce` captures and may own nested `TryProgram`
-                    // values (e.g. `and_then(move |_| captured_prog)`); dropping them recurses into
-                    // those values' `Drop`. Stack safety here covers the explicit AST spine only.
+                    // Stack safety covers the explicit AST spine; captured closures may recurse on drop.
                     drop(cont);
                     return;
                 },
@@ -350,14 +341,14 @@ impl<H, A, E> Drop for TryProgram<H, A, E> {
     }
 }
 
-/// A statically-typed infallible Operational Monad computation.
+/// Infallible Operational Monad computation.
 ///
-/// Backed by [`TryProgram<H, A, Infallible>`], providing a zero-cost infallible API.
+/// Backed by [`TryProgram<H, A, Infallible>`].
 #[repr(transparent)]
 pub struct Program<H, A>(pub TryProgram<H, A, Infallible>);
 
 impl<H: 'static> Program<H, ()> {
-    /// Suspends a statically-typed command into an infallible [`Program`].
+    /// Suspends a command into an infallible [`Program`].
     #[inline]
     pub fn suspend<C>(cmd: C) -> Program<H, C::Output>
     where
@@ -375,7 +366,7 @@ impl<H: 'static, A: 'static> Program<H, A> {
         Program(TryProgram::pure(val))
     }
 
-    /// Transforms the inner value using a pure function.
+    /// Transforms the inner value with `f`.
     #[inline]
     pub fn map<B: 'static, F>(self, f: F) -> Program<H, B>
     where
@@ -384,7 +375,7 @@ impl<H: 'static, A: 'static> Program<H, A> {
         Program(self.0.map(f))
     }
 
-    /// Sequences another computation from the result of this one.
+    /// Sequences another computation from the result of `self`.
     #[inline]
     pub fn and_then<B: 'static, F>(self, f: F) -> Program<H, B>
     where
@@ -393,13 +384,13 @@ impl<H: 'static, A: 'static> Program<H, A> {
         Program(self.0.and_then(move |a| f(a).0))
     }
 
-    /// Sequences another computation, ignoring the output of the current one.
+    /// Sequences `next` after `self`, discarding `self`'s output.
     #[inline]
     pub fn then<B: 'static>(self, next: Program<H, B>) -> Program<H, B> {
         Program(self.0.then(next.0))
     }
 
-    /// Evaluates the program to completion with stack safety using the provided handler.
+    /// Evaluates the program using `handler` with stack safety.
     #[inline]
     pub fn run(self, handler: &mut H) -> A {
         match self.0.try_run(handler) {
@@ -408,19 +399,19 @@ impl<H: 'static, A: 'static> Program<H, A> {
         }
     }
 
-    /// Returns `true` if the program is a pure value.
+    /// Returns `true` if the computation is a pure value.
     #[inline]
     pub const fn is_pure(&self) -> bool {
         self.0.is_pure()
     }
 
-    /// Returns `true` if the program is a suspended command.
+    /// Returns `true` if the computation is a suspended command.
     #[inline]
     pub const fn is_suspend(&self) -> bool {
         self.0.is_suspend()
     }
 
-    /// Returns `true` if the program is a sequenced bind node.
+    /// Returns `true` if the computation is a sequenced continuation node.
     #[inline]
     pub const fn is_bind(&self) -> bool {
         self.0.is_bind()
@@ -433,10 +424,7 @@ impl<H, A: fmt::Debug> fmt::Debug for Program<H, A> {
     }
 }
 
-// Invariant: This Debug implementation is intentionally non-recursive on sub-computations
-// (`Bind` and `Then`), outputting summary text rather than traversing child nodes.
-// If structural subtree traversal is added in the future, a bounded recursion budget
-// (e.g., MAX_DEBUG_RECURSION) must be introduced to avoid stack overflow on deep/alternating chains.
+// Non-recursive Debug implementation summarizing sub-computations without traversing children.
 impl<H, A: fmt::Debug, E> fmt::Debug for TryProgram<H, A, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.node {
@@ -541,7 +529,7 @@ mod tests {
 
     #[test]
     fn test_stack_safety_deep_chains() {
-        // Unwinds 25,000 left-associated binds iteratively without call-stack overflow
+        // Unwinds 25,000 left-associated binds iteratively
         let mut p: Program<CalcInterpreter, ()> = Program::pure(());
         for _ in 0..25_000 {
             p = p.then(Add(1).suspend());

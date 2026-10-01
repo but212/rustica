@@ -6,10 +6,7 @@ use alloc::vec::Vec;
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
-/// A non-empty collection of validation errors.
-///
-/// The private buffer prevents callers from constructing or clearing an empty
-/// error collection while retaining the standard `Vec` representation.
+/// Non-empty collection of validation errors backed by a private `Vec`.
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 #[repr(transparent)]
 pub struct NonEmptyErrors<E>(Vec<E>);
@@ -25,9 +22,7 @@ impl<E> NonEmptyErrors<E> {
         (!errors.is_empty()).then_some(Self(errors))
     }
 
-    /// Creates a non-empty error collection from an iterator.
-    ///
-    /// Returns `None` when the iterator yields no errors.
+    /// Creates a non-empty error collection from an iterator, or `None` if empty.
     #[inline]
     pub fn try_from_iter<I>(iter: I) -> Option<Self>
     where
@@ -57,13 +52,13 @@ impl<E> NonEmptyErrors<E> {
         (!slice.is_empty()).then_some(Self(slice.to_vec()))
     }
 
-    /// Converts the non-empty error collection into a regular vector.
+    /// Converts into a `Vec<E>`.
     #[inline]
     pub fn into_vec(self) -> Vec<E> {
         self.0
     }
 
-    /// Returns a slice over the errors.
+    /// Returns a slice of the errors.
     #[inline]
     pub const fn as_slice(&self) -> &[E] {
         self.0.as_slice()
@@ -84,10 +79,7 @@ impl<E> NonEmptyErrors<E> {
         self.0.len()
     }
 
-    /// Returns whether the error collection is empty.
-    ///
-    /// This is always `false`: constructing `NonEmptyErrors` requires at
-    /// least one error, and its mutating methods preserve that invariant.
+    /// Always returns `false`.
     #[inline]
     pub const fn is_empty(&self) -> bool {
         false
@@ -153,9 +145,7 @@ impl<E> IntoIterator for NonEmptyErrors<E> {
     }
 }
 
-/// Formats the collection of errors separated by `"; "`.
-///
-/// Each validation error is written sequentially in encounter order.
+/// Formats errors in encounter order separated by `"; "`.
 impl<E: core::fmt::Display> core::fmt::Display for NonEmptyErrors<E> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for (i, err) in self.0.iter().enumerate() {
@@ -168,15 +158,13 @@ impl<E: core::fmt::Display> core::fmt::Display for NonEmptyErrors<E> {
     }
 }
 
-/// Standard error trait implementation for non-empty error collections.
+/// Error implementation for accumulated validation errors.
 ///
-/// `source` returns `None` because accumulated validation errors are peer
-/// failures rather than a single causal chain; `Display` formats the complete set.
+/// `source` returns `None` because accumulated errors are peer failures, not a causal chain.
 impl<E: core::fmt::Debug + core::fmt::Display + core::error::Error + 'static> core::error::Error
     for NonEmptyErrors<E>
 {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
-        // Errors are peers, not a causal chain; `Display` renders them all.
         None
     }
 }
@@ -199,47 +187,48 @@ impl<'de, E: serde::Deserialize<'de>> serde::Deserialize<'de> for NonEmptyErrors
     }
 }
 
-/// A validation type that can accumulate multiple errors.
+/// Accumulates validation errors instead of failing fast.
 ///
-/// `Validated<T, E>` represents either a valid value of type `T` or a collection of
-/// errors of type `E`. Like `Result<T, E>`, the success value is the first type parameter
-/// and the error value is the second type parameter. Unlike `Result`, which fails fast
-/// on the first error, `Validated` can collect multiple errors during validation.
+/// Represents either a valid value `T` or non-empty errors `NonEmptyErrors<E>`.
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Validated<T, E> {
-    /// Represents a valid value of type T.
+    /// Valid value.
     Valid(T),
-    /// Represents an invalid state with multiple errors of type E.
+    /// One or more validation errors.
     Invalid(NonEmptyErrors<E>),
 }
 
 impl<T, E> Validated<T, E> {
-    /// Returns whether this `Validated` is valid.
+    /// Returns `true` if valid.
     #[inline]
     pub const fn is_valid(&self) -> bool {
         matches!(self, Validated::Valid(_))
     }
 
-    /// Returns whether this `Validated` is invalid.
+    /// Returns `true` if invalid.
     #[inline]
     pub const fn is_invalid(&self) -> bool {
         !self.is_valid()
     }
 
-    /// Creates a new valid instance.
+    /// Creates a valid instance.
     #[inline]
     pub const fn valid(x: T) -> Self {
         Validated::Valid(x)
     }
 
-    /// Creates a new invalid instance with a single error.
+    /// Creates an invalid instance with a single error.
     #[inline]
     pub fn invalid(e: E) -> Self {
         Validated::Invalid(NonEmptyErrors::new(e))
     }
 
-    /// Creates a new invalid instance with multiple errors from a collection.
+    /// Creates an invalid instance from an error collection.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `errors` is empty.
     #[inline]
     pub fn invalid_many<I>(errors: I) -> Self
     where
@@ -252,7 +241,7 @@ impl<T, E> Validated<T, E> {
         Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, iter))
     }
 
-    /// Attempts to create an invalid value, returning `None` for an empty iterator.
+    /// Creates an invalid instance from an iterator, or `None` if empty.
     #[inline]
     pub fn try_invalid_many<I>(errors: I) -> Option<Self>
     where
@@ -265,9 +254,7 @@ impl<T, E> Validated<T, E> {
         )))
     }
 
-    // --- Value Extraction and Safe Unwrapping ---
-
-    /// Consumes `self` and returns `Ok(T)` if `Valid(T)`, or `Err(NonEmptyErrors<E>)` if `Invalid(errors)`.
+    /// Returns `Ok(T)` if valid, or `Err(NonEmptyErrors<E>)` if invalid.
     #[inline]
     pub fn into_value(self) -> Result<T, NonEmptyErrors<E>> {
         match self {
@@ -276,7 +263,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Consumes `self` and returns `Ok(NonEmptyErrors<E>)` if `Invalid(errors)`, or `Err(T)` if `Valid(T)`.
+    /// Returns `Ok(NonEmptyErrors<E>)` if invalid, or `Err(T)` if valid.
     #[inline]
     pub fn into_error_payload(self) -> Result<NonEmptyErrors<E>, T> {
         match self {
@@ -285,11 +272,11 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Unwraps a valid value or panics.
+    /// Returns the inner value.
     ///
     /// # Panics
     ///
-    /// Panics if this is invalid.
+    /// Panics if invalid.
     #[inline]
     pub fn unwrap(self) -> T
     where
@@ -303,7 +290,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Unwraps a valid value or returns a default.
+    /// Returns the inner value or `default`.
     #[inline]
     pub fn unwrap_or(self, default: T) -> T {
         match self {
@@ -312,11 +299,11 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Unwraps an invalid error collection or panics with a message.
+    /// Returns the error collection.
     ///
     /// # Panics
     ///
-    /// Panics if this is `Valid`.
+    /// Panics if valid.
     #[inline]
     pub fn unwrap_invalid(self) -> NonEmptyErrors<E>
     where
@@ -330,9 +317,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    // --- Option Views and Conversions ---
-
-    /// Returns a reference to the valid value as an Option, without cloning.
+    /// Returns `Some(&T)` if valid, otherwise `None`.
     #[inline]
     pub const fn as_option(&self) -> Option<&T> {
         match self {
@@ -341,7 +326,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Converts to Option by consuming self, without cloning.
+    /// Converts into `Some(T)` if valid, otherwise `None`.
     #[inline]
     pub fn into_option(self) -> Option<T> {
         match self {
@@ -350,9 +335,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    // --- Standard Conversions ---
-
-    /// Converts to fail-fast `Result`, explicitly keeping only the first error.
+    /// Converts into `Result`, discarding all but the first error if invalid.
     #[inline]
     pub fn into_result_first_error(self) -> Result<T, E> {
         match self {
@@ -364,7 +347,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Constructs a `Validated` from an `Option`, using the provided error when `None`.
+    /// Converts `Some(value)` to `Valid(value)` and `None` to `invalid(error)`.
     #[inline]
     pub fn from_option(option: Option<T>, error: E) -> Self {
         match option {
@@ -373,7 +356,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Constructs a `Validated` from an `Option`, generating an error via a closure when `None`.
+    /// Converts `Some(value)` to `Valid(value)` and `None` to `invalid(error_fn())`.
     #[inline]
     pub fn from_option_with<F>(option: Option<T>, error_fn: F) -> Self
     where
@@ -403,12 +386,8 @@ impl<T: Clone, E: Clone> From<&Result<T, E>> for Validated<T, E> {
     }
 }
 
-/// # Semigroup for `Validated`
-///
-/// Combines two `Validated` values:
-/// - If both are `Valid`, their inner values are combined using `T::combine`.
-/// - If one is `Invalid` and one is `Valid`, the `Invalid` is returned (errors take precedence).
-/// - If both are `Invalid`, their error collections are concatenated.
+/// Combines two `Validated` values: merges values via `T::combine` if both valid,
+/// preserves errors if one is invalid, or concatenates errors if both invalid.
 impl<T: Semigroup, E> Semigroup for Validated<T, E> {
     fn combine(self, other: Self) -> Self {
         match (self, other) {

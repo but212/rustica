@@ -5,14 +5,14 @@ use alloc::vec::Vec;
 use core::any::Any;
 use core::fmt::{self, Display};
 
-/// Errors that can occur during [`Free`] evaluation.
+/// Errors during [`Free`] evaluation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FreeError<E> {
-    /// An error returned by the effect interpreter.
+    /// Error returned by the effect interpreter.
     Interpreter(E),
-    /// A type mismatch when downcasting the effect result.
+    /// Type mismatch when downcasting an effect result.
     TypeMismatch {
-        /// The type expected by the Free continuation.
+        /// Expected return type name.
         expected: &'static str,
     },
 }
@@ -54,13 +54,12 @@ impl<E: core::error::Error + 'static> core::error::Error for FreeError<E> {
     }
 }
 
-/// Type alias for thread-safe type-erased values in the Free monad.
+/// Thread-safe type-erased value used in [`Free`] evaluation.
 pub type AnyValue = Arc<dyn Any + Send + Sync>;
 
 /// Wraps a value into an [`AnyValue`] for effect interpreter return values.
 ///
-/// Reduces boilerplate when returning values from effect interpreters in [`Free::run`]
-/// and [`Free::try_run`], avoiding repeated `Arc::new(x) as AnyValue`.
+/// Avoids repeated `Arc::new(x) as AnyValue` boilerplate in [`Free::run`] and [`Free::try_run`].
 ///
 /// # Example
 ///
@@ -75,10 +74,10 @@ pub fn any_value<T: Any + Send + Sync>(v: T) -> AnyValue {
     Arc::new(v)
 }
 
-/// Type alias for a continuation function in the Free monad trampoline.
+/// Continuation function for the [`Free`] trampoline.
 pub type ContFn<F> = Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>;
 
-/// Evaluation frame used in iterative trampoline execution.
+/// Evaluation frame for iterative trampoline execution.
 enum Frame<F> {
     BindCont(ContFn<F>),
     ThenNext(Arc<Free<F, AnyValue>>),
@@ -87,23 +86,23 @@ enum Frame<F> {
 /// Internal AST node representation for [`Free`].
 #[derive(Clone)]
 enum Node<F, A> {
-    /// A pure computation returning an immediate value.
+    /// Pure computation returning an immediate value.
     Pure(A),
-    /// A suspended effect command with a leaf continuation mapping the interpreter's output to `A`.
+    /// Suspended effect command with a continuation mapping interpreter output to `A`.
     Suspend(
         F,
         Arc<dyn Fn(AnyValue) -> Result<A, &'static str> + Send + Sync + 'static>,
     ),
-    /// A sequenced computation: the left sub-computation followed by a continuation.
+    /// Dynamic sequencing: sub-computation followed by a continuation.
     Bind(
         Arc<Free<F, AnyValue>>,
         Arc<dyn Fn(AnyValue) -> Free<F, A> + Send + Sync + 'static>,
     ),
-    /// A value-independent sequenced computation: left sub-computation followed by right sub-computation.
+    /// Static sequencing: left sub-computation followed by right sub-computation.
     Then(Arc<Free<F, AnyValue>>, Arc<Free<F, AnyValue>>),
 }
 
-/// The `Free` monad represents a computation tree separating AST construction from interpretation.
+/// Computation tree separating AST construction from interpretation.
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct Free<F, A> {
@@ -153,7 +152,7 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Creates a pure computation containing the given value.
+    /// Creates a pure computation returning `val`.
     #[inline]
     pub const fn pure(val: A) -> Self {
         Self::from_node(Node::Pure(val))
@@ -161,13 +160,12 @@ impl<F, A> Free<F, A> {
 
     /// Suspends an effect command into a `Free` computation.
     ///
-    /// The interpreter is expected to return an [`AnyValue`] containing a value of type `A`.
+    /// The interpreter must return an [`AnyValue`] containing type `A`.
     ///
     /// # Panics
     ///
-    /// Panics during evaluation via [`run`](Self::run) if the interpreter returns a value whose
-    /// type does not match `A`. For safe error handling without panics on interpreter-originated
-    /// mismatches, use [`try_run`](Self::try_run).
+    /// Panics during [`run`](Self::run) if the interpreter return type does not match `A`.
+    /// Use [`try_run`](Self::try_run) to handle mismatches as a `Result`.
     #[inline]
     pub fn suspend(effect: F) -> Self
     where
@@ -181,7 +179,7 @@ impl<F, A> Free<F, A> {
         ))
     }
 
-    /// Suspends an effect command with a custom continuation function.
+    /// Suspends an effect command with a custom continuation.
     #[inline]
     pub fn suspend_with<Cont>(effect: F, cont: Cont) -> Self
     where
@@ -193,7 +191,7 @@ impl<F, A> Free<F, A> {
         ))
     }
 
-    /// Converts this `Free` value into a type-erased `Free<F, AnyValue>`.
+    /// Converts this computation into a type-erased `Free<F, AnyValue>`.
     #[inline]
     #[allow(clippy::wrong_self_convention)]
     fn into_any(&self) -> Free<F, AnyValue>
@@ -201,7 +199,7 @@ impl<F, A> Free<F, A> {
         F: Send + Sync + Clone + 'static,
         A: Send + Sync + Clone + 'static,
     {
-        // Double-erasure defense: if self is already Free<F, AnyValue>, do an O(1) Arc clone directly.
+        // Direct clone if already type-erased.
         if let Some(erased) = (self as &dyn Any).downcast_ref::<Free<F, AnyValue>>() {
             return erased.clone();
         }
@@ -231,7 +229,7 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Maps a function over the pure value of the `Free` monad.
+    /// Maps a function over the result value.
     pub fn map<B, Func>(&self, f: Func) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -256,11 +254,10 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Sequences another `Free` computation from the result of this computation.
+    /// Sequences a computation from the result of `self`.
     ///
-    /// If `self` is pure, `f(a)` is evaluated immediately without allocating
-    /// an intermediate `Bind` node. Otherwise, a structural `Bind` node is created,
-    /// enabling stack-safe trampoline evaluation in [`run`](Self::run).
+    /// Evaluates `f(a)` immediately if `self` is pure. Otherwise, constructs a `Bind` node
+    /// evaluated iteratively by the trampoline in [`run`](Self::run).
     pub fn and_then<B, Next>(&self, f: Next) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -285,10 +282,10 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Sequences another `Free` computation, discarding the result of the current computation.
+    /// Sequences `next` after `self`, discarding `self`'s result.
     ///
-    /// Constructs a structural `Then` AST node representing value-independent sequencing.
-    /// If `self` is a pure computation, `next` is returned immediately without allocating a `Then` node.
+    /// Constructs a value-independent `Then` AST node. If `self` is pure, returns `next`
+    /// immediately without allocating.
     #[inline]
     pub fn then<B>(&self, next: Free<F, B>) -> Free<F, B>
     where
@@ -304,7 +301,7 @@ impl<F, A> Free<F, A> {
         Free::from_node(Node::Then(left, right))
     }
 
-    /// Applies a function inside a `Free` computation to a value in another `Free` computation.
+    /// Applies a wrapped function in `self` to `value`.
     pub fn apply<T, B>(&self, value: Free<F, T>) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -318,7 +315,7 @@ impl<F, A> Free<F, A> {
         })
     }
 
-    /// Combines this computation with another using a binary function.
+    /// Combines `self` and `other` using a binary function.
     pub fn zip_with<T2, B, Func>(&self, other: Free<F, T2>, f: Func) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -346,7 +343,7 @@ impl<F, A> Free<F, A> {
         fa.zip_with(fb, f)
     }
 
-    /// Unified internal trampoline engine powering both [`run`](Self::run) and [`try_run`](Self::try_run).
+    /// Internal iterative trampoline evaluating both [`run`](Self::run) and [`try_run`](Self::try_run).
     fn run_internal<Interp, E>(&self, mut interp: Interp) -> Result<A, FreeError<E>>
     where
         F: Send + Sync + Clone + 'static,
@@ -405,12 +402,12 @@ impl<F, A> Free<F, A> {
 
     /// Evaluates the computation using an effect interpreter.
     ///
-    /// Evaluation unwinds chains iteratively, keeping call stack depth $O(1)$.
+    /// Evaluates chains iteratively, keeping call stack depth $O(1)$.
     ///
     /// # Panics
     ///
-    /// Panics if the interpreter returns an [`AnyValue`] that does not match the expected type `A`.
-    /// Use [`try_run`](Self::try_run) to handle interpreter-originated mismatches as a `Result`.
+    /// Panics if the interpreter returns an [`AnyValue`] that does not match type `A`.
+    /// Use [`try_run`](Self::try_run) to handle interpreter mismatches as a `Result`.
     pub fn run<Interp>(&self, mut interp: Interp) -> A
     where
         F: Send + Sync + Clone + 'static,
@@ -428,9 +425,8 @@ impl<F, A> Free<F, A> {
 
     /// Evaluates the `Free` computation with a fallible effect interpreter.
     ///
-    /// Returns `Err(FreeError::Interpreter(e))` if the interpreter returns an error, or
-    /// `Err(FreeError::TypeMismatch)` if the effect payload returned by the interpreter does
-    /// not match the expected type (returning `Err` instead of panicking on interpreter-originated mismatches).
+    /// Returns `Err(FreeError::Interpreter(e))` on interpreter failure, or
+    /// `Err(FreeError::TypeMismatch)` if the returned payload type does not match `A`.
     pub fn try_run<Interp, E>(&self, interp: Interp) -> Result<A, FreeError<E>>
     where
         F: Send + Sync + Clone + 'static,
@@ -446,25 +442,25 @@ impl<F, A> Free<F, A> {
         matches!(self.node.as_ref(), Some(Node::Pure(_)))
     }
 
-    /// Returns `true` if this computation is a suspended leaf effect command.
+    /// Returns `true` if this computation is a suspended leaf effect.
     #[inline]
     pub const fn is_suspend(&self) -> bool {
         matches!(self.node.as_ref(), Some(Node::Suspend(_, _)))
     }
 
-    /// Returns `true` if this computation is a sequenced continuation node.
+    /// Returns `true` if this computation is a dynamic continuation node (`Bind`).
     #[inline]
     pub const fn is_bind(&self) -> bool {
         matches!(self.node.as_ref(), Some(Node::Bind(_, _)))
     }
 
-    /// Returns `true` if this computation is a value-independent sequencing node.
+    /// Returns `true` if this computation is a static sequencing node (`Then`).
     #[inline]
     pub const fn is_then(&self) -> bool {
         matches!(self.node.as_ref(), Some(Node::Then(_, _)))
     }
 
-    /// Returns a reference to the inner value if it is pure.
+    /// Returns a reference to the inner value if pure.
     #[inline]
     pub const fn as_pure(&self) -> Option<&A> {
         match self.node.as_ref() {
@@ -473,10 +469,7 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Clones and extracts the inner value if it is pure.
-    ///
-    /// Following the Rustica API Guidelines (C-CONV), this method is named `to_pure`
-    /// because it clones the inner value from an immutable reference `&self`.
+    /// Clones the inner value if pure.
     #[inline]
     pub fn to_pure(&self) -> Option<A>
     where
@@ -485,7 +478,7 @@ impl<F, A> Free<F, A> {
         self.as_pure().cloned()
     }
 
-    /// Returns a reference to the inner effect command if this computation is a suspended leaf effect.
+    /// Returns a reference to the inner effect command if suspended.
     #[inline]
     pub const fn as_suspend(&self) -> Option<&F> {
         match self.node.as_ref() {
@@ -494,7 +487,7 @@ impl<F, A> Free<F, A> {
         }
     }
 
-    /// Returns references to the left and right sub-computations if this is a `Then` sequencing node.
+    /// Returns references to the sub-computations if this is a `Then` node.
     #[inline]
     #[allow(clippy::type_complexity)]
     pub fn as_then(&self) -> Option<(&Free<F, AnyValue>, &Free<F, AnyValue>)> {
@@ -727,8 +720,7 @@ mod tests {
         let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
             .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
-        // Interpreter author accidentally returns String instead of expected i32
-        // Notice this compiles without any compiler error!
+        // Return String instead of expected i32
         let res: Result<i32, FreeError<()>> = program.try_run(move |cmd| match cmd {
             TestCmd::Increment(_) => {
                 count_clone.fetch_add(1, Ordering::SeqCst);
@@ -737,9 +729,9 @@ mod tests {
             TestCmd::Fetch => Ok(Arc::new(String::from("wrong_type")) as AnyValue),
         });
 
-        // Verifies: 1) First step already ran and executed its side effect at runtime
+        // First step executed side effect before failure
         assert_eq!(side_effect_count.load(Ordering::SeqCst), 1);
-        // Verifies: 2) Error is only detected at runtime when Fetch continuation downcasts AnyValue
+        // Downcast mismatch detected at runtime
         assert!(matches!(
             res,
             Err(FreeError::TypeMismatch { expected }) if expected == core::any::type_name::<i32>()
@@ -750,7 +742,7 @@ mod tests {
     #[should_panic(expected = "Free interpretation type mismatch: expected return type i32")]
     fn test_run_panics_on_runtime_type_mismatch() {
         let program = Free::<TestCmd, i32>::suspend(TestCmd::Fetch);
-        // Compiles successfully, but panics at runtime during downcasting
+        // Panics at runtime during downcast
         let _: i32 = program.run(|_| Arc::new("wrong_type") as AnyValue);
     }
 
@@ -781,7 +773,6 @@ mod tests {
         let right = f(a);
         assert_eq!(left.to_pure(), right.to_pure());
 
-        // and_then obeys left identity
         let left_and_then: Free<TestCmd, i32> = Free::pure(a).and_then(f);
         assert_eq!(left_and_then.to_pure(), right.to_pure());
 
@@ -828,7 +819,7 @@ mod tests {
             .then(Free::<TestCmd, ()>::suspend(TestCmd::Increment(20)))
             .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
-        // Run 1: with normal counter
+        // Run 1
         let mut c1 = 0;
         let r1: i32 = program.run(|cmd| match cmd {
             TestCmd::Increment(n) => {
@@ -839,7 +830,7 @@ mod tests {
         });
         assert_eq!(r1, 30);
 
-        // Run 2: same program instance executed with a different initial counter
+        // Run 2: same AST with different initial state
         let mut c2 = 100;
         let r2: i32 = program.run(|cmd| match cmd {
             TestCmd::Increment(n) => {
@@ -850,7 +841,7 @@ mod tests {
         });
         assert_eq!(r2, 130);
 
-        // Branching: clone program and extend it in two different directions
+        // Branch: clone AST and extend along two paths
         let branch_a = program.and_then(|total: i32| Free::pure(total * 2));
         let branch_b = program.and_then(|total: i32| Free::pure(total + 1000));
 
@@ -954,9 +945,8 @@ mod tests {
         let result = prog.run(|c| Arc::new(c.id as i32) as AnyValue);
         assert_eq!(result, 22);
 
-        // For a single Suspend node followed by pure continuations, Arc::try_unwrap
-        // moves the subcomputation without cloning, and direct ownership transfer
-        // to interp ensures cmd is cloned only once during the initial into_any() (total 1).
+        // Arc::try_unwrap moves unshared sub-computations without cloning;
+        // cmd clones once during into_any().
         assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 
@@ -978,8 +968,7 @@ mod tests {
         let result: usize = p.run(|c| Arc::new(c.id) as AnyValue);
         assert_eq!(result, 1);
 
-        // During evaluation of a then-chain, each Suspend node is cloned once
-        // due to child Arc sharing during unwrap_arc traversal (O(depth)).
+        // In a then-chain, each Suspend node clones once due to shared child Arcs.
         assert_eq!(counter.load(Ordering::SeqCst), 10);
     }
 

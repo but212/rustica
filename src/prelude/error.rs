@@ -1,10 +1,8 @@
-//! # Prelude: Unified Error Handling
+//! Context-accumulating error handling prelude.
 //!
-//! This module re-exports the primary interfaces from crate::error, making it easy to
-//! pull in Rustica's context error types and error utilities with a single glob import
-//! (use rustica::prelude::error::*;).
+//! Re-exports primary error types, macros, and context utilities from [`crate::error`].
 //!
-//! ## Quick Start
+//! # Examples
 //!
 //! ```
 //! use rustica::prelude::error::*;

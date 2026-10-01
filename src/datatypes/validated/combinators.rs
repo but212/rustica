@@ -4,12 +4,7 @@ use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
 
 impl<T, E> Validated<T, E> {
-    /// Maps a function over the valid value if `Valid`, or returns the `Invalid` value unchanged.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The result type of the mapping function
-    /// * `F`: The type of the mapping function
+    /// Maps `f` over the valid value, leaving errors unchanged.
     ///
     /// # Examples
     ///
@@ -33,12 +28,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Maps a function over each error value if `Invalid`, or returns the `Valid` value unchanged.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `F`: The result error type of the mapping function
-    /// * `G`: The type of the mapping function
+    /// Maps `g` over each error, leaving a valid value unchanged.
     ///
     /// # Examples
     ///
@@ -59,10 +49,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Maps both the valid value and the error values simultaneously.
-    ///
-    /// If `Valid(a)`, applies `f` to produce `Valid(f(a))`.
-    /// If `Invalid(errors)`, applies `g` to each error in the collection.
+    /// Maps `f` over a valid value or `g` over each error.
     ///
     /// # Examples
     ///
@@ -89,11 +76,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Chains a validation operation, short-circuiting if `Invalid`.
-    ///
-    /// Unlike `Applicative::apply` which accumulates errors across independent validations,
-    /// `and_then` models dependent validations where the second validation depends on the
-    /// success of the first.
+    /// Sequences dependent validations, short-circuiting on the first error.
     ///
     /// # Examples
     ///
@@ -124,10 +107,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Combines two `Validated` values using a binary function, accumulating all errors if any.
-    ///
-    /// If both are `Valid`, invokes `f(a, b)` and returns `Valid`.
-    /// If either or both are `Invalid`, accumulates all errors in encounter order.
+    /// Combines two `Validated` values with `f`, accumulating all errors in encounter order.
     ///
     /// # Examples
     ///
@@ -159,7 +139,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Combines two `Validated` values into a pair, accumulating all errors if any.
+    /// Combines two `Validated` values into a pair, accumulating errors.
     ///
     /// # Examples
     ///
@@ -175,11 +155,7 @@ impl<T, E> Validated<T, E> {
         self.zip_with(other, |a, b| (a, b))
     }
 
-    /// Applies a function wrapped in `Validated` to a value wrapped in `Validated`,
-    /// accumulating all errors if any.
-    ///
-    /// If both are `Valid`, applies `f(a)`. If either or both are `Invalid`,
-    /// accumulates all errors in encounter order.
+    /// Applies a wrapped function to a wrapped value, accumulating errors in encounter order.
     ///
     /// # Examples
     ///
@@ -203,7 +179,7 @@ impl<T, E> Validated<T, E> {
         self.zip_with(value, |f, a| f(a))
     }
 
-    /// Combines three `Validated` values using a ternary function, accumulating all errors if any.
+    /// Combines three `Validated` values with `f`, accumulating errors.
     #[inline]
     pub fn zip_with3<T2, T3, R, F>(
         self, second: Validated<T2, E>, third: Validated<T3, E>, f: F,
@@ -214,7 +190,7 @@ impl<T, E> Validated<T, E> {
         self.zip(second).zip_with(third, |(a, b), c| f(a, b, c))
     }
 
-    /// Combines three `Validated` values into a 3-tuple, accumulating all errors if any.
+    /// Combines three `Validated` values into a 3-tuple, accumulating errors.
     #[inline]
     pub fn zip3<T2, T3>(
         self, second: Validated<T2, E>, third: Validated<T3, E>,
@@ -222,7 +198,7 @@ impl<T, E> Validated<T, E> {
         self.zip_with3(second, third, |a, b, c| (a, b, c))
     }
 
-    /// Lifts a binary function over two `Validated` values, accumulating all errors if any.
+    /// Lifts a binary function over two `Validated` values, accumulating errors.
     ///
     /// # Examples
     ///
@@ -242,7 +218,7 @@ impl<T, E> Validated<T, E> {
         v1.zip_with(v2, f)
     }
 
-    /// Lifts a ternary function over three `Validated` values, accumulating all errors if any.
+    /// Lifts a ternary function over three `Validated` values, accumulating errors.
     #[inline]
     pub fn lift3<T1, T2, T3, F>(
         f: F, v1: Validated<T1, E>, v2: Validated<T2, E>, v3: Validated<T3, E>,
@@ -253,11 +229,7 @@ impl<T, E> Validated<T, E> {
         v1.zip_with3(v2, v3, f)
     }
 
-    /// Combines errors from two `Validated` instances, consuming both.
-    ///
-    /// Returns `Some(NonEmptyErrors<E>)` with accumulated errors if either or both
-    /// instances are `Invalid`. Returns `None` if both instances are `Valid` (meaning there
-    /// are no validation errors to combine).
+    /// Returns accumulated errors if either instance is invalid, or `None` if both are valid.
     ///
     /// # Examples
     ///
@@ -286,17 +258,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Sequences owned Validated values into a single Validated value.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `U`: The output value type
-    /// * `F`: The function type to transform collected valid values
-    ///
-    /// # Arguments
-    ///
-    /// * `values`: A vector of owned `Validated` values to sequence
-    /// * `f`: A function to transform the collected valid values
+    /// Sequences `values` into `Validated<U, E>`, transforming collected valid values with `f`.
     ///
     /// # Examples
     ///
@@ -322,10 +284,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Collects an iterator of Validated values into a single Validated value.
-    ///
-    /// If all values in the iterator are valid, returns a Valid value containing a collection of all values.
-    /// If any values are invalid, returns an Invalid value containing all errors.
+    /// Collects an iterator into `Validated<C, E>`, accumulating all errors if any are invalid.
     ///
     /// # Examples
     ///
@@ -361,16 +320,10 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    // --- Recovery Operations ---
-
-    /// Attempts recovery for accumulated errors, in order.
+    /// Attempts recovery for accumulated errors in order.
     ///
-    /// # Warning
-    ///
-    /// This method is deprecated due to semantic incoherence with applicative validation:
-    /// it short-circuits on the first successful error recovery and silently drops any
-    /// remaining unrecovered errors. Use [`recover_all_at_once`](Self::recover_all_at_once)
-    /// or [`recover_with`](Self::recover_with) instead.
+    /// Short-circuits on first success and drops unrecovered errors; prefer
+    /// [`recover_all_at_once`](Self::recover_all_at_once) or [`recover_with`](Self::recover_with).
     #[deprecated(
         since = "0.20.0",
         note = "semantically flawed: short-circuits on first success and silently drops unrecovered errors; use `recover_all_at_once` or `recover_with` instead"
@@ -405,7 +358,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Recovers with a function that receives all errors at once.
+    /// Recovers using a closure given all accumulated errors.
     pub fn recover_all_at_once<F>(self, recovery: F) -> Self
     where
         F: FnOnce(Vec<E>) -> Self,
@@ -416,7 +369,7 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Attempts to recover from errors with a fallback value.
+    /// Replaces errors with a `default` fallback value.
     #[inline]
     pub fn recover_with(self, default: T) -> Self {
         match self {

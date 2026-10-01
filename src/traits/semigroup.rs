@@ -4,38 +4,20 @@ use alloc::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 use alloc::string::String;
 use alloc::vec::Vec;
 
-/// A trait for semigroups, which are algebraic structures with an associative binary operation.
-/// A semigroup consists of a set together with a binary operation that combines two elements
-/// of the set to yield a third element of the set, and the operation must be associative.
-///
-/// The associative property means that for any elements a, b, and c:
-/// `(a ⋄ b) ⋄ c = a ⋄ (b ⋄ c)`
+/// Algebraic structure with an associative binary operation.
 ///
 /// # Laws
 ///
-/// If `a`, `b`, and `c` are values of a type that implements `Semigroup`, then:
+/// Implementations must satisfy associativity:
 ///
 /// ```text
-/// (a.combine(b)).combine(c) == a.combine(b.combine(c))  // Associativity
+/// (a.combine(b)).combine(c) == a.combine(b.combine(c))
 /// ```
-///
-/// This allows chaining of operations without concern for the order of operations.
-///
-/// # Methods
-///
-/// The trait provides:
-/// - `combine`: Combines two values by consuming them
-///
 pub trait Semigroup: Sized {
-    /// Combines two values by consuming them to produce a new value.
-    ///
-    /// # Parameters
-    /// * `other`: Another value of the same type, which will be consumed
-    ///
-    /// # Returns
-    /// A new value of the same type, which is the result of combining `self` and `other`.
+    /// Combines `self` and `other` associatively.
     ///
     /// # Examples
+    ///
     /// ```rust
     /// use rustica::traits::semigroup::Semigroup;
     ///
@@ -46,8 +28,6 @@ pub trait Semigroup: Sized {
     /// ```
     fn combine(self, other: Self) -> Self;
 }
-
-// Standard library implementations
 
 impl Semigroup for String {
     #[inline]
@@ -90,8 +70,6 @@ impl<T: Ord> Semigroup for BTreeSet<T> {
     }
 }
 
-// Tuple implementations
-
 impl<A: Semigroup, B: Semigroup> Semigroup for (A, B) {
     #[inline]
     fn combine(self, other: Self) -> Self {
@@ -121,8 +99,6 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B
         )
     }
 }
-
-// Option implementations
 
 impl<T: Semigroup> Semigroup for Option<T> {
     #[inline]

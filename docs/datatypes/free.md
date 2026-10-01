@@ -5,15 +5,15 @@ definition from execution.
 
 ## Execution and Stack Safety
 
-- **Evaluation**: Evaluated via [`run`](Free::run) or [`try_run`](Free::try_run). An internal stack unwinds left-associated chains (`a.then(b).then(c)`), maintaining $O(1)$ call stack frames.
-- **Error handling**: [`try_run`](Free::try_run) returns [`FreeError`] on interpreter error or downcast mismatch without panicking.
-- **Drop and Debug**: Traverses chains iteratively to prevent stack overflow on deep programs.
+- **Evaluation**: Evaluated via [`run`](Free::run) or [`try_run`](Free::try_run). An internal stack unwinds left-associated chains (`a.then(b).then(c)`), keeping call stack frames $O(1)$.
+- **Error handling**: [`try_run`](Free::try_run) returns [`FreeError`] on interpreter errors or downcast mismatches without panicking.
+- **Drop and Debug**: Traverses chains iteratively to prevent stack overflow on deep ASTs.
 - **Reuse**: Backed by `Arc`, enabling AST cloning and repeated execution.
 
 ## Architectural Role: `Free` vs `Program`
 
-- **`Free<F, A>` (DSL AST Engine)**: Cloneable computation trees backed by `Arc` for multi-pass interpretation. Node shapes are inspectable via [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), [`is_bind`](Free::is_bind), and [`is_then`](Free::is_then); inspect effect commands via [`as_suspend`](Free::as_suspend), pure values via [`as_pure`](Free::as_pure), and static sequencing trees via [`as_then`](Free::as_then). Dynamic continuations (`Bind`) remain opaque. Stack safety applies to `Bind` and `Then` spines.
-- **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**: Statically couples commands to handler `H` at compile time, eliminating runtime downcasts in handler interfaces via trampoline evaluation.
+- **`Free<F, A>` (DSL AST Engine)**: Cloneable computation trees backed by `Arc` for multi-pass interpretation. Inspect structure via [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), [`is_bind`](Free::is_bind), [`is_then`](Free::is_then); inspect payloads via [`as_pure`](Free::as_pure), [`as_suspend`](Free::as_suspend), [`as_then`](Free::as_then). Continuations in `Bind` remain opaque. Stack safety applies to `Bind` and `Then` spines.
+- **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**: Statically couples commands to handler `H` at compile time, eliminating runtime downcasts via trampoline evaluation.
 
 ## Example
 
