@@ -1,27 +1,17 @@
 # Operational Monad
 
-The `operational` module provides operational monads ([`Program`] and [`TryProgram`])
-where each [`Command`] statically declares its output type via [`Command::Output`].
+Operational monads ([`Program`] and [`TryProgram`]) where each [`Command`] statically declares its output type via [`Command::Output`].
 
 ## Type Safety Boundaries and Limitations
 
-- **Handler interface**: The compiler enforces that [`Handler<C>::handle`] returns [`Command::Output`].
-  Implementing a handler with the wrong return type is a compile error.
-- **Trampoline evaluation**: Stack-safe execution requires intermediate type erasure via
-  [`Box<dyn Any>`]. While the public API prevents mismatched types from being constructed,
-  the execution engine relies on internal `.downcast::<T>().expect(...)` calls.
-- **Handler coupling**: `Program<H, A>` fixes the handler type `H` at construction. Chaining commands
-  requires `H` to implement `Handler<C>` for every command in the sequence.
+- **Handler interface**: Compiler enforces that [`Handler<C>::handle`] returns [`Command::Output`].
+- **Trampoline evaluation**: Stack-safe execution uses intermediate type erasure via [`Box<dyn Any>`]. Internal `.downcast::<T>().expect(...)` calls rely on public API type invariance.
+- **Handler coupling**: `Program<H, A>` statically fixes handler `H` at construction; `H` must implement `Handler<C>` for every command in the sequence.
 
 ## Architectural Role: `Program` vs `Free`
 
-- Use [`Free`](crate::datatypes::free::Free) for an inspectable, cloneable DSL AST that can be
-  transformed, analyzed across multiple passes, or evaluated across threads or backends. Backed by
-  [`Arc`](alloc::sync::Arc), `Free` is first-class and maintained for concurrent or AST-centric architectures.
-- Use [`Program`] / [`TryProgram`] for ownership-driven ([`Box`]), single-threaded operational execution
-  pipelines. Without `Send + Sync` constraints, it seamlessly supports local state types such as
-  [`Rc`](alloc::rc::Rc) and [`RefCell`](core::cell::RefCell) while checking command outputs against handler
-  signatures at compile time.
+- **[`Program`] / [`TryProgram`]**: Ownership-driven ([`Box`]), single-threaded execution pipelines. Supports local state types ([`Rc`](alloc::rc::Rc), [`RefCell`](core::cell::RefCell)) without `Send + Sync` bounds, checking command outputs against handler signatures at compile time.
+- **[`Free`](crate::datatypes::free::Free)**: Inspectable, cloneable DSL AST backed by [`Arc`](alloc::sync::Arc) for concurrent or multi-pass architectures.
 
 ## Example
 

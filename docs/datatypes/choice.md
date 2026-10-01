@@ -1,13 +1,6 @@
 # Choice (`Choice<T>`)
 
-A non-empty ordered collection where the **primary** value is always tried first,
-and **alternatives** serve as fallback options tried in order when the primary fails.
-
-## When to Use
-
-Use `Choice<T>` when a function requires a guaranteed primary target and
-zero or more ordered fallback targets. The type makes priority and fallback
-semantics explicit and statically enforced.
+Non-empty ordered collection where the primary target is tried first and alternatives serve as ordered fallbacks. Statically enforces priority and fallback semantics.
 
 ## Intended Usage
 
@@ -29,8 +22,7 @@ assert_eq!(matched, Some("1.api.com"));
 
 ## Priority Transformation and Combination
 
-Transformation via [`map`](Choice::map) and combination via [`Semigroup`] strictly preserve
-priority ordering:
+Operations strictly preserve priority ordering:
 
-- `map` transforms `primary` and all `alternatives` preserving order.
-- `combine` chains another choice's values after the current alternatives.
+- [`map`](Choice::map): Transforms `primary` and all `alternatives` preserving order.
+- [`Semigroup`]: `combine` chains another choice's values after the current alternatives.

@@ -1,13 +1,6 @@
 # Lens (`Lens<S, A, ViewFn, SetFn>`)
 
-Lens is a functional programming optic for zero-allocation viewing and modifying parts of immutable data structures.
-
-A lens provides a way to:
-
-- View a part of a larger data structure with zero heap allocations (`view(&s) -> &A`)
-- Extract an owned value adhering to `C-CONV` conventions (`to_value(&s) -> A`)
-- Update that part immutably while preserving the rest of the structure (`set`, `modify`)
-- Short-circuit updates when `A: PartialEq` and new value equals current value (0 B, 0 clones)
+Optic for zero-allocation viewing and immutably updating parts of data structures.
 
 ## Quick Start
 
@@ -45,22 +38,15 @@ let older = age_lens.modify(person, |age| age + 1);
 assert_eq!(older.age, 31);
 ```
 
-## Functional Programming Context
-
-In functional programming, lenses are a form of *functional reference* or *optic* that solve the
-problem of updating immutable nested data structures. In Rustica 0.20.0, lenses are reference-first:
-`view` borrows directly without cloning, eliminating heap churn for read-only field inspection and chaining.
-
 ## Key Features
 
-- **Zero-Allocation View**: Primary accessor borrows focus directly (`&S -> &A`).
-- **Zero-Allocation Short-Circuiting**: `set` and `modify` preserve `source` untouched when `A: PartialEq` and values match.
+- **Zero-Allocation View**: Primary accessor borrows focus directly (`view(&s) -> &A`).
+- **Owned Extraction**: Extracts owned values adhering to `C-CONV` (`to_value(&s) -> A`).
+- **Short-Circuiting**: `set` and `modify` preserve `source` untouched when `A: PartialEq` and values match.
 - **Bidirectional**: Symmetrically views fields and updates product types.
 - **Composable**: Chaining via `then` preserves references across arbitrary optic depths.
 
 ## Type Class Laws
-
-Lenses follow three fundamental laws:
 
 1. **GetSet**: `lens.set(s.clone(), lens.to_value(&s)) == s`
 2. **SetGet**: `*lens.view(&lens.set(s, a)) == a` (equality is `PartialEq`; for

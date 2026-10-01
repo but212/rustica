@@ -16,12 +16,12 @@ Method naming conventions and receiver standards for Rustica, aligning the [Rust
 
 ## 2. Conversion Methods (C-CONV)
 
-Prefixes correspond strictly to receiver ownership and allocation cost:
+Prefixes reflect receiver ownership and allocation cost:
 
 | Prefix | Receiver | Cost | Return Type | Conventions |
 | --- | --- | --- | --- | --- |
-| `as_*` | `&self` / `&mut self` | Free | Borrowed reference (`&U`, `&mut U`) | Borrows internal view without allocation or copy (`as_slice`, `as_str`) |
-| `to_*` | `&self` | Expensive | Owned value (`U`) | Clones or reallocates a new instance (`to_string`, `to_vec`, `to_pure`) |
+| `as_*` | `&self` / `&mut self` | Free | Borrowed reference (`&U`, `&mut U`) | Borrows view without allocation (`as_slice`, `as_str`) |
+| `to_*` | `&self` | Expensive | Owned value (`U`) | Clones or allocates new instance (`to_string`, `to_vec`, `to_pure`) |
 | `into_*` | `self` | Move only | Owned value (`U`) | Consumes instance to unwrap or convert (`into_value`, `into_result`) |
 
 ### Rules and Examples
@@ -63,7 +63,7 @@ Side-effect or computation triggers must never be named `get` or `try_get`:
 ### 4.1 Consuming Builders (Chaining)
 
 - **Prefix**: `with_*` | **Receiver**: `mut self -> Self`
-- Assembles immutable instances step-by-step by moving state:
+- Assembles immutable instances by moving state:
 
 ```rust
 impl ComposableError {
@@ -77,17 +77,17 @@ impl ComposableError {
 ### 4.2 In-Place Mutators (Setters)
 
 - **Prefix**: `set_*` | **Receiver**: `&mut self -> ()`
-- Mutates internal fields in-place on a bound instance (`Configuration::set_timeout(&mut self, timeout: Duration)`).
+- Mutates fields in-place (`Configuration::set_timeout(&mut self, timeout: Duration)`).
 
 ### 4.3 Borrowed Builders
 
-- **Receiver**: `&mut self -> &mut Self` (reserved for large buffer or FFI assemblers).
+- **Receiver**: `&mut self -> &mut Self` (reserved for large buffers or FFI assemblers).
 
 ---
 
 ## 5. Iterators (C-ITER)
 
-Container types provide standard iterators where applicable:
+Container types provide standard iterators:
 
 | Method | Receiver | Item Type | Description |
 | --- | --- | --- | --- |
@@ -101,7 +101,7 @@ Container types provide standard iterators where applicable:
 
 ## 6. Predicates and Boolean Queries (C-PREDICATE)
 
-Boolean inspection methods always borrow via `&self`:
+Boolean inspection methods borrow via `&self`:
 
 - `is_*`: State/variant query (`is_empty`, `is_valid`, `is_pure`)
 - `has_*`: Component presence (`has_alternatives`)
@@ -130,7 +130,7 @@ Boolean inspection methods always borrow via `&self`:
 ### 7.3 Persistent Data Structures
 
 > [!NOTE]
-> `PersistentVector` and the `pvec` module were removed in v0.19.0. Rustica delegates persistent collections to dedicated specialized crates such as [`imbl`](https://crates.io/crates/imbl) (`imbl::Vector`) or standard `std::vec::Vec<T>`.
+> `PersistentVector` and the `pvec` module were removed in v0.19.0. Rustica delegates persistent collections to dedicated crates such as [`imbl`](https://crates.io/crates/imbl) (`imbl::Vector`) or standard `std::vec::Vec<T>`.
 
 ### 7.4 Optics (Lens, Prism)
 

@@ -1,10 +1,6 @@
 # Monoid Trait
 
-This module provides the Monoid trait, which extends `Semigroup` to add an identity element.
-
-A monoid extends a semigroup by providing an identity element that, when combined with any other
-element, returns that element unchanged. This makes monoids particularly useful for operations
-like addition (identity: 0), multiplication (identity: 1), and string concatenation (identity: empty string).
+The `Monoid` trait extends `Semigroup` with an identity element (`empty()`). Combining any element with the identity element leaves that element unchanged.
 
 ## Example
 

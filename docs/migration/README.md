@@ -1,6 +1,6 @@
 # Migration Guides
 
-This section documents breaking changes and migration steps across major and minor versions of Rustica.
+Breaking changes and migration steps across Rustica versions.
 
 - [Migration V0.13.0](MIGRATION_v0.13.0.md)
 - [Migration V0.14.0](MIGRATION_v0.14.0.md)

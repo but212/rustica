@@ -1,13 +1,6 @@
 # Prism (`Prism<S, A, PreviewFn, ReviewFn>`)
 
-Prisms are reference-borrowing optics that focus on a specific case of a sum type.
-
-A prism provides a way to:
-
-- Selectively view a specific variant of an enum with zero heap allocations (`preview(&s) -> Option<&A>`)
-- Extract an owned value when needed adhering to `C-CONV` conventions (`to_value(&s) -> Option<A>`)
-- Construct a value of the sum type from a value of the specific variant (`review(a) -> S`)
-- Update the variant with zero-allocation short-circuiting on unchanged values (`set`, `modify`)
+Optic for zero-allocation viewing and immutably updating a specific variant of a sum type.
 
 ## Quick Start
 
@@ -54,20 +47,14 @@ let updated = pending_prism.modify(pending_user, |days| days + 1);
 assert_eq!(updated, Status::Pending(8));
 ```
 
-## Functional Programming Context
-
-Prisms represent a fundamental optic in functional programming, originating from the Haskell lens library.
-In Rustica 0.20.0, prisms are reference-first: `preview` borrows directly without cloning, eliminating
-heap churn for read-only variant inspection and chaining.
-
 ## Key Features
 
-- **Zero-Allocation Preview**: Primary accessor borrows focus directly (`&S -> Option<&A>`).
-- **Zero-Allocation Short-Circuiting**: `set` and `modify` preserve `source` untouched when `A: PartialEq` and values match.
-- **Bidirectional**: Symmetrically extracts variant focus and constructs sum types.
+- **Zero-Allocation Preview**: Primary accessor borrows focus directly (`preview(&s) -> Option<&A>`).
+- **Owned Extraction**: Extracts owned values adhering to `C-CONV` (`to_value(&s) -> Option<A>`).
+- **Bidirectional**: Constructs sum types from variant focus (`review(a) -> S`).
+- **Short-Circuiting**: `set` and `modify` preserve `source` untouched when `A: PartialEq` and values match.
 - **Composable**: Chaining via `then` preserves references across arbitrary optic depths without intermediate clones.
 
 ## Type Class Laws
 
-Prisms must satisfy the Preview-Review and Review-Preview laws to be well-behaved.
-See the type-level [`Prism`] documentation for full definitions and invariants.
+Prisms satisfy Preview-Review and Review-Preview laws. See the type-level [`Prism`] documentation for definitions and invariants.
