@@ -134,36 +134,6 @@ fn test_modify_applies_transform_once() {
     assert_eq!(transform_count.get(), 1);
 }
 
-#[test]
-#[allow(deprecated)]
-fn test_iso_map_then_composition() {
-    #[derive(Clone, Debug, PartialEq)]
-    struct Inner {
-        value: u32,
-    }
-    #[derive(Clone, Debug, PartialEq)]
-    struct Outer {
-        inner: Inner,
-    }
-
-    let outer_inner = Lens::new(|o: &Outer| &o.inner, |_o, inner| Outer { inner });
-    let inner_val = Lens::new(|i: &Inner| &i.value, |_i, value| Inner { value });
-
-    let mapped = outer_inner.iso_map(|i: Inner| i, |i: Inner| i);
-    let composed = mapped.then(inner_val);
-
-    let outer = Outer {
-        inner: Inner { value: 42 },
-    };
-
-    assert_eq!(composed.get(&outer), 42);
-    let updated = composed.set(outer, 100);
-    assert_eq!(updated.inner.value, 100);
-
-    let cloned = composed.clone();
-    assert_eq!(cloned.get(&updated), 100);
-}
-
 // Slice 2: Contract C-03 & C-04: Zero-alloc set and single-clone modify
 thread_local! {
     static CLONES: Cell<usize> = const { Cell::new(0) };

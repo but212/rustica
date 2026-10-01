@@ -229,36 +229,6 @@ where
         let new_value = f((self.view)(&source).clone());
         (self.set)(source, new_value)
     }
-
-    /// Deprecated bidirectional type transformation.
-    ///
-    /// In 0.20.0, `Lens` is a reference-borrowing optic (`&S -> &A`) and cannot lawfully
-    /// borrow a reference to a newly computed value `B`. Use `lens.view(&s)` or `lens.to_value(&s)`
-    /// and transform values directly.
-    #[deprecated(
-        since = "0.20.0",
-        note = "Lens is now a zero-allocation reference optic. Use lens.view(&s) or lens.to_value(&s) and transform values directly."
-    )]
-    #[inline]
-    #[allow(deprecated)]
-    pub fn iso_map<B, F, G>(
-        self, f: F, g: G,
-    ) -> DeprecatedIsoLens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
-    where
-        A: Clone,
-        F: Fn(A) -> B + Clone,
-        G: Fn(B) -> A + Clone,
-        ViewFn: Clone,
-        SetFn: Clone,
-    {
-        let view = self.view;
-        let set = self.set;
-        DeprecatedIsoLens {
-            get: move |s: &S| f(view(s).clone()),
-            set: move |s: S, b: B| set(s, g(b)),
-            _phantom: PhantomData,
-        }
-    }
 }
 
 #[inline]
@@ -301,98 +271,6 @@ where
             set: move |s: S, b: B| {
                 let current_a = view1_for_set(&s).clone();
                 let updated_a = set2(current_a, b);
-                set1(s, updated_a)
-            },
-            _phantom: PhantomData,
-        }
-    }
-}
-
-/// Deprecated bridge adapter for `Lens::iso_map`.
-#[deprecated(
-    since = "0.20.0",
-    note = "Lens is now a zero-allocation reference optic. Use lens.view(&s) or lens.to_value(&s) and transform values directly."
-)]
-#[derive(Clone)]
-pub struct DeprecatedIsoLens<S, B, GetFn, SetFn> {
-    get: GetFn,
-    set: SetFn,
-    _phantom: PhantomData<fn(S) -> B>,
-}
-
-#[allow(deprecated)]
-impl<S, B, GetFn, SetFn> fmt::Debug for DeprecatedIsoLens<S, B, GetFn, SetFn> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DeprecatedIsoLens").finish_non_exhaustive()
-    }
-}
-
-#[allow(deprecated)]
-impl<S, B, GetFn, SetFn> DeprecatedIsoLens<S, B, GetFn, SetFn>
-where
-    GetFn: Fn(&S) -> B,
-    SetFn: Fn(S, B) -> S,
-{
-    /// Extracts the transformed focus value.
-    #[inline]
-    pub fn get(&self, source: &S) -> B {
-        (self.get)(source)
-    }
-
-    /// Extracts the transformed focus value adhering to `C-CONV`.
-    #[inline]
-    pub fn to_value(&self, source: &S) -> B {
-        (self.get)(source)
-    }
-
-    /// Sets the transformed focus value.
-    #[inline]
-    pub fn set(&self, source: S, value: B) -> S {
-        (self.set)(source, value)
-    }
-
-    /// Modifies the transformed focus value.
-    #[inline]
-    pub fn modify<F>(&self, source: S, f: F) -> S
-    where
-        F: FnOnce(B) -> B,
-    {
-        let val = (self.get)(&source);
-        (self.set)(source, f(val))
-    }
-}
-
-#[allow(deprecated)]
-impl<S, A, GetFn, SetFn> DeprecatedIsoLens<S, A, GetFn, SetFn>
-where
-    GetFn: Fn(&S) -> A + Clone,
-    SetFn: Fn(S, A) -> S + Clone,
-{
-    /// Composes a deprecated iso lens with an inner reference lens.
-    #[inline]
-    #[allow(clippy::type_complexity)]
-    pub fn then<B, ViewFn2, SetFn2>(
-        self, other: Lens<A, B, ViewFn2, SetFn2>,
-    ) -> DeprecatedIsoLens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
-    where
-        A: Clone,
-        B: Clone,
-        ViewFn2: Fn(&A) -> &B + Clone,
-        SetFn2: Fn(A, B) -> A + Clone,
-    {
-        let get1 = self.get;
-        let set1 = self.set;
-        let view2 = other.view;
-        let set2 = other.set;
-        let get1_for_set = get1.clone();
-        DeprecatedIsoLens {
-            get: move |s: &S| {
-                let a = get1(s);
-                view2(&a).clone()
-            },
-            set: move |s: S, b: B| {
-                let a = get1_for_set(&s);
-                let updated_a = set2(a, b);
                 set1(s, updated_a)
             },
             _phantom: PhantomData,
@@ -550,17 +428,5 @@ mod unit_tests {
         let point = Point { x: 10.0, y: 20.0 };
         assert_eq!(x_lens().set_always(point.clone(), 10.0).x, 10.0);
         assert_eq!(x_lens().modify_always(point, |x| x).x, 10.0);
-
-        let bits_lens = x_lens().iso_map(|x: f64| x.to_bits(), f64::from_bits);
-        assert_eq!(
-            bits_lens.get(&Point { x: 10.0, y: 20.0 }),
-            10.0f64.to_bits()
-        );
-        assert_eq!(
-            bits_lens
-                .set(Point { x: 10.0, y: 20.0 }, 25.5f64.to_bits())
-                .x,
-            25.5
-        );
     }
 }

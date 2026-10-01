@@ -23,7 +23,7 @@ Removals, breaking changes, and direct replacement patterns for Rustica 0.20.0.
 | `ContextError::Display`, `error_chain()` | Breaking (Output) | Formats context chain only; root error via `err.error()` or `source()` |
 | `Lens::new`, `Lens::get` | Breaking (API) | `Lens::new` takes view closure `Fn(&S) -> &A`; use `view(&s)` (0 B) or `to_value(&s)` (cloned); `get` is deprecated |
 | `Lens::set`/`modify`, `Prism::modify` | Breaking (Bounds) | Require `A: PartialEq` (and `A: Clone`); use `set_always`/`modify_always` for non-`PartialEq` or bit-exact foci |
-| `Lens::iso_map` | Deprecated | Returns `DeprecatedIsoLens`; transform values after calling `view(&s)` or `to_value(&s)` |
+| `Lens::iso_map` | Removed | Transform values directly after calling `view(&s)` or `to_value(&s)` |
 | `Prism::new`, `Prism::preview` | Breaking (API) | `Prism::new` takes preview closure `Fn(&S) -> Option<&A>`; `preview` returns `Option<&A>` (0 B); use `to_value(&s)` for owned |
 | `Prism::then` | Breaking (API) | Requires `Clone` bounds on closures; returns `+ Clone` |
 | `Validated::sequence` | Changed | Accepts generic `IntoIterator<Item = Self>` |
@@ -176,7 +176,7 @@ In Rustica 0.20.0, both `Lens` and `Prism` are standardized on **zero-allocation
 - `lens.view(&s)` is the primary zero-allocation accessor (`&A`).
 - `lens.to_value(&s)` provides explicit owned extraction (`A`) adhering to `C-CONV`.
 - `lens.get(&s)` is deprecated in favor of `view(&s)` (for zero allocations) or `to_value(&s)`.
-- `lens.iso_map(...)` is deprecated and returns a `DeprecatedIsoLens` bridge adapter. Because reference lenses borrow directly from `S`, value-level transformations should be performed after calling `view(&s)` or `to_value(&s)`.
+- `lens.iso_map(...)` is removed. Because reference lenses borrow directly from `S`, value-level transformations should be performed after calling `view(&s)` or `to_value(&s)`.
 
 ```rust
 // Before (0.19.0): Getter required cloning the focus

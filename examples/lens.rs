@@ -4,7 +4,7 @@
 //! - Viewing, updating, and modifying fields immutably
 //! - Composing lenses to navigate and modify deeply nested structures
 //! - Structural sharing when updates result in identical values
-//! - Bidirectional type mapping (`iso_map`)
+//! - Idiomatic value transformation on views
 
 use rustica::datatypes::lens::Lens;
 
@@ -137,28 +137,23 @@ fn main() {
 
     println!();
 
-    // Stage 4: Bidirectional Type Transformation with `iso_map` (Deprecated)
-    println!("4. Type Transformation via `iso_map` (Deprecated Bridge):");
-    // `to_le_bytes` / `from_le_bytes` are exact inverses, so the lens laws hold
-    #[allow(deprecated)]
-    let font_bytes_lens = theme_font_size_lens().iso_map(
-        |size: u32| size.to_le_bytes(),
-        |bytes: [u8; 4]| u32::from_le_bytes(bytes),
-    );
-
+    // Stage 4: Value Transformation
+    println!("4. Transforming Values Directly on Focus:");
     let current_theme = Theme {
         mode: "dark".to_string(),
         font_size: 16,
     };
 
-    #[allow(deprecated)]
-    let font_bytes = font_bytes_lens.get(&current_theme);
+    let font_bytes = theme_font_size_lens().view(&current_theme).to_le_bytes();
     println!("  Viewed font size as bytes: {:?}", font_bytes);
     assert_eq!(font_bytes, 16u32.to_le_bytes());
 
-    #[allow(deprecated)]
-    let resized_theme = font_bytes_lens.set(current_theme, 24u32.to_le_bytes());
-    println!("  Set font size using bytes: {}", resized_theme.font_size);
+    let resized_theme =
+        theme_font_size_lens().set(current_theme, u32::from_le_bytes(24u32.to_le_bytes()));
+    println!(
+        "  Set font size using decoded bytes: {}",
+        resized_theme.font_size
+    );
     assert_eq!(resized_theme.font_size, 24);
 
     println!("\n=== Lens Example Completed Successfully ===");

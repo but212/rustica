@@ -20,7 +20,6 @@
 - **`Validated::recover_all`**: Deprecated due to semantic conflict with applicative validation (short-circuits on first success, dropping other errors). Use `recover_all_at_once` or `recover_with`.
 - **`ContextError::{context, contexts_raw}`**: Deprecated in favor of `to_contexts()` and `contexts()`.
 - **`Lens::get`**: Deprecated in favor of `Lens::view(&s)` (zero-allocation borrowed access) or `Lens::to_value(&s)` (explicit owned extraction per `C-CONV`).
-- **`Lens::iso_map`**: Deprecated; returns `DeprecatedIsoLens`. Value-level transformations should be performed after calling `view(&s)` or `to_value(&s)`.
 
 ### Fixed
 
@@ -33,7 +32,8 @@
 
 ### Removed
 
-- **Deprecated Aliases (Breaking)**: Removed `fmap`, `bind`, `flat_map` across all datatypes (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`), `Lens::fmap` (use `Lens::iso_map`), `Choice::{flatten_cloned, try_flatten_cloned}`, and `Validated::to_option`.
+- **`Lens::iso_map` (Breaking)**: Removed `Lens::iso_map` as reference lenses borrow directly from `S` and cannot return borrowed references to newly computed values. Perform value transformations directly after calling `view(&s)` or `to_value(&s)`.
+- **Deprecated Aliases (Breaking)**: Removed `fmap`, `bind`, `flat_map` across all datatypes (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`), `Lens::fmap`, `Choice::{flatten_cloned, try_flatten_cloned}`, and `Validated::to_option`.
 - **`async` Feature & Combinators (Breaking)**: Removed `async` feature, `Validated::{map_async, map_err_async, and_then_async}`, and `tokio` dev-dependency. Use native `match` / `async`/`await`.
 - **`HashMap` / `HashSet` Semigroup (Breaking)**: Removed `Semigroup for HashMap` and `Semigroup for HashSet` for pure `no_std` compliance. Migrate to `BTreeMap` / `BTreeSet` or local wrappers (see [`MIGRATION_v0.20.0.md`](MIGRATION_v0.20.0.md)).
 
