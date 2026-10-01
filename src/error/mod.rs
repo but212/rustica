@@ -79,10 +79,10 @@ impl<E> ContextError<E> {
         I: IntoIterator<Item = C>,
         C: IntoErrorContext,
     {
-        let mut new_contexts: Vec<String> = contexts
-            .into_iter()
-            .map(IntoErrorContext::into_error_context)
-            .collect();
+        let iter = contexts.into_iter();
+        let (lower, _) = iter.size_hint();
+        let mut new_contexts = Vec::with_capacity(lower + self.context.len());
+        new_contexts.extend(iter.map(IntoErrorContext::into_error_context));
         new_contexts.reverse();
         new_contexts.append(&mut self.context);
         self.context = new_contexts;
@@ -153,7 +153,9 @@ impl<E> ContextError<E> {
     where
         E: Display,
     {
-        let mut chain = String::new();
+        let total_len: usize = self.context.iter().map(String::len).sum();
+        let sep_len = self.context.len().saturating_sub(1) * " -> ".len();
+        let mut chain = String::with_capacity(total_len + sep_len);
         self.write_chain(&mut chain)
             .expect("writing to String cannot fail");
         chain
@@ -294,11 +296,15 @@ where
     I: IntoIterator<Item = C>,
     C: IntoErrorContext,
 {
-    let pre_evaluated: Vec<String> = contexts
+    let mut pre_evaluated: Vec<String> = contexts
         .into_iter()
         .map(IntoErrorContext::into_error_context)
         .collect();
-    move |error| ContextError::new(error).with_contexts(pre_evaluated.clone())
+    pre_evaluated.reverse();
+    move |error| ContextError {
+        error,
+        context: pre_evaluated.clone(),
+    }
 }
 
 #[cfg(test)]

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Changed
+
+- **`ContextError` Buffer & Accumulator Optimizations**: Preallocated capacity in `with_contexts` using `size_hint` and existing context length; pre-reversed contexts once at `context_accumulator` construction to eliminate runtime reversals; precalculated `String::with_capacity` in `error_chain` to avoid step-wise string reallocations.
+- **Benchmark Suite ContextError Migration**: Renamed `lazy_error.rs` to `context_error.rs` and added benchmark cases covering `ContextError` allocation and context traversal.
+
 ## [0.20.0]
 
 ### Added
