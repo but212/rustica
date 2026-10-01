@@ -21,7 +21,7 @@ Removals, breaking changes, and direct replacement patterns for Rustica 0.20.0.
 | `Validated::recover_all` | Deprecated | `recover_all_at_once`, `recover_with` |
 | `ContextError::context` | Deprecated | `ContextError::to_contexts` |
 | `ContextError::contexts_raw` | Deprecated | `ContextError::contexts` |
-| `ContextError::Display` | Changed | Formats context chain only; root error via `source()` |
+| `ContextError::Display`, `error_chain()` | Changed | Formats context chain only; root error via `err.error()` or `source()` |
 | `Prism::then` | Changed | Requires `Clone` bounds on closures; returns `+ Clone` |
 | `Validated::sequence` | Changed | Accepts generic `IntoIterator<Item = Self>` |
 
@@ -146,11 +146,22 @@ To align with Rust API naming guidelines, accessors now distinguish borrowed fro
 
 `err.context()` and `err.contexts_raw()` remain as deprecated shims for 0.20.0.
 
-### `Display` Formatting
+### `Display` and `error_chain()` Formatting
 
-`Display` now formats only the accumulated context chain (`ctx1 -> ctx2`), delegating root error presentation to `Error::source()`. Standard error reporters (`anyhow`, `eyre`) traversing `source()` no longer print the root error twice.
+`Display` and `ContextError::error_chain()` now format only the accumulated context chain (`ctx1 -> ctx2`), delegating root error presentation to `Error::source()`. Standard error reporters (`anyhow`, `eyre`) traversing `source()` no longer print the root error twice.
 
-When no context entries exist, `Display` falls back to the root error so output is never empty.
+When no context entries exist, `Display` and `error_chain()` fall back to the root error so output is never empty.
+
+To inspect the underlying root error directly, use the `err.error()` getter instead of matching against `error_chain()`:
+
+```rust
+// Before (0.19.0): error_chain() included both context and root error
+assert!(err.error_chain().contains("Root storage failure"));
+
+// After (0.20.0): context and root error are cleanly separated
+assert!(err.error_chain().contains("Pipeline step failure"));
+assert_eq!(*err.error(), "Root storage failure");
+```
 
 ---
 

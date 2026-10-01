@@ -1073,18 +1073,18 @@ fn main() {
         Ok(_) => panic!("Expected storage failure"),
         Err(context_err) => {
             println!(
-                "\n  Execution error accumulated context chain:\n  {}",
-                context_err.error_chain()
+                "\n  Execution error accumulated context chain:\n  {}\n  Root error: {}",
+                context_err.error_chain(),
+                context_err.error()
             );
             assert!(
                 context_err
                     .error_chain()
                     .contains("Query execution engine pipeline step failure")
             );
-            assert!(
-                context_err
-                    .error_chain()
-                    .contains("Storage error: table not found in data store")
+            assert_eq!(
+                *context_err.error(),
+                "Storage error: table not found in data store"
             );
         },
     }

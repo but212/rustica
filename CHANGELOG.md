@@ -5,6 +5,7 @@
 ### Added
 
 - **`ContextError` Standard Getters**: Added `ContextError::contexts` (borrowed slice) and `ContextError::to_contexts` (cloned `Vec`) adhering to Rust API naming conventions.
+- **`Lens::from_view` Zero-Allocation Reference Optics**: Added `Lens::from_view` constructor constructing reference-borrowing lenses (`View<F>`), `Lens::view` accessor returning `&A`, and `Lens::forget_view` for interoperability with value-based (`NoView`) lenses.
 
 ### Changed
 
@@ -12,6 +13,7 @@
 - **`ContextError::Display` Output**: `Display` formats only the context chain (`ctx1 -> ctx2`), delegating root error presentation to `Error::source()` to prevent double-printing in standard error reporters.
 - **`Prism::then` Closure `Clone` Bounds (Breaking)**: Added `+ Clone` bounds to input functions and returned closures in `Prism::then`, matching `Lens::then` and ensuring composed prisms implement `Clone`.
 - **`Validated::sequence` Collection Input**: Generalized input from `Vec<Self>` to generic `IntoIterator<Item = Self>`.
+- **`Lens` Struct Bound Relaxation**: Relaxed struct-level trait bounds on `Lens<S, A, GetFn, SetFn, V = NoView>` per Rust API guidelines (C-STRUCT-BOUNDS), moving closure bounds to method `impl` blocks.
 
 ### Deprecated
 

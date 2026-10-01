@@ -125,6 +125,26 @@
 use core::fmt;
 use core::marker::PhantomData;
 
+/// Marker indicating a lens that does not support borrowing reference views.
+#[derive(Clone, Copy, Debug)]
+pub struct NoView;
+
+/// Wrapper holding a reference-borrowing getter closure.
+#[derive(Clone, Debug)]
+#[repr(transparent)]
+pub struct View<F>(pub F);
+
+#[inline]
+fn compose_views<S: ?Sized, A: ?Sized + 'static, B: ?Sized, V1, V2>(
+    v1: V1, v2: V2,
+) -> impl Fn(&S) -> &B + Clone
+where
+    V1: Fn(&S) -> &A + Clone,
+    V2: Fn(&A) -> &B + Clone,
+{
+    move |s: &S| v2(v1(s))
+}
+
 /// A lens is a first-class reference to a subpart of some data type.
 /// It provides a way to view, modify and transform a part of a larger structure.
 ///
@@ -137,6 +157,7 @@ use core::marker::PhantomData;
 /// * `A` - The type of the part being focused on
 /// * `GetFn` - The type of the getter function
 /// * `SetFn` - The type of the setter function
+/// * `V` - The view strategy (`NoView` by default, or `View<F>`)
 ///
 /// # Design Notes
 ///
@@ -178,41 +199,36 @@ use core::marker::PhantomData;
 /// let modified = name_lens.modify(person, |name| format!("Ms. {}", name));
 /// assert_eq!(modified.name, "Ms. Alice");
 /// ```
-pub struct Lens<S, A, GetFn, SetFn>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-{
+pub struct Lens<S, A, GetFn, SetFn, V = NoView> {
     get: GetFn,
     set: SetFn,
+    view: V,
     _phantom: PhantomData<fn(S) -> A>,
 }
 
-impl<S, A, GetFn, SetFn> Clone for Lens<S, A, GetFn, SetFn>
+impl<S, A, GetFn, SetFn, V> Clone for Lens<S, A, GetFn, SetFn, V>
 where
-    GetFn: Fn(&S) -> A + Clone,
-    SetFn: Fn(S, A) -> S + Clone,
+    GetFn: Clone,
+    SetFn: Clone,
+    V: Clone,
 {
     fn clone(&self) -> Self {
         Lens {
             get: self.get.clone(),
             set: self.set.clone(),
+            view: self.view.clone(),
             _phantom: PhantomData,
         }
     }
 }
 
-impl<S, A, GetFn, SetFn> fmt::Debug for Lens<S, A, GetFn, SetFn>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-{
+impl<S, A, GetFn, SetFn, V> fmt::Debug for Lens<S, A, GetFn, SetFn, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Lens").finish_non_exhaustive()
     }
 }
 
-impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn>
+impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn, NoView>
 where
     GetFn: Fn(&S) -> A,
     SetFn: Fn(S, A) -> S,
@@ -266,10 +282,17 @@ where
         Lens {
             get,
             set,
+            view: NoView,
             _phantom: PhantomData,
         }
     }
+}
 
+impl<S, A, GetFn, SetFn, V> Lens<S, A, GetFn, SetFn, V>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
     /// Gets the focused part from the whole structure.
     ///
     /// This operation is non-destructive and returns a clone of the focused part.
@@ -314,7 +337,13 @@ where
     pub fn get(&self, source: &S) -> A {
         (self.get)(source)
     }
+}
 
+impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn, NoView>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
     /// Sets the focused part to a new value, returning a new whole structure.
     ///
     /// This operation creates a new structure rather than modifying the existing one.
@@ -386,7 +415,13 @@ where
             self.set_always(source, value)
         }
     }
+}
 
+impl<S, A, GetFn, SetFn, V> Lens<S, A, GetFn, SetFn, V>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
     /// Sets the focused part to a new value without checking equality.
     ///
     /// This variant of set always creates a new structure, even if the value
@@ -440,7 +475,13 @@ where
     pub fn set_always(&self, source: S, value: A) -> S {
         (self.set)(source, value)
     }
+}
 
+impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn, NoView>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
     /// Modifies the focused part using a function, returning a new whole structure.
     ///
     /// This is a convenience method that combines `get` and `set` operations.
@@ -506,7 +547,13 @@ where
         let new_value = f(current);
         self.set(source, new_value)
     }
+}
 
+impl<S, A, GetFn, SetFn, V> Lens<S, A, GetFn, SetFn, V>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
     /// Modifies the focused part using a function without checking equality.
     ///
     /// This variant of modify always creates a new structure, even if the
@@ -640,7 +687,7 @@ where
     #[inline]
     pub fn iso_map<B, F, G>(
         self, f: F, g: G,
-    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
+    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone, NoView>
     where
         F: Fn(A) -> B + Clone,
         G: Fn(B) -> A + Clone,
@@ -649,7 +696,13 @@ where
     {
         Lens::new(move |s| f((self.get)(s)), move |s, b| (self.set)(s, g(b)))
     }
+}
 
+impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn, NoView>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+{
     /// Composes two lenses to create a new lens that focuses on a nested structure.
     ///
     /// Given a lens from `S` to `A` and a lens from `A` to `B`, this creates a new
@@ -711,9 +764,9 @@ where
     /// assert_eq!(updated.address.city, "Springfield"); // Other fields preserved
     /// ```
     #[inline]
-    pub fn then<B, GetFn2, SetFn2>(
-        self, other: Lens<A, B, GetFn2, SetFn2>,
-    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
+    pub fn then<B, GetFn2, SetFn2, V2>(
+        self, other: Lens<A, B, GetFn2, SetFn2, V2>,
+    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone, NoView>
     where
         GetFn: Clone,
         SetFn: Clone,
@@ -735,6 +788,138 @@ where
                 set1(s, new_a)
             },
         )
+    }
+}
+
+impl<S, A, SetFn> Lens<S, A, fn(&S) -> A, SetFn, NoView>
+where
+    SetFn: Fn(S, A) -> S,
+{
+    /// Creates a new lens from a reference getter (view) and setter.
+    ///
+    /// Provides zero-allocation views and zero-allocation equality checks.
+    #[inline]
+    pub fn from_view<ViewFn>(
+        view: ViewFn, set: SetFn,
+    ) -> Lens<S, A, impl Fn(&S) -> A + Clone, SetFn, View<ViewFn>>
+    where
+        ViewFn: Fn(&S) -> &A + Clone,
+        A: Clone,
+    {
+        let view_for_get = view.clone();
+        Lens {
+            get: move |s: &S| view_for_get(s).clone(),
+            set,
+            view: View(view),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<S, A, GetFn, SetFn, ViewFn> Lens<S, A, GetFn, SetFn, View<ViewFn>>
+where
+    GetFn: Fn(&S) -> A,
+    SetFn: Fn(S, A) -> S,
+    ViewFn: Fn(&S) -> &A,
+{
+    /// Borrows the focused part from the whole structure without cloning.
+    #[inline]
+    pub fn view<'a>(&self, source: &'a S) -> &'a A {
+        (self.view.0)(source)
+    }
+
+    /// Discards the borrowing view capability, downgrading to a `NoView` lens.
+    #[inline]
+    pub fn forget_view(self) -> Lens<S, A, GetFn, SetFn, NoView> {
+        Lens {
+            get: self.get,
+            set: self.set,
+            view: NoView,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Sets the focused part to a new value with zero-allocation short-circuiting.
+    #[inline]
+    pub fn set(&self, source: S, value: A) -> S
+    where
+        A: PartialEq,
+    {
+        if (self.view.0)(&source) == &value {
+            source
+        } else {
+            self.set_always(source, value)
+        }
+    }
+
+    /// Modifies the focused part using a function with single-get and zero-allocation short-circuiting.
+    #[inline]
+    pub fn modify<F>(&self, source: S, f: F) -> S
+    where
+        F: FnOnce(A) -> A,
+        A: PartialEq,
+    {
+        let current = self.get(&source);
+        let new_value = f(current);
+        if (self.view.0)(&source) == &new_value {
+            source
+        } else {
+            self.set_always(source, new_value)
+        }
+    }
+}
+
+impl<S, A, GetFn, SetFn, ViewFn> Lens<S, A, GetFn, SetFn, View<ViewFn>>
+where
+    GetFn: Fn(&S) -> A + Clone,
+    SetFn: Fn(S, A) -> S + Clone,
+    ViewFn: Fn(&S) -> &A + Clone,
+{
+    /// Composes two view-enabled lenses into a new view-enabled lens.
+    ///
+    /// # Type Requirements
+    ///
+    /// The focus types `A` and `B` must satisfy `'static` for view-preserving composition
+    /// because higher-ranked reference projections (`Fn(&S) -> &B`) require intermediate
+    /// references (`&A`) to be valid for arbitrary caller lifetimes.
+    /// For borrowed focus types containing non-`'static` lifetimes, use [`Lens::forget_view`]
+    /// to compose via the standard value-based [`NoView`] composition path.
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    pub fn then<B, GetFn2, SetFn2, ViewFn2>(
+        self, other: Lens<A, B, GetFn2, SetFn2, View<ViewFn2>>,
+    ) -> Lens<
+        S,
+        B,
+        impl Fn(&S) -> B + Clone,
+        impl Fn(S, B) -> S + Clone,
+        View<impl Fn(&S) -> &B + Clone>,
+    >
+    where
+        A: 'static,
+        B: Clone + 'static,
+        GetFn2: Fn(&A) -> B + Clone,
+        SetFn2: Fn(A, B) -> A + Clone,
+        ViewFn2: Fn(&A) -> &B + Clone,
+    {
+        let view1 = self.view.0;
+        let view2 = other.view.0;
+        let get1_for_set = self.get;
+        let set1 = self.set;
+        let set2 = other.set;
+
+        let view_composed = compose_views(view1, view2);
+        let view_for_get = view_composed.clone();
+        Lens {
+            get: move |s: &S| view_for_get(s).clone(),
+            set: move |s: S, b: B| {
+                let a = get1_for_set(&s);
+                let new_a = set2(a, b);
+                set1(s, new_a)
+            },
+            view: View(view_composed),
+            _phantom: PhantomData,
+        }
     }
 }
 

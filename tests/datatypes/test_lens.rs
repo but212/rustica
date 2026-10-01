@@ -223,3 +223,207 @@ fn test_iso_map_then_composition() {
     let cloned = composed.clone();
     assert_eq!(cloned.get(&updated), 100);
 }
+
+// Slice 1: Contract C-01 & Law L-01
+#[test]
+fn test_lens_from_view_basic() {
+    let lens = Lens::from_view(|p: &TestPerson| &p.name, |p, name| TestPerson { name, ..p });
+    let person = TestPerson {
+        name: "Alice".into(),
+        age: 30,
+    };
+
+    // Contract C-01: view returns reference without clone
+    assert_eq!(lens.view(&person), "Alice");
+
+    // Law L-01: *view(&s) == get(&s)
+    assert_eq!(*lens.view(&person), lens.get(&person));
+}
+
+// Slice 2: Contract C-03 & C-05 & Law L-02
+thread_local! {
+    static CLONES: Cell<usize> = const { Cell::new(0) };
+}
+
+#[derive(PartialEq, Debug)]
+struct Tracked(u32);
+
+impl Clone for Tracked {
+    fn clone(&self) -> Self {
+        CLONES.with(|c| c.set(c.get() + 1));
+        Tracked(self.0)
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+struct TrackedContainer {
+    item: Tracked,
+    id: u64,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+struct RcContainer {
+    payload: Rc<String>,
+}
+
+#[test]
+fn test_from_view_set_preserves_sharing() {
+    let lens = Lens::from_view(
+        |c: &TrackedContainer| &c.item,
+        |c, item| TrackedContainer { item, ..c },
+    );
+    let container = TrackedContainer {
+        item: Tracked(42),
+        id: 1,
+    };
+
+    // Contract C-03 & Law L-02: Zero-clone set on same value
+    let c = container.clone();
+    CLONES.with(|cnt| cnt.set(0));
+    let same = lens.set(c, Tracked(42));
+    assert_eq!(
+        CLONES.with(|cnt| cnt.get()),
+        0,
+        "set on unchanged value must perform 0 clones"
+    );
+    assert_eq!(same.item, Tracked(42));
+
+    // Contract C-05: Exactly 1 clone on modify identity (0 for comparison)
+    let c2 = container.clone();
+    CLONES.with(|cnt| cnt.set(0));
+    let same_mod = lens.modify(c2, |x| x);
+    assert_eq!(
+        CLONES.with(|cnt| cnt.get()),
+        1,
+        "modify on unchanged value must perform exactly 1 clone for f(current)"
+    );
+    assert_eq!(same_mod.item, Tracked(42));
+
+    // Pointer equality preservation
+    let rc_lens = Lens::from_view(
+        |c: &RcContainer| &c.payload,
+        |_c, payload| RcContainer { payload },
+    );
+    let rc_c = RcContainer {
+        payload: Rc::new("immutable-data".into()),
+    };
+    let same_rc = rc_lens.set(rc_c.clone(), Rc::clone(&rc_c.payload));
+    assert!(Rc::ptr_eq(&rc_c.payload, &same_rc.payload));
+
+    let same_rc_mod = rc_lens.modify(rc_c.clone(), |p| p);
+    assert!(Rc::ptr_eq(&rc_c.payload, &same_rc_mod.payload));
+
+    // Mutation path verification
+    let c3 = container.clone();
+    let updated = lens.set(c3, Tracked(7));
+    assert_eq!(updated.item, Tracked(7));
+    assert_eq!(updated.id, 1, "unrelated field must be preserved");
+
+    let c4 = container.clone();
+    let mod_updated = lens.modify(c4, |x| Tracked(x.0 + 10));
+    assert_eq!(mod_updated.item, Tracked(52));
+    assert_eq!(mod_updated.id, 1, "unrelated field must be preserved");
+}
+
+// Slice 3: Contract C-04, C-06, C-07 & Law L-03
+#[test]
+fn test_from_view_composed_view() {
+    #[derive(Clone, Debug, PartialEq)]
+    struct ZipCode {
+        code: Tracked,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    struct Address {
+        city: String,
+        zip: ZipCode,
+    }
+    #[derive(Clone, Debug, PartialEq)]
+    struct Company {
+        name: String,
+        address: Address,
+    }
+
+    let company_lens = Lens::from_view(
+        |c: &Company| &c.address,
+        |c, address| Company { address, ..c },
+    );
+    let address_zip_lens = Lens::from_view(|a: &Address| &a.zip, |a, zip| Address { zip, ..a });
+    let zip_code_lens = Lens::from_view(|z: &ZipCode| &z.code, |_z, code| ZipCode { code });
+
+    let company = Company {
+        name: "Acme Corp".into(),
+        address: Address {
+            city: "Metropolis".into(),
+            zip: ZipCode {
+                code: Tracked(10001),
+            },
+        },
+    };
+
+    // Law L-03: *l1.then(l2).view(&s) == *l2.view(l1.view(&s))
+    let company_address_lens = company_lens.clone().then(address_zip_lens.clone());
+    assert_eq!(
+        *company_address_lens.view(&company),
+        *address_zip_lens.view(company_lens.view(&company))
+    );
+
+    // 3-level view chaining (Contract C-04)
+    let company_code_lens = company_lens
+        .clone()
+        .then(address_zip_lens.clone())
+        .then(zip_code_lens.clone());
+    assert_eq!(*company_code_lens.view(&company), Tracked(10001));
+
+    // Contract C-06: 3-level set same value performs 0 clones
+    let c = company.clone();
+    CLONES.with(|cnt| cnt.set(0));
+    let same = company_code_lens.set(c, Tracked(10001));
+    assert_eq!(
+        CLONES.with(|cnt| cnt.get()),
+        0,
+        "3-level set on unchanged value must perform 0 clones"
+    );
+    assert_eq!(*company_code_lens.view(&same), Tracked(10001));
+
+    // Contract C-07: forget_view interop with NoView lens
+    let noview_company_lens = company_lens.forget_view();
+    let legacy_zip_lens = Lens::new(|a: &Address| a.zip.clone(), |a, zip| Address { zip, ..a });
+    let interop_lens = noview_company_lens.then(legacy_zip_lens);
+    assert_eq!(interop_lens.get(&company).code, Tracked(10001));
+}
+
+#[test]
+fn test_borrowed_focus_type_composition_via_forget_view() {
+    #[derive(Clone, PartialEq, Debug)]
+    struct Pair<'a> {
+        y: u32,
+        _marker: core::marker::PhantomData<&'a ()>,
+    }
+    #[derive(Clone, PartialEq, Debug)]
+    struct W<'a> {
+        p: Pair<'a>,
+    }
+
+    let w_p_lens = Lens::from_view(|w: &W| &w.p, |_w, p| W { p });
+    let p_y_lens = Lens::from_view(
+        |p: &Pair| &p.y,
+        |_p, y| Pair {
+            y,
+            _marker: core::marker::PhantomData,
+        },
+    );
+
+    let w = W {
+        p: Pair {
+            y: 42,
+            _marker: core::marker::PhantomData,
+        },
+    };
+
+    assert_eq!(w_p_lens.view(&w).y, 42);
+
+    let composed = w_p_lens.forget_view().then(p_y_lens);
+    assert_eq!(composed.get(&w), 42);
+    let updated = composed.set(w, 99);
+    assert_eq!(updated.p.y, 99);
+}
