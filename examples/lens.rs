@@ -27,14 +27,15 @@ struct UserProfile {
 }
 
 const fn theme_mode_lens()
--> Lens<Theme, String, impl Fn(&Theme) -> String + Clone, impl Fn(Theme, String) -> Theme + Clone> {
-    Lens::new(|t: &Theme| t.mode.clone(), |t, mode| Theme { mode, ..t })
+-> Lens<Theme, String, impl Fn(&Theme) -> &String + Clone, impl Fn(Theme, String) -> Theme + Clone>
+{
+    Lens::new(|t: &Theme| &t.mode, |t, mode| Theme { mode, ..t })
 }
 
 const fn theme_font_size_lens()
--> Lens<Theme, u32, impl Fn(&Theme) -> u32 + Clone, impl Fn(Theme, u32) -> Theme + Clone> {
+-> Lens<Theme, u32, impl Fn(&Theme) -> &u32 + Clone, impl Fn(Theme, u32) -> Theme + Clone> {
     Lens::new(
-        |t: &Theme| t.font_size,
+        |t: &Theme| &t.font_size,
         |t, font_size| Theme { font_size, ..t },
     )
 }
@@ -42,23 +43,20 @@ const fn theme_font_size_lens()
 const fn settings_theme_lens() -> Lens<
     Settings,
     Theme,
-    impl Fn(&Settings) -> Theme + Clone,
+    impl Fn(&Settings) -> &Theme + Clone,
     impl Fn(Settings, Theme) -> Settings + Clone,
 > {
-    Lens::new(
-        |s: &Settings| s.theme.clone(),
-        |s, theme| Settings { theme, ..s },
-    )
+    Lens::new(|s: &Settings| &s.theme, |s, theme| Settings { theme, ..s })
 }
 
 const fn user_settings_lens() -> Lens<
     UserProfile,
     Settings,
-    impl Fn(&UserProfile) -> Settings + Clone,
+    impl Fn(&UserProfile) -> &Settings + Clone,
     impl Fn(UserProfile, Settings) -> UserProfile + Clone,
 > {
     Lens::new(
-        |u: &UserProfile| u.settings.clone(),
+        |u: &UserProfile| &u.settings,
         |u, settings| UserProfile { settings, ..u },
     )
 }
@@ -82,9 +80,10 @@ fn main() {
     let mode_lens = theme_mode_lens();
     let theme = initial_user.settings.theme.clone();
 
-    let current_mode = mode_lens.get(&theme);
+    let current_mode = mode_lens.view(&theme);
     println!("  Current theme mode: {}", current_mode);
     assert_eq!(current_mode, "light");
+    assert_eq!(mode_lens.to_value(&theme), "light");
 
     let dark_theme = mode_lens.set(theme.clone(), "dark".to_string());
     println!("  Updated mode: {}", dark_theme.mode);
@@ -104,7 +103,7 @@ fn main() {
         .then(settings_theme_lens())
         .then(theme_font_size_lens());
 
-    let original_font = user_font_lens.get(&initial_user);
+    let original_font = *user_font_lens.view(&initial_user);
     println!("  Directly fetched nested font size: {}", original_font);
     assert_eq!(original_font, 14);
 
@@ -138,9 +137,10 @@ fn main() {
 
     println!();
 
-    // Stage 4: Bidirectional Type Transformation with `iso_map`
-    println!("4. Type Transformation via `iso_map`:");
+    // Stage 4: Bidirectional Type Transformation with `iso_map` (Deprecated)
+    println!("4. Type Transformation via `iso_map` (Deprecated Bridge):");
     // `to_le_bytes` / `from_le_bytes` are exact inverses, so the lens laws hold
+    #[allow(deprecated)]
     let font_bytes_lens = theme_font_size_lens().iso_map(
         |size: u32| size.to_le_bytes(),
         |bytes: [u8; 4]| u32::from_le_bytes(bytes),
@@ -151,10 +151,12 @@ fn main() {
         font_size: 16,
     };
 
+    #[allow(deprecated)]
     let font_bytes = font_bytes_lens.get(&current_theme);
     println!("  Viewed font size as bytes: {:?}", font_bytes);
     assert_eq!(font_bytes, 16u32.to_le_bytes());
 
+    #[allow(deprecated)]
     let resized_theme = font_bytes_lens.set(current_theme, 24u32.to_le_bytes());
     println!("  Set font size using bytes: {}", resized_theme.font_size);
     assert_eq!(resized_theme.font_size, 24);

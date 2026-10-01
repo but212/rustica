@@ -26,12 +26,12 @@ enum AppNotification {
 const fn running_progress_prism() -> Prism<
     TaskStatus,
     u8,
-    impl Fn(&TaskStatus) -> Option<u8> + Clone,
+    impl Fn(&TaskStatus) -> Option<&u8> + Clone,
     impl Fn(u8) -> TaskStatus + Clone,
 > {
     Prism::new(
         |status: &TaskStatus| match status {
-            TaskStatus::Running { progress } => Some(*progress),
+            TaskStatus::Running { progress } => Some(progress),
             _ => None,
         },
         |progress: u8| TaskStatus::Running { progress },
@@ -41,12 +41,12 @@ const fn running_progress_prism() -> Prism<
 const fn completed_result_prism() -> Prism<
     TaskStatus,
     String,
-    impl Fn(&TaskStatus) -> Option<String> + Clone,
+    impl Fn(&TaskStatus) -> Option<&String> + Clone,
     impl Fn(String) -> TaskStatus + Clone,
 > {
     Prism::new(
         |status: &TaskStatus| match status {
-            TaskStatus::Completed(res) => Some(res.clone()),
+            TaskStatus::Completed(res) => Some(res),
             _ => None,
         },
         TaskStatus::Completed,
@@ -56,12 +56,12 @@ const fn completed_result_prism() -> Prism<
 const fn notification_task_prism() -> Prism<
     AppNotification,
     TaskStatus,
-    impl Fn(&AppNotification) -> Option<TaskStatus> + Clone,
+    impl Fn(&AppNotification) -> Option<&TaskStatus> + Clone,
     impl Fn(TaskStatus) -> AppNotification + Clone,
 > {
     Prism::new(
         |notif: &AppNotification| match notif {
-            AppNotification::Task(status) => Some(status.clone()),
+            AppNotification::Task(status) => Some(status),
             _ => None,
         },
         AppNotification::Task,
@@ -84,10 +84,11 @@ fn main() {
 
     // Stage 1: Preview (Partial Extraction) and Review (Construction)
     println!("1. Preview and Review Operations:");
-    assert_eq!(progress_prism.preview(&running), Some(45));
+    assert_eq!(progress_prism.preview(&running), Some(&45));
+    assert_eq!(progress_prism.to_value(&running), Some(45));
     assert_eq!(progress_prism.preview(&queued), None);
     assert_eq!(progress_prism.preview(&failed), None);
-    println!("  Preview successfully extracted progress: Some(45)");
+    println!("  Preview successfully borrowed progress: Some(&45)");
     println!("  Preview on non-matching variant safely returned None");
 
     let new_running = progress_prism.review(75);
@@ -145,7 +146,8 @@ fn main() {
         "  Extracted nested progress from AppNotification: {:?}",
         extracted_progress
     );
-    assert_eq!(extracted_progress, Some(30));
+    assert_eq!(extracted_progress, Some(&30));
+    assert_eq!(notification_progress_prism.to_value(&task_notif), Some(30));
 
     assert_eq!(notification_progress_prism.preview(&alert_notif), None);
     println!("  Nested preview on mismatched outer variant safely returned None.");

@@ -20,9 +20,12 @@ Removals, breaking changes, and direct replacement patterns for Rustica 0.20.0.
 | `tokio` dev-dependency | Removed | Native test runners |
 | `Validated::recover_all` | Deprecated | `recover_all_at_once`, `recover_with` |
 | `ContextError::context` | Deprecated | `ContextError::to_contexts` |
-| `ContextError::contexts_raw` | Deprecated | `ContextError::contexts` |
-| `ContextError::Display`, `error_chain()` | Changed | Formats context chain only; root error via `err.error()` or `source()` |
-| `Prism::then` | Changed | Requires `Clone` bounds on closures; returns `+ Clone` |
+| `ContextError::Display`, `error_chain()` | Breaking (Output) | Formats context chain only; root error via `err.error()` or `source()` |
+| `Lens::new`, `Lens::get` | Breaking (API) | `Lens::new` takes view closure `Fn(&S) -> &A`; use `view(&s)` (0 B) or `to_value(&s)` (cloned); `get` is deprecated |
+| `Lens::set`/`modify`, `Prism::modify` | Breaking (Bounds) | Require `A: PartialEq` (and `A: Clone`); use `set_always`/`modify_always` for non-`PartialEq` or bit-exact foci |
+| `Lens::iso_map` | Deprecated | Returns `DeprecatedIsoLens`; transform values after calling `view(&s)` or `to_value(&s)` |
+| `Prism::new`, `Prism::preview` | Breaking (API) | `Prism::new` takes preview closure `Fn(&S) -> Option<&A>`; `preview` returns `Option<&A>` (0 B); use `to_value(&s)` for owned |
+| `Prism::then` | Breaking (API) | Requires `Clone` bounds on closures; returns `+ Clone` |
 | `Validated::sequence` | Changed | Accepts generic `IntoIterator<Item = Self>` |
 
 ---
@@ -163,20 +166,64 @@ assert!(err.error_chain().contains("Pipeline step failure"));
 assert_eq!(*err.error(), "Root storage failure");
 ```
 
----
+## 5. Reference-First Optics Migration (`Lens` & `Prism`)
 
-## 5. `Prism::then` Closure `Clone` Bounds
+In Rustica 0.20.0, both `Lens` and `Prism` are standardized on **zero-allocation reference borrowing by default**, reducing type parameters to 4 and adhering to `C-CONV` conventions.
 
-`Prism::then` now requires `Clone` on input preview/review closures and returns `+ Clone` closures, matching `Lens::then`:
+### `Lens` API Changes
+
+- `Lens::new` now accepts a view closure `Fn(&S) -> &A` returning a borrowed reference instead of an owned clone.
+- `lens.view(&s)` is the primary zero-allocation accessor (`&A`).
+- `lens.to_value(&s)` provides explicit owned extraction (`A`) adhering to `C-CONV`.
+- `lens.get(&s)` is deprecated in favor of `view(&s)` (for zero allocations) or `to_value(&s)`.
+- `lens.iso_map(...)` is deprecated and returns a `DeprecatedIsoLens` bridge adapter. Because reference lenses borrow directly from `S`, value-level transformations should be performed after calling `view(&s)` or `to_value(&s)`.
 
 ```rust
-// Helper functions creating Prisms used with `.then()` must declare `+ Clone`:
-fn my_prism() -> Prism<S, A, impl Fn(&S) -> Option<A> + Clone, impl Fn(A) -> S + Clone> {
-    Prism::new(|s| ..., |a| ...)
-}
+// Before (0.19.0): Getter required cloning the focus
+let name_lens = Lens::new(
+    |p: &Person| p.name.clone(),
+    |p, name| Person { name, ..p },
+);
+let name: String = name_lens.get(&person); // Cloned
+
+// After (0.20.0): Zero-allocation reference borrowing
+let name_lens = Lens::new(
+    |p: &Person| &p.name,
+    |p, name| Person { name, ..p },
+);
+let name: &String = name_lens.view(&person);        // 0 B allocation
+let name_owned: String = name_lens.to_value(&person); // Explicit C-CONV clone
 ```
 
-This guarantees that composed prisms can be cloned via `Prism::clone`.
+### `Prism` API Changes
+
+- `Prism::new` now accepts a preview closure `Fn(&S) -> Option<&A>` borrowing the variant payload directly.
+- `prism.preview(&s)` returns `Option<&A>` with zero heap allocations.
+- `prism.to_value(&s)` provides explicit owned extraction (`Option<A>`), or use `.cloned()` natively on `Option<&A>`.
+- `Prism::then` requires `Clone` on closures and preserves reference views across arbitrary composition depth.
+
+```rust
+// Before (0.19.0): Preview required cloning variant payloads
+let active_prism = Prism::new(
+    |s: &Status| match s {
+        Status::Active(name) => Some(name.clone()),
+        _ => None,
+    },
+    Status::Active,
+);
+let focus: Option<String> = active_prism.preview(&status); // Cloned
+
+// After (0.20.0): Zero-allocation reference borrowing
+let active_prism = Prism::new(
+    |s: &Status| match s {
+        Status::Active(name) => Some(name),
+        _ => None,
+    },
+    Status::Active,
+);
+let focus: Option<&String> = active_prism.preview(&status); // 0 B allocation
+let focus_owned: Option<String> = active_prism.to_value(&status); // C-CONV clone
+```
 
 ---
 

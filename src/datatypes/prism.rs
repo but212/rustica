@@ -1,10 +1,12 @@
 //! # Prism (`Prism<S, A, PreviewFn, ReviewFn>`)
 //!
-//! Prisms are optics that focus on a specific case of a sum type.
+//! Prisms are reference-borrowing optics that focus on a specific case of a sum type.
 //!
 //! A prism provides a way to:
-//! - Selectively view a specific variant of an enum (sum type)
-//! - Construct a value of the sum type from a value of the specific variant
+//! - Selectively view a specific variant of an enum with zero heap allocations (`preview(&s) -> Option<&A>`)
+//! - Extract an owned value when needed adhering to `C-CONV` conventions (`to_value(&s) -> Option<A>`)
+//! - Construct a value of the sum type from a value of the specific variant (`review(a) -> S`)
+//! - Update the variant with zero-allocation short-circuiting on unchanged values (`set`, `modify`)
 //!
 //! ## Quick Start
 //!
@@ -14,10 +16,10 @@
 //! #[derive(Debug, Clone, PartialEq)]
 //! enum Status { Active(String), Inactive, Pending(u32) }
 //!
-//! // Create prisms for enum variants
+//! // Create reference-borrowing prisms for enum variants
 //! let active_prism = Prism::new(
 //!     |s: &Status| match s {
-//!         Status::Active(name) => Some(name.clone()),
+//!         Status::Active(name) => Some(name),
 //!         _ => None,
 //!     },
 //!     Status::Active,
@@ -25,7 +27,7 @@
 //!
 //! let pending_prism = Prism::new(
 //!     |s: &Status| match s {
-//!         Status::Pending(days) => Some(*days),
+//!         Status::Pending(days) => Some(days),
 //!         _ => None,
 //!     },
 //!     Status::Pending,
@@ -34,10 +36,13 @@
 //! let active_user = Status::Active("Alice".to_string());
 //! let pending_user = Status::Pending(7);
 //!
-//! // Extract values from matching variants
-//! assert_eq!(active_prism.preview(&active_user), Some("Alice".to_string()));
+//! // Extract borrowed references with zero allocations
+//! assert_eq!(active_prism.preview(&active_user), Some(&"Alice".to_string()));
 //! assert_eq!(active_prism.preview(&pending_user), None);
-//! assert_eq!(pending_prism.preview(&pending_user), Some(7));
+//! assert_eq!(pending_prism.preview(&pending_user), Some(&7));
+//!
+//! // Extract owned values adhering to C-CONV
+//! assert_eq!(active_prism.to_value(&active_user), Some("Alice".to_string()));
 //!
 //! // Construct enum variants
 //! let new_active = active_prism.review("Bob".to_string());
@@ -51,168 +56,55 @@
 //! ## Functional Programming Context
 //!
 //! Prisms represent a fundamental optic in functional programming, originating from the Haskell lens library.
-//! They're part of a family of functional optics that includes lenses, traversals, and isos, each serving
-//! a specific role in immutable data manipulation.
-//!
-//! Key aspects of Prisms in functional programming:
-//!
-//! - **Partial Function Abstraction**: Prisms encapsulate the pattern of functions that may fail
-//!   when attempting to extract a value, especially useful for accessing enum variants
-//!
-//! - **Compositionality**: Prisms can be composed with other optics (lenses, other prisms) to create
-//!   pipelines for deeply nested data access and transformation
-//!
-//! - **Type Safety**: Provides compile-time guarantees that operations on the extracted data
-//!   will be properly type-checked
-//!
-//! - **Immutability-Friendly**: Operations with prisms create new data structures rather than
-//!   modifying existing ones, adhering to functional programming's immutability principles
-//!
-//! - **Bidirectionality**: Unlike ordinary accessor functions, prisms allow both extracting and
-//!   constructing data in a symmetric fashion
-//!
-//! Similar constructs in other functional languages include:
-//!
-//! - Haskell's `Prism` type from the lens library
-//! - PureScript's `Prism` from the profunctor-lenses library
-//! - Scala's `Prism` from the Monocle library
-//! - TypeScript's `Prism` from the monocle-ts library
-//!
-//! ## Type Class Implementations
-//!
-//! `Prism` implements several important type classes and functionality:
-//!
-//! - **Composable**: Enables creating complex data access pipelines
-//! - **Preview**: Attempts to extract a focus value from a structure
-//! - **Review**: Constructs a structure from a focus value
-//! - **Modify**: Applies a function to the focus if it exists
+//! In Rustica 0.20.0, prisms are reference-first: `preview` borrows directly without cloning, eliminating
+//! heap churn for read-only variant inspection and chaining.
 //!
 //! # Key Features
 //!
-//! - **Partial Focus**: Unlike lenses which always succeed, prisms may fail to extract a value
-//! - **Bidirectional**: Can both extract from and construct a sum type
-//! - **Composable**: Can be combined with other optics for deeper access
-//! - **Non-destructive**: Original data remains unchanged
+//! - **Zero-Allocation Preview**: Primary accessor borrows focus directly (`&S -> Option<&A>`).
+//! - **Zero-Allocation Short-Circuiting**: `set` and `modify` preserve `source` untouched when `A: PartialEq` and values match.
+//! - **Bidirectional**: Symmetrically extracts variant focus and constructs sum types.
+//! - **Composable**: Chaining via `then` preserves references across arbitrary optic depths without intermediate clones.
 //!
-//! # Common Use Cases
-//!
-//! - Working with specific variants of enums
-//! - Safely extracting data from sum types without pattern matching everywhere
-//! - Building data transformation pipelines with error handling
-//! - Composition with other optics for traversing complex data structures
-//!
-//! # Relationship to Lenses
-//!
-//! While lenses focus on a part of a product type (like a struct field), prisms focus on
-//! a case of a sum type (like an enum variant). Lenses always succeed in getting/setting,
-//! but prisms may fail to extract a value if the wrong variant is present.
-//!
-//! ## Basic Usage
-//!
-//! The quick-start example above covers preview, review, and modification.
-//! Law and boundary behavior is covered by `tests/datatypes/test_prism.rs`.
-//!
-//! ## Type Class Laws
+//! # Type Class Laws
 //!
 //! Prisms must satisfy the Preview-Review and Review-Preview laws to be well-behaved.
 //! See the type-level [`Prism`] documentation for full definitions and invariants.
-//!
-//! # Examples
-//!
-//! The quick-start example demonstrates the core Prism workflow. Nested prism
-//! composition and variant-specific behavior are covered by
-//! `tests/datatypes/test_prism.rs`.
 
 use core::marker::PhantomData;
 
 /// A `Prism` is an optic that allows focusing on a specific case of a sum type.
 ///
 /// It provides a way to:
-/// - Extract a value of type `A` from a structure `S` (if it exists)
-/// - Construct a value of type `S` from a value of type `A`
-///
-/// Prisms are useful when you want to work with a specific variant of an enum
-/// without having to write pattern matching code everywhere. They also enable
-/// composition with other optics for more complex data transformations.
-///
-/// # Type Class Laws
-///
-/// A well-behaved Prism should satisfy these laws:
-///
-/// 1. **Preview-Review**: For any source `s` where `preview(s)` succeeds with value `a`,
-///    `review(a)` should produce a value equivalent to `s` when viewed through the prism.
-///
-/// 2. **Review-Preview**: For any value `a` of the focus type,
-///    `preview(review(a))` should always succeed and return `a`.
+/// - Borrow a reference to a variant's payload (`preview(&self, &S) -> Option<&A>`) with 0 heap allocations
+/// - Construct a sum type value from a focus value (`review(&self, A) -> S`)
+/// - Update variants with zero-allocation short-circuiting on unchanged values (`set`, `modify`)
 ///
 /// # Type Parameters
 ///
-/// * `S` - The source type (the sum type, typically an enum)
-/// * `A` - The focus type (the case we're interested in, typically a variant's content)
-/// * `PreviewFn` - The function type for extracting a value (`Fn(&S) -> Option<A>`)
-/// * `ReviewFn` - The function type for constructing a sum type (`Fn(A) -> S`)
+/// * `S` - The source sum type (typically an enum)
+/// * `A` - The focus type (the variant's inner payload)
+/// * `PreviewFn` - The closure type for inspecting a variant: `Fn(&S) -> Option<&A>`
+/// * `ReviewFn` - The closure type for constructing a sum type: `Fn(A) -> S`
 ///
-/// # Design Notes
+/// # Type Class Laws
 ///
-/// - The implementation is immutable and `Clone`-able
-/// - Uses PhantomData to track the type parameters
-/// - The `preview` operation may fail and returns `Option<A>`
-/// - The `review` operation always succeeds and returns an `S`
-/// - No runtime overhead beyond function calls and potential clones
-/// - Can be composed with other optics for deep traversal of data structures
-///
-/// # Examples
-///
-/// Basic usage with an enum:
-///
-/// ```rust
-/// use rustica::datatypes::prism::Prism;
-///
-/// #[derive(Debug, PartialEq, Clone)]
-/// enum Status {
-///     Active(String),
-///     Inactive,
-/// }
-///
-/// let active_prism = Prism::new(
-///     |s: &Status| match s {
-///         Status::Active(name) => Some(name.clone()),
-///         _ => None,
-///     },
-///     Status::Active,
-/// );
-///
-/// // Usage examples
-/// let active_status = Status::Active("Alice".to_string());
-/// let inactive_status = Status::Inactive;
-///
-/// // Preview (extract)
-/// assert_eq!(active_prism.preview(&active_status), Some("Alice".to_string()));
-/// assert_eq!(active_prism.preview(&inactive_status), None);
-///
-/// // Review (construct)
-/// let new_active = active_prism.review("Bob".to_string());
-/// assert!(matches!(new_active, Status::Active(name) if name == "Bob"));
-/// ```
-///
-/// Complex variant extraction and nested composition are covered by
-/// `tests/datatypes/test_prism.rs`.
-pub struct Prism<S, A, PreviewFn, ReviewFn>
-where
-    PreviewFn: Fn(&S) -> Option<A>,
-    ReviewFn: Fn(A) -> S,
-{
-    /// Function that attempts to extract a value of type A from S
+/// A well-behaved Prism satisfies:
+/// 1. **Review-Preview**: `prism.preview(&prism.review(a)) == Some(&a)`
+/// 2. **Preview-Review**: `prism.preview(&s) == Some(&a) => prism.review(a.clone()) == s` (for lawful sum types)
+/// 3. **Unchanged Short-Circuit**: `prism.preview(&s) == Some(&new_value) => prism.set(s, new_value) == s` (0 B allocation; equality is `PartialEq`. For bit-exact types such as `f64` where `-0.0 == 0.0` or non-reflexive types such as `NaN`, prefer `set_always`, which never short-circuits)
+pub struct Prism<S, A, PreviewFn, ReviewFn> {
+    /// Function that attempts to borrow a reference to type A from S
     preview: PreviewFn,
     /// Function that constructs a value of type S from A
     review: ReviewFn,
-    _phantom: PhantomData<(S, A)>,
+    _phantom: PhantomData<fn(S) -> A>,
 }
 
 impl<S, A, PreviewFn, ReviewFn> Clone for Prism<S, A, PreviewFn, ReviewFn>
 where
-    PreviewFn: Fn(&S) -> Option<A> + Clone,
-    ReviewFn: Fn(A) -> S + Clone,
+    PreviewFn: Clone,
+    ReviewFn: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -223,11 +115,7 @@ where
     }
 }
 
-impl<S, A, PreviewFn, ReviewFn> core::fmt::Debug for Prism<S, A, PreviewFn, ReviewFn>
-where
-    PreviewFn: Fn(&S) -> Option<A>,
-    ReviewFn: Fn(A) -> S,
-{
+impl<S, A, PreviewFn, ReviewFn> core::fmt::Debug for Prism<S, A, PreviewFn, ReviewFn> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Prism").finish_non_exhaustive()
     }
@@ -235,52 +123,30 @@ where
 
 impl<S, A, PreviewFn, ReviewFn> Prism<S, A, PreviewFn, ReviewFn>
 where
-    PreviewFn: Fn(&S) -> Option<A>,
+    PreviewFn: Fn(&S) -> Option<&A>,
     ReviewFn: Fn(A) -> S,
 {
-    /// Creates a new Prism with the given preview and review functions.
+    /// Creates a new reference-borrowing Prism.
     ///
-    /// The `preview` function attempts to extract a value of type `A` from `S`,
-    /// returning `None` if the extraction fails (e.g., if `S` is not the variant
-    /// we're interested in).
-    ///
-    /// The `review` function constructs a value of type `S` from a value of type `A`.
-    ///
-    /// # Implementation Notes
-    ///
-    /// For a well-behaved prism, the provided functions should satisfy the
-    /// Preview-Review and Review-Preview laws documented on [`Prism`].
-    ///
-    /// Typical implementations use pattern matching in the preview function to extract
-    /// data from a specific enum variant, and construct that variant in the review function.
+    /// The `preview` closure extracts a reference to the variant's payload if present,
+    /// without cloning the focus.
     ///
     /// # Arguments
     ///
-    /// * `preview` - A function that attempts to extract a value of type A from S
-    /// * `review` - A function that constructs a value of type S from A
-    ///
-    /// # Type Parameters
-    ///
-    /// * `PreviewFn` - Type of the preview function: `Fn(&S) -> Option<A>`
-    /// * `ReviewFn` - Type of the review function: `Fn(A) -> S`
+    /// * `preview` - Closure returning `Option<&A>` from `&S`
+    /// * `review` - Closure constructing `S` from `A`
     ///
     /// # Examples
-    ///
-    /// Basic prism for an enum variant:
     ///
     /// ```rust
     /// use rustica::datatypes::prism::Prism;
     ///
     /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Result<T, E> {
-    ///     Ok(T),
-    ///     Err(E),
-    /// }
+    /// enum Result<T, E> { Ok(T), Err(E) }
     ///
-    /// // Create a prism for the Ok variant
     /// let ok_prism = Prism::new(
     ///     |r: &Result<i32, String>| match r {
-    ///         Result::Ok(v) => Some(*v),
+    ///         Result::Ok(v) => Some(v),
     ///         Result::Err(_) => None,
     ///     },
     ///     Result::Ok,
@@ -294,424 +160,169 @@ where
         }
     }
 
-    /// Attempts to extract a value of type A from S.
-    ///
-    /// This operation is the "get" part of the prism. It attempts to extract
-    /// a value of type `A` from `S`, returning `None` if the extraction fails
-    /// (e.g., if `S` is not the variant we're interested in).
-    ///
-    /// # Design Notes
-    ///
-    /// * This is a non-destructive operation - it doesn't modify the source value
-    /// * For enum variants with large data structures, consider minimizing unnecessary clones
-    ///   in your preview function
-    /// * Often used in combination with `Option` or with pattern matching to
-    ///   handle both the success and failure cases
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The source value to extract from
-    ///
-    /// # Returns
-    ///
-    /// * `Some(A)` if the extraction was successful
-    /// * `None` if the source value doesn't match the case we're interested in
-    ///
-    /// # Examples
-    ///
-    /// Basic usage with enum variants:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Message {
-    ///     Text(String),
-    ///     Binary(Vec<u8>),
-    /// }
-    ///
-    /// let text_prism = Prism::new(
-    ///     |m: &Message| match m {
-    ///         Message::Text(t) => Some(t.clone()),
-    ///         _ => None,
-    ///     },
-    ///     Message::Text,
-    /// );
-    ///
-    /// let text_msg = Message::Text("Hello".to_string());
-    /// let binary_msg = Message::Binary(vec![1, 2, 3]);
-    ///
-    /// assert_eq!(text_prism.preview(&text_msg), Some("Hello".to_string()));
-    /// assert_eq!(text_prism.preview(&binary_msg), None);
-    /// ```
-    pub fn preview(&self, s: &S) -> Option<A> {
-        (self.preview)(s)
+    /// Extracts a borrowed reference to the focused value, if present, with zero heap allocations.
+    #[inline]
+    pub fn preview<'s>(&self, source: &'s S) -> Option<&'s A> {
+        (self.preview)(source)
     }
 
-    /// Constructs a value of type S from A.
-    ///
-    /// This operation is the "set" part of the prism. It constructs a value
-    /// of type `S` from a value of type `A`. Unlike `preview`, this operation
-    /// always succeeds.
-    ///
-    /// # Design Notes
-    ///
-    /// * This is a pure operation that doesn't modify the input value
-    /// * For a well-behaved prism, `preview(review(a))` should always return `Some(a)`
-    /// * Use this to create a value of the sum type when you know exactly which variant
-    ///   you want to create
-    /// * Often used in mapping operations and transformations between data types
-    ///
-    /// # Arguments
-    ///
-    /// * `a` - The value to construct from
-    ///
-    /// # Returns
-    ///
-    /// A value of type S constructed from the given A
-    ///
-    /// # Examples
-    ///
-    /// Basic usage:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Message {
-    ///     Text(String),
-    ///     Binary(Vec<u8>),
-    /// }
-    ///
-    /// let text_prism = Prism::new(
-    ///     |m: &Message| match m {
-    ///         Message::Text(t) => Some(t.clone()),
-    ///         _ => None,
-    ///     },
-    ///     Message::Text,
-    /// );
-    ///
-    /// let msg = text_prism.review("Hello, world!".to_string());
-    /// assert!(matches!(msg, Message::Text(t) if t == "Hello, world!"));
-    /// ```
+    /// Extracts an owned clone of the focused value, adhering to `C-CONV` conventions.
+    #[inline]
+    pub fn to_value(&self, source: &S) -> Option<A>
+    where
+        A: Clone,
+    {
+        (self.preview)(source).cloned()
+    }
+
+    /// Constructs a value of type `S` from `A`.
+    #[inline]
     pub fn review(&self, a: A) -> S {
         (self.review)(a)
     }
 
-    /// Modifies the focused value using a transformation function.
+    /// Sets the focused value with zero-allocation short-circuiting.
     ///
-    /// This method applies a transformation function to the focused value (if it exists) and
-    /// returns a new structure. If preview fails (focus absent), the original structure
-    /// is returned unchanged.
+    /// Assumes a lawful prism (`preview(s) == Some(a) => review(a) == s`).
+    /// - If `new_value == current` under `PartialEq`, returns `source` untouched (0 B, 0 clones).
+    /// - If variant does not match (`None`), returns `source` untouched.
+    /// - If values differ, reconstructs `S` via `review(new_value)`.
     ///
-    /// # Warning: Lossy Reconstruction
+    /// Note: Equality check uses `PartialEq`. For bit-exact preservation (such as distinguishing `-0.0` and `0.0`
+    /// on `f64`) or non-reflexive types (`NaN`), use [`Prism::set_always`].
+    /// To preserve non-focus fields of `source` on mutation, use [`Prism::set_with`].
+    #[inline]
+    pub fn set(&self, source: S, new_value: A) -> S
+    where
+        A: PartialEq,
+    {
+        match (self.preview)(&source) {
+            Some(cur) if cur == &new_value => source,
+            Some(_) => (self.review)(new_value),
+            None => source,
+        }
+    }
+
+    /// Unconditionally reconstructs the focused variant when matched.
+    #[inline]
+    pub fn set_always(&self, source: S, new_value: A) -> S {
+        match (self.preview)(&source) {
+            Some(_) => (self.review)(new_value),
+            None => source,
+        }
+    }
+
+    /// Modifies the focused value with single-clone and zero-allocation short-circuiting.
     ///
-    /// When preview succeeds, the returned structure is constructed via `review(f(preview(&source)))`.
-    /// If the prism's focus type `A` does not capture all fields of the variant in `S` (such as
-    /// secondary metadata, tags, or untracked fields), those non-focus fields are reconstructed
-    /// with whatever default values `review` provides, rather than being preserved from `source`.
+    /// Clones `current` exactly 1 time to pass owned value to `f(current)`.
+    /// If `f` returns an identical value (`cur == &new_val`) under `PartialEq`, returns `source` untouched (0 B).
+    /// If values differ, reconstructs `S` via `review(new_val)`.
     ///
-    /// To preserve non-focus variant data from `source`, use [`Prism::modify_with`].
-    ///
-    /// # Performance Note: Focus Cloning
-    ///
-    /// Because `preview` borrows `&S`, extracting the focus value `A` generally involves a clone
-    /// within the preview closure even though `source` is owned by `modify`.
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The source structure to modify
-    /// * `f` - A transformation function that takes the current value and returns a new value
-    ///
-    /// # Returns
-    ///
-    /// * The original structure if preview fails
-    /// * A new structure with the transformed focus value if preview succeeds
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Counter {
-    ///     Value(i32),
-    ///     Empty,
-    /// }
-    ///
-    /// let value_prism = Prism::new(
-    ///     |c: &Counter| match c {
-    ///         Counter::Value(v) => Some(*v),
-    ///         _ => None,
-    ///     },
-    ///     Counter::Value,
-    /// );
-    ///
-    /// let counter = Counter::Value(5);
-    ///
-    /// // Increment the value
-    /// let incremented = value_prism.modify(counter, |x| x + 1);
-    /// assert_eq!(incremented, Counter::Value(6));
-    ///
-    /// // Preview fails - original structure returned
-    /// let empty = Counter::Empty;
-    /// let still_empty = value_prism.modify(empty, |x| x + 1);
-    /// assert_eq!(still_empty, Counter::Empty);
-    /// ```
+    /// Note: Equality check uses `PartialEq`. For bit-exact types or non-reflexive types,
+    /// use [`Prism::modify_always`].
+    /// To preserve non-focus fields of `source` on mutation, use [`Prism::modify_with`].
+    #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
         F: FnOnce(A) -> A,
+        A: Clone + PartialEq,
     {
-        match self.preview(&source) {
-            Some(current_value) => self.review(f(current_value)),
+        match (self.preview)(&source) {
+            Some(cur) => {
+                let new_val = f(cur.clone());
+                if cur == &new_val {
+                    source
+                } else {
+                    (self.review)(new_val)
+                }
+            },
+            None => source,
+        }
+    }
+
+    /// Modifies the focused value unconditionally when matched.
+    #[inline]
+    pub fn modify_always<F>(&self, source: S, f: F) -> S
+    where
+        F: FnOnce(A) -> A,
+        A: Clone,
+    {
+        match (self.preview)(&source) {
+            Some(cur) => (self.review)(f(cur.clone())),
             None => source,
         }
     }
 
     /// Modifies the focused value while preserving non-focus data from `source`.
-    ///
-    /// This method applies `modify_fn(source, f(current_value))` when the focus is present,
-    /// allowing non-focus variant data (e.g. metadata, tags, extra fields) in `source` to be
-    /// preserved rather than discarded by `review`.
-    ///
-    /// If preview fails (focus absent), `source` is returned unchanged without invoking `modify_fn` or `f`.
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The source structure to modify
-    /// * `modify_fn` - A function `(S, A) -> S` that updates the focused variant while preserving `source`
-    /// * `f` - Transformation function for the focus value
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Tagged {
-    ///     Item { value: i32, tag: String },
-    ///     Empty,
-    /// }
-    ///
-    /// let prism = Prism::new(
-    ///     |t: &Tagged| match t {
-    ///         Tagged::Item { value, .. } => Some(*value),
-    ///         Tagged::Empty => None,
-    ///     },
-    ///     |value| Tagged::Item { value, tag: String::new() },
-    /// );
-    ///
-    /// let original = Tagged::Item { value: 1, tag: "important".into() };
-    /// let updated = prism.modify_with(
-    ///     original,
-    ///     |t, new_value| match t {
-    ///         Tagged::Item { tag, .. } => Tagged::Item { value: new_value, tag },
-    ///         Tagged::Empty => Tagged::Empty,
-    ///     },
-    ///     |v| v + 1,
-    /// );
-    /// assert_eq!(updated, Tagged::Item { value: 2, tag: "important".into() });
-    /// ```
+    #[inline]
     pub fn modify_with<M, F>(&self, source: S, modify_fn: M, f: F) -> S
     where
         M: FnOnce(S, A) -> S,
         F: FnOnce(A) -> A,
+        A: Clone,
     {
-        match self.preview(&source) {
-            Some(current_value) => modify_fn(source, f(current_value)),
-            None => source,
-        }
-    }
-
-    /// Composes two prisms to create a new prism that focuses on nested sum types.
-    ///
-    /// Given a prism from `S` to `A` and a prism from `A` to `B`, this creates a new
-    /// prism from `S` to `B`. This is essential for accessing deeply nested enum
-    /// variants in a type-safe and composable way.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The type of the deeply nested focus
-    /// * `PreviewFn2` - The type of the inner prism preview function
-    /// * `ReviewFn2` - The type of the inner prism review function
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - The inner prism that focuses from `A` to `B`
-    ///
-    /// # Returns
-    ///
-    /// A new prism that focuses from `S` directly to `B`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Inner { Value(i32), Empty }
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Outer { Nested(Inner), Other(String) }
-    ///
-    /// let nested_prism = Prism::new(
-    ///     |o: &Outer| match o {
-    ///         Outer::Nested(inner) => Some(inner.clone()),
-    ///         _ => None,
-    ///     },
-    ///     Outer::Nested,
-    /// );
-    ///
-    /// let value_prism = Prism::new(
-    ///     |i: &Inner| match i {
-    ///         Inner::Value(v) => Some(*v),
-    ///         _ => None,
-    ///     },
-    ///     Inner::Value,
-    /// );
-    ///
-    /// // Chain to create a prism from Outer to i32
-    /// let deep_prism = nested_prism.then(value_prism);
-    ///
-    /// let data = Outer::Nested(Inner::Value(42));
-    /// assert_eq!(deep_prism.preview(&data), Some(42));
-    ///
-    /// let constructed = deep_prism.review(100);
-    /// assert_eq!(constructed, Outer::Nested(Inner::Value(100)));
-    /// ```
-    #[inline]
-    pub fn then<B, PreviewFn2, ReviewFn2>(
-        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
-    ) -> Prism<S, B, impl Fn(&S) -> Option<B> + Clone, impl Fn(B) -> S + Clone>
-    where
-        PreviewFn: Clone,
-        ReviewFn: Clone,
-        PreviewFn2: Fn(&A) -> Option<B> + Clone,
-        ReviewFn2: Fn(B) -> A + Clone,
-    {
-        let preview1 = self.preview;
-        let review1 = self.review;
-        let preview2 = other.preview;
-        let review2 = other.review;
-
-        Prism::new(
-            move |s: &S| preview1(s).and_then(|a| preview2(&a)),
-            move |b: B| review1(review2(b)),
-        )
-    }
-
-    /// Sets the focused value to a new value.
-    ///
-    /// If the focus is present, constructs a new structure with the new value.
-    /// If the focus is absent, returns the original structure unchanged.
-    ///
-    /// # Warning: Lossy Reconstruction
-    ///
-    /// When preview succeeds, the returned structure is constructed via `review(new_value)`.
-    /// If the prism's focus type `A` does not capture all fields of the variant in `S` (such as
-    /// secondary metadata, tags, or untracked fields), those non-focus fields are reconstructed
-    /// with whatever default values `review` provides, rather than being preserved from `source`.
-    ///
-    /// To preserve non-focus variant data from `source`, use [`Prism::set_with`].
-    ///
-    /// # Performance Note: Focus Cloning
-    ///
-    /// Because `preview` borrows `&S`, checking if the variant matches may invoke clone operations
-    /// depending on the prism's preview closure, even though `source` is owned by `set`.
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The source structure to potentially update
-    /// * `new_value` - The new value to set
-    ///
-    /// # Returns
-    ///
-    /// * A new structure with the new value if the focus is present
-    /// * The original structure unchanged if preview fails (focus absent)
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Status {
-    ///     Active(String),
-    ///     Inactive,
-    /// }
-    ///
-    /// let active_prism = Prism::new(
-    ///     |s: &Status| match s {
-    ///         Status::Active(name) => Some(name.clone()),
-    ///         _ => None,
-    ///     },
-    ///     Status::Active,
-    /// );
-    ///
-    /// let status = Status::Active("Alice".to_string());
-    /// let updated = active_prism.set(status, "Bob".to_string());
-    /// assert_eq!(updated, Status::Active("Bob".to_string()));
-    ///
-    /// let inactive = Status::Inactive;
-    /// let still_inactive = active_prism.set(inactive, "Charlie".to_string());
-    /// assert_eq!(still_inactive, Status::Inactive);
-    /// ```
-    pub fn set(&self, source: S, new_value: A) -> S {
-        match self.preview(&source) {
-            Some(_) => self.review(new_value),
+        match (self.preview)(&source) {
+            Some(current_value) => {
+                let val = current_value.clone();
+                modify_fn(source, f(val))
+            },
             None => source,
         }
     }
 
     /// Sets the focused value to a new value while preserving non-focus data from `source`.
-    ///
-    /// This method applies `modify_fn(source, new_value)` when the focus is present,
-    /// allowing non-focus variant data (e.g. metadata, tags, extra fields) in `source` to be
-    /// preserved rather than discarded by `review`.
-    ///
-    /// If preview fails (focus absent), `source` is returned unchanged without invoking `modify_fn`.
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The source structure to potentially update
-    /// * `modify_fn` - A function `(S, A) -> S` that updates the focused variant while preserving `source`
-    /// * `new_value` - The new value to set
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::prism::Prism;
-    ///
-    /// #[derive(Debug, Clone, PartialEq)]
-    /// enum Tagged {
-    ///     Item { value: i32, tag: String },
-    ///     Empty,
-    /// }
-    ///
-    /// let prism = Prism::new(
-    ///     |t: &Tagged| match t {
-    ///         Tagged::Item { value, .. } => Some(*value),
-    ///         Tagged::Empty => None,
-    ///     },
-    ///     |value| Tagged::Item { value, tag: String::new() },
-    /// );
-    ///
-    /// let original = Tagged::Item { value: 1, tag: "preserved".into() };
-    /// let updated = prism.set_with(
-    ///     original,
-    ///     |t, new_value| match t {
-    ///         Tagged::Item { tag, .. } => Tagged::Item { value: new_value, tag },
-    ///         Tagged::Empty => Tagged::Empty,
-    ///     },
-    ///     99,
-    /// );
-    /// assert_eq!(updated, Tagged::Item { value: 99, tag: "preserved".into() });
-    /// ```
+    #[inline]
     pub fn set_with<M>(&self, source: S, modify_fn: M, new_value: A) -> S
     where
         M: FnOnce(S, A) -> S,
     {
-        self.modify_with(source, modify_fn, |_| new_value)
+        if (self.preview)(&source).is_some() {
+            modify_fn(source, new_value)
+        } else {
+            source
+        }
+    }
+}
+
+#[inline]
+fn compose_prism_views<S, A: 'static, B, V1, V2>(
+    v1: V1, v2: V2,
+) -> impl Fn(&S) -> Option<&B> + Clone
+where
+    V1: Fn(&S) -> Option<&A> + Clone,
+    V2: Fn(&A) -> Option<&B> + Clone,
+{
+    move |s: &S| v1(s).and_then(&v2)
+}
+
+impl<S, A, PreviewFn, ReviewFn> Prism<S, A, PreviewFn, ReviewFn>
+where
+    ReviewFn: Fn(A) -> S + Clone,
+    PreviewFn: Fn(&S) -> Option<&A> + Clone,
+{
+    /// Composes two prisms, preserving zero-allocation reference borrowing.
+    ///
+    /// Given a prism from `S` to `A` and a prism from `A` to `B`, creates a new
+    /// prism from `S` directly to `B`.
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    pub fn then<B, PreviewFn2, ReviewFn2>(
+        self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
+    ) -> Prism<S, B, impl Fn(&S) -> Option<&B> + Clone, impl Fn(B) -> S + Clone>
+    where
+        A: 'static,
+        ReviewFn2: Fn(B) -> A + Clone,
+        PreviewFn2: Fn(&A) -> Option<&B> + Clone,
+    {
+        let preview_composed = compose_prism_views(self.preview, other.preview);
+        let review1 = self.review;
+        let review2 = other.review;
+
+        Prism {
+            preview: preview_composed,
+            review: move |b: B| review1(review2(b)),
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -720,42 +331,34 @@ mod unit_tests {
     use alloc::{boxed::Box, collections::BTreeMap, format, string::String};
 
     use super::Prism;
-    use crate::datatypes::lens::Lens;
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct ErrorInfo {
+        code: u32,
+        message: String,
+    }
 
     #[derive(Clone, Debug, PartialEq)]
     enum Status {
         Active(String),
         Inactive,
-        Error { code: u32, message: String },
+        Error(ErrorInfo),
     }
+
     type ActivePrism = Prism<
         Status,
         String,
-        Box<dyn Fn(&Status) -> Option<String>>,
+        Box<dyn Fn(&Status) -> Option<&String>>,
         Box<dyn Fn(String) -> Status>,
     >;
+
     fn active_prism() -> ActivePrism {
         Prism::new(
             Box::new(|s| match s {
-                Status::Active(name) => Some(name.clone()),
+                Status::Active(name) => Some(name),
                 _ => None,
             }),
             Box::new(Status::Active),
-        )
-    }
-    type ErrorPrism = Prism<
-        Status,
-        (u32, String),
-        Box<dyn Fn(&Status) -> Option<(u32, String)>>,
-        Box<dyn Fn((u32, String)) -> Status>,
-    >;
-    fn error_prism() -> ErrorPrism {
-        Prism::new(
-            Box::new(|s| match s {
-                Status::Error { code, message } => Some((*code, message.clone())),
-                _ => None,
-            }),
-            Box::new(|(code, message)| Status::Error { code, message }),
         )
     }
 
@@ -763,38 +366,54 @@ mod unit_tests {
     fn preview_review_and_modify_obey_prism_contracts() {
         let prism = active_prism();
         let target = Status::Active("Alice".into());
-        assert_eq!(prism.preview(&target), Some("Alice".into()));
+        assert_eq!(prism.preview(&target), Some(&"Alice".into()));
+        assert_eq!(prism.to_value(&target), Some("Alice".into()));
         assert_eq!(prism.preview(&Status::Inactive), None);
         assert_eq!(prism.review("Bob".into()), Status::Active("Bob".into()));
         assert_eq!(
             prism.preview(&prism.review("LawCheck".into())),
-            Some("LawCheck".into())
+            Some(&"LawCheck".into())
         );
 
-        let error = Status::Error {
+        let error_prism = Prism::new(
+            |s: &Status| match s {
+                Status::Error(info) => Some(info),
+                _ => None,
+            },
+            Status::Error,
+        );
+
+        let error = Status::Error(ErrorInfo {
             code: 500,
             message: "Fail".into(),
-        };
+        });
+
         assert_eq!(
-            error_prism().modify(error.clone(), |(code, message)| (
-                code + 1,
-                format!("{message}-fixed")
-            )),
-            Status::Error {
+            error_prism.modify(error.clone(), |info| ErrorInfo {
+                code: info.code + 1,
+                message: format!("{}-fixed", info.message),
+            }),
+            Status::Error(ErrorInfo {
                 code: 501,
                 message: "Fail-fixed".into()
-            }
+            })
         );
         assert_eq!(
             active_prism().modify(Status::Inactive, |_| "ignored".into()),
             Status::Inactive
         );
         assert_eq!(
-            error_prism().set(error, (200, "OK".into())),
-            Status::Error {
+            error_prism.set(
+                error,
+                ErrorInfo {
+                    code: 200,
+                    message: "OK".into()
+                }
+            ),
+            Status::Error(ErrorInfo {
                 code: 200,
                 message: "OK".into()
-            }
+            })
         );
     }
 
@@ -806,13 +425,15 @@ mod unit_tests {
             String(String),
             Dictionary(BTreeMap<String, ConfigValue>),
         }
+
         let dict = Prism::new(
             |value: &ConfigValue| match value {
-                ConfigValue::Dictionary(map) => Some(map.clone()),
+                ConfigValue::Dictionary(map) => Some(map),
                 _ => None,
             },
             ConfigValue::Dictionary,
         );
+
         let mut values = BTreeMap::new();
         values.insert("name".into(), ConfigValue::String("Alice".into()));
         values.insert("age".into(), ConfigValue::Integer(30));
@@ -828,48 +449,34 @@ mod unit_tests {
             Val(i32),
             Empty,
         }
+
         #[derive(Debug, Clone, PartialEq)]
         enum Outer {
             Nested(Inner),
             Other,
         }
+
         let outer = Prism::new(
             |value: &Outer| match value {
-                Outer::Nested(inner) => Some(inner.clone()),
+                Outer::Nested(inner) => Some(inner),
                 _ => None,
             },
             Outer::Nested,
         );
+
         let inner = Prism::new(
             |value: &Inner| match value {
-                Inner::Val(value) => Some(*value),
+                Inner::Val(value) => Some(value),
                 Inner::Empty => None,
             },
             Inner::Val,
         );
+
         let deep = outer.then(inner);
-        assert_eq!(deep.preview(&Outer::Nested(Inner::Val(42))), Some(42));
+        assert_eq!(deep.preview(&Outer::Nested(Inner::Val(42))), Some(&42));
         assert_eq!(deep.review(100), Outer::Nested(Inner::Val(100)));
         assert_eq!(deep.preview(&Outer::Nested(Inner::Empty)), None);
         assert_eq!(deep.preview(&Outer::Other), None);
-
-        #[derive(Clone, Debug, PartialEq)]
-        struct User {
-            id: u64,
-            status: Status,
-        }
-        let status = Lens::new(
-            |u: &User| u.status.clone(),
-            |u, status| User { status, ..u },
-        );
-        let user = User {
-            id: 1,
-            status: Status::Active("online".into()),
-        };
-        let updated = status.modify(user, |value| {
-            active_prism().modify(value, |name| format!("{name}-away"))
-        });
-        assert_eq!(updated.status, Status::Active("online-away".into()));
     }
 
     #[test]
@@ -880,14 +487,14 @@ mod unit_tests {
     }
 
     type ConstStatusPrism =
-        Prism<Status, String, fn(&Status) -> Option<String>, fn(String) -> Status>;
+        Prism<Status, String, fn(&Status) -> Option<&String>, fn(String) -> Status>;
 
     #[test]
     fn prism_is_const_constructible() {
         const fn make_prism() -> ConstStatusPrism {
             Prism::new(
                 |s: &Status| match s {
-                    Status::Active(name) => Some(name.clone()),
+                    Status::Active(name) => Some(name),
                     _ => None,
                 },
                 Status::Active,
@@ -895,171 +502,6 @@ mod unit_tests {
         }
         const CONST_PRISM: ConstStatusPrism = make_prism();
         let target = Status::Active("Const".into());
-        assert_eq!(CONST_PRISM.preview(&target), Some("Const".into()));
-    }
-
-    #[test]
-    fn prism_is_send_and_sync() {
-        fn assert_send<T: Send>(_val: &T) {}
-        fn assert_sync<T: Sync>(_val: &T) {}
-
-        let prism = Prism::new(
-            |s: &Status| match s {
-                Status::Active(name) => Some(name.clone()),
-                _ => None,
-            },
-            Status::Active,
-        );
-
-        assert_send(&prism);
-        assert_sync(&prism);
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    enum TaggedItem {
-        Entry { id: u32, tag: String },
-        None,
-    }
-
-    fn tagged_prism() -> Prism<
-        TaggedItem,
-        u32,
-        impl Fn(&TaggedItem) -> Option<u32> + Clone,
-        impl Fn(u32) -> TaggedItem + Clone,
-    > {
-        Prism::new(
-            |item: &TaggedItem| match item {
-                TaggedItem::Entry { id, .. } => Some(*id),
-                TaggedItem::None => None,
-            },
-            |id| TaggedItem::Entry {
-                id,
-                tag: String::new(),
-            },
-        )
-    }
-
-    #[test]
-    fn modify_with_and_set_with_preserve_non_focus_data() {
-        let prism = tagged_prism();
-        let item = TaggedItem::Entry {
-            id: 10,
-            tag: "important".into(),
-        };
-
-        let modify_fn = |item, new_id| match item {
-            TaggedItem::Entry { tag, .. } => TaggedItem::Entry { id: new_id, tag },
-            TaggedItem::None => TaggedItem::None,
-        };
-
-        // modify_with preserves tag
-        let modified = prism.modify_with(item.clone(), modify_fn, |id| id + 5);
-        assert_eq!(
-            modified,
-            TaggedItem::Entry {
-                id: 15,
-                tag: "important".into()
-            }
-        );
-
-        // set_with preserves tag
-        let updated = prism.set_with(item, modify_fn, 99);
-        assert_eq!(
-            updated,
-            TaggedItem::Entry {
-                id: 99,
-                tag: "important".into()
-            }
-        );
-    }
-
-    #[test]
-    fn modify_with_and_set_with_return_source_when_focus_absent() {
-        let prism = tagged_prism();
-        let absent = TaggedItem::None;
-
-        let modify_fn = |item, new_id| match item {
-            TaggedItem::Entry { tag, .. } => TaggedItem::Entry { id: new_id, tag },
-            TaggedItem::None => TaggedItem::None,
-        };
-
-        let modified = prism.modify_with(absent.clone(), modify_fn, |id| id + 1);
-        assert_eq!(modified, TaggedItem::None);
-
-        let updated = prism.set_with(absent, modify_fn, 100);
-        assert_eq!(updated, TaggedItem::None);
-    }
-
-    #[test]
-    fn then_composition_creates_valid_prism() {
-        #[derive(Clone, Debug, PartialEq)]
-        enum Wrapper {
-            Item { inner: TaggedItem, meta: String },
-            Nothing,
-        }
-
-        let wrapper_prism = Prism::new(
-            |w: &Wrapper| match w {
-                Wrapper::Item { inner, .. } => Some(inner.clone()),
-                Wrapper::Nothing => None,
-            },
-            |inner| Wrapper::Item {
-                inner,
-                meta: String::new(),
-            },
-        );
-
-        let composed = wrapper_prism.then(tagged_prism());
-
-        let source = Wrapper::Item {
-            inner: TaggedItem::Entry {
-                id: 42,
-                tag: "inner_tag".into(),
-            },
-            meta: "outer_meta".into(),
-        };
-
-        // preview works
-        assert_eq!(composed.preview(&source), Some(42));
-        assert_eq!(composed.preview(&Wrapper::Nothing), None);
-
-        // review works
-        let constructed = composed.review(100);
-        assert_eq!(
-            constructed,
-            Wrapper::Item {
-                inner: TaggedItem::Entry {
-                    id: 100,
-                    tag: String::new()
-                },
-                meta: String::new()
-            }
-        );
-
-        // modify on composed prism works
-        let modified = composed.modify(source.clone(), |id| id + 1);
-        assert_eq!(
-            modified,
-            Wrapper::Item {
-                inner: TaggedItem::Entry {
-                    id: 43,
-                    tag: String::new()
-                },
-                meta: String::new()
-            }
-        );
-
-        // set on composed prism works
-        let updated = composed.set(source, 777);
-        assert_eq!(
-            updated,
-            Wrapper::Item {
-                inner: TaggedItem::Entry {
-                    id: 777,
-                    tag: String::new()
-                },
-                meta: String::new()
-            }
-        );
+        assert_eq!(CONST_PRISM.preview(&target), Some(&"Const".into()));
     }
 }

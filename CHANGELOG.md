@@ -5,20 +5,22 @@
 ### Added
 
 - **`ContextError` Standard Getters**: Added `ContextError::contexts` (borrowed slice) and `ContextError::to_contexts` (cloned `Vec`) adhering to Rust API naming conventions.
-- **`Lens::from_view` Zero-Allocation Reference Optics**: Added `Lens::from_view` constructor constructing reference-borrowing lenses (`View<F>`), `Lens::view` accessor returning `&A`, and `Lens::forget_view` for interoperability with value-based (`NoView`) lenses.
+- **Reference-First Optics & `C-CONV` Accessors**: Added `Lens::view` (`&A`), `Prism::preview` (`Option<&A>`), `Lens::to_value` (`A`), and `Prism::to_value` (`Option<A>`) providing zero-allocation borrowed inspection by default alongside explicit owned extraction.
 
 ### Changed
 
 - **`no_std` Support**: Unconditional `#![no_std]` with `extern crate alloc`. Replaced internal `std::` paths with `core::` and `alloc::`. Direct zero-config interop with both `std` and `no_std` targets.
-- **`ContextError::Display` Output**: `Display` formats only the context chain (`ctx1 -> ctx2`), delegating root error presentation to `Error::source()` to prevent double-printing in standard error reporters.
+- **`ContextError::Display` & `error_chain()` Output (Breaking)**: `Display` and `error_chain()` format only the context chain (`ctx1 -> ctx2`), delegating root error presentation to `Error::source()` or `err.error()`.
+- **`Lens` & `Prism` Reference-First Architecture (Breaking)**: Standardized `Lens<S, A, ViewFn, SetFn>` and `Prism<S, A, PreviewFn, ReviewFn>` on pure reference closures (`Fn(&S) -> &A` and `Fn(&S) -> Option<&A>`), eliminating `NoView`/`View<F>` wrappers and reducing type parameters to 4. Inherent zero-allocation short-circuiting in `set` and `modify` when `A: PartialEq`.
 - **`Prism::then` Closure `Clone` Bounds (Breaking)**: Added `+ Clone` bounds to input functions and returned closures in `Prism::then`, matching `Lens::then` and ensuring composed prisms implement `Clone`.
 - **`Validated::sequence` Collection Input**: Generalized input from `Vec<Self>` to generic `IntoIterator<Item = Self>`.
-- **`Lens` Struct Bound Relaxation**: Relaxed struct-level trait bounds on `Lens<S, A, GetFn, SetFn, V = NoView>` per Rust API guidelines (C-STRUCT-BOUNDS), moving closure bounds to method `impl` blocks.
 
 ### Deprecated
 
 - **`Validated::recover_all`**: Deprecated due to semantic conflict with applicative validation (short-circuits on first success, dropping other errors). Use `recover_all_at_once` or `recover_with`.
 - **`ContextError::{context, contexts_raw}`**: Deprecated in favor of `to_contexts()` and `contexts()`.
+- **`Lens::get`**: Deprecated in favor of `Lens::view(&s)` (zero-allocation borrowed access) or `Lens::to_value(&s)` (explicit owned extraction per `C-CONV`).
+- **`Lens::iso_map`**: Deprecated; returns `DeprecatedIsoLens`. Value-level transformations should be performed after calling `view(&s)` or `to_value(&s)`.
 
 ### Fixed
 

@@ -1,11 +1,12 @@
-//! # Lens (`Lens<S, A>`)
+//! # Lens (`Lens<S, A, ViewFn, SetFn>`)
 //!
-//! Lens is a functional programming concept for accessing and modifying parts of immutable data structures.
+//! Lens is a functional programming optic for zero-allocation viewing and modifying parts of immutable data structures.
 //!
 //! A lens provides a way to:
-//! - View a part of a larger data structure
-//! - Update that part while preserving the rest of the structure
-//! - Transform the focused part using functions
+//! - View a part of a larger data structure with zero heap allocations (`view(&s) -> &A`)
+//! - Extract an owned value adhering to `C-CONV` conventions (`to_value(&s) -> A`)
+//! - Update that part immutably while preserving the rest of the structure (`set`, `modify`)
+//! - Short-circuit updates when `A: PartialEq` and new value equals current value (0 B, 0 clones)
 //!
 //! ## Quick Start
 //!
@@ -15,23 +16,26 @@
 //! #[derive(Clone, Debug, PartialEq)]
 //! struct Person { name: String, age: u32 }
 //!
-//! // Create lenses for accessing struct fields
+//! // Create reference-borrowing lenses for struct fields
 //! let name_lens = Lens::new(
-//!     |p: &Person| p.name.clone(),
+//!     |p: &Person| &p.name,
 //!     |p: Person, name: String| Person { name, ..p },
 //! );
 //! let age_lens = Lens::new(
-//!     |p: &Person| p.age,
+//!     |p: &Person| &p.age,
 //!     |p: Person, age: u32| Person { age, ..p },
 //! );
 //!
 //! let person = Person { name: "Alice".to_string(), age: 30 };
 //!
-//! // Get values through lenses
-//! assert_eq!(name_lens.get(&person), "Alice");
-//! assert_eq!(age_lens.get(&person), 30);
+//! // Borrow references with zero allocations
+//! assert_eq!(name_lens.view(&person), "Alice");
+//! assert_eq!(*age_lens.view(&person), 30);
 //!
-//! // Set values immutably
+//! // Extract owned values adhering to C-CONV
+//! assert_eq!(name_lens.to_value(&person), "Alice");
+//!
+//! // Set values immutably (short-circuits on unchanged value)
 //! let renamed = name_lens.set(person.clone(), "Bob".to_string());
 //! assert_eq!(renamed, Person { name: "Bob".to_string(), age: 30 });
 //!
@@ -40,104 +44,225 @@
 //! assert_eq!(older.age, 31);
 //! ```
 //!
-//! ## Core Concepts
-//!
-//! - **Immutable Updates**: All operations create new instances instead of modifying in place
-//! - **Composable**: Lenses can be combined to focus on nested structures
-//! - **Type-safe**: The compiler ensures that updates maintain type consistency
-//!
 //! ## Functional Programming Context
 //!
 //! In functional programming, lenses are a form of *functional reference* or *optic* that solve the
-//! problem of updating immutable nested data structures. The concept originates from category theory
-//! and extends the idea of getters and setters to a composable, algebraic structure.
+//! problem of updating immutable nested data structures. In Rustica 0.20.0, lenses are reference-first:
+//! `view` borrows directly without cloning, eliminating heap churn for read-only field inspection and chaining.
 //!
-//! Key aspects of lenses in functional programming:
+//! # Key Features
 //!
-//! - **Bidirectionality**: Unlike simple getter/setter pairs, lenses maintain a bidirectional relationship
-//!   between a structure and its components, allowing roundtrip transformations.
+//! - **Zero-Allocation View**: Primary accessor borrows focus directly (`&S -> &A`).
+//! - **Zero-Allocation Short-Circuiting**: `set` and `modify` preserve `source` untouched when `A: PartialEq` and values match.
+//! - **Bidirectional**: Symmetrically views fields and updates product types.
+//! - **Composable**: Chaining via `then` preserves references across arbitrary optic depths.
 //!
-//! - **Compositionality**: Lenses can be composed, allowing navigation through deeply nested structures.
+//! # Type Class Laws
 //!
-//! - **Lawfulness**: Well-behaved lenses adhere to specific laws (GetSet, SetGet, SetSet) ensuring
-//!   predictable behavior.
-//!
-//! - **Referential Transparency**: Lens operations maintain referential transparency, making them
-//!   suitable for purely functional programming.
-//!
-//! Similar concepts in other functional languages:
-//!
-//! - Haskell's `lens` library by Edward Kmett
-//! - Scala's `Monocle` and `Quicklens` libraries
-//! - OCaml's `Lenses` and `Optics` modules
-//! - PureScript's optics libraries
-//!
-//! ## Core Operations
-//!
-//! Lenses provide functional accessors for product types:
-//!
-//! - **Getter**: Retrieve a component from a larger structure
-//! - **Setter**: Update a component immutably
-//! - **Modifier**: Transform a component via a function
-//! - **Composable**: Compose lenses sequentially to access nested structures
-//!
-//! ## Basic Usage
-//!
-//! The quick-start example above demonstrates getting, setting, and modifying
-//! fields. Their laws and boundary behavior are covered by the tests in
-//! `tests/datatypes/test_lens.rs`.
-//!
-//! ## Lens Laws
-//!
-//! Lenses follow three fundamental laws that ensure their correct behavior. See the documentation
-//! for the specific functions (`get`, `set`) for examples demonstrating these laws.
-//!
-//! ### GetSet Law
-//!
-//! For any lens `l` and structure `s`:
-//!
-//! `l.set(s.clone(), l.get(&s)) == s`
-//!
-//! "Setting a value to what it already is doesn't change anything"
-//!
-//! ### SetGet Law
-//!
-//! For any lens `l`, structure `s`, and value `v`:
-//!
-//! `l.get(&l.set(s.clone(), v)) == v`
-//!
-//! "If you set a value, that's what you get back"
-//!
-//! ### SetSet Law
-//!
-//! For any lens `l`, structure `s`, and values `v1` and `v2`:
-//!
-//! `l.set(l.set(s.clone(), v1), v2) == l.set(s, v2)`
-//!
-//! "Setting a value and then immediately setting another value is the same as just setting the second value"
-//!
-//! ## Nested lenses
-//!
-//! Compose lenses to update nested data while preserving unrelated fields. The
-//! composition and equality short-circuiting behavior is covered by
-//! `test_lens_composition_and_chaining` in `tests/datatypes/test_lens.rs`.
+//! Lenses follow three fundamental laws:
+//! 1. **GetSet**: `lens.set(s.clone(), lens.to_value(&s)) == s`
+//! 2. **SetGet**: `*lens.view(&lens.set(s, a)) == a` (equality is `PartialEq`; for
+//!    bit-exact types such as `f64` where `-0.0 == 0.0` or non-reflexive types such as `NaN`, prefer `set_always`, which never short-circuits)
+//! 3. **SetSet**: `lens.set(lens.set(s, a1), a2) == lens.set(s, a2)`
 
 use core::fmt;
 use core::marker::PhantomData;
 
-/// Marker indicating a lens that does not support borrowing reference views.
-#[derive(Clone, Copy, Debug)]
-pub struct NoView;
+/// A `Lens` is a first-class reference to a subpart of some data type.
+///
+/// It provides a way to view, modify and transform a part of a larger structure.
+///
+/// # Type Parameters
+///
+/// * `S` - The type of the whole structure
+/// * `A` - The type of the part being focused on
+/// * `ViewFn` - The closure type for inspecting a focus: `Fn(&S) -> &A`
+/// * `SetFn` - The closure type for updating a structure: `Fn(S, A) -> S`
+pub struct Lens<S, A, ViewFn, SetFn> {
+    view: ViewFn,
+    set: SetFn,
+    _phantom: PhantomData<fn(S) -> A>,
+}
 
-/// Wrapper holding a reference-borrowing getter closure.
-#[derive(Clone, Debug)]
-#[repr(transparent)]
-pub struct View<F>(pub F);
+impl<S, A, ViewFn, SetFn> Clone for Lens<S, A, ViewFn, SetFn>
+where
+    ViewFn: Clone,
+    SetFn: Clone,
+{
+    fn clone(&self) -> Self {
+        Lens {
+            view: self.view.clone(),
+            set: self.set.clone(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<S, A, ViewFn, SetFn> fmt::Debug for Lens<S, A, ViewFn, SetFn> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Lens").finish_non_exhaustive()
+    }
+}
+
+impl<S, A, ViewFn, SetFn> Lens<S, A, ViewFn, SetFn>
+where
+    ViewFn: Fn(&S) -> &A,
+    SetFn: Fn(S, A) -> S,
+{
+    /// Creates a new reference-borrowing lens from view and setter closures.
+    ///
+    /// # Arguments
+    ///
+    /// * `view` - A closure borrowing the focused part from the whole: `Fn(&S) -> &A`
+    /// * `set` - A closure updating the whole structure with a new focus: `Fn(S, A) -> S`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rustica::datatypes::lens::Lens;
+    ///
+    /// #[derive(Clone, Debug, PartialEq)]
+    /// struct Point { x: f64, y: f64 }
+    ///
+    /// let x_lens = Lens::new(
+    ///     |p: &Point| &p.x,
+    ///     |p: Point, x: f64| Point { x, ..p },
+    /// );
+    ///
+    /// let point = Point { x: 2.0, y: 3.0 };
+    /// assert_eq!(*x_lens.view(&point), 2.0);
+    /// ```
+    #[inline]
+    pub const fn new(view: ViewFn, set: SetFn) -> Self {
+        Lens {
+            view,
+            set,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Views the focused part of a structure as a reference with zero allocations.
+    #[inline]
+    pub fn view<'s>(&self, source: &'s S) -> &'s A {
+        (self.view)(source)
+    }
+
+    /// Extracts an owned clone of the focused part, adhering to `C-CONV` conventions.
+    #[inline]
+    pub fn to_value(&self, source: &S) -> A
+    where
+        A: Clone,
+    {
+        (self.view)(source).clone()
+    }
+
+    /// Legacy getter extracting an owned clone of the focused part.
+    ///
+    /// Deprecated in 0.20.0 in favor of [`Lens::view`] (0 B reference) or
+    /// [`Lens::to_value`] (explicit owned extraction per C-CONV).
+    #[deprecated(
+        since = "0.20.0",
+        note = "Use lens.view(&s) for 0-allocation borrowed access, or lens.to_value(&s) for owned extraction per C-CONV"
+    )]
+    #[inline]
+    pub fn get(&self, source: &S) -> A
+    where
+        A: Clone,
+    {
+        self.to_value(source)
+    }
+
+    /// Sets the focused part with zero-allocation short-circuiting when `A: PartialEq`.
+    ///
+    /// If the new value equals the current value under `PartialEq`, returns `source` untouched (0 B, 0 clones).
+    /// If values differ, constructs an updated structure via `set`.
+    ///
+    /// Note: Equality check uses `PartialEq`. For bit-exact preservation (such as distinguishing `-0.0` and `0.0`
+    /// on `f64`) or non-reflexive types (`NaN`), use [`Lens::set_always`].
+    #[inline]
+    pub fn set(&self, source: S, value: A) -> S
+    where
+        A: PartialEq,
+    {
+        if (self.view)(&source) == &value {
+            source
+        } else {
+            (self.set)(source, value)
+        }
+    }
+
+    /// Sets the focused part unconditionally without equality checking.
+    #[inline]
+    pub fn set_always(&self, source: S, value: A) -> S {
+        (self.set)(source, value)
+    }
+
+    /// Modifies the focused part with single-clone and zero-allocation short-circuiting.
+    ///
+    /// Clones `current` exactly 1 time to pass owned value to `f(current)`.
+    /// If `f` returns an identical value under `PartialEq`, returns `source` untouched (0 B).
+    ///
+    /// Note: Equality check uses `PartialEq`. For bit-exact types or non-reflexive types,
+    /// use [`Lens::modify_always`].
+    #[inline]
+    pub fn modify<F>(&self, source: S, f: F) -> S
+    where
+        F: FnOnce(A) -> A,
+        A: Clone + PartialEq,
+    {
+        let current = (self.view)(&source);
+        let new_value = f(current.clone());
+        if current == &new_value {
+            source
+        } else {
+            (self.set)(source, new_value)
+        }
+    }
+
+    /// Modifies the focused part unconditionally.
+    #[inline]
+    pub fn modify_always<F>(&self, source: S, f: F) -> S
+    where
+        F: FnOnce(A) -> A,
+        A: Clone,
+    {
+        let new_value = f((self.view)(&source).clone());
+        (self.set)(source, new_value)
+    }
+
+    /// Deprecated bidirectional type transformation.
+    ///
+    /// In 0.20.0, `Lens` is a reference-borrowing optic (`&S -> &A`) and cannot lawfully
+    /// borrow a reference to a newly computed value `B`. Use `lens.view(&s)` or `lens.to_value(&s)`
+    /// and transform values directly.
+    #[deprecated(
+        since = "0.20.0",
+        note = "Lens is now a zero-allocation reference optic. Use lens.view(&s) or lens.to_value(&s) and transform values directly."
+    )]
+    #[inline]
+    #[allow(deprecated)]
+    pub fn iso_map<B, F, G>(
+        self, f: F, g: G,
+    ) -> DeprecatedIsoLens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
+    where
+        A: Clone,
+        F: Fn(A) -> B + Clone,
+        G: Fn(B) -> A + Clone,
+        ViewFn: Clone,
+        SetFn: Clone,
+    {
+        let view = self.view;
+        let set = self.set;
+        DeprecatedIsoLens {
+            get: move |s: &S| f(view(s).clone()),
+            set: move |s: S, b: B| set(s, g(b)),
+            _phantom: PhantomData,
+        }
+    }
+}
 
 #[inline]
-fn compose_views<S: ?Sized, A: ?Sized + 'static, B: ?Sized, V1, V2>(
-    v1: V1, v2: V2,
-) -> impl Fn(&S) -> &B + Clone
+fn compose_lens_views<S, A: 'static, B, V1, V2>(v1: V1, v2: V2) -> impl Fn(&S) -> &B + Clone
 where
     V1: Fn(&S) -> &A + Clone,
     V2: Fn(&A) -> &B + Clone,
@@ -145,779 +270,131 @@ where
     move |s: &S| v2(v1(s))
 }
 
-/// A lens is a first-class reference to a subpart of some data type.
-/// It provides a way to view, modify and transform a part of a larger structure.
-///
-/// Lenses follow a functional approach to accessing and modifying nested data
-/// structures, allowing for immutable updates that preserve the original structure.
-///
-/// # Type Parameters
-///
-/// * `S` - The type of the whole structure
-/// * `A` - The type of the part being focused on
-/// * `GetFn` - The type of the getter function
-/// * `SetFn` - The type of the setter function
-/// * `V` - The view strategy (`NoView` by default, or `View<F>`)
-///
-/// # Design Notes
-///
-/// - Functions are stored directly to avoid boxing overhead and enable better compiler optimizations
-/// - Short-circuits updates when `A: PartialEq` and new value equals current value (`==`)
-/// - Provides variants without equality checks (`set_always`, `modify_always`) for types without `PartialEq`
-///
-/// # Examples
-///
-/// ```rust
-/// use rustica::datatypes::lens::Lens;
-///
-/// #[derive(Clone)]
-/// struct Person {
-///     name: String,
-///     age: u32,
-/// }
-///
-/// // Create a lens focusing on the name field
-/// let name_lens = Lens::new(
-///     |p: &Person| p.name.clone(),
-///     |p: Person, name: String| Person { name, ..p },
-/// );
-///
-/// let person = Person {
-///     name: "Alice".to_string(),
-///     age: 30,
-/// };
-///
-/// // Get the name
-/// assert_eq!(name_lens.get(&person), "Alice");
-///
-/// // Update the name
-/// let updated = name_lens.set(person.clone(), "Bob".to_string());
-/// assert_eq!(updated.name, "Bob");
-/// assert_eq!(updated.age, 30);
-///
-/// // Modify the name
-/// let modified = name_lens.modify(person, |name| format!("Ms. {}", name));
-/// assert_eq!(modified.name, "Ms. Alice");
-/// ```
-pub struct Lens<S, A, GetFn, SetFn, V = NoView> {
-    get: GetFn,
-    set: SetFn,
-    view: V,
-    _phantom: PhantomData<fn(S) -> A>,
-}
-
-impl<S, A, GetFn, SetFn, V> Clone for Lens<S, A, GetFn, SetFn, V>
+impl<S, A, ViewFn, SetFn> Lens<S, A, ViewFn, SetFn>
 where
-    GetFn: Clone,
-    SetFn: Clone,
-    V: Clone,
-{
-    fn clone(&self) -> Self {
-        Lens {
-            get: self.get.clone(),
-            set: self.set.clone(),
-            view: self.view.clone(),
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<S, A, GetFn, SetFn, V> fmt::Debug for Lens<S, A, GetFn, SetFn, V> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Lens").finish_non_exhaustive()
-    }
-}
-
-impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn, NoView>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-{
-    /// Creates a new lens from getter and setter functions.
-    ///
-    /// A lens consists of two components:
-    /// 1. A getter function that extracts a focus from a structure
-    /// 2. A setter function that updates the focus in a structure
-    ///
-    /// # Arguments
-    ///
-    /// * `get` - A function that extracts a part from the whole structure
-    /// * `set` - A function that updates the whole structure with a new part
-    ///
-    /// # Type Parameters
-    ///
-    /// * `GetFn` - The type of the getter function: `Fn(&S) -> A`
-    /// * `SetFn` - The type of the setter function: `Fn(S, A) -> S`
-    ///
-    /// # Examples
-    ///
-    /// Basic lens for a simple struct:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Point {
-    ///     x: f64,
-    ///     y: f64,
-    /// }
-    ///
-    /// // Create a lens focusing on the x coordinate
-    /// let x_lens = Lens::new(
-    ///     |p: &Point| p.x,
-    ///     |p: Point, x: f64| Point { x, ..p },
-    /// );
-    ///
-    /// let point = Point { x: 2.0, y: 3.0 };
-    ///
-    /// // Use the lens to view the focused value
-    /// assert_eq!(x_lens.get(&point), 2.0);
-    ///
-    /// // Use the lens to update the focused value
-    /// let updated = x_lens.set(point, 5.0);
-    /// assert_eq!(updated, Point { x: 5.0, y: 3.0 });
-    /// ```
-    #[inline]
-    pub const fn new(get: GetFn, set: SetFn) -> Self {
-        Lens {
-            get,
-            set,
-            view: NoView,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<S, A, GetFn, SetFn, V> Lens<S, A, GetFn, SetFn, V>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-{
-    /// Gets the focused part from the whole structure.
-    ///
-    /// This operation is non-destructive and returns a clone of the focused part.
-    /// It's the fundamental operation for viewing a portion of a data structure
-    /// through a lens.
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The whole structure to get the part from
-    ///
-    /// # Returns
-    ///
-    /// A clone of the focused part
-    ///
-    /// # Examples
-    ///
-    /// Basic usage with a simple struct:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct User {
-    ///     name: String,
-    ///     email: String,
-    /// }
-    ///
-    /// let name_lens = Lens::new(
-    ///     |u: &User| u.name.clone(),
-    ///     |u: User, name: String| User { name, ..u },
-    /// );
-    ///
-    /// let user = User {
-    ///     name: "Alice".to_string(),
-    ///     email: "alice@example.com".to_string(),
-    /// };
-    ///
-    /// let name = name_lens.get(&user);
-    /// assert_eq!(name, "Alice");
-    /// ```
-    #[inline]
-    pub fn get(&self, source: &S) -> A {
-        (self.get)(source)
-    }
-}
-
-impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn, NoView>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-{
-    /// Sets the focused part to a new value, returning a new whole structure.
-    ///
-    /// This operation creates a new structure rather than modifying the existing one.
-    /// If the new value is equal to the current value according to `PartialEq::eq` (`==`),
-    /// the original structure is returned unchanged as a short-circuiting optimization.
-    ///
-    /// # Equivalence Note
-    ///
-    /// Short-circuiting is governed strictly by `==`. For types with non-trivial equivalence
-    /// relations (such as IEEE 754 floats where `0.0 == -0.0`), setting an equivalent value
-    /// preserves the existing representation in `source`.
-    ///
-    /// # Requirements
-    ///
-    /// * The focused type `A` must implement `PartialEq` for equality comparison
-    /// * If `A` doesn't implement `PartialEq`, use `set_always` instead
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The whole structure to update
-    /// * `value` - The new value for the focused part
-    ///
-    /// # Returns
-    ///
-    /// A new structure with the focused part updated, or the original structure
-    /// if the new value is equal to the current value
-    ///
-    /// # Examples
-    ///
-    /// Basic usage with equality short-circuiting:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct User {
-    ///     name: String,
-    ///     email: String,
-    /// }
-    ///
-    /// let name_lens = Lens::new(
-    ///     |u: &User| u.name.clone(),
-    ///     |u: User, name: String| User { name, ..u },
-    /// );
-    ///
-    /// let user = User {
-    ///     name: "Alice".to_string(),
-    ///     email: "alice@example.com".to_string(),
-    /// };
-    ///
-    /// // Setting to a different value creates a new structure
-    /// let updated = name_lens.set(user.clone(), "Bob".to_string());
-    /// assert_ne!(updated, user);
-    /// assert_eq!(updated.name, "Bob");
-    /// assert_eq!(updated.email, user.email); // Other fields remain unchanged
-    ///
-    /// // Setting to the same value returns the original structure
-    /// let same = name_lens.set(user.clone(), "Alice".to_string());
-    /// assert_eq!(same, user); // Values are equal
-    /// ```
-    #[inline]
-    pub fn set(&self, source: S, value: A) -> S
-    where
-        A: PartialEq,
-    {
-        if self.get(&source) == value {
-            source
-        } else {
-            self.set_always(source, value)
-        }
-    }
-}
-
-impl<S, A, GetFn, SetFn, V> Lens<S, A, GetFn, SetFn, V>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-{
-    /// Sets the focused part to a new value without checking equality.
-    ///
-    /// This variant of set always creates a new structure, even if the value
-    /// doesn't change. Use this when A doesn't implement PartialEq or when
-    /// you know the value will always be different. This method is also useful
-    /// when working with types where equality comparison is expensive.
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The whole structure to update
-    /// * `value` - The new value for the focused part
-    ///
-    /// # Returns
-    ///
-    /// A new structure with the focused part updated
-    ///
-    /// # Examples
-    ///
-    /// Basic usage with a type lacking `PartialEq`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// // A type that doesn't implement PartialEq
-    /// #[derive(Clone)]
-    /// struct CustomData {
-    ///     value: String,
-    /// }
-    ///
-    /// #[derive(Clone)]
-    /// struct Container {
-    ///     data: CustomData,
-    ///     tag: String,
-    /// }
-    ///
-    /// let data_lens = Lens::new(
-    ///     |c: &Container| c.data.clone(),
-    ///     |c: Container, data: CustomData| Container { data, ..c },
-    /// );
-    ///
-    /// let container = Container {
-    ///     data: CustomData { value: "original".to_string() },
-    ///     tag: "v1".to_string(),
-    /// };
-    ///
-    /// let new_data = CustomData { value: "updated".to_string() };
-    /// let updated = data_lens.set_always(container, new_data);
-    /// assert_eq!(updated.data.value, "updated");
-    /// ```
-    #[inline]
-    pub fn set_always(&self, source: S, value: A) -> S {
-        (self.set)(source, value)
-    }
-}
-
-impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn, NoView>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-{
-    /// Modifies the focused part using a function, returning a new whole structure.
-    ///
-    /// This is a convenience method that combines `get` and `set` operations.
-    /// If the modification doesn't change the focused part (as determined by
-    /// equality comparison), the original structure is returned to enable
-    /// structural sharing. The getter may be evaluated more than once; its
-    /// invocation count is not guaranteed.
-    ///
-    /// # Requirements
-    ///
-    /// * The focused type `A` must implement `PartialEq` for equality comparison
-    /// * If `A` doesn't implement `PartialEq`, use `modify_always` instead
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The whole structure to modify
-    /// * `f` - A function that transforms the focused part
-    ///
-    /// # Returns
-    ///
-    /// A new structure with the focused part modified by the function, or the
-    /// original structure if no change was made
-    ///
-    /// # Examples
-    ///
-    /// Basic modification with structural sharing:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct User {
-    ///     name: String,
-    ///     age: i32,
-    /// }
-    ///
-    /// let age_lens = Lens::new(
-    ///     |u: &User| u.age,
-    ///     |u: User, age: i32| User { age, ..u },
-    /// );
-    ///
-    /// let user = User {
-    ///     name: "Alice".to_string(),
-    ///     age: 30,
-    /// };
-    ///
-    /// // Increment the age
-    /// let older = age_lens.modify(user.clone(), |age| age + 1);
-    /// assert_eq!(older.age, 31);
-    /// assert_eq!(older.name, "Alice");
-    ///
-    /// // No change when applying identity function - equality short-circuiting in action
-    /// let same = age_lens.modify(user.clone(), |age| age);
-    /// assert_eq!(same, user); // Same value due to no change
-    /// ```
-    #[inline]
-    pub fn modify<F>(&self, source: S, f: F) -> S
-    where
-        F: FnOnce(A) -> A,
-        A: PartialEq,
-    {
-        let current = self.get(&source);
-        let new_value = f(current);
-        self.set(source, new_value)
-    }
-}
-
-impl<S, A, GetFn, SetFn, V> Lens<S, A, GetFn, SetFn, V>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-{
-    /// Modifies the focused part using a function without checking equality.
-    ///
-    /// This variant of modify always creates a new structure, even if the
-    /// value doesn't change. Use this when A doesn't implement PartialEq
-    /// or when you know the value will always change. This method is also useful
-    /// when equality comparison is expensive compared to creating a new structure.
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The whole structure to modify
-    /// * `f` - A function that transforms the focused part
-    ///
-    /// # Returns
-    ///
-    /// A new structure with the focused part modified by the function
-    ///
-    /// # Examples
-    ///
-    /// Basic usage with a type lacking `PartialEq`:
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// // A type that doesn't implement PartialEq
-    /// #[derive(Clone)]
-    /// struct CustomVector {
-    ///     data: Vec<f64>,
-    /// }
-    ///
-    /// #[derive(Clone)]
-    /// struct Analysis {
-    ///     values: CustomVector,
-    ///     description: String,
-    /// }
-    ///
-    /// let values_lens = Lens::new(
-    ///     |a: &Analysis| a.values.clone(),
-    ///     |a: Analysis, values: CustomVector| Analysis { values, ..a },
-    /// );
-    ///
-    /// let analysis = Analysis {
-    ///     values: CustomVector { data: vec![1.0, 2.0, 3.0] },
-    ///     description: "Initial data".to_string(),
-    /// };
-    ///
-    /// // Transform the vector data
-    /// let normalized = values_lens.modify_always(analysis, |mut values| {
-    ///     // Normalize the vector
-    ///     let sum: f64 = values.data.iter().sum();
-    ///     for val in &mut values.data {
-    ///         *val /= sum;
-    ///     }
-    ///     values
-    /// });
-    ///
-    /// // Verify the transformation worked
-    /// let expected_sum = 1.0;
-    /// let actual_sum: f64 = normalized.values.data.iter().sum();
-    /// assert!((actual_sum - expected_sum).abs() < 1e-10);
-    /// ```
-    #[inline]
-    pub fn modify_always<F>(&self, source: S, f: F) -> S
-    where
-        F: FnOnce(A) -> A,
-    {
-        let current = self.get(&source);
-        let new_value = f(current);
-        self.set_always(source, new_value)
-    }
-
-    /// Maps the focused part through an isomorphism, creating a new lens.
-    ///
-    /// This transforms the type of the focused part from `A` to `B` using a pair of
-    /// mutually inverse functions. Unlike a functorial `map`, the result is a lawful
-    /// lens only when `f` and `g` form an isomorphism: `g(f(a)) == a` for all `a: A`
-    /// and `f(g(b)) == b` for all `b: B`.
-    ///
-    /// # Implementation Notes
-    ///
-    /// * `f` and `g` must be exact mutual inverses to preserve the lens laws
-    /// * If the two directions are not inverses, the resulting lens violates the
-    ///   GetSet and/or SetGet laws
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - The forward transformation function from A to B
-    /// * `g` - The backward transformation function from B to A
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The new type of the focused part
-    /// * `F` - The type of the forward transformation function: `Fn(A) -> B`
-    /// * `G` - The type of the backward transformation function: `Fn(B) -> A`
-    ///
-    /// # Returns
-    ///
-    /// A new lens that focuses on the transformed part
-    ///
-    /// # Examples
-    ///
-    /// Lossless type conversion using an exact isomorphism (`u32` little-endian bytes):
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Person {
-    ///     age: u32,
-    /// }
-    ///
-    /// let age_lens = Lens::new(
-    ///     |p: &Person| p.age,
-    ///     |p: Person, age: u32| Person { age },
-    /// );
-    ///
-    /// // `to_le_bytes` / `from_le_bytes` are exact inverses, so the lens laws hold
-    /// let age_bytes_lens = age_lens.iso_map(
-    ///     |n: u32| n.to_le_bytes(),
-    ///     |b: [u8; 4]| u32::from_le_bytes(b),
-    /// );
-    ///
-    /// let person = Person { age: 30 };
-    ///
-    /// // Use the transformed lens to get the byte representation
-    /// assert_eq!(age_bytes_lens.get(&person), 30u32.to_le_bytes());
-    ///
-    /// // Use the transformed lens to set from bytes
-    /// let updated = age_bytes_lens.set(person, 42u32.to_le_bytes());
-    /// assert_eq!(updated.age, 42);
-    /// ```
-    #[inline]
-    pub fn iso_map<B, F, G>(
-        self, f: F, g: G,
-    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone, NoView>
-    where
-        F: Fn(A) -> B + Clone,
-        G: Fn(B) -> A + Clone,
-        GetFn: Clone,
-        SetFn: Clone,
-    {
-        Lens::new(move |s| f((self.get)(s)), move |s, b| (self.set)(s, g(b)))
-    }
-}
-
-impl<S, A, GetFn, SetFn> Lens<S, A, GetFn, SetFn, NoView>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
+    ViewFn: Fn(&S) -> &A + Clone,
+    SetFn: Fn(S, A) -> S + Clone,
 {
     /// Composes two lenses to create a new lens that focuses on a nested structure.
     ///
     /// Given a lens from `S` to `A` and a lens from `A` to `B`, this creates a new
-    /// lens from `S` to `B`. This is essential for accessing deeply nested data
-    /// structures in a type-safe and composable way.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `B` - The type of the deeply nested focus
-    /// * `GetFn2` - The type of the inner lens getter
-    /// * `SetFn2` - The type of the inner lens setter
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - The inner lens that focuses from `A` to `B`
-    ///
-    /// # Returns
-    ///
-    /// A new lens that focuses from `S` directly to `B`
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::lens::Lens;
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Address { street: String, city: String }
-    ///
-    /// #[derive(Clone, Debug, PartialEq)]
-    /// struct Person { name: String, address: Address }
-    ///
-    /// let address_lens = Lens::new(
-    ///     |p: &Person| p.address.clone(),
-    ///     |p: Person, addr: Address| Person { address: addr, ..p },
-    /// );
-    ///
-    /// let street_lens = Lens::new(
-    ///     |a: &Address| a.street.clone(),
-    ///     |a: Address, street: String| Address { street, ..a },
-    /// );
-    ///
-    /// // Chain to create a lens from Person to street
-    /// let person_street_lens = address_lens.then(street_lens);
-    ///
-    /// let person = Person {
-    ///     name: "Alice".to_string(),
-    ///     address: Address {
-    ///         street: "123 Main St".to_string(),
-    ///         city: "Springfield".to_string(),
-    ///     },
-    /// };
-    ///
-    /// // Get nested value directly
-    /// assert_eq!(person_street_lens.get(&person), "123 Main St");
-    ///
-    /// // Set nested value directly
-    /// let updated = person_street_lens.set(person, "456 Oak Ave".to_string());
-    /// assert_eq!(updated.address.street, "456 Oak Ave");
-    /// assert_eq!(updated.address.city, "Springfield"); // Other fields preserved
-    /// ```
+    /// lens from `S` to `B` with zero-allocation reference view preservation.
     #[inline]
-    pub fn then<B, GetFn2, SetFn2, V2>(
-        self, other: Lens<A, B, GetFn2, SetFn2, V2>,
-    ) -> Lens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone, NoView>
+    #[allow(clippy::type_complexity)]
+    pub fn then<B, ViewFn2, SetFn2>(
+        self, other: Lens<A, B, ViewFn2, SetFn2>,
+    ) -> Lens<S, B, impl Fn(&S) -> &B + Clone, impl Fn(S, B) -> S + Clone>
     where
-        GetFn: Clone,
-        SetFn: Clone,
-        GetFn2: Fn(&A) -> B + Clone,
+        A: Clone + 'static,
+        ViewFn2: Fn(&A) -> &B + Clone,
+        SetFn2: Fn(A, B) -> A + Clone,
+    {
+        let view1 = self.view;
+        let view2 = other.view;
+        let set1 = self.set;
+        let set2 = other.set;
+
+        let view1_for_set = view1.clone();
+
+        Lens {
+            view: compose_lens_views(view1, view2),
+            set: move |s: S, b: B| {
+                let current_a = view1_for_set(&s).clone();
+                let updated_a = set2(current_a, b);
+                set1(s, updated_a)
+            },
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Deprecated bridge adapter for `Lens::iso_map`.
+#[deprecated(
+    since = "0.20.0",
+    note = "Lens is now a zero-allocation reference optic. Use lens.view(&s) or lens.to_value(&s) and transform values directly."
+)]
+#[derive(Clone)]
+pub struct DeprecatedIsoLens<S, B, GetFn, SetFn> {
+    get: GetFn,
+    set: SetFn,
+    _phantom: PhantomData<fn(S) -> B>,
+}
+
+#[allow(deprecated)]
+impl<S, B, GetFn, SetFn> fmt::Debug for DeprecatedIsoLens<S, B, GetFn, SetFn> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DeprecatedIsoLens").finish_non_exhaustive()
+    }
+}
+
+#[allow(deprecated)]
+impl<S, B, GetFn, SetFn> DeprecatedIsoLens<S, B, GetFn, SetFn>
+where
+    GetFn: Fn(&S) -> B,
+    SetFn: Fn(S, B) -> S,
+{
+    /// Extracts the transformed focus value.
+    #[inline]
+    pub fn get(&self, source: &S) -> B {
+        (self.get)(source)
+    }
+
+    /// Extracts the transformed focus value adhering to `C-CONV`.
+    #[inline]
+    pub fn to_value(&self, source: &S) -> B {
+        (self.get)(source)
+    }
+
+    /// Sets the transformed focus value.
+    #[inline]
+    pub fn set(&self, source: S, value: B) -> S {
+        (self.set)(source, value)
+    }
+
+    /// Modifies the transformed focus value.
+    #[inline]
+    pub fn modify<F>(&self, source: S, f: F) -> S
+    where
+        F: FnOnce(B) -> B,
+    {
+        let val = (self.get)(&source);
+        (self.set)(source, f(val))
+    }
+}
+
+#[allow(deprecated)]
+impl<S, A, GetFn, SetFn> DeprecatedIsoLens<S, A, GetFn, SetFn>
+where
+    GetFn: Fn(&S) -> A + Clone,
+    SetFn: Fn(S, A) -> S + Clone,
+{
+    /// Composes a deprecated iso lens with an inner reference lens.
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    pub fn then<B, ViewFn2, SetFn2>(
+        self, other: Lens<A, B, ViewFn2, SetFn2>,
+    ) -> DeprecatedIsoLens<S, B, impl Fn(&S) -> B + Clone, impl Fn(S, B) -> S + Clone>
+    where
+        A: Clone,
+        B: Clone,
+        ViewFn2: Fn(&A) -> &B + Clone,
         SetFn2: Fn(A, B) -> A + Clone,
     {
         let get1 = self.get;
         let set1 = self.set;
-        let get2 = other.get;
+        let view2 = other.view;
         let set2 = other.set;
-
         let get1_for_set = get1.clone();
-
-        Lens::new(
-            move |s: &S| get2(&get1(s)),
-            move |s: S, b: B| {
-                let a = get1_for_set(&s);
-                let new_a = set2(a, b);
-                set1(s, new_a)
+        DeprecatedIsoLens {
+            get: move |s: &S| {
+                let a = get1(s);
+                view2(&a).clone()
             },
-        )
-    }
-}
-
-impl<S, A, SetFn> Lens<S, A, fn(&S) -> A, SetFn, NoView>
-where
-    SetFn: Fn(S, A) -> S,
-{
-    /// Creates a new lens from a reference getter (view) and setter.
-    ///
-    /// Provides zero-allocation views and zero-allocation equality checks.
-    #[inline]
-    pub fn from_view<ViewFn>(
-        view: ViewFn, set: SetFn,
-    ) -> Lens<S, A, impl Fn(&S) -> A + Clone, SetFn, View<ViewFn>>
-    where
-        ViewFn: Fn(&S) -> &A + Clone,
-        A: Clone,
-    {
-        let view_for_get = view.clone();
-        Lens {
-            get: move |s: &S| view_for_get(s).clone(),
-            set,
-            view: View(view),
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<S, A, GetFn, SetFn, ViewFn> Lens<S, A, GetFn, SetFn, View<ViewFn>>
-where
-    GetFn: Fn(&S) -> A,
-    SetFn: Fn(S, A) -> S,
-    ViewFn: Fn(&S) -> &A,
-{
-    /// Borrows the focused part from the whole structure without cloning.
-    #[inline]
-    pub fn view<'a>(&self, source: &'a S) -> &'a A {
-        (self.view.0)(source)
-    }
-
-    /// Discards the borrowing view capability, downgrading to a `NoView` lens.
-    #[inline]
-    pub fn forget_view(self) -> Lens<S, A, GetFn, SetFn, NoView> {
-        Lens {
-            get: self.get,
-            set: self.set,
-            view: NoView,
-            _phantom: PhantomData,
-        }
-    }
-
-    /// Sets the focused part to a new value with zero-allocation short-circuiting.
-    #[inline]
-    pub fn set(&self, source: S, value: A) -> S
-    where
-        A: PartialEq,
-    {
-        if (self.view.0)(&source) == &value {
-            source
-        } else {
-            self.set_always(source, value)
-        }
-    }
-
-    /// Modifies the focused part using a function with single-get and zero-allocation short-circuiting.
-    #[inline]
-    pub fn modify<F>(&self, source: S, f: F) -> S
-    where
-        F: FnOnce(A) -> A,
-        A: PartialEq,
-    {
-        let current = self.get(&source);
-        let new_value = f(current);
-        if (self.view.0)(&source) == &new_value {
-            source
-        } else {
-            self.set_always(source, new_value)
-        }
-    }
-}
-
-impl<S, A, GetFn, SetFn, ViewFn> Lens<S, A, GetFn, SetFn, View<ViewFn>>
-where
-    GetFn: Fn(&S) -> A + Clone,
-    SetFn: Fn(S, A) -> S + Clone,
-    ViewFn: Fn(&S) -> &A + Clone,
-{
-    /// Composes two view-enabled lenses into a new view-enabled lens.
-    ///
-    /// # Type Requirements
-    ///
-    /// The focus types `A` and `B` must satisfy `'static` for view-preserving composition
-    /// because higher-ranked reference projections (`Fn(&S) -> &B`) require intermediate
-    /// references (`&A`) to be valid for arbitrary caller lifetimes.
-    /// For borrowed focus types containing non-`'static` lifetimes, use [`Lens::forget_view`]
-    /// to compose via the standard value-based [`NoView`] composition path.
-    #[inline]
-    #[allow(clippy::type_complexity)]
-    pub fn then<B, GetFn2, SetFn2, ViewFn2>(
-        self, other: Lens<A, B, GetFn2, SetFn2, View<ViewFn2>>,
-    ) -> Lens<
-        S,
-        B,
-        impl Fn(&S) -> B + Clone,
-        impl Fn(S, B) -> S + Clone,
-        View<impl Fn(&S) -> &B + Clone>,
-    >
-    where
-        A: 'static,
-        B: Clone + 'static,
-        GetFn2: Fn(&A) -> B + Clone,
-        SetFn2: Fn(A, B) -> A + Clone,
-        ViewFn2: Fn(&A) -> &B + Clone,
-    {
-        let view1 = self.view.0;
-        let view2 = other.view.0;
-        let get1_for_set = self.get;
-        let set1 = self.set;
-        let set2 = other.set;
-
-        let view_composed = compose_views(view1, view2);
-        let view_for_get = view_composed.clone();
-        Lens {
-            get: move |s: &S| view_for_get(s).clone(),
             set: move |s: S, b: B| {
                 let a = get1_for_set(&s);
-                let new_a = set2(a, b);
-                set1(s, new_a)
+                let updated_a = set2(a, b);
+                set1(s, updated_a)
             },
-            view: View(view_composed),
             _phantom: PhantomData,
         }
     }
@@ -925,78 +402,55 @@ where
 
 #[cfg(test)]
 mod unit_tests {
-    use super::Lens;
     use alloc::rc::Rc;
     use alloc::string::String;
 
-    #[derive(Clone, Debug, PartialEq)]
-    struct Point {
-        x: f64,
-        y: f64,
-    }
+    use super::Lens;
+
     #[derive(Clone, Debug, PartialEq)]
     struct Address {
         street: String,
         city: String,
     }
+
     #[derive(Clone, Debug, PartialEq)]
     struct Person {
         name: String,
         address: Rc<Address>,
     }
 
-    fn x_lens()
-    -> Lens<Point, f64, impl Fn(&Point) -> f64 + Clone, impl Fn(Point, f64) -> Point + Clone> {
-        Lens::new(|p: &Point| p.x, |p: Point, x| Point { x, ..p })
+    #[derive(Clone, Debug, PartialEq)]
+    struct Point {
+        x: f64,
+        y: f64,
     }
 
+    #[allow(clippy::type_complexity)]
     fn street_lens() -> Lens<
         Address,
         String,
-        impl Fn(&Address) -> String + Clone,
+        impl Fn(&Address) -> &String + Clone,
         impl Fn(Address, String) -> Address + Clone,
     > {
-        Lens::new(
-            |a: &Address| a.street.clone(),
-            |a, street| Address { street, ..a },
-        )
+        Lens::new(|a: &Address| &a.street, |a, street| Address { street, ..a })
     }
 
+    #[allow(clippy::type_complexity)]
     fn address_lens() -> Lens<
         Person,
-        Address,
-        impl Fn(&Person) -> Address + Clone,
-        impl Fn(Person, Address) -> Person + Clone,
+        Rc<Address>,
+        impl Fn(&Person) -> &Rc<Address> + Clone,
+        impl Fn(Person, Rc<Address>) -> Person + Clone,
     > {
         Lens::new(
-            |p: &Person| (*p.address).clone(),
-            |p, address| Person {
-                address: Rc::new(address),
-                ..p
-            },
+            |p: &Person| &p.address,
+            |p, address| Person { address, ..p },
         )
     }
 
-    #[test]
-    fn test_basic_operations() {
-        #[derive(Clone, Debug, PartialEq)]
-        struct NameAge {
-            name: String,
-            age: u32,
-        }
-        let name = Lens::new(
-            |p: &NameAge| p.name.clone(),
-            |p, name| NameAge { name, ..p },
-        );
-        let age = Lens::new(|p: &NameAge| p.age, |p, age| NameAge { age, ..p });
-        let person = NameAge {
-            name: "Alice".into(),
-            age: 30,
-        };
-        assert_eq!(name.get(&person), "Alice");
-        assert_eq!(age.get(&person), 30);
-        assert_eq!(name.set(person.clone(), "Bob".into()).name, "Bob");
-        assert_eq!(age.modify(person, |value| value + 1).age, 31);
+    fn x_lens()
+    -> Lens<Point, f64, impl Fn(&Point) -> &f64 + Clone, impl Fn(Point, f64) -> Point + Clone> {
+        Lens::new(|p: &Point| &p.x, |p, x| Point { x, ..p })
     }
 
     #[test]
@@ -1008,12 +462,11 @@ mod unit_tests {
         struct Item {
             name: String,
         }
-        let item_lens = Lens::new(|i: &Item| i.name.clone(), |_i, name| Item { name });
+        let item_lens = Lens::new(|i: &Item| &i.name, |_i, name| Item { name });
 
         let item = Item {
             name: "prefix_".into(),
         };
-        // Closure moves `move_only` by value, requiring FnOnce
         let updated = item_lens.modify(item, move |mut s| {
             s.push_str(&move_only.0);
             s
@@ -1026,11 +479,14 @@ mod unit_tests {
         struct NonCloneStruct {
             val: u32,
         }
-        let lens = Lens::new(|s: &NonCloneStruct| s.val, |_s, val| NonCloneStruct { val });
-        // Manual Clone impl allows cloning Lens even when NonCloneStruct does not implement Clone
+        let lens = Lens::new(
+            |s: &NonCloneStruct| &s.val,
+            |_s, val| NonCloneStruct { val },
+        );
         let cloned = lens.clone();
         let s = NonCloneStruct { val: 42 };
-        assert_eq!(cloned.get(&s), 42);
+        assert_eq!(*cloned.view(&s), 42);
+        assert_eq!(cloned.to_value(&s), 42);
     }
 
     #[test]
@@ -1045,12 +501,10 @@ mod unit_tests {
         };
         let lens = address_lens();
 
-        // `set` detects equality and short-circuits (returns same Rc)
-        let same = lens.set(person.clone(), (*address).clone());
+        let same = lens.set(person.clone(), Rc::clone(&address));
         assert!(Rc::ptr_eq(&person.address, &same.address));
 
-        // `set_always` does NOT check equality; always constructs a new instance
-        let force_new = lens.set_always(person.clone(), (*address).clone());
+        let force_new = lens.set_always(person.clone(), Rc::new((*address).clone()));
         assert!(!Rc::ptr_eq(&person.address, &force_new.address));
     }
 
@@ -1064,33 +518,15 @@ mod unit_tests {
             }),
         };
         let lens = address_lens();
-        let updated = lens.modify(person.clone(), |address| {
-            street_lens().set(address, "456 Oak Ave".into())
-        });
-        assert_eq!(updated.address.street, "456 Oak Ave");
         let unchanged = lens.modify(person.clone(), |address| {
-            street_lens().set(address, "123 Main St".into())
+            street_lens().set((*address).clone(), "123 Main St".into());
+            address
         });
         assert!(Rc::ptr_eq(&person.address, &unchanged.address));
-        let v1 = Address {
-            street: "V1".into(),
-            city: "C1".into(),
-        };
-        let v2 = Address {
-            street: "V2".into(),
-            city: "C2".into(),
-        };
-        assert_eq!(
-            lens.set(lens.set(person.clone(), v1), v2.clone()),
-            lens.set(person.clone(), v2)
-        );
-        assert!(Rc::ptr_eq(
-            &person.address,
-            &lens.set(person.clone(), lens.get(&person)).address
-        ));
     }
 
     #[test]
+    #[allow(deprecated)]
     fn composition_and_unconditional_updates_work() {
         let person = Person {
             name: "Alice".into(),
@@ -1099,28 +535,22 @@ mod unit_tests {
                 city: "Springfield".into(),
             }),
         };
-        let composed = address_lens().then(street_lens());
+        let address_val_lens = Lens::new(
+            |p: &Person| p.address.as_ref(),
+            |p, address| Person {
+                address: Rc::new(address),
+                ..p
+            },
+        );
+        let composed = address_val_lens.then(street_lens());
+        assert_eq!(composed.view(&person), "123 Main St");
+        assert_eq!(composed.to_value(&person), "123 Main St");
         assert_eq!(composed.get(&person), "123 Main St");
-        assert_eq!(
-            composed
-                .set(person.clone(), "456 Oak Ave".into())
-                .address
-                .street,
-            "456 Oak Ave"
-        );
-        assert!(Rc::ptr_eq(
-            &person.address,
-            &composed.set(person.clone(), "123 Main St".into()).address
-        ));
-        assert_eq!(
-            address_lens().then(street_lens()).get(&person),
-            "123 Main St"
-        );
 
         let point = Point { x: 10.0, y: 20.0 };
         assert_eq!(x_lens().set_always(point.clone(), 10.0).x, 10.0);
         assert_eq!(x_lens().modify_always(point, |x| x).x, 10.0);
-        // `to_bits` / `from_bits` are exact inverses, so the lens laws hold
+
         let bits_lens = x_lens().iso_map(|x: f64| x.to_bits(), f64::from_bits);
         assert_eq!(
             bits_lens.get(&Point { x: 10.0, y: 20.0 }),

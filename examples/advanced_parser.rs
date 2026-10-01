@@ -487,12 +487,12 @@ pub fn sql_parser() -> Parser<char, SqlQuery> {
 pub const fn select_query_prism() -> Prism<
     SqlQuery,
     SelectStatement,
-    impl Fn(&SqlQuery) -> Option<SelectStatement>,
+    impl Fn(&SqlQuery) -> Option<&SelectStatement>,
     impl Fn(SelectStatement) -> SqlQuery,
 > {
     Prism::new(
         |q: &SqlQuery| match q {
-            SqlQuery::Select(s) => Some(s.clone()),
+            SqlQuery::Select(s) => Some(s),
             _ => None,
         },
         SqlQuery::Select,
@@ -502,12 +502,12 @@ pub const fn select_query_prism() -> Prism<
 pub const fn insert_query_prism() -> Prism<
     SqlQuery,
     InsertStatement,
-    impl Fn(&SqlQuery) -> Option<InsertStatement>,
+    impl Fn(&SqlQuery) -> Option<&InsertStatement>,
     impl Fn(InsertStatement) -> SqlQuery,
 > {
     Prism::new(
         |q: &SqlQuery| match q {
-            SqlQuery::Insert(i) => Some(i.clone()),
+            SqlQuery::Insert(i) => Some(i),
             _ => None,
         },
         SqlQuery::Insert,
@@ -648,11 +648,11 @@ pub fn validate_select_query(
 pub const fn select_columns_lens() -> Lens<
     SelectStatement,
     Vec<String>,
-    impl Fn(&SelectStatement) -> Vec<String>,
+    impl Fn(&SelectStatement) -> &Vec<String>,
     impl Fn(SelectStatement, Vec<String>) -> SelectStatement,
 > {
     Lens::new(
-        |s: &SelectStatement| s.columns.clone(),
+        |s: &SelectStatement| &s.columns,
         |s, columns| SelectStatement { columns, ..s },
     )
 }
@@ -661,11 +661,11 @@ pub const fn select_columns_lens() -> Lens<
 pub const fn select_table_lens() -> Lens<
     SelectStatement,
     String,
-    impl Fn(&SelectStatement) -> String,
+    impl Fn(&SelectStatement) -> &String,
     impl Fn(SelectStatement, String) -> SelectStatement,
 > {
     Lens::new(
-        |s: &SelectStatement| s.table.clone(),
+        |s: &SelectStatement| &s.table,
         |s, table| SelectStatement { table, ..s },
     )
 }
@@ -1009,7 +1009,7 @@ fn main() {
     println!("--- Part 5: Query Transformation with Lens ---");
 
     let col_lens = select_columns_lens();
-    println!("  Original columns: {:?}", col_lens.get(&valid_stmt));
+    println!("  Original columns: {:?}", col_lens.view(&valid_stmt));
 
     // Immutable transformation: project only 'name'
     let restricted_stmt = col_lens.set(valid_stmt.clone(), vec!["name".to_string()]);
