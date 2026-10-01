@@ -1,30 +1,20 @@
 # Datatypes
 
-Implementations of functional data types.
-
-This module contains concrete implementations of common functional
-programming data types and containers, each with appropriate trait
-implementations.
-
-## Overview
-
-The data types in this module provide foundational building blocks for
-functional programming in Rust. Each type implements relevant traits
-from the `traits` module, enabling composition and transformation.
+Functional data types and containers with core algebraic trait implementations.
 
 ## Available Data Types
 
 ### Core Monadic Types
 
-- `validated` - Accumulating error handling
-- `free` - Free monad for DSL construction and deferred interpretation
-- `operational` - Statically-typed operational monad with command-handler dispatch
+- `validated`: Accumulating error handling.
+- `free`: Free monad for DSL construction and deferred interpretation.
+- `operational`: Statically-typed operational monad with command-handler dispatch.
 
 ### Optics
 
-- `lens` - Bidirectional accessors for product types (structs)
-- `prism` - Bidirectional accessors for sum types (enums)
+- `lens`: Bidirectional accessors for product types (structs).
+- `prism`: Bidirectional accessors for sum types (enums).
 
 ### Utility Types
 
-- `choice` - N-ary sum type for multiple alternatives
+- `choice`: Non-empty ordered collection with fallback semantics.

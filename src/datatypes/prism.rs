@@ -2,30 +2,22 @@
 
 use core::marker::PhantomData;
 
-/// A `Prism` is an optic that allows focusing on a specific case of a sum type.
-///
-/// It provides a way to:
-/// - Borrow a reference to a variant's payload (`preview(&self, &S) -> Option<&A>`) with 0 heap allocations
-/// - Construct a sum type value from a focus value (`review(&self, A) -> S`)
-/// - Update variants with zero-allocation short-circuiting on unchanged values (`set`, `modify`)
+/// Optic focusing on a specific variant of a sum type.
 ///
 /// # Type Parameters
 ///
-/// * `S` - The source sum type (typically an enum)
-/// * `A` - The focus type (the variant's inner payload)
-/// * `PreviewFn` - The closure type for inspecting a variant: `Fn(&S) -> Option<&A>`
-/// * `ReviewFn` - The closure type for constructing a sum type: `Fn(A) -> S`
+/// * `S` - Source sum type (typically an enum).
+/// * `A` - Focus type (variant payload).
+/// * `PreviewFn` - Closure inspecting variant: `Fn(&S) -> Option<&A>`.
+/// * `ReviewFn` - Closure constructing sum type: `Fn(A) -> S`.
 ///
 /// # Type Class Laws
 ///
-/// A well-behaved Prism satisfies:
 /// 1. **Review-Preview**: `prism.preview(&prism.review(a)) == Some(&a)`
-/// 2. **Preview-Review**: `prism.preview(&s) == Some(&a) => prism.review(a.clone()) == s` (for lawful sum types)
-/// 3. **Unchanged Short-Circuit**: `prism.preview(&s) == Some(&new_value) => prism.set(s, new_value) == s` (0 B allocation; equality is `PartialEq`. For bit-exact types such as `f64` where `-0.0 == 0.0` or non-reflexive types such as `NaN`, prefer `set_always`, which never short-circuits)
+/// 2. **Preview-Review**: `prism.preview(&s) == Some(&a) => prism.review(a.clone()) == s`
+/// 3. **Unchanged Short-Circuit**: `prism.preview(&s) == Some(&new_value) => prism.set(s, new_value) == s` (under `PartialEq`; for bit-exact types like `f64` where `-0.0 == 0.0` or non-reflexive `NaN`, use `set_always`)
 pub struct Prism<S, A, PreviewFn, ReviewFn> {
-    /// Function that attempts to borrow a reference to type A from S
     preview: PreviewFn,
-    /// Function that constructs a value of type S from A
     review: ReviewFn,
     _phantom: PhantomData<fn(S) -> A>,
 }
@@ -55,15 +47,12 @@ where
     PreviewFn: Fn(&S) -> Option<&A>,
     ReviewFn: Fn(A) -> S,
 {
-    /// Creates a new reference-borrowing Prism.
-    ///
-    /// The `preview` closure extracts a reference to the variant's payload if present,
-    /// without cloning the focus.
+    /// Creates a prism from preview and review closures.
     ///
     /// # Arguments
     ///
-    /// * `preview` - Closure returning `Option<&A>` from `&S`
-    /// * `review` - Closure constructing `S` from `A`
+    /// * `preview` - Closure borrowing the focused variant payload: `Fn(&S) -> Option<&A>`.
+    /// * `review` - Closure constructing `S` from `A`: `Fn(A) -> S`.
     ///
     /// # Examples
     ///
@@ -89,13 +78,13 @@ where
         }
     }
 
-    /// Extracts a borrowed reference to the focused value, if present, with zero heap allocations.
+    /// Borrows the focused value, if present.
     #[inline]
     pub fn preview<'s>(&self, source: &'s S) -> Option<&'s A> {
         (self.preview)(source)
     }
 
-    /// Extracts an owned clone of the focused value, adhering to `C-CONV` conventions.
+    /// Clones the focused value, if present.
     #[inline]
     pub fn to_value(&self, source: &S) -> Option<A>
     where
@@ -104,22 +93,16 @@ where
         (self.preview)(source).cloned()
     }
 
-    /// Constructs a value of type `S` from `A`.
+    /// Constructs `S` from `a`.
     #[inline]
     pub fn review(&self, a: A) -> S {
         (self.review)(a)
     }
 
-    /// Sets the focused value with zero-allocation short-circuiting.
+    /// Sets the focused value, returning `source` unchanged if unmatched or if equal under `PartialEq`.
     ///
-    /// Assumes a lawful prism (`preview(s) == Some(a) => review(a) == s`).
-    /// - If `new_value == current` under `PartialEq`, returns `source` untouched (0 B, 0 clones).
-    /// - If variant does not match (`None`), returns `source` untouched.
-    /// - If values differ, reconstructs `S` via `review(new_value)`.
-    ///
-    /// Note: Equality check uses `PartialEq`. For bit-exact preservation (such as distinguishing `-0.0` and `0.0`
-    /// on `f64`) or non-reflexive types (`NaN`), use [`Prism::set_always`].
-    /// To preserve non-focus fields of `source` on mutation, use [`Prism::set_with`].
+    /// For bit-exact types or non-reflexive types, use [`Prism::set_always`].
+    /// To preserve non-focus fields on mutation, use [`Prism::set_with`].
     #[inline]
     pub fn set(&self, source: S, new_value: A) -> S
     where
@@ -132,7 +115,7 @@ where
         }
     }
 
-    /// Unconditionally reconstructs the focused variant when matched.
+    /// Reconstructs the focused variant when matched, bypassing equality checks.
     #[inline]
     pub fn set_always(&self, source: S, new_value: A) -> S {
         match (self.preview)(&source) {
@@ -141,15 +124,10 @@ where
         }
     }
 
-    /// Modifies the focused value with single-clone and zero-allocation short-circuiting.
+    /// Modifies the focused value with `f`, returning `source` unchanged if unmatched or equal under `PartialEq`.
     ///
-    /// Clones `current` exactly 1 time to pass owned value to `f(current)`.
-    /// If `f` returns an identical value (`cur == &new_val`) under `PartialEq`, returns `source` untouched (0 B).
-    /// If values differ, reconstructs `S` via `review(new_val)`.
-    ///
-    /// Note: Equality check uses `PartialEq`. For bit-exact types or non-reflexive types,
-    /// use [`Prism::modify_always`].
-    /// To preserve non-focus fields of `source` on mutation, use [`Prism::modify_with`].
+    /// For bit-exact types or non-reflexive types, use [`Prism::modify_always`].
+    /// To preserve non-focus fields on mutation, use [`Prism::modify_with`].
     #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
@@ -199,7 +177,7 @@ where
         }
     }
 
-    /// Sets the focused value to a new value while preserving non-focus data from `source`.
+    /// Sets the focused value while preserving non-focus data from `source`.
     #[inline]
     pub fn set_with<M>(&self, source: S, modify_fn: M, new_value: A) -> S
     where
@@ -229,10 +207,7 @@ where
     ReviewFn: Fn(A) -> S + Clone,
     PreviewFn: Fn(&S) -> Option<&A> + Clone,
 {
-    /// Composes two prisms, preserving zero-allocation reference borrowing.
-    ///
-    /// Given a prism from `S` to `A` and a prism from `A` to `B`, creates a new
-    /// prism from `S` directly to `B`.
+    /// Composes `self` with `other` to focus on a nested variant `B`.
     #[inline]
     #[allow(clippy::type_complexity)]
     pub fn then<B, PreviewFn2, ReviewFn2>(

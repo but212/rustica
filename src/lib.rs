@@ -3,23 +3,14 @@
 
 extern crate alloc;
 
-/// Core algebraic traits for functional programming.
-///
-/// This module contains fundamental algebraic abstractions:
-///
-/// - `Semigroup`: Types that can be combined associatively
-/// - `Monoid`: Types that can be combined with an identity element
+/// Core algebraic abstractions ([`Semigroup`](traits::semigroup::Semigroup), [`Monoid`](traits::monoid::Monoid)).
 pub mod traits;
 
-/// Implementations of functional data types.
-///
-/// This module contains concrete implementations of common functional
-/// programming data types and containers, each with appropriate trait
-/// implementations.
+/// Functional data types, optics, and operational monads.
 pub mod datatypes;
 
-/// Error handling utilities.
+/// Context-accumulating error handling.
 pub mod error;
 
-/// Convenient re-exports of commonly used items.
+/// Convenient re-exports of essential types, traits, and utilities.
 pub mod prelude;

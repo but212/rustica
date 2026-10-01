@@ -3,16 +3,14 @@
 use core::fmt;
 use core::marker::PhantomData;
 
-/// A `Lens` is a first-class reference to a subpart of some data type.
-///
-/// It provides a way to view, modify and transform a part of a larger structure.
+/// First-class reference to a subpart of a data structure.
 ///
 /// # Type Parameters
 ///
-/// * `S` - The type of the whole structure
-/// * `A` - The type of the part being focused on
-/// * `ViewFn` - The closure type for inspecting a focus: `Fn(&S) -> &A`
-/// * `SetFn` - The closure type for updating a structure: `Fn(S, A) -> S`
+/// * `S` - Whole structure type.
+/// * `A` - Focused part type.
+/// * `ViewFn` - Closure inspecting focus: `Fn(&S) -> &A`.
+/// * `SetFn` - Closure updating structure: `Fn(S, A) -> S`.
 pub struct Lens<S, A, ViewFn, SetFn> {
     view: ViewFn,
     set: SetFn,
@@ -44,12 +42,12 @@ where
     ViewFn: Fn(&S) -> &A,
     SetFn: Fn(S, A) -> S,
 {
-    /// Creates a new reference-borrowing lens from view and setter closures.
+    /// Creates a lens from view and setter closures.
     ///
     /// # Arguments
     ///
-    /// * `view` - A closure borrowing the focused part from the whole: `Fn(&S) -> &A`
-    /// * `set` - A closure updating the whole structure with a new focus: `Fn(S, A) -> S`
+    /// * `view` - Closure borrowing the focused part: `Fn(&S) -> &A`.
+    /// * `set` - Closure updating the structure with a new focus: `Fn(S, A) -> S`.
     ///
     /// # Examples
     ///
@@ -76,13 +74,13 @@ where
         }
     }
 
-    /// Views the focused part of a structure as a reference with zero allocations.
+    /// Borrows the focused part as a reference.
     #[inline]
     pub fn view<'s>(&self, source: &'s S) -> &'s A {
         (self.view)(source)
     }
 
-    /// Extracts an owned clone of the focused part, adhering to `C-CONV` conventions.
+    /// Clones the focused part.
     #[inline]
     pub fn to_value(&self, source: &S) -> A
     where
@@ -93,11 +91,10 @@ where
 
     /// Legacy getter extracting an owned clone of the focused part.
     ///
-    /// Deprecated in 0.20.0 in favor of [`Lens::view`] (0 B reference) or
-    /// [`Lens::to_value`] (explicit owned extraction per C-CONV).
+    /// Deprecated in 0.20.0 in favor of [`Lens::view`] or [`Lens::to_value`].
     #[deprecated(
         since = "0.20.0",
-        note = "Use lens.view(&s) for 0-allocation borrowed access, or lens.to_value(&s) for owned extraction per C-CONV"
+        note = "Use lens.view(&s) for borrowed access, or lens.to_value(&s) for owned extraction per C-CONV"
     )]
     #[inline]
     pub fn get(&self, source: &S) -> A
@@ -107,13 +104,9 @@ where
         self.to_value(source)
     }
 
-    /// Sets the focused part with zero-allocation short-circuiting when `A: PartialEq`.
+    /// Sets the focused part, returning `source` unchanged if `value` equals current focus under `PartialEq`.
     ///
-    /// If the new value equals the current value under `PartialEq`, returns `source` untouched (0 B, 0 clones).
-    /// If values differ, constructs an updated structure via `set`.
-    ///
-    /// Note: Equality check uses `PartialEq`. For bit-exact preservation (such as distinguishing `-0.0` and `0.0`
-    /// on `f64`) or non-reflexive types (`NaN`), use [`Lens::set_always`].
+    /// For bit-exact preservation (e.g. `-0.0` vs `0.0`) or non-reflexive types (`NaN`), use [`Lens::set_always`].
     #[inline]
     pub fn set(&self, source: S, value: A) -> S
     where
@@ -126,19 +119,15 @@ where
         }
     }
 
-    /// Sets the focused part unconditionally without equality checking.
+    /// Sets the focused part unconditionally without checking equality.
     #[inline]
     pub fn set_always(&self, source: S, value: A) -> S {
         (self.set)(source, value)
     }
 
-    /// Modifies the focused part with single-clone and zero-allocation short-circuiting.
+    /// Modifies the focused part with `f`, returning `source` unchanged if output equals current focus under `PartialEq`.
     ///
-    /// Clones `current` exactly 1 time to pass owned value to `f(current)`.
-    /// If `f` returns an identical value under `PartialEq`, returns `source` untouched (0 B).
-    ///
-    /// Note: Equality check uses `PartialEq`. For bit-exact types or non-reflexive types,
-    /// use [`Lens::modify_always`].
+    /// For bit-exact types or non-reflexive types, use [`Lens::modify_always`].
     #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
@@ -180,10 +169,7 @@ where
     ViewFn: Fn(&S) -> &A + Clone,
     SetFn: Fn(S, A) -> S + Clone,
 {
-    /// Composes two lenses to create a new lens that focuses on a nested structure.
-    ///
-    /// Given a lens from `S` to `A` and a lens from `A` to `B`, this creates a new
-    /// lens from `S` to `B` with zero-allocation reference view preservation.
+    /// Composes `self` with `other` to focus on a nested part `B`.
     #[inline]
     #[allow(clippy::type_complexity)]
     pub fn then<B, ViewFn2, SetFn2>(

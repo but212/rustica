@@ -1,12 +1,12 @@
-//! # Unified Error Handling System
+//! Context-accumulating error handling.
 //!
-//! Rustica provides standard `Result<T, E>` and `std::error::Error` as its primary error model,
-//! and provides [`ContextError<E>`](crate::error::ContextError) as a lightweight abstraction for context accumulation.
+//! Integrates standard `Result<T, E>` and `core::error::Error` with
+//! [`ContextError<E>`](crate::error::ContextError) for stack-ordered diagnostic context.
 //!
-//! ## Modern Context-based Error Handling
+//! # Examples
 //!
 //! ```
-//! use rustica::error::{ContextError, with_context_result};
+//! use rustica::error::{with_context_result, ContextError};
 //! use rustica::context;
 //!
 //! fn run_step() -> Result<(), &'static str> {
@@ -19,14 +19,10 @@
 
 use core::fmt::{Debug, Display};
 
-/// Creates a lazy error context that is only evaluated when an error occurs.
+/// Creates a lazy error context evaluated only on error.
 ///
-/// This macro avoids the runtime cost of formatting context strings when
-/// the operation is successful. It returns a `LazyContext` that implements
-/// `IntoErrorContext`.
-///
-/// Use it with `with_context_result` when context formatting should be deferred until
-/// the error path is taken; the lazy-evaluation behavior is covered by the module tests.
+/// Returns a [`LazyContext`] implementing [`IntoErrorContext`]. Use with
+/// [`with_context_result`] to defer formatting costs to the error path.
 #[macro_export]
 macro_rules! context {
     ($($arg:tt)*) => {
@@ -34,7 +30,7 @@ macro_rules! context {
     };
 }
 
-/// Re-exports used by [`context!`]; not a stable public API.
+/// Internal re-exports for [`context!`]. Not stable public API.
 #[doc(hidden)]
 pub mod __macro_support {
     pub use alloc::format;
@@ -47,11 +43,9 @@ use alloc::{
 
 pub use crate::context;
 
-/// A slim, standard-aligned error context wrapper.
+/// Lightweight context-accumulating error wrapper.
 ///
-/// Rustica provides standard Result<T, E> and std::error::Error as primary primitives,
-/// and adds `ContextError<E>` as the minimal abstraction for context accumulation.
-/// Context entries are stored in newest-first order.
+/// Stores accumulated context entries in newest-first order around the root error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextError<E> {
     error: E,
@@ -59,7 +53,7 @@ pub struct ContextError<E> {
 }
 
 impl<E> ContextError<E> {
-    /// Creates a new ContextError wrapping the root error.
+    /// Wraps a root error with an empty context stack.
     #[inline]
     pub const fn new(error: E) -> Self {
         Self {
@@ -68,7 +62,7 @@ impl<E> ContextError<E> {
         }
     }
 
-    /// Appends context information to this error, placing it at the front of the context stack.
+    /// Prepends context to the front of the context stack (newest first).
     #[inline]
     pub fn with_context<C>(mut self, ctx: C) -> Self
     where
@@ -78,7 +72,7 @@ impl<E> ContextError<E> {
         self
     }
 
-    /// Appends multiple context entries in encounter order (last item is most recent).
+    /// Prepends multiple context entries in encounter order (last item becomes newest).
     #[inline]
     pub fn with_contexts<I, C>(mut self, contexts: I) -> Self
     where
@@ -107,13 +101,13 @@ impl<E> ContextError<E> {
         self.error
     }
 
-    /// Returns a zero-allocation reference to the internal contexts slice (most recent first).
+    /// Returns accumulated context entries (newest first).
     #[inline]
     pub const fn contexts(&self) -> &[String] {
         self.context.as_slice()
     }
 
-    /// Returns a cloned vector of contexts (most recent first).
+    /// Clones accumulated context entries into a vector (newest first).
     #[inline]
     pub fn to_contexts(&self) -> Vec<String> {
         self.context.clone()
@@ -136,13 +130,13 @@ impl<E> ContextError<E> {
         self.contexts()
     }
 
-    /// Returns an iterator over context entries, most recent first.
+    /// Returns an iterator over context entries (newest first).
     #[inline]
     pub fn context_iter(&self) -> core::slice::Iter<'_, String> {
         self.context.iter()
     }
 
-    /// Maps the underlying error to a new type while preserving context.
+    /// Maps the root error while preserving accumulated context.
     #[inline]
     pub fn map_error<F, T>(self, f: F) -> ContextError<T>
     where
@@ -154,7 +148,7 @@ impl<E> ContextError<E> {
         }
     }
 
-    /// Returns the full error chain formatted as most_recent -> ... -> error.
+    /// Formats the context chain as `newest -> ... -> oldest` (or root error if empty).
     pub fn error_chain(&self) -> String
     where
         E: Display,
@@ -165,15 +159,14 @@ impl<E> ContextError<E> {
         chain
     }
 
-    /// Writes the error chain directly to a formatter or writer.
+    /// Writes the formatted context chain directly to a writer.
     pub(crate) fn write_chain<W>(&self, out: &mut W) -> core::fmt::Result
     where
         W: core::fmt::Write,
         E: Display,
     {
         if self.context.is_empty() {
-            // No context — fall back to displaying the error directly
-            // so Display is never empty.
+            // Fall back to root error when no context exists.
             return write!(out, "{}", self.error);
         }
 
@@ -207,9 +200,9 @@ impl<E> From<E> for ContextError<E> {
     }
 }
 
-/// A trait for types that can provide error context information.
+/// Conversion into an error context string.
 pub trait IntoErrorContext {
-    /// Converts this value into an error context string.
+    /// Converts this value into a context string.
     fn into_error_context(self) -> String;
 }
 
@@ -234,7 +227,7 @@ impl IntoErrorContext for &String {
     }
 }
 
-/// A lazy error context that is evaluated only when needed.
+/// Lazy error context evaluated on demand.
 #[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct LazyContext<F> {
@@ -242,7 +235,7 @@ pub struct LazyContext<F> {
 }
 
 impl<F> LazyContext<F> {
-    /// Creates a new lazy context with the given generator function.
+    /// Creates a lazy context with the given generator.
     #[inline]
     pub const fn new(generator: F) -> Self {
         Self { generator }
@@ -259,7 +252,7 @@ where
     }
 }
 
-/// Adds context to an error value, creating a ContextError.
+/// Wraps `error` in a [`ContextError`] with `context`.
 #[inline]
 pub fn with_context<E, C>(error: E, context: C) -> ContextError<E>
 where
@@ -268,7 +261,7 @@ where
     ContextError::new(error).with_context(context)
 }
 
-/// Adds context to a Result, converting the error variant to `ContextError<E>`.
+/// Maps any error in `result` into a [`ContextError`] with `context`.
 #[inline]
 pub fn with_context_result<T, E, C>(result: Result<T, E>, context: C) -> Result<T, ContextError<E>>
 where
@@ -277,7 +270,7 @@ where
     result.map_err(|e| with_context(e, context))
 }
 
-/// Creates a reusable context-attaching closure.
+/// Returns a closure attaching `context` to an error.
 #[inline]
 pub const fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
 where
@@ -286,7 +279,7 @@ where
     move |error| with_context(error, context.clone())
 }
 
-/// Accumulates context from multiple sources into a single ContextError.
+/// Wraps `error` in a [`ContextError`] populated with `contexts`.
 pub fn accumulate_context<E, I, C>(error: E, contexts: I) -> ContextError<E>
 where
     I: IntoIterator<Item = C>,
@@ -295,7 +288,7 @@ where
     ContextError::new(error).with_contexts(contexts)
 }
 
-/// Creates a reusable context accumulator function.
+/// Returns a closure attaching pre-evaluated `contexts` to an error.
 pub fn context_accumulator<E, I, C>(contexts: I) -> impl Fn(E) -> ContextError<E>
 where
     I: IntoIterator<Item = C>,
@@ -352,8 +345,7 @@ mod tests {
 
     #[test]
     fn context_macro_formats_without_caller_side_format_macro() {
-        // This crate is `#![no_std]`, so `format!` is not in scope here. The exported
-        // macro must resolve formatting through `$crate`, not through the call site.
+        // Under `#![no_std]`, verify macro resolves `format!` via `$crate`.
         let lazy = crate::context!("value {}", 7);
         let error = with_context_result::<(), &str, _>(Err("root"), lazy).unwrap_err();
 

@@ -5,29 +5,15 @@ definition from execution.
 
 ## Execution and Stack Safety
 
-- **Evaluation**: Evaluated with [`run`](Free::run) or [`try_run`](Free::try_run). An internal
-  stack unwinds left-associated chains (`a.then(b).then(c)`), keeping call stack frames $O(1)$.
-- **Error handling**: [`try_run`](Free::try_run) returns [`FreeError`] on interpreter error or
-  interpreter-originated downcast mismatch instead of panicking.
-- **Drop and Debug**: Traverses nested chains iteratively to avoid stack overflow when
-  dropping or formatting deep programs.
-- **Reuse**: Backed by `Arc`, so programs can be cloned and run multiple times.
+- **Evaluation**: Evaluated via [`run`](Free::run) or [`try_run`](Free::try_run). An internal stack unwinds left-associated chains (`a.then(b).then(c)`), keeping call stack frames $O(1)$.
+- **Error handling**: [`try_run`](Free::try_run) returns [`FreeError`] on interpreter errors or downcast mismatches without panicking.
+- **Drop and Debug**: Traverses chains iteratively to prevent stack overflow on deep ASTs.
+- **Reuse**: Backed by `Arc`, enabling AST cloning and repeated execution.
 
 ## Architectural Role: `Free` vs `Program`
 
-Rustica provides two distinct mechanisms for command-oriented programming:
-
-- **`Free<F, A>` (DSL AST Engine)**: Construct cloneable computation trees.
-  Backed by `Arc`, a `Free` AST can be cloned and interpreted by different backends
-  (e.g., dry-run simulator vs real execution). Node shape is inspectable via
-  [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), [`is_bind`](Free::is_bind),
-  and [`is_then`](Free::is_then); effect commands can be inspected via [`as_suspend`](Free::as_suspend),
-  pure values via [`as_pure`](Free::as_pure), and static sequencing trees via [`as_then`](Free::as_then).
-  Dynamic continuations (`Bind`) remain opaque. Stack safety applies to `Bind` and `Then` AST spines.
-  It is fully supported and intentionally designed for reusable DSLs.
-- **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**:
-  Statically couples commands to a specific handler `H` at compile time, eliminating runtime
-  downcasts in the user handler interface with trampoline evaluation.
+- **`Free<F, A>` (DSL AST Engine)**: Cloneable computation trees backed by `Arc` for multi-pass interpretation. Inspect structure via [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), [`is_bind`](Free::is_bind), [`is_then`](Free::is_then); inspect payloads via [`as_pure`](Free::as_pure), [`as_suspend`](Free::as_suspend), [`as_then`](Free::as_then). Continuations in `Bind` remain opaque. Stack safety applies to `Bind` and `Then` spines.
+- **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**: Statically couples commands to handler `H` at compile time, eliminating runtime downcasts via trampoline evaluation.
 
 ## Example
 

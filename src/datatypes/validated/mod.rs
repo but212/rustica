@@ -18,7 +18,7 @@ mod tests {
     use alloc::vec::Vec;
     use quickcheck_macros::quickcheck;
 
-    // Core Algebraic Laws & Properties
+    // Algebraic laws
     #[test]
     fn test_validated_basic_logic() {
         let v: Validated<i32, String> = Validated::valid(42);
@@ -96,7 +96,7 @@ mod tests {
         assert_eq!(mapped, Validated::invalid("Error: error".to_string()));
     }
 
-    // Accumulation & Traversal (the core USP)
+    // Accumulation and traversal
     #[test]
     fn test_validated_error_accumulation() {
         let v1: Validated<i32, String> = Validated::invalid("e1".into());
@@ -115,7 +115,7 @@ mod tests {
         assert_eq!(combined.as_slice(), &["e1".to_string(), "e2".to_string()]);
     }
 
-    // Interop, unwrap and recovery
+    // Interop and recovery
     #[test]
     #[allow(deprecated)]
     fn test_validated_recovery_and_interop() {
@@ -145,7 +145,7 @@ mod tests {
         assert_eq!(invalid.into_option(), None);
     }
 
-    // Real-world complex validation scenario
+    // Complex validation
     #[test]
     fn test_validated_complex_registration_scenario() {
         #[derive(Debug, PartialEq, Clone)]

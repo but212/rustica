@@ -1,19 +1,16 @@
+//! Core functional data types prelude.
 //!
-//! Prelude: Core Functional Data Types
+//! Re-exports primary functional data types for validation, optics, DSLs, and deferred evaluation.
 //!
-//! This module re-exports Rustica's core functional data types for expressive, type-safe programming.
-//! These types encode common functional programming patterns such as optionality, error handling,
-//! validation, optics, and deferred computation.
+//! # Included Types
 //!
-//! ## Included Data Types
+//! - [`Validated`], [`NonEmptyErrors`]: Error-accumulating validation
+//! - [`Choice`], [`ChoiceError`]: Non-empty collection with prioritized alternatives
+//! - [`Free`], [`FreeError`]: Free monad DSLs and stack-safe trampoline evaluation
+//! - [`Program`], [`TryProgram`]: Typed operational monads
+//! - [`Lens`], [`Prism`]: Optics for focused data access
 //!
-//! - [`Validated`]: Error accumulation and validation
-//! - [`Choice`]: Non-empty collection with a primary value and prioritized alternatives
-//! - [`Free`]: Free monad for DSL construction, AST inspection (`Clone`), and stack-safe trampoline evaluation
-//! - [`Program`, `TryProgram`]: Statically-typed operational monads with zero-downcast command handlers
-//! - [`Lens`, `Prism`]: Optics for immutable data access
-//!
-//! ## Usage Example
+//! # Examples
 //!
 //! ```rust
 //! use rustica::prelude::datatypes::*;
@@ -21,8 +18,6 @@
 //! let v: Validated<i32, &str> = Validated::valid(5);
 //! assert!(v.is_valid());
 //! ```
-//!
-//! See each type's documentation for more details and advanced usage.
 
 pub use crate::datatypes::choice::Choice;
 pub use crate::datatypes::free::Free;
