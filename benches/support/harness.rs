@@ -232,7 +232,14 @@ impl<'a> BenchGroup<'a> {
 
         println!(
             "{}/{:<30} ... mean: {:>9} B  median: {:>9} B  p95: {:>9} B  min: {:>9} B  max: {:>9} B  ({} iters)",
-            self.name, bench_name, stats.mean, stats.median, stats.p95, stats.min, stats.max, stats.count
+            self.name,
+            bench_name,
+            stats.mean,
+            stats.median,
+            stats.p95,
+            stats.min,
+            stats.max,
+            stats.count
         );
     }
 

@@ -14,19 +14,31 @@ fn bench_monad_memory_churn(group: &mut BenchGroup) {
 
     for &depth in &MONAD_MEMORY_DEPTHS {
         let name_free = format!("free_alloc/{depth}");
-        group.bench_memory(&name_free, || depth, |&mut d| {
-            black_box(run_free(d));
-        });
+        group.bench_memory(
+            &name_free,
+            || depth,
+            |&mut d| {
+                black_box(run_free(d));
+            },
+        );
 
         let name_program = format!("program_alloc/{depth}");
-        group.bench_memory(&name_program, || depth, |&mut d| {
-            black_box(run_operational(d));
-        });
+        group.bench_memory(
+            &name_program,
+            || depth,
+            |&mut d| {
+                black_box(run_operational(d));
+            },
+        );
 
         let name_dsl = format!("dsl_loop_alloc/{depth}");
-        group.bench_memory(&name_dsl, || depth, |&mut d| {
-            black_box(run_dsl_loop(d));
-        });
+        group.bench_memory(
+            &name_dsl,
+            || depth,
+            |&mut d| {
+                black_box(run_dsl_loop(d));
+            },
+        );
     }
 }
 
