@@ -25,11 +25,11 @@ pub fn composable_error_benchmarks(harness: &Harness) {
     }
 
     for count in [3, 50] {
-        group.bench_with_input("error_chain_formatting", &count, |&count| {
-            let mut error = ContextError::new("core error");
-            for index in 0..count {
-                error = error.with_context(context!("context {index}"));
-            }
+        let mut error = ContextError::new("core error");
+        for index in 0..count {
+            error = error.with_context(context!("context {index}"));
+        }
+        group.bench_with_input("error_chain_formatting", &count, move |_| {
             black_box(error.error_chain());
         });
     }
