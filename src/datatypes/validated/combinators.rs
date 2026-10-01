@@ -2,6 +2,7 @@ use alloc::vec::Vec;
 
 use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
+use crate::traits::semigroup::Semigroup;
 
 impl<T, E> Validated<T, E> {
     /// Maps `f` over the valid value, leaving errors unchanged.
@@ -132,9 +133,8 @@ impl<T, E> Validated<T, E> {
             (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
             (Validated::Valid(_), Validated::Invalid(es)) => Validated::Invalid(es),
             (Validated::Invalid(es), Validated::Valid(_)) => Validated::Invalid(es),
-            (Validated::Invalid(mut es1), Validated::Invalid(es2)) => {
-                es1.extend(es2);
-                Validated::Invalid(es1)
+            (Validated::Invalid(es1), Validated::Invalid(es2)) => {
+                Validated::Invalid(es1.combine(es2))
             },
         }
     }
@@ -187,7 +187,21 @@ impl<T, E> Validated<T, E> {
     where
         F: FnOnce(T, T2, T3) -> R,
     {
-        self.zip(second).zip_with(third, |(a, b), c| f(a, b, c))
+        match (self, second, third) {
+            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
+                Validated::Valid(f(a, b, c))
+            },
+            (v1, v2, v3) => {
+                let errs = [
+                    v1.into_error_opt(),
+                    v2.into_error_opt(),
+                    v3.into_error_opt(),
+                ];
+                let combined = NonEmptyErrors::combine_multiple(errs)
+                    .expect("at least one error must be present in invalid arm");
+                Validated::Invalid(combined)
+            },
+        }
     }
 
     /// Combines three `Validated` values into a 3-tuple, accumulating errors.
@@ -251,10 +265,7 @@ impl<T, E> Validated<T, E> {
             (Validated::Valid(_), Validated::Valid(_)) => None,
             (Validated::Valid(_), Validated::Invalid(es)) => Some(es),
             (Validated::Invalid(es), Validated::Valid(_)) => Some(es),
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Some(e1)
-            },
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => Some(e1.combine(e2)),
         }
     }
 
@@ -300,6 +311,7 @@ impl<T, E> Validated<T, E> {
         I: Iterator<Item = Validated<T, E>>,
         C: FromIterator<T>,
     {
+        let iter_hint = iter.size_hint().0;
         let mut values = Vec::new();
         let mut errors = Vec::new();
 
@@ -307,10 +319,20 @@ impl<T, E> Validated<T, E> {
             match item {
                 Validated::Valid(a) => {
                     if errors.is_empty() {
+                        if values.capacity() == 0 {
+                            values.reserve(iter_hint);
+                        }
                         values.push(a);
                     }
                 },
-                Validated::Invalid(es) => errors.extend(es),
+                Validated::Invalid(es) => {
+                    if errors.is_empty() {
+                        values = Vec::new();
+                        errors = es.into_vec();
+                    } else {
+                        errors.extend(es);
+                    }
+                },
             }
         }
 
@@ -504,5 +526,65 @@ mod tests {
         let initial_invalid: Validated<i32, &str> = Validated::invalid("initial");
         let never_called = initial_invalid.and_then(|x| Validated::valid(x * 2));
         assert_eq!(never_called, Validated::invalid("initial"));
+    }
+
+    #[test]
+    fn test_zip3_all_combinations() {
+        // Oracle: reference implementation by composing binary zip
+        let oracle = |v1: Validated<i32, &'static str>,
+                      v2: Validated<i32, &'static str>,
+                      v3: Validated<i32, &'static str>|
+         -> Validated<(i32, i32, i32), &'static str> {
+            v1.zip(v2).zip_with(v3, |(a, b), c| (a, b, c))
+        };
+
+        let cases = [
+            (
+                Validated::valid(1),
+                Validated::valid(2),
+                Validated::valid(3),
+            ),
+            (
+                Validated::valid(1),
+                Validated::valid(2),
+                Validated::invalid("e3"),
+            ),
+            (
+                Validated::valid(1),
+                Validated::invalid("e2"),
+                Validated::valid(3),
+            ),
+            (
+                Validated::valid(1),
+                Validated::invalid("e2"),
+                Validated::invalid("e3"),
+            ),
+            (
+                Validated::invalid("e1"),
+                Validated::valid(2),
+                Validated::valid(3),
+            ),
+            (
+                Validated::invalid("e1"),
+                Validated::valid(2),
+                Validated::invalid("e3"),
+            ),
+            (
+                Validated::invalid("e1"),
+                Validated::invalid("e2"),
+                Validated::valid(3),
+            ),
+            (
+                Validated::invalid("e1"),
+                Validated::invalid("e2"),
+                Validated::invalid("e3"),
+            ),
+        ];
+
+        for (v1, v2, v3) in cases {
+            let expected = oracle(v1.clone(), v2.clone(), v3.clone());
+            let actual = v1.zip3(v2, v3);
+            assert_eq!(actual, expected);
+        }
     }
 }

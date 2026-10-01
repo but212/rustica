@@ -38,9 +38,11 @@ impl<E> NonEmptyErrors<E> {
     where
         I: IntoIterator<Item = E>,
     {
-        let mut errors = Vec::new();
+        let rest_iter = rest.into_iter();
+        let (lower, _) = rest_iter.size_hint();
+        let mut errors = Vec::with_capacity(1 + lower);
         errors.push(first);
-        errors.extend(rest);
+        errors.extend(rest_iter);
         Self(errors)
     }
 
@@ -93,6 +95,23 @@ impl<E> NonEmptyErrors<E> {
     #[inline]
     pub fn extend<I: IntoIterator<Item = E>>(&mut self, errors: I) {
         self.0.extend(errors);
+    }
+
+    /// Combines multiple non-empty error collections in encounter order,
+    /// pre-reserving capacity in a single reallocation.
+    #[inline]
+    pub(crate) fn combine_multiple<const N: usize>(collections: [Option<Self>; N]) -> Option<Self> {
+        let total: usize = collections.iter().flatten().map(Self::len).sum();
+        let mut it = collections.into_iter().flatten();
+        let first = it.next()?;
+
+        let mut base = first.into_vec();
+        base.reserve(total - base.len());
+        for es in it {
+            base.extend(es);
+        }
+
+        Self::try_from_vec(base)
     }
 }
 
@@ -272,6 +291,14 @@ impl<T, E> Validated<T, E> {
         }
     }
 
+    #[inline]
+    pub(crate) fn into_error_opt(self) -> Option<NonEmptyErrors<E>> {
+        match self {
+            Validated::Valid(_) => None,
+            Validated::Invalid(es) => Some(es),
+        }
+    }
+
     /// Returns the inner value.
     ///
     /// # Panics
@@ -394,10 +421,7 @@ impl<T: Semigroup, E> Semigroup for Validated<T, E> {
             (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine(a2)),
             (Validated::Valid(_), o @ Validated::Invalid(_)) => o,
             (s @ Validated::Invalid(_), Validated::Valid(_)) => s,
-            (Validated::Invalid(mut e1), Validated::Invalid(e2)) => {
-                e1.extend(e2);
-                Validated::Invalid(e1)
-            },
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.combine(e2)),
         }
     }
 }

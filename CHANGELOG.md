@@ -6,6 +6,12 @@
 
 - **`ContextError` Buffer & Accumulator Optimizations**: Preallocated capacity in `with_contexts` using `size_hint` and existing context length; pre-reversed contexts once at `context_accumulator` construction to eliminate runtime reversals; precalculated `String::with_capacity` in `error_chain` to avoid step-wise string reallocations.
 - **Benchmark Suite ContextError Migration**: Renamed `lazy_error.rs` to `context_error.rs` and added benchmark cases covering `ContextError` allocation and context traversal.
+- **`Validated` Allocation Optimizations**:
+  - `Validated::collect`: Made value buffer reservation lazy upon encountering the first `Valid` item to eliminate transient memory churn on early error paths (`iter.size_hint().0` allocation wasted when result is `Invalid`); drops value accumulator immediately upon first error; moves first error buffer into `errors` without copying.
+  - `NonEmptyErrors::from_first_and_iter`: Preallocated `Vec` capacity with `1 + lower` using `size_hint().0` to eliminate step-wise reallocations from capacity 4.
+  - `Validated::zip_with3`: Replaced nested `zip` composition with direct pattern matching and single-pass error buffer reservation (`base.reserve(total - base.len())`), reducing multi-error combine reallocations to at most 1.
+  - `NonEmptyErrors::combine_multiple`: Added internal helper for single-reallocation consolidation across multiple non-empty error collections.
+  - Unfied pairwise error combinations across `Semigroup for Validated`, `Validated::zip_with`, and `Validated::combine_errors` to delegate through `NonEmptyErrors::combine`.
 
 ## [0.20.0]
 
