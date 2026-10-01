@@ -395,6 +395,49 @@ impl<T: Default> Default for Choice<T> {
     }
 }
 
+/// Indexes elements by priority order.
+///
+/// Index `0` returns the `primary` value, and index `n` (for `n >= 1`) returns
+/// the fallback alternative at `alternatives[n - 1]`.
+///
+/// # Panics
+///
+/// Panics if `index >= self.len()`.
+impl<T> core::ops::Index<usize> for Choice<T> {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        if index == 0 {
+            &self.primary
+        } else if let Some(alt) = self.alternatives.get(index - 1) {
+            alt
+        } else {
+            panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                self.len(),
+                index
+            );
+        }
+    }
+}
+
+/// Appends items after existing alternatives, preserving the primary value and order.
+impl<T> Extend<T> for Choice<T> {
+    #[inline]
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.alternatives.extend(iter);
+    }
+}
+
+/// Appends cloned references after existing alternatives, preserving the primary value and order.
+impl<'a, T: Clone> Extend<&'a T> for Choice<T> {
+    #[inline]
+    fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
+        self.alternatives.extend(iter.into_iter().cloned());
+    }
+}
+
 #[cfg(any(test, feature = "quickcheck"))]
 impl<T: Arbitrary> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
@@ -705,5 +748,37 @@ mod unit_tests {
         assert_eq!(alts, &[] as &[i32]);
         assert_eq!(len, 1);
         assert!(!is_empty);
+    }
+
+    #[test]
+    fn test_choice_index() {
+        let choice = Choice::new(10, [20, 30, 40]);
+        assert_eq!(choice[0], 10);
+        assert_eq!(choice[1], 20);
+        assert_eq!(choice[2], 30);
+        assert_eq!(choice[3], 40);
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds: the len is 3 but the index is 3")]
+    fn test_choice_index_out_of_bounds() {
+        let choice = Choice::new(1, [2, 3]);
+        let _ = choice[3];
+    }
+
+    #[test]
+    fn test_choice_extend() {
+        let mut choice = Choice::single(1);
+        choice.extend([2, 3]);
+        assert_eq!(choice.len(), 3);
+        assert_eq!(choice[0], 1);
+        assert_eq!(choice[1], 2);
+        assert_eq!(choice[2], 3);
+
+        let more = [4, 5];
+        choice.extend(&more);
+        assert_eq!(choice.len(), 5);
+        assert_eq!(choice[3], 4);
+        assert_eq!(choice[4], 5);
     }
 }

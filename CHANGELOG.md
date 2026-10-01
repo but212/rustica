@@ -4,6 +4,8 @@
 
 ### Added
 
+- **`Choice` Indexing & Extension**: Implemented `core::ops::Index<usize>`, `Extend<T>`, and `Extend<&'a T>` for `Choice<T>`, enabling standard index access (`choice[0]`, `choice[1]`) and collection extension.
+- **`NonEmptyErrors` Display & Error Trait**: Implemented `core::fmt::Display` (semicolon-delimited formatting) and `core::error::Error` for `NonEmptyErrors<E>`, providing standard error trait integration (`source() == None` as accumulated errors are peers).
 - **`ContextError` Standard Getters**: Added `ContextError::contexts` (borrowed slice) and `ContextError::to_contexts` (cloned `Vec`) adhering to Rust API naming conventions.
 - **Reference-First Optics & `C-CONV` Accessors**: Added `Lens::view` (`&A`), `Prism::preview` (`Option<&A>`), `Lens::to_value` (`A`), and `Prism::to_value` (`Option<A>`) providing zero-allocation borrowed inspection by default alongside explicit owned extraction.
 
@@ -28,6 +30,8 @@
 - **`Validated::collect` Redundant Allocation**: Guarded value accumulator to skip pushing valid items once an invalid result is encountered.
 - **`Validated::recover_all_at_once` Allocation**: Replaced `errors.into_iter().collect()` with direct `errors.into_vec()`.
 - **`Choice::combine` Simplification**: Simplified `Choice::combine` to `self.alternatives.extend(other)` via existing `IntoIterator`.
+- **`repeat` Standard Library Unification**: Replaced manual duplication loop in `traits::monoid::repeat` with `core::iter::repeat_n` and `reduce`, maintaining optimal $n-1$ clone efficiency for $n \ge 1$ and $0$ for $n=0, 1$.
+- **`BTreeMap::combine` Entry Optimization**: Applied `alloc::collections::btree_map::Entry` API in `BTreeMap::combine` to insert vacant keys in a single tree traversal.
 - **Prelude Error Example**: The `prelude::error` quick-start example asserted against the deprecated `ContextError::context()`; it now uses the zero-allocation `ContextError::contexts()`.
 
 ### Removed
