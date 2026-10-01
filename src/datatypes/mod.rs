@@ -1,6 +1,5 @@
 #![doc = include_str!("../../docs/datatypes/README.md")]
 
-
 pub mod choice;
 pub mod free;
 pub mod lens;

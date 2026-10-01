@@ -1,6 +1,5 @@
 #![doc = include_str!("../../../docs/datatypes/validated_core.md")]
 
-
 use crate::traits::semigroup::Semigroup;
 use alloc::vec;
 use alloc::vec::Vec;

@@ -1,6 +1,5 @@
 #![doc = include_str!("../../docs/datatypes/operational.md")]
 
-
 use core::any::Any;
 use core::convert::Infallible;
 use core::fmt;

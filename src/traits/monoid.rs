@@ -1,6 +1,5 @@
 #![doc = include_str!("../../docs/traits/monoid.md")]
 
-
 use alloc::{string::String, vec::Vec};
 
 use crate::traits::semigroup::Semigroup;

@@ -1,6 +1,5 @@
 #![doc = include_str!("../../docs/datatypes/choice.md")]
 
-
 #[cfg(any(test, feature = "quickcheck"))]
 use alloc::boxed::Box;
 use alloc::vec::Vec;

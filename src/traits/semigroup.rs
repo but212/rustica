@@ -1,6 +1,5 @@
 #![doc = include_str!("../../docs/traits/semigroup.md")]
 
-
 use alloc::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 use alloc::string::String;
 use alloc::vec::Vec;

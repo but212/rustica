@@ -1,6 +1,5 @@
 #![doc = include_str!("../../docs/datatypes/prism.md")]
 
-
 use core::marker::PhantomData;
 
 /// A `Prism` is an optic that allows focusing on a specific case of a sum type.

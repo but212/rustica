@@ -1,6 +1,5 @@
 #![doc = include_str!("../../docs/datatypes/lens.md")]
 
-
 use core::fmt;
 use core::marker::PhantomData;
 

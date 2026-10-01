@@ -1,6 +1,5 @@
 #![doc = include_str!("../../docs/datatypes/free.md")]
 
-
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::any::Any;
