@@ -172,6 +172,7 @@ let result: Result<Vec<i32>, _> = vec![Ok(1), Ok(2)].into_iter().collect();
 ### ContextError Newest-First Ordering & Ingestion
 
 In 0.18.0, `ContextError` standardizes on newest-first ordering across all accessors:
+
 - `err.contexts_raw()` returns `&[String]` in newest-first order (index `0` is the most recent context), matching `err.context()` and `err.context_iter()`.
 - `err.with_contexts(["step 1", "step 2"])` accepts any iterator of `C: IntoErrorContext` without requiring pre-allocation of `String`s.
 - `IntoErrorContext::into_error_context` returns `String` directly. The ephemeral `ErrorContext` wrapper type has been removed.
@@ -183,9 +184,11 @@ Orphaned helpers in `rustica::error` and `rustica::prelude::error` have been rem
 - **`collect_errors(iter)`**: Replace with `Validated::try_invalid_many(iter).unwrap_or(Validated::Valid(()))`.
 - **`split_validated_errors(validated)`**: Replace with `validated.into_result_first_error()` or direct pattern matching.
 - **`traverse_validated(iter, f)`**: Replace with standard `Iterator` and `FromIterator` collection:
+
   ```rust
   let result: Validated<Vec<B>, E> = collection.into_iter().map(|item| Validated::from(f(item))).collect();
   ```
+
 - **Submodules `error::{context, convert, core}`**: Removed circular re-export aliases. Import items directly from `rustica::error::*`.
 
 ---

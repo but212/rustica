@@ -1,7 +1,5 @@
-//! Core implementation of the `Validated` data type.
-//!
-//! This module provides the fundamental `Validated<T, E>` type for accumulating
-//! validation errors, along with its associated methods and helper types.
+#![doc = include_str!("../../../docs/datatypes/validated_core.md")]
+
 
 use crate::traits::semigroup::Semigroup;
 use alloc::vec;
