@@ -15,7 +15,7 @@
 //! assert_eq!(combined, vec![1, 2, 3, 4]);
 //! ```
 
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -83,12 +83,13 @@ impl<K: Ord, V: Semigroup> Semigroup for BTreeMap<K, V> {
     #[inline]
     fn combine(mut self, other: Self) -> Self {
         for (k, v) in other {
-            match self.remove(&k) {
-                Some(existing) => {
+            match self.entry(k) {
+                Entry::Occupied(entry) => {
+                    let (k, existing) = entry.remove_entry();
                     self.insert(k, existing.combine(v));
                 },
-                None => {
-                    self.insert(k, v);
+                Entry::Vacant(entry) => {
+                    entry.insert(v);
                 },
             }
         }

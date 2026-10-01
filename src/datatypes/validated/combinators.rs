@@ -311,8 +311,9 @@ impl<T, E> Validated<T, E> {
     /// assert_eq!(result, Validated::valid(2));
     /// ```
     #[inline]
-    pub fn sequence<U, F>(values: Vec<Self>, f: F) -> Validated<U, E>
+    pub fn sequence<I, U, F>(values: I, f: F) -> Validated<U, E>
     where
+        I: IntoIterator<Item = Self>,
         F: FnOnce(Vec<T>) -> U,
     {
         match Self::collect::<_, Vec<T>>(values.into_iter()) {
@@ -345,7 +346,11 @@ impl<T, E> Validated<T, E> {
 
         for item in iter {
             match item {
-                Validated::Valid(a) => values.push(a),
+                Validated::Valid(a) => {
+                    if errors.is_empty() {
+                        values.push(a);
+                    }
+                },
                 Validated::Invalid(es) => errors.extend(es),
             }
         }
@@ -359,6 +364,17 @@ impl<T, E> Validated<T, E> {
     // --- Recovery Operations ---
 
     /// Attempts recovery for accumulated errors, in order.
+    ///
+    /// # Warning
+    ///
+    /// This method is deprecated due to semantic incoherence with applicative validation:
+    /// it short-circuits on the first successful error recovery and silently drops any
+    /// remaining unrecovered errors. Use [`recover_all_at_once`](Self::recover_all_at_once)
+    /// or [`recover_with`](Self::recover_with) instead.
+    #[deprecated(
+        since = "0.20.0",
+        note = "semantically flawed: short-circuits on first success and silently drops unrecovered errors; use `recover_all_at_once` or `recover_with` instead"
+    )]
     pub fn recover_all<F>(self, mut recovery: F) -> Self
     where
         F: FnMut(E) -> Self,
@@ -377,9 +393,6 @@ impl<T, E> Validated<T, E> {
                     }
                 }
 
-                // Invariant: `errors` (NonEmptyErrors) has ≥1 element,
-                // and each recovery call returning Invalid yields NonEmptyErrors (≥1 element).
-                // Thus `accumulated` is guaranteed to be non-empty at this point.
                 debug_assert!(
                     !accumulated.is_empty(),
                     "NonEmptyErrors invariant violated: accumulated errors empty after processing non-empty input"
@@ -399,7 +412,7 @@ impl<T, E> Validated<T, E> {
     {
         match self {
             Validated::Valid(v) => Validated::Valid(v),
-            Validated::Invalid(errors) => recovery(errors.into_iter().collect()),
+            Validated::Invalid(errors) => recovery(errors.into_vec()),
         }
     }
 
@@ -471,6 +484,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_recovery_combinators() {
         let invalid: Validated<i32, String> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);

@@ -107,22 +107,39 @@ impl<E> ContextError<E> {
         self.error
     }
 
+    /// Returns a zero-allocation reference to the internal contexts slice (most recent first).
+    #[inline]
+    pub const fn contexts(&self) -> &[String] {
+        self.context.as_slice()
+    }
+
+    /// Returns a cloned vector of contexts (most recent first).
+    #[inline]
+    pub fn to_contexts(&self) -> Vec<String> {
+        self.context.clone()
+    }
+
     /// Returns the accumulated contexts with most recent first.
+    #[deprecated(
+        since = "0.20.0",
+        note = "renamed to `to_contexts()` for Rust API naming conventions"
+    )]
     #[inline]
     pub fn context(&self) -> Vec<String> {
-        self.context.clone()
+        self.to_contexts()
+    }
+
+    /// Returns a reference to the internal contexts slice.
+    #[deprecated(since = "0.20.0", note = "renamed to `contexts()`")]
+    #[inline]
+    pub const fn contexts_raw(&self) -> &[String] {
+        self.contexts()
     }
 
     /// Returns an iterator over context entries, most recent first.
     #[inline]
     pub fn context_iter(&self) -> core::slice::Iter<'_, String> {
         self.context.iter()
-    }
-
-    /// Returns a zero-allocation reference to the internal contexts slice (most recent first).
-    #[inline]
-    pub const fn contexts_raw(&self) -> &[String] {
-        self.context.as_slice()
     }
 
     /// Maps the underlying error to a new type while preserving context.
@@ -154,6 +171,12 @@ impl<E> ContextError<E> {
         W: core::fmt::Write,
         E: Display,
     {
+        if self.context.is_empty() {
+            // No context — fall back to displaying the error directly
+            // so Display is never empty.
+            return write!(out, "{}", self.error);
+        }
+
         for (i, ctx) in self.context.iter().enumerate() {
             if i > 0 {
                 out.write_str(" -> ")?;
@@ -161,11 +184,7 @@ impl<E> ContextError<E> {
             out.write_str(ctx)?;
         }
 
-        if !self.context.is_empty() {
-            out.write_str(" -> ")?;
-        }
-
-        write!(out, "{}", self.error)
+        Ok(())
     }
 }
 
@@ -292,7 +311,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::vec;
 
     #[test]
     fn accumulate_context_preserves_all_entries() {
@@ -301,9 +319,9 @@ mod tests {
             ["step 1 failed", "step 2 failed", "operation failed"],
         );
 
-        assert_eq!(error.context().len(), 3);
-        assert_eq!(error.context()[0], "operation failed");
-        assert_eq!(error.contexts_raw(), error.context().as_slice());
+        assert_eq!(error.contexts().len(), 3);
+        assert_eq!(error.contexts()[0], "operation failed");
+        assert_eq!(error.contexts(), error.to_contexts().as_slice());
     }
 
     #[test]
@@ -313,10 +331,10 @@ mod tests {
         let first = accumulator("connection timeout");
         let second = accumulator("query failed");
 
-        assert_eq!(first.context().len(), 2);
-        assert_eq!(second.context().len(), 2);
-        assert_eq!(first.context(), second.context());
-        assert_eq!(first.context()[0], "user operation failed");
+        assert_eq!(first.contexts().len(), 2);
+        assert_eq!(second.contexts().len(), 2);
+        assert_eq!(first.contexts(), second.contexts());
+        assert_eq!(first.contexts()[0], "user operation failed");
     }
 
     #[test]
@@ -339,7 +357,7 @@ mod tests {
         let lazy = crate::context!("value {}", 7);
         let error = with_context_result::<(), &str, _>(Err("root"), lazy).unwrap_err();
 
-        assert_eq!(error.context(), vec!["value 7".to_string()]);
+        assert_eq!(error.contexts(), ["value 7"].as_slice());
     }
 
     #[test]
@@ -354,13 +372,13 @@ mod tests {
         let attach = context_fn("step failed");
         let err = attach("io timeout");
         assert_eq!(err.error(), &"io timeout");
-        assert_eq!(err.context(), vec!["step failed".to_string()]);
+        assert_eq!(err.contexts(), ["step failed"].as_slice());
     }
 
     #[test]
     fn test_const_fn_capability() {
         const fn inspect_error<E>(err: &ContextError<E>) -> (&E, &[String]) {
-            (err.error(), err.contexts_raw())
+            (err.error(), err.contexts())
         }
 
         let err = ContextError::new("root error");

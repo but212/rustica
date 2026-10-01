@@ -6,21 +6,15 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/but212/rustica)
 
-Rustica provides zero-cost functional and categorical abstractions.
+Rustica provides zero-cost functional abstractions for idiomatic Rust.
 
 ## Overview
 
-### Recommended Use Cases
-
-- **Domain Modeling**: Precise state representation via algebraic types (`Choice`, `Validated`).
-- **Validation**: Multi-error accumulation without early return (`Validated`).
-- **Domain DSLs**: AST construction (`Free`) or statically typed command dispatch (`Program` / `TryProgram`).
-- **Optics**: Ergonomic immutable access and transformation for complex structs and enums (`Lens`, `Prism`).
-
-Architecture and conventions:
-
-- **Design Philosophy**: Architectural trade-offs and boundary guidelines ([docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md)).
-- **API Guidelines**: Naming, receiver standards, and ownership conventions ([docs/API_GUIDELINES.md](docs/API_GUIDELINES.md)).
+- **Domain Modeling & Validation**: Multi-error accumulation (`Validated`) and prioritized fallback execution (`Choice`).
+- **Interpreter ASTs**: Free monad computation graphs (`Free`) and statically typed operational dispatch (`Program` / `TryProgram`).
+- **Optics**: Composable inspection and modification for product and sum types (`Lens`, `Prism`).
+- **Architectural Trade-offs**: Design rationale and boundaries in [docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md).
+- **Conventions & Standards**: Receiver and naming conventions in [docs/API_GUIDELINES.md](docs/API_GUIDELINES.md).
 
 ---
 
@@ -30,9 +24,9 @@ Add Rustica to `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.19.0"
+rustica = "0.20.0"
 # Optional feature bundle:
-# rustica = { version = "0.19.0", features = ["full"] } # serde, quickcheck
+# rustica = { version = "0.20.0", features = ["full"] } # serde, quickcheck
 ```
 
 Import common traits and types:
@@ -66,13 +60,13 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
-- [0.20.0 Migration Guide](./MIGRATION_v0.20.0.md): `no_std` migration, removal of deprecated APIs and `HashMap`/`HashSet` Semigroup impls
-- [0.19.0 Migration Guide](./MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
-- [0.18.0 Migration Guide](./MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
-- [0.17.0 Migration Guide](./MIGRATION_v0.17.0.md): Deprecation of monad transformers, effect monads, category morphisms, and wrapper types in favor of standard library idioms
-- [0.16.0 Migration Guide](./MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation
-- [0.15.0 Migration Guide](./MIGRATION_v0.15.0.md): RRB tree integrity and panic context
-- [0.14.0 Migration Guide](./MIGRATION_v0.14.0.md): Surface reduction and compile-time base monad enforcement
+- [0.20.0 Migration Guide](./docs/migration/MIGRATION_v0.20.0.md): `no_std` migration, removal of deprecated APIs and `HashMap`/`HashSet` Semigroup impls
+- [0.19.0 Migration Guide](./docs/migration/MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
+- [0.18.0 Migration Guide](./docs/migration/MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)
+- [0.17.0 Migration Guide](./docs/migration/MIGRATION_v0.17.0.md): Deprecation of monad transformers, effect monads, category morphisms, and wrapper types in favor of standard library idioms
+- [0.16.0 Migration Guide](./docs/migration/MIGRATION_v0.16.0.md): Choice fallback semantics, receiver alignment, optics laws, Bifunctor deprecation
+- [0.15.0 Migration Guide](./docs/migration/MIGRATION_v0.15.0.md): RRB tree integrity and panic context
+- [0.14.0 Migration Guide](./docs/migration/MIGRATION_v0.14.0.md): Surface reduction and compile-time base monad enforcement
 
 ---
 

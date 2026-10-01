@@ -172,6 +172,11 @@ impl<T> Choice<T> {
             self.alternatives.retain(predicate);
             Some(self)
         } else {
+            // `position` evaluates `alternatives[..=idx]` and stops at the first match.
+            // Removing the match and draining everything before it discards exactly the
+            // already-visited prefix, so the `retain` below only touches unvisited elements
+            // and the predicate still runs exactly once per value (same as the branch above).
+            // Reordering these three steps silently double-evaluates the prefix.
             let idx = self.alternatives.iter().position(&mut predicate)?;
             let primary = self.alternatives.remove(idx);
             self.alternatives.drain(..idx);
@@ -301,8 +306,7 @@ impl<T> Choice<T> {
 
 impl<T> Semigroup for Choice<T> {
     fn combine(mut self, other: Self) -> Self {
-        self.alternatives.push(other.primary);
-        self.alternatives.extend(other.alternatives);
+        self.alternatives.extend(other);
         self
     }
 }
@@ -391,6 +395,49 @@ impl<T: Default> Default for Choice<T> {
     }
 }
 
+/// Indexes elements by priority order.
+///
+/// Index `0` returns the `primary` value, and index `n` (for `n >= 1`) returns
+/// the fallback alternative at `alternatives[n - 1]`.
+///
+/// # Panics
+///
+/// Panics if `index >= self.len()`.
+impl<T> core::ops::Index<usize> for Choice<T> {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        if index == 0 {
+            &self.primary
+        } else if let Some(alt) = self.alternatives.get(index - 1) {
+            alt
+        } else {
+            panic!(
+                "index out of bounds: the len is {} but the index is {}",
+                self.len(),
+                index
+            );
+        }
+    }
+}
+
+/// Appends items after existing alternatives, preserving the primary value and order.
+impl<T> Extend<T> for Choice<T> {
+    #[inline]
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.alternatives.extend(iter);
+    }
+}
+
+/// Appends cloned references after existing alternatives, preserving the primary value and order.
+impl<'a, T: Clone> Extend<&'a T> for Choice<T> {
+    #[inline]
+    fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
+        self.alternatives.extend(iter.into_iter().cloned());
+    }
+}
+
 #[cfg(any(test, feature = "quickcheck"))]
 impl<T: Arbitrary> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
@@ -425,6 +472,7 @@ mod unit_tests {
     use alloc::string::ToString;
     use alloc::vec;
     use alloc::{format, string::String, vec::Vec};
+    use quickcheck_macros::quickcheck;
 
     #[test]
     fn priority_and_transformation_contracts() {
@@ -453,6 +501,34 @@ mod unit_tests {
         // Iterator fold preserves priority order
         let folded = combined.iter().fold(0, |acc, &x| acc * 10 + x);
         assert_eq!(folded, 12345);
+    }
+
+    /// `Choice<T>` implements `Semigroup` but not `Monoid`: there is no identity, because
+    /// appending an empty alternatives list is not representable. So associativity is the
+    /// only law available here.
+    ///
+    /// Living in the crate's own `cfg(test)` module means the library's
+    /// `impl Arbitrary for Choice` is compiled in, so this runs in every CI leg rather than
+    /// only under `--features quickcheck`.
+    #[quickcheck]
+    fn choice_semigroup_associativity(a: Choice<i32>, b: Choice<i32>, c: Choice<i32>) -> bool {
+        a.clone().combine(b.clone()).combine(c.clone()) == a.combine(b.combine(c))
+    }
+
+    #[test]
+    fn choice_combine_handles_empty_alternatives() {
+        let single = Choice::single(0);
+
+        // A primary-only operand must not be dropped, and must land after the alternatives
+        // it is combined with.
+        assert_eq!(
+            single.clone().combine(Choice::single(1)),
+            Choice::new(0, vec![1])
+        );
+        assert_eq!(
+            Choice::new(0, vec![2]).combine(single),
+            Choice::new(0, vec![2, 0])
+        );
     }
 
     #[test]
@@ -672,5 +748,37 @@ mod unit_tests {
         assert_eq!(alts, &[] as &[i32]);
         assert_eq!(len, 1);
         assert!(!is_empty);
+    }
+
+    #[test]
+    fn test_choice_index() {
+        let choice = Choice::new(10, [20, 30, 40]);
+        assert_eq!(choice[0], 10);
+        assert_eq!(choice[1], 20);
+        assert_eq!(choice[2], 30);
+        assert_eq!(choice[3], 40);
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds: the len is 3 but the index is 3")]
+    fn test_choice_index_out_of_bounds() {
+        let choice = Choice::new(1, [2, 3]);
+        let _ = choice[3];
+    }
+
+    #[test]
+    fn test_choice_extend() {
+        let mut choice = Choice::single(1);
+        choice.extend([2, 3]);
+        assert_eq!(choice.len(), 3);
+        assert_eq!(choice[0], 1);
+        assert_eq!(choice[1], 2);
+        assert_eq!(choice[2], 3);
+
+        let more = [4, 5];
+        choice.extend(&more);
+        assert_eq!(choice.len(), 5);
+        assert_eq!(choice[3], 4);
+        assert_eq!(choice[4], 5);
     }
 }

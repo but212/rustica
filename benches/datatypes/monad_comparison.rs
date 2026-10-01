@@ -1,8 +1,46 @@
-use crate::harness::Harness;
+use crate::harness::{BenchGroup, Harness};
 use rustica::datatypes::free::{AnyValue, Free};
 use rustica::datatypes::operational::{Command, Handler, Program};
 use std::hint::black_box;
 use std::sync::Arc;
+
+static MONAD_MEMORY_DEPTHS: [usize; 3] = [10, 100, 1000];
+
+/// Compares cumulative heap allocation churn between Free, Program (Operational), and DSL loop.
+fn bench_monad_memory_churn(group: &mut BenchGroup) {
+    group.reset_sampling();
+    group.measure_iters(50);
+    group.clear_throughput();
+
+    for &depth in &MONAD_MEMORY_DEPTHS {
+        let name_free = format!("free_alloc/{depth}");
+        group.bench_memory(
+            &name_free,
+            || depth,
+            |&mut d| {
+                black_box(run_free(d));
+            },
+        );
+
+        let name_program = format!("program_alloc/{depth}");
+        group.bench_memory(
+            &name_program,
+            || depth,
+            |&mut d| {
+                black_box(run_operational(d));
+            },
+        );
+
+        let name_dsl = format!("dsl_loop_alloc/{depth}");
+        group.bench_memory(
+            &name_dsl,
+            || depth,
+            |&mut d| {
+                black_box(run_dsl_loop(d));
+            },
+        );
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum FreeOp {
@@ -103,4 +141,6 @@ pub fn monad_comparison_benchmarks(harness: &Harness) {
             black_box(run_dsl_loop(depth));
         });
     }
+
+    bench_monad_memory_churn(&mut group);
 }

@@ -156,6 +156,34 @@ impl<E> IntoIterator for NonEmptyErrors<E> {
     }
 }
 
+/// Formats the collection of errors separated by `"; "`.
+///
+/// Each validation error is written sequentially in encounter order.
+impl<E: core::fmt::Display> core::fmt::Display for NonEmptyErrors<E> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for (i, err) in self.0.iter().enumerate() {
+            if i > 0 {
+                f.write_str("; ")?;
+            }
+            write!(f, "{err}")?;
+        }
+        Ok(())
+    }
+}
+
+/// Standard error trait implementation for non-empty error collections.
+///
+/// `source` returns `None` because accumulated validation errors are peer
+/// failures rather than a single causal chain; `Display` formats the complete set.
+impl<E: core::fmt::Debug + core::fmt::Display + core::error::Error + 'static> core::error::Error
+    for NonEmptyErrors<E>
+{
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        // Errors are peers, not a causal chain; `Display` renders them all.
+        None
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<E: serde::Serialize> serde::Serialize for NonEmptyErrors<E> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -520,5 +548,32 @@ mod tests {
         assert!(is_valid);
         assert!(!is_invalid);
         assert_eq!(opt, Some(&42));
+    }
+
+    #[test]
+    fn test_non_empty_errors_display_and_error() {
+        let errors = NonEmptyErrors::from_first_and_iter(
+            "first error".to_string(),
+            ["second error".to_string(), "third error".to_string()],
+        );
+        assert_eq!(
+            alloc::format!("{errors}"),
+            "first error; second error; third error"
+        );
+
+        #[derive(Debug)]
+        struct DummyError(&'static str);
+        impl core::fmt::Display for DummyError {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+        impl core::error::Error for DummyError {}
+
+        let err_col = NonEmptyErrors::new(DummyError("inner root"));
+        let as_error: &dyn core::error::Error = &err_col;
+        assert_eq!(alloc::format!("{err_col}"), "inner root");
+        // Validation errors are peers rather than a causal chain, so source is None.
+        assert!(as_error.source().is_none());
     }
 }

@@ -2,13 +2,42 @@
 
 ## [0.20.0]
 
+### Added
+
+- **`Choice` Indexing & Extension**: Implemented `core::ops::Index<usize>`, `Extend<T>`, and `Extend<&'a T>` for `Choice<T>`, enabling standard index access (`choice[0]`, `choice[1]`) and collection extension.
+- **`NonEmptyErrors` Display & Error Trait**: Implemented `core::fmt::Display` (semicolon-delimited formatting) and `core::error::Error` for `NonEmptyErrors<E>`, providing standard error trait integration (`source() == None` as accumulated errors are peers).
+- **`ContextError` Standard Getters**: Added `ContextError::contexts` (borrowed slice) and `ContextError::to_contexts` (cloned `Vec`) adhering to Rust API naming conventions.
+- **Reference-First Optics & `C-CONV` Accessors**: Added `Lens::view` (`&A`), `Prism::preview` (`Option<&A>`), `Lens::to_value` (`A`), and `Prism::to_value` (`Option<A>`) providing zero-allocation borrowed inspection by default alongside explicit owned extraction.
+
 ### Changed
 
 - **`no_std` Support**: Unconditional `#![no_std]` with `extern crate alloc`. Replaced internal `std::` paths with `core::` and `alloc::`. Direct zero-config interop with both `std` and `no_std` targets.
+- **`ContextError::Display` & `error_chain()` Output (Breaking)**: `Display` and `error_chain()` format only the context chain (`ctx1 -> ctx2`), delegating root error presentation to `Error::source()` or `err.error()`.
+- **`Lens` & `Prism` Reference-First Architecture (Breaking)**: Standardized `Lens<S, A, ViewFn, SetFn>` and `Prism<S, A, PreviewFn, ReviewFn>` on pure reference closures (`Fn(&S) -> &A` and `Fn(&S) -> Option<&A>`), eliminating `NoView`/`View<F>` wrappers and reducing type parameters to 4. Inherent zero-allocation short-circuiting in `set` and `modify` when `A: PartialEq`.
+- **`Prism::then` Closure `Clone` Bounds (Breaking)**: Added `+ Clone` bounds to input functions and returned closures in `Prism::then`, matching `Lens::then` and ensuring composed prisms implement `Clone`.
+- **`Validated::sequence` Collection Input**: Generalized input from `Vec<Self>` to generic `IntoIterator<Item = Self>`.
+
+### Deprecated
+
+- **`Validated::recover_all`**: Deprecated due to semantic conflict with applicative validation (short-circuits on first success, dropping other errors). Use `recover_all_at_once` or `recover_with`.
+- **`ContextError::{context, contexts_raw}`**: Deprecated in favor of `to_contexts()` and `contexts()`.
+- **`Lens::get`**: Deprecated in favor of `Lens::view(&s)` (zero-allocation borrowed access) or `Lens::to_value(&s)` (explicit owned extraction per `C-CONV`).
+
+### Fixed
+
+- **`Free::run` Command Move Optimization**: Passed owned commands directly to interpreter closures (`interp(cmd)`), eliminating redundant per-step clones on uniquely owned AST nodes.
+- **Benchmark Suite Harness & Profiling**: Added cumulative heap allocation delta tracking (`bench_memory`) across `Free`, `Operational`, and `MonadComparison`; migrated benchmark depth arrays to `static` storage to satisfy CI quality gates; removed obsolete `SmallVec` 4/5-split benchmarks from `Validated`.
+- **`Validated::collect` Redundant Allocation**: Guarded value accumulator to skip pushing valid items once an invalid result is encountered.
+- **`Validated::recover_all_at_once` Allocation**: Replaced `errors.into_iter().collect()` with direct `errors.into_vec()`.
+- **`Choice::combine` Simplification**: Simplified `Choice::combine` to `self.alternatives.extend(other)` via existing `IntoIterator`.
+- **`repeat` Standard Library Unification**: Replaced manual duplication loop in `traits::monoid::repeat` with `core::iter::repeat_n` and `reduce`, maintaining optimal $n-1$ clone efficiency for $n \ge 1$ and $0$ for $n=0, 1$.
+- **`BTreeMap::combine` Entry Optimization**: Applied `alloc::collections::btree_map::Entry` API in `BTreeMap::combine` to insert vacant keys in a single tree traversal.
+- **Prelude Error Example**: The `prelude::error` quick-start example asserted against the deprecated `ContextError::context()`; it now uses the zero-allocation `ContextError::contexts()`.
 
 ### Removed
 
-- **Deprecated Aliases (Breaking)**: Removed `fmap`, `bind`, `flat_map` across all datatypes (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`), `Lens::fmap` (use `Lens::iso_map`), `Choice::{flatten_cloned, try_flatten_cloned}`, and `Validated::to_option`.
+- **`Lens::iso_map` (Breaking)**: Removed `Lens::iso_map` as reference lenses borrow directly from `S` and cannot return borrowed references to newly computed values. Perform value transformations directly after calling `view(&s)` or `to_value(&s)`.
+- **Deprecated Aliases (Breaking)**: Removed `fmap`, `bind`, `flat_map` across all datatypes (`Choice`, `Validated`, `Free`, `Program`, `TryProgram`), `Lens::fmap`, `Choice::{flatten_cloned, try_flatten_cloned}`, and `Validated::to_option`.
 - **`async` Feature & Combinators (Breaking)**: Removed `async` feature, `Validated::{map_async, map_err_async, and_then_async}`, and `tokio` dev-dependency. Use native `match` / `async`/`await`.
 - **`HashMap` / `HashSet` Semigroup (Breaking)**: Removed `Semigroup for HashMap` and `Semigroup for HashSet` for pure `no_std` compliance. Migrate to `BTreeMap` / `BTreeSet` or local wrappers (see [`MIGRATION_v0.20.0.md`](MIGRATION_v0.20.0.md)).
 

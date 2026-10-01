@@ -206,6 +206,15 @@ fn unwrap_arc<T: Clone>(arc: Arc<T>) -> T {
     Arc::try_unwrap(arc).unwrap_or_else(|a| (*a).clone())
 }
 
+#[inline]
+fn downcast_any_value<A: Clone + 'static>(any_val: &AnyValue) -> Option<A> {
+    if core::any::TypeId::of::<A>() == core::any::TypeId::of::<AnyValue>() {
+        let any_ref = any_val as &dyn Any;
+        return any_ref.downcast_ref::<A>().cloned();
+    }
+    any_val.downcast_ref::<A>().cloned()
+}
+
 impl<F, A> Free<F, A> {
     #[inline]
     const fn from_node(node: Node<F, A>) -> Self {
@@ -258,14 +267,7 @@ impl<F, A> Free<F, A> {
         Self::from_node(Node::Suspend(
             effect,
             Arc::new(|any_val: AnyValue| {
-                let any_ref = &any_val as &dyn Any;
-                if let Some(val) = any_ref.downcast_ref::<A>() {
-                    return Ok(val.clone());
-                }
-                any_val
-                    .downcast_ref::<A>()
-                    .cloned()
-                    .ok_or_else(core::any::type_name::<A>)
+                downcast_any_value::<A>(&any_val).ok_or_else(core::any::type_name::<A>)
             }),
         ))
     }
@@ -365,14 +367,9 @@ impl<F, A> Free<F, A> {
                 Free::from_node(Node::Bind(
                     sub,
                     Arc::new(move |any_val: AnyValue| {
-                        let any_ref = &any_val as &dyn Any;
-                        if let Some(val) = any_ref.downcast_ref::<A>() {
-                            return f_arc(val.clone());
-                        }
-                        let a = any_val
-                            .downcast_ref::<A>()
-                            .expect("Free bind downcast failed");
-                        f_arc(a.clone())
+                        let a =
+                            downcast_any_value::<A>(&any_val).expect("Free bind downcast failed");
+                        f_arc(a)
                     }),
                 ))
             },
@@ -468,20 +465,13 @@ impl<F, A> Free<F, A> {
                         cur = unwrap_arc(next_comp).take_node();
                     },
                     None => {
-                        let any_ref = &val as &dyn Any;
-                        if let Some(a_ref) = any_ref.downcast_ref::<A>() {
-                            return Ok(a_ref.clone());
-                        }
-                        return val
-                            .downcast_ref::<A>()
-                            .cloned()
-                            .ok_or(FreeError::TypeMismatch {
-                                expected: core::any::type_name::<A>(),
-                            });
+                        return downcast_any_value::<A>(&val).ok_or(FreeError::TypeMismatch {
+                            expected: core::any::type_name::<A>(),
+                        });
                     },
                 },
                 Node::Suspend(cmd, cont) => {
-                    let effect_res = interp(cmd.clone()).map_err(FreeError::Interpreter)?;
+                    let effect_res = interp(cmd).map_err(FreeError::Interpreter)?;
                     let any_box = cont(effect_res)
                         .map_err(|expected| FreeError::TypeMismatch { expected })?;
                     match stack.pop() {
@@ -492,11 +482,7 @@ impl<F, A> Free<F, A> {
                             cur = unwrap_arc(next_comp).take_node();
                         },
                         None => {
-                            let any_ref = &any_box as &dyn Any;
-                            if let Some(a_ref) = any_ref.downcast_ref::<A>() {
-                                return Ok(a_ref.clone());
-                            }
-                            return any_box.downcast_ref::<A>().cloned().ok_or(
+                            return downcast_any_value::<A>(&any_box).ok_or(
                                 FreeError::TypeMismatch {
                                     expected: core::any::type_name::<A>(),
                                 },
@@ -1059,11 +1045,33 @@ mod tests {
         let result = prog.run(|c| Arc::new(c.id as i32) as AnyValue);
         assert_eq!(result, 22);
 
-        // Before optimization, `(**sub).clone()` cloned the inner subcomputation tree,
-        // causing cmd to be cloned an extra time per Bind level (total 3).
-        // With Arc::try_unwrap, the subcomputation is moved without cloning,
-        // so cmd is cloned only once in into_any() and once in interp() (total 2).
-        assert_eq!(counter.load(Ordering::SeqCst), 2);
+        // For a single Suspend node followed by pure continuations, Arc::try_unwrap
+        // moves the subcomputation without cloning, and direct ownership transfer
+        // to interp ensures cmd is cloned only once during the initial into_any() (total 1).
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_then_chain_run_phase_clones() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let cmd = CloneCountingCmd {
+            id: 1,
+            clones: Arc::clone(&counter),
+        };
+
+        let mut p: Free<CloneCountingCmd, usize> = Free::suspend(cmd.clone());
+        for _ in 1..10 {
+            p = p.then(Free::suspend(cmd.clone()));
+        }
+
+        // Reset counter before run to isolate run-phase clones
+        counter.store(0, Ordering::SeqCst);
+        let result: usize = p.run(|c| Arc::new(c.id) as AnyValue);
+        assert_eq!(result, 1);
+
+        // During evaluation of a then-chain, each Suspend node is cloned once
+        // due to child Arc sharing during unwrap_arc traversal (O(depth)).
+        assert_eq!(counter.load(Ordering::SeqCst), 10);
     }
 
     #[test]

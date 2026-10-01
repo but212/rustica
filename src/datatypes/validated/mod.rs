@@ -216,6 +216,7 @@ mod tests {
 
     // Interop, unwrap and recovery
     #[test]
+    #[allow(deprecated)]
     fn test_validated_recovery_and_interop() {
         let invalid: Validated<i32, String> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);

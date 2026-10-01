@@ -202,20 +202,9 @@ pub fn repeat<M>(value: M, n: usize) -> M
 where
     M: Monoid + Clone,
 {
-    if n == 0 {
-        return M::empty();
-    }
-
-    // Special case optimization for n == 1
-    if n == 1 {
-        return value;
-    }
-
-    let mut result = value.clone();
-    for _ in 1..(n - 1) {
-        result = result.combine(value.clone());
-    }
-    result.combine(value)
+    core::iter::repeat_n(value, n)
+        .reduce(|acc, x| acc.combine(x))
+        .unwrap_or_else(M::empty)
 }
 
 #[cfg(test)]
@@ -270,5 +259,29 @@ mod tests {
         assert_eq!(res.val, 15);
         // For n = 3, optimal clone count is exactly 2 (n - 1).
         assert_eq!(counter.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn test_repeat_boundary_cases() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let make_item = |val| CloneCounter {
+            val,
+            clones: Arc::clone(&counter),
+        };
+
+        // n = 0: empty element, 0 clones
+        let res0 = repeat(make_item(5), 0);
+        assert_eq!(res0.val, 0);
+        assert_eq!(counter.load(Ordering::SeqCst), 0);
+
+        // n = 1: value itself, 0 clones
+        let res1 = repeat(make_item(5), 1);
+        assert_eq!(res1.val, 5);
+        assert_eq!(counter.load(Ordering::SeqCst), 0);
+
+        // n = 2: 1 clone
+        let res2 = repeat(make_item(5), 2);
+        assert_eq!(res2.val, 10);
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 }
