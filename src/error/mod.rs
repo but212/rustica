@@ -1,7 +1,7 @@
 //! Context-accumulating error handling.
 //!
 //! Integrates standard `Result<T, E>` and `core::error::Error` with
-//! [`ContextError<E>`] for stack-ordered diagnostic context.
+//! [`ContextError<E>`](crate::error::ContextError) for stack-ordered diagnostic context.
 //!
 //! # Examples
 //!

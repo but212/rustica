@@ -3,7 +3,7 @@
 
 extern crate alloc;
 
-/// Core algebraic abstractions ([`Semigroup`](traits::Semigroup), [`Monoid`](traits::Monoid)).
+/// Core algebraic abstractions ([`Semigroup`](traits::semigroup::Semigroup), [`Monoid`](traits::monoid::Monoid)).
 pub mod traits;
 
 /// Functional data types, optics, and operational monads.
