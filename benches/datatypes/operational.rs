@@ -127,7 +127,7 @@ pub fn operational_benchmarks(harness: &Harness) {
             |program| {
                 let program = program.take().expect("program initialized in setup");
                 let mut calc = Calculator { current: 0 };
-                let _ = program.run(&mut calc);
+                program.run(&mut calc);
                 black_box(());
             },
         );
