@@ -47,6 +47,14 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
+    pub(crate) fn map<F, G>(self, f: G) -> NonEmptyErrors<F>
+    where
+        G: FnMut(E) -> F,
+    {
+        NonEmptyErrors(self.0.into_iter().map(f).collect())
+    }
+
+    #[inline]
     pub fn try_from_slice(slice: &[E]) -> Option<Self>
     where
         E: Clone,

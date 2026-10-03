@@ -4,6 +4,8 @@
 
 ### Changed
 
+- **`Validated::recover_all_at_once` Callback (Breaking)**: Changed the callback input from `Vec<E>` to `NonEmptyErrors<E>` so the non-empty error invariant is preserved at the recovery boundary. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md) for updating explicitly typed closures.
+- **`Validated` Error Mapping**: `map_err` and `bimap` now map errors through `NonEmptyErrors` directly, preserving non-emptiness without reconstructing and revalidating the collection.
 - **Operational Chain Performance**: Improved performance when composing longer chains.
 - **`ContextError` Buffer & Accumulator Optimizations**: Preallocated capacity in `with_contexts` using `size_hint` and existing context length; pre-reversed contexts once at `context_accumulator` construction to eliminate runtime reversals; precalculated `String::with_capacity` in `error_chain` to avoid step-wise string reallocations.
 - **Benchmark Suite ContextError Migration**: Renamed `lazy_error.rs` to `context_error.rs` and added benchmark cases covering `ContextError` allocation and context traversal.

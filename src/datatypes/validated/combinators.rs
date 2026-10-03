@@ -46,7 +46,7 @@ impl<T, E> Validated<T, E> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => Validated::invalid_many(es.into_iter().map(g)),
+            Validated::Invalid(es) => Validated::Invalid(es.map(g)),
         }
     }
 
@@ -73,7 +73,7 @@ impl<T, E> Validated<T, E> {
     {
         match self {
             Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::Invalid(es) => Validated::invalid_many(es.into_iter().map(g)),
+            Validated::Invalid(es) => Validated::Invalid(es.map(g)),
         }
     }
 
@@ -381,13 +381,16 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Recovers using a closure given all accumulated errors.
+    ///
+    /// The callback receives [`NonEmptyErrors`], preserving the guarantee that
+    /// an invalid value always contains at least one error.
     pub fn recover_all_at_once<F>(self, recovery: F) -> Self
     where
-        F: FnOnce(Vec<E>) -> Self,
+        F: FnOnce(NonEmptyErrors<E>) -> Self,
     {
         match self {
             Validated::Valid(v) => Validated::Valid(v),
-            Validated::Invalid(errors) => recovery(errors.into_vec()),
+            Validated::Invalid(errors) => recovery(errors),
         }
     }
 
@@ -404,6 +407,7 @@ impl<T, E> Validated<T, E> {
 #[cfg(test)]
 mod tests {
     use super::Validated;
+    use crate::datatypes::validated::NonEmptyErrors;
     use alloc::string::{String, ToString};
     use alloc::vec::Vec;
     use alloc::{format, vec};
@@ -476,14 +480,26 @@ mod tests {
         });
         assert_eq!(early_recovery.unwrap(), 99);
 
-        let batch_recovery = invalid.clone().recover_all_at_once(|errs| {
-            if errs.len() == 2 {
-                Validated::valid(100)
-            } else {
-                Validated::invalid("unhandled".to_string())
-            }
-        });
+        let batch_recovery = invalid
+            .clone()
+            .recover_all_at_once(|errs: NonEmptyErrors<String>| {
+                if errs.len() == 2 {
+                    Validated::valid(100)
+                } else {
+                    Validated::invalid("unhandled".to_string())
+                }
+            });
         assert_eq!(batch_recovery.unwrap(), 100);
+
+        let valid =
+            Validated::<i32, String>::valid(7).recover_all_at_once(|_: NonEmptyErrors<String>| {
+                panic!("recovery callback must not run for valid values")
+            });
+        assert_eq!(valid, Validated::valid(7));
+
+        let preserved = Validated::<i32, String>::invalid("still invalid".to_string())
+            .recover_all_at_once(|errors: NonEmptyErrors<String>| Validated::invalid_many(errors));
+        assert_eq!(preserved.error_slice(), &["still invalid"]);
 
         let accumulated: Validated<i32, String> =
             invalid.recover_all(|e| Validated::invalid(format!("r:{e}")));
