@@ -117,7 +117,6 @@ mod tests {
 
     // Interop and recovery
     #[test]
-    #[allow(deprecated)]
     fn test_validated_recovery_and_interop() {
         let invalid: Validated<i32, String> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
@@ -131,15 +130,6 @@ mod tests {
 
         let recovered = invalid.clone().recover_with(0);
         assert_eq!(recovered.unwrap(), 0);
-
-        let early_recovery = invalid.clone().recover_all(|e: String| {
-            if e == "e2" {
-                Validated::valid(99)
-            } else {
-                Validated::invalid(e)
-            }
-        });
-        assert_eq!(early_recovery.unwrap(), 99);
 
         assert_eq!(Validated::<i32, &str>::valid(10).unwrap_or(0), 10);
         assert_eq!(invalid.into_option(), None);

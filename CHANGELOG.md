@@ -16,6 +16,10 @@
   - `NonEmptyErrors::combine_multiple`: Added internal helper for single-reallocation consolidation across multiple non-empty error collections.
   - Unfied pairwise error combinations across `Semigroup for Validated`, `Validated::zip_with`, and `Validated::combine_errors` to delegate through `NonEmptyErrors::combine`.
 
+### Removed
+
+- **Deprecated Compatibility APIs (Breaking)**: Removed `ContextError::{context, contexts_raw}`, `Lens::get`, and `Validated::recover_all`. Use `to_contexts()` / `contexts()`, `view(&s)` / `to_value(&s)`, and `recover_all_at_once` / `recover_with` / `map_err`, respectively. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
+
 ## [0.20.0]
 
 ### Added

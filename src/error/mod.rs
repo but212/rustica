@@ -113,23 +113,6 @@ impl<E> ContextError<E> {
         self.context.clone()
     }
 
-    /// Returns the accumulated contexts with most recent first.
-    #[deprecated(
-        since = "0.20.0",
-        note = "renamed to `to_contexts()` for Rust API naming conventions"
-    )]
-    #[inline]
-    pub fn context(&self) -> Vec<String> {
-        self.to_contexts()
-    }
-
-    /// Returns a reference to the internal contexts slice.
-    #[deprecated(since = "0.20.0", note = "renamed to `contexts()`")]
-    #[inline]
-    pub const fn contexts_raw(&self) -> &[String] {
-        self.contexts()
-    }
-
     /// Returns an iterator over context entries (newest first).
     #[inline]
     pub fn context_iter(&self) -> core::slice::Iter<'_, String> {
