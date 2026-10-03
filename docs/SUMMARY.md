@@ -18,6 +18,7 @@
   - [Migration V0.18.0](migration/MIGRATION_v0.18.0.md)
   - [Migration V0.19.0](migration/MIGRATION_v0.19.0.md)
   - [Migration V0.20.0](migration/MIGRATION_v0.20.0.md)
+  - [Migration V0.21.0](migration/MIGRATION_v0.21.0.md)
 
 ---
 

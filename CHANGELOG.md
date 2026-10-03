@@ -14,11 +14,12 @@
   - `NonEmptyErrors::from_first_and_iter`: Preallocated `Vec` capacity with `1 + lower` using `size_hint().0` to eliminate step-wise reallocations from capacity 4.
   - `Validated::zip_with3`: Replaced nested `zip` composition with direct pattern matching and single-pass error buffer reservation (`base.reserve(total - base.len())`), reducing multi-error combine reallocations to at most 1.
   - `NonEmptyErrors::combine_multiple`: Added internal helper for single-reallocation consolidation across multiple non-empty error collections.
-  - Unfied pairwise error combinations across `Semigroup for Validated`, `Validated::zip_with`, and `Validated::combine_errors` to delegate through `NonEmptyErrors::combine`.
+  - Unified pairwise error combinations across `Semigroup for Validated`, `Validated::zip_with`, and `Validated::combine_errors` to delegate through `NonEmptyErrors::combine`.
 
 ### Removed
 
-- **Deprecated Compatibility APIs (Breaking)**: Removed `ContextError::{context, contexts_raw}`, `Lens::get`, and `Validated::recover_all`. Use `to_contexts()` / `contexts()`, `view(&s)` / `to_value(&s)`, and `recover_all_at_once` / `recover_with` / `map_err`, respectively. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
+- **Deprecated Compatibility Accessors (Breaking)**: Removed `ContextError::{context, contexts_raw}` and `Lens::get`. Use `to_contexts()` / `contexts()` and `view(&s)` / `to_value(&s)`, respectively. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
+- **`Validated::recover_all` (Breaking)**: Removed because it stops at the first successful recovery and can discard remaining errors. Use `recover_all_at_once` to inspect all errors, `recover_with` for a fixed fallback, or `map_err` to transform errors while preserving the invalid result. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
 
 ## [0.20.0]
 
