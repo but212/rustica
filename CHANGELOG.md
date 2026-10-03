@@ -18,6 +18,7 @@
 
 ### Removed
 
+- **`free::ContFn` (Breaking)**: Made the trampoline continuation alias private. Downstream code that names it must define a local alias or spell out the function type.
 - **Deprecated Compatibility Accessors (Breaking)**: Removed `ContextError::{context, contexts_raw}` and `Lens::get`. Use `to_contexts()` / `contexts()` and `view(&s)` / `to_value(&s)`, respectively. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
 - **`Validated::recover_all` (Breaking)**: Removed because it stops at the first successful recovery and can discard remaining errors. Use `recover_all_at_once` to inspect all errors, `recover_with` for a fixed fallback, or `map_err` to transform errors while preserving the invalid result. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
 

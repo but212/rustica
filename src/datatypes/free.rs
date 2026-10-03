@@ -75,7 +75,7 @@ pub fn any_value<T: Any + Send + Sync>(v: T) -> AnyValue {
 }
 
 /// Continuation function for the [`Free`] trampoline.
-pub type ContFn<F> = Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>;
+type ContFn<F> = Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>;
 
 /// Evaluation frame for iterative trampoline execution.
 enum Frame<F> {
