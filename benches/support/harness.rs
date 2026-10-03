@@ -168,6 +168,32 @@ impl<'a> BenchGroup<'a> {
         self.report_results(&full_name, &durations);
     }
 
+    /// Measures building a fresh value while dropping it outside the timed interval.
+    pub fn bench_build<I, F>(&mut self, bench_name: &str, mut build: F)
+    where
+        F: FnMut() -> I,
+    {
+        for _ in 0..self.warmup_iters {
+            for _ in 0..self.batch_iters {
+                black_box(build());
+            }
+        }
+
+        let mut durations = Vec::with_capacity(self.measure_iters);
+        for _ in 0..self.measure_iters {
+            let mut elapsed = Duration::ZERO;
+            for _ in 0..self.batch_iters {
+                let start = Instant::now();
+                let value = black_box(build());
+                elapsed += start.elapsed();
+                drop(value);
+            }
+            durations.push(elapsed / self.batch_iters as u32);
+        }
+
+        self.report_results(bench_name, &durations);
+    }
+
     /// Runs a batched benchmark where a setup function generates fresh state
     /// for each iteration without including the setup cost in the timing.
     pub fn bench_batched<I, S, R>(&mut self, bench_name: &str, mut setup: S, mut routine: R)

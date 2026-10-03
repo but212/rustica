@@ -79,7 +79,8 @@ enum Node<H, A, E> {
         Box<TryProgram<H, AnyBox, E>>,
         Box<dyn FnOnce(AnyBox) -> TryProgram<H, A, E>>,
     ),
-    Then(Box<TryProgram<H, AnyBox, E>>, Box<TryProgram<H, A, E>>),
+    // Ordered erased prefix steps followed by the typed tail; the prefix is always non-empty.
+    Then(Vec<TryProgram<H, AnyBox, E>>, Box<TryProgram<H, A, E>>),
 }
 
 enum TryFrame<H, E> {
@@ -126,6 +127,7 @@ impl<H: 'static, E: 'static> TryProgram<H, (), E> {
     }
 }
 
+// Program construction and type erasure.
 impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     /// Wraps a pure value in a `TryProgram`.
     #[inline]
@@ -174,20 +176,32 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         match self.take_node() {
             Node::Pure(_) => next,
             node => {
-                let previous = TryProgram { node: Some(node) }.into_any();
+                let mut previous = TryProgram { node: Some(node) }.into_any();
+                let previous_steps = match previous.take_node() {
+                    Node::Then(mut steps, tail) => {
+                        steps.push(*tail);
+                        steps
+                    },
+                    node => alloc::vec![TryProgram { node: Some(node) }],
+                };
                 TryProgram {
-                    node: Some(Node::Then(Box::new(previous), Box::new(next))),
+                    node: Some(Node::Then(previous_steps, Box::new(next))),
                 }
             },
         }
     }
 
     fn into_any(mut self) -> TryProgram<H, AnyBox, E> {
-        let mut then_subs = Vec::new();
+        let mut first_then_chunk = None;
+        let mut remaining_then_chunks = Vec::new();
         let node = loop {
             match self.take_node() {
-                Node::Then(sub, next) => {
-                    then_subs.push(sub);
+                Node::Then(subs, next) => {
+                    if first_then_chunk.is_some() {
+                        remaining_then_chunks.push(subs);
+                    } else {
+                        first_then_chunk = Some(subs);
+                    }
                     self = *next;
                 },
                 node => break node,
@@ -208,63 +222,67 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
             Node::Then(_, _) => unreachable!("Then nodes are collected above"),
         };
 
-        for sub in then_subs.into_iter().rev() {
+        for subs in remaining_then_chunks.into_iter().rev() {
             erased = TryProgram {
-                node: Some(Node::Then(sub, Box::new(erased))),
+                node: Some(Node::Then(subs, Box::new(erased))),
+            };
+        }
+        if let Some(subs) = first_then_chunk {
+            erased = TryProgram {
+                node: Some(Node::Then(subs, Box::new(erased))),
             };
         }
         erased
     }
+}
 
+// Trampoline interpreter.
+impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     /// Evaluates the program using `handler` with stack safety.
     pub fn try_run(self, handler: &mut H) -> Result<A, E> {
         let mut cur: Node<H, AnyBox, E> = self.into_any().take_node();
         let mut stack: Vec<TryFrame<H, E>> = Vec::new();
 
         loop {
-            match cur {
+            let val = match cur {
                 Node::Bind(mut sub, cont) => {
                     stack.push(TryFrame::Bind(cont));
                     cur = sub.take_node();
+                    continue;
                 },
-                Node::Then(mut sub, next) => {
+                Node::Then(subs, next) => {
+                    let mut subs = subs.into_iter();
+                    let mut first = subs.next().expect("Then node has at least one step");
                     stack.push(TryFrame::Then(*next));
-                    cur = sub.take_node();
-                },
-                Node::Pure(val) => match stack.pop() {
-                    Some(TryFrame::Bind(cont)) => {
-                        cur = cont(val).take_node();
-                    },
-                    Some(TryFrame::Then(mut next)) => {
-                        cur = next.take_node();
-                    },
-                    None => {
-                        return Ok(*val
-                            .downcast::<A>()
-                            .expect("statically guaranteed final return type"));
-                    },
-                },
-                Node::Suspend(runner, cont) => {
-                    let res = runner(handler)?;
-                    let val = cont(res);
-                    match stack.pop() {
-                        Some(TryFrame::Bind(next_cont)) => {
-                            cur = next_cont(val).take_node();
-                        },
-                        Some(TryFrame::Then(mut next)) => {
-                            cur = next.take_node();
-                        },
-                        None => {
-                            return Ok(*val
-                                .downcast::<A>()
-                                .expect("statically guaranteed final return type"));
-                        },
+                    for sub in subs.rev() {
+                        stack.push(TryFrame::Then(sub));
                     }
+                    cur = first.take_node();
+                    continue;
+                },
+                Node::Pure(val) => val,
+                Node::Suspend(runner, cont) => cont(runner(handler)?),
+            };
+
+            match stack.pop() {
+                Some(TryFrame::Bind(cont)) => {
+                    cur = cont(val).take_node();
+                },
+                Some(TryFrame::Then(mut next)) => {
+                    cur = next.take_node();
+                },
+                None => {
+                    return Ok(*val
+                        .downcast::<A>()
+                        .expect("statically guaranteed final return type"));
                 },
             }
         }
     }
+}
 
+// Observable state inspection.
+impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     /// Returns `true` if the computation is a pure value.
     #[inline]
     pub const fn is_pure(&self) -> bool {
@@ -284,10 +302,13 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     }
 }
 
-fn drop_any_program<H, E>(mut program: TryProgram<H, AnyBox, E>) {
+// Iterative destruction.
+fn drop_any_programs<H, E>(programs: impl IntoIterator<Item = TryProgram<H, AnyBox, E>>) {
     let mut pending = Vec::new();
-    if let Some(node) = program.node.take() {
-        pending.push(node);
+    for mut program in programs {
+        if let Some(node) = program.node.take() {
+            pending.push(node);
+        }
     }
 
     while let Some(node) = pending.pop() {
@@ -299,9 +320,11 @@ fn drop_any_program<H, E>(mut program: TryProgram<H, AnyBox, E>) {
                 // Stack safety covers the explicit AST spine; captured closures may recurse on drop.
                 drop(cont);
             },
-            Node::Then(mut sub, mut next) => {
-                if let Some(node) = sub.node.take() {
-                    pending.push(node);
+            Node::Then(subs, mut next) => {
+                for mut sub in subs {
+                    if let Some(node) = sub.node.take() {
+                        pending.push(node);
+                    }
                 }
                 if let Some(node) = next.node.take() {
                     pending.push(node);
@@ -321,13 +344,13 @@ impl<H, A, E> Drop for TryProgram<H, A, E> {
         let mut cur = self.node.take();
         while let Some(node) = cur {
             match node {
-                Node::Then(sub, next) => {
-                    drop_any_program(*sub);
+                Node::Then(subs, next) => {
+                    drop_any_programs(subs);
                     let mut next = *next;
                     cur = next.node.take();
                 },
                 Node::Bind(sub, cont) => {
-                    drop_any_program(*sub);
+                    drop_any_programs([*sub]);
                     // Stack safety covers the explicit AST spine; captured closures may recurse on drop.
                     drop(cont);
                     return;
@@ -510,6 +533,29 @@ mod tests {
     }
 
     #[test]
+    fn test_right_associated_then_preserves_order() {
+        let program = Add(10)
+            .suspend()
+            .then(Multiply(3).suspend().then(Fetch.suspend()));
+
+        let mut interpreter = CalcInterpreter { current: 0 };
+        assert_eq!(program.run(&mut interpreter), 30);
+    }
+
+    #[test]
+    fn test_mixed_right_associated_then_and_then_preserves_order() {
+        let program = Add(2).suspend().then(
+            Fetch
+                .suspend()
+                .and_then(|value| Add(value).suspend())
+                .then(Fetch.suspend()),
+        );
+
+        let mut interpreter = CalcInterpreter { current: 0 };
+        assert_eq!(program.run(&mut interpreter), 4);
+    }
+
+    #[test]
     fn test_monad_laws() {
         // Left identity: pure(a).bind(f) == f(a)
         let a = 42;
@@ -574,6 +620,7 @@ mod tests {
     struct FallibleCalc {
         current: i32,
         should_fail: bool,
+        fetches: usize,
     }
 
     impl TryHandler<Add, &'static str> for FallibleCalc {
@@ -589,6 +636,7 @@ mod tests {
 
     impl TryHandler<Fetch, &'static str> for FallibleCalc {
         fn try_handle(&mut self, _cmd: Fetch) -> Result<i32, &'static str> {
+            self.fetches += 1;
             Ok(self.current)
         }
     }
@@ -601,20 +649,26 @@ mod tests {
         let mut success_interp = FallibleCalc {
             current: 5,
             should_fail: false,
+            fetches: 0,
         };
         assert_eq!(program.try_run(&mut success_interp), Ok(20));
+        assert_eq!(success_interp.fetches, 1);
 
-        let failing_program: TryProgram<FallibleCalc, i32, &'static str> =
-            Add(15).try_suspend().then(Fetch.try_suspend());
+        let failing_program: TryProgram<FallibleCalc, i32, &'static str> = Fetch
+            .try_suspend()
+            .then(Add(15).try_suspend())
+            .then(Fetch.try_suspend());
 
         let mut fail_interp = FallibleCalc {
             current: 5,
             should_fail: true,
+            fetches: 0,
         };
         assert_eq!(
             failing_program.try_run(&mut fail_interp),
             Err("overflow_simulated")
         );
+        assert_eq!(fail_interp.fetches, 1);
     }
 
     #[test]
