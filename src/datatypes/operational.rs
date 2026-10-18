@@ -56,7 +56,7 @@ impl<H: Handler<C>, C: Command> TryHandler<C, Infallible> for H {
 /// Suspends a command into an infallible [`Program`].
 #[inline]
 #[deprecated(
-    since = "0.20.0",
+    since = "0.21.0",
     note = "Use `Command::suspend` or `Program::suspend` instead"
 )]
 pub fn suspend<H: Handler<C> + 'static, C: Command>(cmd: C) -> Program<H, C::Output> {
@@ -66,7 +66,7 @@ pub fn suspend<H: Handler<C> + 'static, C: Command>(cmd: C) -> Program<H, C::Out
 /// Suspends a command into a fallible [`TryProgram`].
 #[inline]
 #[deprecated(
-    since = "0.20.0",
+    since = "0.21.0",
     note = "Use `Command::try_suspend` or `TryProgram::suspend` instead"
 )]
 pub fn try_suspend<H: TryHandler<C, E> + 'static, C: Command, E: 'static>(

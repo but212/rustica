@@ -334,7 +334,7 @@ impl<F, A> Free<F, A> {
     /// Combines two `Free` computations using a binary function.
     #[inline]
     #[deprecated(
-        since = "0.20.0",
+        since = "0.21.0",
         note = "Use `zip_with` method directly: `fa.zip_with(fb, f)`"
     )]
     pub fn lift2<T1, T2, B, Func>(f: Func, fa: Free<F, T1>, fb: Free<F, T2>) -> Free<F, B>
