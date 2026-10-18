@@ -8,7 +8,7 @@ use core::hash::Hash;
 #[cfg(any(test, feature = "quickcheck"))]
 use quickcheck::{Arbitrary, Gen};
 
-use crate::datatypes::validated::Validated;
+use crate::datatypes::validated::{NonEmptyErrors, Validated};
 use crate::prelude::traits::*;
 
 /// Errors produced by [`Choice`] operations.
@@ -231,7 +231,10 @@ impl<T> Choice<T> {
             }
         }
 
-        Validated::invalid_many(errors)
+        // Invariant: `errors` contains at least `first_err`, so it is statically guaranteed to be non-empty.
+        let non_empty = NonEmptyErrors::try_from_vec(errors)
+            .expect("Choice try_each_validated error collection is non-empty");
+        Validated::Invalid(non_empty)
     }
 
     /// Maps `f` over all values in priority order.
