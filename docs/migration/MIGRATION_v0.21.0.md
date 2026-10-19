@@ -13,6 +13,7 @@ Breaking API changes and direct replacement patterns for Rustica 0.21.0.
 | `ContextError::contexts_raw` | Removed | `contexts()` |
 | `Lens::get` | Removed | `view(&s)` for a borrow or `to_value(&s)` for an owned clone |
 | `Validated::recover_all` | Removed | `recover_all_at_once` or `recover_with`; use `map_err` to transform errors individually |
+| `free::ContFn<F>` | Made private | Define a local alias using `Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>` if needed |
 
 ## `Validated::recover_all_at_once` Callback Type
 
