@@ -181,7 +181,7 @@ fn test_lens_set_preserves_sharing() {
     // Contract C-04: Exactly 1 clone on modify identity (0 for comparison)
     let c2 = container.clone();
     CLONES.with(|cnt| cnt.set(0));
-    let same_mod = lens.modify(c2, |x| x);
+    let same_mod = lens.modify(c2, |x| x.clone());
     assert_eq!(
         CLONES.with(|cnt| cnt.get()),
         1,
@@ -200,7 +200,7 @@ fn test_lens_set_preserves_sharing() {
     let same_rc = rc_lens.set(rc_c.clone(), Rc::clone(&rc_c.payload));
     assert!(Rc::ptr_eq(&rc_c.payload, &same_rc.payload));
 
-    let same_rc_mod = rc_lens.modify(rc_c.clone(), |p| p);
+    let same_rc_mod = rc_lens.modify(rc_c.clone(), Rc::clone);
     assert!(Rc::ptr_eq(&rc_c.payload, &same_rc_mod.payload));
 
     // Mutation path verification

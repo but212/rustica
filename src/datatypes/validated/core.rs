@@ -75,16 +75,6 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
-    pub fn iter(&self) -> core::slice::Iter<'_, E> {
-        self.0.iter()
-    }
-
-    #[inline]
-    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, E> {
-        self.0.iter_mut()
-    }
-
-    #[inline]
     pub const fn len(&self) -> usize {
         self.0.len()
     }
@@ -131,6 +121,12 @@ impl<E> core::ops::Deref for NonEmptyErrors<E> {
 
     fn deref(&self) -> &Self::Target {
         self.as_slice()
+    }
+}
+
+impl<E> core::ops::DerefMut for NonEmptyErrors<E> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut_slice()
     }
 }
 
@@ -264,11 +260,7 @@ impl<T, E> Validated<T, E> {
     where
         I: IntoIterator<Item = E>,
     {
-        let mut iter = errors.into_iter();
-        let Some(first) = iter.next() else {
-            panic!("Validated::invalid_many requires at least one error")
-        };
-        Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, iter))
+        Self::try_invalid_many(errors).expect("Validated::invalid_many requires at least one error")
     }
 
     /// Creates an invalid instance from an iterator, or `None` if empty.
@@ -277,11 +269,7 @@ impl<T, E> Validated<T, E> {
     where
         I: IntoIterator<Item = E>,
     {
-        let mut iter = errors.into_iter();
-        let first = iter.next()?;
-        Some(Validated::Invalid(NonEmptyErrors::from_first_and_iter(
-            first, iter,
-        )))
+        NonEmptyErrors::try_from_iter(errors).map(Validated::Invalid)
     }
 
     /// Returns `Ok(T)` if valid, or `Err(NonEmptyErrors<E>)` if invalid.
@@ -502,6 +490,18 @@ mod tests {
         let from_slice = NonEmptyErrors::try_from_slice(&slice).unwrap();
         assert_eq!(from_slice.as_slice(), &["a", "b"]);
         assert_eq!(NonEmptyErrors::<&str>::try_from_slice(&[]), None);
+    }
+
+    #[test]
+    fn test_non_empty_errors_deref_mut() {
+        let mut errors = NonEmptyErrors::new("a".to_string());
+        errors.push("b".to_string());
+        assert_eq!(errors.len(), 2);
+
+        // Mutate via DerefMut slice indexing
+        errors[0].make_ascii_uppercase();
+        errors[1].make_ascii_uppercase();
+        assert_eq!(errors.as_slice(), &["A", "B"]);
     }
 
     #[test]

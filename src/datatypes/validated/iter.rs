@@ -59,7 +59,7 @@ where
     /// ```
     #[inline]
     fn from_iter<I: IntoIterator<Item = Validated<T, E>>>(iter: I) -> Self {
-        Validated::<T, E>::collect(iter.into_iter())
+        Validated::<T, E>::collect(iter)
     }
 }
 

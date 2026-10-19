@@ -54,7 +54,7 @@ fn test_try_from_iter_single_alloc() {
 fn test_collect_valid_single_alloc() {
     let items: Vec<Validated<u64, &'static str>> = (0..100).map(Validated::valid).collect();
     let (res, allocs) = count_allocs(|| {
-        let r: Validated<Vec<u64>, &'static str> = Validated::collect(items.into_iter());
+        let r: Validated<Vec<u64>, &'static str> = Validated::collect(items);
         r
     });
     assert!(res.is_valid());
@@ -111,7 +111,7 @@ fn test_collect_moves_first_error_buffer() {
     let original_ptr = original.as_slice().as_ptr();
     let item: Validated<(), &'static str> = Validated::Invalid(original);
 
-    let res: Validated<Vec<()>, &'static str> = Validated::collect([item].into_iter());
+    let res: Validated<Vec<()>, &'static str> = Validated::collect([item]);
     let collected_errs = res.error_payload().expect("must be invalid");
     let collected_ptr = collected_errs.as_slice().as_ptr();
 

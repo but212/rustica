@@ -24,11 +24,7 @@ let validate_even = |x: &i32| -> Validated<i32, String> {
 };
 
 let combine_validations = |a: &i32, b: &i32| -> Validated<i32, String> {
-    Validated::<i32, String>::lift2(
-        |x: i32, y: i32| x + y,
-        validate_positive(a),
-        validate_even(b),
-    )
+    validate_positive(a).zip_with(validate_even(b), |x, y| x + y)
 };
 
 // Success

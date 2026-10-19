@@ -127,16 +127,16 @@ where
     /// Modifies the focused value with `f`, returning `source` unchanged if unmatched or equal under `PartialEq`.
     ///
     /// For bit-exact types or non-reflexive types, use [`Prism::modify_always`].
-    /// To preserve non-focus fields on mutation, use [`Prism::modify_with`].
+    /// To preserve non-focus fields on mutation, use [`Prism::set_with`].
     #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
-        F: FnOnce(A) -> A,
-        A: Clone + PartialEq,
+        F: FnOnce(&A) -> A,
+        A: PartialEq,
     {
         match (self.preview)(&source) {
             Some(cur) => {
-                let new_val = f(cur.clone());
+                let new_val = f(cur);
                 if cur == &new_val {
                     source
                 } else {
@@ -151,11 +151,10 @@ where
     #[inline]
     pub fn modify_always<F>(&self, source: S, f: F) -> S
     where
-        F: FnOnce(A) -> A,
-        A: Clone,
+        F: FnOnce(&A) -> A,
     {
         match (self.preview)(&source) {
-            Some(cur) => (self.review)(f(cur.clone())),
+            Some(cur) => (self.review)(f(cur)),
             None => source,
         }
     }
@@ -165,14 +164,11 @@ where
     pub fn modify_with<M, F>(&self, source: S, modify_fn: M, f: F) -> S
     where
         M: FnOnce(S, A) -> S,
-        F: FnOnce(A) -> A,
-        A: Clone,
+        F: FnOnce(&A) -> A,
     {
-        match (self.preview)(&source) {
-            Some(current_value) => {
-                let val = current_value.clone();
-                modify_fn(source, f(val))
-            },
+        let new_val = (self.preview)(&source).map(f);
+        match new_val {
+            Some(val) => modify_fn(source, val),
             None => source,
         }
     }

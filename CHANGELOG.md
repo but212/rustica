@@ -4,6 +4,9 @@
 
 ### Changed
 
+- **Lens & Prism `modify` Closure Signatures (Breaking)**: Changed transformation closure from `FnOnce(A) -> A` to `FnOnce(&A) -> A` across `Lens::modify`, `Lens::modify_always`, `Prism::modify`, `Prism::modify_always`, and `Prism::modify_with`. Eliminates mandatory focus cloning before closure invocation. Removes `A: Clone` bounds from `modify_always`/`modify_with` and relaxes `modify` bounds to `A: PartialEq`. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
+- **`Validated::collect` Parameter Bounds**: Generalized input parameter from `I: Iterator` to `I: IntoIterator`.
+- **`NonEmptyErrors` `DerefMut` Implementation & Inherent Methods**: Implemented `core::ops::DerefMut<Target = [E]>` for `NonEmptyErrors<E>` and removed inherent `iter()` and `iter_mut()` methods in favor of slice deref coercion. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
 - **`Validated::recover_all_at_once` Callback (Breaking)**: Changed the callback input from `Vec<E>` to `NonEmptyErrors<E>` so the non-empty error invariant is preserved at the recovery boundary. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md) for updating explicitly typed closures.
 - **`Validated` Error Mapping**: `map_err` and `bimap` now map errors through `NonEmptyErrors` directly, preserving non-emptiness without reconstructing and revalidating the collection.
 - **Operational Chain Performance**: Improved performance when composing longer chains.
@@ -15,6 +18,13 @@
   - `Validated::zip_with3`: Replaced nested `zip` composition with direct pattern matching and single-pass error buffer reservation (`base.reserve(total - base.len())`), reducing multi-error combine reallocations to at most 1.
   - `NonEmptyErrors::combine_multiple`: Added internal helper for single-reallocation consolidation across multiple non-empty error collections.
   - Unified pairwise error combinations across `Semigroup for Validated`, `Validated::zip_with`, and `Validated::combine_errors` to delegate through `NonEmptyErrors::combine`.
+
+### Deprecated
+
+- **`Validated` Combinators**: Deprecated `Validated::lift2` and `Validated::lift3` in favor of direct method syntax (`v1.zip_with(v2, f)`, `v1.zip_with3(v2, v3, f)`).
+- **`Free` Combinators**: Deprecated `Free::lift2` in favor of direct method syntax (`fa.zip_with(fb, f)`).
+- **`Operational` Standalone Functions**: Deprecated standalone functions `operational::suspend` and `operational::try_suspend` in favor of `Command::suspend`/`try_suspend` or `Program::suspend`/`TryProgram::suspend`.
+- **`ContextError` Accessors**: Deprecated `ContextError::context_iter` in favor of `contexts().iter()`.
 
 ### Removed
 

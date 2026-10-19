@@ -64,15 +64,15 @@ fn bench_timing(group: &mut BenchGroup) {
 
     // 3. Modify operations
     group.bench_fn("modify_unchanged_value", || {
-        black_box(name_lens.modify(black_box(person.clone()), |name| name));
+        black_box(name_lens.modify(black_box(person.clone()), |name| name.clone()));
     });
 
     group.bench_fn("modify_always_unchanged_value", || {
-        black_box(name_lens.modify_always(black_box(person.clone()), |name| name));
+        black_box(name_lens.modify_always(black_box(person.clone()), |name| name.clone()));
     });
 
     group.bench_fn("modify_changed_value", || {
-        black_box(name_lens.modify(black_box(person.clone()), |name| name + "!"));
+        black_box(name_lens.modify(black_box(person.clone()), |name| name.clone() + "!"));
     });
 
     // 4. Multi-level composition (3-level)
@@ -167,7 +167,7 @@ fn bench_memory(group: &mut BenchGroup) {
         || Some(person.clone()),
         |state| {
             let p = state.take().unwrap();
-            black_box(name_lens.modify(p, |name| name));
+            black_box(name_lens.modify(p, |name| name.clone()));
         },
     );
 
