@@ -34,7 +34,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
 
@@ -70,7 +70,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust stable for metadata
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
 
@@ -96,7 +96,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: ${{ env.NIGHTLY_TOOLCHAIN }}
 
@@ -120,7 +120,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: ${{ env.NIGHTLY_TOOLCHAIN }}
 
@@ -148,7 +148,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned nightly with Miri
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: ${{ env.NIGHTLY_TOOLCHAIN }}
           components: miri
@@ -180,7 +180,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
 

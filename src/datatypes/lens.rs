@@ -89,21 +89,6 @@ where
         (self.view)(source).clone()
     }
 
-    /// Legacy getter extracting an owned clone of the focused part.
-    ///
-    /// Deprecated in 0.20.0 in favor of [`Lens::view`] or [`Lens::to_value`].
-    #[deprecated(
-        since = "0.20.0",
-        note = "Use lens.view(&s) for borrowed access, or lens.to_value(&s) for owned extraction per C-CONV"
-    )]
-    #[inline]
-    pub fn get(&self, source: &S) -> A
-    where
-        A: Clone,
-    {
-        self.to_value(source)
-    }
-
     /// Sets the focused part, returning `source` unchanged if `value` equals current focus under `PartialEq`.
     ///
     /// For bit-exact preservation (e.g. `-0.0` vs `0.0`) or non-reflexive types (`NaN`), use [`Lens::set_always`].
@@ -325,7 +310,6 @@ mod unit_tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn composition_and_unconditional_updates_work() {
         let person = Person {
             name: "Alice".into(),
@@ -344,7 +328,6 @@ mod unit_tests {
         let composed = address_val_lens.then(street_lens());
         assert_eq!(composed.view(&person), "123 Main St");
         assert_eq!(composed.to_value(&person), "123 Main St");
-        assert_eq!(composed.get(&person), "123 Main St");
 
         let point = Point { x: 10.0, y: 20.0 };
         assert_eq!(x_lens().set_always(point.clone(), 10.0).x, 10.0);

@@ -114,12 +114,15 @@ impl<E> NonEmptyErrors<E> {
         let first = it.next()?;
 
         let mut base = first.into_vec();
-        base.reserve(total - base.len());
+        if total > base.len() {
+            base.reserve(total - base.len());
+        }
         for es in it {
             base.extend(es);
         }
 
-        Self::try_from_vec(base)
+        // Safety/Invariant: `first` is a non-empty collection, so `base` is guaranteed non-empty.
+        Some(Self(base))
     }
 }
 
@@ -385,10 +388,7 @@ impl<T, E> Validated<T, E> {
     /// Converts `Some(value)` to `Valid(value)` and `None` to `invalid(error)`.
     #[inline]
     pub fn from_option(option: Option<T>, error: E) -> Self {
-        match option {
-            Some(value) => Self::Valid(value),
-            None => Self::invalid(error),
-        }
+        Self::from_option_with(option, move || error)
     }
 
     /// Converts `Some(value)` to `Valid(value)` and `None` to `invalid(error_fn())`.

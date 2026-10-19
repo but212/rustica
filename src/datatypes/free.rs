@@ -75,7 +75,7 @@ pub fn any_value<T: Any + Send + Sync>(v: T) -> AnyValue {
 }
 
 /// Continuation function for the [`Free`] trampoline.
-pub type ContFn<F> = Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>;
+type ContFn<F> = Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>;
 
 /// Evaluation frame for iterative trampoline execution.
 enum Frame<F> {
@@ -332,6 +332,11 @@ impl<F, A> Free<F, A> {
     }
 
     /// Combines two `Free` computations using a binary function.
+    #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `zip_with` method directly: `fa.zip_with(fb, f)`"
+    )]
     pub fn lift2<T1, T2, B, Func>(f: Func, fa: Free<F, T1>, fb: Free<F, T2>) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -755,8 +760,16 @@ mod tests {
 
         let fa: Free<TestCmd, i32> = Free::pure(3);
         let fb: Free<TestCmd, i32> = Free::pure(4);
-        let combined: Free<TestCmd, i32> = Free::<TestCmd, ()>::lift2(|a, b| a * b, fa, fb);
+        let combined: Free<TestCmd, i32> = fa.zip_with(fb, |a, b| a * b);
         assert_eq!(combined.to_pure(), Some(12));
+
+        #[allow(deprecated)]
+        {
+            let fa: Free<TestCmd, i32> = Free::pure(3);
+            let fb: Free<TestCmd, i32> = Free::pure(4);
+            let lifted: Free<TestCmd, i32> = Free::<TestCmd, ()>::lift2(|a, b| a * b, fa, fb);
+            assert_eq!(lifted.to_pure(), Some(12));
+        }
 
         let fa2: Free<TestCmd, i32> = Free::pure(3);
         let fb2: Free<TestCmd, i32> = Free::pure(4);

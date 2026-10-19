@@ -53,13 +53,14 @@ use rustica::prelude::*;
 
 ### 3. Optics
 
-- **`Lens`**: Composable getters, setters, and modifiers for product types (`get`, `set`, `modify`, `then`).
+- **`Lens`**: Composable borrowed views, setters, and modifiers for product types (`view`, `to_value`, `set`, `modify`, `then`).
 - **`Prism`**: Pattern matching optics for sum types (`preview`, `review`, `set`, `modify`, `then`).
 
 ---
 
 ## Migration Guides
 
+- [0.21.0 Migration Guide](./docs/migration/MIGRATION_v0.21.0.md): removal of deprecated compatibility APIs
 - [0.20.0 Migration Guide](./docs/migration/MIGRATION_v0.20.0.md): `no_std` migration, removal of deprecated APIs and `HashMap`/`HashSet` Semigroup impls
 - [0.19.0 Migration Guide](./docs/migration/MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of PersistentVector (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
 - [0.18.0 Migration Guide](./docs/migration/MIGRATION_v0.18.0.md): Removal of deprecated modules (Transformers, Effect Monads, Category, Wrappers, Legacy Errors)

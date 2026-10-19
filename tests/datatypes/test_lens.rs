@@ -61,9 +61,8 @@ fn test_lens_set_set_law(v1: u32, v2: u32) -> bool {
     lens.set(lens.set(person.clone(), v1), v2) == lens.set(person, v2)
 }
 
-// Contract C-02: C-CONV accessors view(&S) -> &A, to_value(&S) -> A, get(&S) -> A (deprecated)
+// Contract C-02: C-CONV accessors view(&S) -> &A and to_value(&S) -> A
 #[test]
-#[allow(deprecated)]
 fn test_lens_c_conv_accessors() {
     let lens = name_lens();
     let person = TestPerson {
@@ -76,9 +75,6 @@ fn test_lens_c_conv_accessors() {
 
     // Explicit owned extraction
     assert_eq!(lens.to_value(&person), "Alice");
-
-    // Deprecated shim
-    assert_eq!(lens.get(&person), "Alice");
 }
 
 // Contract C-01: Lens works on non-Clone structs and fields

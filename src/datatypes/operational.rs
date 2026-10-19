@@ -55,12 +55,20 @@ impl<H: Handler<C>, C: Command> TryHandler<C, Infallible> for H {
 
 /// Suspends a command into an infallible [`Program`].
 #[inline]
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `Command::suspend` or `Program::suspend` instead"
+)]
 pub fn suspend<H: Handler<C> + 'static, C: Command>(cmd: C) -> Program<H, C::Output> {
     Program::suspend(cmd)
 }
 
 /// Suspends a command into a fallible [`TryProgram`].
 #[inline]
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `Command::try_suspend` or `TryProgram::suspend` instead"
+)]
 pub fn try_suspend<H: TryHandler<C, E> + 'static, C: Command, E: 'static>(
     cmd: C,
 ) -> TryProgram<H, C::Output, E> {
@@ -515,6 +523,24 @@ mod tests {
         fn handle(&mut self, _cmd: Stringify) -> String {
             format!("Result: {}", self.current)
         }
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_deprecated_free_suspend_functions() {
+        let prog: Program<CalcInterpreter, ()> = suspend(Add(10));
+        let mut interp = CalcInterpreter { current: 0 };
+        prog.run(&mut interp);
+        assert_eq!(interp.current, 10);
+
+        let try_prog: TryProgram<FallibleCalc, (), &'static str> = try_suspend(Add(20));
+        let mut fallible = FallibleCalc {
+            current: 0,
+            should_fail: false,
+            fetches: 0,
+        };
+        assert_eq!(try_prog.try_run(&mut fallible), Ok(()));
+        assert_eq!(fallible.current, 20);
     }
 
     #[test]

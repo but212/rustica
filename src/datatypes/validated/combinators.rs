@@ -221,10 +221,14 @@ impl<T, E> Validated<T, E> {
     ///
     /// let v1: Validated<i32, &str> = Validated::valid(10);
     /// let v2: Validated<i32, &str> = Validated::valid(20);
-    /// let sum = Validated::lift2(|a, b| a + b, v1, v2);
+    /// let sum = v1.zip_with(v2, |a, b| a + b);
     /// assert_eq!(sum, Validated::valid(30));
     /// ```
     #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `zip_with` method directly: `v1.zip_with(v2, f)`"
+    )]
     pub fn lift2<T1, T2, F>(f: F, v1: Validated<T1, E>, v2: Validated<T2, E>) -> Validated<T, E>
     where
         F: FnOnce(T1, T2) -> T,
@@ -234,6 +238,10 @@ impl<T, E> Validated<T, E> {
 
     /// Lifts a ternary function over three `Validated` values, accumulating errors.
     #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `zip_with3` method directly: `v1.zip_with3(v2, v3, f)`"
+    )]
     pub fn lift3<T1, T2, T3, F>(
         f: F, v1: Validated<T1, E>, v2: Validated<T2, E>, v3: Validated<T3, E>,
     ) -> Validated<T, E>
@@ -342,44 +350,6 @@ impl<T, E> Validated<T, E> {
         }
     }
 
-    /// Attempts recovery for accumulated errors in order.
-    ///
-    /// Short-circuits on first success and drops unrecovered errors; prefer
-    /// [`recover_all_at_once`](Self::recover_all_at_once) or [`recover_with`](Self::recover_with).
-    #[deprecated(
-        since = "0.20.0",
-        note = "semantically flawed: short-circuits on first success and silently drops unrecovered errors; use `recover_all_at_once` or `recover_with` instead"
-    )]
-    pub fn recover_all<F>(self, mut recovery: F) -> Self
-    where
-        F: FnMut(E) -> Self,
-    {
-        match self {
-            Validated::Valid(v) => Validated::Valid(v),
-            Validated::Invalid(errors) => {
-                let mut accumulated = Vec::new();
-
-                for error in errors {
-                    match recovery(error) {
-                        Validated::Valid(v) => return Validated::Valid(v),
-                        Validated::Invalid(more_errors) => {
-                            accumulated.extend(more_errors);
-                        },
-                    }
-                }
-
-                debug_assert!(
-                    !accumulated.is_empty(),
-                    "NonEmptyErrors invariant violated: accumulated errors empty after processing non-empty input"
-                );
-                Validated::Invalid(
-                    NonEmptyErrors::try_from_vec(accumulated)
-                        .expect("invariant: accumulated errors non-empty (see debug_assert above)"),
-                )
-            },
-        }
-    }
-
     /// Recovers using a closure given all accumulated errors.
     ///
     /// The callback receives [`NonEmptyErrors`], preserving the guarantee that
@@ -463,22 +433,12 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn test_recovery_combinators() {
         let invalid: Validated<i32, String> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
 
         let recovered = invalid.clone().recover_with(0);
         assert_eq!(recovered.unwrap(), 0);
-
-        let early_recovery = invalid.clone().recover_all(|e| {
-            if e == "e2" {
-                Validated::valid(99)
-            } else {
-                Validated::invalid(e)
-            }
-        });
-        assert_eq!(early_recovery.unwrap(), 99);
 
         let batch_recovery = invalid
             .clone()
@@ -500,10 +460,6 @@ mod tests {
         let preserved = Validated::<i32, String>::invalid("still invalid".to_string())
             .recover_all_at_once(|errors: NonEmptyErrors<String>| Validated::invalid_many(errors));
         assert_eq!(preserved.error_slice(), &["still invalid"]);
-
-        let accumulated: Validated<i32, String> =
-            invalid.recover_all(|e| Validated::invalid(format!("r:{e}")));
-        assert_eq!(accumulated.error_slice(), &["r:e1", "r:e2"]);
     }
 
     #[test]
