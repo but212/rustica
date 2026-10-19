@@ -20,7 +20,7 @@ fn bench_context_operations(group: &mut BenchGroup) {
             for index in 0..count {
                 error = error.with_context(context!("context {index}"));
             }
-            black_box(error.context_iter().count());
+            black_box(error.contexts().iter().count());
         });
     }
 

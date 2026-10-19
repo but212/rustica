@@ -1018,7 +1018,7 @@ fn main() {
     assert_eq!(restricted_stmt.table, "users"); // Preserves other fields
 
     // Structural sharing check
-    let unchanged_stmt = col_lens.modify(valid_stmt.clone(), |cols| cols);
+    let unchanged_stmt = col_lens.modify(valid_stmt.clone(), |cols| cols.clone());
     assert_eq!(unchanged_stmt, valid_stmt);
     println!("  Lens identity modification preserves structural equality.\n");
 

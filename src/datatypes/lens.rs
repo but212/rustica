@@ -116,11 +116,11 @@ where
     #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
-        F: FnOnce(A) -> A,
-        A: Clone + PartialEq,
+        F: FnOnce(&A) -> A,
+        A: PartialEq,
     {
         let current = (self.view)(&source);
-        let new_value = f(current.clone());
+        let new_value = f(current);
         if current == &new_value {
             source
         } else {
@@ -132,10 +132,9 @@ where
     #[inline]
     pub fn modify_always<F>(&self, source: S, f: F) -> S
     where
-        F: FnOnce(A) -> A,
-        A: Clone,
+        F: FnOnce(&A) -> A,
     {
-        let new_value = f((self.view)(&source).clone());
+        let new_value = f((self.view)(&source));
         (self.set)(source, new_value)
     }
 }
@@ -251,11 +250,57 @@ mod unit_tests {
         let item = Item {
             name: "prefix_".into(),
         };
-        let updated = item_lens.modify(item, move |mut s| {
-            s.push_str(&move_only.0);
-            s
+        let updated = item_lens.modify(item, move |s| {
+            let mut res = s.clone();
+            res.push_str(&move_only.0);
+            res
         });
         assert_eq!(updated.name, "prefix_suffix");
+    }
+
+    #[test]
+    fn test_modify_zero_allocation_when_unchanged() {
+        use core::cell::Cell;
+
+        #[derive(Debug, PartialEq, Eq)]
+        struct HeapValue<'a> {
+            data: String,
+            clone_count: &'a Cell<usize>,
+        }
+
+        impl<'a> Clone for HeapValue<'a> {
+            fn clone(&self) -> Self {
+                self.clone_count.set(self.clone_count.get() + 1);
+                Self {
+                    data: self.data.clone(),
+                    clone_count: self.clone_count,
+                }
+            }
+        }
+
+        struct Container<'a> {
+            val: HeapValue<'a>,
+        }
+
+        let lens = Lens::new(|c: &Container<'_>| &c.val, |_c, val| Container { val });
+
+        let clone_count = Cell::new(0);
+        let container = Container {
+            val: HeapValue {
+                data: "hello".into(),
+                clone_count: &clone_count,
+            },
+        };
+
+        // When modifying with a function returning a reference-matching or equal value without cloning:
+        let result = lens.modify(container, |v| HeapValue {
+            data: v.data.clone(), // explicit clone of String data only for the return value
+            clone_count: v.clone_count,
+        });
+
+        // Current focus was NOT cloned beforehand by Lens::modify, and HeapValue::clone was never called.
+        assert_eq!(result.val.data, "hello");
+        assert_eq!(clone_count.get(), 0); // 0 HeapValue clones performed
     }
 
     #[test]
@@ -303,8 +348,12 @@ mod unit_tests {
         };
         let lens = address_lens();
         let unchanged = lens.modify(person.clone(), |address| {
-            street_lens().set((*address).clone(), "123 Main St".into());
-            address
+            let updated = street_lens().set((**address).clone(), "123 Main St".into());
+            if updated == **address {
+                Rc::clone(address)
+            } else {
+                Rc::new(updated)
+            }
         });
         assert!(Rc::ptr_eq(&person.address, &unchanged.address));
     }
@@ -331,6 +380,6 @@ mod unit_tests {
 
         let point = Point { x: 10.0, y: 20.0 };
         assert_eq!(x_lens().set_always(point.clone(), 10.0).x, 10.0);
-        assert_eq!(x_lens().modify_always(point, |x| x).x, 10.0);
+        assert_eq!(x_lens().modify_always(point, |x| *x).x, 10.0);
     }
 }

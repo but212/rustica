@@ -4,6 +4,16 @@ use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
 use crate::traits::semigroup::Semigroup;
 
+#[inline]
+fn merge_errors<E>(
+    a: Option<NonEmptyErrors<E>>, b: Option<NonEmptyErrors<E>>,
+) -> Option<NonEmptyErrors<E>> {
+    match (a, b) {
+        (Some(x), Some(y)) => Some(x.combine(y)),
+        (x, y) => x.or(y),
+    }
+}
+
 impl<T, E> Validated<T, E> {
     /// Maps `f` over the valid value, leaving errors unchanged.
     ///
@@ -269,12 +279,7 @@ impl<T, E> Validated<T, E> {
     /// ```
     #[inline]
     pub fn combine_errors(self, other: Self) -> Option<NonEmptyErrors<E>> {
-        match (self, other) {
-            (Validated::Valid(_), Validated::Valid(_)) => None,
-            (Validated::Valid(_), Validated::Invalid(es)) => Some(es),
-            (Validated::Invalid(es), Validated::Valid(_)) => Some(es),
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => Some(e1.combine(e2)),
-        }
+        merge_errors(self.into_error_opt(), other.into_error_opt())
     }
 
     /// Sequences `values` into `Validated<U, E>`, transforming collected valid values with `f`.
@@ -297,7 +302,7 @@ impl<T, E> Validated<T, E> {
         I: IntoIterator<Item = Self>,
         F: FnOnce(Vec<T>) -> U,
     {
-        match Self::collect::<_, Vec<T>>(values.into_iter()) {
+        match Self::collect::<_, Vec<T>>(values) {
             Validated::Valid(valid_values) => Validated::Valid(f(valid_values)),
             Validated::Invalid(errors) => Validated::Invalid(errors),
         }
@@ -311,14 +316,15 @@ impl<T, E> Validated<T, E> {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let values = [Validated::<i32, &str>::valid(1), Validated::valid(2)];
-    /// let collected: Validated<Vec<i32>, &str> = Validated::collect(values.into_iter());
+    /// let collected: Validated<Vec<i32>, &str> = Validated::collect(values);
     /// assert_eq!(collected, Validated::valid(vec![1, 2]));
     /// ```
     pub fn collect<I, C>(iter: I) -> Validated<C, E>
     where
-        I: Iterator<Item = Validated<T, E>>,
+        I: IntoIterator<Item = Validated<T, E>>,
         C: FromIterator<T>,
     {
+        let iter = iter.into_iter();
         let iter_hint = iter.size_hint().0;
         let mut values = Vec::new();
         let mut errors = Vec::new();

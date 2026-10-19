@@ -4,6 +4,7 @@
 
 ### Changed
 
+- **`Lens::modify` & `modify_always` Closure Signature (Breaking)**: Changed transformation closure from `FnOnce(A) -> A` to `FnOnce(&A) -> A`. Eliminates mandatory cloning of focus value before closure invocation. Removes `A: Clone` bound from `modify_always` and relaxes `modify` bound to `A: PartialEq`. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md).
 - **`Validated::recover_all_at_once` Callback (Breaking)**: Changed the callback input from `Vec<E>` to `NonEmptyErrors<E>` so the non-empty error invariant is preserved at the recovery boundary. See [`MIGRATION_v0.21.0.md`](docs/migration/MIGRATION_v0.21.0.md) for updating explicitly typed closures.
 - **`Validated` Error Mapping**: `map_err` and `bimap` now map errors through `NonEmptyErrors` directly, preserving non-emptiness without reconstructing and revalidating the collection.
 - **Operational Chain Performance**: Improved performance when composing longer chains.
@@ -15,6 +16,14 @@
   - `Validated::zip_with3`: Replaced nested `zip` composition with direct pattern matching and single-pass error buffer reservation (`base.reserve(total - base.len())`), reducing multi-error combine reallocations to at most 1.
   - `NonEmptyErrors::combine_multiple`: Added internal helper for single-reallocation consolidation across multiple non-empty error collections.
   - Unified pairwise error combinations across `Semigroup for Validated`, `Validated::zip_with`, and `Validated::combine_errors` to delegate through `NonEmptyErrors::combine`.
+
+### Deprecated
+
+- **Top-level Combinators & Operational Functions**:
+  - Deprecated `Validated::lift2` and `Validated::lift3` in favor of direct method syntax (`v1.zip_with(v2, f)`, `v1.zip_with3(v2, v3, f)`).
+  - Deprecated `Free::lift2` in favor of direct method syntax (`fa.zip_with(fb, f)`).
+  - Deprecated standalone functions `operational::suspend` and `operational::try_suspend` in favor of `Command::suspend`/`try_suspend` or `Program::suspend`/`TryProgram::suspend`.
+  - Deprecated `ContextError::context_iter` in favor of `contexts().iter()`.
 
 ### Removed
 

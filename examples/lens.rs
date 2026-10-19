@@ -131,7 +131,7 @@ fn main() {
     assert_eq!(same_font_user, initial_user);
     println!("  Setting identical value returns original instance unchanged.");
 
-    let identity_modified_user = user_font_lens.modify(initial_user.clone(), |size| size);
+    let identity_modified_user = user_font_lens.modify(initial_user.clone(), |size| *size);
     assert_eq!(identity_modified_user, initial_user);
     println!("  Modifying with identity function preserves structural equality.");
 

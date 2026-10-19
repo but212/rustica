@@ -75,16 +75,6 @@ impl<E> NonEmptyErrors<E> {
     }
 
     #[inline]
-    pub fn iter(&self) -> core::slice::Iter<'_, E> {
-        self.0.iter()
-    }
-
-    #[inline]
-    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, E> {
-        self.0.iter_mut()
-    }
-
-    #[inline]
     pub const fn len(&self) -> usize {
         self.0.len()
     }
@@ -131,6 +121,12 @@ impl<E> core::ops::Deref for NonEmptyErrors<E> {
 
     fn deref(&self) -> &Self::Target {
         self.as_slice()
+    }
+}
+
+impl<E> core::ops::DerefMut for NonEmptyErrors<E> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut_slice()
     }
 }
 
@@ -264,11 +260,7 @@ impl<T, E> Validated<T, E> {
     where
         I: IntoIterator<Item = E>,
     {
-        let mut iter = errors.into_iter();
-        let Some(first) = iter.next() else {
-            panic!("Validated::invalid_many requires at least one error")
-        };
-        Validated::Invalid(NonEmptyErrors::from_first_and_iter(first, iter))
+        Self::try_invalid_many(errors).expect("Validated::invalid_many requires at least one error")
     }
 
     /// Creates an invalid instance from an iterator, or `None` if empty.
@@ -277,11 +269,7 @@ impl<T, E> Validated<T, E> {
     where
         I: IntoIterator<Item = E>,
     {
-        let mut iter = errors.into_iter();
-        let first = iter.next()?;
-        Some(Validated::Invalid(NonEmptyErrors::from_first_and_iter(
-            first, iter,
-        )))
+        NonEmptyErrors::try_from_iter(errors).map(Validated::Invalid)
     }
 
     /// Returns `Ok(T)` if valid, or `Err(NonEmptyErrors<E>)` if invalid.
@@ -427,9 +415,10 @@ impl<T: Semigroup, E> Semigroup for Validated<T, E> {
     fn combine(self, other: Self) -> Self {
         match (self, other) {
             (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine(a2)),
-            (Validated::Valid(_), o @ Validated::Invalid(_)) => o,
-            (s @ Validated::Invalid(_), Validated::Valid(_)) => s,
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.combine(e2)),
+            (s, o) => match s.combine_errors(o) {
+                Some(es) => Validated::Invalid(es),
+                None => unreachable!(),
+            },
         }
     }
 }

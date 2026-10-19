@@ -13,10 +13,12 @@ Breaking API changes and direct replacement patterns for Rustica 0.21.0.
 | `ContextError::contexts_raw` | Removed | `contexts()` |
 | `Lens::get` | Removed | `view(&s)` for a borrow or `to_value(&s)` for an owned clone |
 | `Validated::recover_all` | Removed | `recover_all_at_once` or `recover_with`; use `map_err` to transform errors individually |
+| `Lens::modify`, `modify_always` callback input | Breaking (API) | Accept `&A` instead of `A` in transformation closure `FnOnce(&A) -> A` |
 | `free::ContFn<F>` | Made private | Define a local alias using `Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>` if needed |
 | `Validated::lift2`, `lift3` | Deprecated | Method syntax `v1.zip_with(v2, f)`, `v1.zip_with3(v2, v3, f)` |
 | `Free::lift2` | Deprecated | Method syntax `fa.zip_with(fb, f)` |
 | `operational::suspend`, `try_suspend` | Deprecated | `Command::suspend` or `Program::suspend` / `TryProgram::suspend` |
+| `ContextError::context_iter` | Deprecated | `err.contexts().iter()` |
 
 ## `Validated::recover_all_at_once` Callback Type
 
@@ -41,6 +43,27 @@ invalid.recover_all_at_once(|errors: NonEmptyErrors<String>| {
 
 `NonEmptyErrors<E>` supports slice-style inspection and iteration through its
 public API. Convert it with `into_vec()` only when an owned `Vec<E>` is required.
+
+## `Lens::modify` and `Lens::modify_always` Closure Signature
+
+The transformation closure in `Lens::modify` and `Lens::modify_always` now receives a borrowed reference `&A` instead of an owned `A` (`FnOnce(&A) -> A`). This eliminates automatic cloning of the focus prior to calling the closure, allowing zero-allocation inspection and comparison when the value is unmodified.
+
+For primitive types that implement `Copy` or operations like `+` on references (`&i32 + i32`), existing code like `|x| x + 1` compiles without changes. When ownership or mutating operations on owned values are required, call `.clone()` explicitly within the closure:
+
+```rust,ignore
+// Before (0.20.0)
+let updated = name_lens.modify(person, |mut name| {
+    name.push_str(" Smith");
+    name
+});
+
+// After (0.21.0)
+let updated = name_lens.modify(person, |name| {
+    let mut new_name = name.clone();
+    new_name.push_str(" Smith");
+    new_name
+});
+```
 
 ## Deprecated Monad and Combinator Helpers
 

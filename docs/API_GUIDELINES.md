@@ -136,7 +136,7 @@ Boolean inspection methods borrow via `&self`:
 
 - Optics access and modification borrow `&self` (`Lens::view(&self, source: &S) -> &A`, `Lens::to_value(&self, source: &S) -> A`, `Lens::set(&self, source: S, value: A) -> S`).
 - Composition transfers unboxed closures, requiring `self` (`Lens::then(self, other: Lens<A, B>) -> Lens<S, B>`).
-- Optics operate on value ownership without imposing unnecessary `Clone` bounds on structures or focuses; `modify` requires `A: PartialEq` and may evaluate the getter more than once for its equality check.
+- Optics operate on value ownership without imposing unnecessary `Clone` bounds on structures or focuses; `modify` requires `A: PartialEq` and receives `&A` in its closure parameter `FnOnce(&A) -> A`.
 - Closures do not implement mathematical equality; optics omit `PartialEq` derive and provide manual `Debug` formatting.
 
 ---

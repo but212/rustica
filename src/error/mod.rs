@@ -115,6 +115,10 @@ impl<E> ContextError<E> {
 
     /// Returns an iterator over context entries (newest first).
     #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `contexts().iter()` directly: `err.contexts().iter()`"
+    )]
     pub fn context_iter(&self) -> core::slice::Iter<'_, String> {
         self.context.iter()
     }
