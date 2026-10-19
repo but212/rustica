@@ -96,7 +96,7 @@ fn bench_bottlenecks_timing(group: &mut BenchGroup) {
             },
             |items| {
                 let res: Validated<Vec<i32>, &'static str> =
-                    Validated::collect(std::mem::take(items).into_iter());
+                    Validated::collect(std::mem::take(items));
                 black_box(res);
             },
         );
@@ -114,7 +114,7 @@ fn bench_bottlenecks_timing(group: &mut BenchGroup) {
             },
             |items| {
                 let res: Validated<Vec<i32>, &'static str> =
-                    Validated::collect(std::mem::take(items).into_iter());
+                    Validated::collect(std::mem::take(items));
                 black_box(res);
             },
         );
