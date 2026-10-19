@@ -13,7 +13,9 @@ Breaking API changes and direct replacement patterns for Rustica 0.21.0.
 | `ContextError::contexts_raw` | Removed | `contexts()` |
 | `Lens::get` | Removed | `view(&s)` for a borrow or `to_value(&s)` for an owned clone |
 | `Validated::recover_all` | Removed | `recover_all_at_once` or `recover_with`; use `map_err` to transform errors individually |
-| `Lens::modify`, `modify_always` callback input | Breaking (API) | Accept `&A` instead of `A` in transformation closure `FnOnce(&A) -> A` |
+| `Lens::modify`, `Prism::modify` callback input | Breaking (API) | Accept `&A` instead of `A` in transformation closure `FnOnce(&A) -> A` |
+| `Validated::collect` parameter | Non-breaking | Generalized from `Iterator` to `IntoIterator` |
+| `NonEmptyErrors::iter`, `iter_mut` | Minor (Paths) | Inherent methods removed; `DerefMut<Target = [E]>` added; method calls unchanged |
 | `free::ContFn<F>` | Made private | Define a local alias using `Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>` if needed |
 | `Validated::lift2`, `lift3` | Deprecated | Method syntax `v1.zip_with(v2, f)`, `v1.zip_with3(v2, v3, f)` |
 | `Free::lift2` | Deprecated | Method syntax `fa.zip_with(fb, f)` |
@@ -44,9 +46,9 @@ invalid.recover_all_at_once(|errors: NonEmptyErrors<String>| {
 `NonEmptyErrors<E>` supports slice-style inspection and iteration through its
 public API. Convert it with `into_vec()` only when an owned `Vec<E>` is required.
 
-## `Lens::modify` and `Lens::modify_always` Closure Signature
+## Optics `modify` and `modify_always` Closure Signatures
 
-The transformation closure in `Lens::modify` and `Lens::modify_always` now receives a borrowed reference `&A` instead of an owned `A` (`FnOnce(&A) -> A`). This eliminates automatic cloning of the focus prior to calling the closure, allowing zero-allocation inspection and comparison when the value is unmodified.
+Transformation closures in `Lens::modify`, `Lens::modify_always`, `Prism::modify`, `Prism::modify_always`, and `Prism::modify_with` now receive a borrowed reference `&A` instead of an owned `A` (`FnOnce(&A) -> A`). This eliminates mandatory cloning of the focus prior to calling the closure, allowing zero-allocation inspection and comparison when the value is unmodified.
 
 For primitive types that implement `Copy` or operations like `+` on references (`&i32 + i32`), existing code like `|x| x + 1` compiles without changes. When ownership or mutating operations on owned values are required, call `.clone()` explicitly within the closure:
 
@@ -64,6 +66,12 @@ let updated = name_lens.modify(person, |name| {
     new_name
 });
 ```
+
+## `NonEmptyErrors` DerefMut and Method Call Compatibility
+
+`NonEmptyErrors<E>` implements `core::ops::DerefMut<Target = [E]>` alongside `Deref`. The inherent methods `iter(&self)` and `iter_mut(&mut self)` were removed in favor of slice deref operations.
+
+Method call syntax (`errors.iter()` and `errors.iter_mut()`) continues to resolve seamlessly through deref coercion. Code that referenced the inherent function by path (`NonEmptyErrors::iter(&errors)`) should be updated to slice syntax or method call syntax (`errors.as_slice().iter()` or `errors.iter()`).
 
 ## Deprecated Monad and Combinator Helpers
 

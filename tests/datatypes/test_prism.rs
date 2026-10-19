@@ -218,7 +218,7 @@ fn test_prism_set_preserves_sharing() {
     // Contract C-09: Exactly 1 clone on modify identity (0 for comparison)
     let a4 = active.clone();
     CLONES.with(|c| c.set(0));
-    let same_mod = prism.modify(a4, |x| x);
+    let same_mod = prism.modify(a4, |x| x.clone());
     assert_eq!(
         CLONES.with(|c| c.get()),
         1,
@@ -229,7 +229,7 @@ fn test_prism_set_preserves_sharing() {
     // modify on non-matching variant: 0 clones
     let inact2 = inactive.clone();
     CLONES.with(|c| c.set(0));
-    let miss_mod = prism.modify(inact2, |x| x);
+    let miss_mod = prism.modify(inact2, |x| x.clone());
     assert_eq!(
         CLONES.with(|c| c.get()),
         0,
@@ -240,7 +240,7 @@ fn test_prism_set_preserves_sharing() {
     // modify_always unconditionally reconstructs via review
     let a5 = active;
     CLONES.with(|c| c.set(0));
-    let always_mod = prism.modify_always(a5, |x| x);
+    let always_mod = prism.modify_always(a5, |x| x.clone());
     assert_eq!(
         CLONES.with(|c| c.get()),
         1,
@@ -272,7 +272,7 @@ fn test_prism_set_preserves_sharing() {
         _ => panic!("expected Active variant"),
     }
 
-    let same_rc_mod = rc_prism.modify(rc_instance.clone(), |r| r);
+    let same_rc_mod = rc_prism.modify(rc_instance.clone(), Rc::clone);
     match (&rc_instance, &same_rc_mod) {
         (RcEnum::Active(a), RcEnum::Active(b)) => {
             assert!(

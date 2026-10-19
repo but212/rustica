@@ -259,7 +259,7 @@ mod unit_tests {
     }
 
     #[test]
-    fn test_modify_zero_allocation_when_unchanged() {
+    fn test_modify_does_not_clone_focus_when_unchanged() {
         use core::cell::Cell;
 
         #[derive(Debug, PartialEq, Eq)]
@@ -282,7 +282,14 @@ mod unit_tests {
             val: HeapValue<'a>,
         }
 
-        let lens = Lens::new(|c: &Container<'_>| &c.val, |_c, val| Container { val });
+        let set_called = Cell::new(false);
+        let lens = Lens::new(
+            |c: &Container<'_>| &c.val,
+            |_c, val| {
+                set_called.set(true);
+                Container { val }
+            },
+        );
 
         let clone_count = Cell::new(0);
         let container = Container {
@@ -292,15 +299,19 @@ mod unit_tests {
             },
         };
 
-        // When modifying with a function returning a reference-matching or equal value without cloning:
+        // When modifying with a function returning a reference-matching or equal value:
         let result = lens.modify(container, |v| HeapValue {
-            data: v.data.clone(), // explicit clone of String data only for the return value
+            data: v.data.clone(),
             clone_count: v.clone_count,
         });
 
-        // Current focus was NOT cloned beforehand by Lens::modify, and HeapValue::clone was never called.
+        // Current focus was NOT cloned beforehand by Lens::modify, and setter was short-circuited.
         assert_eq!(result.val.data, "hello");
-        assert_eq!(clone_count.get(), 0); // 0 HeapValue clones performed
+        assert_eq!(clone_count.get(), 0);
+        assert!(
+            !set_called.get(),
+            "setter must short-circuit when unmodified"
+        );
     }
 
     #[test]

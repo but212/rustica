@@ -115,7 +115,7 @@ fn main() {
     println!("  Modifying mismatched variant leaves it unchanged.");
 
     // Identity modification preserves original structure
-    let unchanged = progress_prism.modify(running.clone(), |p| p);
+    let unchanged = progress_prism.modify(running.clone(), |p| *p);
     assert_eq!(unchanged, running);
     println!("  Unchanged transformation utilizes structural sharing.");
 

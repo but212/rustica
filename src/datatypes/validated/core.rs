@@ -415,10 +415,9 @@ impl<T: Semigroup, E> Semigroup for Validated<T, E> {
     fn combine(self, other: Self) -> Self {
         match (self, other) {
             (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine(a2)),
-            (s, o) => match s.combine_errors(o) {
-                Some(es) => Validated::Invalid(es),
-                None => unreachable!(),
-            },
+            (Validated::Valid(_), o @ Validated::Invalid(_)) => o,
+            (s @ Validated::Invalid(_), Validated::Valid(_)) => s,
+            (Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.combine(e2)),
         }
     }
 }
@@ -491,6 +490,18 @@ mod tests {
         let from_slice = NonEmptyErrors::try_from_slice(&slice).unwrap();
         assert_eq!(from_slice.as_slice(), &["a", "b"]);
         assert_eq!(NonEmptyErrors::<&str>::try_from_slice(&[]), None);
+    }
+
+    #[test]
+    fn test_non_empty_errors_deref_mut() {
+        let mut errors = NonEmptyErrors::new("a".to_string());
+        errors.push("b".to_string());
+        assert_eq!(errors.len(), 2);
+
+        // Mutate via DerefMut slice indexing
+        errors[0].make_ascii_uppercase();
+        errors[1].make_ascii_uppercase();
+        assert_eq!(errors.as_slice(), &["A", "B"]);
     }
 
     #[test]

@@ -439,6 +439,13 @@ mod tests {
     }
 
     #[test]
+    fn test_collect_accepts_array_into_iterator() {
+        let items = [Validated::<i32, &str>::valid(1), Validated::valid(2)];
+        let collected: Validated<Vec<i32>, &str> = Validated::collect(items);
+        assert_eq!(collected, Validated::valid(vec![1, 2]));
+    }
+
+    #[test]
     fn test_recovery_combinators() {
         let invalid: Validated<i32, String> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
