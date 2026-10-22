@@ -161,6 +161,10 @@ where
 
     /// Modifies the focused value while preserving non-focus data from `source`.
     #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Focus the whole variant payload and use `modify_always` or `modify`"
+    )]
     pub fn modify_with<M, F>(&self, source: S, modify_fn: M, f: F) -> S
     where
         M: FnOnce(S, A) -> S,
@@ -175,6 +179,10 @@ where
 
     /// Sets the focused value while preserving non-focus data from `source`.
     #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Focus the whole variant payload and use `set_always` or `set`"
+    )]
     pub fn set_with<M>(&self, source: S, modify_fn: M, new_value: A) -> S
     where
         M: FnOnce(S, A) -> S,

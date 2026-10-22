@@ -261,6 +261,10 @@ where
 
 /// Returns a closure attaching `context` to an error.
 #[inline]
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `|e| with_context(e, context.clone())` or `ContextError::new(e).with_context(c)`"
+)]
 pub const fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
 where
     C: IntoErrorContext + Clone,
@@ -353,6 +357,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn context_fn_attaches_context() {
         let attach = context_fn("step failed");
         let err = attach("io timeout");

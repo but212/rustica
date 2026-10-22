@@ -293,16 +293,20 @@ impl<T, E> Validated<T, E> {
     ///     Validated::<i32, &str>::valid(1),
     ///     Validated::<i32, &str>::valid(2),
     /// ];
-    /// let result = Validated::sequence(values, |vals| vals.len());
+    /// let result = values.into_iter().collect::<Validated<Vec<i32>, &str>>().map(|vals| vals.len());
     /// assert_eq!(result, Validated::valid(2));
     /// ```
     #[inline]
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `values.into_iter().collect::<Validated<Vec<_>, _>>().map(f)`"
+    )]
     pub fn sequence<I, U, F>(values: I, f: F) -> Validated<U, E>
     where
         I: IntoIterator<Item = Self>,
         F: FnOnce(Vec<T>) -> U,
     {
-        match Self::collect::<_, Vec<T>>(values) {
+        match values.into_iter().collect::<Validated<Vec<T>, E>>() {
             Validated::Valid(valid_values) => Validated::Valid(f(valid_values)),
             Validated::Invalid(errors) => Validated::Invalid(errors),
         }
@@ -316,44 +320,19 @@ impl<T, E> Validated<T, E> {
     /// use rustica::datatypes::validated::Validated;
     ///
     /// let values = [Validated::<i32, &str>::valid(1), Validated::valid(2)];
-    /// let collected: Validated<Vec<i32>, &str> = Validated::collect(values);
+    /// let collected: Validated<Vec<i32>, &str> = values.into_iter().collect();
     /// assert_eq!(collected, Validated::valid(vec![1, 2]));
     /// ```
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `iter.into_iter().collect::<Validated<C, E>>()` via `FromIterator`"
+    )]
     pub fn collect<I, C>(iter: I) -> Validated<C, E>
     where
         I: IntoIterator<Item = Validated<T, E>>,
         C: FromIterator<T>,
     {
-        let iter = iter.into_iter();
-        let iter_hint = iter.size_hint().0;
-        let mut values = Vec::new();
-        let mut errors = Vec::new();
-
-        for item in iter {
-            match item {
-                Validated::Valid(a) => {
-                    if errors.is_empty() {
-                        if values.capacity() == 0 {
-                            values.reserve(iter_hint);
-                        }
-                        values.push(a);
-                    }
-                },
-                Validated::Invalid(es) => {
-                    if errors.is_empty() {
-                        values = Vec::new();
-                        errors = es.into_vec();
-                    } else {
-                        errors.extend(es);
-                    }
-                },
-            }
-        }
-
-        match NonEmptyErrors::try_from_vec(errors) {
-            Some(errors) => Validated::Invalid(errors),
-            None => Validated::Valid(C::from_iter(values)),
-        }
+        iter.into_iter().collect()
     }
 
     /// Recovers using a closure given all accumulated errors.
@@ -394,12 +373,18 @@ mod tests {
         let second = Validated::valid(2);
         let third = Validated::invalid("third");
         let values = vec![first, second, third];
-        let result = Validated::sequence(values, |items: Vec<i32>| items.iter().sum::<i32>());
+        let result = values
+            .into_iter()
+            .collect::<Validated<Vec<i32>, &str>>()
+            .map(|items| items.iter().sum::<i32>());
         assert_eq!(result.error_slice(), &["first", "third"]);
 
         let empty: Vec<Validated<i32, &str>> = Vec::new();
         assert_eq!(
-            Validated::sequence(empty, |items: Vec<i32>| items.len()),
+            empty
+                .into_iter()
+                .collect::<Validated<Vec<i32>, &str>>()
+                .map(|items| items.len()),
             Validated::valid(0)
         );
     }
@@ -441,7 +426,7 @@ mod tests {
     #[test]
     fn test_collect_accepts_array_into_iterator() {
         let items = [Validated::<i32, &str>::valid(1), Validated::valid(2)];
-        let collected: Validated<Vec<i32>, &str> = Validated::collect(items);
+        let collected: Validated<Vec<i32>, &str> = items.into_iter().collect();
         assert_eq!(collected, Validated::valid(vec![1, 2]));
     }
 

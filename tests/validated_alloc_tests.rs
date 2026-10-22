@@ -54,7 +54,7 @@ fn test_try_from_iter_single_alloc() {
 fn test_collect_valid_single_alloc() {
     let items: Vec<Validated<u64, &'static str>> = (0..100).map(Validated::valid).collect();
     let (res, allocs) = count_allocs(|| {
-        let r: Validated<Vec<u64>, &'static str> = Validated::collect(items);
+        let r: Validated<Vec<u64>, &'static str> = items.into_iter().collect();
         r
     });
     assert!(res.is_valid());
@@ -97,7 +97,7 @@ fn test_collect_drops_values_immediately() {
         observed_drop_at_step_12: Rc::clone(&obs_cell),
     };
 
-    let res: Validated<Vec<DropDetector>, &'static str> = Validated::collect(iter);
+    let res: Validated<Vec<DropDetector>, &'static str> = iter.into_iter().collect();
     assert!(res.is_invalid());
 
     let drop_at_12 = obs_cell.get() - before_dropped;
@@ -111,7 +111,7 @@ fn test_collect_moves_first_error_buffer() {
     let original_ptr = original.as_slice().as_ptr();
     let item: Validated<(), &'static str> = Validated::Invalid(original);
 
-    let res: Validated<Vec<()>, &'static str> = Validated::collect([item]);
+    let res: Validated<Vec<()>, &'static str> = [item].into_iter().collect();
     let collected_errs = res.error_payload().expect("must be invalid");
     let collected_ptr = collected_errs.as_slice().as_ptr();
 
@@ -141,7 +141,7 @@ fn test_collect_early_error_zero_allocs_for_values() {
 
     // The only allocation should be the error collection itself (0 for values buffer)
     let (res, allocs) = count_allocs(|| {
-        let r: Validated<Vec<[u64; 16]>, &'static str> = Validated::collect(iter);
+        let r: Validated<Vec<[u64; 16]>, &'static str> = iter.into_iter().collect();
         r
     });
     assert!(res.is_invalid());

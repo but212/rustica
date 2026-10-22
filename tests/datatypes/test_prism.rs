@@ -437,6 +437,7 @@ enum TaggedItem {
 }
 
 #[test]
+#[allow(deprecated)]
 fn test_prism_modify_with_and_set_with_preserve_non_focus_data() {
     let prism = Prism::new(
         |item: &TaggedItem| match item {
@@ -481,6 +482,7 @@ fn test_prism_modify_with_and_set_with_preserve_non_focus_data() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn test_prism_modify_with_and_set_with_return_source_when_focus_absent() {
     let prism = Prism::new(
         |item: &TaggedItem| match item {

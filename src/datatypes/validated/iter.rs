@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::datatypes::validated::core::{NonEmptyErrors, Validated};
 
 pub type Iter<'a, T> = core::option::IntoIter<&'a T>;
@@ -59,7 +61,36 @@ where
     /// ```
     #[inline]
     fn from_iter<I: IntoIterator<Item = Validated<T, E>>>(iter: I) -> Self {
-        Validated::<T, E>::collect(iter)
+        let iter = iter.into_iter();
+        let iter_hint = iter.size_hint().0;
+        let mut values = Vec::new();
+        let mut errors = Vec::new();
+
+        for item in iter {
+            match item {
+                Validated::Valid(a) => {
+                    if errors.is_empty() {
+                        if values.capacity() == 0 {
+                            values.reserve(iter_hint);
+                        }
+                        values.push(a);
+                    }
+                },
+                Validated::Invalid(es) => {
+                    if errors.is_empty() {
+                        values = Vec::new();
+                        errors = es.into_vec();
+                    } else {
+                        errors.extend(es);
+                    }
+                },
+            }
+        }
+
+        match NonEmptyErrors::try_from_vec(errors) {
+            Some(errors) => Validated::Invalid(errors),
+            None => Validated::Valid(C::from_iter(values)),
+        }
     }
 }
 

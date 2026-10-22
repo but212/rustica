@@ -642,6 +642,33 @@ mod tests {
         drop(p);
     }
 
+    #[test]
+    fn test_deep_bind_chain_drop_stack_safety() {
+        let mut p: Program<CalcInterpreter, i32> = Program::pure(0);
+        for _ in 0..50_000 {
+            p = p.and_then(|x| Fetch.suspend().map(move |y| x + y));
+        }
+        drop(p);
+    }
+
+    #[test]
+    fn test_drop_releases_captured_values_once() {
+        use alloc::rc::Rc;
+
+        let shared = Rc::new(0_i32);
+        let bind_capture = Rc::clone(&shared);
+        let then_capture = Rc::clone(&shared);
+        let suspend_capture = Rc::clone(&shared);
+        let prog: Program<CalcInterpreter, i32> = Fetch
+            .suspend()
+            .and_then(move |x| Program::pure(x + *bind_capture))
+            .then(Fetch.suspend().map(move |y| y + *then_capture))
+            .then(Fetch.suspend().map(move |y| y + *suspend_capture));
+        assert_eq!(Rc::strong_count(&shared), 4);
+        drop(prog);
+        assert_eq!(Rc::strong_count(&shared), 1);
+    }
+
     // Fallible tests
     struct FallibleCalc {
         current: i32,
