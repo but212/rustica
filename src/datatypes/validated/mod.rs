@@ -107,7 +107,7 @@ mod tests {
         assert_eq!(result.error_slice(), &["e1".to_string(), "e2".to_string()]);
 
         let list = vec![v1.clone(), v2.clone(), Validated::valid(100)];
-        let collected: Validated<Vec<i32>, String> = Validated::collect(list);
+        let collected: Validated<Vec<i32>, String> = list.into_iter().collect();
         assert_eq!(collected.error_slice().len(), 2);
 
         let combined = v1.combine_errors(v2).unwrap();
