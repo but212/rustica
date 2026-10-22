@@ -179,6 +179,10 @@ impl<T> Choice<T> {
     /// Flattens nested iterables in priority order, returning `None` if all are empty.
     ///
     /// Consumes `self` without requiring `T: Clone`.
+    #[deprecated(
+        since = "0.21.0",
+        note = "Use `try_flatten().ok()`, or `try_flatten()` to keep the `ChoiceError`"
+    )]
     pub fn flatten<I>(self) -> Option<Choice<I>>
     where
         T: IntoIterator<Item = I>,
@@ -464,6 +468,12 @@ mod unit_tests {
         a.clone().combine(b.clone()).combine(c.clone()) == a.combine(b.combine(c))
     }
 
+    #[quickcheck]
+    fn filter_matches_of_many_oracle(c: Choice<i32>) -> bool {
+        let keep = |x: &i32| x % 3 == 0;
+        c.clone().filter(keep) == Choice::of_many(c.into_iter().filter(keep))
+    }
+
     #[test]
     fn choice_combine_handles_empty_alternatives() {
         let single = Choice::single(0);
@@ -571,7 +581,7 @@ mod unit_tests {
         assert_eq!(filtered.alternatives(), &[NoClone(3)]);
 
         let nested = Choice::new(vec![NoClone(10)], vec![vec![NoClone(20), NoClone(30)]]);
-        let flattened = nested.flatten().expect("flatten succeeds");
+        let flattened = nested.try_flatten().expect("flatten succeeds");
         assert_eq!(flattened.primary(), &NoClone(10));
         assert_eq!(flattened.alternatives(), &[NoClone(20), NoClone(30)]);
 
