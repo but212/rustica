@@ -21,6 +21,11 @@ Breaking API changes and direct replacement patterns for Rustica 0.21.0.
 | `Free::lift2` | Deprecated | Method syntax `fa.zip_with(fb, f)` |
 | `operational::suspend`, `try_suspend` | Deprecated | `Command::suspend` or `Program::suspend` / `TryProgram::suspend` |
 | `ContextError::context_iter` | Deprecated | `err.contexts().iter()` |
+| `Validated::collect`, `Validated::sequence` | Deprecated | `iter.into_iter().collect::<Validated<C, E>>()`; `values.into_iter().collect::<Validated<Vec<_>, _>>().map(f)` |
+| `Prism::set_with`, `Prism::modify_with` | Deprecated | Focus the whole variant payload; `set_always` / `modify_always` (or `set` / `modify`) |
+| `Choice::flatten` | Deprecated | `try_flatten().ok()`, or `try_flatten()` to keep `ChoiceError` |
+| `error::context_fn` | Deprecated | `with_context(e, c)` or `ContextError::new(e).with_context(c)` |
+| `datatypes::error` module | Deprecated | `rustica::datatypes::{ChoiceError, FreeError}` or `rustica::prelude::*` |
 
 ## `Validated::recover_all_at_once` Callback Type
 

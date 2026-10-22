@@ -25,6 +25,11 @@
 - **`Free` Combinators**: Deprecated `Free::lift2` in favor of direct method syntax (`fa.zip_with(fb, f)`).
 - **`Operational` Standalone Functions**: Deprecated standalone functions `operational::suspend` and `operational::try_suspend` in favor of `Command::suspend`/`try_suspend` or `Program::suspend`/`TryProgram::suspend`.
 - **`ContextError` Accessors**: Deprecated `ContextError::context_iter` in favor of `contexts().iter()`.
+- **`Validated::collect` & `Validated::sequence`**: Deprecated the inherent associated functions in favor of the `FromIterator` implementation (`iter.into_iter().collect::<Validated<C, E>>()`) and `values.into_iter().collect::<Validated<Vec<_>, _>>().map(f)`. Behavior is unchanged; the inherent `collect` now delegates to `FromIterator`.
+- **`Prism::set_with` & `Prism::modify_with`**: Deprecated. Focus the whole variant payload and use `set_always` / `modify_always` (or `set` / `modify`) instead. Behavior is unchanged.
+- **`Choice::flatten`**: Deprecated in favor of `try_flatten().ok()` or `try_flatten()` (which keeps the `ChoiceError`).
+- **`error::context_fn`**: Deprecated in favor of `with_context` / `ContextError::new(e).with_context(c)`.
+- **`datatypes::error` module**: Deprecated the backward-compatibility alias in favor of `rustica::datatypes::{ChoiceError, FreeError}` or `rustica::prelude::*`.
 
 ### Removed
 
