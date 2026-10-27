@@ -125,7 +125,7 @@ fn test_zip3_error_realloc_count() {
     let e2 = Validated::<(), &'static str>::invalid_many((0..100).map(|_| "err2"));
     let e3 = Validated::<(), &'static str>::invalid_many((0..100).map(|_| "err3"));
 
-    let (res, allocs) = count_allocs(|| e1.zip_with3(e2, e3, |_, _, _| ()));
+    let (res, allocs) = count_allocs(|| e1.zip_with3(e2, e3, |(), (), ()| ()));
     assert!(res.is_invalid());
     assert_eq!(res.error_slice().len(), 201);
     // Old implementation: e1.extend(e2) reallocates, then .extend(e3) reallocates = 2 reallocs.

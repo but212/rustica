@@ -44,14 +44,14 @@ mod tests {
         assert!(!susp_p.is_bind());
         assert_eq!(format!("{susp_p:?}"), "Suspend(\"<command>\")");
 
-        let bound_p = susp_p.and_then(|_| Program::pure(10));
+        let bound_p = susp_p.and_then(|()| Program::pure(10));
         assert!(!bound_p.is_pure());
         assert!(!bound_p.is_suspend());
         assert!(bound_p.is_bind());
         assert_eq!(format!("{bound_p:?}"), "Bind(\"<sub-computation>\")");
 
         let and_then_p: Program<CalcInterpreter, i32> =
-            Add(1).suspend().and_then(|_| Program::pure(10));
+            Add(1).suspend().and_then(|()| Program::pure(10));
         assert!(and_then_p.is_bind());
 
         // TryProgram predicates
@@ -63,11 +63,11 @@ mod tests {
         let try_susp: TryProgram<FallibleCalc, (), &str> = Add(1).try_suspend();
         assert!(try_susp.is_suspend());
 
-        let try_bound = try_susp.and_then(|_| TryProgram::pure(100));
+        let try_bound = try_susp.and_then(|()| TryProgram::pure(100));
         assert!(try_bound.is_bind());
 
         let try_and_then: TryProgram<FallibleCalc, i32, &str> =
-            Add(1).try_suspend().and_then(|_| TryProgram::pure(100));
+            Add(1).try_suspend().and_then(|()| TryProgram::pure(100));
         assert!(try_and_then.is_bind());
     }
 }

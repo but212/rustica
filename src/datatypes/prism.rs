@@ -285,7 +285,7 @@ mod unit_tests {
         enum ConfigValue {
             Integer(i64),
             String(String),
-            Dictionary(BTreeMap<String, ConfigValue>),
+            Dictionary(BTreeMap<String, Self>),
         }
 
         let dict = Prism::new(

@@ -76,7 +76,7 @@ mod tests {
             if i % 2 == 0 {
                 p = p.then(Free::suspend(TestCmd::Increment(1)));
             } else {
-                p = p.and_then(|_| Free::suspend(TestCmd::Increment(1)));
+                p = p.and_then(|()| Free::suspend(TestCmd::Increment(1)));
             }
         }
         drop(p);

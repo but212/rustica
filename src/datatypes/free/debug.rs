@@ -118,7 +118,7 @@ mod tests {
     fn test_debug_bind_spine_beyond_limit_reports_depth() {
         let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
         for _ in 0..25 {
-            p = p.and_then(|_| Free::suspend(TestCmd::Increment(1)));
+            p = p.and_then(|()| Free::suspend(TestCmd::Increment(1)));
         }
         assert_eq!(format!("{p:?}"), "Bind(depth: 25, \"<continuation>\")");
     }
@@ -136,7 +136,7 @@ mod tests {
     fn test_debug_short_spines_render_nested() {
         let first: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
 
-        let bind: Free<TestCmd, ()> = first.and_then(|_| Free::suspend(TestCmd::Increment(2)));
+        let bind: Free<TestCmd, ()> = first.and_then(|()| Free::suspend(TestCmd::Increment(2)));
         assert_eq!(
             format!("{bind:?}"),
             "Bind(Suspend(Increment(1), \"<continuation>\"), \"<continuation>\")"
@@ -176,11 +176,11 @@ mod tests {
             p = if i % 2 == 0 {
                 p.then(Free::suspend(TestCmd::Increment(1)))
             } else {
-                p.and_then(|_| Free::suspend(TestCmd::Increment(1)))
+                p.and_then(|()| Free::suspend(TestCmd::Increment(1)))
             };
         }
         let debug_str = format!("{p:?}");
-        assert!(!debug_str.is_empty());
+        assert_ne!(debug_str, "");
     }
 
     #[test]
@@ -192,6 +192,6 @@ mod tests {
             p = x.clone().then(p).then(y.clone());
         }
         let debug_str = format!("{p:?}");
-        assert!(!debug_str.is_empty());
+        assert_ne!(debug_str, "");
     }
 }

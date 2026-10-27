@@ -396,7 +396,7 @@ mod tests {
     #[test]
     fn test_anyvalue_bind_transformation() {
         let prog: Free<TestCmd, AnyValue> = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
-            .and_then(|_| Free::pure(Arc::new(99_i32) as AnyValue));
+            .and_then(|()| Free::pure(Arc::new(99_i32) as AnyValue));
         let res = prog.run(|_| Arc::new(()) as AnyValue);
         assert_eq!(*res.downcast_ref::<i32>().unwrap(), 99);
     }
@@ -501,7 +501,7 @@ mod tests {
         assert_eq!(p_then.as_pure(), None);
         assert_eq!(p_then.as_suspend(), None);
 
-        let p_bind = p_suspend.and_then(|_| Free::pure(10));
+        let p_bind = p_suspend.and_then(|()| Free::pure(10));
         assert!(p_bind.is_bind());
         assert_eq!(p_bind.as_pure(), None);
         assert_eq!(p_bind.as_suspend(), None);

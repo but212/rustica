@@ -330,15 +330,13 @@ mod tests {
         let recovered = invalid.clone().recover_with(0);
         assert_eq!(recovered.unwrap(), 0);
 
-        let batch_recovery = invalid
-            .clone()
-            .recover_all_at_once(|errs: NonEmptyErrors<String>| {
-                if errs.len() == 2 {
-                    Validated::valid(100)
-                } else {
-                    Validated::invalid("unhandled".to_string())
-                }
-            });
+        let batch_recovery = invalid.recover_all_at_once(|errs: NonEmptyErrors<String>| {
+            if errs.len() == 2 {
+                Validated::valid(100)
+            } else {
+                Validated::invalid("unhandled".to_string())
+            }
+        });
         assert_eq!(batch_recovery.unwrap(), 100);
 
         let valid =

@@ -265,7 +265,7 @@ mod tests {
     fn test_into_any_no_double_boxing() {
         let prog: Program<CalcInterpreter, i32> = Add(10)
             .suspend()
-            .and_then(|_| Fetch.suspend())
+            .and_then(|()| Fetch.suspend())
             .and_then(|num| Program::pure(num * 2));
 
         let mut handler = CalcInterpreter { current: 5 };
@@ -304,7 +304,7 @@ mod tests {
     fn test_anybox_bind_transformation() {
         let prog: Program<CalcInterpreter, Box<dyn Any>> = Add(10)
             .suspend()
-            .and_then(|_| Program::pure(Box::new(99_i32) as Box<dyn Any>));
+            .and_then(|()| Program::pure(Box::new(99_i32) as Box<dyn Any>));
         let mut calc = CalcInterpreter { current: 0 };
         let res = prog.run(&mut calc);
         assert_eq!(*res.downcast::<i32>().unwrap(), 99);

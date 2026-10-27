@@ -76,7 +76,7 @@ fn test_validated_semigroup_accumulation() {
 
     impl Semigroup for TestSum {
         fn combine(self, other: Self) -> Self {
-            TestSum(self.0 + other.0)
+            Self(self.0 + other.0)
         }
     }
 

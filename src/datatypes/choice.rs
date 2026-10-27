@@ -370,20 +370,20 @@ impl<T: Arbitrary> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         let primary: T = Arbitrary::arbitrary(g);
         let alternatives: Vec<T> = Arbitrary::arbitrary(g);
-        Choice::new(primary, alternatives)
+        Self::new(primary, alternatives)
     }
 
     fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
         let primary_shrinks = self.primary.shrink().map({
             let alternatives = self.alternatives.clone();
-            move |primary| Choice {
+            move |primary| Self {
                 primary,
                 alternatives: alternatives.clone(),
             }
         });
         let alt_shrinks = self.alternatives.shrink().map({
             let primary = self.primary.clone();
-            move |alternatives| Choice {
+            move |alternatives| Self {
                 primary: primary.clone(),
                 alternatives,
             }
@@ -514,7 +514,7 @@ mod unit_tests {
         let mut calls = Vec::new();
         let res = choices.try_each(|&x| {
             calls.push(x);
-            Err::<i32, _>(format!("err_{}", x))
+            Err::<i32, _>(format!("err_{x}"))
         });
         assert_eq!(res, Err("err_3".to_string()));
         assert_eq!(calls, vec![1, 2, 3]);
@@ -523,8 +523,7 @@ mod unit_tests {
     #[test]
     fn try_each_validated_collects_errors() {
         let choices = Choice::new(1, [2, 3]);
-        let res: Validated<i32, String> =
-            choices.try_each_validated(|&x| Err(format!("err_{}", x)));
+        let res: Validated<i32, String> = choices.try_each_validated(|&x| Err(format!("err_{x}")));
         assert!(res.is_invalid());
         if let Validated::Invalid(errs) = res {
             let err_list: Vec<_> = errs.into_iter().collect();

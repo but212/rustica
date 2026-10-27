@@ -115,14 +115,14 @@ mod tests {
 
     impl Semigroup for TestSum {
         fn combine(self, other: Self) -> Self {
-            TestSum(self.0 + other.0)
+            Self(self.0 + other.0)
         }
     }
 
     #[test]
     fn empty_sequence_is_option() {
         let values: Vec<TestSum> = Vec::new();
-        assert_eq!(values.into_iter().reduce(|acc, x| acc.combine(x)), None);
+        assert_eq!(values.into_iter().reduce(Semigroup::combine), None);
     }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -130,7 +130,7 @@ mod tests {
 
     impl super::Semigroup for Max {
         fn combine(self, other: Self) -> Self {
-            Max(self.0.max(other.0))
+            Self(self.0.max(other.0))
         }
     }
 

@@ -165,7 +165,7 @@ mod tests {
 
         assert_eq!(invalid.error_slice(), &["e1", "e2"]);
         assert_eq!(invalid.iter_errors().count(), 2);
-        assert_eq!(invalid.error_payload().map(|p| p.len()), Some(2));
+        assert_eq!(invalid.error_payload().map(NonEmptyErrors::len), Some(2));
 
         for err in invalid.iter_errors_mut() {
             err.push('!');

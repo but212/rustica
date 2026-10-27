@@ -124,8 +124,8 @@ mod tests {
     #[test]
     fn test_suspend_and_run() {
         let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
-            .and_then(|_: ()| Free::<TestCmd, ()>::suspend(TestCmd::Increment(25)))
-            .and_then(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+            .and_then(|()| Free::<TestCmd, ()>::suspend(TestCmd::Increment(25)))
+            .and_then(|()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let mut counter = 0;
         let final_value: i32 = program.run(|cmd| match cmd {
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn test_try_run_success_and_error() {
         let program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
-            .and_then(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+            .and_then(|(): ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let mut counter = 0;
         let res: Result<i32, FreeError<()>> = program.try_run(|cmd| match cmd {
@@ -155,7 +155,7 @@ mod tests {
         assert_eq!(res, Ok(5));
 
         let failing_program = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
-            .and_then(|_: ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+            .and_then(|(): ()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
         let err_res: Result<i32, FreeError<&'static str>> =
             failing_program.try_run(|cmd| match cmd {
                 TestCmd::Increment(_) => Err("error during increment"),
@@ -335,8 +335,8 @@ mod tests {
             .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let p_bind = Free::<TestCmd, ()>::suspend(TestCmd::Increment(5))
-            .and_then(|_| Free::<TestCmd, ()>::suspend(TestCmd::Increment(10)))
-            .and_then(|_| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+            .and_then(|()| Free::<TestCmd, ()>::suspend(TestCmd::Increment(10)))
+            .and_then(|()| Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
 
         let state_then = Arc::new(AtomicI32::new(0));
         let s_t = Arc::clone(&state_then);
@@ -416,7 +416,8 @@ mod tests {
     fn test_monad_laws_effectful() {
         let mut trace1 = Vec::new();
         let f = |x: i32| {
-            Free::<TestCmd, ()>::suspend(TestCmd::Increment(x)).and_then(move |_| Free::pure(x * 2))
+            Free::<TestCmd, ()>::suspend(TestCmd::Increment(x))
+                .and_then(move |()| Free::pure(x * 2))
         };
 
         // Left identity: pure(a).and_then(f) vs f(a)

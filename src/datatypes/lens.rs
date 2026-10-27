@@ -259,7 +259,7 @@ mod unit_tests {
             clone_count: &'a Cell<usize>,
         }
 
-        impl<'a> Clone for HeapValue<'a> {
+        impl Clone for HeapValue<'_> {
             fn clone(&self) -> Self {
                 self.clone_count.set(self.clone_count.get() + 1);
                 Self {

@@ -403,9 +403,9 @@ where
         let x = T::arbitrary(g);
         let y = E::arbitrary(g);
         if bool::arbitrary(g) {
-            Validated::valid(x)
+            Self::valid(x)
         } else {
-            Validated::invalid(y)
+            Self::invalid(y)
         }
     }
 }
@@ -492,7 +492,7 @@ mod tests {
         let valid: Validated<i32, &str> = Ok(42).into();
         assert_eq!(valid.as_option(), Some(&42));
         assert_eq!(valid.clone().into_option(), Some(42));
-        assert_eq!(valid.as_option().cloned(), Some(42));
+        assert_eq!(valid.as_option().copied(), Some(42));
         assert_eq!(valid.into_result_first_error(), Ok(42));
 
         let res: Result<i32, &str> = Err("err");

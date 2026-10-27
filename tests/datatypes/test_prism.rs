@@ -147,7 +147,7 @@ struct Tracked(u32);
 impl Clone for Tracked {
     fn clone(&self) -> Self {
         CLONES.with(|c| c.set(c.get() + 1));
-        Tracked(self.0)
+        Self(self.0)
     }
 }
 
@@ -181,7 +181,7 @@ fn test_prism_set_preserves_sharing() {
     CLONES.with(|c| c.set(0));
     let same = prism.set(a1, Tracked(42));
     assert_eq!(
-        CLONES.with(|c| c.get()),
+        CLONES.with(Cell::get),
         0,
         "set on unchanged value must perform 0 clones"
     );
@@ -192,7 +192,7 @@ fn test_prism_set_preserves_sharing() {
     CLONES.with(|c| c.set(0));
     let miss = prism.set(inact1, Tracked(99));
     assert_eq!(
-        CLONES.with(|c| c.get()),
+        CLONES.with(Cell::get),
         0,
         "set on non-matching variant must perform 0 clones"
     );
@@ -203,7 +203,7 @@ fn test_prism_set_preserves_sharing() {
     CLONES.with(|c| c.set(0));
     let updated = prism.set(a2, Tracked(7));
     assert_eq!(
-        CLONES.with(|c| c.get()),
+        CLONES.with(Cell::get),
         0,
         "set on different value moves new value and does not clone source focus"
     );
@@ -218,20 +218,20 @@ fn test_prism_set_preserves_sharing() {
     // Contract C-09: Exactly 1 clone on modify identity (0 for comparison)
     let a4 = active.clone();
     CLONES.with(|c| c.set(0));
-    let same_mod = prism.modify(a4, |x| x.clone());
+    let same_mod = prism.modify(a4, Clone::clone);
     assert_eq!(
-        CLONES.with(|c| c.get()),
+        CLONES.with(Cell::get),
         1,
         "modify on unchanged value must perform exactly 1 clone for f(current)"
     );
     assert_eq!(same_mod, TrackedEnum::Active(Tracked(42)));
 
     // modify on non-matching variant: 0 clones
-    let inact2 = inactive.clone();
+    let inact2 = inactive;
     CLONES.with(|c| c.set(0));
-    let miss_mod = prism.modify(inact2, |x| x.clone());
+    let miss_mod = prism.modify(inact2, Clone::clone);
     assert_eq!(
-        CLONES.with(|c| c.get()),
+        CLONES.with(Cell::get),
         0,
         "modify on non-matching variant must perform 0 clones"
     );
@@ -240,9 +240,9 @@ fn test_prism_set_preserves_sharing() {
     // modify_always unconditionally reconstructs via review
     let a5 = active;
     CLONES.with(|c| c.set(0));
-    let always_mod = prism.modify_always(a5, |x| x.clone());
+    let always_mod = prism.modify_always(a5, Clone::clone);
     assert_eq!(
-        CLONES.with(|c| c.get()),
+        CLONES.with(Cell::get),
         1,
         "modify_always performs exactly 1 clone for f(current)"
     );
@@ -335,7 +335,7 @@ fn test_prism_composed_view() {
     CLONES.with(|c| c.set(0));
     assert_eq!(deep.preview(&target), Some(&Tracked(100)));
     assert_eq!(
-        CLONES.with(|c| c.get()),
+        CLONES.with(Cell::get),
         0,
         "preview across 3 levels must perform 0 clones"
     );
@@ -349,14 +349,14 @@ fn test_prism_composed_view() {
     CLONES.with(|c| c.set(0));
     let same = deep.set(t1, Tracked(100));
     assert_eq!(
-        CLONES.with(|c| c.get()),
+        CLONES.with(Cell::get),
         0,
         "set with unchanged value across 3 levels must perform 0 clones"
     );
     assert_eq!(same, target);
 
     // Mutated set reconstructs target
-    let t2 = target.clone();
+    let t2 = target;
     CLONES.with(|c| c.set(0));
     let mutated = deep.set(t2, Tracked(999));
     assert_eq!(
