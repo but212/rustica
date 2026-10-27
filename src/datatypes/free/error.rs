@@ -48,3 +48,26 @@ impl<E: core::error::Error + 'static> core::error::Error for FreeError<E> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::string::ToString;
+
+    use super::*;
+
+    #[test]
+    fn test_free_error() {
+        let err: FreeError<&str> = FreeError::Interpreter("boom");
+        assert!(err.is_interpreter());
+        assert!(!err.is_type_mismatch());
+        assert_eq!(err.to_string(), "Free interpreter error: boom");
+
+        let mismatch: FreeError<&str> = FreeError::TypeMismatch { expected: "i32" };
+        assert!(mismatch.is_type_mismatch());
+        assert!(!mismatch.is_interpreter());
+        assert_eq!(
+            mismatch.to_string(),
+            "Free interpretation type mismatch: expected return type i32"
+        );
+    }
+}

@@ -2,10 +2,10 @@
 
 mod debug;
 mod eval;
+#[cfg(test)]
+mod fixtures;
 mod program;
 mod teardown;
-#[cfg(test)]
-mod tests;
 
 pub use program::Program;
 
@@ -264,5 +264,82 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     #[inline]
     pub const fn is_bind(&self) -> bool {
         matches!(self.node, Some(Node::Bind(_, _) | Node::Then(_, _)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fixtures::*;
+    use super::*;
+
+    #[test]
+    fn test_into_any_no_double_boxing() {
+        let prog: Program<CalcInterpreter, i32> = Add(10)
+            .suspend()
+            .and_then(|_| Fetch.suspend())
+            .and_then(|num| Program::pure(num * 2));
+
+        let mut handler = CalcInterpreter { current: 5 };
+        let res: i32 = prog.run(&mut handler);
+        assert_eq!(res, 30); // (5 + 10) * 2
+    }
+
+    #[test]
+    fn test_anybox_pure_payload() {
+        let val: Box<dyn Any> = Box::new(42_i32);
+        let prog: Program<CalcInterpreter, Box<dyn Any>> = Program::pure(val);
+        let mut calc = CalcInterpreter { current: 0 };
+        let res = prog.run(&mut calc);
+        assert_eq!(*res.downcast::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_anybox_command_output() {
+        struct BoxCmd(i32);
+        impl Command for BoxCmd {
+            type Output = Box<dyn Any>;
+        }
+        struct BoxHandler;
+        impl Handler<BoxCmd> for BoxHandler {
+            fn handle(&mut self, cmd: BoxCmd) -> Box<dyn Any> {
+                Box::new(cmd.0 * 2)
+            }
+        }
+        let prog: Program<BoxHandler, Box<dyn Any>> = BoxCmd(21).suspend();
+        let mut handler = BoxHandler;
+        let res = prog.run(&mut handler);
+        assert_eq!(*res.downcast::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_anybox_bind_transformation() {
+        let prog: Program<CalcInterpreter, Box<dyn Any>> = Add(10)
+            .suspend()
+            .and_then(|_| Program::pure(Box::new(99_i32) as Box<dyn Any>));
+        let mut calc = CalcInterpreter { current: 0 };
+        let res = prog.run(&mut calc);
+        assert_eq!(*res.downcast::<i32>().unwrap(), 99);
+    }
+
+    #[test]
+    fn test_const_fn_capability() {
+        const fn prog_flags<H: 'static, A: 'static>(p: &Program<H, A>) -> (bool, bool, bool) {
+            (p.is_pure(), p.is_suspend(), p.is_bind())
+        }
+        const fn try_prog_flags<H: 'static, A: 'static, E: 'static>(
+            p: &TryProgram<H, A, E>,
+        ) -> (bool, bool, bool) {
+            (p.is_pure(), p.is_suspend(), p.is_bind())
+        }
+
+        const fn make_prog() -> Program<CalcInterpreter, i32> {
+            Program::pure(42)
+        }
+        const fn make_try_prog() -> TryProgram<FallibleCalc, i32, &'static str> {
+            TryProgram::pure(42)
+        }
+
+        assert_eq!(prog_flags(&make_prog()), (true, false, false));
+        assert_eq!(try_prog_flags(&make_try_prog()), (true, false, false));
     }
 }

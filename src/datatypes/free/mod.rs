@@ -1,11 +1,14 @@
 #![doc = include_str!("../../../docs/datatypes/free.md")]
 
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use core::any::Any;
 
 mod debug;
 mod error;
+mod eval;
+#[cfg(test)]
+mod fixtures;
+mod teardown;
 
 pub use error::FreeError;
 
@@ -27,15 +30,6 @@ pub type AnyValue = Arc<dyn Any + Send + Sync>;
 #[inline]
 pub fn any_value<T: Any + Send + Sync>(v: T) -> AnyValue {
     Arc::new(v)
-}
-
-/// Continuation function for the [`Free`] trampoline.
-type ContFn<F> = Arc<dyn Fn(AnyValue) -> Free<F, AnyValue> + Send + Sync + 'static>;
-
-/// Evaluation frame for iterative trampoline execution.
-enum Frame<F> {
-    BindCont(ContFn<F>),
-    ThenNext(Arc<Free<F, AnyValue>>),
 }
 
 /// Internal AST node representation for [`Free`].
@@ -65,11 +59,6 @@ pub struct Free<F, A> {
 }
 
 #[inline]
-fn unwrap_arc<T: Clone>(arc: Arc<T>) -> T {
-    Arc::try_unwrap(arc).unwrap_or_else(|a| (*a).clone())
-}
-
-#[inline]
 fn downcast_any_value<A: Clone + 'static>(any_val: &AnyValue) -> Option<A> {
     if core::any::TypeId::of::<A>() == core::any::TypeId::of::<AnyValue>() {
         let any_ref = any_val as &dyn Any;
@@ -92,19 +81,6 @@ impl<F, A> Free<F, A> {
     #[inline]
     fn take_node(&mut self) -> Node<F, A> {
         self.node.take().expect("Free node already consumed")
-    }
-
-    fn push_node_children(node: Node<F, A>, stack: &mut Vec<Arc<Free<F, AnyValue>>>) {
-        match node {
-            Node::Pure(_) | Node::Suspend(_, _) => {},
-            Node::Bind(sub, _) => {
-                stack.push(sub);
-            },
-            Node::Then(left, right) => {
-                stack.push(right);
-                stack.push(left);
-            },
-        }
     }
 
     /// Creates a pure computation returning `val`.
@@ -285,98 +261,6 @@ impl<F, A> Free<F, A> {
             other.map(move |b| f_clone(a.clone(), b))
         })
     }
-    /// Internal iterative trampoline evaluating both [`run`](Self::run) and [`try_run`](Self::try_run).
-    fn run_internal<Interp, E>(&self, mut interp: Interp) -> Result<A, FreeError<E>>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        Interp: FnMut(F) -> Result<AnyValue, E>,
-    {
-        let mut cur: Node<F, AnyValue> = self.into_any().take_node();
-        let mut stack: Vec<Frame<F>> = Vec::new();
-
-        loop {
-            match cur {
-                Node::Bind(sub, cont) => {
-                    stack.push(Frame::BindCont(cont));
-                    cur = unwrap_arc(sub).take_node();
-                },
-                Node::Then(left, right) => {
-                    stack.push(Frame::ThenNext(right));
-                    cur = unwrap_arc(left).take_node();
-                },
-                Node::Pure(val) => match stack.pop() {
-                    Some(Frame::BindCont(cont)) => {
-                        cur = cont(val).take_node();
-                    },
-                    Some(Frame::ThenNext(next_comp)) => {
-                        cur = unwrap_arc(next_comp).take_node();
-                    },
-                    None => {
-                        return downcast_any_value::<A>(&val).ok_or(FreeError::TypeMismatch {
-                            expected: core::any::type_name::<A>(),
-                        });
-                    },
-                },
-                Node::Suspend(cmd, cont) => {
-                    let effect_res = interp(cmd).map_err(FreeError::Interpreter)?;
-                    let any_box = cont(effect_res)
-                        .map_err(|expected| FreeError::TypeMismatch { expected })?;
-                    match stack.pop() {
-                        Some(Frame::BindCont(next_cont)) => {
-                            cur = next_cont(any_box).take_node();
-                        },
-                        Some(Frame::ThenNext(next_comp)) => {
-                            cur = unwrap_arc(next_comp).take_node();
-                        },
-                        None => {
-                            return downcast_any_value::<A>(&any_box).ok_or(
-                                FreeError::TypeMismatch {
-                                    expected: core::any::type_name::<A>(),
-                                },
-                            );
-                        },
-                    }
-                },
-            }
-        }
-    }
-
-    /// Evaluates the computation using an effect interpreter.
-    ///
-    /// Evaluates chains iteratively, keeping call stack depth $O(1)$.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the interpreter returns an [`AnyValue`] that does not match type `A`.
-    /// Use [`try_run`](Self::try_run) to handle interpreter mismatches as a `Result`.
-    pub fn run<Interp>(&self, mut interp: Interp) -> A
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        Interp: FnMut(F) -> AnyValue,
-    {
-        match self.run_internal(|cmd| Ok::<_, core::convert::Infallible>(interp(cmd))) {
-            Ok(val) => val,
-            Err(FreeError::TypeMismatch { expected }) => {
-                panic!("Free interpretation type mismatch: expected return type {expected}")
-            },
-            Err(FreeError::Interpreter(inf)) => match inf {},
-        }
-    }
-
-    /// Evaluates the `Free` computation with a fallible effect interpreter.
-    ///
-    /// Returns `Err(FreeError::Interpreter(e))` on interpreter failure, or
-    /// `Err(FreeError::TypeMismatch)` if the returned payload type does not match `A`.
-    pub fn try_run<Interp, E>(&self, interp: Interp) -> Result<A, FreeError<E>>
-    where
-        F: Send + Sync + Clone + 'static,
-        A: Send + Sync + Clone + 'static,
-        Interp: FnMut(F) -> Result<AnyValue, E>,
-    {
-        self.run_internal(interp)
-    }
 
     /// Returns `true` if this computation is a pure value.
     #[inline]
@@ -447,21 +331,231 @@ impl<F, A: Default> Default for Free<F, A> {
     }
 }
 
-impl<F, A> Drop for Free<F, A> {
-    fn drop(&mut self) {
-        if let Some(node) = self.node.take() {
-            let mut stack: Vec<Arc<Free<F, AnyValue>>> = Vec::new();
-            Self::push_node_children(node, &mut stack);
+#[cfg(test)]
+mod tests {
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
-            while let Some(arc) = stack.pop() {
-                if let Some(child_node) = Arc::into_inner(arc).and_then(|mut free| free.node.take())
-                {
-                    Free::<F, AnyValue>::push_node_children(child_node, &mut stack);
-                }
-            }
+    use super::fixtures::*;
+    use super::*;
+
+    #[test]
+    fn test_pure_value() {
+        let computation: Free<TestCmd, i32> = Free::pure(42);
+        assert!(computation.is_pure());
+        assert!(!computation.is_suspend());
+        assert!(!computation.is_bind());
+        assert_eq!(computation.as_pure(), Some(&42));
+        assert_eq!(computation.to_pure(), Some(42));
+    }
+
+    #[test]
+    fn test_apply_and_zip_with() {
+        let func: Free<TestCmd, fn(i32) -> i32> = Free::pure(|x: i32| x + 10);
+        let val: Free<TestCmd, i32> = Free::pure(5);
+        let applied = func.apply(val);
+        assert_eq!(applied.to_pure(), Some(15));
+
+        let fa: Free<TestCmd, i32> = Free::pure(3);
+        let fb: Free<TestCmd, i32> = Free::pure(4);
+        let combined: Free<TestCmd, i32> = fa.zip_with(fb, |a, b| a * b);
+        assert_eq!(combined.to_pure(), Some(12));
+
+        let fa2: Free<TestCmd, i32> = Free::pure(3);
+        let fb2: Free<TestCmd, i32> = Free::pure(4);
+        let zipped = fa2.zip_with(fb2, |a, b| a + b);
+        assert_eq!(zipped.to_pure(), Some(7));
+    }
+
+    #[test]
+    fn test_monad_laws() {
+        // Left identity: pure(a).bind(f) == f(a)
+        let a = 7;
+        let f = |x: i32| Free::pure(x * 3);
+        let left: Free<TestCmd, i32> = Free::pure(a).and_then(f);
+        let right = f(a);
+        assert_eq!(left.to_pure(), right.to_pure());
+
+        // Right identity: m.bind(pure) == m
+        let m: Free<TestCmd, i32> = Free::pure(42);
+        let bound = m.and_then(Free::pure);
+        assert_eq!(bound.to_pure(), Some(42));
+        assert_eq!(m.and_then(Free::pure).to_pure(), Some(42));
+
+        // Associativity: m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
+        let g = |x: i32| Free::pure(x + 100);
+        let m1: Free<TestCmd, i32> = Free::pure(5);
+        let m2: Free<TestCmd, i32> = Free::pure(5);
+        let r1 = m1.and_then(f).and_then(g);
+        let r2 = m2.and_then(move |x| f(x).and_then(g));
+        assert_eq!(r1.to_pure(), r2.to_pure());
+    }
+
+    #[test]
+    fn test_anyvalue_pure_payload() {
+        let val: AnyValue = Arc::new(42_i32);
+        let prog: Free<TestCmd, AnyValue> = Free::pure(val);
+        let res = prog.run(|_| Arc::new(()));
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_anyvalue_command_output() {
+        let prog: Free<TestCmd, AnyValue> = Free::suspend(TestCmd::Fetch);
+        let res = prog.run(|_| Arc::new(84_i32) as AnyValue);
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 84);
+    }
+
+    #[test]
+    fn test_anyvalue_suspend_with() {
+        let val: AnyValue = Arc::new(42_i32);
+        let prog: Free<TestCmd, AnyValue> =
+            Free::suspend_with(TestCmd::Fetch, move |_| Arc::clone(&val));
+        let res = prog.run(|_| Arc::new(()));
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_anyvalue_bind_transformation() {
+        let prog: Free<TestCmd, AnyValue> = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
+            .and_then(|_| Free::pure(Arc::new(99_i32) as AnyValue));
+        let res = prog.run(|_| Arc::new(()) as AnyValue);
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 99);
+    }
+
+    #[test]
+    fn test_any_value_helper() {
+        let val: AnyValue = any_value(42_i32);
+        assert_eq!(*val.downcast_ref::<i32>().unwrap(), 42);
+
+        let unit_val: AnyValue = any_value(());
+        assert!(unit_val.downcast_ref::<()>().is_some());
+    }
+
+    #[test]
+    fn test_then_is_then_not_bind() {
+        let p1: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        let p2: Free<TestCmd, i32> = Free::suspend(TestCmd::Fetch);
+        let chained = p1.then(p2);
+        assert!(chained.is_then());
+        assert!(!chained.is_bind());
+        assert!(!chained.is_pure());
+        assert!(!chained.is_suspend());
+    }
+
+    #[test]
+    fn test_then_pure_shortcircuit() {
+        let p_pure = Free::<TestCmd, ()>::pure(());
+        let p_suspend = Free::<TestCmd, i32>::suspend(TestCmd::Fetch);
+        let chained = p_pure.then(p_suspend);
+        assert!(chained.is_suspend());
+        assert!(!chained.is_then());
+        assert_eq!(chained.as_suspend(), Some(&TestCmd::Fetch));
+    }
+
+    #[test]
+    fn test_no_double_erasure_pure() {
+        let val: AnyValue = any_value(42_i32);
+        let prog: Free<TestCmd, AnyValue> = Free::pure(val);
+        let erased: Free<TestCmd, AnyValue> = prog.into_any();
+        let res = erased.run(|_| any_value(()));
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_no_double_erasure_then_chain() {
+        let val: AnyValue = any_value(42_i32);
+        let p1: Free<TestCmd, AnyValue> = Free::suspend(TestCmd::Fetch);
+        let p2: Free<TestCmd, AnyValue> = Free::pure(val);
+        let chain = p1.then(p2);
+        let res = chain.run(|_| any_value(100_i32));
+        assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_then_construction_linearity() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let cmd = CloneCountingCmd {
+            id: 1,
+            clones: Arc::clone(&counter),
+        };
+
+        // Measure n = 1000
+        counter.store(0, Ordering::SeqCst);
+        let mut p1000: Free<CloneCountingCmd, ()> = Free::suspend(cmd.clone());
+        for _ in 0..1000 {
+            p1000 = p1000.then(Free::<CloneCountingCmd, ()>::suspend(cmd.clone()));
         }
+        let clones_1000 = counter.load(Ordering::SeqCst);
+
+        // Measure n = 2000
+        counter.store(0, Ordering::SeqCst);
+        let mut p2000: Free<CloneCountingCmd, ()> = Free::suspend(cmd.clone());
+        for _ in 0..2000 {
+            p2000 = p2000.then(Free::<CloneCountingCmd, ()>::suspend(cmd.clone()));
+        }
+        let clones_2000 = counter.load(Ordering::SeqCst);
+
+        let ratio = clones_2000 as f64 / clones_1000 as f64;
+        assert!(
+            (1.8..=2.2).contains(&ratio),
+            "Expected linear scaling (~2.0), got ratio: {ratio}"
+        );
+    }
+
+    #[test]
+    fn test_accessors() {
+        let p_pure: Free<TestCmd, i32> = Free::pure(42);
+        assert!(p_pure.is_pure());
+        assert_eq!(p_pure.as_pure(), Some(&42));
+        assert_eq!(p_pure.as_suspend(), None);
+        assert!(p_pure.as_then().is_none());
+
+        let p_suspend: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(5));
+        assert!(p_suspend.is_suspend());
+        assert_eq!(p_suspend.as_suspend(), Some(&TestCmd::Increment(5)));
+        assert_eq!(p_suspend.as_pure(), None);
+        assert!(p_suspend.as_then().is_none());
+
+        let p_then = p_suspend.then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
+        assert!(p_then.is_then());
+        assert!(p_then.as_then().is_some());
+        assert_eq!(p_then.as_pure(), None);
+        assert_eq!(p_then.as_suspend(), None);
+
+        let p_bind = p_suspend.and_then(|_| Free::pure(10));
+        assert!(p_bind.is_bind());
+        assert_eq!(p_bind.as_pure(), None);
+        assert_eq!(p_bind.as_suspend(), None);
+        assert!(p_bind.as_then().is_none());
+    }
+
+    #[test]
+    fn test_const_fn_accessors() {
+        const fn inspect_pure(x: &Free<u8, u8>) -> bool {
+            x.is_pure()
+        }
+        const fn inspect_suspend(x: &Free<u8, u8>) -> bool {
+            x.is_suspend()
+        }
+        const fn inspect_bind(x: &Free<u8, u8>) -> bool {
+            x.is_bind()
+        }
+        const fn inspect_then(x: &Free<u8, u8>) -> bool {
+            x.is_then()
+        }
+        const fn inspect_as_pure(x: &Free<u8, u8>) -> Option<&u8> {
+            x.as_pure()
+        }
+        const fn inspect_as_suspend(x: &Free<u8, u8>) -> Option<&u8> {
+            x.as_suspend()
+        }
+
+        let p: Free<u8, u8> = Free::pure(42);
+        assert!(inspect_pure(&p));
+        assert!(!inspect_suspend(&p));
+        assert!(!inspect_bind(&p));
+        assert!(!inspect_then(&p));
+        assert_eq!(inspect_as_pure(&p), Some(&42));
+        assert_eq!(inspect_as_suspend(&p), None);
     }
 }
-
-#[cfg(test)]
-mod tests;

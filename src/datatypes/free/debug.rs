@@ -94,3 +94,104 @@ impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for Free<F, A> {
         fmt_free(self, f, 0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::format;
+
+    use super::*;
+    use crate::datatypes::free::fixtures::*;
+
+    #[test]
+    fn test_debug_format() {
+        let pure_val: Free<TestCmd, i32> = Free::pure(99);
+        assert_eq!(format!("{pure_val:?}"), "Pure(99)");
+
+        let bound: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        assert_eq!(
+            format!("{bound:?}"),
+            "Suspend(Increment(1), \"<continuation>\")"
+        );
+    }
+
+    #[test]
+    fn test_debug_bind_spine_beyond_limit_reports_depth() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..25 {
+            p = p.and_then(|_| Free::suspend(TestCmd::Increment(1)));
+        }
+        assert_eq!(format!("{p:?}"), "Bind(depth: 25, \"<continuation>\")");
+    }
+
+    #[test]
+    fn test_debug_right_then_spine_reports_depth() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..25 {
+            p = Free::<TestCmd, ()>::suspend(TestCmd::Increment(1)).then(p);
+        }
+        assert_eq!(format!("{p:?}"), "Then(depth: 25)");
+    }
+
+    #[test]
+    fn test_debug_short_spines_render_nested() {
+        let first: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+
+        let bind: Free<TestCmd, ()> = first.and_then(|_| Free::suspend(TestCmd::Increment(2)));
+        assert_eq!(
+            format!("{bind:?}"),
+            "Bind(Suspend(Increment(1), \"<continuation>\"), \"<continuation>\")"
+        );
+
+        let then: Free<TestCmd, ()> = first.then(Free::suspend(TestCmd::Increment(2)));
+        assert_eq!(
+            format!("{then:?}"),
+            "Then(Suspend(Increment(1), \"<continuation>\"), Suspend(Increment(2), \"<continuation>\"))"
+        );
+    }
+
+    #[test]
+    fn test_deep_debug_format_stack_safety() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..50_000 {
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        let debug_str = format!("{p:?}");
+        assert!(debug_str.contains("depth: 50000"));
+    }
+
+    #[test]
+    fn test_deep_then_debug() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..50_000 {
+            p = p.then(Free::suspend(TestCmd::Increment(1)));
+        }
+        let debug_str = format!("{p:?}");
+        assert!(debug_str.contains("Then(depth: 50000)"));
+    }
+
+    #[test]
+    fn test_mixed_bind_then_debug() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for i in 0..50_000 {
+            p = if i % 2 == 0 {
+                p.then(Free::suspend(TestCmd::Increment(1)))
+            } else {
+                p.and_then(|_| Free::suspend(TestCmd::Increment(1)))
+            };
+        }
+        let debug_str = format!("{p:?}");
+        assert!(!debug_str.is_empty());
+    }
+
+    #[test]
+    fn test_zigzag_then_debug() {
+        let x: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        let y: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(2));
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(0));
+        for _ in 0..25_000 {
+            p = x.clone().then(p).then(y.clone());
+        }
+        let debug_str = format!("{p:?}");
+        assert!(!debug_str.is_empty());
+    }
+}

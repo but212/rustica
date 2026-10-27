@@ -63,3 +63,87 @@ impl<H, A, E> Drop for TryProgram<H, A, E> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::format;
+    use alloc::string::{String, ToString};
+
+    use crate::datatypes::operational::fixtures::*;
+    use crate::datatypes::operational::{Command, Handler, Program};
+
+    #[test]
+    fn test_deep_chain_drop_stack_safety() {
+        let mut p: Program<CalcInterpreter, ()> = Program::pure(());
+        for _ in 0..50_000 {
+            p = p.then(Add(1).suspend());
+        }
+        drop(p);
+    }
+
+    #[test]
+    fn test_deep_right_associated_chain_drop_stack_safety() {
+        let mut p: Program<CalcInterpreter, ()> = Program::pure(());
+        for _ in 0..50_000 {
+            p = Add(1).suspend().then(p);
+        }
+        drop(p);
+    }
+
+    #[test]
+    fn test_deep_bind_chain_drop_stack_safety() {
+        let mut p: Program<CalcInterpreter, i32> = Program::pure(0);
+        for _ in 0..50_000 {
+            p = p.and_then(|x| Fetch.suspend().map(move |y| x + y));
+        }
+        drop(p);
+    }
+
+    #[test]
+    fn test_drop_releases_captured_values_once() {
+        use alloc::rc::Rc;
+
+        let shared = Rc::new(0_i32);
+        let bind_capture = Rc::clone(&shared);
+        let then_capture = Rc::clone(&shared);
+        let suspend_capture = Rc::clone(&shared);
+        let prog: Program<CalcInterpreter, i32> = Fetch
+            .suspend()
+            .and_then(move |x| Program::pure(x + *bind_capture))
+            .then(Fetch.suspend().map(move |y| y + *then_capture))
+            .then(Fetch.suspend().map(move |y| y + *suspend_capture));
+        assert_eq!(Rc::strong_count(&shared), 4);
+        drop(prog);
+        assert_eq!(Rc::strong_count(&shared), 1);
+    }
+
+    #[test]
+    fn test_operational_miri_ownership_and_drop() {
+        struct StrCmd(String);
+        impl Command for StrCmd {
+            type Output = String;
+        }
+        struct StrHandler;
+        impl Handler<StrCmd> for StrHandler {
+            fn handle(&mut self, cmd: StrCmd) -> String {
+                format!("{}_handled", cmd.0)
+            }
+        }
+
+        // 1. Program dropped without running
+        let prog = StrCmd("first".to_string())
+            .suspend::<StrHandler>()
+            .and_then(|s| StrCmd(format!("{s}_second")).suspend())
+            .and_then(|s| Program::pure(format!("{s}_done")));
+        drop(prog);
+
+        // 2. Program run to completion
+        let prog2 = StrCmd("init".to_string())
+            .suspend()
+            .and_then(|s| Program::pure(format!("{s}_mid")))
+            .and_then(|s| StrCmd(s).suspend());
+        let mut h = StrHandler;
+        let res = prog2.run(&mut h);
+        assert_eq!(res, "init_handled_mid_handled");
+    }
+}
