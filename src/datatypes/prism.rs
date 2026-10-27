@@ -102,7 +102,6 @@ where
     /// Sets the focused value, returning `source` unchanged if unmatched or if equal under `PartialEq`.
     ///
     /// For bit-exact types or non-reflexive types, use [`Prism::set_always`].
-    /// To preserve non-focus fields on mutation, use [`Prism::set_with`].
     #[inline]
     pub fn set(&self, source: S, new_value: A) -> S
     where
@@ -127,7 +126,6 @@ where
     /// Modifies the focused value with `f`, returning `source` unchanged if unmatched or equal under `PartialEq`.
     ///
     /// For bit-exact types or non-reflexive types, use [`Prism::modify_always`].
-    /// To preserve non-focus fields on mutation, use [`Prism::set_with`].
     #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
@@ -156,41 +154,6 @@ where
         match (self.preview)(&source) {
             Some(cur) => (self.review)(f(cur)),
             None => source,
-        }
-    }
-
-    /// Modifies the focused value while preserving non-focus data from `source`.
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Focus the whole variant payload and use `modify_always` or `modify`"
-    )]
-    pub fn modify_with<M, F>(&self, source: S, modify_fn: M, f: F) -> S
-    where
-        M: FnOnce(S, A) -> S,
-        F: FnOnce(&A) -> A,
-    {
-        let new_val = (self.preview)(&source).map(f);
-        match new_val {
-            Some(val) => modify_fn(source, val),
-            None => source,
-        }
-    }
-
-    /// Sets the focused value while preserving non-focus data from `source`.
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Focus the whole variant payload and use `set_always` or `set`"
-    )]
-    pub fn set_with<M>(&self, source: S, modify_fn: M, new_value: A) -> S
-    where
-        M: FnOnce(S, A) -> S,
-    {
-        if (self.preview)(&source).is_some() {
-            modify_fn(source, new_value)
-        } else {
-            source
         }
     }
 }

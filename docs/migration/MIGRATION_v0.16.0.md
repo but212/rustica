@@ -131,7 +131,7 @@ let connection = endpoints.try_each(|ep| connect(ep))?;
 
 ### 2. Error Accumulation with `try_each_validated`
 
-When diagnosing failures across all fallback targets is required, `try_each_validated` collects every encountered error into [`Validated<E, R>`](file:///c:/Users/redog/Desktop/SJI/project/rustica/src/datatypes/validated/core.rs):
+When diagnosing failures across all fallback targets is required, `try_each_validated` collects every encountered error into [`Validated<E, R>`](../../src/datatypes/validated/core.rs):
 
 ```rust
 use rustica::datatypes::choice::Choice;

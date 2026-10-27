@@ -437,8 +437,7 @@ enum TaggedItem {
 }
 
 #[test]
-#[allow(deprecated)]
-fn test_prism_modify_with_and_set_with_preserve_non_focus_data() {
+fn test_prism_always_variants_rebuild_payload_and_return_source_when_absent() {
     let prism = Prism::new(
         |item: &TaggedItem| match item {
             TaggedItem::Entry { id, .. } => Some(id),
@@ -450,62 +449,24 @@ fn test_prism_modify_with_and_set_with_preserve_non_focus_data() {
         },
     );
 
+    // Focus is the whole variant payload: review rebuilds it, so `tag` is reset.
     let item = TaggedItem::Entry {
         id: 10,
-        tag: "preserved".into(),
+        tag: "rebuilt".into(),
     };
-
-    let modify_fn = |item, new_id| match item {
-        TaggedItem::Entry { tag, .. } => TaggedItem::Entry { id: new_id, tag },
-        TaggedItem::None => TaggedItem::None,
+    let TaggedItem::Entry { id, tag } = prism.set_always(item.clone(), 99) else {
+        panic!("focus must stay matched after set_always");
     };
+    assert_eq!((id, tag.as_str()), (99, ""));
 
-    // modify_with preserves non-focus field "tag"
-    let modified = prism.modify_with(item.clone(), modify_fn, |id| id + 5);
-    assert_eq!(
-        modified,
-        TaggedItem::Entry {
-            id: 15,
-            tag: "preserved".into()
-        }
-    );
-
-    // set_with preserves non-focus field "tag"
-    let updated = prism.set_with(item, modify_fn, 99);
-    assert_eq!(
-        updated,
-        TaggedItem::Entry {
-            id: 99,
-            tag: "preserved".into()
-        }
-    );
-}
-
-#[test]
-#[allow(deprecated)]
-fn test_prism_modify_with_and_set_with_return_source_when_focus_absent() {
-    let prism = Prism::new(
-        |item: &TaggedItem| match item {
-            TaggedItem::Entry { id, .. } => Some(id),
-            TaggedItem::None => None,
-        },
-        |id| TaggedItem::Entry {
-            id,
-            tag: String::new(),
-        },
-    );
+    let TaggedItem::Entry { id, tag } = prism.modify_always(item, |id| id + 5) else {
+        panic!("focus must stay matched after modify_always");
+    };
+    assert_eq!((id, tag.as_str()), (15, ""));
 
     let absent = TaggedItem::None;
-    let modify_fn = |item, new_id| match item {
-        TaggedItem::Entry { tag, .. } => TaggedItem::Entry { id: new_id, tag },
-        TaggedItem::None => TaggedItem::None,
-    };
-
-    let modified = prism.modify_with(absent.clone(), modify_fn, |id| id + 1);
-    assert_eq!(modified, TaggedItem::None);
-
-    let updated = prism.set_with(absent, modify_fn, 100);
-    assert_eq!(updated, TaggedItem::None);
+    assert_eq!(prism.set_always(absent.clone(), 100), TaggedItem::None);
+    assert_eq!(prism.modify_always(absent, |id| id + 1), TaggedItem::None);
 }
 
 #[test]

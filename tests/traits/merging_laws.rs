@@ -178,16 +178,7 @@ fn test_validated_from_iterator_and_zip() {
     let zipped = m1.zip_with(m2, |a, b| MoveOnly(a.0 + b.0));
     assert_eq!(zipped, Validated::valid(MoveOnly(30)));
 
-    // 5. Inherent lift2 on move-only types (testing deprecated method)
-    #[allow(deprecated)]
-    {
-        let m1 = Validated::<MoveOnly, &str>::valid(MoveOnly(5));
-        let m2 = Validated::<MoveOnly, &str>::valid(MoveOnly(15));
-        let lifted = Validated::lift2(|a: MoveOnly, b: MoveOnly| MoveOnly(a.0 + b.0), m1, m2);
-        assert_eq!(lifted, Validated::valid(MoveOnly(20)));
-    }
-
-    // 6. Inherent zip3 and zip_with3 on move-only types
+    // 5. Inherent zip3 and zip_with3 on move-only types
     let m1 = Validated::<MoveOnly, &str>::valid(MoveOnly(1));
     let m2 = Validated::<MoveOnly, &str>::valid(MoveOnly(2));
     let m3 = Validated::<MoveOnly, &str>::valid(MoveOnly(3));

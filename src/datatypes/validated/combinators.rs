@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
 use crate::traits::semigroup::Semigroup;
@@ -222,45 +220,6 @@ impl<T, E> Validated<T, E> {
         self.zip_with3(second, third, |a, b, c| (a, b, c))
     }
 
-    /// Lifts a binary function over two `Validated` values, accumulating errors.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let v1: Validated<i32, &str> = Validated::valid(10);
-    /// let v2: Validated<i32, &str> = Validated::valid(20);
-    /// let sum = v1.zip_with(v2, |a, b| a + b);
-    /// assert_eq!(sum, Validated::valid(30));
-    /// ```
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `zip_with` method directly: `v1.zip_with(v2, f)`"
-    )]
-    pub fn lift2<T1, T2, F>(f: F, v1: Validated<T1, E>, v2: Validated<T2, E>) -> Validated<T, E>
-    where
-        F: FnOnce(T1, T2) -> T,
-    {
-        v1.zip_with(v2, f)
-    }
-
-    /// Lifts a ternary function over three `Validated` values, accumulating errors.
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `zip_with3` method directly: `v1.zip_with3(v2, v3, f)`"
-    )]
-    pub fn lift3<T1, T2, T3, F>(
-        f: F, v1: Validated<T1, E>, v2: Validated<T2, E>, v3: Validated<T3, E>,
-    ) -> Validated<T, E>
-    where
-        F: FnOnce(T1, T2, T3) -> T,
-    {
-        v1.zip_with3(v2, v3, f)
-    }
-
     /// Returns accumulated errors if either instance is invalid, or `None` if both are valid.
     ///
     /// # Examples
@@ -280,59 +239,6 @@ impl<T, E> Validated<T, E> {
     #[inline]
     pub fn combine_errors(self, other: Self) -> Option<NonEmptyErrors<E>> {
         merge_errors(self.into_error_opt(), other.into_error_opt())
-    }
-
-    /// Sequences `values` into `Validated<U, E>`, transforming collected valid values with `f`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let values = vec![
-    ///     Validated::<i32, &str>::valid(1),
-    ///     Validated::<i32, &str>::valid(2),
-    /// ];
-    /// let result = values.into_iter().collect::<Validated<Vec<i32>, &str>>().map(|vals| vals.len());
-    /// assert_eq!(result, Validated::valid(2));
-    /// ```
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `values.into_iter().collect::<Validated<Vec<_>, _>>().map(f)`"
-    )]
-    pub fn sequence<I, U, F>(values: I, f: F) -> Validated<U, E>
-    where
-        I: IntoIterator<Item = Self>,
-        F: FnOnce(Vec<T>) -> U,
-    {
-        match values.into_iter().collect::<Validated<Vec<T>, E>>() {
-            Validated::Valid(valid_values) => Validated::Valid(f(valid_values)),
-            Validated::Invalid(errors) => Validated::Invalid(errors),
-        }
-    }
-
-    /// Collects an iterator into `Validated<C, E>`, accumulating all errors if any are invalid.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rustica::datatypes::validated::Validated;
-    ///
-    /// let values = [Validated::<i32, &str>::valid(1), Validated::valid(2)];
-    /// let collected: Validated<Vec<i32>, &str> = values.into_iter().collect();
-    /// assert_eq!(collected, Validated::valid(vec![1, 2]));
-    /// ```
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `iter.into_iter().collect::<Validated<C, E>>()` via `FromIterator`"
-    )]
-    pub fn collect<I, C>(iter: I) -> Validated<C, E>
-    where
-        I: IntoIterator<Item = Validated<T, E>>,
-        C: FromIterator<T>,
-    {
-        iter.into_iter().collect()
     }
 
     /// Recovers using a closure given all accumulated errors.
