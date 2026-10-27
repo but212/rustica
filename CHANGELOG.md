@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Internal Refactor**: `Operational` `Then` nodes store a non-empty prefix type (`Steps`) so an empty prefix is unrepresentable; `Choice::try_each_validated`, `monoid::combine_all`, and the `Free` debug spine counting were simplified. The `operational` module is split into the `operational/` directory with no public API change. Behavior is unchanged.
+
 ### Removed
 
 - **Deprecated Validated & Free Combinators (Breaking)**: Removed `Validated::lift2`, `Validated::lift3`, and `Free::lift2`. Use `zip_with` / `zip_with3` method syntax. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).

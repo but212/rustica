@@ -243,6 +243,41 @@ fn test_debug_format() {
 }
 
 #[test]
+fn test_debug_bind_spine_beyond_limit_reports_depth() {
+    let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+    for _ in 0..25 {
+        p = p.and_then(|_| Free::suspend(TestCmd::Increment(1)));
+    }
+    assert_eq!(format!("{p:?}"), "Bind(depth: 25, \"<continuation>\")");
+}
+
+#[test]
+fn test_debug_right_then_spine_reports_depth() {
+    let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+    for _ in 0..25 {
+        p = Free::<TestCmd, ()>::suspend(TestCmd::Increment(1)).then(p);
+    }
+    assert_eq!(format!("{p:?}"), "Then(depth: 25)");
+}
+
+#[test]
+fn test_debug_short_spines_render_nested() {
+    let first: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+
+    let bind: Free<TestCmd, ()> = first.and_then(|_| Free::suspend(TestCmd::Increment(2)));
+    assert_eq!(
+        format!("{bind:?}"),
+        "Bind(Suspend(Increment(1), \"<continuation>\"), \"<continuation>\")"
+    );
+
+    let then: Free<TestCmd, ()> = first.then(Free::suspend(TestCmd::Increment(2)));
+    assert_eq!(
+        format!("{then:?}"),
+        "Then(Suspend(Increment(1), \"<continuation>\"), Suspend(Increment(2), \"<continuation>\"))"
+    );
+}
+
+#[test]
 fn test_deep_debug_format_stack_safety() {
     let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
     for _ in 0..50_000 {

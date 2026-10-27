@@ -1,10 +1,25 @@
 use core::fmt;
 
+use alloc::sync::Arc;
+
 use super::{AnyValue, Free, Node};
 
 const MAX_DEBUG_RECURSION: usize = 8;
+const MAX_SPINE_DEPTH: usize = 10;
 
 struct DebugFree<'a, F, A>(&'a Free<F, A>, usize);
+
+type SpineLink<F> = fn(&Node<F, AnyValue>) -> Option<&Arc<Free<F, AnyValue>>>;
+
+// Counts consecutive `link` nodes starting at `cur`.
+fn spine_len<F>(mut cur: &Free<F, AnyValue>, link: SpineLink<F>) -> usize {
+    let mut len = 0;
+    while let Some(next) = cur.node.as_ref().and_then(link) {
+        len += 1;
+        cur = next;
+    }
+    len
+}
 
 impl<'a, F: fmt::Debug, A: fmt::Debug> fmt::Debug for DebugFree<'a, F, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -33,20 +48,11 @@ fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
             .field(&"<continuation>")
             .finish(),
         Node::Bind(sub, _) => {
-            let mut spine_depth = 1usize;
-            let mut cur: &Free<F, AnyValue> = sub;
-            while let Some(Node::Bind(next, _)) = cur.node.as_ref() {
-                spine_depth += 1;
-                cur = next;
-                if spine_depth > 10 {
-                    break;
-                }
-            }
-            if spine_depth > 10 {
-                while let Some(Node::Bind(next, _)) = cur.node.as_ref() {
-                    spine_depth += 1;
-                    cur = next;
-                }
+            let spine_depth = 1 + spine_len(sub, |node| match node {
+                Node::Bind(next, _) => Some(next),
+                _ => None,
+            });
+            if spine_depth > MAX_SPINE_DEPTH {
                 f.debug_tuple("Bind")
                     .field(&format_args!("depth: {spine_depth}"))
                     .field(&"<continuation>")
@@ -59,40 +65,17 @@ fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
             }
         },
         Node::Then(left, right) => {
-            let mut left_depth = 1usize;
-            let mut cur = left;
-            while let Some(Node::Then(next, _)) = cur.node.as_ref() {
-                left_depth += 1;
-                cur = next;
-                if left_depth > 10 {
-                    break;
-                }
-            }
-            if left_depth > 10 {
-                while let Some(Node::Then(next, _)) = cur.node.as_ref() {
-                    left_depth += 1;
-                    cur = next;
-                }
-            }
-
-            let mut right_depth = 1usize;
-            let mut cur = right;
-            while let Some(Node::Then(_, next)) = cur.node.as_ref() {
-                right_depth += 1;
-                cur = next;
-                if right_depth > 10 {
-                    break;
-                }
-            }
-            if right_depth > 10 {
-                while let Some(Node::Then(_, next)) = cur.node.as_ref() {
-                    right_depth += 1;
-                    cur = next;
-                }
-            }
+            let left_depth = 1 + spine_len(left, |node| match node {
+                Node::Then(next, _) => Some(next),
+                _ => None,
+            });
+            let right_depth = 1 + spine_len(right, |node| match node {
+                Node::Then(_, next) => Some(next),
+                _ => None,
+            });
 
             let max_depth = left_depth.max(right_depth);
-            if max_depth > 10 {
+            if max_depth > MAX_SPINE_DEPTH {
                 f.debug_tuple("Then")
                     .field(&format_args!("depth: {max_depth}"))
                     .finish()

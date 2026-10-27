@@ -211,9 +211,7 @@ impl<T> Choice<T> {
             Err(err) => err,
         };
 
-        let mut errors = Vec::new();
-        errors.push(first_err);
-
+        let mut errors = NonEmptyErrors::new(first_err);
         for alt in &self.alternatives {
             match f(alt) {
                 Ok(res) => return Validated::Valid(res),
@@ -221,10 +219,7 @@ impl<T> Choice<T> {
             }
         }
 
-        // Invariant: `errors` contains at least `first_err`, so it is statically guaranteed to be non-empty.
-        let non_empty = NonEmptyErrors::try_from_vec(errors)
-            .expect("Choice try_each_validated error collection is non-empty");
-        Validated::Invalid(non_empty)
+        Validated::Invalid(errors)
     }
 
     /// Maps `f` over all values in priority order.

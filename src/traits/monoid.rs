@@ -76,11 +76,10 @@ where
     M: Monoid,
     I: IntoIterator<Item = M>,
 {
-    let mut iter = values.into_iter();
-    match iter.next() {
-        Some(first) => iter.fold(first, |acc, x| acc.combine(x)),
-        None => M::empty(),
-    }
+    values
+        .into_iter()
+        .reduce(|acc, x| acc.combine(x))
+        .unwrap_or_else(M::empty)
 }
 
 /// Combines `value` with itself `n` times, returning [`Monoid::empty`] when `n == 0`.
