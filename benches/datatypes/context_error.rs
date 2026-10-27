@@ -48,7 +48,7 @@ fn bench_lazy_context(group: &mut BenchGroup) {
     group.bench_fn("happy_path_eager", || {
         let result: Result<i32, &str> = Ok(black_box(42));
         let step = black_box(1);
-        let _ = black_box(with_context_result(result, format!("step {} failed", step)));
+        let _ = black_box(with_context_result(result, format!("step {step} failed")));
     });
 
     group.bench_fn("error_path_lazy", || {
@@ -63,7 +63,7 @@ fn bench_lazy_context(group: &mut BenchGroup) {
     group.bench_fn("error_path_eager", || {
         let result: Result<i32, &str> = Err(black_box("failed"));
         let step = black_box(1);
-        let _ = black_box(with_context_result(result, format!("step {} failed", step)));
+        let _ = black_box(with_context_result(result, format!("step {step} failed")));
     });
 }
 
@@ -110,7 +110,7 @@ fn bench_bottlenecks_memory(group: &mut BenchGroup) {
     group.bench_memory(
         "mem_with_contexts_batch_50",
         || (),
-        |_| {
+        |()| {
             let err = ContextError::new("core error").with_contexts(contexts.iter().copied());
             black_box(err);
         },
@@ -127,7 +127,7 @@ fn bench_bottlenecks_memory(group: &mut BenchGroup) {
     group.bench_memory(
         "mem_context_accumulator_invoke",
         || (),
-        |_| {
+        |()| {
             let err = accumulator("query timeout");
             black_box(err);
         },

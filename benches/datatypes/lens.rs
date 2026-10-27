@@ -64,11 +64,11 @@ fn bench_timing(group: &mut BenchGroup) {
 
     // 3. Modify operations
     group.bench_fn("modify_unchanged_value", || {
-        black_box(name_lens.modify(black_box(person.clone()), |name| name.clone()));
+        black_box(name_lens.modify(black_box(person.clone()), Clone::clone));
     });
 
     group.bench_fn("modify_always_unchanged_value", || {
-        black_box(name_lens.modify_always(black_box(person.clone()), |name| name.clone()));
+        black_box(name_lens.modify_always(black_box(person.clone()), Clone::clone));
     });
 
     group.bench_fn("modify_changed_value", || {
@@ -167,7 +167,7 @@ fn bench_memory(group: &mut BenchGroup) {
         || Some(person.clone()),
         |state| {
             let p = state.take().unwrap();
-            black_box(name_lens.modify(p, |name| name.clone()));
+            black_box(name_lens.modify(p, Clone::clone));
         },
     );
 

@@ -1,7 +1,7 @@
 //! Minimalist zero-dependency benchmark harness for benchmarks.
 //!
 //! Provides lightweight benchmarking functionality measuring execution time
-//! using standard library primitives (std::time::Instant and std::hint::black_box).
+//! using standard library primitives (`std::time::Instant` and `std::hint::black_box`).
 
 use std::fmt::Display;
 use std::hint::black_box;

@@ -56,7 +56,7 @@ fn configure_depth_sampling(group: &mut BenchGroup, depth: usize) {
     }
 }
 
-/// Measures cumulative heap allocation churn for Program::run across varying tree depths.
+/// Measures cumulative heap allocation churn for `Program::run` across varying tree depths.
 fn bench_memory_churn(group: &mut BenchGroup) {
     group.reset_sampling();
     group.measure_iters(50);

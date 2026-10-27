@@ -224,7 +224,7 @@ fn bench_bottlenecks_memory(group: &mut BenchGroup) {
     group.bench_memory(
         "mem_invalid_single",
         || (),
-        |_| {
+        |()| {
             let err = Validated::<i32, &'static str>::invalid("single_error");
             black_box(err);
         },
@@ -250,7 +250,7 @@ fn bench_bottlenecks_memory(group: &mut BenchGroup) {
     group.bench_memory(
         "mem_zip3_all_invalid",
         || (),
-        |_| {
+        |()| {
             let v1 = Validated::<i32, &'static str>::invalid("err1");
             let v2 = Validated::<i32, &'static str>::invalid("err2");
             let v3 = Validated::<i32, &'static str>::invalid("err3");
