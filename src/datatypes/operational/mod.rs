@@ -21,7 +21,6 @@ pub trait Command: 'static {
     type Output: 'static;
 
     /// Suspends this command into an infallible [`Program`].
-    #[inline]
     fn suspend<H: Handler<Self> + 'static>(self) -> Program<H, Self::Output>
     where
         Self: Sized,
@@ -30,7 +29,6 @@ pub trait Command: 'static {
     }
 
     /// Suspends this command into a fallible [`TryProgram`].
-    #[inline]
     fn try_suspend<H: TryHandler<Self, E> + 'static, E: 'static>(
         self,
     ) -> TryProgram<H, Self::Output, E>
@@ -55,7 +53,6 @@ pub trait TryHandler<C: Command, E> {
 
 // Infallible handlers automatically implement TryHandler with Infallible error.
 impl<H: Handler<C>, C: Command> TryHandler<C, Infallible> for H {
-    #[inline]
     fn try_handle(&mut self, cmd: C) -> Result<C::Output, Infallible> {
         Ok(self.handle(cmd))
     }
@@ -89,7 +86,6 @@ impl<H, E> IntoIterator for Steps<H, E> {
     type IntoIter =
         core::iter::Chain<core::iter::Once<Self::Item>, alloc::vec::IntoIter<Self::Item>>;
 
-    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         core::iter::once(*self.head).chain(self.rest)
     }
@@ -105,8 +101,7 @@ impl<H, A, E> TryProgram<H, A, E> {
     /// Takes ownership of the node, leaving `None` transiently.
     ///
     /// Invariant: `node` is `Some` on all observable values; private ownership ensures unreachable panic.
-    #[inline]
-    fn take_node(&mut self) -> Node<H, A, E> {
+    const fn take_node(&mut self) -> Node<H, A, E> {
         self.node.take().expect("TryProgram node already consumed")
     }
 }
@@ -137,9 +132,8 @@ impl<H: 'static, E: 'static> TryProgram<H, (), E> {
 // Program construction and type erasure.
 impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     /// Wraps a pure value in a `TryProgram`.
-    #[inline]
     pub const fn pure(val: A) -> Self {
-        TryProgram {
+        Self {
             node: Some(Node::Pure(val)),
         }
     }
@@ -160,8 +154,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         match self.take_node() {
             Node::Pure(a) => f(a),
             other => {
-                let any_prog: TryProgram<H, AnyBox, E> =
-                    TryProgram { node: Some(other) }.into_any();
+                let any_prog: TryProgram<H, AnyBox, E> = Self { node: Some(other) }.into_any();
                 TryProgram {
                     node: Some(Node::Bind(
                         Box::new(any_prog),
@@ -178,12 +171,11 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     }
 
     /// Sequences `next` after `self`, discarding `self`'s output.
-    #[inline]
     pub fn then<B: 'static>(mut self, next: TryProgram<H, B, E>) -> TryProgram<H, B, E> {
         match self.take_node() {
             Node::Pure(_) => next,
             node => {
-                let mut previous = TryProgram { node: Some(node) }.into_any();
+                let mut previous = Self { node: Some(node) }.into_any();
                 let steps = match previous.take_node() {
                     Node::Then(mut steps, tail) => {
                         steps.rest.push(*tail);
@@ -249,19 +241,16 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
 // Observable state inspection.
 impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     /// Returns `true` if the computation is a pure value.
-    #[inline]
     pub const fn is_pure(&self) -> bool {
         matches!(self.node, Some(Node::Pure(_)))
     }
 
     /// Returns `true` if the computation is a suspended command.
-    #[inline]
     pub const fn is_suspend(&self) -> bool {
         matches!(self.node, Some(Node::Suspend(_, _)))
     }
 
     /// Returns `true` if the computation is a sequenced continuation node.
-    #[inline]
     pub const fn is_bind(&self) -> bool {
         matches!(self.node, Some(Node::Bind(_, _) | Node::Then(_, _)))
     }

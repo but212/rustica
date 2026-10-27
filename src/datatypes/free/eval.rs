@@ -12,7 +12,6 @@ enum Frame<F> {
     ThenNext(Arc<Free<F, AnyValue>>),
 }
 
-#[inline]
 fn unwrap_arc<T: Clone>(arc: Arc<T>) -> T {
     Arc::try_unwrap(arc).unwrap_or_else(|a| (*a).clone())
 }

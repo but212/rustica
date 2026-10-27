@@ -12,18 +12,15 @@ use quickcheck::{Arbitrary, Gen};
 pub struct NonEmptyErrors<E>(Vec<E>);
 
 impl<E> NonEmptyErrors<E> {
-    #[inline]
     pub fn new(first: E) -> Self {
         Self(vec![first])
     }
 
-    #[inline]
     pub(crate) fn try_from_vec(errors: Vec<E>) -> Option<Self> {
         (!errors.is_empty()).then_some(Self(errors))
     }
 
     /// Creates a non-empty error collection from an iterator, or `None` if empty.
-    #[inline]
     pub fn try_from_iter<I>(iter: I) -> Option<Self>
     where
         I: IntoIterator<Item = E>,
@@ -33,7 +30,6 @@ impl<E> NonEmptyErrors<E> {
         Some(Self::from_first_and_iter(first, iter))
     }
 
-    #[inline]
     pub(crate) fn from_first_and_iter<I>(first: E, rest: I) -> Self
     where
         I: IntoIterator<Item = E>,
@@ -46,7 +42,6 @@ impl<E> NonEmptyErrors<E> {
         Self(errors)
     }
 
-    #[inline]
     pub(crate) fn map<F, G>(self, f: G) -> NonEmptyErrors<F>
     where
         G: FnMut(E) -> F,
@@ -54,7 +49,6 @@ impl<E> NonEmptyErrors<E> {
         NonEmptyErrors(self.0.into_iter().map(f).collect())
     }
 
-    #[inline]
     pub fn try_from_slice(slice: &[E]) -> Option<Self>
     where
         E: Clone,
@@ -63,41 +57,38 @@ impl<E> NonEmptyErrors<E> {
     }
 
     /// Converts into a `Vec<E>`.
-    #[inline]
+    #[must_use]
     pub fn into_vec(self) -> Vec<E> {
         self.0
     }
 
     /// Returns a slice of the errors.
-    #[inline]
+    #[must_use]
     pub const fn as_slice(&self) -> &[E] {
         self.0.as_slice()
     }
 
-    #[inline]
+    #[must_use]
     pub const fn len(&self) -> usize {
         self.0.len()
     }
 
     /// Always returns `false`.
-    #[inline]
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         false
     }
 
-    #[inline]
     pub fn push(&mut self, error: E) {
         self.0.push(error);
     }
 
-    #[inline]
     pub fn extend<I: IntoIterator<Item = E>>(&mut self, errors: I) {
         self.0.extend(errors);
     }
 
     /// Combines multiple non-empty error collections in encounter order,
     /// pre-reserving capacity in a single reallocation.
-    #[inline]
     pub(crate) fn combine_multiple<const N: usize>(collections: [Option<Self>; N]) -> Option<Self> {
         let total: usize = collections.iter().flatten().map(Self::len).sum();
         let mut it = collections.into_iter().flatten();
@@ -155,7 +146,6 @@ impl<E: PartialEq, const N: usize> PartialEq<[E; N]> for NonEmptyErrors<E> {
 }
 
 impl<E> Semigroup for NonEmptyErrors<E> {
-    #[inline]
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
         self
@@ -227,27 +217,23 @@ pub enum Validated<T, E> {
 
 impl<T, E> Validated<T, E> {
     /// Returns `true` if valid.
-    #[inline]
     pub const fn is_valid(&self) -> bool {
-        matches!(self, Validated::Valid(_))
+        matches!(self, Self::Valid(_))
     }
 
     /// Returns `true` if invalid.
-    #[inline]
     pub const fn is_invalid(&self) -> bool {
         !self.is_valid()
     }
 
     /// Creates a valid instance.
-    #[inline]
     pub const fn valid(x: T) -> Self {
-        Validated::Valid(x)
+        Self::Valid(x)
     }
 
     /// Creates an invalid instance with a single error.
-    #[inline]
     pub fn invalid(e: E) -> Self {
-        Validated::Invalid(NonEmptyErrors::new(e))
+        Self::Invalid(NonEmptyErrors::new(e))
     }
 
     /// Creates an invalid instance from an error collection.
@@ -255,7 +241,6 @@ impl<T, E> Validated<T, E> {
     /// # Panics
     ///
     /// Panics if `errors` is empty.
-    #[inline]
     pub fn invalid_many<I>(errors: I) -> Self
     where
         I: IntoIterator<Item = E>,
@@ -264,7 +249,6 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Creates an invalid instance from an iterator, or `None` if empty.
-    #[inline]
     pub fn try_invalid_many<I>(errors: I) -> Option<Self>
     where
         I: IntoIterator<Item = E>,
@@ -273,28 +257,25 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Returns `Ok(T)` if valid, or `Err(NonEmptyErrors<E>)` if invalid.
-    #[inline]
     pub fn into_value(self) -> Result<T, NonEmptyErrors<E>> {
         match self {
-            Validated::Valid(a) => Ok(a),
-            Validated::Invalid(es) => Err(es),
+            Self::Valid(a) => Ok(a),
+            Self::Invalid(es) => Err(es),
         }
     }
 
     /// Returns `Ok(NonEmptyErrors<E>)` if invalid, or `Err(T)` if valid.
-    #[inline]
     pub fn into_error_payload(self) -> Result<NonEmptyErrors<E>, T> {
         match self {
-            Validated::Valid(a) => Err(a),
-            Validated::Invalid(es) => Ok(es),
+            Self::Valid(a) => Err(a),
+            Self::Invalid(es) => Ok(es),
         }
     }
 
-    #[inline]
     pub(crate) fn into_error_opt(self) -> Option<NonEmptyErrors<E>> {
         match self {
-            Validated::Valid(_) => None,
-            Validated::Invalid(es) => Some(es),
+            Self::Valid(_) => None,
+            Self::Invalid(es) => Some(es),
         }
     }
 
@@ -303,24 +284,22 @@ impl<T, E> Validated<T, E> {
     /// # Panics
     ///
     /// Panics if invalid.
-    #[inline]
     pub fn unwrap(self) -> T
     where
         E: core::fmt::Debug,
     {
         match self {
-            Validated::Valid(value) => value,
-            Validated::Invalid(e) => {
+            Self::Valid(value) => value,
+            Self::Invalid(e) => {
                 panic!("Called Validated::unwrap() on an Invalid value: {e:?}")
             },
         }
     }
 
     /// Returns the inner value or `default`.
-    #[inline]
     pub fn unwrap_or(self, default: T) -> T {
         match self {
-            Validated::Valid(x) => x,
+            Self::Valid(x) => x,
             _ => default,
         }
     }
@@ -330,39 +309,35 @@ impl<T, E> Validated<T, E> {
     /// # Panics
     ///
     /// Panics if valid.
-    #[inline]
     pub fn unwrap_invalid(self) -> NonEmptyErrors<E>
     where
         T: core::fmt::Debug,
     {
         match self {
-            Validated::Invalid(es) => es,
-            Validated::Valid(a) => {
+            Self::Invalid(es) => es,
+            Self::Valid(a) => {
                 panic!("Called Validated::unwrap_invalid() on a Valid value: {a:?}")
             },
         }
     }
 
     /// Returns `Some(&T)` if valid, otherwise `None`.
-    #[inline]
     pub const fn as_option(&self) -> Option<&T> {
         match self {
-            Validated::Valid(x) => Some(x),
-            Validated::Invalid(_) => None,
+            Self::Valid(x) => Some(x),
+            Self::Invalid(_) => None,
         }
     }
 
     /// Converts into `Some(T)` if valid, otherwise `None`.
-    #[inline]
     pub fn into_option(self) -> Option<T> {
         match self {
-            Validated::Valid(x) => Some(x),
-            Validated::Invalid(_) => None,
+            Self::Valid(x) => Some(x),
+            Self::Invalid(_) => None,
         }
     }
 
     /// Converts into `Result`, discarding all but the first error if invalid.
-    #[inline]
     pub fn into_result_first_error(self) -> Result<T, E> {
         match self {
             Self::Valid(value) => Ok(value),
@@ -374,13 +349,11 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Converts `Some(value)` to `Valid(value)` and `None` to `invalid(error)`.
-    #[inline]
     pub fn from_option(option: Option<T>, error: E) -> Self {
         Self::from_option_with(option, move || error)
     }
 
     /// Converts `Some(value)` to `Valid(value)` and `None` to `invalid(error_fn())`.
-    #[inline]
     pub fn from_option_with<F>(option: Option<T>, error_fn: F) -> Self
     where
         F: FnOnce() -> E,
@@ -393,7 +366,6 @@ impl<T, E> Validated<T, E> {
 }
 
 impl<T, E> From<Result<T, E>> for Validated<T, E> {
-    #[inline]
     fn from(result: Result<T, E>) -> Self {
         match result {
             Ok(value) => Self::Valid(value),
@@ -403,7 +375,6 @@ impl<T, E> From<Result<T, E>> for Validated<T, E> {
 }
 
 impl<T: Clone, E: Clone> From<&Result<T, E>> for Validated<T, E> {
-    #[inline]
     fn from(result: &Result<T, E>) -> Self {
         result.clone().into()
     }
@@ -414,10 +385,10 @@ impl<T: Clone, E: Clone> From<&Result<T, E>> for Validated<T, E> {
 impl<T: Semigroup, E> Semigroup for Validated<T, E> {
     fn combine(self, other: Self) -> Self {
         match (self, other) {
-            (Validated::Valid(a1), Validated::Valid(a2)) => Validated::Valid(a1.combine(a2)),
-            (Validated::Valid(_), o @ Validated::Invalid(_)) => o,
-            (s @ Validated::Invalid(_), Validated::Valid(_)) => s,
-            (Validated::Invalid(e1), Validated::Invalid(e2)) => Validated::Invalid(e1.combine(e2)),
+            (Self::Valid(a1), Self::Valid(a2)) => Self::Valid(a1.combine(a2)),
+            (Self::Valid(_), o @ Self::Invalid(_)) => o,
+            (s @ Self::Invalid(_), Self::Valid(_)) => s,
+            (Self::Invalid(e1), Self::Invalid(e2)) => Self::Invalid(e1.combine(e2)),
         }
     }
 }

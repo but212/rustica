@@ -21,7 +21,7 @@ fn spine_len<F>(mut cur: &Free<F, AnyValue>, link: SpineLink<F>) -> usize {
     len
 }
 
-impl<'a, F: fmt::Debug, A: fmt::Debug> fmt::Debug for DebugFree<'a, F, A> {
+impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for DebugFree<'_, F, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt_free(self.0, f, self.1)
     }

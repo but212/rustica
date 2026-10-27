@@ -30,14 +30,12 @@ pub trait Semigroup: Sized {
 }
 
 impl Semigroup for String {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         self + &other
     }
 }
 
 impl<T> Semigroup for Vec<T> {
-    #[inline]
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
         self
@@ -45,7 +43,6 @@ impl<T> Semigroup for Vec<T> {
 }
 
 impl<K: Ord, V: Semigroup> Semigroup for BTreeMap<K, V> {
-    #[inline]
     fn combine(mut self, other: Self) -> Self {
         for (k, v) in other {
             match self.entry(k) {
@@ -63,7 +60,6 @@ impl<K: Ord, V: Semigroup> Semigroup for BTreeMap<K, V> {
 }
 
 impl<T: Ord> Semigroup for BTreeSet<T> {
-    #[inline]
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
         self
@@ -71,14 +67,12 @@ impl<T: Ord> Semigroup for BTreeSet<T> {
 }
 
 impl<A: Semigroup, B: Semigroup> Semigroup for (A, B) {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         (self.0.combine(other.0), self.1.combine(other.1))
     }
 }
 
 impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         (
             self.0.combine(other.0),
@@ -89,7 +83,6 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
 }
 
 impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B, C, D) {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         (
             self.0.combine(other.0),
@@ -101,7 +94,6 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B
 }
 
 impl<T: Semigroup> Semigroup for Option<T> {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         match (self, other) {
             (Some(a), Some(b)) => Some(a.combine(b)),

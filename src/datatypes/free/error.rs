@@ -14,23 +14,21 @@ pub enum FreeError<E> {
 
 impl<E> FreeError<E> {
     /// Returns `true` if this error is from the interpreter.
-    #[inline]
     pub const fn is_interpreter(&self) -> bool {
-        matches!(self, FreeError::Interpreter(_))
+        matches!(self, Self::Interpreter(_))
     }
 
     /// Returns `true` if this error is a type mismatch.
-    #[inline]
     pub const fn is_type_mismatch(&self) -> bool {
-        matches!(self, FreeError::TypeMismatch { .. })
+        matches!(self, Self::TypeMismatch { .. })
     }
 }
 
 impl<E: Display> Display for FreeError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FreeError::Interpreter(e) => write!(f, "Free interpreter error: {e}"),
-            FreeError::TypeMismatch { expected } => {
+            Self::Interpreter(e) => write!(f, "Free interpreter error: {e}"),
+            Self::TypeMismatch { expected } => {
                 write!(
                     f,
                     "Free interpretation type mismatch: expected return type {expected}"
@@ -43,8 +41,8 @@ impl<E: Display> Display for FreeError<E> {
 impl<E: core::error::Error + 'static> core::error::Error for FreeError<E> {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
-            FreeError::Interpreter(e) => Some(e),
-            FreeError::TypeMismatch { .. } => None,
+            Self::Interpreter(e) => Some(e),
+            Self::TypeMismatch { .. } => None,
         }
     }
 }

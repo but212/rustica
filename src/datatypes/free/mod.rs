@@ -27,7 +27,6 @@ pub type AnyValue = Arc<dyn Any + Send + Sync>;
 /// let val: AnyValue = any_value(42_i32);
 /// assert_eq!(*val.downcast_ref::<i32>().unwrap(), 42);
 /// ```
-#[inline]
 pub fn any_value<T: Any + Send + Sync>(v: T) -> AnyValue {
     Arc::new(v)
 }
@@ -58,7 +57,6 @@ pub struct Free<F, A> {
     node: Option<Node<F, A>>,
 }
 
-#[inline]
 fn downcast_any_value<A: Clone + 'static>(any_val: &AnyValue) -> Option<A> {
     if core::any::TypeId::of::<A>() == core::any::TypeId::of::<AnyValue>() {
         let any_ref = any_val as &dyn Any;
@@ -68,23 +66,19 @@ fn downcast_any_value<A: Clone + 'static>(any_val: &AnyValue) -> Option<A> {
 }
 
 impl<F, A> Free<F, A> {
-    #[inline]
     const fn from_node(node: Node<F, A>) -> Self {
         Self { node: Some(node) }
     }
 
-    #[inline]
-    fn node(&self) -> &Node<F, A> {
+    const fn node(&self) -> &Node<F, A> {
         self.node.as_ref().expect("Free node already consumed")
     }
 
-    #[inline]
-    fn take_node(&mut self) -> Node<F, A> {
+    const fn take_node(&mut self) -> Node<F, A> {
         self.node.take().expect("Free node already consumed")
     }
 
     /// Creates a pure computation returning `val`.
-    #[inline]
     pub const fn pure(val: A) -> Self {
         Self::from_node(Node::Pure(val))
     }
@@ -97,7 +91,6 @@ impl<F, A> Free<F, A> {
     ///
     /// Panics during [`run`](Self::run) if the interpreter return type does not match `A`.
     /// Use [`try_run`](Self::try_run) to handle mismatches as a `Result`.
-    #[inline]
     pub fn suspend(effect: F) -> Self
     where
         A: Send + Sync + Clone + 'static,
@@ -111,7 +104,6 @@ impl<F, A> Free<F, A> {
     }
 
     /// Suspends an effect command with a custom continuation.
-    #[inline]
     pub fn suspend_with<Cont>(effect: F, cont: Cont) -> Self
     where
         Cont: Fn(AnyValue) -> A + Send + Sync + 'static,
@@ -123,7 +115,6 @@ impl<F, A> Free<F, A> {
     }
 
     /// Converts this computation into a type-erased `Free<F, AnyValue>`.
-    #[inline]
     #[allow(clippy::wrong_self_convention)]
     fn into_any(&self) -> Free<F, AnyValue>
     where
@@ -196,20 +187,18 @@ impl<F, A> Free<F, A> {
         B: Send + Sync + Clone + 'static,
         Next: Fn(A) -> Free<F, B> + Send + Sync + 'static,
     {
-        match self.node() {
-            Node::Pure(a) => f(a.clone()),
-            _ => {
-                let f_arc = Arc::new(f);
-                let sub = Arc::new(self.into_any());
-                Free::from_node(Node::Bind(
-                    sub,
-                    Arc::new(move |any_val: AnyValue| {
-                        let a =
-                            downcast_any_value::<A>(&any_val).expect("Free bind downcast failed");
-                        f_arc(a)
-                    }),
-                ))
-            },
+        if let Node::Pure(a) = self.node() {
+            f(a.clone())
+        } else {
+            let f_arc = Arc::new(f);
+            let sub = Arc::new(self.into_any());
+            Free::from_node(Node::Bind(
+                sub,
+                Arc::new(move |any_val: AnyValue| {
+                    let a = downcast_any_value::<A>(&any_val).expect("Free bind downcast failed");
+                    f_arc(a)
+                }),
+            ))
         }
     }
 
@@ -217,7 +206,6 @@ impl<F, A> Free<F, A> {
     ///
     /// Constructs a value-independent `Then` AST node. If `self` is pure, returns `next`
     /// immediately without allocating.
-    #[inline]
     pub fn then<B>(&self, next: Free<F, B>) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -263,31 +251,26 @@ impl<F, A> Free<F, A> {
     }
 
     /// Returns `true` if this computation is a pure value.
-    #[inline]
     pub const fn is_pure(&self) -> bool {
         matches!(self.node.as_ref(), Some(Node::Pure(_)))
     }
 
     /// Returns `true` if this computation is a suspended leaf effect.
-    #[inline]
     pub const fn is_suspend(&self) -> bool {
         matches!(self.node.as_ref(), Some(Node::Suspend(_, _)))
     }
 
     /// Returns `true` if this computation is a dynamic continuation node (`Bind`).
-    #[inline]
     pub const fn is_bind(&self) -> bool {
         matches!(self.node.as_ref(), Some(Node::Bind(_, _)))
     }
 
     /// Returns `true` if this computation is a static sequencing node (`Then`).
-    #[inline]
     pub const fn is_then(&self) -> bool {
         matches!(self.node.as_ref(), Some(Node::Then(_, _)))
     }
 
     /// Returns a reference to the inner value if pure.
-    #[inline]
     pub const fn as_pure(&self) -> Option<&A> {
         match self.node.as_ref() {
             Some(Node::Pure(a)) => Some(a),
@@ -296,7 +279,6 @@ impl<F, A> Free<F, A> {
     }
 
     /// Clones the inner value if pure.
-    #[inline]
     pub fn to_pure(&self) -> Option<A>
     where
         A: Clone,
@@ -305,7 +287,6 @@ impl<F, A> Free<F, A> {
     }
 
     /// Returns a reference to the inner effect command if suspended.
-    #[inline]
     pub const fn as_suspend(&self) -> Option<&F> {
         match self.node.as_ref() {
             Some(Node::Suspend(cmd, _)) => Some(cmd),
@@ -314,7 +295,6 @@ impl<F, A> Free<F, A> {
     }
 
     /// Returns references to the sub-computations if this is a `Then` node.
-    #[inline]
     #[allow(clippy::type_complexity)]
     pub fn as_then(&self) -> Option<(&Free<F, AnyValue>, &Free<F, AnyValue>)> {
         match self.node.as_ref() {
@@ -325,9 +305,8 @@ impl<F, A> Free<F, A> {
 }
 
 impl<F, A: Default> Default for Free<F, A> {
-    #[inline]
     fn default() -> Self {
-        Free::pure(A::default())
+        Self::pure(A::default())
     }
 }
 
