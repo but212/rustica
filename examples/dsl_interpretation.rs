@@ -101,7 +101,7 @@ fn run_operational_monad_example() {
             tx_id: tx_id.clone(),
         }
         .suspend()
-        .map(move |_| Ok(tx_id)),
+        .map(move |()| Ok(tx_id)),
         Err(e) => Program::pure(Err(e)),
     });
 
@@ -130,10 +130,12 @@ pub enum OrderOp {
 }
 
 impl OrderOp {
+    #[must_use]
     pub fn reserve(item: &'static str, qty: u32) -> Free<Self, ()> {
         Free::suspend(Self::ReserveItem { item, qty })
     }
 
+    #[must_use]
     pub fn payment(amount: u64) -> Free<Self, String> {
         Free::suspend(Self::ProcessPayment { amount })
     }

@@ -117,7 +117,7 @@ fn test_prism_composition() {
     let outer_prism = Prism::new(
         |o: &Outer| match o {
             Outer::Inner(status) => Some(status),
-            _ => None,
+            Outer::Other => None,
         },
         Outer::Inner,
     );

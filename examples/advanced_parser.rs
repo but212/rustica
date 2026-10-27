@@ -61,11 +61,13 @@ impl ParseError {
         }
     }
 
+    #[must_use]
     pub fn with_expected(mut self, expected: impl Into<String>) -> Self {
         self.expected = Some(expected.into());
         self
     }
 
+    #[must_use]
     pub fn with_found(mut self, found: impl Into<String>) -> Self {
         self.found = Some(found.into());
         self
@@ -135,7 +137,8 @@ where
                 let (_, best_rem) = branches.iter().min_by_key(|(_, rem)| rem.len()).unwrap();
 
                 let pos = input.len() - best_rem.len();
-                let found_sample: String = best_rem.iter().take(5).map(|c| c.to_string()).collect();
+                let found_sample: String =
+                    best_rem.iter().take(5).map(ToString::to_string).collect();
                 Err(ParseError::new("Unexpected trailing tokens", pos)
                     .with_expected("End of input")
                     .with_found(found_sample))
@@ -147,6 +150,7 @@ where
         }
     }
 
+    #[must_use]
     pub fn or<P: Into<Parser<I, O>>>(self, other: P) -> Parser<I, O> {
         let other = other.into();
         Parser::new(move |input| match (self.parse(input), other.parse(input)) {
@@ -191,6 +195,7 @@ where
     /// Commits to the first match per iteration to avoid exponential branch explosion (`O(k^n)`).
     /// Full alternative exploration is preserved in `or()`, `and_then()`, and `parse_complete()`.
     /// Guaranteed to terminate if an iteration consumes zero tokens.
+    #[must_use]
     pub fn many(self) -> Parser<I, Vec<O>> {
         Parser::new(move |input| {
             let mut results = Vec::new();
@@ -210,6 +215,7 @@ where
         })
     }
 
+    #[must_use]
     pub fn many1(self) -> Parser<I, Vec<O>> {
         let parser_clone = self.clone();
         self.and_then(move |first| {
@@ -221,6 +227,7 @@ where
         })
     }
 
+    #[must_use]
     pub fn optional(self) -> Parser<I, Option<O>> {
         Parser::new(move |input| match self.parse(input) {
             Some(choice) => {
@@ -232,6 +239,7 @@ where
     }
 
     /// Parses elements separated by a delimiter without spurious empty choices on match.
+    #[must_use]
     pub fn sep_by<S>(self, separator: Parser<I, S>) -> Parser<I, Vec<O>>
     where
         S: Clone + Debug + Send + Sync + 'static,
@@ -310,6 +318,7 @@ where
     })
 }
 
+#[must_use]
 pub fn sequence<I>(expected: Vec<I>) -> Parser<I, Vec<I>>
 where
     I: Clone + Debug + PartialEq + Send + Sync + 'static,
@@ -336,6 +345,7 @@ fn whitespace() -> Parser<char, Vec<char>> {
 }
 
 /// Lexeme wrapper: absorbs preceding and trailing whitespace around a token.
+#[must_use]
 pub fn token<O: Clone + Debug + Send + Sync + 'static>(p: Parser<char, O>) -> Parser<char, O> {
     whitespace()
         .and_then(move |_| p.clone())
@@ -438,6 +448,7 @@ fn where_parser() -> Parser<char, Condition> {
     keyword("WHERE").and_then(|_| condition_parser())
 }
 
+#[must_use]
 pub fn select_query_parser() -> Parser<char, SelectStatement> {
     keyword("SELECT").and_then(|_| {
         identifier().sep_by(token(item(','))).and_then(|columns| {
@@ -457,6 +468,7 @@ pub fn select_query_parser() -> Parser<char, SelectStatement> {
     })
 }
 
+#[must_use]
 pub fn insert_query_parser() -> Parser<char, InsertStatement> {
     keyword("INSERT")
         .and_then(|_| keyword("INTO"))
@@ -493,7 +505,7 @@ pub const fn select_query_prism() -> Prism<
     Prism::new(
         |q: &SqlQuery| match q {
             SqlQuery::Select(s) => Some(s),
-            _ => None,
+            SqlQuery::Insert(_) => None,
         },
         SqlQuery::Select,
     )
@@ -508,7 +520,7 @@ pub const fn insert_query_prism() -> Prism<
     Prism::new(
         |q: &SqlQuery| match q {
             SqlQuery::Insert(i) => Some(i),
-            _ => None,
+            SqlQuery::Select(_) => None,
         },
         SqlQuery::Insert,
     )
@@ -548,6 +560,7 @@ pub struct CheckedSelect {
     pub where_clause: Option<Condition>,
 }
 
+#[must_use]
 pub fn validate_select_query(
     stmt: &SelectStatement, schema: &DatabaseSchema,
 ) -> Validated<CheckedSelect, String> {
@@ -622,10 +635,10 @@ pub fn validate_select_query(
         },
         (Some(cond), None) => {
             // Validate independent operator validity when table is unknown
-            if !["=", "!=", "<", ">"].contains(&cond.operator.as_str()) {
-                Validated::invalid(format!("Unsupported operator '{}'", cond.operator))
-            } else {
+            if ["=", "!=", "<", ">"].contains(&cond.operator.as_str()) {
                 Validated::valid(Some(cond.clone()))
+            } else {
+                Validated::invalid(format!("Unsupported operator '{}'", cond.operator))
             }
         },
         (None, _) => Validated::valid(None),
@@ -645,6 +658,7 @@ pub fn validate_select_query(
 // ============================================================================
 
 #[allow(clippy::type_complexity)]
+#[must_use]
 pub const fn select_columns_lens() -> Lens<
     SelectStatement,
     Vec<String>,
@@ -658,6 +672,7 @@ pub const fn select_columns_lens() -> Lens<
 }
 
 #[allow(clippy::type_complexity)]
+#[must_use]
 pub const fn select_table_lens() -> Lens<
     SelectStatement,
     String,
@@ -779,6 +794,7 @@ impl TryHandler<ProjectColumns, &'static str> for InMemoryDb {
 }
 
 /// Builds a fallible query pipeline with `TryProgram`, providing automatic short-circuiting.
+#[must_use]
 pub fn build_query_program(stmt: CheckedSelect) -> TryProgram<InMemoryDb, Vec<Row>, &'static str> {
     ScanTable { table: stmt.table }
         .try_suspend()
@@ -878,7 +894,7 @@ fn main() {
     let parsed_query = sql_parser().parse_complete(&input_chars);
     match &parsed_query {
         Ok(query) => {
-            println!("  Successfully parsed query with arbitrary whitespace:\n  {query:?}")
+            println!("  Successfully parsed query with arbitrary whitespace:\n  {query:?}");
         },
         Err(e) => println!("  Parse failure:\n  {e}"),
     }
@@ -1011,7 +1027,7 @@ fn main() {
     assert_eq!(restricted_stmt.table, "users"); // Preserves other fields
 
     // Structural sharing check
-    let unchanged_stmt = col_lens.modify(valid_stmt.clone(), |cols| cols.clone());
+    let unchanged_stmt = col_lens.modify(valid_stmt.clone(), Clone::clone);
     assert_eq!(unchanged_stmt, valid_stmt);
     println!("  Lens identity modification preserves structural equality.\n");
 

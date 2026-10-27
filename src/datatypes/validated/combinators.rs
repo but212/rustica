@@ -133,8 +133,9 @@ impl<T, E> Validated<T, E> {
     {
         match (self, other) {
             (Self::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
-            (Self::Valid(_), Validated::Invalid(es)) => Validated::Invalid(es),
-            (Self::Invalid(es), Validated::Valid(_)) => Validated::Invalid(es),
+            (Self::Valid(_), Validated::Invalid(es)) | (Self::Invalid(es), Validated::Valid(_)) => {
+                Validated::Invalid(es)
+            },
             (Self::Invalid(es1), Validated::Invalid(es2)) => Validated::Invalid(es1.combine(es2)),
         }
     }

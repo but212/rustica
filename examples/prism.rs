@@ -62,7 +62,7 @@ const fn notification_task_prism() -> Prism<
     Prism::new(
         |notif: &AppNotification| match notif {
             AppNotification::Task(status) => Some(status),
-            _ => None,
+            AppNotification::SystemAlert(_) => None,
         },
         AppNotification::Task,
     )
