@@ -1,6 +1,6 @@
 # Rustica 0.22.0 Migration Guide
 
-Breaking API changes and direct replacement patterns for Rustica 0.22.0. Every removed item was deprecated in 0.21.0 and has a replacement. Only `Prism::set_with` and `Prism::modify_with` change behavior: their replacements do not preserve non-focus fields (see below).
+Breaking changes in Rustica 0.22.0. Every removed item was deprecated in 0.21.0 and has a replacement. Only `Prism::set_with` and `Prism::modify_with` change behavior: their replacements do not preserve non-focus fields (see below).
 
 ---
 
@@ -25,7 +25,7 @@ Breaking API changes and direct replacement patterns for Rustica 0.22.0. Every r
 
 ## Combinator Functions Removed
 
-`Validated::lift2`, `Validated::lift3`, and `Free::lift2` were deprecated in 0.21.0 in favor of method syntax:
+Deprecated in 0.21.0 in favor of method syntax:
 
 ```rust,ignore
 // Before (0.21.0)
@@ -41,7 +41,7 @@ let free_sum = fa.zip_with(fb, |a, b| a + b);
 
 ## Operational Free Functions Removed
 
-The standalone `operational::suspend` and `operational::try_suspend` functions were deprecated in favor of the `Command` extension methods and the program constructors:
+Deprecated in 0.21.0 in favor of `Command` extension methods and program constructors:
 
 ```rust,ignore
 // Before (0.21.0)
@@ -69,7 +69,7 @@ let messages: Vec<&str> = err.context_iter().map(String::as_str).collect();
 let messages: Vec<&str> = err.contexts().iter().map(String::as_str).collect();
 ```
 
-`error::context_fn` returned a closure that attached a fixed context to an error. Build the closure directly:
+`error::context_fn` returned a closure attaching fixed context. Build the closure directly:
 
 ```rust,ignore
 // Before (0.21.0)
@@ -89,7 +89,7 @@ The `context_fn` re-export in `rustica::prelude::error` was removed with it.
 
 ## `Validated::collect` and `Validated::sequence` Removed
 
-Both inherent associated functions were deprecated in 0.21.0 in favor of `FromIterator`. Behavior is unchanged:
+Deprecated in 0.21.0 in favor of `FromIterator`; behavior is unchanged:
 
 ```rust,ignore
 // Before (0.21.0)
@@ -103,7 +103,7 @@ let total = values.into_iter().collect::<Validated<Vec<_>, _>>().map(|vals| vals
 
 ## `Prism::set_with` and `Prism::modify_with` Removed
 
-These methods took a caller-supplied closure to rebuild the source while preserving non-focus data. Focus the whole variant payload instead, and use the `*_always` variants (or `set` / `modify`) with the prism's review function:
+These took a closure to rebuild the source while preserving non-focus data. Focus the whole variant payload and use the `*_always` variants (or `set` / `modify`) with the prism's review function:
 
 ```rust,ignore
 // Before (0.21.0)
@@ -115,7 +115,7 @@ let updated = prism.set_always(item, 99);
 let modified = prism.modify_always(item, |id| id + 5);
 ```
 
-Non-focus fields are not carried over by these replacements. The prism's review function rebuilds the variant from the focused value, so any field outside the focus is reset to what review produces. If a variant has fields that must survive an update, focus a type that contains them, or update the value with a `match` directly.
+Non-focus fields are not preserved. Review rebuilds the variant from the focused value, resetting any field outside the focus. To keep such fields, focus a type that contains them, or update the value with a `match` directly.
 
 ## `Choice::flatten` Removed
 
@@ -134,7 +134,7 @@ let flat: Result<Choice<I>, ChoiceError> = nested.try_flatten();
 
 ## `datatypes::error` Module Removed
 
-The backward-compatibility alias module was deprecated in 0.21.0. Import the types from their canonical path:
+Deprecated in 0.21.0. Import from the canonical path:
 
 ```rust,ignore
 // Before (0.21.0)

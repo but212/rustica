@@ -33,7 +33,7 @@ Pure functional programming assumes a garbage-collected runtime, pervasive lazin
 
 - **State Threading:** Simulating immutable state threading (`State s a`) requires continuous snapshot cloning or ownership handoffs. Exclusive borrowing (`&mut S`) provides statically verified in-place mutation at zero runtime cost.
 - **Environment Injection:** Functional environment passing (`Reader e a`) forces lifetime parameters into closure types, encouraging redundant clones. Native immutable borrowing (`&Context`) shares read-only state without allocation.
-- **Accumulation and Allocation:** Monadic logging (`Writer<W, A>`) creates values via associative combination, inducing quadratic reallocations on contiguous collections. Rust expresses logging via mutable buffers (`&mut Buffer`) or structured diagnostic events. Consuming workflows minimize copies by moving owned values directly and unwrapping unique references (`Arc::try_unwrap`).
+- **Accumulation and Allocation:** Monadic logging (`Writer<W, A>`) combines values associatively, causing quadratic reallocation on contiguous collections. Rust uses mutable buffers (`&mut Buffer`) or structured diagnostic events instead. Consuming workflows move owned values and unwrap unique references (`Arc::try_unwrap`) to avoid copies.
 
 ### 2.2 Type System Limitations
 
